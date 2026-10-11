@@ -58,7 +58,7 @@ class PretoolExecutionTests(unittest.TestCase):
         result = self.run_command(args)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
-    def test_codex_unknown_script_recovery_uses_real_start_and_adapter(self):
+    def test_codex_default_runner_defers_to_native_permissions_and_keeps_read_contract(self):
         self.environment["TAO_PRETOOL_RUNTIME"] = "codex"
         self.environment["CODEX_THREAD_ID"] = "execution-test"
         self.environment.pop("CLAUDE_CODE_SESSION_ID", None)
@@ -67,9 +67,8 @@ class PretoolExecutionTests(unittest.TestCase):
         (tools / "check.py").write_text("from pathlib import Path\nPath('verified').write_text('complete')\n")
         command = [sys.executable, "tools/check.py"]
         verdict = self.decision(command)
-        self.assertEqual("deny", verdict["permissionDecision"])
-        self.assertIn("workflow start", verdict["permissionDecisionReason"])
-        self.assertNotIn("Tao operator decision required", verdict["permissionDecisionReason"])
+        self.assertIsNone(verdict, "Opaque local runners defer to native permissions")
+        self.assertFalse((self.project / ".tao" / "runs").exists())
         self.start(read_only=True)
         verdict = self.decision(command)
         self.assertEqual("deny", verdict["permissionDecision"])

@@ -190,6 +190,20 @@ class WorkflowStartDenialTests(unittest.TestCase):
                     "would bind its run to the protected checkout", self._verdict(command)
                 )
 
+    def test_verification_start_can_bind_to_the_checkout_being_verified(self) -> None:
+        policy = self.main / gate.WORKTREE_POLICY_PATH
+        declared_policy = policy.read_text()
+        for runtime in ("codex", "claude"):
+            for declared in (True, False):
+                with self.subTest(runtime=runtime, declared=declared):
+                    os.environ["TAO_PRETOOL_RUNTIME"] = runtime
+                    if declared:
+                        policy.write_text(declared_policy)
+                    elif policy.exists():
+                        policy.unlink()
+                    command = self._start(self.main).replace("--command docs", "--command test")
+                    self.assertEqual("", self._verdict(command))
+
     def test_a_chained_start_is_told_to_unchain_it(self) -> None:
         """Observed as the worktree remedy, which is advice about a different
         problem than the semicolon that caused the refusal."""

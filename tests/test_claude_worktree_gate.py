@@ -174,6 +174,54 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
         self.assertIsNone(gate.worktree_denial(root))
         self.assertEqual("", self.edit(root, root))
 
+    def test_default_checkout_defers_local_runners_to_native_permissions(self):
+        root = self.project("governed")
+        for runtime in ("codex", "claude"):
+            for command in ("npm install", "npm install --package-lock=false",
+                            "npm run dev", "npm run build", "python3 tools/check.py"):
+                with self.subTest(runtime=runtime, command=command):
+                    os.environ["TAO_PRETOOL_RUNTIME"] = runtime
+                    output = io.StringIO()
+                    with redirect_stdout(output):
+                        code = pretool.decide({
+                            "tool_name": "Bash", "cwd": str(root),
+                            "session_id": "local-runner",
+                            "tool_input": {"command": command},
+                        })
+                    self.assertEqual(0, code)
+                    self.assertEqual("", output.getvalue())
+
+    def test_default_runner_deferral_keeps_explicit_source_writes_blocked(self):
+        root = self.project("governed")
+        os.environ["TAO_PRETOOL_RUNTIME"] = "codex"
+        for command in ("touch code.py", "cp AGENTS.md copy.md",
+                        "npm install > code.py", "git add code.py", "sed -i s/a/b/ code.py",
+                        "npm install && touch code.py"):
+            with self.subTest(command=command):
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    pretool.decide({
+                        "tool_name": "Bash", "cwd": str(root),
+                        "session_id": "source-write",
+                        "tool_input": {"command": command},
+                    })
+                decision = json.loads(output.getvalue())["hookSpecificOutput"]
+                self.assertEqual("deny", decision["permissionDecision"])
+        self.assertIn("worktree gate", self.edit(root, root))
+
+    def test_default_local_runner_does_not_admit_a_second_project(self):
+        root = self.project("governed")
+        other = self.project("other")
+        os.environ["TAO_PRETOOL_RUNTIME"] = "codex"
+        output = io.StringIO()
+        with redirect_stdout(output):
+            pretool.decide({
+                "tool_name": "Bash", "cwd": str(root), "session_id": "cross-project",
+                "tool_input": {"command": f"npm --prefix {other} install"},
+            })
+        decision = json.loads(output.getvalue())["hookSpecificOutput"]
+        self.assertEqual("deny", decision["permissionDecision"])
+
     def test_governed_tracked_false_policy_is_not_replaced_by_the_default(self):
         root = self.project("governed")
         declared = self.policy(root, linked=False)

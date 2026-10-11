@@ -200,7 +200,9 @@ when linked isolation is required, and on any listed protected branch. A read-on
 checkout. Source-development workflow `start` is denied there: opening a run
 before relocation leaves a second unfinished lifecycle behind. Administrative
 `cleanup`, `commit`, `git_commit`, `pr`, and `pull-request` starts may bind to the checkout they
-administer without `TAO_ALLOW_MAIN_CHECKOUT_EDIT`. This admits lifecycle metadata
+administer without `TAO_ALLOW_MAIN_CHECKOUT_EDIT`. The `test` route may likewise
+bind to the checkout whose local dependencies, generated app or running process
+it verifies. This admits lifecycle metadata
 only; it does not grant source-edit permission, deletion authority, or publication
 before required gates finish. Every subsequent action retains its own isolation,
 effect, authorization, and native permission checks. A compound command that
@@ -251,9 +253,16 @@ its project `.tao` state or the Tao marker in `AGENTS.md`, `CLAUDE.md`, or
 `CODEX.md`) receives the default boundary: linked worktrees required, `main`
 and `develop` protected. The default declares no optional key, so it neither
 requires workflow entry, imposes ticket rules, nor earns the compliant-worktree
-preflight waiver. The default only adds refusals: a command its protected
-checkout would let through or put to the operator still meets the run-entry
-checks it met before. An ungoverned repository is never enforced. In any
+preflight waiver. Known writes and Git administration in the default protected
+checkout still meet run-entry checks. A simple opaque local runner, such as
+`npm install`, `npm run dev` or a project verification script, instead defers to
+native runtime permissions just as it does under a declared policy. Uncertainty
+alone must not demand a writable start which cannot bind to that checkout.
+This deferral grants no permission: active read-only runs, explicit source edits,
+computed commands, cross-project entry and publication checks still apply.
+Use the `test` route for local dependency or app verification without changing
+tracked project inputs; dependency manifest and lockfile edits remain source
+development. An ungoverned repository is never enforced. In any
 protected checkout, a fetch or remote prune that flags or configuration turn
 into a local ref mutation is asked about, not approved as routine.
 

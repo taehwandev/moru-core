@@ -100,6 +100,18 @@ class CodexRepairableApprovalTests(unittest.TestCase):
             self.assertNotIn("Tao operator decision required", _reason(out))
             self.assertFalse((Path(tmp) / "state/codex-operator-review").exists())
 
+    def test_default_checkout_runner_deferral_cannot_bypass_read_only_run(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
+        ):
+            project = self._project(Path(tmp), linked=False)
+            (project / gate.WORKTREE_POLICY_PATH).unlink()
+            _write_preflight(project, "lookup", command="analysis", read_only=True, runtime="codex")
+            _, out = _decide({"tool_name": "Bash", "cwd": str(project), "session_id": "lookup",
+                              "tool_input": {"command": "npm install"}})
+            self.assertEqual("deny", _decision_of(out))
+            self.assertIn("read-only", _reason(out))
+
     def test_unknown_in_protected_checkout_keeps_isolation_without_operator(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}

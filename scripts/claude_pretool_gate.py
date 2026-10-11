@@ -70,7 +70,7 @@ try:  # The gate must never fail to load; the import is only used for a message.
         is_git_deletion as _is_git_deletion,
         protected_checkout_verdict,
     )
-    from claude_command_effect import command_effect, unknown_recovery
+    from claude_command_effect import INTERPRETER_REASON, command_effect, unknown_recovery
     from claude_scratch_checkout import scratch_command, scratch_script_command, throwaway_checkout
     from claude_pretool_checkout_removal import checkout_removal_denial
     from claude_bash_syntax import command_segments, resolve_target, scratch_write_target, shell_keyword_command
@@ -1838,11 +1838,16 @@ def _worktree_policy_verdict(
     # not author a file in the protected checkout merely because it is not Git.
     if landing == "defer" and len(tokens) == 2 and tokens[0] == "touch":
         landing = ""
-    # A checkout isolated only by the governed default declared nothing, and
-    # before that default existed this call met the run-entry checks. The
-    # default adds refusals; whatever it would let through or put to the
-    # operator must not replace those checks, so `None` hands the call back.
-    if landing and defaulted:
+    # An opaque local runner is not a proven source write. Keep the same native
+    # permission deferral as a declared protected checkout; falling through
+    # here demanded a start which itself could not bind to this checkout.
+    # Known writes and Git administration still need their ordinary entry.
+    local_runner = (
+        landing == "defer"
+        and Path(tokens[0]).name not in {"git", "gh"}
+        and command_effect(tokens, True, "mutating")[1] == INTERPRETER_REASON
+    )
+    if landing and defaulted and not local_runner:
         return None
     # A landing that lets the command through speaks for the protected
     # checkout, and only for it. The same command can write into a second
@@ -2672,7 +2677,7 @@ def _administrative_workflow_start(tokens: list[str]) -> bool:
     """
     routes = _start_option_values(tokens, "--command")
     return len(routes) == 1 and routes[0] in {
-        "cleanup", "commit", "git_commit", "pr", "pull-request"
+        "cleanup", "commit", "git_commit", "pr", "pull-request", "test"
     }
 
 
