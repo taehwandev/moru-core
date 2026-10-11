@@ -389,6 +389,23 @@ internal fun shouldCollapseInput() = Unit
                 )
                 self.assertEqual(should_block, any("grab-bag package" in item for item in failures))
 
+    def test_gradle_module_directories_are_not_package_segments(self) -> None:
+        for directory, should_block in (
+            ("shared/feature/viewer/impl/src/commonMain/kotlin/tech/app/viewer/reading", False),
+            ("shared/core/src/main/java/tech/app/checkout", False),
+            ("shared/core/src/commonMain/kotlin/tech/app/utils", True),
+        ):
+            with self.subTest(directory=directory), tempfile.TemporaryDirectory() as temp_dir:
+                project = Path(temp_dir)
+                path = Path(directory) / "ReadingStore.kt"
+                (project / path).parent.mkdir(parents=True)
+                (project / path).write_text("internal object ReadingStore\n", encoding="utf-8")
+                failures = purpose_failures(
+                    project, [path], {str(path): {"status": "A", "additions": 1}},
+                    lambda root, item: (root / item).is_file(), lambda item: False,
+                )
+                self.assertEqual(should_block, any("grab-bag package" in item for item in failures))
+
 
 class KotlinDefaultPublicOwnerTests(unittest.TestCase):
     """Kotlin top-level functions are public with no modifier to match on.

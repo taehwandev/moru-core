@@ -467,7 +467,7 @@ def package_role_failures(
     failures: list[str] = []
     for parent in sorted({path.parent for path in paths if not test_exempt_path(path)}):
         changed = [path for path in paths if path.parent == parent and not test_exempt_path(path)]
-        package_parts = parent.parts
+        package_parts = source_root_package_parts(parent.parts)
         if package_parts[:2] == (".agents", "shared"):
             package_parts = package_parts[2:]
         generic = [part for part in package_parts if part.lower() in GENERIC_PACKAGE_PARTS]
@@ -477,6 +477,20 @@ def package_role_failures(
                 "runtime source; choose a package name that states the purpose, owner, or contract"
             )
     return failures
+
+
+JVM_SOURCE_LANGUAGE_DIRS = {"kotlin", "java"}
+
+
+def source_root_package_parts(parts: tuple[str, ...]) -> tuple[str, ...]:
+    """Drop Gradle module directories before `src/<sourceSet>/kotlin|java/`.
+    A module named `shared` (the KMP convention) is a build unit, not a package.
+    """
+
+    for index in range(len(parts) - 2):
+        if parts[index] == "src" and parts[index + 2] in JVM_SOURCE_LANGUAGE_DIRS:
+            return parts[index + 3:]
+    return parts
 
 
 def exported_by_default(path: Path) -> bool:
