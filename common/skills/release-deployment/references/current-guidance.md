@@ -82,7 +82,9 @@ shared rule is to choose a documented scheme per artifact and keep it stable:
 - SemVer for compatibility-sensitive libraries, APIs, SDKs, generated clients,
   plugins, or packages.
 - Weekly CalVer `YY.WW.N` for date-based release tags and operational
-  artifacts: two-digit year, ISO week, and release count starting at `1`.
+  artifacts: two-digit year, country-configured week, and release count starting
+  at `0`. Use the configured country calendar and timezone, with the same
+  settings in local tools and CI, as defined by the release versioning card.
 - Monthly CalVer only when the repo-local release contract explicitly says the
   release unit is month-based.
 

@@ -601,7 +601,15 @@ class WorkflowCatalogTests(unittest.TestCase):
         self.assertIn("weekly CalVer `YY.WW.N`", guidance)
         self.assertIn("four-digit years", guidance)
         self.assertIn("2026.27.1", guidance)
-        self.assertIn("starts at `1`", guidance)
+        self.assertIn("`N` starts at `0` each week", guidance)
+        self.assertIn("country-configured week", guidance)
+        self.assertIn("minimum days in the first", guidance)
+        self.assertIn("Do not assume UTC, PST, or Monday", guidance)
+        self.assertIn("same region, calendar, week rules, and timezone in local tools and CI", guidance)
+        self.assertIn("Week numbering follows the", guidance)
+        self.assertIn("migration note", guidance)
+        self.assertNotIn("`WW` should be the ISO week", guidance)
+        self.assertNotIn("`N` must not start at `0`", guidance)
 
     def test_credential_broker_concern_routes_to_product_pattern(self) -> None:
         doc = "product-patterns/skills/agent-credential-broker-ideation/SKILL.md"

@@ -84,9 +84,11 @@ separate product release.
    the deployment ids included in that release train when the repo supports it.
 7. Keep cache, service-worker, browser-storage, API, and feature-flag schema
    versions separate from the public release version.
-8. Document the repo-local contract: version scheme, deploy id format, timezone,
-   reset rule, tag policy, metadata location, rollback lookup, and release-note
-   rule.
+8. Document the repo-local contract: version scheme, deploy id format, country
+   calendar and timezone, reset rule, tag policy, metadata location, rollback
+   lookup, and release-note rule. Weekly CalVer follows the configured country's
+   week rules and starts the release count at `0`; pin the same settings in
+   local tools and CI according to the release versioning card.
 
 ## Common Rationalizations
 
@@ -118,7 +120,7 @@ separate product release.
 - Do not count failed builds or failed deploy attempts as released versions
   unless the repo explicitly tracks deploy attempts as the release unit.
 - Do not use four-digit years such as `2026.27.1` for CalVer release tags; use
-  `26.27.1` or `v26.27.1`, and start the release count at `.1`.
+  `26.27.0` or `v26.27.0`, and start the weekly release count at `.0`.
 - Do not expose secrets, internal paths, branch names, account names, or private
   operator notes in public version metadata.
 - Do not make a shared Tao Agent OS card define one vendor's deployment

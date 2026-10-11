@@ -20,7 +20,7 @@ The shared default is:
 - Use SemVer for libraries, SDKs, APIs, plugins, generated clients, and packages
   where compatibility expectations matter.
 - Use weekly CalVer `YY.WW.N` for date-based release tags and operational
-  artifacts: two-digit year, ISO week, and a release count that starts at `1`
+  artifacts: two-digit year, country-configured week, and a release count that starts at `0`
   for each week.
 - Use monthly CalVer only when the repo-local release contract explicitly says
   the release unit is month-based.
@@ -66,20 +66,28 @@ Use `YY.WW.N` for date-based release tags unless the repo-local release
 contract explicitly documents another scheme.
 
 ```text
+26.21.0
 26.21.1
-26.21.2
-26.22.1
+26.22.0
 ```
 
-- `YY` is the two-digit year. Do not use `YYYY.WW.N`, `YYYY.MM.N`, or any
-  four-digit calendar year in a release tag.
-- `WW` should be the ISO week unless the repo explicitly documents another
-  calendar.
-- `N` starts at `1` each week and increments for each released artifact or
+- `YY` is the two-digit week-year from the configured calendar, including its
+  year-boundary rule. Do not use `YYYY.WW.N`, `YYYY.MM.N`, or any four-digit
+  calendar year in a release tag.
+- `WW` is the two-digit week number from the release owner's configured country
+  or region. Use that calendar's first weekday and minimum days in the first
+  week; do not force ISO weeks or a Monday start. Week numbering follows the
+  selected calendar and is not shifted to zero-based numbering.
+- `N` starts at `0` each week and increments for each released artifact or
   production deployment, as defined by the repo.
-- `N` must not start at `0`, and it should not be zero-padded unless the
+- `N` should not be zero-padded unless the
   repo-local release contract explicitly requires padding.
-- Document the timezone used to decide the release week.
+- Use the timezone configured for the release owner together with the country
+  calendar. Document both explicitly; a country can have multiple timezones.
+- Pin the same region, calendar, week rules, and timezone in local tools and CI.
+  Do not use a runner's default locale or timezone as the release policy.
+  If the settings are unavailable or conflict, resolve them before calculating
+  the version rather than silently falling back to UTC or ISO weeks.
 
 ## Required Repo-Local Contract
 
@@ -87,7 +95,9 @@ Every repo that uses calendar or custom versioning must document:
 
 - scheme name: `semver`, `calver-monthly`, `calver-weekly`, or custom
 - pattern and examples
-- timezone or calendar source for date-based versions
+- country/region, calendar source, first weekday, minimum days in the first
+  week, week-year boundary rule, and timezone for weekly versions; timezone
+  and calendar source for other date-based versions
 - whether `N` counts published artifacts, production deployments, or public
   release attempts
 - reset rule for `N`
@@ -101,12 +111,15 @@ Every repo that uses calendar or custom versioning must document:
 - Do not use four-digit years for date-based release tags. `2026.27.1` and
   `v2026.27.1` are wrong when the scheme is CalVer; use `26.27.1` or
   `v26.27.1`.
-- Do not start the release count at `0`; the first released artifact for a week
-  or month is `.1`.
+- The first released artifact for a week is `.0`; the next is `.1`. Monthly
+  release counts retain the repo's documented monthly contract.
 - Do not switch schemes without a migration note and release owner approval.
 - Do not infer month versus week from shape alone; read the repo-local contract.
-- Use UTC for date-based versions unless repo-local release policy names another
-  timezone.
+- Use the release owner's configured country calendar and timezone for weekly
+  versions. Do not assume UTC, PST, or Monday as a shared default.
+- A settings or format change needs a migration note covering existing tags,
+  version ordering, and update clients. Never renumber published versions or
+  overwrite a tag to adopt the new defaults.
 - Decide whether the date comes from release cut, artifact publication, or
   production deployment, and keep that rule stable.
 - Do not count failed builds, failed deploy attempts, or unpublished artifacts
@@ -152,10 +165,14 @@ Use weekly CalVer:
 ```text
 scheme: calver-weekly
 pattern: YY.WW.N
-calendar: ISO week
-timezone: UTC
+country/region: explicitly configured by the release owner
+calendar: configured country calendar, including week-year rules
+first weekday: from the configured calendar
+minimum days in first week: from the configured calendar
+timezone: explicitly configured IANA timezone
+release count: starts at 0 each week
 release unit: weekly release train artifact
-example: v26.21.1
+example: v26.21.0
 ```
 
 Use SemVer:
@@ -172,7 +189,9 @@ example: v2.4.7
 - The artifact, package, app display version, build number, tag, and deployment
   id are being treated as the same thing but the platform distinguishes them.
 - A date-based release tag uses a four-digit year, an unspecified week/month
-  basis, or a release count below `1`.
+  basis, or a negative weekly release count.
+- The country calendar, week rules, or timezone for a weekly version is missing
+  or differs between local tools and CI.
 - The repo already uses a different scheme and no migration approval exists.
 - The version would collide with an existing tag, artifact, package, or
   deployment record.
