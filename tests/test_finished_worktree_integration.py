@@ -465,6 +465,10 @@ class FinishedWorktreeIntegrationGateTests(unittest.TestCase):
         (outside / "recording.mov").write_bytes(b"movie")
         scratch = outside / "scratchpad"
         scratch.mkdir()
+        # A space and the narrow no-break space macOS puts before "PM".
+        spaced = scratch / "Screen Recording 9.43 PM"
+        spaced.mkdir()
+        (self.main / "a b").mkdir()
         movie = shlex.quote(str(outside / "recording.mov"))
         cases = {
             f'S={scratch}; cp {movie} "$S/rec.mov"': True,
@@ -477,6 +481,11 @@ class FinishedWorktreeIntegrationGateTests(unittest.TestCase):
             f"S={scratch}; cp {movie} $SX/rec.mov": False,
             f"S={scratch}; rm $S/rec.mov": False,
             f'S="{scratch}/a b"; cp {movie} $S': False,
+            f'S="{spaced}"; cp {movie} "$S/rec.mov"': True,
+            f'S="{spaced}" && mkdir -p "${{S}}/frames"': True,
+            f'S="{spaced}"; cp {movie} $S/rec.mov': False,
+            f'S="{spaced}"; cp {movie} "$S"/rec.mov $S': False,
+            f'S="{self.main}/a b"; cp {movie} "$S/rec.mov"': False,
         }
         for command, admitted in cases.items():
             with self.subTest(command=command):

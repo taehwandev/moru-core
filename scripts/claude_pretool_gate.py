@@ -2527,7 +2527,9 @@ def _single_write_target(tokens: list[str]) -> "Path | None":
     return target if target.is_absolute() else None
 
 
-_ASSIGNMENT_TOKEN_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(/[^\s$`*?\[\]{}~\\]*)")
+_ASSIGNMENT_TOKEN_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(/[^\n$`~\\]*)")
+# Characters that make an unquoted `$NAME` split into several words or glob.
+_SPLIT_PRONE_RE = re.compile(r"[ \t*?\[]")
 # Only these run the next command in the same shell after the assignment; a
 # pipe or `&` assigns in a subshell, and `||` may skip the write entirely.
 _SEQUENCE_TOKENS = frozenset({";", "&&"})
@@ -2542,8 +2544,10 @@ def _assigned_write_targets(command: str, tokens: list[str]) -> "list[Path] | No
     literal absolute path are substituted, and every following step must be a
     write `_single_write_target` reads. Anything the token stream cannot show
     exactly -- single quotes or an escaped `$` (which keep `$NAME` literal), a
-    value the shell would split or glob, an unassigned or computed expansion,
-    redirections and other separators -- returns None and keeps the verdict.
+    value with a space or glob character referenced outside double quotes
+    (where the shell would split or glob it), an unassigned or computed
+    expansion, redirections and other separators -- returns None and keeps
+    the verdict.
     """
 
     if "'" in command or "\\$" in command or has_unresolvable_expansion(command):
@@ -2565,6 +2569,9 @@ def _assigned_write_targets(command: str, tokens: list[str]) -> "list[Path] | No
     reference = re.compile(
         r"\$(?:\{(" + "|".join(values) + r")\}|(" + "|".join(values) + r")(?![A-Za-z0-9_]))"
     )
+    split_prone = {name for name, value in values.items() if _SPLIT_PRONE_RE.search(value)}
+    if split_prone and _references_outside_double_quotes(command, reference, split_prone):
+        return None
     targets: list[Path] = []
     for step in steps:
         expanded = [reference.sub(lambda m: values[m.group(1) or m.group(2)], token) for token in step]
@@ -2575,6 +2582,26 @@ def _assigned_write_targets(command: str, tokens: list[str]) -> "list[Path] | No
             return None
         targets.append(target)
     return targets
+
+
+def _references_outside_double_quotes(command: str, reference: "re.Pattern[str]", names: "set[str]") -> bool:
+    """Whether any `$NAME` of `names` in `command` stands outside double quotes."""
+
+    quoted = False
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if char == "\\":
+            index += 2
+            continue
+        if char == '"':
+            quoted = not quoted
+        elif char == "$" and not quoted:
+            match = reference.match(command, index)
+            if match and (match.group(1) or match.group(2)) in names:
+                return True
+        index += 1
+    return False
 
 
 def _edit_target_roots(targets: list[tuple[Path, bool]]) -> list[Path]:
