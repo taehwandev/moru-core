@@ -248,10 +248,11 @@ worktree after the push, not before, and declare `--approved-effect
 external_write` at start when the request includes the push. Rewriting or
 discarding commands retain their separate checks.
 
-A Tao-governed project without `worktree-policy.json` (one that opts in through
-its project `.tao` state or the Tao marker in `AGENTS.md`, `CLAUDE.md`, or
-`CODEX.md`) receives the default boundary: linked worktrees required, `main`
-and `develop` protected. The default declares no optional key, so it neither
+A Tao-governed project without `worktree-policy.json` whose `AGENTS.md`,
+`CLAUDE.md`, or `CODEX.md` carries the managed Tao routing block receives the
+default boundary: linked worktrees required, `main` and `develop` protected.
+A `.tao` runtime directory or other Tao prose alone does not impose it, so a
+writing vault a run once touched keeps editing in place. The default declares no optional key, so it neither
 requires workflow entry, imposes ticket rules, nor earns the compliant-worktree
 preflight waiver. Known writes and Git administration in the default protected
 checkout still meet run-entry checks. A simple opaque local runner, such as
@@ -275,6 +276,10 @@ target. The target's tracked declaration remains authoritative, including an
 explicit `false`; an environment fallback cannot override it.
 `TAO_ALLOW_MAIN_CHECKOUT_EDIT=1` disables the main-checkout denial for a
 user-approved exception only; it is never a default and never set by tooling.
+When the user explicitly approves working in a protected checkout, prefix the
+Bash command with it: a readable, non-publishing command then goes to the
+runtime's permission prompt instead of the isolation or missing-run refusal.
+Never answer an approved request with "it cannot be done".
 
 Claude can express a native permission request as `permissionDecision: ask`.
 Codex PreToolUse parses `ask` but does not support it: the hook fails and the

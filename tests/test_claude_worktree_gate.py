@@ -30,7 +30,10 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
     def project(self, name: str) -> Path:
         root = self.base / name
         (root / ".git").mkdir(parents=True)
-        (root / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (root / "AGENTS.md").write_text(
+            "Uses tao-hook.\n<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n"
+            "<!-- END MANAGED TAO AGENT OS ROUTING -->\n"
+        )
         return root
 
     def test_codex_refusal_explains_lost_workdir_without_restarting_a_bound_task(self):
@@ -167,6 +170,59 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
                     })
                 decision = json.loads(output.getvalue())["hookSpecificOutput"]
                 self.assertEqual("deny", decision.get("permissionDecision"))
+
+    def test_runtime_state_or_tao_prose_alone_does_not_impose_isolation(self):
+        # A writing vault a run once touched holds a `.tao` directory and a
+        # Tao doc-enforcement note, but never adopted the code routing block.
+        root = self.plain("vault")
+        (root / ".tao").mkdir()
+        (root / ".tao" / "context-snapshot.json").write_text("{}")
+        (root / "AGENTS.md").write_text(
+            "<!-- BEGIN MANAGED TAO AGENT OS DOC ENFORCEMENT --> tao-hook <!-- END -->\n"
+        )
+        self.assertTrue(gate.marks_tao_project(root))
+        self.assertIsNone(gate.worktree_policy(root))
+        self.assertIsNone(gate.worktree_denial(root))
+        self.assertNotIn("worktree gate", self.edit(root, root))
+
+    def bash_decision(self, cwd: Path, command: str) -> dict:
+        output = io.StringIO()
+        with redirect_stdout(output):
+            pretool.decide({
+                "tool_name": "Bash", "cwd": str(cwd), "session_id": "policy-test",
+                "tool_input": {"command": command},
+            })
+        text = output.getvalue()
+        return json.loads(text)["hookSpecificOutput"] if text.strip() else {}
+
+    def test_user_approved_override_reaches_the_permission_prompt(self):
+        # The user allowed saving a draft in the main checkout; the agent had
+        # no run there, and the gate still refused it as a missing run.
+        root = self.project("governed")
+        elsewhere = self.plain("elsewhere")
+        dest = root / "draft.md"
+        for cwd, command in (
+            (root, f"TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 cp AGENTS.md {dest}"),
+            (elsewhere, f"TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 cp {root / 'AGENTS.md'} {dest}"),
+            (elsewhere, f"cd {root} && TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 cp AGENTS.md {dest}"),
+        ):
+            with self.subTest(cwd=cwd.name, command=command):
+                self.assertEqual("ask", self.bash_decision(cwd, command).get("permissionDecision"))
+        for command in (
+            f"cp AGENTS.md {dest}",
+            "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 git push origin main",
+            "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 cp $(ls) draft.md",
+            "TAO_ALLOW_MAIN_CHECKOUT_EDIT=0 cp AGENTS.md draft.md",
+        ):
+            with self.subTest(command=command):
+                self.assertNotEqual("ask", self.bash_decision(root, command).get("permissionDecision"))
+
+    def test_main_checkout_refusal_names_the_approved_route(self):
+        root = self.project("governed")
+        reason = self.bash_decision(root, "cp AGENTS.md draft.md").get("permissionDecisionReason", "")
+        self.assertIn("TAO_ALLOW_MAIN_CHECKOUT_EDIT=1", gate.worktree_denial(root) or "")
+        self.assertIn("explicitly approved", gate.worktree_denial(root) or "")
+        self.assertTrue(reason)
 
     def test_ungoverned_repository_without_policy_file_stays_unenforced(self):
         root = self.plain("ungoverned")

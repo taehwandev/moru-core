@@ -114,9 +114,34 @@ def worktree_policy(root: Path) -> dict | None:
     """
 
     policy = declared_worktree_policy(root)
-    if policy is None and marks_tao_project(root):
+    if policy is None and adopts_tao_routing(root):
         return default_worktree_policy()
     return policy
+
+
+# The block `setup-agent-hooks` writes into a project that adopts the Tao code
+# workflow; see support/project_guidance.py.
+TAO_ROUTING_MARKER = "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->"
+
+
+def adopts_tao_routing(root: Path) -> bool:
+    """Whether root's instruction file carries the managed Tao routing block.
+
+    The undeclared isolation default keys on this, not on marks_tao_project: a
+    `.tao` runtime directory appears in any checkout a run ever touched, so a
+    prose-only writing vault became a protected code repository and its drafts
+    were forced into a temporary worktree and a commit.
+    """
+
+    if not marks_tao_project(root):
+        return False
+    for name in ("AGENTS.md", "CLAUDE.md", "CODEX.md"):
+        try:
+            if TAO_ROUTING_MARKER in (root / name).read_text(encoding="utf-8", errors="ignore"):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def declared_worktree_policy(root: Path) -> dict | None:
@@ -432,11 +457,19 @@ def worktree_deny_reason(
     unresolved = cause in {UNREADABLE_SYNTAX, COMPUTED_TEXT, UNREAD_STEP}
     outcome = "effect unresolved" if unresolved else "write blocked"
     prefix = f"Tao worktree gate: {outcome} in {location}: {root}. "
+    # Without this the agent had no way to act on a user who explicitly
+    # allowed writing here, and told them it could not be done.
+    approved = (
+        f" If the user explicitly approved this, prefix the Bash command "
+        f"with `{MAIN_CHECKOUT_OVERRIDE_ENV}=1`."
+        if location == "main checkout" and not unresolved
+        else ""
+    )
     if remedy:
         # A caller that knows what the command was asking for says so itself.
         # Everything below is advice about where the shell stands, which is the
         # right answer for an edit and the wrong one for a workflow start.
-        return prefix + explanation + remedy
+        return prefix + explanation + remedy + approved
     remedy = (
         "Next: use the task worktree and restart the workflow. If needed, run "
         "alone: `git worktree add <path> -b <branch> <base>`."
@@ -451,7 +484,7 @@ def worktree_deny_reason(
             "Reuse the bound task; create/start one only if none exists. "
             "Explicit targeting does not grant sandbox permission or allow writes to main."
         )
-    return prefix + explanation + remedy
+    return prefix + explanation + remedy + approved
 
 
 def worktree_denial(

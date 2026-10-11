@@ -21,7 +21,11 @@ class PretoolExecutionTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.project = Path(self.directory.name) / "project"
         self.project.mkdir()
-        (self.project / "AGENTS.md").write_text("Uses tao-hook.\n")
+        # The routing block is what makes the governed default protect main.
+        (self.project / "AGENTS.md").write_text(
+            "Uses tao-hook.\n<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n"
+            "<!-- END MANAGED TAO AGENT OS ROUTING -->\n"
+        )
         (self.project / ".gitignore").write_text(".tao/\n")
         self.environment = dict(os.environ)
         for key in ("CODEX_THREAD_ID", "TAO_WORKER_EVIDENCE", "TAO_PARENT_EVIDENCE_READONLY"):

@@ -1932,6 +1932,24 @@ def _worktree_policy_verdict(
     )
 
 
+def _user_approved_main_checkout_write(payload: dict, tokens: list[str]) -> bool:
+    """A readable, non-publishing Bash line that carries the override prefix.
+
+    A Codex session asked the user whether to save a draft in the writing
+    folder, the user allowed it, and the gate refused anyway: the override was
+    honoured only from inside the checkout and only for isolation, so the
+    missing-run check still denied it and the agent told the user it could
+    not be done. The user's approval is the exception; the runtime's own
+    permission prompt carries it. Publication and text the gate cannot read
+    keep their own checks.
+    """
+
+    if not _requests_main_checkout_override(tokens):
+        return False
+    command = bash_command(payload)
+    return not has_unresolvable_expansion(command) and not publishes_before_finish(tokens)
+
+
 def _requests_main_checkout_override(tokens: list[str]) -> bool:
     """Recognize the exact documented override only in the assignment prefix."""
 
@@ -2874,6 +2892,14 @@ def _decide(payload: dict) -> int:
     )
     if read_denial:
         return _read_only_verdict(read_denial, scope.unknown_reason)
+    if tool in BASH_TOOLS and _user_approved_main_checkout_write(payload, tokens):
+        return ask(
+            "The command carries the documented main-checkout exception "
+            f"(`{MAIN_CHECKOUT_OVERRIDE_ENV}=1`), which the agent uses only after "
+            "the user explicitly approved working outside a task worktree. "
+            "Allow it if that is what you approved.",
+            tokens=tokens,
+        )
     if tool in BASH_TOOLS and bash_kind == SCRATCH_SCRIPT_KIND:
         return allow()
     if tool in BASH_TOOLS:
