@@ -2445,18 +2445,24 @@ def _call_scope(payload: dict, tool: str, cwd: Path) -> _CallScope:
     # The launcher checkout is only where the command was issued, not a
     # target. Resolve both the parent and final path before dropping that
     # checkout so a symlink into a protected project still keeps its owner
-    # governed.
-    if kind == "mutating" and syntax_is_simple:
-        target = _single_write_target(tokens)
-        if target is not None:
+    # governed. A path first held in a shell variable is read the same way
+    # once each `$NAME` is replaced by its literal value.
+    if kind in {"mutating", "unknown"}:
+        if syntax_is_simple:
+            target = _single_write_target(tokens) if kind == "mutating" else None
+            targets = [target] if target is not None else None
+        else:
+            targets = _assigned_write_targets(command, tokens)
+        if targets:
             try:
-                target.parent.resolve(strict=True)
-                target.resolve(strict=False)
+                for target in targets:
+                    target.parent.resolve(strict=True)
+                    target.resolve(strict=False)
             except (OSError, ValueError, RuntimeError):
                 pass
             else:
-                target_roots = _edit_target_roots([(target, True)])
-                return _CallScope(kind, tokens, True, command_cwd, effective_cwd,
+                target_roots = _edit_target_roots([(target, True) for target in targets])
+                return _CallScope("mutating", tokens, True, command_cwd, effective_cwd,
                                   target_roots, list(target_roots))
     roots = _governed_only(
         bash_governed_roots(tokens, command_cwd, command=command), command, cwd
@@ -2519,6 +2525,56 @@ def _single_write_target(tokens: list[str]) -> "Path | None":
         return None
     target = Path(operands[-1])
     return target if target.is_absolute() else None
+
+
+_ASSIGNMENT_TOKEN_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(/[^\s$`*?\[\]{}~\\]*)")
+# Only these run the next command in the same shell after the assignment; a
+# pipe or `&` assigns in a subshell, and `||` may skip the write entirely.
+_SEQUENCE_TOKENS = frozenset({";", "&&"})
+
+
+def _assigned_write_targets(command: str, tokens: list[str]) -> "list[Path] | None":
+    """Write targets of `NAME=/abs; ... <write $NAME/...>`, else None.
+
+    An agent that keeps the scratchpad path in a variable
+    (`S=/…/scratchpad; cp "<recording>" "$S/rec.mov"`) was refused although
+    the same copy spelled out in full is admitted. Leading assignments of a
+    literal absolute path are substituted, and every following step must be a
+    write `_single_write_target` reads. Anything the token stream cannot show
+    exactly -- single quotes or an escaped `$` (which keep `$NAME` literal), a
+    value the shell would split or glob, an unassigned or computed expansion,
+    redirections and other separators -- returns None and keeps the verdict.
+    """
+
+    if "'" in command or "\\$" in command or has_unresolvable_expansion(command):
+        return None
+    steps: list[list[str]] = [[]]
+    for token in tokens:
+        if token in _SEQUENCE_TOKENS:
+            steps.append([])
+        elif token in {"&", "|", "||", ">", ">>", "<", "<<"}:
+            return None
+        else:
+            steps[-1].append(token)
+    values: dict[str, str] = {}
+    while steps and len(steps[0]) == 1 and (match := _ASSIGNMENT_TOKEN_RE.fullmatch(steps[0][0])):
+        values[match.group(1)] = match.group(2)
+        steps.pop(0)
+    if not values or not steps:
+        return None
+    reference = re.compile(
+        r"\$(?:\{(" + "|".join(values) + r")\}|(" + "|".join(values) + r")(?![A-Za-z0-9_]))"
+    )
+    targets: list[Path] = []
+    for step in steps:
+        expanded = [reference.sub(lambda m: values[m.group(1) or m.group(2)], token) for token in step]
+        if any("$" in token for token in expanded):
+            return None
+        target = _single_write_target(expanded)
+        if target is None:
+            return None
+        targets.append(target)
+    return targets
 
 
 def _edit_target_roots(targets: list[tuple[Path, bool]]) -> list[Path]:

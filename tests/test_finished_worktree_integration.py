@@ -457,6 +457,34 @@ class FinishedWorktreeIntegrationGateTests(unittest.TestCase):
                 refused = bool(out) and "run the workflow start hook" in self.reason(out)
                 self.assertEqual(not admitted, refused, out)
 
+    def test_a_path_held_in_a_variable_is_read_like_the_literal(self) -> None:
+        """`S=<scratchpad>; cp <recording> "$S/rec.mov"` is the literal copy."""
+
+        outside = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(lambda: subprocess.run(["rm", "-rf", str(outside)], check=False))
+        (outside / "recording.mov").write_bytes(b"movie")
+        scratch = outside / "scratchpad"
+        scratch.mkdir()
+        movie = shlex.quote(str(outside / "recording.mov"))
+        cases = {
+            f'S={scratch}; cp {movie} "$S/rec.mov"': True,
+            f'S={scratch} && mkdir -p $S/frames && cp {movie} "${{S}}"/rec.mov': True,
+            f'S={self.main}; cp {movie} "$S/rec.mov"': False,
+            f'S={scratch}; M={self.main}; cp {movie} $M/rec.mov': False,
+            f"S={scratch}; cp {movie} '$S/rec.mov'": False,
+            f"S={scratch}; cp {movie} \\$S/rec.mov": False,
+            f"S={scratch} | cp {movie} $S/rec.mov": False,
+            f"S={scratch}; cp {movie} $SX/rec.mov": False,
+            f"S={scratch}; rm $S/rec.mov": False,
+            f'S="{scratch}/a b"; cp {movie} $S': False,
+        }
+        for command, admitted in cases.items():
+            with self.subTest(command=command):
+                code, out = self.decide(self.main, command)
+                self.assertEqual(0, code)
+                refused = bool(out) and "run the workflow start hook" in self.reason(out)
+                self.assertEqual(not admitted, refused, out)
+
     def test_finish_names_the_main_checkout_and_the_commit(self) -> None:
         line = agent_hook._fast_forward_line(self.worktree)
         self.assertIn(f"git -C {self.main} merge --ff-only <the commit sha>", line)
