@@ -88,6 +88,39 @@ Use the lowest layer that owns the decision:
   at least two credible call sites or a foundational primitive need, examples or
   previews, and migration guidance for old usage.
 
+## Existing product evidence
+
+Before editing feature UI, resolve the existing product contract with bounded
+source evidence. Record the mapping in normal task review or its existing
+evidence file; this is not another lifecycle gate or startup document:
+
+```text
+Control/task -> primitive or adopted pattern owner -> direct caller
+            -> reused variant/state contract -> rendered comparison
+```
+
+- Inspect the owner and one relevant caller for every changed control type:
+  buttons, switches, checkboxes, inputs, disclosure rows, icons and feedback.
+  Follow the caller's controlled state, labels, focus, disabled and loading
+  behavior as well as its appearance. A native control is valid when it is the
+  established product pattern; retain that pattern's styling and semantics.
+- Inspect the containing screen's sections and task ownership. Place related
+  actions and lists in the existing owning section rather than creating another
+  card with the same purpose. Check what information the server or platform
+  already supplies before introducing an input; add a field only for an actual
+  user decision, preserving later editing when that is the product contract.
+- Reuse established icon roles, sizing and placement. Icons support scanning
+  and state recognition; visible labels and accessible names still own meaning.
+- If no suitable pattern exists, state the bounded search and behavioral gap,
+  then extend the smallest correct layer. Do not create a competing local
+  control, change a shared default, or invent a new wrapper simply because
+  finding the adopted pattern takes another source lookup.
+
+This closes a verification gap: an agent can read design guidance, import some
+shared controls and pass isolated feature tests while still substituting raw
+controls, duplicating screen sections or inventing unnecessary fields. The
+evidence must show the actual control and screen contract was applied.
+
 ## Caller and visual-variant gate
 
 Before changing a shared card, footer, metadata row, button, token, or default,
@@ -237,6 +270,17 @@ Cover the states affected by the change:
 Do not use examples or previews that call network, persistence, credentials,
 user-specific files, current time, randomness, or device-only services. Use
 fixtures and deterministic state.
+
+For feature UI, render changed controls in the actual screen shell with its
+theme providers and style entry point, using deterministic data where needed.
+Compare them against the direct product caller identified before editing.
+Check supported light/dark appearance and a narrow viewport; exercise default,
+checked/selected, disabled, expanded and keyboard focus/activation states when
+applicable. Include the surrounding sections so duplicated task ownership and
+misplaced controls remain visible. An isolated component fixture without those
+contexts, a source import, or passing logic tests alone does not prove product
+design-system compliance. If rendered inspection cannot run, report the exact
+missing states and limitation instead of claiming visual verification.
 
 ## Check
 
