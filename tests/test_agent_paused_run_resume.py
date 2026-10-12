@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import os
 import sys
 import tempfile
@@ -15,7 +16,10 @@ sys.path.insert(0, str(ROOT / 'tests'))
 
 import agent_paused_run_resume
 from agent_paused_run_resume import resume_session_paused_run
+from agent_run_registry import registry_path, transition_run
+from agent_runtime_session import resolve_runtime_evidence
 from test_agent_run_interruption import Run
+from test_agent_run_registry import dead_pid
 
 HOOK_SPEC = importlib.util.spec_from_file_location('agent_hook_paused_resume', ROOT / 'scripts' / 'agent-hook.py')
 agent_hook = importlib.util.module_from_spec(HOOK_SPEC)
@@ -110,6 +114,36 @@ class LedgerHookDispatchTests(unittest.TestCase):
         with patch.object(agent_hook, 'handoff_hook', return_value=0):
             resume, _ = self._dispatch('handoff')
         resume.assert_not_called()
+
+
+class CloseoutSessionBindingTests(unittest.TestCase):
+    def test_failed_closeout_rebinds_after_dead_owner_takeover(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run = Run(directory, packet=True)
+            run.checkpoint()
+            registry = registry_path(run.project)
+            state = json.loads(registry.read_text(encoding='utf-8'))
+            state['runs'][-1]['state'] = 'failed'
+            state['runs'][-1]['owner'] = {'pid': dead_pid(), 'start_token': ''}
+            registry.write_text(json.dumps(state), encoding='utf-8')
+            args = argparse.Namespace(project=run.project, evidence=run.evidence)
+
+            with patch.object(agent_hook, 'runtime_session', return_value=run.session):
+                agent_hook._resume_run_for_closeout(args)
+
+            bound = json.loads(run.evidence.read_text(encoding='utf-8'))['runtime_session']
+            current = json.loads(registry.read_text(encoding='utf-8'))['runs'][-1]
+            self.assertEqual(1, current['resume_generation'])
+            self.assertEqual(1, bound['resume_generation'])
+            self.assertEqual('resuming', current['state'])
+            self.assertEqual(run.evidence.resolve(), resolve_runtime_evidence(run.project, run.session))
+            transition_run(run.project, run.evidence, 'completed', run_id=run.run['run_id'])
+            self.assertEqual(
+                run.evidence.resolve(),
+                resolve_runtime_evidence(
+                    run.project, run.session, frozenset({'completed'}), latest_of_several=True
+                ),
+            )
 
 
 if __name__ == '__main__':

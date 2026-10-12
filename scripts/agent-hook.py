@@ -109,7 +109,12 @@ from agent_run_registry import (
     transition_run,
 )
 from agent_route_state import request_fingerprint, request_intake_from_args
-from agent_runtime_session import recorded_session_id, runtime_session, settle_superseded_session_runs
+from agent_runtime_session import (
+    rebind_recorded_runtime_session,
+    recorded_session_id,
+    runtime_session,
+    settle_superseded_session_runs,
+)
 from agent_transfer_cancel import (
     cancel_no_change_run,
     cancel_transferred_run,
@@ -1482,12 +1487,23 @@ def _resume_run_for_closeout(args: argparse.Namespace) -> None:
             and current_session.get("runtime") == recorded_session.get("runtime")
             and recorded_session_id(payload) == current_session.get("session_id")
         )
-        resume_run_for_closeout(
+        resumed = resume_run_for_closeout(
             args.project,
             evidence_path,
             run_id=payload.get("agent_run_id"),
             same_runtime_session=same_runtime_session,
         )
+        if resumed is not None:
+            generation = int(resumed.get("resume_generation") or 0)
+            recorded = int(recorded_session.get("resume_generation") or 0)
+            if generation != recorded:
+                if not rebind_recorded_runtime_session(
+                    project=args.project,
+                    evidence_path=evidence_path,
+                    run_id=str(resumed["run_id"]),
+                    resume_generation=generation,
+                ):
+                    raise RuntimeError("closeout resume lost its runtime session binding")
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return
 
