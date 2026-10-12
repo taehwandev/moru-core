@@ -890,6 +890,8 @@ def finish_hook(args: argparse.Namespace) -> int:
             args.repair_cycle,
         )
 
+    if (replaced := _replaced_run_finish(args)) is not None:
+        return replaced
     command = [
         "--project",
         str(args.project),
@@ -1038,6 +1040,58 @@ def _closed_run_lines(project: Path) -> list[str]:
         "capture --source <evidence> --review-on <YYYY-MM-DD> [--source-path <file>], "
         "the one-line body on stdin; otherwise nothing is needed.",
     ]
+
+
+def _replaced_run_finish(args: argparse.Namespace) -> int | None:
+    """Answer a finish on a run its own session replaced, else None.
+
+    Gates were never recorded on such a run, so evaluating them only demanded a
+    retrospective for work done elsewhere.
+    """
+
+    superseded = _superseded_run(args)
+    if superseded is None:
+        return None
+    return finish_with_result(
+        "finish",
+        False,
+        [
+            f"bound run {superseded.get('run_id')} was cancelled when run "
+            f"{superseded.get('superseded_by')} replaced it in this session",
+            "a replaced run has nothing left to finish here; its gates were not evaluated",
+            "finish the replacing run in its own checkout, or start a new run for new work here",
+        ],
+        args.output,
+        {},
+        args.repair_cycle,
+        invocation_error=True,
+    )
+
+
+def _superseded_run(args: argparse.Namespace) -> dict[str, Any] | None:
+    """The bound run when its own session replaced it, without a transfer receipt.
+
+    Starting a run in a linked worktree cancels the session's run in the other
+    checkout and records ``superseded_by``. Such a run never reaches finish:
+    its work, if any, is owned by the replacement, and `cancel` -- not this
+    path -- is what settles a transfer with a receipt.
+    """
+
+    try:
+        evidence_path = preflight_evidence_path(args)
+        preflight = json.loads(evidence_path.read_text(encoding="utf-8"))
+        run_id = str(preflight.get("agent_run_id") or "").strip()
+        run = registered_run(args.project, evidence_path, run_id=run_id) if run_id else None
+    except (OSError, RuntimeError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if (
+        not isinstance(run, dict)
+        or run.get("state") != "cancelled"
+        or not run.get("superseded_by")
+        or isinstance(run.get("cancellation"), dict)
+    ):
+        return None
+    return run
 
 
 def _transferred_cancellation(

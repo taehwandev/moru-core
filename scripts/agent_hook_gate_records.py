@@ -37,6 +37,7 @@ from agent_finish_documentation import required_doc_target_failures
 from agent_hook_runtime import finish_with_result
 from agent_route_state import required_docs_for_route
 from agent_skill_catalog import canonical_skill_ids, skill_ids_from_doc_paths
+from agent_run_registry import SETTLED_RUN_STATES
 from agent_runtime_session import resolve_runtime_evidence, runtime_session
 from agent_gate_reuse import GateEvidenceReuse
 
@@ -77,6 +78,19 @@ def preflight_evidence_path(args: argparse.Namespace) -> Path:
         ):
             args.evidence = failed
             return failed
+        # The legacy file below belongs to whichever task last wrote it. A
+        # session whose own run here already settled -- finished, or cancelled
+        # when its work moved to a linked worktree -- is answered about that
+        # run instead. Observed live: a finish read a three-month-old legacy
+        # preflight, compared its AGENTS.md hash with today's file and failed
+        # on a file nobody had changed. `cancel` settles runs, so a settled one
+        # is never its subject: it keeps reporting that none is settleable.
+        settled = None if getattr(args, "hook", "") == "cancel" else resolve_runtime_evidence(
+            args.project, session, SETTLED_RUN_STATES, latest_of_several=True
+        )
+        if settled is not None:
+            args.evidence = settled
+            return settled
     if getattr(args, "hook", "") == "start":
         generated = (
             args.project / ".tao" / "runs" / uuid.uuid4().hex / "preflight.json"

@@ -77,7 +77,7 @@ class HookEvidenceFallbackTest(unittest.TestCase):
         self.project = Path(temp.name)
         self.failed = self._run("f" * 32)
         self.completed = self._run("c" * 32)
-        self.found: dict[str, Path | None] = {"active": None, "failed": self.failed, "completed": None}
+        self.found: dict[str, Path | None] = {"active": None, "failed": self.failed, "completed": None, "settled": None}
 
     def _run(self, run_id: str) -> Path:
         evidence = self.project / ".tao" / "runs" / run_id / "preflight.json"
@@ -86,8 +86,11 @@ class HookEvidenceFallbackTest(unittest.TestCase):
         return evidence
 
     def _resolve(self, project, session, states=None, *, latest_of_several=False):
-        key = "active" if states is None else next(iter(states))
-        return self.found.get(key)
+        if states is None:
+            return self.found.get("active")
+        if len(states) > 1:
+            return self.found.get("settled")
+        return self.found.get(next(iter(states)))
 
     def _path(self, hook: str = "gate") -> Path:
         args = argparse.Namespace(evidence=None, project=self.project, hook=hook)
@@ -103,7 +106,28 @@ class HookEvidenceFallbackTest(unittest.TestCase):
     def test_a_later_completed_run_retires_the_failed_one(self) -> None:
         os.utime(self.failed, (1, 1))
         self.found["completed"] = self.completed
+        self.found["settled"] = self.completed
+        self.assertEqual(self.completed, self._path())
+
+    def test_a_settled_run_of_this_session_is_used_before_another_task_s_legacy_preflight(self) -> None:
+        # A run cancelled when its work moved to a linked worktree has no failed
+        # or active record; the legacy file is some other task's.
+        cancelled = self._run("d" * 32)
+        self.found["failed"] = None
+        self.found["settled"] = cancelled
+        (self.project / ".tao" / "preflight.json").write_text("{}", encoding="utf-8")
+        self.assertEqual(cancelled, self._path())
+
+    def test_without_any_run_of_this_session_the_legacy_preflight_remains(self) -> None:
+        self.found["failed"] = None
         self.assertEqual(self.project / ".tao" / "preflight.json", self._path())
+
+    def test_start_still_creates_its_own_run(self) -> None:
+        self.found["failed"] = None
+        self.found["settled"] = self.completed
+        path = self._path(hook="start")
+        self.assertEqual(self.project / ".tao" / "runs", path.parent.parent)
+        self.assertNotIn(path, (self.completed, self.failed))
 
     def test_a_failed_run_newer_than_the_completed_one_still_wins(self) -> None:
         os.utime(self.completed, (1, 1))

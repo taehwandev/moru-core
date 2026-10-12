@@ -733,6 +733,31 @@ class SupersededSessionRunTests(unittest.TestCase):
             self.assertEqual([], settled)
             self.assertEqual("completed", self._states(fixture.project)[fixture.run_id])
 
+    def test_a_run_replaced_from_another_checkout_settles_that_checkout_for_the_stop_gate(self) -> None:
+        """A clean checkout left behind is closed; one that keeps work stays armed."""
+
+        for keeps_work in (False, True):
+            with self.subTest(keeps_work=keeps_work), tempfile.TemporaryDirectory() as directory:
+                main = RuntimeFixture(str(Path(directory) / "main"), session_id="claude-session")
+                linked = RuntimeFixture(str(Path(directory) / "linked"), session_id="claude-session")
+                marker = main.project / ".tao" / "claude-pretool-gate" / "claude-session.settled"
+                with (
+                    patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "claude-session"}, clear=True),
+                    patch.object(agent_runtime_session, "checkouts_with_run_state", return_value=[main.project]),
+                    patch.object(agent_runtime_session, "checkout_keeps_unfinished_work", return_value=keeps_work),
+                    # A different request: the same one in another checkout is a transfer.
+                    patch.object(agent_runtime_session, "_request_fingerprint", return_value="another-request"),
+                ):
+                    settled = agent_runtime_session.settle_superseded_session_runs(
+                        linked.project, keep_run_id=linked.run_id, new_request=True
+                    )
+
+                self.assertEqual([main.run_id], settled)
+                self.assertEqual("cancelled", self._states(main.project)[main.run_id])
+                self.assertEqual(not keeps_work, marker.exists())
+                # The checkout that keeps the new run is never marked closed by its own start.
+                self.assertFalse((linked.project / ".tao" / "claude-pretool-gate" / "claude-session.settled").exists())
+
     def test_worker_start_settles_nothing(self) -> None:
         """A worker's claim runs alongside its parent's, so neither cancels it."""
 

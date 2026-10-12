@@ -381,6 +381,11 @@ the session's active, turn-paused (`interrupted`, `blocked`) and `failed` runs
 in this checkout and in every other checkout of the repository with run state,
 as `cancelled` with files untouched, and names each one whose checkout still
 holds uncommitted work or that had failed (kept as `superseded_from_state`).
+Another checkout left with no uncommitted tracked work is also closed for the
+Claude Stop gate, so it no longer asks for a finish there; `finish` on such a
+replaced run names its replacement and evaluates no gates, and a hook without
+`--evidence` reads the session's own settled run rather than a legacy
+`.tao/preflight.json` written by another task.
 The same request in another checkout is left for the transfer above;
 `reconcile_required` runs keep their owed reconciliation, and `--continue-from`
 keeps settling only an active predecessor in its own checkout, never a paused

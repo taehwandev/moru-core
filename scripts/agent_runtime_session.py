@@ -333,8 +333,15 @@ def settle_superseded_session_runs(
             settled.append(run_id)
             if failed is not None and prior_state == "failed":
                 failed.append(run_id)
-            if preserved is not None and checkout_keeps_unfinished_work(checkout, run_id):
+            keeps_work = checkout_keeps_unfinished_work(checkout, run_id)
+            if preserved is not None and keeps_work:
                 preserved.append(run_id)
+            # The Stop gate reads only per-session close markers. A run replaced
+            # from another checkout gets neither a finish nor `cancel`, so a
+            # checkout it left clean stayed armed and the gate asked for a
+            # finish that could never pass there. Work left behind keeps it armed.
+            if checkout != own and not keeps_work:
+                record_session_close(checkout, session_id, SETTLED_SUFFIX)
     return settled
 
 
