@@ -1,0 +1,118 @@
+---
+keyflow_id: sys_tao_ms_research_triage_adapter
+status: review
+type: ai-generated
+---
+
+# Microsoft Research Triage Adapter
+
+This repository-owned CLI optionally evaluates collected research sources with
+Microsoft-Decision-1 through OpenRouter. It ranks relevance and classifies source
+type; it neither searches the web nor generates names, ideas, or a report.
+Every input source remains in the output, including failures and low scores.
+
+## Ownership And Acceptance
+
+Owner: `scripts/research-triage/microsoft_decision.py`, one optional CLI adapter.
+Allowed imports: Python standard library. Forbidden imports: Tao lifecycle,
+permission, routing, other model providers, and external SDK dependencies.
+Callers: agents selecting the optional planning-research step, or an operator.
+Tests: `tests/research-triage/test_microsoft_decision.py`.
+Verification: offline CLI/HTTP-contract tests, cache invalidation/resume tests,
+workflow validation, and diff hygiene. A live response needs separate credential
+availability and matching usage authority; mocks do not establish model quality.
+
+Documentation decision: created this integration contract and updated the
+planning-research entrypoint. No existing executable research adapter was found.
+Common research policy remains in the source-triage reference.
+
+## Input And Execution
+
+Create an ignored research input JSON file with a nonempty `query` and a
+`sources` array. Each source needs a unique `id`, `url`, `title`, and nonempty
+`text`; `published_at` and boolean `required` are optional. `required` marks
+sources that must be read regardless of ranking.
+
+```json
+{
+  "query": "Which user complaints should inform a note-taking product?",
+  "sources": [{
+    "id": "interviews",
+    "url": "https://example.org/interviews",
+    "title": "Interview findings",
+    "text": "Participants reported difficulty finding previously saved notes.",
+    "required": true
+  }]
+}
+```
+
+From the Tao checkout, inspect reusable decisions without network calls or
+cache writes:
+
+```sh
+python3 scripts/research-triage/microsoft_decision.py \
+  --input .tao/research-input.json --cache-dir .tao/research-cache/ms
+```
+
+New calls require `--execute`. Read `OPENROUTER_API_KEY` from the invoking
+process environment; the CLI does not create credentials, read env files, or
+print the key. An OpenRouter account and credits are needed for paid requests.
+The operator can manage a capped key in the provider console.
+
+```sh
+python3 scripts/research-triage/microsoft_decision.py \
+  --input .tao/research-input.json --cache-dir .tao/research-cache/ms \
+  --execute --max-calls 10
+```
+
+For another target repository, execute the script from its resolved `<TAO_ROOT>`
+path and place inputs/cache in that target's ignored local directory. Confirm
+the directory is ignored before saving research data. Use collected public
+sources for the first experiment; remote disclosure still needs matching scope.
+
+The default is at most 10 new calls per invocation. Cache hits do not spend that
+limit. Missing keys, exhausted call limits, HTTP errors, and invalid decisions
+leave items unscored; ordinary research can continue. There are no automatic
+retries, alternative models, or background calls. Partial provider failures
+disable further calls in that invocation while existing cache hits remain usable.
+
+Output is JSON with input-order `results`, a separate `ranked_ids` view, cache
+hits, actual network-call count, and newly reported cost when available.
+Unscored sources and `required` sources remain first in the review view. Unknown
+source type or low relevance never causes automatic deletion or exclusion.
+
+## Cache Contract
+
+Each successful result is stored atomically under the digest of the full API
+request and cache schema. The request includes the question, source URL/title/
+text/date, fixed rubrics, endpoint, and configured model. Source IDs, retrieval
+timestamps, `required`, and output ordering do not affect the decision key.
+The cache stores the digest, evaluation time, and validated answers/provenance,
+not the source body or credentials. Keep invocations serial for one cache;
+concurrent invocations can duplicate a miss and bill twice.
+
+Entries expire after 24 hours by default (`--ttl-hours` changes this). Use
+`--refresh --execute` only when new evaluation is needed. A provider model alias
+can change without changing its name; record the returned model, retain the
+bounded lifetime, and refresh a small labeled sample after a known update.
+Changing local ranking or thresholds reuses stored probabilities.
+
+## Verification And Sources
+
+```sh
+python3 -m unittest discover -s tests/research-triage -p test_microsoft_decision.py
+python3 scripts/workflow.py validate
+```
+
+Official API contracts checked on 2026-10-12:
+
+- [OpenRouter Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request):
+  typed `state`/`questions` request and typed `answers` response.
+- [Microsoft model on OpenRouter](https://openrouter.ai/microsoft/microsoft-decision-1):
+  model identifier and mutable weights. Provider prompt-cache support is unconfirmed.
+- [Microsoft usage guide](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision):
+  bounded judgments and workload-specific threshold validation.
+
+Start with ranking only. Test actual Korean/English research sources and inspect
+important-source misses before considering exclusion. API connectivity and
+quality remain unverified until a live, authorized experiment is run.
