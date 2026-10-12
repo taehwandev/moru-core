@@ -20,7 +20,7 @@ from pathlib import Path
 
 from claude_bash_git import git_subcommand
 from claude_bash_raw_lines import raw_command_segments
-from claude_bash_syntax import command_behind_wrappers
+from claude_bash_syntax import SHELL_PROGRAMS, command_behind_wrappers, shell_c_payload
 from claude_command_effect import (
     GH_PR_MERGE_REASON,
     command_effect,
@@ -49,6 +49,37 @@ def cross_checkout_note() -> str:
     """One clause naming the run and checkout that admitted a cross-checkout push."""
 
     return _CROSS_CHECKOUT_NOTE["note"]
+
+
+def _publication_segments(command: str, depth: int = 0) -> list[list[str]] | None:
+    """Read shell payloads with the same parser as the pre-finish hold.
+
+    Each inner segment still needs its own receipt or read-only verdict.
+    Shell scripts, positional arguments and unreadable payloads stay refused.
+    """
+    if depth >= 8:
+        return None
+    segments = raw_command_segments(command, reject_redirections=True)
+    if not segments:
+        return None
+    output = []
+    for segment in segments:
+        inner = command_behind_wrappers(segment)
+        if inner and Path(inner[0]).name in SHELL_PROGRAMS:
+            payload, readable = shell_c_payload(inner, 1)
+            if not readable or payload is None:
+                return None
+            option_index = next(i for i, word in enumerate(inner[1:], 1)
+                                if word.startswith("-") and "c" in word[1:])
+            if len(inner) != option_index + 2:
+                return None
+            nested = _publication_segments(payload, depth + 1)
+            if not nested:
+                return None
+            output.extend(nested)
+        else:
+            output.append(segment)
+    return output
 
 
 def publishes_finished_work(
@@ -146,7 +177,7 @@ def has_finished_publication(root: Path, command: str, cwd: Path) -> bool:
     classifier here hid receipt failures behind an unrelated old paused run.
     This detects an effect only; it never grants authority or admission.
     """
-    for segment in raw_command_segments(command, reject_redirections=True) or []:
+    for segment in _publication_segments(command) or []:
         tokens = command_behind_wrappers(segment)
         if tokens and _publication_effect(root, tokens, cwd):
             return True
@@ -160,7 +191,7 @@ def finished_publication_denial(
 
     cause = "the command is not a lone admissible publication; run it without chained writes"
     evidence = runs.evidence(root, session_id)
-    for segment in raw_command_segments(command, reject_redirections=True) or []:
+    for segment in _publication_segments(command) or []:
         tokens = command_behind_wrappers(segment)
         effect = _publication_effect(root, tokens, cwd) if tokens else ""
         if not effect and tokens and github_pr_merge(tokens) == "unadmitted":
@@ -208,7 +239,7 @@ def publishes_finished_command(
     # Redirection operands are file targets, not executable read-only segments.
     # A completed run does not grant new filesystem writes via shell redirects.
     _CROSS_CHECKOUT_NOTE["note"] = ""
-    segments = raw_command_segments(command, reject_redirections=True)
+    segments = _publication_segments(command)
     if not segments:
         return False
     # A rebase may change the attested bytes. Never pre-authorize a following

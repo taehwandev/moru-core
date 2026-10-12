@@ -25,6 +25,29 @@ def _agent_hook():
 
 
 class PublicationHoldTests(unittest.TestCase):
+    def test_finished_gate_admits_declared_pr_cli_inside_interactive_shell(self):
+        from tests.test_claude_pretool_gate import (
+            PublicationWaitsForFinishTests, _attest_finished_publication, _reason,
+            resolve_runtime_evidence, transition_run,
+        )
+        fixture = PublicationWaitsForFinishTests()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = fixture._open_project(Path(tmp))
+            policy_path = root / gate.WORKTREE_POLICY_PATH
+            policy = json.loads(policy_path.read_text())
+            policy['publication_commands'] = [{
+                'argv_prefix': ['python3', 'tools/bitbucket_pr/create_pr.py'],
+                'publishes': True,
+            }]
+            policy_path.write_text(json.dumps(policy))
+            command = ("zsh -ic 'exec python3 tools/bitbucket_pr/create_pr.py "
+                       "--source work --dest develop --ticket CCE-4983'")
+            self.assertIn('still open', _reason(fixture._decide(root, command)[1]))
+            evidence = resolve_runtime_evidence(root, {'runtime': 'claude', 'session_id': fixture.SESSION})
+            transition_run(root, evidence, 'completed')
+            _attest_finished_publication(root, evidence)
+            self.assertIn('a successful finish', _reason(fixture._decide(root, command)[1]))
+
     def test_real_gate_holds_then_releases_the_same_publication(self):
         from tests.test_claude_pretool_gate import (
             PublicationWaitsForFinishTests, _attest_finished_publication, _reason,
@@ -311,6 +334,39 @@ class PublicationAdmissionTests(unittest.TestCase):
             self.assertTrue(gate.publishes_finished_work(self.root, 'session', ['gh', 'pr', 'create']))
             (self.root / 'source').write_text('unreviewed')
             self.assertFalse(gate.publishes_finished_work(self.root, 'session', ['git', 'push']))
+
+    def test_finished_shell_publication_keeps_effect_and_freshness_checks(self):
+        commands = (
+            "zsh -ic 'exec gh pr create --fill'",
+            'bash -lc "gh pr create --fill"',
+            "zsh -ic 'gh pr create --fill && git status --short'",
+        )
+        with patch.object(gate, 'finished_session_evidence', return_value=self.evidence):
+            self.finish('git_write')
+            for command in commands:
+                self.assertFalse(gate.publishes_finished_command(self.root, 'session', command, self.root))
+            self.finish()
+            for command in commands:
+                with self.subTest(command=command):
+                    self.assertTrue(gate.publishes_finished_command(self.root, 'session', command, self.root))
+            (self.root / 'source').write_text('unreviewed')
+            for command in commands:
+                self.assertFalse(gate.publishes_finished_command(self.root, 'session', command, self.root))
+
+    def test_finished_shell_publication_rejects_extra_writes_and_unreadable_forms(self):
+        self.finish()
+        with patch.object(gate, 'finished_session_evidence', return_value=self.evidence):
+            for command in (
+                "zsh -ic 'gh pr create --fill && touch extra'",
+                "zsh -ic 'gh pr create --fill > output'",
+                "zsh -ic 'gh pr create --fill && echo $(touch extra)'",
+                "zsh -o unknown -c 'gh pr create --fill'",
+                "zsh -ic '$command pr create --fill'",
+                "zsh -ic 'gh pr create --fill' positional",
+                'zsh -ic "bash -lc \'gh pr create --fill && touch extra\'"',
+            ):
+                with self.subTest(command=command):
+                    self.assertFalse(gate.publishes_finished_command(self.root, 'session', command, self.root))
 
     def test_admission_freshness_keys_on_the_finish_not_the_start(self):
         """Observed in DTP: a run started days earlier and finished just now had
