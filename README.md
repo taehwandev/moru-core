@@ -1130,3 +1130,25 @@ and `tests.test_support_stage_timing`. The orchestration regressions failed
 before repair; the final suite also confirms a successful sibling counts while
 a nested pending command remains unread. These are focused checks, not the
 full Tao suite or a controlled pair of model sessions.
+
+### Audit: 2026-10-12, CI Correction Preparation
+
+Source baseline: `62bb6670158b751cf7a45ae66e30df7f8e91247f`, clean before this
+task. Environment: Codex on macOS, Python 3.9.6. This follow-up uses observed
+execution evidence and bounded source inspection; it does not reconstruct an
+entire session timeline or measure an end-to-end speedup.
+
+| ID | Priority / check | Evidence and expected behavior | Owner / proving check / disposition |
+| --- | --- | --- | --- |
+| F25 | Medium / H06, H08 | A declaration parameter change invalidated three existing signature-keyed static-analysis exemptions, requiring another CI correction. A required structure check was also discovered after behavioral tests. Inspect affected exemption identities and required ordering before the costly check; retain valid evidence when a late check can still verify it. | [Verification guidance](common/skills/verification-policy/references/current-guidance.md), Markdown/frontmatter/link validation and final diff review. Resolved as a guidance gap; no new gate, analyzer permission, baseline exemption or runtime classifier change. |
+
+The existing [publication classifier](scripts/claude_worktree_gate.py) already
+supports a repository-declared non-publishing argv prefix. This inspection does
+not establish why a prior PR-check invocation was refused; keep its exact argv,
+receipt and working directory distinct before changing the classifier. A long
+observed tool wait likewise does not prove network delay or a visible approval
+dialog. Runtime latency and overall CI health remain outside this correction.
+
+Verification commands: `python3 scripts/workflow.py validate` and
+`git diff --check`, followed by the final review. This documentation correction
+does not establish a runtime speedup or a passing application CI run.

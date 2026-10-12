@@ -31,6 +31,11 @@ contracts, API or schema compatibility, persistence, auth, permissions,
 payments, filesystem, network, accessibility-critical UI, platform integration,
 deployment, migration, or release packaging.
 
+Before a costly build or test, identify the required ordering from the active
+manifest and repo procedure once. Complete prerequisites that must precede that
+check; do not discover them only at review or rerun valid checks merely because
+a late prerequisite can still verify the same candidate.
+
 ## Before The First Check In A Fresh Checkout
 
 A new worktree or clone is missing every ignored local file the build needs. Collect
@@ -70,6 +75,22 @@ not exact command strings.
 | External integration, background job, filesystem, network write, release, or deploy | dry run, sandbox, staging, or explicit approval path; idempotency or rollback evidence when applicable |
 
 If a change fits multiple rows, use the highest-risk applicable row.
+
+
+## Static-Analysis Corrections
+
+Before changing a declaration's name or signature, inspect any existing
+baseline or suppression keyed to that declaration. A signature change can
+invalidate a legacy exemption without changing the underlying complexity.
+Compare the old and new entries: preserve only still-applicable exemptions,
+remove resolved findings, and do not add exemptions or relax thresholds just
+to make CI pass. Follow the repository's policy on running static analyzers;
+source inspection does not authorize a prohibited local command.
+
+For a failed CI run, separate findings on the changed paths from findings
+introduced elsewhere. Verify the repaired scope with the nearest authorized
+check and current CI evidence. Report remaining unrelated failures separately;
+do not enlarge the patch to repair them without matching scope and authority.
 
 ## Risk Levels
 
