@@ -76,20 +76,21 @@ required sandbox approval; never infer authorization from silence.
 Before choosing or changing a release version, read
 `common/skills/release-versioning/SKILL.md`.
 
-Do not impose one calendar versioning scheme across unrelated projects. The
-shared rule is to choose a documented scheme per artifact and keep it stable:
+Keep a documented scheme per artifact, following the canonical versioning card:
 
 - SemVer for compatibility-sensitive libraries, APIs, SDKs, generated clients,
   plugins, or packages.
-- Weekly CalVer `YY.WW.N` for date-based release tags and operational
-  artifacts: two-digit year, country-configured week, and release count starting
-  at `0`. Use the configured country calendar and timezone, with the same
+- Weekly CalVer `YY.WW.N` for app display versions, date-based release tags and
+  operational artifacts: two-digit year, country-configured week, and release
+  count starting at `0`. Use the configured country calendar and timezone, with the same
   settings in local tools and CI, as defined by the release versioning card.
-- Monthly CalVer only when the repo-local release contract explicitly says the
-  release unit is month-based.
+- Preserve existing monthly or one-based published versions as historical
+  records. An approved migration documents ordering and update-client behavior;
+  new app and date-based release contracts use the weekly scheme.
 
 Do not use four-digit years such as `2026.27.1` for CalVer release tags; use
-`26.27.1` or `v26.27.1` according to the repo-local tag prefix policy.
+`26.27.0` or `v26.27.0` for the first deployment of that week, according to the
+repo-local tag prefix policy. Follow the canonical card's weekly counter rule.
 
 ## Tag And Artifact Ownership
 

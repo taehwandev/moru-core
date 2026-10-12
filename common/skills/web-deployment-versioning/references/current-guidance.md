@@ -56,7 +56,7 @@ Separate these identifiers instead of forcing one number to do every job:
 For continuous web deployment, prefer:
 
 ```text
-public release version: optional release train, such as YY.MM.N or SemVer
+public release version: optional release train, using YY.WW.N for app/date-based releases
 deployment id: every production deploy, such as <timestamp>-<short-sha> or provider deploy id
 source revision: exact commit SHA
 ```
@@ -71,8 +71,9 @@ separate product release.
    monthly release, manual release, or package publication.
 2. Choose the public version scheme only for the release unit. Use SemVer for
    compatibility-sensitive packages or APIs; use weekly CalVer `YY.WW.N` for
-   date-oriented product release tags unless repo-local release policy
-   explicitly documents a month-based scheme.
+   app display versions and date-oriented product release tags. Preserve legacy
+   monthly versions only as historical records under the canonical migration
+   rules.
 3. Require an immutable deployment id for every environment deployment,
    regardless of whether the public release version changes.
 4. Tie the deployment id to source revision, build artifact, environment,
@@ -117,8 +118,8 @@ separate product release.
   deploys.
 - Do not hide every production deploy behind one evergreen "web version".
 - Do not move old release tags to newer commits after deployment.
-- Do not count failed builds or failed deploy attempts as released versions
-  unless the repo explicitly tracks deploy attempts as the release unit.
+- Do not count failed builds or failed deploy attempts as released versions;
+  keep their attempt identifiers separate from the weekly release count.
 - Do not use four-digit years such as `2026.27.1` for CalVer release tags; use
   `26.27.0` or `v26.27.0`, and start the weekly release count at `.0`.
 - Do not expose secrets, internal paths, branch names, account names, or private
@@ -134,8 +135,9 @@ separate product release.
   as the same thing but the platform distinguishes them.
 - The version would collide with an existing tag, release note, artifact, or
   deployment record.
-- A date-based public release tag uses a four-digit year or starts the release
-  count below `.1`.
+- A weekly public release version uses a four-digit year, substitutes a month
+  for the configured week, has a negative deployment count, or skips `.0` for
+  the first release of a week.
 - Rollback or support lookup cannot map a running site to source revision and
   artifact.
 - A cache, service worker, browser storage, API, or migration change needs a
@@ -145,6 +147,8 @@ separate product release.
 
 For a web versioning policy or automation change, verify:
 
+- an empty week's first published version is `.0`, subsequent deployments
+  increment the highest published count, and the next week resets to `.0`
 - route/concern loading includes this card for release or shipping work
 - repo-local release docs define release unit, public version scheme, deploy id
   format, timezone, metadata location, rollback lookup, and release-note rule

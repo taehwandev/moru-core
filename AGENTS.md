@@ -425,9 +425,17 @@ branch creation. `common/skills/branch-cleanup/SKILL.md` uses the same account
 identity for cleanup ownership; adopting the rule does not migrate existing
 branches.
 
-This repository uses monthly CalVer `vYY.MM.N`. `N` counts tags in the month
-and resets to 1 in a new month. A tag is a deployment even without GitHub
-release notes; release ranges start at the previous tag.
+This repository uses weekly CalVer `vYY.WW.N`: two-digit week-year, two-digit
+week number, and a deployment count starting at `0` each week. `N` counts
+published release tags; a tag is a deployment even without GitHub release notes.
+Use the release owner's explicitly configured country calendar, week rules and
+timezone consistently in local tools and CI, as defined by
+`common/skills/release-versioning/SKILL.md`. Resolve those settings before
+calculating a release version. Release ranges start at the previous tag.
+
+Migration: existing monthly tags remain unchanged and retain their original
+meaning. New releases use the weekly scheme and must sort above existing tags;
+never renumber or overwrite a published version to adopt this contract.
 
 An already authorized local commit of the exact staged unit reviewed and
 finished in the same session continues directly after finish; do not open a

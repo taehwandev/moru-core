@@ -11,19 +11,21 @@ deployment, package, app, build, or artifact version.
 
 ## Default
 
-Versioning is an artifact-local contract. Do not force one calendar scheme
-across unrelated projects. Do choose one scheme for each released artifact,
-document it in the repo-local release instructions, and keep it stable.
+Versioning is an artifact-local contract. Document the scheme for each released
+artifact in the repo-local release instructions and keep it stable. App display
+versions and date-based release versions use the weekly contract below;
+compatibility-sensitive packages keep their separate SemVer contract.
 
 The shared default is:
 
 - Use SemVer for libraries, SDKs, APIs, plugins, generated clients, and packages
   where compatibility expectations matter.
-- Use weekly CalVer `YY.WW.N` for date-based release tags and operational
-  artifacts: two-digit year, country-configured week, and a release count that starts at `0`
-  for each week.
-- Use monthly CalVer only when the repo-local release contract explicitly says
-  the release unit is month-based.
+- Use weekly CalVer `YY.WW.N` for app display versions, date-based release tags
+  and operational artifacts: two-digit year, country-configured week, and a
+  release count that starts at `0` for each week.
+- Treat existing monthly or one-based date versions as legacy contracts. Migrate
+  them with release owner approval and a migration note; do not recommend them
+  for new app or date-based release versions.
 
 ## Supported Schemes
 
@@ -39,31 +41,23 @@ Use `MAJOR.MINOR.PATCH` when consumers need compatibility signals.
 - Increment `MAJOR` for breaking changes.
 - Increment `MINOR` for backward-compatible features.
 - Increment `PATCH` for backward-compatible fixes.
-- Prefer SemVer when package managers, app stores, or dependency resolvers
-  expect SemVer semantics.
+- Keep compatibility-sensitive package and dependency versions in SemVer.
+  If platform tooling constrains an app's version fields, document a compatible
+  representation or separate monotonic build number while keeping the app
+  display version in `YY.WW.N`.
 
-### Monthly CalVer
+### Legacy Date-Based Versions
 
-Use `YY.MM.N` only when the repo-local release contract says releases are
-organized by month.
-
-```text
-26.05.1
-26.05.2
-26.06.1
-```
-
-- `YY` is the two-digit year. Do not use a four-digit year.
-- `MM` is the release month.
-- `N` starts at `1` each month and increments for each released artifact or
-  production deployment, as defined by the repo.
-- Do not use monthly CalVer just because a calendar date is available; the
-  shared date-based default for tags is weekly CalVer `YY.WW.N`.
+Existing `YY.MM.N` versions or date-based counts starting at `1` must not be
+silently reinterpreted as weekly versions. Preserve published versions and
+tags. Before changing the scheme, document the transition, version ordering and
+update-client behavior, and obtain release owner approval. New app and
+date-based release contracts use `YY.WW.N` with the first weekly deployment at
+`.0`.
 
 ### Weekly CalVer
 
-Use `YY.WW.N` for date-based release tags unless the repo-local release
-contract explicitly documents another scheme.
+Use `YY.WW.N` for app display versions and date-based release tags.
 
 ```text
 26.21.0
@@ -80,6 +74,9 @@ contract explicitly documents another scheme.
   selected calendar and is not shifted to zero-based numbering.
 - `N` starts at `0` each week and increments for each released artifact or
   production deployment, as defined by the repo.
+- If the current week has no published version, choose `N = 0`. Otherwise,
+  choose one more than the highest published `N` for that week. Do not initialize
+  an empty week's count to `1`; a new week starts again at `.0`.
 - `N` should not be zero-padded unless the
   repo-local release contract explicitly requires padding.
 - Use the timezone configured for the release owner together with the country
@@ -93,16 +90,17 @@ contract explicitly documents another scheme.
 
 Every repo that uses calendar or custom versioning must document:
 
-- scheme name: `semver`, `calver-monthly`, `calver-weekly`, or custom
+- scheme name: `semver` or `calver-weekly`; identify legacy/custom formats and
+  any app platform representation separately
 - pattern and examples
 - country/region, calendar source, first weekday, minimum days in the first
   week, week-year boundary rule, and timezone for weekly versions; timezone
   and calendar source for other date-based versions
-- whether `N` counts published artifacts, production deployments, or public
-  release attempts
+- whether `N` counts published artifacts or successful production deployments;
+  attempt identifiers are separate
 - reset rule for `N`
-- tag prefix, such as `v26.21.1`, and whether package metadata omits `v`
-- prerelease format, such as `26.05.1-rc.1`
+- tag prefix, such as `v26.21.0`, and whether package metadata omits `v`
+- prerelease format, such as `26.21.0-rc.1`
 - build metadata or monotonic build number when stores or platforms require it
 
 ## Rules
@@ -111,8 +109,9 @@ Every repo that uses calendar or custom versioning must document:
 - Do not use four-digit years for date-based release tags. `2026.27.1` and
   `v2026.27.1` are wrong when the scheme is CalVer; use `26.27.1` or
   `v26.27.1`.
-- The first released artifact for a week is `.0`; the next is `.1`. Monthly
-  release counts retain the repo's documented monthly contract.
+- The first released artifact for a week is `.0`; the next is `.1`. The next
+  week resets to `.0`. Failed builds, failed deployments and unpublished
+  artifacts do not advance this count.
 - Do not switch schemes without a migration note and release owner approval.
 - Do not infer month versus week from shape alone; read the repo-local contract.
 - Use the release owner's configured country calendar and timezone for weekly
@@ -122,12 +121,12 @@ Every repo that uses calendar or custom versioning must document:
   overwrite a tag to adopt the new defaults.
 - Decide whether the date comes from release cut, artifact publication, or
   production deployment, and keep that rule stable.
-- Do not count failed builds, failed deploy attempts, or unpublished artifacts
-  unless the repo explicitly says deployment attempts are the release unit.
+- Count only published artifacts or successful deployments. Keep failed-build
+  and deployment-attempt identifiers separate from the weekly release count.
 - Keep package version, tag, artifact name, release notes, and deployment record
   consistent.
-- If a SemVer-only tool rejects zero-padded date fields, use SemVer or a
-  tool-compatible documented variant instead of forcing CalVer.
+- If a SemVer-only tool rejects zero-padded date fields, document a compatible
+  platform representation while keeping the app display version in `YY.WW.N`.
 
 ## Tag-Time Guards
 
@@ -149,16 +148,6 @@ creating a release tag, and block the tag when any guard fails:
    prevent version regressions in stores, package registries, and clients.
 
 ## Examples
-
-Use monthly CalVer:
-
-```text
-scheme: calver-monthly
-pattern: YY.MM.N
-timezone: UTC
-release unit: production deployment
-example: v26.05.1
-```
 
 Use weekly CalVer:
 
@@ -189,7 +178,8 @@ example: v2.4.7
 - The artifact, package, app display version, build number, tag, and deployment
   id are being treated as the same thing but the platform distinguishes them.
 - A date-based release tag uses a four-digit year, an unspecified week/month
-  basis, or a negative weekly release count.
+  basis, a negative weekly release count, or skips `.0` for the first release
+  of a week.
 - The country calendar, week rules, or timezone for a weekly version is missing
   or differs between local tools and CI.
 - The repo already uses a different scheme and no migration approval exists.
