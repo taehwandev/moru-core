@@ -18,6 +18,7 @@ from pathlib import Path
 ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 MODEL = "microsoft/microsoft-decision-1"
 CACHE_SCHEMA = 1
+MAX_REQUEST_BYTES = 24_000
 QUESTIONS = {
     "relevant": {
         "type": "noul",
@@ -97,7 +98,8 @@ def validate_response(response: object) -> dict:
         raise ValueError("Invalid source classification")
     if set(distribution) != set(options) or not all(map(probability, distribution.values())):
         raise ValueError("Invalid source probabilities")
-    if not math.isclose(sum(distribution.values()), 1, abs_tol=0.001):
+    # Five choices rounded to two decimal places can differ by up to 0.025.
+    if not math.isclose(sum(distribution.values()), 1, rel_tol=0, abs_tol=0.025):
         raise ValueError("Source probabilities must sum to one")
     usage = response.get("usage", {})
     usage = usage if isinstance(usage, dict) else {}
@@ -194,6 +196,8 @@ def evaluate(payload: dict, options: argparse.Namespace) -> dict:
             if options.execute and api_key:
                 reason = "call_limit" if calls >= options.max_calls else "provider_unavailable"
             item.update(status="unscored", reason=reason)
+        elif len(json.dumps(request, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()) > MAX_REQUEST_BYTES:
+            item.update(status="unscored", reason="request_too_large")
         else:
             calls += 1
             try:
@@ -209,9 +213,15 @@ def evaluate(payload: dict, options: argparse.Namespace) -> dict:
                 except OSError:
                     warnings.append("cache_write_failed")
                     can_call = False
-            except (urllib.error.URLError, OSError, ValueError):
+            except urllib.error.HTTPError as error:
+                item.update(status="unscored", reason="source_rejected" if error.code in (400, 413)
+                            else "provider_failed", http_status=error.code)
+                can_call = error.code in (400, 413)
+            except (urllib.error.URLError, OSError):
                 item.update(status="unscored", reason="provider_failed")
                 can_call = False
+            except ValueError:
+                item.update(status="unscored", reason="invalid_response")
         results.append(item)
     ranked = sorted(results, key=lambda item: (
         not (item["required"] or item["status"] == "unscored"),

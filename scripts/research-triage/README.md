@@ -59,6 +59,25 @@ process environment; the CLI does not create credentials, read env files, or
 print the key. An OpenRouter account and credits are needed for paid requests.
 The operator can manage a capped key in the provider console.
 
+For a local setup in this checkout, create `.tao/research.env` with file
+permissions `600`. It is Git-ignored. Put this line in it and fill in the value
+locally:
+
+```sh
+export OPENROUTER_API_KEY=
+```
+
+Load that file in the same shell that runs the CLI:
+
+```sh
+source .tao/research.env
+```
+
+The adapter does not load this file automatically. An already-running agent
+does not inherit an export from a different terminal; tell it the local file
+path so it can load the file in the invoking shell. Never paste the key into
+chat or tracked files. Another repository needs its own confirmed ignored path.
+
 ```sh
 python3 scripts/research-triage/microsoft_decision.py \
   --input .tao/research-input.json --cache-dir .tao/research-cache/ms \
@@ -73,8 +92,25 @@ sources for the first experiment; remote disclosure still needs matching scope.
 The default is at most 10 new calls per invocation. Cache hits do not spend that
 limit. Missing keys, exhausted call limits, HTTP errors, and invalid decisions
 leave items unscored; ordinary research can continue. There are no automatic
-retries, alternative models, or background calls. Partial provider failures
-disable further calls in that invocation while existing cache hits remain usable.
+retries, alternative models, or background calls. HTTP 400/413 skips the affected
+source (`source_rejected` with `http_status`); an invalid response skips that
+source (`invalid_response`). Other HTTP errors, including authentication,
+credits, rate limits and server errors, or transport/cache-write failures stop
+further calls while existing cache hits remain usable. A shared request-format
+error can also produce 400 for several sources; the call cap still applies.
+
+Before a new call, requests over 24,000 UTF-8 bytes are left unscored as
+`request_too_large`, without consuming the call cap. This conservative bound
+covers the whole JSON request, including the research question and rubrics;
+it is not an exact tokenizer count or a guarantee of provider acceptance.
+Prepare a relevant excerpt for long documents and retain the original URL.
+The adapter does not silently truncate text. Changed excerpts have new cache
+keys, and their judgment applies only to the supplied excerpt.
+
+The five source-type probabilities must each be finite and between zero and
+one. Their sum may differ from one by at most 0.025, allowing five values rounded
+to two decimal places. Original provider values are preserved; larger deviations
+are rejected. Provider rounding precision remains unverified by a live call.
 
 Output is JSON with input-order `results`, a separate `ranked_ids` view, cache
 hits, actual network-call count, and newly reported cost when available.

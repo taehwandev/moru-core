@@ -215,6 +215,62 @@ class MicrosoftDecisionTests(unittest.TestCase):
         self.assertEqual(1, call.call_count)
         self.assertEqual(["unscored", "cached", "unscored"], [item["status"] for item in result["results"]])
 
+    def test_source_rejection_skips_only_that_item(self):
+        self.payload["sources"] = [source("bad"), source("next", "Another source")]
+        for code in (400, 413):
+            with self.subTest(code=code):
+                self.cache = self.root / str(code)
+                error = urllib.error.HTTPError(adapter.ENDPOINT, code, "rejected", {}, None)
+                with patch.object(adapter, "send_request", side_effect=[error, response()]) as call:
+                    _, result, _ = self.run_cli("--execute")
+                self.assertEqual(2, call.call_count)
+                self.assertEqual(["unscored", "scored"], [item["status"] for item in result["results"]])
+                self.assertEqual("source_rejected", result["results"][0]["reason"])
+                self.assertEqual(code, result["results"][0]["http_status"])
+
+    def test_systemic_http_errors_stop_further_calls(self):
+        self.payload["sources"] = [source("bad"), source("next", "Another source")]
+        for code in (401, 402, 403, 404, 429, 500, 503):
+            with self.subTest(code=code):
+                error = urllib.error.HTTPError(adapter.ENDPOINT, code, "unavailable", {}, None)
+                with patch.object(adapter, "send_request", side_effect=error) as call:
+                    _, result, _ = self.run_cli("--execute")
+                self.assertEqual(1, call.call_count)
+                self.assertEqual("provider_unavailable", result["results"][1]["reason"])
+
+    def test_rounded_probabilities_are_preserved_and_cached(self):
+        candidate = response()
+        distribution = {"official": 0.33, "paper": 0.33, "review": 0.33, "marketing": 0, "other": 0}
+        candidate["answers"]["source_kind"]["probabilities"] = distribution
+        with patch.object(adapter, "send_request", return_value=candidate) as call:
+            _, first, _ = self.run_cli("--execute")
+            _, cached, _ = self.run_cli("--execute")
+        self.assertEqual(1, call.call_count)
+        self.assertEqual("scored", first["results"][0]["status"])
+        self.assertEqual(distribution, cached["results"][0]["answers"]["source_kind"]["probabilities"])
+
+    def test_invalid_response_does_not_stop_the_next_item(self):
+        self.payload["sources"] = [source("bad"), source("next", "Another source")]
+        candidate = response()
+        candidate["answers"]["source_kind"]["probabilities"] = dict.fromkeys(
+            candidate["answers"]["source_kind"]["probabilities"], 0.1,
+        )
+        with patch.object(adapter, "send_request", side_effect=[candidate, response()]) as call:
+            _, result, _ = self.run_cli("--execute")
+        self.assertEqual(2, call.call_count)
+        self.assertEqual("invalid_response", result["results"][0]["reason"])
+        self.assertEqual("scored", result["results"][1]["status"])
+
+    def test_oversized_request_skips_without_spending_call_limit(self):
+        self.payload["sources"] = [source("large", "가" * 10_000), source("next", "Short source")]
+        with patch.object(adapter, "send_request", return_value=response()) as call:
+            _, result, _ = self.run_cli("--execute", "--max-calls", "1")
+        self.assertEqual(1, call.call_count)
+        self.assertEqual("request_too_large", result["results"][0]["reason"])
+        self.assertEqual("Short source", call.call_args.args[0]["state"]["source"]["text"])
+        self.assertEqual("scored", result["results"][1]["status"])
+        self.assertEqual(["large", "next"], result["ranked_ids"])
+
     def test_invalid_answers_do_not_become_cached_decisions(self):
         invalid = []
         for value in (float("nan"), 2, True):
@@ -234,7 +290,7 @@ class MicrosoftDecisionTests(unittest.TestCase):
                 with patch.object(adapter, "send_request", return_value=candidate):
                     status, result, _ = self.run_cli("--execute")
                 self.assertEqual(0, status)
-                self.assertEqual("provider_failed", result["results"][0]["reason"])
+                self.assertEqual("invalid_response", result["results"][0]["reason"])
                 self.assertFalse(self.cache.exists())
 
     def test_cache_write_failure_keeps_answer_and_stops_further_calls(self):
