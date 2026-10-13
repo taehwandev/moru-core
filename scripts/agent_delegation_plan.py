@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from support.global_state import project_state_dir_target
+
 
 DELEGATION_PLAN_FILENAME = "agent-delegation-plan.json"
 GLOB_CHARACTERS = "*?[]"
@@ -51,7 +53,7 @@ SERIAL_SIGNALS = (
 
 
 def delegation_plan_path(project: Path) -> Path:
-    return project / ".tao" / DELEGATION_PLAN_FILENAME
+    return project_state_dir_target(project) / DELEGATION_PLAN_FILENAME
 
 
 def read_delegation_plan(project: Path) -> dict[str, Any]:

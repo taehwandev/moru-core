@@ -15,6 +15,7 @@ from pathlib import Path
 
 from agent_execution_capsule_state import atomic_write_json, is_sha256
 from agent_state_lock import state_lock
+from support.global_state import project_state_dir_target
 
 
 _MAX_BODY_BYTES = 32 * 1024
@@ -51,7 +52,7 @@ class MailboxStore:
     ) -> None:
         self.project = project.expanduser().resolve()
         self.evidence_path = evidence_path.expanduser().resolve() if evidence_path else None
-        self.root = self.project / ".tao" / "agent-mailbox"
+        self.root = project_state_dir_target(self.project) / "agent-mailbox"
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def enqueue(
@@ -204,9 +205,9 @@ def _source_binding(project: Path, evidence_path: Path | None) -> tuple[str, str
     if evidence_path is None or not evidence_path.is_file():
         raise ValueError("preflight evidence does not exist")
     try:
-        relative = evidence_path.relative_to(project / ".tao" / "runs")
+        relative = evidence_path.relative_to(project_state_dir_target(project) / "runs")
     except ValueError as error:
-        raise ValueError("preflight evidence must stay under this project's .tao/runs root") from error
+        raise ValueError("preflight evidence must stay under this project's state runs root") from error
     if len(relative.parts) != 2 or not _RUN_ID.fullmatch(relative.parts[0]):
         raise ValueError("preflight evidence must belong to one opaque Tao run")
     fingerprint = hashlib.sha256(relative.as_posix().encode("utf-8")).hexdigest()

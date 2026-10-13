@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 from re import fullmatch
 from support.bounded_git import run_git
+from support.global_state import project_state_dir_target
 
 
 WORKTREE_DIRNAME = "worktrees"
@@ -20,7 +21,7 @@ class WorktreeSessionError(RuntimeError):
 def worktree_root(project: Path) -> Path:
     """Return the parent directory that holds per-worker worktrees."""
 
-    return Path(project) / ".tao" / WORKTREE_DIRNAME
+    return project_state_dir_target(Path(project)) / WORKTREE_DIRNAME
 
 
 def new_worktree_path(project: Path) -> Path:
@@ -48,7 +49,7 @@ def generated_worker_path(project: Path, worktree_path: Path) -> Path:
             "worker worktree must be a direct generated worker path under "
             f"{expected_root}"
         )
-    for component in (project / ".tao", expected_root):
+    for component in (project_state_dir_target(project), expected_root):
         if component.is_symlink():
             raise WorktreeSessionError(
                 "generated worker path must not resolve through a symlink"

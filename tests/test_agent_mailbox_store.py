@@ -141,6 +141,22 @@ class MailboxStoreTests(unittest.TestCase):
         self.assertEqual(packet["message_id"], receipt["message_id"])
         self.assertNotIn("body", receipt)
 
+    def test_migrated_project_delivers_from_moru_evidence(self) -> None:
+        moru = self.project / ".moru"
+        migrated_evidence = moru / "runs" / self.run_id / "preflight.json"
+        migrated_evidence.parent.mkdir(parents=True)
+        migrated_evidence.write_text("{}\n", encoding="utf-8")
+        (moru / "state-ready").touch()
+
+        packet = self._store(evidence=migrated_evidence).enqueue(
+            sender="codex", recipient="claude", kind="review",
+            body="Check migrated state.", ttl_seconds=60,
+        )
+
+        self.assertEqual([packet], self._store().consume("claude"))
+        self.assertTrue((moru / "agent-mailbox").is_dir())
+        self.assertFalse((self.project / ".tao" / "agent-mailbox").exists())
+
     def test_expired_message_is_removed_without_delivery(self) -> None:
         self._store(evidence=self.evidence).enqueue(
             sender="codex",

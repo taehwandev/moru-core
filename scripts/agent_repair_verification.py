@@ -31,6 +31,7 @@ from agent_verification_command import (
     verification_target_is_changed,
     verification_workdir,
 )
+from support.global_state import project_state_dir_target
 
 
 SCHEMA_VERSION = 1
@@ -125,12 +126,11 @@ def create_repair_receipt(
         "receipt_id": receipt_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    destination = output_path or (
-        project / ".tao" / "repair-verification" / f"{receipt_id}.json"
-    )
+    state_dir = project_state_dir_target(project)
+    destination = output_path or state_dir / "repair-verification" / f"{receipt_id}.json"
     try:
         destination = destination.resolve()
-        destination.relative_to((project / ".tao").resolve())
+        destination.relative_to(state_dir.resolve())
         atomic_write_json(destination, payload)
     except (OSError, ValueError):
         return {"created": False, "reason": "receipt_write_failed"}

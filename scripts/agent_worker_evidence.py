@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 from agent_gate_evidence import gate_evidence_path_for_preflight
+from support.global_state import project_state_dir_target
 
 
 RESERVATION_FILENAME = ".tao-reservation"
@@ -24,7 +25,7 @@ def is_isolated_worker_evidence(project: Path, evidence: Path) -> bool:
 
     project = project.expanduser().resolve()
     lexical_selected = evidence.expanduser().absolute()
-    worker_root = project / ".tao" / "workers"
+    worker_root = project_state_dir_target(project) / "workers"
     try:
         _check_no_symlink(worker_root)
         _check_no_symlink(lexical_selected.parent)
@@ -107,8 +108,8 @@ def isolated_worker_evidence(
 
     lexical_project = (lexical_project or project).expanduser().absolute()
     project = project.resolve()
-    worker_root = project / ".tao" / "workers"
-    lexical_worker_root = lexical_project / ".tao" / "workers"
+    worker_root = project_state_dir_target(project) / "workers"
+    lexical_worker_root = project_state_dir_target(lexical_project) / "workers"
     if worker_root.resolve() != worker_root:
         raise ValueError(
             "Fallback worker evidence root must not resolve through a symlink."
@@ -127,7 +128,7 @@ def isolated_worker_evidence(
         selected.relative_to(project)
     except ValueError as error:
         raise ValueError(
-            "Fallback worker evidence must stay under <project>/.tao/workers/."
+            "Fallback worker evidence must stay under the project state workers directory."
         ) from error
     if len(relative.parts) != 2 or relative.parts[-1] != "preflight.json":
         raise ValueError(

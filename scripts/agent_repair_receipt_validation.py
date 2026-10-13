@@ -18,6 +18,7 @@ from agent_verification_command import (
     verification_command,
     verification_workdir,
 )
+from support.global_state import project_state_dir_target
 
 
 SCHEMA_VERSION = 1
@@ -36,7 +37,7 @@ def validate_repair_receipt(
 ) -> list[str]:
     try:
         resolved_receipt = receipt_path.resolve()
-        resolved_receipt.relative_to((project / ".tao").resolve())
+        resolved_receipt.relative_to(project_state_dir_target(project).resolve())
         payload = json.loads(resolved_receipt.read_text(encoding="utf-8"))
     except (OSError, ValueError, json.JSONDecodeError):
         return ["--repair-evidence must name a project-local structural repair receipt"]
