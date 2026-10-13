@@ -21,7 +21,7 @@ The core below is the required contract. Open `references/current-guidance.md` o
 - `## Previews And Examples` for the state/variant coverage list.
 - `## Do Not` for the full prohibition list.
 
-Also use `common/skills/reusable-code-design/SKILL.md`, and `component-api-design.md` for API shape, slots, controlled state.
+Also use `common/skills/reusable-code-design/SKILL.md`, and `component-api-design.md` for API shape, slots, controlled state. For visual quality (type scale, spacing, color, depth, motion) without an existing brand system, use `common/skills/minimal-visual-design/SKILL.md`.
 
 ## Must
 
