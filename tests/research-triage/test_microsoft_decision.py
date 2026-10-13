@@ -23,7 +23,7 @@ SPEC.loader.exec_module(adapter)
 
 def response(relevance=0.9, kind="review", cost=0.0001):
     return {
-        "model": "microsoft/microsoft-decision-1-test-snapshot", "provider": "Azure",
+        "model": "inception/mercury-decide-test-snapshot", "provider": "Inception",
         "answers": {
             "relevant": {"type": "noul", "noul": relevance},
             "source_kind": {
@@ -41,7 +41,7 @@ def source(identifier="a", text="Users cannot find saved notes."):
     return {"id": identifier, "url": "https://example.org/notes", "title": "Interviews", "text": text}
 
 
-class MicrosoftDecisionTests(unittest.TestCase):
+class OpenRouterDecisionTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
@@ -93,7 +93,7 @@ class MicrosoftDecisionTests(unittest.TestCase):
         self.assertEqual("POST", request.get_method())
         self.assertEqual("https://openrouter.ai/api/alpha/decisions", request.full_url)
         self.assertEqual("Bearer test-key", request.get_header("Authorization"))
-        self.assertEqual("microsoft/microsoft-decision-1", body["model"])
+        self.assertEqual("inception/mercury-decide:free", body["model"])
         self.assertEqual({"allow_fallbacks": False}, body["provider"])
         self.assertEqual(self.payload["query"], body["state"]["query"])
         self.assertEqual(self.payload["sources"][0]["text"], body["state"]["source"]["text"])
@@ -105,7 +105,7 @@ class MicrosoftDecisionTests(unittest.TestCase):
         self.assertEqual(1, second["cache_hits"])
         self.assertIsNone(second["new_reported_cost_usd"])
         self.assertEqual(first["results"][0]["answers"], second["results"][0]["answers"])
-        self.assertEqual("microsoft/microsoft-decision-1-test-snapshot", second["results"][0]["response_model"])
+        self.assertEqual("inception/mercury-decide-test-snapshot", second["results"][0]["response_model"])
         stored = next(self.cache.glob("*.json")).read_text()
         self.assertNotIn("test-key", stored)
         self.assertNotIn("Users cannot find saved notes.", stored)
@@ -153,6 +153,18 @@ class MicrosoftDecisionTests(unittest.TestCase):
                         _, result, _ = self.run_cli("--execute")
                 self.assertEqual(2, call.call_count)
                 self.assertEqual(1, result["network_calls"])
+
+    def test_paid_model_is_explicit_and_has_a_separate_cache_key(self):
+        with patch.object(adapter, "send_request", return_value=response()) as call:
+            _, free, _ = self.run_cli("--execute")
+            _, paid, _ = self.run_cli("--execute", "--model", adapter.PAID_MODEL)
+            _, cached, _ = self.run_cli("--execute", "--model", adapter.PAID_MODEL)
+        self.assertEqual(2, call.call_count)
+        self.assertEqual(adapter.MODEL, free["model"])
+        self.assertEqual(adapter.PAID_MODEL, paid["model"])
+        self.assertEqual(adapter.PAID_MODEL, call.call_args.args[0]["model"])
+        self.assertEqual(1, cached["cache_hits"])
+        self.assertEqual(2, len(list(self.cache.glob("*.json"))))
 
     def test_refresh_deduplicates_identical_sources_within_a_batch(self):
         self.payload["sources"] = [source("a"), source("b")]

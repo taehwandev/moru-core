@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Optional Microsoft-Decision-1 source triage; no inference without --execute."""
+"""Optional OpenRouter Decisions source triage; no inference without --execute."""
 
 from __future__ import annotations
 
@@ -16,7 +16,8 @@ import urllib.request
 from pathlib import Path
 
 ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
-MODEL = "microsoft/microsoft-decision-1"
+MODEL = "inception/mercury-decide:free"
+PAID_MODEL = "microsoft/microsoft-decision-1"
 CACHE_SCHEMA = 1
 MAX_REQUEST_BYTES = 24_000
 QUESTIONS = {
@@ -118,10 +119,10 @@ def validate_response(response: object) -> dict:
     }
 
 
-def request_for(query: str, source: dict) -> dict:
+def request_for(query: str, source: dict, model: str) -> dict:
     fields = ("url", "title", "text", "published_at")
     return {
-        "model": MODEL,
+        "model": model,
         "state": {"query": query, "source": {k: source[k] for k in fields if k in source}},
         "questions": QUESTIONS,
         "provider": {"allow_fallbacks": False},
@@ -181,7 +182,7 @@ def evaluate(payload: dict, options: argparse.Namespace) -> dict:
     calls, hits, cost, known_costs = 0, 0, 0.0, 0
     can_call = options.execute and bool(api_key)
     for source in payload["sources"]:
-        request = request_for(payload["query"], source)
+        request = request_for(payload["query"], source, options.model)
         key = cache_key(request)
         path = options.cache_dir / (key + ".json")
         result = evaluated.get(key)
@@ -228,7 +229,7 @@ def evaluate(payload: dict, options: argparse.Namespace) -> dict:
         -item.get("answers", {}).get("relevant", {}).get("noul", 0),
     ))
     return {
-        "model": MODEL, "network_calls": calls, "cache_hits": hits,
+        "model": options.model, "network_calls": calls, "cache_hits": hits,
         "unscored": sum(item["status"] == "unscored" for item in results),
         "new_reported_cost_usd": cost if known_costs else None,
         "cost_complete": known_costs == calls, "warnings": warnings,
@@ -240,7 +241,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--cache-dir", type=Path, default=Path(".tao/research-cache/ms"))
-    parser.add_argument("--execute", action="store_true", help="Allow new paid API calls")
+    parser.add_argument("--execute", action="store_true", help="Allow new API calls")
+    parser.add_argument("--model", choices=(MODEL, PAID_MODEL), default=MODEL,
+                        help="Decisions model; the default is free, the Microsoft option is paid")
     parser.add_argument("--max-calls", type=int, default=10)
     parser.add_argument("--ttl-hours", type=float, default=24)
     parser.add_argument("--refresh", action="store_true", help="Ignore persisted decisions")

@@ -4,10 +4,11 @@ status: review
 type: ai-generated
 ---
 
-# Microsoft Research Triage Adapter
+# OpenRouter Research Triage Adapter
 
 This repository-owned CLI optionally evaluates collected research sources with
-Microsoft-Decision-1 through OpenRouter. It ranks relevance and classifies source
+OpenRouter's Decisions API. It defaults to the free Mercury Decide model and can
+explicitly use Microsoft-Decision-1. It ranks relevance and classifies source
 type; it neither searches the web nor generates names, ideas, or a report.
 Every input source remains in the output, including failures and low scores.
 
@@ -56,7 +57,8 @@ python3 scripts/research-triage/microsoft_decision.py \
 
 New calls require `--execute`. Read `OPENROUTER_API_KEY` from the invoking
 process environment; the CLI does not create credentials, read env files, or
-print the key. An OpenRouter account and credits are needed for paid requests.
+print the key. The free model has provider rate limits; an OpenRouter account
+and credits are needed for paid requests. There is no automatic paid fallback.
 The operator can manage a capped key in the provider console.
 
 Keep the key in the user-level file `~/.tao/research.env` with file permissions
@@ -87,6 +89,15 @@ python3 scripts/research-triage/microsoft_decision.py \
   --input .tao/research-input.json --cache-dir .tao/research-cache/ms \
   --execute --max-calls 10
 ```
+
+The default `inception/mercury-decide:free` has zero listed input and output
+token price. Select `--model microsoft/microsoft-decision-1` only when a paid
+comparison or a quality check justifies it. On 2026-10-13, OpenRouter listed
+that model at $0.042 per million input tokens and zero output cost. These are
+different models with the same Decisions request/response contract; lower price
+does not prove better ranking. Check important-source misses on labeled Korean
+and English samples before trusting either model's score. The selected model is
+part of the cache key, so switching models cannot reuse another model's result.
 
 For another target repository, execute the script from its resolved `<TAO_ROOT>`
 path and place inputs/cache in that target's ignored local directory. Confirm
@@ -144,15 +155,18 @@ python3 -m unittest discover -s tests/research-triage -p test_microsoft_decision
 python3 scripts/workflow.py validate
 ```
 
-Official API contracts checked on 2026-10-12:
+Official API contracts checked on 2026-10-13:
 
 - [OpenRouter Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request):
   typed `state`/`questions` request and typed `answers` response.
+- [Mercury Decide free model on OpenRouter](https://openrouter.ai/inception/mercury-decide%3Afree):
+  model identifier, zero listed token price, and free-tier limits.
 - [Microsoft model on OpenRouter](https://openrouter.ai/microsoft/microsoft-decision-1):
   model identifier and mutable weights. Provider prompt-cache support is unconfirmed.
 - [Microsoft usage guide](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision):
   bounded judgments and workload-specific threshold validation.
 
-Start with ranking only. Test actual Korean/English research sources and inspect
-important-source misses before considering exclusion. API connectivity and
-quality remain unverified until a live, authorized experiment is run.
+Start with ranking only. A live smoke test on 2026-10-13 scored three synthetic
+Korean/English sources in the expected order with $0 reported cost. Test actual
+research sources and inspect important-source misses before considering exclusion.
+Comparative quality against the paid model remains unverified.
