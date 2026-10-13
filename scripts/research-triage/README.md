@@ -59,9 +59,12 @@ process environment; the CLI does not create credentials, read env files, or
 print the key. An OpenRouter account and credits are needed for paid requests.
 The operator can manage a capped key in the provider console.
 
-For a local setup in this checkout, create `.tao/research.env` with file
-permissions `600`. It is Git-ignored. Put this line in it and fill in the value
-locally:
+Keep the key in the user-level file `~/.tao/research.env` with file permissions
+`600`. It lives outside every repository, so all checkouts, worktrees, other
+target repositories and agent sessions share one location. It is not in shell
+profiles such as `~/.zshrc`; an agent that finds `OPENROUTER_API_KEY` unset
+should look for this file before concluding there is no key. Put this line in
+it and fill in the value locally:
 
 ```sh
 export OPENROUTER_API_KEY=
@@ -70,13 +73,14 @@ export OPENROUTER_API_KEY=
 Load that file in the same shell that runs the CLI:
 
 ```sh
-source .tao/research.env
+source ~/.tao/research.env
 ```
 
 The adapter does not load this file automatically. An already-running agent
-does not inherit an export from a different terminal; tell it the local file
-path so it can load the file in the invoking shell. Never paste the key into
-chat or tracked files. Another repository needs its own confirmed ignored path.
+does not inherit an export from a different terminal; load the file in the
+invoking shell instead. Never paste the key into chat or tracked files. A
+checkout-local `.tao/research.env` also works because `.tao/` is Git-ignored,
+but it is visible only to that checkout.
 
 ```sh
 python3 scripts/research-triage/microsoft_decision.py \
