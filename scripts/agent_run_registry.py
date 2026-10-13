@@ -21,6 +21,7 @@ from agent_run_owner import (
     process_owner,
 )
 from agent_state_lock import project_state_lock, state_lock
+from support.global_state import project_state_dir_target
 
 
 SCHEMA_VERSION = 1
@@ -80,7 +81,7 @@ MAX_RUNS = 100
 
 
 def registry_path(project: Path) -> Path:
-    return project.resolve() / ".tao" / REGISTRY_FILENAME
+    return project_state_dir_target(project.resolve()) / REGISTRY_FILENAME
 
 
 def register_run(
@@ -1002,7 +1003,7 @@ def _owner_recently_live(run: dict[str, Any], moment: datetime) -> bool:
 
 def _canonical_evidence_available(project: Path, run: dict[str, Any]) -> bool:
     """Retention can remove canonical evidence; legacy bindings stay compatible."""
-    evidence = project / ".tao" / "runs" / str(run["run_id"]) / str(run.get("evidence_name") or "")
+    evidence = project_state_dir_target(project) / "runs" / str(run["run_id"]) / str(run.get("evidence_name") or "")
     return not _matches_evidence(run, project, evidence) or evidence.is_file()
 
 
@@ -1200,7 +1201,7 @@ def _run_id_for(
     name = directory.name
     if not (
         RUN_DIRECTORY_RE.match(name)
-        and directory.parent == project.resolve() / ".tao" / RUNS_DIR
+        and directory.parent == project_state_dir_target(project.resolve()) / RUNS_DIR
     ):
         return uuid.uuid4().hex
     if any(

@@ -12,6 +12,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from support.global_state import project_state_dir_target
 
 from agent_worktree_identity import WorktreeSessionError
 from agent_worktree_integration import finalize_worker_worktree
@@ -555,7 +556,7 @@ def print_dispatch(args: argparse.Namespace) -> int:
     evidence_path = (
         args.evidence.expanduser().resolve()
         if args.evidence
-        else project / ".tao" / "preflight.json"
+        else project_state_dir_target(project) / "preflight.json"
     )
     request_classification, block_reason = _dispatch_request_classification(
         args,
@@ -585,7 +586,7 @@ def print_dispatch(args: argparse.Namespace) -> int:
         rules=rules,
     )
     if not parent_identity_matches:
-        evidence_path = project / ".tao" / "preflight.json"
+        evidence_path = project_state_dir_target(project) / "preflight.json"
     route = parent_route
     if route is None:
         inferred_concerns = infer_concerns_from_request(args.request)

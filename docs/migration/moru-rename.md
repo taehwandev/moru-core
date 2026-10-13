@@ -13,6 +13,11 @@ Plan for renaming the product family. Decided by the owner on 2026-10-13.
 | TaoIDE (macOS app) | Moru |
 | Tao Agent OS (rules and checks) | Moru Core |
 
+The repository slug is `moru-core`. Runtime records and the user-local
+installation use `.moru`, not `.moru-core`; the shorter directory is shared by
+the Moru family. An existing `~/.moru/workspace/` is preserved and is not
+itself evidence that Moru Core runtime records have been migrated.
+
 `모루` is a smith's anvil: the surface work is laid on and shaped. The app is
 the workbench; Moru Core is the rule set underneath it. Prose says "Moru" and
 "Moru Core"; Korean copy says "모루" and "모루 코어".
@@ -46,6 +51,11 @@ are separate inventories.
    path and environment names keep resolving for a stated window, setup
    writes both, and removal is a separate, announced step. Re-review the
    protected site prompts and update their test hashes in the same change.
+   The first compatibility commit is on local `main`: both launchers can be
+   installed, while existing records continue to use `.tao`. A `state-ready`
+   marker selects `.moru` only after an offline copy and verification of all
+   project-state writers. Do not create that marker merely because `.moru`
+   already exists.
 4. **Repository, folder and domain.** GitHub repository rename, local folder
    move, `docs/CNAME` and the site URL. Each is an external or cross-project
    action with its own approval; GitHub redirects old repository URLs, but

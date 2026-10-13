@@ -11,6 +11,7 @@ from typing import Any
 from agent_continuation_outbound import assert_no_continuation_outbound
 from agent_execution_capsule_state import atomic_write_json, read_json_object
 from agent_state_lock import project_state_lock, state_lock
+from support.global_state import project_state_dir_target
 
 
 SCHEMA_VERSION = 1
@@ -21,7 +22,7 @@ SAFE_OPAQUE = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 
 
 def events_path(project: Path) -> Path:
-    return project.resolve() / ".tao" / EVENTS_FILENAME
+    return project_state_dir_target(project.resolve()) / EVENTS_FILENAME
 
 
 def emit_event(

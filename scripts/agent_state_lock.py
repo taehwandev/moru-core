@@ -14,6 +14,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+from support.global_state import project_state_dir_target
+
 
 @contextmanager
 def state_lock(path: Path) -> Iterator[None]:
@@ -47,4 +49,4 @@ def state_lock(path: Path) -> Iterator[None]:
 def project_state_lock(project: Path) -> Iterator[None]:
     """Serialize a multi-file runtime state snapshot or mutation."""
 
-    return state_lock(project.resolve() / ".tao" / ".state.lock")
+    return state_lock(project_state_dir_target(project.resolve()) / ".state.lock")

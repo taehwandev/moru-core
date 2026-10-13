@@ -9,10 +9,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from agent_state_lock import state_lock
+from agent_state_lock import project_state_lock, state_lock
 
 
 class StateLockTests(unittest.TestCase):
+    def test_project_lock_follows_migrated_state_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            project = Path(temporary_directory)
+            state = project / ".moru"
+            state.mkdir()
+            (state / "state-ready").touch()
+            with project_state_lock(project):
+                self.assertTrue((state / ".state.lock.lock").exists())
+            self.assertFalse((project / ".tao").exists())
+
     def test_hidden_state_path_uses_a_single_leading_dot_for_lock_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)

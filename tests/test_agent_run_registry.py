@@ -77,6 +77,18 @@ def claiming_runs(project: Path) -> list[dict]:
 
 
 class AgentRunRegistryTests(unittest.TestCase):
+    def test_registry_follows_migrated_state_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            state = project / ".moru"
+            state.mkdir()
+            (state / "state-ready").touch()
+            evidence = state / "preflight.json"
+            run = register_run(project, evidence, {"command": "task"}, {})
+            self.assertEqual((state / "run-registry.json").resolve(), registry_path(project))
+            self.assertEqual(run["run_id"], active_runs(project)[0]["run_id"])
+            self.assertFalse((project / ".tao").exists())
+
     def test_reads_never_scaffold_state_in_a_marker_only_directory(self) -> None:
         """A registry read against a directory with no runtime state must not
         create one.
