@@ -57,7 +57,7 @@ reading or edits. Screenshots are first-class anchors, not a separate routing
 branch, and sensitive visual contents must not be persisted in route metadata.
 
 The route/search layer uses the repository-pinned Wikimap source for
-deterministic, incremental section retrieval over Tao Agent OS guidance. It
+deterministic, incremental section retrieval over Moru Core guidance. It
 runs only `update --no-map` and `search --json`; do not wire Wikimap install,
 hook, migration, semantic-note, source-editing, or Graphify-import commands into
 the workflow. The ignored `.wikimap/` SQLite index is disposable. The pinned
@@ -326,7 +326,7 @@ current successful review's workflow validation and scoped `git diff --check`
 result; otherwise it runs those checks itself. Read-only work against a path
 outside Git skips the structurally unavailable diff check, while a writing task
 outside Git still fails closed. It uses the task-local VibeGuard audit cache
-when both the target project git state and Tao Agent OS rules git state are
+when both the target project git state and Moru Core rules git state are
 unchanged. Moving identical bytes between unstaged and staged state preserves
 that cache entry; a changed path, file byte, HEAD, rule state, or audit command
 invalidates it. Failed VibeGuard invocations must not be cached; rerun the tool

@@ -11,7 +11,7 @@ requires_docs:
 
 # Graphify Project Integration
 
-Use when Tao Agent OS must install or verify the shared Graphify skill, or
+Use when Moru Core must install or verify the shared Graphify skill, or
 when a target repository needs its own current local graph.
 
 ## Use When
@@ -33,7 +33,7 @@ when a target repository needs its own current local graph.
 
 Keep ownership split into two boundaries:
 
-1. The active Tao Agent OS owns the bundled Graphify skill and installs one
+1. The active Moru Core owns the bundled Graphify skill and installs one
    user-level copy with user-level Codex, Claude, AGY, and generic-agent links.
 2. Each target checkout owns only its ignored generated graph at
    `.agents/local/graphify-out`.

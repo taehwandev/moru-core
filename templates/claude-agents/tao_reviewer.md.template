@@ -1,5 +1,5 @@
 ---
-# Tao Agent OS managed Claude agent
+# Moru Core managed Claude agent
 name: tao_reviewer
 description: Review an assigned change for concrete correctness and integration risks. Use only when a parent agent assigns an explicit diff, scope, and acceptance criteria, not for general code review requests.
 model: inherit

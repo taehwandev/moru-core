@@ -127,7 +127,7 @@ escapes, and maintenance cost.
 - Do not design a non-developer workflow whose primary protection is telling the
   user not to paste credentials into chat.
 - Do not copy one vendor's API shape, role model, or deployment topology into
-  shared Tao Agent OS guidance.
+  shared Moru Core guidance.
 - Do not assume a proxy alone prevents exfiltration when the agent can bypass
   the proxy through direct network, local files, logs, screenshots, or another
   tool.

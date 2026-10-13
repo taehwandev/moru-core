@@ -6,7 +6,7 @@ type: ai-generated
 
 # Code Structure And Ownership
 
-Use when routed to `common/skills/code-structure-ownership/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `common/skills/code-structure-ownership/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

@@ -23,7 +23,7 @@ instructions, and any project or product guidance.
 ## Read
 
 - User request, acceptance criteria, PRD/ARD, issue, or commit message.
-- Repo-local instructions and any matching Tao Agent OS platform/product cards.
+- Repo-local instructions and any matching Moru Core platform/product cards.
 - Final diff, including generated files, lockfiles, fixtures, snapshots, and
   config.
 - Boundary-plan evidence for code work: owned scope, caller-facing contract,
@@ -148,7 +148,7 @@ as a read-only gate:
   the smallest safe next action.
 - Do not stop at a vague failure report. Follow the canonical bounded repair
   cycle in `workflows/skills/retrospective-learning/SKILL.md`: run an actionable
-  retrospective, improve and verify the owning Tao Agent OS guidance, hook,
+  retrospective, improve and verify the owning Moru Core guidance, hook,
   validator, or test, fix scoped and safe issues outside the read-only hook,
   then resume the review task at `first_failed_checkpoint`. Ask only when
   recovery requires a scope decision, destructive action, credential change,

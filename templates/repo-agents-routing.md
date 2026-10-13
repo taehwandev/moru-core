@@ -14,7 +14,7 @@ in the same pass or point them back to `AGENTS.md`; do not create duplicate
 runtime-specific files only for this block.
 
 ```text
-Shared Tao Agent OS library:
+Shared Moru Core library:
 <TAO_ROOT>/AGENTS.md
 <TAO_ROOT>/index.md
 <TAO_ROOT>/scripts/agent-entry.py
@@ -33,7 +33,7 @@ returns `selected`, prefer
 starting or relaunching the runtime with that selected repo as the primary
 workspace. For Codex, use `codex -C <TARGET_REPO>`; add
 `--add-dir <TAO_ROOT>` only when the task needs the shared
-Tao Agent OS root in the session workspace. Repo instruction files define
+Moru Core root in the session workspace. Repo instruction files define
 behavior; runtime launch options define filesystem scope. Before work in a
 target project, explicitly read its instruction file when present for this
 runtime: Codex-style agents read `AGENTS.md`, Claude reads `CLAUDE.md` when
@@ -53,7 +53,7 @@ repo was written, pass it as `workspace scope checkpoint=<evidence>`,
 `cross-repo scope checkpoint=<evidence>`.
 Use the workflow router for narrow selection. Do not read `index.md` after
 successful routing; it is a fallback catalog, not another startup requirement.
-Do not create repo-local skill documents merely to copy shared Tao Agent OS
+Do not create repo-local skill documents merely to copy shared Moru Core
 behavior. Keep repo-local skills, workflows, wiki pages, or runbooks only when
 they contain product-specific facts, commands, domain policy, or verification
 that cannot be shared safely.
@@ -120,7 +120,7 @@ with the PRD -> ARD -> implementation path before lower-level coding steps. If
 the work then proceeds into code, use the `product` route unless an existing
 PRD/ARD or repo-local instruction makes the slice clearly trivial.
 Documentation enforcement for the active tracked route is owned centrally by
-the shared Tao Agent OS finish-check across all runtimes; this pointer does not
+the shared Moru Core finish-check across all runtimes; this pointer does not
 add a documentation gate or approval round to read-only answers.
 Do not duplicate or restate these rules in repo-local files; keep only this
 pointer. The source of truth and the exception process are
@@ -136,7 +136,7 @@ to be 🐱🟢 SUCCESS. Use only two cat signal badges in human-visible reports:
 missed, or missing evidence and triggers missed-gate recovery: stop
 finalization, preserve the first failed checkpoint, roll back only dependent
 agent-made changes when safe, and run the retrospective workflow. Improve and
-verify the owning Tao Agent OS doc, hook, validator, or test before resuming
+verify the owning Moru Core doc, hook, validator, or test before resuming
 that checkpoint. One repair cycle is allowed; stop on the same failure or an
 unsafe or ambiguous repair. Do not report any third gate state.
 When the wrapper scripts are available, keep the existing start evidence,

@@ -6,7 +6,7 @@ type: ai-generated
 
 # Agent Skill Card Anatomy
 
-Use when creating, updating, splitting, or reviewing Tao Agent OS common
+Use when creating, updating, splitting, or reviewing Moru Core common
 cards, workflow cards, platform cards, product-pattern cards, or agent-facing
 templates.
 

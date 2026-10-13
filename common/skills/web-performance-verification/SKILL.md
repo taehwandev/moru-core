@@ -6,7 +6,7 @@ type: ai-generated
 
 # Web Performance Verification
 
-Use when routed to `common/skills/web-performance-verification/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `common/skills/web-performance-verification/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

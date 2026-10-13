@@ -90,7 +90,7 @@ scope just because there is adjacent work.
 ## Verification
 
 Cycle evidence must include the contract fields above and the check that proved
-the stop condition. For routed Tao Agent OS work, the finish-check evidence for
+the stop condition. For routed Moru Core work, the finish-check evidence for
 `cycle contract` must name cycle type, input/source scope, allowed or forbidden
 change boundary, acceptance or verification method, stop condition, and next
 cycle/checkpoint or handoff.

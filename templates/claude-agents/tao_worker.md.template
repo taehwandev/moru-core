@@ -1,5 +1,5 @@
 ---
-# Tao Agent OS managed Claude agent
+# Moru Core managed Claude agent
 name: tao_worker
 description: Implement one disjoint, parent-assigned slice and run its focused checks. Use only when a parent agent assigns explicit owned and forbidden paths with a ready handoff, not for general implementation requests.
 model: inherit

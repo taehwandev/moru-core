@@ -124,7 +124,7 @@ separate product release.
   `26.27.0` or `v26.27.0`, and start the weekly release count at `.0`.
 - Do not expose secrets, internal paths, branch names, account names, or private
   operator notes in public version metadata.
-- Do not make a shared Tao Agent OS card define one vendor's deployment
+- Do not make a shared Moru Core card define one vendor's deployment
   workflow; keep provider-specific setup in repo-local docs.
 
 ## Stop If
@@ -159,7 +159,7 @@ For a web versioning policy or automation change, verify:
 - changelog/release notes map to public release versions, not every deploy,
   unless the repo explicitly chose deploy-per-release
 
-For Tao Agent OS changes, run `python3 scripts/workflow.py validate`, the
+For Moru Core changes, run `python3 scripts/workflow.py validate`, the
 nearest routing tests, and `git diff --check`.
 
 ## Report

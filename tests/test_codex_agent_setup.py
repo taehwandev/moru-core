@@ -15,7 +15,9 @@ except ModuleNotFoundError:
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from support.codex_agent_setup import AGENT_NAMES, MANAGED_MARKER, install_codex_agents
+from support.codex_agent_setup import (
+    AGENT_NAMES, LEGACY_MANAGED_MARKER, MANAGED_MARKER, install_codex_agents,
+)
 
 
 class CodexAgentSetupTests(unittest.TestCase):
@@ -75,6 +77,14 @@ class CodexAgentSetupTests(unittest.TestCase):
             (ROOT / "templates" / "codex-agents" / target.name).read_bytes(),
             target.read_bytes(),
         )
+
+    def test_legacy_managed_role_upgrades_to_moru_marker(self) -> None:
+        legacy = (LEGACY_MANAGED_MARKER + '\nname = "tao_worker"\n').encode()
+        target = self.write_role("tao_worker", legacy)
+        self.assertEqual("would_update", self.statuses(self.install(dry_run=True))["agents.tao_worker"])
+        self.assertEqual(legacy, target.read_bytes())
+        self.assertEqual("installed", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual(MANAGED_MARKER, target.read_text().splitlines()[0])
 
     def test_same_name_user_role_and_unrelated_role_are_preserved(self) -> None:
         custom = b'name = "tao_worker"\ndeveloper_instructions = "My instructions"\n'

@@ -6,7 +6,7 @@ type: ai-generated
 
 # Refactoring Guidance
 
-Use when routed to `common/skills/refactoring/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `common/skills/refactoring/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

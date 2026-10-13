@@ -583,6 +583,18 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             self.assertFalse(gate.opts_in(home))
             self.assertFalse(pretool.opts_in(home))
 
+    def test_moru_global_install_does_not_classify_home_as_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            state = home / ".moru"
+            (state / "bin").mkdir(parents=True)
+            (state / "bin" / "moru-hook").write_text("#!/usr/bin/env python3\n")
+            (state / "moru-root").write_text("/somewhere/moru-core\n")
+            os.environ[STATE_HOME_ENV] = str(Path(tmp) / "elsewhere" / ".tao")
+
+            self.assertFalse(gate.opts_in(home))
+            self.assertFalse(pretool.opts_in(home))
+
     def test_real_project_state_still_classifies(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "home"
@@ -594,6 +606,24 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             state.mkdir(parents=True)
             (state / "preflight.json").write_text("{}")
 
+            self.assertTrue(gate.opts_in(project))
+            self.assertTrue(pretool.opts_in(project))
+
+    def test_moru_project_state_and_marker_classify(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            os.environ[STATE_HOME_ENV] = str(_make_global_state_dir(home))
+            project = home / "git" / "moru-project"
+            (project / ".moru").mkdir(parents=True)
+            (project / ".moru" / "preflight.json").write_text("{}")
+
+            self.assertTrue(gate.opts_in(project))
+            self.assertTrue(pretool.opts_in(project))
+
+            (project / ".moru" / "preflight.json").unlink()
+            (project / ".moru").rmdir()
+            (project / "AGENTS.md").write_text("# Moru Core project\n")
             self.assertTrue(gate.opts_in(project))
             self.assertTrue(pretool.opts_in(project))
 

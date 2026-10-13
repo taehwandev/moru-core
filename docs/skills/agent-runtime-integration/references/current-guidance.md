@@ -6,17 +6,17 @@ type: human-reviewed-needed
 
 # Agent Runtime Integration
 
-Use this when connecting Tao Agent OS to Codex, Claude,
+Use this when connecting Moru Core to Codex, Claude,
 Gemini/Antigravity/AGY, or another AI coding agent runtime.
 
 ## Model
 
-Tao Agent OS should be consumed through a small bridge, not copied wholesale:
+Moru Core should be consumed through a small bridge, not copied wholesale:
 
-1. Reusable library: one Tao Agent OS root.
+1. Reusable library: one Moru Core root.
 2. Runtime bridge: repo-local instructions or a pasted prompt.
 3. Task route: `scripts/workflow.py` output for the current task.
-4. Safety gate: current VibeGuard application flow using Tao Agent OS as the
+4. Safety gate: current VibeGuard application flow using Moru Core as the
    rule source.
 
 Repo-local instructions remain the source of truth for commands, paths,
@@ -322,8 +322,8 @@ Codex:
   This compatibility path does not grant sandbox access, suppress native
   approval, or permit commands that explicitly target a protected checkout.
 - Add `--add-dir <TAO_ROOT>` only when the task must include the
-  shared Tao Agent OS root in the session workspace, such as maintaining
-  Tao Agent OS itself or editing shared runtime bridge files.
+  shared Moru Core root in the session workspace, such as maintaining
+  Moru Core itself or editing shared runtime bridge files.
 - Do not expect `AGENTS.md` or `.codex/rules` to change sandbox roots; they
   control behavior and permission matching, not the runtime's workspace root.
 - When target setup is requested for Codex, register only the resolved
@@ -355,7 +355,7 @@ Codex:
   performs only deterministic mutation, worktree, ticket-branch, and active-run
   checks; routing, document selection, VibeGuard, and review stay outside the
   per-tool path.
-- Tao Agent OS command permissions belong in user-level
+- Moru Core command permissions belong in user-level
   `~/.codex/rules/default.rules` as narrow `prefix_rule` entries for the
   current `<TAO_ROOT>/scripts/*.py` files. The managed `cd` rule covers the
   directory-change command for newly generated worktree paths; it does not
@@ -385,11 +385,11 @@ Codex:
   the cancelled request is no longer pending and reconcile possible side
   effects. Never automatically retry a non-idempotent external write.
 - `setup-agent-hooks.py` should leave only absolute, parameter-free
-  Tao Agent OS script prefix rules in the managed Codex block and remove stale
-  Tao Agent OS rules that were saved with `$HOME`, `${HOME}`, `~`, relative
+  Moru Core script prefix rules in the managed Codex block and remove stale
+  Moru Core rules that were saved with `$HOME`, `${HOME}`, `~`, relative
   script paths, shell `-lc`, or command-specific arguments.
 - Keep Codex-specific commands or sandbox notes in the target repo, not in the
-  shared Tao Agent OS.
+  shared Moru Core.
 
 Claude:
 
@@ -399,10 +399,10 @@ Claude:
   environment, do not create `CLAUDE.md` just for duplication.
 - If Claude is operating from chat without repo instruction discovery, paste
   `templates/use-tao-prompt.md`.
-- Tell Claude the exact Tao Agent OS root path or a repo-pinned submodule path.
-- Tao Agent OS command permissions belong in the user-level
+- Tell Claude the exact Moru Core root path or a repo-pinned submodule path.
+- Moru Core command permissions belong in the user-level
   `~/.claude/settings.json`, not repo-local `.claude/settings.json`, because
-  the Tao Agent OS `scripts/*.py` entrypoints are shared across projects.
+  the Moru Core `scripts/*.py` entrypoints are shared across projects.
 - Claude managed hooks should call the stable launcher
   `<TAO_LAUNCHER>`, not a moving checkout path such as
   `/absolute/path/to/tao-agent-os/scripts/workflow.py`. The setup script
@@ -412,7 +412,7 @@ Claude:
   `agent-hook.py` subcommand aliases such as `start`, `handoff`, `review`,
   `checkpoint`, `resume`, and `finish`; these aliases must execute the hook, not skip with
   success.
-- Claude Tao Agent OS permissions should allow only that stable launcher and
+- Claude Moru Core permissions should allow only that stable launcher and
   the narrow managed helper commands with the runtime's trailing wildcard form
   for arguments, for example
   `Bash(/absolute/home/.tao/bin/tao-hook *)`. Do not
@@ -483,13 +483,13 @@ Gemini/Antigravity/AGY:
 - If local evidence shows a different active instruction surface, stop and ask
   before adding duplicate guidance.
 - Do not assume Antigravity has loaded `AGENTS.md` unless local evidence or the
-  user confirms that behavior; instruct it to read the Tao Agent OS root
+  user confirms that behavior; instruct it to read the Moru Core root
   explicitly when in doubt.
-- Tao Agent OS command permissions may live in
+- Moru Core command permissions may live in
   `~/.gemini/config/config.json` or the legacy
   `~/.gemini/antigravity-cli/settings.json`, depending on the active AGY
   runtime. Runtime hooks remain in `~/.gemini/config/hooks.json`.
-- AGY Tao Agent OS permissions follow the same absolute-wrapper rule as
+- AGY Moru Core permissions follow the same absolute-wrapper rule as
   Claude, using the AGY permission key shape, for example
   `command(/Users/USER/.tao/bin/tao-hook *)`.
   Avoid `$HOME`, `${HOME}`, `~`, relative script paths, and saved prefixes that
@@ -515,7 +515,7 @@ For every runtime:
    explicitly documented local override files.
 3. Select the setup mode: existing local install, first-time local shared
    install, or team-pinned install.
-4. Locate the Tao Agent OS root. If any usable local or repo-pinned root
+4. Locate the Moru Core root. If any usable local or repo-pinned root
    exists, reuse it unless the user explicitly approves a new download or
    pinned copy.
 5. Install only when no usable root exists, then validate the selected root.
@@ -528,7 +528,7 @@ For every runtime:
    explicitly selects refreshing an existing managed block; otherwise preserve
    current guardrails and run audit.
 8. Apply the selected VibeGuard mode with an installed `vibeguard` binary when
-   available, using the selected Tao Agent OS root as the rule source. Use the
+   available, using the selected Moru Core root as the rule source. Use the
    published package command only when no trusted binary exists or an explicit
    latest-package check is needed. Treat https://vibeguard.thdev.app/ as the
    human-facing reference, not a runtime fetch dependency.
@@ -538,7 +538,7 @@ For every runtime:
    same pass, or leave them out only when the runtime reads `AGENTS.md` and no
    separate file exists. Offer optional Step 2 for personal/global runtime
    bridges; only update those files when the user chooses it.
-11. Read Tao Agent OS `AGENTS.md`.
+11. Read Moru Core `AGENTS.md`.
 12. For multi-step tasks, run `<TAO_LAUNCHER> start` once with the
     current request to produce routing and preflight evidence. If the request
     is a direct question, answer it before the start hook or editing. Use
@@ -582,7 +582,7 @@ For every runtime:
 ## Lifecycle Aliases
 
 Runtimes may expose short lifecycle commands for convenience, but they should
-call Tao Agent OS routing instead of creating a second active workflow router.
+call Moru Core routing instead of creating a second active workflow router.
 
 | Alias | Route Command | Primary Use |
 | --- | --- | --- |
@@ -626,7 +626,7 @@ continuing under an "auto" label.
 If a required route gate fails, the runtime must stop finalization, preserve the
 first failed checkpoint, roll back only dependent agent-made changes when safe,
 and run the canonical retrospective workflow. It must improve and verify the
-owning Tao Agent OS document, hook, validator, or test before resuming that
+owning Moru Core document, hook, validator, or test before resuming that
 checkpoint. One repair cycle is allowed; the same failure signature or an
 unsafe or ambiguous repair stops the run.
 
@@ -643,7 +643,7 @@ absent from progress reports.
 
 After connecting a runtime, verify:
 
-- the target repo instruction file points to the selected Tao Agent OS root
+- the target repo instruction file points to the selected Moru Core root
 - `agent-entry.py` or `project-discover.py` selects the target repo when the
   runtime starts outside it, or stops with `ambiguous` / `not_found`
 - workspace group aliases either select a clear member repo or return primary
@@ -686,8 +686,8 @@ After connecting a runtime, verify:
   one-shot prompt.
 - Project discovery is ambiguous or missing and the user has not chosen a
   target project.
-- The Tao Agent OS root cannot be located.
+- The Moru Core root cannot be located.
 - The VibeGuard command cannot run after using the installed binary or the
   published package fallback.
-- Repo-local instructions conflict with Tao Agent OS on security, data,
+- Repo-local instructions conflict with Moru Core on security, data,
   deployment, cost, or verification behavior.

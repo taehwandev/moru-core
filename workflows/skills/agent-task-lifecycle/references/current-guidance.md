@@ -31,7 +31,7 @@ or task-specific workflow to load next.
 
 ## Agentic Run State
 
-Tao Agent OS supports agentic coding by making the active agent's state,
+Moru Core supports agentic coding by making the active agent's state,
 delegation decision, evidence, and recovery point explicit. Runtime-specific
 agents, subagents, or external launchers can use this state to continue,
 delegate, review, and recover work without guessing what already happened.
@@ -161,7 +161,7 @@ ledger entries. For listed gates:
 20. Review: after meaningful edits, run the route's review hook and inspect the
     final diff, output, or artifact against the request and risks.
     Immediately before `review` and `finish`, compare the active preflight's
-    required-document hashes with the current Tao Agent OS files. Refresh
+    required-document hashes with the current Moru Core files. Refresh
     with the same `start` request and evidence path before the hook when drift
     is found; after a hook has already failed on drift, bind that refresh to
     the verified repair receipt instead of erasing the failed checkpoint.

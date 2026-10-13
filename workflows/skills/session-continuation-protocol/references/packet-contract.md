@@ -426,7 +426,7 @@ checks, decide takeover, select a different packet, weaken result codes, read
 packet JSON directly, or render an invalid packet's prose.
 
 Runtime-native conversation continuation remains separate. Claude, Codex, or
-another runtime may restore its own conversation, but Tao Agent OS's packet is the
+another runtime may restore its own conversation, but Moru Core's packet is the
 authority for project work state and may be used without the old conversation.
 
 The Claude adapter uses the common read-only active-session resolver. A start

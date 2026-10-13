@@ -4,18 +4,18 @@ status: review
 type: human-reviewed-needed
 ---
 
-# Tao Agent OS Agent Bootstrap
+# Moru Core Agent Bootstrap
 
-Use when an AI coding agent receives the Tao Agent OS repository link or a
-request to apply Tao Agent OS to a target project.
+Use when an AI coding agent receives the Moru Core repository link or a
+request to apply Moru Core to a target project.
 
-The goal is to connect the target repo to one reusable Tao Agent OS install. Do
-not copy the full Tao Agent OS library into the target repo.
+The goal is to connect the target repo to one reusable Moru Core install. Do
+not copy the full Moru Core library into the target repo.
 
 ## Pasteable User Request
 
 ```text
-Apply Tao Agent OS to this project:
+Apply Moru Core to this project:
 https://github.com/taehwandev/tao-agent-os
 
 Before changing anything, read this project's current agent instructions first:
@@ -23,12 +23,12 @@ AGENTS.md, CLAUDE.md, CODEX.md, .agents/README.md, CONTRIBUTING.md, task docs,
 PRD/ARD docs, equivalent project docs, or explicitly documented local override
 files.
 
-If Tao Agent OS already exists locally, link this repo to the existing copy.
+If Moru Core already exists locally, link this repo to the existing copy.
 Do not clone, vendor, or copy a second copy unless no usable local copy exists.
 If a usable local copy exists but you think a fresh copy is needed, ask me
-first: "Tao Agent OS already exists locally at <path>. Do you want me to
+first: "Moru Core already exists locally at <path>. Do you want me to
 download or pin a new copy anyway, or should I reuse the existing root?"
-Apply the required VibeGuard safety gate with the selected Tao Agent OS root
+Apply the required VibeGuard safety gate with the selected Moru Core root
 as the rule source. Use an installed `vibeguard` binary when available; use the
 published package command only when no trusted binary exists or an explicit
 latest-package check is needed. The VibeGuard site is a human reference and
@@ -36,7 +36,7 @@ does not need to be fetched by the agent.
 Update the repo-local agent instructions with a short routing block. Keep
 repo-specific commands, paths, services, product policy, and domain language in
 this repo. If existing Claude, Codex, Antigravity, or other runtime instruction
-files are present, update the necessary Tao Agent OS pointer there in the same
+files are present, update the necessary Moru Core pointer there in the same
 pass. If the runtime reads AGENTS.md, do not create a duplicate runtime-specific
 file.
 ```
@@ -51,7 +51,7 @@ agents, use `docs/skills/agent-runtime-integration/SKILL.md`.
 
 Choose the setup mode before editing the target repo:
 
-1. Existing local install: use this when the user already has Tao Agent OS on
+1. Existing local install: use this when the user already has Moru Core on
    the machine. Link to that root and do not clone or vendor a second copy
    unless the user explicitly approves a new copy after seeing the found path.
 2. First-time local shared install: use this when no usable copy exists and the
@@ -71,12 +71,12 @@ Local reuse is the default and a hard stop for install work:
 - If discovery finds a usable local or repo-pinned root, select `Existing local
   install`.
 - Do not download, clone, vendor, copy, overwrite, or add a second
-  Tao Agent OS root while a usable root exists.
+  Moru Core root while a usable root exists.
 - If there is a concrete reason to use a fresh copy anyway, ask before any
   network, git, submodule, or filesystem action:
 
   ```text
-  Tao Agent OS already exists locally at <path>. Do you want me to download or
+  Moru Core already exists locally at <path>. Do you want me to download or
   pin a new copy anyway, or should I reuse the existing root?
   ```
 
@@ -88,7 +88,7 @@ Local reuse is the default and a hard stop for install work:
    directory.
 2. If the runtime started from `~`, another non-project directory, or a
    directory that may not be the requested target, use the selected
-   Tao Agent OS root's entry helper before project work:
+   Moru Core root's entry helper before project work:
 
    ```text
    python3 <TAO_ROOT>/scripts/agent-entry.py --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>
@@ -102,7 +102,7 @@ Local reuse is the default and a hard stop for install work:
    `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.agents/README.md`,
    `CONTRIBUTING.md`, task docs, PRD/ARD docs, equivalent project docs, or an
    explicitly documented local override file.
-4. Check whether the user supplied an explicit Tao Agent OS path.
+4. Check whether the user supplied an explicit Moru Core path.
 5. Check `TAO_HOME`.
 6. Check legacy `KEYFLOW_AGENT_ROOT` only when present.
 7. Check common local installs such as `~/.tao-agent-os`,
@@ -110,7 +110,7 @@ Local reuse is the default and a hard stop for install work:
 8. Check repo-pinned locations only when the target repo already contains one,
    such as `.agents/tao-agent-os`, `tools/tao-agent-os`, or a git submodule.
 
-A usable Tao Agent OS root contains all of:
+A usable Moru Core root contains all of:
 
 ```text
 AGENTS.md
@@ -126,9 +126,9 @@ when the hook is unavailable, not a second lifecycle.
 
 ## Required VibeGuard Gate
 
-VibeGuard is mandatory. After selecting the Tao Agent OS root, apply
+VibeGuard is mandatory. After selecting the Moru Core root, apply
 VibeGuard to the target repo before editing target repo instructions. Use the
-selected Tao Agent OS root as the VibeGuard rule source.
+selected Moru Core root as the VibeGuard rule source.
 
 Do not choose `setup` or `update` by file existence alone. First inspect:
 
@@ -142,7 +142,7 @@ drill before changing files:
 
 ```text
 Application drill:
-1. Tao Agent OS link style: add a short pointer, merge into the current
+1. Moru Core link style: add a short pointer, merge into the current
    instruction file, or pin a repo-local copy?
 2. VibeGuard handling: audit only with current guardrails, refresh the managed
    block with update, or first-time setup?
@@ -198,7 +198,7 @@ If no usable local or repo-pinned copy exists, choose one of these modes:
 
 - Local shared install: clone once to `~/.tao-agent-os`. This is best for
   individual users and multiple personal repos.
-- Repo-pinned install: add Tao Agent OS as a git submodule or vendored
+- Repo-pinned install: add Moru Core as a git submodule or vendored
   dependency. This is best for teams that need a reviewed version.
 Ask before using network access, adding a submodule, changing git remotes, or
 writing outside the target repo.
@@ -243,8 +243,8 @@ python3 <TAO_ROOT>/scripts/setup-agent-hooks.py
 
 The setup is global because the workflow router, graph-backed document routing,
 and evidence wrappers are shared across target repos. It must install or repair
-only Tao Agent OS-managed bridge blocks and allow only the current
-Tao Agent OS Python entrypoints by exact path, not broad `python3` execution:
+only Moru Core-managed bridge blocks and allow only the current
+Moru Core Python entrypoints by exact path, not broad `python3` execution:
 
 ```text
 <TAO_ROOT>/scripts/*.py
@@ -255,11 +255,11 @@ permissions may live in `~/.gemini/config/config.json` or the legacy
 `~/.gemini/antigravity-cli/settings.json`; AGY hooks stay in
 `~/.gemini/config/hooks.json`.
 
-Tao Agent OS must not install token-usage event hooks. Spill token metering is
+Moru Core must not install token-usage event hooks. Spill token metering is
 optional and owned by the separate Spill installer. When the local Spill setup
-helper is present, Tao Agent OS may wire safe workflow label hooks; when it is
-absent, setup should remove only Tao Agent OS-managed Spill label hooks/env and
-leave normal Tao Agent OS routing intact.
+helper is present, Moru Core may wire safe workflow label hooks; when it is
+absent, setup should remove only Moru Core-managed Spill label hooks/env and
+leave normal Moru Core routing intact.
 
 For AGY/Antigravity, setup must also manage the user-level bridge in
 `~/.antigravity/AGENTS.md`. The bridge is fail-closed: if AGY cannot confirm the
@@ -279,9 +279,9 @@ that subsystem.
 3. Preserve existing repo-local instructions.
 4. Confirm the required VibeGuard gate passed or stopped with a reported
    blocker.
-5. Add a short Tao Agent OS routing block with the selected root path to the
+5. Add a short Moru Core routing block with the selected root path to the
    canonical instruction file. Do not create repo-local skill documents only to
-   mirror shared Tao Agent OS guidance; keep repo-local skill or workflow docs
+   mirror shared Moru Core guidance; keep repo-local skill or workflow docs
    only when they encode product-specific facts, commands, domain policy, or
    verification that cannot live in the shared library.
 6. Update existing runtime-specific files in the same pass by adding the same
@@ -293,7 +293,7 @@ that subsystem.
    `.agents/tao-agent-os`. Do not commit personal absolute paths such as
    `/Users/.../tao-agent-os`; use those only in shell env setup, one-shot
    prompts, or uncommitted user-level runtime bridges.
-9. Decide whether the target repo uses Graphify. A shared Tao Agent OS graph
+9. Decide whether the target repo uses Graphify. A shared Moru Core graph
    never substitutes for the target repo's own graph. When Graphify is enabled,
    build or refresh it from the target repo root using the project-local
    procedure below and keep its input scope and generated-output policy in the
@@ -305,7 +305,7 @@ that subsystem.
     content once under `.tao/skills/<skill>` and use repo-relative
     runtime links or thin adapters. Do not maintain parallel Codex, Claude, and
     Antigravity/AGY copies of the same knowledge.
-11. Do not paste the full Tao Agent OS library into repo-local files.
+11. Do not paste the full Moru Core library into repo-local files.
 12. For multi-step setup or migration work, run `<TAO_LAUNCHER> start` once with
    the current request. Open every route `required_docs` entry directly, keep
    the workflow route gate ledger, run the review hook after meaningful
@@ -325,19 +325,19 @@ Use `docs/skills/graphify-project-integration/SKILL.md` as the canonical owner
 for installation, runtime skill paths, initial graph creation, query smoke, and
 the seven-field readiness gate. The target repo owns its graph; another repo's
 Graphify output never substitutes for it. Keep this bootstrap card focused on
-Tao Agent OS application instead of duplicating the Graphify procedure here.
+Moru Core application instead of duplicating the Graphify procedure here.
 
 ## Verify
 
 Before reporting success:
 
-- The selected Tao Agent OS root exists.
+- The selected Moru Core root exists.
 - `AGENTS.md` and `index.md` exist under that root.
 - `setup-agent-hooks.py --check` either passed or missing user-level bridges,
   hooks, or permissions were installed after approval.
 - `agent-entry.py` or `project-discover.py` selects the target repo when the
   runtime starts outside it, or stops with `ambiguous` / `not_found`.
-- The VibeGuard gate ran with the selected Tao Agent OS root as the rule
+- The VibeGuard gate ran with the selected Moru Core root as the rule
   source.
 - Multi-step work has preflight and finish-check evidence when the wrapper
   scripts are available.
@@ -374,5 +374,5 @@ Before reporting success:
 - No usable local copy exists and network access is unavailable or not approved.
 - The VibeGuard command cannot run after using the installed binary or the
   published package fallback.
-- Existing repo-local instructions conflict with Tao Agent OS in a way that
+- Existing repo-local instructions conflict with Moru Core in a way that
   changes security, data handling, verification, deployment, or cost behavior.

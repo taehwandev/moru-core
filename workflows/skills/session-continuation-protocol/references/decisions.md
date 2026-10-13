@@ -244,7 +244,7 @@ prohibition an implementation can violate silently is not a boundary.
 
 ### Checkable Project-Local, Never-Sync Boundary
 
-Version 1 makes this a Tao Agent OS-owned boundary with four independently testable
+Version 1 makes this a Moru Core-owned boundary with four independently testable
 controls:
 
 1. **Canonical containment.** Resolve the project root and packet parent without
@@ -258,7 +258,7 @@ controls:
    tracked or merely untracked-but-not-ignored packet is `local_boundary_failed`,
    not a warning. In a supported non-Git workspace, the equivalent repo-local
    state policy must explicitly classify `.tao/runs/` as local-only.
-3. **Outbound deny rule.** Every Tao Agent OS-owned sync, export, publish, IPC,
+3. **Outbound deny rule.** Every Moru Core-owned sync, export, publish, IPC,
    telemetry, global-lesson, execution-capsule, diagnostic, and artifact
    collection boundary rejects both the packet schema id and paths under
    `.tao/runs/*/continuation.json`. Absence from an allowlist is necessary but
@@ -274,10 +274,10 @@ controls:
 `project_local_never_sync`, so boundary checks are inspectable. It is a label,
 not proof; the path, Git, outbound, and filesystem checks provide the proof.
 
-Tao Agent OS cannot promise that unrelated software with arbitrary filesystem access
+Moru Core cannot promise that unrelated software with arbitrary filesystem access
 will never read or upload a local file. The enforceable promise is narrower and
-explicit: no Tao Agent OS-owned path writes the packet outside its canonical local
-location, admits it to Git, or sends it through a Tao Agent OS-owned outbound boundary.
+explicit: no Moru Core-owned path writes the packet outside its canonical local
+location, admits it to Git, or sends it through a Moru Core-owned outbound boundary.
 
 ### Structurally Bounded Content
 

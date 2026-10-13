@@ -30,8 +30,8 @@ failure-repair and skill-learning automation boundary.
    correction as ordinary successful-task feedback.
 2. Open only the matching focused reference.
 3. Keep failure repair inside the bounded repair-and-resume cycle.
-   Select the active Tao Agent OS root as the canonical repair owner. An
-   upstream or reference Tao Agent OS checkout is not a repair target unless
+   Select the active Moru Core root as the canonical repair owner. An
+   upstream or reference Moru Core checkout is not a repair target unless
    the user explicitly starts a runtime migration task.
 4. After task verification and review, but before finish, inspect the skills
    actually loaded and applied and complete the required `retrospective check`.
@@ -41,7 +41,7 @@ failure-repair and skill-learning automation boundary.
    remains after the authorized fix. Do not reopen an already corrected issue
    or force a skill edit merely because code changed.
 5. Record the exact fields `skills_checked`, `outcome`, and `observation`.
-   Every named skill must resolve to a canonical Tao Agent OS bundle or an
+   Every named skill must resolve to a canonical Moru Core bundle or an
    allowlisted project-local bundle; normalize hyphens to underscores when
    binding it to the feedback record.
    `outcome` must be `no_reusable_gap`, `reusable_gap`, or `no_skill_used`.
@@ -101,7 +101,7 @@ failure-repair and skill-learning automation boundary.
 - If route wiring changes, confirm the route loads this `SKILL.md` entrypoint.
 - If detailed guidance changes, validate links and frontmatter for all three references.
 - If failure-repair ownership or output changes, prove the executable recovery
-  policy names Tao Agent OS and not a reference Tao Agent OS checkout.
+  policy selects the active canonical rules root and not a reference checkout.
 - If routing changes, prove tracked work retains `retrospective check`, its
   structured evidence is validated, and every skill-learning hook remains
   optional.

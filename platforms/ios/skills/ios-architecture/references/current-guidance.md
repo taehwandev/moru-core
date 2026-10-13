@@ -36,7 +36,7 @@ tests. Use MVVM + clean boundaries only when the feature is simple,
 legacy-constrained, or already owns a repo-approved ViewModel track, and keep it
 UDF-constrained through a single state/action entry point.
 
-There is no separate Tao Agent OS TCA skill card. Route TCA work through this
+There is no separate Moru Core TCA skill card. Route TCA work through this
 iOS architecture card, `ios-state-concurrency.md`, `ios-swiftui-ui.md`, and the
 Swift cards. If a target repo has its own TCA skill, keep it as a thin
 repo-local pointer to these rules plus repo-specific commands and examples.

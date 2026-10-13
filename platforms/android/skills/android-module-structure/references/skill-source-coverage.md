@@ -13,7 +13,7 @@ Play Billing, Play Engage, Wear, XR, or AppFunctions surfaces.
 ## Android Skill Source Coverage
 
 When an Android task touches one of these surfaces, apply the corresponding
-source-specific guidance in addition to this Tao Agent OS card. Do not copy
+source-specific guidance in addition to this Moru Core card. Do not copy
 external skill files into the repo by default; distill the rule into the task
 plan and cite the source when reporting. This section is a summary; the complete
 source document list lives in `android-external-skill-source-coverage.md`.

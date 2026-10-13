@@ -6,7 +6,7 @@ type: ai-generated
 
 # Agent Runtime Integration
 
-Use when routed to `docs/skills/agent-runtime-integration/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `docs/skills/agent-runtime-integration/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

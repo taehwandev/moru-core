@@ -44,7 +44,7 @@ be installed or wired; not before every task.
 
 For multi-step tasks, use the executable wrappers when they are available. The
 single start hook creates routing and preflight evidence with the current target
-project and selected Tao Agent OS rule source before editing, reviewing,
+project and selected Moru Core rule source before editing, reviewing,
 committing, or reporting completion:
 
 When executing wrapper commands from an agent runtime, replace
@@ -295,7 +295,7 @@ actually run.
 
 When `<TAO_LAUNCHER> agent-finish-check` marks `retrospective_required`, run the
 canonical retrospective repair cycle before reporting completion. Improve and
-verify the owning Tao Agent OS guidance, hook, validator, or test, apply safe
+verify the owning Moru Core guidance, hook, validator, or test, apply safe
 scoped fixes, then resume at `first_failed_checkpoint`. Stop instead of
 continuing when the same failure recurs after repair, the repair is unsafe or
 ambiguous, source ownership is uncertain, verification fails, or the single

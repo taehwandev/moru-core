@@ -6,7 +6,7 @@ type: ai-generated
 
 # Scripted Agent Workflow
 
-Use when routed to `workflows/skills/scripted-agent-workflow/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `workflows/skills/scripted-agent-workflow/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

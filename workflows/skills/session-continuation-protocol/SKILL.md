@@ -18,7 +18,7 @@ by a later session or a different runtime.
 - A runtime session can end without running its own shutdown path: a closed
   terminal, `kill -9`, a crashed host, a revoked container.
 - A second session must discover unfinished work in a checkout it did not start.
-- A runtime is being wired to Tao Agent OS and needs the resume behavior other
+- A runtime is being wired to Moru Core and needs the resume behavior other
   runtimes already have.
 - A handoff must survive longer than the conversation that produced it.
 
@@ -44,7 +44,7 @@ not persistence, and belongs to
 
 ## Decision Rule
 
-Tao Agent OS owns the protocol; a runtime owns only its own wiring. Schema,
+Moru Core owns the protocol; a runtime owns only its own wiring. Schema,
 storage, discovery, drift verification, takeover, and the resume commands are
 implemented once in the shared library. A runtime adapter supplies the
 checkpoint content its agent already knows and invokes the shared commands.

@@ -23,13 +23,13 @@ The core below is the required contract. Open
   Coverage` or `## Chris Banes Skills Coverage` for the exact upstream
   `SKILL.md` and `references/` files of one surface.
 - `## Workflow Routing Contract` when changing or checking Android routing.
-- `## Tao Agent OS Mapping` to find which local card consumes a source.
+- `## Moru Core Mapping` to find which local card consumes a source.
 
 For the reusable distilled rules, use `../source-coverage/SKILL.md`.
 
 ## Must
 
-- Do not vendor or copy full external skill text into Tao Agent OS. Distill
+- Do not vendor or copy full external skill text into Moru Core. Distill
   only reusable decision rules, stop signals and verification requirements into
   the local Android card that owns the recurring lesson, and only when they
   remain correct across products and repositories.
@@ -37,7 +37,7 @@ For the reusable distilled rules, use `../source-coverage/SKILL.md`.
   surface.
 - Keep provider-specific setup, sample code, release notes and surface details
   as source references unless a reusable rule is needed.
-- Keep Tao Agent OS's local Android architecture as the primary rule source;
+- Keep Moru Core's local Android architecture as the primary rule source;
   use external skills to prevent omission and confirm version-sensitive source
   behavior.
 - No-Omission Gate, for Android documentation, architecture, module, Compose,
@@ -68,7 +68,7 @@ For the reusable distilled rules, use `../source-coverage/SKILL.md`.
   manifest and either loaded the matching source docs or documented why they
   were not relevant.
 - In final reports or PR descriptions, cite the source repository and source
-  surface, not only the Tao Agent OS summary.
+  surface, not only the Moru Core summary.
 - When a source doc is missing from the Tao mappings, update this manifest
   first, then the concise rule card that owns the lesson.
 

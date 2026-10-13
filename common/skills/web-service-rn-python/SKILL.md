@@ -6,7 +6,7 @@ type: human-reviewed-needed
 
 # Web Service RN Python
 
-Router only. Use this pack to choose the focused Tao Agent OS cards for a
+Router only. Use this pack to choose the focused Moru Core cards for a
 non-Android React web, React Native, and Python web-service task, then load
 those cards before detailed advice, editing, or review.
 

@@ -8,7 +8,7 @@ type: ai-generated
 
 Use before creating commits, regardless of git client, IDE, CLI, or AI tool.
 
-For work routed through Tao Agent OS, first check same-run continuation below.
+For work routed through Moru Core, first check same-run continuation below.
 Otherwise, clear local commit requests and combined
 commit/push/pull-request follow-ups must use the lightweight `commit` route, or
 `git_commit` when the runtime uses that label. Do not route them through the

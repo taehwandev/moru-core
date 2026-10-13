@@ -1,5 +1,5 @@
 ---
-# Tao Agent OS managed Claude agent
+# Moru Core managed Claude agent
 name: tao_explorer
 description: Find bounded source evidence and ownership for a parent-assigned question. Use only when a parent agent assigns an explicit question and path scope, not for general exploration.
 model: inherit

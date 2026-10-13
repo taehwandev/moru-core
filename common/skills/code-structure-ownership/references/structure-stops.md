@@ -197,7 +197,7 @@ Use three layers for package-structure discipline:
 1. Pre-code route discipline: the `boundary plan` gate must name the chosen
    package/folder map, allowed imports, forbidden imports, callers/tests, and
    nearest verification before implementation.
-2. Review-hook detection: the Tao Agent OS review hook checks changed runtime
+2. Review-hook detection: the Moru Core review hook checks changed runtime
    files for broad-package signals, new package boundary-note requirements, and
    repo-local structure rules. Treat hook failure as a structure bug, not as a
    reason to loosen the hook.

@@ -4,9 +4,9 @@ status: stable
 type: human-reviewed
 ---
 
-# Tao Agent OS Shared Agent Instructions
+# Moru Core Shared Agent Instructions
 
-This file is the compact entrypoint for agents using the shared Tao Agent OS
+This file is the compact entrypoint for agents using the shared Moru Core
 library. Repo-local instructions remain authoritative for project paths,
 commands, naming, architecture, and product policy.
 

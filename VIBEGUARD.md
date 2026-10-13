@@ -6,17 +6,17 @@ type: human-reviewed-needed
 
 # [VIBEGUARD.md](http://VIBEGUARD.md)
 
-This repository requires VibeGuard as the preflight safety gate for maintaining Tao Agent OS itself.
+This repository requires VibeGuard as the preflight safety gate for maintaining Moru Core itself.
 
 ## Scope
 
-This file applies to edits in the Tao Agent OS repository. It should not be treated as downstream policy for every repository that links to Tao Agent OS.
+This file applies to edits in the Moru Core repository. It should not be treated as downstream policy for every repository that links to Moru Core.
 
-Tao Agent OS remains a reusable guidance library. VibeGuard remains the required setup, update, audit, prompt, evidence, and safe-fix CLI.
+Moru Core remains a reusable guidance library. VibeGuard remains the required setup, update, audit, prompt, evidence, and safe-fix CLI.
 
 ## Execution Policy
 
-VibeGuard is required. For normal Tao Agent OS maintenance, prefer an
+VibeGuard is required. For normal Moru Core maintenance, prefer an
 installed `vibeguard` binary when the environment provides one:
 
 ```bash
@@ -41,7 +41,7 @@ gate.
 
 ## Audit Commands
 
-Run an installed binary during normal Tao Agent OS maintenance:
+Run an installed binary during normal Moru Core maintenance:
 
 ```bash
 vibeguard audit . --rules .
@@ -86,7 +86,7 @@ vibeguard evidence install-claude-hook .
 
 - Existing custom guardrails should default to audit-only unless the user chooses to refresh the managed block.
 
-- Initial Tao Agent OS application in a repo with no guardrails should use the current VibeGuard command policy with the selected Tao Agent OS root as `--rules`. Prefer `vibeguard` when installed, otherwise use the package command:
+- Initial Moru Core application in a repo with no guardrails should use the current VibeGuard command policy with the selected Moru Core root as `--rules`. Prefer `vibeguard` when installed, otherwise use the package command:
 
   ```bash
   vibeguard setup . --rules <TAO_ROOT>
@@ -101,7 +101,7 @@ vibeguard evidence install-claude-hook .
   `update.checkIntervalDays` value. A reminder still does not authorize an
   `update`; it only reports the repository's selected schedule.
 
-- Normal Tao Agent OS maintenance should run audit-only before editing and before finishing.
+- Normal Moru Core maintenance should run audit-only before editing and before finishing.
 
 - Use `--fix` only after audit output shows low-risk safety fixes such as env ignore rules, value-free `.env.example` updates, or simple secret quarantine.
 
@@ -113,13 +113,13 @@ vibeguard evidence install-claude-hook .
 - Keep real secrets only in ignored local env files or deployment secret stores.
 - Keep `.env.example` value-free.
 - Ask before deleting data, running migrations, deploying, changing credentials, or increasing paid API/model usage.
-- For target repos that apply Tao Agent OS, apply VibeGuard with the selected Tao Agent OS root as `--rules`.
-- For normal Tao Agent OS repository maintenance, run `audit . --rules .` before editing and before finishing.
+- For target repos that apply Moru Core, apply VibeGuard with the selected Moru Core root as `--rules`.
+- For normal Moru Core repository maintenance, run `audit . --rules .` before editing and before finishing.
 - When an execution evidence adapter is configured, run `vibeguard evidence .` before final reporting and do not claim checks that are not supported by command output or evidence.
 
 ## Verification
 
-Before finishing Tao Agent OS changes, run:
+Before finishing Moru Core changes, run:
 
 ```bash
 <TAO_LAUNCHER> workflow validate

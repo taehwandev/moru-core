@@ -179,7 +179,7 @@ non-negotiable, because they are the reason this feature exists:
   traversal, and symlinked run directory are each rejected.
 - **Never-sync boundary.** Make the exact packet path tracked or not ignored,
   then attempt both the fixed packet storage-class marker and canonical packet
-  path at every Tao Agent OS-owned sync, export, publish, IPC, telemetry, global-lesson,
+  path at every Moru Core-owned sync, export, publish, IPC, telemetry, global-lesson,
   execution-capsule, diagnostic, and artifact boundary. Each attempt must fail
   without rendering packet prose.
 - **Claude isolated evidence.** Bind a resumed session to a run-local preflight

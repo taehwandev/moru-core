@@ -8,7 +8,7 @@ type: ai-generated
 
 Read only for the condition named by the runtime bridge, not as an extra startup reading list. Paths below are relative to <TAO_ROOT>. Current user authority and project instructions prevail.
 
-At each parent-to-worker boundary, run Tao Agent OS agent-hook.py handoff; it lazily creates the provider-neutral, content-free execution capsule for that worker and validates it once.
+At each parent-to-worker boundary, run Moru Core agent-hook.py handoff; it lazily creates the provider-neutral, content-free execution capsule for that worker and validates it once.
 
 Only a ready and valid handoff lets a worker reuse the parent's route, preflight, and required-doc manifest and brief, skipping duplicate startup, required-doc reading, VibeGuard, review, and finish work; the parent performs the final integration review and finish once.
 

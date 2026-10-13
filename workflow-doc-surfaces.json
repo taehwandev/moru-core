@@ -2201,7 +2201,7 @@
         "common/skills/source-driven-development/SKILL.md",
         "common/skills/human-authored-writing/SKILL.md"
       ],
-      "reason": "Shared Tao Agent OS documentation changes need documentation update, source-driven, and writing guidance."
+      "reason": "Shared Moru Core documentation changes need documentation update, source-driven, and writing guidance."
     },
     {
       "name": "android_module_structure_bundle",

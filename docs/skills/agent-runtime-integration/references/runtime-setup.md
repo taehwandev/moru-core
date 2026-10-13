@@ -6,7 +6,7 @@ type: human-reviewed-needed
 
 # Agent Runtime Setup
 
-Use this when installing or wiring Tao Agent OS into a runtime or a repository:
+Use this when installing or wiring Moru Core into a runtime or a repository:
 which entries an installer may own, which setup mode a request needs, and how a
 runtime finds the project it is meant to work in.
 
@@ -57,7 +57,7 @@ product's hook belong in that product's documentation, not here.
 
 Select one mode before wiring a runtime:
 
-- Existing local install: required by default when Tao Agent OS is already
+- Existing local install: required by default when Moru Core is already
   present on the machine. Reuse that root and do not clone another copy unless
   the user explicitly approves a new copy after seeing the found path.
 - First-time local shared install: clone once to a stable path such as
@@ -87,7 +87,7 @@ user-level runtime config, then run:
 
 Without a `--runtime` selector, that one command configures every detected
 Claude, Codex, and AGY installation. Each managed merge is idempotent, so the
-same command is also the convenient repair path after updating Tao Agent OS;
+same command is also the convenient repair path after updating Moru Core;
 merging or pulling the repository alone never rewrites user-level runtime
 settings.
 
@@ -130,10 +130,10 @@ bridge and permission rules only. In particular, `--runtime codex` must not
 run, require, or alter global Graphify setup; use the unscoped setup or the
 explicit target Graphify flow when Graphify is in scope.
 
-This setup is global because the Tao Agent OS Python wrappers and graph-backed
+This setup is global because the Moru Core Python wrappers and graph-backed
 document routing are shared by every target repo. Keep it narrow: install or
-repair only Tao Agent OS-managed bridge blocks and allow only
-Tao Agent OS-managed entrypoints and suffix-aware runtime matchers. Do not
+repair only Moru Core-managed bridge blocks and allow only
+Moru Core-managed entrypoints and suffix-aware runtime matchers. Do not
 broadly allow `python3`.
 
 The per-runtime results of that setup are split by topic:
@@ -151,7 +151,7 @@ reuse it. Do not download, clone, vendor, copy, overwrite, or add a second root
 unless the user approves this question:
 
 ```text
-Tao Agent OS already exists locally at <path>. Do you want me to download or
+Moru Core already exists locally at <path>. Do you want me to download or
 pin a new copy anyway, or should I reuse the existing root?
 ```
 
@@ -176,7 +176,7 @@ project docs or running task commands. Use the local entry helpers:
 - `not_found`: no usable project was found; ask for the target path before
   project work.
 
-`agent-entry.py` wraps the same discovery result with the Tao Agent OS root,
+`agent-entry.py` wraps the same discovery result with the Moru Core root,
 workflow script, preflight script, finish-check script, selected project
 instruction files, workspace scope guidance, runtime launch guidance, and
 next-step checklist. User-level runtime bridges should call it when the current
@@ -249,8 +249,8 @@ For Codex, use the selected repo as `-C`:
 codex -C <TARGET_REPO>
 ```
 
-When the current task may also edit or run shared Tao Agent OS files, add the
-selected Tao Agent OS root explicitly:
+When the current task may also edit or run shared Moru Core files, add the
+selected Moru Core root explicitly:
 
 ```text
 codex -C <TARGET_REPO> --add-dir <TAO_ROOT>
@@ -321,7 +321,7 @@ repo, secondary/source-of-truth repo, chosen mode, and cross-repo verification.
 
 ## Long-Lived Repo Setup
 
-For repos that will keep using Tao Agent OS, add a short routing block to the
+For repos that will keep using Moru Core, add a short routing block to the
 instruction file each agent runtime reads:
 
 - Codex-style runtimes: `AGENTS.md`.
@@ -338,7 +338,7 @@ instruction file each agent runtime reads:
 Prefer one canonical instruction file, usually `AGENTS.md`, when all active
 runtimes read it. When `CLAUDE.md`, `CODEX.md`, `.agents/README.md`, or
 Antigravity CLI docs already exist, update them in the same application pass so
-they point to the selected Tao Agent OS root or back to `AGENTS.md`. Do not
+they point to the selected Moru Core root or back to `AGENTS.md`. Do not
 create a separate runtime-specific file only to duplicate guidance that the
 runtime already reads from `AGENTS.md`.
 
@@ -348,7 +348,7 @@ runtime-specific entrypoint directly: Codex-style agents should read the current
 project's `AGENTS.md`, Claude should read the current project's `CLAUDE.md`
 when present, Codex-specific setups should read `CODEX.md` when present, and
 Gemini/Antigravity/AGY should read the current project's `AGENTS.md`.
-Then tell the agent to follow Tao Agent OS as shared guidance only after those
+Then tell the agent to follow Moru Core as shared guidance only after those
 local instructions.
 
 After the start hook and required-doc reading, runtime bridges must also tell
@@ -382,12 +382,12 @@ short and point to:
 
 For committed repo-local instruction files, keep the root reference portable.
 Use `${TAO_HOME}` when each machine can set the variable, or a
-repo-relative pinned path such as `.agents/tao-agent-os` when Tao Agent OS is
+repo-relative pinned path such as `.agents/tao-agent-os` when Moru Core is
 kept with the target repo. Do not commit personal absolute paths such as
 `/Users/.../tao-agent-os`; keep them in shell environment setup, one-shot
 prompts, or uncommitted user-level runtime bridges only.
 
-Do not paste the full Tao Agent OS library into runtime-specific files.
+Do not paste the full Moru Core library into runtime-specific files.
 
 For Graphify specifically, follow
 `docs/skills/graphify-project-integration/SKILL.md`: the canonical project
@@ -405,10 +405,10 @@ Use one-shot prompting when:
 - the agent runtime does not automatically load repo instruction files
 - you are using a web chat or temporary session
 - you want Claude, Gemini/Antigravity/AGY, or another agent to follow
-  Tao Agent OS for one task without changing repo files
+  Moru Core for one task without changing repo files
 
 Paste `templates/use-tao-prompt.md` into the agent, replacing the
-target repo, task, Tao Agent OS root, and VibeGuard docs placeholders.
+target repo, task, Moru Core root, and VibeGuard docs placeholders.
 
 The prompt explicitly tells the runtime to read `AGENTS.md` and `index.md`,
 because not every agent automatically discovers Codex-style `AGENTS.md` files.

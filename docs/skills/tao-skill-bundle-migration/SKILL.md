@@ -4,9 +4,9 @@ status: review
 type: ai-generated
 ---
 
-# Tao Agent OS Skill Bundle Migration
+# Moru Core Skill Bundle Migration
 
-Use when creating, moving, splitting, routing, or reviewing Tao Agent OS
+Use when creating, moving, splitting, routing, or reviewing Moru Core
 guidance in the `SKILL.md` plus `references/` layout.
 
 ## Read

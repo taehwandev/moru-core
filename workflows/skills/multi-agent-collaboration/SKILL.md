@@ -6,7 +6,7 @@ type: ai-generated
 
 # Multi-Agent Collaboration
 
-Use when routed to `workflows/skills/multi-agent-collaboration/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `workflows/skills/multi-agent-collaboration/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

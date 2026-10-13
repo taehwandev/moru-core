@@ -64,7 +64,7 @@ owner) are in
 - When Compose hosts XML through `AndroidView` or another interop seam, the
   Compose tree still owns the layout, so use `Modifier.imePadding()` on the
   Compose container instead of adding `adjustResize` to that Activity.
-- This is a deliberate Tao Agent OS divergence from the upstream
+- This is a deliberate Moru Core divergence from the upstream
   `android/skills` `system/edge-to-edge/SKILL.md` step that adds the manifest
   attribute for every soft-keyboard Activity. Do not revert these rules by
   citing that upstream step.

@@ -22,7 +22,7 @@ the agent may not report successful finish while its current reusable gap is
 unresolved. No stage may borrow authority from the next one.
 
 The separation is adapted from Hermes Agent's documented skill-creation and
-periodic curator model, while Tao Agent OS adds stricter content-free records,
+periodic curator model, while Moru Core adds stricter content-free records,
 explicit caps, staging, and verification before canonical writes:
 
 - <https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/>
@@ -42,7 +42,7 @@ including a rule that caused avoidable reading, repeated analysis or calls?
   required gate, then emit at most one allowlisted, content-free observation
   through the `skill-feedback` hook before drafting the same-closeout update.
 - The caller may name only a skill actually loaded and applied in the completed
-  task. The id must resolve to a canonical Tao Agent OS or allowlisted
+  task. The id must resolve to a canonical Moru Core or allowlisted
   project-local bundle and must match `skills_checked` in the current successful
   retrospective record. Do not name an unrelated or merely adjacent skill.
 - The hook derives an opaque occurrence key from the current preflight run. It
@@ -292,7 +292,7 @@ maintenance step in the same closeout after review:
    the directory must match the staged promotion target. Do not write adapter
    paths (`.codex/skills`, `.claude/skills`) or a tracked runtime mirror through
    this maintenance hook.
-4. Run focused verification plus normal Tao Agent OS documentation,
+4. Run focused verification plus normal Moru Core documentation,
    workflow, review, and finish checks. The maintenance recorder accepts
    `applied` only when the named canonical target is currently changed, its
    path is structurally linked to the staged `promotion_target`, and one fixed

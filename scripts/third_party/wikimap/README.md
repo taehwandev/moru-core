@@ -19,13 +19,13 @@ search.
 
 ## Integration Boundary
 
-Tao Agent OS invokes only:
+Moru Core invokes only:
 
 1. `update --no-map` to refresh the local `.wikimap/` cache.
 2. `search --json` to retrieve document sections.
 
 Do not wire Wikimap `install`, `--hook`, `migrate`, source-editing, semantic
-note, or Graphify-import commands into Tao Agent OS. Hooks remain read-only
+note, or Graphify-import commands into Moru Core. Hooks remain read-only
 enforcement points, and Graphify remains the target-project code and
 relationship graph.
 
@@ -33,5 +33,5 @@ relationship graph.
 
 When upgrading, replace `wikimap.py` and `LICENSE` from one reviewed upstream
 tag, update the version, commit, and checksum in `workflow_wikimap.py` and this
-file, then run the upstream test suite plus Tao Agent OS routing tests,
+file, then run the upstream test suite plus Moru Core routing tests,
 `workflow.py validate`, and VibeGuard.

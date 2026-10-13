@@ -140,7 +140,7 @@ it as a plain folder.
 
 ## Do Not
 
-- Do not put shared Tao Agent OS rules for a single person's personal path,
+- Do not put shared Moru Core rules for a single person's personal path,
   blog engine, or publishing repo.
 - Do not write drafts into generated site output, build artifacts, or public
   HTML folders.

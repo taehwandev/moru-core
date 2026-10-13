@@ -6,7 +6,7 @@ type: ai-generated
 
 # Figma Handoff
 
-Use when routed to `common/skills/figma-handoff/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `common/skills/figma-handoff/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

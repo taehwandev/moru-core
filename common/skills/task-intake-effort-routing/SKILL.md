@@ -6,7 +6,7 @@ type: ai-generated
 
 # Task Intake And Effort Routing
 
-Use when routed to `common/skills/task-intake-effort-routing/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `common/skills/task-intake-effort-routing/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

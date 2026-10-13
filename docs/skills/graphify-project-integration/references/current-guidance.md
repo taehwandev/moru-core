@@ -11,7 +11,7 @@ checkout. Do not turn the shared skill into a project asset.
 
 ## Ownership
 
-The active Tao Agent OS source is:
+The active Moru Core source is:
 
 ```text
 <TAO_ROOT>/.tao/skills/graphify/
@@ -57,7 +57,7 @@ The following target-project paths belong to the removed project-bundle design:
 Setup and readiness must report these paths when present. Do not stage or commit
 them as a repair.
 
-The Tao Agent OS checkout itself is the one exception, because it is the runtime
+The Moru Core checkout itself is the one exception, because it is the runtime
 source rather than a target: `.tao/skills/graphify` is the canonical bundle
 defined above, and that repository self-hosts its own discovery links into that
 same bundle. Readiness excuses those paths only there, and only when the path is

@@ -6,7 +6,7 @@ type: ai-generated
 
 # Documentation Update Workflow
 
-Use when routed to `workflows/skills/documentation-update/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `workflows/skills/documentation-update/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

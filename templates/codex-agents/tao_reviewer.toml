@@ -1,4 +1,4 @@
-# Tao Agent OS managed Codex agent
+# Moru Core managed Codex agent
 name = "tao_reviewer"
 description = "Review an assigned change for concrete correctness and integration risks."
 sandbox_mode = "read-only"

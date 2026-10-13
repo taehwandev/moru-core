@@ -60,7 +60,7 @@ alone, and newest-file selection never unlock editing. `PreToolUse` fails closed
 when the required pre-mutation checkpoint cannot be written. The post hooks
 clear the pending mutation after success or failure and block the next agentic
 step when reconciliation is required. Non-edit tools and directories outside
-Tao Agent OS remain outside this gate. Tune the freshness window with
+Moru Core remain outside this gate. Tune the freshness window with
 `TAO_CLAUDE_GATE_MAX_AGE_SECONDS` (default 8 hours). Policy violations return a
 deterministic denial instead of an operator confirmation, so Claude repairs the
 workflow or worktree boundary without asking for every Edit, Write, or Bash call.
@@ -145,6 +145,6 @@ path set. Agents must bracket a shell command, formatter, or generator that may
 write with the provider-neutral `checkpoint --checkpoint-kind pre_mutation`
 and `post_mutation` commands and the complete bounded path set. Do not parse
 command prose to guess ownership or describe Bash as automatically covered.
-When executing Tao Agent OS wrapper commands from an agent runtime, replace
+When executing Moru Core wrapper commands from an agent runtime, replace
 `<TAO_ROOT>` with the resolved absolute path. Do not leave `$HOME`,
 `${HOME}`, `~`, or a relative path in the executable command.

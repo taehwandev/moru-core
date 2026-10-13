@@ -7,7 +7,7 @@ type: ai-generated
 # LLM Wiki Documentation
 
 Use when routed to `common/skills/llm-wiki-documentation/SKILL.md` or when work
-needs this Tao Agent OS guidance area.
+needs this Moru Core guidance area.
 
 ## Read
 

@@ -104,7 +104,7 @@ FINISHED_SUFFIX = ".finished"
 # needed changing -- and both are settled against a verified clean checkout.
 SETTLED_SUFFIX = ".settled"
 OPT_IN_FILES = ("AGENTS.md", "CLAUDE.md", "CODEX.md")
-OPT_IN_TOKEN = "tao"
+OPT_IN_TOKENS = ("moru", "tao")
 
 
 def allow() -> int:
@@ -127,14 +127,14 @@ def opts_in(path: Path) -> bool:
     # global-vs-project question to support.global_state so they cannot drift.
     if is_host_config_dir(path):
         return False
-    if is_project_state_dir(path / STATE_DIR):
+    if any(is_project_state_dir(path / name) for name in (".moru", STATE_DIR)):
         return True
     for name in OPT_IN_FILES:
         try:
             head = (path / name).read_text(encoding="utf-8", errors="ignore")[:8192]
         except OSError:
             continue
-        if OPT_IN_TOKEN in head.lower():
+        if any(token in head.lower() for token in OPT_IN_TOKENS):
             return True
     return False
 

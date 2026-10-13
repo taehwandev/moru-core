@@ -45,8 +45,8 @@ catalog itself only when that is the task.
 - Accessibility, localization, dates, numbers, units, measurements, display values, UI text: `common/skills/accessibility-i18n/SKILL.md`
 - Human-authored prose, voice fidelity, and AI-writing signal cleanup: `common/skills/human-authored-writing/SKILL.md`
 - Blog/article draft workspace, publishing-target separation, and shared writing source-of-truth: `common/skills/writing-workspace/SKILL.md`
-- Tao Agent OS card anatomy, anti-rationalization, red flags, and evidence sections: `common/skills/agent-skill-card-anatomy/SKILL.md`
-- Tao Agent OS skill bundle migration, `SKILL.md` plus `references/`structure, and duplicate source-of-truth cleanup: `docs/skills/tao-skill-bundle-migration/SKILL.md`
+- Moru Core card anatomy, anti-rationalization, red flags, and evidence sections: `common/skills/agent-skill-card-anatomy/SKILL.md`
+- Moru Core skill bundle migration, `SKILL.md` plus `references/`structure, and duplicate source-of-truth cleanup: `docs/skills/tao-skill-bundle-migration/SKILL.md`
 - Architecture choice/change: `common/skills/architecture-selection/SKILL.md`
 - Architecture design: `common/skills/architecture-design/SKILL.md`
 - Source-driven framework, SDK, platform, API, and external-doc decisions: `common/skills/source-driven-development/SKILL.md`
@@ -160,7 +160,7 @@ catalog itself only when that is the task.
 ## Workflow
 
 - Workflow script command list: `<TAO_LAUNCHER> workflow list`
-- Lifecycle aliases supported by the workflow router: `spec`, `plan`, `build`, `test`, `review`, `webperf`, `code-simplify`, and `ship`. These aliases map to Tao Agent OS routes and must not replace the router with a second active command framework.
+- Lifecycle aliases supported by the workflow router: `spec`, `plan`, `build`, `test`, `review`, `webperf`, `code-simplify`, and `ship`. These aliases map to Moru Core routes and must not replace the router with a second active command framework.
 - Canonical lifecycle start (once per task): `<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command <command> --request "<USER_REQUEST>"`
 - After start succeeds, open every route `required_docs` entry directly. Run the review hook after meaningful changes and the finish hook before final report, commit, release, or handoff.
 - `workflow.py route`, `agent-preflight.py`, and `agent-finish-check.py` are lower-level diagnostics or compatibility fallbacks when the hook is unavailable; do not run them as a second lifecycle for the same task.

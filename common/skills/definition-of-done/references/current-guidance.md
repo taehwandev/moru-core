@@ -136,7 +136,7 @@ minimum, completion evidence should include:
 - final diff or side-effect audit result
 - residual risk
 
-For Tao Agent OS maintenance, `workflow.py validate`, the nearest unit tests,
+For Moru Core maintenance, `workflow.py validate`, the nearest unit tests,
 `git diff --check`, review hook, finish-check, and VibeGuard audit are the usual
 completion evidence.
 

@@ -36,7 +36,7 @@ Keep channel and plugin details out of widgets and domain models.
   timers, and plugin handles.
 - Keep permission prompts and app lifecycle handling out of leaf widgets.
 - Document target-specific setup, entitlements, manifests, signing, or native
-  registration in repo-local docs, not in shared Tao Agent OS cards.
+  registration in repo-local docs, not in shared Moru Core cards.
 
 ## Stop If
 

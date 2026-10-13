@@ -4,15 +4,15 @@ status: review
 type: human-reviewed-needed
 ---
 
-# Tao Agent OS 최신화 안내
+# 모루 코어 최신화 안내
 
-이 문서는 한글 빠른 안내입니다. Tao Agent OS의 기준 정책은 `README.md`, `AGENTS.md`, `docs/skills/agent-bootstrap/SKILL.md`, `docs/skills/agent-runtime-integration/SKILL.md`에 있습니다.
+이 문서는 한글 빠른 안내입니다. 모루 코어의 기준 정책은 `README.md`, `AGENTS.md`, `docs/skills/agent-bootstrap/SKILL.md`, `docs/skills/agent-runtime-integration/SKILL.md`에 있습니다.
 
 ## 기본 원칙
 
-- Tao Agent OS는 복사해서 각 저장소에 붙여넣기보다, 하나의 root를 링크해서 쓰는 방식이 기본입니다.
+- 모루 코어는 복사해서 각 저장소에 붙여넣기보다, 하나의 root를 링크해서 쓰는 방식이 기본입니다.
 - 개인이나 소수 사용자는 Git checkout 하나를 `git pull --ff-only`로 최신화하면 됩니다.
-- Tao Agent OS를 링크한 대상 저장소는 별도 복사본을 업데이트할 필요가 없습니다. 다음 에이전트 작업 때 선택된 Tao Agent OS root의 최신 파일을 다시 읽으면 됩니다.
+- 모루 코어를 링크한 대상 저장소는 별도 복사본을 업데이트할 필요가 없습니다. 다음 에이전트 작업 때 선택된 모루 코어 root의 최신 파일을 다시 읽으면 됩니다.
 - 작업이 진행 중일 때 자동으로 pull하지 마세요. 지침이 중간에 바뀌면 작업 기준도 바뀝니다. 최신화는 작업 사이에 사람이 명시적으로 실행하는 것이 안전합니다.
 
 ## 경로 표기 원칙
@@ -31,7 +31,7 @@ git pull --ff-only
 vibeguard audit . --rules .
 ```
 
-`TAO_HOME`을 쓰지 않는다면 실제 Tao Agent OS 경로로 이동해서 같은 명령을 실행하면 됩니다.
+`TAO_HOME`을 쓰지 않는다면 실제 모루 코어 경로로 이동해서 같은 명령을 실행하면 됩니다.
 
 ## 실행 근거 강제
 
@@ -74,7 +74,7 @@ hook을 실행합니다:
 hook이 unavailable인 경우의 하위(lower-level) 진단 또는 호환성 fallback일 뿐이며 같은
 작업에서 두 번째 lifecycle로 실행하지 않습니다.
 
-이 스크립트들은 대상 저장소의 `.tao/` 아래에 로컬 JSON 근거를 남깁니다. 보통 이 디렉터리는 커밋하지 않고 `.gitignore`에 둡니다. preflight 근거, finish-check 근거, route gate 근거가 없으면 결과물이 맞아 보여도 Tao Agent OS 기준으로는 non-compliant입니다. 사람이 보는 보고에는 두 가지 고양이 신호 배지만 씁니다: `🐱🟢 SUCCESS`는 근거와 함께 실행됨, `🐱🔴 FAIL`은 차단, 실패, 누락 또는 근거 없음입니다. 제3의 gate 상태는 보고하지 않습니다. `--request-classified`를 쓸 때는 `--classification-evidence`를 함께 남겨야 합니다. 다만 근거만으로는 이 플래그가 적용되지 않습니다. 이 플래그는 부모가 남긴 ready 상태의 유효한 execution capsule을 가진 위임 워커에게만 적용되며, 요청도 capsule도 없는 형태는 거부됩니다. 그 외의 호출자는 `--request "<USER_REQUEST>"`로 실제 사용자 요청을 넘기고 분류기가 판단하게 해야 합니다. 문서 목록과 라벨 컨텍스트만 필요하고 요청 인테이크를 주장하지 않는 호출자는 `--advisory`를 쓰며, 이는 어떤 다운스트림 게이트도 충족하지 않습니다. "그릴미"처럼 질문 드릴을 요청한 경우 드릴 근거가 없으면 `🐱🔴 FAIL`입니다.
+이 스크립트들은 대상 저장소의 `.tao/` 아래에 로컬 JSON 근거를 남깁니다. 보통 이 디렉터리는 커밋하지 않고 `.gitignore`에 둡니다. preflight 근거, finish-check 근거, route gate 근거가 없으면 결과물이 맞아 보여도 모루 코어 기준으로는 non-compliant입니다. 사람이 보는 보고에는 두 가지 고양이 신호 배지만 씁니다: `🐱🟢 SUCCESS`는 근거와 함께 실행됨, `🐱🔴 FAIL`은 차단, 실패, 누락 또는 근거 없음입니다. 제3의 gate 상태는 보고하지 않습니다. `--request-classified`를 쓸 때는 `--classification-evidence`를 함께 남겨야 합니다. 다만 근거만으로는 이 플래그가 적용되지 않습니다. 이 플래그는 부모가 남긴 ready 상태의 유효한 execution capsule을 가진 위임 워커에게만 적용되며, 요청도 capsule도 없는 형태는 거부됩니다. 그 외의 호출자는 `--request "<USER_REQUEST>"`로 실제 사용자 요청을 넘기고 분류기가 판단하게 해야 합니다. 문서 목록과 라벨 컨텍스트만 필요하고 요청 인테이크를 주장하지 않는 호출자는 `--advisory`를 쓰며, 이는 어떤 다운스트림 게이트도 충족하지 않습니다. "그릴미"처럼 질문 드릴을 요청한 경우 드릴 근거가 없으면 `🐱🔴 FAIL`입니다.
 
 VibeGuard가 `Needs review`이면 완료가 아닙니다. 그 상태를 명시 보고하고, 받아들일 수 있는 사유가 있을 때만 `--allow-vibeguard-review "<사유>"`로 finish check를 통과시킵니다.
 
@@ -93,6 +93,6 @@ git add .agents/tao-agent-os
 
 ## 링크
 
-- Tao Agent OS 사이트: `https://tao.thdev.app/#update`
-- Tao Agent OS 저장소: `https://github.com/taehwandev/tao-agent-os`
+- 모루 코어 사이트: `https://tao.thdev.app/#update`
+- 모루 코어 저장소: `https://github.com/taehwandev/tao-agent-os`
 - VibeGuard 사이트: `https://vibeguard.thdev.app/`

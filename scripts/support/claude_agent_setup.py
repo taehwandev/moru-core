@@ -16,7 +16,8 @@ from support.managed_agent_files import install_managed_agents
 FRONTMATTER_FENCE = "---"
 # Claude agent files must open with YAML frontmatter, so the marker cannot be
 # the first line as it is for Codex; it is a YAML comment on the second line.
-MANAGED_MARKER = "# Tao Agent OS managed Claude agent"
+MANAGED_MARKER = "# Moru Core managed Claude agent"
+LEGACY_MANAGED_MARKER = "# Tao Agent OS managed Claude agent"
 AGENT_NAMES = ("tao_explorer", "tao_worker", "tao_reviewer")
 # Sources are not stored as .md so Tao's document validators do not treat the
 # Claude subagent schema as a Tao card; installed files keep the .md suffix.
@@ -26,9 +27,10 @@ SOURCE_SUFFIX = ".md.template"
 def _is_managed(content: bytes) -> bool:
     """Ownership is exactly the fence followed by the marker as lines one and two."""
 
-    return content.splitlines()[:2] == [
-        FRONTMATTER_FENCE.encode(), MANAGED_MARKER.encode(),
-    ]
+    lines = content.splitlines()[:2]
+    return len(lines) == 2 and lines[0] == FRONTMATTER_FENCE.encode() and lines[1] in {
+        MANAGED_MARKER.encode(), LEGACY_MANAGED_MARKER.encode(),
+    }
 
 
 def install_claude_agents(root: Path, agents_dir: Path, dry_run: bool) -> list[dict]:

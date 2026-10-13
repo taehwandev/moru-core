@@ -10,7 +10,7 @@ type: ai-generated
 frame renders, individual assets, and implementation measurements from the
 Figma REST API. It depends on no external CLI repository, sibling clone,
 installed skill, or specific AI runtime: Python standard library only, and one
-Tao Agent OS checkout carries both the executable code and its verification
+Moru Core checkout carries both the executable code and its verification
 material.
 
 The CLI does not generate code. `common/skills/figma-handoff/SKILL.md` owns the

@@ -21,7 +21,7 @@ not yet satisfy its execution contract.
 3. Separate facts, assumptions, missed signals, and unknowns. Name the root
    cause as a missing rule, unclear ownership, weak verification, stale docs,
    missing platform guidance, ambiguous decision, or execution error.
-4. Select the canonical Tao Agent OS owner. When the failure exposes a reusable
+4. Select the canonical Moru Core owner. When the failure exposes a reusable
    operating-rule gap, update the owning guidance before resuming executable
    work, then enforce it through the closest hook, validator, or focused test.
    If the owning guidance already states the exact rule, preserve it and repair
@@ -119,7 +119,7 @@ tao-hook <failed_hook> \
   --resume-checkpoint <same_recorded_failed_checkpoint> ...
 ```
 
-The verifier accepts only a changed file under the project or Tao Agent OS rules
+The verifier accepts only a changed file under the project or Moru Core rules
 root and fixed verification kinds. A receipt becomes invalid when its target,
 preflight, route, failure signature, checkpoint, or result changes.
 

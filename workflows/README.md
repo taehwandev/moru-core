@@ -110,7 +110,7 @@ exit code and the first state token. Do not introduce any third hook state.
 Failure handling uses the bounded repair-and-resume contract owned by
 `skills/retrospective-learning/SKILL.md`. A required hook or gate `FAIL` starts
 one actionable retrospective, requires a verified improvement to the owning
-Tao Agent OS guidance, hook, validator, or test, and then resumes the original
+Moru Core guidance, hook, validator, or test, and then resumes the original
 task at `first_failed_checkpoint`. A candidate note alone is not recovery. Stop
 when the same failure recurs after repair, the repair is unsafe or ambiguous,
 source ownership is uncertain, or the one repair cycle is exhausted.
@@ -195,7 +195,7 @@ the update.
   On `FAIL`, it must explain the exact failing
   check, threshold, affected path or line when available, and recovery action.
   Follow the canonical repair cycle, improve and verify the owning
-  Tao Agent OS surface, fix scoped and safe failures outside the hook, then
+  Moru Core surface, fix scoped and safe failures outside the hook, then
   resume the review task at `first_failed_checkpoint`; do not finalize with an
   unresolved `FAIL`. It also
   fails by default when the changed path count is too broad for one review pass,

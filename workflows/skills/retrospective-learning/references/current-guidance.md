@@ -70,12 +70,12 @@ conversation context establishes all three facts:
 An optional improvement, an unrelated new request, a question without a
 correction action, or a bare preference change remains an ordinary follow-up.
 Words such as `previous`, `last`, `just`, `work`, `change`, or `output` are not
-independent evidence that Tao Agent OS completed the referenced result. The correction
+independent evidence that Moru Core completed the referenced result. The correction
 trigger requires one phrase that explicitly binds a completion action to the
 result, plus the failure statement and correction action.
 For a terse runtime follow-up, the runtime adapter must keep the user's actual
 correction verbatim in `--request` and pass the already-established target in
-the separate bounded `--continuation-scope`. Tao Agent OS must not concatenate prior
+the separate bounded `--continuation-scope`. Moru Core must not concatenate prior
 conversation prose into the current request or guess an earlier run from
 whichever project run happens to be newest. Scope words provide target identity
 only; the current request still has to establish the correction action and any

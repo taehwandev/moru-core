@@ -4,16 +4,16 @@ status: review
 type: human-reviewed-needed
 ---
 
-# Use Tao Agent OS Prompt
+# Use Moru Core Prompt
 
 Paste this into Claude, Gemini/Antigravity/AGY, Codex, or another AI coding
-agent when the target repo is not yet wired to Tao Agent OS or when you want a
-one-shot task to follow Tao Agent OS explicitly.
+agent when the target repo is not yet wired to Moru Core or when you want a
+one-shot task to follow Moru Core explicitly.
 
 Replace the placeholders before sending.
 
 ```text
-Use Tao Agent OS for this task.
+Use Moru Core for this task.
 
 Target repo:
 <TARGET_REPO_OR_CURRENT_DIRECTORY>
@@ -21,10 +21,10 @@ Target repo:
 Task:
 <TASK>
 
-Tao Agent OS root:
+Moru Core root:
 <TAO_ROOT>
 
-Tao Agent OS stable launcher:
+Moru Core stable launcher:
 <TAO_LAUNCHER>
 
 VibeGuard human docs:
@@ -57,12 +57,12 @@ Rules:
    If a response exposed those background details, do not finish with an
    apology-only message. Repair the action path or stop with the specific
    blocker.
-2. Do not assume this runtime automatically loaded Tao Agent OS. Explicitly
+2. Do not assume this runtime automatically loaded Moru Core. Explicitly
    read <TAO_ROOT>/AGENTS.md. Let the start hook route the smallest
    required document set for tracked work. Open <TAO_ROOT>/index.md only when
    the task is about the catalog or the router is unavailable and I approve
    that fallback; never to repeat successful routing or answer a simple lookup.
-3. Do not copy the whole Tao Agent OS library into this repo. Link only the
+3. Do not copy the whole Moru Core library into this repo. Link only the
    relevant root, index, workflow script, and selected cards. If you edit
    committed repo-local instruction files, use a portable root reference such
    as ${TAO_HOME} or a repo-relative pinned path like
@@ -141,7 +141,7 @@ Rules:
 9. If any required gate was not executed, stop before final report, commit,
    release, or handoff. Roll back only dependent agent-made changes after the
    failed checkpoint when safe, preserve user-owned changes, and run the
-   retrospective workflow. Improve and verify the canonical Tao Agent OS doc,
+   retrospective workflow. Improve and verify the canonical Moru Core doc,
    hook, validator, or test before resuming that checkpoint. Allow one repair
    cycle only; stop if the same failure remains or the repair is unsafe or
    ambiguous.

@@ -44,7 +44,7 @@ Do not say that an agent "read the docs" just because a wiki, index, or generate
 summary was available. Name the exact instruction file, `SKILL.md`, reference
 file, source doc, or generated wiki revision that was opened.
 
-For Tao Agent OS itself, prefer these canonical read locations:
+For Moru Core itself, prefer these canonical read locations:
 
 - LLM wiki rules: `common/skills/llm-wiki-documentation/SKILL.md`, then
   `common/skills/llm-wiki-documentation/references/current-guidance.md`.
@@ -72,7 +72,7 @@ the opening section:
 Use frontmatter when the repo already supports it. Otherwise keep the contract as
 a short "At a glance" section near the top.
 
-Shared Tao Agent OS cards may use the smaller `keyflow_id` / `status` / `type`
+Shared Moru Core cards may use the smaller `keyflow_id` / `status` / `type`
 frontmatter contract. Add owner, source of truth, last verified, applies-to, and
 related pages when a page is a durable wiki, runbook, operational procedure, or
 runtime-facing integration guide whose facts can age independently.

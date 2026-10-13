@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from support.claude_agent_setup import (
     AGENT_NAMES,
     FRONTMATTER_FENCE,
+    LEGACY_MANAGED_MARKER,
     MANAGED_MARKER,
     SOURCE_SUFFIX,
     install_claude_agents,
@@ -98,6 +99,14 @@ class ClaudeAgentSetupTests(unittest.TestCase):
         self.assertEqual([target], list(self.agents_dir.iterdir()))
         self.assertEqual("installed", self.statuses(self.install())["agents.tao_worker"])
         self.assertEqual((TEMPLATES / f"tao_worker{SOURCE_SUFFIX}").read_bytes(), target.read_bytes())
+
+    def test_legacy_managed_role_upgrades_to_moru_marker(self) -> None:
+        legacy = f"{FRONTMATTER_FENCE}\n{LEGACY_MANAGED_MARKER}\nname: tao_worker\n---\n".encode()
+        target = self.write_role("tao_worker", legacy)
+        self.assertEqual("would_update", self.statuses(self.install(dry_run=True))["agents.tao_worker"])
+        self.assertEqual(legacy, target.read_bytes())
+        self.assertEqual("installed", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual(MANAGED_MARKER, target.read_text().splitlines()[1])
 
     def test_same_name_user_role_and_unrelated_role_are_preserved(self) -> None:
         custom = b"---\nname: tao_worker\ndescription: Mine\n---\nMy instructions\n"

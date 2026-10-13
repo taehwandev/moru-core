@@ -13,7 +13,8 @@ from pathlib import Path
 from support.managed_agent_files import install_managed_agents
 
 
-MANAGED_MARKER = "# Tao Agent OS managed Codex agent"
+MANAGED_MARKER = "# Moru Core managed Codex agent"
+LEGACY_MANAGED_MARKER = "# Tao Agent OS managed Codex agent"
 AGENT_NAMES = ("tao_explorer", "tao_worker", "tao_reviewer")
 
 
@@ -21,7 +22,9 @@ def _is_managed(content: bytes) -> bool:
     """Ownership is the marker as the exact first line."""
 
     lines = content.splitlines()
-    return bool(lines) and lines[0] == MANAGED_MARKER.encode()
+    return bool(lines) and lines[0] in {
+        MANAGED_MARKER.encode(), LEGACY_MANAGED_MARKER.encode(),
+    }
 
 
 def install_codex_agents(root: Path, agents_dir: Path, dry_run: bool) -> list[dict]:

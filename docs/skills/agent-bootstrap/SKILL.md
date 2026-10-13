@@ -4,9 +4,9 @@ status: review
 type: ai-generated
 ---
 
-# Tao Agent OS Agent Bootstrap
+# Moru Core Agent Bootstrap
 
-Use when routed to `docs/skills/agent-bootstrap/SKILL.md` or when work needs this Tao Agent OS guidance area.
+Use when routed to `docs/skills/agent-bootstrap/SKILL.md` or when work needs this Moru Core guidance area.
 
 ## Read
 

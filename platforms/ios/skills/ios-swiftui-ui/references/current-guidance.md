@@ -97,7 +97,7 @@ composition, or focused reducer tests. Use MVVM only when it stays
 UDF-constrained and the repo already has that pattern or the feature is small.
 Do not create a ViewModel only because a view file exists.
 
-TCA is the preferred iOS SwiftUI implementation track in Tao Agent OS. A
+TCA is the preferred iOS SwiftUI implementation track in Moru Core. A
 repo-local TCA skill may add commands and examples, but this card remains the
 shared source of truth for when TCA should be used.
 

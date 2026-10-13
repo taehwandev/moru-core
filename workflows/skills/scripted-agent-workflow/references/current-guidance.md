@@ -22,7 +22,7 @@ repo.
 
 ## Agentic Control Plane
 
-The workflow script is the agentic coding control plane for Tao Agent OS. It
+The workflow script is the agentic coding control plane for Moru Core. It
 gives the active agent a route manifest, required documents, required gates,
 run-state expectations, delegation policy, and evidence policy so Codex, Claude
 Code, Gemini CLI, GitHub Copilot coding agent, Cursor, Aider, Devin, Replit
@@ -45,7 +45,7 @@ performs request intake, routing, and preflight as one lifecycle entry:
 <TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --evidence <RUN_EVIDENCE> --command <command> --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" [--approval-record "<JSON_OR_PATH>"] --runtime-session-id "<OPAQUE_SESSION_ID>" [--continuation-scope "<ESTABLISHED_TARGET>"] [--platform <platform>] [--concern <concern>]
 ```
 
-`--rules` must point to the Tao Agent OS root directory, not to an
+`--rules` must point to the Moru Core root directory, not to an
 individual instruction file such as `AGENTS.md`.
 The start hook requires the exact current request with `--request`. Every work
 route also requires a runtime-produced `--intent-envelope` and the matching
@@ -209,7 +209,7 @@ The route output is the command manifest for the agent:
 - `stop_condition`: terminal recovery condition; this must be
   `same_failure_after_repair_or_unsafe_repair`.
 - `notes`: apply these routing hints before choosing commands or edits.
-- `missing`: stop if this is not empty; fix the Tao Agent OS reference first.
+- `missing`: stop if this is not empty; fix the Moru Core reference first.
 
 Markdown output is optimized for direct agent reading. JSON output exposes the
 same fields for wrappers, launchers, or CI checks.
@@ -548,7 +548,7 @@ If the agent missed any required gate:
 5. If finish-check sets `retrospective_required` or the hook/gate returns
    `FAIL`, run the canonical
    `workflows/skills/retrospective-learning/SKILL.md` repair cycle. Improve the
-   owning Tao Agent OS guidance, hook, validator, or test and verify that
+   owning Moru Core guidance, hook, validator, or test and verify that
    improvement. A lesson candidate or correction-plan note alone is
    insufficient. For finish-check evidence failures, the improvement must make
    the validator's required evidence fields clear and testable.

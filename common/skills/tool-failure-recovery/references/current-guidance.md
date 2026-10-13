@@ -124,11 +124,11 @@ Hook failure:
   environment blocker, external-state risk, or broader refactor.
 - Follow the canonical bounded repair cycle in
   `workflows/skills/retrospective-learning/SKILL.md`: run an actionable
-  retrospective, improve and verify the owning Tao Agent OS guidance, hook,
+  retrospective, improve and verify the owning Moru Core guidance, hook,
   validator, or test, then resume the original task at
   `first_failed_checkpoint`.
 - Keep the hook read-only. Apply safe scoped fixes outside it only after the
-  durable Tao Agent OS improvement is verified.
+  durable Moru Core improvement is verified.
 - If recovery requires destructive action, credentials, external state, or a
   broader refactor, ask before acting. Stop when the same failure signature
   recurs after repair, the repair is unsafe or ambiguous, source ownership is

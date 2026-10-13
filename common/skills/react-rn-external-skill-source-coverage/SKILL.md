@@ -24,7 +24,7 @@ external-source provenance or a version-sensitive provider surface.
 - `common/skills/web-service-rn-python/references/source-map.md` for the broader
   React, React Native, Python, and official-document source map.
 - The local durable owner named by the selected manifest entry before applying
-  a reusable Tao Agent OS rule.
+  a reusable Moru Core rule.
 
 ## Decision Rule
 

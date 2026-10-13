@@ -9,6 +9,9 @@ from pathlib import Path
 LAUNCHER_NAME = "tao-hook"
 STATE_DIR_NAME = ".tao"
 ROOT_POINTER_NAME = "tao-root"
+MORU_LAUNCHER_NAME = "moru-hook"
+MORU_STATE_DIR_NAME = ".moru"
+MORU_ROOT_POINTER_NAME = "moru-root"
 
 
 def stable_launcher_path() -> Path:
@@ -19,12 +22,21 @@ def stable_root_pointer_path() -> Path:
     return Path.home() / STATE_DIR_NAME / ROOT_POINTER_NAME
 
 
+def moru_launcher_path() -> Path:
+    return Path.home() / MORU_STATE_DIR_NAME / "bin" / MORU_LAUNCHER_NAME
+
+
+def moru_root_pointer_path() -> Path:
+    return Path.home() / MORU_STATE_DIR_NAME / MORU_ROOT_POINTER_NAME
+
+
 def is_disposable_root(root: Path) -> bool:
     """Whether this checkout is a task worktree, which outlives its task."""
 
     parts = Path(root).resolve(strict=False).parts
     return any(
-        parts[index] == STATE_DIR_NAME and parts[index + 1] == "worktrees"
+        parts[index] in (STATE_DIR_NAME, MORU_STATE_DIR_NAME)
+        and parts[index + 1] == "worktrees"
         for index in range(len(parts) - 1)
     )
 
@@ -62,11 +74,18 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
     """Install or verify the home-stable launcher and root pointer."""
     launcher_path = stable_launcher_path()
     pointer_path = stable_root_pointer_path()
-    if downgrades_the_shared_root(root, pointer_path):
+    moru_path = moru_launcher_path()
+    moru_pointer_path = moru_root_pointer_path()
+    blocked_pointer = next(
+        (path for path in (pointer_path, moru_pointer_path)
+         if downgrades_the_shared_root(root, path)),
+        None,
+    )
+    if blocked_pointer is not None:
         blocked = {
             "status": "blocked",
             "detail": (
-                f"refusing to repoint the shared root from {_read_text(pointer_path).strip()} "
+                f"refusing to repoint the shared root from {_read_text(blocked_pointer).strip()} "
                 f"to the task worktree {Path(root).resolve(strict=False)}; run the "
                 "installer from the main checkout"
             ),
@@ -74,9 +93,12 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
         return [
             {"tool": "tao", "hook": "stable_launcher", "path": str(launcher_path), **blocked},
             {"tool": "tao", "hook": "root_pointer", "path": str(pointer_path), **blocked},
+            {"tool": "moru", "hook": "stable_launcher", "path": str(moru_path), **blocked},
+            {"tool": "moru", "hook": "root_pointer", "path": str(moru_pointer_path), **blocked},
         ]
     root_text = f"{root.resolve()}\n"
     launcher_text = _launcher_script_text()
+    moru_text = _moru_launcher_script_text()
 
     launcher_ok = (
         launcher_path.exists()
@@ -84,6 +106,8 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
         and _is_executable(launcher_path)
     )
     pointer_ok = pointer_path.exists() and _read_text(pointer_path) == root_text
+    moru_ok = moru_path.exists() and _read_text(moru_path) == moru_text and _is_executable(moru_path)
+    moru_pointer_ok = moru_pointer_path.exists() and _read_text(moru_pointer_path) == root_text
 
     if dry_run:
         return [
@@ -99,6 +123,14 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
                 "status": "ok" if pointer_ok else "missing",
                 "path": str(pointer_path),
             },
+            {
+                "tool": "moru", "hook": "stable_launcher",
+                "status": "ok" if moru_ok else "missing", "path": str(moru_path),
+            },
+            {
+                "tool": "moru", "hook": "root_pointer",
+                "status": "ok" if moru_pointer_ok else "missing", "path": str(moru_pointer_path),
+            },
         ]
 
     launcher_status = "ok"
@@ -113,9 +145,23 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
         pointer_path.write_text(root_text)
         pointer_status = "installed"
 
+    moru_status = "ok"
+    moru_pointer_status = "ok"
+    if not moru_ok:
+        moru_path.parent.mkdir(parents=True, exist_ok=True)
+        moru_path.write_text(moru_text)
+        moru_path.chmod(0o755)
+        moru_status = "installed"
+    if not moru_pointer_ok:
+        moru_pointer_path.parent.mkdir(parents=True, exist_ok=True)
+        moru_pointer_path.write_text(root_text)
+        moru_pointer_status = "installed"
+
     return [
         {"tool": "tao", "hook": "stable_launcher", "status": launcher_status, "path": str(launcher_path)},
         {"tool": "tao", "hook": "root_pointer", "status": pointer_status, "path": str(pointer_path)},
+        {"tool": "moru", "hook": "stable_launcher", "status": moru_status, "path": str(moru_path)},
+        {"tool": "moru", "hook": "root_pointer", "status": moru_pointer_status, "path": str(moru_pointer_path)},
     ]
 
 
@@ -343,3 +389,23 @@ def _soft_fail(message):
 if __name__ == "__main__":
     raise SystemExit(main())
 """
+
+
+def _moru_launcher_script_text() -> str:
+    """Use the same dispatcher with a Moru entrypoint and the legacy aliases intact."""
+    return (
+        _launcher_script_text()
+        .replace('STATE_DIR_NAME = ".tao"', 'STATE_DIR_NAME = ".moru"')
+        .replace('ROOT_POINTER_NAME = "tao-root"', 'ROOT_POINTER_NAME = "moru-root"')
+        .replace("tao-hook", "moru-hook")
+        .replace("Tao Agent OS", "Moru Core")
+        .replace(
+            '    os.environ.setdefault("TAO_HOME", str(root))',
+            '    os.environ.setdefault("MORU_HOME", str(root))\n'
+            '    os.environ.setdefault("TAO_HOME", str(root))',
+        )
+        .replace(
+            '    env_root = os.environ.get("TAO_HOME", "").strip()',
+            '    env_root = os.environ.get("MORU_HOME", "").strip() or os.environ.get("TAO_HOME", "").strip()',
+        )
+    )

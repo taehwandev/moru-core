@@ -1,4 +1,4 @@
-# Tao Agent OS managed Codex agent
+# Moru Core managed Codex agent
 name = "tao_explorer"
 description = "Find bounded source evidence and ownership for a parent-assigned question."
 sandbox_mode = "read-only"

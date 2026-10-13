@@ -15,7 +15,7 @@ the command itself are in
 
 ## Codex And Claude Installs
 
-For Codex, the same setup also merges one Tao Agent OS-owned `Stop` hook into
+For Codex, the same setup also merges one Moru Core-owned `Stop` hook into
 `~/.codex/hooks.json` without replacing unrelated hooks such as local metering.
 It installs three namespaced native agent files from
 `templates/codex-agents/` into `~/.codex/agents/`: `tao_explorer` gathers bounded
@@ -110,7 +110,7 @@ packet-less `resume --last` request remains refused.
 For Claude, `setup-agent-hooks.py` installs a stable user-level launcher at
 `<TAO_LAUNCHER>` and writes the current checkout to
 `~/.tao/tao-root`. Rerun setup after moving or migrating
-Tao Agent OS so the pointer is refreshed without changing the Claude hook
+Moru Core so the pointer is refreshed without changing the Claude hook
 command.
 Claude setup installs the same roles from `templates/claude-agents/*.md.template`
 (not `.md`, so doc validators skip them) into `~/.claude/agents/` under the
@@ -226,12 +226,12 @@ that would act must return `would_update`, and a completed write must return
 
 ## Spill And Instruction Bridges
 
-Spill token metering is an optional local bridge, not a Tao Agent OS
-dependency. Tao Agent OS setup does not install token-usage event hooks; those
+Spill token metering is an optional local bridge, not a Moru Core
+dependency. Moru Core setup does not install token-usage event hooks; those
 belong to the Spill installer. If the local Spill setup helper exists,
-`setup-agent-hooks.py` may add Tao Agent OS-managed safe workflow label hooks
+`setup-agent-hooks.py` may add Moru Core-managed safe workflow label hooks
 and runtime env for that bridge. If the helper is absent, the setup removes
-only those Tao Agent OS-managed Spill label hooks/env and keeps the Python
+only those Moru Core-managed Spill label hooks/env and keeps the Python
 wrapper permissions installed.
 
 For Codex, Claude, and Gemini/Antigravity/AGY, `setup-agent-hooks.py` manages a

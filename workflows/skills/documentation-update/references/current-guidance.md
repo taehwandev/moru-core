@@ -14,7 +14,7 @@ Use when creating, reviewing, or restructuring docs, guides, specs, READMEs, age
 - `common/skills/code-conventions/SKILL.md` for naming and clarity
 - `common/skills/llm-wiki-documentation/SKILL.md` for wiki, knowledge-base, runbook, onboarding, durable architecture, or operational docs
 - `common/skills/agent-skill-card-anatomy/SKILL.md` when creating or materially updating an
-  Tao Agent OS guidance card
+  Moru Core guidance card
 - `common/skills/project-naming/SKILL.md` when names, slugs, or product identifiers appear
 - `common/skills/verification-policy/SKILL.md` when links, examples, or commands can be checked
 - `common/skills/human-authored-writing/SKILL.md` when the task changes prose voice, tone, or AI-writing signals, or repairs a reader-comprehension failure without changing facts
@@ -54,7 +54,7 @@ tests, hooks and generated-output work, not only prose changes.
 | API route, event, DTO, schema, auth, or integration contract | API contract, schema note, integration spec, product-pattern card |
 | Persistence, migration, background job, release, deployment, or operator action | migration note, runbook, release note, rollback note |
 | Test strategy, scenario coverage, QA workflow, or verification harness | test plan, QA checklist, verification runbook |
-| Shared agent behavior, workflow rule, review rule, or platform guidance | Tao Agent OS common card, workflow card, skill card, platform card, repo `AGENTS.md` |
+| Shared agent behavior, workflow rule, review rule, or platform guidance | Moru Core common card, workflow card, skill card, platform card, repo `AGENTS.md` |
 | Local command, repo path, product policy, domain term, or service-specific rule | repo-local `AGENTS.md`, `README.md`, wiki, runbook, or task doc |
 | Generated docs, wiki, search index, graph, or public build artifact | generated-files policy, source-doc update, manifest, or publishing note recording source revision, generator, publish boundary and private-data review |
 

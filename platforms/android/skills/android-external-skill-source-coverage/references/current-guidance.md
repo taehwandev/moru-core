@@ -12,7 +12,7 @@ those repositories.
 
 ## Purpose
 
-Tao Agent OS should keep concise shared rules in the Android cards, while this
+Moru Core should keep concise shared rules in the Android cards, while this
 manifest prevents source omissions. When a task touches a surface listed here,
 read the relevant source skill file and its references before designing,
 editing, or reviewing that surface.
@@ -27,16 +27,16 @@ not relevant.
 
 ## Source Policy
 
-- Do not vendor or copy full external skill repositories into Tao Agent OS by
+- Do not vendor or copy full external skill repositories into Moru Core by
   default.
-- Distill reusable rules into Tao Agent OS only when they remain correct across
+- Distill reusable rules into Moru Core only when they remain correct across
   products and repositories.
 - Keep provider-specific setup, sample code, release notes, and surface details
-  as source references unless Tao Agent OS needs a reusable rule.
+  as source references unless Moru Core needs a reusable rule.
 - If a source repository changes, refresh this manifest with the new commit and
   re-check whether Android cards need rule updates.
 - In final reports or PR descriptions, cite the source repository and the
-  source surface, not only the Tao Agent OS summary.
+  source surface, not only the Moru Core summary.
 
 ## Source Snapshots
 
@@ -64,7 +64,7 @@ coroutine scope, background work, performance, testing, or platform-SDK work:
 3. Read the listed `references/` docs when the task changes implementation,
    dependencies, public contracts, security behavior, testing, or verification
    for that surface.
-4. Update the concise Tao Agent OS rule card only when the lesson is reusable.
+4. Update the concise Moru Core rule card only when the lesson is reusable.
 5. Report the source surface and residual source docs not loaded because they
    were out of scope.
 
@@ -98,7 +98,7 @@ The workflow router should include this manifest for Android concerns such as:
   CameraX, Credential Manager, Play surfaces, Wear, XR, and AppFunctions.
 
 If an Android route for those concerns does not include this manifest, treat the
-route as incomplete before editing. Keep Tao Agent OS's local Android
+route as incomplete before editing. Keep Moru Core's local Android
 architecture as the primary rule source; use external skills to prevent
 omission and to confirm version-sensitive source behavior.
 
@@ -116,7 +116,7 @@ Use the narrowest external source file that matches the touched surface:
 | Intent security, exported components, credentials, or verified email | `android/skills` `security/android-intent-security/SKILL.md` and `identity/verified-email/SKILL.md`. | [android-security](../../android-security/SKILL.md) |
 | Android CLI/device inspection, AGP, Navigation 3, edge-to-edge, testing setup, CameraX, Play, Wear, XR, or AppFunctions | `android/skills` matching platform `SKILL.md` and its listed references. | [android-architecture](../../android-architecture/SKILL.md), [android-module-structure](../../android-module-structure/SKILL.md), [android-compose-ui](../../android-compose-ui/SKILL.md) |
 
-Do not copy full skill text into Tao Agent OS. Distill only reusable decision
+Do not copy full skill text into Moru Core. Distill only reusable decision
 rules, stop signals, and verification requirements into the local Android card
 that owns the recurring lesson.
 
@@ -371,9 +371,9 @@ Skill coverage:
 - `skills/shepherd/SKILL.md`
 - `skills/using-chrisbanes-skills/SKILL.md`
 
-## Tao Agent OS Mapping
+## Moru Core Mapping
 
-These Tao Agent OS cards consume this source coverage:
+These Moru Core cards consume this source coverage:
 
 - [android-module-structure](../../android-module-structure/SKILL.md) for Android
   modularization, source-set, SDK-surface, toolchain, and package-boundary routing.

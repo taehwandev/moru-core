@@ -15,12 +15,45 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from support.stable_launcher import (
     ensure_stable_launcher,
+    moru_launcher_path,
+    moru_root_pointer_path,
     stable_launcher_path,
     stable_root_pointer_path,
 )
 
 
 class StableLauncherTests(unittest.TestCase):
+    def test_new_and_legacy_launchers_share_a_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_home:
+            with patch.dict(os.environ, {"HOME": temporary_home}):
+                first = ensure_stable_launcher(ROOT, dry_run=False)
+                old_launcher = stable_launcher_path()
+                new_launcher = moru_launcher_path()
+                old_pointer = stable_root_pointer_path()
+                new_pointer = moru_root_pointer_path()
+                self.assertEqual({"installed"}, {row["status"] for row in first})
+                self.assertEqual(f"{ROOT.resolve()}\n", old_pointer.read_text())
+                self.assertEqual(old_pointer.read_text(), new_pointer.read_text())
+                self.assertTrue(os.access(old_launcher, os.X_OK))
+                self.assertTrue(os.access(new_launcher, os.X_OK))
+                self.assertNotIn("MORU_HOME", old_launcher.read_text())
+                self.assertIn('STATE_DIR_NAME = ".moru"', new_launcher.read_text())
+                self.assertIn('os.environ.setdefault("MORU_HOME", str(root))', new_launcher.read_text())
+                self.assertEqual({"ok"}, {
+                    row["status"] for row in ensure_stable_launcher(ROOT, dry_run=True)
+                })
+
+                environment = dict(os.environ)
+                environment.pop("TAO_HOME", None)
+                environment.pop("MORU_HOME", None)
+                result = subprocess.run(
+                    [str(new_launcher), "workflow", "validate"],
+                    cwd=temporary_home, env=environment, capture_output=True,
+                    text=True, check=False,
+                )
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertIn("OK:", result.stdout)
+
     def test_launcher_resolves_the_dynamic_home_root_pointer(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_home:
             with patch.dict(os.environ, {"HOME": temporary_home}):
@@ -96,6 +129,14 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
             f"{self.durable}\n",
             (self.home / ".tao" / "tao-root").read_text(encoding="utf-8"),
         )
+
+    def test_moru_pointer_is_not_replaced_by_a_worktree(self) -> None:
+        new_pointer = self.home / ".moru" / "moru-root"
+        new_pointer.parent.mkdir(parents=True)
+        new_pointer.write_text(f"{self.durable}\n", encoding="utf-8")
+
+        self.assertEqual("blocked", self._install(self.worktree))
+        self.assertEqual(f"{self.durable}\n", new_pointer.read_text())
 
     def test_a_first_install_from_a_worktree_still_works(self) -> None:
         # Nothing to lose: developing Tao in a worktree against a throwaway

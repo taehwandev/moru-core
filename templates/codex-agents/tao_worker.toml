@@ -1,4 +1,4 @@
-# Tao Agent OS managed Codex agent
+# Moru Core managed Codex agent
 name = "tao_worker"
 description = "Implement one disjoint, parent-assigned slice and run its focused checks."
 developer_instructions = """

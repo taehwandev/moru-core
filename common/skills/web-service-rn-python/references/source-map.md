@@ -17,7 +17,7 @@ Last verified: 2026-08-09.
 - Keep source-specific repository names, package paths, versions, and link lists
   in this map.
 - Distill only reusable decision rules, stop signals, and verification questions
-  into local Tao Agent OS cards.
+  into local Moru Core cards.
 - Do not copy vendor prose, sample code, repository layout, release notes, or
   provider setup into shared guidance.
 - For the complete reviewed 2026-08-07 React/RN bundle, including all 32
