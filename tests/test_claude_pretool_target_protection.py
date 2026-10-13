@@ -32,6 +32,26 @@ from test_claude_pretool_gate import (
 
 
 class TargetProtectionTests(unittest.TestCase):
+    def test_sibling_checkout_rename_is_owned_by_source_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            (workspace / ".tao").mkdir(parents=True)
+            (workspace / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            source = _opt_in_project(workspace)
+            (source / ".git").mkdir()
+            destination = workspace / "renamed"
+
+            self.assertEqual(
+                [source.resolve()],
+                gate.bash_target_project_roots(["mv", str(source), str(destination)], source),
+            )
+            self.assertEqual(
+                [source.resolve(), workspace.resolve()],
+                gate.bash_target_project_roots(
+                    ["mv", str(source / "child"), str(destination)], source
+                ),
+            )
+
     def test_observed_inventory_and_process_reads_need_no_run_in_main(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp) / "protected")

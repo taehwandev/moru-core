@@ -2321,7 +2321,40 @@ def bash_target_project_roots(tokens: list[str], cwd: Path) -> list[Path]:
             continue
         if root is not None and root not in roots:
             roots.append(root)
+    workspace = _checkout_rename_workspace_root(tokens, cwd)
+    if workspace is not None:
+        roots = [root for root in roots if root != workspace]
     return roots
+
+
+def _checkout_rename_workspace_root(tokens: list[str], cwd: Path) -> Path | None:
+    """An exact sibling checkout rename belongs to its source repository."""
+
+    if len(tokens) != 3 or tokens[0] != "mv":
+        return None
+    source = Path(tokens[1]).expanduser()
+    destination = Path(tokens[2]).expanduser()
+    source = source if source.is_absolute() else cwd / source
+    destination = destination if destination.is_absolute() else cwd / destination
+    try:
+        if source.is_symlink() or os.path.lexists(destination):
+            return None
+        source = source.resolve()
+        destination = destination.resolve()
+        workspace = source.parent
+        if (
+            not source.is_dir()
+            or not (source / ".git").exists()
+            or source == destination
+            or destination.parent != workspace
+            or find_project_root(source) != source
+            or find_project_root(workspace) != workspace
+            or (workspace / ".git").exists()
+        ):
+            return None
+        return workspace
+    except (OSError, ValueError):
+        return None
 
 
 class UnresolvableTarget(Exception):
