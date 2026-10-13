@@ -101,6 +101,23 @@ class ParallelSessionBindingTests(unittest.TestCase):
         self.assertEqual(b, resolve_runtime_evidence(self.worktrees["worker-b"], SESSION))
         self.assertEqual(parent, resolve_runtime_evidence(self.main, SESSION))
 
+    def test_migrated_runs_link_keeps_session_evidence_visible(self) -> None:
+        state = self.main / ".moru" / "runs"
+        state.mkdir(parents=True)
+        (self.main / ".moru" / "state-ready").touch()
+        (self.main / ".tao" / "runs").symlink_to(Path("../.moru/runs"))
+        evidence = start_run(self.main)
+
+        self.assertEqual(evidence, resolve_runtime_evidence(self.main, SESSION))
+
+    def test_runs_link_outside_project_is_not_session_evidence(self) -> None:
+        foreign_runs = Path(self._directory.name) / "foreign" / "runs"
+        foreign_runs.mkdir(parents=True)
+        (self.main / ".tao" / "runs").symlink_to(foreign_runs)
+        evidence = start_run(self.main)
+
+        self.assertIsNone(resolve_runtime_evidence(self.main, SESSION))
+
     def test_start_in_one_worktree_never_supersedes_another_worktree(self) -> None:
         a_first = start_run(self.worktrees["worker-a"])
         b = start_run(self.worktrees["worker-b"])

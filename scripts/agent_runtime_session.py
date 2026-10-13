@@ -711,29 +711,43 @@ def _runtime_evidence_candidates(
     # parallel worker's whole checkout on each lookup, and a directory a
     # worker created or removed mid-walk marked the scan incomplete, which
     # denied this project's own binding.
-    for root, directories, filenames in os.walk(
-        project_state, topdown=True, onerror=note_error, followlinks=False
+    scan_roots = [project_state]
+    migrated_state = project.resolve() / ".moru"
+    migrated_runs = migrated_state / "runs"
+    linked_runs = project_state / "runs"
+    if (
+        (migrated_state / "state-ready").is_file()
+        and not migrated_state.is_symlink()
+        and migrated_runs.is_dir()
+        and not migrated_runs.is_symlink()
+        and linked_runs.is_symlink()
+        and linked_runs.resolve() == migrated_runs.resolve()
     ):
-        current = Path(root)
-        directories[:] = sorted(
-            name for name in directories if not _is_nested_checkout(current / name)
-        )
-        inside_worker_root = current == worker_root or worker_root in current.parents
-        for filename in sorted(filenames):
-            if filename not in evidence_names:
-                continue
-            candidate = current / filename
-            try:
-                if not candidate.is_file() or candidate.is_symlink():
+        scan_roots.append(migrated_runs)
+    for scan_root in scan_roots:
+        for root, directories, filenames in os.walk(
+            scan_root, topdown=True, onerror=note_error, followlinks=False
+        ):
+            current = Path(root)
+            directories[:] = sorted(
+                name for name in directories if not _is_nested_checkout(current / name)
+            )
+            inside_worker_root = current == worker_root or worker_root in current.parents
+            for filename in sorted(filenames):
+                if filename not in evidence_names:
                     continue
-                resolved = candidate.resolve()
-            except OSError:
-                complete = False
-                continue
-            if inside_worker_root:
-                worker_scoped.append(resolved)
-            else:
-                candidates.append(resolved)
+                candidate = current / filename
+                try:
+                    if not candidate.is_file() or candidate.is_symlink():
+                        continue
+                    resolved = candidate.resolve()
+                except OSError:
+                    complete = False
+                    continue
+                if inside_worker_root:
+                    worker_scoped.append(resolved)
+                else:
+                    candidates.append(resolved)
     return tuple(candidates), tuple(worker_scoped), complete
 
 
