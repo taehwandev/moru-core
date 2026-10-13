@@ -39,6 +39,38 @@ LOCAL_AGENT_CONFIG_PATHS = frozenset(
 )
 
 
+def _project_evidence_relative(project: Path, evidence_path: Path) -> str:
+    """Bind evidence under this checkout's original or migrated run directory."""
+
+    project = project.resolve()
+    evidence_path = evidence_path.resolve()
+    legacy = project / ".tao"
+    try:
+        return evidence_path.relative_to(legacy.resolve()).as_posix()
+    except ValueError:
+        pass
+
+    migrated = project / ".moru"
+    migrated_runs = migrated / "runs"
+    linked_runs = legacy / "runs"
+    if (
+        not legacy.is_symlink()
+        and not migrated.is_symlink()
+        and (migrated / "state-ready").is_file()
+        and migrated_runs.is_dir()
+        and not migrated_runs.is_symlink()
+        and linked_runs.is_symlink()
+        and linked_runs.resolve() == migrated_runs.resolve()
+    ):
+        try:
+            return (Path("runs") / evidence_path.relative_to(migrated_runs.resolve())).as_posix()
+        except ValueError:
+            pass
+    raise ValueError(
+        "review attestation evidence path must be inside the review project .tao root"
+    )
+
+
 class ReviewAttestation:
     """Create and verify the hook-owned review result for one evidence file."""
 
@@ -80,12 +112,7 @@ class ReviewAttestation:
         evidence_path = evidence_path.resolve()
         subject = _normalize_review_subject(review_subject)
         _verify_subject_scope(project, subject, scope, paths, changed_path_count)
-        try:
-            relative = evidence_path.relative_to((project / ".tao").resolve()).as_posix()
-        except ValueError as error:
-            raise ValueError(
-                "review attestation evidence path must be inside the review project .tao root"
-            ) from error
+        relative = _project_evidence_relative(project, evidence_path)
         project_git, rules_git = _review_git_states(project, rules, git_records)
         rules_inputs = review_rules_inputs(project, rules)
         payload: dict[str, Any] = {
@@ -261,7 +288,7 @@ def _attestation_failures(
         project = project.resolve()
         rules = rules.resolve()
         evidence_path = evidence_path.resolve()
-        expected_path = evidence_path.relative_to(project / ".tao").as_posix()
+        expected_path = _project_evidence_relative(project, evidence_path)
         current_evidence = file_hash_record(evidence_path)
         project_git, rules_git = git_states_for_paths(
             project,

@@ -39,7 +39,7 @@ def load_finish_check_module():
 
 def initialize_repository(project: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=project, check=True)
-    (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+    (project / ".gitignore").write_text(".tao/\n.moru/\n", encoding="utf-8")
     (project / "tracked.txt").write_text("initial\n", encoding="utf-8")
     subprocess.run(["git", "add", ".gitignore", "tracked.txt"], cwd=project, check=True)
     subprocess.run(
@@ -126,6 +126,26 @@ class ReviewAttestationTests(unittest.TestCase):
         self.assertIn("review hook", gate_evidence)
         self.assertEqual([], failures)
         self.assertTrue(diagnostics["review_attestation"]["valid"])
+
+    def test_review_accepts_in_project_migrated_runs_link(self) -> None:
+        migrated = self.project / ".moru"
+        migrated.mkdir()
+        (migrated / "state-ready").write_text("ready\n", encoding="utf-8")
+        (self.project / ".tao" / "runs").rename(migrated / "runs")
+        (self.project / ".tao" / "runs").symlink_to("../.moru/runs", target_is_directory=True)
+
+        self._record_real_review()
+
+        self.assertEqual([], self._finish_merge()[2])
+
+    def test_review_rejects_foreign_migrated_runs_link(self) -> None:
+        with tempfile.TemporaryDirectory() as foreign_directory:
+            (self.project / ".tao" / "runs").rename(Path(foreign_directory) / "runs")
+            (self.project / ".tao" / "runs").symlink_to(
+                Path(foreign_directory) / "runs", target_is_directory=True
+            )
+            with self.assertRaisesRegex(ValueError, "inside the review project"):
+                self._record_real_review()
 
     def _record_scoped_review(self, *, staged: bool = False):
         self.rules = self.project / ".tao" / "review-rules"
