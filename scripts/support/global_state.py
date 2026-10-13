@@ -29,6 +29,9 @@ from pathlib import Path
 
 
 STATE_DIR_NAME = ".tao"
+MORU_STATE_DIR_NAME = ".moru"
+MORU_STATE_HOME_ENV = "MORU_STATE_HOME"
+MORU_STATE_READY_MARKER = "state-ready"
 # Set by tests and by anyone relocating the global install; the same variable
 # agent_global_lessons has always used to find lessons/skills state.
 STATE_HOME_ENV = "TAO_STATE_HOME"
@@ -36,14 +39,22 @@ STATE_HOME_ENV = "TAO_STATE_HOME"
 # .tao ever contains. Identity is checked first; these are the fallback for a
 # global install reached through a different HOME, a symlink, or a relocation
 # that happened after this process read the environment.
-GLOBAL_ONLY_MARKERS = ("tao-root", "projects.json", "bin/tao-hook")
+GLOBAL_ONLY_MARKERS = (
+    "tao-root", "moru-root", "projects.json", "bin/tao-hook", "bin/moru-hook",
+)
 
 
 def global_state_dir() -> Path:
-    """The one directory that holds global install state."""
+    """Use Moru state only after its existing user records were moved."""
+    moru_override = os.environ.get(MORU_STATE_HOME_ENV, "").strip()
+    if moru_override:
+        return Path(moru_override).expanduser()
     override = os.environ.get(STATE_HOME_ENV, "").strip()
     if override:
         return Path(override).expanduser()
+    moru_dir = Path.home() / MORU_STATE_DIR_NAME
+    if (moru_dir / MORU_STATE_READY_MARKER).is_file():
+        return moru_dir
     return Path.home() / STATE_DIR_NAME
 
 
@@ -97,12 +108,12 @@ def user_store_write_error() -> str:
     developer's real `~/.tao`, where nothing removes it. Only writes are
     refused; lookups read nothing that is not already there.
     """
-    if os.environ.get(STATE_HOME_ENV, "").strip():
+    if any(os.environ.get(name, "").strip() for name in (MORU_STATE_HOME_ENV, STATE_HOME_ENV)):
         return ""
     if os.environ.get(UNDER_TEST_ENV, "").strip() or _running_unittest():
         return (
             f"refusing to write the user's Tao state from a test run; set "
-            f"{STATE_HOME_ENV} to a temporary directory"
+            f"{MORU_STATE_HOME_ENV} or {STATE_HOME_ENV} to a temporary directory"
         )
     return ""
 
@@ -119,6 +130,9 @@ def is_global_state_dir(path: Path) -> bool:
     resolved = _resolved(path)
     if resolved is None:
         return False
+    home = _resolved(Path.home())
+    if home is not None and resolved in (home / STATE_DIR_NAME, home / MORU_STATE_DIR_NAME):
+        return True
     global_resolved = _resolved(global_state_dir())
     if global_resolved is not None and resolved == global_resolved:
         return True
@@ -165,7 +179,7 @@ def is_host_config_dir(path: Path) -> bool:
 
 # Root files whose prose marks a project that uses Tao Agent OS.
 OPT_IN_FILES = ("AGENTS.md", "CLAUDE.md", "CODEX.md")
-OPT_IN_TOKEN = "tao"
+OPT_IN_TOKENS = ("moru", "tao")
 
 
 def marks_tao_project(path: Path) -> bool:
@@ -178,14 +192,14 @@ def marks_tao_project(path: Path) -> bool:
     """
     if is_host_config_dir(path):
         return False
-    if is_project_state_dir(path / STATE_DIR_NAME):
+    if any(is_project_state_dir(path / name) for name in (MORU_STATE_DIR_NAME, STATE_DIR_NAME)):
         return True
     for name in OPT_IN_FILES:
         try:
             head = (path / name).read_text(encoding="utf-8", errors="ignore")[:8192]
         except OSError:
             continue
-        if OPT_IN_TOKEN in head.lower():
+        if any(token in head.lower() for token in OPT_IN_TOKENS):
             return True
     return False
 
@@ -213,8 +227,12 @@ def prefer_git_root(candidates: list[Path]) -> Path | None:
     return candidates[0] if candidates else None
 
 def project_state_dir_target(project: Path) -> Path:
-    """Where per-project state for ``project`` belongs."""
-    return project / STATE_DIR_NAME
+    """Keep run evidence in the old tree until every writer has migrated."""
+    moru = project / MORU_STATE_DIR_NAME
+    legacy = project / STATE_DIR_NAME
+    if (moru / MORU_STATE_READY_MARKER).is_file():
+        return moru
+    return legacy
 
 
 STATE_DIR_IGNORE = """\
