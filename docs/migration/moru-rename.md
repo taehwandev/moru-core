@@ -51,16 +51,18 @@ are separate inventories.
    path and environment names keep resolving for a stated window, setup
    writes both, and removal is a separate, announced step. Re-review the
    protected site prompts and update their test hashes in the same change.
-   The first compatibility commit is on local `main`: both launchers can be
-   installed, while existing records continue to use `.tao`. A `state-ready`
-   marker selects `.moru` only after an offline copy and verification of all
-   project-state writers. Do not create that marker merely because `.moru`
-   already exists.
+   The compatibility commit is on local `main`: both launchers are installed.
+   On 2026-10-13, 35 project and worktree state roots and the user-local state
+   moved to `.moru`, with relative compatibility links under `.tao`. The
+   workspace router at `~/git/.tao` remains separate because `~/git` is not a
+   Git project. A `state-ready` marker selects `.moru` only after the records
+   have moved; an existing `.moru` directory alone is not sufficient.
 4. **Repository, folder and domain.** The GitHub repository is now
-   `taehwandev/moru-core`; the local checkout folder and `tao.thdev.app`
-   domain have not moved. Folder and domain moves are separate actions.
-   Claude session memory is keyed by folder path, so record anything a later
-   session needs here before moving the checkout.
+   `taehwandev/moru-core`; the local checkout moved to `~/git/moru-core` on
+   2026-10-13. The old `~/git/tao-agent-os` path is a compatibility link.
+   The `tao.thdev.app` domain has not moved.
+   Claude session memory is keyed by folder path; the compatibility link keeps
+   prior path-based references available during the transition.
 5. **Moru app.** TaoIDE's own rename (app name, bundle identifier,
    `app.thdev.taoide` namespace) is owned by the TaoIDE repository and was
    handed to that session on 2026-10-13. A bundle identifier change creates a
