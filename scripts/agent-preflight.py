@@ -32,7 +32,7 @@ from agent_worker_evidence import (
     worker_reservation_matches,
 )
 from agent_workspace_policy import is_git_status_review_only, non_git_writing_workspace_note
-from support.global_state import project_scoped_state_error
+from support.global_state import project_scoped_state_error, project_state_dir_target
 from workflow_catalog import COMMANDS, CONCERNS, PLATFORM_CONCERNS, PLATFORMS, SPILL_ROUTE_LABELS
 from workflow_common import unique
 from workflow_doc_surfaces import extract_request_surface_paths, git_status_surface_paths
@@ -338,10 +338,10 @@ def resolve_evidence_path(args: argparse.Namespace, project: Path) -> Path:
     if scope_error:
         raise ValueError(scope_error)
     if not args.evidence:
-        return project / ".tao" / "preflight.json"
+        return project_state_dir_target(project) / "preflight.json"
     requested = args.evidence.expanduser().absolute()
-    worker_root = project / ".tao" / "workers"
-    lexical_worker_root = args.project.expanduser().absolute() / ".tao" / "workers"
+    worker_root = project_state_dir_target(project) / "workers"
+    lexical_worker_root = project_state_dir_target(args.project.expanduser().absolute()) / "workers"
     try:
         try:
             relative = requested.relative_to(worker_root)
@@ -385,7 +385,7 @@ def claim_worker_evidence_reservation(
 ) -> None:
     if not args.worker_reservation_token:
         return
-    worker_root = project / ".tao" / "workers"
+    worker_root = project_state_dir_target(project) / "workers"
     try:
         evidence_path.relative_to(worker_root)
     except ValueError:

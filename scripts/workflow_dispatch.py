@@ -38,6 +38,7 @@ from workflow_request import (
     classify_request,
     route_block_reason,
 )
+from support.global_state import project_state_dir_target
 
 
 def _validated_capability(
@@ -320,7 +321,7 @@ def _select_execution_context(
 
 
 def _parent_evidence_path(project: Path, evidence_path: Path | None) -> Path:
-    return evidence_path.expanduser().resolve() if evidence_path else project / ".tao" / "preflight.json"
+    return evidence_path.expanduser().resolve() if evidence_path else project_state_dir_target(project) / "preflight.json"
 
 
 def execute_dispatch_manifest(

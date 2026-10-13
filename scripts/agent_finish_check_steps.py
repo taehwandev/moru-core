@@ -32,6 +32,7 @@ from workflow_request import (
     classification_evidence_requires_clarification,
 )
 from workflow_request_patterns import GRILL_ME_REQUEST_PATTERNS
+from support.global_state import project_state_dir_target
 
 
 LEGACY_GRILL_ME_FLAGS = (
@@ -94,12 +95,12 @@ def resolve_paths(args: argparse.Namespace) -> tuple[Path, Path, Path, Path]:
     evidence_path = (
         args.evidence.resolve()
         if args.evidence
-        else project / ".tao" / "preflight.json"
+        else project_state_dir_target(project) / "preflight.json"
     )
     output_path = (
         args.output.resolve()
         if args.output
-        else project / ".tao" / "finish.json"
+        else project_state_dir_target(project) / "finish.json"
     )
     return project, rules, evidence_path, output_path
 

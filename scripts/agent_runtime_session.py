@@ -36,6 +36,7 @@ from agent_run_registry import (
     latest_run_id,
 )
 from agent_worker_evidence import is_isolated_worker_evidence
+from support.global_state import project_state_dir_target
 
 SESSION_ENV_VARS = (
     ("claude", "CLAUDE_CODE_SESSION_ID"),
@@ -120,7 +121,7 @@ def record_session_close(project: Path, session: object, suffix: str) -> None:
     safe = "".join(ch for ch in session_id if ch.isalnum() or ch in "-_")
     if not safe:
         return
-    marker = Path(project) / ".tao" / SESSION_MARKER_DIR / (safe + suffix)
+    marker = project_state_dir_target(Path(project)) / SESSION_MARKER_DIR / (safe + suffix)
     try:
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text("", encoding="utf-8")
@@ -137,7 +138,7 @@ def is_run_local_continuation_evidence(
         return False
     try:
         relative = evidence.resolve().relative_to(
-            project.resolve() / ".tao" / "runs"
+            project_state_dir_target(project.resolve()) / "runs"
         )
     except (OSError, ValueError):
         return False
@@ -634,7 +635,7 @@ def _run_evidence_candidate(project: Path, run: dict[str, Any]) -> Path | None:
     name = str(run.get("evidence_name") or "")
     if not name or Path(name).name != name:
         return None
-    candidate = project.resolve() / ".tao" / "runs" / run_id / name
+    candidate = project_state_dir_target(project.resolve()) / "runs" / run_id / name
     return (
         candidate
         if candidate.is_file()
@@ -697,7 +698,7 @@ def _runtime_evidence_candidates(
     candidates: list[Path] = []
     worker_scoped: list[Path] = []
     complete = True
-    project_state = project.resolve() / ".tao"
+    project_state = project_state_dir_target(project.resolve())
     worker_root = project_state / "workers"
 
     def note_error(error: OSError) -> None:

@@ -1418,8 +1418,8 @@ class WorkflowDispatchTests(unittest.TestCase):
         outside = ROOT / ".tao" / "not-isolated.json"
         parent_in_worker_root = ROOT / ".tao" / "workers" / "parent" / "preflight.json"
         for parent_path, worker_path, expected in (
-            (parent, parent, "under <project>/.tao/workers"),
-            (parent, outside, "under <project>/.tao/workers"),
+            (parent, parent, "under the project state workers directory"),
+            (parent, outside, "under the project state workers directory"),
             (parent_in_worker_root, parent_in_worker_root, "must not overlap parent evidence"),
         ):
             with self.subTest(worker_path=worker_path):

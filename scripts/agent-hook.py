@@ -145,7 +145,7 @@ from agent_context_store import (
     refresh_and_validate_context_snapshot,
     validate_context_snapshot,
 )
-from support.global_state import ensure_local_only_state_dir
+from support.global_state import ensure_local_only_state_dir, project_state_dir_target
 from support.git_read_scope import git_read_scope
 from support.stable_launcher import stable_launcher_path
 from workflow_catalog import COMMANDS, CONCERNS, PLATFORM_CONCERNS
@@ -416,7 +416,7 @@ def _isolated_run_preflight(path: Path, payload: dict[str, Any]) -> bool:
         run_id = resolved.parent.name
         return (
             resolved.name == "preflight.json"
-            and resolved.parent.parent == project / ".tao" / "runs"
+            and resolved.parent.parent == project_state_dir_target(project) / "runs"
             and len(run_id) == 32
             and all(character in "0123456789abcdef" for character in run_id)
         )
@@ -1478,7 +1478,7 @@ def _resume_run_for_closeout(args: argparse.Namespace) -> None:
     and put an extra active run back on the shared evidence path.
     """
     try:
-        evidence_path = args.evidence or args.project / ".tao" / "preflight.json"
+        evidence_path = args.evidence or project_state_dir_target(args.project) / "preflight.json"
         payload = json.loads(evidence_path.read_text(encoding="utf-8"))
         current_session = runtime_session()
         recorded_session = payload.get("runtime_session") or {}
@@ -1510,7 +1510,7 @@ def _resume_run_for_closeout(args: argparse.Namespace) -> None:
 
 def _transition_finished_run(args: argparse.Namespace, success: bool) -> None:
     try:
-        evidence_path = args.evidence or args.project / ".tao" / "preflight.json"
+        evidence_path = args.evidence or project_state_dir_target(args.project) / "preflight.json"
         payload = json.loads(evidence_path.read_text(encoding="utf-8"))
         transition_run(
             args.project,
@@ -2035,10 +2035,10 @@ def _lifecycle_evidence_error(args: argparse.Namespace) -> str:
         return ""
     if args.hook == "start":
         try:
-            args.evidence.resolve().relative_to((args.project / ".tao").resolve())
+            args.evidence.resolve().relative_to(project_state_dir_target(args.project).resolve())
         except (OSError, RuntimeError, ValueError):
             return (
-                "start --evidence must be under the current project's .tao "
+                "start --evidence must be under the current project's state directory "
                 "evidence root so later lifecycle hooks can validate the same capsule"
             )
         # Only start is refused: a run already begun under an unbindable name
@@ -2106,7 +2106,7 @@ def _lifecycle_output_error(args: argparse.Namespace) -> str:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             dir=args.output.parent,
-            prefix=".tao-output-probe-",
+            prefix=".moru-output-probe-",
         ):
             pass
     except OSError as error:

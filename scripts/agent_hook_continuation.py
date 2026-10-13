@@ -26,6 +26,7 @@ from agent_continuation_store import continuation_path, read_continuation_packet
 from agent_continuation_fields import CHECKPOINT_RE, RUN_ID_RE
 from agent_hook_gate_records import preflight_evidence_path
 from support.stable_launcher import stable_launcher_path
+from support.global_state import project_state_dir_target
 
 
 RUNS_DIR = "runs"
@@ -161,7 +162,7 @@ def unbindable_run_directory_error(args: argparse.Namespace) -> str:
         return ""
     try:
         directory = Path(evidence).expanduser().resolve().parent
-        runs_root = (args.project / ".tao" / RUNS_DIR).resolve()
+        runs_root = (project_state_dir_target(args.project) / RUNS_DIR).resolve()
     except (OSError, RuntimeError, TypeError, ValueError):
         return ""
     if directory.parent != runs_root or RUN_ID_RE.match(directory.name):
@@ -178,7 +179,7 @@ def run_binding_path(args: argparse.Namespace) -> Path | None:
 
     evidence = preflight_evidence_path(args).resolve()
     directory = evidence.parent
-    if directory.parent != (args.project / ".tao" / RUNS_DIR).resolve():
+    if directory.parent != (project_state_dir_target(args.project) / RUNS_DIR).resolve():
         return None
     return evidence if RUN_ID_RE.match(directory.name) else None
 

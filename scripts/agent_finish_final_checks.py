@@ -19,6 +19,7 @@ from agent_workspace_policy import (
     is_writing_workspace,
     non_git_writing_workspace_note,
 )
+from support.global_state import project_state_dir_target
 
 
 REVIEW_VALIDATION_SCHEMA_VERSION = 3
@@ -170,7 +171,7 @@ def record_successful_review_workflow_validation(
     try:
         project_git, rules_git = git_states_for_paths(project, rules)
         evidence_relative = evidence_path.resolve().relative_to(
-            (project.resolve() / ".tao").resolve()
+            project_state_dir_target(project.resolve()).resolve()
         )
         evidence = {
             "path": evidence_relative.as_posix(),
@@ -208,13 +209,10 @@ def reusable_review_workflow_validation(project: Path, rules: Path) -> dict[str,
     record = read_json_object(review_validation_path(project))
     if not _valid_review_validation_record(record):
         return None
-    evidence_path = (
-        project.resolve()
-        / ".tao"
-        / record["preflight_evidence"]["path"]
-    ).resolve()
+    state_dir = project_state_dir_target(project.resolve())
+    evidence_path = (state_dir / record["preflight_evidence"]["path"]).resolve()
     try:
-        evidence_path.relative_to((project.resolve() / ".tao").resolve())
+        evidence_path.relative_to(state_dir.resolve())
         current_evidence = {
             "path": record["preflight_evidence"]["path"],
             "sha256": file_hash_record(evidence_path)["sha256"],
@@ -244,7 +242,7 @@ def reusable_review_workflow_validation(project: Path, rules: Path) -> dict[str,
 
 
 def review_validation_path(project: Path) -> Path:
-    return project.resolve() / ".tao" / REVIEW_VALIDATION_FILENAME
+    return project_state_dir_target(project.resolve()) / REVIEW_VALIDATION_FILENAME
 
 
 def _valid_review_validation_record(record: dict[str, Any]) -> bool:

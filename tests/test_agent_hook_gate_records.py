@@ -17,7 +17,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from agent_gate_evidence import read_gate_evidence_ledger, reset_gate_evidence_ledger
-from agent_hook_gate_records import _gate_progress, _normalize_gate_record, gate_batch_hook, gate_hook
+from agent_hook_gate_records import _gate_progress, _normalize_gate_record, gate_batch_hook, gate_hook, preflight_evidence_path
 from agent_run_registry import register_run
 
 # The join advice belongs to the array rejection alone. Asserting its absence
@@ -26,6 +26,19 @@ ARRAY_HINT = 'pass "a.md, b.md" rather than ["a.md", "b.md"]'
 
 
 class GateRecordInvocationTests(unittest.TestCase):
+    def test_start_mints_migrated_run_evidence_under_moru(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            state = project / ".moru"
+            state.mkdir()
+            (state / "state-ready").touch()
+            args = SimpleNamespace(project=project, evidence=None, hook="start")
+
+            selected = preflight_evidence_path(args)
+
+            self.assertEqual(state / "runs", selected.parent.parent)
+            self.assertEqual(selected, args.evidence)
+
     def test_rejected_retrospective_stays_missing_until_a_valid_retry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)

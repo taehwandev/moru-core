@@ -46,6 +46,7 @@ from agent_vibeguard_cache import cached_vibeguard
 from agent_workspace_policy import is_git_status_review_only, is_writing_workspace, non_git_writing_workspace_note
 from support.git_read_scope import invalidate_worktree_reads
 from support.stage_timing import stage
+from support.global_state import project_state_dir_target
 
 
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
@@ -483,7 +484,7 @@ def _review_verdict(
         evidence_path = (
             args.evidence
             if args.evidence
-            else args.project / ".tao" / "preflight.json"
+            else project_state_dir_target(args.project) / "preflight.json"
         )
         try:
             with stage("review_attestation"):
@@ -737,7 +738,7 @@ def record_review_prerequisite_readiness(
     checks: dict[str, Any],
     failures: list[str],
 ) -> None:
-    evidence_path = args.evidence if args.evidence else args.project / ".tao" / "preflight.json"
+    evidence_path = args.evidence if args.evidence else project_state_dir_target(args.project) / "preflight.json"
     try:
         preflight = json.loads(evidence_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -959,7 +960,7 @@ def record_review_worktree_stability(
 
 
 def record_review_failure(args: Any, failures: list[str]) -> None:
-    evidence_path = args.evidence if args.evidence else args.project / ".tao" / "preflight.json"
+    evidence_path = args.evidence if args.evidence else project_state_dir_target(args.project) / "preflight.json"
     try:
         preflight = json.loads(evidence_path.read_text(encoding="utf-8"))
         signature = failure_signature(failures)
@@ -1003,7 +1004,7 @@ def record_review_gate(
     current rather than fingerprinting both trees a second time.
     """
 
-    evidence_path = args.evidence if args.evidence else args.project / ".tao" / "preflight.json"
+    evidence_path = args.evidence if args.evidence else project_state_dir_target(args.project) / "preflight.json"
     try:
         preflight = json.loads(evidence_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
@@ -1403,7 +1404,7 @@ def read_only_review_run(project: Path, evidence_path: Path | None) -> bool:
     """Whether this run claims no project write: a read-floor route or `--read-only`."""
     from workflow_effect_policy import route_minimum_effect
 
-    path = evidence_path if evidence_path else project / ".tao" / "preflight.json"
+    path = evidence_path if evidence_path else project_state_dir_target(project) / "preflight.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
         command = str((payload.get("route") or {}).get("command") or "")
@@ -1425,7 +1426,7 @@ def reported_review_findings(evidence_path: Path) -> bool:
 
 
 def review_route_gates(project: Path, evidence_path: Path | None) -> list[str]:
-    path = evidence_path if evidence_path else project / ".tao" / "preflight.json"
+    path = evidence_path if evidence_path else project_state_dir_target(project) / "preflight.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):

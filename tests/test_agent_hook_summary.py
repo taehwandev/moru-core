@@ -592,7 +592,7 @@ class AgentHookSummaryTests(unittest.TestCase):
 
             self.assertNotEqual(0, result.returncode)
             self.assertIn(
-                "start --evidence must be under the current project's .tao",
+                "start --evidence must be under the current project's state directory",
                 result.stderr,
             )
 

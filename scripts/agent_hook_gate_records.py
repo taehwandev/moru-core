@@ -40,6 +40,7 @@ from agent_skill_catalog import canonical_skill_ids, skill_ids_from_doc_paths
 from agent_run_registry import SETTLED_RUN_STATES
 from agent_runtime_session import resolve_runtime_evidence, runtime_session
 from agent_gate_reuse import GateEvidenceReuse
+from support.global_state import project_state_dir_target
 
 
 HOOK_OWNED_GATES = frozenset({"review hook"})
@@ -93,11 +94,11 @@ def preflight_evidence_path(args: argparse.Namespace) -> Path:
             return settled
     if getattr(args, "hook", "") == "start":
         generated = (
-            args.project / ".tao" / "runs" / uuid.uuid4().hex / "preflight.json"
+            project_state_dir_target(args.project) / "runs" / uuid.uuid4().hex / "preflight.json"
         )
         args.evidence = generated
         return generated
-    return args.project / ".tao" / "preflight.json"
+    return project_state_dir_target(args.project) / "preflight.json"
 
 
 def _last_moved(evidence: Path) -> float:
