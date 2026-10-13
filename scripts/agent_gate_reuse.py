@@ -10,6 +10,7 @@ from typing import Any
 from agent_execution_capsule_state import git_state
 from agent_evidence_inputs import EvidenceInputs
 from agent_gate_evidence import gate_evidence_path_for_preflight, merge_gate_evidence_from_ledger
+from support.global_state import project_state_dir_target
 
 
 _LOCAL_GATES = frozenset({"source docs", "documentation", "documentation impact", "tests", "package", "smoke"})
@@ -85,10 +86,11 @@ class GateEvidenceReuse:
         run_id = record.get("reuse_from")
         if not isinstance(run_id, str) or not re.fullmatch(r"[0-9a-f]{32}", run_id):
             raise ValueError("reuse_from must be one registered source run id in this project")
-        path = self.project / ".tao" / "runs" / run_id / "preflight.json"
+        state_dir = project_state_dir_target(self.project)
+        path = state_dir / "runs" / run_id / "preflight.json"
         if path.resolve() != path or path.parent.is_symlink():
             raise ValueError("gate reuse source must stay in its registered run directory")
-        registry = _read(self.project / ".tao" / "run-registry.json")
+        registry = _read(state_dir / "run-registry.json")
         if not any(isinstance(run, dict) and run.get("run_id") == run_id
                    and run.get("evidence_name", "preflight.json") == "preflight.json"
                    for run in registry.get("runs", [])):

@@ -26,6 +26,7 @@ from datetime import datetime
 from pathlib import Path
 
 from agent_required_doc_reuse import required_doc_reuse
+from support.global_state import project_state_dir_target
 
 MARKER = "required-docs-delivered.json"
 # One small core contract is ~4-6 KB; the cap keeps a delivery to a few of them.
@@ -91,7 +92,7 @@ def delivery_text(payload: dict, evidence_for) -> str:
 def _session_run(payload: dict, evidence_for) -> Path | None:
     for edited in edited_paths(payload):
         for project in (edited, *edited.parents):
-            if (project / ".tao" / "run-registry.json").is_file():
+            if (project_state_dir_target(project) / "run-registry.json").is_file():
                 evidence = evidence_for(project)
                 if evidence is not None:
                     return evidence

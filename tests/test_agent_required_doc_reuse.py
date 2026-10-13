@@ -26,8 +26,12 @@ class RequiredDocReuseTests(unittest.TestCase):
         prior_session: str = "session-one",
         prior_hash: str = "a" * 64,
         takeaway: str = "prior run applied the operating contract",
+        migrated: bool = False,
     ) -> Path:
-        tao = root / ".tao"
+        tao = root / (".moru" if migrated else ".tao")
+        if migrated:
+            tao.mkdir()
+            (tao / "state-ready").touch()
         prior_id = "a" * 32
         current_id = "b" * 32
         prior = tao / "runs" / prior_id / "preflight.json"
@@ -115,6 +119,16 @@ class RequiredDocReuseTests(unittest.TestCase):
             self.assertEqual(
                 ["workflows/skills/review-and-commit/SKILL.md"],
                 reuse["unread"],
+            )
+
+    def test_migrated_runs_reuse_documents_from_moru(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            current = self._fixture(Path(directory), migrated=True)
+
+            reuse = required_doc_reuse(current)
+
+            self.assertEqual(
+                ["common/skills/agent-operating-skill/SKILL.md"], reuse["reused"]
             )
 
     def test_recent_complete_match_stops_history_reads_even_in_long_goals(self) -> None:

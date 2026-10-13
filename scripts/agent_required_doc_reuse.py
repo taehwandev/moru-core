@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from support.global_state import project_state_dir_target
+
 
 RUN_ID = re.compile(r"^[0-9a-f]{32}$")
 MAX_REGISTRY_BYTES = 4 * 1024 * 1024
@@ -123,7 +125,7 @@ def _same_session_priors(preflight_path: Path, current: dict[str, Any]):
     run_dir = preflight_path.resolve().parent
     if (
         not RUN_ID.fullmatch(run_dir.name)
-        or run_dir.parent != project / ".tao" / "runs"
+        or run_dir.parent != project_state_dir_target(project) / "runs"
         or preflight_path.resolve() != run_dir / "preflight.json"
     ):
         return
@@ -137,7 +139,7 @@ def _same_session_priors(preflight_path: Path, current: dict[str, Any]):
 
 def _completed_runs(root: Path, current_run: str, session: tuple[str, str]):
     try:
-        registry = _read(root / ".tao" / "run-registry.json", MAX_REGISTRY_BYTES)
+        registry = _read(project_state_dir_target(root) / "run-registry.json", MAX_REGISTRY_BYTES)
     except (OSError, ValueError, json.JSONDecodeError):
         return
     runs = registry.get("runs")
@@ -153,7 +155,7 @@ def _completed_runs(root: Path, current_run: str, session: tuple[str, str]):
         evidence_name = record.get("evidence_name", "preflight.json")
         if evidence_name != "preflight.json" or run_id == current_run:
             continue
-        prior_path = root / ".tao" / "runs" / run_id / evidence_name
+        prior_path = project_state_dir_target(root) / "runs" / run_id / evidence_name
         try:
             prior = _read(prior_path, MAX_PREFLIGHT_BYTES)
             if (
@@ -188,7 +190,7 @@ def _repository_roots(project: Path) -> list[Path]:
         return roots
     siblings = []
     for candidate in candidates:
-        registry = candidate.resolve() / ".tao" / "run-registry.json"
+        registry = project_state_dir_target(candidate.resolve()) / "run-registry.json"
         if registry.parents[1] not in roots and registry.is_file():
             siblings.append((registry.stat().st_mtime, registry.parents[1]))
     # A repository can hold dozens of worktrees; the recently active ones are

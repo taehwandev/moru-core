@@ -13,6 +13,7 @@ from subprocess import run as _run
 from uuid import UUID
 
 from agent_work_cards import WORK_ID_RE, list_cards
+from support.global_state import project_state_dir_target
 
 
 def _session_id(card: dict) -> str:
@@ -23,7 +24,7 @@ def _session_id(card: dict) -> str:
         if not WORK_ID_RE.fullmatch(run_id):
             return ""
         try:
-            evidence = Path(card["project"]) / ".tao" / "runs" / run_id / "preflight.json"
+            evidence = project_state_dir_target(Path(card["project"])) / "runs" / run_id / "preflight.json"
             payload = json.loads(evidence.read_text(encoding="utf-8"))
             if payload.get("work", {}).get("id") != card["work_id"]:
                 return ""

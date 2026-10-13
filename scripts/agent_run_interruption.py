@@ -15,6 +15,7 @@ from agent_run_registry import (
 )
 from agent_runtime_session import resolve_runtime_evidence, same_runtime_session
 from agent_state_lock import project_state_lock, state_lock
+from support.global_state import project_state_dir_target
 
 
 def record_turn_boundary(
@@ -112,7 +113,8 @@ def _retained_paths(project: Path, run: dict) -> list[Path]:
         return []
     if not name or Path(name).name != name:
         return []
-    return [project / ".tao" / "runs" / run_id / name, project / ".tao" / name]
+    state_dir = project_state_dir_target(project)
+    return [state_dir / "runs" / run_id / name, state_dir / name]
 
 
 def _checkpoint_outcome(project: Path, run: dict, evidence: Path, binding: dict) -> str:

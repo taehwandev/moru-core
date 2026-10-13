@@ -16,6 +16,7 @@ from agent_gate_evidence import gate_evidence_path_for_preflight, resync_gate_ev
 from agent_gate_reuse import GateEvidenceReuse
 from agent_hook_runtime import write_json
 from agent_runtime_session import runtime_session, same_runtime_session
+from support.global_state import project_state_dir_target
 
 
 class WorkContinuity:
@@ -34,7 +35,7 @@ class WorkContinuity:
             return
         if not re.fullmatch(r"[0-9a-f]{32}", self.source_id):
             raise ValueError("--continue-from must name a registered run id")
-        self.source = args.project.resolve() / ".tao" / "runs" / self.source_id / "preflight.json"
+        self.source = project_state_dir_target(args.project.resolve()) / "runs" / self.source_id / "preflight.json"
         if self.source.resolve() != self.source:
             raise ValueError("continuation source escapes its run directory")
         unusable = self._unusable_source(args)
@@ -61,7 +62,7 @@ class WorkContinuity:
             self.prior = self._read(self.source)
         except FileNotFoundError:
             return "no such run in this checkout; started as new work"
-        registry_path = args.project / ".tao" / "run-registry.json"
+        registry_path = project_state_dir_target(args.project) / "run-registry.json"
         registry = self._read(registry_path) if registry_path.exists() else {}
         records = [run for run in registry.get("runs", []) if run.get("run_id") == self.source_id]
         if len(records) != 1 or records[0].get("state") not in {"completed", "running", "blocked", "interrupted"}:
@@ -143,7 +144,7 @@ def _nearest_record(project: Path, source_id: str, work_id: str, gate: str) -> s
         if source_id in seen or not re.fullmatch(r"[0-9a-f]{32}", source_id):
             raise ValueError("invalid work history")
         seen.add(source_id)
-        path = project / ".tao" / "runs" / source_id / "preflight.json"
+        path = project_state_dir_target(project) / "runs" / source_id / "preflight.json"
         if path.resolve() != path:
             raise ValueError("work history escapes its run directory")
         source = WorkContinuity._read(path)

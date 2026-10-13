@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_project_memory import repository_key
+from support.global_state import project_state_dir_target
 from agent_run_registry import REGISTRY_FILENAME, SETTLED_RUN_STATES
 from support.global_state import global_state_dir, user_store_write_error
 
@@ -201,7 +202,7 @@ def _registry_runs(project: Path, cache: dict[Path, dict[str, str]]) -> dict[str
     if project not in cache:
         runs: dict[str, str] = {}
         try:
-            payload = json.loads((project / ".tao" / REGISTRY_FILENAME).read_text(encoding="utf-8"))
+            payload = json.loads((project_state_dir_target(project) / REGISTRY_FILENAME).read_text(encoding="utf-8"))
             for run in payload.get("runs", []) if isinstance(payload, dict) else []:
                 if isinstance(run, dict) and isinstance(run.get("run_id"), str):
                     runs[run["run_id"]] = str(run.get("state") or "")
