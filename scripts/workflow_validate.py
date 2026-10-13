@@ -62,6 +62,7 @@ MARKDOWN_VALIDATE_IGNORED_DIRS = {
     # Agent task checkouts are separate repositories, not canonical guidance.
     ".claude/worktrees",
     ".tao",
+    ".moru",
     ".git",
     ".mypy_cache",
     ".pytest_cache",

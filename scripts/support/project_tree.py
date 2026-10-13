@@ -39,10 +39,11 @@ from support.bounded_git import run_git
 
 
 # What every caller here already discards: project state and the repository's
-# own storage. A caller that wants part of `.tao` names a narrower set.
-PRUNED_DIRECTORIES = frozenset({".tao", ".git"})
+# own storage. A caller that wants part of `.tao` names a narrower set. `.moru`
+# is the same project state under its Moru name.
+PRUNED_DIRECTORIES = frozenset({".tao", ".moru", ".git"})
 # For callers that want `.tao/skills` but not one directory per run.
-PRUNED_RUN_STATE = frozenset({".git", ".tao/runs"})
+PRUNED_RUN_STATE = frozenset({".git", ".tao/runs", ".moru/runs"})
 
 
 def iter_project_files(

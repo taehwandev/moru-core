@@ -54,6 +54,34 @@ class PrunedWalkTests(unittest.TestCase):
 
             self.assertEqual({"guide.md", "nested/guide.md"}, found)
 
+    def test_moru_state_is_pruned_like_tao_state(self) -> None:
+        """The .tao to .moru migration moved cleanup archives under `.moru`.
+
+        Their archived skill copies have no runtime frontmatter, so walking
+        them failed `workflow validate` and every review hook with it.
+        """
+
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            build(
+                base,
+                "guide.md",
+                ".moru/cleanup-archives/old/skills/graphify/SKILL.md",
+                "nested/.moru/runs/abc/guide.md",
+            )
+
+            walked = {
+                path.relative_to(base).as_posix()
+                for path in iter_project_files(base, "*.md")
+            }
+            validated = {
+                path.relative_to(base).as_posix()
+                for path in markdown_files_to_validate(base)
+            }
+
+            self.assertEqual({"guide.md"}, walked)
+            self.assertEqual({"guide.md"}, validated)
+
     def test_a_path_entry_prunes_only_that_place(self) -> None:
         """`.tao` is not uniformly disposable; its skills are tracked content."""
 
