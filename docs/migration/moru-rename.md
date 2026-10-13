@@ -70,7 +70,15 @@ are separate inventories.
 ## Before Each Identifier Or External Phase
 
 - Close or restart running agent sessions, as in the precedent's host-side
-  migration, and keep a transitional symlink for the old state directory.
+  migration. Move ignored runtime records to `.moru` only after writers are
+  quiescent; keep relative links from their old `.tao` paths so older running
+  commands and saved worktree paths still resolve. Do not move Git-tracked
+  `.tao/skills` guidance as though it were runtime state. Use
+  `scripts/migrate_moru_local_state.py` on one verified project root at a time,
+  deepest linked worktree first, and migrate the user-local root separately.
+  Its default workspace inventory is read-only; `--apply` requires an exact
+  `--project` or `--global-state` target. Verify each new `.moru/state-ready`
+  marker and compatibility link before switching the next project.
 - Preserve Spill token-metering hooks, label handoff commands and
   `SPILL_*` environment handoff when runtime bridges are regenerated.
 - Rerun runtime setup for this repository and every project that references
