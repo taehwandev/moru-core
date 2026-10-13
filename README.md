@@ -6,6 +6,8 @@ type: ai-generated
 
 # Moru Core
 
+[English](README.md) · [한국어](README.ko.md)
+
 Moru Core is a reusable guidance and runtime layer for AI coding agents. It gives agents a compact set of operating rules, workflow paths, review criteria, platform guidance, product-pattern checks, and executable lifecycle evidence that can be linked from any software project.
 
 Moru Core was formerly named Tao Agent OS.
@@ -15,7 +17,7 @@ Use it when you want repo-local instructions to stay small while still giving an
 Repository:
 
 ```text
-https://github.com/taehwandev/tao-agent-os
+https://github.com/taehwandev/moru-core
 ```
 
 ## Who It Is For
@@ -48,11 +50,21 @@ Website:
 https://tao.thdev.app/
 ```
 
-Latest release: [v26.07.6](https://github.com/taehwandev/tao-agent-os/releases/tag/v26.07.6)
+Releases: <https://github.com/taehwandev/moru-core/releases>
 
 The website includes the current copy-and-paste prompts, application modes, and release link. Use it as the human-facing entry point; this README remains the portable source for installation and repository integration.
 
-Korean update guide: docs/ko/update-tao.md
+Korean guide: [README.ko.md](README.ko.md). Existing-install update guide: [docs/ko/update-tao.md](docs/ko/update-tao.md).
+
+### Rename status
+
+The repository is now `taehwandev/moru-core`. The website still uses
+`tao.thdev.app`. Runtime identifiers are moving in stages: the Moru launcher
+can be installed at `~/.moru/bin/moru-hook`, while existing installations and
+records still use `TAO_HOME`, `<TAO_LAUNCHER>`, and `.tao`. A `state-ready`
+marker selects `.moru` records only after the offline migration is verified.
+Do not move or delete `.tao` records merely to follow the new name. See
+[the migration plan](docs/migration/moru-rename.md).
 
 ## Website Deployment Versioning
 
@@ -60,7 +72,7 @@ The public website is a continuously deployed static site. Do not bump a public 
 
 - Release unit: continuous deployment from `main`.
 - Deployment source: GitHub Pages legacy source, `main` branch, `/docs` path.
-- Latest public release: [v26.07.6](https://github.com/taehwandev/tao-agent-os/releases/tag/v26.07.6). Use a tag or release note only when a maintainer intentionally groups changes into a public Moru Core release.
+- Public releases: <https://github.com/taehwandev/moru-core/releases>. Use a tag or release note only when a maintainer intentionally groups changes into a public Moru Core release.
 - Source revision: the exact Git commit SHA deployed by GitHub Pages.
 - Deployment id: the GitHub Pages build id for that Pages build.
 - Artifact: the `/docs` tree at the deployed commit. There is no separate package artifact unless a future workflow creates one.
@@ -69,9 +81,9 @@ The public website is a continuously deployed static site. Do not bump a public 
 Verification commands:
 
 ```bash
-gh api repos/taehwandev/tao-agent-os/pages \
+gh api repos/taehwandev/moru-core/pages \
   --jq '{status, cname, https_enforced, build_type, source}'
-gh api repos/taehwandev/tao-agent-os/pages/builds/latest \
+gh api repos/taehwandev/moru-core/pages/builds/latest \
   --jq '{status, commit, created_at, updated_at, duration, error}'
 curl -I https://tao.thdev.app/
 ```
@@ -86,7 +98,7 @@ Choose one setup path first. Existing local or repo-pinned roots are the default
 
 Use this when Moru Core is already on the machine.
 
-1. Locate the existing root. Prefer an explicit path from the user, then `TAO_HOME`, then common local locations such as `~/.tao-agent-os`, `~/tao-agent-os`, `~/git/tao-agent-os`, or `~/GitHub/tao-agent-os`.
+1. Locate the existing root. Prefer an explicit path from the user, then `MORU_HOME` or the compatibility variable `TAO_HOME`, then the current install location. Check legacy installation locations when migrating an existing installation.
 2. Verify that the root contains `AGENTS.md`, `index.md`, and the lifecycle scripts. The installed launcher is the preferred execution path: `<TAO_LAUNCHER>`.
 3. Point the target repo to that root. Do not clone, vendor, or copy another Moru Core checkout.
 
@@ -98,7 +110,7 @@ pin a new copy anyway, or should I reuse the existing root?
 ```
 
 ```bash
-export TAO_HOME="/path/to/existing/tao-agent-os"
+export TAO_HOME="/path/to/existing/moru-core"
 <TAO_LAUNCHER> workflow validate
 ```
 
@@ -107,9 +119,9 @@ export TAO_HOME="/path/to/existing/tao-agent-os"
 Use this when no usable local or repo-pinned copy exists and the user wants one shared install for multiple personal repos.
 
 ```bash
-export TAO_HOME="$HOME/.tao-agent-os"
-git clone https://github.com/taehwandev/tao-agent-os.git "$TAO_HOME"
-<TAO_LAUNCHER> workflow validate
+export TAO_HOME="$HOME/.moru/core"
+git clone https://github.com/taehwandev/moru-core.git "$TAO_HOME"
+python3 "$TAO_HOME/scripts/workflow.py" validate
 ```
 
 ### Path C: Team-Pinned Install
@@ -117,8 +129,8 @@ git clone https://github.com/taehwandev/tao-agent-os.git "$TAO_HOME"
 Use this when every teammate and agent must use the same reviewed version. Add Moru Core as a submodule, vendored dependency, or workspace dependency only after the repo owner approves the pinned location and update policy.
 
 ```bash
-git submodule add https://github.com/taehwandev/tao-agent-os.git .agents/tao-agent-os
-<TAO_LAUNCHER> workflow validate
+git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
+python3 .agents/moru-core/scripts/workflow.py validate
 ```
 
 ### Updating An Existing Install
@@ -138,9 +150,9 @@ For a team-pinned submodule, update the pinned commit through the target repo's 
 
 ```bash
 cd <target-repo>
-git submodule update --remote .agents/tao-agent-os
+git submodule update --remote .agents/moru-core
 <TAO_LAUNCHER> workflow validate
-git add .agents/tao-agent-os
+git add .agents/moru-core
 ```
 
 Public site: `https://tao.thdev.app/#update`
@@ -167,7 +179,7 @@ Standalone `project-memory recall` accepts `--request`, `--target-summary`,
 and repeatable `--target-path` values for the same ranking.
 
 Capture can include up to four repeatable `--source-path` values naming tracked,
-repository-relative evidence files. Tao stores their paths and Git blob hashes
+repository-relative evidence files. Moru Core stores their paths and Git blob hashes
 of the current worktree bytes, without filters, contents or history. Recall
 marks changed or unavailable evidence with `verify before use`, hashing each
 file once per recall. At task start, a record is skipped before hashing when its
@@ -185,9 +197,9 @@ any of its records, newest first, up to 20 entries; a missing link or a cycle
 ends the chain.
 
 The command and start behavior travel with every Moru Core installation.
-The records remain in that PC's user-local `~/.tao/project-memory/` store;
+Until the state migration completes, records remain in that PC's user-local `~/.tao/project-memory/` store;
 linked worktrees of the same repository share them, while another PC starts
-with its own empty store. Tao does not sync memory content between PCs.
+with its own empty store. Moru Core does not sync memory content between PCs.
 
 ### Work Cards
 
@@ -207,18 +219,18 @@ renaming or UUID entry is needed. The current directory is the default project;
 `--project <repo>` selects another repository. Selection uses the displayed
 snapshot and never guesses the latest session. Older cards use their own retained
 run evidence when available; unbound cards cannot be resumed this way. This
-navigates to a conversation without resuming a Tao run or granting work authority.
+navigates to a conversation without resuming a Moru Core run or granting work authority.
 
-Cards live in one SQLite file under the PC's user-local `~/.tao/work-cards/`,
+Until the state migration completes, cards live in one SQLite file under the PC's user-local `~/.tao/work-cards/`,
 shared by linked worktrees of a repository. Cards idle for 90 days are dropped.
-They hold no prompt, transcript, or log, and Tao never syncs them. The
+They hold no prompt, transcript, or log, and Moru Core never syncs them. The
 content-free delegation queue in `.tao/scheduler.json` is separate.
 
 ### Connect The Target Repo
 
 After choosing the root, add a short pointer to the target repo's canonical agent instruction file. Prefer `AGENTS.md` when the active runtimes read it. If existing runtime-specific files such as `CLAUDE.md`, `CODEX.md`, `.agents/README.md`, Antigravity CLI docs, or explicitly documented local override files are present, update their Moru Core pointer in the same pass or point them back to `AGENTS.md`. Do not create extra runtime-specific files only to duplicate the same routing block.
 
-Keep committed repo-local instructions portable. Do not write a personal absolute path such as `/Users/.../tao-agent-os` into files that will be shared through Git. Use `${TAO_HOME}` for a shared local install, or a repo-relative path such as `.agents/tao-agent-os` for a repo-pinned install. Personal full paths belong only in shell environment setup, one-shot prompts, or uncommitted user-level runtime bridges.
+Keep committed repo-local instructions portable. Do not write a personal absolute path such as `/Users/.../moru-core` into files that will be shared through Git. Use `${TAO_HOME}` for a shared local install during the compatibility period, or a repo-relative path such as `.agents/moru-core` for a repo-pinned install. Personal full paths belong only in shell environment setup, one-shot prompts, or uncommitted user-level runtime bridges.
 
 When starting an agent from `~`, a workspace parent, or another repo, resolve the target first:
 
@@ -299,7 +311,7 @@ After the user answers, use the matching command shape.
 Audit only, preserving existing guardrails:
 
 ```bash
-export TAO_HOME="/path/to/existing/tao-agent-os"
+export TAO_HOME="/path/to/existing/moru-core"
 <TAO_LAUNCHER> workflow validate
 npx --yes @taehwandev/vibeguard audit . --rules "${TAO_HOME}"
 ```
@@ -307,7 +319,7 @@ npx --yes @taehwandev/vibeguard audit . --rules "${TAO_HOME}"
 Refresh an existing managed VibeGuard block only when explicitly requested:
 
 ```bash
-export TAO_HOME="/path/to/existing/tao-agent-os"
+export TAO_HOME="/path/to/existing/moru-core"
 <TAO_LAUNCHER> workflow validate
 npx --yes @taehwandev/vibeguard update . --rules "${TAO_HOME}"
 npx --yes @taehwandev/vibeguard audit . --fix --rules "${TAO_HOME}"
@@ -317,7 +329,7 @@ npx --yes @taehwandev/vibeguard audit . --rules "${TAO_HOME}"
 First-time VibeGuard setup only when the target has no guardrails yet:
 
 ```bash
-export TAO_HOME="/path/to/existing/tao-agent-os"
+export TAO_HOME="/path/to/existing/moru-core"
 <TAO_LAUNCHER> workflow validate
 npx --yes @taehwandev/vibeguard setup . --rules "${TAO_HOME}"
 npx --yes @taehwandev/vibeguard audit . --fix --rules "${TAO_HOME}"
@@ -340,7 +352,7 @@ Give an AI coding agent this request:
 
 ```text
 Apply Moru Core to this project:
-https://github.com/taehwandev/tao-agent-os
+https://github.com/taehwandev/moru-core
 
 If Moru Core already exists locally, link this repo to the existing copy.
 Do not clone, vendor, or copy a second copy unless no usable local copy exists.
@@ -357,7 +369,7 @@ Update the repo-local agent instructions with a short routing block. Keep
 repo-specific commands, paths, services, product policy, and domain language in
 this repo. In committed repo-local instruction files, use a portable
 Moru Core root reference: `${TAO_HOME}` for shared local installs
-or a repo-relative pinned path such as `.agents/tao-agent-os`; do not commit my
+or a repo-relative pinned path such as `.agents/moru-core`; do not commit my
 personal absolute path. If existing repo-local Claude, Codex, Antigravity, or
 other runtime instruction files are present, update the necessary Moru Core
 pointer there in the same pass. If the runtime reads AGENTS.md, do not create a
@@ -376,7 +388,7 @@ When an agent applies Moru Core to a target repo, it should execute this flow in
  5. Inspect existing VibeGuard and repo-local instruction files. Ask the application drill when the repo already has custom instructions or guardrails.
  6. Apply the selected VibeGuard mode with the selected Moru Core root as the rule source: audit-only, refresh with `update`, or first-time `setup`.
  7. Add a short routing block to the repo instruction file the agent runtime actually reads, preferring `AGENTS.md` when supported.
- 8. Use a portable Moru Core root reference in committed repo-local files: `${TAO_HOME}` for shared local installs or a repo-relative pinned path such as `.agents/tao-agent-os`. Personal absolute paths are allowed only in shell env setup, one-shot prompts, or uncommitted user-level runtime bridges. Replace existing committed personal paths before reporting success.
+ 8. Use a portable Moru Core root reference in committed repo-local files: `${TAO_HOME}` for shared local installs during compatibility or a repo-relative pinned path such as `.agents/moru-core`. Personal absolute paths are allowed only in shell env setup, one-shot prompts, or uncommitted user-level runtime bridges. Replace existing committed personal paths before reporting success.
  9. Keep repo-specific commands, paths, services, product policy, and domain language in the target repo.
 10. Update any existing runtime-specific instruction files, such as `CLAUDE.md`, `CODEX.md`, `.agents/README.md`, or Antigravity CLI docs, so they point to the same Moru Core root or back to `AGENTS.md`.
 11. Do not create new runtime-specific instruction files when the active runtime already reads `AGENTS.md`.
@@ -457,7 +469,7 @@ Moru Core is not tied to one runtime. Codex and Antigravity may discover `AGENTS
 ## Distribution Modes
 
 - Existing local install: required by default when the user already has Moru Core. Link the target repo to that root and do not reinstall unless the user explicitly approves a new copy after seeing the found path.
-- Local shared install: clone once to `~/.tao-agent-os` and reuse it across personal repos.
+- Local shared install: clone once to `~/.moru/core` and reuse it across personal repos; set `TAO_HOME` until all runtime bridges accept `MORU_HOME`.
 - Team-pinned install: add Moru Core as a git submodule or vendored dependency when every teammate and agent must use the same reviewed version.
 
 In every mode, VibeGuard is mandatory. Moru Core names that requirement and the selected rule source; VibeGuard owns the operating flow. Use the published VibeGuard package command, with <https://vibeguard.thdev.app/> as the human-facing reference. If an agent browsing/fetch tool cannot read the site, do not treat that alone as a blocker. If the VibeGuard command itself cannot run, report the blocker instead of bypassing the gate. The target repo keeps its own commands, paths, services, product policy, and domain rules. Moru Core provides shared defaults only.
@@ -645,7 +657,7 @@ Shared agent-facing documents in this repository are written in English. That ke
 
 Public-facing site copy under `docs/` can be localized. The site currently supports English and Korean copy. Localized marketing or onboarding text should not become the source of truth for agent behavior.
 
-For a Korean quick guide to updating an existing checkout, use `docs/ko/update-tao.md`. The canonical policy remains in this README and the shared agent guidance.
+For a Korean overview, use [README.ko.md](README.ko.md). The existing-checkout update guide is [docs/ko/update-tao.md](docs/ko/update-tao.md). Agent behavior remains defined by `AGENTS.md` and the shared guidance cards.
 
 ## Metadata
 

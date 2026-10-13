@@ -93,7 +93,7 @@ deterministic guidance; the second stops for a source or routing repair.
 
 The command includes task-specific arguments, but persistent runtime permission
 prefixes must not. For Codex escalation, request only
-`["python3", "/absolute/path/to/tao-agent-os/scripts/agent-hook.py"]` as the
+`["python3", "/absolute/path/to/moru-core/scripts/agent-hook.py"]` as the
 saved `prefix_rule`; for Claude and AGY, allow only the equivalent absolute
 wrapper command plus the runtime's trailing argument wildcard. Never save
 `--project`, `--request`, `--gate-record`, `$HOME`, `$(pwd)`, or user text in the

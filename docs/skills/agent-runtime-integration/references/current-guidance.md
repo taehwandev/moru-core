@@ -367,7 +367,7 @@ Codex:
   trailing workflow arguments such as repeated `--gate-record` values are
   suffix-matched by the runtime policy and should not prompt again.
 - When a Codex tool call needs escalation, request the persistent permission
-  with `prefix_rule=["python3", "/absolute/path/to/tao-agent-os/scripts/<name>.py"]`.
+  with `prefix_rule=["python3", "/absolute/path/to/moru-core/scripts/<name>.py"]`.
   Do not include changing arguments such as `--project`, `--request`, `--gate-record`,
   `$(pwd)`, or user-provided text in the saved prefix.
 - Treat an exec result that only reports `Script running with cell ID ...` or
@@ -405,7 +405,7 @@ Claude:
   the Moru Core `scripts/*.py` entrypoints are shared across projects.
 - Claude managed hooks should call the stable launcher
   `<TAO_LAUNCHER>`, not a moving checkout path such as
-  `/absolute/path/to/tao-agent-os/scripts/workflow.py`. The setup script
+  `/absolute/path/to/moru-core/scripts/workflow.py`. The setup script
   refreshes `~/.tao/tao-root` to the current checkout and
   removes stale managed hook commands that still point at old roots. The stable
   launcher supports both script aliases such as `workflow` and direct

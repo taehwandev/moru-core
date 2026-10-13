@@ -16,7 +16,7 @@ not copy the full Moru Core library into the target repo.
 
 ```text
 Apply Moru Core to this project:
-https://github.com/taehwandev/tao-agent-os
+https://github.com/taehwandev/moru-core
 
 Before changing anything, read this project's current agent instructions first:
 AGENTS.md, CLAUDE.md, CODEX.md, .agents/README.md, CONTRIBUTING.md, task docs,
@@ -56,7 +56,7 @@ Choose the setup mode before editing the target repo:
    unless the user explicitly approves a new copy after seeing the found path.
 2. First-time local shared install: use this when no usable copy exists and the
    user wants one install reused across personal repos. Clone once to a stable
-   path such as `~/.tao-agent-os`.
+   path such as `~/.moru/core`.
 3. Team-pinned install: use this when the repo needs a reviewed version shared
    by teammates and agents. Add a submodule, vendored dependency, or workspace
    dependency only after approval.
@@ -103,12 +103,12 @@ Local reuse is the default and a hard stop for install work:
    `CONTRIBUTING.md`, task docs, PRD/ARD docs, equivalent project docs, or an
    explicitly documented local override file.
 4. Check whether the user supplied an explicit Moru Core path.
-5. Check `TAO_HOME`.
+5. Check `MORU_HOME` and the compatibility variable `TAO_HOME`.
 6. Check legacy `KEYFLOW_AGENT_ROOT` only when present.
-7. Check common local installs such as `~/.tao-agent-os`,
-   `~/tao-agent-os`, `~/git/tao-agent-os`, and `~/GitHub/tao-agent-os`.
+7. Check current locations such as `~/.moru/core` and `~/git/moru-core`.
+   During migration, also inspect legacy Tao install locations.
 8. Check repo-pinned locations only when the target repo already contains one,
-   such as `.agents/tao-agent-os`, `tools/tao-agent-os`, or a git submodule.
+   such as `.agents/moru-core`, `tools/moru-core`, or a git submodule.
 
 A usable Moru Core root contains all of:
 
@@ -196,7 +196,7 @@ report the blocker. Do not continue as if the safety gate were optional.
 
 If no usable local or repo-pinned copy exists, choose one of these modes:
 
-- Local shared install: clone once to `~/.tao-agent-os`. This is best for
+- Local shared install: clone once to `~/.moru/core`. This is best for
   individual users and multiple personal repos.
 - Repo-pinned install: add Moru Core as a git submodule or vendored
   dependency. This is best for teams that need a reviewed version.
@@ -290,8 +290,8 @@ that subsystem.
    reads `AGENTS.md`.
 8. Keep committed repo-local paths portable. Prefer `${TAO_HOME}` for
    a shared local install, or use a repo-relative pinned path such as
-   `.agents/tao-agent-os`. Do not commit personal absolute paths such as
-   `/Users/.../tao-agent-os`; use those only in shell env setup, one-shot
+   `.agents/moru-core`. Do not commit personal absolute paths such as
+   `/Users/.../moru-core`; use those only in shell env setup, one-shot
    prompts, or uncommitted user-level runtime bridges.
 9. Decide whether the target repo uses Graphify. A shared Moru Core graph
    never substitutes for the target repo's own graph. When Graphify is enabled,

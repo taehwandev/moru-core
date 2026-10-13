@@ -61,7 +61,7 @@ Select one mode before wiring a runtime:
   present on the machine. Reuse that root and do not clone another copy unless
   the user explicitly approves a new copy after seeing the found path.
 - First-time local shared install: clone once to a stable path such as
-  `~/.tao-agent-os` when no usable root exists.
+  `~/.moru/core` when no usable root exists.
 - Team-pinned install: use a submodule, vendored dependency, or workspace
   dependency when every teammate and agent must use the same reviewed version.
 
@@ -382,9 +382,9 @@ short and point to:
 
 For committed repo-local instruction files, keep the root reference portable.
 Use `${TAO_HOME}` when each machine can set the variable, or a
-repo-relative pinned path such as `.agents/tao-agent-os` when Moru Core is
+repo-relative pinned path such as `.agents/moru-core` when Moru Core is
 kept with the target repo. Do not commit personal absolute paths such as
-`/Users/.../tao-agent-os`; keep them in shell environment setup, one-shot
+`/Users/.../moru-core`; keep them in shell environment setup, one-shot
 prompts, or uncommitted user-level runtime bridges only.
 
 Do not paste the full Moru Core library into runtime-specific files.

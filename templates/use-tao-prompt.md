@@ -66,7 +66,7 @@ Rules:
    relevant root, index, workflow script, and selected cards. If you edit
    committed repo-local instruction files, use a portable root reference such
    as ${TAO_HOME} or a repo-relative pinned path like
-   .agents/tao-agent-os; do not commit a personal absolute path. Full local
+   .agents/moru-core; do not commit a personal absolute path. Full local
    paths are acceptable only in this one-shot prompt, shell env setup, or
    uncommitted user-level runtime bridges.
 4. VibeGuard is required. Before editing documentation, code, config,

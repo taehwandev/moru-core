@@ -56,11 +56,11 @@ are separate inventories.
    marker selects `.moru` only after an offline copy and verification of all
    project-state writers. Do not create that marker merely because `.moru`
    already exists.
-4. **Repository, folder and domain.** GitHub repository rename, local folder
-   move, `docs/CNAME` and the site URL. Each is an external or cross-project
-   action with its own approval; GitHub redirects old repository URLs, but
+4. **Repository, folder and domain.** The GitHub repository is now
+   `taehwandev/moru-core`; the local checkout folder and `tao.thdev.app`
+   domain have not moved. Folder and domain moves are separate actions.
    Claude session memory is keyed by folder path, so record anything a later
-   session needs in this file first.
+   session needs here before moving the checkout.
 5. **Moru app.** TaoIDE's own rename (app name, bundle identifier,
    `app.thdev.taoide` namespace) is owned by the TaoIDE repository and was
    handed to that session on 2026-10-13. A bundle identifier change creates a

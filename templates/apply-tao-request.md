@@ -16,7 +16,7 @@ to follow Moru Core without changing repo-local instruction files.
 
 ```text
 Step 1 - Apply Moru Core to this project:
-https://github.com/taehwandev/tao-agent-os
+https://github.com/taehwandev/moru-core
 
 Moru Core stable launcher:
 <TAO_LAUNCHER>
@@ -44,7 +44,8 @@ Continue only when it returns `selected`. If it returns `ambiguous` or
 
 Use an existing local Moru Core install if one is available. Check an
 explicit path from me first, then TAO_HOME, then common local clones
-such as ~/.tao-agent-os, ~/git/tao-agent-os, or ~/GitHub/tao-agent-os.
+such as ~/.moru/core or ~/git/moru-core. Also check legacy Tao locations
+when reusing an existing installation.
 
 If any usable local or repo-pinned Moru Core root exists, stop install
 selection there and reuse it. Do not download, clone, vendor, copy, overwrite,
@@ -57,7 +58,7 @@ Select one setup mode and tell me which one you selected before editing:
 - Existing local install: if a usable install exists, link this repo to that
   copy. Do not clone, vendor, or copy a second copy.
 - First-time local shared install: if no usable install exists, ask before
-  cloning once to ~/.tao-agent-os.
+  cloning once to ~/.moru/core.
 - Team-pinned install: ask before adding Moru Core as a repo-pinned
   submodule, vendored dependency, or workspace dependency.
 
@@ -143,9 +144,9 @@ with a short routing block. Preserve existing project rules. Keep repo-specific
 commands, paths, services, product policy, and domain language in this repo.
 
 When writing committed repo-local instruction files, do not commit my personal
-absolute path such as /Users/.../tao-agent-os. Use ${TAO_HOME} for a
+absolute path such as /Users/.../moru-core. Use ${TAO_HOME} for a
 shared local install, or a repo-relative pinned path such as
-.agents/tao-agent-os for a team-pinned install. Full local paths are allowed
+.agents/moru-core for a team-pinned install. Full local paths are allowed
 only in shell environment setup, one-shot prompts, or uncommitted user-level
 runtime bridges. If an existing committed instruction file contains a personal
 absolute path, replace it with a portable reference before reporting success.

@@ -154,7 +154,7 @@ bound gate ledger. Neither number is asked for over the network and nothing is
 written.
 
 ```
-5h █████▎░░  65%  │  7d ███████▌  94%  │  ~/git/tao-agent-os/…/gauge  │  task 14/20
+5h █████▎░░  65%  │  7d ███████▌  94%  │  ~/git/moru-core/…/gauge  │  task 14/20
 ```
 
 Both runtimes render this from `scripts/support/statusline.py`, which composes

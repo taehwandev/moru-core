@@ -4,7 +4,12 @@ status: review
 type: human-reviewed-needed
 ---
 
-# Tao Agent OS Rename Migration
+# Historical rename record: AgentPlaybook to Tao Agent OS
+
+> Archive. The identifiers and shell commands below describe an earlier
+> migration. They are retained as historical evidence and must not be used
+> as Moru Core installation or state-migration instructions. Follow
+> [the current Moru Core migration plan](moru-rename.md) instead.
 
 Record of the rebrand to Tao Agent OS.
 
