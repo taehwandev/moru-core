@@ -70,6 +70,22 @@ def github_pr_merge(tokens: list[str]) -> str:
     return "admitted" if selectors <= 1 else "unadmitted"
 
 
+def github_repo_rename(tokens: list[str]) -> bool:
+    """Recognize one explicit repository rename without implicit target lookup."""
+    if len(tokens) < 6 or Path(tokens[0]).name != "gh" or tokens[1:3] != ["repo", "rename"]:
+        return False
+    new_name = tokens[3]
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", new_name):
+        return False
+    arguments = tokens[4:]
+    return (
+        len(arguments) == 3
+        and arguments[0] in {"--repo", "-R"}
+        and bool(re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", arguments[1]))
+        and arguments[2] in {"--yes", "-y"}
+    )
+
+
 def github_publication(tokens: list[str]) -> bool:
     """One action contract for pre-finish holds and post-finish admission.
 
@@ -84,6 +100,8 @@ def github_publication(tokens: list[str]) -> bool:
         return True
     if tokens[1:3] == ["pr", "merge"]:
         return github_pr_merge(tokens) == "admitted"
+    if tokens[1:3] == ["repo", "rename"]:
+        return github_repo_rename(tokens)
     if tokens[1:2] != ["api"]:
         return False
     endpoint = None

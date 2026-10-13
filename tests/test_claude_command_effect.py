@@ -28,6 +28,7 @@ class CommandEffectTests(unittest.TestCase):
 
     def test_publication_action_contract_does_not_depend_on_workflow_state(self):
         for command in (
+            'gh repo rename moru-core --repo owner/old-name --yes',
             'gh release create v1 --notes-file /tmp/notes.md',
             'gh release upload v1 package.tgz',
             'gh api --method=POST repos/owner/repo/releases -f tag_name=v1',
@@ -40,6 +41,10 @@ class CommandEffectTests(unittest.TestCase):
         import shlex
         for command in (
             'gh release view v1', 'gh release delete v1', 'gh pr merge 1 --admin',
+            'gh repo rename moru-core',
+            'gh repo rename moru-core --repo owner/old-name --admin --yes',
+            'gh repo rename moru-core --repo owner/old-name --yes extra',
+            'gh repo rename ../moru-core --repo owner/old-name --yes',
             'gh pr merge 1 2', 'gh pr merge 1 --body-file notes.md', 'gh pr merge 1 --subject',
             'gh api repos/owner/repo/releases',
             'gh api -X DELETE repos/owner/repo/releases',
