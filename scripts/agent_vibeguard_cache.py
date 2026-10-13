@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from support.global_state import project_state_dir_target
+
 
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
 VibeGuardCommand = Callable[[Path, Path], list[str]]
@@ -276,7 +278,7 @@ def _dirty_content_digest(path: Path, status_text: str) -> str | None:
 
 
 def _cache_path(project: Path) -> Path:
-    return project / ".tao" / "vibeguard-cache.json"
+    return project_state_dir_target(project) / "vibeguard-cache.json"
 
 
 def _read_cache(project: Path) -> dict[str, Any]:

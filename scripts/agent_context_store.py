@@ -9,6 +9,7 @@ from agent_execution_capsule_docs import current_required_docs, required_doc_fai
 from agent_execution_capsule_state import atomic_write_json, read_json_object
 from agent_route_state import request_fingerprint, route_fingerprint
 from agent_state_lock import project_state_lock, state_lock
+from support.global_state import project_state_dir_target
 
 
 SCHEMA_VERSION = 2
@@ -26,7 +27,7 @@ _REPLACEABLE_REQUIRED_DOC_FAILURE_PREFIXES = (
 
 
 def context_snapshot_path(project: Path) -> Path:
-    return project.resolve() / ".tao" / CONTEXT_FILENAME
+    return project_state_dir_target(project.resolve()) / CONTEXT_FILENAME
 
 
 def context_snapshot_failures_are_replaceable(failures: list[str]) -> bool:

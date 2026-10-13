@@ -11,6 +11,7 @@ from typing import Any
 from agent_execution_capsule_state import atomic_write_json, read_json_object
 from agent_ipc import emit_event
 from agent_state_lock import project_state_lock, state_lock
+from support.global_state import project_state_dir_target
 
 
 SCHEMA_VERSION = 1
@@ -20,7 +21,7 @@ MAX_TASKS = 200
 
 
 def scheduler_path(project: Path) -> Path:
-    return project.resolve() / ".tao" / SCHEDULER_FILENAME
+    return project_state_dir_target(project.resolve()) / SCHEDULER_FILENAME
 
 
 def choose_capacity(independent_slices: int, requested_workers: int = 1) -> int:

@@ -75,6 +75,20 @@ class RunsPruneTests(unittest.TestCase):
         arguments.setdefault("now", self.clock + 1)
         return runs_prune.plan(self.project, **arguments)
 
+    def test_migrated_state_uses_moru_and_leaves_legacy_runs_untouched(self) -> None:
+        legacy = self._run(1, "done")
+        moru = self.project / ".moru"
+        moru.mkdir()
+        (moru / "state-ready").touch()
+        migrated = moru / "runs" / _run_id(2)
+        migrated.mkdir(parents=True)
+        (migrated / "continuation.json").write_text('{"phase":"done"}', encoding="utf-8")
+
+        self.assertEqual(moru / "runs", runs_prune.runs_dir(self.project))
+        report = runs_prune.plan(self.project, keep=0)
+        self.assertEqual([migrated], report["removable"])
+        self.assertTrue(legacy.exists())
+
     def test_the_newest_finished_runs_are_kept(self) -> None:
         for index in range(5):
             self._run(index, "done")

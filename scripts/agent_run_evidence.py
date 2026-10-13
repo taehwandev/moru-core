@@ -52,6 +52,7 @@ from pathlib import Path
 from typing import Iterable
 
 from agent_state_lock import project_state_lock, state_lock
+from support.global_state import project_state_dir_target
 
 DEFAULT_KEEP = 10
 DEFAULT_ABANDONED_AFTER_SECONDS = 30 * 24 * 60 * 60
@@ -66,7 +67,7 @@ REGISTRY_SCHEMA_VERSION = 1
 
 
 def runs_dir(project: Path) -> Path:
-    return project / ".tao" / "runs"
+    return project_state_dir_target(project) / "runs"
 
 
 def read_registry_states(project: Path) -> dict[str, str] | None:
@@ -78,7 +79,7 @@ def read_registry_states(project: Path) -> dict[str, str] | None:
 
     from agent_run_registry import RUN_STATES
 
-    path = project / ".tao" / "run-registry.json"
+    path = project_state_dir_target(project) / "run-registry.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
@@ -195,7 +196,7 @@ def plan(
     held = set(protected)
     registry_uncertain = (
         use_registry and registry_states is None
-        and (project / ".tao" / "run-registry.json").exists()
+        and (project_state_dir_target(project) / "run-registry.json").exists()
     )
     moment = time.time() if now is None else now
     cutoff = moment - max(0, int(abandoned_after_seconds))
@@ -257,7 +258,7 @@ def apply_plan(removable: list[Path]) -> int:
     from agent_run_registry import retention_protected_run_ids
 
     project = removable.project
-    registry = project / ".tao" / "run-registry.json"
+    registry = project_state_dir_target(project) / "run-registry.json"
     removed = 0
     with project_state_lock(project), state_lock(registry):
         options = dict(removable.options)
