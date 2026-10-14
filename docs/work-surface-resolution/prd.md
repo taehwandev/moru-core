@@ -8,7 +8,7 @@ type: human-reviewed-needed
 
 ## Decision
 
-Tao Agent OS should select task-specific guidance only after it has verified the
+Moru Core should select task-specific guidance only after it has verified the
 code boundary that owns the requested change and the behavior that will change.
 
 This is not a new skill, router, or evidence packet. It is a refinement of the
@@ -63,7 +63,7 @@ request-intent rules: 15 `request_any`, 11 `request_all`, and three rules withou
 request-text patterns. The 18 path-surface rules remain available for verified
 owners.
 
-The important conclusion is not the exact count. Tao Agent OS already has the
+The important conclusion is not the exact count. Moru Core already has the
 dials. The change should turn the existing dials toward verified ownership
 instead of adding a parallel `ui-surface-discovery` or
 `work-surface-resolution` skill.
@@ -338,7 +338,7 @@ resource, usage, owner, and falsifying check. The central correction is that
 neither prompt words nor file paths are ownership; both are clues.
 
 The article should explain that the practical improvement was not a new AI
-subsystem. Tao Agent OS already had request-intent and path-surface routing. The
+subsystem. Moru Core already had request-intent and path-surface routing. The
 work was to reduce phrase-driven policy, narrow broad path proxies, and place
 verified ownership before task-specific reading. Phrase lists belong in the
 test corpus, and a bounded stop condition is what keeps “minimal reading” from

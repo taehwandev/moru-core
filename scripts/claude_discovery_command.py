@@ -1,4 +1,4 @@
-"""Argument effects for trusted Tao discovery entrypoints.
+"""Argument effects for trusted Moru discovery entrypoints.
 
 Owner: discovery argv validation; caller proves executable identity.
 Allowed imports: none. Forbidden: execution, filesystem writes, runtime state.

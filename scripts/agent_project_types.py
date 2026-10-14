@@ -1,4 +1,4 @@
-"""Types and formatting helpers for Tao Agent OS project discovery."""
+"""Types and formatting helpers for Moru Core project discovery."""
 
 from __future__ import annotations
 

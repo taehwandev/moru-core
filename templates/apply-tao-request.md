@@ -44,7 +44,7 @@ Continue only when it returns `selected`. If it returns `ambiguous` or
 
 Use an existing local Moru Core install if one is available. Check an
 explicit path from me first, then TAO_HOME, then common local clones
-such as ~/.moru/core or ~/git/moru-core. Also check legacy Tao locations
+such as ~/.moru/core or ~/git/moru-core. Also check legacy Moru locations
 when reusing an existing installation.
 
 If any usable local or repo-pinned Moru Core root exists, stop install

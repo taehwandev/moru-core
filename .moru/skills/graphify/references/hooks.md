@@ -1,7 +1,7 @@
 # graphify reference: optional commit hook and native AGENTS.md integration
 
 Load this only when the user explicitly asked to install the post-commit hook or
-wire Graphify into a project's AGENTS.md. Tao defaults to explicit, on-demand
+wire Graphify into a project's AGENTS.md. Moru defaults to explicit, on-demand
 refresh because automatic checkout/commit rebuilding adds cost to unrelated
 small work.
 
@@ -21,7 +21,7 @@ After every `git commit`, the hook detects which code files changed (via `git di
 
 If a post-commit hook already exists, graphify appends to it rather than replacing it.
 
-To return a Tao-managed project to on-demand refresh while preserving unrelated
+To return a Moru-managed project to on-demand refresh while preserving unrelated
 hook content, preview and then apply the narrow removal helper:
 
 ```bash

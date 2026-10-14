@@ -1,4 +1,4 @@
-"""Install Tao-managed runtime agent files without replacing user-owned agents.
+"""Install Moru-managed runtime agent files without replacing user-owned agents.
 
 Owner: provider-neutral managed agent file installation; allowed imports: Python
 stdlib; forbidden imports: workflow execution and runtime state; callers/tests:
@@ -36,7 +36,7 @@ def install_managed_agents(
         source = template_dir / f"{name}{source_suffix or suffix}"
         content = source.read_bytes()
         if not is_managed(content):
-            raise ValueError(f"{tool} agent template lacks Tao ownership marker: {source}")
+            raise ValueError(f"{tool} agent template lacks Moru ownership marker: {source}")
         templates[name] = content
 
     rows = []

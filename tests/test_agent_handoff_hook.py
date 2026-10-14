@@ -173,7 +173,7 @@ class HandoffHookTests(unittest.TestCase):
                 [
                     "git",
                     "-c",
-                    "user.name=Tao Agent OS Tests",
+                    "user.name=Moru Core Tests",
                     "-c",
                     "user.email=tests@example.invalid",
                     "commit",

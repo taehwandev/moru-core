@@ -115,10 +115,10 @@ def configure_agy(
 
 
 def _merge_agy_statusline(target: Path, command: str, dry_run: bool) -> str:
-    """Put Tao in the status line without evicting whoever already holds it.
+    """Put Moru in the status line without evicting whoever already holds it.
 
     Antigravity CLI settings have one statusLine slot. Taking it would silently
-    switch other tools off, so Tao inserts itself in front of what is there and
+    switch other tools off, so Moru inserts itself in front of what is there and
     hands the same payload on through `--chain`, keeping that output beside its own.
 
     Reinstalling must not nest a second copy of the chain, so an existing

@@ -1,4 +1,4 @@
-"""Runtime-neutral capability and sandbox policy for Tao Agent OS tasks."""
+"""Runtime-neutral capability and sandbox policy for Moru Core tasks."""
 
 from __future__ import annotations
 

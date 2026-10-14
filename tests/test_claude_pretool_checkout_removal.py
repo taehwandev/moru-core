@@ -1,8 +1,8 @@
-"""A checkout holding work or an open Tao run is not deleted through the gate.
+"""A checkout holding work or an open Moru run is not deleted through the gate.
 
 Reproduces the loss of a task worktree whose branch had no commits of its own
 (so it sat at an ancestor of main and looked merged) while it held modified
-files, an untracked test and a running Tao run. `git worktree remove --force`
+files, an untracked test and a running Moru run. `git worktree remove --force`
 and `rm -rf` were deferred to the runtime's permission flow, which sees none
 of that. Ordinary cleanup of a finished, clean, merged worktree stays allowed.
 """
@@ -58,7 +58,7 @@ class _Repository(unittest.TestCase):
         self.main.mkdir()
         _git(self.main, "init", "-q", "-b", "main")
         _git(self.main, "config", "user.email", "tests@example.invalid")
-        _git(self.main, "config", "user.name", "Tao Tests")
+        _git(self.main, "config", "user.name", "Moru Tests")
         (self.main / ".gitignore").write_text(".tao/\n", encoding="utf-8")
         (self.main / "module.py").write_text("value = 1\n", encoding="utf-8")
         _git(self.main, "add", "-A")
@@ -143,7 +143,7 @@ class UnsettledRunIsKeptTests(_Repository):
             with self.subTest(command=command):
                 verdict, reason = self.decision(command)
                 self.assertEqual("deny", verdict)
-                self.assertIn("unsettled Tao run (running)", reason)
+                self.assertIn("unsettled Moru run (running)", reason)
 
     def test_every_unfinished_state_is_protected(self) -> None:
         for state in ("paused", "resuming", "interrupted", "blocked", "failed",
@@ -168,7 +168,7 @@ class FinishedCleanCheckoutIsRemovableTests(_Repository):
         command = f"git worktree remove {self.task}"
         for each in [command, *self.removal_commands()]:
             with self.subTest(command=each):
-                # The task's `.tao/` makes it a Tao project, so the existing
+                # The task's `.tao/` makes it a Moru project, so the existing
                 # workflow-entry rules still apply; this guard adds nothing.
                 self.assertNotIn("deletes the checkout", self.decision(each)[1])
                 self.assertEqual("", checkout_removal_hazard(self.task))
@@ -203,7 +203,7 @@ class WorkerWorktreeRunTests(unittest.TestCase):
         (self.project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
         _git(self.project, "init", "-q")
         _git(self.project, "config", "user.email", "tests@example.invalid")
-        _git(self.project, "config", "user.name", "Tao Tests")
+        _git(self.project, "config", "user.name", "Moru Tests")
         _git(self.project, "add", "-A")
         _git(self.project, "commit", "-qm", "initial")
         self.worktree = new_worktree_path(self.project)

@@ -10,7 +10,7 @@ type: human-reviewed-needed
 
 모루 코어는 AI 코딩 에이전트가 여러 저장소에서 재사용할 수 있는 작업 지침과 실행 근거 체계입니다. 작업 분류, 필요한 문서 선택, 검토, 검증, 인수인계 규칙을 제공합니다. 프로젝트 고유의 명령과 정책은 각 프로젝트의 지침 파일에 둡니다.
 
-이전 이름은 Tao Agent OS입니다. 저장소 주소는 <https://github.com/taehwandev/moru-core>이며, 공개 사이트는 현재 <https://tao.thdev.app/>입니다. 상세한 운영·기여 지침은 [영문 README](README.md)와 [AGENTS.md](AGENTS.md)에 있습니다.
+이전 이름은 Moru Core입니다. 저장소 주소는 <https://github.com/taehwandev/moru-core>이며, 공개 사이트는 현재 <https://tao.thdev.app/>입니다. 상세한 운영·기여 지침은 [영문 README](README.md)와 [AGENTS.md](AGENTS.md)에 있습니다.
 
 ## 사용 대상과 구성
 

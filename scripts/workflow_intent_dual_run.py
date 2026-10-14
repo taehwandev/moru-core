@@ -139,7 +139,7 @@ def classification_from_envelope(
         "recommended_route": "",
         "continuation_scope_used": False,
         "reason": (
-            "The runtime supplied an intent envelope; Tao verified its effects "
+            "The runtime supplied an intent envelope; Moru verified its effects "
             f"against the route floor and reached `{decision['effective_effect']}`."
         ),
         "intent_envelope": decision,

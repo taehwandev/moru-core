@@ -130,7 +130,7 @@ def worker(root, delivery_docs, mode):
         prepare()
         counted, result = observe(root, action)
         if case == "unread":
-            assert result and "Tao required docs" in result
+            assert result and "Moru required docs" in result
         else:
             assert result == "", (case, result)
         out["delivery"][case] = {"io": counted, "time": timing(action, prepare)}

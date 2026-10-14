@@ -20,7 +20,7 @@ main reasoning model owns ideas, source interpretation, and conclusions.
 ## Inspect First
 
 Check the research question, collected sources, existing decisions, source
-freshness, and the available repository-owned adapter. Tao's reference adapter
+freshness, and the available repository-owned adapter. Moru's reference adapter
 is described in the [repository integration guide](../../../../scripts/research-triage/README.md).
 Provider configuration and credentials belong there, outside shared policy.
 

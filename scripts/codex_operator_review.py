@@ -50,7 +50,7 @@ def _question(request_id: str, reason: str, code: str) -> str:
     if code == "unreadable_command_effect" and "use one literal command" in reason:
         recovery = "Lookup composition: apply Codex session recovery before asking. "
     return recovery + (
-        f"Tao operator decision required ({code}); follow Codex session instructions. "
+        f"Moru operator decision required ({code}); follow Codex session instructions. "
         "Ask the user only if a decision remains; prefer approval-capable selectable "
         "choices (once/always exact scope/reject). After an explicit answer, record it internally with "
         f"<TAO_LAUNCHER> operator-review --request-id {request_id} "

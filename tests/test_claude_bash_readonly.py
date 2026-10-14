@@ -379,7 +379,7 @@ class CompoundShellCommandTests(unittest.TestCase):
     def test_runtime_hook_environment_assignments_keep_the_control_kind(self) -> None:
         """The runtime's own documented env prefixes must not void its hooks.
 
-        These names are read only by Tao's own gate and launcher. They never
+        These names are read only by Moru's own gate and launcher. They never
         select what executes, but the executor-variable fail-close treated them
         like `LD_PRELOAD`, so the gate denied the exact start command its own
         denial message asks the caller to run.

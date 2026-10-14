@@ -1,6 +1,6 @@
-"""What Tao run is open in a project, read from what is already on disk.
+"""What Moru run is open in a project, read from what is already on disk.
 
-This is the half of the status line that is about Tao rather than about the
+This is the half of the status line that is about Moru rather than about the
 runtime: which project the session is standing in, whether a run is open there,
 and how far through its route that run has reached.
 
@@ -57,7 +57,7 @@ def working_directory(payload: dict[str, Any]) -> str:
 
 
 def project_root(payload: dict[str, Any]) -> Path | None:
-    """The Tao project the session is standing in, if it is standing in one."""
+    """The Moru project the session is standing in, if it is standing in one."""
 
     named = working_directory(payload)
     if not named:

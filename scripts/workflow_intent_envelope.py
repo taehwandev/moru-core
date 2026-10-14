@@ -1,6 +1,6 @@
-"""The structured judgement a runtime hands to Tao, and its schema.
+"""The structured judgement a runtime hands to Moru, and its schema.
 
-Tao does not read natural language here. The runtime already understands the
+Moru does not read natural language here. The runtime already understands the
 conversation, so it states what it concluded; this module only checks that the
 statement is well formed and content-free. Deciding what the statement is
 allowed to do lives in ``workflow_effect_policy``, deliberately apart from
@@ -40,7 +40,7 @@ _ALLOWED_FIELDS = frozenset(REQUIRED_FIELDS + OPTIONAL_FIELDS)
 
 _SAFE_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
 # What a caller may write, which is wider than what is stored. Every other slug
-# in Tao -- route names, concerns -- is spelled with hyphens, so a runtime that
+# in Moru -- route names, concerns -- is spelled with hyphens, so a runtime that
 # had never been told otherwise wrote `fix-start-failures` and was refused by a
 # message that named no pattern at all. A hyphen and an underscore name the
 # same category here, so one is folded into the other rather than refused.

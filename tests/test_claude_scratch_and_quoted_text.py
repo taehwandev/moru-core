@@ -5,7 +5,7 @@ scratchpad or the OS temp directory was read as a write into the project the
 shell stood in, so `grep ... > <scratch>/x` and `curl -o <scratch>/page` needed
 a workflow start that governs nothing they touch. And text the shell hands on
 unchanged -- a commit message, a start `--request`, an escaped backquote --
-was read for paths, so a refusal named the Tao checkout for a commit into
+was read for paths, so a refusal named the Moru checkout for a commit into
 another repository.
 """
 

@@ -166,7 +166,7 @@ then use that same fresh finish; a `publishes: false` match is admitted by the
 same fresh finish receipt, so the check that guards a publication still runs
 after finish. Undeclared interpreter calls remain unknown.
 Declare the literal argv the repository's documented tool uses; provider names
-and account details stay in the target repository, not Tao.
+and account details stay in the target repository, not Moru.
 
 `route_docs` maps a route command (`commit`, `docs`, ...) to 1–8
 project-relative files that route must read, at most 16 commands. Start hashes
@@ -182,7 +182,7 @@ authority and waives no gate.
 main checkout but still enforces any `protected_branches`; an empty branch list
 is valid with `false`. `require_workflow_entry` remains independent. Apply the
 target repository's declaration to each write, never another project's stricter
-policy. Tao's own isolation requirement does not opt other repositories in.
+policy. Moru's own isolation requirement does not opt other repositories in.
 
 This file is also an opt-in signal by itself, and it is the only one a linked
 worktree carries. The state directory is written by a run, so a freshly created
@@ -248,10 +248,10 @@ worktree after the push, not before, and declare `--approved-effect
 external_write` at start when the request includes the push. Rewriting or
 discarding commands retain their separate checks.
 
-A Tao-governed project without `worktree-policy.json` whose `AGENTS.md`,
-`CLAUDE.md`, or `CODEX.md` carries the managed Tao routing block receives the
+A Moru-governed project without `worktree-policy.json` whose `AGENTS.md`,
+`CLAUDE.md`, or `CODEX.md` carries the managed Moru routing block receives the
 default boundary: linked worktrees required, `main` and `develop` protected.
-A `.tao` runtime directory or other Tao prose alone does not impose it, so a
+A `.tao` runtime directory or other Moru prose alone does not impose it, so a
 writing vault a run once touched keeps editing in place. The default declares no optional key, so it neither
 requires workflow entry, imposes ticket rules, nor earns the compliant-worktree
 preflight waiver. Known writes and Git administration in the default protected
@@ -283,8 +283,8 @@ Never answer an approved request with "it cannot be done".
 
 Claude can express a native permission request as `permissionDecision: ask`.
 Codex PreToolUse parses `ask` but does not support it: the hook fails and the
-tool call continues, so Tao never emits it to obtain an approval popup. Codex
-supports `allow` with `updatedInput` for input rewriting; Tao does not need
+tool call continues, so Moru never emits it to obtain an approval popup. Codex
+supports `allow` with `updatedInput` for input rewriting; Moru does not need
 rewriting here and uses a successful empty response for native-permission
 deferral. Deferral never grants sandbox permission or represents user approval.
 Codex `PermissionRequest` runs only when native approval is already pending;
@@ -304,7 +304,7 @@ asked again every time and can never be answered once for good. Deferral lets
 already-allowed work through and prompts natively, with "don't ask again", for
 the rest.
 
-For remaining Codex operator-decided exceptions, Tao blocks the pending call
+For remaining Codex operator-decided exceptions, Moru blocks the pending call
 with an explicit operator-question handoff rather than an unsupported native
 `ask` or a silent deferral. The agent first reuses existing user authority and
 native rules, and resolves
@@ -348,7 +348,7 @@ command-prefix exception. Revoke it with the original request id and
 standing consent. Rejection keeps the call blocked. State errors fail closed.
 Other workflow checks and sandbox approval remain independent.
 Native sandbox escalation uses the execution tool's native permission flow,
-not the Tao operator question.
+not the Moru operator question.
 Agent-repairable violations retain their ordinary `deny` on both runtimes.
 
 The verdicts handled this way are listed in `OPERATOR_DECIDES` in

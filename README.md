@@ -695,9 +695,9 @@ python3 scripts/run_smoke_checks.py
 
 This runs E2E workflow checks (preflight initialization, constraint verification, gate ledger merges, and workflow search) in a temporary git repository sandbox.
 
-## Tao Maintenance Audit
+## Moru Maintenance Audit
 
-Use these checks for an explicit Tao audit of duplicate reading, memory reuse,
+Use these checks for an explicit Moru audit of duplicate reading, memory reuse,
 cache freshness, or repeated workflow work. Keep the criteria and findings in
 this section so another agent can continue from the same repository evidence.
 This is an on-demand reference, not an extra startup read or workflow gate.
@@ -987,7 +987,7 @@ mailbox/handoff/dispatch suites, and pre-commit audit reuse.
 ### Audit: 2026-10-07, Figma And PR Follow-Through
 
 Source baseline: `129d256567d1fabacbaa72a0036e3346d7ce095b`. Environment:
-Codex on macOS, isolated Tao task checkout. Scope: the Figma command boundary
+Codex on macOS, isolated Moru task checkout. Scope: the Figma command boundary
 and the agent's follow-through on one resource-copy change and its requested PR.
 This does not migrate or reinstall the active runtime, alter the product
 repository's policy, or establish full visual parity.
@@ -997,8 +997,8 @@ repository's policy, or establish full visual parity.
 | F14 | High / H07, H09 | The canonical Figma interpreter operand and URL query were treated as local write paths. Even dry-run required another repository's writable lifecycle. A bytecode-free dry-run should be a read; extraction should protect its output, not require authoring the tool checkout. | [Figma classifier](scripts/claude_bash_figma.py), [regressions](tests/test_claude_bash_figma.py). Two new tests failed before the repair; canonical CLI operand roles now resolve the false targets. Unknown tools/options and protected output writes remain conservative. |
 | F15 | Medium / H06 | PR lookup was invoked with `--check` after other options, but the project's explicit non-publication prefix places it immediately after the script. This was an agent invocation error, not a missing publication exemption. | [Prefix contract](scripts/claude_worktree_gate.py), [longest-prefix tests](tests/test_claude_worktree_gate.py). Use the repository's declared lookup form; do not reorder arbitrary script arguments or infer safety from the spelling of a flag. Existing tests passed. |
 | F16 | Medium / H02, H10 | The agent asked for design text despite having the Figma link, stopped before supported recovery, reread unchanged guidance, and exported 142 assets for one copy change. These were avoidable execution decisions; no comparable latency benchmark was collected. | Existing operating-skill persistence/reuse rules already cover the first three. Figma guidance needs a bytecode-free invocation and bounded extraction for copy-only work. No end-to-end speedup is claimed. |
-| F17 | Medium / H07, H08 | A required product pre-push structure check found inherited upstream debt. Publication authority did not authorize changing its frozen baseline; a separate baseline approval remained necessary. | Product-owned audit and approval rule remain authoritative and unchanged by this Tao repair. Anticipate required publication checks when preparing the concrete PR unit; a failed check must not be bypassed. |
-| F18 | Medium / H06, H07 | Staged canonical maintenance rejected a Tao task worktree target as `maintenance_target_mismatch` when `--rules` still named the main checkout. The task worktree is a canonical source owner in the same repository, not a foreign product-local skill. | [Maintenance owner](scripts/agent_skill_maintenance.py), [identity controls](tests/test_agent_skill_maintenance.py). Canonical bundles now require matching Git common directories, exact checkout roots, a linked `.git` file, bundle provenance and containment. Foreign repositories, subdirectories, missing bundles and symlink escapes remain refused. The live maintenance step completed using the actual canonical task worktree as its rules owner. |
+| F17 | Medium / H07, H08 | A required product pre-push structure check found inherited upstream debt. Publication authority did not authorize changing its frozen baseline; a separate baseline approval remained necessary. | Product-owned audit and approval rule remain authoritative and unchanged by this Moru repair. Anticipate required publication checks when preparing the concrete PR unit; a failed check must not be bypassed. |
+| F18 | Medium / H06, H07 | Staged canonical maintenance rejected a Moru task worktree target as `maintenance_target_mismatch` when `--rules` still named the main checkout. The task worktree is a canonical source owner in the same repository, not a foreign product-local skill. | [Maintenance owner](scripts/agent_skill_maintenance.py), [identity controls](tests/test_agent_skill_maintenance.py). Canonical bundles now require matching Git common directories, exact checkout roots, a linked `.git` file, bundle provenance and containment. Foreign repositories, subdirectories, missing bundles and symlink escapes remain refused. The live maintenance step completed using the actual canonical task worktree as its rules owner. |
 
 The copy implementation and product PR were ultimately completed. The delays
 came from both a missing Figma command contract and agent decision errors.
@@ -1016,14 +1016,14 @@ over `tests.test_claude_bash_figma`, `tests.test_claude_bash_readonly`,
 the actual CLI dry-run's lack of output, argument-grammar drift, source-operand
 exemption, canonical maintenance identity, and negative protection cases.
 Canonical Figma guidance was staged and its maintenance verifier passed the
-focused unittest selector before marking the change applied. These are not the full Tao suite or
+focused unittest selector before marking the change applied. These are not the full Moru suite or
 a new live Figma API/network test.
 
 ### Audit: 2026-10-09, Native Integration Latency
 
-Source baseline: `52c5d70`; integrated base: `a6f124b`. Environment: Codex on macOS, isolated Tao task
+Source baseline: `52c5d70`; integrated base: `a6f124b`. Environment: Codex on macOS, isolated Moru task
 checkout. Scope: one native desktop material change's recorded elapsed time,
-scoped commit preparation, and finished-run denial diagnostics. The live Tao
+scoped commit preparation, and finished-run denial diagnostics. The live Moru
 checkout also had unrelated edits in `scripts/workflow_validate.py` and
 `tests/test_workflow_catalog.py`; this audit neither includes nor changes them.
 Raw session records and the derived timeline remain local, untracked evidence.
@@ -1042,7 +1042,7 @@ arrived after **54m 28.169s**. Contiguous milestone intervals were:
 | Post-commit verification and response | 29.634s |
 
 These intervals describe milestones, not exclusive causes. The **24 recorded
-Tao hook invocations consumed 26.262s** of checker time. **21 Gradle outcomes**
+Moru hook invocations consumed 26.262s** of checker time. **21 Gradle outcomes**
 included **14 failures and 7 successes**; 20 reported build durations totaled
 **204s**, with one compile failure missing a duration. Two escalation-request
 to prefix-record windows totaled **4m 23.830s**, overlapping other work; they
@@ -1051,7 +1051,7 @@ do not establish that a human approval dialog was visible or waiting.
 **36m 32.202s** falls outside the recorded foreground tool, asynchronous Gradle
 and escalation-observation windows. That time is unclassified: the records do
 not separate model inference, transport, other activity, or polling delays.
-It must not be attributed to Codex service latency or Tao computation. No token
+It must not be attributed to Codex service latency or Moru computation. No token
 usage or end-to-end before/after speedup was measured.
 
 | ID | Priority / check | Reproduction and expected behavior | Owner / proving check / disposition |
@@ -1062,7 +1062,7 @@ usage or end-to-end before/after speedup was measured.
 
 The elapsed time does not show that 54 minutes was necessary. Most observed
 delay occurred during agent diagnosis, implementation and retries, with two
-Tao recovery/reuse defects contributing avoidable work. Checker execution
+Moru recovery/reuse defects contributing avoidable work. Checker execution
 alone does not explain the wall time, and the unclassified gaps do not prove a
 Codex platform fault. These repairs address reproduced behavior rather than
 claiming a quantified overall performance improvement.
@@ -1079,7 +1079,7 @@ owner/reuse results were retained. The preceding 262-check run passed in
 scope/staging/byte/rules/authority controls and a public gate negative control
 using the former classifier. Workflow validation passed **196 references,
 413 Markdown frontmatter/link checks and 28 route contracts**. This is focused
-verification, not the full Tao suite or a replayed end-to-end desktop task.
+verification, not the full Moru suite or a replayed end-to-end desktop task.
 
 ### Audit: 2026-10-09, Worktree And Codex Latency
 
@@ -1143,7 +1143,7 @@ over `tests.test_agent_required_doc_delivery`, `tests.test_agent_required_doc_re
 and `tests.test_support_stage_timing`. The orchestration regressions failed
 before repair; the final suite also confirms a successful sibling counts while
 a nested pending command remains unread. These are focused checks, not the
-full Tao suite or a controlled pair of model sessions.
+full Moru suite or a controlled pair of model sessions.
 
 ### Audit: 2026-10-12, CI Correction Preparation
 

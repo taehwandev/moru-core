@@ -16,7 +16,7 @@ _TABLE_HEADER = re.compile(r"(?m)^[ \t]*\[([^\]\n]+)\][ \t]*(?:#.*)?$")
 def merge_codex_status_line(target: Path, dry_run: bool) -> str:
     """Add the native quota items while preserving the user's status selection.
 
-    Codex owns both the data and the rendering. Tao only makes the two built-in
+    Codex owns both the data and the rendering. Moru only makes the two built-in
     items visible. An unset status line first receives Codex's documented
     defaults so enabling quota does not make the model and directory disappear.
 

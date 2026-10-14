@@ -74,14 +74,14 @@ def publication_before_finish_reason(root: Path, *, unreadable: bool = False) ->
 
     if unreadable:
         return (
-            f"Tao lifecycle: this session's run in {root} is still open, and "
+            f"Moru lifecycle: this session's run in {root} is still open, and "
             "this command hides the program it runs behind a wrapper, so "
             "whether it publishes cannot be read. Next: spell the command "
             "plainly, or record the route's remaining gates, run the review "
             "hook and run finish."
         )
     return (
-        f"Tao lifecycle: this session's run in {root} is still open, so no gate "
+        f"Moru lifecycle: this session's run in {root} is still open, so no gate "
         "ledger is closed and no review attestation covers what this would "
         "publish. Next: record the route's remaining gates, run the review "
         "hook, then run finish. Publication still requires matching action "

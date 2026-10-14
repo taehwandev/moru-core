@@ -1,4 +1,4 @@
-"""Process-liveness evidence for the owner of a Tao Agent OS run.
+"""Process-liveness evidence for the owner of a Moru Core run.
 
 A run outlives every process that reports on it, so the registry cannot tell a
 slow agent from a dead one by timestamps alone. This module answers the one

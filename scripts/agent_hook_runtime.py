@@ -1,4 +1,4 @@
-"""Runtime helpers shared by the Tao Agent OS hook CLI."""
+"""Runtime helpers shared by the Moru Core hook CLI."""
 
 from __future__ import annotations
 
@@ -146,7 +146,7 @@ def hook_failure_policy(
         }, [
             "fresh-start request: the bound run is already settled and must remain immutable. "
             "Carry the same bounded objective and approvals into a new start/preflight, then "
-            "rerun review against the current worktree. This is lifecycle rollover, not a Tao "
+            "rerun review against the current worktree. This is lifecycle rollover, not a Moru "
             "Agent Runtime repair; do not run repair-verify",
         ]
     if invocation_error:
@@ -173,7 +173,7 @@ def hook_failure_policy(
         }, [
             "closeout request: the current task recorded a reusable skill gap. Run the "
             "same-closeout skill-draft, skill-review, and verified skill-maintenance "
-            "steps, then retry finish. This is expected closeout work, not a Tao Agent OS repair cycle; "
+            "steps, then retry finish. This is expected closeout work, not a Moru Core repair cycle; "
             "do not run repair-verify",
         ]
     if drift_receipt:
@@ -191,7 +191,7 @@ def hook_failure_policy(
             "refresh request: the worktree or rules changed after start or a successful review. "
             "Wait for concurrent writers to settle, reconcile the intended change, start a fresh "
             "lifecycle, and rerun the affected analysis or review before finish. This is stale "
-            "workspace evidence, not a Tao Agent OS repair; do not run repair-verify",
+            "workspace evidence, not a Moru Core repair; do not run repair-verify",
         ]
     if repair_cycle < REPAIR_CYCLE_LIMIT:
         return {
@@ -203,7 +203,7 @@ def hook_failure_policy(
             "resume_scope": RESUME_SCOPE,
         }, [
             "recovery request: diagnose every failure, run an actionable retrospective for this "
-            "failed scope, improve the owning Tao Agent OS doc, hook, validator, or test, and "
+            "failed scope, improve the owning Moru Core doc, hook, validator, or test, and "
             "verify that repair outside the hook. Create a structural receipt with the "
             "repair-verify hook, then pass its path with --repair-cycle 1, --repair-target, "
             "--repair-evidence, and --resume-checkpoint before resuming the original task",

@@ -211,14 +211,14 @@ class AdvisoryRouteCommandLineTests(unittest.TestCase):
     def test_the_first_prompt_of_a_session_gets_the_whole_route(self) -> None:
         output = self._route("triage", '{"session_id": "s1"}', "--hook-stdin")
 
-        self.assertIn("# Tao Agent OS Workflow Route", output)
+        self.assertIn("# Moru Core Workflow Route", output)
 
     def test_the_next_prompt_gets_one_line_instead(self) -> None:
         self._route("triage", '{"session_id": "s1"}', "--hook-stdin")
 
         output = self._route("triage", '{"session_id": "s1"}', "--hook-stdin")
 
-        self.assertNotIn("# Tao Agent OS Workflow Route", output)
+        self.assertNotIn("# Moru Core Workflow Route", output)
         self.assertIn("already received it", output)
         self.assertLess(len(output), 300)
 
@@ -229,7 +229,7 @@ class AdvisoryRouteCommandLineTests(unittest.TestCase):
 
         output = self._route("triage", '{"session_id": "s1"}')
 
-        self.assertIn("# Tao Agent OS Workflow Route", output)
+        self.assertIn("# Moru Core Workflow Route", output)
 
     def test_the_auto_sentinel_still_sees_the_prompt(self) -> None:
         """Both features want stdin, and stdin can only be drained once.

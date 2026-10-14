@@ -111,7 +111,7 @@ class VerificationHookTests(unittest.TestCase):
         self.assertIn("tests=1", self.entries()[-1]["fields"]["result"])
 
     def test_a_module_only_tao_has_is_not_importable_by_project_tests(self):
-        """A project lacking `agent_gate_reuse` must fail, not import Tao's copy."""
+        """A project lacking `agent_gate_reuse` must fail, not import Moru's copy."""
         (self.project / "tests" / "test_case.py").write_text(
             "import unittest\n"
             "class Case(unittest.TestCase):\n"

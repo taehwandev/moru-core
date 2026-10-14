@@ -15,7 +15,7 @@ Every input source remains in the output, including failures and low scores.
 ## Ownership And Acceptance
 
 Owner: `scripts/research-triage/microsoft_decision.py`, one optional CLI adapter.
-Allowed imports: Python standard library. Forbidden imports: Tao lifecycle,
+Allowed imports: Python standard library. Forbidden imports: Moru lifecycle,
 permission, routing, other model providers, and external SDK dependencies.
 Callers: agents selecting the optional planning-research step, or an operator.
 Tests: `tests/research-triage/test_microsoft_decision.py`.
@@ -47,7 +47,7 @@ sources that must be read regardless of ranking.
 }
 ```
 
-From the Tao checkout, inspect reusable decisions without network calls or
+From the Moru checkout, inspect reusable decisions without network calls or
 cache writes:
 
 ```sh

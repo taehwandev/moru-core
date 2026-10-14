@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Claude Code PreToolUse gate for Tao Agent OS.
+"""Claude Code PreToolUse gate for Moru Core.
 
 This gate enforces three things a purely advisory bridge cannot, at the only point
 that actually stops the model -- the moment it calls a mutating tool:
 
 1. Workflow entry. Nothing otherwise stops a file edit when the agent skipped the
    ``start`` hook, so the workflow is easy to ignore. The gate denies a file-edit
-   tool call when an Tao Agent OS project has no fresh preflight evidence, which
+   tool call when an Moru Core project has no fresh preflight evidence, which
    forces ``start`` (route + preflight) before mutating files.
 2. Structural proportionality. Skill docs and the post-hoc review gate cannot
    stop a task from ballooning into many new files/layers -- by review time the
@@ -480,7 +480,7 @@ def _gate_internal_error(error: "BaseException | str", outcome: str) -> None:
     if not _EXCEPTION_NAME.fullmatch(name):
         name = "Exception"
     _PENDING_WARNINGS.append(
-        f"Tao gate hit an internal error ({name}); {outcome}; "
+        f"Moru gate hit an internal error ({name}); {outcome}; "
         "this was recorded for repair."
     )
     _learn_block("gate_internal_error")
@@ -618,7 +618,7 @@ def deny_or_ask(reason: str, code: str, payload: dict | None = None,
     if code not in OPERATOR_DECIDES:
         return deny(reason, code)
     if runtime_name() != "codex":
-        return _emit({"additionalContext": f"Tao policy note: {reason}"})
+        return _emit({"additionalContext": f"Moru policy note: {reason}"})
     try:
         from codex_operator_review import OperatorReview
         approved, question = OperatorReview.request(payload or {}, reason, code)
@@ -651,7 +651,7 @@ def max_age_seconds() -> int:
 
 
 def opts_in(path: Path) -> bool:
-    """True when this directory marks a project that uses Tao Agent OS.
+    """True when this directory marks a project that uses Moru Core.
 
     The global install lives in a ``.tao`` too, so directory existence alone
     would classify ``$HOME`` as a project -- see support.global_state.
@@ -793,7 +793,7 @@ def paused_run_reason(
     refusal = _RESUME_REFUSALS.get(run_id)
     if refusal:
         return (
-            f"Tao Agent OS: this session's run {run_id} was paused when its turn "
+            f"Moru Core: this session's run {run_id} was paused when its turn "
             f"ended or its finish failed, and resuming it automatically was refused: {refusal}. "
             f"Approve to continue {action} without that run, or reconcile it with "
             f"`{launcher} checkpoint --checkpoint-kind reconcile --phase acting "
@@ -805,7 +805,7 @@ def paused_run_reason(
             f"{governed_because(root, cwd_roots)}"
         )
     return (
-        f"Tao Agent OS: this session's run {run_id} was paused when its turn ended "
+        f"Moru Core: this session's run {run_id} was paused when its turn ended "
         f"or its finish failed, so it no longer covers {action}. To continue that task run "
         f"`{launcher} resume --last --run-id {run_id} --project {root} --rules "
         f"<TAO_ROOT>`, then {retry}; a new start would supersede the paused run "
@@ -849,7 +849,7 @@ def deny_reason(
         )
     cause = f"{cause}{governed_because(root, cwd_roots)}"
     return (
-        f"Tao Agent OS: run the workflow start hook before {action}. {cause} "
+        f"Moru Core: run the workflow start hook before {action}. {cause} "
         f"Run `{preferred_launcher_path()} start --project "
         f"{root} --rules <TAO_ROOT> --command <route> --request \"<user "
         f"request>\"`, read the route required_docs, then {retry}. Set "
@@ -932,7 +932,7 @@ def _settle_paused_runs_before_publication(
         except Exception:  # noqa: BLE001 - settling never changes the verdict path
             continue
         _PENDING_NOTES.extend(
-            f"Tao lifecycle: settled this session's paused run {old} in {root} as "
+            f"Moru lifecycle: settled this session's paused run {old} in {root} as "
             f"superseded by its later finished run {new}."
             for old, new in settled
         )
@@ -1184,7 +1184,7 @@ def _finished_runs() -> "_integration.FinishedRuns":
 
 def publication_before_finish_reason(root: Path, *, unreadable: bool = False) -> str:
     if _publication is None:
-        return f"Tao lifecycle: this session's run in {root} is still open."
+        return f"Moru lifecycle: this session's run in {root} is still open."
     return _publication.publication_before_finish_reason(root, unreadable=unreadable)
 
 
@@ -1231,7 +1231,7 @@ def publishes_finished_work(
 
 def finished_publication_denial(root: Path, session_id: str, command: str, cwd: Path) -> str:
     if _publication is None:
-        return "Tao lifecycle: a completed run exists for this session, but it cannot admit this publication."
+        return "Moru lifecycle: a completed run exists for this session, but it cannot admit this publication."
     return _admission.finished_publication_denial(
         root, session_id, command, cwd, _finished_runs()
     )
@@ -1462,7 +1462,7 @@ def record_new_file(state: Path, key: str) -> None:
 
 def sprawl_deny_reason(count: int, budget: int, ack: Path, target: Path, root: Path) -> str:
     return (
-        f"Tao Agent OS proportionality gate: this task has already created {count} new "
+        f"Moru Core proportionality gate: this task has already created {count} new "
         f"source file(s) in {root.name} (budget {budget}); creating {target.name} would exceed "
         "it. Turning a task into many files, layers, or abstractions burns tokens and review "
         "time. Collapse the change into fewer files, or -- if each new file protects a concrete "
@@ -1537,7 +1537,7 @@ def _ungoverned_project_verdict(cwd: Path, tokens: list[str]) -> int:
     where the gate keeps only the one thing it alone knows.
     """
 
-    # Not an Tao Agent OS project; never block ordinary editing.
+    # Not an Moru Core project; never block ordinary editing.
     #
     # `-C <elsewhere>` moves the command's target out of every governed
     # root and landed here, so `git -C /tmp/other branch -D main` from a
@@ -2055,7 +2055,7 @@ def _worktree_reason_naming_its_cause(
 
     if is_bash and not syntax_is_simple and "\n" in bash_command(payload) and "<<" in bash_command(payload):
         return (
-            f"Tao worktree gate: command syntax unresolved for {', '.join(str(root) for root in roots)}. "
+            f"Moru worktree gate: command syntax unresolved for {', '.join(str(root) for root in roots)}. "
             "Multiline heredoc input is unsupported by the command parser. "
             "This is not evidence of a write into the named repository. "
             "Next: save the literal input with the file-edit tool inside the authorized task scope, "
@@ -2301,7 +2301,7 @@ def bash_target_project_roots(tokens: list[str], cwd: Path) -> list[Path]:
     destination and any identical spelling in a later segment are still judged.
 
     The same reader now answers for the other operands a command's own text
-    proves it only reads: `gh pr create --body-file <path>` and the Tao
+    proves it only reads: `gh pr create --body-file <path>` and the Moru
     installer's `--target` under `--dry-run` or `--check`. Both were read as
     writing into the project they named, so writing a PR body inside the
     worktree being published, and checking another project's hooks without
@@ -2916,7 +2916,7 @@ def _decide(payload: dict) -> int:
     if tool in BASH_TOOLS and tokens:
         # Before every approval below, governed project or not: a forced
         # removal is otherwise deferred to a permission flow that cannot see
-        # uncommitted work or an open Tao run in the checkout it deletes.
+        # uncommitted work or an open Moru run in the checkout it deletes.
         removal = checkout_removal_denial(tokens, effective_cwd)
         if removal:
             return deny(removal, code="checkout_removal_loses_work")

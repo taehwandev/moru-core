@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run automated smoke checks to verify Tao Agent OS hooks and search library E2E."""
+"""Run automated smoke checks to verify Moru Core hooks and search library E2E."""
 
 import json
 import shutil

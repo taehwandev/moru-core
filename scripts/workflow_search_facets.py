@@ -1,4 +1,4 @@
-"""Natural-language query facets for Tao Agent OS document search."""
+"""Natural-language query facets for Moru Core document search."""
 
 from __future__ import annotations
 

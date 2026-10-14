@@ -15,7 +15,7 @@ import claude_scratch_checkout as scratch
 class ScratchHelperScripts(_Fixture):
     def setUp(self) -> None:
         super().setUp()
-        # `self.project` is the Tao-like checkout (TAO_HOME, linked-worktree
+        # `self.project` is the Moru-like checkout (TAO_HOME, linked-worktree
         # policy); `self.spill` is an ordinary governed project with no policy
         # file, whose default requires a workflow run before unverified commands.
         self.spill = self.base / "home" / "spill"

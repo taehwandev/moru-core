@@ -1,4 +1,4 @@
-"""Purpose-based file and package checks for the Tao Agent OS review hook."""
+"""Purpose-based file and package checks for the Moru Core review hook."""
 
 from __future__ import annotations
 

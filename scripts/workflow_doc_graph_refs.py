@@ -1,4 +1,4 @@
-"""Parse document references for the local Tao Agent OS graph."""
+"""Parse document references for the local Moru Core graph."""
 
 from __future__ import annotations
 

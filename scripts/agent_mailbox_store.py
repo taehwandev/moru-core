@@ -209,7 +209,7 @@ def _source_binding(project: Path, evidence_path: Path | None) -> tuple[str, str
     except ValueError as error:
         raise ValueError("preflight evidence must stay under this project's state runs root") from error
     if len(relative.parts) != 2 or not _RUN_ID.fullmatch(relative.parts[0]):
-        raise ValueError("preflight evidence must belong to one opaque Tao run")
+        raise ValueError("preflight evidence must belong to one opaque Moru run")
     fingerprint = hashlib.sha256(relative.as_posix().encode("utf-8")).hexdigest()
     return relative.parts[0], fingerprint
 
@@ -261,7 +261,7 @@ def _run_directories(project: Path, root: Path) -> list[Path]:
     for run_dir in selected:
         _require_local_path(project, run_dir)
         if not run_dir.is_dir() or not _RUN_ID.fullmatch(run_dir.name):
-            raise ValueError("local agent mailbox contains an invalid Tao run directory")
+            raise ValueError("local agent mailbox contains an invalid Moru run directory")
     return selected
 
 
@@ -283,7 +283,7 @@ def _validate_packet(packet: object, project: Path, run_id: str, recipient: str,
     if packet.get("project_fingerprint") != _project_fingerprint(project):
         raise ValueError("local agent mailbox packet belongs to a different project")
     if packet.get("source_run_id") != run_id:
-        raise ValueError("local agent mailbox packet belongs to a different Tao run")
+        raise ValueError("local agent mailbox packet belongs to a different Moru run")
     if packet.get("message_id") != message_id or not _MESSAGE_ID.fullmatch(message_id):
         raise ValueError("local agent mailbox packet has an invalid message id")
     if packet.get("recipient") != recipient or _runtime(str(packet.get("sender") or "")) == "":

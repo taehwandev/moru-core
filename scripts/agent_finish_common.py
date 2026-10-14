@@ -1,4 +1,4 @@
-"""Shared helpers for Tao Agent OS finish checks."""
+"""Shared helpers for Moru Core finish checks."""
 
 from __future__ import annotations
 

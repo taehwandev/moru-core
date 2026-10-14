@@ -10,7 +10,7 @@ graphify-out
 .claude/skills/graphify
 .codex/skills/graphify
 
-# Vendored dependency notices are provenance, not Tao Agent OS guidance.
+# Vendored dependency notices are provenance, not Moru Core guidance.
 scripts/third_party
 
 # Publications, samples, and scaffolds. Wikimap ranks by information content, so

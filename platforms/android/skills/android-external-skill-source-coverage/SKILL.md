@@ -17,7 +17,7 @@ The core below is the required contract. Open
 `references/current-guidance.md` only for an unresolved in-scope question:
 
 - `## Source Trigger Map` to pick the narrowest upstream source file and the
-  owning Tao local card for a touched surface.
+  owning Moru local card for a touched surface.
 - `## Source Snapshots` for repository commits and local snapshot paths.
 - `## Google Android Skills Coverage`, `## Compose Performance Skills
   Coverage` or `## Chris Banes Skills Coverage` for the exact upstream
@@ -48,7 +48,7 @@ For the reusable distilled rules, use `../source-coverage/SKILL.md`.
   3. Read its listed `references/` docs when the task changes implementation,
      dependencies, public contracts, security behavior, testing or
      verification for that surface.
-  4. Update the concise Tao rule card only when the lesson is reusable.
+  4. Update the concise Moru rule card only when the lesson is reusable.
   5. Report the source surface and residual source docs not loaded as out of
      scope.
 - Apply the gate especially for package/module boundaries, Navigation 3, deep
@@ -69,7 +69,7 @@ For the reusable distilled rules, use `../source-coverage/SKILL.md`.
   were not relevant.
 - In final reports or PR descriptions, cite the source repository and source
   surface, not only the Moru Core summary.
-- When a source doc is missing from the Tao mappings, update this manifest
+- When a source doc is missing from the Moru mappings, update this manifest
   first, then the concise rule card that owns the lesson.
 
 ## Stop If

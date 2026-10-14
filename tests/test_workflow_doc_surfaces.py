@@ -436,7 +436,7 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
             None,
             [],
             request_classified=True,
-            request_text="Add the shared Tao root to the Codex workspace profile.",
+            request_text="Add the shared Moru root to the Codex workspace profile.",
             surface_paths=["scripts/support/setup_agent_hooks_impl.py"],
         )
 

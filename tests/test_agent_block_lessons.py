@@ -67,7 +67,7 @@ class PretoolDenialRecordingTests(_StateHome):
     def test_a_denial_records_one_content_free_candidate(self) -> None:
         claude_pretool_gate._BLOCK_SESSION["session_id"] = "session-secret-id"
         self._deny(
-            "Tao: `git push --force origin main` from /Users/someone/private/repo was denied",
+            "Moru: `git push --force origin main` from /Users/someone/private/repo was denied",
             "worktree_isolation",
         )
 

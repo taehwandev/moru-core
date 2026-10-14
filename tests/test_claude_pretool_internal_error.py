@@ -119,7 +119,7 @@ class InternalErrorTests(unittest.TestCase):
 
     def test_a_warning_joins_a_denial_in_one_document(self) -> None:
         gate._PENDING_WARNINGS.clear()
-        gate._PENDING_WARNINGS.append("Tao gate hit an internal error (KeyError); x; y.")
+        gate._PENDING_WARNINGS.append("Moru gate hit an internal error (KeyError); x; y.")
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             gate.deny("refused", "worktree_isolation")

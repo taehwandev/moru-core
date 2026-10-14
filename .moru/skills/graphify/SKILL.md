@@ -18,11 +18,11 @@ and export writes stay under `.agents/local/graphify-out/`.
 commit hooks may write to the CLI's own default, `graphify-out/` at the
 repository root, whenever that assignment is not in their environment. Calling
 that directory legacy and refusing to read it can leave an agent pointed at an
-empty path while the only usable graph is elsewhere. Tao's default is on-demand
+empty path while the only usable graph is elsewhere. Moru's default is on-demand
 refresh; do not install or depend on checkout/commit rebuild hooks unless the
 user explicitly requests that tradeoff.
 
-Resolve the graph through the Tao readiness check before querying. It selects
+Resolve the graph through the Moru readiness check before querying. It selects
 the graph that actually exists and evaluates the matching sibling manifest;
 continue only when that graph is fresh and structurally valid. Say which graph
 you read. Never write generated state to both locations.
@@ -126,7 +126,7 @@ Neither is part of the default build. When the user runs `/graphify add <url>` t
 ## For optional commit hooks and native AGENTS.md integration
 
 Only when the user explicitly asks to install auto-rebuild hooks or wire
-Graphify into a project's AGENTS.md, see `references/hooks.md`. Normal Tao
+Graphify into a project's AGENTS.md, see `references/hooks.md`. Normal Moru
 operation queries a fresh graph on demand and does not rebuild on checkout or
 commit.
 

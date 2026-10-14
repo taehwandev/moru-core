@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print the content-free Tao Agent OS runtime status snapshot."""
+"""Print the content-free Moru Core runtime status snapshot."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from agent_os_api import validate_status_snapshot
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Show Tao Agent OS runtime status")
+    parser = argparse.ArgumentParser(description="Show Moru Core runtime status")
     parser.add_argument("--project", type=Path, default=Path.cwd())
     parser.add_argument("--validate", action="store_true", help="validate the external status contract")
     args = parser.parse_args()

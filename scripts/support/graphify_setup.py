@@ -1,4 +1,4 @@
-"""Public Graphify setup facade used by Tao Agent OS entrypoints."""
+"""Public Graphify setup facade used by Moru Core entrypoints."""
 
 from __future__ import annotations
 

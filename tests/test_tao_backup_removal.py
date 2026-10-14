@@ -1,7 +1,7 @@
-"""Removing Tao's own `*.tao-backup` files needs no workflow lifecycle.
+"""Removing Moru's own `*.tao-backup` files needs no workflow lifecycle.
 
 Setup writes `<name>.tao-backup` beside a file before rewriting it. Deleting
-those Tao-made files from a governed project was refused until a workflow run
+those Moru-made files from a governed project was refused until a workflow run
 existed, so each stray backup cost a whole lifecycle. A lone `rm [-f]` whose
 every operand is such a regular file is now admitted; anything else keeps the
 ordinary verdict.

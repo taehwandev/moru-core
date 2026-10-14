@@ -10,10 +10,10 @@ Callers/tests: claude_pretool_gate._decide; tests/test_claude_pretool_checkout_r
 Verification: that test module and tests/test_safe_ref_cleanup.py.
 
 A task worktree was deleted while a worker ran its tests in it: modified
-files, an untracked test and a running Tao run went with it. Its branch had
+files, an untracked test and a running Moru run went with it. Its branch had
 no commits of its own, so it sat at an ancestor of main and every "merged"
 check said it could go. `git worktree remove` refuses a dirty checkout, but
-`--force` and `rm -rf` do not, and a Tao run lives in an ignored directory
+`--force` and `rm -rf` do not, and a Moru run lives in an ignored directory
 that git never counts. The gate answered a forced removal by deferring to the
 runtime's own permission flow, which cannot see either. This module looks.
 """

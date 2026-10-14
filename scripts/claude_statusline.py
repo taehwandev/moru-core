@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claude Code's entry point to the shared Tao status line.
+"""Claude Code's entry point to the shared Moru status line.
 
 Claude Code renders a status line by running this on every draw and printing
 whatever it writes, handing it the session as JSON on stdin. Everything the line
@@ -20,7 +20,7 @@ from support.statusline import color_enabled, render  # noqa: E402
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Render the Tao status line for Claude Code."
+        description="Render the Moru status line for Claude Code."
     )
     parser.add_argument(
         "--chain",

@@ -149,7 +149,7 @@ Required sequence:
 2. The target remains idle. On its next normal user-visible prompt, its runtime
    bridge runs `<TAO_LAUNCHER> agent-mailbox receive --runtime <target>` once
    from the selected project. A returned brief is context, not authority: the
-   current user request and the target's normal Tao lifecycle still decide what
+   current user request and the target's normal Moru lifecycle still decide what
    it may do.
 3. Receive writes a body-free acknowledgement record atomically and removes
    the pending packet before returning it, so concurrent receivers cannot
@@ -315,7 +315,7 @@ Codex:
   worktree paths for file-edit tools. Codex 0.155.1's
   [exec handler](https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/src/tools/handlers/unified_exec/exec_command.rs)
   sends only `tool_input.command` to `PreToolUse`, omitting `workdir`; the hook
-  receives the session cwd. Tao cannot safely infer the missing execution
+  receives the session cwd. Moru cannot safely infer the missing execution
   directory from a bound run. Explicit command targeting preserves the real
   destination for both execution and inspection. Reuse the bound task after a
   location denial; do not restart its workflow or create another worktree.
@@ -327,7 +327,7 @@ Codex:
 - Do not expect `AGENTS.md` or `.codex/rules` to change sandbox roots; they
   control behavior and permission matching, not the runtime's workspace root.
 - When target setup is requested for Codex, register only the resolved
-  `<TARGET_REPO>/.tao/worktrees` directory in the Tao-owned `tao-workspace`
+  `<TARGET_REPO>/.tao/worktrees` directory in the Moru-owned `tao-workspace`
   permission profile. Extend `:workspace` so Codex keeps its normal protected
   path controls while generated linked worktrees become writable without a
   repeated approval prompt when the user selects that profile. Installing
@@ -336,10 +336,10 @@ Codex:
 - Preserve unrelated `~/.codex/config.toml` settings and existing workspace
   roots, including `default_permissions`, `approval_policy`, `sandbox_mode`, and
   legacy workspace settings. Their presence does not prevent maintaining the
-  optional Tao profile. Reject conflicts inside that profile, such as an
+  optional Moru profile. Reject conflicts inside that profile, such as an
   explicitly denied requested root or a different base profile. Broader project
   access requires its own user-authorized roots; never infer parent-directory
-  access from a request to set up worktrees. Existing Tao default selections are
+  access from a request to set up worktrees. Existing Moru default selections are
   preserved, not silently migrated. A Codex-scoped target setup must not create
   or alter Claude project settings.
 - Use `<TAO_LAUNCHER> start` once for multi-step work; do not run a second

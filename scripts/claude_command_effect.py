@@ -22,7 +22,7 @@ INTERPRETERS = frozenset({"python", "python3", "node", "bash", "sh", "zsh", "rub
 PACKAGE_RUNNERS = frozenset({"npm", "npx", "pnpm", "yarn"})
 PROJECT_CODE_REMEDY = (
     " This command runs project code (an interpreter, a package script or a project script), "
-    "and Tao cannot verify its effect from the command text, so every variant of it gets "
+    "and Moru cannot verify its effect from the command text, so every variant of it gets "
     "this same answer: do not retry reworded or split variants. Either run the workflow start "
     "hook once for this project and then run it unchanged, or inspect with a read-only form "
     "such as rg, sed -n, cat, git show, node --check or python3 -I -m json.tool."
@@ -247,7 +247,7 @@ def unknown_recovery(reason: str, *, after_finish: bool = False) -> str:
     )
     route = "enter its scoped writable route once" if after_finish else "Enter its scoped writable route once"
     return (
-        f"Tao command effect: unknown. Boundary: {reason}. "
+        f"Moru command effect: unknown. Boundary: {reason}. "
         "This is not proof it changes data. For a lookup, use a supported read-only form or split the unsupported wrapper "
         "into independently verifiable reads; do not request write authority just to run a lookup. "
         f"Do not repeat the unchanged command. {finished}{route}; no "

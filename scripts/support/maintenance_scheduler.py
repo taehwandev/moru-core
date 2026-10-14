@@ -1,4 +1,4 @@
-"""Install bounded Tao Agent OS maintenance as a macOS LaunchAgent."""
+"""Install bounded Moru Core maintenance as a macOS LaunchAgent."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ MAINTENANCE_INTERVAL_SECONDS = 24 * 60 * 60
 
 
 def configure_maintenance_scheduler(root: Path, dry_run: bool) -> list[dict]:
-    """Ensure one daily, bounded maintenance pass for the active Tao root."""
+    """Ensure one daily, bounded maintenance pass for the active Moru root."""
     if sys.platform != "darwin":
         return []
 
@@ -51,10 +51,10 @@ def configure_maintenance_scheduler(root: Path, dry_run: bool) -> list[dict]:
         if loaded:
             stopped = _launchctl(["bootout", service])
             if stopped.returncode != 0:
-                raise RuntimeError("could not unload the stale Tao maintenance LaunchAgent")
+                raise RuntimeError("could not unload the stale Moru maintenance LaunchAgent")
         started = _launchctl(["bootstrap", domain, str(target)])
         if started.returncode != 0:
-            raise RuntimeError("could not load the Tao maintenance LaunchAgent")
+            raise RuntimeError("could not load the Moru maintenance LaunchAgent")
         status = "installed"
 
     return [

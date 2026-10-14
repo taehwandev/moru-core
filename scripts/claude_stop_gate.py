@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claude Code Stop gate for Tao Agent OS.
+"""Claude Code Stop gate for Moru Core.
 
 The PreToolUse gate forces `start` before the first edit, but nothing forced the
 other end of the lifecycle. `review` and `finish` were enforced only by the model
@@ -7,7 +7,7 @@ remembering to run them, which is exactly the kind of rule a model skips under
 load: a session could edit files all the way to a final report with no review
 evidence and no gate ledger, and the work would look finished.
 
-This gate closes that end. When a session edited files in an Tao Agent OS
+This gate closes that end. When a session edited files in an Moru Core
 project and has no passing `finish` from that same session, stopping is blocked
 once, with the commands needed to resolve it.
 
@@ -298,7 +298,7 @@ def session_projects(session_id: str, cwd_root: Path | None) -> list[Path]:
 def block_reason(root: Path) -> str:
     launcher = preferred_launcher_path()
     return (
-        "Tao Agent OS: this session edited files but has no passing finish check. "
+        "Moru Core: this session edited files but has no passing finish check. "
         "Record the remaining route gates with `gate` or `gate-batch`, then run "
         f"`{launcher} review --project {root} --rules <TAO_ROOT> "
         "--review-scope working-tree --review-outcome <pass|findings> ...` and "

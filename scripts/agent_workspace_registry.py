@@ -1,4 +1,4 @@
-"""Registry parsing helpers for Tao Agent OS workspace groups."""
+"""Registry parsing helpers for Moru Core workspace groups."""
 
 from __future__ import annotations
 

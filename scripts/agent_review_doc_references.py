@@ -6,7 +6,7 @@ failure it existed to catch -- a document moves and the references to it are lef
 behind -- is invisible from the moved file alone. These checks read the diff.
 
 The link rules are repository-neutral. The frontmatter rule is not: it describes
-Tao's own card convention and the review adapter enables it only for a Tao source
+Moru's own card convention and the review adapter enables it only for a Moru source
 checkout. Target repositories keep their own documentation conventions.
 """
 
@@ -34,7 +34,7 @@ FRONTMATTER_VALUES = {
 }
 KEYFLOW_ID = re.compile(r"[a-z][a-z0-9_]*\Z")
 # A bundled external skill is vendored, not owned: it carries its own header
-# (`name`/`description` rather than Tao's keys) and its repository-rooted example
+# (`name`/`description` rather than Moru's keys) and its repository-rooted example
 # paths describe whatever project the skill is pointed at. Those two rules skip
 # it. Its relative links still resolve inside this tree, so they are checked.
 VENDORED_TREES = (".tao/skills/", ".moru/skills/")
@@ -68,7 +68,7 @@ def doc_reference_failures(
     reading artifacts the repository does not track.
 
     ``require_tao_frontmatter`` is true only when the reviewed checkout owns
-    Tao's card convention. Link and removal checks remain active everywhere.
+    Moru's card convention. Link and removal checks remain active everywhere.
     """
 
     failures: list[str] = []

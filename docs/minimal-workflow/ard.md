@@ -155,5 +155,5 @@ runs and automatic local verification are outside this slice.
 Runtime adapters differ in event visibility. Establish actual executor evidence
 coverage during each slice; do not promise transparent collection everywhere.
 Project-specific mandatory workflows remain authoritative until changed at their
-owner. Simplifying Tao alone cannot remove a separate project's ticket or module
+owner. Simplifying Moru alone cannot remove a separate project's ticket or module
 rules. Avoid importing company-specific policy into this shared redesign.

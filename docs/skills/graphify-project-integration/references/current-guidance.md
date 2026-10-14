@@ -103,7 +103,7 @@ scope, model/provider selection, time, and cost decisions.
 ## Explicit Checkout Hook Repair
 
 Graphify owns the templates installed by `graphify hook install`. The installed
-version may skip an existing marker instead of refreshing it. Tao offers a
+version may skip an existing marker instead of refreshing it. Moru offers a
 separate, opt-in compatibility repair for its recognized checkout block:
 
 ```bash

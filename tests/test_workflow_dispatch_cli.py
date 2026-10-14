@@ -421,7 +421,7 @@ class DispatchFinalizeCliTests(unittest.TestCase):
             for args in (
                 ("init", "-q"),
                 ("config", "user.email", "tests@example.invalid"),
-                ("config", "user.name", "Tao Agent OS Tests"),
+                ("config", "user.name", "Moru Core Tests"),
                 ("add", "-A"),
                 ("commit", "-qm", "initial"),
             ):

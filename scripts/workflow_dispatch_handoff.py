@@ -198,7 +198,7 @@ def build_handoff_prompt(
         [
             f"Workflow command: {command}",
             f"Work kind: {work_kind}",
-            f"Tao Agent OS rules root: {handoff_state['rules']}",
+            f"Moru Core rules root: {handoff_state['rules']}",
             f"Parent route gates: {gates or 'resolve from the route'}",
             f"Parent preflight evidence: {handoff_state['preflight_evidence']}",
             f"Parent gate ledger: {handoff_state['gate_ledger']}",

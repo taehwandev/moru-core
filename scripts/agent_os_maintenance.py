@@ -1,6 +1,6 @@
 """Shared stale-state recovery and retention implementation.
 
-Owner: the unattended maintenance pass over every Tao-managed checkout.
+Owner: the unattended maintenance pass over every Moru-managed checkout.
 Allowed imports: the run registry, retention, run-evidence, scheduler and
 project-search modules; nothing from the workflow route.
 Callers/tests: ``agent-os-maintenance.py`` (the LaunchAgent entry point);
@@ -9,8 +9,8 @@ coverage lives in ``tests/test_runs_prune.py`` and
 Verification: run ``agent-os-maintenance.py --all-projects --dry-run`` and
 compare its per-project counts with the run directories it names.
 
-Retention used to run for the Tao checkout alone, while every other project
-that ran Tao lifecycles kept its unfinished runs and evidence forever. The pass
+Retention used to run for the Moru checkout alone, while every other project
+that ran Moru lifecycles kept its unfinished runs and evidence forever. The pass
 now visits every managed checkout, and each one gets exactly the same rules.
 """
 
@@ -161,7 +161,7 @@ def managed_projects(
                 resolved = checkout.resolve()
             except OSError:
                 continue
-            # A checkout that never ran a Tao lifecycle has nothing to maintain,
+            # A checkout that never ran a Moru lifecycle has nothing to maintain,
             # and visiting it would create lock files in it.
             if resolved in seen or not project_state_dir_target(resolved).is_dir():
                 continue
@@ -225,7 +225,7 @@ def _has_run_state(path: Path) -> bool:
 
 
 def _projects_under(root: Path) -> list[Path]:
-    """The root itself and its direct children that hold Tao run state."""
+    """The root itself and its direct children that hold Moru run state."""
 
     found: list[Path] = []
     try:

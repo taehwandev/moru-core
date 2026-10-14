@@ -25,7 +25,7 @@ captures accumulate, the following problems go unnoticed:
 Periodic memory "dreaming" designs, such as Cognition's Agent Memory Repo,
 address this with a background agent. The agent merges duplicates, drops
 outdated entries, resolves contradictions against sources, and mines sessions
-for new patterns. Tao adopts the review half of that idea. It rejects session
+for new patterns. Moru adopts the review half of that idea. It rejects session
 mining, a resident agent, and git sync for the reasons in Non-Goals.
 
 ## Goals
@@ -41,7 +41,7 @@ mining, a resident agent, and git sync for the reasons in Non-Goals.
 
 ## Non-Goals
 
-- **Session or transcript mining.** Tao never reads transcripts, logs or
+- **Session or transcript mining.** Moru never reads transcripts, logs or
   shell history to derive memory. A new record still comes only from an
   explicit agent `capture`, grounded in current-session evidence.
 - **Automatic merge, retire or contradiction resolution.** Deciding which
@@ -53,7 +53,7 @@ mining, a resident agent, and git sync for the reasons in Non-Goals.
   a local daemon adds recurring infrastructure. The `start` notice covers the
   need.
 - **Claude auto-memory** (`~/.claude/projects/<project>/memory/`). It is
-  Claude-only and outside Tao. Facts every runtime needs belong in
+  Claude-only and outside Moru. Facts every runtime needs belong in
   project-memory.
 
 ## Runtime Parity

@@ -94,7 +94,7 @@ def render_advisory_markdown(route: dict[str, object]) -> str:
 
 
 def _header_lines(route: dict[str, object]) -> list[str]:
-    lines = ["# Tao Agent OS Workflow Route", "", f"Command: `{route['command']}`"]
+    lines = ["# Moru Core Workflow Route", "", f"Command: `{route['command']}`"]
     if route["platform"]:
         lines.append(f"Platform: `{route['platform']}`")
     if route["concerns"]:
@@ -185,7 +185,7 @@ def print_markdown(route: dict[str, object]) -> None:
     print()
     print("If any required gate is not executed, stop finalization, return to the")
     print("first missed gate only, roll back only dependent agent-made changes when")
-    print("safe, then run an actionable retrospective and improve the owning Tao Agent OS doc,")
+    print("safe, then run an actionable retrospective and improve the owning Moru Core doc,")
     print("hook, validator, or test before verifying the repair and resuming that checkpoint.")
     print("Only one bounded repair cycle is allowed; if the same failure remains or the")
     print("repair is unsafe or ambiguous, promote the lesson and stop for handoff;")

@@ -1,6 +1,6 @@
 """Canonical project-local storage for the continuation packet.
 
-The packet is the one Tao record that may hold a bounded project fact, so its
+The packet is the one Moru record that may hold a bounded project fact, so its
 location is not a convention but a checkable boundary: exactly one canonical
 path per run, proven ignored by Git before it is accepted, written through a
 private temporary file and an atomic rename so a process that dies mid-write

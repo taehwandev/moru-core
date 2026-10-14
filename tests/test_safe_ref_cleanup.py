@@ -3,7 +3,7 @@
 `git branch -d`, a plain `git worktree remove`, `git worktree prune`, and the
 remote-tracking prunes are refused by git itself whenever they could lose work.
 A session with no run in a governed project was nevertheless told to run the
-workflow start hook first, while the same command was admitted in the Tao
+workflow start hook first, while the same command was admitted in the Moru
 main checkout. The forcing spellings keep their existing treatment.
 """
 

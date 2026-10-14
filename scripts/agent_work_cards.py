@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """User-local work cards that carry one line of unfinished work across sessions.
 
-Owner: work-card storage. Allowed: one SQLite file under the global Tao state
+Owner: work-card storage. Allowed: one SQLite file under the global Moru state
 directory. Forbidden: prompts, transcripts, logs, sync, or any authority.
 Callers: agent-hook start/finish/cancel; tests: test_agent_work_cards.
 

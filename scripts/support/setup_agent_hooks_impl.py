@@ -1,4 +1,4 @@
-"""Runtime hook setup entry flow for Tao Agent OS."""
+"""Runtime hook setup entry flow for Moru Core."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def main() -> None:
 
 def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Configure AI runtime bridges, hooks, and permissions for Tao Agent OS."
+        description="Configure AI runtime bridges, hooks, and permissions for Moru Core."
     )
     parser.add_argument(
         "--refresh-project-guidance", action="append", type=Path, default=[],
@@ -116,7 +116,7 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--reset-codex-permission-default",
         action="store_true",
-        help="Reset Tao or missing profile selection to :workspace; preserve other settings.",
+        help="Reset Moru or missing profile selection to :workspace; preserve other settings.",
     )
     parser.add_argument(
         "--codex-auto-review", action="store_true",
@@ -228,7 +228,7 @@ def _reset_codex_default(args: argparse.Namespace, parser: argparse.ArgumentPars
 
 
 def _notice_tao_permission_default(config_target: Path) -> None:
-    """Point at the explicit reset when a Tao default remains; never change or abort setup.
+    """Point at the explicit reset when a Moru default remains; never change or abort setup.
 
     This is a read-only notice inside ordinary setup. A configuration the reset
     would refuse (more than one top-level default) is reported the same way
@@ -246,7 +246,7 @@ def _notice_tao_permission_default(config_target: Path) -> None:
         return
     if status == "would_update":
         print(
-            "Codex notice: default_permissions selects tao-workspace or is missing with profiles. Older Tao setup "
+            "Codex notice: default_permissions selects tao-workspace or is missing with profiles. Older Moru setup "
             "selected it automatically; the current file cannot prove who selected it. "
             "To select the built-in :workspace default, explicitly run "
             "setup-agent-hooks.py --reset-codex-permission-default. "
@@ -488,7 +488,7 @@ def configure_external_project(
     *,
     spill_available: bool = True,
 ) -> list[dict]:
-    """Install Tao Agent OS + project-type-specific permissions for an external project.
+    """Install Moru Core + project-type-specific permissions for an external project.
 
     Combines portable project-level worktree and verification entries with entries
     detected from the project's build toolchain (Swift,

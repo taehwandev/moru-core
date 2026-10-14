@@ -183,7 +183,7 @@ class ReviewAttestationTests(unittest.TestCase):
 
     def _git(self, *args: str) -> str:
         return subprocess.run(
-            ["git", "-c", "user.name=Tao Tests", "-c", "user.email=tao@example.invalid", *args],
+            ["git", "-c", "user.name=Moru Tests", "-c", "user.email=tao@example.invalid", *args],
             cwd=self.project, check=True, text=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         ).stdout.strip()

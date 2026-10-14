@@ -73,7 +73,7 @@ def checkpoint_hook(args: argparse.Namespace) -> int:
         binding = run_binding_path(args)
     except PermissionError:
         # A sandboxed runtime cannot take the run-state lock; a traceback here
-        # read as a Tao crash rather than a permission to request.
+        # read as a Moru crash rather than a permission to request.
         return _result(args, False, "checkpoint unavailable: run state is not writable "
                        "from this sandbox; rerun the same command with write permission")
     if binding is None:

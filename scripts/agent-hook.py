@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the essential Tao Agent OS hooks.
+"""Run the essential Moru Core hooks.
 
 Hooks intentionally expose only two outcomes: SUCCESS or FAIL. Details explain
 why, but callers should treat any non-zero exit as blocking.
@@ -816,7 +816,7 @@ def _structured_gate_field_lines(gates: list[str]) -> list[str]:
         '"status":"<SUCCESS or FAIL>","fields":{"<listed field>":"<observed evidence>"}}]. '
         "Fill it from the fields and enums below with observed results; do not rerun checks "
         "to fill a record. After a context compaction, gate-batch --template reprints the "
-        "remaining gates as fill-in records; do not read Tao source for them.",
+        "remaining gates as fill-in records; do not read Moru source for them.",
     ]
     from agent_gate_reuse import GateEvidenceReuse
     if any(GateEvidenceReuse.supports(gate) for gate in gates):
@@ -1028,7 +1028,7 @@ def _fast_forward_line(project: Path) -> str:
 def _closed_run_lines(project: Path) -> list[str]:
     """What a successful finish leaves the agent to do, including the memory capture point.
 
-    Tao recalls project memory at start but never captures on its own, so
+    Moru recalls project memory at start but never captures on its own, so
     finish is where an agent decides whether this run verified anything worth
     keeping. The line is content-free and advisory; it is never a gate.
     """
@@ -1666,7 +1666,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--repair-cycle",
         type=repair_cycle,
         default=0,
-        help="0 for normal execution, 1 only after a verified Tao Agent OS repair",
+        help="0 for normal execution, 1 only after a verified Moru Core repair",
     )
     parser.add_argument("--repair-target", default="")
     parser.add_argument("--repair-evidence", default="")
@@ -2003,7 +2003,7 @@ class _HookArgumentParser(argparse.ArgumentParser):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _HookArgumentParser(
-        description="Run essential Tao Agent OS hooks.",
+        description="Run essential Moru Core hooks.",
         allow_abbrev=False,
     )
     _add_common_arguments(parser)
@@ -2389,7 +2389,7 @@ def _materialize_compact_start_authority(
     """Bind typed start metadata without a fingerprint/JSON round trip.
 
     The runtime still chooses the route, intent, target, and any approval
-    ceiling from the conversation. Tao derives only deterministic values it
+    ceiling from the conversation. Moru derives only deterministic values it
     already owns: the request fingerprint, current session id, route effect
     floor, envelope shape, and approval binding. Natural-language text never
     selects a route or grants an effect here.

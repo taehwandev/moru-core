@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert flat Tao Agent OS guidance docs into skill bundles.
+"""Convert flat Moru Core guidance docs into skill bundles.
 
 The migration is intentionally mechanical: each flat guidance card moves into a
 small SKILL.md entrypoint plus references/current-guidance.md. Flat source
@@ -156,7 +156,7 @@ def stub_text(source_relative: str, skill_relative: str, reference_relative: str
         f"tao_skill_bundle_stub: true\n"
         f"---\n\n"
         f"# {title}\n\n"
-        f"This compatibility path has moved to the Tao Agent OS skill-bundle layout.\n\n"
+        f"This compatibility path has moved to the Moru Core skill-bundle layout.\n\n"
         f"## Read\n\n"
         f"- `{skill_link}` for the canonical lightweight entrypoint.\n"
         f"- `{reference_link}` for the full detailed guidance that previously lived here.\n\n"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run bounded Tao Agent OS recovery and retention maintenance."""
+"""Run bounded Moru Core recovery and retention maintenance."""
 
 from __future__ import annotations
 
@@ -17,19 +17,19 @@ from agent_run_evidence import DEFAULT_ORPHAN_AFTER_SECONDS
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Maintain Tao Agent OS runtime state")
+    parser = argparse.ArgumentParser(description="Maintain Moru Core runtime state")
     parser.add_argument(
         "--project",
         type=Path,
         default=Path.cwd(),
-        help="the checkout to maintain; with --all-projects, the Tao root",
+        help="the checkout to maintain; with --all-projects, the Moru root",
     )
     parser.add_argument(
         "--all-projects",
         action="store_true",
         help=(
-            "maintain the Tao root, every project in ~/.tao/projects.json, every "
-            "checkout with Tao run state directly under a search root, and their "
+            "maintain the Moru root, every project in ~/.tao/projects.json, every "
+            "checkout with Moru run state directly under a search root, and their "
             "linked worktrees under .tao/worktrees"
         ),
     )

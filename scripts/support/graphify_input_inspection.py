@@ -11,7 +11,7 @@ from support.graphify_contract import (
 )
 
 
-# Tao project knowledge is owned under .agents. User-level runtime discovery and
+# Moru project knowledge is owned under .agents. User-level runtime discovery and
 # settings under .claude/.codex are not target-project knowledge inputs.
 KNOWLEDGE_ROOTS = (".agents",)
 KNOWLEDGE_SUFFIXES = {

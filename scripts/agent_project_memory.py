@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Agent-written, source-attributed project memory recalled by later Tao tasks.
+"""Agent-written, source-attributed project memory recalled by later Moru tasks.
 
 A capture is active at once and later starts recall it without an approval
 step. Memory is reference, never authority: the current request, repository

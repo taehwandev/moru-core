@@ -7,7 +7,7 @@ tao_card_contract: strict
 
 # Branch Strategy
 
-Use this as the shared naming rule for new Git work branches in all Tao-managed
+Use this as the shared naming rule for new Git work branches in all Moru-managed
 repositories, including personal, shared, and company repositories, with or
 without a tracking ticket.
 

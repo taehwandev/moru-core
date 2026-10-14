@@ -1,4 +1,4 @@
-"""Persistence and deduplication for content-free Tao Agent OS lessons."""
+"""Persistence and deduplication for content-free Moru Core lessons."""
 
 from __future__ import annotations
 

@@ -44,7 +44,7 @@ class LeakedRuntimeAssetTests(unittest.TestCase):
     """The runtime source root owns the very paths the contract calls leaks.
 
     `.moru/skills/graphify` is the canonical bundle the ownership rule is defined
-    around, and the Tao Agent OS checkout self-hosts its own discovery links
+    around, and the Moru Core checkout self-hosts its own discovery links
     into that bundle. Scanning those paths unconditionally made the contract
     flag its own source of truth, so readiness could never pass against this
     repository. Only the bundle and links resolving inside it are excused.
@@ -128,7 +128,7 @@ class LeakedRuntimeAssetTests(unittest.TestCase):
 
 class RuntimeRootReadinessTests(unittest.TestCase):
     def test_this_checkout_reports_no_leaked_runtime_assets(self) -> None:
-        """End-to-end: the Tao Agent OS repository must pass its own boundary."""
+        """End-to-end: the Moru Core repository must pass its own boundary."""
 
         readiness = inspect_target_graphify(ROOT)
 

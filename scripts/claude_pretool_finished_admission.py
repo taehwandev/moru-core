@@ -166,7 +166,7 @@ _REFUSAL_CAUSES = {
     "unverifiable_receipt": "the receipt could not be checked against this run's current evidence and inputs",
     "foreign_receipt": "the receipt belongs to other evidence; the run changed after finish",
     "project_changed": "project files changed after finish; review and finish the changed bytes",
-    "rules_changed": "Tao rules changed after finish; rerun review and finish on the current rules",
+    "rules_changed": "Moru rules changed after finish; rerun review and finish on the current rules",
 }
 
 
@@ -213,7 +213,7 @@ def finished_publication_denial(
             cause = _REFUSAL_CAUSES.get(refusal, refusal)
         break
     return (
-        "Tao lifecycle: a completed run exists for this session, but it cannot "
+        "Moru lifecycle: a completed run exists for this session, but it cannot "
         f"admit this publication: {cause}. Do not open another run or repeat finish "
         "merely to change command syntax; enter a new scoped workflow only for a new "
         "authorized write."

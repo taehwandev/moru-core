@@ -203,7 +203,7 @@ class LoopBodiesAreReadTests(unittest.TestCase):
                     self.assertEqual(0, code)
                     decision = json.loads(out)["hookSpecificOutput"].get("permissionDecision", "defer")
                     self.assertEqual("deny" if runtime == "codex" else "defer", decision)
-                    self.assertIn("Tao worktree gate", _reason(out))
+                    self.assertIn("Moru worktree gate", _reason(out))
 
     def test_a_loop_body_that_publishes_is_held(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

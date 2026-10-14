@@ -88,7 +88,7 @@ INERT_ENV_ASSIGNMENTS = frozenset(
 INERT_ENV_PREFIXES = ("LC_",)
 # These names are read only by this runtime's own tooling and never select what
 # executes: the session id labels which runtime session a hook binds to, the
-# gate flags change Tao's own decision, and the soft-fail flag only masks a
+# gate flags change Moru's own decision, and the soft-fail flag only masks a
 # hook's exit status. Refusing them made the gate deny the exact `tao-hook
 # start` remedy its own denial message names, because documented recovery
 # invocations carry one of these assignments as a prefix. The command after the
@@ -942,7 +942,7 @@ def bash_command_kind(tokens: list[str], syntax_is_simple: bool, cwd: Path | Non
     if unmodelled_operator(tokens):
         return "mutating"
     if syntax_is_simple:
-        # Only a lone command: removing Tao's own backup files is lifecycle
+        # Only a lone command: removing Moru's own backup files is lifecycle
         # housekeeping, but chained with anything it keeps the normal verdict.
         if tao_backup_removal(tokens, cwd):
             return RUNTIME_CONTROL_KIND
@@ -1060,7 +1060,7 @@ INSTALLER_READ_ONLY_VALUE_OPTIONS = frozenset({"--target"})
 # route and required documents out of. `--project` is the one it writes, and
 # stays a write target here. Reading both as writes is why `tao-hook start
 # --project <other repo> --rules <tao checkout>` was refused as a write into
-# the Tao checkout -- a denial naming a repository the run never touches, and
+# the Moru checkout -- a denial naming a repository the run never touches, and
 # one whose stated remedy could not be followed, because every spelling of the
 # command has to say where the rules live.
 RULES_READ_ONLY_VALUE_OPTIONS = frozenset({"--rules"})
@@ -1073,7 +1073,7 @@ LIFECYCLE_PROSE_OPTIONS = frozenset(
 )
 PROSE_EVIDENCE_OPTION_RE = re.compile(r"--[a-z][a-z-]*-evidence")
 # A commit or tag message is text Git stores; it names no file. Reading
-# `\$TAO_HOME` in a keyflow-cli commit message as a path put the Tao checkout
+# `\$TAO_HOME` in a keyflow-cli commit message as a path put the Moru checkout
 # in the refusal of a commit into keyflow-cli.
 #
 # A message long enough and free of `/` read as one over-long file name, which
@@ -1324,7 +1324,7 @@ def _creates_a_pull_request(tokens: list[str]) -> bool:
 
 
 def _is_lifecycle_hook_invocation(tokens: list[str]) -> bool:
-    """Whether this is a Tao lifecycle hook, named together with a subcommand.
+    """Whether this is a Moru lifecycle hook, named together with a subcommand.
 
     Both halves of the key are required. The program has to be the stable
     launcher or `agent-hook.py` proved by its siblings -- the same proof the
@@ -1368,7 +1368,7 @@ def _launcher_hook_tokens(tokens: list[str]) -> list[str]:
 
 
 def _is_installer_without_writes(tokens: list[str]) -> bool:
-    """Whether this is the Tao installer, declaring that it will not write.
+    """Whether this is the Moru installer, declaring that it will not write.
 
     Matched the way the installer is matched everywhere else in this module:
     the stable launcher's own subcommand, or a Python running the installer

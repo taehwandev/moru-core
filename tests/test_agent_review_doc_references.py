@@ -365,7 +365,7 @@ class HookPassesTheRightPathsTests(unittest.TestCase):
                 path = project / marker
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("marker\n", encoding="utf-8")
-            (project / "README.md").write_text("# Tao\n", encoding="utf-8")
+            (project / "README.md").write_text("# Moru\n", encoding="utf-8")
 
             failures = documentation_reference_failures(
                 project, structure, _tracked("README.md")

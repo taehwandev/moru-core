@@ -77,7 +77,7 @@ class PretoolExecutionTests(unittest.TestCase):
         verdict = self.decision(command)
         self.assertEqual("deny", verdict["permissionDecision"])
         self.assertIn("read-only", verdict["permissionDecisionReason"])
-        self.assertNotIn("Tao operator decision required", verdict["permissionDecisionReason"])
+        self.assertNotIn("Moru operator decision required", verdict["permissionDecisionReason"])
         self.assertFalse((self.project / "verified").exists())
         self.start()
         self.assertIsNone(self.decision(command))

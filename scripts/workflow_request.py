@@ -453,7 +453,7 @@ def requests_code_authoring(request: str) -> bool:
 
 
 def print_classification(result: dict[str, object]) -> None:
-    print("# Tao Agent OS Request Classification\n")
+    print("# Moru Core Request Classification\n")
     print(f"Clarity: `{result['clarity']}`")
     print(f"Effort: `{result['effort']}`")
     print(f"Recommended route: `{result['recommended_route']}`")

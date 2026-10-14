@@ -11,7 +11,7 @@ Two traversal modes - choose based on the question:
 
 ### Resolve and validate the read graph
 
-Do not guess the output directory from which paths happen to exist. Run Tao's
+Do not guess the output directory from which paths happen to exist. Run Moru's
 read-only readiness inspection first:
 
 ```bash

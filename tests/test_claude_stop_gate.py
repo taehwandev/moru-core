@@ -651,7 +651,7 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
 
             project = home / "git" / "fresh"
             project.mkdir(parents=True)
-            (project / "AGENTS.md").write_text("# Tao Agent OS project\n")
+            (project / "AGENTS.md").write_text("# Moru Core project\n")
 
             self.assertFalse((project / ".tao").exists())
             self.assertTrue(gate.opts_in(project))
@@ -699,7 +699,7 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             with self.assertRaises(ValueError) as caught:
                 agent_preflight.resolve_evidence_path(args, home)
 
-            self.assertIn("global Tao Agent OS install directory", str(caught.exception))
+            self.assertIn("global Moru Core install directory", str(caught.exception))
 
     def test_project_scoped_state_is_allowed_for_a_project_without_state_yet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -752,8 +752,8 @@ class HostConfigDirIsNotAProjectTests(unittest.TestCase):
                     config = home / name
                     config.mkdir()
                     # The managed bridge block is what puts the token here.
-                    (config / "CLAUDE.md").write_text("# Tao Agent OS Bridge\n")
-                    (config / "AGENTS.md").write_text("# Tao Agent OS Bridge\n")
+                    (config / "CLAUDE.md").write_text("# Moru Core Bridge\n")
+                    (config / "AGENTS.md").write_text("# Moru Core Bridge\n")
 
                     self.assertFalse(gate.opts_in(config))
                     self.assertFalse(pretool.opts_in(config))

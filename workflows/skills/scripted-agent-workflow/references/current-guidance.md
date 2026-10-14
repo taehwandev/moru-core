@@ -51,7 +51,7 @@ The start hook requires the exact current request with `--request`. Every work
 route also requires a runtime-produced `--intent-envelope` and the matching
 opaque `--runtime-session-id`. The envelope binds the request fingerprint,
 session, mode, intent, bounded target, requested and prohibited effects, and
-ambiguity state. Tao validates those fields and applies route and tool effect
+ambiguity state. Moru validates those fields and applies route and tool effect
 floors; it does not infer work authority from request words. A missing envelope
 can reach only `triage` or `ambiguity`. Direct questions are answered before any
 project work.
@@ -230,7 +230,7 @@ forgets them:
   hash/size snapshot only when the route includes `source docs`; every route
   gate remains bound to the same execution capsule regardless of that scope.
   The active target repository's root instructions are read before routing, so
-  the Tao checkout's broad `AGENTS.md` remains reference context instead of a
+  the Moru checkout's broad `AGENTS.md` remains reference context instead of a
   duplicate mandatory read for every target-project route. Substantive review
   and multi-agent entrypoints carry their always-needed gate contracts; their
   detailed references are mandatory only for gate-specific commands and are

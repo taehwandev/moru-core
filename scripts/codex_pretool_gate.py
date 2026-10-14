@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Tao's shared pre-mutation policy for a Codex PreToolUse event."""
+"""Run Moru's shared pre-mutation policy for a Codex PreToolUse event."""
 
 from __future__ import annotations
 

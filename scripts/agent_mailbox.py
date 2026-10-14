@@ -83,7 +83,7 @@ class AgentMailbox:
         if not self.project.is_dir():
             raise ValueError(f"project directory does not exist: {self.project}")
         if not all((self.rules / marker).exists() for marker in ("AGENTS.md", "index.md", "scripts/workflow.py")):
-            raise ValueError(f"rules root is not a usable Tao Agent OS root: {self.rules}")
+            raise ValueError(f"rules root is not a usable Moru Core root: {self.rules}")
         if not evidence.is_file():
             raise ValueError("preflight evidence does not exist")
         try:

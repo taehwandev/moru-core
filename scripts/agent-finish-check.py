@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Tao Agent OS gate evidence before final report, commit, or handoff."""
+"""Verify Moru Core gate evidence before final report, commit, or handoff."""
 
 from __future__ import annotations
 
@@ -199,7 +199,7 @@ def process_failure_learning(
             )
         failures.append(
             "retrospective repair is required before final report, commit, release, or handoff; "
-            "record the correction plan, improve the owning Tao Agent OS doc, hook, validator, or "
+            "record the correction plan, improve the owning Moru Core doc, hook, validator, or "
             "test, verify that repair, then resume the first failed checkpoint. Stop if the same "
             "failure remains or the repair is unsafe or ambiguous"
         )

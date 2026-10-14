@@ -1,4 +1,4 @@
-"""Read-only structure checks for the Tao Agent OS review hook."""
+"""Read-only structure checks for the Moru Core review hook."""
 
 from __future__ import annotations
 

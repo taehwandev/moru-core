@@ -1,4 +1,4 @@
-"""Review-hook execution for Tao Agent OS."""
+"""Review-hook execution for Moru Core."""
 
 from __future__ import annotations
 
@@ -1282,7 +1282,7 @@ def review_input_invocation_failure_details(
     return details
 
 def _tao_frontmatter_contract(project: Path) -> bool:
-    """Whether this checkout owns Tao's card metadata convention."""
+    """Whether this checkout owns Moru's card metadata convention."""
 
     return all((project / marker).is_file() for marker in TAO_FRONTMATTER_ROOT_MARKERS)
 
@@ -1668,7 +1668,7 @@ def review_failure_details(
         details.append(structure_evidence_template(structure))
     details.append(
         "required recovery: run an actionable retrospective for this review failure, improve the "
-        "owning Tao Agent OS doc, hook, validator, or test, and verify that repair outside the hook. "
+        "owning Moru Core doc, hook, validator, or test, and verify that repair outside the hook. "
         "Create a structural receipt with repair-verify, then verify this checkpoint with "
         "--repair-cycle 1 plus the same repair target, receipt path, and resume checkpoint "
         "before resuming the original task"

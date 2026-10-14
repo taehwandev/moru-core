@@ -260,7 +260,7 @@ class WorkflowStartDenialTests(unittest.TestCase):
         self.assertEqual("start-denial", json.loads(records[0].read_text())["session_id"])
 
     def test_the_rules_root_is_a_place_a_hook_reads(self) -> None:
-        """The Notmid refusal named the Tao checkout, which `--rules` is the
+        """The Notmid refusal named the Moru checkout, which `--rules` is the
         only reason the command mentioned."""
 
         _, tokens, _ = bash_invocation(

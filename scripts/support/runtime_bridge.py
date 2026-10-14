@@ -1,4 +1,4 @@
-"""User-level runtime bridge helpers for Tao Agent OS setup."""
+"""User-level runtime bridge helpers for Moru Core setup."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ CODEX_APPROVAL_WAIT_BRIDGE_PHRASE = (
 )
 CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES = [
     (
-        'Codex operator decisions: a "Tao operator decision required" block is a pending '
+        'Codex operator decisions: a "Moru operator decision required" block is a pending '
         'exact-call decision, not a permanent policy refusal. First reuse existing '
         'authorization and documented, independently gated recovery. Ask only if a '
         'decision remains. Explain the action, exact target or literal command, expected '
@@ -122,7 +122,7 @@ LOCAL_AGENT_MAILBOX_BRIDGE_PHRASE = (
     'for room or task ids.'
 )
 RUNTIME_MEMORY_BRIDGE_PHRASE = (
-    'Keep durable project knowledge in Tao project-memory, not runtime-private memory: '
+    'Keep durable project knowledge in Moru project-memory, not runtime-private memory: '
     'capture a verified root cause, pitfall, decision reason or user-asked fact when '
     'confirmed or at finish; if none, skip.'
 )
@@ -186,7 +186,7 @@ RUNTIME_BRIDGE_GRAPH_PHRASES = [
 
 RUNTIME_BRIDGE_COMMON_REQUIRED_PHRASES = [
     "Start every task by identifying the current project root.",
-    "If the runtime starts outside the target repo or the target repo is not explicit, run Tao Agent OS agent-entry.py or project-discover.py before project work.",
+    "If the runtime starts outside the target repo or the target repo is not explicit, run Moru Core agent-entry.py or project-discover.py before project work.",
     "If discovery leaves the target ambiguous or unidentified, ask the user. An explicitly named new project path may be created and edited on not_found; read its instructions once present.",
     "Before project work, read the project-root instruction file for the active runtime when present; its absence does not block a newly created project.",
     RUNTIME_READING_BRIDGE_PHRASE,
@@ -200,7 +200,7 @@ RUNTIME_BRIDGE_COMMON_REQUIRED_PHRASES = [
     AUTO_DELEGATION_BRIDGE_PHRASE,
     LOCAL_AGENT_MAILBOX_BRIDGE_PHRASE,
     RUNTIME_MEMORY_BRIDGE_PHRASE,
-    "Do not mention Tao Agent OS setup, hook, permission, helper, or label commands in normal conversation.",
+    "Do not mention Moru Core setup, hook, permission, helper, or label commands in normal conversation.",
     "Do not report whether background labels, hooks, or metering ran unless the user explicitly asks about that subsystem.",
 ]
 
@@ -229,7 +229,7 @@ def runtime_bridge_block(root: Path, runtime_name: str, instruction_file: str) -
     phrases = runtime_bridge_required_phrases(runtime_name, instruction_file)
     return "\n".join([
         RUNTIME_BRIDGE_BEGIN,
-        "## Tao Agent OS Runtime Bridge",
+        "## Moru Core Runtime Bridge",
         "",
         f"Apply before project work in {runtime_name}. Shared root: {root}",
         "Resolve all skill/reference paths below relative to that root.",

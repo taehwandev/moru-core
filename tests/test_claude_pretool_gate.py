@@ -78,13 +78,13 @@ class CodexRepairableApprovalTests(unittest.TestCase):
             self.assertEqual("deny", _decision_of(before))
             self.assertIn("run the workflow start hook", _reason(before))
             self.assertIn("effect: unknown", _reason(before))
-            self.assertNotIn("Tao operator decision required", _reason(before))
+            self.assertNotIn("Moru operator decision required", _reason(before))
             self.assertFalse((Path(tmp) / "state/codex-operator-review").exists())
 
             _write_preflight(project, "recovery", runtime="codex")
             _, after = _decide(payload)
             self.assertEqual("allow", _decision_of(after))
-            self.assertNotIn("Tao operator decision required", after)
+            self.assertNotIn("Moru operator decision required", after)
 
     def test_unknown_in_read_only_run_stays_denied_without_useless_approval(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
@@ -97,7 +97,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
             self.assertEqual("deny", _decision_of(out))
             self.assertIn("read-only", _reason(out))
             self.assertIn("effect: unknown", _reason(out))
-            self.assertNotIn("Tao operator decision required", _reason(out))
+            self.assertNotIn("Moru operator decision required", _reason(out))
             self.assertFalse((Path(tmp) / "state/codex-operator-review").exists())
 
     def test_default_checkout_runner_deferral_cannot_bypass_read_only_run(self):
@@ -121,7 +121,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
                               "tool_input": {"command": "python3 tools/check.py && git status --short"}})
             self.assertEqual("deny", _decision_of(out))
             self.assertIn("worktree", _reason(out))
-            self.assertNotIn("Tao operator decision required", _reason(out))
+            self.assertNotIn("Moru operator decision required", _reason(out))
             self.assertFalse((Path(tmp) / "state/codex-operator-review").exists())
 
     def test_literal_env_unittest_glob_executes_without_extra_tao_permission(self):
@@ -163,7 +163,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
             self.assertEqual("deny", _decision_of(out))
             self.assertIn("continue without another workflow start", _reason(out))
             self.assertNotIn("No exact registered preflight", _reason(out))
-            self.assertNotIn("Tao operator decision required", _reason(out))
+            self.assertNotIn("Moru operator decision required", _reason(out))
             self.assertFalse((Path(tmp) / "state/codex-operator-review").exists())
 
 
@@ -951,7 +951,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     self.assertEqual(expected, decision(command), command)
 
     def test_deletion_defers_without_granting_permission(self) -> None:
-        """An explicit deletion request must not face a second Tao ask."""
+        """An explicit deletion request must not face a second Moru ask."""
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp))
             _require_linked_worktree(project)
@@ -1558,7 +1558,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     )
                     self.assertEqual(0, code)
                     self.assertEqual("defer", _decision_of(out), command)
-                    self.assertIn("Tao policy note", _reason(out), command)
+                    self.assertIn("Moru policy note", _reason(out), command)
 
     def test_reaching_into_the_protected_checkout_keeps_its_refusal(self) -> None:
         """Standing in it and reaching into it are different acts.
@@ -1616,7 +1616,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
     def test_a_hazard_aimed_out_of_the_worktree_is_still_asked_about(self) -> None:
         """`-C <elsewhere>` moved the target out of every governed root.
 
-        The command then met the "not a Tao project, never block ordinary
+        The command then met the "not a Moru project, never block ordinary
         editing" rule and passed in silence, while the same deletion spelled
         `--git-dir=<elsewhere>/.git` was asked about -- one act decided two ways
         by which flag named the repository. Destroying another repository is not
@@ -3567,7 +3567,7 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
         decision = self._verdict("ticketed_product_branch", "claude")
 
         self.assertNotIn("permissionDecision", decision)
-        self.assertEqual("Tao policy note: reason", decision["additionalContext"])
+        self.assertEqual("Moru policy note: reason", decision["additionalContext"])
 
     def test_ticketless_branch_pauses_on_codex_without_bound_request(self) -> None:
         # A question cannot be recorded without the pending invocation/session.
@@ -4764,7 +4764,7 @@ class FinishAuthorizesItsOwnPublicationTests(unittest.TestCase):
             code, out = self._decide(project, "python3 tools/bitbucket_pr/create_pr.py --check")
 
         self.assertEqual(0, code)
-        self.assertIn("Tao command effect: unknown", _reason(out))
+        self.assertIn("Moru command effect: unknown", _reason(out))
         self.assertNotIn("without another workflow start", _reason(out))
         self.assertIn("Enter its scoped writable route once", _reason(out))
 
@@ -4776,7 +4776,7 @@ class FinishAuthorizesItsOwnPublicationTests(unittest.TestCase):
 
         self.assertEqual(0, code)
         self.assertIn("run the workflow start hook", _reason(out))
-        self.assertNotIn("Tao command effect: unknown", _reason(out))
+        self.assertNotIn("Moru command effect: unknown", _reason(out))
 
     def test_finish_does_not_authorize_an_undeclared_python_tool(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

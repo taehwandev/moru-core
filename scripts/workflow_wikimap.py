@@ -1,4 +1,4 @@
-"""Pinned Wikimap adapter for Tao Agent OS document discovery.
+"""Pinned Wikimap adapter for Moru Core document discovery.
 
 Only deterministic indexing and read-only search are exposed here. Graphify,
 hook installation, migration, semantic notes, and source edits stay outside

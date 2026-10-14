@@ -1,4 +1,4 @@
-"""Install Tao's thin Codex roles without replacing user-owned agents.
+"""Install Moru's thin Codex roles without replacing user-owned agents.
 
 Owner: Codex role setup; allowed imports: Python stdlib, managed_agent_files;
 forbidden imports: workflow execution and runtime state; callers/tests:
@@ -14,7 +14,7 @@ from support.managed_agent_files import install_managed_agents
 
 
 MANAGED_MARKER = "# Moru Core managed Codex agent"
-LEGACY_MANAGED_MARKER = "# Tao Agent OS managed Codex agent"
+LEGACY_MANAGED_MARKER = "# Moru Core managed Codex agent"
 AGENT_NAMES = ("tao_explorer", "tao_worker", "tao_reviewer")
 
 

@@ -273,7 +273,7 @@ class FinishGatePolicyTests(unittest.TestCase):
         self.assertEqual("{ not json", record["stdout"])
 
     def test_successful_finish_names_the_project_memory_capture_point(self) -> None:
-        # Tao recalls at start but never captures, so finish is where the agent
+        # Moru recalls at start but never captures, so finish is where the agent
         # decides; the line names the command and says nothing is owed otherwise.
         project = Path("/repo/worktree")
         closed, memory = agent_hook._closed_run_lines(project)

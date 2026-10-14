@@ -1737,7 +1737,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
             destination.write_text(content, encoding="utf-8")
         cls._git(path, "init", "-q")
         cls._git(path, "config", "user.email", "tests@example.invalid")
-        cls._git(path, "config", "user.name", "Tao Agent OS Tests")
+        cls._git(path, "config", "user.name", "Moru Core Tests")
         cls._git(path, "add", "-A")
         cls._git(path, "commit", "-qm", "initial")
 

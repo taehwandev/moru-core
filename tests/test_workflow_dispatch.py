@@ -213,7 +213,7 @@ def _init_git_repo(project: Path) -> None:
     for args in (
         ("init", "-q"),
         ("config", "user.email", "tests@example.invalid"),
-        ("config", "user.name", "Tao Agent OS Tests"),
+        ("config", "user.name", "Moru Core Tests"),
         ("add", "-A"),
         ("commit", "-qm", "initial"),
     ):
@@ -1472,7 +1472,7 @@ class WorkflowDispatchTests(unittest.TestCase):
         self.assertEqual(str(rules), handoff["rules"])
         self.assertEqual(str(evidence), handoff["preflight_evidence"])
         self.assertTrue(str(handoff["gate_ledger"]).endswith("parent-a-gate-evidence.json"))
-        self.assertIn(f"Tao Agent OS rules root: {rules}", prompt)
+        self.assertIn(f"Moru Core rules root: {rules}", prompt)
 
     def test_dispatch_spill_label_contract_is_preserved(self) -> None:
         self.assertEqual(("workflow_setup", "plan"), SPILL_ACTION_LABELS["dispatch"])

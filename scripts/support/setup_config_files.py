@@ -20,7 +20,7 @@ def merge_codex_prefix_rules(
     original = target.read_text() if target.exists() else ""
     block = "\n".join([
         "# tao-hooks:begin",
-        "# Managed by Tao Agent OS setup. Keep narrow; do not replace with broad python3 rules.",
+        "# Managed by Moru Core setup. Keep narrow; do not replace with broad python3 rules.",
         *entries,
         "# tao-hooks:end",
         "",

@@ -1,4 +1,4 @@
-"""Find a repository's other checkouts that hold Tao run state.
+"""Find a repository's other checkouts that hold Moru run state.
 
 Owner: the bounded list of checkouts a session-wide settle may look at, the
 content-free question of whether a settled run's checkout still holds
@@ -140,7 +140,7 @@ def checkout_removal_hazard(checkout: Path, *, count_changes: bool = True) -> st
     """Why deleting ``checkout`` would lose something, or "" when it would not.
 
     Two things are lost with a checkout and no branch keeps them: changes
-    git has not committed (modified or untracked, not ignored) and a Tao run
+    git has not committed (modified or untracked, not ignored) and a Moru run
     that is not yet settled. A branch that looks merged says nothing about
     either -- a task branch with no commits of its own sits at an ancestor of
     main from the moment it is created -- so neither is inferred from it.
@@ -151,7 +151,7 @@ def checkout_removal_hazard(checkout: Path, *, count_changes: bool = True) -> st
 
     states = unsettled_run_states(checkout)
     if states:
-        return f"it holds an unsettled Tao run ({', '.join(states)})"
+        return f"it holds an unsettled Moru run ({', '.join(states)})"
     if not count_changes:
         return ""
     try:

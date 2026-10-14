@@ -1,4 +1,4 @@
-"""Step functions for Tao Agent OS finish checks."""
+"""Step functions for Moru Core finish checks."""
 
 from __future__ import annotations
 

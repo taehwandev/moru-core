@@ -4,13 +4,13 @@ status: draft
 type: planning
 ---
 
-# Tao Agent OS 발전 계획
+# Moru Core 발전 계획
 
 ## 방향
 
-Tao Agent OS는 에이전트에게 작업 방법을 알려주는 플레이북을 넘어, 에이전트가 일하는 실행 환경을 관리하는 운영 계층으로 발전한다.
+Moru Core는 에이전트에게 작업 방법을 알려주는 플레이북을 넘어, 에이전트가 일하는 실행 환경을 관리하는 운영 계층으로 발전한다.
 
-`Tao Agent OS`라는 이름은 내부 플랫폼 명칭으로 사용할 수 있다. 다만 완성된 운영체제라고 주장하려면 에이전트의 생명주기, 스케줄링, 컨텍스트, 권한, 통신, 복구를 실제로 책임져야 한다.
+`Moru Core`라는 이름은 내부 플랫폼 명칭으로 사용할 수 있다. 다만 완성된 운영체제라고 주장하려면 에이전트의 생명주기, 스케줄링, 컨텍스트, 권한, 통신, 복구를 실제로 책임져야 한다.
 
 ## 현재 갖춘 기반
 
@@ -216,8 +216,8 @@ AI provider가 바뀌어도 같은 운영 계약을 유지한다.
 
 ## OS 명칭을 사용할 시점
 
-내부적으로는 지금부터 `Tao Agent OS`를 사용해도 된다. 외부에서 “에이전트 운영체제”라고 강하게 소개하려면 최소한 Agent Kernel, Scheduler, Context File System, Capability/Sandbox까지 구현한 뒤가 적절하다.
+내부적으로는 지금부터 `Moru Core`를 사용해도 된다. 외부에서 “에이전트 운영체제”라고 강하게 소개하려면 최소한 Agent Kernel, Scheduler, Context File System, Capability/Sandbox까지 구현한 뒤가 적절하다.
 
 그 전까지의 공식 표현은 다음이 안전하다.
 
-> Tao Agent OS — 에이전트 실행을 위한 운영 계층
+> Moru Core — 에이전트 실행을 위한 운영 계층

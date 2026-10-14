@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Antigravity's entry point to the shared Tao status line.
+"""Antigravity's entry point to the shared Moru status line.
 
 Antigravity renders a status line by running this on every draw and printing
 whatever it writes, handing it the session as JSON on stdin. Everything the line
@@ -20,7 +20,7 @@ from support.statusline import color_enabled, render  # noqa: E402
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Render the Tao status line for Antigravity (AGY)."
+        description="Render the Moru status line for Antigravity (AGY)."
     )
     parser.add_argument(
         "--chain",

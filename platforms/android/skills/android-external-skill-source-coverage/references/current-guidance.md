@@ -106,7 +106,7 @@ omission and to confirm version-sensitive source behavior.
 
 Use the narrowest external source file that matches the touched surface:
 
-| Surface | Start With | Tao local card |
+| Surface | Start With | Moru local card |
 | --- | --- | --- |
 | Compose recomposition, stability, deferred reads, lazy list jank, custom modifiers, baseline profiles, or performance claims | `skydoves/compose-performance-skills` `INDEX.md` and the matching `SKILL.md`; then use Chris Banes focused Compose skills when state, effects, or API shape is the root cause. | [android-compose-ui](../../android-compose-ui/SKILL.md) |
 | Compose state hoisting, state-holder split, modifiers, slots, focus, or UI testing | `chrisbanes/skills` matching `skills/<name>/SKILL.md`. | [android-compose-ui](../../android-compose-ui/SKILL.md), [android-viewmodel-state](../../android-viewmodel-state/SKILL.md) |

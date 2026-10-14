@@ -1,4 +1,4 @@
-"""Runtime hook checks for Tao Agent OS preflight."""
+"""Runtime hook checks for Moru Core preflight."""
 
 from __future__ import annotations
 
@@ -88,7 +88,7 @@ def _codex_warnings(tao_root: Path) -> list[str]:
     if not missing_permissions:
         return []
     return [
-        "Codex Tao Agent OS Python prefix rules are missing. "
+        "Codex Moru Core Python prefix rules are missing. "
         f"Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
     ]
 
@@ -114,7 +114,7 @@ def _claude_warnings(tao_root: Path, *, spill_available: bool) -> list[str]:
     )
     if missing_permissions:
         warnings.append(
-            "Claude Code Tao Agent OS Python permissions are missing. "
+            "Claude Code Moru Core Python permissions are missing. "
             f"Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
         )
     return warnings
@@ -167,7 +167,7 @@ def _agy_warnings(tao_root: Path, *, spill_available: bool) -> list[str]:
             configs.append(config)
     if configs and not any(not _missing_allow_entries(config, entries) for config in configs):
         return [
-            "AGY Tao Agent OS Python permissions are missing from AGY config. "
+            "AGY Moru Core Python permissions are missing from AGY config. "
             f"Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
         ]
     return []

@@ -1,4 +1,4 @@
-"""Workspace policy helpers shared by Tao Agent OS hooks."""
+"""Workspace policy helpers shared by Moru Core hooks."""
 
 from __future__ import annotations
 

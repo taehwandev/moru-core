@@ -1,4 +1,4 @@
-"""Bounded fingerprints for Tao Agent OS roots outside Git."""
+"""Bounded fingerprints for Moru Core roots outside Git."""
 
 from __future__ import annotations
 

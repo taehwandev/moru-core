@@ -1,4 +1,4 @@
-"""Provider-neutral API and runtime-adapter contracts for Tao Agent OS."""
+"""Provider-neutral API and runtime-adapter contracts for Moru Core."""
 
 from __future__ import annotations
 

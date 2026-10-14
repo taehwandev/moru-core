@@ -65,7 +65,7 @@ class FinishedEntryRefusalTests(unittest.TestCase):
         self.assertEqual("deny", _decision_of(output))
         self.assertIn("project files changed after finish", _reason(output))
         self.assertNotIn("paused", _reason(output))
-        self.assertNotIn("Tao operator decision required", output)
+        self.assertNotIn("Moru operator decision required", output)
 
     def test_push_with_only_local_authority_explains_effect_without_old_paused_prompt(self):
         payload = json.loads(self.evidence.read_text())
@@ -76,7 +76,7 @@ class FinishedEntryRefusalTests(unittest.TestCase):
         self.assertEqual("deny", _decision_of(output))
         self.assertIn("publication needs external_write", _reason(output))
         self.assertNotIn("paused", _reason(output))
-        self.assertNotIn("Tao operator decision required", output)
+        self.assertNotIn("Moru operator decision required", output)
 
     def test_changed_rules_explain_revalidation_without_old_paused_prompt(self):
         rules = Path(self.temp.name) / "rules"
@@ -91,16 +91,16 @@ class FinishedEntryRefusalTests(unittest.TestCase):
         marker.write_text("Changed rules\n")
         output = self.refuse("git commit -m reviewed")
         self.assertEqual("deny", _decision_of(output))
-        self.assertIn("Tao rules changed after finish", _reason(output))
+        self.assertIn("Moru rules changed after finish", _reason(output))
         self.assertNotIn("paused", _reason(output))
-        self.assertNotIn("Tao operator decision required", output)
+        self.assertNotIn("Moru operator decision required", output)
 
     def test_newer_paused_work_keeps_its_exact_operator_boundary(self):
         later = time.time() + 10
         os.utime(self.paused, (later, later))
         output = self.refuse("git commit -m reviewed")
         self.assertIn("paused", _reason(output))
-        self.assertIn("Tao operator decision required", output)
+        self.assertIn("Moru operator decision required", output)
 
     def test_expired_finish_does_not_replace_paused_recovery(self):
         receipt = self.evidence.with_name("publication.json")
@@ -108,12 +108,12 @@ class FinishedEntryRefusalTests(unittest.TestCase):
         os.utime(receipt, (earlier, earlier))
         output = self.refuse("git commit -m reviewed")
         self.assertIn("paused", _reason(output))
-        self.assertIn("Tao operator decision required", output)
+        self.assertIn("Moru operator decision required", output)
 
     def test_local_write_is_not_reclassified_as_finished_publication(self):
         output = self.refuse("touch changed.txt")
         self.assertIn("paused", _reason(output))
-        self.assertIn("Tao operator decision required", output)
+        self.assertIn("Moru operator decision required", output)
 
     def test_real_gate_explains_changed_commit_proof_and_old_classifier_control_fails(self):
         (self.project / "changed.py").write_text("changed = True\n")
@@ -124,11 +124,11 @@ class FinishedEntryRefusalTests(unittest.TestCase):
         _, output = fixtures._decide(payload)
         self.assertEqual("deny", _decision_of(output))
         self.assertIn("project files changed after finish", _reason(output))
-        self.assertNotIn("Tao operator decision required", output)
+        self.assertNotIn("Moru operator decision required", output)
         with patch.object(gate._admission, "has_finished_publication", return_value=False):
             _, old_classifier = fixtures._decide(payload)
         self.assertIn("paused", _reason(old_classifier))
-        self.assertIn("Tao operator decision required", old_classifier)
+        self.assertIn("Moru operator decision required", old_classifier)
 
 
 if __name__ == "__main__":

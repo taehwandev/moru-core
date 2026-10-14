@@ -350,7 +350,7 @@ class RuntimeSetupTests(unittest.TestCase):
             self.assertIn(f"Bash({command} *)", entries)
 
     def test_python_edit_permissions_cover_script_style_repos(self) -> None:
-        # Tao Agent OS ships no packaging manifest, so manifest-only detection
+        # Moru Core ships no packaging manifest, so manifest-only detection
         # would leave its own 181 *.py files without an edit permission.
         self.assertIn("Edit(**/*.py)", detect_project_permissions(ROOT))
 
@@ -410,7 +410,7 @@ class RuntimeSetupTests(unittest.TestCase):
 
     def test_agy_runtime_bridge_requires_project_discovery_entry(self) -> None:
         required = [
-            "If the runtime starts outside the target repo or the target repo is not explicit, run Tao Agent OS agent-entry.py or project-discover.py before project work.",
+            "If the runtime starts outside the target repo or the target repo is not explicit, run Moru Core agent-entry.py or project-discover.py before project work.",
             "If discovery leaves the target ambiguous or unidentified, ask the user. An explicitly named new project path may be created and edited on not_found; read its instructions once present.",
             "Before project work, read the project-root instruction file for the active runtime when present; its absence does not block a newly created project.",
         ]
@@ -506,7 +506,7 @@ class RuntimeSetupTests(unittest.TestCase):
         )
         for surface in surfaces:
             self.assertIn(RUNTIME_MEMORY_BRIDGE_PHRASE, surface)
-        for required in ("Tao project-memory", "not runtime-private memory",
+        for required in ("Moru project-memory", "not runtime-private memory",
                          "verified root cause", "if none, skip"):
             self.assertIn(required, RUNTIME_MEMORY_BRIDGE_PHRASE)
 

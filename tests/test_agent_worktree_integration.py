@@ -29,7 +29,7 @@ class FinalizeWorkerWorktreeTests(unittest.TestCase):
         (self.project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
         self._git("init", "-q")
         self._git("config", "user.email", "tests@example.invalid")
-        self._git("config", "user.name", "Tao Agent OS Tests")
+        self._git("config", "user.name", "Moru Core Tests")
         self._git("add", "-A")
         self._git("commit", "-qm", "initial")
         self.baseline_worktrees = self._git("worktree", "list", "--porcelain").stdout

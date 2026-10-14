@@ -960,7 +960,7 @@ CODE_WORK_COMMANDS_REQUIRING_DISCIPLINE = {
 # The budget covers only the *selectable* tiers. `CORE_REQUIRED_DOCS` and the
 # concise gate contracts are exempt so request-specific guidance cannot crowd
 # them out. The target project's root instructions are loaded before routing;
-# Tao's own broad AGENTS.md remains reachable as reference context instead of
+# Moru's own broad AGENTS.md remains reachable as reference context instead of
 # being charged to every target-project task.
 REQUIRED_DOC_BUDGET_BYTES = 30_000
 # The concise core and guaranteed contracts consume four slots on ordinary
@@ -1186,7 +1186,7 @@ def _compact_required_docs(
 
     # A simple investigation has no work-producing gates. Keep the concise
     # operating entrypoint available without charging every analysis for the
-    # broad Tao repository instructions in addition to its target project's
+    # broad Moru repository instructions in addition to its target project's
     # already-loaded root instructions.
     if command == "analysis":
         return [OPERATING_SKILL]
@@ -1347,7 +1347,7 @@ def _unbudgeted_required_docs(
     # The operating entrypoint is not subject to the budget: every route gets
     # the small progressive-disclosure contract, and a route with no required
     # docs at all would make the source docs gate vacuous. Its broad reference
-    # and Tao's AGENTS.md stay in `reference_docs`; the active target project's
+    # and Moru's AGENTS.md stay in `reference_docs`; the active target project's
     # own root instructions were already loaded before this route started.
     selected = unique(canonical_doc_path(doc) for doc in CORE_REQUIRED_DOCS)
 

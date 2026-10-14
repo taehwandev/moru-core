@@ -324,7 +324,7 @@ class GateTests(unittest.TestCase):
         _, out = self.decide(f"{executable} AGENTS.md")
         verdict, reason = self.decision(out)
         self.assertEqual("defer", verdict)
-        self.assertIn("Tao command effect: unknown", reason)
+        self.assertIn("Moru command effect: unknown", reason)
         self.assertFalse((self.project / "unexpected").exists())
 
     def test_project_code_is_denied_with_one_remedy(self) -> None:
@@ -333,7 +333,7 @@ class GateTests(unittest.TestCase):
                 _, out = self.decide(command)
                 verdict, reason = self.decision(out)
                 self.assertEqual("defer", verdict)
-                self.assertIn("Tao command effect: unknown", reason)
+                self.assertIn("Moru command effect: unknown", reason)
                 self.assertIn("runs project code", reason)
                 self.assertIn("do not retry reworded or split variants", reason)
                 self.assertIn("run the workflow start hook once for this project", reason)

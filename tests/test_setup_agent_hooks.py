@@ -312,7 +312,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             subprocess.run(["git", "add", "-A"], cwd=project, check=True)
             subprocess.run(
                 [
-                    "git", "-c", "user.name=Tao Agent OS", "-c",
+                    "git", "-c", "user.name=Moru Core", "-c",
                     "user.email=tao@example.invalid", "commit", "-qm", "source",
                 ],
                 cwd=project,
@@ -554,7 +554,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             )
             subprocess.run(
                 [
-                    "git", "-c", "user.name=Tao Agent OS", "-c",
+                    "git", "-c", "user.name=Moru Core", "-c",
                     "user.email=tao@example.invalid", "commit", "-qm", "initial",
                 ],
                 cwd=project,
@@ -628,7 +628,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             )
             subprocess.run(
                 [
-                    "git", "-c", "user.name=Tao Agent OS", "-c",
+                    "git", "-c", "user.name=Moru Core", "-c",
                     "user.email=tao@example.invalid", "commit", "-qm", "initial",
                 ],
                 cwd=project,
@@ -680,7 +680,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             subprocess.run(["git", "add", "src/main.py"], cwd=project, check=True)
             subprocess.run(
                 [
-                    "git", "-c", "user.name=Tao Agent OS", "-c",
+                    "git", "-c", "user.name=Moru Core", "-c",
                     "user.email=tao@example.invalid", "commit", "-qm", "change",
                 ],
                 cwd=project,
@@ -1048,7 +1048,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 )
 
         self.assertEqual(0, result.returncode)
-        self.assertIn("Tao Agent OS hook skipped", result.stderr)
+        self.assertIn("Moru Core hook skipped", result.stderr)
 
     def test_stable_launcher_blocks_by_default_when_alias_is_unsupported(self) -> None:
         # Without the opt-in flag, a misconfigured or misspelled hook alias
@@ -1073,7 +1073,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 )
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("unsupported Tao Agent OS script alias", result.stderr)
+        self.assertIn("unsupported Moru Core script alias", result.stderr)
 
     def test_stable_launcher_supports_agent_hook_subcommand_aliases(self) -> None:
         with tempfile.TemporaryDirectory() as temp_home:
@@ -1091,7 +1091,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 )
 
         self.assertEqual(0, result.returncode)
-        self.assertNotIn("unsupported Tao Agent OS script alias: start", result.stderr)
+        self.assertNotIn("unsupported Moru Core script alias: start", result.stderr)
         self.assertIn("--request-classified", result.stdout)
 
     def test_stable_launcher_supports_agent_mailbox_alias(self) -> None:
@@ -1112,7 +1112,7 @@ class SetupAgentHooksTests(unittest.TestCase):
         self.assertEqual(0, result.returncode)
         self.assertIn("send", result.stdout)
         self.assertIn("receive", result.stdout)
-        self.assertNotIn("unsupported Tao Agent OS script alias", result.stderr)
+        self.assertNotIn("unsupported Moru Core script alias", result.stderr)
 
     def test_installed_launcher_can_capture_and_recall_project_memory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_home:
@@ -1217,7 +1217,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 )
 
         self.assertEqual(0, result.returncode)
-        self.assertNotIn("unsupported Tao Agent OS script alias: gate-batch", result.stderr)
+        self.assertNotIn("unsupported Moru Core script alias: gate-batch", result.stderr)
         self.assertIn("--gate-record", result.stdout)
 
     def test_stable_launcher_supports_fingerprint_alias(self) -> None:
@@ -1257,7 +1257,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 )
 
         self.assertEqual(0, result.returncode)
-        self.assertNotIn("unsupported Tao Agent OS script alias: cancel", result.stderr)
+        self.assertNotIn("unsupported Moru Core script alias: cancel", result.stderr)
         self.assertIn("--replacement-evidence", result.stdout)
 
     def test_stable_launcher_supports_resume_alias(self) -> None:
@@ -1278,7 +1278,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 )
 
         self.assertEqual(0, result.returncode)
-        self.assertNotIn("unsupported Tao Agent OS script alias: resume", result.stderr)
+        self.assertNotIn("unsupported Moru Core script alias: resume", result.stderr)
         self.assertIn("--last", result.stdout)
 
     def test_stable_launcher_supports_codex_stop_gate_alias(self) -> None:
@@ -1299,7 +1299,7 @@ class SetupAgentHooksTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode)
         self.assertNotIn(
-            "unsupported Tao Agent OS script alias: codex-stop-gate",
+            "unsupported Moru Core script alias: codex-stop-gate",
             result.stderr,
         )
 
@@ -1321,7 +1321,7 @@ class SetupAgentHooksTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode)
         self.assertNotIn(
-            "unsupported Tao Agent OS script alias: codex-pretool-gate",
+            "unsupported Moru Core script alias: codex-pretool-gate",
             result.stderr,
         )
 
@@ -1348,7 +1348,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                     )
 
             self.assertEqual(0, result.returncode)
-            self.assertNotIn(f"unsupported Tao Agent OS script alias: {alias}", result.stderr)
+            self.assertNotIn(f"unsupported Moru Core script alias: {alias}", result.stderr)
             self.assertIn(option, result.stdout)
 
     def test_external_project_claude_settings_are_excluded_locally(self) -> None:

@@ -13,7 +13,7 @@ commands, naming, architecture, and product policy.
 ## Priority And Scope
 
 Follow, in order: runtime system/developer instructions, the current user
-request, target-repo instructions, specific Tao guidance, common Tao guidance,
+request, target-repo instructions, specific Moru guidance, common Moru guidance,
 then general README material. Call out conflicts that affect behavior,
 verification, security, or data handling.
 
@@ -32,7 +32,7 @@ is broad-use. `type` records provenance.
 
 Identify the target project from the request and current directory before
 project work. When it is not explicit or the runtime starts elsewhere, use the
-installed Tao project-discovery entrypoints. An explicitly named new project
+installed Moru project-discovery entrypoints. An explicitly named new project
 path may be created and edited even when discovery reports `not_found`: there
 is no existing project to select yet. Once created, read its instructions if
 present and apply its Git/worktree policy when initialized. Ask the user for a
@@ -53,7 +53,7 @@ source-of-truth repo, selected mode, write scope, and cross-repo verification.
 
 For implementation, review, refactoring, debugging, documentation, and planning,
 read `common/skills/agent-operating-skill/SKILL.md` first. For multi-step
-work requiring a tracked lifecycle, use the installed absolute Tao launcher.
+work requiring a tracked lifecycle, use the installed absolute Moru launcher.
 Read-only lookup, explanation, status, and checks of a supplied diagnosis instead inspect bounded direct evidence
 and answer without start, fingerprint, mailbox, checkpoint, gate, review, or
 finish calls. Applicable project instructions and source contracts still apply;
@@ -192,7 +192,7 @@ authority. Do not ask the user to repeat a settled requirement or approve the
 same authorized action again. Current scope changes override prior context.
 
 The runtime owns contextual intent, sequence, scope and authority judgment;
-Tao checks its bound declaration and the proposed action's safety, not whether
+Moru checks its bound declaration and the proposed action's safety, not whether
 the user's wording matches a phrase recognizer. A clear execution request is
 actionable when first made, including ordered work: perform the authorized
 steps in order rather than treating an acknowledgement or plan as completion.
@@ -295,10 +295,10 @@ not on checkout or commit. Stale or absent graphs fall back to direct evidence;
 an empty search is terminal without a new lead. A missing required document
 invalidates the manifest and stops work.
 
-## Tao Maintenance Audits
+## Moru Maintenance Audits
 
-For an explicit Tao health or efficiency audit, use the living checks and
-recorded findings in [README](README.md#tao-maintenance-audit). Extend that
+For an explicit Moru health or efficiency audit, use the living checks and
+recorded findings in [README](README.md#moru-maintenance-audit). Extend that
 section with source evidence and verification. This reference is on demand;
 ordinary tasks gain no startup reads or additional gates.
 
@@ -306,7 +306,7 @@ ordinary tasks gain no startup reads or additional gates.
 
 `<TAO_LAUNCHER> project-memory` keeps agent-written project guidance in a
 user-local store shared by linked worktrees; start recalls at most three
-in-date records as reference, never authority. Tao never captures on its own:
+in-date records as reference, never authority. Moru never captures on its own:
 Claude and Codex keep durable project knowledge here, not in runtime-private
 memory. Capture only a verified root cause, pitfall, decision reason the code
 does not show, or a fact the user asks to remember, when confirmed or at
@@ -374,7 +374,7 @@ ownership is uncertain, or verification fails.
 
 ## Release And Source Control
 
-All new Tao work branches, including this repository's, follow
+All new Moru work branches, including this repository's, follow
 `common/skills/branch-strategy/SKILL.md` for the hosting account ID and shared
 three-segment naming format. Apply it in personal, shared, and company repos,
 with or without tickets. Resolve conflicting repo-local naming rules before

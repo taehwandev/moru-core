@@ -1,4 +1,4 @@
-"""Install Tao's thin Claude Code subagents without replacing user-owned agents.
+"""Install Moru's thin Claude Code subagents without replacing user-owned agents.
 
 Owner: Claude subagent setup; allowed imports: Python stdlib,
 managed_agent_files; forbidden imports: workflow execution and runtime state;
@@ -17,10 +17,10 @@ FRONTMATTER_FENCE = "---"
 # Claude agent files must open with YAML frontmatter, so the marker cannot be
 # the first line as it is for Codex; it is a YAML comment on the second line.
 MANAGED_MARKER = "# Moru Core managed Claude agent"
-LEGACY_MANAGED_MARKER = "# Tao Agent OS managed Claude agent"
+LEGACY_MANAGED_MARKER = "# Moru Core managed Claude agent"
 AGENT_NAMES = ("tao_explorer", "tao_worker", "tao_reviewer")
-# Sources are not stored as .md so Tao's document validators do not treat the
-# Claude subagent schema as a Tao card; installed files keep the .md suffix.
+# Sources are not stored as .md so Moru's document validators do not treat the
+# Claude subagent schema as a Moru card; installed files keep the .md suffix.
 SOURCE_SUFFIX = ".md.template"
 
 

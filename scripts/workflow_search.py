@@ -1,7 +1,7 @@
 """Natural-language document search for workflow.py.
 
 Pinned Wikimap provides deterministic section retrieval for unresolved lookup.
-Tao Agent OS keeps policy facets on top so explicit workflow rules remain
+Moru Core keeps policy facets on top so explicit workflow rules remain
 stronger than lexical ranking. General document-graph neighbours are not search
 results; routing follows only explicit dependencies of already selected docs.
 """
@@ -297,7 +297,7 @@ def _score_terms(
 
 
 def print_query_results(query: str, results: List[Dict[str, object]]) -> None:
-    print(f'# Tao Agent OS Document Query: "{query}"')
+    print(f'# Moru Core Document Query: "{query}"')
     print()
     if not results:
         print("No matching documents found.")

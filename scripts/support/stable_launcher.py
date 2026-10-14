@@ -1,4 +1,4 @@
-"""Install a stable Tao Agent OS launcher for user-level runtime hooks."""
+"""Install a stable Moru Core launcher for user-level runtime hooks."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def downgrades_the_shared_root(root: Path, pointer_path: Path) -> bool:
 
     Installing *from* a worktree is not itself the problem, which is why the
     first attempt at this guard was wrong: it refused outright and broke
-    developing Tao in a worktree against a throwaway home. The loss is specific
+    developing Moru in a worktree against a throwaway home. The loss is specific
     -- replacing a durable root that still exists with a disposable one -- so
     that is what this asks. A first install, a repeat of the same target, and a
     pointer that is already a worktree all lose nothing and are left alone.
@@ -178,12 +178,12 @@ def stable_launcher_issue(root: Path) -> str:
     pointer_path = stable_root_pointer_path()
     if not launcher_path.exists() or _read_text(launcher_path) != _launcher_script_text() or not _is_executable(launcher_path):
         return (
-            "Tao Agent OS stable launcher is missing or stale. "
+            "Moru Core stable launcher is missing or stale. "
             f"Run: python3 {root / 'scripts' / 'setup-agent-hooks.py'}"
         )
     if _read_text(pointer_path) != f"{root.resolve()}\n":
         return (
-            "Tao Agent OS root pointer is missing or stale. "
+            "Moru Core root pointer is missing or stale. "
             f"Run: python3 {root / 'scripts' / 'setup-agent-hooks.py'}"
         )
     return ""
@@ -268,7 +268,7 @@ DIRECT_FINISH_CHECK_ENV = "TAO_ALLOW_DIRECT_FINISH_CHECK"
 
 def main():
     if len(sys.argv) < 2:
-        return _soft_fail("missing Tao Agent OS script alias")
+        return _soft_fail("missing Moru Core script alias")
 
     script_alias = sys.argv[1]
     passthrough_args = list(sys.argv[2:])
@@ -290,18 +290,18 @@ def main():
     else:
         script_name = SCRIPT_ALIASES.get(script_alias)
     if not script_name:
-        return _soft_fail(f"unsupported Tao Agent OS script alias: {script_alias}")
+        return _soft_fail(f"unsupported Moru Core script alias: {script_alias}")
 
     root = _find_root()
     if root is None:
         return _soft_fail(
-            "Tao Agent OS root is not configured. Run setup-agent-hooks.py from the current Tao Agent OS checkout."
+            "Moru Core root is not configured. Run setup-agent-hooks.py from the current Moru Core checkout."
         )
 
     script = root / "scripts" / script_name
     if not script.is_file():
         return _soft_fail(
-            "Tao Agent OS root pointer is stale. Run setup-agent-hooks.py from the current Tao Agent OS checkout."
+            "Moru Core root pointer is stale. Run setup-agent-hooks.py from the current Moru Core checkout."
         )
 
     os.environ.setdefault("TAO_HOME", str(root))
@@ -390,7 +390,7 @@ def _is_tao_root(path):
     return all((path / marker).exists() for marker in REQUIRED_MARKERS)
 
 def _soft_fail(message):
-    print(f"Tao Agent OS hook skipped: {message}", file=sys.stderr)
+    print(f"Moru Core hook skipped: {message}", file=sys.stderr)
     if os.environ.get("TAO_HOOK_SOFT_FAIL") == "1":
         return 0
     return 1
@@ -407,7 +407,6 @@ def _moru_launcher_script_text() -> str:
         .replace('STATE_DIR_NAME = ".tao"', 'STATE_DIR_NAME = ".moru"')
         .replace('ROOT_POINTER_NAME = "tao-root"', 'ROOT_POINTER_NAME = "moru-root"')
         .replace("tao-hook", "moru-hook")
-        .replace("Tao Agent OS", "Moru Core")
         .replace(
             '    os.environ.setdefault("TAO_HOME", str(root))',
             '    os.environ.setdefault("MORU_HOME", str(root))\n'

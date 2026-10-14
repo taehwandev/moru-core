@@ -1,4 +1,4 @@
-"""Every project that installs Tao Agent OS should get the worktree rules.
+"""Every project that installs Moru Core should get the worktree rules.
 
 A task runs in its own linked worktree under `.tao/worktrees/<16-hex>`, and that
 directory name is fresh every time. Without a rule covering the whole root, a

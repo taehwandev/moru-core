@@ -19,7 +19,7 @@ platforms, use their supported device tools instead of assuming Android support.
 ## Prepare Once Per Required Verification
 
 Use the active runtime's registered tool when it is available and healthy.
-Otherwise run the installed Tao helper with the current runtime:
+Otherwise run the installed Moru helper with the current runtime:
 
 ```text
 python3 <TAO_ROOT>/scripts/device-mcp.py ensure --runtime <codex|claude>
@@ -48,7 +48,7 @@ just to test registration. Do not retry an unchanged failed/pending setup comman
 
 ## Local Registry
 
-Store tool identity and machine paths locally, never in shared Tao instructions.
+Store tool identity and machine paths locally, never in shared Moru instructions.
 The registry fields are `schema_version` (1), `name`, absolute `checkout`, relative
 `entrypoint`, optional `python_version` (default 3.12), `health_imports` (default
 `["mcp"]`), and non-secret `env`. Fresh installation additionally requires an

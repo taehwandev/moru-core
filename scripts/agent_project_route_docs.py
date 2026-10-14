@@ -1,6 +1,6 @@
 """Project-owned documents a route must read, declared by the target project.
 
-Tao's route manifest lists only documents under the rules root. A project that
+Moru's route manifest lists only documents under the rules root. A project that
 keeps its own commit, PR or platform procedures declares them per route command
 in ``route_docs`` of its worktree policy, so the same same-session reuse proof
 covers them instead of the project's own pointer chain rereading them.

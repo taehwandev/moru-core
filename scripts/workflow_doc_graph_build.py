@@ -1,4 +1,4 @@
-"""Build the local Tao Agent OS document graph."""
+"""Build the local Moru Core document graph."""
 
 from __future__ import annotations
 

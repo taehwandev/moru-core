@@ -1,6 +1,6 @@
 """Retention runs for every managed checkout, with one set of rules.
 
-The pass used to visit the Tao checkout alone, so every other project kept its
+The pass used to visit the Moru checkout alone, so every other project kept its
 unfinished runs and evidence forever. These tests build whole projects in temp
 directories; nothing here reads or writes a real checkout or the real home.
 """
@@ -147,7 +147,7 @@ class MaintenanceProjectTests(unittest.TestCase):
         worktree = ProjectFixture(listed / ".tao" / "worktrees" / "task").root
         search = self.base / "src"
         found = ProjectFixture(search / "found").root
-        (search / "plain").mkdir(parents=True)  # no Tao state: not visited
+        (search / "plain").mkdir(parents=True)  # no Moru state: not visited
         missing = self.base / "gone"
         self._register(listed, missing, search_roots=[search])
 

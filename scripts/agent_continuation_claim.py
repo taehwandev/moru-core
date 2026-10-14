@@ -31,11 +31,11 @@ UNMEASURED = "unmeasured"
 # The signals a session resuming its own stopped run can account for from the
 # turn it just ended. It made that byte movement and still holds the
 # conversation that explains it, so refusing them made the ordinary turn
-# boundary -- the moment Tao itself marks the run `interrupted` -- the end of
+# boundary -- the moment Moru itself marks the run `interrupted` -- the end of
 # the run: its own edits are `project_worktree`, its own commit is `head`, and
 # a rules checkout advancing under it is `rules_worktree`. Moved guidance,
 # `required_docs`, is a rules commit landing between turns: refusing it made
-# every Tao guidance commit end every paused run in every project. It resumes,
+# every Moru guidance commit end every paused run in every project. It resumes,
 # and the run's required-doc delivery marker is dropped so the gate hands the
 # changed text to the next edit (see `_redeliver_moved_docs`). A half-written
 # mutation and drift nothing could measure still require explicit

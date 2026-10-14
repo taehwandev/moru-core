@@ -209,7 +209,7 @@ class ClaudeAgentSetupTests(unittest.TestCase):
         self.assertFalse(self.agents_dir.exists())
 
     def test_template_sources_are_not_markdown_documents(self) -> None:
-        # A .md source would be validated as a Tao document card.
+        # A .md source would be validated as a Moru document card.
         self.assertEqual(
             sorted(f"{name}{SOURCE_SUFFIX}" for name in AGENT_NAMES),
             sorted(path.name for path in TEMPLATES.iterdir()),

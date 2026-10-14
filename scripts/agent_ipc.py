@@ -1,4 +1,4 @@
-"""Content-free local IPC/event channel shared by Tao Agent OS layers."""
+"""Content-free local IPC/event channel shared by Moru Core layers."""
 
 from __future__ import annotations
 

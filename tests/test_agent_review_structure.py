@@ -106,7 +106,7 @@ class AgentReviewStructureTests(unittest.TestCase):
                 [
                     "git",
                     "-c",
-                    "user.name=Tao Agent OS Tests",
+                    "user.name=Moru Core Tests",
                     "-c",
                     "user.email=tao-agent@example.invalid",
                     "commit",
@@ -154,7 +154,7 @@ class AgentReviewStructureTests(unittest.TestCase):
                 [
                     "git",
                     "-c",
-                    "user.name=Tao Agent OS Tests",
+                    "user.name=Moru Core Tests",
                     "-c",
                     "user.email=tao-agent@example.invalid",
                     "commit",
@@ -178,7 +178,7 @@ class AgentReviewStructureTests(unittest.TestCase):
                 [
                     "git",
                     "-c",
-                    "user.name=Tao Agent OS Tests",
+                    "user.name=Moru Core Tests",
                     "-c",
                     "user.email=tao-agent@example.invalid",
                     "commit",
@@ -275,7 +275,7 @@ class AgentReviewStructureTests(unittest.TestCase):
                 [
                     "git",
                     "-c",
-                    "user.name=Tao Agent OS Tests",
+                    "user.name=Moru Core Tests",
                     "-c",
                     "user.email=tao-agent@example.invalid",
                     "commit",
@@ -338,7 +338,7 @@ class AgentReviewStructureTests(unittest.TestCase):
                 [
                     "git",
                     "-c",
-                    "user.name=Tao Agent OS Tests",
+                    "user.name=Moru Core Tests",
                     "-c",
                     "user.email=tao-agent@example.invalid",
                     "commit",
@@ -402,7 +402,7 @@ class AgentReviewStructureTests(unittest.TestCase):
                 [
                     "git",
                     "-c",
-                    "user.name=Tao Agent OS Tests",
+                    "user.name=Moru Core Tests",
                     "-c",
                     "user.email=tao-agent@example.invalid",
                     "commit",
@@ -468,7 +468,7 @@ class AgentReviewStructureTests(unittest.TestCase):
                 [
                     "git",
                     "-c",
-                    "user.name=Tao Agent OS Tests",
+                    "user.name=Moru Core Tests",
                     "-c",
                     "user.email=tao-agent@example.invalid",
                     "commit",
@@ -1230,7 +1230,7 @@ class ListedPathNulSafetyTests(unittest.TestCase):
             [
                 "git",
                 "-c",
-                "user.name=Tao Agent OS Tests",
+                "user.name=Moru Core Tests",
                 "-c",
                 "user.email=tao-agent@example.invalid",
                 *args,

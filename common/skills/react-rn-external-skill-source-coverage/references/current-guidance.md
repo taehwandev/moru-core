@@ -57,12 +57,12 @@ all. Clone each provider when refreshing so the pin can be established.
 
 ## Dispositions
 
-- `distilled`: a provider-neutral Tao owner already carries the reusable
+- `distilled`: a provider-neutral Moru owner already carries the reusable
   baseline. Read that owner first and use the source only for coverage and
   current behavior.
 - `source_only`: keep the provider skill discoverable for a matching task, but
   do not promote its service workflow, setup commands, product assumptions, or
-  specialized API details into Tao's shared baseline without a separate
+  specialized API details into Moru's shared baseline without a separate
   commonization decision.
 
 Every manifest entry must use exactly one disposition. `source_only` is an
@@ -119,10 +119,10 @@ snapshot. It does not make provider guidance authoritative over:
 - repo-local instructions, installed dependency versions, or official docs
 - security, privacy, credentials, cost, release, or deployment gates
 - platform-specific build, signing, permission, and store policy
-- Tao's provider-neutral ownership and verification rules
+- Moru's provider-neutral ownership and verification rules
 
 If a source-specific lesson becomes broadly reusable, update the most specific
-existing Tao owner and keep this coverage document as provenance only.
+existing Moru owner and keep this coverage document as provenance only.
 
 ## Refresh Verification
 

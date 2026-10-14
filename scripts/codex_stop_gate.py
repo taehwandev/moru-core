@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Versioned Codex Stop handling for an exact Tao runtime session.
+"""Versioned Codex Stop handling for an exact Moru runtime session.
 
 Version 2 retains unfinished work without forcing another turn or claiming
 completion by default. Explicitly enrolled mailbox tasks have a separate,
@@ -70,7 +70,7 @@ def closeout_reason(root: Path, evidence: Path) -> str:
         "tao-hook"
     )
     return (
-        "Tao Agent OS closeout is incomplete for this Codex session. "
+        "Moru Core closeout is incomplete for this Codex session. "
         "Complete every missing route gate, review, and verification, then run "
         f"`{launcher} finish --project {root} --rules {rules} --evidence {evidence}`. "
         "Do not call finish while a route gate or fresh user authority is still "
@@ -115,7 +115,7 @@ def decide(payload: dict) -> int:
     reason = closeout_reason(root, evidence)
     if payload.get("stop_hook_active"):
         return stop_incomplete(
-            "Tao Agent OS closeout is still incomplete after one continuation. "
+            "Moru Core closeout is still incomplete after one continuation. "
             "The turn was stopped without reporting completion. " + reason
         )
     return continue_closeout(reason)

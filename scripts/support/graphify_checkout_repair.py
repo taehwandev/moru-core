@@ -177,7 +177,7 @@ def _patched(content: str) -> str:
     block = content[start:end]
     if _VERSION in block:
         if _GUARD not in block or _REBUILD not in block:
-            raise ValueError("modified Tao checkout repair block; manual review required")
+            raise ValueError("modified Moru checkout repair block; manual review required")
         return content
     replacements = (
         ("BRANCH_SWITCH=$3\n", _GUARD),

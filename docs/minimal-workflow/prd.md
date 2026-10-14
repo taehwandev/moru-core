@@ -36,7 +36,7 @@ has no explicit resumable blocked outcome; paused runs still count as active.
 | Local commit after verified changes | Inspect exact staged unit; reuse valid checks; check readiness | 1 per distinct staged unit |
 | External write, destructive action or deployment | Check exact target, effects and applicable approval at execution | One authority decision per distinct action; no universal call cap |
 
-These budgets count agent-authored Tao administration, not useful source reads,
+These budgets count agent-authored Moru administration, not useful source reads,
 edits, tests, Git commands, required sandbox prompts or human decisions. A large
 or risky task can require more substantive work, but not duplicated bookkeeping.
 Read-only is an effect restriction, not a request keyword or a safety exemption.

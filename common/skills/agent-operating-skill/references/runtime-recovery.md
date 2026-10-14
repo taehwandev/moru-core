@@ -21,9 +21,9 @@ A Codex exec result that only reports `Script running with cell ID ...` or a ses
 
 Permission evidence: reuse user approval for the identical action and target; request required sandbox escalation through the tool, not another conversational approval. DNS/name-resolution errors alone do not prove sandbox denial. A pending tool result alone does not prove that an approval dialog is visible or awaiting a user click. State the observed error and what remains unverified; never instruct the user to approve an unconfirmed dialog.
 
-Native Codex approval and Tao admission are separate boundaries. A native
+Native Codex approval and Moru admission are separate boundaries. A native
 "Would you like to run" or "send input to terminal" prompt does not become a
-Tao operator-review request. Never self-approve either boundary or change the
+Moru operator-review request. Never self-approve either boundary or change the
 user's approval policy or sandbox profile to clear a prompt.
 
 Honor Codex's configured native reviewer, including `auto_review`. For an
@@ -31,14 +31,14 @@ already authorized action and target, submit required sandbox escalation through
 the execution tool and let that reviewer handle eligible approval requests;
 do not add a conversational approval question for the same permission. Keep one
 pending request and use its handle. A successful review supplies native execution
-permission only: it does not widen the user's requested scope, settle a Tao
+permission only: it does not widen the user's requested scope, settle a Moru
 operator-review request, or override an explicit rejection. Handle an actual
 denial through the permitted recovery path. Ask only when existing authority and
 agent-executable recovery leave a material decision for the user; name that
 decision rather than asking again to perform the original task. Do not change
 `approvals_reviewer`, `approval_policy`, or sandbox settings as a prompt workaround.
 
-For a Tao operator handoff, first reuse existing authority and independently
+For a Moru operator handoff, first reuse existing authority and independently
 gated agent-executable recovery. An unreadable command effect does not prove a
 write and must not replace actionable workflow-entry or isolation recovery
 with a duplicate permission question. Read-only, target scope, publication and
@@ -46,7 +46,7 @@ explicit rejection checks still apply. Codex operator consent cannot waive
 read-only, isolation, ordinary missing-entry or publication checks; the named
 paused-run exception retains its exact explicit decision contract.
 
-If a genuine Tao operator decision remains, prefer an available structured
+If a genuine Moru operator decision remains, prefer an available structured
 choice tool explicitly permitted for approvals, such as
 `request_user_input_async`. Do not use the plan-only `request_user_input` for
 permissions. Explain the exact action and target, expected effect and reason,
@@ -85,7 +85,7 @@ with a stable, scoped runner prefix rather than the full task list, shell
 script or worktree command. An environment wrapper prefix includes its exact
 literal assignments and runner; never request a blanket `env`, interpreter or
 shell prefix. A matching rule grants only native execution permission. Keep
-the user's action and target authority and Tao checks: tests or local packaging
+the user's action and target authority and Moru checks: tests or local packaging
 do not authorize install, publish, deploy or unrelated writes. Apply invocation
 choices before submission. Do not rewrite a denied command or resubmit a
 pending equivalent request; follow the denial or pending-request recovery above.

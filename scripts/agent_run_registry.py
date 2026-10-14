@@ -1,4 +1,4 @@
-"""Content-free local registry for Tao Agent OS run lifecycle state."""
+"""Content-free local registry for Moru Core run lifecycle state."""
 
 from __future__ import annotations
 

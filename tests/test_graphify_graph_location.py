@@ -111,7 +111,7 @@ class FallbackGraphReadinessTests(unittest.TestCase):
             [
                 "git",
                 "-c",
-                "user.name=Tao Agent OS",
+                "user.name=Moru Core",
                 "-c",
                 "user.email=tao@example.invalid",
                 "commit",

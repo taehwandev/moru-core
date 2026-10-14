@@ -29,11 +29,11 @@ external-source provenance or a version-sensitive provider surface.
 ## Decision Rule
 
 1. Match the task to the narrowest manifest entry.
-2. If its disposition is `distilled`, load the named Tao owner and use the
+2. If its disposition is `distilled`, load the named Moru owner and use the
    external skill only to check coverage or current source behavior.
 3. If its disposition is `source_only`, read the provider source for that task
    without turning provider setup, commands, product policy, or prose into a
-   shared Tao rule.
+   shared Moru rule.
 4. For a snapshot refresh, compare every recursive `SKILL.md` path and hash;
    account separately for installable skills and nested subskills.
 5. Update a durable owner only when the rule remains correct after removing the
@@ -46,7 +46,7 @@ external-source provenance or a version-sensitive provider surface.
 | "The README says 32, so nested skills do not count." | Keep the 32 installable count and also validate every nested `SKILL.md`. |
 | "The main best-practices card covers the provider." | Check each manifest entry; broad cards do not prove leaf coverage. |
 | "Copying the source is the safest way to keep it." | Preserve provenance and hashes, then distill only reusable rules. |
-| "A provider workflow should become the Tao default." | Keep provider/service operations `source_only` unless a provider-neutral owner exists. |
+| "A provider workflow should become the Moru default." | Keep provider/service operations `source_only` unless a provider-neutral owner exists. |
 
 ## Red Flags
 
@@ -73,7 +73,7 @@ external-source provenance or a version-sensitive provider surface.
 
 - The checker reports a missing, unexpected, or hash-mismatched `SKILL.md`.
 - The source license or provenance is unknown.
-- No canonical Tao owner or explicit `source_only` decision can be named.
+- No canonical Moru owner or explicit `source_only` decision can be named.
 - Applying the source would conflict with repo-local instructions or current
   official framework behavior.
 

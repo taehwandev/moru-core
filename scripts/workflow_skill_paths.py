@@ -1,4 +1,4 @@
-"""Canonical Tao Agent OS skill-bundle paths."""
+"""Canonical Moru Core skill-bundle paths."""
 
 from __future__ import annotations
 

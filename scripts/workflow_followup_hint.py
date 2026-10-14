@@ -65,7 +65,7 @@ def followup_hint(session_id: str, cwd_root: Path | None, runtime: str = "claude
     from support.stable_launcher import preferred_launcher_path
 
     return (
-        f"Tao lifecycle: this session's last run {run_id} in {root} is finished and "
+        f"Moru lifecycle: this session's last run {run_id} in {root} is finished and "
         "admits no new edit, commit, merge or push. If this request writes, first run "
         f"`{preferred_launcher_path()} start --project <project> --rules <TAO_ROOT> "
         f"--command <route> --request \"<this request>\" --continue-from {run_id}` "

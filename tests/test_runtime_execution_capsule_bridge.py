@@ -65,7 +65,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
         for guarantee in (
             "already authorized action and target", "through\nthe execution tool",
             "do not add a conversational approval question",
-            "settle a Tao\noperator-review request", "or override an explicit rejection",
+            "settle a Moru\noperator-review request", "or override an explicit rejection",
         ):
             self.assertIn(guarantee, detail)
         for runtime, entry in (("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):

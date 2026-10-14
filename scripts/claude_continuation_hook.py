@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thin Claude lifecycle adapter for Tao continuation checkpoints."""
+"""Thin Claude lifecycle adapter for Moru continuation checkpoints."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ class ClaudeContinuationAdapter:
         target = _target_path(payload, cwd)
         if evidence is None or target is None:
             return (
-                "Tao continuation checkpoint could not bind this edit to an exact "
+                "Moru continuation checkpoint could not bind this edit to an exact "
                 "run-local evidence path and declared file."
             )
         try:
@@ -85,7 +85,7 @@ class ClaudeContinuationAdapter:
                 # this file to justify going over its new-file budget. It is
                 # a session marker, not run state, and no packet records it.
                 return None
-            return "Tao continuation checkpoint refuses mutations inside project state."
+            return "Moru continuation checkpoint refuses mutations inside project state."
         kind = (
             "create"
             if payload.get("tool_name") == "Write" and not target.exists()
@@ -139,7 +139,7 @@ class ClaudeContinuationAdapter:
             return None
         if result["result"] != "ready":
             return _context(
-                f"Tao continuation was not resumed: {result['result']}. "
+                f"Moru continuation was not resumed: {result['result']}. "
                 "Resolve the named refusal before continuing this run."
             )
         try:
@@ -153,7 +153,7 @@ class ClaudeContinuationAdapter:
             )
         except (OSError, RuntimeError, ValueError):
             return _context(
-                "Tao continuation claimed the run but could not bind this exact "
+                "Moru continuation claimed the run but could not bind this exact "
                 "Claude session. Resolve the session binding before continuing."
             )
         return _context(_resume_brief(result))
@@ -191,7 +191,7 @@ def _checkpoint(
         rules = [item["rule"] for item in error.failures]
         if all(rule in UNAVAILABLE_RULES for rule in rules):
             return None
-        return f"Tao continuation {kind} checkpoint was refused: {', '.join(rules)}."
+        return f"Moru continuation {kind} checkpoint was refused: {', '.join(rules)}."
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError):
         # The binding evidence is missing or unreadable, so no checkpoint exists
         # to be wrong about this mutation. Same class as the rules above.
@@ -259,7 +259,7 @@ def _unresumed_context(entries: list[dict[str, Any]]) -> dict[str, Any] | None:
     tail = f"; {older} older than {STALE_RUN_DAYS} days" if older else ""
     if not recent:
         return _context(
-            f"Tao continuation: {older} unfinished runs in this checkout, all older than "
+            f"Moru continuation: {older} unfinished runs in this checkout, all older than "
             f"{STALE_RUN_DAYS} days; none was resumed. `tao-hook resume --list` reports them."
         )
     listed = ", ".join(
@@ -272,7 +272,7 @@ def _unresumed_context(entries: list[dict[str, Any]]) -> dict[str, Any] | None:
     if dropped > 0:
         listed += f", and {dropped} more that `--list` reports"
     return _context(
-        f"Tao continuation found {len(entries)} unfinished runs in this checkout and none "
+        f"Moru continuation found {len(entries)} unfinished runs in this checkout and none "
         f"bound to this session, so none was resumed: {listed}{tail}. Resume one by name with "
         "`tao-hook resume --last --run-id <run-id>`; `tao-hook resume --list` reports what "
         "each one was doing."
@@ -339,7 +339,7 @@ def _resume_brief(result: dict[str, Any]) -> str:
     work = result.get("work") or {}
     reuse = result.get("reuse") or {}
     lines = [
-        "Tao continuation resumed this unfinished project-local run.",
+        "Moru continuation resumed this unfinished project-local run.",
         f"Objective: {work.get('objective', '')}",
         f"First unfinished checkpoint: {result.get('checkpoint') or 'unknown'}",
     ]

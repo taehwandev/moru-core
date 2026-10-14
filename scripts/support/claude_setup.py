@@ -40,7 +40,7 @@ _STATUSLINE_ALIAS = "claude-statusline"
 # Identify the managed status line by a token nothing else would open with.
 # The alias alone is not that token: the terminal integration that already held
 # this slot chains a script named `claude-statusline.sh`, so searching for the
-# alias matched a command Tao does not own and replaced it -- which is exactly
+# alias matched a command Moru does not own and replaced it -- which is exactly
 # the eviction the chain exists to prevent.
 _STATUSLINE_MARKER = "TAO_STATUSLINE=1"
 
@@ -143,11 +143,11 @@ def configure_claude(
 
 
 def _merge_claude_statusline(target: Path, command: str, dry_run: bool) -> str:
-    """Put Tao in the status line without evicting whoever already holds it.
+    """Put Moru in the status line without evicting whoever already holds it.
 
     Claude Code has one status-line slot, and other tools install into it -- a
     token meter, a terminal integration. Taking it would silently switch those
-    off, so Tao inserts itself in front of what is there and hands the same
+    off, so Moru inserts itself in front of what is there and hands the same
     payload on through `--chain`, keeping that output beside its own.
 
     Reinstalling must not nest a second copy of the chain, so an existing
@@ -453,12 +453,12 @@ _RUNTIME_ENV_KEYS = ("SPILL_AI_TOOL", "SPILL_TOKEN_USAGE_AI_TOOL")
 def _managed_env_record_path() -> Path:
     """Where this installer records the env keys it actually wrote.
 
-    A hook command carries its own provenance -- the Tao alias is in the command
+    A hook command carries its own provenance -- the Moru alias is in the command
     string -- so ownership is readable from the config itself. An environment
     entry cannot: `SPILL_AI_TOOL=claude` looks identical whether this installer
     wrote it, another tool did, or the user did by hand. Value equality is a
     resemblance, and removing on resemblance is how one product deletes
-    another's configuration. Keep the proof in Tao's own state directory
+    another's configuration. Keep the proof in Moru's own state directory
     instead, and remove only what it names.
     """
     return global_state_dir() / "managed-runtime-env.json"

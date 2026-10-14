@@ -1,7 +1,7 @@
-"""Classify trusted user-local context commands and Tao-owned artifact cleanup.
+"""Classify trusted user-local context commands and Moru-owned artifact cleanup.
 
 Neither grants ordinary project writes: the only project path this module can
-admit is a regular file Tao itself names `*.tao-backup`.
+admit is a regular file Moru itself names `*.tao-backup`.
 """
 
 from __future__ import annotations
@@ -19,9 +19,9 @@ _GLOB_CHARACTERS = frozenset("*?[]{}")
 
 
 def tao_backup_removal(tokens: list[str], cwd: Path | None) -> bool:
-    """Whether a lone `rm [-f] [--] <path>...` only removes Tao backup files.
+    """Whether a lone `rm [-f] [--] <path>...` only removes Moru backup files.
 
-    Tao writes `<name>.tao-backup` beside a file before its setup rewrites it,
+    Moru writes `<name>.tao-backup` beside a file before its setup rewrites it,
     and nothing else is named that way. Removing one needs no workflow run,
     so this admits it narrowly: only `-f` as an option, no globs, `~` or `..`,
     and every operand must currently be a regular file (not a symlink, not a

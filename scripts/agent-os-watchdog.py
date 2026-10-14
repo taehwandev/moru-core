@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded watchdog for stale Tao Agent OS runs and tasks.
+"""Bounded watchdog for stale Moru Core runs and tasks.
 
 The default is one pass so callers can schedule it from launchd/cron. A bounded
 multi-pass mode is available for an operator process; this script never creates
@@ -17,7 +17,7 @@ from agent_os_maintenance import run_maintenance
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run bounded Tao Agent OS stale-state watchdog")
+    parser = argparse.ArgumentParser(description="Run bounded Moru Core stale-state watchdog")
     parser.add_argument("--project", type=Path, default=Path.cwd())
     parser.add_argument("--stale-after-seconds", type=int, default=3600)
     parser.add_argument("--retention-seconds", type=int, default=30 * 24 * 60 * 60)

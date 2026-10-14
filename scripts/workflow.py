@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve shared Tao Agent OS workflow routes.
+"""Resolve shared Moru Core workflow routes.
 
 This CLI does not run project commands. It produces the document route and
 gates an agent should use before it executes work in a target repository.
@@ -72,7 +72,7 @@ def _add_approval_record_argument(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Resolve Tao Agent OS workflow routes.")
+    parser = argparse.ArgumentParser(description="Resolve Moru Core workflow routes.")
     subparsers = parser.add_subparsers(dest="action", required=True)
 
     _add_route_parser(subparsers)
@@ -93,7 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     classify.add_argument("--runtime-session-id", default="")
     classify.add_argument("--format", choices=("markdown", "json"), default="markdown")
 
-    query = subparsers.add_parser("query", help="Search Tao Agent OS docs by keyword relevance.")
+    query = subparsers.add_parser("query", help="Search Moru Core docs by keyword relevance.")
     query.add_argument("terms", nargs="+", help="Search terms (space-separated keywords).")
     query.add_argument(
         "--max",
@@ -493,7 +493,7 @@ def _print_advisory_once(route: dict[str, object], root: Path, payload_text: str
         # Named rather than silent: a session whose context was compacted has
         # to be able to tell that a route exists and how to ask for it again.
         print(
-            f"Tao workflow route `{route['command']}`: unchanged since this "
+            f"Moru workflow route `{route['command']}`: unchanged since this "
             f"session already received it (digest {digest[:12]}). Rerun "
             "`tao-hook workflow route <command>` to see it again."
         )

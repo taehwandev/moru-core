@@ -107,7 +107,7 @@ def worktree_policy(root: Path) -> dict | None:
     """The policy this root enforces, defaulting isolation on for governed repos.
 
     Waiting for a tracked policy file let a repository that already opted into
-    Tao edit its main checkout freely; the worktree appeared only once commit or
+    Moru edit its main checkout freely; the worktree appeared only once commit or
     workflow steps refused, leaving main dirty. The default carries no optional
     key, so workflow entry, ticket rules and publication classifiers still need
     a declaration, and an ungoverned repository is never enforced.
@@ -119,13 +119,13 @@ def worktree_policy(root: Path) -> dict | None:
     return policy
 
 
-# The block `setup-agent-hooks` writes into a project that adopts the Tao code
+# The block `setup-agent-hooks` writes into a project that adopts the Moru code
 # workflow; see support/project_guidance.py.
 TAO_ROUTING_MARKER = "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->"
 
 
 def adopts_tao_routing(root: Path) -> bool:
-    """Whether root's instruction file carries the managed Tao routing block.
+    """Whether root's instruction file carries the managed Moru routing block.
 
     The undeclared isolation default keys on this, not on marks_tao_project: a
     `.tao` runtime directory appears in any checkout a run ever touched, so a
@@ -342,7 +342,7 @@ def ticketed_product_branch_denial(root: Path, target: Path) -> str | None:
     if re.search(policy["ticket_key_pattern"], branch):
         return None
     return (
-        "Tao Agent OS ticket gate: product code cannot be edited on the "
+        "Moru Core ticket gate: product code cannot be edited on the "
         f"ticketless branch `{branch or '<detached>'}` ({path}). Create or reuse "
         "the task ticket, then use its key in the dedicated worktree branch. "
         "Documentation, agent rules, and local runtime files remain exempt."
@@ -456,7 +456,7 @@ def worktree_deny_reason(
         explanation = DENIAL_CAUSES.get(cause, "")
     unresolved = cause in {UNREADABLE_SYNTAX, COMPUTED_TEXT, UNREAD_STEP}
     outcome = "effect unresolved" if unresolved else "write blocked"
-    prefix = f"Tao worktree gate: {outcome} in {location}: {root}. "
+    prefix = f"Moru worktree gate: {outcome} in {location}: {root}. "
     # Without this the agent had no way to act on a user who explicitly
     # allowed writing here, and told them it could not be done.
     approved = (

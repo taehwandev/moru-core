@@ -1,6 +1,6 @@
 """Bounded field vocabulary shared by every continuation packet object.
 
-The continuation packet is the one Tao record that may legitimately hold a
+The continuation packet is the one Moru record that may legitimately hold a
 project fact, so the primitives that decide what a field may contain are
 separated from the schema shape that says where those fields appear.  Each
 returns stable rule ids and JSON pointers and never echoes the rejected value:

@@ -1,4 +1,4 @@
-"""Process-level locks for Tao Agent OS read-modify-write state updates."""
+"""Process-level locks for Moru Core read-modify-write state updates."""
 
 from __future__ import annotations
 

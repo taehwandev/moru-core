@@ -1,4 +1,4 @@
-"""Content-free queue and capacity primitives for the Tao Agent OS scheduler."""
+"""Content-free queue and capacity primitives for the Moru Core scheduler."""
 
 from __future__ import annotations
 

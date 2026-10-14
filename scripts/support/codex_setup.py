@@ -1,4 +1,4 @@
-"""Codex lifecycle-hook setup owned by Tao Agent OS."""
+"""Codex lifecycle-hook setup owned by Moru Core."""
 
 from __future__ import annotations
 

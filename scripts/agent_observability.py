@@ -1,4 +1,4 @@
-"""Read-only content-free status API for the Tao Agent OS layers."""
+"""Read-only content-free status API for the Moru Core layers."""
 
 from __future__ import annotations
 

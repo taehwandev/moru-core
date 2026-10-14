@@ -238,7 +238,7 @@ class TargetProtectionTests(unittest.TestCase):
         checking another project's hooks was refused as a write into it -- by
         the run that had declared, in the same command, that it would write
         nothing. The declaration has to be in the command's own text, and it
-        has to be the Tao installer: a script named the same thing elsewhere
+        has to be the Moru installer: a script named the same thing elsewhere
         proves nothing and keeps every path it names.
         """
 

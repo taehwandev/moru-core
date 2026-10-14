@@ -1,4 +1,4 @@
-"""Build runtime permission entries for Tao Agent OS scripts."""
+"""Build runtime permission entries for Moru Core scripts."""
 
 from __future__ import annotations
 
@@ -223,7 +223,7 @@ def agy_legacy_permission_entries(scripts_dir: Path) -> list[str]:
 def codex_prefix_rule_entries(scripts_dir: Path) -> list[str]:
     # Generated worktree paths change on every task. Approve only the harmless
     # directory-change command; the command run after it and all file writes
-    # still pass their own runtime and Tao checks.
+    # still pass their own runtime and Moru checks.
     entries = [_codex_prefix_rule(["cd"])]
     entries.extend(_codex_prefix_rule([path]) for path in _stable_launcher_path_variants())
     for script in _tao_python_scripts(scripts_dir):
@@ -396,7 +396,7 @@ def _legacy_entrypoint_path_variants(script: Path, project_root: Path | None = N
             _double_quote(f"${{HOME}}/{suffix}"),
         ]
     # Add $TAO_HOME variants for the scripts/ relative path.
-    # TAO_HOME points to the Tao Agent OS root, so the relative
+    # TAO_HOME points to the Moru Core root, so the relative
     # path from root is scripts/<name> — not the same suffix as from HOME.
     ap_rel = f"scripts/{script.name}"
     variants += [

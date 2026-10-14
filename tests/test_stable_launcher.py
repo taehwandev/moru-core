@@ -88,7 +88,7 @@ class StableLauncherTests(unittest.TestCase):
                 )
 
         self.assertEqual(0, result.returncode)
-        self.assertIn("Tao Agent OS hook skipped", result.stderr)
+        self.assertIn("Moru Core hook skipped", result.stderr)
         self.assertNotIn("NameError", result.stderr)
 
 
@@ -104,7 +104,7 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
     done by hand.
 
     Refusing to install from a worktree outright was the first attempt and was
-    wrong: developing Tao in a worktree against a throwaway home is ordinary,
+    wrong: developing Moru in a worktree against a throwaway home is ordinary,
     and the block broke it. The loss is narrower -- replacing a durable root
     that still exists with a disposable one -- so only that is refused.
     """
@@ -149,7 +149,7 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
         self.assertEqual(f"{self.durable}\n", new_pointer.read_text())
 
     def test_a_first_install_from_a_worktree_still_works(self) -> None:
-        # Nothing to lose: developing Tao in a worktree against a throwaway
+        # Nothing to lose: developing Moru in a worktree against a throwaway
         # home is what the earlier, broader guard broke.
         self.assertNotEqual("blocked", self._install(self.worktree))
 

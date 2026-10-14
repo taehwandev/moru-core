@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Configure AI runtime bridges, hooks, and permissions for Tao Agent OS.
+"""Configure AI runtime bridges, hooks, and permissions for Moru Core.
 
-Run once after cloning Tao Agent OS to install the short user-level bridge
-blocks and allow the Tao Agent OS Python entrypoints in local agent runtimes.
+Run once after cloning Moru Core to install the short user-level bridge
+blocks and allow the Moru Core Python entrypoints in local agent runtimes.
 When the optional local Spill helper is installed, this also wires
-Tao Agent OS's workflow label bridge. Re-running is safe; existing bridges,
+Moru Core's workflow label bridge. Re-running is safe; existing bridges,
 hooks, and permissions are deduplicated.
 
 Usage:

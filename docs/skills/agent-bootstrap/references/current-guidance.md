@@ -106,7 +106,7 @@ Local reuse is the default and a hard stop for install work:
 5. Check `MORU_HOME` and the compatibility variable `TAO_HOME`.
 6. Check legacy `KEYFLOW_AGENT_ROOT` only when present.
 7. Check current locations such as `~/.moru/core` and `~/git/moru-core`.
-   During migration, also inspect legacy Tao install locations.
+   During migration, also inspect legacy Moru install locations.
 8. Check repo-pinned locations only when the target repo already contains one,
    such as `.agents/moru-core`, `tools/moru-core`, or a git submodule.
 
@@ -217,7 +217,7 @@ python3 <TAO_ROOT>/scripts/setup-agent-hooks.py --target <TARGET_REPO>
 ```
 
 This installs the runtime-owned Graphify bundle once under the user's shared
-Tao home and links Codex, Claude, and AGY to that canonical copy. The target
+Moru home and links Codex, Claude, and AGY to that canonical copy. The target
 repo receives no skill bundle or runtime link; it owns only generated state
 under `.agents/local/graphify-out`. Setup must not silently run initial
 extraction. Read `docs/skills/graphify-project-integration/SKILL.md`, then read

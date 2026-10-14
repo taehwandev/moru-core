@@ -1,4 +1,4 @@
-"""Gate ledger helpers for the Tao Agent OS hook CLI."""
+"""Gate ledger helpers for the Moru Core hook CLI."""
 
 from __future__ import annotations
 

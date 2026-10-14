@@ -91,10 +91,10 @@ same command is also the convenient repair path after updating Moru Core;
 merging or pulling the repository alone never rewrites user-level runtime
 settings.
 
-On macOS, the same setup also installs and loads one Tao-owned LaunchAgent for
-the selected Tao root. It runs the bounded `agent-os-maintenance.py
---all-projects` pass at login and every 24 hours over the Tao root, every
-project in `~/.tao/projects.json`, checkouts with Tao run state directly under
+On macOS, the same setup also installs and loads one Moru-owned LaunchAgent for
+the selected Moru root. It runs the bounded `agent-os-maintenance.py
+--all-projects` pass at login and every 24 hours over the Moru root, every
+project in `~/.tao/projects.json`, checkouts with Moru run state directly under
 the search roots (never Desktop, Documents or Downloads unless registered), and
 their `.tao/worktrees/*`, without a daemon or per-agent polling loop. Unfinished
 runs untouched for 30 days are settled, registry records and run directories
@@ -120,7 +120,7 @@ This selects `approvals_reviewer = "auto_review"` in the local Codex config.
 Ordinary setup preserves the existing reviewer, including an unset selection.
 The option leaves `approval_policy`, sandbox settings and permission profiles
 unchanged. `--dry-run` previews the change; `--check` reports a pending change
-without writing. Pulling Tao alone does not apply the local setting. Use a
+without writing. Pulling Moru alone does not apply the local setting. Use a
 Codex version supporting automatic review; the supported values are documented
 in the [official configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
 (verified 2026-10-09 with Codex 0.161.0).

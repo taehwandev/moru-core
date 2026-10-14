@@ -231,7 +231,7 @@ complete solely because this check or a build passes.
 
 ## Structure Review Hook Evidence
 
-These rules apply when the Tao structure review hook reports a package or owner
+These rules apply when the Moru structure review hook reports a package or owner
 finding on the change. They govern hook evidence, not product behavior, and do
 not replace the lifecycle, performance, state, or security findings above.
 

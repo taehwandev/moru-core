@@ -146,7 +146,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
         return output.getvalue()
 
     def plain(self, name: str) -> Path:
-        # A Git repository with no Tao opt-in signal: only the environment
+        # A Git repository with no Moru opt-in signal: only the environment
         # fallback could ever impose isolation on it.
         root = self.base / name
         (root / ".git").mkdir(parents=True)
@@ -175,7 +175,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
 
     def test_runtime_state_or_tao_prose_alone_does_not_impose_isolation(self):
         # A writing vault a run once touched holds a `.tao` directory and a
-        # Tao doc-enforcement note, but never adopted the code routing block.
+        # Moru doc-enforcement note, but never adopted the code routing block.
         root = self.plain("vault")
         (root / ".tao").mkdir()
         (root / ".tao" / "context-snapshot.json").write_text("{}")

@@ -1,4 +1,4 @@
-"""Fail-closed guards for Tao-owned continuation outbound boundaries."""
+"""Fail-closed guards for Moru-owned continuation outbound boundaries."""
 
 from __future__ import annotations
 

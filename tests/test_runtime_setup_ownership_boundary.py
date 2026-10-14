@@ -1,13 +1,13 @@
-"""Tao setup must edit only what Tao installed, and prove it rather than infer it.
+"""Moru setup must edit only what Moru installed, and prove it rather than infer it.
 
 Two products can configure the same runtime. Claude reads one `settings.json`
 and Codex one config file, so every installer writes into a space it shares
 with tools it knows nothing about. The rule these tests hold is narrow: an
-entry may be rewritten or removed only when its provenance is readable -- a Tao
-alias inside the command, or a marker block Tao emitted -- never because it
-resembles something Tao would have written.
+entry may be rewritten or removed only when its provenance is readable -- a Moru
+alias inside the command, or a marker block Moru emitted -- never because it
+resembles something Moru would have written.
 
-Resemblance is the specific trap. Tao's label bridge and a companion metering
+Resemblance is the specific trap. Moru's label bridge and a companion metering
 tool's own hook can both carry the same environment prefix, sit on the same
 event, and use a similar timeout. A predicate matching any of those signals
 alone would delete a working install of the other product.
@@ -40,9 +40,9 @@ from support.claude_setup import (
 )
 from support.setup_config_files import merge_codex_prefix_rules
 
-# Foreign hooks in the shapes that actually collide with Tao's predicates.
+# Foreign hooks in the shapes that actually collide with Moru's predicates.
 # FOREIGN_SHARED_PREFIX is the hard one: it carries the very environment prefix
-# Tao also writes, so only the command after it distinguishes the two.
+# Moru also writes, so only the command after it distinguishes the two.
 FOREIGN_SHARED_PREFIX = "SPILL_AI_TOOL=claude python3 '/opt/vendor-a/adapters/hook.py'"
 FOREIGN_IMPORTER = "node /opt/vendor-a/adapters/importer.mjs --since-hours 6"
 FOREIGN_STOP = "/opt/vendor-b/bin/tool hook --event Stop"
@@ -78,7 +78,7 @@ class OwnershipPredicateTests(unittest.TestCase):
 
     def test_the_label_bridge_needs_more_than_the_shared_env_prefix(self) -> None:
         # A companion tool's hook carries the same prefix. Ownership rests on the
-        # Tao route command that follows it, not on the prefix.
+        # Moru route command that follows it, not on the prefix.
         self.assertTrue(_is_managed_claude_spill_bridge_command(TAO_LABEL_BRIDGE))
         self.assertFalse(_is_managed_claude_spill_bridge_command(FOREIGN_SHARED_PREFIX))
 
@@ -152,9 +152,9 @@ class ClaudeSettingsMergeTests(_SettingsFixture, unittest.TestCase):
 
 class RuntimeEnvOwnershipTests(_SettingsFixture, unittest.TestCase):
     def test_env_written_by_another_product_is_not_removed(self) -> None:
-        # The removal path fires when Tao cannot find the companion tool's
+        # The removal path fires when Moru cannot find the companion tool's
         # setup helper, which is weaker than that tool being gone -- a moved or
-        # restructured install looks identical. With no record that Tao wrote
+        # restructured install looks identical. With no record that Moru wrote
         # these keys, a matching value is a resemblance, not a receipt.
         self._write({"env": {"SPILL_AI_TOOL": "claude", "SPILL_TOKEN_USAGE_AI_TOOL": "claude"}})
         status = _remove_claude_env(self.settings, dry_run=False)
@@ -171,7 +171,7 @@ class RuntimeEnvOwnershipTests(_SettingsFixture, unittest.TestCase):
         self.assertEqual("vim", config["env"]["EDITOR"])
 
     def test_a_key_that_already_existed_is_left_behind(self) -> None:
-        # Tao refreshes the pair, but only the key it introduced is its own.
+        # Moru refreshes the pair, but only the key it introduced is its own.
         self._write({"env": {"SPILL_AI_TOOL": "claude"}})
         _set_claude_env(self.settings, dry_run=False)
         _remove_claude_env(self.settings, dry_run=False)

@@ -1,4 +1,4 @@
-"""Project discovery orchestration for user-level Tao Agent OS bridges."""
+"""Project discovery orchestration for user-level Moru Core bridges."""
 
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ def build_entry_manifest(
             "Open the selected project's runtime instruction files before project work.",
             "Treat the selected project as primary; stop for a workspace scope checkpoint before writing to a secondary repo.",
             "When starting a new runtime session, use the launch guidance so the selected project is the primary workspace.",
-            "Run Tao Agent OS workflow routing with the current request before editing.",
+            "Run Moru Core workflow routing with the current request before editing.",
             "Run preflight before edits and finish check before final report, commit, release, or handoff.",
         ]
         manifest["workflow_command"] = (
@@ -170,7 +170,7 @@ def _runtime_launch_guidance(selected: ProjectCandidate, runtime: str) -> dict[s
         "tao_root": str(ROOT),
         "policy": (
             "Start the runtime with the selected target project as the primary workspace. "
-            "Add Tao Agent OS as an extra workspace only when the task may read, run, or edit shared Tao Agent OS files."
+            "Add Moru Core as an extra workspace only when the task may read, run, or edit shared Moru Core files."
         ),
         "notes": [
             "Repo instruction files choose behavior; runtime launch options choose filesystem scope.",
@@ -188,7 +188,7 @@ def _runtime_launch_guidance(selected: ProjectCandidate, runtime: str) -> dict[s
         if project != ROOT:
             commands.append(
                 {
-                    "label": "target project plus Tao Agent OS",
+                    "label": "target project plus Moru Core",
                     "command": f"codex -C {quote(str(project))} --add-dir {quote(str(ROOT))}",
                 }
             )
@@ -199,7 +199,7 @@ def _runtime_launch_guidance(selected: ProjectCandidate, runtime: str) -> dict[s
             "If using codex exec outside a git repo, add --skip-git-repo-check only after confirming that directory is an intentional workspace router.",
         ]
         if project == ROOT:
-            guidance["notes"].append("The selected project is Tao Agent OS itself, so an extra --add-dir for the same root is unnecessary.")
+            guidance["notes"].append("The selected project is Moru Core itself, so an extra --add-dir for the same root is unnecessary.")
     else:
         guidance["notes"] = [
             *guidance["notes"],

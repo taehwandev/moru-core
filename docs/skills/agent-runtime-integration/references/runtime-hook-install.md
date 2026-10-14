@@ -23,7 +23,7 @@ read-only evidence, `tao_worker` implements an assigned slice, and
 `tao_reviewer` reports correctness and verification risks without editing.
 They reuse the rules in
 `common/skills/agent-operating-skill/references/runtime-collaboration.md`.
-A first-line Tao marker declares ownership. Setup refreshes only managed files,
+A first-line Moru marker declares ownership. Setup refreshes only managed files,
 preserves unrelated roles, and reports a conflict for an unmarked same-name
 file, a symlink, or a non-file path instead of overwriting it; customize a
 separately named role.
@@ -31,7 +31,7 @@ separately named role.
 conflicting roles, and installation fails on a conflict.
 
 Codex TOML roles require `name`, `description`, and `developer_instructions`
-and may set other config keys such as `sandbox_mode`, which Tao's explorer and
+and may set other config keys such as `sandbox_mode`, which Moru's explorer and
 reviewer set to `read-only`; see the
 [official subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents)
 (verified 2026-10-08). Model and reasoning settings inherit.
@@ -56,7 +56,7 @@ compact text such as `5h 60% left · weekly 6% left`; the larger `/status` panel
 is the Codex surface that draws block gauges. Codex exposes no custom renderer
 slot for making the bottom line mirror that panel. Start a new Codex session
 after setup to see the line.
-The setup also maintains a Tao-owned `tao-workspace` permission profile in
+The setup also maintains a Moru-owned `tao-workspace` permission profile in
 `~/.codex/config.toml`. The profile extends Codex's built-in `:workspace`
 profile and adds only exact generated worktree roots. A scoped target repair,
 for example `setup-agent-hooks --runtime codex --target <TARGET_REPO>`, adds
@@ -71,7 +71,7 @@ updating alone does not undo a saved selection, whose provenance is unknown.
 Setup reports a notice when that selection remains, without changing it.
 With the user's explicit authorization, run
 `python3 scripts/setup-agent-hooks.py --reset-codex-permission-default` to
-replace that top-level Tao selection with the built-in `:workspace` default,
+replace that top-level Moru selection with the built-in `:workspace` default,
 or repair a missing default when profiles remain. Never delete only the default
 while retaining profiles. `--dry-run` previews the change;
 `--check` exits nonzero when repair would occur. This migration does not run
@@ -195,7 +195,7 @@ carries the same reading and a window running out keeps its `!`, so `NO_COLOR=1`
 loses emphasis and nothing else.
 
 That slot holds one command and other tools install into it, so the managed
-entry never replaces what it finds: it puts Tao in front and passes the untouched
+entry never replaces what it finds: it puts Moru in front and passes the untouched
 payload on through `--chain`, keeping that output beside its own. A managed entry
 is recognised by the `TAO_STATUSLINE=1` prefix rather than by the script name,
 because a chained third-party script may itself be named for the status line.
@@ -205,7 +205,7 @@ of nesting a second copy.
 AGY executes a managed `statusLine` command configured in
 `~/.gemini/antigravity-cli/settings.json`. When rate limits or quota information
 are provided on stdin as JSON, the renderer draws what is left using
-runtime_quota; when rate limits are absent, it silently renders the active Tao
+runtime_quota; when rate limits are absent, it silently renders the active Moru
 run progress (`task X/Y`). It reads the window shapes both Claude and Codex
 emit, so a later Codex surface needs no third renderer.
 
@@ -215,7 +215,7 @@ running a command. That list includes `five-hour-limit` and `weekly-limit`, so
 setup safely adds those two items to `tui.status_line` and emits a
 `codex / statusLine` row with the actual merge result. Existing picker choices
 and their order are preserved. The quota data and rendering remain Codex-owned;
-Tao does not install a second renderer or read a session transcript for this
+Moru does not install a second renderer or read a session transcript for this
 runtime.
 
 A row's status word is the report's vocabulary, not prose: `print_results` marks

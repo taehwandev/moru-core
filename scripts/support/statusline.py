@@ -53,7 +53,7 @@ def render(payload_text: str, chain: str = "", *, color: bool = False) -> str:
 
     payload = parse(payload_text)
 
-    # Tao's own segments are divided the same way the windows inside the quota
+    # Moru's own segments are divided the same way the windows inside the quota
     # summary are, so the line reads as one thing. What the chain returns is
     # someone else's text and gets plain space instead: a divider would claim it
     # as part of this layout.
@@ -62,7 +62,7 @@ def render(payload_text: str, chain: str = "", *, color: bool = False) -> str:
     # The location keeps a colour of its own so it stands apart from the quota
     # beside it, whose colours mean how much is left.
     #
-    # The open Tao run (`refactor 5/8`) is not drawn. Its count is gates
+    # The open Moru run (`refactor 5/8`) is not drawn. Its count is gates
     # recorded, not work done, so it read as progress it was not; the operator
     # asked for it to go.
     model = model_segment(payload)

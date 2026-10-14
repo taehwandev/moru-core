@@ -302,7 +302,7 @@ def _render(texts: dict[str, str], pending: list[str]) -> str:
             listed.append(f"{doc} ({size} bytes)")
     if not inline and not listed:
         return ""
-    parts = ["Tao required docs not yet read in this run, delivered once before its first edit. "
+    parts = ["Moru required docs not yet read in this run, delivered once before its first edit. "
              "Apply them to this change; this does not block the edit."]
     if listed:
         parts.append("Read these yourself before continuing (too large to include): " + "; ".join(listed))

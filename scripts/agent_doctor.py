@@ -113,7 +113,7 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
         )
     if stale_pointers:
         recommendations.append(
-            f"Stale Tao/Moru pointers in {', '.join(stale_pointers)}; run "
+            f"Stale Moru/Moru pointers in {', '.join(stale_pointers)}; run "
             f"`python3 {rules / 'scripts' / 'update_moru_project_pointers.py'} --project {resolved} --apply`."
         )
     if (resolved / ".tao").is_dir() and not moru_ready:

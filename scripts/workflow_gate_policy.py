@@ -1,4 +1,4 @@
-"""Automatic workflow gates shared by Tao Agent OS routes."""
+"""Automatic workflow gates shared by Moru Core routes."""
 
 from __future__ import annotations
 

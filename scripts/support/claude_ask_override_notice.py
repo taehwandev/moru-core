@@ -1,4 +1,4 @@
-"""Find Claude ask rules that override the Tao gate's Git approvals.
+"""Find Claude ask rules that override the Moru gate's Git approvals.
 
 The Claude PreToolUse gate approves ordinary Git inside an isolated linked
 worktree, but Claude still evaluates settings `ask` rules after a hook returns
@@ -67,11 +67,11 @@ def notice_claude_ask_overrides(settings_path: Path) -> list[str]:
     if rules:
         print(
             f"Claude notice: {settings_path} permissions.ask has "
-            f"{len(rules)} Git rule(s) that override Tao's approval of ordinary Git "
+            f"{len(rules)} Git rule(s) that override Moru's approval of ordinary Git "
             "inside a linked task worktree, so each matching command prompts again: "
             + ", ".join(rules)
             + ". Claude evaluates ask rules even after a hook allows a call; an allow "
-            "rule cannot cancel them. Tao already asks for the hazardous forms "
+            "rule cannot cancel them. Moru already asks for the hazardous forms "
             "(hard reset, stash drop/clear, forced worktree removal), so remove these "
             "rules if the prompts are unwanted. Setup leaves them unchanged.",
             file=sys.stderr,

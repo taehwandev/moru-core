@@ -1,4 +1,4 @@
-"""Tell the global Tao Agent OS install apart from per-project runtime state.
+"""Tell the global Moru Core install apart from per-project runtime state.
 
 ``.tao`` names two unrelated things:
 
@@ -7,7 +7,7 @@
 - the global install -- ``~/.tao/bin/tao-hook``, ``~/.tao/tao-root``,
   ``~/.tao/projects.json``, ``~/.tao/claude-session-projects/``.
 
-Every "is this a Tao Agent OS project?" check used to be ``(path / ".tao").is_dir()``,
+Every "is this a Moru Core project?" check used to be ``(path / ".tao").is_dir()``,
 so the home directory that hosts the global install always answered yes. That
 made ``$HOME`` classify as a project, which let a harness path such as
 ``~/.claude/plans/x.md`` register ``$HOME`` as a session project and left the
@@ -112,7 +112,7 @@ def user_store_write_error() -> str:
         return ""
     if os.environ.get(UNDER_TEST_ENV, "").strip() or _running_unittest():
         return (
-            f"refusing to write the user's Tao state from a test run; set "
+            f"refusing to write the user's Moru state from a test run; set "
             f"{MORU_STATE_HOME_ENV} or {STATE_HOME_ENV} to a temporary directory"
         )
     return ""
@@ -177,7 +177,7 @@ def is_host_config_dir(path: Path) -> bool:
 
 
 
-# Root files whose prose marks a project that uses Tao Agent OS.
+# Root files whose prose marks a project that uses Moru Core.
 OPT_IN_FILES = ("AGENTS.md", "CLAUDE.md", "CODEX.md")
 OPT_IN_TOKENS = ("moru", "tao")
 
@@ -236,7 +236,7 @@ def project_state_dir_target(project: Path) -> Path:
 
 
 STATE_DIR_IGNORE = """\
-# Tao Agent OS per-project runtime state. Local-only by construction.
+# Moru Core per-project runtime state. Local-only by construction.
 #
 # The continuation packet records what a run decided and what remains. It is a
 # project-local work summary, so publishing it is a boundary violation rather
@@ -286,6 +286,6 @@ def project_scoped_state_error(project: Path) -> str:
         return ""
     return (
         f"refusing to write project-scoped state to {state_dir}: that is the "
-        "global Tao Agent OS install directory, not a project. Re-run with "
+        "global Moru Core install directory, not a project. Re-run with "
         "--project pointing at the repository you are working in."
     )

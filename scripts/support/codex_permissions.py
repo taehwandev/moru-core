@@ -1,4 +1,4 @@
-"""Codex permission-profile setup owned by Tao Agent OS."""
+"""Codex permission-profile setup owned by Moru Core."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ _TOP_LEVEL_END = re.compile(r"(?m)^[ \t]*\[\[?[^\]\n]+\]\]?[ \t]*(?:#.*)?$")
 
 
 def reset_tao_permission_default(target: Path, dry_run: bool) -> str:
-    """Reset Tao selection to the built-in workspace default, preserving profiles."""
+    """Reset Moru selection to the built-in workspace default, preserving profiles."""
     if not target.exists():
         return "ok"
     original = target.read_text(encoding="utf-8")
@@ -51,7 +51,7 @@ def merge_codex_worktree_roots(
     roots: list[Path],
     dry_run: bool,
 ) -> str:
-    """Add an optional Tao profile without selecting the user's permission policy."""
+    """Add an optional Moru profile without selecting the user's permission policy."""
 
     original = target.read_text(encoding="utf-8") if target.exists() else ""
     header = _TOP_LEVEL_END.search(original)
@@ -59,7 +59,7 @@ def merge_codex_worktree_roots(
     if not _assignment_count(top, "default_permissions"):
         if any(h.group(1).strip().startswith("permissions.") for h in _TABLE_HEADER.finditer(original)):
             return "missing"
-        return "ok: optional Tao profile skipped because no default_permissions is selected"
+        return "ok: optional Moru profile skipped because no default_permissions is selected"
     root_strings = list(dict.fromkeys(str(root.expanduser().resolve()) for root in roots))
     if _permission_ownership_conflicts(original, root_strings):
         return "missing"
@@ -111,7 +111,7 @@ def _ensure_workspace_profile(text: str) -> str:
             "\n".join(
                 (
                     f"[permissions.{TAO_WORKSPACE_PROFILE}]",
-                    'description = "Workspace access plus the shared Tao Agent OS runtime."',
+                    'description = "Workspace access plus the shared Moru Core runtime."',
                     'extends = ":workspace"',
                 )
             ),
