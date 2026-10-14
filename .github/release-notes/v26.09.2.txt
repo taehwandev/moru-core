@@ -1,4 +1,4 @@
-# Moru Core v26.09.2 — draft
+# Tao Agent OS v26.09.2 — draft
 
 _2026-09-05 → 2026-09-20 · 153 commits after v26.09.1 · candidate `7858018`_
 
@@ -27,7 +27,7 @@ The root instruction file grew from 13,814 to 32,239 bytes. Therefore narrower r
 
 ## Compatibility and verification
 
-This release note describes Moru Core workflow and review behavior, not a shipped change to an Android application. A newly detected direct Compose effect or broken document reference can now stop review. Legitimate ViewModel effect collection and leaf callback forwarding have focused regression coverage.
+This release note describes Tao Agent OS workflow and review behavior, not a shipped change to an Android application. A newly detected direct Compose effect or broken document reference can now stop review. Legitimate ViewModel effect collection and leaf callback forwarding have focused regression coverage.
 
 The candidate's Android action, documentation-reference, and review-reuse suites passed 57 tests; compact-start authority passed 12 tests; linked-worktree start behavior passed 10 tests. Document-routing checks and final document validation were also run while drafting. These targeted checks do not constitute a full release test suite. No release tag, GitHub release, or deployment is created by this draft.
 

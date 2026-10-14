@@ -16,6 +16,8 @@ from support.stable_launcher import stable_launcher_path
 AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES = runtime_bridge_required_phrases("Antigravity", "AGENTS.md")
 _STATUSLINE_ALIAS = "agy-statusline"
 _STATUSLINE_MARKER = "MORU_STATUSLINE=1"
+# The marker written before the Moru rename still identifies our own entry.
+_STATUSLINE_MARKERS = (_STATUSLINE_MARKER, "TAO_STATUSLINE=1")
 
 
 def agy_runtime_bridge_targets(home: Path | None = None) -> tuple[tuple[str, Path], ...]:
@@ -132,10 +134,12 @@ def _merge_agy_statusline(target: Path, command: str, dry_run: bool) -> str:
     if isinstance(existing, dict) and str(existing.get("type") or "") == "command":
         existing_command = str(existing.get("command") or "")
 
-    if existing_command.startswith(f"{_STATUSLINE_MARKER} "):
+    if _is_managed_statusline(existing_command):
         chained = _chained_command(existing_command)
     else:
         chained = existing_command
+    while _is_managed_statusline(chained):
+        chained = _chained_command(chained)
 
     desired = command
     if chained.strip():
@@ -152,6 +156,10 @@ def _merge_agy_statusline(target: Path, command: str, dry_run: bool) -> str:
     config["statusLine"] = {"type": "command", "command": desired, "enabled": True}
     write_json(target, config)
     return "installed"
+
+
+def _is_managed_statusline(command: str) -> bool:
+    return command.startswith(tuple(f"{marker} " for marker in _STATUSLINE_MARKERS))
 
 
 def _chained_command(command: str) -> str:

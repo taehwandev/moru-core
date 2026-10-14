@@ -1,4 +1,4 @@
-# Moru Core v26.09.1
+# Tao Agent OS v26.09.1
 
 _2026-08-17 → 2026-09-05 · 169 commits since [v26.08.4](https://github.com/taehwandev/tao-agent-os/releases/tag/v26.08.4)_
 
@@ -9,9 +9,9 @@ The largest practical change is visible in repeated work. Against `v26.08.4`, a 
 ## Quota and run status at a glance
 
 - **Claude** draws the remaining quota as fixed-width 5-hour and 7-day gauges, so the bar empties with the budget instead of presenting usage as if it were availability ([#89](https://github.com/taehwandev/tao-agent-os/pull/89), [#90](https://github.com/taehwandev/tao-agent-os/pull/90)).
-- **Antigravity/AGY** renders the available quota and current Moru run progress in its status line ([#91](https://github.com/taehwandev/tao-agent-os/pull/91)).
+- **Antigravity/AGY** renders the available quota and current Tao run progress in its status line ([#91](https://github.com/taehwandev/tao-agent-os/pull/91)).
 - **Codex** setup enables the native quota status items that the runtime exposes, without replacing existing status-line configuration ([#98](https://github.com/taehwandev/tao-agent-os/pull/98)).
-- The shared status renderer also shows the session's starting workspace and Moru run progress. Quota colour follows the terminal palette and is never the only warning signal ([#92](https://github.com/taehwandev/tao-agent-os/pull/92), [#94](https://github.com/taehwandev/tao-agent-os/pull/94)).
+- The shared status renderer also shows the session's starting workspace and Tao run progress. Quota colour follows the terminal palette and is never the only warning signal ([#92](https://github.com/taehwandev/tao-agent-os/pull/92), [#94](https://github.com/taehwandev/tao-agent-os/pull/94)).
 
 The unified setup owns these runtime integrations. New installations receive the current wiring automatically; existing installations can use the check-and-refresh step under **Operator action** below.
 
@@ -73,8 +73,8 @@ The public workflow guide now includes bilingual flowcharts for analysis, change
 - New installations get the current Claude, Codex, and Antigravity integration through the unified setup. For an existing installation, run:
 
   ```text
-  <MORU_LAUNCHER> setup-agent-hooks --check
-  <MORU_LAUNCHER> setup-agent-hooks
+  <TAO_LAUNCHER> setup-agent-hooks --check
+  <TAO_LAUNCHER> setup-agent-hooks
   ```
 
   Run the second command only when the check reports missing or stale managed setup. Existing user-owned status-line configuration is preserved.

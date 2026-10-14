@@ -126,6 +126,21 @@ class InstallTests(unittest.TestCase):
 
             self.assertIn("spill.mjs", read_json(target)["statusLine"]["command"])
 
+    def test_a_pre_rename_entry_is_replaced_and_a_self_wrap_unwrapped(self) -> None:
+        # An install that did not know the old marker wrapped its own entry.
+        legacy = "TAO_STATUSLINE=1 '/old/tao-hook' claude-statusline --chain 'node spill.mjs'"
+        wrapped = f"{self.MANAGED} --chain " + "'" + legacy.replace("'", "'\\''") + "'"
+        for existing in (legacy, wrapped):
+            with self.subTest(existing=existing[:40]), tempfile.TemporaryDirectory() as tmp:
+                target = self._settings(Path(tmp), {"type": "command", "command": existing})
+
+                _merge_claude_statusline(target, self.MANAGED, False)
+
+                self.assertEqual(
+                    f"{self.MANAGED} --chain 'node spill.mjs'",
+                    read_json(target)["statusLine"]["command"],
+                )
+
     def test_reinstalling_does_not_nest_a_second_copy(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             target = self._settings(

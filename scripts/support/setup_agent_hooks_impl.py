@@ -323,7 +323,7 @@ def fail_if_setup_incomplete(args: argparse.Namespace, results: list[dict]) -> N
     )]
     if any(result["tool"] == "graphify" for result in missing):
         print(
-            "\nGraphify setup is incomplete. Repair the shared ~/.tao skill and "
+            "\nGraphify setup is incomplete. Repair the shared ~/.moru skill and "
             "user-level runtime links, then read that skill, build the target graph "
             "under .agents/local/graphify-out, and rerun --check.",
             file=sys.stderr,
@@ -464,7 +464,7 @@ def configure_codex(dry_run: bool, *, root: Path, enable_auto_review: bool = Fal
         },
         {
             "tool": "codex",
-            "hook": "permissions.TaoWorkspace",
+            "hook": "permissions.MoruWorkspace",
             "status": permissions_status,
             "path": str(config_target),
         },
