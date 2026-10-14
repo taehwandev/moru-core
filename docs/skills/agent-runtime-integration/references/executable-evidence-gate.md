@@ -58,7 +58,7 @@ with arguments, any change to those arguments (e.g., different project paths or
 options) will fail prefix matching and trigger repeated prompts.
 For Codex `exec_command` escalations, set `prefix_rule` to only the executable
 and resolved wrapper path, such as
-`["/Users/USER/.tao/bin/tao-hook"]`; never
+`["/Users/USER/.tao/bin/moru-hook"]`; never
 include `--project`, `--request`, `--gate-record`, `$(pwd)`, `$HOME`, or other runtime
 arguments in the saved prefix. AGY (Antigravity) permission allowlists must follow the same
 shape with only an absolute wrapper command plus a trailing argument wildcard.
@@ -70,7 +70,7 @@ internal entrypoints under `scripts/`, ensure `<MORU_LAUNCHER> setup-agent-hooks
 combinations in settings.json and config.json. Claude managed user-level
 hooks must use the stable launcher installed by `<MORU_LAUNCHER> setup-agent-hooks` at
 `<MORU_LAUNCHER>`; setup refreshes
-`~/.tao/tao-root` after moves or migrations so the Claude
+`~/.moru/moru-root` after moves or migrations so the Claude
 hook command does not point at a stale checkout path.
 
 ```text
@@ -80,14 +80,14 @@ hook command does not point at a stale checkout path.
 Omit `--evidence` unless a run genuinely needs a path of its own: start then
 mints `<TARGET_REPO>/.tao/runs/<32-hex-run-id>/preflight.json`, and only a run
 directory named by that opaque id can hold a continuation packet. That packet
-starts out holding the route name and nothing else; `tao-hook checkpoint
+starts out holding the route name and nothing else; `moru-hook checkpoint
 --work-stdin` is what puts the objective, non-goals, decisions, changed and
 inspected scope, verification, remaining work and blockers into it, which are
 the fields a resumed session is handed. Record one after reading the required
 docs and scoping the task, and refresh it at each material decision -- without
 it a resume recovers the route and the drift state but nothing about the work. Naming the
 directory yourself with anything else -- a date, a branch, a description --
-costs the run every checkpoint and makes `tao-hook resume` unable to continue
+costs the run every checkpoint and makes `moru-hook resume` unable to continue
 it, so start refuses that name rather than losing the packets quietly.
 
 Keep `--output`, `--evidence`, and every custom evidence path inside
@@ -96,7 +96,7 @@ such as `<TARGET_REPO>/.tao/runs/<32-hex-run-id>/preflight.json`; a sibling
 temporary directory is outside the execution-capsule trust boundary and will
 make the finish check fail even when every route gate passed. The start hook
 rejects an explicit `--evidence` path outside the target project's
-`.tao/` root so a run cannot begin with a capsule that review, finish, and
+`.moru/` root so a run cannot begin with a capsule that review, finish, and
 handoff must later reject.
 
 `start --evidence <...>/preflight.json` writes the lifecycle evidence that
@@ -258,7 +258,7 @@ ignored `<TARGET_REPO>/.tao/` boundary. Workflow document validation must
 exclude that boundary, and review-time checks must not create legacy sibling
 state directories that appear as source changes.
 The wrappers may also read or write safe cross-agent lessons under
-`~/.tao/`. That user-global store is for content-free lesson metadata
+`~/.moru/`. That user-global store is for content-free lesson metadata
 only: missed gate slugs, failure types, root-cause categories, next actions, and
 promotion status. It must not contain prompts, responses, commands, file paths,
 repo names, branch names, diffs, logs, source content, environment values,

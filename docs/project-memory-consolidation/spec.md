@@ -9,7 +9,7 @@ type: ai-generated
 ## Problem
 
 `<MORU_LAUNCHER> project-memory` stores agent-written, source-attributed records
-under `~/.tao/project-memory/<repository-id>/` (`scripts/agent_project_memory.py`).
+under `~/.moru/project-memory/<repository-id>/` (`scripts/agent_project_memory.py`).
 Records leave recall only when they reach their `--review-on` date, or when an
 agent replaces or retires them. Nothing reviews the store as a whole. As
 captures accumulate, the following problems go unnoticed:

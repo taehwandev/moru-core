@@ -141,7 +141,7 @@ context; do not rediscover development guidance just because a diff exists.
    every route-required evidence field in the same call:
 
    ```text
-   tao-hook review --project <TARGET_REPO> --rules <MORU_ROOT> \
+   moru-hook review --project <TARGET_REPO> --rules <MORU_ROOT> \
      --review-outcome pass \
      --code-review-evidence "<exact diff and request/rule review>" \
      --docs-freshness-evidence "<updated or grounded unchanged docs>" \
@@ -150,7 +150,7 @@ context; do not rediscover development guidance just because a diff exists.
      --side-effect-audit-evidence "<final diff and side-effect audit>"
    ```
 
-   Omit a field only when `tao-hook review --help` and the active route both
+   Omit a field only when `moru-hook review --help` and the active route both
    confirm it is not required. A missing field is a failed checkpoint, not a
    prompt for the hook to perform that review.
    Treat route startup's short evidence list as the universal minimum, not the
@@ -164,7 +164,7 @@ context; do not rediscover development guidance just because a diff exists.
    `source=review`, because a caller-provided source label is not execution
    provenance. On a route with `commit readiness`, finish derives that gate
    from a current review attestation; changed bytes leave it missing. A
-   successful `tao-hook review` writes a run-local review attestation and binds
+   successful `moru-hook review` writes a run-local review attestation and binds
    the ledger entry to that attestation's current run, preflight hash, route
    fingerprint, full worktree fingerprint, exact review pathspec or commit
    subject, and changed path count. Finish accepts the gate only while those
@@ -238,7 +238,7 @@ context; do not rediscover development guidance just because a diff exists.
      secrets, arbitrary ignored files, product source, or committed changes.
 
    ```text
-   tao-hook review --project <TARGET_REPO> --rules <MORU_ROOT> \
+   moru-hook review --project <TARGET_REPO> --rules <MORU_ROOT> \
      --review-scope commit-range \
      --review-base <BASE_COMMIT> --review-head <HEAD_COMMIT> \
      --review-outcome pass \

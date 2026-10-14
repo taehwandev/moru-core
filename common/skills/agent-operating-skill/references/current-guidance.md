@@ -53,7 +53,7 @@ Before implementation:
   but edits and other writes wait for its success. For delegation, follow
   `AGENTS.md` and the selected collaboration procedure: record owned and
   forbidden files, stable contracts, acceptance and integration owner in
-  `.tao/agent-delegation-plan.json` before workers start. Serialize shared
+  `.moru/agent-delegation-plan.json` before workers start. Serialize shared
   contracts, generated files, migrations, dependencies, release configuration
   and architecture boundaries.
 

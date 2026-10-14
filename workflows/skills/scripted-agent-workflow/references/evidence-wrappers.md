@@ -192,7 +192,7 @@ final checks may start; bytes changed while those checks run must fail closed.
 This does not prohibit a legitimate pathspec review of an explicitly owned
 slice—the exact scope is attested and may not later be widened by prose.
 When `--output` is requested, keep lifecycle result files under the current
-project's `.tao` root. The wrapper probes the requested parent before running
+project's `.moru` root. The wrapper probes the requested parent before running
 the hook, including compatibility callers that still choose another explicit
 result location, so a workspace that is not writable is an immediate invocation
 refusal instead of a completed review followed by a persistence traceback. Omit
@@ -219,7 +219,7 @@ share one atomic transaction. The global lock order is
 capsule-bind paths use
 that same order. A second unlocked claim check narrows a race but is not atomic
 evidence that the claim still exists when the ledger changes. The project is
-derived from that file's own `.tao`
+derived from that file's own `.moru`
 root, never from a preflight field, so a caller cannot redirect the check at a
 registry that holds no claim. Writability is wider than liveness: a run that a
 failed finish left `failed`, or that a repair cycle parked at
@@ -232,7 +232,7 @@ replace a later `FAIL` with its own `SUCCESS`. A run recording no owner keeps
 its compatibility path only inside the registry's shared stale window, since
 recency is the sole identity left. New top-level starts without an explicit
 evidence path allocate a
-run-local `.tao/runs/<opaque>/preflight.json` even when the runtime exposes no
+run-local `.moru/runs/<opaque>/preflight.json` even when the runtime exposes no
 session id, so independent ledgers are physically separated by default.
 An ownership or worker-boundary refusal happens before ledger mutation. The
 `gate` and `gate-batch` hooks report it as `fix_invocation_and_rerun`; no
@@ -313,7 +313,7 @@ when the finish hook is unavailable.
 `agent-preflight.py` records the route manifest, current git status, and
 VibeGuard audit result in `<TARGET_REPO>/.tao/preflight.json`.
 It also records a content-free summary of accepted and promoted global lessons
-from `~/.tao/` when that local store exists.
+from `~/.moru/` when that local store exists.
 When `--request-classified` is used, it must also record
 `--classification-evidence`; otherwise request intake is treated as skipped.
 That evidence alone does not honor the flag: a ready and valid parent execution
@@ -334,7 +334,7 @@ after transient failures. Finish-check writes
 `<TARGET_REPO>/.tao/finish.json`.
 It also writes `gate_signals`, `missed_gates`, and
 `retrospective_required`. When `retrospective_required` is true, it writes a
-safe lesson candidate under `~/.tao/lessons/inbox/` when permitted.
+safe lesson candidate under `~/.moru/lessons/inbox/` when permitted.
 If the route classification or stored request text requires Grill-Me, the finish
 check must receive Grill-Me protocol evidence through a gate such as
 `grill-me if needed=</grilling session/output evidence>`. Legacy

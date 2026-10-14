@@ -39,7 +39,7 @@
           <a href="#products" data-i18n="nav.products">Products</a>
           <a href="#routing" data-i18n="nav.routing">Workflow</a>
           <a href="#apply" data-i18n="nav.apply">Get started</a>
-          <a href="https://github.com/taehwandev/tao-agent-os" target="_blank" rel="noopener noreferrer" data-i18n="nav.github">GitHub</a>
+          <a href="https://github.com/taehwandev/moru-core" target="_blank" rel="noopener noreferrer" data-i18n="nav.github">GitHub</a>
         </nav>
         <div class="language-switcher" role="group" aria-label="Language" data-i18n-attr="aria-label:language.label">
           <button type="button" data-lang-choice="en" aria-pressed="true">EN</button>
@@ -125,7 +125,7 @@
               <button type="button" class="button small primary" id="copyStep1" data-i18n="quick.copy.step1">Copy Step 1</button>
             </div>
             <pre><code id="quickPromptStep1" data-i18n="quick.prompt.step1">Step 1 - Apply Moru Core to this project:
-https://github.com/taehwandev/tao-agent-os
+https://github.com/taehwandev/moru-core
 
 Before changing anything, open and read this project's current agent instructions first:
 AGENTS.md, CLAUDE.md, CODEX.md, .agents/README.md, CONTRIBUTING.md, task docs,
@@ -137,20 +137,20 @@ Do not download, clone, vendor, copy, overwrite, or add another Moru Core root u
 "Moru Core already exists locally at <path>. Do you want me to download or pin a new copy anyway, or should I reuse the existing root?"
 
 When updating repo-local instruction files that will be committed, do not write my personal absolute path into them.
-Use ${MORU_HOME} for shared local installs or a repo-relative pinned path such as .agents/tao-agent-os.
+Use ${MORU_HOME} for shared local installs or a repo-relative pinned path such as .agents/moru-core.
 Full local paths belong only in shell env setup, one-shot prompts, or user-level runtime bridges.
 
 Check user-level runtime bridges, hooks, and permission allowlists with the selected Moru Core root:
-~/.tao/bin/tao-hook setup-agent-hooks --check
+~/.moru/bin/moru-hook setup-agent-hooks --check
 
 If the check reports missing bridges, hooks, or permissions, ask for approval to update user-level runtime config, then run:
-~/.tao/bin/tao-hook setup-agent-hooks
+~/.moru/bin/moru-hook setup-agent-hooks
 
 This is required for Codex, Claude, and AGY to run Moru Core Python wrappers without repeated permission failures. Keep the allowlist narrow; do not broadly allow python3.
 
 If agent instructions or VibeGuard files already exist, ask me how to apply Moru Core before running setup or update.
 Only run VibeGuard update if I choose to refresh an existing managed block; otherwise audit current guardrails.
-For multi-step work, run ~/.tao/bin/tao-hook start once with --request; it performs routing and preflight. Do not separately repeat workflow list, classify, route, or preflight after it succeeds.
+For multi-step work, run ~/.moru/bin/moru-hook start once with --request; it performs routing and preflight. Do not separately repeat workflow list, classify, route, or preflight after it succeeds.
 Read every route required_docs entry directly after start and before editing or reviewing. Run the review hook after meaningful edits and the finish hook before final report, commit, release, or handoff.
 Direct workflow.py route, agent-preflight.py, and agent-finish-check.py calls are lower-level diagnostic or compatibility fallbacks only; never run them as a second lifecycle.
 Missing wrapper evidence or missing route gate evidence is non-compliant.
@@ -176,10 +176,10 @@ Use this only if I choose the optional setup for better future agent behavior.
 Preserve existing personal instructions. Add or update a short managed block; do not replace unrelated user content.
 
 Also run the Moru Core runtime setup check:
-~/.tao/bin/tao-hook setup-agent-hooks --check
+~/.moru/bin/moru-hook setup-agent-hooks --check
 
 If bridges, hooks, or permissions are missing, ask for approval to update user-level runtime config and then run:
-~/.tao/bin/tao-hook setup-agent-hooks
+~/.moru/bin/moru-hook setup-agent-hooks
 
 Keep the permission allowlist narrow: allow only the current Moru Core scripts/*.py files by exact path and suffix-aware runtime matcher, not broad python3.
 
@@ -247,7 +247,7 @@ The bridge must force this behavior:
               <span data-i18n="signal.green">🐱🟢 SUCCESS</span>
               <span data-i18n="signal.red">🐱🔴 FAIL</span>
             </p>
-            <a class="link" href="https://github.com/taehwandev/tao-agent-os#executable-evidence-gate" data-i18n="evidence.readme">Read the evidence guide</a>
+            <a class="link" href="https://github.com/taehwandev/moru-core#executable-evidence-gate" data-i18n="evidence.readme">Read the evidence guide</a>
           </article>
           <article>
             <h3 data-i18n="vibeguard.title">Safety checks by VibeGuard</h3>
@@ -257,8 +257,8 @@ The bridge must force this behavior:
           <article>
             <h3 data-i18n="update.title">Update with Git</h3>
             <p data-i18n="update.body">Repositories that link to one shared root stay current with a git pull between tasks. Nothing is copied into each repository.</p>
-            <a class="link" href="https://github.com/taehwandev/tao-agent-os/blob/main/docs/ko/update-tao.md" data-i18n="update.ko">Korean update guide</a>
-            <a class="link" href="https://github.com/taehwandev/tao-agent-os/releases" data-i18n="update.release">Release history</a>
+            <a class="link" href="https://github.com/taehwandev/moru-core/blob/main/docs/ko/update-tao.md" data-i18n="update.ko">Korean update guide</a>
+            <a class="link" href="https://github.com/taehwandev/moru-core/releases" data-i18n="update.release">Release history</a>
           </article>
         </div>
       </section>
@@ -292,7 +292,7 @@ The bridge must force this behavior:
       <div class="footer-inner">
         <span class="brand small"><img class="brand-mark" src="./logo.svg" alt="" width="18" height="18"><span>Moru</span></span>
         <p data-i18n="footer.note">Moru Core is open source. Formerly Moru Core.</p>
-        <a class="link" href="https://github.com/taehwandev/tao-agent-os" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a class="link" href="https://github.com/taehwandev/moru-core" target="_blank" rel="noopener noreferrer">GitHub</a>
       </div>
     </footer>
 
@@ -339,8 +339,8 @@ The bridge must force this behavior:
           "quick.reveal": "Show optional setup for later sessions",
           "quick.required": "Required",
           "quick.optional": "Optional",
-          "quick.prompt.step1": "Step 1 - Apply Moru Core to this project:\nhttps://github.com/taehwandev/tao-agent-os\n\nBefore changing anything, open and read this project's current agent instructions first:\nAGENTS.md, CLAUDE.md, CODEX.md, .agents/README.md, CONTRIBUTING.md, task docs,\nPRD/ARD docs, equivalent project docs, or explicitly documented local override files.\nDo not rely on implicit runtime discovery. Do not claim an instruction file was read unless you actually opened it.\n\nIf Moru Core already exists locally or in this repo, reuse that copy.\nDo not download, clone, vendor, copy, overwrite, or add another Moru Core root unless I approve after you ask:\n\"Moru Core already exists locally at <path>. Do you want me to download or pin a new copy anyway, or should I reuse the existing root?\"\n\nWhen updating repo-local instruction files that will be committed, do not write my personal absolute path into them. Use ${MORU_HOME} for shared local installs or a repo-relative pinned path such as .agents/tao-agent-os. Full local paths belong only in shell env setup, one-shot prompts, or user-level runtime bridges.\n\nCheck user-level runtime bridges, hooks, and permission allowlists with the selected Moru Core root:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py --check\n\nIf the check reports missing bridges, hooks, or permissions, ask for approval to update user-level runtime config, then run:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py\n\nThis is required for Codex, Claude, and AGY to run Moru Core Python wrappers without repeated permission failures. Keep the allowlist narrow; do not broadly allow python3.\n\nIf agent instructions or VibeGuard files already exist, ask me how to apply Moru Core before running setup or update.\nOnly run VibeGuard update if I choose to refresh an existing managed block; otherwise audit current guardrails.\nFor multi-step work, run agent-hook.py start once with --request; it performs routing and preflight. Do not separately repeat workflow list, classify, route, or preflight after it succeeds.\nRead every route required_docs entry directly after start and before editing or reviewing. Run the review hook after meaningful edits and the finish hook before final report, commit, release, or handoff.\nDirect workflow.py route, agent-preflight.py, and agent-finish-check.py calls are lower-level diagnostic or compatibility fallbacks only; never run them as a second lifecycle.\nMissing wrapper evidence or missing route gate evidence is non-compliant.\nUse cat gate signals in visible reports: 🐱🟢 SUCCESS, 🐱🔴 FAIL. Do not report any third gate state.\nAnswer direct questions before starting project work.\nThen apply the selected VibeGuard package command with Moru Core as rules,\nadd only a short routing block,\nand continue with my task.",
-          "quick.prompt.step2": "Optional Step 2 - Register a user-level runtime bridge using the stable Moru Core launcher.\n\nUse this only when I approve the optional setup. Preserve existing personal instructions and update only the managed block.\n\nRun:\n~/.tao/bin/tao-hook setup-agent-hooks --check\n\nIf the check reports missing bridges, hooks, or permissions, ask for approval before running:\n~/.tao/bin/tao-hook setup-agent-hooks\n\nKeep permissions narrow and update only the active runtime file:\nCodex -> ~/.codex/AGENTS.md\nClaude -> ~/.claude/CLAUDE.md\nAntigravity -> ~/.antigravity/AGENTS.md\n\nDo not install AGY lifecycle hooks for metering. Do not replace unrelated personal content. If the target project or instruction file is ambiguous, stop and ask before changing anything.",
+          "quick.prompt.step1": "Step 1 - Apply Moru Core to this project:\nhttps://github.com/taehwandev/moru-core\n\nBefore changing anything, open and read this project's current agent instructions first:\nAGENTS.md, CLAUDE.md, CODEX.md, .agents/README.md, CONTRIBUTING.md, task docs,\nPRD/ARD docs, equivalent project docs, or explicitly documented local override files.\nDo not rely on implicit runtime discovery. Do not claim an instruction file was read unless you actually opened it.\n\nIf Moru Core already exists locally or in this repo, reuse that copy.\nDo not download, clone, vendor, copy, overwrite, or add another Moru Core root unless I approve after you ask:\n\"Moru Core already exists locally at <path>. Do you want me to download or pin a new copy anyway, or should I reuse the existing root?\"\n\nWhen updating repo-local instruction files that will be committed, do not write my personal absolute path into them. Use ${MORU_HOME} for shared local installs or a repo-relative pinned path such as .agents/moru-core. Full local paths belong only in shell env setup, one-shot prompts, or user-level runtime bridges.\n\nCheck user-level runtime bridges, hooks, and permission allowlists with the selected Moru Core root:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py --check\n\nIf the check reports missing bridges, hooks, or permissions, ask for approval to update user-level runtime config, then run:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py\n\nThis is required for Codex, Claude, and AGY to run Moru Core Python wrappers without repeated permission failures. Keep the allowlist narrow; do not broadly allow python3.\n\nIf agent instructions or VibeGuard files already exist, ask me how to apply Moru Core before running setup or update.\nOnly run VibeGuard update if I choose to refresh an existing managed block; otherwise audit current guardrails.\nFor multi-step work, run agent-hook.py start once with --request; it performs routing and preflight. Do not separately repeat workflow list, classify, route, or preflight after it succeeds.\nRead every route required_docs entry directly after start and before editing or reviewing. Run the review hook after meaningful edits and the finish hook before final report, commit, release, or handoff.\nDirect workflow.py route, agent-preflight.py, and agent-finish-check.py calls are lower-level diagnostic or compatibility fallbacks only; never run them as a second lifecycle.\nMissing wrapper evidence or missing route gate evidence is non-compliant.\nUse cat gate signals in visible reports: 🐱🟢 SUCCESS, 🐱🔴 FAIL. Do not report any third gate state.\nAnswer direct questions before starting project work.\nThen apply the selected VibeGuard package command with Moru Core as rules,\nadd only a short routing block,\nand continue with my task.",
+          "quick.prompt.step2": "Optional Step 2 - Register a user-level runtime bridge using the stable Moru Core launcher.\n\nUse this only when I approve the optional setup. Preserve existing personal instructions and update only the managed block.\n\nRun:\n~/.moru/bin/moru-hook setup-agent-hooks --check\n\nIf the check reports missing bridges, hooks, or permissions, ask for approval before running:\n~/.moru/bin/moru-hook setup-agent-hooks\n\nKeep permissions narrow and update only the active runtime file:\nCodex -> ~/.codex/AGENTS.md\nClaude -> ~/.claude/CLAUDE.md\nAntigravity -> ~/.antigravity/AGENTS.md\n\nDo not install AGY lifecycle hooks for metering. Do not replace unrelated personal content. If the target project or instruction file is ambiguous, stop and ask before changing anything.",
           "modes.label": "Application modes",
           "mode.agent": "Agent handles it",
           "mode.existing": "Existing local",
@@ -422,7 +422,7 @@ The bridge must force this behavior:
           "quick.reveal": "다음 세션에도 쓸 선택 설정 보기",
           "quick.required": "필수",
           "quick.optional": "선택",
-          "quick.prompt.step1": "Step 1 - 이 프로젝트에 Moru Core를 적용해줘:\nhttps://github.com/taehwandev/tao-agent-os\n\n무언가 바꾸기 전에 현재 프로젝트의 에이전트 지침 파일을 실제로 열어서 먼저 읽어줘:\nAGENTS.md, CLAUDE.md, CODEX.md, .agents/README.md, CONTRIBUTING.md, 작업 문서,\nPRD/ARD 문서, 동등한 프로젝트 문서 또는 명시적으로 문서화된 local override 파일.\n런타임이 알아서 읽었다고 가정하지 마. 실제로 열기 전에는 지침 파일을 읽었다고 말하지 마.\n\nMoru Core가 이미 로컬이나 이 저장소 안에 있으면 그 복사본을 재사용해줘.\n내가 승인하기 전에는 새로 다운로드, 클론, 벤더링, 복사, 덮어쓰기, 추가 루트 생성을 하지 말고 먼저 물어봐줘:\n\"Moru Core가 이미 <path>에 있습니다. 그래도 새로 다운로드하거나 고정 복사본을 만들까요, 아니면 기존 루트를 재사용할까요?\"\n\n커밋될 repo-local 지침 파일을 갱신할 때는 내 개인 절대 경로를 쓰지 마. 개인 공유 설치는 ${MORU_HOME}, 팀 고정 설치는 .agents/tao-agent-os 같은 repo-relative 경로를 써줘. 전체 로컬 경로는 shell env 설정, one-shot 프롬프트, 사용자 전역 런타임 브리지에서만 써줘.\n\n선택된 Moru Core root로 사용자 전역 런타임 브리지, 훅, permission allowlist를 확인해줘:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py --check\n\n브리지, 훅, 권한이 빠져 있으면 사용자 전역 런타임 설정을 갱신해도 되는지 먼저 묻고, 승인 후 실행해줘:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py\n\n이 절차는 Codex, Claude, AGY가 Moru Core Python wrapper를 반복 permission 실패 없이 실행하기 위해 필요해. allowlist는 좁게 유지하고, python3 전체를 넓게 허용하지 마.\n\n에이전트 지침이나 VibeGuard 파일이 이미 있으면 setup 또는 update를 실행하기 전에 Moru Core 적용 방식을 먼저 물어봐줘.\n기존 managed VibeGuard 블록을 새로고침하겠다고 내가 선택한 경우에만 VibeGuard update를 실행하고, 아니면 현재 가드레일로 audit만 해줘.\n여러 단계 작업이면 agent-hook.py start를 --request와 함께 한 번만 실행해줘. 이 hook이 라우팅과 preflight를 수행하므로 성공 후 workflow list, classify, route 또는 preflight를 따로 반복하지 마.\nstart 직후 모든 route required_docs 항목을 직접 읽고 수정이나 검토를 시작해줘. 의미 있는 수정 뒤에는 review hook, 최종 보고/커밋/릴리스/인계 전에는 finish hook을 실행해줘.\nworkflow.py route, agent-preflight.py, and agent-finish-check.py 직접 호출은 하위 진단 또는 호환성 fallback으로만 사용하고 두 번째 lifecycle로 실행하지 마.\nwrapper 근거 또는 route gate 근거가 없으면 non-compliant로 봐줘.\n사람이 보는 보고에는 두 가지 고양이 gate signal만 써줘: 🐱🟢 SUCCESS, 🐱🔴 FAIL. 제3의 상태는 보고하지 마.\n직접 질문은 프로젝트 작업을 시작하기 전에 먼저 답해줘.\n그 다음 선택된 VibeGuard 패키지 명령을 Moru Core rules로 실행하고,\n짧은 라우팅 블록만 추가한 뒤 내 작업을 이어서 진행해줘.",
+          "quick.prompt.step1": "Step 1 - 이 프로젝트에 Moru Core를 적용해줘:\nhttps://github.com/taehwandev/moru-core\n\n무언가 바꾸기 전에 현재 프로젝트의 에이전트 지침 파일을 실제로 열어서 먼저 읽어줘:\nAGENTS.md, CLAUDE.md, CODEX.md, .agents/README.md, CONTRIBUTING.md, 작업 문서,\nPRD/ARD 문서, 동등한 프로젝트 문서 또는 명시적으로 문서화된 local override 파일.\n런타임이 알아서 읽었다고 가정하지 마. 실제로 열기 전에는 지침 파일을 읽었다고 말하지 마.\n\nMoru Core가 이미 로컬이나 이 저장소 안에 있으면 그 복사본을 재사용해줘.\n내가 승인하기 전에는 새로 다운로드, 클론, 벤더링, 복사, 덮어쓰기, 추가 루트 생성을 하지 말고 먼저 물어봐줘:\n\"Moru Core가 이미 <path>에 있습니다. 그래도 새로 다운로드하거나 고정 복사본을 만들까요, 아니면 기존 루트를 재사용할까요?\"\n\n커밋될 repo-local 지침 파일을 갱신할 때는 내 개인 절대 경로를 쓰지 마. 개인 공유 설치는 ${MORU_HOME}, 팀 고정 설치는 .agents/moru-core 같은 repo-relative 경로를 써줘. 전체 로컬 경로는 shell env 설정, one-shot 프롬프트, 사용자 전역 런타임 브리지에서만 써줘.\n\n선택된 Moru Core root로 사용자 전역 런타임 브리지, 훅, permission allowlist를 확인해줘:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py --check\n\n브리지, 훅, 권한이 빠져 있으면 사용자 전역 런타임 설정을 갱신해도 되는지 먼저 묻고, 승인 후 실행해줘:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py\n\n이 절차는 Codex, Claude, AGY가 Moru Core Python wrapper를 반복 permission 실패 없이 실행하기 위해 필요해. allowlist는 좁게 유지하고, python3 전체를 넓게 허용하지 마.\n\n에이전트 지침이나 VibeGuard 파일이 이미 있으면 setup 또는 update를 실행하기 전에 Moru Core 적용 방식을 먼저 물어봐줘.\n기존 managed VibeGuard 블록을 새로고침하겠다고 내가 선택한 경우에만 VibeGuard update를 실행하고, 아니면 현재 가드레일로 audit만 해줘.\n여러 단계 작업이면 agent-hook.py start를 --request와 함께 한 번만 실행해줘. 이 hook이 라우팅과 preflight를 수행하므로 성공 후 workflow list, classify, route 또는 preflight를 따로 반복하지 마.\nstart 직후 모든 route required_docs 항목을 직접 읽고 수정이나 검토를 시작해줘. 의미 있는 수정 뒤에는 review hook, 최종 보고/커밋/릴리스/인계 전에는 finish hook을 실행해줘.\nworkflow.py route, agent-preflight.py, and agent-finish-check.py 직접 호출은 하위 진단 또는 호환성 fallback으로만 사용하고 두 번째 lifecycle로 실행하지 마.\nwrapper 근거 또는 route gate 근거가 없으면 non-compliant로 봐줘.\n사람이 보는 보고에는 두 가지 고양이 gate signal만 써줘: 🐱🟢 SUCCESS, 🐱🔴 FAIL. 제3의 상태는 보고하지 마.\n직접 질문은 프로젝트 작업을 시작하기 전에 먼저 답해줘.\n그 다음 선택된 VibeGuard 패키지 명령을 Moru Core rules로 실행하고,\n짧은 라우팅 블록만 추가한 뒤 내 작업을 이어서 진행해줘.",
           "quick.prompt.step2": "선택 Step 2 - 이 머신의 사용자 전역 런타임 브리지를 등록해줘.\n\n이 단계는 내가 더 나은 향후 에이전트 동작을 위해 선택했을 때만 사용해줘.\n기존 개인 지침은 보존해줘. 짧은 managed block을 추가하거나 갱신하고, 관련 없는 사용자 내용을 교체하지 마.\n\nMoru Core 런타임 설정 체크도 실행해줘:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py --check\n\n브리지, 훅, 권한이 빠져 있으면 사용자 전역 런타임 설정을 갱신해도 되는지 먼저 묻고, 승인 후 실행해줘:\npython3 <MORU_ROOT>/scripts/setup-agent-hooks.py\n\npermission allowlist는 현재 Moru Core scripts/*.py 파일만 정확한 경로와 suffix-aware matcher로 좁게 허용하고, python3 전체를 넓게 허용하지 마.\n\n내가 선택한 런타임의 사용자 전역 파일을 갱신해줘:\nCodex -> ~/.codex/AGENTS.md\nClaude -> ~/.claude/CLAUDE.md\nAntigravity -> ~/.antigravity/AGENTS.md\nAntigravity SDK/IDE 변형 -> ~/.antigravity-ide에서 현재 런타임이 실제로 읽는 지침 파일 확인\n\n브리지는 이 동작을 강제해야 해:\n- 모든 작업 시작 시 현재 프로젝트 루트를 식별한다.\n- 런타임이 ~ 또는 다른 비프로젝트 디렉터리에서 시작하면 프로젝트 작업 전에 agent-entry.py 또는 project-discover.py로 대상 프로젝트를 확인한다.\n- discovery가 ambiguous 또는 not_found이면 진행하지 말고 대상 프로젝트를 물어본다.\n- 프로젝트 작업 전에 활성 런타임에 맞는 프로젝트 루트 지침 파일을 실제로 연다.\n- Codex는 AGENTS.md를 읽는다.\n- Claude는 CLAUDE.md를 읽는다.\n- Antigravity는 AGENTS.md를 읽는다.\n- 실제로 파일을 열기 전에는 지침 파일을 읽었다고 말하지 않는다.\n- 여러 단계 작업이면 현재 요청으로 agent-hook.py start를 한 번만 실행한다. 이 hook이 Moru Core workflow routing과 preflight를 수행하므로 성공 후 workflow list, classify, route 또는 preflight를 따로 반복하지 않는다.\n- start 직후 모든 route required_docs 항목을 직접 읽고 수정이나 검토를 시작한다. route의 review와 finish hook을 lifecycle에 유지한다.\n- workflow.py route, agent-preflight.py, and agent-finish-check.py 직접 호출은 하위 진단 또는 호환성 fallback으로만 사용하고 두 번째 lifecycle로 실행하지 않는다.\n- 내가 문서 키워드를 말할 때까지 기다리지 않는다. 요청, 플랫폼, concern, 수정 대상 파일에서 작업 표면을 추론하고, 수정/검토 전에 route required_docs를 읽는다.\n- workflow-doc-surfaces.json과 local document graph를 routing/search 입력으로 사용한다. graph neighbor는 route가 required_docs로 승격하지 않으면 reference_docs로 취급한다.\n- routing/search가 명확히 관련 있는 플랫폼, concern, 문서 표면을 놓치면 기억으로 진행하지 말고 gap을 보고하고 멈춘다.\n- 활성 런타임이 Antigravity인데 이 브리지 또는 프로젝트 루트 AGENTS.md를 확인할 수 없으면 라우팅, 수정, 테스트, 커밋, 완료 보고 전에 멈추고 브리지 수정을 요청한다.\n- setup, hook, permission, helper, label 또는 백그라운드 metering 세부사항은 내가 해당 하위 시스템에 대해 명시적으로 묻기 전에는 일반 대화에서 언급하지 않는다.\n- 응답이 그런 백그라운드 세부사항을 노출했다면 사과문만으로 끝내지 않는다. 실행 경로를 고치거나 구체적인 blocker를 보고하고 멈춘다.\n- 내가 직접 질문을 하면 라우팅, 수정, 명령 실행 전에 먼저 답한다.\n- 내 요청이 모호하고 답에 따라 동작, 범위, 안전성 또는 외부 상태가 달라지면 작업 전에 먼저 묻는다.",
           "modes.label": "적용 모드",
           "mode.agent": "에이전트로 설정",
@@ -471,21 +471,21 @@ The bridge must force this behavior:
         existing: {
           titleKey: "mode.existing.title",
           bodyKey: "mode.existing.body",
-          code: ['export MORU_HOME="/path/to/existing/tao-agent-os"', '~/.tao/bin/tao-hook workflow validate'].join("\n")
+          code: ['export MORU_HOME="/path/to/existing/moru-core"', '~/.moru/bin/moru-hook workflow validate'].join("\n")
         },
         first: {
           titleKey: "mode.first.title",
           bodyKey: "mode.first.body",
           code: [
-            'export MORU_HOME="$HOME/.tao-agent-os"',
-            'git clone https://github.com/taehwandev/tao-agent-os.git "$MORU_HOME"',
-            '~/.tao/bin/tao-hook workflow validate'
+            'export MORU_HOME="$HOME/moru-core"',
+            'git clone https://github.com/taehwandev/moru-core.git "$MORU_HOME"',
+            '~/.moru/bin/moru-hook workflow validate'
           ].join("\n")
         },
         team: {
           titleKey: "mode.team.title",
           bodyKey: "mode.team.body",
-          code: ["git submodule add https://github.com/taehwandev/tao-agent-os.git .agents/tao-agent-os", "~/.tao/bin/tao-hook workflow validate"].join("\n")
+          code: ["git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core", "~/.moru/bin/moru-hook workflow validate"].join("\n")
         }
       };
 
@@ -503,12 +503,12 @@ The bridge must force this behavior:
       // Keep embedded prompt translations compatible with the installed runtime
       // wrapper even when an older localized prompt string is still present.
       const normalizePrompt = (value) => String(value)
-        .replace(/python3 <MORU_ROOT>\/scripts\/setup-agent-hooks\.py/g, "~/.tao/bin/tao-hook setup-agent-hooks")
-        .replace(/python3 <MORU_ROOT>\/scripts\/agent-hook\.py/g, "~/.tao/bin/tao-hook")
-        .replace(/python3 <MORU_ROOT>\/scripts\/workflow\.py/g, "~/.tao/bin/tao-hook workflow")
-        .replace(/python3 \"\$\{MORU_HOME\}\/scripts\/setup-agent-hooks\.py\"/g, "~/.tao/bin/tao-hook setup-agent-hooks")
-        .replace(/python3 \"\$\{MORU_HOME\}\/(?:scripts\/)?agent-hook\.py\"/g, "~/.tao/bin/tao-hook")
-        .replace(/python3 \"\$\{MORU_HOME\}\/scripts\/workflow\.py\"/g, "~/.tao/bin/tao-hook workflow");
+        .replace(/python3 <MORU_ROOT>\/scripts\/setup-agent-hooks\.py/g, "~/.moru/bin/moru-hook setup-agent-hooks")
+        .replace(/python3 <MORU_ROOT>\/scripts\/agent-hook\.py/g, "~/.moru/bin/moru-hook")
+        .replace(/python3 <MORU_ROOT>\/scripts\/workflow\.py/g, "~/.moru/bin/moru-hook workflow")
+        .replace(/python3 \"\$\{MORU_HOME\}\/scripts\/setup-agent-hooks\.py\"/g, "~/.moru/bin/moru-hook setup-agent-hooks")
+        .replace(/python3 \"\$\{MORU_HOME\}\/(?:scripts\/)?agent-hook\.py\"/g, "~/.moru/bin/moru-hook")
+        .replace(/python3 \"\$\{MORU_HOME\}\/scripts\/workflow\.py\"/g, "~/.moru/bin/moru-hook workflow");
 
       const renderMode = () => {
         const mode = modeContent[currentMode];

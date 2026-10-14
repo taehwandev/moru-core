@@ -61,9 +61,9 @@ Korean guide: [README.ko.md](README.ko.md). Existing-install update guide: [docs
 The repository is now `taehwandev/moru-core`. The website still uses
 `tao.thdev.app`. Runtime identifiers are moving in stages: the Moru launcher
 can be installed at `~/.moru/bin/moru-hook`, while existing installations and
-records still use `MORU_HOME`, `<MORU_LAUNCHER>`, and `.tao`. A `state-ready`
+records still use `MORU_HOME`, `<MORU_LAUNCHER>`, and `.moru`. A `state-ready`
 marker selects `.moru` records only after the offline migration is verified.
-Do not move or delete `.tao` records merely to follow the new name. See
+Do not move or delete `.moru` records merely to follow the new name. See
 [the migration plan](docs/migration/moru-rename.md).
 
 ## Website Deployment Versioning
@@ -197,7 +197,7 @@ any of its records, newest first, up to 20 entries; a missing link or a cycle
 ends the chain.
 
 The command and start behavior travel with every Moru Core installation.
-Until the state migration completes, records remain in that PC's user-local `~/.tao/project-memory/` store;
+Until the state migration completes, records remain in that PC's user-local `~/.moru/project-memory/` store;
 linked worktrees of the same repository share them, while another PC starts
 with its own empty store. Moru Core does not sync memory content between PCs.
 
@@ -221,10 +221,10 @@ snapshot and never guesses the latest session. Older cards use their own retaine
 run evidence when available; unbound cards cannot be resumed this way. This
 navigates to a conversation without resuming a Moru Core run or granting work authority.
 
-Until the state migration completes, cards live in one SQLite file under the PC's user-local `~/.tao/work-cards/`,
+Until the state migration completes, cards live in one SQLite file under the PC's user-local `~/.moru/work-cards/`,
 shared by linked worktrees of a repository. Cards idle for 90 days are dropped.
 They hold no prompt, transcript, or log, and Moru Core never syncs them. The
-content-free delegation queue in `.tao/scheduler.json` is separate.
+content-free delegation queue in `.moru/scheduler.json` is separate.
 
 ### Connect The Target Repo
 
@@ -247,7 +247,7 @@ codex -C <TARGET_REPO> --add-dir "${MORU_HOME}"
 
 Use the second form only when the task needs the Moru Core root in the session workspace, such as maintaining shared Moru Core docs, scripts, or runtime bridges. Repo instruction files decide behavior; `-C` and `--add-dir` decide which filesystem roots the runtime can use without repeated prompts.
 
-For products that span several repos, add a local workspace group to `~/.tao/projects.json` instead of relying on prompt guessing:
+For products that span several repos, add a local workspace group to `~/.moru/projects.json` instead of relying on prompt guessing:
 
 ```json
 {
@@ -458,8 +458,8 @@ Moru Core is not tied to one runtime. Codex and Antigravity may discover `AGENTS
 - For long-lived repo setup, add the routing block from templates/repo-agents-routing.md to the instruction file the runtime reads, preferring `AGENTS.md` when supported. If `CLAUDE.md`, `CODEX.md`, `.agents/README.md`, or Antigravity CLI docs already exist, update their pointer in the same pass instead of leaving stale runtime guidance.
 - For one-shot use, paste templates/use-tao-prompt.mdinto the agent with the target repo, task, Moru Core root, and VibeGuard docs link filled in.
 - For stronger future behavior, use the optional Step 2 prompt in templates/apply-tao-request.mdto update user-level runtime bridges such as `~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`, `~/.antigravity`, `~/.antigravitycli`, or `~/.antigravity-ide`. The managed bridge must route the current request before document selection, use the local document graph and `workflow-doc-surfaces.json`, and read the route's `required_docs` even when the user did not name document keywords.
-- When a runtime starts from `~` or another non-project directory, resolve the target first with `<MORU_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>`. Continue only when it returns `selected`; ask the user when it returns `ambiguous` or `not_found`. Optional local aliases can live in `~/.tao/projects.json`.
-- To avoid repeated prompts for Moru Core commands, run `<MORU_LAUNCHER> setup-agent-hooks --check`, then run `<MORU_LAUNCHER> setup-agent-hooks` after approval if user-level bridges, hooks, or permissions are missing. This writes short managed bridge blocks for Codex, Claude, and AGY plus global runtime config only for Moru Core-managed entrypoints; it does not broadly allow `python3`. Codex and AGY permissions use the resolved absolute stable launcher path, not `$HOME`, `~`, relative paths, or shell `-lc` strings. Claude managed hooks use the same launcher plus a refreshed `~/.tao/tao-root` pointer, so moving or migrating the checkout does not leave `~/.claude/settings.json` pointing at a stale checkout-local command. Rerun setup after moving Moru Core to refresh that pointer and repair stale managed bridges and hooks.
+- When a runtime starts from `~` or another non-project directory, resolve the target first with `<MORU_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>`. Continue only when it returns `selected`; ask the user when it returns `ambiguous` or `not_found`. Optional local aliases can live in `~/.moru/projects.json`.
+- To avoid repeated prompts for Moru Core commands, run `<MORU_LAUNCHER> setup-agent-hooks --check`, then run `<MORU_LAUNCHER> setup-agent-hooks` after approval if user-level bridges, hooks, or permissions are missing. This writes short managed bridge blocks for Codex, Claude, and AGY plus global runtime config only for Moru Core-managed entrypoints; it does not broadly allow `python3`. Codex and AGY permissions use the resolved absolute stable launcher path, not `$HOME`, `~`, relative paths, or shell `-lc` strings. Claude managed hooks use the same launcher plus a refreshed `~/.moru/moru-root` pointer, so moving or migrating the checkout does not leave `~/.claude/settings.json` pointing at a stale checkout-local command. Rerun setup after moving Moru Core to refresh that pointer and repair stale managed bridges and hooks.
 - Spill workflow labels are written only after a successful real route or start preflight. Advisory prompt routing never writes labels; classify/list/query/validate use `--if-absent` and cannot replace an active task. A successful preflight records the selected route mapping (for example bugfix -> debugging/implement, commit -> git_commit/implement, review -> code_review/verify), including in-process routing. Failed routes preserve the prior label. Bounded synchronous helper writes prevent late detached classify writes from winning. Existing hooks and per-turn fallback remain enabled.
 - Spill token metering is optional and separate. Moru Core does not install token-usage event hooks. If the local Spill setup helper is present, `<MORU_LAUNCHER> setup-agent-hooks` may wire a safe workflow label bridge; if the helper is absent, it removes only Moru Core-managed Spill label hooks/env and leaves Moru Core routing and evidence wrappers working normally.
 - To refresh the obsolete Codex dispatch paragraph in an existing managed project `AGENTS.md`, add `--refresh-project-guidance <PROJECT>` to setup (repeat per project). Preview with `--dry-run`; `--check` verifies it afterward. Only the recognized paragraph inside the managed routing block changes; repo-owned instructions remain intact, and the previous file is kept as `AGENTS.md.tao-backup`. Unknown or unmanaged text is left unchanged with a diagnostic.
@@ -541,7 +541,7 @@ Leave `--max-added-lines` at its default for ordinary source changes. Raise it o
 
 Direct `<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`, and `<MORU_LAUNCHER> agent-finish-check`calls remain available only as lower-level diagnostic or compatibility fallbacks when the corresponding hook cannot run; never run them as a second lifecycle after a successful start or finish hook.
 
-The scripts write to `.tao/preflight.json` and `.tao/finish.json`. That directory is local runtime evidence and should usually be gitignored. Missing wrapper evidence or missing route gate evidence is non-compliant even if the resulting code or docs look correct. Human-visible gate reports use only two cat signal badges so failures are hard to miss: `🐱🟢 SUCCESS` and `🐱🔴 FAIL`. The JSON evidence keeps the plain signal values for automation. When `--request-classified` is used, pass `--classification-evidence`; otherwise request intake is treated as skipped. Evidence alone does not honor the flag: it applies only to a delegated worker whose parent left a ready and valid execution capsule, and the form with neither a request nor a capsule is rejected. Every other caller passes `--request "<USER_REQUEST>"` and lets the classifier run. A caller that only wants the document listing without asserting intake uses `--advisory`, which satisfies no downstream gate and never writes Spill label context. If route classification or stored request text asks for Grill-Me, the finish check must receive Grill-Me protocol evidence such as `grill-me if needed=</grilling session/output evidence>`. Work routes require resolved-scope classification evidence such as `clear-exact`, `clear-scoped`, `answered ... separate actionable`, or `blockers resolved`; weak evidence such as `classified`, `done`, `clarified`, or `no blockers` does not open work routes by itself.
+The scripts write to `.moru/preflight.json` and `.moru/finish.json`. That directory is local runtime evidence and should usually be gitignored. Missing wrapper evidence or missing route gate evidence is non-compliant even if the resulting code or docs look correct. Human-visible gate reports use only two cat signal badges so failures are hard to miss: `🐱🟢 SUCCESS` and `🐱🔴 FAIL`. The JSON evidence keeps the plain signal values for automation. When `--request-classified` is used, pass `--classification-evidence`; otherwise request intake is treated as skipped. Evidence alone does not honor the flag: it applies only to a delegated worker whose parent left a ready and valid execution capsule, and the form with neither a request nor a capsule is rejected. Every other caller passes `--request "<USER_REQUEST>"` and lets the classifier run. A caller that only wants the document listing without asserting intake uses `--advisory`, which satisfies no downstream gate and never writes Spill label context. If route classification or stored request text asks for Grill-Me, the finish check must receive Grill-Me protocol evidence such as `grill-me if needed=</grilling session/output evidence>`. Work routes require resolved-scope classification evidence such as `clear-exact`, `clear-scoped`, `answered ... separate actionable`, or `blockers resolved`; weak evidence such as `classified`, `done`, `clarified`, or `no blockers` does not open work routes by itself.
 
 If final VibeGuard is `Needs review`, the agent must report that state and pass `--allow-vibeguard-review "<reason>"` only when the review state is acceptable. A failed VibeGuard command, `🐱🔴 FAIL`, missing route evidence, or missing VibeGuard output remains a blocker.
 
@@ -741,7 +741,7 @@ PYTHONPATH=tests:scripts python3 -m unittest \
 Use the [local E2E command above](#local-hook-testing) for lifecycle integration.
 It checks start, weak-evidence rejection, a valid gate batch, finish, and search.
 Keep fixture evidence outside the read-only source snapshot, such as in ignored
-`.tao/` state. Real source drift must still fail verification.
+`.moru/` state. Real source drift must still fail verification.
 
 Keep H01–H10 stable and extend the relevant row before adding a new failure
 class. Each finding needs an ID, priority, source owner, reproduction condition,
@@ -801,7 +801,7 @@ P1 for the advertised smoke command; **resolved in this change**. Owner:
 temporary source root after a read-only triage start. Finish rejects that
 untracked-file drift and the command exits `1`.
 
-The repair places the batch in the fixture's ignored `.tao/` directory. The
+The repair places the batch in the fixture's ignored `.moru/` directory. The
 same E2E command then passes all five stages with exit `0`, preserving source
 drift validation and the weak-evidence rejection control.
 
@@ -832,7 +832,7 @@ These counts cover document content reads, not lifecycle-evidence file reads.
 
 P2 correctness edge; **resolved for the reported rewrite**, H05. Owner:
 [document_key](scripts/workflow_doc_graph_cache.py). In a temporary
-`.tao`-enabled fixture, build a graph from a Markdown link to `alpha.md`, replace
+`.moru`-enabled fixture, build a graph from a Markdown link to `alpha.md`, replace
 its target with equal-length `omega.md`, and restore the original `st_mtime_ns`
 using `os.utime`. Clear only the in-process graph cache, then build again to exercise
 the persisted cache.
@@ -892,7 +892,7 @@ directories and restores only delivery code and surface rules from `180bb39`
 in the baseline copy. Both variants therefore read identical guidance content.
 It makes no model or network calls and does not reset the live graph cache.
 Raw samples and counted paths are written to ignored
-`.tao/performance/health-measurements.json`; archive creation, fixture setup and
+`.moru/performance/health-measurements.json`; archive creation, fixture setup and
 marker removal are outside the timed actions. Read counters run separately
 from timing. The measured environment was macOS 27.0.1 arm64, Python 3.9.6,
 with warm OS file caches: 10 warmups and 200 samples per action, plus 20 fresh
@@ -1112,7 +1112,7 @@ hooks directory; live hooks and policies remain unchanged.
 
 Reproduce with `python3 -B tests/benchmarks/worktree_latency.py --pairs 5`.
 Raw samples, metadata, patch/content digests and parity checks are written to
-ignored `.tao/performance/worktree-latency.json`. This measures local commands
+ignored `.moru/performance/worktree-latency.json`. This measures local commands
 with warm OS caches. Applying a frozen patch replaces model implementation;
 model inference, tool transport, approvals, dependency installation, build
 cache recreation, live hooks, concurrent main changes and fixture cleanup

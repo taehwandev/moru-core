@@ -151,10 +151,10 @@ Saying so was not enough. 45 of 48 run directories in the reference checkout
 were named readably -- by date, by task -- so every one of those runs recorded
 no checkpoint and none of them could be resumed, while each hook reported the
 skip in a sentence that named the wrong cause. A caller who creates
-`.tao/runs/<name>/` has asked for a per-run directory, so `start` now refuses a
+`.moru/runs/<name>/` has asked for a per-run directory, so `start` now refuses a
 name that is not a 32-hex run id and says how to get one. The refusal is
-narrowed to that shape: the default `.tao/preflight.json` and worker paths under
-`.tao/workers/` still have no packet by design, and later hooks never refuse, so
+narrowed to that shape: the default `.moru/preflight.json` and worker paths under
+`.moru/workers/` still have no packet by design, and later hooks never refuse, so
 a run already begun under an unbindable name can still review and finish. An id already present in the registry
 is never adopted a second time, since two records sharing one opaque id would
 make "the run" ambiguous for every later lookup.
@@ -252,13 +252,13 @@ work after drift.
 The logical CLI surface is:
 
 ```text
-tao-hook checkpoint --checkpoint-kind <initial|pre_mutation|post_mutation|decision|lifecycle|stop>
+moru-hook checkpoint --checkpoint-kind <initial|pre_mutation|post_mutation|decision|lifecycle|stop>
   [--phase <phase>] [--last-completed <checkpoint>]
   [--mutation-kind <enum> --mutation-path <relative-path> ...]
   [--work-stdin]
-tao-hook resume --list
-tao-hook resume --last [--run-id <run-id>]
-tao-hook cancel --evidence <SOURCE_PREFLIGHT> \
+moru-hook resume --list
+moru-hook resume --last [--run-id <run-id>]
+moru-hook cancel --evidence <SOURCE_PREFLIGHT> \
   --replacement-evidence <COMPLETED_LINKED_WORKTREE_PREFLIGHT>
 ```
 
@@ -293,7 +293,7 @@ caller supplies an exact run-local evidence binding, mutation enum, and bounded
 relative path set. Lifecycle callers may still use their separate best-effort
 wrapper after their own gate outcome is already decided.
 
-`tao-hook resume --list` is read-only. It enumerates canonical packets for the
+`moru-hook resume --list` is read-only. It enumerates canonical packets for the
 current selected checkout only and reports:
 
 - opaque run id and route command;
@@ -328,7 +328,7 @@ They are reported as a count of packets whose run the registry no longer
 records -- withdrawn from candidacy, not hidden, because a packet that exists
 and can never be resumed is retention debt worth seeing.
 
-`tao-hook resume --last` selects the newest unfinished packet for this checkout,
+`moru-hook resume --last` selects the newest unfinished packet for this checkout,
 then attempts `claim_resume`. It never skips a blocked packet to resume an older
 task. `--run-id` names the candidate instead, which is what a checkout worked by
 several concurrent sessions needs: the newest slot there belongs to whichever
@@ -431,7 +431,7 @@ authority for project work state and may be used without the old conversation.
 
 The Claude adapter uses the common read-only active-session resolver. A start
 without explicit evidence allocates one
-`.tao/runs/<opaque-run-id>/preflight.json` path and every later hook resolves
+`.moru/runs/<opaque-run-id>/preflight.json` path and every later hook resolves
 that same path only when runtime name, session id, registry evidence key, and
 resume generation agree. An isolated worker resolves only the exact
 launcher-issued `MORU_WORKER_EVIDENCE` path and never falls back to parent

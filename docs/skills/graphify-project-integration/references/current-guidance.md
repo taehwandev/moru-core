@@ -46,7 +46,7 @@ have separate graph caches; they still use the same user-level skill.
 The following target-project paths belong to the removed project-bundle design:
 
 ```text
-.tao/skills/graphify
+.moru/skills/graphify
 .moru/skills/graphify
 .agents/skills/graphify
 .agents/rules/graphify.md
@@ -153,14 +153,14 @@ The managed `.graphifyignore` input block is narrow:
 
 ```text
 # moru-graphify-inputs:start
-.tao/
+.moru/
 .moru/
 .agents/local/
 graphify-out/
 # moru-graphify-inputs:end
 ```
 
-Do not rewrite `.gitignore`, unignore `.tao` or `.moru`, or narrow a repository's
+Do not rewrite `.gitignore`, unignore `.moru` or `.moru`, or narrow a repository's
 `.claude`/`.codex` ignores to expose runtime links. Project-local knowledge under
 `.agents/shared` remains graph input; `.agents/local` is intentionally excluded.
 

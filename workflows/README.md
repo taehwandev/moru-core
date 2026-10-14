@@ -209,7 +209,7 @@ the update.
   read-only and accepts no inline gate evidence. If a custom
   preflight evidence path is used, its gate ledger is
   `<preflight-stem>-gate-evidence.json`; the default preflight keeps using
-  `.tao/gate-evidence.json`. If
+  `.moru/gate-evidence.json`. If
   `review hook` is one of those gates, missing Review Hook evidence is a
   workflow failure. It also validates automatic gate evidence for ambiguity,
   alignment, documentation, tests, and multi-agent split decisions; vague

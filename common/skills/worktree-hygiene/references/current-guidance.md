@@ -108,7 +108,7 @@ overlapping `owned_scope` with another concurrent writer.
   --worktree <WORKTREE>`. The finalizer must independently compare every
   tracked and untracked worker change with the lead checkout before it may
   force-remove the intentionally dirty tree, prune Git admin state, and remove
-  an empty `.tao/worktrees` root. A mismatch fails closed and preserves the
+  an empty `.moru/worktrees` root. A mismatch fails closed and preserves the
   worker result. Ignored files are preserved unless the lead explicitly passes
   `--discard-ignored`; do not infer that policy from a successful worker exit.
   Do not auto-remove a worktree on worker exit.
@@ -117,7 +117,7 @@ overlapping `owned_scope` with another concurrent writer.
   loaded, then run a real worker without the repository-check bypass and confirm
   its writes stay in the worktree while the shared checkout remains unchanged.
   After lead integration and finalization, also prove `git worktree list
-  --porcelain` and the `.tao/worktrees` filesystem state return to their
+  --porcelain` and the `.moru/worktrees` filesystem state return to their
   pre-dispatch baseline while the integrated result remains in the lead checkout.
 
 ## Repo-Declared Root-Session Isolation
@@ -251,7 +251,7 @@ discarding commands retain their separate checks.
 A Moru-governed project without `worktree-policy.json` whose `AGENTS.md`,
 `CLAUDE.md`, or `CODEX.md` carries the managed Moru routing block receives the
 default boundary: linked worktrees required, `main` and `develop` protected.
-A `.tao` runtime directory or other Moru prose alone does not impose it, so a
+A `.moru` runtime directory or other Moru prose alone does not impose it, so a
 writing vault a run once touched keeps editing in place. The default declares no optional key, so it neither
 requires workflow entry, imposes ticket rules, nor earns the compliant-worktree
 preflight waiver. Known writes and Git administration in the default protected
@@ -359,7 +359,7 @@ ends), and `d568c59` moved them to `ask` again. Do not flip between those two;
 deferral is the answer to both.
 
 If an older session already opened a clean main-checkout run before relocating,
-settle it with `tao-hook cancel --evidence <SOURCE> --replacement-evidence
+settle it with `moru-hook cancel --evidence <SOURCE> --replacement-evidence
 <COMPLETED_REPLACEMENT_RUN>`. Cancellation is fail-closed: both runs must
 share the request, runtime session, route, rules root, and Git common directory;
 the replacement must have completed, the two must be different checkouts of that
@@ -385,14 +385,14 @@ Another checkout left with no uncommitted tracked work is also closed for the
 Claude Stop gate, so it no longer asks for a finish there; `finish` on such a
 replaced run names its replacement and evaluates no gates, and a hook without
 `--evidence` reads the session's own settled run rather than a legacy
-`.tao/preflight.json` written by another task.
+`.moru/preflight.json` written by another task.
 The same request in another checkout is left for the transfer above;
 `reconcile_required` runs keep their owed reconciliation, and `--continue-from`
 keeps settling only an active predecessor in its own checkout, never a paused
 or failed run it continues.
 
 A run whose honest outcome is that nothing needed changing is settled the other
-way, with `tao-hook cancel --evidence <RUN> --no-change-evidence "<why>"`. The
+way, with `moru-hook cancel --evidence <RUN> --no-change-evidence "<why>"`. The
 two are mutually exclusive: a transfer says another run did the work, and this
 says the work was correctly not done. It is proven rather than asserted, by two
 observations -- the checkout is clean, and the run's own continuation packet

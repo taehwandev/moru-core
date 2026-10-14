@@ -93,7 +93,7 @@ memory.
    transferred, materially re-scoped, blocked, or delegated. Ordinary state
    transitions inside an unchanged scope do not need separate ledger records.
 9. Global lessons: when preflight includes accepted or promoted lessons from
-   `~/.tao/`, check whether any apply to the current task before
+   `~/.moru/`, check whether any apply to the current task before
    editing or reviewing.
 10. Alignment and cycle contracts: `start` owns the initial intake. Record a
     separate alignment or cycle gate only when a specialized route lists it.

@@ -214,7 +214,7 @@ def _resolve_documents(
 
     An advisory route resolves the same documents but splits them differently:
     it satisfies no gate, so the documents a route requires *because of its
-    gates* are demoted to `reference_docs` and `tao-hook start` requires them
+    gates* are demoted to `reference_docs` and `moru-hook start` requires them
     when the real route runs. The full selection still seeds the graph and the
     missing-document check, so the two routes reach the same documents.
 
@@ -1320,7 +1320,7 @@ def _required_doc_tiers(
     if advisory:
         # An advisory route enforces nothing, so the evidence contracts of the
         # gates it lists and the code-work discipline for the work it does not
-        # start stay reference docs until `tao-hook start` routes for real.
+        # start stay reference docs until `moru-hook start` routes for real.
         return tiers
 
     # 5. What the route will enforce: the gates it runs, mapped to the documents

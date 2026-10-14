@@ -1,10 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Read(/.tao/worktrees/**)",
-      "Edit(/.tao/worktrees/**)",
-      "Write(/.tao/worktrees/**)",
-      "Bash(cd .tao/worktrees/*)",
+      "Read(/.moru/worktrees/**)",
+      "Edit(/.moru/worktrees/**)",
+      "Bash(cd .moru/worktrees/*)",
       "Bash(vibeguard)",
       "Bash(vibeguard:*)",
       "Bash(vibeguard *)",

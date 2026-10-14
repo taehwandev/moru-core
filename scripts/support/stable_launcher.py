@@ -285,7 +285,7 @@ def main():
     elif script_alias == "agent-finish-check" and _env(DIRECT_FINISH_CHECK_ENV) != "1":
         return _soft_fail(
             "direct agent-finish-check is a human-debugging fallback and skips the "
-            "finish hook's repair-cycle checks; run 'tao-hook finish' instead, "
+            "finish hook's repair-cycle checks; run 'moru-hook finish' instead, "
             f"or set {DIRECT_FINISH_CHECK_ENV}=1 to use it directly on purpose"
         )
     else:
@@ -366,6 +366,9 @@ def _find_root():
     candidates.extend(cwd.parents)
     candidates.extend(
         [
+            Path.home() / "moru-core",
+            Path.home() / "git" / "moru-core",
+            Path.home() / "GitHub" / "moru-core",
             Path.home() / ".tao-agent-os",
             Path.home() / "tao-agent-os",
             Path.home() / "git" / "tao-agent-os",

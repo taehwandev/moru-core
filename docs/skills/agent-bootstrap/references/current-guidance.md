@@ -302,7 +302,7 @@ that subsystem.
    Prefer shared route cards over per-repo skill copies unless the repo has a
    genuine local skill surface.
     When several runtimes need that local skill, keep its shared operational
-    content once under `.tao/skills/<skill>` and use repo-relative
+    content once under `.moru/skills/<skill>` and use repo-relative
     runtime links or thin adapters. Do not maintain parallel Codex, Claude, and
     Antigravity/AGY copies of the same knowledge.
 11. Do not paste the full Moru Core library into repo-local files.
@@ -344,7 +344,7 @@ Before reporting success:
 - The target repo's local instruction file still contains its original
   repo-specific rules.
 - When Graphify is enabled, the `graphify readiness` gate proves CLI, the
-  installed and read canonical `.tao` `SKILL.md`, runtime links that
+  installed and read canonical `.moru` `SKILL.md`, runtime links that
   resolve to it, runtime ownership, project integration, a fresh and
   input-complete target-root graph, and a successful scoped query smoke check.
   When project docs and code coexist, the check also proves a representative

@@ -109,7 +109,7 @@ resume generation; a live owner, different session, settled run, or public
 packet-less `resume --last` request remains refused.
 For Claude, `setup-agent-hooks.py` installs a stable user-level launcher at
 `<MORU_LAUNCHER>` and writes the current checkout to
-`~/.tao/tao-root`. Rerun setup after moving or migrating
+`~/.moru/moru-root`. Rerun setup after moving or migrating
 Moru Core so the pointer is refreshed without changing the Claude hook
 command.
 Claude setup installs the same roles from `templates/claude-agents/*.md.template`
@@ -133,8 +133,8 @@ mailbox once at the start of a normal user-visible task, and use
 Only explicit execution-evidence sends require `handoff`. Users never choose
 room or task ids; linked worktrees share the reference inbox.
 
-Reference state stays under user-local `~/.tao/agent-mailbox/`; explicit
-run-bound handoffs retain the project's `.tao/agent-mailbox/` store. Setup
+Reference state stays under user-local `~/.moru/agent-mailbox/`; explicit
+run-bound handoffs retain the project's `.moru/agent-mailbox/` store. Setup
 does not install a provider adapter, daemon, LaunchAgent, watcher, polling
 process, external API service, or background queue for it. Sending writes a
 local packet only. An idle target remains idle and incurs no model use until
@@ -171,7 +171,7 @@ reading: a label that moved under you answers a question nobody asked, while a
 fixed one lets you recognise at a glance which checkout this window belongs to.
 The open run is still found from the current directory, because that is where
 the run lives. Home folds to `~`, and past `PATH_LIMIT` the middle segments give
-way to `…` -- every task worktree sits under the same `.tao/worktrees`, so that
+way to `…` -- every task worktree sits under the same `.moru/worktrees`, so that
 is the part carrying no information. The leaf is never truncated; a half-written
 worktree name is worse than a long one.
 

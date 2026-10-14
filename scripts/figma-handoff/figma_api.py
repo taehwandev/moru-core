@@ -15,7 +15,7 @@ from typing import Any
 
 
 API_BASE_URL = "https://api.figma.com/v1"
-USER_AGENT = "tao-agent-os-figma-handoff/1.0"
+USER_AGENT = "moru-core-figma-handoff/1.0"
 _API_ORIGIN = "https://api.figma.com"
 _MAX_API_BYTES = 16 * 1024 * 1024
 _MAX_DOWNLOAD_BYTES = 64 * 1024 * 1024

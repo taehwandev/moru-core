@@ -81,7 +81,7 @@ downstream gate. Its markdown is a compact listing of Read First documents, a
 reference-doc count, gates, notes, and any missing or blocking conditions, and
 its `required_docs` keep only core, command, and caller-named documents while
 gate-driven contracts move to `reference_docs`; hooks, the parallel plan, the
-gate ledger, and those gate documents come from the real `tao-hook start` route.
+gate ledger, and those gate documents come from the real `moru-hook start` route.
 
 An explicit review-only request for a diff, patch, working tree, or changed
 files stays on the read-only `review` route even when the inspected subject

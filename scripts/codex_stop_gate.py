@@ -69,7 +69,7 @@ def closeout_reason(root: Path, evidence: Path) -> str:
     preflight = read_json(evidence) if read_json is not None else {}
     rules = Path(str(preflight.get("rules") or root))
     launcher = preferred_launcher_path() if preferred_launcher_path is not None else Path(
-        "tao-hook"
+        "moru-hook"
     )
     return (
         "Moru Core closeout is incomplete for this Codex session. "

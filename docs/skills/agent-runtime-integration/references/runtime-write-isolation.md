@@ -41,7 +41,7 @@ in a compliant worktree requires no additional operator decision.
 
 ## Run Evidence Binding
 
-The start hook allocates `.tao/runs/<opaque-run-id>/preflight.json` whenever no
+The start hook allocates `.moru/runs/<opaque-run-id>/preflight.json` whenever no
 explicit evidence path was supplied, including runtimes without a session id.
 When Claude supplies a runtime session id, every later hook uses the common
 exact-session resolver and requires runtime name, session id, registry evidence
@@ -55,7 +55,7 @@ Multiple parent-session matches fail closed, while a malformed, foreign, or
 unregistered worker binding fails without parent fallback. Candidate discovery
 uses one registry snapshot and one bounded state-tree traversal with explicit
 parent/worker scope classification rather than one recursive scan per active
-run; `.tao/preflight.json`, freshness
+run; `.moru/preflight.json`, freshness
 alone, and newest-file selection never unlock editing. `PreToolUse` fails closed
 when the required pre-mutation checkpoint cannot be written. The post hooks
 clear the pending mutation after success or failure and block the next agentic

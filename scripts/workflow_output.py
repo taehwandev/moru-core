@@ -43,7 +43,7 @@ def render_advisory_markdown(route: dict[str, object]) -> str:
     satisfies no gate, so everything that only serves gate execution -- hook
     command templates, the parallel plan, the gate ledger, retrospective policy,
     graphify readiness, the agent contract -- is left to the real route that
-    `tao-hook start` produces. What stays is what orients the agent before it
+    `moru-hook start` produces. What stays is what orients the agent before it
     starts: the route identity, what to read, the gate names, the notes, and
     anything missing or blocking, which is never dropped.
     """
@@ -56,7 +56,7 @@ def render_advisory_markdown(route: dict[str, object]) -> str:
         lines.append("")
         noun = "doc is" if reference_count == 1 else "docs are"
         lines.append(
-            f"{reference_count} more reference {noun} listed by `tao-hook start`; "
+            f"{reference_count} more reference {noun} listed by `moru-hook start`; "
             "open them only on demand."
         )
     reading_scope = route.get("reading_scope") or {}
@@ -82,7 +82,7 @@ def render_advisory_markdown(route: dict[str, object]) -> str:
     lines.append("")
     lines.append(
         "The full manifest (hooks, parallel plan, gate ledger) comes from "
-        f"`tao-hook start ... --command {route['command']} --request \"<USER_REQUEST>\"`."
+        f"`moru-hook start ... --command {route['command']} --request \"<USER_REQUEST>\"`."
     )
     lines.append(
         "This suggested command is not a reading queue: reuse unchanged guidance; "

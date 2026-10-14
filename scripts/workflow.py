@@ -495,7 +495,7 @@ def _print_advisory_once(route: dict[str, object], root: Path, payload_text: str
         print(
             f"Moru workflow route `{route['command']}`: unchanged since this "
             f"session already received it (digest {digest[:12]}). Rerun "
-            "`tao-hook workflow route <command>` to see it again."
+            "`moru-hook workflow route <command>` to see it again."
         )
     else:
         sys.stdout.write(text)

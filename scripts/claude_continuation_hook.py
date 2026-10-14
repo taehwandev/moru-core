@@ -260,7 +260,7 @@ def _unresumed_context(entries: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not recent:
         return _context(
             f"Moru continuation: {older} unfinished runs in this checkout, all older than "
-            f"{STALE_RUN_DAYS} days; none was resumed. `tao-hook resume --list` reports them."
+            f"{STALE_RUN_DAYS} days; none was resumed. `moru-hook resume --list` reports them."
         )
     listed = ", ".join(
         f"{entry['run_id']}({entry['route_command'] or 'unknown'})"
@@ -274,7 +274,7 @@ def _unresumed_context(entries: list[dict[str, Any]]) -> dict[str, Any] | None:
     return _context(
         f"Moru continuation found {len(entries)} unfinished runs in this checkout and none "
         f"bound to this session, so none was resumed: {listed}{tail}. Resume one by name with "
-        "`tao-hook resume --last --run-id <run-id>`; `tao-hook resume --list` reports what "
+        "`moru-hook resume --last --run-id <run-id>`; `moru-hook resume --list` reports what "
         "each one was doing."
     )
 

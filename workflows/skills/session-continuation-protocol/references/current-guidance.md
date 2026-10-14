@@ -127,7 +127,7 @@ Never removable:
   between creating its directory and registering the run, and no record exists
   to speak for it yet;
 - anything outside the run store: the registry itself, and tracked content such
-  as `.tao/skills`, which the state directory's own ignore file keeps.
+  as `.moru/skills`, which the state directory's own ignore file keeps.
 
 **Show the decision before taking it.** A dry run names every directory that
 will be kept and why, so the caller approves a rule rather than a count.
@@ -184,7 +184,7 @@ non-negotiable, because they are the reason this feature exists:
   without rendering packet prose.
 - **Claude isolated evidence.** Bind a resumed session to a run-local preflight
   path and prove the edit gate accepts only that exact session/path/generation;
-  using the old `.tao/preflight.json` must not unlock it. Bind a parent and
+  using the old `.moru/preflight.json` must not unlock it. Bind a parent and
   isolated worker to the same runtime session and prove each resolves only in
   its launcher-owned scope; a malformed or foreign worker hint must fail without
   parent fallback, while two parent-scope matches remain refused. Instrument
@@ -208,7 +208,7 @@ the common protocol:
 
 1. common schema/validator, atomic storage, during-work checkpoint commands,
    registry `claim_resume`, drift verification, state machine, discovery,
-   retention, and `tao-hook resume --last` / `--list`, with no runtime adapter;
+   retention, and `moru-hook resume --last` / `--list`, with no runtime adapter;
 2. the Claude adapter alone, including exact active-session evidence resolution
    for run-local preflight paths;
 3. Codex and AGY adapters, each thin wiring over the same commands.
@@ -234,7 +234,7 @@ a control proving the capability can fail has not been verified.
 - The existing `resume_run()` state flip remains internal compatibility code
   until callers migrate; the public resume command never uses it without the
   new owner/binding/drift transaction.
-- Existing default `.tao/preflight.json` runs remain readable when their packet
+- Existing default `.moru/preflight.json` runs remain readable when their packet
   binds that exact evidence. New isolated runs use their run-local locator. No
   adapter may guess between them by modification time.
 - A future packet schema version requires an explicit reader migration. Newer

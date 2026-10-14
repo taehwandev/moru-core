@@ -86,7 +86,7 @@ as shell expansion or a single shell string before the runtime permission
 matcher sees the trusted command. For Claude Code, update
 `~/.claude/settings.json` so managed hooks
 call `<MORU_LAUNCHER>`, and refresh
-`~/.tao/tao-root` to the selected Moru Core checkout so
+`~/.moru/moru-root` to the selected Moru Core checkout so
 moves or migrations do not leave Claude pointing at a stale checkout-local
 command. For
 AGY/Antigravity, support both
@@ -209,7 +209,7 @@ Call `<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`, or `<M
 directly only as lower-level diagnostic or compatibility fallbacks when the
 corresponding hook is unavailable; never run them as a second lifecycle.
 
-The wrappers write local evidence under .tao/. Missing wrapper
+The wrappers write local evidence under .moru/. Missing wrapper
 evidence or missing gate evidence is non-compliant even if the final files look
 correct. If final VibeGuard is Needs review, report it explicitly and pass
 --allow-vibeguard-review with a reason only when that review state is
@@ -309,7 +309,7 @@ The bridge must force this behavior:
   non-compliant.
 
 Optional local project registry for this machine:
-~/.tao/projects.json
+~/.moru/projects.json
 
 {
   "projects": [

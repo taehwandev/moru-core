@@ -128,7 +128,7 @@ Do not:
 
 ## Global Agent Lessons
 
-Use a user-local global lesson store such as `~/.tao/` only for
+Use a user-local global lesson store such as `~/.moru/` only for
 content-free cross-agent learning metadata. This store helps future agents on
 the same machine notice accepted or promoted lessons before repeating a workflow
 mistake.
@@ -144,7 +144,7 @@ lesson becomes durable only when it is promoted into shared docs, tests,
 workflow validation, hooks, or repo-local instructions.
 
 Project memory is a separate, agent-written user-local store under
-`~/.tao/project-memory/`. Its bounded content is shown as reference context
+`~/.moru/project-memory/`. Its bounded content is shown as reference context
 without approval; retired, replaced, or overdue records stay out of recall.
 Do not copy its content into the content-free global lesson records, usage
 events, or continuation packets. Linked worktrees of one repository share the
@@ -155,7 +155,7 @@ same project-memory identity. `project-memory --project <PATH> consolidate
 `docs/project-memory-consolidation/spec.md`. Apply each decision only with
 `capture --replaces` or `retire` after rechecking the record's source.
 
-Work cards under `~/.tao/work-cards/` hold only each start's target summary,
+Work cards under `~/.moru/work-cards/` hold only each start's target summary,
 route command, project path, state, and timestamps. Open cards shown at start
 are reference context, never authority or proof that work remains; close a
 finished one with `work-cards close <work id>`.

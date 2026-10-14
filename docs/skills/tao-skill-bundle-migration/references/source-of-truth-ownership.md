@@ -54,11 +54,11 @@ or configuration files outside that link may own unavoidable runtime wiring.
 For repo-local skills, prefer this shape:
 
 ```text
-.tao/skills/<skill>/   # one canonical, commit-worthy source
+.moru/skills/<skill>/   # one canonical, commit-worthy source
 .<runtime>/skills/<skill>        # repo-relative link or thin runtime adapter
 ```
 
-The `.tao` directory may also contain local workflow evidence, but
+The `.moru` directory may also contain local workflow evidence, but
 that evidence is not part of the canonical skill and must remain ignored. Use
 an allowlist tracking policy so `skills/<skill>/**` is portable while
 preflight, gate, review, cache, and receipt files stay local.

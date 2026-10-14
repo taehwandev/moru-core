@@ -82,7 +82,7 @@ export function mountWorkflow(root, page = document) {
     detailTitle.textContent = copy.exception;
     detailBody.textContent = route.exception;
     source.textContent = `${copy.source} ↗`;
-    source.href = `https://github.com/taehwandev/tao-agent-os/blob/main/${route.source}`;
+    source.href = `https://github.com/taehwandev/moru-core/blob/main/${route.source}`;
     legend.replaceChildren(node("code", "", route.command), node("span", "", copy.legend));
   }
   page.addEventListener("moru:language", (event) => {

@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from support.maintenance_scheduler import (
     LAUNCH_AGENT_LABEL,
+    LEGACY_LAUNCH_AGENT_LABEL,
     MAINTENANCE_INTERVAL_SECONDS,
     configure_maintenance_scheduler,
 )
@@ -108,6 +109,52 @@ class MaintenanceSchedulerTests(unittest.TestCase):
                     "ok",
                     configure_maintenance_scheduler(root, dry_run=True)[0]["status"],
                 )
+
+    def test_the_pre_rename_agent_is_unloaded_and_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir) / "home"
+            root = Path(temp_dir) / "moru-core"
+            (root / "scripts").mkdir(parents=True)
+            agents = home / "Library/LaunchAgents"
+            agents.mkdir(parents=True)
+            legacy = agents / f"{LEGACY_LAUNCH_AGENT_LABEL}.plist"
+            legacy.write_bytes(b"old")
+            with (
+                patch("support.maintenance_scheduler.sys.platform", "darwin"),
+                patch("support.maintenance_scheduler.sys.executable", "/usr/bin/python3"),
+                patch("support.maintenance_scheduler.Path.home", return_value=home),
+                patch("support.maintenance_scheduler.os.getuid", return_value=501),
+                patch("support.maintenance_scheduler._account_home", return_value=home),
+                patch(
+                    "support.maintenance_scheduler.subprocess.run",
+                    return_value=subprocess.CompletedProcess([], 1),
+                ),
+            ):
+                self.assertEqual("missing", configure_maintenance_scheduler(root, dry_run=True)[0]["status"])
+                self.assertTrue(legacy.exists())
+            with (
+                patch("support.maintenance_scheduler.sys.platform", "darwin"),
+                patch("support.maintenance_scheduler.sys.executable", "/usr/bin/python3"),
+                patch("support.maintenance_scheduler.Path.home", return_value=home),
+                patch("support.maintenance_scheduler.os.getuid", return_value=501),
+                patch("support.maintenance_scheduler._account_home", return_value=home),
+                patch(
+                    "support.maintenance_scheduler.subprocess.run",
+                    side_effect=[
+                        subprocess.CompletedProcess([], 1),
+                        subprocess.CompletedProcess([], 0),
+                        subprocess.CompletedProcess([], 0),
+                    ],
+                ) as run,
+            ):
+                configure_maintenance_scheduler(root, dry_run=False)
+
+            self.assertFalse(legacy.exists())
+            self.assertTrue((agents / f"{LAUNCH_AGENT_LABEL}.plist").is_file())
+            self.assertEqual(
+                ["bootout", f"gui/501/{LEGACY_LAUNCH_AGENT_LABEL}"],
+                run.call_args_list[1].args[0][1:],
+            )
 
     def test_a_redirected_home_never_touches_the_account_launchd_domain(self) -> None:
         """A sandboxed setup replaced the account's real maintenance agent."""

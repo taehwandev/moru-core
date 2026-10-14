@@ -38,7 +38,7 @@ SKIPPED_DETAIL = (
 UNBINDABLE_RUN_DIRECTORY = (
     "start --evidence names a run directory whose name is not an opaque "
     "32-character hex run id. A continuation packet binds to that name, so this "
-    "run would record no checkpoint and `tao-hook resume` could never continue "
+    "run would record no checkpoint and `moru-hook resume` could never continue "
     "it -- silently, for the whole lifecycle. Omit --evidence and start mints an "
     "opaque run directory for you, or name one yourself with "
     "`python3 -c \'import uuid; print(uuid.uuid4().hex)\'`."

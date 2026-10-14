@@ -106,13 +106,13 @@ This is one repair-and-resume cycle, not a generic retry budget.
 Generate the receipt first, then resume with its project-local path:
 
 ```text
-tao-hook repair-verify \
+moru-hook repair-verify \
   --project <TARGET_REPO> --rules <MORU_ROOT> \
   --repair-target <changed_file> \
   --resume-checkpoint <recorded_failed_checkpoint> \
   --repair-verification-kind <workflow_validate|unittest|py_compile|vibeguard>
 
-tao-hook <failed_hook> \
+moru-hook <failed_hook> \
   --repair-cycle 1 \
   --repair-target <same_changed_file> \
   --repair-evidence <project_local_receipt_path> \

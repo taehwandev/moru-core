@@ -26,7 +26,7 @@ Separate shared semantics from runtime mechanics. The provider-neutral
 canonical owner defines what the agent must know and do; runtime bridges define
 only how Codex, Claude, Gemini/Antigravity/AGY, or another runtime discovers,
 invokes, or enforces it. When several runtimes need the same repo-local skill, keep one
-canonical bundle under `.tao/skills/<skill>` and use repo-relative
+canonical bundle under `.moru/skills/<skill>` and use repo-relative
 runtime links or thin adapters. Do not maintain full runtime-specific copies of
 the same operational knowledge.
 
@@ -131,11 +131,11 @@ provider CLI or API, starts a model turn, or keeps a daemon, watcher, poller,
 background process, or external service alive.
 
 The maintainer never chooses a room or task id. Default sends store reference
-context under user-local `~/.tao/agent-mailbox/<repository-id>/`, shared by
+context under user-local `~/.moru/agent-mailbox/<repository-id>/`, shared by
 linked worktrees. They need no active run, worktree isolation or capsule.
 For execution-capsule reuse, run `handoff` and pass `--evidence <preflight-path>`
 explicitly. That form retains source-run binding and capsule validation in
-`.tao/agent-mailbox/runs/<opaque-run>/inbox/<recipient>/`; invalid evidence
+`.moru/agent-mailbox/runs/<opaque-run>/inbox/<recipient>/`; invalid evidence
 never falls back to a reference send. Neither form grants action authority.
 
 Required sequence:
@@ -406,7 +406,7 @@ Claude:
 - Claude managed hooks should call the stable launcher
   `<MORU_LAUNCHER>`, not a moving checkout path such as
   `/absolute/path/to/moru-core/scripts/workflow.py`. The setup script
-  refreshes `~/.tao/tao-root` to the current checkout and
+  refreshes `~/.moru/moru-root` to the current checkout and
   removes stale managed hook commands that still point at old roots. The stable
   launcher supports both script aliases such as `workflow` and direct
   `agent-hook.py` subcommand aliases such as `start`, `handoff`, `review`,
@@ -415,7 +415,7 @@ Claude:
 - Claude Moru Core permissions should allow only that stable launcher and
   the narrow managed helper commands with the runtime's trailing wildcard form
   for arguments, for example
-  `Bash(/absolute/home/.tao/bin/tao-hook *)`. Do not
+  `Bash(/absolute/home/.tao/bin/moru-hook *)`. Do not
   approve or document broad `python3`, relative `scripts/<name>.py`, or
   argument-specific variants for shared wrappers.
 - A non-runtime Python query helper may run read-only in a protected checkout
@@ -491,7 +491,7 @@ Gemini/Antigravity/AGY:
   runtime. Runtime hooks remain in `~/.gemini/config/hooks.json`.
 - AGY Moru Core permissions follow the same absolute-wrapper rule as
   Claude, using the AGY permission key shape, for example
-  `command(/Users/USER/.tao/bin/tao-hook *)`.
+  `command(/Users/USER/.tao/bin/moru-hook *)`.
   Avoid `$HOME`, `${HOME}`, `~`, relative script paths, and saved prefixes that
   include task-specific arguments.
 

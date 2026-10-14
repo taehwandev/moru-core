@@ -23,7 +23,7 @@ Moru Core는 에이전트에게 작업 방법을 알려주는 플레이북을 �
 ## 첫 수직 슬라이스 구현 상태
 
 Agent Kernel의 최소 실행 registry를 추가했다. 각 start hook은 로컬
-`.tao/run-registry.json`에 실행을 `running`으로 등록하고, finish
+`.moru/run-registry.json`에 실행을 `running`으로 등록하고, finish
 hook은 같은 preflight evidence에 연결된 최신 실행을 `completed` 또는
 `failed`로 전환한다. registry에는 요청 원문이나 로컬 파일 경로를 저장하지
 않고 opaque project/run ID, route/request fingerprint, 상태와 시각만 남긴다.

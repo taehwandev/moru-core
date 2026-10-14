@@ -41,7 +41,7 @@ present, Codex-specific setups read `CODEX.md` when present,
 Gemini/Antigravity/AGY reads `AGENTS.md`, and generic agents read their
 configured project instruction document or `.agents/README.md` when used.
 If the request names a product/workspace alias that may map to multiple repos,
-use the local `~/.tao/projects.json` workspace group when available.
+use the local `~/.moru/projects.json` workspace group when available.
 Do not guess a single repo from the alias alone. If work starts in one primary
 repo and investigation shows a secondary repo must be written, stop before that
 write and record a workspace scope checkpoint: starting primary, secondary or
@@ -144,7 +144,7 @@ run `<MORU_LAUNCHER> review` after the scoped diff is ready, and run
 `<MORU_LAUNCHER> finish` before final report, commit, release, or handoff. Pass
 evidence for every route gate to the finish check. The wrappers write local
 evidence under
-`.tao/`; this directory is runtime evidence and should usually be
+`.moru/`; this directory is runtime evidence and should usually be
 gitignored. When executing wrapper commands from an agent runtime, resolve
 `<MORU_ROOT>` to an absolute path first; do not leave `$HOME`,
 `${HOME}`, `~`, or a relative path in the executable command. Missing wrapper

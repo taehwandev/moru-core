@@ -94,9 +94,9 @@ settings.
 On macOS, the same setup also installs and loads one Moru-owned LaunchAgent for
 the selected Moru root. It runs the bounded `agent-os-maintenance.py
 --all-projects` pass at login and every 24 hours over the Moru root, every
-project in `~/.tao/projects.json`, checkouts with Moru run state directly under
+project in `~/.moru/projects.json`, checkouts with Moru run state directly under
 the search roots (never Desktop, Documents or Downloads unless registered), and
-their `.tao/worktrees/*`, without a daemon or per-agent polling loop. Unfinished
+their `.moru/worktrees/*`, without a daemon or per-agent polling loop. Unfinished
 runs untouched for 30 days are settled, registry records and run directories
 share that window, and packets the registry no longer records are removed after
 14 days. Active or recently live-owned runs and unclassified directories remain
@@ -222,7 +222,7 @@ Optional local project registry:
 }
 ```
 
-Store that file at `~/.tao/projects.json`, or pass a specific path
+Store that file at `~/.moru/projects.json`, or pass a specific path
 with `--registry`. The registry is local machine state and may contain personal
 paths; do not commit it to target repos. This is separate from global
 retrospective lessons, which must remain reusable and path-free.
@@ -391,7 +391,7 @@ Do not paste the full Moru Core library into runtime-specific files.
 
 For Graphify specifically, follow
 `docs/skills/graphify-project-integration/SKILL.md`: the canonical project
-bundle lives at `.tao/skills/graphify`, while only the Graphify
+bundle lives at `.moru/skills/graphify`, while only the Graphify
 discovery paths below `.codex`, `.claude`, and `.agents` are repo-relative
 links or genuinely runtime-specific hooks, rules, workflows, and registration.
 Other project-local knowledge under those directories remains independently

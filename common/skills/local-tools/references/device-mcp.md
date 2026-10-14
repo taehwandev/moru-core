@@ -25,7 +25,7 @@ Otherwise run the installed Moru helper with the current runtime:
 python3 <MORU_ROOT>/scripts/device-mcp.py ensure --runtime <codex|claude>
 ```
 
-This uses the operator-owned `~/.tao/device-mcp.json` registry across projects.
+This uses the operator-owned `~/.moru/device-mcp.json` registry across projects.
 A ready installation is checked and reused: no clone, package sync or duplicate
 registration. If setup is missing, the helper installs the pinned approved source,
 syncs the locked Python environment and registers the same stdio entrypoint with

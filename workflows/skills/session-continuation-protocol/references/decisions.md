@@ -257,11 +257,11 @@ controls:
    must prove the exact path is ignored by Git before accepting the packet. A
    tracked or merely untracked-but-not-ignored packet is `local_boundary_failed`,
    not a warning. In a supported non-Git workspace, the equivalent repo-local
-   state policy must explicitly classify `.tao/runs/` as local-only.
+   state policy must explicitly classify `.moru/runs/` as local-only.
 3. **Outbound deny rule.** Every Moru Core-owned sync, export, publish, IPC,
    telemetry, global-lesson, execution-capsule, diagnostic, and artifact
    collection boundary rejects both the packet schema id and paths under
-   `.tao/runs/*/continuation.json`. Absence from an allowlist is necessary but
+   `.moru/runs/*/continuation.json`. Absence from an allowlist is necessary but
    not sufficient; a negative test must attempt each outbound class and observe
    rejection.
 4. **Private local persistence.** Create the run directory with owner-only
@@ -295,7 +295,7 @@ The schema and common writer, not runtime prose, enforce minimization:
   than truncated and limited by item count, character count, and aggregate
   bytes;
 - paths are normalized repo-relative POSIX paths, never absolute paths, and
-  never point into `.git`, `.tao`, another repository, or a rules root outside
+  never point into `.git`, `.moru`, another repository, or a rules root outside
   the selected project;
 - identifiers are bounded safe slugs or exact catalog/ledger names;
 - verification stores a safe check category and an evidence hash/reference,

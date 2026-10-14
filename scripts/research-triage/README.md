@@ -52,7 +52,7 @@ cache writes:
 
 ```sh
 python3 scripts/research-triage/microsoft_decision.py \
-  --input .tao/research-input.json --cache-dir .tao/research-cache/ms
+  --input .moru/research-input.json --cache-dir .moru/research-cache/ms
 ```
 
 New calls require `--execute`. Read `OPENROUTER_API_KEY` from the invoking
@@ -61,7 +61,7 @@ print the key. The free model has provider rate limits; an OpenRouter account
 and credits are needed for paid requests. There is no automatic paid fallback.
 The operator can manage a capped key in the provider console.
 
-Keep the key in the user-level file `~/.tao/research.env` with file permissions
+Keep the key in the user-level file `~/.moru/research.env` with file permissions
 `600`. It lives outside every repository, so all checkouts, worktrees, other
 target repositories and agent sessions share one location. It is not in shell
 profiles such as `~/.zshrc`; an agent that finds `OPENROUTER_API_KEY` unset
@@ -75,18 +75,18 @@ export OPENROUTER_API_KEY=
 Load that file in the same shell that runs the CLI:
 
 ```sh
-source ~/.tao/research.env
+source ~/.moru/research.env
 ```
 
 The adapter does not load this file automatically. An already-running agent
 does not inherit an export from a different terminal; load the file in the
 invoking shell instead. Never paste the key into chat or tracked files. A
-checkout-local `.tao/research.env` also works because `.tao/` is Git-ignored,
+checkout-local `.moru/research.env` also works because `.moru/` is Git-ignored,
 but it is visible only to that checkout.
 
 ```sh
 python3 scripts/research-triage/microsoft_decision.py \
-  --input .tao/research-input.json --cache-dir .tao/research-cache/ms \
+  --input .moru/research-input.json --cache-dir .moru/research-cache/ms \
   --execute --max-calls 10
 ```
 

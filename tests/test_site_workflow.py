@@ -58,9 +58,9 @@ class SiteWorkflowTests(unittest.TestCase):
         # Reviewed before copy editing; these carry runtime, permissions and
         # metering responsibilities and are not marketing prose.
         expected = [
-            '1602dcc4d6fbf33df42f30cfcfad88e7e91ef820ea272f1d697273505897d519',
-            'e2839a39552933f3e3d7fc68c64d79ed8aa9ed6c47c872a1e715a7ff3b4c27f5',
-            'b6cd24ef3e519674f4a4fa89a1fd94930ad4ea2d62c729b7397aac74ce31ab50',
+            'a75056dd826050de2b656baaa65f59f0b30c6a2c71cc3a259f6693d1d53e832a',
+            '0726d00e3a77057eccba3e3b636a1559fad76aa460bbe82fd3774a1122b1d2cb',
+            'c6e479b356236c09c4ff13c967e543b9ea50b6172f0823b64b31c9b07a45c344',
             '8d0163297f34da7725e4867aed29ab0ee00291cdbb622b30e5038a7a37d1c627',
         ]
         values = re.findall(r'"quick\.prompt\.step[12]":\s*("(?:\\.|[^"\\])*")', self.html)

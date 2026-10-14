@@ -203,7 +203,7 @@ Use three layers for package-structure discipline:
    reason to loosen the hook.
 3. Repo-local rule files: each repo can define concrete package rules in
    `.agents/structure-rules.json`. A local-only override can live in
-   `.tao/structure-rules.json`; this is useful while tuning rules but
+   `.moru/structure-rules.json`; this is useful while tuning rules but
    should not be the only source of truth for team workflows.
 
 The repository-root `.agents/shared` namespace identifies shared agent tooling,

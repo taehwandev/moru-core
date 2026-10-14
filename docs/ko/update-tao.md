@@ -56,7 +56,7 @@ start가 만든 route의 `required_docs`를 수정이나 검토 전에 직접 �
 실제 route가 요구한 gate만 구조화된 근거로 기록한 다음 마무리 전에는
 `<MORU_LAUNCHER> finish`를 실행합니다. 고정된 gate 목록을 복사해 제출하지
 않습니다. 런처는 새 설치의 `~/.moru/bin/moru-hook` 또는 기존 설치의
-`~/.tao/bin/tao-hook`처럼 실제로 설치된 절대 경로를 사용합니다.
+`~/.moru/bin/moru-hook`처럼 실제로 설치된 절대 경로를 사용합니다.
 
 `finish`는 gate ledger를 쓰거나 덮어쓰지 않습니다. gate 상태 수정은
 `gate`/`gate-batch`로만 기록하며, 각 gate의 가장 최신 구조 상태가 기준입니다.
@@ -65,7 +65,7 @@ start가 만든 route의 `required_docs`를 수정이나 검토 전에 직접 �
 hook이 unavailable인 경우의 하위(lower-level) 진단 또는 호환성 fallback일 뿐이며 같은
 작업에서 두 번째 lifecycle로 실행하지 않습니다.
 
-이 스크립트들은 대상 저장소의 `.tao/` 아래에 로컬 JSON 근거를 남깁니다. 보통 이 디렉터리는 커밋하지 않고 `.gitignore`에 둡니다. preflight 근거, finish-check 근거, route gate 근거가 없으면 결과물이 맞아 보여도 모루 코어 기준으로는 non-compliant입니다. 사람이 보는 보고에는 두 가지 고양이 신호 배지만 씁니다: `🐱🟢 SUCCESS`는 근거와 함께 실행됨, `🐱🔴 FAIL`은 차단, 실패, 누락 또는 근거 없음입니다. 제3의 gate 상태는 보고하지 않습니다. `--request-classified`를 쓸 때는 `--classification-evidence`를 함께 남겨야 합니다. 다만 근거만으로는 이 플래그가 적용되지 않습니다. 이 플래그는 부모가 남긴 ready 상태의 유효한 execution capsule을 가진 위임 워커에게만 적용되며, 요청도 capsule도 없는 형태는 거부됩니다. 그 외의 호출자는 `--request "<USER_REQUEST>"`로 실제 사용자 요청을 넘기고 분류기가 판단하게 해야 합니다. 문서 목록과 라벨 컨텍스트만 필요하고 요청 인테이크를 주장하지 않는 호출자는 `--advisory`를 쓰며, 이는 어떤 다운스트림 게이트도 충족하지 않습니다. "그릴미"처럼 질문 드릴을 요청한 경우 드릴 근거가 없으면 `🐱🔴 FAIL`입니다.
+이 스크립트들은 대상 저장소의 `.moru/` 아래에 로컬 JSON 근거를 남깁니다. 보통 이 디렉터리는 커밋하지 않고 `.gitignore`에 둡니다. preflight 근거, finish-check 근거, route gate 근거가 없으면 결과물이 맞아 보여도 모루 코어 기준으로는 non-compliant입니다. 사람이 보는 보고에는 두 가지 고양이 신호 배지만 씁니다: `🐱🟢 SUCCESS`는 근거와 함께 실행됨, `🐱🔴 FAIL`은 차단, 실패, 누락 또는 근거 없음입니다. 제3의 gate 상태는 보고하지 않습니다. `--request-classified`를 쓸 때는 `--classification-evidence`를 함께 남겨야 합니다. 다만 근거만으로는 이 플래그가 적용되지 않습니다. 이 플래그는 부모가 남긴 ready 상태의 유효한 execution capsule을 가진 위임 워커에게만 적용되며, 요청도 capsule도 없는 형태는 거부됩니다. 그 외의 호출자는 `--request "<USER_REQUEST>"`로 실제 사용자 요청을 넘기고 분류기가 판단하게 해야 합니다. 문서 목록과 라벨 컨텍스트만 필요하고 요청 인테이크를 주장하지 않는 호출자는 `--advisory`를 쓰며, 이는 어떤 다운스트림 게이트도 충족하지 않습니다. "그릴미"처럼 질문 드릴을 요청한 경우 드릴 근거가 없으면 `🐱🔴 FAIL`입니다.
 
 VibeGuard가 `Needs review`이면 완료가 아닙니다. 그 상태를 명시 보고하고, 받아들일 수 있는 사유가 있을 때만 `--allow-vibeguard-review "<사유>"`로 finish check를 통과시킵니다.
 
