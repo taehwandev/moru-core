@@ -23,6 +23,7 @@ MAX_CAPTURE_ATTEMPTS = 2
 EXCLUDED_DIRECTORY_NAMES = frozenset(
     {
         ".tao",
+        ".moru",
         ".git",
         ".mypy_cache",
         ".pytest_cache",
