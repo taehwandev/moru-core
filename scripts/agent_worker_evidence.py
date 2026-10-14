@@ -11,8 +11,15 @@ from agent_gate_evidence import gate_evidence_path_for_preflight
 from support.global_state import project_state_dir_target
 
 
-RESERVATION_FILENAME = ".tao-reservation"
-CLAIMED_FILENAME = ".tao-reservation-claimed"
+LEGACY_RESERVATION_FILENAME = ".tao-reservation"
+MORU_RESERVATION_FILENAME = ".moru-reservation"
+
+
+def _reservation_paths(worker_dir: Path) -> tuple[Path, ...]:
+    legacy = worker_dir / LEGACY_RESERVATION_FILENAME
+    if worker_dir.parent.parent.name == ".moru":
+        return (worker_dir / MORU_RESERVATION_FILENAME, legacy)
+    return (legacy,)
 
 
 def _check_no_symlink(path: Path) -> None:
@@ -44,7 +51,7 @@ def create_worker_reservation(worker_dir: Path) -> str:
 
     _check_no_symlink(worker_dir)
     token = uuid.uuid4().hex
-    marker_path = worker_dir / RESERVATION_FILENAME
+    marker_path = _reservation_paths(worker_dir)[0]
     try:
         with open(marker_path, "x", encoding="ascii") as marker:
             marker.write(token + "\n")
@@ -66,12 +73,18 @@ def worker_reservation_matches(worker_dir: Path, token: str) -> bool:
         _check_no_symlink(worker_dir)
     except OSError:
         return False
-    marker_path = worker_dir / RESERVATION_FILENAME
-    try:
-        recorded = marker_path.read_text(encoding="ascii").strip()
-    except (OSError, UnicodeDecodeError):
-        return False
-    return hmac.compare_digest(recorded, token)
+    return _matching_reservation_path(worker_dir, token) is not None
+
+
+def _matching_reservation_path(worker_dir: Path, token: str) -> Path | None:
+    for marker_path in _reservation_paths(worker_dir):
+        try:
+            recorded = marker_path.read_text(encoding="ascii").strip()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if hmac.compare_digest(recorded, token):
+            return marker_path
+    return None
 
 
 def claim_worker_reservation(worker_dir: Path, token: str) -> bool:
@@ -81,10 +94,12 @@ def claim_worker_reservation(worker_dir: Path, token: str) -> bool:
         _check_no_symlink(worker_dir)
     except OSError:
         return False
-    if not worker_reservation_matches(worker_dir, token):
+    if len(token) != 32 or any(character not in "0123456789abcdef" for character in token):
         return False
-    marker_path = worker_dir / RESERVATION_FILENAME
-    claimed_path = worker_dir / CLAIMED_FILENAME
+    marker_path = _matching_reservation_path(worker_dir, token)
+    if marker_path is None:
+        return False
+    claimed_path = marker_path.with_name(marker_path.name + "-claimed")
     try:
         marker_path.replace(claimed_path)
         recorded = claimed_path.read_text(encoding="ascii").strip()
