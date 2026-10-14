@@ -81,9 +81,9 @@ Use available `moru_explorer`, `moru_worker`, and `moru_reviewer` custom agents 
 bounded evidence gathering, implementation, and review respectively. In Codex
 they are custom agent roles; in Claude Code they are subagents selected with
 the Agent tool's `subagent_type`. In Antigravity/AGY, where subagents are not
-installed as global role files, map `tao_explorer` and `tao_reviewer` to
+installed as global role files, map `moru_explorer` and `moru_reviewer` to
 `invoke_subagent` with `TypeName="research"` (or session `define_subagent` with
-`enable_write_tools=false`) and `tao_worker` to `TypeName="self"` (or session
+`enable_write_tools=false`) and `moru_worker` to `TypeName="self"` (or session
 `define_subagent` with `enable_write_tools=true`), keeping `Model="inherit"` and
 `Workspace="inherit"` unless explicit worktree isolation (`"share"` or `"branch"`)
 is required. Fall back to the corresponding native agent when a custom role is
