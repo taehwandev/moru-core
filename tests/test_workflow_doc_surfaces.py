@@ -732,7 +732,7 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
         )
 
         self.assertIn("common/skills/agent-skill-card-anatomy/SKILL.md", docs)
-        self.assertIn("docs/skills/tao-skill-bundle-migration/SKILL.md", docs)
+        self.assertIn("docs/skills/moru-skill-bundle-migration/SKILL.md", docs)
         self.assertTrue(any(match["name"] == "skill_docs" for match in matches))
 
     def test_skill_bundle_structure_request_promotes_migration_docs(self) -> None:
@@ -747,7 +747,7 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
         )
 
         self.assertIn(
-            guidance_area("docs/skills/tao-skill-bundle-migration/SKILL.md"),
+            guidance_area("docs/skills/moru-skill-bundle-migration/SKILL.md"),
             routed_areas(route),
         )
         self.assertIn(guidance_area("common/skills/agent-skill-card-anatomy/SKILL.md"), required_areas(route))
@@ -1365,7 +1365,7 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                item["path"] == "docs/skills/tao-skill-bundle-migration/SKILL.md"
+                item["path"] == "docs/skills/moru-skill-bundle-migration/SKILL.md"
                 for item in results
             ),
             results,

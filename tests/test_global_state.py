@@ -63,7 +63,7 @@ class MoruStateSelectionTest(unittest.TestCase):
             (home / ".moru" / "workspace").mkdir(parents=True)
             with patch.object(Path, "home", return_value=home):
                 self.assertTrue(global_state.is_global_state_dir(home / ".moru"))
-                self.assertFalse(global_state.marks_tao_project(home))
+                self.assertFalse(global_state.marks_moru_project(home))
 
     def test_project_switches_only_after_explicit_migration(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

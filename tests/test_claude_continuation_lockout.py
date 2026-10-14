@@ -27,7 +27,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from _tao_test_support import ROOT, TemplateRepository, fake_vibeguard_environment
+from _moru_test_support import ROOT, TemplateRepository, fake_vibeguard_environment
 
 import claude_pretool_gate as gate
 from agent_route_state import request_fingerprint

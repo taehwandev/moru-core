@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _tao_test_support import ROOT, fake_vibeguard_environment
+from _moru_test_support import ROOT, fake_vibeguard_environment
 
 import agent_work_cards as cards  # noqa: E402
 from test_work_continuity_lifecycle_e2e import (  # noqa: E402

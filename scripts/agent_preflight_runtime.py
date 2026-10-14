@@ -29,18 +29,18 @@ AGY_RUNTIME_BRIDGE_PATH = Path.home() / ".antigravity" / "AGENTS.md"
 AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES = runtime_bridge_required_phrases("Antigravity", "AGENTS.md")
 
 
-def check_agent_hooks(tao_root: Path) -> tuple[list[str], list[str]]:
+def check_agent_hooks(moru_root: Path) -> tuple[list[str], list[str]]:
     """Return warning and failure strings for missing runtime registrations."""
     warnings: list[str] = []
     failures: list[str] = []
     spill_available = has_spill_setup_helper()
 
-    warnings.extend(_codex_warnings(tao_root))
-    warnings.extend(_claude_warnings(tao_root, spill_available=spill_available))
-    agy_warnings = _agy_warnings(tao_root, spill_available=spill_available)
+    warnings.extend(_codex_warnings(moru_root))
+    warnings.extend(_claude_warnings(moru_root, spill_available=spill_available))
+    agy_warnings = _agy_warnings(moru_root, spill_available=spill_available)
     warnings.extend(agy_warnings)
 
-    agy_bridge_issue = agy_runtime_bridge_issue(tao_root)
+    agy_bridge_issue = agy_runtime_bridge_issue(moru_root)
     if agy_bridge_issue and active_runtime_label() == "antigravity":
         failures.append(agy_bridge_issue)
     elif agy_bridge_issue and agy_warnings:
@@ -59,7 +59,7 @@ def active_runtime_label() -> str:
     return ""
 
 
-def agy_runtime_bridge_issue(tao_root: Path) -> str:
+def agy_runtime_bridge_issue(moru_root: Path) -> str:
     # AGY CLI loads GEMINI.md as its global rule file; the SDK reads AGENTS.md.
     for bridge_path in (AGY_GEMINI_RUNTIME_BRIDGE_PATH, AGY_RUNTIME_BRIDGE_PATH):
         try:
@@ -69,19 +69,19 @@ def agy_runtime_bridge_issue(tao_root: Path) -> str:
         if any(phrase not in text for phrase in AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES):
             return (
                 "AGY runtime bridge is missing required fail-closed instructions at "
-                f"{bridge_path}. Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
+                f"{bridge_path}. Run: python3 {moru_root / 'scripts' / 'setup-agent-hooks.py'}"
             )
     return ""
 
 
-def _codex_warnings(tao_root: Path) -> list[str]:
+def _codex_warnings(moru_root: Path) -> list[str]:
     target = Path.home() / ".codex" / "rules" / "default.rules"
     if not target.exists():
         return []
     try:
         missing_permissions = _missing_text_entries(
             target.read_text(),
-            codex_prefix_rule_entries(tao_root / "scripts"),
+            codex_prefix_rule_entries(moru_root / "scripts"),
         )
     except OSError:
         return []
@@ -89,11 +89,11 @@ def _codex_warnings(tao_root: Path) -> list[str]:
         return []
     return [
         "Codex Moru Core Python prefix rules are missing. "
-        f"Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
+        f"Run: python3 {moru_root / 'scripts' / 'setup-agent-hooks.py'}"
     ]
 
 
-def _claude_warnings(tao_root: Path, *, spill_available: bool) -> list[str]:
+def _claude_warnings(moru_root: Path, *, spill_available: bool) -> list[str]:
     target = Path.home() / ".claude" / "settings.json"
     if not target.exists():
         return []
@@ -103,24 +103,24 @@ def _claude_warnings(tao_root: Path, *, spill_available: bool) -> list[str]:
         return []
 
     warnings: list[str] = []
-    launcher_issue = stable_launcher_issue(tao_root)
+    launcher_issue = stable_launcher_issue(moru_root)
     if launcher_issue:
         warnings.append(launcher_issue)
     if spill_available:
-        warnings.extend(_claude_spill_warnings(config, tao_root))
+        warnings.extend(_claude_spill_warnings(config, moru_root))
     missing_permissions = _missing_allow_entries(
         config,
-        claude_permission_entries(tao_root / "scripts", spill_available=spill_available),
+        claude_permission_entries(moru_root / "scripts", spill_available=spill_available),
     )
     if missing_permissions:
         warnings.append(
             "Claude Code Moru Core Python permissions are missing. "
-            f"Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
+            f"Run: python3 {moru_root / 'scripts' / 'setup-agent-hooks.py'}"
         )
     return warnings
 
 
-def _claude_spill_warnings(config: dict[str, Any], tao_root: Path) -> list[str]:
+def _claude_spill_warnings(config: dict[str, Any], moru_root: Path) -> list[str]:
     warnings: list[str] = []
     groups = config.get("hooks", {}).get("UserPromptSubmit", [])
     managed_commands = [
@@ -137,29 +137,29 @@ def _claude_spill_warnings(config: dict[str, Any], tao_root: Path) -> list[str]:
     if not managed_commands:
         warnings.append(
             "Claude Code UserPromptSubmit Spill workflow label hook is missing. "
-            f"Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
+            f"Run: python3 {moru_root / 'scripts' / 'setup-agent-hooks.py'}"
         )
     elif not has_advisory_route:
         warnings.append(
             "Claude Code UserPromptSubmit Spill workflow label hook is missing "
             "--advisory. Run: "
-            f"python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
+            f"python3 {moru_root / 'scripts' / 'setup-agent-hooks.py'}"
         )
     spill_tool = config.get("env", {}).get("SPILL_AI_TOOL", "")
     if spill_tool != "claude":
         warnings.append(
             "env.SPILL_AI_TOOL is not set to 'claude' in ~/.claude/settings.json. "
-            f"Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
+            f"Run: python3 {moru_root / 'scripts' / 'setup-agent-hooks.py'}"
         )
     return warnings
 
 
-def _agy_warnings(tao_root: Path, *, spill_available: bool) -> list[str]:
+def _agy_warnings(moru_root: Path, *, spill_available: bool) -> list[str]:
     targets = [
         Path.home() / ".gemini" / "config" / "config.json",
         Path.home() / ".gemini" / "antigravity-cli" / "settings.json",
     ]
-    entries = agy_permission_entries(tao_root / "scripts", spill_available=spill_available)
+    entries = agy_permission_entries(moru_root / "scripts", spill_available=spill_available)
     configs: list[dict[str, Any]] = []
     for target in targets:
         config = _read_json_object(target)
@@ -168,7 +168,7 @@ def _agy_warnings(tao_root: Path, *, spill_available: bool) -> list[str]:
     if configs and not any(not _missing_allow_entries(config, entries) for config in configs):
         return [
             "AGY Moru Core Python permissions are missing from AGY config. "
-            f"Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
+            f"Run: python3 {moru_root / 'scripts' / 'setup-agent-hooks.py'}"
         ]
     return []
 

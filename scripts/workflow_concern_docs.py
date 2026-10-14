@@ -96,22 +96,22 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
     "copy": ("common/skills/human-authored-writing/SKILL.md", "common/skills/accessibility-i18n/SKILL.md"),
     "skill": (
         "common/skills/agent-skill-card-anatomy/SKILL.md",
-        "docs/skills/tao-skill-bundle-migration/SKILL.md",
+        "docs/skills/moru-skill-bundle-migration/SKILL.md",
         "workflows/skills/documentation-update/SKILL.md",
     ),
     "skills": (
         "common/skills/agent-skill-card-anatomy/SKILL.md",
-        "docs/skills/tao-skill-bundle-migration/SKILL.md",
+        "docs/skills/moru-skill-bundle-migration/SKILL.md",
         "workflows/skills/documentation-update/SKILL.md",
     ),
     "skill-card": (
         "common/skills/agent-skill-card-anatomy/SKILL.md",
-        "docs/skills/tao-skill-bundle-migration/SKILL.md",
+        "docs/skills/moru-skill-bundle-migration/SKILL.md",
         "workflows/skills/documentation-update/SKILL.md",
     ),
     "card-anatomy": (
         "common/skills/agent-skill-card-anatomy/SKILL.md",
-        "docs/skills/tao-skill-bundle-migration/SKILL.md",
+        "docs/skills/moru-skill-bundle-migration/SKILL.md",
         "workflows/skills/documentation-update/SKILL.md",
     ),
     "source-driven": ("common/skills/source-driven-development/SKILL.md",),

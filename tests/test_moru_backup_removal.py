@@ -108,7 +108,7 @@ SCENARIOS = ("plain", "protected_main", "linked_entry_required")
 
 
 class TaoBackupRemovalTests(unittest.TestCase):
-    def test_tao_backup_removal_is_admitted_without_a_run(self) -> None:
+    def test_moru_backup_removal_is_admitted_without_a_run(self) -> None:
         for scenario in SCENARIOS:
             for command in ADMITTED:
                 with self.subTest(scenario=scenario, command=command), \

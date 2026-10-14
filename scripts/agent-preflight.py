@@ -57,10 +57,10 @@ from agent_command_runtime import (
 )
 
 
-def route_command(args: argparse.Namespace, tao_root: Path) -> list[str]:
+def route_command(args: argparse.Namespace, moru_root: Path) -> list[str]:
     command = [
         "python3",
-        str(tao_root / "scripts" / "workflow.py"),
+        str(moru_root / "scripts" / "workflow.py"),
         "route",
         args.command,
         "--format",
@@ -99,11 +99,11 @@ def route_command(args: argparse.Namespace, tao_root: Path) -> list[str]:
 
 def route_result(
     args: argparse.Namespace,
-    tao_root: Path,
+    moru_root: Path,
     project: Path,
     git_status: dict[str, Any],
 ) -> dict[str, Any]:
-    command = route_command(args, tao_root)
+    command = route_command(args, moru_root)
     try:
         route, error, returncode = route_payload(args, git_status)
     except Exception as error:
@@ -237,7 +237,7 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     atomic_write_json(path, payload)
 
 
-def build_parser(tao_root: Path) -> argparse.ArgumentParser:
+def build_parser(moru_root: Path) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run route, git status, and VibeGuard before agent work."
     )
@@ -307,7 +307,7 @@ def build_parser(tao_root: Path) -> argparse.ArgumentParser:
         default=[],
     )
     parser.add_argument("--project", type=Path, default=Path.cwd())
-    parser.add_argument("--rules", type=Path, default=tao_root)
+    parser.add_argument("--rules", type=Path, default=moru_root)
     parser.add_argument("--evidence", type=Path)
     parser.add_argument(
         "--read-only",
@@ -436,7 +436,7 @@ def request_intake(args: argparse.Namespace) -> dict[str, Any]:
 
 def write_early_bridge_failure(
     args: argparse.Namespace,
-    tao_root: Path,
+    moru_root: Path,
     project: Path,
     rules: Path,
     evidence_path: Path,
@@ -444,7 +444,7 @@ def write_early_bridge_failure(
 ) -> int:
     evidence = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "tao_root": str(tao_root),
+        "moru_root": str(moru_root),
         "project": str(project),
         "rules": str(rules),
         "request_intake": request_intake(args),
@@ -533,7 +533,7 @@ def _attach_project_route_docs(preflight: dict, project: Path, route: dict) -> N
         preflight["project_route_docs"] = project_docs
 
 
-def run_preflight(args: argparse.Namespace, tao_root: Path) -> int:
+def run_preflight(args: argparse.Namespace, moru_root: Path) -> int:
     project = args.project.resolve()
     rules = args.rules.resolve()
     evidence_path = resolve_evidence_path(args, project)
@@ -541,11 +541,11 @@ def run_preflight(args: argparse.Namespace, tao_root: Path) -> int:
 
     early_bridge_failure = ""
     if active_runtime_label() == "antigravity":
-        early_bridge_failure = agy_runtime_bridge_issue(tao_root)
+        early_bridge_failure = agy_runtime_bridge_issue(moru_root)
     if early_bridge_failure:
         return write_early_bridge_failure(
             args,
-            tao_root,
+            moru_root,
             project,
             rules,
             evidence_path,
@@ -556,7 +556,7 @@ def run_preflight(args: argparse.Namespace, tao_root: Path) -> int:
     if is_git_status_review_only(project, git_status):
         git_status["review_only"] = True
         git_status["review_note"] = non_git_writing_workspace_note(project)
-    route_result_payload = route_result(args, tao_root, project, git_status)
+    route_result_payload = route_result(args, moru_root, project, git_status)
     route_payload, route_parse_error = parse_route_payload(route_result_payload)
     if route_result_payload["returncode"] == 0:
         claim_worker_evidence_reservation(args, evidence_path, project)
@@ -576,7 +576,7 @@ def run_preflight(args: argparse.Namespace, tao_root: Path) -> int:
 
     write_json(evidence_path, {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "tao_root": str(tao_root),
+        "moru_root": str(moru_root),
         "project": str(project),
         "rules": str(rules),
         "request_intake": request_intake(args),
@@ -589,7 +589,7 @@ def run_preflight(args: argparse.Namespace, tao_root: Path) -> int:
         "global_lessons": global_lessons,
         "runtime_session": runtime_session(),
     })
-    hook_warnings, hook_failures = check_agent_hooks(tao_root)
+    hook_warnings, hook_failures = check_agent_hooks(moru_root)
     failures = collect_failures(
         route_result_payload,
         route_payload,
@@ -662,8 +662,8 @@ def _preflight_result_with_label(failures: list[str], route: dict | None) -> int
 
 
 def main() -> int:
-    tao_root = Path(__file__).resolve().parents[1]
-    parser = build_parser(tao_root)
+    moru_root = Path(__file__).resolve().parents[1]
+    parser = build_parser(moru_root)
     args = parser.parse_args()
     if args.request_classified and not args.classification_evidence:
         parser.error(
@@ -673,7 +673,7 @@ def main() -> int:
     if not args.request:
         parser.error("preflight requires --request with the real current request")
     try:
-        return run_preflight(args, tao_root)
+        return run_preflight(args, moru_root)
     except ValueError as error:
         print(f"FAIL: {error}", file=sys.stderr)
         return 2

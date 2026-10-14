@@ -109,8 +109,8 @@ class MaintenanceProjectTests(unittest.TestCase):
         self._register(listed)
 
         self.assertEqual(
-            [self.tao_root, listed, worktree],
-            managed_projects(self.tao_root, projects_registry=self.registry_file),
+            [self.moru_root, listed, worktree],
+            managed_projects(self.moru_root, projects_registry=self.registry_file),
         )
 
     def setUp(self) -> None:
@@ -126,8 +126,8 @@ class MaintenanceProjectTests(unittest.TestCase):
             patcher = patch.object(agent_os_maintenance, name, return_value=value)
             patcher.start()
             self.addCleanup(patcher.stop)
-        self.tao_root = self.base / "tao-agent-os"
-        (self.tao_root / ".moru").mkdir(parents=True)
+        self.moru_root = self.base / "tao-agent-os"
+        (self.moru_root / ".moru").mkdir(parents=True)
         self.registry_file = self.base / "projects.json"
 
     def _register(self, *roots: Path, search_roots: list[Path] | None = None) -> None:
@@ -151,10 +151,10 @@ class MaintenanceProjectTests(unittest.TestCase):
         missing = self.base / "gone"
         self._register(listed, missing, search_roots=[search])
 
-        checkouts = managed_projects(self.tao_root, projects_registry=self.registry_file)
+        checkouts = managed_projects(self.moru_root, projects_registry=self.registry_file)
 
         self.assertEqual(
-            [self.tao_root, listed, worktree, found],
+            [self.moru_root, listed, worktree, found],
             checkouts,
         )
 
@@ -167,7 +167,7 @@ class MaintenanceProjectTests(unittest.TestCase):
             fixture.directory(1, "acting", age=20 * DAY)  # orphan past 14 days
         self._register(first.root, second.root)
 
-        summary = run_all_maintenance(self.tao_root, projects_registry=self.registry_file)
+        summary = run_all_maintenance(self.moru_root, projects_registry=self.registry_file)
 
         for fixture in (first, second, worktree):
             with self.subTest(checkout=fixture.root.name):
@@ -248,7 +248,7 @@ class MaintenanceProjectTests(unittest.TestCase):
                     "--all-projects",
                     "--dry-run",
                     "--project",
-                    str(self.tao_root),
+                    str(self.moru_root),
                     "--projects-registry",
                     str(self.registry_file),
                 ]
@@ -262,7 +262,7 @@ class MaintenanceProjectTests(unittest.TestCase):
         self.assertIn("registry_prune=1", line)
         self.assertIn("run_dirs removable=2", line)
         self.assertIn("orphaned=1", line)
-        self.assertTrue(any(item.startswith(f"{self.tao_root}:") for item in lines))
+        self.assertTrue(any(item.startswith(f"{self.moru_root}:") for item in lines))
         self.assertIn("dry run, nothing changed", lines[-1])
 
     def test_an_unreadable_registry_never_makes_every_run_an_orphan(self) -> None:

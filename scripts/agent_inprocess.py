@@ -65,12 +65,12 @@ def run_script_main(script: Path, argv: list[str], cwd: Path) -> dict[str, Any]:
     return run_callable_as_command(command=command, cwd=cwd, callback=_run)
 
 
-def run_workflow_validate(tao_root: Path) -> dict[str, Any]:
+def run_workflow_validate(moru_root: Path) -> dict[str, Any]:
     from workflow_validate import validate
 
     return run_callable_as_command(
-        command=[sys.executable, str(tao_root / "scripts" / "workflow.py"), "validate"],
-        cwd=tao_root,
+        command=[sys.executable, str(moru_root / "scripts" / "workflow.py"), "validate"],
+        cwd=moru_root,
         callback=validate,
     )
 

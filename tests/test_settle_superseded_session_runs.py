@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _tao_test_support import ROOT, SCRIPTS, TemplateRepository, fake_vibeguard_environment
+from _moru_test_support import ROOT, SCRIPTS, TemplateRepository, fake_vibeguard_environment
 
 from agent_run_registry import transition_run
 from agent_transfer_validate import _same_session

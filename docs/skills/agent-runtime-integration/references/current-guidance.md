@@ -398,7 +398,7 @@ Claude:
 - If no Claude-specific file exists and Claude reads `AGENTS.md` in the target
   environment, do not create `CLAUDE.md` just for duplication.
 - If Claude is operating from chat without repo instruction discovery, paste
-  `templates/use-tao-prompt.md`.
+  `templates/use-moru-prompt.md`.
 - Tell Claude the exact Moru Core root path or a repo-pinned submodule path.
 - Moru Core command permissions belong in the user-level
   `~/.claude/settings.json`, not repo-local `.claude/settings.json`, because

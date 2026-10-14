@@ -4,7 +4,7 @@ import sys
 import unittest
 
 import test_claude_pretool_execution as fixture_module
-from _tao_test_support import fake_vibeguard_environment
+from _moru_test_support import fake_vibeguard_environment
 
 # These tests exercise commit readiness, not audit findings.
 _FAKE_VIBEGUARD = fake_vibeguard_environment()

@@ -1,5 +1,5 @@
 ---
-keyflow_id: sys_use_tao_prompt_template
+keyflow_id: sys_use_moru_prompt_template
 status: review
 type: human-reviewed-needed
 ---

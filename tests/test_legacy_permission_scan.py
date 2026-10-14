@@ -12,7 +12,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from support.permission_entries import _legacy_tao_python_scripts
+from support.permission_entries import _legacy_moru_python_scripts
 
 
 class LegacyScanSkipsRuntimeStateTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class LegacyScanSkipsRuntimeStateTests(unittest.TestCase):
         run_dir.mkdir(parents=True)
         (run_dir / "evidence.py").write_text("", encoding="utf-8")
 
-        scripts = _legacy_tao_python_scripts(project / "scripts")
+        scripts = _legacy_moru_python_scripts(project / "scripts")
 
         self.assertFalse([path for path in scripts if ".moru" in path.parts])
 
@@ -62,7 +62,7 @@ class LegacyScanSkipsRuntimeStateTests(unittest.TestCase):
             return real_scandir(path, *args, **kwargs)
 
         with mock.patch.object(os, "scandir", vanishing_scandir):
-            scripts = _legacy_tao_python_scripts(project / "scripts")
+            scripts = _legacy_moru_python_scripts(project / "scripts")
 
         self.assertIn(project / "kept" / "pkg" / "module.py", scripts)
         self.assertFalse([path for path in scripts if path.name == "pruned.py"])

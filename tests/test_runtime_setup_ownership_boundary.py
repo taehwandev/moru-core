@@ -134,7 +134,7 @@ class ClaudeSettingsMergeTests(_SettingsFixture, unittest.TestCase):
         self.assertEqual(1, after.count(MORU_STOP_GATE))
         self.assertEqual(1, after.count(FOREIGN_SHARED_PREFIX))
 
-    def test_a_tao_hook_sharing_a_group_with_a_foreign_hook_is_removed_alone(self) -> None:
+    def test_a_moru_hook_sharing_a_group_with_a_foreign_hook_is_removed_alone(self) -> None:
         # Removal is per hook object. Dropping the enclosing group would take a
         # neighbouring product's hook with it.
         self._write({"hooks": {"Stop": [{

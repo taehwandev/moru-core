@@ -255,7 +255,7 @@ class AdvisoryListingIsCompactTests(unittest.TestCase):
     Before the compact renderer the triage listing was 10,835 bytes, and about
     560 of them were the documents to read and the gate names. Hook templates,
     the parallel plan and the gate ledger serve gate execution, which an
-    advisory route never performs; `tao-hook start` prints them for real.
+    advisory route never performs; `moru-hook start` prints them for real.
     """
 
     GATE_MANIFEST_SECTIONS = (
@@ -289,7 +289,7 @@ class AdvisoryListingIsCompactTests(unittest.TestCase):
                 self.assertIn("## Read First", output)
                 self.assertIn("## Gates", output)
                 self.assertIn("## Notes", output)
-                self.assertIn("tao-hook start", output)
+                self.assertIn("moru-hook start", output)
                 for section in self.GATE_MANIFEST_SECTIONS:
                     self.assertNotIn(section, output)
                 self.assertLess(len(output.encode("utf-8")), 3000)

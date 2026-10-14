@@ -64,9 +64,9 @@ class _IsolationDerivationTestCase(unittest.TestCase):
                 "final_verification": ["python3 -m unittest discover tests"],
             },
         }
-        tao_dir = project / ".moru"
-        tao_dir.mkdir(parents=True, exist_ok=True)
-        (tao_dir / "agent-delegation-plan.json").write_text(
+        moru_dir = project / ".moru"
+        moru_dir.mkdir(parents=True, exist_ok=True)
+        (moru_dir / "agent-delegation-plan.json").write_text(
             json.dumps(plan), encoding="utf-8"
         )
 
@@ -254,9 +254,9 @@ class MalformedPlanFailClosedTests(_IsolationDerivationTestCase):
     def _write_raw_plan(self, project: Path, content: str) -> None:
         """Write arbitrary bytes to the default plan path (bypasses schema helper)."""
 
-        tao_dir = project / ".moru"
-        tao_dir.mkdir(parents=True, exist_ok=True)
-        (tao_dir / "agent-delegation-plan.json").write_text(content, encoding="utf-8")
+        moru_dir = project / ".moru"
+        moru_dir.mkdir(parents=True, exist_ok=True)
+        (moru_dir / "agent-delegation-plan.json").write_text(content, encoding="utf-8")
 
     def test_broken_json_plan_without_worker_id_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -1,5 +1,5 @@
 ---
-keyflow_id: sys_tao_source_of_truth_ownership
+keyflow_id: sys_moru_source_of_truth_ownership
 status: review
 type: human-reviewed-needed
 ---
@@ -152,7 +152,7 @@ require updating several narrative copies.
 
 When a request names folder structure, `SKILL.md`, `references/`, skill bundles,
 source-of-truth cleanup, duplicated guidance, or misplaced docs, routing should
-load `docs/skills/tao-skill-bundle-migration/SKILL.md` before edits.
+load `docs/skills/moru-skill-bundle-migration/SKILL.md` before edits.
 
 ## Stop If
 

@@ -38,7 +38,7 @@ python3 "$MORU_HOME/scripts/workflow.py" validate
 git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
 ```
 
-설치본을 갱신할 때는 진행 중인 에이전트 작업이 끝난 뒤 선택한 체크아웃에서 `git pull --ff-only`를 실행하고, 런처의 `workflow validate`와 VibeGuard 검사를 수행합니다. 자세한 절차는 [기존 설치 최신화 안내](docs/ko/update-tao.md)를 참고하세요.
+설치본을 갱신할 때는 진행 중인 에이전트 작업이 끝난 뒤 선택한 체크아웃에서 `git pull --ff-only`를 실행하고, 런처의 `workflow validate`와 VibeGuard 검사를 수행합니다. 자세한 절차는 [기존 설치 최신화 안내](docs/ko/update-moru.md)를 참고하세요.
 
 ## 프로젝트에 연결하기
 

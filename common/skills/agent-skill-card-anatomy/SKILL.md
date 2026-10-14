@@ -14,7 +14,7 @@ templates.
 
 - `references/current-guidance.md` for strict card sections, rationalizations,
   red flags, stop conditions, and bundle layout rules.
-- `docs/skills/tao-skill-bundle-migration/SKILL.md` before
+- `docs/skills/moru-skill-bundle-migration/SKILL.md` before
   broad structure or router changes.
 
 ## Process

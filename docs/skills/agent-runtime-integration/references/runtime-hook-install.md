@@ -158,7 +158,7 @@ written.
 ```
 
 Both runtimes render this from `scripts/support/statusline.py`, which composes
-the line, and `scripts/support/tao_run_state.py`, which reads whether a run is
+the line, and `scripts/support/moru_run_state.py`, which reads whether a run is
 open; each runtime keeps only an entry point saying how it is invoked. They were copies once, and the copy is
 how a defect travelled -- a status word outside the installer's vocabulary was
 written in one and inherited by the other -- so a segment added twice is a

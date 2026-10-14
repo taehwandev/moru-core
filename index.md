@@ -46,7 +46,7 @@ catalog itself only when that is the task.
 - Human-authored prose, voice fidelity, and AI-writing signal cleanup: `common/skills/human-authored-writing/SKILL.md`
 - Blog/article draft workspace, publishing-target separation, and shared writing source-of-truth: `common/skills/writing-workspace/SKILL.md`
 - Moru Core card anatomy, anti-rationalization, red flags, and evidence sections: `common/skills/agent-skill-card-anatomy/SKILL.md`
-- Moru Core skill bundle migration, `SKILL.md` plus `references/`structure, and duplicate source-of-truth cleanup: `docs/skills/tao-skill-bundle-migration/SKILL.md`
+- Moru Core skill bundle migration, `SKILL.md` plus `references/`structure, and duplicate source-of-truth cleanup: `docs/skills/moru-skill-bundle-migration/SKILL.md`
 - Architecture choice/change: `common/skills/architecture-selection/SKILL.md`
 - Architecture design: `common/skills/architecture-design/SKILL.md`
 - Source-driven framework, SDK, platform, API, and external-doc decisions: `common/skills/source-driven-development/SKILL.md`

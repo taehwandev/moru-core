@@ -84,9 +84,9 @@ class WorktreeIdentityTests(unittest.TestCase):
 
     def test_rejects_symlinked_worker_root(self) -> None:
         with tempfile.TemporaryDirectory() as outside_dir:
-            tao_dir = self.project / ".moru"
-            tao_dir.mkdir()
-            (tao_dir / "worktrees").symlink_to(
+            moru_dir = self.project / ".moru"
+            moru_dir.mkdir()
+            (moru_dir / "worktrees").symlink_to(
                 Path(outside_dir),
                 target_is_directory=True,
             )

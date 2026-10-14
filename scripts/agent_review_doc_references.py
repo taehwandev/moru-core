@@ -52,7 +52,7 @@ def doc_reference_failures(
     removed_paths: list[str],
     tracked_markdown: list[str] | None = None,
     *,
-    require_tao_frontmatter: bool = True,
+    require_moru_frontmatter: bool = True,
 ) -> list[str]:
     """Return one failure line per broken reference rule, or an empty list.
 
@@ -67,13 +67,13 @@ def doc_reference_failures(
     a filesystem walk keeps the function usable without the hook, at the cost of
     reading artifacts the repository does not track.
 
-    ``require_tao_frontmatter`` is true only when the reviewed checkout owns
+    ``require_moru_frontmatter`` is true only when the reviewed checkout owns
     Moru's card convention. Link and removal checks remain active everywhere.
     """
 
     failures: list[str] = []
     failures.extend(_broken_link_failures(project, changed_markdown))
-    if require_tao_frontmatter:
+    if require_moru_frontmatter:
         failures.extend(_frontmatter_failures(project, changed_markdown))
     failures.extend(
         _orphaned_reference_failures(project, removed_paths, tracked_markdown)

@@ -173,7 +173,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
                 decision = json.loads(output.getvalue())["hookSpecificOutput"]
                 self.assertEqual("deny", decision.get("permissionDecision"))
 
-    def test_runtime_state_or_tao_prose_alone_does_not_impose_isolation(self):
+    def test_runtime_state_or_moru_prose_alone_does_not_impose_isolation(self):
         # A writing vault a run once touched holds a `.tao` directory and a
         # Moru doc-enforcement note, but never adopted the code routing block.
         root = self.plain("vault")
@@ -182,7 +182,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
         (root / "AGENTS.md").write_text(
             "<!-- BEGIN MANAGED TAO AGENT OS DOC ENFORCEMENT --> tao-hook <!-- END -->\n"
         )
-        self.assertTrue(gate.marks_tao_project(root))
+        self.assertTrue(gate.marks_moru_project(root))
         self.assertIsNone(gate.worktree_policy(root))
         self.assertIsNone(gate.worktree_denial(root))
         self.assertNotIn("worktree gate", self.edit(root, root))

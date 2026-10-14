@@ -13,7 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from _tao_test_support import ROOT, TemplateRepository
+from _moru_test_support import ROOT, TemplateRepository
 import agent_verification_hook as verify
 from agent_gate_evidence import gate_evidence_path_for_preflight
 
@@ -110,7 +110,7 @@ class VerificationHookTests(unittest.TestCase):
         self.assertEqual(0, self.run_hook())
         self.assertIn("tests=1", self.entries()[-1]["fields"]["result"])
 
-    def test_a_module_only_tao_has_is_not_importable_by_project_tests(self):
+    def test_a_module_only_moru_has_is_not_importable_by_project_tests(self):
         """A project lacking `agent_gate_reuse` must fail, not import Moru's copy."""
         (self.project / "tests" / "test_case.py").write_text(
             "import unittest\n"

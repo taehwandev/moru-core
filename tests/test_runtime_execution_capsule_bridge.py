@@ -612,7 +612,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
 
     def test_templates_use_one_start_and_direct_required_docs(self) -> None:
         repo_template = (ROOT / "templates" / "repo-agents-routing.md").read_text()
-        prompt_template = (ROOT / "templates" / "use-tao-prompt.md").read_text()
+        prompt_template = (ROOT / "templates" / "use-moru-prompt.md").read_text()
         normalized_repo_template = " ".join(repo_template.split())
 
         self.assertIn("run `<MORU_LAUNCHER> start` once", repo_template)
@@ -645,9 +645,9 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
             "common/skills/agent-operating-skill/references/current-guidance.md",
             "workflows/skills/agent-task-lifecycle/references/current-guidance.md",
             "workflows/skills/scripted-agent-workflow/references/current-guidance.md",
-            "templates/apply-tao-request.md",
+            "templates/apply-moru-request.md",
             "docs/index.html",
-            "docs/ko/update-tao.md",
+            "docs/ko/update-moru.md",
             "index.md",
             "docs/skills/agent-bootstrap/references/current-guidance.md",
             "common/skills/task-intake-effort-routing/references/current-guidance.md",

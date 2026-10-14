@@ -1281,7 +1281,7 @@ def review_input_invocation_failure_details(
         )
     return details
 
-def _tao_frontmatter_contract(project: Path) -> bool:
+def _moru_frontmatter_contract(project: Path) -> bool:
     """Whether this checkout owns Moru's card metadata convention."""
 
     return all((project / marker).is_file() for marker in MORU_FRONTMATTER_ROOT_MARKERS)
@@ -1336,7 +1336,7 @@ def documentation_reference_failures(
         changed,
         removed,
         tracked,
-        require_tao_frontmatter=_tao_frontmatter_contract(project),
+        require_moru_frontmatter=_moru_frontmatter_contract(project),
     )
 
 

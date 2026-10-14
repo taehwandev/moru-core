@@ -51,7 +51,7 @@ def claude_permission_entries(scripts_dir: Path, *, spill_available: bool = True
     if spill_available:
         for command in _spill_helper_permission_commands("claude"):
             _add_permission_command_entries(entries, "Bash", command)
-    for command in _claude_tao_tool_commands():
+    for command in _claude_moru_tool_commands():
         _add_permission_command_entries(entries, "Bash", command)
     return entries
 
@@ -62,7 +62,7 @@ def claude_legacy_permission_entries(scripts_dir: Path) -> list[str]:
         _add_permission_command_entries(entries, "Bash", command)
     for command in _obsolete_spill_helper_permission_commands("claude"):
         _add_permission_command_entries(entries, "Bash", command)
-    for script in _legacy_tao_python_scripts(scripts_dir):
+    for script in _legacy_moru_python_scripts(scripts_dir):
         for command in _python_entrypoint_commands(script, "claude", scripts_dir.parent, include_legacy=True):
             _add_permission_command_entries(entries, "Bash", command)
     entries.extend(_legacy_claude_git_permission_entries())
@@ -76,7 +76,7 @@ def claude_project_permission_entries(scripts_dir: Path, *, spill_available: boo
     # portable and rely on the user-level Claude permission installed above.
     entries: list[str] = []
     entries.extend(_worktree_permission_entries())
-    for command in _claude_tao_tool_commands():
+    for command in _claude_moru_tool_commands():
         _add_permission_command_entries(entries, "Bash", command)
     return entries
 
@@ -145,7 +145,7 @@ def _legacy_claude_git_permission_entries() -> list[str]:
         f"Bash(git -C * branch {option}*)"
         for option in sorted(BRANCH_READ_ONLY_OPTIONS)
     )
-    for command in _common_tao_tool_commands():
+    for command in _common_moru_tool_commands():
         if command == "git" or command.startswith("git "):
             _add_permission_command_entries(entries, "Bash", command)
     return entries
@@ -201,7 +201,7 @@ def agy_permission_entries(scripts_dir: Path, *, spill_available: bool = True) -
     if spill_available:
         for command in _spill_helper_permission_commands("antigravity"):
             _add_permission_command_entries(entries, "command", command)
-    for command in _common_tao_tool_commands():
+    for command in _common_moru_tool_commands():
         _add_permission_command_entries(entries, "command", command)
     return entries
 
@@ -212,7 +212,7 @@ def agy_legacy_permission_entries(scripts_dir: Path) -> list[str]:
         _add_permission_command_entries(entries, "command", command)
     for command in _obsolete_spill_helper_permission_commands("antigravity"):
         _add_permission_command_entries(entries, "command", command)
-    for script in _legacy_tao_python_scripts(scripts_dir):
+    for script in _legacy_moru_python_scripts(scripts_dir):
         for command in _python_entrypoint_commands(script, "antigravity", scripts_dir.parent, include_legacy=True):
             entries.append(f"command({command})")
             entries.append(f"command({command}:*)")
@@ -230,7 +230,7 @@ def codex_prefix_rule_entries(scripts_dir: Path) -> list[str]:
     # still pass their own runtime and Moru checks.
     entries = [_codex_prefix_rule(["cd"])]
     entries.extend(_codex_prefix_rule([path]) for path in _stable_launcher_path_variants())
-    for script in _tao_python_scripts(scripts_dir):
+    for script in _moru_python_scripts(scripts_dir):
         path = str(script.resolve())
         entries.append(_codex_prefix_rule(["python3", path]))
         entries.append(_codex_prefix_rule(["python", path]))
@@ -241,7 +241,7 @@ def codex_prefix_rule_entries(scripts_dir: Path) -> list[str]:
 def codex_legacy_prefix_rule_entries(scripts_dir: Path) -> list[str]:
     """Exact legacy rules setup may remove outside its managed block."""
     entries: list[str] = []
-    for script in _legacy_tao_python_scripts(scripts_dir):
+    for script in _legacy_moru_python_scripts(scripts_dir):
         path = str(script.resolve())
         entries.append(_codex_prefix_rule(["python3", path]))
         entries.append(_codex_prefix_rule(["python", path]))
@@ -249,11 +249,11 @@ def codex_legacy_prefix_rule_entries(scripts_dir: Path) -> list[str]:
     return entries
 
 
-def _tao_python_scripts(scripts_dir: Path) -> list[Path]:
+def _moru_python_scripts(scripts_dir: Path) -> list[Path]:
     return [scripts_dir / name for name in EXECUTABLE_ENTRYPOINTS]
 
 
-def _legacy_tao_python_scripts(scripts_dir: Path) -> list[Path]:
+def _legacy_moru_python_scripts(scripts_dir: Path) -> list[Path]:
     """All paths emitted by the former recursive permission generator.
 
     The walk prunes rather than filters, because the excluded directories are
@@ -442,7 +442,7 @@ def _dedupe(values: list[str]) -> list[str]:
     return result
 
 
-def _common_tao_tool_commands() -> list[str]:
+def _common_moru_tool_commands() -> list[str]:
     return [
         "vibeguard",
         "npx --yes @taehwandev/vibeguard",
@@ -467,11 +467,11 @@ def _common_tao_tool_commands() -> list[str]:
     ]
 
 
-def _claude_tao_tool_commands() -> list[str]:
+def _claude_moru_tool_commands() -> list[str]:
     """Common commands excluding Git, whose policy belongs to the hook."""
 
     return [
         command
-        for command in _common_tao_tool_commands()
+        for command in _common_moru_tool_commands()
         if command != "git" and not command.startswith("git ")
     ]

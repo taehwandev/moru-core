@@ -1,5 +1,5 @@
 ---
-keyflow_id: sys_tao_ms_research_triage_adapter
+keyflow_id: sys_moru_ms_research_triage_adapter
 status: review
 type: ai-generated
 ---

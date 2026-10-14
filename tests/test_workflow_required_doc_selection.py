@@ -180,7 +180,7 @@ class EntrypointResolutionTests(unittest.TestCase):
 
 class RequiredDocMembershipTests(unittest.TestCase):
     def test_application_prompts_preserve_lookup_exception(self) -> None:
-        for name in ("use-tao-prompt.md", "apply-tao-request.md"):
+        for name in ("use-moru-prompt.md", "apply-moru-request.md"):
             text = (ROOT / "templates" / name).read_text(encoding="utf-8")
             self.assertIn("checks of a supplied diagnosis", text)
             self.assertIn("Explicit change/PR reviews", text)

@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 
-def _without_tao_scripts(entries: list[str]) -> list[str]:
+def _without_moru_scripts(entries: list[str]) -> list[str]:
     """Drop Moru's own script directories from the project's import path.
 
     Python puts this runner's directory first, so a project test importing a
@@ -23,7 +23,7 @@ def _without_tao_scripts(entries: list[str]) -> list[str]:
 
 def main() -> int:
     project, directory, pattern, receipt = sys.argv[1:5]
-    sys.path[:] = [str(Path(project).resolve()), *_without_tao_scripts(sys.path)]
+    sys.path[:] = [str(Path(project).resolve()), *_without_moru_scripts(sys.path)]
     suite = unittest.defaultTestLoader.discover(start_dir=directory, pattern=pattern)
     result = unittest.TextTestRunner().run(suite)
     Path(receipt).write_text(

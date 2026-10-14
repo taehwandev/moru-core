@@ -330,7 +330,7 @@ class ClaudeStopGateTests(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertEqual("", out)
 
-    def test_non_tao_project_is_never_blocked(self) -> None:
+    def test_non_moru_project_is_never_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             code, out = _decide({"session_id": "s1", "cwd": tmp})
 

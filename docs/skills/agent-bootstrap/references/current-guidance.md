@@ -1,5 +1,5 @@
 ---
-keyflow_id: sys_tao_agent_bootstrap
+keyflow_id: sys_moru_agent_bootstrap
 status: review
 type: human-reviewed-needed
 ---
@@ -42,7 +42,7 @@ file.
 ```
 
 For one-shot task use without editing repo-local instructions, use
-`templates/use-tao-prompt.md`.
+`templates/use-moru-prompt.md`.
 
 For runtime-specific setup across Codex, Claude, Antigravity, and generic
 agents, use `docs/skills/agent-runtime-integration/SKILL.md`.

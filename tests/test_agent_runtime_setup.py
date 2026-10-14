@@ -548,7 +548,7 @@ class RuntimeSetupTests(unittest.TestCase):
 
         self.assertEqual("codex", label)
 
-    def test_spill_tool_label_allows_explicit_tao_override(self) -> None:
+    def test_spill_tool_label_allows_explicit_moru_override(self) -> None:
         label = spill_tool_label({"MORU_AI_TOOL": "agy", "CODEX_SANDBOX": "seatbelt"})
 
         self.assertEqual("antigravity", label)

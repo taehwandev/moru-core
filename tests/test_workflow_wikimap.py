@@ -274,14 +274,14 @@ class WikimapCorpusIgnoreTests(unittest.TestCase):
 
     def test_publications_samples_and_scaffolds_are_excluded(self) -> None:
         for relative in (
-            "docs/ko/update-tao.md",
-            "docs/ko/tao-agent-os-roadmap.md",
+            "docs/ko/update-moru.md",
+            "docs/ko/moru-core-roadmap.md",
             "docs/migration/tao-agent-os-rename.md",
             "docs/minimal-workflow/prd.md",
             "docs/work-surface-resolution/spec.md",
             "docs/index.html",
             "docs/logo.svg",
-            "templates/use-tao-prompt.md",
+            "templates/use-moru-prompt.md",
         ):
             with self.subTest(relative=relative):
                 self.assertTrue(self._ignored(relative))

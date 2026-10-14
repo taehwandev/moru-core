@@ -24,7 +24,7 @@ from claude_bash_readonly import (  # noqa: F401
     raw_path_arguments,
     read_only_path_token_indices,
 )
-from support.global_state import marks_tao_project
+from support.global_state import marks_moru_project
 from support.stable_launcher import stable_launcher_path  # noqa: F401
 
 
@@ -116,7 +116,7 @@ def worktree_policy(root: Path) -> dict | None:
     """
 
     policy = declared_worktree_policy(root)
-    if policy is None and adopts_tao_routing(root):
+    if policy is None and adopts_moru_routing(root):
         return default_worktree_policy()
     return policy
 
@@ -129,16 +129,16 @@ ROUTING_MARKERS = (
 )
 
 
-def adopts_tao_routing(root: Path) -> bool:
+def adopts_moru_routing(root: Path) -> bool:
     """Whether root's instruction file carries the managed Moru routing block.
 
-    The undeclared isolation default keys on this, not on marks_tao_project: a
+    The undeclared isolation default keys on this, not on marks_moru_project: a
     `.tao` runtime directory appears in any checkout a run ever touched, so a
     prose-only writing vault became a protected code repository and its drafts
     were forced into a temporary worktree and a commit.
     """
 
-    if not marks_tao_project(root):
+    if not marks_moru_project(root):
         return False
     for name in ("AGENTS.md", "CLAUDE.md", "CODEX.md"):
         try:

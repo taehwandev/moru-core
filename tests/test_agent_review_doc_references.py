@@ -320,7 +320,7 @@ class HookPassesTheRightPathsTests(unittest.TestCase):
 
         self.assertEqual([], failures)
 
-    def test_external_repository_does_not_require_tao_frontmatter(self) -> None:
+    def test_external_repository_does_not_require_moru_frontmatter(self) -> None:
         structure = {
             "discovery": {"path_metadata": {"README.md": {"status": "M"}}}
         }
@@ -350,7 +350,7 @@ class HookPassesTheRightPathsTests(unittest.TestCase):
 
         self.assertTrue(any("missing.md" in failure for failure in failures))
 
-    def test_tao_repository_keeps_its_frontmatter_contract(self) -> None:
+    def test_moru_repository_keeps_its_frontmatter_contract(self) -> None:
         structure = {
             "discovery": {"path_metadata": {"README.md": {"status": "M"}}}
         }

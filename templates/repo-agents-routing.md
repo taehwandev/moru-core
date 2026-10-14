@@ -173,7 +173,7 @@ Keep repo paths, commands, components, role matrices, and domain terms in this r
 ```
 
 For one-shot runtime prompting without editing repo instructions, use
-`templates/use-tao-prompt.md`.
+`templates/use-moru-prompt.md`.
 
 Core direct routes:
 

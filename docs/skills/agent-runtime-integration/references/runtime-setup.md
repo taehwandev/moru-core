@@ -407,7 +407,7 @@ Use one-shot prompting when:
 - you want Claude, Gemini/Antigravity/AGY, or another agent to follow
   Moru Core for one task without changing repo files
 
-Paste `templates/use-tao-prompt.md` into the agent, replacing the
+Paste `templates/use-moru-prompt.md` into the agent, replacing the
 target repo, task, Moru Core root, and VibeGuard docs placeholders.
 
 The prompt explicitly tells the runtime to read `AGENTS.md` and `index.md`,

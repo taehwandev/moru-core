@@ -57,7 +57,7 @@ try:  # The gate must never fail to load; the import is only used for a message.
         project_state_dir_target,
         is_host_config_dir,
         is_project_state_dir,
-        marks_tao_project,
+        marks_moru_project,
         prefer_git_root,
     )
     from claude_bash_git import git_subcommand
@@ -143,7 +143,7 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
                 return candidate
         return candidates[0] if candidates else None
 
-    def marks_tao_project(path: Path) -> bool:
+    def marks_moru_project(path: Path) -> bool:
         if is_host_config_dir(path):
             return False
         if is_project_state_dir(path / ".tao"):
@@ -671,7 +671,7 @@ def opts_in(path: Path) -> bool:
         return False
     if (path / WORKTREE_POLICY_PATH).is_file():
         return True
-    return marks_tao_project(path)
+    return marks_moru_project(path)
 
 
 def find_project_root(cwd: Path) -> Path | None:

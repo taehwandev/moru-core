@@ -367,7 +367,7 @@ class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
         with patch.object(pretool, "throwaway_checkout", lambda root: False):
             self.assertEqual(self._edit(target, cwd=self.bench), "deny")
 
-    def test_the_observed_tao_home_write_stays_denied(self) -> None:
+    def test_the_observed_moru_home_write_stays_denied(self) -> None:
         command = (
             f"MORU_HOME={self.project} python3 -c \"import os; "
             "open(os.environ['MORU_HOME'] + '/notes.txt', 'w')\""

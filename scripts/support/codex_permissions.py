@@ -16,7 +16,7 @@ _TABLE_HEADER = re.compile(r"(?m)^[ \t]*\[([^\]\n]+)\][ \t]*(?:#.*)?$")
 _TOP_LEVEL_END = re.compile(r"(?m)^[ \t]*\[\[?[^\]\n]+\]\]?[ \t]*(?:#.*)?$")
 
 
-def reset_tao_permission_default(target: Path, dry_run: bool) -> str:
+def reset_moru_permission_default(target: Path, dry_run: bool) -> str:
     """Reset Moru selection to the built-in workspace default, preserving profiles."""
     if not target.exists():
         return "ok"

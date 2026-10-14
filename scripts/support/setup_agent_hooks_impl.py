@@ -15,7 +15,7 @@ from support.agy_setup import configure_agy
 from support.claude_setup import configure_claude
 from support.codex_agent_setup import install_codex_agents
 from support.codex_approval_setup import merge_codex_approvals_reviewer
-from support.codex_permissions import merge_codex_worktree_roots, reset_tao_permission_default
+from support.codex_permissions import merge_codex_worktree_roots, reset_moru_permission_default
 from support.codex_setup import (
     merge_codex_mailbox_delivery,
     merge_codex_pre_tool_gate,
@@ -220,7 +220,7 @@ def _reset_codex_default(args: argparse.Namespace, parser: argparse.ArgumentPars
         parser.error("--reset-codex-permission-default cannot be combined with other setup targets")
     target = Path.home() / ".codex" / "config.toml"
     try:
-        status = reset_tao_permission_default(target, args.dry_run or args.check)
+        status = reset_moru_permission_default(target, args.dry_run or args.check)
     except ValueError as error:
         parser.error(str(error))
     print(f"Codex default selection: {status}. No network, filesystem, or approval policy was added.")
@@ -229,7 +229,7 @@ def _reset_codex_default(args: argparse.Namespace, parser: argparse.ArgumentPars
         raise SystemExit(1)
 
 
-def _notice_tao_permission_default(config_target: Path) -> None:
+def _notice_moru_permission_default(config_target: Path) -> None:
     """Point at the explicit reset when a Moru default remains; never change or abort setup.
 
     This is a read-only notice inside ordinary setup. A configuration the reset
@@ -238,7 +238,7 @@ def _notice_tao_permission_default(config_target: Path) -> None:
     """
 
     try:
-        status = reset_tao_permission_default(config_target, dry_run=True)
+        status = reset_moru_permission_default(config_target, dry_run=True)
     except ValueError as error:
         print(
             f"Codex notice: {error}. Resolve the duplicate top-level default_permissions "
@@ -430,7 +430,7 @@ def configure_codex(dry_run: bool, *, root: Path, enable_auto_review: bool = Fal
         [worktree_root(root)],
         dry_run,
     )
-    _notice_tao_permission_default(config_target)
+    _notice_moru_permission_default(config_target)
     return agent_results + [
         {
             "tool": "codex",

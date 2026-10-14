@@ -52,12 +52,12 @@ from support.git_read_scope import invalidate_worktree_reads
 from workflow_effect_policy import route_minimum_effect
 
 
-def build_parser(tao_root: Path) -> argparse.ArgumentParser:
+def build_parser(moru_root: Path) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Check route gate evidence, validation, diff hygiene, and VibeGuard."
     )
     parser.add_argument("--project", type=Path, default=Path.cwd())
-    parser.add_argument("--rules", type=Path, default=tao_root)
+    parser.add_argument("--rules", type=Path, default=moru_root)
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument(
@@ -69,7 +69,7 @@ def build_parser(tao_root: Path) -> argparse.ArgumentParser:
 
 def build_result(
     *,
-    tao_root: Path,
+    moru_root: Path,
     project: Path,
     rules: Path,
     evidence_path: Path,
@@ -93,7 +93,7 @@ def build_result(
     route = preflight.get("route") or {}
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "tao_root": str(tao_root),
+        "moru_root": str(moru_root),
         "project": str(project),
         "rules": str(rules),
         "preflight_evidence": str(evidence_path),
@@ -515,8 +515,8 @@ def _revalidate_review_attestation_after_final_checks(
 
 
 def main() -> int:
-    tao_root = Path(__file__).resolve().parents[1]
-    args = build_parser(tao_root).parse_args()
+    moru_root = Path(__file__).resolve().parents[1]
+    args = build_parser(moru_root).parse_args()
     worker_error = _apply_worker_evidence_boundary(args)
     if worker_error:
         print(f"FAIL: {worker_error}", file=sys.stderr)
@@ -553,7 +553,7 @@ def main() -> int:
         intrinsically_read_only=route.get("command") == "analysis",
     )
     validate, diff_check, vibeguard, overall = run_final_checks(
-        tao_root,
+        moru_root,
         project,
         rules,
         args.allow_vibeguard_review,
@@ -583,7 +583,7 @@ def main() -> int:
     )
 
     result = build_result(
-        tao_root=tao_root,
+        moru_root=moru_root,
         project=project,
         rules=rules,
         evidence_path=evidence_path,

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-from _tao_test_support import ROOT, TemplateRepository
+from _moru_test_support import ROOT, TemplateRepository
 
 from agent_execution_capsule import (
     REUSE_POLICY,

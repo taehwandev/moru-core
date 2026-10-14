@@ -26,7 +26,7 @@ from support.runtime_quota import (
     remaining_summary,
 )
 from support.statusline import color_enabled, model_segment, render, shorten_path
-from support.tao_run_state import open_run, work_segment
+from support.moru_run_state import open_run, work_segment
 
 # The palette deliberately has no green entry, so the tests name the code
 # they must never find rather than importing one that does not exist.

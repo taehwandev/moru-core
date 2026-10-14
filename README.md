@@ -54,7 +54,7 @@ Releases: <https://github.com/taehwandev/moru-core/releases>
 
 The website includes the current copy-and-paste prompts, application modes, and release link. Use it as the human-facing entry point; this README remains the portable source for installation and repository integration.
 
-Korean guide: [README.ko.md](README.ko.md). Existing-install update guide: [docs/ko/update-tao.md](docs/ko/update-tao.md).
+Korean guide: [README.ko.md](README.ko.md). Existing-install update guide: [docs/ko/update-moru.md](docs/ko/update-moru.md).
 
 ### Rename status
 
@@ -449,15 +449,15 @@ For PRD -> ARD -> implementation:
 <MORU_LAUNCHER> start --command product --request "<USER_REQUEST>" --platform <platform> --concern <concern>
 ```
 
-Full bootstrap instructions live in docs/skills/agent-bootstrap/SKILL.md. A shorter reusable prompt lives in templates/apply-tao-request.md.
+Full bootstrap instructions live in docs/skills/agent-bootstrap/SKILL.md. A shorter reusable prompt lives in templates/apply-moru-request.md.
 
 ## Use With Codex, Claude, And Antigravity
 
 Moru Core is not tied to one runtime. Codex and Antigravity may discover `AGENTS.md` directly, while Claude or generic agents may need a repo-local bridge file or a pasted prompt.
 
 - For long-lived repo setup, add the routing block from templates/repo-agents-routing.md to the instruction file the runtime reads, preferring `AGENTS.md` when supported. If `CLAUDE.md`, `CODEX.md`, `.agents/README.md`, or Antigravity CLI docs already exist, update their pointer in the same pass instead of leaving stale runtime guidance.
-- For one-shot use, paste templates/use-tao-prompt.mdinto the agent with the target repo, task, Moru Core root, and VibeGuard docs link filled in.
-- For stronger future behavior, use the optional Step 2 prompt in templates/apply-tao-request.mdto update user-level runtime bridges such as `~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`, `~/.antigravity`, `~/.antigravitycli`, or `~/.antigravity-ide`. The managed bridge must route the current request before document selection, use the local document graph and `workflow-doc-surfaces.json`, and read the route's `required_docs` even when the user did not name document keywords.
+- For one-shot use, paste templates/use-moru-prompt.mdinto the agent with the target repo, task, Moru Core root, and VibeGuard docs link filled in.
+- For stronger future behavior, use the optional Step 2 prompt in templates/apply-moru-request.mdto update user-level runtime bridges such as `~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`, `~/.antigravity`, `~/.antigravitycli`, or `~/.antigravity-ide`. The managed bridge must route the current request before document selection, use the local document graph and `workflow-doc-surfaces.json`, and read the route's `required_docs` even when the user did not name document keywords.
 - When a runtime starts from `~` or another non-project directory, resolve the target first with `<MORU_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>`. Continue only when it returns `selected`; ask the user when it returns `ambiguous` or `not_found`. Optional local aliases can live in `~/.moru/projects.json`.
 - To avoid repeated prompts for Moru Core commands, run `<MORU_LAUNCHER> setup-agent-hooks --check`, then run `<MORU_LAUNCHER> setup-agent-hooks` after approval if user-level bridges, hooks, or permissions are missing. This writes short managed bridge blocks for Codex, Claude, and AGY plus global runtime config only for Moru Core-managed entrypoints; it does not broadly allow `python3`. Codex and AGY permissions use the resolved absolute stable launcher path, not `$HOME`, `~`, relative paths, or shell `-lc` strings. Claude managed hooks use the same launcher plus a refreshed `~/.moru/moru-root` pointer, so moving or migrating the checkout does not leave `~/.claude/settings.json` pointing at a stale checkout-local command. Rerun setup after moving Moru Core to refresh that pointer and repair stale managed bridges and hooks.
 - Spill workflow labels are written only after a successful real route or start preflight. Advisory prompt routing never writes labels; classify/list/query/validate use `--if-absent` and cannot replace an active task. A successful preflight records the selected route mapping (for example bugfix -> debugging/implement, commit -> git_commit/implement, review -> code_review/verify), including in-process routing. Failed routes preserve the prior label. Bounded synchronous helper writes prevent late detached classify writes from winning. Existing hooks and per-turn fallback remain enabled.
@@ -657,7 +657,7 @@ Shared agent-facing documents in this repository are written in English. That ke
 
 Public-facing site copy under `docs/` can be localized. The site currently supports English and Korean copy. Localized marketing or onboarding text should not become the source of truth for agent behavior.
 
-For a Korean overview, use [README.ko.md](README.ko.md). The existing-checkout update guide is [docs/ko/update-tao.md](docs/ko/update-tao.md). Agent behavior remains defined by `AGENTS.md` and the shared guidance cards.
+For a Korean overview, use [README.ko.md](README.ko.md). The existing-checkout update guide is [docs/ko/update-moru.md](docs/ko/update-moru.md). Agent behavior remains defined by `AGENTS.md` and the shared guidance cards.
 
 ## Metadata
 

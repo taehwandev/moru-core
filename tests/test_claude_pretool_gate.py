@@ -124,7 +124,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
             self.assertNotIn("Moru operator decision required", _reason(out))
             self.assertFalse((Path(tmp) / "state/codex-operator-review").exists())
 
-    def test_literal_env_unittest_glob_executes_without_extra_tao_permission(self):
+    def test_literal_env_unittest_glob_executes_without_extra_moru_permission(self):
         import shlex
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             os.environ, {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
@@ -468,7 +468,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             self.assertIn("no duplicate user approval", reason)
             self.assertIn("do not request write authority just to run a lookup", reason)
 
-    def test_bash_outside_tao_project_is_allowed(self) -> None:
+    def test_bash_outside_moru_project_is_allowed(self) -> None:
         code, out = _decide({"tool_name": "Bash", "cwd": "/tmp", "session_id": "s"})
         self.assertEqual(0, code)
         self.assertEqual("", out)
@@ -2237,7 +2237,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             )
         )
 
-    def test_edit_outside_tao_project_is_allowed(self) -> None:
+    def test_edit_outside_moru_project_is_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             code, out = _decide(
                 {"tool_name": "Edit", "cwd": tmp, "session_id": "s"}

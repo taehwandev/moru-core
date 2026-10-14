@@ -105,8 +105,8 @@ class StandaloneCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("SKIP", result.stdout)
 
-    def test_http_identity_is_tao_agent_os_owned(self) -> None:
-        self.assertEqual(USER_AGENT, "tao-agent-os-figma-handoff/1.0")
+    def test_http_identity_is_moru_agent_os_owned(self) -> None:
+        self.assertEqual(USER_AGENT, "moru-core-figma-handoff/1.0")
 
     def test_generated_paths_are_bundle_relative(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

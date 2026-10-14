@@ -1,5 +1,5 @@
 ---
-keyflow_id: sys_tao_skill_bundle_migration
+keyflow_id: sys_moru_skill_bundle_migration
 status: review
 type: human-reviewed-needed
 ---

@@ -167,7 +167,7 @@ def _runtime_launch_guidance(selected: ProjectCandidate, runtime: str) -> dict[s
     project = selected.path
     guidance: dict[str, object] = {
         "primary_workspace": str(project),
-        "tao_root": str(ROOT),
+        "moru_root": str(ROOT),
         "policy": (
             "Start the runtime with the selected target project as the primary workspace. "
             "Add Moru Core as an extra workspace only when the task may read, run, or edit shared Moru Core files."

@@ -118,7 +118,7 @@ def run_maintenance(
 
 
 def managed_projects(
-    tao_root: Path,
+    moru_root: Path,
     *,
     projects_registry: Path | None = None,
     search_roots: Iterable[Path] | None = None,
@@ -132,7 +132,7 @@ def managed_projects(
     """
 
     registry = load_registry(projects_registry)
-    candidates: list[Path] = [tao_root]
+    candidates: list[Path] = [moru_root]
     for item in registry.get("projects") or []:
         root = item.get("root") if isinstance(item, dict) else item
         if isinstance(root, str) and root:
@@ -171,7 +171,7 @@ def managed_projects(
 
 
 def run_all_maintenance(
-    tao_root: Path,
+    moru_root: Path,
     *,
     projects_registry: Path | None = None,
     search_roots: Iterable[Path] | None = None,
@@ -182,7 +182,7 @@ def run_all_maintenance(
 
     results: dict[str, Any] = {}
     for checkout in managed_projects(
-        tao_root, projects_registry=projects_registry, search_roots=search_roots
+        moru_root, projects_registry=projects_registry, search_roots=search_roots
     ):
         try:
             results[str(checkout)] = run_maintenance(

@@ -1,5 +1,5 @@
 ---
-keyflow_id: sys_apply_tao_request_template
+keyflow_id: sys_apply_moru_request_template
 status: review
 type: human-reviewed-needed
 ---
@@ -9,7 +9,7 @@ type: human-reviewed-needed
 Paste this into an AI coding agent when you want it to connect a project to
 Moru Core.
 
-Use `templates/use-tao-prompt.md` instead when you only want one task
+Use `templates/use-moru-prompt.md` instead when you only want one task
 to follow Moru Core without changing repo-local instruction files.
 
 ## Step 1: Required Application Prompt

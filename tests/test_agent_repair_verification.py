@@ -578,7 +578,7 @@ class AgentRepairVerificationTests(unittest.TestCase):
                 )
             )
 
-    def test_receipt_path_outside_tao_dir_is_rejected(self) -> None:
+    def test_receipt_path_outside_moru_dir_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
             evidence_path, preflight = self._prepared_repair(project)

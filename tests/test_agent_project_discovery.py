@@ -273,7 +273,7 @@ class AgentProjectDiscoveryTests(unittest.TestCase):
 
             runtime_launch = manifest["runtime_launch"]
             self.assertEqual(str(project.resolve()), runtime_launch["primary_workspace"])
-            self.assertEqual(str(ROOT), runtime_launch["tao_root"])
+            self.assertEqual(str(ROOT), runtime_launch["moru_root"])
             commands = [item["command"] for item in runtime_launch["commands"]]
             self.assertTrue(any(command.startswith("codex -C ") for command in commands))
             self.assertTrue(any("--add-dir" in command and str(ROOT) in command for command in commands))

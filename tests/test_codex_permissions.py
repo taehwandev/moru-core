@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from support.codex_permissions import merge_codex_worktree_roots, reset_tao_permission_default
+from support.codex_permissions import merge_codex_worktree_roots, reset_moru_permission_default
 
 
 class CodexPermissionsTests(unittest.TestCase):
@@ -20,11 +20,11 @@ class CodexPermissionsTests(unittest.TestCase):
             target = Path(directory) / "config.toml"
             original = '[permissions.tao-workspace]\nextends = ":workspace"\n'
             target.write_text(original)
-            self.assertEqual("would_update", reset_tao_permission_default(target, True))
+            self.assertEqual("would_update", reset_moru_permission_default(target, True))
             self.assertEqual(original, target.read_text())
-            self.assertEqual("installed", reset_tao_permission_default(target, False))
+            self.assertEqual("installed", reset_moru_permission_default(target, False))
             self.assertEqual('default_permissions = ":workspace"\n' + original, target.read_text())
-            self.assertEqual("ok", reset_tao_permission_default(target, False))
+            self.assertEqual("ok", reset_moru_permission_default(target, False))
 
     def test_fresh_install_does_not_create_profiles_without_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -32,7 +32,7 @@ class CodexPermissionsTests(unittest.TestCase):
             self.assertTrue(merge_codex_worktree_roots(target, [Path(directory)], False).startswith("ok:"))
             self.assertFalse(target.exists())
 
-    def test_explicit_reset_preserves_everything_except_tao_default(self) -> None:
+    def test_explicit_reset_preserves_everything_except_moru_default(self) -> None:
         for selection in ('"tao-workspace"', "'tao-workspace'"):
             with self.subTest(selection=selection), tempfile.TemporaryDirectory() as directory:
                 target = Path(directory) / "config.toml"
@@ -44,11 +44,11 @@ class CodexPermissionsTests(unittest.TestCase):
                 )
                 original = prefix + f'default_permissions = {selection} # prior selection\n' + suffix
                 target.write_text(original)
-                self.assertEqual("would_update", reset_tao_permission_default(target, True))
+                self.assertEqual("would_update", reset_moru_permission_default(target, True))
                 self.assertEqual(original, target.read_text())
-                self.assertEqual("installed", reset_tao_permission_default(target, False))
+                self.assertEqual("installed", reset_moru_permission_default(target, False))
                 self.assertEqual(prefix + 'default_permissions = ":workspace"\n' + suffix, target.read_text())
-                self.assertEqual("ok", reset_tao_permission_default(target, False))
+                self.assertEqual("ok", reset_moru_permission_default(target, False))
                 merge_codex_worktree_roots(target, [Path(directory) / "worktrees"], False)
                 self.assertTrue(target.read_text().startswith(prefix + 'default_permissions = ":workspace"\n[permissions.' ))
 
@@ -62,7 +62,7 @@ class CodexPermissionsTests(unittest.TestCase):
             ):
                 with self.subTest(original=original):
                     target.write_text(original)
-                    self.assertEqual("ok", reset_tao_permission_default(target, False))
+                    self.assertEqual("ok", reset_moru_permission_default(target, False))
                     self.assertEqual(original, target.read_text())
 
     def test_reset_leaves_a_selection_under_an_array_of_tables_untouched(self) -> None:
@@ -70,7 +70,7 @@ class CodexPermissionsTests(unittest.TestCase):
             target = Path(directory) / "config.toml"
             original = 'model = "keep"\n[[profiles]]\ndefault_permissions = "tao-workspace"\n'
             target.write_text(original)
-            self.assertEqual("ok", reset_tao_permission_default(target, False))
+            self.assertEqual("ok", reset_moru_permission_default(target, False))
             self.assertEqual(original, target.read_text())
 
     def test_setup_reports_ambiguous_defaults_without_aborting(self) -> None:
@@ -95,7 +95,7 @@ class CodexPermissionsTests(unittest.TestCase):
             original = 'default_permissions = "tao-workspace"\ndefault_permissions = "personal"\n'
             target.write_text(original)
             with self.assertRaisesRegex(ValueError, "Ambiguous"):
-                reset_tao_permission_default(target, False)
+                reset_moru_permission_default(target, False)
             self.assertEqual(original, target.read_text())
 
     def test_reset_cli_does_not_run_other_installers(self) -> None:
@@ -111,7 +111,7 @@ class CodexPermissionsTests(unittest.TestCase):
             launcher.assert_not_called()
             self.assertEqual('default_permissions = ":workspace"\nmodel = "keep"\n', target.read_text())
 
-    def test_setup_notices_tao_selection_without_resetting_it(self) -> None:
+    def test_setup_notices_moru_selection_without_resetting_it(self) -> None:
         from support import setup_agent_hooks_impl as setup
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / ".codex" / "config.toml"

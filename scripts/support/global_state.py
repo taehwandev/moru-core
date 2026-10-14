@@ -184,7 +184,7 @@ OPT_IN_FILES = ("AGENTS.md", "CLAUDE.md", "CODEX.md")
 OPT_IN_TOKENS = ("moru", "tao")
 
 
-def marks_tao_project(path: Path) -> bool:
+def marks_moru_project(path: Path) -> bool:
     """True when ``path`` opts in by its own state directory or marker prose.
 
     The pretool gate and the worktree policy both ask this, and the policy

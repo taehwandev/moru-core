@@ -23,7 +23,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _tao_test_support import ROOT, TemplateRepository, fake_vibeguard_environment
+from _moru_test_support import ROOT, TemplateRepository, fake_vibeguard_environment
 from test_work_continuity_lifecycle_e2e import git, hook
 
 SESSION = "drift-receipt-e2e-session"

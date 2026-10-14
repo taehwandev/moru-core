@@ -54,7 +54,7 @@ class AgentReviewValidationStateTests(unittest.TestCase):
                     review_scope="pathspec: scripts/agent_finish_final_checks.py",
                 )
 
-    def test_review_validation_uses_ignored_tao_state(self) -> None:
+    def test_review_validation_uses_ignored_moru_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             project = Path(temporary_directory)
             initialize_repository(project)

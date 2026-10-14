@@ -9,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from _tao_test_support import TemplateRepository
+from _moru_test_support import TemplateRepository
 
 from agent_gate_evidence import gate_evidence_path_for_preflight, reset_gate_evidence_ledger
 from agent_review_attestation import ReviewAttestation, _record_shape_failures
