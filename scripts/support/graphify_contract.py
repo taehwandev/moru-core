@@ -1,4 +1,4 @@
-"""Constants for the shared Tao Graphify installation."""
+"""Constants for the shared Moru Core Graphify installation."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ RUNTIME_TO_PLATFORM = {
     "codex": "codex",
 }
 
-# The active Tao Agent OS owns one bundled Graphify skill. Setup copies that
+# The active Moru Core owns one bundled Graphify skill. Setup copies that
 # bundle to the user-level runtime home; target repositories never own a skill
 # copy or runtime discovery link.
-RUNTIME_BUNDLED_SKILL_DIR = Path(".tao/skills/graphify")
-GLOBAL_CANONICAL_SKILL_DIR = Path(".tao/skills/graphify")
+RUNTIME_BUNDLED_SKILL_DIR = Path(".moru/skills/graphify")
+GLOBAL_CANONICAL_SKILL_DIR = Path(".moru/skills/graphify")
 GLOBAL_CANONICAL_SKILL_PATH = GLOBAL_CANONICAL_SKILL_DIR / "SKILL.md"
 
 # Compatibility names are global-home relative. They must not be joined to a
@@ -81,6 +81,7 @@ def resolve_graph_path(project: Path) -> Path | None:
 # setup has leaked common runtime assets into a target checkout.
 PROJECT_RUNTIME_ASSET_PATHS = (
     Path(".tao/skills/graphify"),
+    Path(".moru/skills/graphify"),
     Path(".agents/skills/graphify"),
     Path(".agents/rules/graphify.md"),
     Path(".agents/workflows/graphify.md"),
@@ -90,12 +91,12 @@ PROJECT_RUNTIME_ASSET_PATHS = (
 
 GRAPHIFY_RUNTIME_ADAPTER_INPUTS = PROJECT_RUNTIME_ASSET_PATHS
 
-# The Tao Agent OS checkout that owns this module.
+# The Moru Core checkout that owns this module.
 RUNTIME_SOURCE_ROOT = Path(__file__).resolve().parents[2]
 
 
 def is_runtime_source_root(project_path: Path) -> bool:
-    """True when the inspected repository is the Tao Agent OS checkout itself."""
+    """True when the inspected repository is the Moru Core checkout itself."""
 
     try:
         return project_path.resolve() == RUNTIME_SOURCE_ROOT
@@ -108,11 +109,11 @@ def leaked_runtime_asset(project_path: Path, relative: Path) -> bool:
 
     The listed paths mark the removed project-bundle design, so in an ordinary
     target repository any of them is a leak. The runtime source root is the one
-    checkout where they are legitimate: `.tao/skills/graphify` is the canonical
+    checkout where they are legitimate: `.moru/skills/graphify` is the canonical
     bundle the ownership contract is defined around, and the repository
     self-hosts its own discovery links into that same bundle. Without this
     distinction the contract flags its own source of truth and readiness can
-    never pass against the Tao Agent OS repository.
+    never pass against the Moru Core repository.
 
     Only the bundle itself and links that resolve inside it are excused. A
     copied directory, or a link pointing anywhere else, is still a leak here.
@@ -136,10 +137,11 @@ def leaked_runtime_asset(project_path: Path, relative: Path) -> bool:
 
 GRAPHIFY_INPUT_BLOCK = "\n".join(
     (
-        "# tao-graphify-inputs:start",
+        "# moru-graphify-inputs:start",
         ".tao/",
+        ".moru/",
         ".agents/local/",
         "graphify-out/",
-        "# tao-graphify-inputs:end",
+        "# moru-graphify-inputs:end",
     )
 )

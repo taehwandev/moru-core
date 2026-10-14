@@ -18,16 +18,16 @@ when a target repository needs its own current local graph.
 
 - Installing or repairing the user-level Graphify skill and runtime discovery links.
 - A route mentions Graphify or a missing target-project graph.
-- A project Graphify setup leaked `.tao/skills/graphify` or
+- A project Graphify setup leaked `.moru/skills/graphify`, its legacy `.tao` copy, or
   runtime-specific Graphify links into a checkout.
 - An agent skipped Graphify because the CLI, shared skill, or project graph was absent.
 
 ## Read
 
 - `references/current-guidance.md` for the install and readiness procedure.
-- `~/.tao/skills/graphify/SKILL.md` before building, updating, or querying
+- `~/.moru/skills/graphify/SKILL.md` before building, updating, or querying
   a target graph. This user-level copy comes from the active runtime's bundled
-  `.tao/skills/graphify`.
+  `.moru/skills/graphify`.
 
 ## Decision Rule
 
@@ -38,7 +38,7 @@ Keep ownership split into two boundaries:
 2. Each target checkout owns only its ignored generated graph at
    `.agents/local/graphify-out`.
 
-Target repositories do not own Graphify skill copies, `.tao` canonical bundles,
+Target repositories do not own Graphify skill copies, `.moru` canonical bundles,
 runtime discovery links, rule adapters, or Git-tracked Graphify installation
 assets. Their presence is a failed project-integration condition.
 
@@ -52,13 +52,13 @@ input-complete local graph; and a scoped query smoke check.
 1. Identify the active runtime root and target repository.
 2. Install or check the runtime-bundled skill at user level.
 3. Read the installed shared `SKILL.md`.
-4. Confirm runtime discovery links resolve under `~/.tao`, outside the target repo.
+4. Confirm runtime discovery links resolve under `~/.moru`, outside the target repo.
 5. Remove project-local Graphify skill copies and links created by an obsolete setup.
 6. Build or update the target graph with
    `GRAPHIFY_OUT=.agents/local/graphify-out`.
 7. Run a scoped query/path/explain smoke check and record all seven readiness fields.
 
-If the active Tao lifecycle was declared read-only and readiness finds a stale
+If the active Moru lifecycle was declared read-only and readiness finds a stale
 or missing graph, do not build or update it inside that run. The ignored local
 graph is still project-root mutation for the read-only finish contract. Restart
 the lifecycle without `--read-only` before changing the graph, then resume the
@@ -76,7 +76,7 @@ readiness check.
 
 ## Red Flags
 
-- `.tao/skills/graphify` appears in a target checkout.
+- `.moru/skills/graphify` appears in a target checkout.
 - `.agents/skills/graphify`, `.claude/skills/graphify`, or
   `.codex/skills/graphify` resolves inside the target checkout.
 - A generated graph is written to tracked project paths.
@@ -102,8 +102,8 @@ readiness check.
 ## Verification
 
 - CLI: `graphify` resolves locally.
-- Skill doc: `~/.tao/skills/graphify/SKILL.md` matches the active runtime bundle and was read.
-- Runtime links: user-level runtime skill links resolve to `~/.tao/skills/graphify`.
+- Skill doc: `~/.moru/skills/graphify/SKILL.md` matches the active runtime bundle and was read.
+- Runtime links: user-level runtime skill links resolve to `~/.moru/skills/graphify`.
 - Runtime ownership: no target-project Graphify skill or adapter asset exists.
 - Project integration: graph output is `.agents/local/graphify-out`.
 - Graph: `graph.json` is valid, current, input-complete, and has valid endpoints.

@@ -89,7 +89,7 @@ class PrunedWalkTests(unittest.TestCase):
             base = Path(directory)
             build(
                 base,
-                ".tao/skills/graphify/SKILL.md",
+                ".moru/skills/graphify/SKILL.md",
                 ".tao/runs/abc/integration/skills/other/SKILL.md",
                 "runs/keep/SKILL.md",
             )
@@ -100,7 +100,7 @@ class PrunedWalkTests(unittest.TestCase):
             }
 
             self.assertEqual(
-                {".tao/skills/graphify/SKILL.md", "runs/keep/SKILL.md"},
+                {".moru/skills/graphify/SKILL.md", "runs/keep/SKILL.md"},
                 found,
                 "a bare `runs` directory elsewhere is not project state",
             )
@@ -264,7 +264,7 @@ class PrunedTraversalTests(unittest.TestCase):
             with self.subTest(caller=name), tempfile.TemporaryDirectory() as directory:
                 base = Path(directory)
                 self._tree(base)
-                build(base, ".tao/skills/graphify/SKILL.md", "skills/local/SKILL.md")
+                build(base, ".moru/skills/graphify/SKILL.md", "skills/local/SKILL.md")
 
                 visited = scanned_directories(lambda: caller(base))
 
@@ -280,13 +280,13 @@ class PrunedTraversalTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            build(base, ".tao/skills/graphify/SKILL.md", ".tao/runs/one/copy/SKILL.md")
+            build(base, ".moru/skills/graphify/SKILL.md", ".tao/runs/one/copy/SKILL.md")
 
             visited = scanned_directories(
                 lambda: agent_skill_catalog._skill_ids_under(base)
             )
 
-            self.assertTrue([path for path in visited if "/.tao/skills" in path])
+            self.assertTrue([path for path in visited if "/.moru/skills" in path])
 
 
 class DocumentGraphCostTests(unittest.TestCase):
@@ -347,6 +347,8 @@ class CallerResultsAreUnchangedTests(unittest.TestCase):
             if not (
                 path.relative_to(ROOT).as_posix().startswith(".tao/")
                 or "/.tao/" in path.relative_to(ROOT).as_posix()
+                or path.relative_to(ROOT).as_posix().startswith(".moru/")
+                or "/.moru/" in path.relative_to(ROOT).as_posix()
             )
         }
         expected = walked - git_ignored(ROOT, walked)

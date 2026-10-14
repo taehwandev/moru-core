@@ -1,1 +1,1 @@
-../../.tao/skills/graphify/runtime/antigravity/workflow.md
+../../.moru/skills/graphify/runtime/antigravity/workflow.md

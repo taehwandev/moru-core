@@ -43,7 +43,7 @@ def _link(project: Path, relative: str, target: Path) -> Path:
 class LeakedRuntimeAssetTests(unittest.TestCase):
     """The runtime source root owns the very paths the contract calls leaks.
 
-    `.tao/skills/graphify` is the canonical bundle the ownership rule is defined
+    `.moru/skills/graphify` is the canonical bundle the ownership rule is defined
     around, and the Tao Agent OS checkout self-hosts its own discovery links
     into that bundle. Scanning those paths unconditionally made the contract
     flag its own source of truth, so readiness could never pass against this
@@ -54,12 +54,12 @@ class LeakedRuntimeAssetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory).resolve()
             bundle = _make_bundle(project)
-            _link(project, ".agents/skills/graphify", Path("../../.tao/skills/graphify"))
-            _link(project, ".claude/skills/graphify", Path("../../.tao/skills/graphify"))
+            _link(project, ".agents/skills/graphify", Path("../../.moru/skills/graphify"))
+            _link(project, ".claude/skills/graphify", Path("../../.moru/skills/graphify"))
             _link(
                 project,
                 ".agents/rules/graphify.md",
-                Path("../../.tao/skills/graphify/runtime/antigravity/rule.md"),
+                Path("../../.moru/skills/graphify/runtime/antigravity/rule.md"),
             )
             (bundle / "runtime" / "antigravity").mkdir(parents=True)
             (bundle / "runtime" / "antigravity" / "rule.md").write_text("x\n", encoding="utf-8")
@@ -84,7 +84,7 @@ class LeakedRuntimeAssetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory).resolve()
             _make_bundle(project)
-            _link(project, ".agents/skills/graphify", Path("../../.tao/skills/graphify"))
+            _link(project, ".agents/skills/graphify", Path("../../.moru/skills/graphify"))
 
             leaks = [
                 str(relative)
@@ -92,7 +92,8 @@ class LeakedRuntimeAssetTests(unittest.TestCase):
                 if leaked_runtime_asset(project, relative)
             ]
 
-            self.assertIn(".tao/skills/graphify", leaks)
+            self.assertIn(".moru/skills/graphify", leaks)
+            self.assertIn(Path(".tao/skills/graphify"), PROJECT_RUNTIME_ASSET_PATHS)
             self.assertIn(".agents/skills/graphify", leaks)
 
     def test_copied_bundle_in_the_runtime_root_is_still_a_leak(self) -> None:

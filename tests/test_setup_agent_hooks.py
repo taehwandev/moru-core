@@ -523,8 +523,8 @@ class SetupAgentHooksTests(unittest.TestCase):
             content = policy.read_text(encoding="utf-8")
             root_content = root_ignore.read_text(encoding="utf-8")
 
-        self.assertEqual(1, content.count("# tao-graphify-inputs:start"))
-        self.assertEqual(1, content.count("# tao-graphify-inputs:end"))
+        self.assertEqual(1, content.count("# moru-graphify-inputs:start"))
+        self.assertEqual(1, content.count("# moru-graphify-inputs:end"))
         self.assertIn("# keep", content)
         # Only the managed block is rewritten: superseded block bodies are
         # replaced with the current inputs while user-owned lines survive.
@@ -866,7 +866,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             for relative in (
                 Path(".agents/rules/graphify.md"),
                 Path(".agents/workflows/graphify.md"),
-                Path(".tao/skills/graphify"),
+                Path(".moru/skills/graphify"),
             ):
                 leaked = project / relative
                 self.assertFalse(leaked.exists() or leaked.is_symlink())

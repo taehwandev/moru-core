@@ -14,7 +14,7 @@ checkout. Do not turn the shared skill into a project asset.
 The active Moru Core source is:
 
 ```text
-<TAO_ROOT>/.tao/skills/graphify/
+<TAO_ROOT>/.moru/skills/graphify/
   SKILL.md
   references/
   runtime/
@@ -24,7 +24,7 @@ The active Moru Core source is:
 User-level setup copies that bundle atomically and creates discovery links:
 
 ```text
-~/.tao/skills/graphify/          # installed shared copy
+~/.moru/skills/graphify/          # installed shared copy
 ~/.agents/skills/graphify             # link
 ~/.gemini/config/skills/graphify      # AGY link
 ~/.claude/skills/graphify             # link
@@ -47,6 +47,7 @@ The following target-project paths belong to the removed project-bundle design:
 
 ```text
 .tao/skills/graphify
+.moru/skills/graphify
 .agents/skills/graphify
 .agents/rules/graphify.md
 .agents/workflows/graphify.md
@@ -58,7 +59,7 @@ Setup and readiness must report these paths when present. Do not stage or commit
 them as a repair.
 
 The Moru Core checkout itself is the one exception, because it is the runtime
-source rather than a target: `.tao/skills/graphify` is the canonical bundle
+source rather than a target: `.moru/skills/graphify` is the canonical bundle
 defined above, and that repository self-hosts its own discovery links into that
 same bundle. Readiness excuses those paths only there, and only when the path is
 the bundle or a link resolving inside it. A copied bundle, or a link pointing
@@ -151,14 +152,15 @@ Do not fall back to the legacy root-level cache.
 The managed `.graphifyignore` input block is narrow:
 
 ```text
-# tao-graphify-inputs:start
+# moru-graphify-inputs:start
 .tao/
+.moru/
 .agents/local/
 graphify-out/
-# tao-graphify-inputs:end
+# moru-graphify-inputs:end
 ```
 
-Do not rewrite `.gitignore`, unignore `.tao`, or narrow a repository's
+Do not rewrite `.gitignore`, unignore `.tao` or `.moru`, or narrow a repository's
 `.claude`/`.codex` ignores to expose runtime links. Project-local knowledge under
 `.agents/shared` remains graph input; `.agents/local` is intentionally excluded.
 
@@ -225,7 +227,7 @@ does not invoke an LLM or invent conceptual relationships.
 Graphify routes include a `graphify readiness` gate with these fields:
 
 - `cli`: local Graphify executable verified.
-- `skill_doc`: installed shared `~/.tao/skills/graphify/SKILL.md` read.
+- `skill_doc`: installed shared `~/.moru/skills/graphify/SKILL.md` read.
 - `runtime_links`: enabled user-level links resolve to the shared copy.
 - `runtime_ownership`: active runtime bundle is the source and target-project
   runtime assets are absent.

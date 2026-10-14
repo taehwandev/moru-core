@@ -44,19 +44,21 @@ graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 # is durable project knowledge -- so ignore the whole boundary.
 .agents/local/
 
-# tao-project-assets:start
+# moru-project-assets:start
 # Runtime evidence is local, but canonical project skills are repository assets.
-!.tao/
-.tao/*
-!.tao/.gitignore
-!.tao/skills/
-.tao/skills/*
-!.tao/skills/graphify/
-!.tao/skills/graphify/**
-# tao-project-assets:end
+.moru/
+!.moru/
+.moru/*
+!.moru/.gitignore
+!.moru/skills/
+.moru/skills/*
+!.moru/skills/graphify/
+!.moru/skills/graphify/**
+# moru-project-assets:end
 
 # Evidence emitted from a nested working directory is always local runtime state.
 */.tao/
+*/.moru/
 
 # Bytecode caches, written whenever the test suite or a hook runs.
 __pycache__/

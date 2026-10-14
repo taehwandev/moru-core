@@ -37,7 +37,7 @@ KEYFLOW_ID = re.compile(r"[a-z][a-z0-9_]*\Z")
 # (`name`/`description` rather than Tao's keys) and its repository-rooted example
 # paths describe whatever project the skill is pointed at. Those two rules skip
 # it. Its relative links still resolve inside this tree, so they are checked.
-VENDORED_TREES = (".tao/skills/",)
+VENDORED_TREES = (".tao/skills/", ".moru/skills/")
 # A backtick path is a reference only when it is rooted in this repository. A
 # bare `SKILL.md` names a sibling by filename, and `README.md` in a list of what
 # a target repository holds is not about this tree at all.
@@ -227,7 +227,7 @@ def _markdown_files(project: Path) -> list[Path]:
     """Fallback for a caller with no tracked-file list; approximates it."""
 
     skip = {
-        ".git", ".tao", "node_modules", "__pycache__", ".venv", "venv",
+        ".git", ".tao", ".moru", "node_modules", "__pycache__", ".venv", "venv",
         "graphify-out", "local",
     }
     files: list[Path] = []

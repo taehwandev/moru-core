@@ -61,7 +61,7 @@ class DocReferenceCheckTests(unittest.TestCase):
     def test_a_vendored_skill_is_not_held_to_this_repositorys_paths(self) -> None:
         """Its example paths name the repository the skill is pointed at."""
         changed = self.write(
-            ".tao/skills/graphify/references/extraction-spec.md",
+            ".moru/skills/graphify/references/extraction-spec.md",
             "A node id looks like `docs/v1/api/README.md`.\n",
             frontmatter=False,
         )
