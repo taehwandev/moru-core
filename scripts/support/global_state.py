@@ -1,11 +1,11 @@
 """Tell the global Moru Core install apart from per-project runtime state.
 
-``.tao`` names two unrelated things:
+``.moru`` names two unrelated things:
 
 - per-project runtime state -- ``<repo>/.tao/preflight.json``, gate evidence,
   session markers;
-- the global install -- ``~/.tao/bin/tao-hook``, ``~/.tao/tao-root``,
-  ``~/.tao/projects.json``, ``~/.tao/claude-session-projects/``.
+- the global install -- ``~/.moru/bin/moru-hook``, ``~/.moru/tao-root``,
+  ``~/.moru/projects.json``, ``~/.moru/claude-session-projects/``.
 
 Every "is this a Moru Core project?" check used to be ``(path / ".tao").is_dir()``,
 so the home directory that hosts the global install always answered yes. That
@@ -17,7 +17,7 @@ unsatisfiable gate pushes the agent toward switching the gate off, so the
 discriminator belongs here rather than in each gate.
 
 The rule is the one the layout already implies: what is global stays global,
-what is per-project stays per-project. A ``.tao`` directory is per-project state
+what is per-project stays per-project. A ``.moru`` directory is per-project state
 exactly when it is not the global install directory.
 """
 
@@ -36,7 +36,7 @@ MORU_STATE_READY_MARKER = "state-ready"
 # agent_global_lessons has always used to find lessons/skills state.
 STATE_HOME_ENV = "TAO_STATE_HOME"
 # Files the installer writes into the global directory and that no project's
-# .tao ever contains. Identity is checked first; these are the fallback for a
+# .moru ever contains. Identity is checked first; these are the fallback for a
 # global install reached through a different HOME, a symlink, or a relocation
 # that happened after this process read the environment.
 GLOBAL_ONLY_MARKERS = (
@@ -107,7 +107,7 @@ def user_store_write_error() -> str:
     """Why a user-level store (work cards, project memory) may not be written.
 
     A test that forgets MORU_STATE_HOME would otherwise write into the
-    developer's real `~/.tao`, where nothing removes it. Only writes are
+    developer's real `~/.moru`, where nothing removes it. Only writes are
     refused; lookups read nothing that is not already there.
     """
     if any(os.environ.get(name, "").strip() for name in (MORU_STATE_HOME_ENV, STATE_HOME_ENV)):
@@ -128,7 +128,7 @@ def _resolved(path: Path) -> Path | None:
 
 
 def is_global_state_dir(path: Path) -> bool:
-    """True when this ``.tao`` directory is the global install, not project state."""
+    """True when this ``.moru`` directory is the global install, not project state."""
     resolved = _resolved(path)
     if resolved is None:
         return False
@@ -142,7 +142,7 @@ def is_global_state_dir(path: Path) -> bool:
 
 
 def is_project_state_dir(path: Path) -> bool:
-    """True when ``path`` is an existing ``.tao`` holding per-project state.
+    """True when ``path`` is an existing ``.moru`` holding per-project state.
 
     Used by the opt-in checks in both Claude gates. Keeping it here stops the
     two gates from drifting into disagreeing about what a project is.
@@ -282,10 +282,10 @@ def project_scoped_state_error(project: Path) -> str:
     """Why ``project`` may not receive project-scoped state, or "" when it may.
 
     The distinction that matters is "new project, no state yet" versus "not a
-    project at all". A fresh repo whose ``.tao`` does not exist must still be
+    project at all". A fresh repo whose ``.moru`` does not exist must still be
     able to start, so absence of state is never the failure -- this only refuses
-    a target whose ``.tao`` *is* the global install directory. That is the case
-    that produced ``~/.tao/preflight.json``: project-scoped route state written
+    a target whose ``.moru`` *is* the global install directory. That is the case
+    that produced ``~/.moru/preflight.json``: project-scoped route state written
     into global state, which later gates then demanded a finish for.
     """
     state_dir = project_state_dir_target(project)

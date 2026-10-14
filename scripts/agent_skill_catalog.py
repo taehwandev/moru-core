@@ -111,7 +111,7 @@ def canonical_skill_ids(project: Path, rules: Path) -> set[str]:
 def _skill_ids_under(root: Path) -> set[str]:
     """Collect skill ids without walking one directory per recorded run.
 
-    `.tao/runs` is state, but `.tao/skills` beside it is tracked content its
+    `.moru/runs` is state, but `.moru/skills` beside it is tracked content its
     own ignore file deliberately keeps, so only the run directories are
     pruned. In an integrated checkout they hold a second copy of the
     repository, which is why the walk found 320 skill documents to keep 159 --

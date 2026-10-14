@@ -656,7 +656,7 @@ def max_age_seconds() -> int:
 def opts_in(path: Path) -> bool:
     """True when this directory marks a project that uses Moru Core.
 
-    The global install lives in a ``.tao`` too, so directory existence alone
+    The global install lives in a ``.moru`` too, so directory existence alone
     would classify ``$HOME`` as a project -- see support.global_state.
 
     The tracked worktree policy counts because it is the one opt-in signal that

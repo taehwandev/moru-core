@@ -66,7 +66,7 @@ def graph_summary(root: Path = ROOT) -> dict[str, int]:
 def _markdown_docs(root: Path) -> set[str]:
     """Collect the guidance documents: the tracked ones and the new ones.
 
-    Excluding `.tao` after the walk still descended into it, and in an
+    Excluding `.moru` after the walk still descended into it, and in an
     integrated checkout that is a second copy of the repository: 885 files
     found to keep 495. The graph is built inside workflow validation, which
     the review hook runs before it can report, so the walk is something a

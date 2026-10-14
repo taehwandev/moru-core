@@ -44,6 +44,8 @@ are separate inventories.
    (README, AGENTS.md, guidance cards, templates, docs) with "Moru Core",
    directory by directory, keeping paths, URLs and identifiers unchanged.
    Keep one "formerly Tao Agent OS" line in README for discoverability.
+   Done on 2026-10-14 across prose, messages and guidance; the site prompts
+   changed with phase 3 and their hashes were re-reviewed.
 3. **Identifiers.** Launcher (`tao-hook`), state directory (`~/.tao/`), root
    pointer, `TAO_*` environment variables, `<TAO_ROOT>`/`<TAO_LAUNCHER>`
    placeholders, bridge marker, permission identifier, `tao_*` agent roles and
@@ -57,6 +59,17 @@ are separate inventories.
    workspace router at `~/git/.tao` remains separate because `~/git` is not a
    Git project. A `state-ready` marker selects `.moru` only after the records
    have moved; an existing `.moru` directory alone is not sufficient.
+   On 2026-10-14 the identifiers themselves moved: `MORU_*` settings (reads
+   fall back to `TAO_*`), `<MORU_ROOT>`/`<MORU_LAUNCHER>`, the
+   `moru-runtime-bridge` and `MANAGED MORU CORE ROUTING` markers, `moru-hooks`
+   Codex rules block, `moru-workspace` profile, `MoruCorePython` setup labels,
+   `moru_*` agent roles, `.moru-backup`, the `moru:language` event, the
+   `com.taehwandev.moru-core.maintenance` LaunchAgent, tao-named files and
+   Python identifiers. New installs and projects without a `.tao` tree start
+   on `~/.moru`, `moru-hook` and `.moru` directly. Setup recognises and replaces
+   each pre-rename spelling it wrote. Still open: announce and later remove
+   the `tao-hook` launcher, the `TAO_*` fallback and the legacy marker
+   recognition.
 4. **Repository, folder and domain.** The GitHub repository is now
    `taehwandev/moru-core`; the local checkout moved to `~/git/moru-core` on
    2026-10-13. The old `~/git/tao-agent-os` path is a compatibility link.

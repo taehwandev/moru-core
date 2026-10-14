@@ -172,7 +172,7 @@ def remove_worker_worktree(
             )
             return False
         # `force` drops uncommitted files the caller has accounted for; it
-        # never drops a Moru run, which git cannot see because `.tao/` is ignored.
+        # never drops a Moru run, which git cannot see because `.moru/` is ignored.
         open_runs = unsettled_run_states(worktree_path)
         if open_runs:
             raise WorktreeSessionError(

@@ -88,7 +88,7 @@ def _legacy_worktree_permission_entries() -> list[str]:
     reads from the working directory instead of from the directory holding the
     settings file. Ceasing to write them left them in place: a refresh added the
     anchored rules beside the old ones rather than replacing them, so the
-    settings still carry a pattern that resolves to a `.tao/worktrees` nested
+    settings still carry a pattern that resolves to a `.moru/worktrees` nested
     inside a worktree and matches nothing.
 
     Cleanup-only, and never returned as an entry to add.
@@ -154,7 +154,7 @@ def _legacy_claude_git_permission_entries() -> list[str]:
 def _worktree_permission_entries() -> list[str]:
     """Cover the whole worktree root, because each worktree name is new.
 
-    A task runs in its own linked worktree under `.tao/worktrees/<16-hex>`, and
+    A task runs in its own linked worktree under `.moru/worktrees/<16-hex>`, and
     that directory name is generated fresh every time. A permission approved for
     one worktree therefore never matches the next, so the prompts never stop and
     the honest response is to switch permissions off -- which discards the
@@ -165,11 +165,11 @@ def _worktree_permission_entries() -> list[str]:
     the copy nobody edits is the one that stops matching.
 
     The leading slash anchors the pattern at the directory holding the settings
-    file -- the project root -- while a bare `.tao/...` is read relative to the
+    file -- the project root -- while a bare `.moru/...` is read relative to the
     working directory. The two agree only while the agent sits at the root, and
     the whole point of these rules is the moment it does not: from inside
     `<project>/.tao/worktrees/<hex>` the unanchored form asks for a second
-    `.tao/worktrees` nested under the first, matches nothing, and every path
+    `.moru/worktrees` nested under the first, matches nothing, and every path
     prompts again -- the failure these entries exist to end.
 
     Reading, writing and entering only. Removing a worktree deletes work and
@@ -179,7 +179,7 @@ def _worktree_permission_entries() -> list[str]:
     from agent_worktree_identity import WORKTREE_DIRNAME
 
     entries: list[str] = []
-    # Projects not yet moved to `.moru` keep their worktrees under `.tao`.
+    # Projects not yet moved to `.moru` keep their worktrees under `.moru`.
     for state_dir in (".moru", ".tao"):
         root = f"/{state_dir}/{WORKTREE_DIRNAME}"
         entries += [
@@ -257,7 +257,7 @@ def _legacy_moru_python_scripts(scripts_dir: Path) -> list[Path]:
     """All paths emitted by the former recursive permission generator.
 
     The walk prunes rather than filters, because the excluded directories are
-    the expensive and unstable ones. `.tao` is the reason both matter: it holds
+    the expensive and unstable ones. `.moru` is the reason both matter: it holds
     run evidence and task worktrees, so it repeats every script under paths that
     are deleted with their task, and the maintenance job prunes finished runs
     while this walk is in progress. A directory listed in its parent and gone by

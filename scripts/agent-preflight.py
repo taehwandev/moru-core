@@ -333,8 +333,8 @@ def build_parser(moru_root: Path) -> argparse.ArgumentParser:
 def resolve_evidence_path(args: argparse.Namespace, project: Path) -> Path:
     _enforce_worker_environment(args)
     # Project-scoped state must land in a project. Silently creating it
-    # elsewhere is what put a 54 KB preflight.json in the global ~/.tao and left
-    # the Stop gate demanding a finish for $HOME. A missing .tao is fine -- a
+    # elsewhere is what put a 54 KB preflight.json in the global ~/.moru and left
+    # the Stop gate demanding a finish for $HOME. A missing .moru is fine -- a
     # fresh repo has none yet; only the global install directory is refused.
     scope_error = project_scoped_state_error(project)
     if scope_error:

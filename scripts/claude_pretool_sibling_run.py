@@ -11,7 +11,7 @@ tests/test_claude_pretool_sibling_run.py.
 Verification: that module and the full gate suite.
 
 In a week of Claude transcripts, most entry denials that arrived while a run
-was open came from this mix-up: the run lived in `.tao/worktrees/<task>` and
+was open came from this mix-up: the run lived in `.moru/worktrees/<task>` and
 the edit named the same file under the main checkout. The denial only said to
 run `start`, so the agent opened a second run in the wrong checkout instead of
 moving the edit. The verdict stays; the reason now names where the run is.

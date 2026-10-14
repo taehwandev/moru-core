@@ -151,7 +151,7 @@ def shorten_path(directory: str, home: Path | None = None) -> str:
 
     Two names carry the answer to "where am I": the project and the leaf. What
     sits between them is fixed boilerplate -- every task worktree lives under
-    the same `.tao/worktrees` -- so that is what gives way when the line would
+    the same `.moru/worktrees` -- so that is what gives way when the line would
     otherwise run past the terminal. The leaf is never truncated, because a
     half-written worktree name is worse than a long one.
     """

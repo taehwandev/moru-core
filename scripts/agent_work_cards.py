@@ -281,7 +281,7 @@ def start_lines(project: Path, evidence: Path, *, summary: str, command: str) ->
     """
     try:
         work_id = _evidence_work_id(evidence)
-        # Run evidence lives at `.tao/runs/<run id>/preflight.json`.
+        # Run evidence lives at `.moru/runs/<run id>/preflight.json`.
         run_id = evidence.parent.name if WORK_ID_RE.fullmatch(evidence.parent.name) else ""
         if summary.strip():
             try:

@@ -395,7 +395,7 @@ def _claim_project(evidence_path: Path) -> Path | None:
     directories under a caller-supplied path.
 
     Directory shape is only candidate discovery, never ownership proof. Picking
-    the nearest or outermost ``.tao`` is ambiguous when state roots are nested,
+    the nearest or outermost ``.moru`` is ambiguous when state roots are nested,
     and picking the nearest ancestor that merely *has* a state root lets an
     unrelated intermediate directory hide the registry with the real claim.
     Inspect only existing ancestor registries and keep the one whose opaque

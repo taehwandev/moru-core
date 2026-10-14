@@ -58,12 +58,18 @@ Korean guide: [README.ko.md](README.ko.md). Existing-install update guide: [docs
 
 ### Rename status
 
-The repository is now `taehwandev/moru-core`. The website still uses
-`tao.thdev.app`. Runtime identifiers are moving in stages: the Moru launcher
-can be installed at `~/.moru/bin/moru-hook`, while existing installations and
-records still use `MORU_HOME`, `<MORU_LAUNCHER>`, and `.moru`. A `state-ready`
-marker selects `.moru` records only after the offline migration is verified.
-Do not move or delete `.moru` records merely to follow the new name. See
+The repository is `taehwandev/moru-core`; the website still uses
+`tao.thdev.app`. Runtime identifiers use the Moru names: the `moru-hook`
+launcher in `~/.moru/bin`, `MORU_*` settings, `<MORU_ROOT>`/`<MORU_LAUNCHER>`
+placeholders, `.moru` state and the `moru_*` agent roles. New installs and new
+projects start on them directly.
+
+The old names still resolve during the compatibility window: `tao-hook`
+remains installed beside `moru-hook`, `TAO_*` settings are read when the
+`MORU_*` one is absent, and a project or home whose `.tao` records have not
+been moved keeps using them until a `state-ready` marker selects `.moru`. Setup
+replaces its own pre-rename blocks, roles and permission entries. Do not move
+or delete `.tao` records merely to follow the new name. See
 [the migration plan](docs/migration/moru-rename.md).
 
 ## Website Deployment Versioning

@@ -21,10 +21,10 @@ which the review hook runs before it can report.
 
 Pruning at the directory is the same answer computed once. It is only the same
 answer while the pruned set stays a subset of what each caller already
-discarded, which is why what to prune is the caller's to name: `.tao` is not
-uniformly disposable -- `.tao/skills/` is tracked content its own `.gitignore`
+discarded, which is why what to prune is the caller's to name: `.moru` is not
+uniformly disposable -- `.moru/skills/` is tracked content its own `.gitignore`
 deliberately keeps -- so a caller that wants those documents prunes
-`.tao/runs` and a caller that wants none of `.tao` prunes all of it.
+`.moru/runs` and a caller that wants none of `.moru` prunes all of it.
 """
 
 from __future__ import annotations
@@ -39,10 +39,10 @@ from support.bounded_git import run_git
 
 
 # What every caller here already discards: project state and the repository's
-# own storage. A caller that wants part of `.tao` names a narrower set. `.moru`
+# own storage. A caller that wants part of `.moru` names a narrower set. `.moru`
 # is the same project state under its Moru name.
 PRUNED_DIRECTORIES = frozenset({".tao", ".moru", ".git"})
-# For callers that want `.tao/skills` but not one directory per run.
+# For callers that want `.moru/skills` but not one directory per run.
 PRUNED_RUN_STATE = frozenset({".git", ".tao/runs", ".moru/runs"})
 
 
@@ -56,7 +56,7 @@ def iter_project_files(
 
     An entry in ``pruned`` is a bare directory name, pruned wherever it
     appears, or a root-relative POSIX path, pruned only at that exact place --
-    `.tao` excludes project state everywhere, `.tao/runs` excludes only the
+    `.moru` excludes project state everywhere, `.moru/runs` excludes only the
     run directories while leaving the tracked skills beside them.
 
     ``name`` selects by exact file name when given, and by suffix when it

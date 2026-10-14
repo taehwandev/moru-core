@@ -502,7 +502,7 @@ def _closeout_owner_matches(run: dict[str, Any]) -> bool:
 def _registry_unreadable(path: Path) -> bool:
     """True when no state directory exists for this project.
 
-    Acquiring the locks creates ``.tao/`` plus two lock files as a side
+    Acquiring the locks creates ``.moru/`` plus two lock files as a side
     effect, so a read against a directory that merely carries an opt-in
     marker planted dead runtime state in checkouts that never ran a
     lifecycle -- and that state made the directory opt in as a project
@@ -1175,7 +1175,7 @@ def _run_id_for(
 ) -> str:
     """Adopt an isolated-run evidence directory as this run's opaque id.
 
-    A continuation packet lives at ``.tao/runs/<run-id>/continuation.json``,
+    A continuation packet lives at ``.moru/runs/<run-id>/continuation.json``,
     beside the trust record it binds to, so a run only has a reachable packet
     when the opaque directory the agent was told to isolate its evidence in *is*
     the run id. Adopting it costs nothing -- the directory name is already an

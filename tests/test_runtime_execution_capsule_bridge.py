@@ -672,8 +672,8 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
                 # copy-pasteable bypasses the resolved-absolute permission
                 # entries; human-facing pages keep the literal command.
                 self.assertTrue(
-                    "tao-hook start" in normalized
-                    or "<tao_launcher> start" in normalized,
+                    "moru-hook start" in normalized
+                    or "<moru_launcher> start" in normalized,
                     f"{relative} does not name the canonical start lifecycle",
                 )
                 self.assertIn("required_docs", normalized)

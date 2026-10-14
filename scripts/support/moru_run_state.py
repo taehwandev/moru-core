@@ -123,11 +123,11 @@ def gate_ledger(project: Path, run: dict[str, Any]) -> dict[str, Any]:
     """This run's gate ledger, or nothing if none of the candidates is its own.
 
     A ledger sits beside the evidence it is bound to, and evidence lives either
-    at `.tao/<name>.json` or under `.tao/evidence/`, so the name alone does not
+    at `.moru/<name>.json` or under `.moru/evidence/`, so the name alone does not
     say where to look. Rather than guess, every candidate is read and the one
     that names this run's evidence is kept.
 
-    The binding is what makes the count trustworthy. `.tao/gate-evidence.json`
+    The binding is what makes the count trustworthy. `.moru/gate-evidence.json`
     is tracked, so a fresh worktree starts life holding a finished run's ledger;
     without this check a new run would inherit that run's gates and report
     progress it never made.

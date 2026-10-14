@@ -14,7 +14,7 @@ unchanged verdicts.
 
 One review hook read the same worktree's HEAD twenty-three times and its
 porcelain status eleven times. Nothing the hook does between those reads
-touches tracked files -- it writes only ignored `.tao/` state -- so each repeat
+touches tracked files -- it writes only ignored `.moru/` state -- so each repeat
 paid ten to twenty milliseconds of process start for an answer it already had.
 
 Two lifetimes are kept apart:

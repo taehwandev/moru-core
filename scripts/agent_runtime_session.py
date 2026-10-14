@@ -164,7 +164,7 @@ def resolve_runtime_evidence(
 
     The registry intentionally stores no local path.  Continuation-capable runs
     use their opaque run id as the directory name.  Other project-local evidence
-    is discovered only by the registry's safe basename below ``.tao`` and then
+    is discovered only by the registry's safe basename below ``.moru`` and then
     verified against the exact registry evidence key.  No timestamp ordering or
     newest-file selection participates in the decision.  The launcher-issued
     worker evidence path narrows an isolated worker to its own claim.  Without
@@ -684,7 +684,7 @@ def _runtime_evidence_candidates(
     skipped because the caller still has to account for their registry claim;
     dropping them made an active worker binding permanently unresolvable.
 
-    ``.tao`` also holds unrelated run, worker and worktree state that a
+    ``.moru`` also holds unrelated run, worker and worktree state that a
     concurrent run creates and removes, so one unreadable or vanishing
     directory must skip that subtree rather than discard the scan -- aborting
     denied every edit over state the decision never depended on. Completeness
@@ -708,7 +708,7 @@ def _runtime_evidence_candidates(
         if not _within_worker_root(error.filename, worker_root):
             complete = False
 
-    # A linked worktree nested under `.tao` (the usual `.tao/worktrees/<name>`)
+    # A linked worktree nested under `.moru` (the usual `.moru/worktrees/<name>`)
     # is a separate project with its own registry: no file inside it can carry
     # one of this project's evidence keys. Walking it anyway scanned every
     # parallel worker's whole checkout on each lookup, and a directory a
@@ -755,7 +755,7 @@ def _runtime_evidence_candidates(
 
 
 def _is_nested_checkout(directory: Path) -> bool:
-    """Whether a directory under `.tao` is another Git checkout's root."""
+    """Whether a directory under `.moru` is another Git checkout's root."""
 
     try:
         return os.path.lexists(directory / ".git")

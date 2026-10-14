@@ -54,7 +54,7 @@ preflight를 함께 수행하므로 성공 뒤에 `<MORU_LAUNCHER> workflow rout
 start가 만든 route의 `required_docs`를 수정이나 검토 전에 직접 읽습니다.
 의미 있는 수정 뒤에는 `<MORU_LAUNCHER> review` review hook을 실행하고,
 실제 route가 요구한 gate만 구조화된 근거로 기록한 다음 마무리 전에는
-`<MORU_LAUNCHER> finish`를 실행합니다. 고정된 gate 목록을 복사해 제출하지
+`<MORU_LAUNCHER> finish` finish hook을 실행합니다. 고정된 gate 목록을 복사해 제출하지
 않습니다. 런처는 새 설치의 `~/.moru/bin/moru-hook` 또는 기존 설치의
 `~/.moru/bin/moru-hook`처럼 실제로 설치된 절대 경로를 사용합니다.
 

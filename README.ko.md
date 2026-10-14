@@ -52,7 +52,9 @@ git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
 
 ## 이름과 기록 경로 전환
 
-저장소 이름은 `moru-core`입니다. `.moru-core`라는 기록 폴더를 사용하지 않습니다. 새 런처는 `~/.moru/bin/moru-hook`에 설치할 수 있지만, 기존 설치의 `~/.tao/bin/tao-hook`, `MORU_HOME`, `<MORU_LAUNCHER>` 표기와 `.tao` 기록은 아직 호환 기간에 있습니다. 검증된 오프라인 기록 복사 후 `state-ready` 표시가 있어야 `.moru` 기록으로 전환됩니다. 기존 `.tao` 기록을 이름만 보고 이동하거나 삭제하지 마세요.
+저장소 이름은 `moru-core`입니다. `.moru-core`라는 기록 폴더를 사용하지 않습니다. 런타임 식별자는 Moru 이름을 씁니다: `~/.moru/bin/moru-hook` 런처, `MORU_*` 설정, `<MORU_ROOT>`/`<MORU_LAUNCHER>` 표기, `.moru` 기록, `moru_*` 에이전트 역할입니다. 새 설치와 새 프로젝트는 처음부터 이 이름을 사용합니다.
+
+호환 기간에는 이전 이름도 계속 동작합니다. `tao-hook`은 `moru-hook` 옆에 설치되어 있고, `MORU_*` 값이 없으면 `TAO_*` 값을 읽으며, 아직 옮기지 않은 `.tao` 기록은 `state-ready` 표시로 `.moru`가 선택될 때까지 그대로 사용합니다. setup은 자신이 이전에 쓴 블록, 역할, 권한 항목을 새 이름으로 교체합니다. 기존 `.tao` 기록을 이름만 보고 이동하거나 삭제하지 마세요.
 
 현재 공개 사이트 주소 `tao.thdev.app`도 그대로입니다. 단계별 상태는 [이름 변경 계획](docs/migration/moru-rename.md)에 기록합니다.
 

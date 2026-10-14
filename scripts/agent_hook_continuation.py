@@ -9,7 +9,7 @@ packet is weaker evidence than a heartbeat -- a hook that fails because its
 bookkeeping failed is strictly worse than a hook with no bookkeeping.
 
 A packet lives beside the evidence it is bound to, at
-``.tao/runs/<run-id>/continuation.json``. A run whose evidence is somewhere else
+``.moru/runs/<run-id>/continuation.json``. A run whose evidence is somewhere else
 therefore has no reachable binding, and this module says so instead of writing a
 packet bound to a record it cannot prove.
 """
@@ -149,10 +149,10 @@ def work_checkpoint_advice(args: argparse.Namespace) -> list[str]:
 def unbindable_run_directory_error(args: argparse.Namespace) -> str:
     """Refuse a run directory that cannot hold a packet, while it can be changed.
 
-    A caller who creates `.tao/runs/<name>/` has asked for a per-run directory;
+    A caller who creates `.moru/runs/<name>/` has asked for a per-run directory;
     getting one that silently drops every checkpoint is not what was asked for.
     The lifecycle deliberately does not fail for evidence kept anywhere else --
-    the default `.tao/preflight.json` and worker paths under `.tao/workers/`
+    the default `.moru/preflight.json` and worker paths under `.moru/workers/`
     have no packet by design -- so the refusal is narrowed to the one shape that
     is a mistake rather than a choice.
     """

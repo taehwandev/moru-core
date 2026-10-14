@@ -133,7 +133,7 @@ def adopts_moru_routing(root: Path) -> bool:
     """Whether root's instruction file carries the managed Moru routing block.
 
     The undeclared isolation default keys on this, not on marks_moru_project: a
-    `.tao` runtime directory appears in any checkout a run ever touched, so a
+    `.moru` runtime directory appears in any checkout a run ever touched, so a
     prose-only writing vault became a protected code repository and its drafts
     were forced into a temporary worktree and a commit.
     """

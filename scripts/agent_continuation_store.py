@@ -305,7 +305,7 @@ def _git_ignores(project: Path, path: Path) -> bool:
     """Ask Git, not the filesystem, whether this exact path is local-only.
 
     A workspace with no repository keeps the equivalent policy: the shared
-    workspace rules already classify the whole ``.tao`` state root as local-only,
+    workspace rules already classify the whole ``.moru`` state root as local-only,
     and no index exists that could accidentally publish the packet.
     """
 
