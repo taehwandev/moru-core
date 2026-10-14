@@ -157,7 +157,7 @@ class CodexPermissionsTests(unittest.TestCase):
         self.assertEqual("ok", second)
         self.assertEqual(first_text, second_text)
         self.assertIn('default_permissions = ":workspace"', second_text)
-        self.assertIn('[permissions.tao-workspace]', second_text)
+        self.assertIn('[permissions.moru-workspace]', second_text)
         self.assertIn('extends = ":workspace"', second_text)
         self.assertIn(f'"{roots[0].resolve()}" = true', second_text)
 
@@ -212,10 +212,36 @@ class CodexPermissionsTests(unittest.TestCase):
                 updated = target.read_text(encoding="utf-8")
                 self.assertTrue(updated.startswith(original))
                 self.assertEqual(original.count("default_permissions ="), updated.count("default_permissions ="))
-                if original.startswith('default_permissions'):
+                if original.startswith('default_permissions = "tao-workspace"'):
+                    # The selected pre-rename profile keeps its name.
                     self.assertIn('[permissions.tao-workspace.workspace_roots]', updated)
+                elif original.startswith('default_permissions'):
+                    self.assertIn('[permissions.moru-workspace.workspace_roots]', updated)
                 else:
                     self.assertEqual(original, updated)
+
+    def test_unselected_pre_rename_profile_is_carried_over_to_moru_name(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "config.toml"
+            target.write_text(
+                'default_permissions = ":workspace"\n\n'
+                '[permissions.tao-workspace]\n'
+                'description = "Workspace access plus the shared Tao Agent OS runtime."\n'
+                'extends = ":workspace"\n\n'
+                '[permissions.tao-workspace.workspace_roots]\n'
+                '"/existing/root" = true\n',
+                encoding="utf-8",
+            )
+            root = Path(directory) / "project" / ".moru" / "worktrees"
+
+            status = merge_codex_worktree_roots(target, [root], dry_run=False)
+            text = target.read_text(encoding="utf-8")
+
+        self.assertEqual("installed", status)
+        self.assertNotIn("tao-workspace", text)
+        self.assertIn('[permissions.moru-workspace]\ndescription = "Workspace access plus the shared Moru Core runtime."', text)
+        self.assertIn('[permissions.moru-workspace.workspace_roots]\n"/existing/root" = true', text)
+        self.assertIn(f'"{root.resolve()}" = true', text)
 
     def test_nested_default_permissions_key_does_not_replace_profile_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

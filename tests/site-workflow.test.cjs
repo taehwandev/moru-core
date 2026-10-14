@@ -72,12 +72,12 @@ test('language changes preserve route selection and the control nodes', async ()
   const buttons = descendants(root, e => e.tagName === 'button');
   const cleanup = buttons.find(b => b.dataset.workflow === 'cleanup');
   cleanup.events.click();
-  page.events['tao:language']({ detail: { language: 'ko' } });
+  page.events['moru:language']({ detail: { language: 'ko' } });
   assert.equal(cleanup.textContent, workflowContent.ko.routes.cleanup.name);
   assert.equal(cleanup.attributes['aria-pressed'], 'true');
   assert.equal(descendants(root, e => e.tagName === 'button')[0], buttons[0]);
   assert.ok(root.textContent.includes(workflowContent.ko.routes.cleanup.output));
-  page.events['tao:language']({ detail: { language: 'unknown' } });
+  page.events['moru:language']({ detail: { language: 'unknown' } });
   assert.equal(cleanup.textContent, workflowContent.en.routes.cleanup.name);
 });
 

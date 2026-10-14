@@ -41,7 +41,7 @@ class JsonConfigSafetyTests(unittest.TestCase):
             with self.assertRaisesRegex(SetupConfigError, "not valid JSON"):
                 merge()
         self.assertEqual(original, self.settings.read_bytes())
-        self.assertFalse(self.settings.with_name("settings.json.tao-backup").exists())
+        self.assertFalse(self.settings.with_name("settings.json.moru-backup").exists())
 
     def test_non_object_settings_are_refused(self) -> None:
         self.settings.write_text("[1, 2]\n")
@@ -69,10 +69,10 @@ class JsonConfigSafetyTests(unittest.TestCase):
         self.assertEqual(["Read(.env)"], updated["permissions"]["deny"])
         self.assertEqual(["Bash(ls)", "Bash(tao-hook)"], updated["permissions"]["allow"])
         self.assertEqual("command", updated["statusLine"]["type"])
-        backup = self.settings.with_name("settings.json.tao-backup")
+        backup = self.settings.with_name("settings.json.moru-backup")
         self.assertEqual(original_bytes, backup.read_bytes())
         self.assertEqual(
-            [(self.settings.parent, "settings.json.tao-backup"),
+            [(self.settings.parent, "settings.json.moru-backup"),
              (self.settings.parent, "settings.json"),
              (self.settings.parent, "settings.json")],
             replaced,

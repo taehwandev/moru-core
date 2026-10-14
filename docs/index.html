@@ -546,7 +546,7 @@ The bridge must force this behavior:
           button.setAttribute("aria-pressed", String(button.dataset.langChoice === currentLanguage));
         });
         renderMode();
-        document.dispatchEvent(new CustomEvent("tao:language", { detail: { language: currentLanguage } }));
+        document.dispatchEvent(new CustomEvent("moru:language", { detail: { language: currentLanguage } }));
         saveLanguage(currentLanguage);
       };
 

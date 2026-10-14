@@ -194,7 +194,7 @@ class CodexMarkerBlockTests(unittest.TestCase):
             text = config.read_text(encoding="utf-8")
             self.assertIn('model = "gpt-5"', text)
             self.assertIn(FOREIGN_IMPORTER, text)
-            self.assertEqual(1, text.count("# tao-hooks:begin"))
+            self.assertEqual(1, text.count("# moru-hooks:begin"))
             self.assertEqual(1, text.count('"tao-hook"'))
 
 

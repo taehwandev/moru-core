@@ -22,6 +22,7 @@ def install_managed_agents(
     is_managed: Callable[[bytes], bool],
     dry_run: bool,
     source_suffix: str | None = None,
+    legacy_names: Iterable[str] = (),
 ) -> list[dict]:
     """Install namespaced roles; source failures stop before any writes.
 
@@ -64,5 +65,19 @@ def install_managed_agents(
         rows.append({
             "tool": tool, "hook": f"agents.{name}",
             "status": status, "path": str(target),
+        })
+    for name in legacy_names:
+        target = agents_dir / f"{name}{suffix}"
+        # Only a regular file setup itself wrote; a user's own role of that
+        # name is left alone and not reported.
+        if directory_conflict or target.is_symlink() or not target.is_file():
+            continue
+        if not is_managed(target.read_bytes()):
+            continue
+        if not dry_run:
+            target.unlink()
+        rows.append({
+            "tool": tool, "hook": f"agents.{name}",
+            "status": "would_remove" if dry_run else "removed", "path": str(target),
         })
     return rows

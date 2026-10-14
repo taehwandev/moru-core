@@ -7,7 +7,9 @@ import re
 from pathlib import Path
 
 
-MORU_WORKSPACE_PROFILE = "tao-workspace"
+MORU_WORKSPACE_PROFILE = "moru-workspace"
+# The profile name setup wrote before the Moru rename.
+LEGACY_WORKSPACE_PROFILE = "tao-workspace"
 _TABLE_HEADER = re.compile(r"(?m)^[ \t]*\[([^\]\n]+)\][ \t]*(?:#.*)?$")
 # Where the top level ends: a `[table]` or an `[[array.of.tables]]`. A key under
 # either one is nested, so the reset must never read it as the top-level selection.
@@ -23,7 +25,7 @@ def reset_tao_permission_default(target: Path, dry_run: bool) -> str:
     top = original[:header.start()] if header else original
     pattern = re.compile(
         r"(?m)^[ \t]*default_permissions[ \t]*=[ \t]*"
-        r"(['\"])tao-workspace\1[ \t]*(?:#[^\n]*)?(?:\n|$)"
+        r"(['\"])(?:moru|tao)-workspace\1[ \t]*(?:#[^\n]*)?(?:\n|$)"
     )
     matches = list(pattern.finditer(top))
     count = _assignment_count(top, "default_permissions")
@@ -61,11 +63,15 @@ def merge_codex_worktree_roots(
             return "missing"
         return "ok: optional Moru profile skipped because no default_permissions is selected"
     root_strings = list(dict.fromkeys(str(root.expanduser().resolve()) for root in roots))
-    if _permission_ownership_conflicts(original, root_strings):
+    # A configuration that selects the pre-rename profile keeps it, so the
+    # selection never points at a profile that no longer exists.
+    profile = LEGACY_WORKSPACE_PROFILE if _selects_legacy_profile(original) else MORU_WORKSPACE_PROFILE
+    if _permission_ownership_conflicts(original, root_strings, profile):
         return "missing"
 
-    updated = _ensure_workspace_profile(original)
-    updated = _ensure_worktree_roots(updated, root_strings)
+    updated = _rename_legacy_profile(original)
+    updated = _ensure_workspace_profile(updated, profile)
+    updated = _ensure_worktree_roots(updated, root_strings, profile)
     if updated == original:
         return "ok"
     if dry_run:
@@ -75,8 +81,14 @@ def merge_codex_worktree_roots(
     return "installed"
 
 
-def _permission_ownership_conflicts(text: str, roots: list[str]) -> bool:
-    profile = _section(text, f"permissions.{MORU_WORKSPACE_PROFILE}")
+def _selects_legacy_profile(text: str) -> bool:
+    return bool(re.search(
+        rf"(?m)^[ \t]*default_permissions[ \t]*=[ \t]*(['\"]){LEGACY_WORKSPACE_PROFILE}\1", text
+    ))
+
+
+def _permission_ownership_conflicts(text: str, roots: list[str], name: str) -> bool:
+    profile = _section(text, f"permissions.{name}")
     if profile:
         body = text[profile[0] : profile[1]]
         extensions = _quoted_values(body, "extends")
@@ -85,10 +97,7 @@ def _permission_ownership_conflicts(text: str, roots: list[str]) -> bool:
         if len(extensions) > 1 or (extensions and extensions[0] != ":workspace"):
             return True
 
-    roots_section = _section(
-        text,
-        f"permissions.{MORU_WORKSPACE_PROFILE}.workspace_roots",
-    )
+    roots_section = _section(text, f"permissions.{name}.workspace_roots")
     if not roots_section:
         return False
     body = text[roots_section[0] : roots_section[1]]
@@ -102,15 +111,36 @@ def _permission_ownership_conflicts(text: str, roots: list[str]) -> bool:
     return False
 
 
-def _ensure_workspace_profile(text: str) -> str:
+def _rename_legacy_profile(text: str) -> str:
+    """Carry the pre-rename profile's tables over under the Moru name.
+
+    Only when nothing selects the old name and no Moru profile exists yet, so a
+    configuration a user points at keeps resolving and nothing is duplicated.
+    """
+    legacy = f"permissions.{LEGACY_WORKSPACE_PROFILE}"
+    if _section(text, f"permissions.{MORU_WORKSPACE_PROFILE}") or not _section(text, legacy):
+        return text
+    if _selects_legacy_profile(text):
+        return text
+    header = re.compile(rf"(?m)^([ \t]*\[){re.escape(legacy)}((?:\.[^\]\n]+)?\][ \t]*(?:#.*)?)$")
+    renamed = header.sub(
+        lambda match: f"{match.group(1)}permissions.{MORU_WORKSPACE_PROFILE}{match.group(2)}", text
+    )
+    return renamed.replace(
+        'description = "Workspace access plus the shared Tao Agent OS runtime."',
+        'description = "Workspace access plus the shared Moru Core runtime."',
+    )
+
+
+def _ensure_workspace_profile(text: str, name: str) -> str:
     updated = text
-    profile = _section(updated, f"permissions.{MORU_WORKSPACE_PROFILE}")
+    profile = _section(updated, f"permissions.{name}")
     if not profile:
         return _append_block(
             updated,
             "\n".join(
                 (
-                    f"[permissions.{MORU_WORKSPACE_PROFILE}]",
+                    f"[permissions.{name}]",
                     'description = "Workspace access plus the shared Moru Core runtime."',
                     'extends = ":workspace"',
                 )
@@ -121,13 +151,10 @@ def _ensure_workspace_profile(text: str) -> str:
     return updated
 
 
-def _ensure_worktree_roots(text: str, roots: list[str]) -> str:
-    roots_section = _section(
-        text,
-        f"permissions.{MORU_WORKSPACE_PROFILE}.workspace_roots",
-    )
+def _ensure_worktree_roots(text: str, roots: list[str], name: str) -> str:
+    roots_section = _section(text, f"permissions.{name}.workspace_roots")
     if not roots_section:
-        block = [f"[permissions.{MORU_WORKSPACE_PROFILE}.workspace_roots]"]
+        block = [f"[permissions.{name}.workspace_roots]"]
         block += [f"{_toml_key(root)} = true" for root in roots]
         return _append_block(text, "\n".join(block))
 

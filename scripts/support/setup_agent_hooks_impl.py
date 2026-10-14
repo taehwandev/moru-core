@@ -248,7 +248,7 @@ def _notice_tao_permission_default(config_target: Path) -> None:
         return
     if status == "would_update":
         print(
-            "Codex notice: default_permissions selects tao-workspace or is missing with profiles. Older Moru setup "
+            "Codex notice: default_permissions selects moru-workspace (or tao-workspace) or is missing with profiles. Older Moru setup "
             "selected it automatically; the current file cannot prove who selected it. "
             "To select the built-in :workspace default, explicitly run "
             "setup-agent-hooks.py --reset-codex-permission-default. "
@@ -440,7 +440,7 @@ def configure_codex(dry_run: bool, *, root: Path, enable_auto_review: bool = Fal
         },
         {
             "tool": "codex",
-            "hook": "rules.TaoAgentOSPython",
+            "hook": "rules.MoruCorePython",
             "status": rules_status,
             "path": str(rules_target),
         },

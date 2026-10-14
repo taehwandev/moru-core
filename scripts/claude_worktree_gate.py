@@ -123,7 +123,10 @@ def worktree_policy(root: Path) -> dict | None:
 
 # The block `setup-agent-hooks` writes into a project that adopts the Moru code
 # workflow; see support/project_guidance.py.
-MORU_ROUTING_MARKER = "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->"
+ROUTING_MARKERS = (
+    "<!-- BEGIN MANAGED MORU CORE ROUTING -->",
+    "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->",  # written before the rename
+)
 
 
 def adopts_tao_routing(root: Path) -> bool:
@@ -139,10 +142,11 @@ def adopts_tao_routing(root: Path) -> bool:
         return False
     for name in ("AGENTS.md", "CLAUDE.md", "CODEX.md"):
         try:
-            if MORU_ROUTING_MARKER in (root / name).read_text(encoding="utf-8", errors="ignore"):
-                return True
+            text = (root / name).read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
+        if any(marker in text for marker in ROUTING_MARKERS):
+            return True
     return False
 
 

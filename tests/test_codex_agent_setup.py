@@ -66,40 +66,40 @@ class CodexAgentSetupTests(unittest.TestCase):
         self.assertFalse(self.agents_dir.parent.exists())
 
     def test_stale_managed_role_updates_and_dry_run_preserves_it(self) -> None:
-        stale = (MANAGED_MARKER + '\nname = "tao_worker"\n').encode()
-        target = self.write_role("tao_worker", stale)
+        stale = (MANAGED_MARKER + '\nname = "moru_worker"\n').encode()
+        target = self.write_role("moru_worker", stale)
         rows = self.install(dry_run=True)
-        self.assertEqual("would_update", self.statuses(rows)["agents.tao_worker"])
+        self.assertEqual("would_update", self.statuses(rows)["agents.moru_worker"])
         self.assertEqual(stale, target.read_bytes())
         self.assertEqual([target], list(self.agents_dir.iterdir()))
-        self.assertEqual("installed", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual("installed", self.statuses(self.install())["agents.moru_worker"])
         self.assertEqual(
             (ROOT / "templates" / "codex-agents" / target.name).read_bytes(),
             target.read_bytes(),
         )
 
     def test_legacy_managed_role_upgrades_to_moru_marker(self) -> None:
-        legacy = (LEGACY_MANAGED_MARKER + '\nname = "tao_worker"\n').encode()
-        target = self.write_role("tao_worker", legacy)
-        self.assertEqual("would_update", self.statuses(self.install(dry_run=True))["agents.tao_worker"])
+        legacy = (LEGACY_MANAGED_MARKER + '\nname = "moru_worker"\n').encode()
+        target = self.write_role("moru_worker", legacy)
+        self.assertEqual("would_update", self.statuses(self.install(dry_run=True))["agents.moru_worker"])
         self.assertEqual(legacy, target.read_bytes())
-        self.assertEqual("installed", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual("installed", self.statuses(self.install())["agents.moru_worker"])
         self.assertEqual(MANAGED_MARKER, target.read_text().splitlines()[0])
 
     def test_same_name_user_role_and_unrelated_role_are_preserved(self) -> None:
-        custom = b'name = "tao_worker"\ndeveloper_instructions = "My instructions"\n'
-        target = self.write_role("tao_worker", custom)
+        custom = b'name = "moru_worker"\ndeveloper_instructions = "My instructions"\n'
+        target = self.write_role("moru_worker", custom)
         unrelated = self.write_role("my_reviewer", b'name = "my_reviewer"\n')
         for dry_run in (True, False):
             rows = self.install(dry_run=dry_run)
-            self.assertEqual("conflict", self.statuses(rows)["agents.tao_worker"])
+            self.assertEqual("conflict", self.statuses(rows)["agents.moru_worker"])
             self.assertEqual(custom, target.read_bytes())
             self.assertEqual(b'name = "my_reviewer"\n', unrelated.read_bytes())
 
     def test_unmanaged_marker_later_in_file_does_not_grant_ownership(self) -> None:
         original = ("# My role\n" + MANAGED_MARKER + "\n").encode()
-        target = self.write_role("tao_worker", original)
-        self.assertEqual("conflict", self.statuses(self.install())["agents.tao_worker"])
+        target = self.write_role("moru_worker", original)
+        self.assertEqual("conflict", self.statuses(self.install())["agents.moru_worker"])
         self.assertEqual(original, target.read_bytes())
 
     def test_final_directory_symlink_is_preserved_without_following_it(self) -> None:
@@ -127,29 +127,29 @@ class CodexAgentSetupTests(unittest.TestCase):
         original = (MANAGED_MARKER + "\n# old role\n").encode()
         external.write_bytes(original)
         self.agents_dir.mkdir(parents=True)
-        target = self.agents_dir / "tao_worker.toml"
+        target = self.agents_dir / "moru_worker.toml"
         target.symlink_to(external)
         for dry_run in (True, False):
             self.assertEqual("conflict", self.statuses(
                 self.install(dry_run=dry_run)
-            )["agents.tao_worker"])
+            )["agents.moru_worker"])
             self.assertTrue(target.is_symlink())
             self.assertEqual(original, external.read_bytes())
 
     def test_broken_role_symlink_is_preserved(self) -> None:
         external = self.base / "missing-role.toml"
         self.agents_dir.mkdir(parents=True)
-        target = self.agents_dir / "tao_worker.toml"
+        target = self.agents_dir / "moru_worker.toml"
         target.symlink_to(external)
-        self.assertEqual("conflict", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual("conflict", self.statuses(self.install())["agents.moru_worker"])
         self.assertTrue(target.is_symlink())
         self.assertFalse(external.exists())
 
     def test_directory_at_role_path_and_file_at_agents_path_are_conflicts(self) -> None:
         self.agents_dir.mkdir(parents=True)
-        target = self.agents_dir / "tao_worker.toml"
+        target = self.agents_dir / "moru_worker.toml"
         target.mkdir()
-        self.assertEqual("conflict", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual("conflict", self.statuses(self.install())["agents.moru_worker"])
         self.assertTrue(target.is_dir())
         self.agents_dir = self.base / "agents-file"
         self.agents_dir.write_bytes(b"preserve")
@@ -188,10 +188,10 @@ class CodexAgentSetupTests(unittest.TestCase):
                 self.assertTrue(role["developer_instructions"].strip())
                 self.assertEqual(
                     {"name", "description", "developer_instructions"}
-                    | ({"sandbox_mode"} if name != "tao_worker" else set()),
+                    | ({"sandbox_mode"} if name != "moru_worker" else set()),
                     set(role),
                 )
-                if name == "tao_worker":
+                if name == "moru_worker":
                     self.assertNotIn("sandbox_mode", role)
                 else:
                     self.assertEqual("read-only", role["sandbox_mode"])

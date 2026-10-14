@@ -77,7 +77,7 @@ For a bounded Codex leaf, use workflow.py dispatch --execute only when isolation
 
 ## Native Agent Roles
 
-Use available `tao_explorer`, `tao_worker`, and `tao_reviewer` custom agents for
+Use available `moru_explorer`, `moru_worker`, and `moru_reviewer` custom agents for
 bounded evidence gathering, implementation, and review respectively. In Codex
 they are custom agent roles; in Claude Code they are subagents selected with
 the Agent tool's `subagent_type`. In Antigravity/AGY, where subagents are not

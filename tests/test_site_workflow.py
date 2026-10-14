@@ -45,7 +45,7 @@ class SiteWorkflowTests(unittest.TestCase):
         self.assertIn('./workflow/map.js', self.markup.assets)
         self.assertIn('./styles/workflow.css', self.markup.assets)
         self.assertIn('<noscript>', self.html)
-        self.assertIn('tao:language', self.html)
+        self.assertIn('moru:language', self.html)
         for asset in self.markup.assets:
             if asset.startswith('./'):
                 self.assertTrue((ROOT / 'docs' / asset).is_file(), asset)

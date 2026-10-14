@@ -10,10 +10,13 @@ from pathlib import Path
 import re
 import subprocess
 
-from support.setup_config_files import SetupConfigError, _atomic_write_bytes
+from support.setup_config_files import BACKUP_SUFFIX, SetupConfigError, _atomic_write_bytes
 
-_BEGIN = "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->"
-_END = "<!-- END MANAGED TAO AGENT OS ROUTING -->"
+_MARKERS = (
+    ("<!-- BEGIN MANAGED MORU CORE ROUTING -->", "<!-- END MANAGED MORU CORE ROUTING -->"),
+    # Written before the Moru rename; refreshed in place under its old name.
+    ("<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->", "<!-- END MANAGED TAO AGENT OS ROUTING -->"),
+)
 _OLD = re.compile(
     r"For a Codex leaf, use `dispatch --execute`\s+"
     r"only when the selected model, reasoning effort, sandbox, or required isolation\s+"
@@ -29,6 +32,10 @@ def refresh_project_guidance(project: Path, root: Path, *, dry_run: bool) -> dic
     if not path.is_file():
         raise SetupConfigError(f"project guidance is unavailable: {path}")
     original = path.read_text(encoding="utf-8")
+    _BEGIN, _END = next(
+        ((begin, end) for begin, end in _MARKERS if begin in original),
+        _MARKERS[0],
+    )
     if original.count(_BEGIN) != 1 or original.count(_END) != 1:
         raise SetupConfigError(f"expected one managed routing block in {path}")
     start, end = original.index(_BEGIN), original.index(_END)
@@ -48,7 +55,7 @@ def refresh_project_guidance(project: Path, root: Path, *, dry_run: bool) -> dic
             target = path.resolve()
             payload = original[:start] + updated_block + original[end:]
             if not _committed_unchanged(target):
-                _atomic_write_bytes(target.with_name(target.name + ".tao-backup"), original.encode("utf-8"), target)
+                _atomic_write_bytes(target.with_name(target.name + BACKUP_SUFFIX), original.encode("utf-8"), target)
             _atomic_write_bytes(target, payload.encode("utf-8"), target)
     return {"tool": "project", "hook": "guidance.dispatch", "status": status, "path": str(path)}
 

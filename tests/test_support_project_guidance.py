@@ -29,10 +29,10 @@ class ProjectGuidanceTests(unittest.TestCase):
             updated = target.read_text()
             self.assertIn('only when isolation is explicitly required', updated)
             self.assertTrue(updated.endswith('user after\n' + OLD))
-            self.assertEqual(original, target.with_name('AGENTS.md.tao-backup').read_text())
+            self.assertEqual(original, target.with_name('AGENTS.md.moru-backup').read_text())
             self.assertEqual('ok', refresh_project_guidance(project, ROOT, dry_run=False)['status'])
             self.assertEqual(updated, target.read_text())
-            self.assertEqual(original, target.with_name('AGENTS.md.tao-backup').read_text())
+            self.assertEqual(original, target.with_name('AGENTS.md.moru-backup').read_text())
 
     def _git_project(self, tmp: str, original: str) -> Path:
         project = Path(tmp)
@@ -50,7 +50,7 @@ class ProjectGuidanceTests(unittest.TestCase):
             project = self._git_project(tmp, original)
             self.assertEqual('installed', refresh_project_guidance(project, ROOT, dry_run=False)['status'])
             self.assertNotEqual(original, (project / 'AGENTS.md').read_text())
-            self.assertFalse((project / 'AGENTS.md.tao-backup').exists())
+            self.assertFalse((project / 'AGENTS.md.moru-backup').exists())
 
     def test_tracked_dirty_guidance_keeps_its_backup(self):
         original = '<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n' + OLD + '\n<!-- END MANAGED TAO AGENT OS ROUTING -->\n'
@@ -59,7 +59,7 @@ class ProjectGuidanceTests(unittest.TestCase):
             dirty = 'local edit\n' + original
             (project / 'AGENTS.md').write_text(dirty)
             self.assertEqual('installed', refresh_project_guidance(project, ROOT, dry_run=False)['status'])
-            self.assertEqual(dirty, (project / 'AGENTS.md.tao-backup').read_text())
+            self.assertEqual(dirty, (project / 'AGENTS.md.moru-backup').read_text())
 
     def test_unmanaged_or_unknown_content_is_not_overwritten(self):
         with tempfile.TemporaryDirectory() as tmp:

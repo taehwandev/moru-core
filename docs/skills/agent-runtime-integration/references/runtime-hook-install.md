@@ -18,9 +18,9 @@ the command itself are in
 For Codex, the same setup also merges one Moru Core-owned `Stop` hook into
 `~/.codex/hooks.json` without replacing unrelated hooks such as local metering.
 It installs three namespaced native agent files from
-`templates/codex-agents/` into `~/.codex/agents/`: `tao_explorer` gathers bounded
-read-only evidence, `tao_worker` implements an assigned slice, and
-`tao_reviewer` reports correctness and verification risks without editing.
+`templates/codex-agents/` into `~/.codex/agents/`: `moru_explorer` gathers bounded
+read-only evidence, `moru_worker` implements an assigned slice, and
+`moru_reviewer` reports correctness and verification risks without editing.
 They reuse the rules in
 `common/skills/agent-operating-skill/references/runtime-collaboration.md`.
 A first-line Moru marker declares ownership. Setup refreshes only managed files,

@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-RUNTIME_BRIDGE_BEGIN = "<!-- tao-runtime-bridge:start -->"
-RUNTIME_BRIDGE_END = "<!-- tao-runtime-bridge:end -->"
+RUNTIME_BRIDGE_BEGIN = "<!-- moru-runtime-bridge:start -->"
+RUNTIME_BRIDGE_END = "<!-- moru-runtime-bridge:end -->"
 LEGACY_RUNTIME_BRIDGE_BEGIN = "<!-- BEGIN MANAGED RUNTIME BRIDGE -->"
 LEGACY_RUNTIME_BRIDGE_END = "<!-- END MANAGED RUNTIME BRIDGE -->"
 # A managed block is identified by its marker, so renaming the marker orphans
@@ -99,12 +99,12 @@ CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES = [
 RUNTIME_NATIVE_DELEGATION_PHRASES = {
     'Codex': (
         'Use native Codex workers for an eligible split; the parent integrates and verifies. '
-        'Prefer tao_explorer/tao_worker/tao_reviewer roles, which never replace a ready '
+        'Prefer moru_explorer/moru_worker/moru_reviewer roles, which never replace a ready '
         'handoff or grant write authority.'
     ),
     'Claude': (
         'Launch independent Claude Agent/Task workers before waiting; the parent integrates and verifies. '
-        'Prefer tao_explorer/tao_worker/tao_reviewer subagent types, which never replace a '
+        'Prefer moru_explorer/moru_worker/moru_reviewer subagent types, which never replace a '
         'ready handoff or grant write authority.'
     ),
     'Antigravity': 'Use the available Gemini/AGY parallel runner for an eligible split; the parent integrates and verifies.',

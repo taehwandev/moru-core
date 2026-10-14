@@ -19,14 +19,15 @@ def merge_codex_prefix_rules(
 ) -> str:
     original = target.read_text() if target.exists() else ""
     block = "\n".join([
-        "# tao-hooks:begin",
+        "# moru-hooks:begin",
         "# Managed by Moru Core setup. Keep narrow; do not replace with broad python3 rules.",
         *entries,
-        "# tao-hooks:end",
+        "# moru-hooks:end",
         "",
     ])
     pattern = re.compile(
-        r"# tao-hooks:begin[\s\S]*?# tao-hooks:end\n?",
+        # The block written before the Moru rename is replaced in place.
+        r"# (?:moru|tao)-hooks:begin[\s\S]*?# (?:moru|tao)-hooks:end\n?",
         re.MULTILINE,
     )
     generated_entries = set(entries) | set(cleanup_entries or [])
@@ -112,7 +113,7 @@ class SetupConfigError(RuntimeError):
     """A runtime config file exists but cannot be merged without losing its content."""
 
 
-BACKUP_SUFFIX = ".tao-backup"
+BACKUP_SUFFIX = ".moru-backup"
 _backed_up: set[Path] = set()
 
 

@@ -1438,7 +1438,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             self.assertEqual("ok", settled_status)
             self.assertEqual(settled, target.read_text())
             self.assertEqual(1, settled.count(user_rule))
-            self.assertEqual(1, settled.count("# tao-hooks:begin"))
+            self.assertEqual(1, settled.count("# moru-hooks:begin"))
             self.assertEqual(original, settled)
 
     def test_runtime_setup_removes_superseded_brand_content_and_permissions(self) -> None:

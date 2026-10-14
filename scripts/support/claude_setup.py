@@ -134,7 +134,7 @@ def configure_claude(
         dry_run,
         cleanup_entries=cleanup_entries,
     )
-    results.append({"tool": "claude", "hook": "permissions.TaoAgentOSPython", "status": status, "path": str(target)})
+    results.append({"tool": "claude", "hook": "permissions.MoruCorePython", "status": status, "path": str(target)})
 
     status = _set_claude_env(target, dry_run) if spill_available else _remove_claude_env(target, dry_run)
     results.append({"tool": "claude", "hook": "env.SPILL_AI_TOOL", "status": status, "path": str(target)})

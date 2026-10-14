@@ -14,8 +14,10 @@ from support.managed_agent_files import install_managed_agents
 
 
 MANAGED_MARKER = "# Moru Core managed Codex agent"
-LEGACY_MANAGED_MARKER = "# Moru Core managed Codex agent"
-AGENT_NAMES = ("tao_explorer", "tao_worker", "tao_reviewer")
+LEGACY_MANAGED_MARKER = "# Tao Agent OS managed Codex agent"
+AGENT_NAMES = ("moru_explorer", "moru_worker", "moru_reviewer")
+# Role names installed before the Moru rename; setup removes their managed files.
+LEGACY_AGENT_NAMES = ("tao_explorer", "tao_worker", "tao_reviewer")
 
 
 def _is_managed(content: bytes) -> bool:
@@ -38,4 +40,5 @@ def install_codex_agents(root: Path, agents_dir: Path, dry_run: bool) -> list[di
         tool="codex",
         is_managed=_is_managed,
         dry_run=dry_run,
+        legacy_names=LEGACY_AGENT_NAMES,
     )

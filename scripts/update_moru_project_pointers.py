@@ -28,6 +28,8 @@ REPLACEMENTS = (
     (".agents/tao-agent-os", ".agents/moru-core"),
     (f"{HOME}/.tao/bin/tao-hook", f"{HOME}/.moru/bin/moru-hook"),
     ("~/.tao/bin/tao-hook", "~/.moru/bin/moru-hook"),
+    ("<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->", "<!-- BEGIN MANAGED MORU CORE ROUTING -->"),
+    ("<!-- END MANAGED TAO AGENT OS ROUTING -->", "<!-- END MANAGED MORU CORE ROUTING -->"),
 )
 
 

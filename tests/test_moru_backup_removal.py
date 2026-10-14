@@ -1,6 +1,6 @@
-"""Removing Moru's own `*.tao-backup` files needs no workflow lifecycle.
+"""Removing Moru's own `*.moru-backup` (and pre-rename `*.tao-backup`) files needs no workflow lifecycle.
 
-Setup writes `<name>.tao-backup` beside a file before rewriting it. Deleting
+Setup writes `<name>.moru-backup` beside a file before rewriting it. Deleting
 those Moru-made files from a governed project was refused until a workflow run
 existed, so each stray backup cost a whole lifecycle. A lone `rm [-f]` whose
 every operand is such a regular file is now admitted; anything else keeps the
@@ -22,7 +22,7 @@ from test_claude_pretool_gate import (  # also puts scripts/ on sys.path
     gate,
 )
 from support.global_state import STATE_HOME_ENV
-from claude_local_context_commands import tao_backup_removal
+from claude_local_context_commands import moru_backup_removal
 
 _STATE_HOME: "tempfile.TemporaryDirectory | None" = None
 _OUTER_STATE_HOME: "str | None" = None
@@ -75,6 +75,7 @@ def _decision(project: Path, command: str) -> str:
 def _populate(project: Path) -> None:
     (project / "AGENTS.md").write_text("guidance\n", encoding="utf-8")
     (project / "AGENTS.md.tao-backup").write_text("old\n", encoding="utf-8")
+    (project / "AGENTS.md.moru-backup").write_text("old\n", encoding="utf-8")
     (project / "settings.json.tao-backup").write_text("{}\n", encoding="utf-8")
     (project / "other.txt").write_text("x\n", encoding="utf-8")
     (project / "dir.tao-backup").mkdir()
@@ -87,6 +88,7 @@ ADMITTED = (
     "rm -f {project}/AGENTS.md.tao-backup",
     "rm AGENTS.md.tao-backup settings.json.tao-backup",
     "/bin/rm -f -- {project}/AGENTS.md.tao-backup",
+    "rm {project}/AGENTS.md.moru-backup AGENTS.md.tao-backup",
 )
 
 NOT_ADMITTED = (
@@ -158,14 +160,14 @@ class TaoBackupRemovalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp).resolve()
             _populate(project)
-            self.assertTrue(tao_backup_removal(["rm", "AGENTS.md.tao-backup"], project))
-            self.assertFalse(tao_backup_removal(["rm", "AGENTS.md.tao-backup"], None))
-            self.assertFalse(tao_backup_removal(["rm", "link.tao-backup"], project))
-            self.assertFalse(tao_backup_removal(["rm", "-r", "dir.tao-backup"], project))
-            self.assertFalse(tao_backup_removal(["rm", "dir.tao-backup"], project))
-            self.assertFalse(tao_backup_removal(["rm", "-i", "AGENTS.md.tao-backup"], project))
-            self.assertFalse(tao_backup_removal(["rm"], project))
-            self.assertFalse(tao_backup_removal(["unlink", "AGENTS.md.tao-backup"], project))
+            self.assertTrue(moru_backup_removal(["rm", "AGENTS.md.tao-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm", "AGENTS.md.tao-backup"], None))
+            self.assertFalse(moru_backup_removal(["rm", "link.tao-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm", "-r", "dir.tao-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm", "dir.tao-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm", "-i", "AGENTS.md.tao-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm"], project))
+            self.assertFalse(moru_backup_removal(["unlink", "AGENTS.md.tao-backup"], project))
             self.assertTrue((project / "AGENTS.md").is_file())
 
 

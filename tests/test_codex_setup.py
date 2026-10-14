@@ -321,7 +321,7 @@ class CodexAgentIntegrationTests(unittest.TestCase):
                 first = configure_codex(False, root=ROOT)
                 second = configure_codex(False, root=ROOT)
 
-            for name in ("tao_explorer", "tao_worker", "tao_reviewer"):
+            for name in ("moru_explorer", "moru_worker", "moru_reviewer"):
                 rows = [row for row in first if row["hook"] == f"agents.{name}"]
                 self.assertEqual(1, len(rows))
                 self.assertEqual("installed", rows[0]["status"])
@@ -367,8 +367,8 @@ class CodexAgentIntegrationTests(unittest.TestCase):
             home = Path(directory)
             with patch("support.setup_agent_hooks_impl.Path.home", return_value=home):
                 configure_codex(False, root=ROOT)
-                target = home / ".codex" / "agents" / "tao_worker.toml"
-                user_role = 'name = "tao_worker"\n# user-owned role\n'
+                target = home / ".codex" / "agents" / "moru_worker.toml"
+                user_role = 'name = "moru_worker"\n# user-owned role\n'
                 target.write_text(user_role, encoding="utf-8")
                 results = configure_codex(True, root=ROOT)
             self.assertFalse(any(row["status"] == "missing" for row in results))
@@ -388,8 +388,8 @@ class CodexAgentIntegrationTests(unittest.TestCase):
             home = Path(directory)
             with patch("support.setup_agent_hooks_impl.Path.home", return_value=home):
                 configure_codex(False, root=ROOT)
-                target = home / ".codex" / "agents" / "tao_worker.toml"
-                stale = MANAGED_MARKER + '\nname = "tao_worker"\n'
+                target = home / ".codex" / "agents" / "moru_worker.toml"
+                stale = MANAGED_MARKER + '\nname = "moru_worker"\n'
                 target.write_text(stale, encoding="utf-8")
                 results = configure_codex(True, root=ROOT)
             self.assertFalse(any(row["status"] == "missing" for row in results))

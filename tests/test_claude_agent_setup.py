@@ -85,51 +85,69 @@ class ClaudeAgentSetupTests(unittest.TestCase):
                 (TEMPLATES / f"{name}{SOURCE_SUFFIX}").read_bytes(), Path(row["path"]).read_bytes(),
             )
 
+    def test_pre_rename_managed_roles_are_removed_and_user_roles_kept(self) -> None:
+        self.agents_dir.mkdir(parents=True)
+        legacy = self.agents_dir / "tao_explorer.md"
+        legacy.write_text(f"{FRONTMATTER_FENCE}\n{LEGACY_MANAGED_MARKER}\nname: tao_explorer\n")
+        user_owned = self.agents_dir / "tao_worker.md"
+        user_owned.write_text("---\nname: tao_worker\n---\nmine\n")
+
+        dry = self.statuses(self.install(dry_run=True))
+        self.assertEqual("would_remove", dry["agents.tao_explorer"])
+        self.assertTrue(legacy.exists())
+
+        rows = self.statuses(self.install())
+        self.assertEqual("removed", rows["agents.tao_explorer"])
+        self.assertNotIn("agents.tao_worker", rows)
+        self.assertFalse(legacy.exists())
+        self.assertTrue(user_owned.exists())
+        self.assertTrue((self.agents_dir / "moru_explorer.md").is_file())
+
     def test_missing_dry_run_does_not_create_directory(self) -> None:
         rows = self.install(dry_run=True)
         self.assertEqual(["missing"] * 3, [row["status"] for row in rows])
         self.assertFalse(self.agents_dir.parent.exists())
 
     def test_stale_managed_role_updates_and_dry_run_preserves_it(self) -> None:
-        stale = (MANAGED_HEADER + "name: tao_worker\n---\n").encode()
-        target = self.write_role("tao_worker", stale)
+        stale = (MANAGED_HEADER + "name: moru_worker\n---\n").encode()
+        target = self.write_role("moru_worker", stale)
         rows = self.install(dry_run=True)
-        self.assertEqual("would_update", self.statuses(rows)["agents.tao_worker"])
+        self.assertEqual("would_update", self.statuses(rows)["agents.moru_worker"])
         self.assertEqual(stale, target.read_bytes())
         self.assertEqual([target], list(self.agents_dir.iterdir()))
-        self.assertEqual("installed", self.statuses(self.install())["agents.tao_worker"])
-        self.assertEqual((TEMPLATES / f"tao_worker{SOURCE_SUFFIX}").read_bytes(), target.read_bytes())
+        self.assertEqual("installed", self.statuses(self.install())["agents.moru_worker"])
+        self.assertEqual((TEMPLATES / f"moru_worker{SOURCE_SUFFIX}").read_bytes(), target.read_bytes())
 
     def test_legacy_managed_role_upgrades_to_moru_marker(self) -> None:
-        legacy = f"{FRONTMATTER_FENCE}\n{LEGACY_MANAGED_MARKER}\nname: tao_worker\n---\n".encode()
-        target = self.write_role("tao_worker", legacy)
-        self.assertEqual("would_update", self.statuses(self.install(dry_run=True))["agents.tao_worker"])
+        legacy = f"{FRONTMATTER_FENCE}\n{LEGACY_MANAGED_MARKER}\nname: moru_worker\n---\n".encode()
+        target = self.write_role("moru_worker", legacy)
+        self.assertEqual("would_update", self.statuses(self.install(dry_run=True))["agents.moru_worker"])
         self.assertEqual(legacy, target.read_bytes())
-        self.assertEqual("installed", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual("installed", self.statuses(self.install())["agents.moru_worker"])
         self.assertEqual(MANAGED_MARKER, target.read_text().splitlines()[1])
 
     def test_same_name_user_role_and_unrelated_role_are_preserved(self) -> None:
-        custom = b"---\nname: tao_worker\ndescription: Mine\n---\nMy instructions\n"
-        target = self.write_role("tao_worker", custom)
+        custom = b"---\nname: moru_worker\ndescription: Mine\n---\nMy instructions\n"
+        target = self.write_role("moru_worker", custom)
         unrelated = self.write_role("my_reviewer", b"---\nname: my_reviewer\n---\n")
         for dry_run in (True, False):
             rows = self.install(dry_run=dry_run)
-            self.assertEqual("conflict", self.statuses(rows)["agents.tao_worker"])
+            self.assertEqual("conflict", self.statuses(rows)["agents.moru_worker"])
             self.assertEqual(custom, target.read_bytes())
             self.assertEqual(b"---\nname: my_reviewer\n---\n", unrelated.read_bytes())
 
     def test_marker_grants_ownership_only_as_second_line_after_fence(self) -> None:
         for original in (
-            (MANAGED_MARKER + "\n---\nname: tao_worker\n---\n").encode(),
-            ("---\nname: tao_worker\n" + MANAGED_MARKER + "\n---\n").encode(),
+            (MANAGED_MARKER + "\n---\nname: moru_worker\n---\n").encode(),
+            ("---\nname: moru_worker\n" + MANAGED_MARKER + "\n---\n").encode(),
             ("# My role\n" + MANAGED_MARKER + "\n").encode(),
             (MANAGED_MARKER + "\n").encode(),
             b"",
         ):
             with self.subTest(original=original):
-                target = self.write_role("tao_worker", original)
+                target = self.write_role("moru_worker", original)
                 self.assertEqual(
-                    "conflict", self.statuses(self.install())["agents.tao_worker"],
+                    "conflict", self.statuses(self.install())["agents.moru_worker"],
                 )
                 self.assertEqual(original, target.read_bytes())
 
@@ -158,29 +176,29 @@ class ClaudeAgentSetupTests(unittest.TestCase):
         original = (MANAGED_HEADER + "name: old\n---\n").encode()
         external.write_bytes(original)
         self.agents_dir.mkdir(parents=True)
-        target = self.agents_dir / "tao_worker.md"
+        target = self.agents_dir / "moru_worker.md"
         target.symlink_to(external)
         for dry_run in (True, False):
             self.assertEqual("conflict", self.statuses(
                 self.install(dry_run=dry_run)
-            )["agents.tao_worker"])
+            )["agents.moru_worker"])
             self.assertTrue(target.is_symlink())
             self.assertEqual(original, external.read_bytes())
 
     def test_broken_role_symlink_is_preserved(self) -> None:
         external = self.base / "missing-role.md"
         self.agents_dir.mkdir(parents=True)
-        target = self.agents_dir / "tao_worker.md"
+        target = self.agents_dir / "moru_worker.md"
         target.symlink_to(external)
-        self.assertEqual("conflict", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual("conflict", self.statuses(self.install())["agents.moru_worker"])
         self.assertTrue(target.is_symlink())
         self.assertFalse(external.exists())
 
     def test_directory_at_role_path_and_file_at_agents_path_are_conflicts(self) -> None:
         self.agents_dir.mkdir(parents=True)
-        target = self.agents_dir / "tao_worker.md"
+        target = self.agents_dir / "moru_worker.md"
         target.mkdir()
-        self.assertEqual("conflict", self.statuses(self.install())["agents.tao_worker"])
+        self.assertEqual("conflict", self.statuses(self.install())["agents.moru_worker"])
         self.assertTrue(target.is_dir())
         self.agents_dir = self.base / "agents-file"
         self.agents_dir.write_bytes(b"preserve")
@@ -202,7 +220,7 @@ class ClaudeAgentSetupTests(unittest.TestCase):
         source_dir = root / "templates" / "claude-agents"
         shutil.copytree(TEMPLATES, source_dir)
         (source_dir / f"{AGENT_NAMES[-1]}{SOURCE_SUFFIX}").write_bytes(
-            (MANAGED_MARKER + "\n---\nname: tao_reviewer\n---\n").encode()
+            (MANAGED_MARKER + "\n---\nname: moru_reviewer\n---\n").encode()
         )
         with self.assertRaisesRegex(ValueError, "ownership marker"):
             self.install(root=root)
@@ -221,7 +239,7 @@ class ClaudeAgentSetupTests(unittest.TestCase):
                 text = (TEMPLATES / f"{name}{SOURCE_SUFFIX}").read_text(encoding="utf-8")
                 self.assertTrue(text.startswith(MANAGED_HEADER))
                 fields, body = parse_frontmatter(text)
-                read_only = name != "tao_worker"
+                read_only = name != "moru_worker"
                 self.assertEqual(
                     {"name", "description", "model"}
                     | ({"disallowedTools"} if read_only else set()),
@@ -286,13 +304,13 @@ class ClaudeAgentIntegrationTests(unittest.TestCase):
         from support.setup_agent_hooks_impl import fail_if_setup_incomplete
 
         for content, checks in (
-            ("---\nname: tao_worker\n---\nuser-owned\n", (True, False)),
-            (MANAGED_HEADER + "name: tao_worker\n---\n", (True,)),
+            ("---\nname: moru_worker\n---\nuser-owned\n", (True, False)),
+            (MANAGED_HEADER + "name: moru_worker\n---\n", (True,)),
         ):
             with self.subTest(content=content), tempfile.TemporaryDirectory() as directory:
                 home = Path(directory)
                 self.configure(home, False)
-                target = home / ".claude" / "agents" / "tao_worker.md"
+                target = home / ".claude" / "agents" / "moru_worker.md"
                 target.write_text(content, encoding="utf-8")
                 results = self.configure(home, True)
                 self.assertFalse(any(row["status"] == "missing" for row in results))

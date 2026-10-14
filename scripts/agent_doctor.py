@@ -34,8 +34,11 @@ from support.stable_launcher import (
 from update_moru_project_pointers import FILES as POINTER_FILES, update_project
 
 ROOT = Path(__file__).resolve().parents[1]
-MANAGED_BEGIN = "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->"
-MANAGED_END = "<!-- END MANAGED TAO AGENT OS ROUTING -->"
+MANAGED_MARKERS = (
+    ("<!-- BEGIN MANAGED MORU CORE ROUTING -->", "<!-- END MANAGED MORU CORE ROUTING -->"),
+    # Written before the Moru rename; still a managed block.
+    ("<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->", "<!-- END MANAGED TAO AGENT OS ROUTING -->"),
+)
 
 
 def detect_project_stacks(project: Path) -> list[str]:
@@ -79,7 +82,7 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
     if has_agents:
         try:
             content = agents_file.read_text(encoding="utf-8")
-            has_managed_block = MANAGED_BEGIN in content and MANAGED_END in content
+            has_managed_block = any(begin in content and end in content for begin, end in MANAGED_MARKERS)
         except OSError:
             has_managed_block = False
 

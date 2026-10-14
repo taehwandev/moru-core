@@ -98,7 +98,7 @@ def configure_agy(
         )
         results.append({
             "tool": "agy",
-            "hook": "permissions.TaoAgentOSPython",
+            "hook": "permissions.MoruCorePython",
             "status": status,
             "path": str(target),
         })

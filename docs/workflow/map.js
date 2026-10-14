@@ -85,7 +85,7 @@ export function mountWorkflow(root, page = document) {
     source.href = `https://github.com/taehwandev/tao-agent-os/blob/main/${route.source}`;
     legend.replaceChildren(node("code", "", route.command), node("span", "", copy.legend));
   }
-  page.addEventListener("tao:language", (event) => {
+  page.addEventListener("moru:language", (event) => {
     language = event.detail?.language === "ko" ? "ko" : "en";
     render();
   });
