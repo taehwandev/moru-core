@@ -7,19 +7,21 @@ import os
 from pathlib import Path
 from typing import Any
 
+from support.global_state import project_state_dir_target
 
-DEFAULT_RULE_PATHS = (
-    ".agents/structure-rules.json",
-    ".tao/structure-rules.json",
-)
+
+DEFAULT_RULE_PATH = ".agents/structure-rules.json"
 
 
 def load_structure_rule_configs(project: Path) -> tuple[list[dict[str, Any]], list[str]]:
     raw_paths: list[Path] = []
-    override = os.environ.get("TAO_STRUCTURE_RULES", "").strip()
+    override = (os.environ.get("MORU_STRUCTURE_RULES") or os.environ.get("TAO_STRUCTURE_RULES", "")).strip()
     if override:
         raw_paths.append(Path(override).expanduser())
-    raw_paths.extend(project / relative for relative in DEFAULT_RULE_PATHS)
+    raw_paths.append(project / DEFAULT_RULE_PATH)
+    state_path = project_state_dir_target(project) / "structure-rules.json"
+    legacy_path = project / ".tao" / "structure-rules.json"
+    raw_paths.append(state_path if state_path.exists() or state_path == legacy_path else legacy_path)
 
     configs: list[dict[str, Any]] = []
     failures: list[str] = []
