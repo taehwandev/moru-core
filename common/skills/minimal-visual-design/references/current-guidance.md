@@ -1,6 +1,6 @@
 ---
 keyflow_id: sys_common_minimal_visual_design_guidance
-status: draft
+status: review
 type: ai-generated
 ---
 
@@ -98,14 +98,66 @@ map them to the platform's units (pt, dp) and token holders.
 - Delay a loading indicator by about 150-300ms and keep it visible for at
   least 300-500ms so fast responses do not flash.
 
+## Product & Scrollytelling Stages
+
+- **Stage vs. reading-column separation**: When a sticky 3D/WebGL or canvas
+  stage shares the viewport with scrolling narrative chapters, offset the focal
+  subject horizontally on wide viewports so the narrative column and embedded
+  UI showcases never collide with the primary silhouette.
+- **Legible narrative backing**: Do not float unbacked body copy over a moving
+  canvas whose luminance shifts across scroll progress. Use a quiet translucent
+  panel (`backdrop-filter: blur(12px-16px)` with a 1px hairline border) only
+  where needed to guarantee `>= 4.5:1` text contrast over the stage.
+- **Chapter wayfinding**: Any sticky scroll narrative with three or more
+  chapters needs a compact progress/navigation rail that shows the active
+  chapter and lets the reader jump directly to any beat.
+- **Luminance bridging**: Avoid hard cuts from a near-black canvas stage to a
+  stark white section. Bridge dark narrative stages into light content sections
+  through an intermediate twilight step or soft gradient transition.
+
+## Scaled UI & Interactive Proof
+
+- **Legibility floor for scaled app frames**: When embedding a faithful desktop
+  or dashboard recreation via `transform: scale()`, keep the effective scale at
+  or above `0.55x` on desktop viewports so 12-13px UI chrome never shrinks
+  below ~7px and primary data/labels remain `>= 9.5px` effective. Widen the
+  showcase container (for example 560-640px for a 1000px-wide frame) or trim
+  secondary chrome instead of crushing a full window into a 400px text column.
+- **Interactive proof over passive loops**: Product recreations should offer at
+  least one genuine, low-friction interaction—filtering a live metric view,
+  approving or replaying a state transition, or switching step tabs—paired with
+  a subtle affordance hint. Auto-cycling timers are fine as a default preview,
+  but user clicks and keyboard input must work and override the loop cleanly;
+  never wrap interactive showcases in `role="img"` or `pointer-events: none`.
+
+## System Architecture & Product Cards
+
+- **Topology before catalog**: When presenting a multi-product suite or
+  layered architecture, precede or pair the card grid with a numbered system
+  flow strip (`01 -> 02 -> 03`) that shows how data, control, or workflow
+  moves from one piece to the next.
+- **Flagship vs. companion hierarchy**: Differentiate the primary user-facing
+  workspace from supporting CLI/runtime utilities or sidecars using a subtle
+  elevation step, border contrast, and a quiet status pill. Do not render a
+  multi-part system as three identical cards with equal visual weight.
+- **Actionable onboarding**: When an onboarding section asks the user to run
+  prompts or commands, pair the copyable block with a numbered checklist of
+  what happens before, during, and after the command, and use compact switcher
+  tabs when two steps share the same structure.
+
 ## Generic Tells
 
 Review the rendered screen against these default or AI-looking choices and
 replace each one found:
 
 - a purple-to-blue gradient hero, glowing blobs, or glassmorphism used as
-  decoration
-- a grid of identical cards with the same radius, shadow, and icon-in-circle
+  decoration rather than contrast backing over a live canvas
+- a grid of identical cards with the same radius, shadow, and icon-in-circle,
+  or a multi-product suite presented without a causal flow strip
+- desktop UI recreations scaled below `0.5x` where text becomes unreadable
+  micro-copy, or interactive-looking mockups locked behind `role="img"`
+- multi-chapter scrollytelling pages with no chapter wayfinding rail or with
+  the 3D focal subject centered directly behind unbacked body copy
 - every heading bold, every section boxed, every list item with a divider
 - emoji or decorative icons in front of every label
 - an eyebrow label above every heading, or one accented word in a headline
