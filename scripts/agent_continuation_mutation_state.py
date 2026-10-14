@@ -380,7 +380,7 @@ class _MutationScanState:
             path.relative_to(project)
             for path in project.rglob("*")
             if (path.is_file() or path.is_symlink())
-            and not ({".tao", ".git"} & set(path.relative_to(project).parts))
+            and not ({".tao", ".moru", ".git"} & set(path.relative_to(project).parts))
         }
 
     @staticmethod

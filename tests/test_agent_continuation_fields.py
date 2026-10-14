@@ -123,6 +123,14 @@ class RelativePathTests(unittest.TestCase):
         self.assertEqual(["invalid_path"], collect(relative_path, "scripts//store.py"))
         self.assertEqual(["invalid_path"], collect(relative_path, "scripts/"))
 
+    def test_runtime_state_paths_are_rejected(self) -> None:
+        for state_dir in (".tao", ".moru"):
+            with self.subTest(state_dir=state_dir):
+                self.assertEqual(
+                    ["invalid_path"],
+                    collect(relative_path, f"{state_dir}/runs/packet.json"),
+                )
+
     def test_invalid_unicode_path_is_a_stable_refusal(self) -> None:
         self.assertEqual(["invalid_unicode"], collect(relative_path, "scripts/\ud800.py"))
 

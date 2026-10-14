@@ -23,6 +23,7 @@ from agent_lesson_store import upsert_retrospective_candidate
 
 RUN_ID = "a" * 32
 PACKET_PATH = f".tao/runs/{RUN_ID}/continuation.json"
+MORU_PACKET_PATH = f".moru/runs/{RUN_ID}/continuation.json"
 
 
 class AgentContinuationOutboundTests(unittest.TestCase):
@@ -31,8 +32,11 @@ class AgentContinuationOutboundTests(unittest.TestCase):
             for value in (
                 {"storage_class": CONTINUATION_STORAGE_CLASS},
                 {"path": PACKET_PATH},
+                {"path": MORU_PACKET_PATH},
                 {"path": f"/workspace/{PACKET_PATH}"},
+                {"path": f"/workspace/{MORU_PACKET_PATH}"},
                 {"path": PACKET_PATH.replace("/", "\\")},
+                {"path": MORU_PACKET_PATH.replace("/", "\\")},
             ):
                 with self.subTest(boundary=boundary, value_type=next(iter(value))):
                     with self.assertRaises(ValueError):
@@ -62,11 +66,12 @@ class AgentContinuationOutboundTests(unittest.TestCase):
             self.assertFalse(output.exists())
 
     def test_generic_artifact_writer_rejects_the_canonical_packet_path(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / PACKET_PATH
-            with self.assertRaises(ValueError):
-                atomic_write_json(output, {"schema_version": 1})
-            self.assertFalse(output.parent.exists())
+        for packet_path in (PACKET_PATH, MORU_PACKET_PATH):
+            with self.subTest(packet_path=packet_path), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / packet_path
+                with self.assertRaises(ValueError):
+                    atomic_write_json(output, {"schema_version": 1})
+                self.assertFalse(output.parent.exists())
 
     def test_execution_capsule_writer_rejects_continuation_content(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

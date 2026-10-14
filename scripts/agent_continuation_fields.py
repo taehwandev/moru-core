@@ -36,7 +36,7 @@ RFC3339_UTC_RE = re.compile(
 # A gate name is an exact catalog entry and may contain spaces; a checkpoint
 # that is not a gate is a safe slug.  Nothing else is a checkpoint.
 CHECKPOINT_RE = re.compile(r"^[a-z0-9][a-z0-9 _.-]*$")
-FORBIDDEN_PATH_SEGMENTS = frozenset({"", ".", "..", ".git", ".tao"})
+FORBIDDEN_PATH_SEGMENTS = frozenset({"", ".", "..", ".git", ".tao", ".moru"})
 # High-confidence credential shapes only.  No validator can prove a
 # 280-character sentence holds no secret; pretending otherwise is exactly why
 # the packet stays local-only and its prose fields stay few and short.
