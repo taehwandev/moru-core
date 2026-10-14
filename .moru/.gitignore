@@ -1,8 +1,11 @@
-# moru-project-assets:start
+# Tao Agent OS per-project runtime state. Local-only by construction.
+#
+# The continuation packet records what a run decided and what remains. It is a
+# project-local work summary, so publishing it is a boundary violation rather
+# than a mess -- and the storage layer proves local-only status by asking Git,
+# not by trusting this directory's name. Without this file a fresh checkout
+# answers "not ignored", the packet write is refused, and a feature that should
+# merely be unavailable instead reads as a hard failure.
+#
+# Ignoring this file too keeps the whole state root invisible to the project.
 /*
-!/.gitignore
-!/skills/
-/skills/*
-!/skills/graphify/
-!/skills/graphify/**
-# moru-project-assets:end

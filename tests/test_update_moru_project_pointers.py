@@ -70,6 +70,32 @@ class MoruProjectPointersTests(unittest.TestCase):
             self.assertEqual("~/git/moru-core\n", gemini.read_text(encoding="utf-8"))
             self.assertEqual("~/git/tao-agent-os", (home / "history.txt").read_text())
 
+    def test_a_renamed_toml_key_that_already_exists_is_not_duplicated(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            config = home / ".codex" / "config.toml"
+            config.parent.mkdir()
+            config.write_text(
+                "[permissions.moru-workspace.workspace_roots]\n"
+                '"/repo/.tao/worktrees" = true\n'
+                '"/other/.tao/worktrees" = true\n'
+                '"/repo/.moru/worktrees" = true\n'
+                "\n[next]\n"
+                '"/repo/.moru/worktrees" = true\n',
+                encoding="utf-8",
+            )
+
+            update_home_configs(home, apply=True)
+
+            self.assertEqual(
+                "[permissions.moru-workspace.workspace_roots]\n"
+                '"/repo/.moru/worktrees" = true\n'
+                '"/other/.moru/worktrees" = true\n'
+                "\n[next]\n"
+                '"/repo/.moru/worktrees" = true\n',
+                config.read_text(encoding="utf-8"),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

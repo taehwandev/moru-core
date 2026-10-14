@@ -52,6 +52,29 @@ def updated_text(text: str) -> str:
     return text
 
 
+def without_duplicate_toml_keys(text: str) -> str:
+    """Drop a repeated key a rename produced inside one TOML table.
+
+    Renaming `<repo>/.tao/worktrees` to `<repo>/.moru/worktrees` collides with
+    the Moru root setup already added, and TOML rejects a key defined twice,
+    which stops the runtime from loading its configuration. The first
+    definition stays.
+    """
+    seen: set[str] = set()
+    kept: list[str] = []
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith("["):
+            seen = set()
+        elif "=" in stripped and not stripped.startswith("#"):
+            key = stripped.split("=", 1)[0].strip()
+            if key in seen:
+                continue
+            seen.add(key)
+        kept.append(line)
+    return "".join(kept)
+
+
 def update_files(root: Path, names: tuple[str, ...], *, apply: bool) -> list[Path]:
     changed: list[Path] = []
     for name in names:
@@ -59,7 +82,10 @@ def update_files(root: Path, names: tuple[str, ...], *, apply: bool) -> list[Pat
         if not path.is_file() or path.is_symlink():
             continue
         original = path.read_bytes()
-        replacement = updated_text(original.decode("utf-8")).encode("utf-8")
+        text = updated_text(original.decode("utf-8"))
+        if path.suffix == ".toml":
+            text = without_duplicate_toml_keys(text)
+        replacement = text.encode("utf-8")
         if replacement != original:
             changed.append(path)
             if apply:
