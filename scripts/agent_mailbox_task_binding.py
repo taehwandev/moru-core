@@ -19,7 +19,7 @@ from agent_mailbox_store import _expired, _validate_packet, _require_local_path
 from agent_route_state import request_fingerprint
 from agent_run_registry import ACTIVE_RUN_STATES, registered_run
 from agent_runtime_session import is_run_local_continuation_evidence, resolve_runtime_evidence, same_runtime_session
-from support.global_state import global_state_dir
+from support.global_state import global_state_dir, project_state_dir_target
 from workflow_effect_policy import route_minimum_effect
 
 __all__ = []  # Internal predicates for the task queue, not an extension API.
@@ -27,7 +27,7 @@ __all__ = []  # Internal predicates for the task queue, not an extension API.
 def task_binding(project: Path, identity: dict, evidence: Path) -> dict:
     _require_local_path(project, evidence)
     evidence = evidence.resolve()
-    relative = evidence.relative_to(project / ".tao/runs")
+    relative = evidence.relative_to(project_state_dir_target(project) / "runs")
     if len(relative.parts) != 2 or resolve_runtime_evidence(project, identity) != evidence:
         raise ValueError("task continuation needs this session's active run")
     preflight = read_json_object(evidence)
@@ -52,7 +52,7 @@ def validate_task(project: Path, identity: dict, packet: dict, binding: dict) ->
     _validate_packet(packet, project, run_id, identity["runtime"], str(packet.get("message_id") or ""))
     if packet["kind"] != "task" or _expired(packet, datetime.now(timezone.utc)):
         raise ValueError("only a live execution-bound task can continue")
-    source = project / ".tao/runs" / run_id / "preflight.json"
+    source = project_state_dir_target(project) / "runs" / run_id / "preflight.json"
     _require_local_path(project, source)
     _require_local_path(project, capsule_path_for_evidence(source))
     expected = hashlib.sha256(f"{run_id}/preflight.json".encode()).hexdigest()
@@ -68,7 +68,7 @@ def validate_task(project: Path, identity: dict, packet: dict, binding: dict) ->
 def validate_completion_binding(project: Path, identity: dict, binding: dict) -> None:
     """Validate a receipt against its enrolled run, without resuming that run."""
     relative = Path(str(binding.get("evidence") or ""))
-    evidence = project / ".tao/runs" / relative
+    evidence = project_state_dir_target(project) / "runs" / relative
     if (relative.is_absolute() or evidence.name != "preflight.json"
             or not is_run_local_continuation_evidence(project, evidence)):
         raise ValueError("task completion needs a valid run-local evidence binding")

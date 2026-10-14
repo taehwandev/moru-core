@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -16,18 +17,35 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
 from test_agent_continuation_checkpoint import initialize_git
-from agent_execution_capsule import refresh_execution_capsule
+from agent_execution_capsule import (
+    capsule_path_for_evidence,
+    read_execution_capsule,
+    refresh_execution_capsule,
+    validate_execution_capsule,
+)
 from agent_gate_evidence import record_gate_evidence
 from agent_mailbox_delivery import SessionDelivery
 from agent_mailbox_store import MailboxStore
 from agent_mailbox_task import TaskContinuation, continuation_reason
 from agent_run_registry import register_run, transition_run, registry_path, evidence_binding_key
+from support.global_state import project_state_dir_target
 import agent_mailbox_hook as hook
 import codex_stop_gate
 import claude_stop_gate
 
 
 class MailboxTaskTests(unittest.TestCase):
+    state_dir_name = ".tao"
+
+    def test_migrated_project_selects_moru_task_queue(self):
+        state = self.project / ".moru"
+        state.mkdir(exist_ok=True)
+        (state / "state-ready").touch()
+
+        tasks = TaskContinuation(self.project, self.identity)
+
+        self.assertEqual(state / "agent-mailbox/task-continuation", tasks.root)
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -38,6 +56,13 @@ class MailboxTaskTests(unittest.TestCase):
         (self.project / "AGENTS.md").write_text("uses tao\n")
         (self.rules / "guide.md").write_text("guidance\n")
         initialize_git(self.project)
+        if self.state_dir_name == ".moru":
+            (self.project / ".gitignore").write_text(".tao/\n.moru/\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(self.project), "add", ".gitignore"], check=True)
+            subprocess.run(["git", "-C", str(self.project), "commit", "-qm", "ignore Moru state"], check=True)
+            state = self.project / ".moru"
+            state.mkdir()
+            (state / "state-ready").touch()
         initialize_git(self.rules)
         environment = patch.dict(os.environ, {"TAO_STATE_HOME": str(self.root / "state"),
                                  "CODEX_THREAD_ID": "task-session", "CLAUDE_CODE_SESSION_ID": ""})
@@ -48,8 +73,9 @@ class MailboxTaskTests(unittest.TestCase):
                       "request_classification": {"intent_envelope": {"schema_valid": True,
                       "envelope_present": True, "failures": [], "effective_effect": "local_write"}}}
         self.intake = {"request": "implement this bounded local task", "request_classified": False}
-        self.run = register_run(self.project, self.project / ".tao/preflight.json", self.route, self.intake)
-        self.evidence = self.project / ".tao/runs" / self.run["run_id"] / "preflight.json"
+        state = project_state_dir_target(self.project)
+        self.run = register_run(self.project, state / "preflight.json", self.route, self.intake)
+        self.evidence = state / "runs" / self.run["run_id"] / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
         registry = json.loads(registry_path(self.project).read_text())
         registry["runs"][0]["evidence_key"] = evidence_binding_key(self.project, self.evidence)
@@ -139,7 +165,7 @@ class MailboxTaskTests(unittest.TestCase):
         packet = self.arm()
         self.assertIsNotNone(continuation_reason(self.payload, "codex"))
         transition_run(self.project, self.evidence, "interrupted")
-        later = self.project / ".tao/runs" / ("a" * 32) / "preflight.json"
+        later = project_state_dir_target(self.project) / "runs" / ("a" * 32) / "preflight.json"
         later.parent.mkdir(parents=True)
         later.write_text(json.dumps(self.preflight))
         register_run(self.project, later, self.route, self.intake)
@@ -372,6 +398,19 @@ class MailboxTaskTests(unittest.TestCase):
         packet = self.arm()
         with patch("agent_continuation_store.read_continuation_packet", return_value={"packet": {"phase": "blocked"}}):
             self.assertIsNone(continuation_reason(self.payload, "codex"))
+
+
+class MoruMailboxTaskTests(MailboxTaskTests):
+    state_dir_name = ".moru"
+
+    def test_moru_capsule_is_valid(self):
+        self.assertEqual(
+            [],
+            validate_execution_capsule(
+                read_execution_capsule(capsule_path_for_evidence(self.evidence)),
+                self.project, self.rules, self.evidence, self.route
+            ),
+        )
 
 
 if __name__ == "__main__":

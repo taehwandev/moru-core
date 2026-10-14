@@ -39,17 +39,14 @@ def preflight_identity_failures(
     legacy_root = project / ".tao"
     migrated_state = project / ".moru"
     migrated_runs = migrated_state / "runs"
-    linked_runs = legacy_root / "runs"
-    migrated_link_ready = (
+    migrated_state_ready = (
         (migrated_state / "state-ready").is_file()
         and not migrated_state.is_symlink()
         and migrated_runs.is_dir()
         and not migrated_runs.is_symlink()
-        and linked_runs.is_symlink()
-        and linked_runs.resolve() == migrated_runs.resolve()
     )
     in_legacy_root = resolved_evidence.is_relative_to(legacy_root)
-    in_migrated_runs = migrated_link_ready and resolved_evidence.is_relative_to(migrated_runs)
+    in_migrated_runs = migrated_state_ready and resolved_evidence.is_relative_to(migrated_runs)
     if not in_legacy_root and not in_migrated_runs:
         failures.append(
             "execution capsule preflight evidence is outside the current project evidence root"

@@ -40,6 +40,19 @@ def git_project(directory: str, *, ignore_state: bool) -> Path:
 
 
 class RoundTripTests(unittest.TestCase):
+    def test_migrated_project_writes_only_to_moru_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            state = project / ".moru"
+            state.mkdir()
+            (state / "state-ready").touch()
+
+            path = write_continuation_packet(project, packet(run_id=RUN_ID))
+
+            self.assertEqual(state.resolve() / "runs" / RUN_ID / "continuation.json", path)
+            self.assertEqual([RUN_ID], list_continuation_run_ids(project))
+            self.assertFalse((project / ".tao").exists())
+
     def test_written_packet_reads_back_byte_identical(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)

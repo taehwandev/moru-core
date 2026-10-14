@@ -17,13 +17,14 @@ from agent_mailbox_store import MailboxStore, _MESSAGE_ID, _require_local_path
 from agent_mailbox_task_binding import stop_ready, task_binding, validate_completion_binding, validate_task
 from agent_runtime_session import resolve_runtime_evidence
 from agent_state_lock import state_lock
+from support.global_state import project_state_dir_target
 
 __all__ = ["TaskContinuation"]
 
 class TaskContinuation:
     def __init__(self, project: Path, identity: dict):
         self.project, self.identity = project.resolve(), identity
-        self.root = self.project / ".tao/agent-mailbox/task-continuation"
+        self.root = project_state_dir_target(self.project) / "agent-mailbox/task-continuation"
         _require_local_path(self.project, self.root)
         session = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         self.budget = self.root / (session + ".budget")

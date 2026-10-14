@@ -28,22 +28,22 @@ from agent_continuation_packet import (
 from agent_workspace_policy import is_non_git_workspace
 from support.bounded_git import run_git
 from support.git_read_scope import stable_read
+from support.global_state import project_state_dir_target
 
 
-STATE_DIR = ".tao"
 RUNS_DIR = "runs"
 
 
 def continuation_path(project: Path, run_id: str) -> Path:
     """Return the only path a packet for this run may occupy."""
 
-    return project.resolve() / STATE_DIR / RUNS_DIR / str(run_id) / CONTINUATION_FILENAME
+    return project_state_dir_target(project.resolve()) / RUNS_DIR / str(run_id) / CONTINUATION_FILENAME
 
 
 def list_continuation_run_ids(project: Path) -> list[str]:
     """List run ids holding a packet file, without reading or trusting any."""
 
-    state = project.resolve() / STATE_DIR
+    state = project_state_dir_target(project.resolve())
     runs = state / RUNS_DIR
     if state.is_symlink() or runs.is_symlink() or not runs.is_dir():
         return []
@@ -213,7 +213,7 @@ def _open_private_run_directory(project: Path, run_id: str) -> Optional[int]:
         and os.mkdir in os.supports_dir_fd
     )
     if not secure_dir_fd:
-        directory = project / STATE_DIR / RUNS_DIR / run_id
+        directory = project_state_dir_target(project) / RUNS_DIR / run_id
         directory.mkdir(parents=True, exist_ok=True)
         try:
             os.chmod(directory, 0o700)
@@ -224,7 +224,7 @@ def _open_private_run_directory(project: Path, run_id: str) -> Optional[int]:
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     descriptor = os.open(project, flags)
     try:
-        for name in (STATE_DIR, RUNS_DIR, run_id):
+        for name in (project_state_dir_target(project).name, RUNS_DIR, run_id):
             try:
                 os.mkdir(name, 0o700, dir_fd=descriptor)
             except FileExistsError:

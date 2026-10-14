@@ -1525,6 +1525,19 @@ class ExecutionCapsuleTests(unittest.TestCase):
             preflight_identity_failures(evidence, self.project.resolve(), self.rules.resolve()),
         )
 
+    def test_new_moru_run_needs_no_legacy_runs_link(self) -> None:
+        runs = self.project / ".moru" / "runs"
+        runs.mkdir(parents=True)
+        (self.project / ".moru" / "state-ready").touch()
+        evidence = runs / ("b" * 32) / "preflight.json"
+        evidence.parent.mkdir()
+        evidence.write_text(self.evidence_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+        self.assertEqual(
+            [],
+            preflight_identity_failures(evidence, self.project.resolve(), self.rules.resolve()),
+        )
+
     def test_migrated_runs_link_requires_ready_marker(self) -> None:
         migrated_runs = self.project / ".moru" / "runs"
         migrated_runs.mkdir(parents=True)
