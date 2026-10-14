@@ -48,7 +48,12 @@ from claude_bash_paths import (  # noqa: F401
     path_arguments,
     raw_path_arguments,
 )
-from support.stable_launcher import stable_launcher_path
+from support.stable_launcher import moru_launcher_path, stable_launcher_path
+
+
+def _launcher_paths() -> set[Path]:
+    """Recognize both installed aliases during the local runtime migration."""
+    return {stable_launcher_path().expanduser().resolve(), moru_launcher_path().expanduser().resolve()}
 
 
 # An assignment prefix used to be stripped by name shape alone, which reads a
@@ -251,7 +256,7 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
         executable_path = executable_path.resolve()
     except (OSError, ValueError):
         return None
-    if executable_path == stable_launcher_path().expanduser().resolve() and len(tokens) > 1:
+    if executable_path in _launcher_paths() and len(tokens) > 1:
         discovery_kind = ("read_only" if tokens[1:] in LAUNCHER_HELP_ARGUMENTS
                           else discovery_command_kind(tokens[1], tokens[2:]))
         if discovery_kind is not None:
@@ -1343,7 +1348,7 @@ def _launcher_hook_tokens(tokens: list[str]) -> list[str]:
         executable = Path(tokens[0]).expanduser().resolve()
     except (OSError, ValueError):
         return []
-    if executable == stable_launcher_path().expanduser().resolve():
+    if executable in _launcher_paths():
         # The launcher also accepts `agent-hook <subcommand>`; normalize that
         # one alias exactly as runtime_control_kind does.
         if tokens[1] == "agent-hook" and len(tokens) > 2:
@@ -1378,7 +1383,7 @@ def _is_installer_without_writes(tokens: list[str]) -> bool:
         executable = Path(tokens[0]).expanduser().resolve()
     except (OSError, ValueError):
         return False
-    if executable == stable_launcher_path().expanduser().resolve():
+    if executable in _launcher_paths():
         return tokens[1] == "setup-agent-hooks"
     if not _python_interpreter(tokens[0]):
         return False

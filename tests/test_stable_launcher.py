@@ -17,12 +17,22 @@ from support.stable_launcher import (
     ensure_stable_launcher,
     moru_launcher_path,
     moru_root_pointer_path,
+    preferred_launcher_path,
     stable_launcher_path,
     stable_root_pointer_path,
 )
 
 
 class StableLauncherTests(unittest.TestCase):
+    def test_ready_global_state_prefers_moru_launcher(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_home:
+            with patch.dict(os.environ, {"HOME": temporary_home}):
+                self.assertEqual(stable_launcher_path(), preferred_launcher_path())
+                state = Path(temporary_home) / ".moru"
+                state.mkdir()
+                (state / "state-ready").write_text("ready\n")
+                self.assertEqual(moru_launcher_path(), preferred_launcher_path())
+
     def test_new_and_legacy_launchers_share_a_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_home:
             with patch.dict(os.environ, {"HOME": temporary_home}):

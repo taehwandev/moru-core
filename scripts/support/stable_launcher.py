@@ -26,6 +26,13 @@ def moru_launcher_path() -> Path:
     return Path.home() / MORU_STATE_DIR_NAME / "bin" / MORU_LAUNCHER_NAME
 
 
+def preferred_launcher_path() -> Path:
+    """Use the Moru launcher after the global state migration is ready."""
+    if (Path.home() / MORU_STATE_DIR_NAME / "state-ready").is_file():
+        return moru_launcher_path()
+    return stable_launcher_path()
+
+
 def moru_root_pointer_path() -> Path:
     return Path.home() / MORU_STATE_DIR_NAME / MORU_ROOT_POINTER_NAME
 

@@ -47,7 +47,7 @@ from support.setup_config_files import (
     print_results,
     quote,
 )
-from support.stable_launcher import ensure_stable_launcher, stable_launcher_path
+from support.stable_launcher import ensure_stable_launcher, preferred_launcher_path
 from support.bounded_git import run_git
 from agent_worktree_identity import worktree_root
 
@@ -169,7 +169,7 @@ def _main() -> None:
             dry_run,
             root=ROOT,
             scripts_dir=SCRIPTS_DIR,
-            launcher_path=stable_launcher_path(),
+            launcher_path=preferred_launcher_path(),
             spill_available=spill_available,
         )
 
@@ -181,7 +181,7 @@ def _main() -> None:
             dry_run,
             root=ROOT,
             scripts_dir=SCRIPTS_DIR,
-            launcher_path=stable_launcher_path(),
+            launcher_path=preferred_launcher_path(),
             spill_available=spill_available,
         )
 
@@ -403,19 +403,19 @@ def configure_codex(dry_run: bool, *, root: Path, enable_auto_review: bool = Fal
     )
     hooks_target = Path.home() / ".codex" / "hooks.json"
     pretool_command = (
-        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(stable_launcher_path()))} "
+        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(preferred_launcher_path()))} "
         "codex-pretool-gate"
     )
     pretool_status = merge_codex_pre_tool_gate(
         hooks_target, pretool_command, dry_run
     )
     stop_command = (
-        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(stable_launcher_path()))} "
+        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(preferred_launcher_path()))} "
         "codex-stop-gate"
     )
     stop_status = merge_codex_stop_gate(hooks_target, stop_command, dry_run)
     mailbox_command = (
-        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(stable_launcher_path()))} "
+        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(preferred_launcher_path()))} "
         "mailbox-hook deliver --runtime codex"
     )
     mailbox_status = merge_codex_mailbox_delivery(hooks_target, mailbox_command, dry_run)

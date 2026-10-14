@@ -9,7 +9,7 @@ from pathlib import Path
 from support.setup_config_files import quote
 from support.spill_permissions import obsolete_spill_helper_permission_commands as _obsolete_spill_helper_permission_commands
 from support.spill_permissions import spill_helper_permission_commands as _spill_helper_permission_commands
-from support.stable_launcher import stable_launcher_path
+from support.stable_launcher import preferred_launcher_path, stable_launcher_path
 
 
 # The public Python commands that an agent may invoke directly. This is the
@@ -224,10 +224,8 @@ def codex_prefix_rule_entries(scripts_dir: Path) -> list[str]:
     # Generated worktree paths change on every task. Approve only the harmless
     # directory-change command; the command run after it and all file writes
     # still pass their own runtime and Tao checks.
-    entries = [
-        _codex_prefix_rule(["cd"]),
-        _codex_prefix_rule([str(stable_launcher_path())]),
-    ]
+    entries = [_codex_prefix_rule(["cd"])]
+    entries.extend(_codex_prefix_rule([path]) for path in _stable_launcher_path_variants())
     for script in _tao_python_scripts(scripts_dir):
         path = str(script.resolve())
         entries.append(_codex_prefix_rule(["python3", path]))
@@ -267,6 +265,7 @@ def _legacy_tao_python_scripts(scripts_dir: Path) -> list[Path]:
         ".git",
         ".pytest_cache",
         ".tao",
+        ".moru",
         ".venv",
         ".wikimap",
         "__pycache__",
@@ -342,13 +341,13 @@ def _stable_launcher_commands(tool: str, *, include_spill_env: bool = True) -> l
 
 
 def _stable_launcher_path_variants() -> list[str]:
-    """Canonical launcher path: one install-time resolved absolute form.
+    """Active launcher and temporary legacy alias as absolute paths.
 
     Home-relative spellings are deliberately excluded because the managed
     runtime contracts use machine-resolved executable paths. Obsolete
     spellings are removed by the cleanup path, not regenerated here.
     """
-    return [str(stable_launcher_path())]
+    return _dedupe([str(preferred_launcher_path()), str(stable_launcher_path())])
 
 
 def _obsolete_stable_launcher_path_variants() -> list[str]:

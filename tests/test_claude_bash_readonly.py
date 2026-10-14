@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import claude_bash_readonly as bash_readonly
 import claude_bash_syntax as bash_syntax
 import claude_worktree_gate as worktree_gate
+from support.stable_launcher import moru_launcher_path
 
 
 class CompoundShellCommandTests(unittest.TestCase):
@@ -99,6 +100,11 @@ class CompoundShellCommandTests(unittest.TestCase):
         launcher = worktree_gate.stable_launcher_path()
         self.assertEqual(self._kind(f"{launcher} verify --project /tmp/project --rules {ROOT}"), "mutating")
         self.assertIn("verify", bash_readonly.HOOKS_READING_RULES)
+
+    def test_moru_launcher_keeps_runtime_command_classification(self) -> None:
+        launcher = moru_launcher_path()
+        self.assertEqual("read_only", self._kind(f"{launcher} work-cards list"))
+        self.assertEqual("mutating", self._kind(f"{launcher} verify --project /tmp/project --rules {ROOT}"))
 
     def test_mailbox_intake_is_runtime_control_only_for_trusted_entrypoints(self) -> None:
         launcher = worktree_gate.stable_launcher_path()
