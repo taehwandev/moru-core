@@ -39,3 +39,14 @@ def review_shape_line(required_flags: Iterable[str]) -> str:
         "(evidence text, not a file path); --review-scope "
         + "|".join(scopes) + " (default working-tree)."
     )
+
+
+def compact_action_brief(command: str) -> list[str]:
+    """Return an inline fast-track brief for small-change runs."""
+    if command != "small-change":
+        return []
+    return [
+        "Small-change fast-track brief: max 4 changed files (including tests/docs) and 1 owner; "
+        "no manual alignment, cycle, or split-decision gate; run `next` anytime to print "
+        "suggested test selectors and the exact next gate-batch/review/finish command."
+    ]

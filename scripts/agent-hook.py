@@ -92,6 +92,7 @@ from agent_start_guidance import (
     REVIEW_RANGE_SCOPE,
     REVIEW_SCOPE_CHOICES,
     REVIEW_SCOPES_NEEDING_PATH,
+    compact_action_brief,
     review_shape_line,
 )
 from agent_review_structure import (
@@ -675,7 +676,7 @@ def _same_run_commit_lines(route: dict) -> list[str]:
 
 def _continuation_summary_lines(command: str) -> list[str]:
     publication = [_publication_continuity_guidance()] if command in {"commit", "git_commit"} else []
-    return _release_reuse_lines(command) + publication + [
+    return compact_action_brief(command) + _release_reuse_lines(command) + publication + [
         "Work continuity: a goal iteration is not a new intake; keep the active action, "
         "retain guidance, decisions and verification plan across runs, and read "
         "only changed, newly applicable or lost context. Keep changed-unit tests and "

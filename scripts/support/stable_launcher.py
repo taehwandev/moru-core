@@ -237,6 +237,8 @@ SCRIPT_ALIASES = {
     "codex-stop-gate": "codex_stop_gate.py",
     "operator-review": "codex_operator_review.py",
     "agy-statusline": "agy_statusline.py",
+    "doctor": "agent_doctor.py",
+    "next": "agent_next_action.py",
 }
 HOOK_ALIASES = {
     "start",
