@@ -19,7 +19,10 @@ from pathlib import Path
 from tests.test_claude_pretool_gate import _decide  # also puts scripts/ on sys.path
 from support.global_state import STATE_HOME_ENV
 import agent_run_registry
-from agent_repository_checkouts import SETTLED_RUN_STATES, checkout_removal_hazard
+from agent_repository_checkouts import (
+    SETTLED_RUN_STATES, checkout_keeps_unfinished_work, checkout_removal_hazard,
+    checkouts_with_run_state, unsettled_run_states,
+)
 from agent_worktree_identity import WorktreeSessionError, new_worktree_path, resolve_base_ref
 from agent_worktree_session import create_worker_worktree, remove_worker_worktree
 from claude_pretool_checkout_removal import checkout_removal_denial
@@ -118,6 +121,20 @@ class DirtyCheckoutIsKeptTests(_Repository):
 
 
 class UnsettledRunIsKeptTests(_Repository):
+    def test_migrated_registry_and_packet_keep_checkout_visible(self) -> None:
+        _write_registry(self.task, "running")
+        run_id = "0" * 32
+        packet = self.task / ".tao" / "runs" / run_id / "continuation.json"
+        packet.parent.mkdir(parents=True)
+        packet.write_text(json.dumps({"work": {"remaining_work": ["finish task"]}}))
+        (self.task / ".tao").rename(self.task / ".moru")
+        (self.task / ".moru" / "state-ready").write_text("ready\n")
+
+        self.assertIn(self.task, checkouts_with_run_state(self.main))
+        self.assertEqual(["running"], unsettled_run_states(self.task))
+        self.assertTrue(checkout_keeps_unfinished_work(self.task, run_id))
+        self.assertIn("running", checkout_removal_hazard(self.task))
+
     def test_active_run_on_merged_looking_branch_refuses_even_plain_remove(self) -> None:
         # Clean as far as git can tell, and its branch is an ancestor of main.
         _write_registry(self.task, "completed", "running")

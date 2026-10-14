@@ -251,6 +251,16 @@ class WorkingPathTests(unittest.TestCase):
 
 
 class CurrentWorkTests(unittest.TestCase):
+    def test_migrated_project_reports_open_run_from_moru(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = _project(Path(tmp))
+            _open_run(project, command="task", evidence_name="statusline.json")
+            _ledger(project, evidence_name="statusline.json", gates=["a", "b"], recorded=["a"])
+            (project / ".tao").rename(project / ".moru")
+            (project / ".moru" / "state-ready").write_text("ready\n")
+
+            self.assertEqual("task 1/2", work_segment({"cwd": str(project / "src")}))
+
     def test_the_open_run_is_named_with_how_far_it_has_to_go(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = _project(Path(tmp))

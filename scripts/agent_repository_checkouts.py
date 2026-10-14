@@ -3,7 +3,7 @@
 Owner: the bounded list of checkouts a session-wide settle may look at, the
 content-free question of whether a settled run's checkout still holds
 unfinished work, and whether removing a checkout would lose work or a run.
-Allowed imports: the standard library.
+Allowed imports: the standard library and the shared state-root selector.
 Forbidden imports: the run registry and runtime-session modules; the caller
 hands in each checkout and run id and does the settling itself. The registry
 file is read here directly, without its locks, because a removal check only
@@ -28,10 +28,11 @@ import json
 import subprocess
 from pathlib import Path
 
+from support.global_state import project_state_dir_target
+
 # A repository with more registered checkouts than this is not one a start
 # should walk on every call; the excess is left to its own sessions.
 MAX_CHECKOUTS = 64
-REGISTRY_RELATIVE_PATH = Path(".tao") / "run-registry.json"
 # agent_run_registry.SETTLED_RUN_STATES, repeated because that module may not
 # be imported here; a test holds the two equal.
 SETTLED_RUN_STATES = frozenset({"completed", "cancelled"})
@@ -60,7 +61,7 @@ def checkouts_with_run_state(project: Path) -> list[Path]:
         candidate = _resolved(Path(line[len("worktree "):]))
         if candidate is None or candidate == own or candidate in found:
             continue
-        if (candidate / REGISTRY_RELATIVE_PATH).is_file():
+        if (project_state_dir_target(candidate) / "run-registry.json").is_file():
             found.append(candidate)
         if len(found) >= MAX_CHECKOUTS:
             break
@@ -92,7 +93,7 @@ def checkout_keeps_unfinished_work(checkout: Path, run_id: str) -> bool:
 
 
 def _packet_records_unfinished_work(checkout: Path, run_id: str) -> bool:
-    packet_path = checkout / ".tao" / "runs" / run_id / "continuation.json"
+    packet_path = project_state_dir_target(checkout) / "runs" / run_id / "continuation.json"
     try:
         packet = json.loads(packet_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -117,7 +118,7 @@ def unsettled_run_states(checkout: Path) -> list[str]:
     so a removal check keeps the checkout rather than guessing it is empty.
     """
 
-    path = checkout / REGISTRY_RELATIVE_PATH
+    path = project_state_dir_target(checkout) / "run-registry.json"
     if not path.is_file():
         return []
     try:

@@ -19,6 +19,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from support.global_state import project_state_dir_target
+
 
 def work_segment(payload: dict[str, Any]) -> str:
     """`task 14/20` -- the run open in this project, and how far it has to go.
@@ -65,7 +67,7 @@ def project_root(payload: dict[str, Any]) -> Path | None:
     except OSError:
         return None
     for candidate in (current, *current.parents):
-        if (candidate / ".tao").is_dir():
+        if project_state_dir_target(candidate).is_dir():
             return candidate
     return None
 
@@ -73,7 +75,7 @@ def project_root(payload: dict[str, Any]) -> Path | None:
 def open_run(project: Path) -> dict[str, Any] | None:
     """The most recently started run this project still has open."""
 
-    registry = read_json(project / ".tao" / "run-registry.json")
+    registry = read_json(project_state_dir_target(project) / "run-registry.json")
     runs = registry.get("runs")
     if not isinstance(runs, list):
         return None
@@ -101,7 +103,15 @@ def gate_progress(project: Path, run: dict[str, Any]) -> str:
     }
     recorded.discard("")
 
-    evidence = read_json(Path(str(ledger.get("preflight_evidence") or "")))
+    evidence_path = Path(str(ledger.get("preflight_evidence") or ""))
+    evidence = read_json(evidence_path)
+    if not evidence:
+        try:
+            relative = evidence_path.resolve().relative_to((project / ".tao").resolve())
+            if ".." not in relative.parts:
+                evidence = read_json(project_state_dir_target(project) / relative)
+        except (OSError, ValueError):
+            pass
     route = evidence.get("route")
     gates = route.get("gates") if isinstance(route, dict) else None
     if not isinstance(gates, list) or not gates:
@@ -127,7 +137,7 @@ def gate_ledger(project: Path, run: dict[str, Any]) -> dict[str, Any]:
     if not evidence_name:
         return {}
     stem = Path(evidence_name).stem
-    tao = project / ".tao"
+    tao = project_state_dir_target(project)
     candidates = [
         tao / "evidence" / f"{stem}-gate-evidence.json",
         tao / f"{stem}-gate-evidence.json",
