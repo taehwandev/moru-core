@@ -476,6 +476,13 @@ def worktree_deny_reason(
         if require_linked_worktree
         else "Next: use a task branch outside this project's protected branches."
     )
+    if unresolved and require_linked_worktree:
+        # An unresolved line is usually a lookup with one unclassified step;
+        # sending a reader to a new worktree and workflow fixed nothing.
+        remedy = (
+            "Next: a lookup runs that step alone; a write uses the task "
+            "worktree (`git worktree add <path> -b <branch> <base>`)."
+        )
     if require_linked_worktree and os.environ.get("TAO_PRETOOL_RUNTIME") == "codex":
         remedy = (
             "Next: target the existing task worktree explicitly with "

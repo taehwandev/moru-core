@@ -51,6 +51,8 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
                 reason = gate.worktree_deny_reason(self.base, "main", cause, "python3")
                 self.assertIn("effect unresolved", reason)
                 self.assertNotIn("write blocked", reason)
+                self.assertNotIn("restart the workflow", reason)
+                self.assertIn("a lookup runs that step alone", reason)
         for cause in (gate.NAMED_TARGET, gate.AUTHORING_GIT, gate.WORKFLOW_START_TARGET):
             with self.subTest(cause=cause):
                 self.assertIn("write blocked", gate.worktree_deny_reason(self.base, "main", cause))

@@ -18,6 +18,14 @@ _STATUSLINE_ALIAS = "agy-statusline"
 _STATUSLINE_MARKER = "TAO_STATUSLINE=1"
 
 
+def agy_runtime_bridge_targets(home: Path | None = None) -> tuple[tuple[str, Path], ...]:
+    resolved_home = Path.home() if home is None else home
+    return (
+        ("runtime_bridge.GEMINI", resolved_home / ".gemini" / "GEMINI.md"),
+        ("runtime_bridge.AGENTS", resolved_home / ".antigravity" / "AGENTS.md"),
+    )
+
+
 def configure_agy(
     dry_run: bool,
     *,
@@ -27,14 +35,14 @@ def configure_agy(
     spill_available: bool = True,
 ) -> list[dict]:
     results = []
-    runtime_bridge_path = Path.home() / ".antigravity" / "AGENTS.md"
-    status = _merge_agy_runtime_bridge(runtime_bridge_path, dry_run, root=root)
-    results.append({
-        "tool": "agy",
-        "hook": "runtime_bridge.AGENTS",
-        "status": status,
-        "path": str(runtime_bridge_path),
-    })
+    for hook_name, runtime_bridge_path in agy_runtime_bridge_targets():
+        status = _merge_agy_runtime_bridge(runtime_bridge_path, dry_run, root=root)
+        results.append({
+            "tool": "agy",
+            "hook": hook_name,
+            "status": status,
+            "path": str(runtime_bridge_path),
+        })
 
     if launcher_path is None:
         launcher_path = stable_launcher_path()

@@ -177,8 +177,11 @@ class InstallTests(unittest.TestCase):
                     spill_available=False,
                 )
 
+            gemini_bridge = home / ".gemini" / "GEMINI.md"
             runtime_bridge = home / ".antigravity" / "AGENTS.md"
+            self.assertTrue(gemini_bridge.is_file())
             self.assertTrue(runtime_bridge.is_file())
+            self.assertIn(str(ROOT), gemini_bridge.read_text(encoding="utf-8"))
             self.assertIn(str(ROOT), runtime_bridge.read_text(encoding="utf-8"))
             data = read_json(cli_settings)
             statusline_cmd = data["statusLine"]["command"]

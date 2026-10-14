@@ -24,6 +24,7 @@ MANAGED_HOOK_RE = re.compile(
 ADVISORY_HOOK_RE = re.compile(
     r"(?:workflow\.py.*route|tao-hook.*workflow.*route).*triage.*--advisory"
 )
+AGY_GEMINI_RUNTIME_BRIDGE_PATH = Path.home() / ".gemini" / "GEMINI.md"
 AGY_RUNTIME_BRIDGE_PATH = Path.home() / ".antigravity" / "AGENTS.md"
 AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES = runtime_bridge_required_phrases("Antigravity", "AGENTS.md")
 
@@ -59,20 +60,18 @@ def active_runtime_label() -> str:
 
 
 def agy_runtime_bridge_issue(tao_root: Path) -> str:
-    try:
-        text = AGY_RUNTIME_BRIDGE_PATH.read_text()
-    except OSError:
-        return (
-            "AGY runtime bridge is missing required fail-closed instructions at "
-            f"{AGY_RUNTIME_BRIDGE_PATH}. Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
-        )
-    missing = [phrase for phrase in AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES if phrase not in text]
-    if not missing:
-        return ""
-    return (
-        "AGY runtime bridge is missing required fail-closed instructions at "
-        f"{AGY_RUNTIME_BRIDGE_PATH}. Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
-    )
+    # AGY CLI loads GEMINI.md as its global rule file; the SDK reads AGENTS.md.
+    for bridge_path in (AGY_GEMINI_RUNTIME_BRIDGE_PATH, AGY_RUNTIME_BRIDGE_PATH):
+        try:
+            text = bridge_path.read_text()
+        except OSError:
+            text = ""
+        if any(phrase not in text for phrase in AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES):
+            return (
+                "AGY runtime bridge is missing required fail-closed instructions at "
+                f"{bridge_path}. Run: python3 {tao_root / 'scripts' / 'setup-agent-hooks.py'}"
+            )
+    return ""
 
 
 def _codex_warnings(tao_root: Path) -> list[str]:

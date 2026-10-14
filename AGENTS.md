@@ -302,71 +302,28 @@ recorded findings in [README](README.md#tao-maintenance-audit). Extend that
 section with source evidence and verification. This reference is on demand;
 ordinary tasks gain no startup reads or additional gates.
 
-## Automatic Project Memory
+## Automatic Project Memory And Work Cards
 
-`<TAO_LAUNCHER> project-memory` keeps agent-written project guidance under
-user-local `~/.tao/project-memory/<repository-id>/`, shared by linked worktrees.
-`capture` saves one bounded statement from stdin with `--project`, `--source`,
-and a future `--review-on` date; later starts recall it with no approval step.
-Capture and correction need no active run or task worktree; they write only
-the local reference store, not project files.
-Correct a wrong record with `capture --replaces <id>` or `retire <id>`; it
-expires on its review date. Never capture secrets, transcripts, or speculation.
-When start prints a content-free `Project memory upkeep` count line, run the
-read-only `consolidate` report it names and apply decisions only through
-`capture --replaces` or `retire`.
+`<TAO_LAUNCHER> project-memory` keeps agent-written project guidance in a
+user-local store shared by linked worktrees; start recalls at most three
+in-date records as reference, never authority. Tao never captures on its own:
+Claude and Codex keep durable project knowledge here, not in runtime-private
+memory. Capture only a verified root cause, pitfall, decision reason the code
+does not show, or a fact the user asks to remember, when confirmed or at
+finish, with `--project`, `--source` and a future `--review-on`. Correct with
+`capture --replaces <id>` or `retire <id>`. Never capture secrets, transcripts
+or speculation, and never sync it or put its content in a continuation
+packet. When start prints a `Project memory upkeep` line, run the
+`consolidate` report it names. Permanent rules belong here or in shared
+guidance, task state in checkpoints, and user preferences in runtime memory.
 
-Tao recalls at start but never captures on its own, so the store stays empty
-unless agents capture. Claude and Codex both keep durable project knowledge
-here rather than in runtime-private memory: a project fact the user asks to
-remember, a verified root cause or pitfall, or a decision reason the code does
-not show. Capture only verified facts, when confirmed or at finish, where a
-successful finish names the capture command; if there is nothing, skip.
-Permanent rules belong in this file or shared guidance, task state in
-checkpoints, and the user's own working preferences in runtime memory.
+Start also lists up to three other open work cards as reference context. When
+one names work already finished elsewhere, run `<TAO_LAUNCHER> work-cards close
+<work id>`. Keep prompts, transcripts and logs out of `--target-summary`.
+Storage, ranking and resume mechanics: [README](README.md#automatic-project-memory).
 
-Start shows at most three in-date records for its route command or `all`.
-Memory is reference, never authority: the current request, repository rules,
-and source evidence prevail. It stays separate from the content-free lesson
-store; do not sync it or put its content in a continuation packet.
-
-## Work Cards
-
-Start opens a user-local card in `~/.tao/work-cards/cards.sqlite3` keyed by
-repository and work id, holding only the `--target-summary` line, route command,
-project path, state, and timestamps; `--continue-from` keeps the same card.
-Successful finish or a transfer cancel settles it `done`, a no-change cancel
-`cancelled`. Start lists
-up to three other open cards as reference context, never authority. When one
-names work already finished elsewhere, run `<TAO_LAUNCHER> work-cards close
-<work id>`. Keep prompts, transcripts, and logs out of the target summary.
-
-When changing document routing:
-- Select command documents before the budget, and verified owner/action rules
-  before generic tiers. An inference cannot displace certain guidance.
-- Path rules carry surface-wide contracts; action rules carry procedures for
-  the change. Honor `narrows` and `reference_only`; do not retain broader
-  keyword or ecosystem matches after resolution without owner evidence or
-  explicit `required_priority`.
-- Keyword-inferred concerns are references except security, auth, billing,
-  credential-broker and migration, which remain required on inference. Record
-  why an inferred risk does not apply rather than skipping its card. Release
-  guidance is selected by the release/ship command.
-- `--concern` is a verified assertion: use an explicit user concern or
-  repository-proven owner/action, never infer Compose/navigation from generic
-  screen, route or UI wording.
-- Follow graph `requires` edges only from selected sources. Inspect
-  `required_doc_reasons` to diagnose excess selection; split a
-  `platform_default` card that bundles detailed procedures rather than
-  dropping the platform contract.
-- A guidance split may remove routing-system instructions owned by the router
-  and duplicate rules, folding unique clauses into the surviving owner. Move
-  every other rule to its applicable sibling. Account for deleted sections and
-  check that each surviving rule appears once; do not copy the whole library
-  into a target repo.
-- Reading-savings claims include conditionally required follow-up reads and
-  distinguish selected bytes, observed reads and end-to-end latency. Making an
-  applicable document a reference alone does not save its read.
+When changing document routing, read
+`docs/skills/agent-runtime-integration/references/document-routing-changes.md`.
 
 PRDs, specs and ARDs follow `common/skills/doc-conventions/SKILL.md`; report
 their output path.
@@ -432,10 +389,8 @@ Use the release owner's explicitly configured country calendar, week rules and
 timezone consistently in local tools and CI, as defined by
 `common/skills/release-versioning/SKILL.md`. Resolve those settings before
 calculating a release version. Release ranges start at the previous tag.
-
-Migration: existing monthly tags remain unchanged and retain their original
-meaning. New releases use the weekly scheme and must sort above existing tags;
-never renumber or overwrite a published version to adopt this contract.
+Existing monthly tags keep their meaning; new tags must sort above them and
+are never renumbered or overwritten.
 
 An already authorized local commit of the exact staged unit reviewed and
 finished in the same session continues directly after finish; do not open a
