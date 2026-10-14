@@ -242,7 +242,7 @@ class TargetProtectionTests(unittest.TestCase):
         proves nothing and keeps every path it names.
         """
 
-        launcher = str(gate.stable_launcher_path())
+        launcher = str(gate.preferred_launcher_path())
         with tempfile.TemporaryDirectory() as tmp:
             target = _opt_in_project(Path(tmp) / "protected")
             _require_linked_worktree(target)

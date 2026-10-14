@@ -25,7 +25,7 @@ from agent_continuation_checkpoint import write_continuation_checkpoint
 from agent_continuation_store import continuation_path, read_continuation_packet
 from agent_continuation_fields import CHECKPOINT_RE, RUN_ID_RE
 from agent_hook_gate_records import preflight_evidence_path
-from support.stable_launcher import stable_launcher_path
+from support.stable_launcher import preferred_launcher_path
 from support.global_state import project_state_dir_target
 
 
@@ -112,7 +112,7 @@ def work_checkpoint_advice(args: argparse.Namespace) -> list[str]:
         return []
     command = shlex.join(
         [
-            str(stable_launcher_path()),
+            str(preferred_launcher_path()),
             "checkpoint",
             "--project",
             str(args.project.resolve()),

@@ -61,7 +61,7 @@ def recorded_session_id(payload: object) -> str:
 
 
 try:  # Never fail to load; used for the message and the project lookup.
-    from support.stable_launcher import stable_launcher_path
+    from support.stable_launcher import preferred_launcher_path
     from support.global_state import (
         global_state_dir,
         project_state_dir_target,
@@ -70,7 +70,7 @@ try:  # Never fail to load; used for the message and the project lookup.
         prefer_git_root,
     )
 except ImportError:  # pragma: no cover - exercised only on a broken install
-    def stable_launcher_path() -> Path:
+    def preferred_launcher_path() -> Path:
         return Path.home() / ".tao" / "bin" / "tao-hook"
 
     def is_project_state_dir(path: Path) -> bool:
@@ -296,7 +296,7 @@ def session_projects(session_id: str, cwd_root: Path | None) -> list[Path]:
 
 
 def block_reason(root: Path) -> str:
-    launcher = stable_launcher_path()
+    launcher = preferred_launcher_path()
     return (
         "Tao Agent OS: this session edited files but has no passing finish check. "
         "Record the remaining route gates with `gate` or `gate-batch`, then run "

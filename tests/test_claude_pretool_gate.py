@@ -414,7 +414,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             _write_preflight(project, "read-transition", command="review")
             base = {"tool_name": "Bash", "cwd": str(project), "session_id": "read-transition"}
             _, start_out = _decide({**base, "tool_input": {
-                "command": f"{gate.stable_launcher_path()} start --project {project}"
+                "command": f"{gate.preferred_launcher_path()} start --project {project}"
             }})
             self.assertEqual("", start_out)
             _, write_out = _decide({**base, "tool_input": {"command": "git worktree add ../task"}})
@@ -1917,7 +1917,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.stable_launcher_path()} start --project {project}"
+                        "command": f"{gate.preferred_launcher_path()} start --project {project}"
                     },
                 }
             )
@@ -1936,7 +1936,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "tool_input": {
                         "command": (
                             "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 "
-                            f"{gate.stable_launcher_path()} start --project {project}"
+                            f"{gate.preferred_launcher_path()} start --project {project}"
                         )
                     },
                 }
@@ -1956,7 +1956,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.stable_launcher_path()} start --project {project}"
+                        "command": f"{gate.preferred_launcher_path()} start --project {project}"
                     },
                 }
             )
@@ -1993,7 +1993,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(main),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.stable_launcher_path()} start --project {worktree}"
+                        "command": f"{gate.preferred_launcher_path()} start --project {worktree}"
                     },
                 }
             )
@@ -2004,7 +2004,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "session_id": "s",
                     "tool_input": {
                         "command": (
-                            f"cd {worktree} && {gate.stable_launcher_path()} start --project ."
+                            f"cd {worktree} && {gate.preferred_launcher_path()} start --project ."
                         )
                     },
                 }
@@ -2015,7 +2015,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(worktree),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.stable_launcher_path()} start --project {main}"
+                        "command": f"{gate.preferred_launcher_path()} start --project {main}"
                     },
                 }
             )
@@ -2034,7 +2034,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.stable_launcher_path()} cancel --project {project}"
+                        "command": f"{gate.preferred_launcher_path()} cancel --project {project}"
                     },
                 }
             )
@@ -2684,7 +2684,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             )
 
             reason = json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"]
-            self.assertIn(str(gate.stable_launcher_path()), reason)
+            self.assertIn(str(gate.preferred_launcher_path()), reason)
             self.assertNotIn("~/.tao", reason)
 
     def test_malformed_stdin_fails_open(self) -> None:
@@ -3474,7 +3474,7 @@ class DeclaredPolicyGovernsLinkedWorktreesTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "starting",
                     "tool_input": {
-                        "command": f"{gate.stable_launcher_path()} start --project {project}"
+                        "command": f"{gate.preferred_launcher_path()} start --project {project}"
                     },
                 }
             )
@@ -3686,7 +3686,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
                 "tool_name": "Bash", "cwd": str(project), "session_id": "s",
                 "tool_input": {"command": (
                     "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 "
-                    f"{gate.stable_launcher_path()} start --project {project} --command task"
+                    f"{gate.preferred_launcher_path()} start --project {project} --command task"
                 )},
             })
         self.assertEqual(0, code)
@@ -3703,7 +3703,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
                     code, out = _decide({
                         "tool_name": "Bash", "cwd": str(project), "session_id": "s",
                         "tool_input": {"command": (
-                            f"{gate.stable_launcher_path()} start --project {project} "
+                            f"{gate.preferred_launcher_path()} start --project {project} "
                             f"--command {route} --request 'clean merged work and push main'"
                         )},
                     })
@@ -3721,7 +3721,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
                 _require_linked_worktree(project)
                 _, out = _decide({
                     "tool_name": "Bash", "cwd": str(project), "session_id": "s",
-                    "tool_input": {"command": f"{gate.stable_launcher_path()} start --project {project} {suffix}"},
+                    "tool_input": {"command": f"{gate.preferred_launcher_path()} start --project {project} {suffix}"},
                 })
                 self.assertEqual(
                     "defer" if "&&" in suffix else "deny",
@@ -4873,7 +4873,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
         )
 
     def test_every_lifecycle_hook_stays_available_to_a_read_only_run(self) -> None:
-        launcher = gate.stable_launcher_path()
+        launcher = gate.preferred_launcher_path()
         hooks = (
             "finish", "cancel", "gate", "gate-batch", "fingerprint",
             "checkpoint", "review", "handoff", "resume", "repair-verify",
@@ -4888,7 +4888,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
                     self.assertEqual("", out, f"{hook} must not be refused by the read contract")
 
     def test_mailbox_exchange_precedes_start(self) -> None:
-        launcher = gate.stable_launcher_path()
+        launcher = gate.preferred_launcher_path()
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp))
             _require_linked_worktree(project)
@@ -4912,7 +4912,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
     def test_the_escalation_the_denial_names_is_reachable(self) -> None:
         """fingerprint then start is the whole escape route; both must pass."""
 
-        launcher = gate.stable_launcher_path()
+        launcher = gate.preferred_launcher_path()
         with tempfile.TemporaryDirectory() as tmp:
             project = self._read_run(Path(tmp))
 
@@ -4950,7 +4950,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
 
 
     def test_lifecycle_hook_cannot_hide_bootstrap_or_source_mutation(self) -> None:
-        launcher = gate.stable_launcher_path()
+        launcher = gate.preferred_launcher_path()
         with tempfile.TemporaryDirectory() as tmp:
             project = self._read_run(Path(tmp))
             for hook in ("fingerprint", "finish", "start"):
@@ -4969,7 +4969,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
 
     def test_direct_python_fingerprint_and_read_only_pipe_remain_available(self) -> None:
         script = Path(gate.__file__).with_name("agent-hook.py")
-        launcher = gate.stable_launcher_path()
+        launcher = gate.preferred_launcher_path()
         with tempfile.TemporaryDirectory() as tmp:
             project = self._read_run(Path(tmp))
             for command in (
@@ -4983,7 +4983,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
 
 
     def test_output_options_never_inherit_read_run_exemption(self) -> None:
-        launcher = gate.stable_launcher_path()
+        launcher = gate.preferred_launcher_path()
         script = Path(gate.__file__).with_name("agent-hook.py")
         with tempfile.TemporaryDirectory() as tmp:
             project = self._read_run(Path(tmp))
@@ -5011,7 +5011,7 @@ class ProjectMemoryIsAgentWrittenTests(unittest.TestCase):
     def test_memory_writes_on_protected_main_need_no_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp))
-            launcher = gate.stable_launcher_path()
+            launcher = gate.preferred_launcher_path()
             _require_linked_worktree(project)
             for command in (
                 f"{launcher} project-memory --project {project} approve 0123456789abcdef --digest d",

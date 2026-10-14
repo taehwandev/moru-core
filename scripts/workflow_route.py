@@ -48,7 +48,7 @@ from workflow_doc_surfaces import infer_surface_docs, required_surface_docs
 from workflow_parallel import parallel_execution_plan
 from workflow_search import SearchOutcome, search_docs_outcome
 from workflow_skill_paths import canonical_doc_path
-from support.stable_launcher import stable_launcher_path
+from support.stable_launcher import preferred_launcher_path
 from support.stage_timing import stage
 
 
@@ -1475,7 +1475,7 @@ def route_gates(command: str, *, graphify_required: bool = False) -> list[str]:
 
 
 def route_hooks(command: str) -> list[dict[str, object]]:
-    launcher = str(stable_launcher_path())
+    launcher = str(preferred_launcher_path())
     review_required = command in REVIEW_HOOK_REQUIRED_COMMANDS
     read_only = " --read-only" if command == "analysis" else ""
     hooks: list[dict[str, object]] = [
@@ -1606,7 +1606,7 @@ def _review_hook_timing(required: bool) -> str:
 
 
 def _review_hook_command(command: str) -> str:
-    launcher = str(stable_launcher_path())
+    launcher = str(preferred_launcher_path())
     base = (
         f"{launcher} review "
         "--project <TARGET_REPO> --rules <TAO_ROOT> "

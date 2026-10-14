@@ -64,7 +64,7 @@ from support.runtime_bridge import (
     runtime_bridge_block,
     runtime_bridge_required_phrases,
 )
-from support.stable_launcher import stable_launcher_path
+from support.stable_launcher import preferred_launcher_path
 from workflow_catalog import (
     COMMANDS, CONCERN_REFERENCE_DOCS, CONCERNS, PLATFORMS, SPILL_ACTION_LABELS,
 )
@@ -204,7 +204,7 @@ class WorkflowCatalogTests(unittest.TestCase):
         hooks = route_hooks("task")
         commands = {hook["hook"]: hook["command"] for hook in hooks}
         for name in ("start", "review", "finish"):
-            self.assertIn(str(stable_launcher_path()), commands[name])
+            self.assertIn(str(preferred_launcher_path()), commands[name])
             self.assertNotIn("scripts/agent-hook.py", commands[name])
             self.assertIn("--rules <TAO_ROOT>", commands[name])
             self.assertIn("--evidence <RUN_EVIDENCE>", commands[name])

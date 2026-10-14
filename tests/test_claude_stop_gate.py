@@ -351,7 +351,7 @@ class ClaudeStopGateTests(unittest.TestCase):
             _, out = _decide(_payload(project, "s1"))
 
         reason = json.loads(out)["reason"]
-        self.assertIn(str(gate.stable_launcher_path()), reason)
+        self.assertIn(str(gate.preferred_launcher_path()), reason)
         self.assertNotIn("~/.tao", reason)
 
     def test_setup_installs_stop_gate_without_removing_user_hooks(self) -> None:

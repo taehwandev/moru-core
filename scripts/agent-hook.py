@@ -148,7 +148,7 @@ from agent_context_store import (
 )
 from support.global_state import ensure_local_only_state_dir, project_state_dir_target
 from support.git_read_scope import git_read_scope
-from support.stable_launcher import stable_launcher_path
+from support.stable_launcher import preferred_launcher_path
 from workflow_catalog import COMMANDS, CONCERNS, PLATFORM_CONCERNS
 from support.stage_timing import append_recorded_stages, set_timing_sink, stage
 ROOT = Path(__file__).resolve().parents[1]
@@ -383,7 +383,7 @@ def _project_memory_upkeep_lines(project: Path, records: list[dict[str, Any]]) -
     """Counts of records awaiting a decision; advisory, content-free, never a gate."""
     try:
         report = project_memory_findings(records, 0, today=date.today())
-        line = project_memory_upkeep_line(report, project.resolve(), str(stable_launcher_path()))
+        line = project_memory_upkeep_line(report, project.resolve(), str(preferred_launcher_path()))
     except (OSError, ValueError):
         return []
     return [line] if line else []
@@ -1042,7 +1042,7 @@ def _closed_run_lines(project: Path) -> list[str]:
         + _fast_forward_line(project),
         "Project memory: if this run verified a project fact worth reusing (a root "
         "cause, a pitfall, or a decision reason the code does not show), capture it "
-        f"once with {stable_launcher_path()} project-memory --project {project} "
+        f"once with {preferred_launcher_path()} project-memory --project {project} "
         "capture --source <evidence> --review-on <YYYY-MM-DD> [--source-path <file>], "
         "the one-line body on stdin; otherwise nothing is needed.",
     ]

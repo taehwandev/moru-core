@@ -23,7 +23,7 @@ try:
     from agent_run_interruption import record_turn_boundary
     from support.global_state import prefer_git_root
     from support.setup_config_files import read_json
-    from support.stable_launcher import stable_launcher_path
+    from support.stable_launcher import preferred_launcher_path
 except ImportError:  # pragma: no cover - only a broken installation reaches this
     instruction_files = None
     project_markers = None
@@ -31,7 +31,7 @@ except ImportError:  # pragma: no cover - only a broken installation reaches thi
     resolve_runtime_evidence = None
     record_turn_boundary = None
     read_json = None
-    stable_launcher_path = None
+    preferred_launcher_path = None
 
 
 def allow() -> int:
@@ -66,7 +66,7 @@ def find_project_root(cwd: Path) -> Path | None:
 def closeout_reason(root: Path, evidence: Path) -> str:
     preflight = read_json(evidence) if read_json is not None else {}
     rules = Path(str(preflight.get("rules") or root))
-    launcher = stable_launcher_path() if stable_launcher_path is not None else Path(
+    launcher = preferred_launcher_path() if preferred_launcher_path is not None else Path(
         "tao-hook"
     )
     return (

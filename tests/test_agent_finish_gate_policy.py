@@ -279,7 +279,7 @@ class FinishGatePolicyTests(unittest.TestCase):
         closed, memory = agent_hook._closed_run_lines(project)
         self.assertIn("This run is closed", closed)
         self.assertIn(f"project-memory --project {project} capture", memory)
-        self.assertIn(str(agent_hook.stable_launcher_path()), memory)
+        self.assertIn(str(agent_hook.preferred_launcher_path()), memory)
         self.assertIn("otherwise nothing is needed", memory)
 
     def test_finish_cli_has_no_gate_override_option(self) -> None:

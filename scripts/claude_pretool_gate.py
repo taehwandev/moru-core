@@ -49,7 +49,7 @@ from typing import NamedTuple
 from types import ModuleType
 
 try:  # The gate must never fail to load; the import is only used for a message.
-    from support.stable_launcher import stable_launcher_path
+    from support.stable_launcher import preferred_launcher_path
     from support.global_state import (
         global_state_dir,
         project_state_dir_target,
@@ -116,7 +116,7 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
     # what the stubs below already answered for every Git command.
     _publication = _admission = _integration = None
 
-    def stable_launcher_path() -> Path:
+    def preferred_launcher_path() -> Path:
         return Path.home() / ".tao" / "bin" / "tao-hook"
 
     def is_project_state_dir(path: Path) -> bool:
@@ -788,7 +788,7 @@ def paused_run_reason(
     """
 
     run_id = evidence.parent.name
-    launcher = stable_launcher_path()
+    launcher = preferred_launcher_path()
     action, retry = stopped_action(tool)
     refusal = _RESUME_REFUSALS.get(run_id)
     if refusal:
@@ -850,7 +850,7 @@ def deny_reason(
     cause = f"{cause}{governed_because(root, cwd_roots)}"
     return (
         f"Tao Agent OS: run the workflow start hook before {action}. {cause} "
-        f"Run `{stable_launcher_path()} start --project "
+        f"Run `{preferred_launcher_path()} start --project "
         f"{root} --rules <TAO_ROOT> --command <route> --request \"<user "
         f"request>\"`, read the route required_docs, then {retry}. Set "
         f"{runtime_setting('_MAX_AGE_SECONDS')} to tune the freshness window."
