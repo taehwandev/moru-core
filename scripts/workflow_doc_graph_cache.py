@@ -36,6 +36,7 @@ from pathlib import Path
 
 from workflow_doc_surfaces import RULES_FILE
 from workflow_gate_policy import READ_ONLY_LOOKUP
+from support.global_state import project_state_dir_target
 
 CACHE_GENERATIONS = 3
 BUILDER_ENTRY_POINT = "workflow_doc_graph_build"
@@ -154,12 +155,12 @@ def _builder_digest() -> str:
 def _cache_directory(root: Path) -> Path | None:
     """The run-state cache, only where run state already exists.
 
-    `.tao` carries its own ignore file, so writing under it stays out of the
-    repository. A project that has never run a hook has no `.tao`, and creating
-    one here could put a 750 KB file into someone's next commit.
+    The selected state directory carries its own ignore file. A project that
+    has never run a hook has no state directory, and creating one here could
+    put a 750 KB file into someone's next commit.
     """
 
-    state = root / ".tao"
+    state = project_state_dir_target(root)
     return state / "cache" / "doc-graph" if state.is_dir() else None
 
 

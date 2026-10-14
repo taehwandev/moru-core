@@ -33,6 +33,17 @@ import workflow_doc_graph as route_graph
 
 
 class DocGraphCacheTests(unittest.TestCase):
+    def test_migrated_state_stores_graph_cache_in_moru(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._project(directory)
+            (project / ".tao").rename(project / ".moru")
+            (project / ".moru" / "state-ready").write_text("ready\n")
+
+            build.build_doc_graph(project)
+
+            self.assertTrue(list((project / ".moru" / "cache" / "doc-graph").glob("*.json")))
+            self.assertFalse((project / ".tao").exists())
+
     def setUp(self) -> None:
         build.clear_doc_graph_cache()
         self.addCleanup(build.clear_doc_graph_cache)

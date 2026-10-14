@@ -68,6 +68,15 @@ class AdvisoryRouteIsDeliveredOncePerSessionTests(unittest.TestCase):
         self.root = Path(self.temporary_directory.name)
         (self.root / ".tao").mkdir()
 
+    def test_migrated_state_remembers_delivery_in_moru(self) -> None:
+        (self.root / ".tao").rename(self.root / ".moru")
+        (self.root / ".moru" / "state-ready").write_text("ready\n")
+
+        record_delivery(self.root, "session-a", "digest-1")
+
+        self.assertTrue(already_delivered(self.root, "session-a", "digest-1"))
+        self.assertTrue((self.root / ".moru" / "cache" / "advisory-route.json").is_file())
+
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
 

@@ -123,6 +123,14 @@ class IndexRefreshIsSkippedOnlyWhenNothingChangedTests(unittest.TestCase):
     def tearDown(self) -> None:
         clear_wikimap_cache()
 
+    def test_migrated_state_receipt_stays_in_moru(self) -> None:
+        (self.root / ".tao").rename(self.root / ".moru")
+        (self.root / ".moru" / "state-ready").write_text("ready\n")
+
+        self.assertTrue(self._refresh())
+        self.assertTrue((self.root / ".moru" / "cache" / "wikimap-index.json").is_file())
+        self.assertFalse(self._refresh())
+
     def _refresh(self) -> bool:
         """Run the refresh and report whether it reached the subprocess."""
 

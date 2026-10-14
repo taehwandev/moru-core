@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from support.global_state import project_state_dir_target
 
 # One entry per session, and sessions are short. The bound exists so an
 # unattended machine cannot grow this file without limit, not to be tuned.
@@ -40,12 +41,11 @@ SCHEMA_VERSION = 1
 def _state_path(root: Path) -> Path | None:
     """The run-state cache, only where run state already exists.
 
-    `.tao` carries its own ignore file, so writing under it stays out of the
-    repository, and a project that has never run a hook has no `.tao` to write
-    into.
+    The selected state directory carries its own ignore file. A project that
+    has never run a hook has no state directory to write into.
     """
 
-    state = root / ".tao"
+    state = project_state_dir_target(root)
     return state / "cache" / "advisory-route.json" if state.is_dir() else None
 
 

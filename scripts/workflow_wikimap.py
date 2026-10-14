@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Sequence
 from support.project_tree import PRUNED_DIRECTORIES, iter_project_files
 from support.stage_timing import stage
+from support.global_state import project_state_dir_target
 from workflow_gate_policy import READ_ONLY_LOOKUP
 
 
@@ -28,11 +29,13 @@ WIKIMAP_SCRIPT = Path(__file__).resolve().parent / "third_party" / "wikimap" / "
 WIKIMAP_TIMEOUT_SECONDS = 15
 WIKIMAP_IGNORES = (
     ".tao",
+    ".moru",
     ".agents/skills/graphify",
     ".claude/skills/graphify",
     ".codex/skills/graphify",
     "graphify-out",
     "scripts/.tao",
+    "scripts/.moru",
     "scripts/third_party",
 )
 # These sets mirror the pinned vendor's ``INDEX_EXTS``, ``IGNORE_DIRS`` and
@@ -186,12 +189,11 @@ def _ensure_index(root_text: str) -> str:
 def _receipt_path(root: Path) -> Path | None:
     """The run-state cache, only where run state already exists.
 
-    `.tao` carries its own ignore file, so writing under it stays out of the
-    repository, and a project that has never run a hook has no `.tao` to write
-    into.
+    The selected state directory carries its own ignore file. A project that
+    has never run a hook has no state directory to write into.
     """
 
-    state = root / ".tao"
+    state = project_state_dir_target(root)
     return state / "cache" / "wikimap-index.json" if state.is_dir() else None
 
 
