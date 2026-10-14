@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from support import legacy_names
 
 
 MORU_WORKSPACE_PROFILE = "moru-workspace"
 # The profile name setup wrote before the Moru rename.
-LEGACY_WORKSPACE_PROFILE = "tao-workspace"
+LEGACY_WORKSPACE_PROFILE = legacy_names.WORKSPACE_PROFILE
 _TABLE_HEADER = re.compile(r"(?m)^[ \t]*\[([^\]\n]+)\][ \t]*(?:#.*)?$")
 # Where the top level ends: a `[table]` or an `[[array.of.tables]]`. A key under
 # either one is nested, so the reset must never read it as the top-level selection.
@@ -25,7 +26,7 @@ def reset_moru_permission_default(target: Path, dry_run: bool) -> str:
     top = original[:header.start()] if header else original
     pattern = re.compile(
         r"(?m)^[ \t]*default_permissions[ \t]*=[ \t]*"
-        r"(['\"])(?:moru|tao)-workspace\1[ \t]*(?:#[^\n]*)?(?:\n|$)"
+        rf"(['\"])(?:moru-workspace|{LEGACY_WORKSPACE_PROFILE})\1[ \t]*(?:#[^\n]*)?(?:\n|$)"
     )
     matches = list(pattern.finditer(top))
     count = _assignment_count(top, "default_permissions")
@@ -127,7 +128,7 @@ def _rename_legacy_profile(text: str) -> str:
         lambda match: f"{match.group(1)}permissions.{MORU_WORKSPACE_PROFILE}{match.group(2)}", text
     )
     return renamed.replace(
-        'description = "Workspace access plus the shared Tao Agent OS runtime."',
+        legacy_names.WORKSPACE_DESCRIPTION,
         'description = "Workspace access plus the shared Moru Core runtime."',
     )
 

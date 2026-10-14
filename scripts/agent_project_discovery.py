@@ -120,7 +120,7 @@ def build_entry_manifest(
         **result.to_dict(),
         "runtime": runtime,
         "cwd": str(safe_resolve(cwd.expanduser())),
-        "tao": {
+        "moru": {
             "root": str(ROOT),
             "agent_instructions": str(ROOT / "AGENTS.md"),
             "index": str(ROOT / "index.md"),
@@ -153,12 +153,12 @@ def build_entry_manifest(
         manifest["next_steps"] = [
             "Ask the user to choose one candidate before reading project docs or editing.",
             "If this is a workspace group request, choose the primary repo or declare a multi-session plan before edits.",
-            "Optionally add a stable alias to ~/.tao/projects.json.",
+            "Optionally add a stable alias to ~/.moru/projects.json.",
         ]
     else:
         manifest["next_steps"] = [
             "Ask the user for the target project path before project work.",
-            "Optionally register known projects in ~/.tao/projects.json.",
+            "Optionally register known projects in ~/.moru/projects.json.",
         ]
     return manifest
 

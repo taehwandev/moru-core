@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Runtime requesting the entry manifest.",
     )
     parser.add_argument("--command", default="task", help="Moru Core workflow command hint.")
-    parser.add_argument("--registry", help="Project registry JSON path. Defaults to ~/.tao/projects.json.")
+    parser.add_argument("--registry", help="Project registry JSON path. Defaults to ~/.moru/projects.json.")
     parser.add_argument("--search-root", action="append", default=[], help="Additional directory to scan.")
     parser.add_argument("--max-depth", type=int, default=2, help="Maximum search-root scan depth.")
     parser.add_argument("--include-default-search-roots", action="store_true", help="Also scan common home child directories such as ~/Documents and ~/Downloads.")

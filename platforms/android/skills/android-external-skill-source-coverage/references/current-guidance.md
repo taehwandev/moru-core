@@ -44,9 +44,9 @@ These local snapshots were reviewed for this manifest:
 
 | Repository | Local snapshot | Commit |
 | --- | --- | --- |
-| `https://github.com/android/skills` | `/private/tmp/notmid-tao-source-android-skills` | `07302ca15e21d827cab5ca64d46407fb51dbe0aa` |
-| `https://github.com/skydoves/compose-performance-skills` | `/private/tmp/notmid-tao-source-compose-performance-skills` | `1b32f81724c0d71fe9ef093ca44697f559fdab6e` |
-| `https://github.com/chrisbanes/skills` | `/private/tmp/notmid-tao-source-chrisbanes-skills` | `10e5158f9d674d340531c6559ce311b22e3f6457` |
+| `https://github.com/android/skills` | `/private/tmp/notmid-moru-source-android-skills` | `07302ca15e21d827cab5ca64d46407fb51dbe0aa` |
+| `https://github.com/skydoves/compose-performance-skills` | `/private/tmp/notmid-moru-source-compose-performance-skills` | `1b32f81724c0d71fe9ef093ca44697f559fdab6e` |
+| `https://github.com/chrisbanes/skills` | `/private/tmp/notmid-moru-source-chrisbanes-skills` | `10e5158f9d674d340531c6559ce311b22e3f6457` |
 
 ## No-Omission Gate
 

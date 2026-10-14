@@ -327,7 +327,7 @@ Codex:
 - Do not expect `AGENTS.md` or `.codex/rules` to change sandbox roots; they
   control behavior and permission matching, not the runtime's workspace root.
 - When target setup is requested for Codex, register only the resolved
-  `<TARGET_REPO>/.tao/worktrees` directory in the Moru-owned `tao-workspace`
+  `<TARGET_REPO>/.moru/worktrees` directory in the Moru-owned `moru-workspace`
   permission profile. Extend `:workspace` so Codex keeps its normal protected
   path controls while generated linked worktrees become writable without a
   repeated approval prompt when the user selects that profile. Installing
@@ -415,7 +415,7 @@ Claude:
 - Claude Moru Core permissions should allow only that stable launcher and
   the narrow managed helper commands with the runtime's trailing wildcard form
   for arguments, for example
-  `Bash(/absolute/home/.tao/bin/moru-hook *)`. Do not
+  `Bash(/absolute/home/.moru/bin/moru-hook *)`. Do not
   approve or document broad `python3`, relative `scripts/<name>.py`, or
   argument-specific variants for shared wrappers.
 - A non-runtime Python query helper may run read-only in a protected checkout
@@ -491,7 +491,7 @@ Gemini/Antigravity/AGY:
   runtime. Runtime hooks remain in `~/.gemini/config/hooks.json`.
 - AGY Moru Core permissions follow the same absolute-wrapper rule as
   Claude, using the AGY permission key shape, for example
-  `command(/Users/USER/.tao/bin/moru-hook *)`.
+  `command(/Users/USER/.moru/bin/moru-hook *)`.
   Avoid `$HOME`, `${HOME}`, `~`, relative script paths, and saved prefixes that
   include task-specific arguments.
 

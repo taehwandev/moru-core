@@ -29,7 +29,6 @@ Contract (Claude Code Stop hook):
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import json
 import os
@@ -63,7 +62,7 @@ def recorded_session_id(payload: object) -> str:
 
 
 try:  # Never fail to load; used for the message and the project lookup.
-    from support.stable_launcher import preferred_launcher_path
+    from support.stable_launcher import stable_launcher_path
     from support.global_state import (
         global_state_dir,
         project_state_dir_target,
@@ -72,20 +71,19 @@ try:  # Never fail to load; used for the message and the project lookup.
         prefer_git_root,
     )
 except ImportError:  # pragma: no cover - exercised only on a broken install
-    def preferred_launcher_path() -> Path:
-        return Path.home() / ".tao" / "bin" / "tao-hook"
+    def stable_launcher_path() -> Path:
+        return Path.home() / ".moru" / "bin" / "moru-hook"
 
     def is_project_state_dir(path: Path) -> bool:
-        return path.is_dir() and path.resolve() != (Path.home() / ".tao").resolve()
+        return path.is_dir() and path.resolve() != (Path.home() / ".moru").resolve()
 
     def global_state_dir() -> Path:
         import os
         override = os.environ.get("MORU_STATE_HOME", "").strip()
-        return Path(override).expanduser() if override else Path.home() / ".tao"
+        return Path(override).expanduser() if override else Path.home() / ".moru"
 
     def project_state_dir_target(project: Path) -> Path:
-        moru, legacy = project / ".moru", project / ".tao"
-        return moru if (moru / "state-ready").is_file() or not legacy.is_dir() else legacy
+        return project / ".moru"
 
     def is_host_config_dir(path: Path) -> bool:
         resolved = path.expanduser().resolve()
@@ -97,7 +95,7 @@ except ImportError:  # pragma: no cover - exercised only on a broken install
                 return candidate
         return candidates[0] if candidates else None
 
-STATE_DIR = ".tao"
+STATE_DIR = ".moru"
 FINISH_NAME = "finish.json"
 SESSION_MARKER_DIR = "claude-pretool-gate"
 EDIT_ACTIVITY_SUFFIX = ".edited"
@@ -111,7 +109,7 @@ FINISHED_SUFFIX = ".finished"
 # needed changing -- and both are settled against a verified clean checkout.
 SETTLED_SUFFIX = ".settled"
 OPT_IN_FILES = ("AGENTS.md", "CLAUDE.md", "CODEX.md")
-OPT_IN_TOKENS = ("moru", "tao")
+OPT_IN_TOKENS = ("moru",)
 
 
 def allow() -> int:
@@ -299,7 +297,7 @@ def session_projects(session_id: str, cwd_root: Path | None) -> list[Path]:
 
 
 def block_reason(root: Path) -> str:
-    launcher = preferred_launcher_path()
+    launcher = stable_launcher_path()
     return (
         "Moru Core: this session edited files but has no passing finish check. "
         "Record the remaining route gates with `gate` or `gate-batch`, then run "
@@ -314,7 +312,7 @@ def block_reason(root: Path) -> str:
 
 
 def gate_enabled() -> bool:
-    return env_get("MORU_CLAUDE_STOP_GATE", "").strip() != "0"
+    return os.environ.get("MORU_CLAUDE_STOP_GATE", "").strip() != "0"
 
 
 def decide(payload: dict) -> int:

@@ -738,7 +738,7 @@ class AdvisoryRequiredDocsTests(unittest.TestCase):
 
     The prompt hook's triage listing required both documents above only because
     the route lists `alignment brief` and `retrospective check`. Those gates run
-    under `tao-hook start`, whose non-advisory route still requires them.
+    under `moru-hook start`, whose non-advisory route still requires them.
     """
 
     def test_advisory_triage_demotes_gate_driven_docs_to_reference(self) -> None:

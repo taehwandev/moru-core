@@ -189,8 +189,8 @@ class WorkingPathTests(unittest.TestCase):
     def test_a_path_that_fits_keeps_every_segment(self) -> None:
         # These are the paths an operator reads rather than scans, so they are
         # worth the width.
-        for directory in ("/home/someone/git/tao-agent-os",
-                          "/home/someone/git/tao-agent-os/scripts"):
+        for directory in ("/home/someone/git/moru-core",
+                          "/home/someone/git/moru-core/scripts"):
             with self.subTest(directory=directory):
                 self.assertNotIn("…", shorten_path(directory, HOME))
 
@@ -199,15 +199,15 @@ class WorkingPathTests(unittest.TestCase):
         # between them is boilerplate: every task worktree lives under the same
         # `.moru/worktrees`.
         self.assertEqual(
-            "~/git/tao-agent-os/…/gauge",
-            shorten_path("/home/someone/git/tao-agent-os/.tao/worktrees/gauge", HOME),
+            "~/git/moru-core/…/gauge",
+            shorten_path("/home/someone/git/moru-core/.moru/worktrees/gauge", HOME),
         )
 
     def test_a_long_leaf_is_never_truncated(self) -> None:
         # A half-written worktree name is worse than a long one: it is the part
         # that tells two worktrees apart.
         shortened = shorten_path(
-            "/home/someone/git/tao-agent-os/.tao/worktrees/codex-quota-gauge", HOME
+            "/home/someone/git/moru-core/.moru/worktrees/codex-quota-gauge", HOME
         )
 
         self.assertTrue(shortened.endswith("/codex-quota-gauge"), shortened)
@@ -251,16 +251,6 @@ class WorkingPathTests(unittest.TestCase):
 
 
 class CurrentWorkTests(unittest.TestCase):
-    def test_migrated_project_reports_open_run_from_moru(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            project = _project(Path(tmp))
-            _open_run(project, command="task", evidence_name="statusline.json")
-            _ledger(project, evidence_name="statusline.json", gates=["a", "b"], recorded=["a"])
-            (project / ".moru").rename(project / ".moru")
-            (project / ".moru" / "state-ready").write_text("ready\n")
-
-            self.assertEqual("task 1/2", work_segment({"cwd": str(project / "src")}))
-
     def test_the_open_run_is_named_with_how_far_it_has_to_go(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = _project(Path(tmp))

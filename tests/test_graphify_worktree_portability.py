@@ -95,7 +95,7 @@ class GraphifyWorktreePortabilityTests(unittest.TestCase):
                     "-c",
                     "user.name=Moru Core",
                     "-c",
-                    "user.email=tao@example.invalid",
+                    "user.email=moru@example.invalid",
                     "commit",
                     "-qm",
                     "fixture",

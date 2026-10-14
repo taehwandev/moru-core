@@ -691,7 +691,7 @@ class GateEvidenceLedgerTests(unittest.TestCase):
             Path(".moru") / "nested" / "deep" / "preflight.json",
             Path(".moru") / "workers" / "0123456789abcdef" / "preflight.json",
             Path(".moru") / "inner" / ".moru" / "preflight.json",
-            Path(".taofoo") / "preflight.json",
+            Path(".morufoo") / "preflight.json",
         )
         route = {"command": "task", "gates": ["review hook"]}
         owner = {"pid": 111, "start_token": "owner-a"}

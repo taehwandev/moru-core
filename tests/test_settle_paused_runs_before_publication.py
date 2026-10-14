@@ -45,7 +45,7 @@ _FIXTURE = TemplateRepository(_build)
 
 
 def setUpModule() -> None:
-    directory = tempfile.TemporaryDirectory(prefix="tao-state-home-")
+    directory = tempfile.TemporaryDirectory(prefix="moru-state-home-")
     state = mock.patch.dict(os.environ, {"MORU_STATE_HOME": directory.name})
     state.start()
     vibeguard = fake_vibeguard_environment()

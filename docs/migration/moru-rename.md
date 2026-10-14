@@ -67,9 +67,14 @@ are separate inventories.
    `com.taehwandev.moru-core.maintenance` LaunchAgent, tao-named files and
    Python identifiers. New installs and projects without a `.tao` tree start
    on `~/.moru`, `moru-hook` and `.moru` directly. Setup recognises and replaces
-   each pre-rename spelling it wrote. Still open: announce and later remove
-   the `tao-hook` launcher, the `TAO_*` fallback and the legacy marker
-   recognition.
+   each pre-rename spelling it wrote. On 2026-10-15 the compatibility layer
+   was removed: no `tao-hook` launcher or `tao-root` pointer is installed,
+   `TAO_*` settings are no longer read, `~/.tao` and project `.tao` trees are
+   no longer selected, and runtime code recognises only Moru markers. The old
+   spellings live only in `scripts/support/legacy_names.py`, used by setup to
+   remove what an older setup wrote and by the two migration tools.
+   `migrate_moru_local_state.py` now moves records without leaving links and
+   removes the drained `.tao` tree.
 4. **Repository, folder and domain.** The GitHub repository is now
    `taehwandev/moru-core`; the local checkout moved to `~/git/moru-core` on
    2026-10-13. The old `~/git/tao-agent-os` path is a compatibility link.

@@ -183,7 +183,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
             project = Path(directory) / "proj"
             project.mkdir()
             subprocess.run(["git", "init", "-q", "."], cwd=project, check=True)
-            (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            (project / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
             # The initial packet is written only after the execution state is
             # captured, and that needs a HEAD to read.
             for command in (
@@ -303,12 +303,12 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
             git(project, "init", "-q", ".")
             git(project, "config", "user.email", "probe@example.invalid")
             git(project, "config", "user.name", "probe")
-            (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            (project / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
             # Match the repository's ignored local runtime evidence boundary.
             (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
             git(project, "add", "AGENTS.md", ".gitignore")
             git(project, "commit", "-q", "-m", "first", "--no-verify")
-            launcher = Path(home) / ".tao" / "bin" / "tao-hook"
+            launcher = Path(home) / ".moru" / "bin" / "moru-hook"
             launcher.parent.mkdir(parents=True)
             launcher.write_text(
                 "#!/bin/sh\nexec "

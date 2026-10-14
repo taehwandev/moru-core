@@ -15,7 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Discover a target project without editing it.")
     parser.add_argument("--request", required=True, help="Current user request text.")
     parser.add_argument("--cwd", default=str(Path.cwd()), help="Runtime current working directory.")
-    parser.add_argument("--registry", help="Project registry JSON path. Defaults to ~/.tao/projects.json.")
+    parser.add_argument("--registry", help="Project registry JSON path. Defaults to ~/.moru/projects.json.")
     parser.add_argument("--search-root", action="append", default=[], help="Additional directory to scan.")
     parser.add_argument("--max-depth", type=int, default=2, help="Maximum search-root scan depth.")
     parser.add_argument("--include-default-search-roots", action="store_true", help="Also scan common home child directories such as ~/Documents and ~/Downloads.")

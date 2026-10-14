@@ -115,7 +115,7 @@ def validate_delegation_plan_structure(plan: dict[str, Any]) -> list[str]:
     if not plan:
         return [
             "parallel or multi-agent evidence requires structured "
-            ".tao/agent-delegation-plan.json"
+            ".moru/agent-delegation-plan.json"
         ]
     if plan.get("invalid_json"):
         return ["agent delegation plan is not valid JSON"]

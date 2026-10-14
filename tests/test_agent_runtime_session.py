@@ -240,7 +240,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
 
     def test_unreadable_unrelated_state_skips_only_that_subtree(self) -> None:
         # Given a session whose only active binding is readable, when unrelated
-        # concurrent-run state under `.tao` cannot be enumerated, the session
+        # concurrent-run state under `.moru` cannot be enumerated, the session
         # still resolves its own evidence instead of losing every edit to state
         # the decision never depended on.
         with tempfile.TemporaryDirectory() as directory:

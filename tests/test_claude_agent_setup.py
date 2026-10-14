@@ -265,7 +265,7 @@ class ClaudeAgentIntegrationTests(unittest.TestCase):
         with patch("support.claude_setup.Path.home", return_value=home):
             return configure_claude(
                 dry_run, root=root, scripts_dir=root / "scripts",
-                launcher_path=home / "bin" / "tao-hook", spill_available=False,
+                launcher_path=home / "bin" / "moru-hook", spill_available=False,
             )
 
     def test_runtime_setup_installs_roles_and_is_idempotent(self) -> None:

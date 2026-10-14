@@ -142,7 +142,7 @@ class TheHooksAreActuallyInstrumentedTests(unittest.TestCase):
             project = Path(directory) / "proj"
             project.mkdir()
             subprocess.run(["git", "init", "-q", "."], cwd=project, check=True)
-            (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            (project / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
             evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             evidence.parent.mkdir(parents=True)
             output = project / ".moru" / "start.json"
@@ -476,7 +476,7 @@ class TheHooksLeaveTheirNumbersInTheRunTests(unittest.TestCase):
             project = Path(directory) / "proj"
             project.mkdir()
             subprocess.run(["git", "init", "-q", "."], cwd=project, check=True)
-            (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            (project / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
             evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             evidence.parent.mkdir(parents=True)
 

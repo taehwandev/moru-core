@@ -36,7 +36,7 @@ class TargetProtectionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp) / "workspace"
             (workspace / ".moru").mkdir(parents=True)
-            (workspace / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            (workspace / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
             source = _opt_in_project(workspace)
             (source / ".git").mkdir()
             destination = workspace / "renamed"
@@ -242,7 +242,7 @@ class TargetProtectionTests(unittest.TestCase):
         proves nothing and keeps every path it names.
         """
 
-        launcher = str(gate.preferred_launcher_path())
+        launcher = str(gate.stable_launcher_path())
         with tempfile.TemporaryDirectory() as tmp:
             target = _opt_in_project(Path(tmp) / "protected")
             _require_linked_worktree(target)

@@ -23,7 +23,7 @@ OUTBOUND_BOUNDARIES = frozenset(
     }
 )
 _CONTINUATION_PATH = re.compile(
-    r"(?:^|/)\.(?:tao|moru)/runs/[0-9a-f]{32}/continuation\.json(?:$|[?#])"
+    r"(?:^|/)\.moru/runs/[0-9a-f]{32}/continuation\.json(?:$|[?#])"
 )
 
 

@@ -13,9 +13,9 @@ from support.bounded_git import run_git
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "platforms/android/skills/android-external-skill-source-coverage/references/current-guidance.md"
 SOURCES = {
-    "android": Path("/private/tmp/notmid-tao-source-android-skills"),
-    "compose": Path("/private/tmp/notmid-tao-source-compose-performance-skills"),
-    "chrisbanes": Path("/private/tmp/notmid-tao-source-chrisbanes-skills"),
+    "android": Path("/private/tmp/notmid-moru-source-android-skills"),
+    "compose": Path("/private/tmp/notmid-moru-source-compose-performance-skills"),
+    "chrisbanes": Path("/private/tmp/notmid-moru-source-chrisbanes-skills"),
 }
 
 

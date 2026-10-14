@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import hashlib
 import json
@@ -50,12 +49,12 @@ from claude_bash_paths import (  # noqa: F401
     path_arguments,
     raw_path_arguments,
 )
-from support.stable_launcher import moru_launcher_path, stable_launcher_path
+from support.stable_launcher import stable_launcher_path
 
 
 def _launcher_paths() -> set[Path]:
     """Recognize both installed aliases during the local runtime migration."""
-    return {stable_launcher_path().expanduser().resolve(), moru_launcher_path().expanduser().resolve()}
+    return {stable_launcher_path().expanduser().resolve()}
 
 
 # An assignment prefix used to be stripped by name shape alone, which reads a
@@ -91,7 +90,7 @@ INERT_ENV_PREFIXES = ("LC_",)
 # These names are read only by this runtime's own tooling and never select what
 # executes: the session id labels which runtime session a hook binds to, the
 # gate flags change Moru's own decision, and the soft-fail flag only masks a
-# hook's exit status. Refusing them made the gate deny the exact `tao-hook
+# hook's exit status. Refusing them made the gate deny the exact `moru-hook
 # start` remedy its own denial message names, because documented recovery
 # invocations carry one of these assignments as a prefix. The command after the
 # assignment still receives its ordinary classification, so a write stays a
@@ -103,11 +102,6 @@ RUNTIME_HOOK_ENV_ASSIGNMENTS = frozenset(
         "MORU_CLAUDE_GATE",
         "MORU_CODEX_GATE",
         "MORU_HOOK_SOFT_FAIL",
-        # Hook commands written before the Moru rename.
-        "TAO_ALLOW_MAIN_CHECKOUT_EDIT",
-        "TAO_CLAUDE_GATE",
-        "TAO_CODEX_GATE",
-        "TAO_HOOK_SOFT_FAIL",
     }
 )
 # Only commands that cannot write through an argument belong here, because a
@@ -399,7 +393,7 @@ def read_only_python_scripts() -> dict[Path, str]:
     check, so the only safe fallback is no script allowance.
     """
 
-    raw_declaration = env_get(READ_ONLY_PYTHON_SCRIPTS_ENV, "")
+    raw_declaration = os.environ.get(READ_ONLY_PYTHON_SCRIPTS_ENV, "")
     if not raw_declaration:
         return {}
     try:
@@ -1065,8 +1059,8 @@ INSTALLER_NO_WRITE_FLAGS = frozenset({"--dry-run", "--check"})
 INSTALLER_READ_ONLY_VALUE_OPTIONS = frozenset({"--target"})
 # A lifecycle hook's `--rules` names the shared guidance root it reads its
 # route and required documents out of. `--project` is the one it writes, and
-# stays a write target here. Reading both as writes is why `tao-hook start
-# --project <other repo> --rules <tao checkout>` was refused as a write into
+# stays a write target here. Reading both as writes is why `moru-hook start
+# --project <other repo> --rules <moru checkout>` was refused as a write into
 # the Moru checkout -- a denial naming a repository the run never touches, and
 # one whose stated remedy could not be followed, because every spelling of the
 # command has to say where the rules live.

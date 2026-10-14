@@ -127,7 +127,7 @@ PARAMETER_BRACE_RE = re.compile(r"\$\{[^}]*\}")
 # keeps the surrounding command readable; the unresolvable-text rule still
 # refuses to claim where such a command writes.
 SUBSTITUTION_RE = re.compile(r"\$\(([^()]*)\)|`([^`]*)`")
-SUBSTITUTION_PLACEHOLDER = "__tao_substitution__"
+SUBSTITUTION_PLACEHOLDER = "__moru_substitution__"
 
 
 def single_quote_masked(command: str) -> str:
@@ -720,7 +720,7 @@ RUNNING_SUBSTITUTION_MARKERS = ("$(", "`", "<(", ">(")
 ZSH_FILE_SUBSTITUTION = "=("
 # What a judged `$(...)` leaves behind: one word that names no program, so a
 # substitution in command position still reads as computed.
-SUBSTITUTED_WORD = "__tao_substituted__"
+SUBSTITUTED_WORD = "__moru_substituted__"
 
 
 def computed_word(word: str) -> bool:

@@ -18,6 +18,7 @@ from agent_worktree_fingerprint import MAX_UNTRACKED_BYTES, MAX_UNTRACKED_FILES
 from agent_worktree_scan import WorktreeFingerprintLimitExceeded
 from agent_workspace_policy import is_non_git_workspace
 from support.bounded_git import run_git
+from support import legacy_names
 
 
 class _MutationPathState:
@@ -380,7 +381,7 @@ class _MutationScanState:
             path.relative_to(project)
             for path in project.rglob("*")
             if (path.is_file() or path.is_symlink())
-            and not ({".tao", ".moru", ".git"} & set(path.relative_to(project).parts))
+            and not ({".moru", legacy_names.STATE_DIR, ".git"} & set(path.relative_to(project).parts))
         }
 
     @staticmethod

@@ -204,7 +204,7 @@ class CodexOperatorReviewTests(unittest.TestCase):
 
     def test_launcher_records_explicit_always_answer_and_revocation(self):
         request_id = self.pending()
-        launcher = Path(self.temporary.name) / "tao-hook"
+        launcher = Path(self.temporary.name) / "moru-hook"
         launcher.write_text(_launcher_script_text())
         command = [sys.executable, str(launcher), "operator-review", "--request-id", request_id,
                    "--decision"]

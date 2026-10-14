@@ -50,7 +50,7 @@ _OUTER_STATE_HOME: "str | None" = None
 
 
 def setUpModule() -> None:
-    """Keep the session-project index out of the developer's own `~/.tao`."""
+    """Keep the session-project index out of the developer's own `~/.moru`."""
 
     global _STATE_HOME, _OUTER_STATE_HOME
     _OUTER_STATE_HOME = os.environ.get(STATE_HOME_ENV)
@@ -97,7 +97,7 @@ class FinishedWorktreeIntegrationTests(unittest.TestCase):
         self.git(self.main, "config", "user.email", "test@example.invalid")
         self.git(self.main, "config", "user.name", "Test")
         (self.main / ".gitignore").write_text(".moru/\n")
-        (self.main / "AGENTS.md").write_text("uses tao-hook\n")
+        (self.main / "AGENTS.md").write_text("uses moru-hook\n")
         (self.main / "source").write_text("original")
         self.git(self.main, "add", ".")
         self.git(self.main, "commit", "-qm", "base")
@@ -339,7 +339,7 @@ class FinishedWorktreeIntegrationGateTests(unittest.TestCase):
         self.git(self.main, "config", "user.email", "test@example.invalid")
         self.git(self.main, "config", "user.name", "Test")
         (self.main / ".gitignore").write_text(".moru/\n")
-        (self.main / "AGENTS.md").write_text("uses tao-hook\n")
+        (self.main / "AGENTS.md").write_text("uses moru-hook\n")
         (self.main / "source").write_text("original")
         self.git(self.main, "add", ".")
         self.git(self.main, "commit", "-qm", "base")

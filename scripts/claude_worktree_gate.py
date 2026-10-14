@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import json
 import os
@@ -91,7 +90,7 @@ def same_git_repository(left: Path, right: Path) -> bool:
 
 
 def local_worktree_policy_applies(root: Path) -> bool:
-    if env_get(REQUIRE_LINKED_WORKTREE_ENV, "").strip() != "1":
+    if os.environ.get(REQUIRE_LINKED_WORKTREE_ENV, "").strip() != "1":
         return False
     declared_root = os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
     if not declared_root:
@@ -123,10 +122,7 @@ def worktree_policy(root: Path) -> dict | None:
 
 # The block `setup-agent-hooks` writes into a project that adopts the Moru code
 # workflow; see support/project_guidance.py.
-ROUTING_MARKERS = (
-    "<!-- BEGIN MANAGED MORU CORE ROUTING -->",
-    "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->",  # written before the rename
-)
+ROUTING_MARKERS = ("<!-- BEGIN MANAGED MORU CORE ROUTING -->",)
 
 
 def adopts_moru_routing(root: Path) -> bool:
@@ -489,7 +485,7 @@ def worktree_deny_reason(
             "Next: a lookup runs that step alone; a write uses the task "
             "worktree (`git worktree add <path> -b <branch> <base>`)."
         )
-    if require_linked_worktree and env_get("MORU_PRETOOL_RUNTIME") == "codex":
+    if require_linked_worktree and os.environ.get("MORU_PRETOOL_RUNTIME", "") == "codex":
         remedy = (
             "Next: target the existing task worktree explicitly with "
             '`git -C "<worktree>" <args>` or `cd "<worktree>" && <command>`. '
@@ -504,7 +500,7 @@ def worktree_denial(
     root: Path, cause: str = "", named: str = "", *, remedy: str = ""
 ) -> str | None:
     policy = worktree_policy(root)
-    if policy is None or env_get(MAIN_CHECKOUT_OVERRIDE_ENV, "").strip() == "1":
+    if policy is None or os.environ.get(MAIN_CHECKOUT_OVERRIDE_ENV, "").strip() == "1":
         return None
     branch = current_branch(root)
     requires_linked = policy["require_linked_worktree"]

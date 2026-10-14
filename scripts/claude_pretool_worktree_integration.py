@@ -231,7 +231,7 @@ def integrates_finished_worktree(
 ) -> bool:
     """Admit a fast-forward of a finished linked worktree into its repository.
 
-    A goal loop works in `<repo>/.tao/worktrees/<slice>`, runs the whole
+    A goal loop works in `<repo>/.moru/worktrees/<slice>`, runs the whole
     lifecycle there, and then brings the commit home with
     `git -C <repo> merge --ff-only <sha>`. That merge had no admission of its
     own: publication covers `add`, `commit`, `push` and `tag`, and it is

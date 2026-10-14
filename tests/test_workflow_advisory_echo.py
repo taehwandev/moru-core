@@ -68,15 +68,6 @@ class AdvisoryRouteIsDeliveredOncePerSessionTests(unittest.TestCase):
         self.root = Path(self.temporary_directory.name)
         (self.root / ".moru").mkdir()
 
-    def test_migrated_state_remembers_delivery_in_moru(self) -> None:
-        (self.root / ".moru").rename(self.root / ".moru")
-        (self.root / ".moru" / "state-ready").write_text("ready\n")
-
-        record_delivery(self.root, "session-a", "digest-1")
-
-        self.assertTrue(already_delivered(self.root, "session-a", "digest-1"))
-        self.assertTrue((self.root / ".moru" / "cache" / "advisory-route.json").is_file())
-
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
 
@@ -119,7 +110,7 @@ class AdvisoryRouteIsDeliveredOncePerSessionTests(unittest.TestCase):
         self.assertFalse(already_delivered(self.root, "", "digest-1"))
 
     def test_a_project_with_no_run_state_is_not_given_one(self) -> None:
-        """Creating `.tao` here could put a cache file in someone's commit."""
+        """Creating `.moru` here could put a cache file in someone's commit."""
 
         with tempfile.TemporaryDirectory() as bare:
             root = Path(bare)

@@ -76,7 +76,7 @@ class LauncherTests(unittest.TestCase):
 
 
 class InstallTests(unittest.TestCase):
-    MANAGED = f"{_STATUSLINE_MARKER} '/tao/bin/tao-hook' claude-statusline"
+    MANAGED = f"{_STATUSLINE_MARKER} '/moru/bin/moru-hook' claude-statusline"
 
     def _settings(self, root: Path, statusline: object | None) -> Path:
         target = root / "settings.json"
@@ -90,11 +90,11 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = self._settings(Path(tmp), None)
 
-            self.assertEqual("installed", _merge_claude_statusline(target, "tao statusline", False))
+            self.assertEqual("installed", _merge_claude_statusline(target, "moru statusline", False))
 
             config = read_json(target)
             self.assertEqual(
-                {"type": "command", "command": "tao statusline"}, config["statusLine"]
+                {"type": "command", "command": "moru statusline"}, config["statusLine"]
             )
             self.assertEqual("opus", config["model"])
 
@@ -106,10 +106,10 @@ class InstallTests(unittest.TestCase):
                 Path(tmp), {"type": "command", "command": "node spill.mjs --chain 'orca.sh'"}
             )
 
-            self.assertEqual("installed", _merge_claude_statusline(target, "tao statusline", False))
+            self.assertEqual("installed", _merge_claude_statusline(target, "moru statusline", False))
 
             self.assertEqual(
-                "tao statusline --chain 'node spill.mjs --chain '\\''orca.sh'\\'''",
+                "moru statusline --chain 'node spill.mjs --chain '\\''orca.sh'\\'''",
                 read_json(target)["statusLine"]["command"],
             )
 
@@ -159,7 +159,7 @@ class InstallTests(unittest.TestCase):
                 Path(tmp),
                 {
                     "type": "command",
-                    "command": f"{_STATUSLINE_MARKER} '/old/tao' claude-statusline"
+                    "command": f"{_STATUSLINE_MARKER} '/old/moru' claude-statusline"
                     " --chain 'node spill.mjs'",
                 },
             )
@@ -176,7 +176,7 @@ class InstallTests(unittest.TestCase):
             target = self._settings(Path(tmp), None)
 
             self.assertEqual(
-                "would_update", _merge_claude_statusline(target, "tao statusline", True)
+                "would_update", _merge_claude_statusline(target, "moru statusline", True)
             )
             self.assertNotIn("statusLine", read_json(target))
 

@@ -50,7 +50,7 @@ def commit(project: Path, message: str) -> str:
             "-c",
             "user.name=Moru Core Tests",
             "-c",
-            "user.email=tao-agent@example.invalid",
+            "user.email=moru-agent@example.invalid",
             "commit",
             "-q",
             "-m",
@@ -810,7 +810,7 @@ class ReviewScopeGuardTests(unittest.TestCase):
             subprocess.run(
                 [
                     "git", "-c", "user.name=Moru Core Tests",
-                    "-c", "user.email=tao-agent@example.invalid", *args,
+                    "-c", "user.email=moru-agent@example.invalid", *args,
                 ],
                 cwd=project, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )

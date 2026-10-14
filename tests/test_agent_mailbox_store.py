@@ -104,7 +104,7 @@ class MailboxStoreTests(unittest.TestCase):
         self._temporary = tempfile.TemporaryDirectory()
         self.project = Path(self._temporary.name) / "project"
         self.run_id = "a" * 32
-        self.evidence = self.project / ".tao" / "runs" / self.run_id / "preflight.json"
+        self.evidence = self.project / ".moru" / "runs" / self.run_id / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
         self.evidence.write_text("{}\n", encoding="utf-8")
         self.now = datetime(2026, 8, 30, 1, 2, 3, tzinfo=timezone.utc)
@@ -127,7 +127,7 @@ class MailboxStoreTests(unittest.TestCase):
             body="Check the cache invalidation boundary.",
             ttl_seconds=60,
         )
-        mailbox_root = self.project / ".tao" / "agent-mailbox"
+        mailbox_root = self.project / ".moru" / "agent-mailbox"
 
         first = self._store().consume("claude")
         second = self._store().consume("claude")
@@ -140,22 +140,6 @@ class MailboxStoreTests(unittest.TestCase):
         receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
         self.assertEqual(packet["message_id"], receipt["message_id"])
         self.assertNotIn("body", receipt)
-
-    def test_migrated_project_delivers_from_moru_evidence(self) -> None:
-        moru = self.project / ".moru"
-        migrated_evidence = moru / "runs" / self.run_id / "preflight.json"
-        migrated_evidence.parent.mkdir(parents=True)
-        migrated_evidence.write_text("{}\n", encoding="utf-8")
-        (moru / "state-ready").touch()
-
-        packet = self._store(evidence=migrated_evidence).enqueue(
-            sender="codex", recipient="claude", kind="review",
-            body="Check migrated state.", ttl_seconds=60,
-        )
-
-        self.assertEqual([packet], self._store().consume("claude"))
-        self.assertTrue((moru / "agent-mailbox").is_dir())
-        self.assertFalse((self.project / ".tao" / "agent-mailbox").exists())
 
     def test_expired_message_is_removed_without_delivery(self) -> None:
         self._store(evidence=self.evidence).enqueue(
@@ -181,7 +165,7 @@ class MailboxStoreTests(unittest.TestCase):
             )
             self._store().consume("claude")
 
-        receipts = list((self.project / ".tao" / "agent-mailbox").rglob("acked/claude/*.json"))
+        receipts = list((self.project / ".moru" / "agent-mailbox").rglob("acked/claude/*.json"))
         self.assertEqual(64, len(receipts))
 
     def test_copied_packet_is_rejected_in_another_project(self) -> None:
@@ -192,15 +176,15 @@ class MailboxStoreTests(unittest.TestCase):
             body="Project-bound question",
             ttl_seconds=60,
         )
-        source = next((self.project / ".tao" / "agent-mailbox").rglob(f"{packet['message_id']}.json"))
+        source = next((self.project / ".moru" / "agent-mailbox").rglob(f"{packet['message_id']}.json"))
         other = self.project.parent / "other"
-        target = other / ".tao" / "agent-mailbox" / "runs" / self.run_id / "inbox" / "claude" / source.name
+        target = other / ".moru" / "agent-mailbox" / "runs" / self.run_id / "inbox" / "claude" / source.name
         target.parent.mkdir(parents=True)
         shutil.copyfile(source, target)
 
         self.assertEqual([], self._store(project=other).consume("claude"))
         self.assertFalse(target.exists())
-        rejected = other / ".tao" / "agent-mailbox" / "runs" / self.run_id / "rejected" / "claude"
+        rejected = other / ".moru" / "agent-mailbox" / "runs" / self.run_id / "rejected" / "claude"
         self.assertTrue((rejected / source.name).is_file())
 
     def _send(self, body: str) -> dict[str, object]:
@@ -209,7 +193,7 @@ class MailboxStoreTests(unittest.TestCase):
         )
 
     def test_bad_packet_between_good_ones_neither_loses_nor_blocks_messages(self) -> None:
-        inbox = self.project / ".tao" / "agent-mailbox" / "runs" / self.run_id / "inbox" / "claude"
+        inbox = self.project / ".moru" / "agent-mailbox" / "runs" / self.run_id / "inbox" / "claude"
         first = self._send("first")
         bad_path = inbox / ("7" * 32 + ".json")
         bad_path.write_text("{not json", encoding="utf-8")
@@ -234,7 +218,7 @@ class MailboxStoreTests(unittest.TestCase):
         self.assertEqual([third], self._store().consume("claude"))
 
     def test_rejected_packets_are_bounded(self) -> None:
-        inbox = self.project / ".tao" / "agent-mailbox" / "runs" / self.run_id / "inbox" / "claude"
+        inbox = self.project / ".moru" / "agent-mailbox" / "runs" / self.run_id / "inbox" / "claude"
         inbox.mkdir(parents=True)
         for index in range(20):
             (inbox / f"{index:032x}.json").write_text("[]", encoding="utf-8")
@@ -249,7 +233,7 @@ class MailboxStoreTests(unittest.TestCase):
             body="Run-bound question",
             ttl_seconds=60,
         )
-        source = next((self.project / ".tao" / "agent-mailbox").rglob(f"{packet['message_id']}.json"))
+        source = next((self.project / ".moru" / "agent-mailbox").rglob(f"{packet['message_id']}.json"))
         target = source.parents[3] / ("b" * 32) / "inbox" / "claude" / source.name
         target.parent.mkdir(parents=True)
         source.replace(target)
@@ -265,7 +249,7 @@ class MailboxStoreTests(unittest.TestCase):
             body="TTL-bound question",
             ttl_seconds=60,
         )
-        path = next((self.project / ".tao" / "agent-mailbox").rglob(f"{packet['message_id']}.json"))
+        path = next((self.project / ".moru" / "agent-mailbox").rglob(f"{packet['message_id']}.json"))
         payload = json.loads(path.read_text(encoding="utf-8"))
         payload["expires_at"] = (self.now + timedelta(days=8)).isoformat()
         path.write_text(json.dumps(payload), encoding="utf-8")
@@ -276,9 +260,9 @@ class MailboxStoreTests(unittest.TestCase):
     def test_symlinked_mailbox_is_rejected_without_external_write(self) -> None:
         external = self.project.parent / "external"
         external.mkdir()
-        tao = self.project / ".tao"
-        tao.mkdir(parents=True, exist_ok=True)
-        (tao / "agent-mailbox").symlink_to(external, target_is_directory=True)
+        state = self.project / ".moru"
+        state.mkdir(parents=True, exist_ok=True)
+        (state / "agent-mailbox").symlink_to(external, target_is_directory=True)
 
         with self.assertRaisesRegex(OSError, "symbolic links"):
             self._store(evidence=self.evidence).enqueue(

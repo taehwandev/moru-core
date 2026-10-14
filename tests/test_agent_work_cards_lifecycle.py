@@ -47,7 +47,7 @@ class WorkCardLifecycleTests(unittest.TestCase):
     def setUp(self) -> None:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        # The hook subprocesses inherit this, so no card reaches the real ~/.tao.
+        # The hook subprocesses inherit this, so no card reaches the real ~/.moru.
         state_home = mock.patch.dict(os.environ, {"MORU_STATE_HOME": str(Path(temp.name) / "state-home")})
         state_home.start()
         self.addCleanup(state_home.stop)
@@ -192,10 +192,10 @@ class ProjectMemoryAtStartTests(unittest.TestCase):
 
 
 class TestRunsNeverReachTheUsersStoreTests(unittest.TestCase):
-    """A test that forgets MORU_STATE_HOME still cannot write the real ~/.tao.
+    """A test that forgets MORU_STATE_HOME still cannot write the real ~/.moru.
 
     HOME stands in for the developer's home: with no state-home override, the
-    stores would resolve to `<HOME>/.tao`, which is exactly where a forgotten
+    stores would resolve to `<HOME>/.moru`, which is exactly where a forgotten
     override used to leave cards for throwaway checkouts.
     """
 
@@ -222,8 +222,8 @@ class TestRunsNeverReachTheUsersStoreTests(unittest.TestCase):
         self.assertEqual(0, started.returncode, started.stdout + started.stderr)
         self.assertEqual(2, memory.returncode)
         self.assertIn(STATE_HOME_ENV, memory.stderr)
-        self.assertFalse((home / ".tao" / cards.STORE_NAME).exists())
-        self.assertFalse((home / ".tao" / "project-memory").exists())
+        self.assertFalse((home / ".moru" / cards.STORE_NAME).exists())
+        self.assertFalse((home / ".moru" / "project-memory").exists())
 
 
 if __name__ == "__main__":

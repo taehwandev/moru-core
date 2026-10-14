@@ -2,7 +2,7 @@
 keyflow_id: sys_workflows_session_continuation_protocol_skill
 status: review
 type: human-reviewed-needed
-tao_card_contract: strict
+moru_card_contract: strict
 requires_docs:
   - workflows/skills/agent-handoff-continuation/SKILL.md
   - workflows/skills/scripted-agent-workflow/SKILL.md

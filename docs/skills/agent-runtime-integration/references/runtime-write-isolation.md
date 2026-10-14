@@ -77,7 +77,7 @@ there. Other mutating Bash commands with a readable target (`rm`, `mv`,
 or test may only read: on Claude they defer to Claude's own permission prompt,
 where standing allow rules still apply; on Codex, which has no native ask, the
 hook stays silent and Codex's sandbox and approval policy decide. The generated project
-permissions anchor `Read`, `Edit`, and `Write` at `/.tao/worktrees/**`, so a
+permissions anchor `Read`, `Edit`, and `Write` at `/.moru/worktrees/**`, so a
 compliant linked worktree remains readable and writable even while the runtime
 is already inside its generated directory. A session launched from the
 protected checkout may operate on that worktree through a recognised
@@ -85,8 +85,8 @@ protected checkout may operate on that worktree through a recognised
 directory is context, not a second write target. Any explicit path back into
 the protected checkout is still denied.
 
-Codex uses the equivalent filesystem boundary through the `tao-workspace`
-profile's exact `<TARGET_REPO>/.tao/worktrees` root. Because that profile
+Codex uses the equivalent filesystem boundary through the `moru-workspace`
+profile's exact `<TARGET_REPO>/.moru/worktrees` root. Because that profile
 extends `:workspace`, adding the generated root does not make the protected
 checkout or Codex's own configuration writable.
 

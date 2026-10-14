@@ -68,7 +68,7 @@ class ProjectBootstrapTests(unittest.TestCase):
         protected = self.workspace / "protected"
         protected.mkdir()
         subprocess.run(["git", "init", "-q", str(protected)], check=True)
-        (protected / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (protected / "AGENTS.md").write_text("Uses moru-hook.\n")
         policy = protected / ".agents/shared"
         policy.mkdir(parents=True)
         (policy / "worktree-policy.json").write_text(json.dumps({

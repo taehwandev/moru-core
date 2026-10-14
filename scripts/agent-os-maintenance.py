@@ -28,16 +28,16 @@ def main(argv: list[str] | None = None) -> int:
         "--all-projects",
         action="store_true",
         help=(
-            "maintain the Moru root, every project in ~/.tao/projects.json, every "
+            "maintain the Moru root, every project in ~/.moru/projects.json, every "
             "checkout with Moru run state directly under a search root, and their "
-            "linked worktrees under .tao/worktrees"
+            "linked worktrees under .moru/worktrees"
         ),
     )
     parser.add_argument(
         "--projects-registry",
         type=Path,
         default=None,
-        help="projects registry to read instead of ~/.tao/projects.json",
+        help="projects registry to read instead of ~/.moru/projects.json",
     )
     parser.add_argument(
         "--dry-run",

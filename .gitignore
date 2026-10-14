@@ -2,7 +2,6 @@
 .antigravitycli/
 .taoide/
 *.log
-.tao/
 node_modules/
 dist/
 build/
@@ -57,7 +56,6 @@ graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 # moru-project-assets:end
 
 # Evidence emitted from a nested working directory is always local runtime state.
-*/.tao/
 */.moru/
 
 # Bytecode caches, written whenever the test suite or a hook runs.

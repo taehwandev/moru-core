@@ -76,7 +76,7 @@ def run_workflow_validate(moru_root: Path) -> dict[str, Any]:
 
 
 def _load_script_module(script: Path) -> Any:
-    module_name = f"_tao_{script.stem.replace('-', '_')}_{abs(hash(script))}"
+    module_name = f"_moru_{script.stem.replace('-', '_')}_{abs(hash(script))}"
     spec = importlib.util.spec_from_file_location(module_name, script)
     if spec is None or spec.loader is None:
         raise ImportError(f"unable to load script: {script}")

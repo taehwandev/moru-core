@@ -14,7 +14,6 @@ evidence.
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import json
 import os
@@ -316,7 +315,7 @@ def settle_superseded_session_runs(
     session_id = str(identity.get("session_id") or "")
     if not runtime or not session_id or not keep_run_id:
         return []
-    if env_get(WORKER_EVIDENCE_ENV, "").strip():
+    if os.environ.get(WORKER_EVIDENCE_ENV, "").strip():
         return []
     states = SUPERSEDABLE_RUN_STATES if new_request else ACTIVE_RUN_STATES
     own = project.resolve()
@@ -448,7 +447,7 @@ def settle_paused_runs_finished_later(
     Returns ``(settled run id, superseding run id)`` pairs.
     """
 
-    if not runtime or not session_id or env_get(WORKER_EVIDENCE_ENV, "").strip():
+    if not runtime or not session_id or os.environ.get(WORKER_EVIDENCE_ENV, "").strip():
         return []
     own = project.resolve()
     paused = _session_runs_in(own, PAUSED_SESSION_RUN_STATES, runtime=runtime, session_id=session_id)
@@ -647,7 +646,7 @@ def _run_evidence_candidate(project: Path, run: dict[str, Any]) -> Path | None:
 
 
 def _worker_evidence_scope(project: Path) -> tuple[bool, Path | None]:
-    raw = env_get(WORKER_EVIDENCE_ENV, "").strip()
+    raw = os.environ.get(WORKER_EVIDENCE_ENV, "").strip()
     if not raw:
         return False, None
     candidate = Path(raw).expanduser().absolute()

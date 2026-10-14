@@ -118,7 +118,7 @@ class NamedProjectTestRuns(_Fixture):
 
         origin = self.base / "home" / "other-origin"
         origin.mkdir(parents=True)
-        (origin / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (origin / "AGENTS.md").write_text("Uses moru-hook.\n")
         (origin / ".gitignore").write_text(".moru/\n")
         _git("init", "-q", "-b", "main", cwd=origin)
         _git("add", ".", cwd=origin)

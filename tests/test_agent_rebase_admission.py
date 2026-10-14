@@ -23,7 +23,7 @@ class RebaseAdmissionTests(unittest.TestCase):
         self.git(self.main, "config", "user.email", "test@example.invalid")
         (self.main / ".gitignore").write_text(".moru/\n")
         (self.main / "base.txt").write_text("base")
-        (self.main / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (self.main / "AGENTS.md").write_text("Uses moru-hook.\n")
         policy = self.main / gate.WORKTREE_POLICY_PATH
         policy.parent.mkdir(parents=True)
         policy.write_text(json.dumps({"schema_version": 1, "require_linked_worktree": True,

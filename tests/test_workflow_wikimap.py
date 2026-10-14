@@ -123,14 +123,6 @@ class IndexRefreshIsSkippedOnlyWhenNothingChangedTests(unittest.TestCase):
     def tearDown(self) -> None:
         clear_wikimap_cache()
 
-    def test_migrated_state_receipt_stays_in_moru(self) -> None:
-        (self.root / ".moru").rename(self.root / ".moru")
-        (self.root / ".moru" / "state-ready").write_text("ready\n")
-
-        self.assertTrue(self._refresh())
-        self.assertTrue((self.root / ".moru" / "cache" / "wikimap-index.json").is_file())
-        self.assertFalse(self._refresh())
-
     def _refresh(self) -> bool:
         """Run the refresh and report whether it reached the subprocess."""
 
@@ -222,7 +214,7 @@ class IndexRefreshIsSkippedOnlyWhenNothingChangedTests(unittest.TestCase):
         self.assertFalse(self._refresh())
 
     def test_a_project_with_no_run_state_always_refreshes(self) -> None:
-        """No `.tao` means nowhere to write a receipt, so nothing is skipped."""
+        """No `.moru` means nowhere to write a receipt, so nothing is skipped."""
 
         with tempfile.TemporaryDirectory() as bare:
             root = Path(bare)
@@ -276,7 +268,7 @@ class WikimapCorpusIgnoreTests(unittest.TestCase):
         for relative in (
             "docs/ko/update-moru.md",
             "docs/ko/moru-core-roadmap.md",
-            "docs/migration/tao-agent-os-rename.md",
+            "docs/migration/moru-core-rename.md",
             "docs/minimal-workflow/prd.md",
             "docs/work-surface-resolution/spec.md",
             "docs/index.html",

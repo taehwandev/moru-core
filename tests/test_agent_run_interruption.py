@@ -33,7 +33,7 @@ class Run:
     def __init__(self, directory: str, runtime: str = 'codex', version=2, packet=False):
         self.project = Path(directory) / 'project'
         self.project.mkdir()
-        (self.project / 'AGENTS.md').write_text('uses tao\n')
+        (self.project / 'AGENTS.md').write_text('uses moru\n')
         (self.project / 'source.txt').write_text('before\n')
         if packet:
             initialize_git(self.project)

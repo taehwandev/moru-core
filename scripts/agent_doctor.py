@@ -25,20 +25,16 @@ from agent_work_cards import list_cards
 from support.global_state import global_state_dir, project_state_dir_target
 from support.project_type_detection import detect_project_permissions
 from support.stable_launcher import (
-    moru_launcher_path,
-    moru_root_pointer_path,
-    stable_launcher_path,
     stable_launcher_issue,
+    stable_launcher_path,
     stable_root_pointer_path,
 )
 from update_moru_project_pointers import FILES as POINTER_FILES, update_project
+from support import legacy_names
 
 ROOT = Path(__file__).resolve().parents[1]
-MANAGED_MARKERS = (
-    ("<!-- BEGIN MANAGED MORU CORE ROUTING -->", "<!-- END MANAGED MORU CORE ROUTING -->"),
-    # Written before the Moru rename; still a managed block.
-    ("<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->", "<!-- END MANAGED TAO AGENT OS ROUTING -->"),
-)
+MANAGED_BEGIN = "<!-- BEGIN MANAGED MORU CORE ROUTING -->"
+MANAGED_END = "<!-- END MANAGED MORU CORE ROUTING -->"
 
 
 def detect_project_stacks(project: Path) -> list[str]:
@@ -74,15 +70,15 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
     resolved = project.expanduser().resolve()
     launcher_warning = stable_launcher_issue(rules)
     state_dir = project_state_dir_target(resolved)
-    moru_ready = (resolved / ".moru" / "state-ready").is_file()
-    global_moru_ready = (global_state_dir() / "state-ready").is_file()
+    legacy_state = resolved / legacy_names.STATE_DIR
+    legacy_global = Path.home() / legacy_names.STATE_DIR
     agents_file = resolved / "AGENTS.md"
     has_agents = agents_file.is_file()
     has_managed_block = False
     if has_agents:
         try:
             content = agents_file.read_text(encoding="utf-8")
-            has_managed_block = any(begin in content and end in content for begin, end in MANAGED_MARKERS)
+            has_managed_block = MANAGED_BEGIN in content and MANAGED_END in content
         except OSError:
             has_managed_block = False
 
@@ -119,15 +115,16 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
             f"Stale Moru/Moru pointers in {', '.join(stale_pointers)}; run "
             f"`python3 {rules / 'scripts' / 'update_moru_project_pointers.py'} --project {resolved} --apply`."
         )
-    if (resolved / ".tao").is_dir() and not moru_ready:
+    if legacy_state.exists() or legacy_state.is_symlink():
         recommendations.append(
-            f"Local state uses `.tao`; run `python3 {rules / 'scripts' / 'migrate_moru_local_state.py'} "
-            f"--project {resolved} --apply` to migrate to `.moru`."
+            f"A pre-rename `{legacy_names.STATE_DIR}` state tree remains; run "
+            f"`python3 {rules / 'scripts' / 'migrate_moru_local_state.py'} --project {resolved} --apply` "
+            "to move it into `.moru`."
         )
     if memory_stats["expired_or_due"] > 0:
         recommendations.append(
             f"Project memory has {memory_stats['expired_or_due']} record(s) due for review; run "
-            f"`{moru_launcher_path()} project-memory consolidate --project {resolved}`."
+            f"`{stable_launcher_path()} project-memory consolidate --project {resolved}`."
         )
 
     return {
@@ -143,17 +140,15 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
         },
         "state": {
             "active_state_dir": str(state_dir),
-            "project_moru_state_ready": moru_ready,
-            "global_moru_state_ready": global_moru_ready,
+            "legacy_project_state": legacy_state.exists() or legacy_state.is_symlink(),
+            "legacy_global_state": legacy_global.exists() or legacy_global.is_symlink(),
             "active_runs": snapshot.get("active_runs", 0),
             "open_work_cards": len(open_cards),
             "project_memory": memory_stats,
         },
         "launchers": {
-            "tao_launcher": str(stable_launcher_path()),
-            "tao_root_pointer": str(stable_root_pointer_path()),
-            "moru_launcher": str(moru_launcher_path()),
-            "moru_root_pointer": str(moru_root_pointer_path()),
+            "moru_launcher": str(stable_launcher_path()),
+            "moru_root_pointer": str(stable_root_pointer_path()),
             "launcher_issue": launcher_warning,
         },
         "recommendations": recommendations,
@@ -168,8 +163,8 @@ def _render_markdown_doctor(report: dict[str, Any]) -> str:
         f"- AGENTS.md: {'present' if report['instructions']['agents_md_present'] else 'missing'} "
         f"(managed block: {'yes' if report['instructions']['managed_routing_block'] else 'no'})",
         f"- state root: {report['state']['active_state_dir']} "
-        f"(project .moru ready: {report['state']['project_moru_state_ready']}, "
-        f"global .moru ready: {report['state']['global_moru_state_ready']})",
+        f"(legacy project tree: {report['state']['legacy_project_state']}, "
+        f"legacy global tree: {report['state']['legacy_global_state']})",
         f"- active runs: {report['state']['active_runs']}, "
         f"open work cards: {report['state']['open_work_cards']}, "
         f"project memory: {report['state']['project_memory']['active_records']} active "

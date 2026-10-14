@@ -35,7 +35,7 @@ class JsonConfigSafetyTests(unittest.TestCase):
         original = b'{"permissions": {"allow": ["Bash(ls)"]},, "model": "opus"\n'
         self.settings.write_bytes(original)
         for merge in (
-            lambda: merge_permissions_allow(self.settings, ["Bash(tao-hook)"], dry_run=False),
+            lambda: merge_permissions_allow(self.settings, ["Bash(moru-hook)"], dry_run=False),
             lambda: _merge_claude_statusline(self.settings, "tao-statusline", dry_run=False),
         ):
             with self.assertRaisesRegex(SetupConfigError, "not valid JSON"):
@@ -61,13 +61,13 @@ class JsonConfigSafetyTests(unittest.TestCase):
             return real_replace(source, destination)
 
         with patch.object(setup_config_files.os, "replace", side_effect=spy):
-            merge_permissions_allow(self.settings, ["Bash(tao-hook)"], dry_run=False)
+            merge_permissions_allow(self.settings, ["Bash(moru-hook)"], dry_run=False)
             _merge_claude_statusline(self.settings, "tao-statusline", dry_run=False)
 
         updated = json.loads(self.settings.read_text())
         self.assertEqual("opus", updated["model"])
         self.assertEqual(["Read(.env)"], updated["permissions"]["deny"])
-        self.assertEqual(["Bash(ls)", "Bash(tao-hook)"], updated["permissions"]["allow"])
+        self.assertEqual(["Bash(ls)", "Bash(moru-hook)"], updated["permissions"]["allow"])
         self.assertEqual("command", updated["statusLine"]["type"])
         backup = self.settings.with_name("settings.json.moru-backup")
         self.assertEqual(original_bytes, backup.read_bytes())
@@ -83,14 +83,14 @@ class JsonConfigSafetyTests(unittest.TestCase):
         real = self.settings.parent.parent / "dotfiles-settings.json"
         real.write_text('{"model": "opus"}\n')
         self.settings.symlink_to(real)
-        merge_permissions_allow(self.settings, ["Bash(tao-hook)"], dry_run=False)
+        merge_permissions_allow(self.settings, ["Bash(moru-hook)"], dry_run=False)
         self.assertTrue(self.settings.is_symlink())
         self.assertEqual("opus", json.loads(real.read_text())["model"])
-        self.assertIn("Bash(tao-hook)", json.loads(real.read_text())["permissions"]["allow"])
+        self.assertIn("Bash(moru-hook)", json.loads(real.read_text())["permissions"]["allow"])
 
 
 class CodexPrefixRulesTests(unittest.TestCase):
-    RULE = 'prefix_rule(pattern=["tao-hook"], decision="allow")'
+    RULE = 'prefix_rule(pattern=["moru-hook"], decision="allow")'
     USER_RULE = 'prefix_rule(pattern=["user-tool"], decision="allow")'
     STALE_RULE = 'prefix_rule(pattern=["old-hook"], decision="allow")'
 

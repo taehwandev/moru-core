@@ -101,18 +101,6 @@ def _snapshot(root: Path) -> dict[str, bytes]:
 
 
 class MaintenanceProjectTests(unittest.TestCase):
-    def test_migrated_projects_and_worktrees_are_discovered(self) -> None:
-        listed = ProjectFixture(self.base / "listed").root
-        (listed / ".moru").rename(listed / ".moru")
-        (listed / ".moru" / "state-ready").write_text("ready\n")
-        worktree = ProjectFixture(listed / ".moru" / "worktrees" / "task").root
-        self._register(listed)
-
-        self.assertEqual(
-            [self.moru_root, listed, worktree],
-            managed_projects(self.moru_root, projects_registry=self.registry_file),
-        )
-
     def setUp(self) -> None:
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
@@ -126,7 +114,7 @@ class MaintenanceProjectTests(unittest.TestCase):
             patcher = patch.object(agent_os_maintenance, name, return_value=value)
             patcher.start()
             self.addCleanup(patcher.stop)
-        self.moru_root = self.base / "tao-agent-os"
+        self.moru_root = self.base / "moru-core"
         (self.moru_root / ".moru").mkdir(parents=True)
         self.registry_file = self.base / "projects.json"
 

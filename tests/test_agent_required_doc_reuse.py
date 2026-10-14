@@ -26,16 +26,12 @@ class RequiredDocReuseTests(unittest.TestCase):
         prior_session: str = "session-one",
         prior_hash: str = "a" * 64,
         takeaway: str = "prior run applied the operating contract",
-        migrated: bool = False,
     ) -> Path:
-        tao = root / (".moru" if migrated else ".moru")
-        if migrated:
-            tao.mkdir()
-            (tao / "state-ready").touch()
+        state = root / ".moru"
         prior_id = "a" * 32
         current_id = "b" * 32
-        prior = tao / "runs" / prior_id / "preflight.json"
-        current = tao / "runs" / current_id / "preflight.json"
+        prior = state / "runs" / prior_id / "preflight.json"
+        current = state / "runs" / current_id / "preflight.json"
         prior.parent.mkdir(parents=True)
         current.parent.mkdir(parents=True)
         prior_document = {
@@ -89,7 +85,7 @@ class RequiredDocReuseTests(unittest.TestCase):
         )
         if takeaway:
             record_doc_takeaway(prior, takeaway)
-        (tao / "run-registry.json").write_text(
+        (state / "run-registry.json").write_text(
             json.dumps(
                 {
                     "schema_version": 1,
@@ -119,16 +115,6 @@ class RequiredDocReuseTests(unittest.TestCase):
             self.assertEqual(
                 ["workflows/skills/review-and-commit/SKILL.md"],
                 reuse["unread"],
-            )
-
-    def test_migrated_runs_reuse_documents_from_moru(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            current = self._fixture(Path(directory), migrated=True)
-
-            reuse = required_doc_reuse(current)
-
-            self.assertEqual(
-                ["common/skills/agent-operating-skill/SKILL.md"], reuse["reused"]
             )
 
     def test_recent_complete_match_stops_history_reads_even_in_long_goals(self) -> None:

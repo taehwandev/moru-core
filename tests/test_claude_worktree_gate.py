@@ -31,8 +31,8 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
         root = self.base / name
         (root / ".git").mkdir(parents=True)
         (root / "AGENTS.md").write_text(
-            "Uses tao-hook.\n<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n"
-            "<!-- END MANAGED TAO AGENT OS ROUTING -->\n"
+            "Uses moru-hook.\n<!-- BEGIN MANAGED MORU CORE ROUTING -->\n"
+            "<!-- END MANAGED MORU CORE ROUTING -->\n"
         )
         return root
 
@@ -174,13 +174,13 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
                 self.assertEqual("deny", decision.get("permissionDecision"))
 
     def test_runtime_state_or_moru_prose_alone_does_not_impose_isolation(self):
-        # A writing vault a run once touched holds a `.tao` directory and a
+        # A writing vault a run once touched holds a `.moru` directory and a
         # Moru doc-enforcement note, but never adopted the code routing block.
         root = self.plain("vault")
         (root / ".moru").mkdir()
         (root / ".moru" / "context-snapshot.json").write_text("{}")
         (root / "AGENTS.md").write_text(
-            "<!-- BEGIN MANAGED TAO AGENT OS DOC ENFORCEMENT --> tao-hook <!-- END -->\n"
+            "<!-- BEGIN MANAGED TAO AGENT OS DOC ENFORCEMENT --> moru-hook <!-- END -->\n"
         )
         self.assertTrue(gate.marks_moru_project(root))
         self.assertIsNone(gate.worktree_policy(root))

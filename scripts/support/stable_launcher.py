@@ -5,13 +5,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from support import legacy_names
 
-LAUNCHER_NAME = "tao-hook"
-STATE_DIR_NAME = ".tao"
-ROOT_POINTER_NAME = "tao-root"
-MORU_LAUNCHER_NAME = "moru-hook"
-MORU_STATE_DIR_NAME = ".moru"
-MORU_ROOT_POINTER_NAME = "moru-root"
+
+LAUNCHER_NAME = "moru-hook"
+STATE_DIR_NAME = ".moru"
+ROOT_POINTER_NAME = "moru-root"
 
 
 def stable_launcher_path() -> Path:
@@ -22,28 +21,12 @@ def stable_root_pointer_path() -> Path:
     return Path.home() / STATE_DIR_NAME / ROOT_POINTER_NAME
 
 
-def moru_launcher_path() -> Path:
-    return Path.home() / MORU_STATE_DIR_NAME / "bin" / MORU_LAUNCHER_NAME
-
-
-def preferred_launcher_path() -> Path:
-    """Use the Moru launcher unless an unmigrated legacy install is in place."""
-    home = Path.home()
-    if (home / MORU_STATE_DIR_NAME / "state-ready").is_file() or not (home / STATE_DIR_NAME).exists():
-        return moru_launcher_path()
-    return stable_launcher_path()
-
-
-def moru_root_pointer_path() -> Path:
-    return Path.home() / MORU_STATE_DIR_NAME / MORU_ROOT_POINTER_NAME
-
-
 def is_disposable_root(root: Path) -> bool:
     """Whether this checkout is a task worktree, which outlives its task."""
 
     parts = Path(root).resolve(strict=False).parts
     return any(
-        parts[index] in (STATE_DIR_NAME, MORU_STATE_DIR_NAME)
+        parts[index] in (STATE_DIR_NAME, legacy_names.STATE_DIR)
         and parts[index + 1] == "worktrees"
         for index in range(len(parts) - 1)
     )
@@ -82,64 +65,39 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
     """Install or verify the home-stable launcher and root pointer."""
     launcher_path = stable_launcher_path()
     pointer_path = stable_root_pointer_path()
-    moru_path = moru_launcher_path()
-    moru_pointer_path = moru_root_pointer_path()
-    blocked_pointer = next(
-        (path for path in (pointer_path, moru_pointer_path)
-         if downgrades_the_shared_root(root, path)),
-        None,
-    )
-    if blocked_pointer is not None:
+    if downgrades_the_shared_root(root, pointer_path):
         blocked = {
             "status": "blocked",
             "detail": (
-                f"refusing to repoint the shared root from {_read_text(blocked_pointer).strip()} "
+                f"refusing to repoint the shared root from {_read_text(pointer_path).strip()} "
                 f"to the task worktree {Path(root).resolve(strict=False)}; run the "
                 "installer from the main checkout"
             ),
         }
         return [
-            {"tool": "tao", "hook": "stable_launcher", "path": str(launcher_path), **blocked},
-            {"tool": "tao", "hook": "root_pointer", "path": str(pointer_path), **blocked},
-            {"tool": "moru", "hook": "stable_launcher", "path": str(moru_path), **blocked},
-            {"tool": "moru", "hook": "root_pointer", "path": str(moru_pointer_path), **blocked},
+            {"tool": "moru", "hook": "stable_launcher", "path": str(launcher_path), **blocked},
+            {"tool": "moru", "hook": "root_pointer", "path": str(pointer_path), **blocked},
         ]
     root_text = f"{root.resolve()}\n"
     launcher_text = _launcher_script_text()
-    moru_text = _moru_launcher_script_text()
-
     launcher_ok = (
         launcher_path.exists()
         and _read_text(launcher_path) == launcher_text
         and _is_executable(launcher_path)
     )
     pointer_ok = pointer_path.exists() and _read_text(pointer_path) == root_text
-    moru_ok = moru_path.exists() and _read_text(moru_path) == moru_text and _is_executable(moru_path)
-    moru_pointer_ok = moru_pointer_path.exists() and _read_text(moru_pointer_path) == root_text
+    legacy = _legacy_launcher_files()
 
     if dry_run:
-        return [
-            {
-                "tool": "tao",
-                "hook": "stable_launcher",
-                "status": "ok" if launcher_ok else "missing",
-                "path": str(launcher_path),
-            },
-            {
-                "tool": "tao",
-                "hook": "root_pointer",
-                "status": "ok" if pointer_ok else "missing",
-                "path": str(pointer_path),
-            },
-            {
-                "tool": "moru", "hook": "stable_launcher",
-                "status": "ok" if moru_ok else "missing", "path": str(moru_path),
-            },
-            {
-                "tool": "moru", "hook": "root_pointer",
-                "status": "ok" if moru_pointer_ok else "missing", "path": str(moru_pointer_path),
-            },
+        rows = [
+            {"tool": "moru", "hook": "stable_launcher",
+             "status": "ok" if launcher_ok else "missing", "path": str(launcher_path)},
+            {"tool": "moru", "hook": "root_pointer",
+             "status": "ok" if pointer_ok else "missing", "path": str(pointer_path)},
         ]
+        rows += [{"tool": "moru", "hook": "legacy_launcher", "status": "would_remove",
+                  "path": str(path)} for path in legacy]
+        return rows
 
     launcher_status = "ok"
     pointer_status = "ok"
@@ -152,25 +110,38 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
         pointer_path.parent.mkdir(parents=True, exist_ok=True)
         pointer_path.write_text(root_text)
         pointer_status = "installed"
-
-    moru_status = "ok"
-    moru_pointer_status = "ok"
-    if not moru_ok:
-        moru_path.parent.mkdir(parents=True, exist_ok=True)
-        moru_path.write_text(moru_text)
-        moru_path.chmod(0o755)
-        moru_status = "installed"
-    if not moru_pointer_ok:
-        moru_pointer_path.parent.mkdir(parents=True, exist_ok=True)
-        moru_pointer_path.write_text(root_text)
-        moru_pointer_status = "installed"
-
+    removed = []
+    for path in legacy:
+        path.unlink(missing_ok=True)
+        removed.append({"tool": "moru", "hook": "legacy_launcher", "status": "removed",
+                        "path": str(path)})
     return [
-        {"tool": "tao", "hook": "stable_launcher", "status": launcher_status, "path": str(launcher_path)},
-        {"tool": "tao", "hook": "root_pointer", "status": pointer_status, "path": str(pointer_path)},
-        {"tool": "moru", "hook": "stable_launcher", "status": moru_status, "path": str(moru_path)},
-        {"tool": "moru", "hook": "root_pointer", "status": moru_pointer_status, "path": str(moru_pointer_path)},
+        {"tool": "moru", "hook": "stable_launcher", "status": launcher_status, "path": str(launcher_path)},
+        {"tool": "moru", "hook": "root_pointer", "status": pointer_status, "path": str(pointer_path)},
+        *removed,
     ]
+
+
+def _legacy_launcher_files() -> list[Path]:
+    """The pre-rename launcher and root pointer an older setup installed.
+
+    Only files this installer wrote: a launcher that dispatches Moru Core
+    scripts and a pointer naming a directory. Anything else is left alone.
+    """
+    home = Path.home()
+    found: list[Path] = []
+    for state_dir in (legacy_names.STATE_DIR, STATE_DIR_NAME):
+        launcher = home / state_dir / "bin" / legacy_names.LAUNCHER
+        if launcher.is_file() and not launcher.is_symlink() and "SCRIPT_ALIASES" in _read_text(launcher):
+            found.append(launcher)
+        pointer = home / state_dir / legacy_names.ROOT_POINTER
+        if pointer.is_file() and not pointer.is_symlink() and Path(_read_text(pointer).strip() or "/nonexistent").is_dir():
+            found.append(pointer)
+    unique: list[Path] = []
+    for path in found:
+        if all(path.resolve() != seen.resolve() for seen in unique):
+            unique.append(path)
+    return unique
 
 
 def stable_launcher_issue(root: Path) -> str:
@@ -209,8 +180,8 @@ import sys
 import traceback
 from pathlib import Path
 
-STATE_DIR_NAME = ".tao"
-ROOT_POINTER_NAME = "tao-root"
+STATE_DIR_NAME = ".moru"
+ROOT_POINTER_NAME = "moru-root"
 REQUIRED_MARKERS = ("AGENTS.md", "index.md", "scripts/workflow.py")
 SCRIPT_ALIASES = {
     "workflow": "workflow.py",
@@ -275,7 +246,7 @@ def main():
     passthrough_args = list(sys.argv[2:])
     if script_alias in ("--help", "-h", "help"):
         # Agents reach for --help first; an unsupported-alias error cost them a call.
-        print("usage: tao-hook <alias> [args]; tao-hook <alias> --help shows an alias's options")
+        print("usage: moru-hook <alias> [args]; moru-hook <alias> --help shows an alias's options")
         print("lifecycle: " + ", ".join(sorted(HOOK_ALIASES)))
         print("scripts: " + ", ".join(sorted(SCRIPT_ALIASES)))
         return 0
@@ -369,11 +340,6 @@ def _find_root():
             Path.home() / "moru-core",
             Path.home() / "git" / "moru-core",
             Path.home() / "GitHub" / "moru-core",
-            Path.home() / ".tao-agent-os",
-            Path.home() / "tao-agent-os",
-            Path.home() / "git" / "tao-agent-os",
-            Path.home() / "Documents" / "KeyFlowVault" / "tao-agent-os",
-            Path.home() / "GitHub" / "tao-agent-os",
         ]
     )
 
@@ -386,19 +352,15 @@ def _find_root():
         if resolved in seen:
             continue
         seen.add(resolved)
-        if _is_tao_root(resolved):
+        if _is_moru_root(resolved):
             return resolved
     return None
 
-def _is_tao_root(path):
+def _is_moru_root(path):
     return all((path / marker).exists() for marker in REQUIRED_MARKERS)
 
 def _env(name):
-    # Hook commands written before the rename still pass the TAO_ spelling.
-    value = os.environ.get(name)
-    if value is None:
-        value = os.environ.get("TAO_" + name[len("MORU_"):])
-    return value or ""
+    return os.environ.get(name) or ""
 
 def _soft_fail(message):
     print(f"Moru Core hook skipped: {message}", file=sys.stderr)
@@ -409,13 +371,3 @@ def _soft_fail(message):
 if __name__ == "__main__":
     raise SystemExit(main())
 """
-
-
-def _moru_launcher_script_text() -> str:
-    """Use the same dispatcher with a Moru entrypoint and the legacy aliases intact."""
-    return (
-        _launcher_script_text()
-        .replace('STATE_DIR_NAME = ".tao"', 'STATE_DIR_NAME = ".moru"')
-        .replace('ROOT_POINTER_NAME = "tao-root"', 'ROOT_POINTER_NAME = "moru-root"')
-        .replace("tao-hook", "moru-hook")
-    )

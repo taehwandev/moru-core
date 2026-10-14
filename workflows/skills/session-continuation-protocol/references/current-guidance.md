@@ -21,7 +21,7 @@ IDEs. This contract fills it once.
 The shared library owns:
 
 - the packet schema and its version
-- atomic storage at `<TARGET_REPO>/.tao/runs/<run-id>/continuation.json`
+- atomic storage at `<TARGET_REPO>/.moru/runs/<run-id>/continuation.json`
 - discovery of unfinished packets for a checkout
 - HEAD, worktree, and required-doc drift verification
 - takeover of a run whose owner is gone

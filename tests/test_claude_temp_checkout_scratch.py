@@ -69,7 +69,7 @@ class _Fixture(unittest.TestCase):
     @staticmethod
     def _governed_repository(root: Path) -> None:
         root.mkdir(parents=True)
-        (root / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (root / "AGENTS.md").write_text("Uses moru-hook.\n")
         (root / "notes.txt").write_text("n\n")
         (root / ".gitignore").write_text(".moru/\n")
         shared = root / ".agents" / "shared"
@@ -389,7 +389,7 @@ class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
 
         origin = self.base / "home" / "other-origin"
         origin.mkdir(parents=True)
-        (origin / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (origin / "AGENTS.md").write_text("Uses moru-hook.\n")
         (origin / ".gitignore").write_text(".moru/\n")
         _git("init", "-q", "-b", "main", cwd=origin)
         _git("add", ".", cwd=origin)

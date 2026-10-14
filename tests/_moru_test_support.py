@@ -65,7 +65,7 @@ def fake_vibeguard_directory() -> Path:
     """Return a directory holding the stand-in ``vibeguard``, made once per process."""
 
     if not _FAKE_DIRECTORY:
-        directory = Path(tempfile.mkdtemp(prefix="tao-fake-vibeguard-"))
+        directory = Path(tempfile.mkdtemp(prefix="moru-fake-vibeguard-"))
         executable = directory / "vibeguard"
         executable.write_text(FAKE_VIBEGUARD_SCRIPT, encoding="utf-8")
         executable.chmod(executable.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
@@ -100,7 +100,7 @@ class TemplateRepository:
 
     def template(self) -> Path:
         if self._template is None:
-            self._directory = tempfile.TemporaryDirectory(prefix="tao-template-")
+            self._directory = tempfile.TemporaryDirectory(prefix="moru-template-")
             self._template = Path(self._directory.name).resolve() / "template"
             self._template.mkdir()
             self._build(self._template)

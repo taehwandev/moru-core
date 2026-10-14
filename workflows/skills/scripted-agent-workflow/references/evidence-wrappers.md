@@ -169,7 +169,7 @@ python3 <MORU_ROOT>/scripts/agent-hook.py finish --project <TARGET_REPO> --rules
 Do not wait until finish to write all gate evidence by hand. The only gate-state
 writers are the `gate` and `gate-batch` hooks, which require an explicit
 `SUCCESS` or `FAIL` status. The default path is a structured gate ledger at
-`<TARGET_REPO>/.tao/gate-evidence.json`, bound to the current
+`<TARGET_REPO>/.moru/gate-evidence.json`, bound to the current
 preflight evidence hash, route fingerprint, and stable execution-capsule
 fingerprint (the preflight, route, and required-document snapshot). Custom preflight evidence files
 use `<preflight-stem>-gate-evidence.json` so parallel jobs do not overwrite one
@@ -311,7 +311,7 @@ plan requirement.
 when the finish hook is unavailable.
 
 `agent-preflight.py` records the route manifest, current git status, and
-VibeGuard audit result in `<TARGET_REPO>/.tao/preflight.json`.
+VibeGuard audit result in `<TARGET_REPO>/.moru/preflight.json`.
 It also records a content-free summary of accepted and promoted global lessons
 from `~/.moru/` when that local store exists.
 When `--request-classified` is used, it must also record
@@ -331,7 +331,7 @@ unchanged. Moving identical bytes between unstaged and staged state preserves
 that cache entry; a changed path, file byte, HEAD, rule state, or audit command
 invalidates it. Failed VibeGuard invocations must not be cached; rerun the tool
 after transient failures. Finish-check writes
-`<TARGET_REPO>/.tao/finish.json`.
+`<TARGET_REPO>/.moru/finish.json`.
 It also writes `gate_signals`, `missed_gates`, and
 `retrospective_required`. When `retrospective_required` is true, it writes a
 safe lesson candidate under `~/.moru/lessons/inbox/` when permitted.

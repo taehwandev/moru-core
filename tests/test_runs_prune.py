@@ -45,8 +45,6 @@ class RunsPruneTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.project = Path(self.directory.name)
-        # These cases cover a project still on the legacy `.tao` tree.
-        (self.project / ".tao").mkdir()
         self.runs = runs_prune.runs_dir(self.project)
         self.runs.mkdir(parents=True)
         self.clock = 1_700_000_000
@@ -76,20 +74,6 @@ class RunsPruneTests(unittest.TestCase):
 
         arguments.setdefault("now", self.clock + 1)
         return runs_prune.plan(self.project, **arguments)
-
-    def test_migrated_state_uses_moru_and_leaves_legacy_runs_untouched(self) -> None:
-        legacy = self._run(1, "done")
-        moru = self.project / ".moru"
-        moru.mkdir()
-        (moru / "state-ready").touch()
-        migrated = moru / "runs" / _run_id(2)
-        migrated.mkdir(parents=True)
-        (migrated / "continuation.json").write_text('{"phase":"done"}', encoding="utf-8")
-
-        self.assertEqual(moru / "runs", runs_prune.runs_dir(self.project))
-        report = runs_prune.plan(self.project, keep=0)
-        self.assertEqual([migrated], report["removable"])
-        self.assertTrue(legacy.exists())
 
     def test_the_newest_finished_runs_are_kept(self) -> None:
         for index in range(5):
@@ -282,7 +266,7 @@ class RunsPruneTests(unittest.TestCase):
     def test_registry_becoming_unreadable_preserves_previewed_evidence(self) -> None:
         finished = self._run(1, "done")
         preview = retention.plan(self.project, keep=0)
-        registry = self.project / ".tao" / "run-registry.json"
+        registry = self.project / ".moru" / "run-registry.json"
         for invalid in (
             '{', '{"schema_version":1,"runs":[{}]}',
             json.dumps({"schema_version": 1, "runs": [{"run_id": finished.name, "state": "unknown"}]}),
@@ -299,7 +283,7 @@ class RunsPruneTests(unittest.TestCase):
 
         def check_locks_then_delete(path, **options):
             for name in (".state.lock.lock", ".run-registry.json.lock"):
-                with (self.project / ".tao" / name).open("a+b") as lock_file:
+                with (self.project / ".moru" / name).open("a+b") as lock_file:
                     with self.assertRaises(BlockingIOError):
                         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             return original(path, **options)
@@ -345,8 +329,6 @@ class MaintenanceRunsThisPolicyTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.project = Path(self.directory.name)
-        # These cases cover a project still on the legacy `.tao` tree.
-        (self.project / ".tao").mkdir()
         self.runs = runs_prune.runs_dir(self.project)
         self.runs.mkdir(parents=True)
 

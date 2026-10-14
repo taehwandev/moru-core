@@ -34,7 +34,7 @@ def _decide(payload: dict) -> tuple[int, str]:
 def _project(base: Path) -> Path:
     project = base / "project"
     (project / ".moru").mkdir(parents=True)
-    (project / "AGENTS.md").write_text("uses tao\n", encoding="utf-8")
+    (project / "AGENTS.md").write_text("uses moru\n", encoding="utf-8")
     return project
 
 

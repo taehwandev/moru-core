@@ -26,7 +26,7 @@ class LegacyScanSkipsRuntimeStateTests(unittest.TestCase):
         return project
 
     def test_runtime_state_is_not_scanned(self) -> None:
-        # .tao holds run evidence and task worktrees, not Moru source. A worktree
+        # .moru holds run evidence and task worktrees, not Moru source. A worktree
         # there repeats every script under a path that is deleted with the task,
         # so entries built from it name files that will not exist.
         project = self._project()

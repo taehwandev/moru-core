@@ -197,7 +197,7 @@ def record_successful_review_workflow_validation(
     except OSError:
         # This project-level record only caches workflow validation for finish.
         # The run-bound review attestation remains the authoritative evidence,
-        # so a sandbox that permits the run directory but not the shared .tao
+        # so a sandbox that permits the run directory but not the shared .moru
         # root must not turn a successful review into a structural failure.
         pass
     return project_git, rules_git

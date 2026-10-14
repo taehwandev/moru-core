@@ -33,17 +33,6 @@ import workflow_doc_graph as route_graph
 
 
 class DocGraphCacheTests(unittest.TestCase):
-    def test_migrated_state_stores_graph_cache_in_moru(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            project = self._project(directory)
-            # The fixture already starts in `.moru`; mark it migrated.
-            (project / ".moru" / "state-ready").write_text("ready\n")
-
-            build.build_doc_graph(project)
-
-            self.assertTrue(list((project / ".moru" / "cache" / "doc-graph").glob("*.json")))
-            self.assertFalse((project / ".tao").exists())
-
     def setUp(self) -> None:
         build.clear_doc_graph_cache()
         self.addCleanup(build.clear_doc_graph_cache)
@@ -504,7 +493,7 @@ class DocGraphCacheTests(unittest.TestCase):
                 self.assertIn("brand_new_helper", cache._builder_modules())
 
     def test_a_project_with_no_run_state_stores_nothing(self) -> None:
-        """`.tao` carries the ignore file; creating one here could be committed."""
+        """`.moru` carries the ignore file; creating one here could be committed."""
 
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory, state=False)

@@ -29,7 +29,7 @@ class AllowListKeepsOneCopyOfAnEntryTests(unittest.TestCase):
         # Another tool appending an entry the installer already owns leaves two
         # identical strings. Matching is set-like, so the copy grants nothing,
         # and the merge only ever appended what was absent -- so it stayed.
-        managed = "Bash(tao-hook *)"
+        managed = "Bash(moru-hook *)"
         settings = self._settings([managed, "Bash(custom-tool *)", managed])
 
         status = merge_permissions_allow(settings, [managed], dry_run=False)
@@ -42,7 +42,7 @@ class AllowListKeepsOneCopyOfAnEntryTests(unittest.TestCase):
     def test_the_first_position_survives(self) -> None:
         # Order is how a reader finds an entry, so collapsing must not move the
         # surviving copy past entries that were already above it.
-        managed = "Bash(tao-hook *)"
+        managed = "Bash(moru-hook *)"
         settings = self._settings([managed, "Bash(a)", managed, "Bash(b)"])
 
         merge_permissions_allow(settings, [managed], dry_run=False)
@@ -51,7 +51,7 @@ class AllowListKeepsOneCopyOfAnEntryTests(unittest.TestCase):
         self.assertEqual(allow, [managed, "Bash(a)", "Bash(b)"])
 
     def test_a_duplicate_is_reported_without_writing_on_a_dry_run(self) -> None:
-        managed = "Bash(tao-hook *)"
+        managed = "Bash(moru-hook *)"
         settings = self._settings([managed, managed])
         before = settings.read_text()
 
@@ -61,7 +61,7 @@ class AllowListKeepsOneCopyOfAnEntryTests(unittest.TestCase):
         self.assertEqual(settings.read_text(), before)
 
     def test_a_clean_list_is_still_reported_as_ok(self) -> None:
-        managed = "Bash(tao-hook *)"
+        managed = "Bash(moru-hook *)"
         settings = self._settings([managed, "Bash(custom-tool *)"])
 
         self.assertEqual(merge_permissions_allow(settings, [managed], dry_run=False), "ok")

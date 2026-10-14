@@ -229,7 +229,7 @@ def main():
     source_ms = (time.perf_counter_ns() - source_start) / 1e6
     expected = content_digest(feature)
     samples = []
-    with tempfile.TemporaryDirectory(prefix="tao-worktree-latency-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="moru-worktree-latency-") as temporary:
         for pair in range(args.pairs):
             order = ("checkout", "worktree") if pair % 2 == 0 else ("worktree", "checkout")
             for position, variant in enumerate(order):

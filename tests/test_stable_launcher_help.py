@@ -1,4 +1,4 @@
-"""`tao-hook --help` lists the aliases instead of failing, and the gate reads it as a lookup."""
+"""`moru-hook --help` lists the aliases instead of failing, and the gate reads it as a lookup."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from stable_launcher import _launcher_script_text, stable_launcher_path
 class LauncherHelpTests(unittest.TestCase):
     def test_help_prints_the_aliases_and_succeeds(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            launcher = Path(directory) / "tao-hook"
+            launcher = Path(directory) / "moru-hook"
             launcher.write_text(_launcher_script_text(), encoding="utf-8")
             for flag in ("--help", "-h", "help"):
                 with self.subTest(flag=flag):

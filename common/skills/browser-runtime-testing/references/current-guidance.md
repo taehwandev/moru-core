@@ -2,7 +2,7 @@
 keyflow_id: sys_browser_runtime_testing
 status: stable
 type: human-reviewed-needed
-tao_card_contract: strict
+moru_card_contract: strict
 ---
 
 # Browser Runtime Testing

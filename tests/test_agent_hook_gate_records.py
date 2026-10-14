@@ -26,19 +26,6 @@ ARRAY_HINT = 'pass "a.md, b.md" rather than ["a.md", "b.md"]'
 
 
 class GateRecordInvocationTests(unittest.TestCase):
-    def test_start_mints_migrated_run_evidence_under_moru(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            project = Path(directory)
-            state = project / ".moru"
-            state.mkdir()
-            (state / "state-ready").touch()
-            args = SimpleNamespace(project=project, evidence=None, hook="start")
-
-            selected = preflight_evidence_path(args)
-
-            self.assertEqual(state / "runs", selected.parent.parent)
-            self.assertEqual(selected, args.evidence)
-
     def test_rejected_retrospective_stays_missing_until_a_valid_retry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)

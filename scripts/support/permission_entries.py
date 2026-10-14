@@ -9,7 +9,8 @@ from pathlib import Path
 from support.setup_config_files import quote
 from support.spill_permissions import obsolete_spill_helper_permission_commands as _obsolete_spill_helper_permission_commands
 from support.spill_permissions import spill_helper_permission_commands as _spill_helper_permission_commands
-from support.stable_launcher import preferred_launcher_path, stable_launcher_path
+from support.stable_launcher import stable_launcher_path
+from support import legacy_names
 
 
 # The public Python commands that an agent may invoke directly. This is the
@@ -96,8 +97,11 @@ def _legacy_worktree_permission_entries() -> list[str]:
 
     from agent_worktree_identity import WORKTREE_DIRNAME
 
-    root = f".tao/{WORKTREE_DIRNAME}"
-    return [f"{tool}({root}/**)" for tool in ("Read", "Edit", "Write")]
+    entries: list[str] = []
+    for state_dir in (".moru", legacy_names.STATE_DIR):
+        root = f"{state_dir}/{WORKTREE_DIRNAME}"
+        entries += [f"{tool}({root}/**)" for tool in ("Read", "Edit", "Write")]
+    return entries
 
 
 def _unmatched_write_permission_entries() -> list[str]:
@@ -116,7 +120,8 @@ def _unmatched_write_permission_entries() -> list[str]:
 
     return [
         "Write(**/*.py)",
-        f"Write(/.tao/{WORKTREE_DIRNAME}/**)",
+        f"Write(/{legacy_names.STATE_DIR}/{WORKTREE_DIRNAME}/**)",
+        f"Write(/.moru/{WORKTREE_DIRNAME}/**)",
     ]
 
 
@@ -168,7 +173,7 @@ def _worktree_permission_entries() -> list[str]:
     file -- the project root -- while a bare `.moru/...` is read relative to the
     working directory. The two agree only while the agent sits at the root, and
     the whole point of these rules is the moment it does not: from inside
-    `<project>/.tao/worktrees/<hex>` the unanchored form asks for a second
+    `<project>/.moru/worktrees/<hex>` the unanchored form asks for a second
     `.moru/worktrees` nested under the first, matches nothing, and every path
     prompts again -- the failure these entries exist to end.
 
@@ -178,20 +183,16 @@ def _worktree_permission_entries() -> list[str]:
 
     from agent_worktree_identity import WORKTREE_DIRNAME
 
-    entries: list[str] = []
-    # Projects not yet moved to `.moru` keep their worktrees under `.moru`.
-    for state_dir in (".moru", ".tao"):
-        root = f"/{state_dir}/{WORKTREE_DIRNAME}"
-        entries += [
-            f"Read({root}/**)",
-            # Edit covers every file-editing tool; a Write(path) rule is not matched
-            # by Claude Code's file permission checks, so it only drew a warning.
-            f"Edit({root}/**)",
-            # A Bash rule matches command text, not a path, so it keeps the
-            # spelling an agent actually types -- no leading slash to anchor.
-            f"Bash(cd {root[1:]}/*)",
-        ]
-    return entries
+    root = f"/.moru/{WORKTREE_DIRNAME}"
+    return [
+        f"Read({root}/**)",
+        # Edit covers every file-editing tool; a Write(path) rule is not matched
+        # by Claude Code's file permission checks, so it only drew a warning.
+        f"Edit({root}/**)",
+        # A Bash rule matches command text, not a path, so it keeps the
+        # spelling an agent actually types -- no leading slash to anchor.
+        f"Bash(cd {root[1:]}/*)",
+    ]
 
 
 def agy_permission_entries(scripts_dir: Path, *, spill_available: bool = True) -> list[str]:
@@ -268,7 +269,7 @@ def _legacy_moru_python_scripts(scripts_dir: Path) -> list[Path]:
     exclude_dirs = {
         ".git",
         ".pytest_cache",
-        ".tao",
+        legacy_names.STATE_DIR,
         ".moru",
         ".venv",
         ".wikimap",
@@ -322,14 +323,13 @@ def _obsolete_stable_launcher_commands(tool: str) -> list[str]:
         f"SPILL_AI_TOOL={tool} ",
         f"SPILL_TOKEN_USAGE_AI_TOOL={tool} ",
         f"MORU_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} ",
-        f"TAO_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} ",
+        f"{legacy_names.HOOK_SOFT_FAIL} SPILL_AI_TOOL={tool} ",
     )
     for path in _obsolete_stable_launcher_path_variants():
         for prefix in env_prefixes:
             commands.append(f"{prefix}{path}")
-    # The pre-rename soft-fail spelling on the launchers setup still emits.
     for path in _stable_launcher_path_variants():
-        commands.append(f"TAO_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} {path}")
+        commands.append(f"{legacy_names.HOOK_SOFT_FAIL} SPILL_AI_TOOL={tool} {path}")
     return commands
 
 
@@ -349,29 +349,35 @@ def _stable_launcher_commands(tool: str, *, include_spill_env: bool = True) -> l
 
 
 def _stable_launcher_path_variants() -> list[str]:
-    """Active launcher and temporary legacy alias as absolute paths.
+    """The active launcher as an absolute path.
 
     Home-relative spellings are deliberately excluded because the managed
     runtime contracts use machine-resolved executable paths. Obsolete
     spellings are removed by the cleanup path, not regenerated here.
     """
-    return _dedupe([str(preferred_launcher_path()), str(stable_launcher_path())])
+    return [str(stable_launcher_path())]
 
 
 def _obsolete_stable_launcher_path_variants() -> list[str]:
-    """Home-relative launcher spellings that setup must now remove."""
-    raw = str(stable_launcher_path())
-    variants = [quote(raw), _double_quote(raw)]
-    home = str(Path.home())
-    if raw.startswith(home + "/"):
-        suffix = raw[len(home) + 1:]
-        variants += [
-            f"~/{suffix}",
-            f"$HOME/{suffix}",
-            _double_quote(f"$HOME/{suffix}"),
-            f"${{HOME}}/{suffix}",
-            _double_quote(f"${{HOME}}/{suffix}"),
-        ]
+    """Launcher spellings that setup must now remove.
+
+    Home-relative spellings of the current launcher, and every spelling of the
+    pre-rename launcher, which setup no longer installs.
+    """
+    home = Path.home()
+    legacy = str(home / legacy_names.STATE_DIR / "bin" / legacy_names.LAUNCHER)
+    variants: list[str] = [legacy]
+    for raw in (str(stable_launcher_path()), legacy):
+        variants += [quote(raw), _double_quote(raw)]
+        if raw.startswith(str(home) + "/"):
+            suffix = raw[len(str(home)) + 1:]
+            variants += [
+                f"~/{suffix}",
+                f"$HOME/{suffix}",
+                _double_quote(f"$HOME/{suffix}"),
+                f"${{HOME}}/{suffix}",
+                _double_quote(f"${{HOME}}/{suffix}"),
+            ]
     return _dedupe(variants)
 
 

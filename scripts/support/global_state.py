@@ -2,12 +2,12 @@
 
 ``.moru`` names two unrelated things:
 
-- per-project runtime state -- ``<repo>/.tao/preflight.json``, gate evidence,
+- per-project runtime state -- ``<repo>/.moru/preflight.json``, gate evidence,
   session markers;
-- the global install -- ``~/.moru/bin/moru-hook``, ``~/.moru/tao-root``,
+- the global install -- ``~/.moru/bin/moru-hook``, ``~/.moru/moru-root``,
   ``~/.moru/projects.json``, ``~/.moru/claude-session-projects/``.
 
-Every "is this a Moru Core project?" check used to be ``(path / ".tao").is_dir()``,
+Every "is this a Moru Core project?" check used to be ``(path / ".moru").is_dir()``,
 so the home directory that hosts the global install always answered yes. That
 made ``$HOME`` classify as a project, which let a harness path such as
 ``~/.claude/plans/x.md`` register ``$HOME`` as a session project and left the
@@ -28,36 +28,22 @@ import sys
 from pathlib import Path
 
 
-STATE_DIR_NAME = ".tao"
-MORU_STATE_DIR_NAME = ".moru"
-MORU_STATE_HOME_ENV = "MORU_STATE_HOME"
-MORU_STATE_READY_MARKER = "state-ready"
+STATE_DIR_NAME = ".moru"
 # Set by tests and by anyone relocating the global install; the same variable
-# agent_global_lessons has always used to find lessons/skills state.
-STATE_HOME_ENV = "TAO_STATE_HOME"
+# agent_global_lessons uses to find lessons/skills state.
+STATE_HOME_ENV = "MORU_STATE_HOME"
 # Files the installer writes into the global directory and that no project's
 # .moru ever contains. Identity is checked first; these are the fallback for a
 # global install reached through a different HOME, a symlink, or a relocation
 # that happened after this process read the environment.
-GLOBAL_ONLY_MARKERS = (
-    "tao-root", "moru-root", "projects.json", "bin/tao-hook", "bin/moru-hook",
-)
+GLOBAL_ONLY_MARKERS = ("moru-root", "projects.json", "bin/moru-hook")
 
 
 def global_state_dir() -> Path:
-    """Use Moru state only after its existing user records were moved."""
-    moru_override = os.environ.get(MORU_STATE_HOME_ENV, "").strip()
-    if moru_override:
-        return Path(moru_override).expanduser()
     override = os.environ.get(STATE_HOME_ENV, "").strip()
     if override:
         return Path(override).expanduser()
-    moru_dir = Path.home() / MORU_STATE_DIR_NAME
-    legacy_dir = Path.home() / STATE_DIR_NAME
-    # A new install has no legacy records to wait for.
-    if (moru_dir / MORU_STATE_READY_MARKER).is_file() or not legacy_dir.exists():
-        return moru_dir
-    return legacy_dir
+    return Path.home() / STATE_DIR_NAME
 
 
 # Marks a process tree started by `python -m unittest`. Discover imports every
@@ -110,12 +96,12 @@ def user_store_write_error() -> str:
     developer's real `~/.moru`, where nothing removes it. Only writes are
     refused; lookups read nothing that is not already there.
     """
-    if any(os.environ.get(name, "").strip() for name in (MORU_STATE_HOME_ENV, STATE_HOME_ENV)):
+    if os.environ.get(STATE_HOME_ENV, "").strip():
         return ""
     if os.environ.get(UNDER_TEST_ENV, "").strip() or _running_unittest():
         return (
             f"refusing to write the user's Moru state from a test run; set "
-            f"{MORU_STATE_HOME_ENV} or {STATE_HOME_ENV} to a temporary directory"
+            f"{STATE_HOME_ENV} to a temporary directory"
         )
     return ""
 
@@ -133,7 +119,7 @@ def is_global_state_dir(path: Path) -> bool:
     if resolved is None:
         return False
     home = _resolved(Path.home())
-    if home is not None and resolved in (home / STATE_DIR_NAME, home / MORU_STATE_DIR_NAME):
+    if home is not None and resolved == home / STATE_DIR_NAME:
         return True
     global_resolved = _resolved(global_state_dir())
     if global_resolved is not None and resolved == global_resolved:
@@ -181,7 +167,7 @@ def is_host_config_dir(path: Path) -> bool:
 
 # Root files whose prose marks a project that uses Moru Core.
 OPT_IN_FILES = ("AGENTS.md", "CLAUDE.md", "CODEX.md")
-OPT_IN_TOKENS = ("moru", "tao")
+OPT_IN_TOKENS = ("moru",)
 
 
 def marks_moru_project(path: Path) -> bool:
@@ -194,7 +180,7 @@ def marks_moru_project(path: Path) -> bool:
     """
     if is_host_config_dir(path):
         return False
-    if any(is_project_state_dir(path / name) for name in (MORU_STATE_DIR_NAME, STATE_DIR_NAME)):
+    if is_project_state_dir(path / STATE_DIR_NAME):
         return True
     for name in OPT_IN_FILES:
         try:
@@ -229,12 +215,7 @@ def prefer_git_root(candidates: list[Path]) -> Path | None:
     return candidates[0] if candidates else None
 
 def project_state_dir_target(project: Path) -> Path:
-    """Keep run evidence in an unmigrated ``.tao``; everything else uses ``.moru``."""
-    moru = project / MORU_STATE_DIR_NAME
-    legacy = project / STATE_DIR_NAME
-    if (moru / MORU_STATE_READY_MARKER).is_file() or not legacy.is_dir():
-        return moru
-    return legacy
+    return project / STATE_DIR_NAME
 
 
 STATE_DIR_IGNORE = """\
@@ -253,7 +234,7 @@ STATE_DIR_IGNORE = """\
 
 
 def ensure_local_only_state_dir(project: Path) -> Path:
-    """Create ``<project>/.tao`` already ignored by Git, and return it.
+    """Create ``<project>/.moru`` already ignored by Git, and return it.
 
     Callers create this directory implicitly by writing evidence into it, which
     is why the ignore rule has to be established by whoever opens the run rather
@@ -270,11 +251,6 @@ def ensure_local_only_state_dir(project: Path) -> Path:
     ignore_path = state_dir / ".gitignore"
     if not ignore_path.exists():
         ignore_path.write_text(STATE_DIR_IGNORE, encoding="utf-8")
-    if state_dir.name == MORU_STATE_DIR_NAME:
-        # Readers that look for the marker treat this tree as the live one.
-        ready = state_dir / MORU_STATE_READY_MARKER
-        if not ready.exists():
-            ready.write_text("", encoding="utf-8")
     return state_dir
 
 

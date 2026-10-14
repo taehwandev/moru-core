@@ -15,70 +15,27 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from support.stable_launcher import (
     ensure_stable_launcher,
-    moru_launcher_path,
-    moru_root_pointer_path,
-    preferred_launcher_path,
+    stable_launcher_path,
+    stable_root_pointer_path,
+    stable_launcher_path,
     stable_launcher_path,
     stable_root_pointer_path,
 )
 
 
 class StableLauncherTests(unittest.TestCase):
-    def test_ready_global_state_prefers_moru_launcher(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_home:
-            with patch.dict(os.environ, {"HOME": temporary_home}):
-                # A new install has no legacy launcher to keep using.
-                self.assertEqual(moru_launcher_path(), preferred_launcher_path())
-                (Path(temporary_home) / ".tao").mkdir()
-                self.assertEqual(stable_launcher_path(), preferred_launcher_path())
-                state = Path(temporary_home) / ".moru"
-                state.mkdir()
-                (state / "state-ready").write_text("ready\n")
-                self.assertEqual(moru_launcher_path(), preferred_launcher_path())
-
-    def test_new_and_legacy_launchers_share_a_root(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_home:
-            with patch.dict(os.environ, {"HOME": temporary_home}):
-                first = ensure_stable_launcher(ROOT, dry_run=False)
-                old_launcher = stable_launcher_path()
-                new_launcher = moru_launcher_path()
-                old_pointer = stable_root_pointer_path()
-                new_pointer = moru_root_pointer_path()
-                self.assertEqual({"installed"}, {row["status"] for row in first})
-                self.assertEqual(f"{ROOT.resolve()}\n", old_pointer.read_text())
-                self.assertEqual(old_pointer.read_text(), new_pointer.read_text())
-                self.assertTrue(os.access(old_launcher, os.X_OK))
-                self.assertTrue(os.access(new_launcher, os.X_OK))
-                self.assertIn('os.environ.get("TAO_" + name[len("MORU_"):])', old_launcher.read_text())
-                self.assertIn('STATE_DIR_NAME = ".moru"', new_launcher.read_text())
-                self.assertIn('os.environ.setdefault("MORU_HOME", str(root))', new_launcher.read_text())
-                self.assertEqual({"ok"}, {
-                    row["status"] for row in ensure_stable_launcher(ROOT, dry_run=True)
-                })
-
-                environment = dict(os.environ)
-                environment.pop("MORU_HOME", None)
-                environment.pop("TAO_HOME", None)
-                result = subprocess.run(
-                    [str(new_launcher), "workflow", "validate"],
-                    cwd=temporary_home, env=environment, capture_output=True,
-                    text=True, check=False,
-                )
-                self.assertEqual(0, result.returncode, result.stderr)
-                self.assertIn("OK:", result.stdout)
-
     def test_launcher_resolves_the_dynamic_home_root_pointer(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_home:
             with patch.dict(os.environ, {"HOME": temporary_home}):
                 ensure_stable_launcher(ROOT, dry_run=False)
                 launcher = stable_launcher_path()
                 pointer = stable_root_pointer_path()
-                expected_root = Path(temporary_home) / ".tao"
+                expected_root = Path(temporary_home) / ".moru"
 
-                self.assertEqual(expected_root / "bin" / "tao-hook", launcher)
-                self.assertEqual(expected_root / "tao-root", pointer)
+                self.assertEqual(expected_root / "bin" / "moru-hook", launcher)
+                self.assertEqual(expected_root / "moru-root", pointer)
 
-                pointer.write_text("/missing/tao-agent-os\n", encoding="utf-8")
+                pointer.write_text("/missing/moru-core\n", encoding="utf-8")
                 environment = dict(os.environ)
                 environment["MORU_HOOK_SOFT_FAIL"] = "1"
                 result = subprocess.run(
@@ -98,7 +55,7 @@ class StableLauncherTests(unittest.TestCase):
 class SharedRootIsNotDowngradedTests(unittest.TestCase):
     """The pointer must not be aimed at a checkout that is about to vanish.
 
-    Every runtime on the machine reads `~/.tao/tao-root`, so pointing it at a
+    Every runtime on the machine reads `~/.moru/moru-root`, so pointing it at a
     task worktree leaves the bridge dangling the moment that task is cleaned
     up -- and the repair then needs the tooling the pointer no longer finds.
     It happens by accident, because running the installer from a worktree is
@@ -116,10 +73,10 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         base = Path(self.temporary_directory.name)
         self.home = base / "home"
-        (self.home / ".tao").mkdir(parents=True)
-        self.durable = base / "tao-agent-os"
-        (self.durable / ".tao").mkdir(parents=True)
-        self.worktree = self.durable / ".tao" / "worktrees" / "abc123def4567890"
+        (self.home / ".moru").mkdir(parents=True)
+        self.durable = base / "moru-core"
+        (self.durable / ".moru").mkdir(parents=True)
+        self.worktree = self.durable / ".moru" / "worktrees" / "abc123def4567890"
         self.worktree.mkdir(parents=True)
 
     def tearDown(self) -> None:
@@ -131,7 +88,7 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
         return str(results[0]["status"])
 
     def _point_at(self, target: Path) -> None:
-        (self.home / ".tao" / "tao-root").write_text(f"{target}\n", encoding="utf-8")
+        (self.home / ".moru" / "moru-root").write_text(f"{target}\n", encoding="utf-8")
 
     def test_a_durable_root_is_not_replaced_by_a_worktree(self) -> None:
         self._point_at(self.durable)
@@ -140,16 +97,8 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
         # And the pointer is left as it was, not half-written.
         self.assertEqual(
             f"{self.durable}\n",
-            (self.home / ".tao" / "tao-root").read_text(encoding="utf-8"),
+            (self.home / ".moru" / "moru-root").read_text(encoding="utf-8"),
         )
-
-    def test_moru_pointer_is_not_replaced_by_a_worktree(self) -> None:
-        new_pointer = self.home / ".moru" / "moru-root"
-        new_pointer.parent.mkdir(parents=True)
-        new_pointer.write_text(f"{self.durable}\n", encoding="utf-8")
-
-        self.assertEqual("blocked", self._install(self.worktree))
-        self.assertEqual(f"{self.durable}\n", new_pointer.read_text())
 
     def test_a_first_install_from_a_worktree_still_works(self) -> None:
         # Nothing to lose: developing Moru in a worktree against a throwaway
@@ -162,7 +111,7 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
 
     def test_one_worktree_may_replace_another(self) -> None:
         # The pointer is already disposable; this loses nothing new.
-        other = self.durable / ".tao" / "worktrees" / "0123456789abcdef"
+        other = self.durable / ".moru" / "worktrees" / "0123456789abcdef"
         other.mkdir(parents=True)
         self._point_at(other)
 
@@ -171,7 +120,7 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
     def test_a_pointer_naming_a_vanished_checkout_is_replaceable(self) -> None:
         """A dangling pointer is the damage, not something worth preserving."""
 
-        self._point_at(self.durable / ".tao" / "worktrees" / "deletedaaaaaaaaa")
+        self._point_at(self.durable / ".moru" / "worktrees" / "deletedaaaaaaaaa")
 
         self.assertNotEqual("blocked", self._install(self.worktree))
 
@@ -184,7 +133,7 @@ class SharedRootIsNotDowngradedTests(unittest.TestCase):
         # temporary directory sits behind a symlink on macOS.
         self.assertEqual(
             self.durable.resolve(),
-            Path((self.home / ".tao" / "tao-root").read_text(encoding="utf-8").strip()),
+            Path((self.home / ".moru" / "moru-root").read_text(encoding="utf-8").strip()),
         )
 
 
@@ -203,8 +152,8 @@ class LauncherRunsTheScriptInProcessTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         base = Path(self.temporary_directory.name)
         self.home = base / "home"
-        (self.home / ".tao").mkdir(parents=True)
-        self.root = base / "tao-agent-os"
+        (self.home / ".moru").mkdir(parents=True)
+        self.root = base / "moru-core"
         (self.root / "scripts").mkdir(parents=True)
         (self.root / "AGENTS.md").write_text("markers only\n", encoding="utf-8")
         (self.root / "index.md").write_text("markers only\n", encoding="utf-8")

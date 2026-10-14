@@ -51,7 +51,7 @@ class _Fixture(unittest.TestCase):
     def _project(self, name: str, *, policy: bool) -> Path:
         root = self.base / name
         (root / ".git").mkdir(parents=True)
-        (root / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (root / "AGENTS.md").write_text("Uses moru-hook.\n")
         if policy:
             shared = root / ".agents" / "shared"
             shared.mkdir(parents=True)
@@ -199,7 +199,7 @@ class QuotedTextTests(_Fixture):
         self.assertIn(str(self.tao), reason)
 
     def test_a_commit_message_names_no_checkout(self) -> None:
-        """Observed: a keyflow-cli commit refused as a write into tao-agent-os,
+        """Observed: a keyflow-cli commit refused as a write into moru-core,
         because its message mentioned `$MORU_HOME`."""
 
         def command(checkout: Path) -> str:

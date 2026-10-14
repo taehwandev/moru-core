@@ -46,15 +46,6 @@ class _TempGitRepoTestCase(unittest.TestCase):
 
 
 class CreateWorkerWorktreeTests(_TempGitRepoTestCase):
-    def test_migrated_project_uses_moru_creation_lock(self) -> None:
-        state = self.project / ".moru"
-        state.mkdir()
-        (state / "state-ready").write_text("ready\n")
-
-        with _creation_lock(self.project):
-            self.assertTrue((state / "worktree-session.lock").is_file())
-            self.assertFalse((self.project / ".tao").exists())
-
     def test_create_makes_an_isolated_worktree_from_head(self) -> None:
         base_ref = resolve_base_ref(self.project)
         worktree_path = new_worktree_path(self.project)

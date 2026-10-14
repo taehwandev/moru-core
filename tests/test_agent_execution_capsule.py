@@ -1511,48 +1511,6 @@ class ExecutionCapsuleTests(unittest.TestCase):
             ),
         )
 
-    def test_migrated_runs_link_is_valid_project_evidence(self) -> None:
-        migrated_runs = self.project / ".moru" / "runs"
-        migrated_runs.mkdir(parents=True)
-        (self.project / ".moru" / "state-ready").touch()
-        (self.project / ".tao").mkdir(exist_ok=True)
-        (self.project / ".tao" / "runs").symlink_to(Path("../.moru/runs"))
-        evidence = self.project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
-        evidence.parent.mkdir(parents=True)
-        evidence.write_text(self.evidence_path.read_text(encoding="utf-8"), encoding="utf-8")
-
-        self.assertEqual(
-            [],
-            preflight_identity_failures(evidence, self.project.resolve(), self.rules.resolve()),
-        )
-
-    def test_new_moru_run_needs_no_legacy_runs_link(self) -> None:
-        runs = self.project / ".moru" / "runs"
-        runs.mkdir(parents=True)
-        (self.project / ".moru" / "state-ready").touch()
-        evidence = runs / ("b" * 32) / "preflight.json"
-        evidence.parent.mkdir()
-        evidence.write_text(self.evidence_path.read_text(encoding="utf-8"), encoding="utf-8")
-
-        self.assertEqual(
-            [],
-            preflight_identity_failures(evidence, self.project.resolve(), self.rules.resolve()),
-        )
-
-    def test_migrated_runs_link_requires_ready_marker(self) -> None:
-        migrated_runs = self.project / ".moru" / "runs"
-        migrated_runs.mkdir(parents=True)
-        (self.project / ".tao").mkdir(exist_ok=True)
-        (self.project / ".tao" / "runs").symlink_to(Path("../.moru/runs"))
-        evidence = self.project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
-        evidence.parent.mkdir(parents=True)
-        evidence.write_text(self.evidence_path.read_text(encoding="utf-8"), encoding="utf-8")
-
-        self.assertIn(
-            "execution capsule preflight evidence is outside the current project evidence root",
-            preflight_identity_failures(evidence, self.project.resolve(), self.rules.resolve()),
-        )
-
     def test_validation_detects_stale_project_and_rules_heads(self) -> None:
         capsule = refresh_execution_capsule(self.project, self.rules, self.evidence_path, self.route)
 

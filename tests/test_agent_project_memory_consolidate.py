@@ -58,7 +58,7 @@ class ConsolidateTests(unittest.TestCase):
         report = self.report()
         self.assertEqual([], report["expired"] + report["expiring"] + report["duplicate_groups"])
         self.assertEqual(0, report["unreadable"])
-        self.assertEqual("", summary_line(report, self.project, "tao-hook"))
+        self.assertEqual("", summary_line(report, self.project, "moru-hook"))
 
     def test_expired_and_expiring_follow_the_review_date(self) -> None:
         expired = self.write("Due today", days=0)
@@ -132,10 +132,10 @@ class ConsolidateTests(unittest.TestCase):
         self.write("Confidential guidance body.", days=0)
         self.write("Same source body.", source="shared", days=90)
         self.write("Other source body.", source="shared", days=90)
-        line = summary_line(self.report(), self.project, "/home/u/.tao/bin/tao-hook")
+        line = summary_line(self.report(), self.project, "/home/u/.moru/bin/moru-hook")
         self.assertEqual(
             "Project memory upkeep: expired=1 expiring=0 duplicates=0 shared_source=1 "
-            f"unfinished=0 -> /home/u/.tao/bin/tao-hook project-memory --project {self.project} "
+            f"unfinished=0 -> /home/u/.moru/bin/moru-hook project-memory --project {self.project} "
             "consolidate",
             line,
         )

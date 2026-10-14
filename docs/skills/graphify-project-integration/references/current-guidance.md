@@ -121,7 +121,7 @@ output selection, interpreter detection, resource limits, and extraction stay
 unchanged; this operation neither builds a graph nor claims graph readiness.
 
 Only the recognized Graphify checkout block changes. The original hook is
-preserved once beside it as `post-checkout.tao-before-repair`, and unrelated
+preserved once beside it as `post-checkout.moru-before-repair`, and unrelated
 hook bytes and executable permissions remain intact. Unknown or modified
 templates, symlink hooks, and external `core.hooksPath` targets are refused.
 Git's shared hook directory means an explicit repair from a linked worktree

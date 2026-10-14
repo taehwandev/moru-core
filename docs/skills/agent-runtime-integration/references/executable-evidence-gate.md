@@ -58,7 +58,7 @@ with arguments, any change to those arguments (e.g., different project paths or
 options) will fail prefix matching and trigger repeated prompts.
 For Codex `exec_command` escalations, set `prefix_rule` to only the executable
 and resolved wrapper path, such as
-`["/Users/USER/.tao/bin/moru-hook"]`; never
+`["/Users/USER/.moru/bin/moru-hook"]`; never
 include `--project`, `--request`, `--gate-record`, `$(pwd)`, `$HOME`, or other runtime
 arguments in the saved prefix. AGY (Antigravity) permission allowlists must follow the same
 shape with only an absolute wrapper command plus a trailing argument wildcard.
@@ -78,7 +78,7 @@ hook command does not point at a stale checkout path.
 ```
 
 Omit `--evidence` unless a run genuinely needs a path of its own: start then
-mints `<TARGET_REPO>/.tao/runs/<32-hex-run-id>/preflight.json`, and only a run
+mints `<TARGET_REPO>/.moru/runs/<32-hex-run-id>/preflight.json`, and only a run
 directory named by that opaque id can hold a continuation packet. That packet
 starts out holding the route name and nothing else; `moru-hook checkpoint
 --work-stdin` is what puts the objective, non-goals, decisions, changed and
@@ -91,8 +91,8 @@ costs the run every checkpoint and makes `moru-hook resume` unable to continue
 it, so start refuses that name rather than losing the packets quietly.
 
 Keep `--output`, `--evidence`, and every custom evidence path inside
-`<TARGET_REPO>/.tao/`. For temporary worktrees, use a project-local path
-such as `<TARGET_REPO>/.tao/runs/<32-hex-run-id>/preflight.json`; a sibling
+`<TARGET_REPO>/.moru/`. For temporary worktrees, use a project-local path
+such as `<TARGET_REPO>/.moru/runs/<32-hex-run-id>/preflight.json`; a sibling
 temporary directory is outside the execution-capsule trust boundary and will
 make the finish check fail even when every route gate passed. The start hook
 rejects an explicit `--evidence` path outside the target project's
@@ -240,7 +240,7 @@ recorded through `gate` or `gate-batch`.
 Call `<MORU_LAUNCHER> agent-finish-check` directly only as a lower-level diagnostic or
 compatibility fallback when the finish hook is unavailable.
 
-The wrappers write local JSON evidence under `<TARGET_REPO>/.tao/`.
+The wrappers write local JSON evidence under `<TARGET_REPO>/.moru/`.
 Evidence-owner discovery reads existing ancestor registry snapshots without
 creating lock files there. Unrelated ancestors need no write permission merely
 to discover the owner. Registry JSON is atomically replaced; a matching snapshot
@@ -248,13 +248,13 @@ is only a candidate, and ledger mutation still locks the selected project and
 revalidates its current claim. Ambiguous, unreadable or malformed registry state
 must not silently bypass ownership. This does not remove permission requirements
 for actual target writes or user-global state.
-The gate ledger is `<TARGET_REPO>/.tao/gate-evidence.json` for the
+The gate ledger is `<TARGET_REPO>/.moru/gate-evidence.json` for the
 default `preflight.json`; custom preflight evidence files use
 `<preflight-stem>-gate-evidence.json` so concurrent or delegated runs do not
 overwrite one another.
 That directory is local runtime evidence and should usually be gitignored.
 Generated runtime caches and copied local skill caches also belong under the
-ignored `<TARGET_REPO>/.tao/` boundary. Workflow document validation must
+ignored `<TARGET_REPO>/.moru/` boundary. Workflow document validation must
 exclude that boundary, and review-time checks must not create legacy sibling
 state directories that appear as source changes.
 The wrappers may also read or write safe cross-agent lessons under

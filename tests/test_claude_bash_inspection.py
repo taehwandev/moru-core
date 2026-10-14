@@ -81,7 +81,7 @@ STILL_REFUSED = {
     "json.tool unknown option": "python3 -m json.tool --output x a.json",
     "isolated json.tool output file": "python3 -I -m json.tool in.json out.json",
     "tar extract": "tar -xzf backup.tgz",
-    "tar create": "tar -czf backup.tgz .tao",
+    "tar create": "tar -czf backup.tgz .moru",
     "tar list with program": "tar -tzf backup.tgz --to-command=sh",
     "unzip extract": "unzip animation-sources.jar",
     "unzip extraction directory": "unzip -p animation-sources.jar -d extracted",
@@ -229,7 +229,7 @@ class GateTests(unittest.TestCase):
         os.environ[STATE_HOME_ENV] = str(Path(self._tmp.name) / "state")
         self.project = Path(self._tmp.name) / "proj"
         (self.project / ".moru").mkdir(parents=True)
-        (self.project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+        (self.project / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
 
     def tearDown(self) -> None:
         if self._outer is None:

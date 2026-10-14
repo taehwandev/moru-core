@@ -106,7 +106,7 @@ class NoticeClaudeAskOverridesTest(unittest.TestCase):
             with patch("support.claude_setup.Path.home", return_value=home), redirect_stderr(stderr):
                 configure_claude(
                     False, root=ROOT, scripts_dir=ROOT / "scripts",
-                    launcher_path=home / "bin" / "tao-hook", spill_available=False,
+                    launcher_path=home / "bin" / "moru-hook", spill_available=False,
                 )
 
             self.assertIn("Bash(git stash:*)", stderr.getvalue())

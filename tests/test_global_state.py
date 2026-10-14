@@ -20,7 +20,7 @@ def _env_without_test_markers() -> dict[str, str]:
     return {
         key: value
         for key, value in os.environ.items()
-        if key not in {global_state.STATE_HOME_ENV, global_state.MORU_STATE_HOME_ENV, global_state.UNDER_TEST_ENV}
+        if key not in {global_state.STATE_HOME_ENV, global_state.UNDER_TEST_ENV}
     }
 
 
@@ -64,39 +64,6 @@ class MoruStateSelectionTest(unittest.TestCase):
             with patch.object(Path, "home", return_value=home):
                 self.assertTrue(global_state.is_global_state_dir(home / ".moru"))
                 self.assertFalse(global_state.marks_moru_project(home))
-
-    def test_project_switches_only_after_explicit_migration(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            project = Path(directory)
-            # A project with no legacy tree starts in `.moru`.
-            self.assertEqual(project / ".moru", global_state.project_state_dir_target(project))
-            (project / ".tao").mkdir()
-            self.assertEqual(project / ".tao", global_state.project_state_dir_target(project))
-            (project / ".moru").mkdir()
-            self.assertEqual(project / ".tao", global_state.project_state_dir_target(project))
-            (project / ".moru" / global_state.MORU_STATE_READY_MARKER).touch()
-            self.assertEqual(project / ".moru", global_state.project_state_dir_target(project))
-
-    def test_global_state_waits_for_migration_marker(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            home = Path(directory)
-            with (patch.object(Path, "home", return_value=home),
-                  patch.dict(os.environ, _env_without_test_markers(), clear=True)):
-                # A new install has no legacy records to wait for.
-                self.assertEqual(home / ".moru", global_state.global_state_dir())
-                (home / ".tao").mkdir()
-                (home / ".moru").mkdir()
-                self.assertEqual(home / ".tao", global_state.global_state_dir())
-                (home / ".moru" / global_state.MORU_STATE_READY_MARKER).touch()
-                self.assertEqual(home / ".moru", global_state.global_state_dir())
-
-    def test_explicit_moru_override_precedes_legacy_override(self) -> None:
-        with patch.dict(os.environ, {
-            global_state.STATE_HOME_ENV: "/tmp/old-state",
-            global_state.MORU_STATE_HOME_ENV: "/tmp/new-state",
-        }):
-            self.assertEqual(Path("/tmp/new-state"), global_state.global_state_dir())
-            self.assertEqual("", global_state.user_store_write_error())
 
 
 if __name__ == "__main__":

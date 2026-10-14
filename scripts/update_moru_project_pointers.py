@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from support import legacy_names
+
 FILES = (
     "AGENTS.md", "CLAUDE.md", "CODEX.md", "GEMINI.md", "VIBEGUARD.md",
     ".vibeguard.json", ".claude/settings.json",
@@ -19,17 +21,28 @@ HOME_FILES = (
     ".antigravitycli/AGENTS.md", ".antigravity-ide/AGENTS.md",
 )
 HOME = str(Path.home())
+_OLD_CHECKOUT = legacy_names.CHECKOUT_DIR
+_OLD_LAUNCHER = f"{legacy_names.STATE_DIR}/bin/{legacy_names.LAUNCHER}"
 REPLACEMENTS = (
-    ("https://github.com/taehwandev/tao-agent-os", "https://github.com/taehwandev/moru-core"),
-    (f"{HOME}/git/tao-agent-os", f"{HOME}/git/moru-core"),
-    ("$HOME/git/tao-agent-os", "$HOME/git/moru-core"),
-    ("~/git/tao-agent-os", "~/git/moru-core"),
-    ("/Users/.../tao-agent-os", "/Users/.../moru-core"),
-    (".agents/tao-agent-os", ".agents/moru-core"),
-    (f"{HOME}/.tao/bin/tao-hook", f"{HOME}/.moru/bin/moru-hook"),
-    ("~/.tao/bin/tao-hook", "~/.moru/bin/moru-hook"),
-    ("<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->", "<!-- BEGIN MANAGED MORU CORE ROUTING -->"),
-    ("<!-- END MANAGED TAO AGENT OS ROUTING -->", "<!-- END MANAGED MORU CORE ROUTING -->"),
+    (f"https://github.com/taehwandev/{_OLD_CHECKOUT}", "https://github.com/taehwandev/moru-core"),
+    (f"{HOME}/git/{_OLD_CHECKOUT}", f"{HOME}/git/moru-core"),
+    (f"$HOME/git/{_OLD_CHECKOUT}", "$HOME/git/moru-core"),
+    (f"~/git/{_OLD_CHECKOUT}", "~/git/moru-core"),
+    (f"/Users/.../{_OLD_CHECKOUT}", "/Users/.../moru-core"),
+    (f".agents/{_OLD_CHECKOUT}", ".agents/moru-core"),
+    (f"{HOME}/{_OLD_LAUNCHER}", f"{HOME}/.moru/bin/moru-hook"),
+    (f"~/{_OLD_LAUNCHER}", "~/.moru/bin/moru-hook"),
+    (f"$HOME/{_OLD_LAUNCHER}", "$HOME/.moru/bin/moru-hook"),
+    (legacy_names.ROUTING_BEGIN, "<!-- BEGIN MANAGED MORU CORE ROUTING -->"),
+    (legacy_names.ROUTING_END, "<!-- END MANAGED MORU CORE ROUTING -->"),
+    (f"<{legacy_names.ENV_PREFIX}LAUNCHER>", "<MORU_LAUNCHER>"),
+    (f"<{legacy_names.ENV_PREFIX}ROOT>", "<MORU_ROOT>"),
+    (f"${{{legacy_names.ENV_PREFIX}HOME}}", "${MORU_HOME}"),
+    (f"${legacy_names.ENV_PREFIX}HOME", "$MORU_HOME"),
+    (legacy_names.HOOK_SOFT_FAIL, "MORU_HOOK_SOFT_FAIL=1"),
+    (f"/{legacy_names.STATE_DIR}/worktrees", "/.moru/worktrees"),
+    (f"cd {legacy_names.STATE_DIR}/worktrees", "cd .moru/worktrees"),
+    ("Tao Agent OS", "Moru Core"),
 )
 
 

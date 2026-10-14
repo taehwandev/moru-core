@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import argparse
 import json
@@ -319,7 +318,7 @@ def build_parser(moru_root: Path) -> argparse.ArgumentParser:
         type=Path,
         help=(
             "parent preflight evidence whose execution capsule may honor "
-            "--request-classified; defaults to <project>/.tao/preflight.json"
+            "--request-classified; defaults to <project>/.moru/preflight.json"
         ),
     )
     parser.add_argument(
@@ -402,14 +401,14 @@ def claim_worker_evidence_reservation(
 
 
 def _enforce_worker_environment(args: argparse.Namespace) -> None:
-    enforcement = env_get("MORU_CAPABILITY_ENFORCEMENT", "")
-    if env_get("MORU_PARENT_EVIDENCE_READONLY") == "1":
+    enforcement = os.environ.get("MORU_CAPABILITY_ENFORCEMENT", "")
+    if os.environ.get("MORU_PARENT_EVIDENCE_READONLY", "") == "1":
         if enforcement != "parent-evidence-readonly":
             raise ValueError("reusable worker is missing parent-evidence-readonly enforcement")
         raise ValueError(
             "this worker received a reusable parent capsule and cannot create or overwrite parent evidence"
         )
-    expected = env_get("MORU_WORKER_EVIDENCE")
+    expected = os.environ.get("MORU_WORKER_EVIDENCE", "")
     if not expected:
         if enforcement and enforcement != "worker-evidence-and-state":
             raise ValueError("worker capability enforcement scope is unsupported")
@@ -420,7 +419,7 @@ def _enforce_worker_environment(args: argparse.Namespace) -> None:
     actual = args.evidence.expanduser().resolve() if args.evidence else None
     if actual != expected_path:
         raise ValueError("worker start must use the launcher-issued isolated evidence path")
-    expected_token = env_get("MORU_WORKER_RESERVATION_TOKEN", "")
+    expected_token = os.environ.get("MORU_WORKER_RESERVATION_TOKEN", "")
     if not expected_token or args.worker_reservation_token != expected_token:
         raise ValueError("worker start must use the launcher-issued single-use reservation token")
 

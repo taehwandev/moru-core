@@ -19,7 +19,7 @@ import claude_worktree_gate as worktree_gate
 def _opt_in_project(base: Path) -> Path:
     project = base / "proj"
     (project / ".moru").mkdir(parents=True)
-    (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+    (project / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
     return project
 
 

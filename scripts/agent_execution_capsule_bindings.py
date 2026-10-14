@@ -36,24 +36,8 @@ def preflight_identity_failures(
     if recorded_rules != rules:
         failures.append("execution capsule preflight rules identity does not match")
     resolved_evidence = evidence_path.resolve()
-    legacy_root = project / ".tao"
-    migrated_state = project / ".moru"
-    migrated_runs = migrated_state / "runs"
-    migrated_state_ready = (
-        (migrated_state / "state-ready").is_file()
-        and not migrated_state.is_symlink()
-        and migrated_runs.is_dir()
-        and not migrated_runs.is_symlink()
-    )
-    in_legacy_root = resolved_evidence.is_relative_to(legacy_root)
-    in_migrated_runs = migrated_state_ready and resolved_evidence.is_relative_to(migrated_runs)
-    # A project that never had a legacy tree starts directly in `.moru`.
-    in_new_state = (
-        not legacy_root.exists()
-        and not migrated_state.is_symlink()
-        and resolved_evidence.is_relative_to(migrated_state)
-    )
-    if not in_legacy_root and not in_migrated_runs and not in_new_state:
+    state = project / ".moru"
+    if state.is_symlink() or not resolved_evidence.is_relative_to(state):
         failures.append(
             "execution capsule preflight evidence is outside the current project evidence root"
         )

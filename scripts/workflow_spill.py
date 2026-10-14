@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import os
 import re
@@ -40,7 +39,7 @@ REQUIRED_SPILL_ACTION_LABELS = {
 def spill_tool_label(env: dict[str, str] | None = None) -> str:
     values = env if env is not None else os.environ
 
-    explicit_tool = _normal_tool_label(values.get("MORU_AI_TOOL") or values.get("TAO_AI_TOOL", ""))
+    explicit_tool = _normal_tool_label(values.get("MORU_AI_TOOL", ""))
     if explicit_tool:
         return explicit_tool
 
@@ -61,7 +60,7 @@ def _normal_tool_label(value: str) -> str:
 
 
 def spill_setup_helper_path() -> Path:
-    override = env_get(SPILL_HELPER_PATH_ENV, "")
+    override = os.environ.get(SPILL_HELPER_PATH_ENV, "")
     return Path(override) if override else DEFAULT_SPILL_SETUP_HELPER
 
 

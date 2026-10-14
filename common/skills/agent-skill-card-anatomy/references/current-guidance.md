@@ -2,7 +2,7 @@
 keyflow_id: sys_agent_skill_card_anatomy
 status: stable
 type: human-reviewed-needed
-tao_card_contract: strict
+moru_card_contract: strict
 ---
 
 # Agent Skill Card Anatomy

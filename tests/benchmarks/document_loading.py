@@ -218,7 +218,7 @@ if __name__ == "__main__":
                                   stdout=subprocess.PIPE, text=True).stdout.strip()
         archive = subprocess.run(["git", "-C", str(PROJECT), "archive", revision],
                                  check=True, stdout=subprocess.PIPE).stdout
-        with tempfile.TemporaryDirectory(prefix="tao-health-bench-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="moru-health-bench-") as tmp:
             roots = {name: Path(tmp).resolve() / name for name in ("before", "current")}
             for name, root in roots.items():
                 root.mkdir()

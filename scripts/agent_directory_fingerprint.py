@@ -14,6 +14,7 @@ from agent_worktree_scan import (
     hash_component,
     hash_file_component,
 )
+from support import legacy_names
 
 
 DIRECTORY_STATE_HEAD = "non-git-directory-v1"
@@ -22,7 +23,7 @@ MAX_DIRECTORY_BYTES = 512 * 1024 * 1024
 MAX_CAPTURE_ATTEMPTS = 2
 EXCLUDED_DIRECTORY_NAMES = frozenset(
     {
-        ".tao",
+        legacy_names.STATE_DIR,
         ".moru",
         ".git",
         ".mypy_cache",

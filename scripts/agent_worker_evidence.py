@@ -11,15 +11,11 @@ from agent_gate_evidence import gate_evidence_path_for_preflight
 from support.global_state import project_state_dir_target
 
 
-LEGACY_RESERVATION_FILENAME = ".tao-reservation"
 MORU_RESERVATION_FILENAME = ".moru-reservation"
 
 
 def _reservation_paths(worker_dir: Path) -> tuple[Path, ...]:
-    legacy = worker_dir / LEGACY_RESERVATION_FILENAME
-    if worker_dir.parent.parent.name == ".moru":
-        return (worker_dir / MORU_RESERVATION_FILENAME, legacy)
-    return (legacy,)
+    return (worker_dir / MORU_RESERVATION_FILENAME,)
 
 
 def _check_no_symlink(path: Path) -> None:

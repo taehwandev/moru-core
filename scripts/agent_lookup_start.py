@@ -9,7 +9,6 @@ their existing lifecycle boundary.
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import argparse
 import json
@@ -29,7 +28,7 @@ def lookup_start(args: argparse.Namespace) -> int | None:
 
     if args.hook != "start":
         return None
-    if any(env_get(name) for name in (
+    if any(os.environ.get(name, "") for name in (
         "MORU_PARENT_EVIDENCE_READONLY", "MORU_WORKER_EVIDENCE",
     )) or args.worker_reservation_token:
         return None

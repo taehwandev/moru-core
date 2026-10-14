@@ -121,20 +121,6 @@ class DirtyCheckoutIsKeptTests(_Repository):
 
 
 class UnsettledRunIsKeptTests(_Repository):
-    def test_migrated_registry_and_packet_keep_checkout_visible(self) -> None:
-        _write_registry(self.task, "running")
-        run_id = "0" * 32
-        packet = self.task / ".moru" / "runs" / run_id / "continuation.json"
-        packet.parent.mkdir(parents=True)
-        packet.write_text(json.dumps({"work": {"remaining_work": ["finish task"]}}))
-        (self.task / ".moru").rename(self.task / ".moru")
-        (self.task / ".moru" / "state-ready").write_text("ready\n")
-
-        self.assertIn(self.task, checkouts_with_run_state(self.main))
-        self.assertEqual(["running"], unsettled_run_states(self.task))
-        self.assertTrue(checkout_keeps_unfinished_work(self.task, run_id))
-        self.assertIn("running", checkout_removal_hazard(self.task))
-
     def test_active_run_on_merged_looking_branch_refuses_even_plain_remove(self) -> None:
         # Clean as far as git can tell, and its branch is an ancestor of main.
         _write_registry(self.task, "completed", "running")

@@ -17,8 +17,8 @@ def _without_moru_scripts(entries: list[str]) -> list[str]:
     library, already imported above.
     """
     scripts = Path(__file__).resolve().parent
-    tao = {scripts, scripts / "support"}
-    return [entry for entry in entries if Path(entry or ".").resolve() not in tao]
+    own = {scripts, scripts / "support"}
+    return [entry for entry in entries if Path(entry or ".").resolve() not in own]
 
 
 def main() -> int:

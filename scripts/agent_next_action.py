@@ -24,7 +24,7 @@ from agent_runtime_session import resolve_runtime_evidence, runtime_session
 from agent_skill_catalog import skill_ids_from_doc_paths
 from agent_start_guidance import review_shape_line
 from support.bounded_git import run_git
-from support.stable_launcher import moru_launcher_path, stable_launcher_path
+from support.stable_launcher import stable_launcher_path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -48,7 +48,7 @@ def discover_changed_paths(project: Path) -> list[str]:
         if " -> " in candidate:
             candidate = candidate.split(" -> ", 1)[1].strip()
         candidate = candidate.strip('"')
-        if candidate and not candidate.startswith((".tao/", ".moru/")):
+        if candidate and not candidate.startswith(".moru/"):
             paths.append(candidate)
     return sorted(dict.fromkeys(paths))
 
@@ -141,7 +141,7 @@ def _build_gate_batch_command(
 def inspect_next_action(project: Path, *, evidence: Path | None = None) -> dict[str, Any]:
     """Compute the exact next lifecycle step and copyable command for a project."""
     resolved = project.expanduser().resolve()
-    launcher = str(moru_launcher_path() if moru_launcher_path().exists() else stable_launcher_path())
+    launcher = str(stable_launcher_path())
     preflight_path = _find_active_preflight(resolved, evidence)
     verification = suggest_verification_targets(resolved)
 

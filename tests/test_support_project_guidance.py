@@ -21,7 +21,7 @@ class ProjectGuidanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
             target = project / 'AGENTS.md'
-            original = 'user before\n<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n' + OLD + '\n<!-- END MANAGED TAO AGENT OS ROUTING -->\nuser after\n' + OLD
+            original = 'user before\n<!-- BEGIN MANAGED MORU CORE ROUTING -->\n' + OLD + '\n<!-- END MANAGED MORU CORE ROUTING -->\nuser after\n' + OLD
             target.write_text(original)
             self.assertEqual('missing', refresh_project_guidance(project, ROOT, dry_run=True)['status'])
             self.assertEqual(original, target.read_text())
@@ -45,7 +45,7 @@ class ProjectGuidanceTests(unittest.TestCase):
         return project
 
     def test_tracked_clean_guidance_is_not_backed_up(self):
-        original = '<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n' + OLD + '\n<!-- END MANAGED TAO AGENT OS ROUTING -->\n'
+        original = '<!-- BEGIN MANAGED MORU CORE ROUTING -->\n' + OLD + '\n<!-- END MANAGED MORU CORE ROUTING -->\n'
         with tempfile.TemporaryDirectory() as tmp:
             project = self._git_project(tmp, original)
             self.assertEqual('installed', refresh_project_guidance(project, ROOT, dry_run=False)['status'])
@@ -53,7 +53,7 @@ class ProjectGuidanceTests(unittest.TestCase):
             self.assertFalse((project / 'AGENTS.md.moru-backup').exists())
 
     def test_tracked_dirty_guidance_keeps_its_backup(self):
-        original = '<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n' + OLD + '\n<!-- END MANAGED TAO AGENT OS ROUTING -->\n'
+        original = '<!-- BEGIN MANAGED MORU CORE ROUTING -->\n' + OLD + '\n<!-- END MANAGED MORU CORE ROUTING -->\n'
         with tempfile.TemporaryDirectory() as tmp:
             project = self._git_project(tmp, original)
             dirty = 'local edit\n' + original
@@ -65,7 +65,7 @@ class ProjectGuidanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
             target = project / 'AGENTS.md'
-            for original in ('user instructions', '<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->custom<!-- END MANAGED TAO AGENT OS ROUTING -->'):
+            for original in ('user instructions', '<!-- BEGIN MANAGED MORU CORE ROUTING -->custom<!-- END MANAGED MORU CORE ROUTING -->'):
                 target.write_text(original)
                 with self.assertRaises(SetupConfigError):
                     refresh_project_guidance(project, ROOT, dry_run=False)

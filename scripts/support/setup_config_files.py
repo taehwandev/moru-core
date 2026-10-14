@@ -8,6 +8,7 @@ import re
 import stat
 import uuid
 from pathlib import Path
+from support import legacy_names
 
 
 def merge_codex_prefix_rules(
@@ -27,7 +28,8 @@ def merge_codex_prefix_rules(
     ])
     pattern = re.compile(
         # The block written before the Moru rename is replaced in place.
-        r"# (?:moru|tao)-hooks:begin[\s\S]*?# (?:moru|tao)-hooks:end\n?",
+        rf"# (?:moru-hooks|{legacy_names.RULES_BLOCK_NAME}):begin[\s\S]*?"
+        rf"# (?:moru-hooks|{legacy_names.RULES_BLOCK_NAME}):end\n?",
         re.MULTILINE,
     )
     generated_entries = set(entries) | set(cleanup_entries or [])

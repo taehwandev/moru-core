@@ -12,12 +12,13 @@ from support.runtime_bridge import (
 )
 from support.setup_config_files import merge_permissions_allow, quote, read_json, write_json
 from support.stable_launcher import stable_launcher_path
+from support import legacy_names
 
 AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES = runtime_bridge_required_phrases("Antigravity", "AGENTS.md")
 _STATUSLINE_ALIAS = "agy-statusline"
 _STATUSLINE_MARKER = "MORU_STATUSLINE=1"
 # The marker written before the Moru rename still identifies our own entry.
-_STATUSLINE_MARKERS = (_STATUSLINE_MARKER, "TAO_STATUSLINE=1")
+_STATUSLINE_MARKERS = (_STATUSLINE_MARKER, legacy_names.STATUSLINE_MARKER)
 
 
 def agy_runtime_bridge_targets(home: Path | None = None) -> tuple[tuple[str, Path], ...]:

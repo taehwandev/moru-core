@@ -10,7 +10,7 @@ type: human-reviewed-needed
 
 모루 코어는 AI 코딩 에이전트가 여러 저장소에서 재사용할 수 있는 작업 지침과 실행 근거 체계입니다. 작업 분류, 필요한 문서 선택, 검토, 검증, 인수인계 규칙을 제공합니다. 프로젝트 고유의 명령과 정책은 각 프로젝트의 지침 파일에 둡니다.
 
-이전 이름은 Moru Core입니다. 저장소 주소는 <https://github.com/taehwandev/moru-core>이며, 공개 사이트는 현재 <https://tao.thdev.app/>입니다. 상세한 운영·기여 지침은 [영문 README](README.md)와 [AGENTS.md](AGENTS.md)에 있습니다.
+이전 이름은 Tao Agent OS입니다. 저장소 주소는 <https://github.com/taehwandev/moru-core>이며, 공개 사이트는 현재 <https://tao.thdev.app/>입니다. 상세한 운영·기여 지침은 [영문 README](README.md)와 [AGENTS.md](AGENTS.md)에 있습니다.
 
 ## 사용 대상과 구성
 
@@ -54,7 +54,7 @@ git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
 
 저장소 이름은 `moru-core`입니다. `.moru-core`라는 기록 폴더를 사용하지 않습니다. 런타임 식별자는 Moru 이름을 씁니다: `~/.moru/bin/moru-hook` 런처, `MORU_*` 설정, `<MORU_ROOT>`/`<MORU_LAUNCHER>` 표기, `.moru` 기록, `moru_*` 에이전트 역할입니다. 새 설치와 새 프로젝트는 처음부터 이 이름을 사용합니다.
 
-호환 기간에는 이전 이름도 계속 동작합니다. `tao-hook`은 `moru-hook` 옆에 설치되어 있고, `MORU_*` 값이 없으면 `TAO_*` 값을 읽으며, 아직 옮기지 않은 `.tao` 기록은 `state-ready` 표시로 `.moru`가 선택될 때까지 그대로 사용합니다. setup은 자신이 이전에 쓴 블록, 역할, 권한 항목을 새 이름으로 교체합니다. 기존 `.tao` 기록을 이름만 보고 이동하거나 삭제하지 마세요.
+이전 이름은 더 이상 쓰지 않습니다. setup은 예전 setup이 그 이름으로 남긴 것(`tao-hook` 런처, 관리 블록, 역할, 권한 항목)을 지우고, `scripts/migrate_moru_local_state.py`는 남아 있는 `.tao` 기록 폴더를 링크 없이 `.moru`로 옮깁니다.
 
 현재 공개 사이트 주소 `tao.thdev.app`도 그대로입니다. 단계별 상태는 [이름 변경 계획](docs/migration/moru-rename.md)에 기록합니다.
 

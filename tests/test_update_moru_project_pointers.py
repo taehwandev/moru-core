@@ -1,14 +1,36 @@
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.update_moru_project_pointers import update_home_configs, update_project, updated_text
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+
+from update_moru_project_pointers import update_home_configs, update_project, updated_text  # noqa: E402
 
 
 class MoruProjectPointersTests(unittest.TestCase):
-    def test_updates_current_paths_without_changing_compatibility_variable(self) -> None:
+    def test_pre_rename_placeholders_markers_and_settings_become_moru(self) -> None:
+        source = (
+            "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n"
+            "<TAO_LAUNCHER> start --rules <TAO_ROOT> # Tao Agent OS\n"
+            "export X=${TAO_HOME}/a $TAO_HOME/b\n"
+            "TAO_HOOK_SOFT_FAIL=1 hook\n"
+            '"Read(/.tao/worktrees/**)", "Bash(cd .tao/worktrees/*)"\n'
+            "<!-- END MANAGED TAO AGENT OS ROUTING -->\n"
+        )
+        self.assertEqual(
+            "<!-- BEGIN MANAGED MORU CORE ROUTING -->\n"
+            "<MORU_LAUNCHER> start --rules <MORU_ROOT> # Moru Core\n"
+            "export X=${MORU_HOME}/a $MORU_HOME/b\n"
+            "MORU_HOOK_SOFT_FAIL=1 hook\n"
+            '"Read(/.moru/worktrees/**)", "Bash(cd .moru/worktrees/*)"\n'
+            "<!-- END MANAGED MORU CORE ROUTING -->\n",
+            updated_text(source),
+        )
+
+    def test_updates_current_paths(self) -> None:
         home = str(Path.home())
         source = (
             'MORU_ROOT="${MORU_HOME:-$HOME/git/tao-agent-os}"\n'

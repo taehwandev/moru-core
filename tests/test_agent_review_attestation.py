@@ -39,7 +39,7 @@ def load_finish_check_module():
 
 def initialize_repository(project: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=project, check=True)
-    (project / ".gitignore").write_text(".tao/\n.moru/\n", encoding="utf-8")
+    (project / ".gitignore").write_text(".moru/\n.moru/\n", encoding="utf-8")
     (project / "tracked.txt").write_text("initial\n", encoding="utf-8")
     subprocess.run(["git", "add", ".gitignore", "tracked.txt"], cwd=project, check=True)
     subprocess.run(
@@ -59,7 +59,7 @@ class ReviewAttestationTests(unittest.TestCase):
         self.evidence_path = self._write_preflight("a" * 32)
 
     def _write_preflight(self, run_id: str) -> Path:
-        evidence_path = self.project / ".tao" / "runs" / run_id / "preflight.json"
+        evidence_path = self.project / ".moru" / "runs" / run_id / "preflight.json"
         evidence_path.parent.mkdir(parents=True, exist_ok=True)
         preflight = {
             "agent_run_id": run_id,
@@ -127,28 +127,8 @@ class ReviewAttestationTests(unittest.TestCase):
         self.assertEqual([], failures)
         self.assertTrue(diagnostics["review_attestation"]["valid"])
 
-    def test_review_accepts_in_project_migrated_runs_link(self) -> None:
-        migrated = self.project / ".moru"
-        migrated.mkdir()
-        (migrated / "state-ready").write_text("ready\n", encoding="utf-8")
-        (self.project / ".tao" / "runs").rename(migrated / "runs")
-        (self.project / ".tao" / "runs").symlink_to("../.moru/runs", target_is_directory=True)
-
-        self._record_real_review()
-
-        self.assertEqual([], self._finish_merge()[2])
-
-    def test_review_rejects_foreign_migrated_runs_link(self) -> None:
-        with tempfile.TemporaryDirectory() as foreign_directory:
-            (self.project / ".tao" / "runs").rename(Path(foreign_directory) / "runs")
-            (self.project / ".tao" / "runs").symlink_to(
-                Path(foreign_directory) / "runs", target_is_directory=True
-            )
-            with self.assertRaisesRegex(ValueError, "inside the review project"):
-                self._record_real_review()
-
     def _record_scoped_review(self, *, staged: bool = False):
-        self.rules = self.project / ".tao" / "review-rules"
+        self.rules = self.project / ".moru" / "review-rules"
         self.rules.mkdir()
         initialize_repository(self.rules)
         preflight = json.loads(self.evidence_path.read_text())
@@ -183,7 +163,7 @@ class ReviewAttestationTests(unittest.TestCase):
 
     def _git(self, *args: str) -> str:
         return subprocess.run(
-            ["git", "-c", "user.name=Moru Tests", "-c", "user.email=tao@example.invalid", *args],
+            ["git", "-c", "user.name=Moru Tests", "-c", "user.email=moru@example.invalid", *args],
             cwd=self.project, check=True, text=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         ).stdout.strip()
@@ -470,7 +450,7 @@ class ReviewAttestationTests(unittest.TestCase):
 
     def test_review_rejects_evidence_from_another_project(self) -> None:
         with tempfile.TemporaryDirectory() as foreign_directory:
-            foreign_evidence = Path(foreign_directory) / ".tao" / "preflight.json"
+            foreign_evidence = Path(foreign_directory) / ".moru" / "preflight.json"
             foreign_evidence.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(self.evidence_path, foreign_evidence)
             preflight = json.loads(foreign_evidence.read_text(encoding="utf-8"))
@@ -529,7 +509,7 @@ class ReviewAttestationTests(unittest.TestCase):
 
     def test_local_config_attestation_rejects_post_review_byte_changes(self) -> None:
         gitignore = self.project / ".gitignore"
-        gitignore.write_text(".tao/\n.codex/\n", encoding="utf-8")
+        gitignore.write_text(".moru/\n.codex/\n", encoding="utf-8")
         config = self.project / ".codex/hooks.json"
         config.parent.mkdir(parents=True)
         config.write_text('{"hooks": {}}\n', encoding="utf-8")
@@ -585,7 +565,7 @@ class ReviewAttestationTests(unittest.TestCase):
 
     def test_graphify_final_artifacts_are_allowlisted_but_cache_is_not(self) -> None:
         (self.project / ".gitignore").write_text(
-            ".tao/\n.agents/local/graphify-out/\n",
+            ".moru/\n.agents/local/graphify-out/\n",
             encoding="utf-8",
         )
         output = self.project / ".agents/local/graphify-out"
@@ -779,7 +759,7 @@ class ReviewAttestationTests(unittest.TestCase):
 
     def test_finish_entrypoint_refuses_ledger_only_review_success(self) -> None:
         finish_check = load_finish_check_module()
-        output_path = self.project / ".tao" / "finish.json"
+        output_path = self.project / ".moru" / "finish.json"
         preflight = json.loads(self.evidence_path.read_text(encoding="utf-8"))
         ledger = {
             "entry_fields": {
@@ -870,7 +850,7 @@ class ReviewAttestationTests(unittest.TestCase):
     def test_finish_revalidates_attestation_after_final_checks(self) -> None:
         finish_check = load_finish_check_module()
         self._record_real_review()
-        output_path = self.project / ".tao" / "finish.json"
+        output_path = self.project / ".moru" / "finish.json"
         captured: dict[str, object] = {}
 
         def validate_then_drift(**kwargs):

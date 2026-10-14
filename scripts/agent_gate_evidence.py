@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import json
 import os
@@ -372,11 +371,11 @@ def resync_gate_evidence_ledger(evidence_path: Path, preflight: dict[str, Any]) 
 
 
 def _enforce_worker_evidence_boundary(evidence_path: Path) -> None:
-    if env_get("MORU_PARENT_EVIDENCE_READONLY") == "1":
+    if os.environ.get("MORU_PARENT_EVIDENCE_READONLY", "") == "1":
         raise GateEvidenceAccessError(
             "reusable worker capsule cannot write parent gate evidence"
         )
-    expected = env_get("MORU_WORKER_EVIDENCE")
+    expected = os.environ.get("MORU_WORKER_EVIDENCE", "")
     if expected and evidence_path.resolve() != Path(expected).expanduser().resolve():
         raise GateEvidenceAccessError(
             "worker may write only its launcher-issued gate evidence"

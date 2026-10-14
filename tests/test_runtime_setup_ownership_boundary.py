@@ -47,8 +47,8 @@ FOREIGN_SHARED_PREFIX = "SPILL_AI_TOOL=claude python3 '/opt/vendor-a/adapters/ho
 FOREIGN_IMPORTER = "node /opt/vendor-a/adapters/importer.mjs --since-hours 6"
 FOREIGN_STOP = "/opt/vendor-b/bin/tool hook --event Stop"
 UNKNOWN_STOP = "/opt/vendor-c/bin/whatever --event Stop --flag"
-MORU_STOP_GATE = "MORU_HOOK_SOFT_FAIL=1 '/Users/x/.tao/bin/tao-hook' claude-stop-gate"
-MORU_LABEL_BRIDGE = "SPILL_AI_TOOL=claude tao-hook workflow route triage --advisory"
+MORU_STOP_GATE = "MORU_HOOK_SOFT_FAIL=1 '/Users/x/.moru/bin/moru-hook' claude-stop-gate"
+MORU_LABEL_BRIDGE = "SPILL_AI_TOOL=claude moru-hook workflow route triage --advisory"
 
 
 def _hook(command: str, timeout: int = 10) -> dict:
@@ -190,12 +190,12 @@ class CodexMarkerBlockTests(unittest.TestCase):
                 encoding="utf-8",
             )
             for _ in range(3):
-                merge_codex_prefix_rules(config, ['"tao-hook"'], dry_run=False)
+                merge_codex_prefix_rules(config, ['"moru-hook"'], dry_run=False)
             text = config.read_text(encoding="utf-8")
             self.assertIn('model = "gpt-5"', text)
             self.assertIn(FOREIGN_IMPORTER, text)
             self.assertEqual(1, text.count("# moru-hooks:begin"))
-            self.assertEqual(1, text.count('"tao-hook"'))
+            self.assertEqual(1, text.count('"moru-hook"'))
 
 
 if __name__ == "__main__":

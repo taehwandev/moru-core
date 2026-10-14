@@ -56,17 +56,17 @@ compact text such as `5h 60% left · weekly 6% left`; the larger `/status` panel
 is the Codex surface that draws block gauges. Codex exposes no custom renderer
 slot for making the bottom line mirror that panel. Start a new Codex session
 after setup to see the line.
-The setup also maintains a Moru-owned `tao-workspace` permission profile in
+The setup also maintains a Moru-owned `moru-workspace` permission profile in
 `~/.codex/config.toml`. The profile extends Codex's built-in `:workspace`
 profile and adds only exact generated worktree roots. A scoped target repair,
 for example `setup-agent-hooks --runtime codex --target <TARGET_REPO>`, adds
-`<TARGET_REPO>/.tao/worktrees` and does not write `.claude/settings.json`.
+`<TARGET_REPO>/.moru/worktrees` and does not write `.claude/settings.json`.
 Existing user roots, default selection, `approval_policy`, `sandbox_mode`, and
 network settings are preserved. Setup never selects this optional profile.
 Without a selected default, setup skips creating optional profiles; existing
 profiles without a default are reported as incomplete. Codex 0.154.0 rejects
 profiles without `default_permissions`, so TOML syntax checks alone are insufficient.
-Older setup selected `default_permissions = "tao-workspace"` automatically;
+Older setup selected the pre-rename workspace profile automatically;
 updating alone does not undo a saved selection, whose provenance is unknown.
 Setup reports a notice when that selection remains, without changing it.
 With the user's explicit authorization, run

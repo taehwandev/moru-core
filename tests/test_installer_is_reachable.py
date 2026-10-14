@@ -6,7 +6,7 @@ so it could not run against the protected checkout -- from anywhere, since any
 command naming a path under that checkout resolves to it.
 
 That happened: an installer run from a linked worktree wrote the worktree's own
-path into `~/.tao/tao-root` and the three runtime bridges, and the command that
+path into `~/.moru/tao-root` and the three runtime bridges, and the command that
 repairs them was refused. The gate had removed its own recovery path, and only a
 `MORU_ALLOW_MAIN_CHECKOUT_EDIT=1` run by hand could restore it.
 

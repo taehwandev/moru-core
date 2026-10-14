@@ -160,11 +160,6 @@ def route_doc(path: str) -> str:
     return canonical_doc_path(path)
 
 
-def _legacy_launcher_only():
-    """Pin the pre-migration launcher so permission counts ignore ~/.moru state."""
-    return patch("support.permission_entries.preferred_launcher_path", stable_launcher_path)
-
-
 class RuntimeSetupTests(unittest.TestCase):
     def setUp(self) -> None:
         self._old_state_home = os.environ.get("MORU_STATE_HOME")
@@ -179,7 +174,7 @@ class RuntimeSetupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "settings.json"
             old_command = (
-                "SPILL_AI_TOOL=claude python3 '/tmp/tao-agent-os/scripts/workflow.py' "
+                "SPILL_AI_TOOL=claude python3 '/tmp/moru-core/scripts/workflow.py' "
                 "route triage --request-classified"
             )
             target.write_text(json.dumps({
@@ -213,17 +208,17 @@ class RuntimeSetupTests(unittest.TestCase):
         cases = (
             (
                 "UserPromptSubmit",
-                "SPILL_AI_TOOL=claude tao-hook workflow route triage "
+                "SPILL_AI_TOOL=claude moru-hook workflow route triage "
                 "--request-classified --classification-evidence safe",
-                "SPILL_AI_TOOL=claude tao-hook workflow route triage "
+                "SPILL_AI_TOOL=claude moru-hook workflow route triage "
                 "--request-classified --classification-evidence safe",
                 _merge_claude_user_prompt_submit,
                 ".*",
             ),
             (
                 "PreToolUse",
-                "tao-hook claude-pretool-gate",
-                "tao-hook claude-pretool-gate",
+                "moru-hook claude-pretool-gate",
+                "moru-hook claude-pretool-gate",
                 _merge_claude_pre_tool_gate,
                 _PRETOOL_GATE_MATCHER,
             ),
@@ -265,7 +260,7 @@ class RuntimeSetupTests(unittest.TestCase):
                             {
                                 "command": (
                                     "SPILL_AI_TOOL=claude python3 "
-                                    "'/tmp/tao-agent-os/scripts/workflow.py' "
+                                    "'/tmp/moru-core/scripts/workflow.py' "
                                     "route triage --request-classified"
                                 )
                             }
@@ -276,13 +271,12 @@ class RuntimeSetupTests(unittest.TestCase):
             "env": {"SPILL_AI_TOOL": "claude"},
         }
 
-        warnings = _claude_spill_warnings(config, Path("/tmp/tao-agent-os"))
+        warnings = _claude_spill_warnings(config, Path("/tmp/moru-core"))
 
         self.assertTrue(any("--advisory" in warning for warning in warnings))
 
     def test_setup_permissions_include_new_workflow_helpers(self) -> None:
-        with _legacy_launcher_only():
-            entry_list = codex_prefix_rule_entries(ROOT / "scripts")
+        entry_list = codex_prefix_rule_entries(ROOT / "scripts")
         entries = "\n".join(entry_list)
 
         self.assertEqual(21, len(EXECUTABLE_ENTRYPOINTS))
@@ -323,12 +317,11 @@ class RuntimeSetupTests(unittest.TestCase):
         self.assertNotIn("--request", entries)
 
     def test_setup_permissions_use_stable_launcher_for_claude(self) -> None:
-        with _legacy_launcher_only():
-            entry_list = claude_permission_entries(ROOT / "scripts", spill_available=True)
+        entry_list = claude_permission_entries(ROOT / "scripts", spill_available=True)
         entries = "\n".join(entry_list)
 
         self.assertIn(str(stable_launcher_path()), entries)
-        self.assertIn("tao-hook", entries)
+        self.assertIn("moru-hook", entries)
         self.assertNotIn(str(ROOT / "scripts"), entries)
         self.assertNotIn("$defaults", entry_list)
         self.assertNotIn("$HOME", entries)
@@ -372,28 +365,16 @@ class RuntimeSetupTests(unittest.TestCase):
             self.assertIn("Bash(uv run *)", entries)
 
     def test_setup_permissions_use_stable_launcher_for_agy(self) -> None:
-        with _legacy_launcher_only():
-            entry_list = agy_permission_entries(ROOT / "scripts", spill_available=True)
+        entry_list = agy_permission_entries(ROOT / "scripts", spill_available=True)
         entries = "\n".join(entry_list)
 
         self.assertIn(str(stable_launcher_path()), entries)
-        self.assertIn("tao-hook", entries)
+        self.assertIn("moru-hook", entries)
         self.assertNotIn(str(ROOT / "scripts"), entries)
         self.assertNotIn("$HOME", entries)
         self.assertNotIn("${HOME}", entries)
         self.assertNotIn("~/", entries)
         self.assertEqual(78, len(entry_list))
-
-    def test_setup_permissions_add_moru_launcher_after_migration(self) -> None:
-        moru = Path("/tmp/moru-home/.moru/bin/moru-hook")
-        with patch("support.permission_entries.preferred_launcher_path", return_value=moru):
-            codex = codex_prefix_rule_entries(ROOT / "scripts")
-            agy = agy_permission_entries(ROOT / "scripts", spill_available=True)
-
-        self.assertIn(f'prefix_rule(pattern=["{moru}"], decision="allow")', codex)
-        self.assertIn(f'prefix_rule(pattern=["{stable_launcher_path()}"], decision="allow")', codex)
-        self.assertTrue(any(str(moru) in entry for entry in agy))
-        self.assertTrue(any(str(stable_launcher_path()) in entry for entry in agy))
 
     def test_spill_helper_uses_one_absolute_escaped_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp_home:
@@ -565,9 +546,9 @@ class SupersededManagedBlockTests(unittest.TestCase):
         from support.graphify_tracking import write_managed_block
 
         block = (
-            "# tao-graphify-inputs:start\n"
+            "# moru-graphify-inputs:start\n"
             ".moru/\n"
-            "# tao-graphify-inputs:end"
+            "# moru-graphify-inputs:end"
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / ".graphifyignore"
@@ -587,22 +568,22 @@ class SupersededManagedBlockTests(unittest.TestCase):
             self.assertIn("dist/", updated)
             self.assertNotIn("oldname-graphify-inputs", updated)
             self.assertNotIn(".oldname/", updated)
-            self.assertEqual(1, updated.count("# tao-graphify-inputs:start"))
+            self.assertEqual(1, updated.count("# moru-graphify-inputs:start"))
 
     def test_write_managed_block_is_idempotent_for_the_current_marker(self) -> None:
         from support.graphify_tracking import write_managed_block
 
         block = (
-            "# tao-graphify-inputs:start\n"
+            "# moru-graphify-inputs:start\n"
             ".moru/\n"
-            "# tao-graphify-inputs:end"
+            "# moru-graphify-inputs:end"
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / ".graphifyignore"
             self.assertEqual("installed", write_managed_block(path, block))
             self.assertEqual("ok", write_managed_block(path, block))
             self.assertEqual(
-                1, path.read_text(encoding="utf-8").count("# tao-graphify-inputs:start")
+                1, path.read_text(encoding="utf-8").count("# moru-graphify-inputs:start")
             )
 
 
@@ -619,7 +600,7 @@ class ManagedHookLauncherRenameTests(unittest.TestCase):
         )
         installed_under_the_current_name = (
             "MORU_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL=claude "
-            "'/Users/someone/.tao/bin/tao-hook' workflow route triage "
+            "'/Users/someone/.moru/bin/moru-hook' workflow route triage "
             "--request-classified --classification-evidence 'evidence'"
         )
 

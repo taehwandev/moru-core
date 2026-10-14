@@ -37,15 +37,6 @@ import claude_stop_gate
 class MailboxTaskTests(unittest.TestCase):
     state_dir_name = ".moru"
 
-    def test_migrated_project_selects_moru_task_queue(self):
-        state = self.project / ".moru"
-        state.mkdir(exist_ok=True)
-        (state / "state-ready").touch()
-
-        tasks = TaskContinuation(self.project, self.identity)
-
-        self.assertEqual(state / "agent-mailbox/task-continuation", tasks.root)
-
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -53,7 +44,7 @@ class MailboxTaskTests(unittest.TestCase):
         self.project, self.rules = self.root / "project", self.root / "rules"
         self.project.mkdir()
         self.rules.mkdir()
-        (self.project / "AGENTS.md").write_text("uses tao\n")
+        (self.project / "AGENTS.md").write_text("uses moru\n")
         (self.rules / "guide.md").write_text("guidance\n")
         initialize_git(self.project)
         if self.state_dir_name == ".moru":

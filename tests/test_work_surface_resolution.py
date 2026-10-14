@@ -156,7 +156,7 @@ class WorkSurfaceResolutionRoutingTests(unittest.TestCase):
         """
 
         for request in (
-            ".tao 정리해줘",
+            ".moru 정리해줘",
             "clean up the run store",
             "delete the continuation packets that cannot be resumed",
             "런 상태 정리해줘",

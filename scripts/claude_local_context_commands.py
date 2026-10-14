@@ -1,7 +1,7 @@
 """Classify trusted user-local context commands and Moru-owned artifact cleanup.
 
 Neither grants ordinary project writes: the only project path this module can
-admit is a regular file Moru itself names `*.moru-backup` (or `*.tao-backup` before the rename).
+admit is a regular file Moru itself names `*.moru-backup` (or the pre-rename backup suffix).
 """
 
 from __future__ import annotations
@@ -11,11 +11,12 @@ from pathlib import Path
 import re
 import shlex
 import stat
+from support import legacy_names
 
 # The suffix both setup writers use (support/setup_config_files.BACKUP_SUFFIX,
 # support/project_guidance). Kept literal so the gate imports no setup code.
 # Backups written before the Moru rename keep the old suffix.
-MORU_BACKUP_SUFFIXES = (".moru-backup", ".tao-backup")
+MORU_BACKUP_SUFFIXES = (".moru-backup", legacy_names.BACKUP_SUFFIX)
 _GLOB_CHARACTERS = frozenset("*?[]{}")
 
 

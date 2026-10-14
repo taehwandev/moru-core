@@ -30,7 +30,7 @@ class _Projects(_Fixture):
         (self.project / "sub" / "y.py").write_text("y = 1\n")
         self.other = self.base / "home" / "other"
         self.other.mkdir(parents=True)
-        (self.other / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (self.other / "AGENTS.md").write_text("Uses moru-hook.\n")
         (self.other / "z.py").write_text("z = 1\n")
         _git("init", "-q", "-b", "main", cwd=self.other)
         self.scratch = self.temp / "loose"

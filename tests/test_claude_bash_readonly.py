@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import claude_bash_readonly as bash_readonly
 import claude_bash_syntax as bash_syntax
 import claude_worktree_gate as worktree_gate
-from support.stable_launcher import moru_launcher_path
+from support.stable_launcher import stable_launcher_path
 
 
 class CompoundShellCommandTests(unittest.TestCase):
@@ -102,7 +102,7 @@ class CompoundShellCommandTests(unittest.TestCase):
         self.assertIn("verify", bash_readonly.HOOKS_READING_RULES)
 
     def test_moru_launcher_keeps_runtime_command_classification(self) -> None:
-        launcher = moru_launcher_path()
+        launcher = stable_launcher_path()
         self.assertEqual("read_only", self._kind(f"{launcher} work-cards list"))
         self.assertEqual("mutating", self._kind(f"{launcher} verify --project /tmp/project --rules {ROOT}"))
 
@@ -119,7 +119,7 @@ class CompoundShellCommandTests(unittest.TestCase):
                 self.assertEqual(self._kind(f"{entry} receive --runtime codex > out"), "mutating")
                 self.assertEqual(self._kind(f"{entry} receive --runtime codex && touch out"), "mutating")
         for entry in ("/tmp/agent-mailbox.py", "python3 /tmp/agent-mailbox.py",
-                      "/tmp/tao-hook agent-mailbox", f"env MORU_HOME=/tmp/other {launcher} agent-mailbox"):
+                      "/tmp/moru-hook agent-mailbox", f"env MORU_HOME=/tmp/other {launcher} agent-mailbox"):
             self.assertEqual(self._kind(f"{entry} receive --runtime codex"), "mutating")
 
     def test_local_context_writes_need_no_development_lifecycle(self) -> None:
@@ -163,7 +163,7 @@ class CompoundShellCommandTests(unittest.TestCase):
                         "work-cards --project /repo list && touch out"):
             with self.subTest(command=command):
                 self.assertNotEqual(self._kind(f"{launcher} {command}"), "read_only")
-        self.assertNotEqual(self._kind("/tmp/tao-hook work-cards --project /repo list"), "read_only")
+        self.assertNotEqual(self._kind("/tmp/moru-hook work-cards --project /repo list"), "read_only")
 
     def test_local_evidence_query_is_not_confused_with_evidence_writers(self) -> None:
         for command in ("vibeguard evidence", "vibeguard evidence .",

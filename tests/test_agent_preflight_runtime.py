@@ -83,7 +83,7 @@ class ClaudeSpillHookTests(unittest.TestCase):
                         "hooks": [
                             {
                                 "command": (
-                                    "SPILL_AI_TOOL=claude tao-hook workflow route "
+                                    "SPILL_AI_TOOL=claude moru-hook workflow route "
                                     "triage --advisory"
                                 )
                             }
@@ -104,7 +104,7 @@ class ClaudeSpillHookTests(unittest.TestCase):
                         "hooks": [
                             {
                                 "command": (
-                                    "SPILL_AI_TOOL=claude tao-hook workflow route triage "
+                                    "SPILL_AI_TOOL=claude moru-hook workflow route triage "
                                     "--request-classified --classification-evidence safe"
                                 )
                             }

@@ -24,7 +24,7 @@ def _build_initial_commit(project: Path) -> None:
     git('init', '-q')
     git('config', 'user.email', 'review@example.invalid')
     git('config', 'user.name', 'Review Test')
-    (project / '.gitignore').write_text('.tao/\n.moru/\n')
+    (project / '.gitignore').write_text('.moru/\n.moru/\n')
     (project / 'source.py').write_text('value = 1\n')
     (project / 'rule.md').write_text('review rules\n')
     git('add', '.')
@@ -62,7 +62,7 @@ class ReviewReuseTests(unittest.TestCase):
         return subprocess.run(['git', *args], cwd=self.project, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
 
     def args(self, command, run_id):
-        evidence = self.project / '.tao' / 'runs' / run_id / 'preflight.json'
+        evidence = self.project / '.moru' / 'runs' / run_id / 'preflight.json'
         evidence.parent.mkdir(parents=True, exist_ok=True)
         rules = getattr(self, 'rules', self.project)
         preflight = {'agent_run_id': run_id, 'project': str(self.project), 'rules': str(rules),
@@ -92,7 +92,7 @@ class ReviewReuseTests(unittest.TestCase):
         return self.args('commit', 'b' * 32)
 
     def integration(self):
-        self.rules = self.project / '.tao' / 'separate-rules'
+        self.rules = self.project / '.moru' / 'separate-rules'
         self.rules.mkdir(parents=True)
         subprocess.run(['git', 'init', '-q', str(self.rules)], check=True)
         subprocess.run(['git', '-C', str(self.rules), '-c', 'user.name=Test', '-c',
@@ -103,7 +103,7 @@ class ReviewReuseTests(unittest.TestCase):
         self.git('add', '--all')
         self.git('commit', '-qm', 'reviewed unit')
         head = self.git('rev-parse', 'HEAD').decode().strip()
-        target = self.project / '.tao' / 'integration'
+        target = self.project / '.moru' / 'integration'
         self.git('worktree', 'add', '--detach', str(target), head)
         self.project = target
         args = self.args('commit', 'b' * 32)
@@ -182,21 +182,6 @@ class ReviewReuseTests(unittest.TestCase):
         self.assertEqual(source.reused, None)
         (self.project / 'source.py').write_text('value = 99\n')
         self.assertIsNone(ReviewReuse.publication_candidate(args.evidence))
-
-    def test_migrated_state_receipt_and_evidence_use_moru(self):
-        legacy = self.project / '.tao'
-        migrated = self.project / '.moru'
-        legacy.rename(migrated)
-        (migrated / 'state-ready').write_text('ready\n')
-        self.source.evidence = migrated / 'runs' / ('a' * 32) / 'preflight.json'
-        reset_gate_evidence_ledger(self.source.evidence, json.loads(self.source.evidence.read_text()))
-
-        source = self.publish()
-
-        self.assertEqual((migrated / 'review-checks-latest.json').resolve(), source.path)
-        self.assertEqual('runs/' + 'a' * 32 + '/preflight.json',
-                         ReviewReuse.read(source.path)['evidence'])
-        self.assertFalse(legacy.exists())
 
     def test_publication_does_not_recapture_and_late_edits_still_miss(self):
         source = self.cache()
@@ -386,7 +371,7 @@ class ReviewReuseTests(unittest.TestCase):
     def test_symlink_target_changes_cannot_reuse_review(self):
         self.publish()
         args = self.staged_commit()
-        target = self.project / '.tao' / 'target.py'
+        target = self.project / '.moru' / 'target.py'
         target.write_text('value = 2\n')
         source = self.project / 'source.py'
         source.unlink()
@@ -397,7 +382,7 @@ class ReviewReuseTests(unittest.TestCase):
         self.assertIsNone(self.cache(args).load())
 
     def test_rules_alias_file_and_directory_bind_ignored_target_contents(self):
-        targets = self.project / '.tao' / 'skills'
+        targets = self.project / '.moru' / 'skills'
         targets.mkdir(parents=True)
         (targets / 'rule.md').write_text('rule one\n')
         package = targets / 'package'
@@ -418,7 +403,7 @@ class ReviewReuseTests(unittest.TestCase):
         self.assertIsNone(self.cache(args).load())
 
     def test_rules_alias_rejects_foreign_and_nested_symlink_targets(self):
-        target = self.project / '.tao' / 'package'
+        target = self.project / '.moru' / 'package'
         target.mkdir(parents=True)
         (target / 'nested').symlink_to(self.project / 'rule.md')
         alias = self.project / 'skill-alias'

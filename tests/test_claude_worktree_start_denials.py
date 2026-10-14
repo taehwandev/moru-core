@@ -52,7 +52,7 @@ class WorkflowStartDenialTests(unittest.TestCase):
             (root / ".git").write_text("gitdir: /unused/test-metadata\n")
         else:
             (root / ".git").mkdir()
-        (root / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (root / "AGENTS.md").write_text("Uses moru-hook.\n")
         policy = root / ".agents" / "shared"
         policy.mkdir(parents=True)
         (policy / "worktree-policy.json").write_text(

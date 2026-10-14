@@ -129,7 +129,7 @@ class GraphifyCheckoutRepairTests(unittest.TestCase):
         self.assertTrue(preview["ready"])
         self.assertTrue(preview["changed"])
         self.assertEqual(original, self.hook.read_bytes())
-        backup = self.hook.with_name("post-checkout.tao-before-repair")
+        backup = self.hook.with_name("post-checkout.moru-before-repair")
         self.assertFalse(backup.exists())
         self.assertTrue(repair_checkout_hook(self.project)["changed"])
         repaired = self.hook.read_bytes()
@@ -199,7 +199,7 @@ class GraphifyCheckoutRepairTests(unittest.TestCase):
             self.assertIn("# user-after", text)
             self.assertNotIn("graphify-hook-start", text)
             self.assertNotIn("graphify-checkout-hook-start", text)
-            self.assertTrue(hook.with_name(hook.name + ".tao-before-on-demand").is_file())
+            self.assertTrue(hook.with_name(hook.name + ".moru-before-on-demand").is_file())
 
         again = disable_rebuild_hooks(self.project)
         self.assertTrue(again["ready"])
@@ -218,7 +218,7 @@ class GraphifyCheckoutRepairTests(unittest.TestCase):
         self.assertEqual(SCRIPT, self.hook.read_text())
         self.assertEqual(malformed, commit_hook.read_text())
         self.assertFalse(
-            self.hook.with_name("post-checkout.tao-before-on-demand").exists()
+            self.hook.with_name("post-checkout.moru-before-on-demand").exists()
         )
 
     def test_on_demand_cli_preview_preserves_hooks(self) -> None:

@@ -3834,7 +3834,7 @@
     ],
     "tokens": [
      "echo",
-     "__tao_substitution__"
+     "__moru_substitution__"
     ],
     "simple": true,
     "kind": "read_only",
@@ -3842,7 +3842,7 @@
     "syntax_segments": [
      [
       "echo",
-      "__tao_substitution__"
+      "__moru_substitution__"
      ]
     ]
    }
@@ -4037,7 +4037,7 @@
     ],
     "tokens": [
      "echo",
-     "__tao_substitution__"
+     "__moru_substitution__"
     ],
     "simple": true,
     "kind": "read_only",
@@ -4045,7 +4045,7 @@
     "syntax_segments": [
      [
       "echo",
-      "__tao_substitution__"
+      "__moru_substitution__"
      ]
     ]
    }
@@ -4176,7 +4176,7 @@
      "push"
     ],
     "tokens": [
-     "__tao_substitution__",
+     "__moru_substitution__",
      "push"
     ],
     "simple": true,
@@ -4184,7 +4184,7 @@
     "effect": "unknown",
     "syntax_segments": [
      [
-      "__tao_substitution__",
+      "__moru_substitution__",
       "push"
      ]
     ]
@@ -4378,7 +4378,7 @@
     ],
     "tokens": [
      "echo",
-     "it's __tao_substitution__"
+     "it's __moru_substitution__"
     ],
     "simple": true,
     "kind": "read_only",
@@ -4386,7 +4386,7 @@
     "syntax_segments": [
      [
       "echo",
-      "it's __tao_substitution__"
+      "it's __moru_substitution__"
      ]
     ]
    }

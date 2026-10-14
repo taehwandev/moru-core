@@ -147,7 +147,7 @@ def session_directory(payload: dict[str, Any]) -> str:
 
 
 def shorten_path(directory: str, home: Path | None = None) -> str:
-    """`~/git/tao-agent-os/…/gauge` -- the home prefix folded, the middle dropped.
+    """`~/git/moru-core/…/gauge` -- the home prefix folded, the middle dropped.
 
     Two names carry the answer to "where am I": the project and the leaf. What
     sits between them is fixed boilerplate -- every task worktree lives under

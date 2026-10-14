@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import argparse
 import os
@@ -49,7 +48,7 @@ from support.setup_config_files import (
     print_results,
     quote,
 )
-from support.stable_launcher import ensure_stable_launcher, preferred_launcher_path
+from support.stable_launcher import ensure_stable_launcher, stable_launcher_path
 from support.bounded_git import run_git
 from agent_worktree_identity import worktree_root
 
@@ -171,7 +170,7 @@ def _main() -> None:
             dry_run,
             root=ROOT,
             scripts_dir=SCRIPTS_DIR,
-            launcher_path=preferred_launcher_path(),
+            launcher_path=stable_launcher_path(),
             spill_available=spill_available,
         )
 
@@ -183,7 +182,7 @@ def _main() -> None:
             dry_run,
             root=ROOT,
             scripts_dir=SCRIPTS_DIR,
-            launcher_path=preferred_launcher_path(),
+            launcher_path=stable_launcher_path(),
             spill_available=spill_available,
         )
 
@@ -248,7 +247,7 @@ def _notice_moru_permission_default(config_target: Path) -> None:
         return
     if status == "would_update":
         print(
-            "Codex notice: default_permissions selects moru-workspace (or tao-workspace) or is missing with profiles. Older Moru setup "
+            "Codex notice: default_permissions selects the Moru workspace profile or is missing with profiles. Older Moru setup "
             "selected it automatically; the current file cannot prove who selected it. "
             "To select the built-in :workspace default, explicitly run "
             "setup-agent-hooks.py --reset-codex-permission-default. "
@@ -369,7 +368,7 @@ def _has_agy() -> bool:
 
 
 def _spill_setup_helper_path() -> Path:
-    override = env_get("MORU_SPILL_HELPER_PATH", "")
+    override = os.environ.get("MORU_SPILL_HELPER_PATH", "")
     return Path(override) if override else DEFAULT_SPILL_SETUP_HELPER
 
 
@@ -405,19 +404,19 @@ def configure_codex(dry_run: bool, *, root: Path, enable_auto_review: bool = Fal
     )
     hooks_target = Path.home() / ".codex" / "hooks.json"
     pretool_command = (
-        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(preferred_launcher_path()))} "
+        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(stable_launcher_path()))} "
         "codex-pretool-gate"
     )
     pretool_status = merge_codex_pre_tool_gate(
         hooks_target, pretool_command, dry_run
     )
     stop_command = (
-        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(preferred_launcher_path()))} "
+        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(stable_launcher_path()))} "
         "codex-stop-gate"
     )
     stop_status = merge_codex_stop_gate(hooks_target, stop_command, dry_run)
     mailbox_command = (
-        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(preferred_launcher_path()))} "
+        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(stable_launcher_path()))} "
         "mailbox-hook deliver --runtime codex"
     )
     mailbox_status = merge_codex_mailbox_delivery(hooks_target, mailbox_command, dry_run)

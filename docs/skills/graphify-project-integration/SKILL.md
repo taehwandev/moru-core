@@ -2,7 +2,7 @@
 keyflow_id: sys_docs_graphify_project_integration_skill
 status: review
 type: human-reviewed-needed
-tao_card_contract: strict
+moru_card_contract: strict
 requires_docs:
   - docs/skills/agent-bootstrap/SKILL.md
   - common/skills/llm-wiki-documentation/SKILL.md
@@ -18,7 +18,7 @@ when a target repository needs its own current local graph.
 
 - Installing or repairing the user-level Graphify skill and runtime discovery links.
 - A route mentions Graphify or a missing target-project graph.
-- A project Graphify setup leaked `.moru/skills/graphify`, its legacy `.tao` copy, or
+- A project Graphify setup leaked `.moru/skills/graphify`, a pre-rename copy, or
   runtime-specific Graphify links into a checkout.
 - An agent skipped Graphify because the CLI, shared skill, or project graph was absent.
 

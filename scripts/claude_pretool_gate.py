@@ -38,7 +38,6 @@ to turn the gate off there.
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import json
 import os
@@ -51,7 +50,7 @@ from typing import NamedTuple
 from types import ModuleType
 
 try:  # The gate must never fail to load; the import is only used for a message.
-    from support.stable_launcher import preferred_launcher_path
+    from support.stable_launcher import stable_launcher_path
     from support.global_state import (
         global_state_dir,
         project_state_dir_target,
@@ -118,20 +117,19 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
     # what the stubs below already answered for every Git command.
     _publication = _admission = _integration = None
 
-    def preferred_launcher_path() -> Path:
-        return Path.home() / ".tao" / "bin" / "tao-hook"
+    def stable_launcher_path() -> Path:
+        return Path.home() / ".moru" / "bin" / "moru-hook"
 
     def is_project_state_dir(path: Path) -> bool:
-        return path.is_dir() and path.resolve() != (Path.home() / ".tao").resolve()
+        return path.is_dir() and path.resolve() != (Path.home() / ".moru").resolve()
 
     def global_state_dir() -> Path:
         import os
         override = os.environ.get("MORU_STATE_HOME", "").strip()
-        return Path(override).expanduser() if override else Path.home() / ".tao"
+        return Path(override).expanduser() if override else Path.home() / ".moru"
 
     def project_state_dir_target(project: Path) -> Path:
-        moru, legacy = project / ".moru", project / ".tao"
-        return moru if (moru / "state-ready").is_file() or not legacy.is_dir() else legacy
+        return project / ".moru"
 
     def is_host_config_dir(path: Path) -> bool:
         resolved = path.expanduser().resolve()
@@ -146,14 +144,14 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
     def marks_moru_project(path: Path) -> bool:
         if is_host_config_dir(path):
             return False
-        if is_project_state_dir(path / ".tao"):
+        if is_project_state_dir(path / ".moru"):
             return True
         for name in ("AGENTS.md", "CLAUDE.md", "CODEX.md"):
             try:
                 head = (path / name).read_text(encoding="utf-8", errors="ignore")[:8192]
             except OSError:
                 continue
-            if "tao" in head.lower():
+            if "moru" in head.lower():
                 return True
         return False
 
@@ -333,7 +331,7 @@ GATED_TOOLS = EDIT_TOOLS | BASH_TOOLS
 # Only Write creates a file from nothing; Edit/MultiEdit require an existing
 # file, so new-file sprawl flows through Write.
 NEW_FILE_TOOLS = {"Write"}
-STATE_DIR = ".tao"
+STATE_DIR = ".moru"
 SESSION_MARKER_DIR = "claude-pretool-gate"
 NEW_FILE_STATE_SUFFIX = ".newfiles"
 SPRAWL_ACK_SUFFIX = ".sprawl-ack"
@@ -397,7 +395,7 @@ SOURCE_SUFFIXES = {
 
 
 def runtime_name() -> str:
-    runtime = env_get("MORU_PRETOOL_RUNTIME", "claude").strip().lower()
+    runtime = os.environ.get("MORU_PRETOOL_RUNTIME", "claude").strip().lower()
     return runtime if runtime in {"claude", "codex"} else "claude"
 
 
@@ -407,7 +405,7 @@ def runtime_setting(name: str) -> str:
 
 def gate_enabled() -> bool:
     """Escape hatch for runtimes that cannot supply a session id."""
-    return env_get(runtime_setting(""), "").strip() != "0"
+    return os.environ.get(runtime_setting(""), "").strip() != "0"
 
 
 def allow() -> int:
@@ -643,7 +641,7 @@ def _read_only_verdict(reason: str, unknown_reason: str) -> int:
 
 
 def max_age_seconds() -> int:
-    raw = env_get(runtime_setting("_MAX_AGE_SECONDS"), "").strip()
+    raw = os.environ.get(runtime_setting("_MAX_AGE_SECONDS"), "").strip()
     if not raw:
         return DEFAULT_MAX_AGE_SECONDS
     try:
@@ -791,7 +789,7 @@ def paused_run_reason(
     """
 
     run_id = evidence.parent.name
-    launcher = preferred_launcher_path()
+    launcher = stable_launcher_path()
     action, retry = stopped_action(tool)
     refusal = _RESUME_REFUSALS.get(run_id)
     if refusal:
@@ -853,7 +851,7 @@ def deny_reason(
     cause = f"{cause}{governed_because(root, cwd_roots)}"
     return (
         f"Moru Core: run the workflow start hook before {action}. {cause} "
-        f"Run `{preferred_launcher_path()} start --project "
+        f"Run `{stable_launcher_path()} start --project "
         f"{root} --rules <MORU_ROOT> --command <route> --request \"<user "
         f"request>\"`, read the route required_docs, then {retry}. Set "
         f"{runtime_setting('_MAX_AGE_SECONDS')} to tune the freshness window."
@@ -1058,11 +1056,11 @@ def _failed_session_evidence(root: Path, session_id: str) -> Path | None:
     )
 
 
-_WORKFLOW_START_WORD = re.compile(r"(?:tao-hook|moru-hook|agent-hook\.py[\"']?)\s+start\b")
+_WORKFLOW_START_WORD = re.compile(r"(?:moru-hook|agent-hook\.py[\"']?)\s+start\b")
 
 
 def _start_after_write_note(command: str) -> str:
-    """Say why `git add ...; tao-hook start ...` is refused although it starts.
+    """Say why `git add ...; moru-hook start ...` is refused although it starts.
 
     The gate judges the whole line before any of it runs, so the write in front
     is checked while no run exists yet. Every such line in a week of
@@ -1337,7 +1335,7 @@ def record_session_project(root: Path, session_id: str) -> None:
 
 
 def new_file_budget() -> int:
-    raw = env_get(runtime_setting("_NEW_FILE_BUDGET"), "").strip()
+    raw = os.environ.get(runtime_setting("_NEW_FILE_BUDGET"), "").strip()
     if not raw:
         return DEFAULT_NEW_FILE_BUDGET
     try:

@@ -102,7 +102,7 @@ def finish_with_result(
             output_failure = (
                 f"result output was not written ({type(error).__name__}); "
                 "omit --output or use a writable path under the current "
-                "project's .tao root"
+                "project's .moru root"
             )
             if success:
                 policy, output_policy_details = hook_failure_policy(
@@ -199,7 +199,7 @@ def hook_failure_policy(
             "repair_cycle_limit": REPAIR_CYCLE_LIMIT,
             "repair_policy": REPAIR_POLICY,
             "next_action": "retrospective_then_repair_verify_resume",
-            "recovery_required": "verified_tao_improvement",
+            "recovery_required": "verified_moru_improvement",
             "resume_scope": RESUME_SCOPE,
         }, [
             "recovery request: diagnose every failure, run an actionable retrospective for this "

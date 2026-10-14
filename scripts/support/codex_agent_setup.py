@@ -11,13 +11,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from support.managed_agent_files import install_managed_agents
+from support import legacy_names
 
 
 MANAGED_MARKER = "# Moru Core managed Codex agent"
-LEGACY_MANAGED_MARKER = "# Tao Agent OS managed Codex agent"
+LEGACY_MANAGED_MARKER = legacy_names.CODEX_AGENT_MARKER
 AGENT_NAMES = ("moru_explorer", "moru_worker", "moru_reviewer")
 # Role names installed before the Moru rename; setup removes their managed files.
-LEGACY_AGENT_NAMES = ("tao_explorer", "tao_worker", "tao_reviewer")
+LEGACY_AGENT_NAMES = legacy_names.AGENT_NAMES
 
 
 def _is_managed(content: bytes) -> bool:

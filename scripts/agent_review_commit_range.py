@@ -130,7 +130,7 @@ def create_commit_snapshot(
 ) -> tuple[tempfile.TemporaryDirectory[str], Path, dict[str, Any]]:
     """Materialize the exact reviewed tree in an isolated local clone."""
 
-    temporary = tempfile.TemporaryDirectory(prefix="tao-agent-review-")
+    temporary = tempfile.TemporaryDirectory(prefix="moru-agent-review-")
     source_root = Path(temporary.name) / "tree"
     clone = run_command(
         [

@@ -313,7 +313,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             subprocess.run(
                 [
                     "git", "-c", "user.name=Moru Core", "-c",
-                    "user.email=tao@example.invalid", "commit", "-qm", "source",
+                    "user.email=moru@example.invalid", "commit", "-qm", "source",
                 ],
                 cwd=project,
                 check=True,
@@ -395,9 +395,9 @@ class SetupAgentHooksTests(unittest.TestCase):
                 guide.parent.mkdir(parents=True)
                 guide.write_text("# Project guide\n", encoding="utf-8")
             managed = (
-                "# tao-graphify-inputs:start\n"
+                "# moru-graphify-inputs:start\n"
                 ".moru/\n.agents/\n.agents/local/\ngraphify-out/\n"
-                "# tao-graphify-inputs:end\n"
+                "# moru-graphify-inputs:end\n"
             )
             (project / ".graphifyignore").write_text(managed, encoding="utf-8")
             manifest = project / PROJECT_MANIFEST_PATH
@@ -506,10 +506,10 @@ class SetupAgentHooksTests(unittest.TestCase):
             policy = project / ".graphifyignore"
             policy.write_text(
                 "# keep\n.claude/\n.codex/**\n"
-                "# tao-graphify-inputs:start\n.agents/\n"
-                "# tao-graphify-inputs:end\n"
-                "# tao-graphify-inputs:start\n.codex/\n"
-                "# tao-graphify-inputs:end\n",
+                "# moru-graphify-inputs:start\n.agents/\n"
+                "# moru-graphify-inputs:end\n"
+                "# moru-graphify-inputs:start\n.codex/\n"
+                "# moru-graphify-inputs:end\n",
                 encoding="utf-8",
             )
             root_ignore = project / ".gitignore"
@@ -555,7 +555,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             subprocess.run(
                 [
                     "git", "-c", "user.name=Moru Core", "-c",
-                    "user.email=tao@example.invalid", "commit", "-qm", "initial",
+                    "user.email=moru@example.invalid", "commit", "-qm", "initial",
                 ],
                 cwd=project,
                 check=True,
@@ -629,7 +629,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             subprocess.run(
                 [
                     "git", "-c", "user.name=Moru Core", "-c",
-                    "user.email=tao@example.invalid", "commit", "-qm", "initial",
+                    "user.email=moru@example.invalid", "commit", "-qm", "initial",
                 ],
                 cwd=project,
                 check=True,
@@ -681,7 +681,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             subprocess.run(
                 [
                     "git", "-c", "user.name=Moru Core", "-c",
-                    "user.email=tao@example.invalid", "commit", "-qm", "change",
+                    "user.email=moru@example.invalid", "commit", "-qm", "change",
                 ],
                 cwd=project,
                 check=True,
@@ -940,7 +940,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 self.assertTrue(os.access(launcher, os.X_OK))
                 self.assertEqual(f"{ROOT.resolve()}\n", pointer.read_text())
                 self.assertIn("scripts/workflow.py", launcher.read_text())
-                self.assertIn('ROOT_POINTER_NAME = "tao-root"', launcher.read_text())
+                self.assertIn('ROOT_POINTER_NAME = "moru-root"', launcher.read_text())
                 self.assertIn('"execution-capsule": "agent_execution_capsule.py"', launcher.read_text())
                 self.assertIn('"agent-os-status": "agent-os-status.py"', launcher.read_text())
                 self.assertIn('"agent-os-watchdog": "agent-os-watchdog.py"', launcher.read_text())
@@ -1032,7 +1032,7 @@ class SetupAgentHooksTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_home:
             with patch.dict(os.environ, {"HOME": temp_home}):
                 ensure_stable_launcher(ROOT, dry_run=False)
-                stable_root_pointer_path().write_text("/missing/tao-agent-os\n")
+                stable_root_pointer_path().write_text("/missing/moru-core\n")
                 launcher = stable_launcher_path()
                 env = os.environ.copy()
                 env["MORU_HOOK_SOFT_FAIL"] = "1"
@@ -1124,7 +1124,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 launcher = stable_launcher_path()
             # Test runs must name their state home; the stores refuse the default.
             environment = {**os.environ, "HOME": temp_home,
-                           "MORU_STATE_HOME": str(Path(temp_home) / ".tao")}
+                           "MORU_STATE_HOME": str(Path(temp_home) / ".moru")}
 
             def invoke(*args: str, body: str = "") -> subprocess.CompletedProcess[str]:
                 return subprocess.run(
@@ -1150,7 +1150,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             environment = dict(os.environ)
             environment["HOME"] = temp_home
             # Test runs must name their state home; the stores refuse the default.
-            environment["MORU_STATE_HOME"] = str(Path(temp_home) / ".tao")
+            environment["MORU_STATE_HOME"] = str(Path(temp_home) / ".moru")
             with patch.dict(os.environ, environment, clear=True):
                 ensure_stable_launcher(ROOT, dry_run=False)
                 launcher = stable_launcher_path()
@@ -1181,7 +1181,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
                 check=False,
             )
-            launcher = Path(temp_home) / ".tao" / "bin" / "tao-hook"
+            launcher = Path(temp_home) / ".moru" / "bin" / "moru-hook"
             help_result = subprocess.run(
                 [str(launcher), "agent-mailbox", "--help"],
                 cwd=str(ROOT),
@@ -1479,24 +1479,24 @@ class SetupAgentHooksTests(unittest.TestCase):
 
             merge_codex_prefix_rules(
                 rules,
-                ['prefix_rule(pattern=["tao-hook"], decision="allow")'],
+                ['prefix_rule(pattern=["moru-hook"], decision="allow")'],
                 dry_run=False,
                 cleanup_entries=[stale_rule],
             )
             merge_permissions_allow(
                 settings,
-                ["Bash(tao-hook *)"],
+                ["Bash(moru-hook *)"],
                 dry_run=False,
                 cleanup_entries=[stale_permission],
             )
 
             self.assertNotIn(obsolete_brand, rules.read_text().lower())
             self.assertIn("custom-tool", rules.read_text())
-            self.assertIn('prefix_rule(pattern=["tao-hook"]', rules.read_text())
+            self.assertIn('prefix_rule(pattern=["moru-hook"]', rules.read_text())
             permissions = json.loads(settings.read_text())["permissions"]["allow"]
             self.assertFalse(any(obsolete_brand in entry.lower() for entry in permissions))
             self.assertIn("Bash(custom-tool *)", permissions)
-            self.assertIn("Bash(tao-hook *)", permissions)
+            self.assertIn("Bash(moru-hook *)", permissions)
 
     def _git(self, project: Path, *args: str) -> None:
         subprocess.run(

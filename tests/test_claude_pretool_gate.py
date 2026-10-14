@@ -200,7 +200,7 @@ def _isolated_env(**overrides: str) -> dict:
     Clearing `os.environ` is how a case proves the gate read one exact hint
     and nothing else. The state home is not one of those hints -- it only says
     which directory the session-project index lives in -- and clearing it sent
-    that index straight back to the developer's own `~/.tao`.
+    that index straight back to the developer's own `~/.moru`.
     """
 
     kept = (
@@ -235,7 +235,7 @@ def _decision_of(out: str) -> str:
 def _opt_in_project(base: Path) -> Path:
     project = base / "proj"
     (project / ".moru").mkdir(parents=True)
-    (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+    (project / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
     return project
 
 
@@ -414,7 +414,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             _write_preflight(project, "read-transition", command="review")
             base = {"tool_name": "Bash", "cwd": str(project), "session_id": "read-transition"}
             _, start_out = _decide({**base, "tool_input": {
-                "command": f"{gate.preferred_launcher_path()} start --project {project}"
+                "command": f"{gate.stable_launcher_path()} start --project {project}"
             }})
             self.assertEqual("", start_out)
             _, write_out = _decide({**base, "tool_input": {"command": "git worktree add ../task"}})
@@ -539,7 +539,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             _require_linked_worktree(main)
             linked = Path(tmp) / "linked"
             (linked / ".moru").mkdir(parents=True)
-            (linked / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            (linked / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
             _require_linked_worktree(linked, linked=True)
 
             cases = {
@@ -1917,7 +1917,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.preferred_launcher_path()} start --project {project}"
+                        "command": f"{gate.stable_launcher_path()} start --project {project}"
                     },
                 }
             )
@@ -1936,7 +1936,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "tool_input": {
                         "command": (
                             "MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 "
-                            f"{gate.preferred_launcher_path()} start --project {project}"
+                            f"{gate.stable_launcher_path()} start --project {project}"
                         )
                     },
                 }
@@ -1956,7 +1956,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.preferred_launcher_path()} start --project {project}"
+                        "command": f"{gate.stable_launcher_path()} start --project {project}"
                     },
                 }
             )
@@ -1978,7 +1978,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             _require_linked_worktree(main)
             worktree = Path(tmp) / "wt"
             (worktree / ".moru").mkdir(parents=True)
-            (worktree / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            (worktree / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
             (worktree / ".git").write_text("gitdir: ../proj/.git/worktrees/wt\n", encoding="utf-8")
             policy = worktree / gate.WORKTREE_POLICY_PATH
             policy.parent.mkdir(parents=True, exist_ok=True)
@@ -1993,7 +1993,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(main),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.preferred_launcher_path()} start --project {worktree}"
+                        "command": f"{gate.stable_launcher_path()} start --project {worktree}"
                     },
                 }
             )
@@ -2004,7 +2004,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "session_id": "s",
                     "tool_input": {
                         "command": (
-                            f"cd {worktree} && {gate.preferred_launcher_path()} start --project ."
+                            f"cd {worktree} && {gate.stable_launcher_path()} start --project ."
                         )
                     },
                 }
@@ -2015,7 +2015,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(worktree),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.preferred_launcher_path()} start --project {main}"
+                        "command": f"{gate.stable_launcher_path()} start --project {main}"
                     },
                 }
             )
@@ -2034,7 +2034,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "s",
                     "tool_input": {
-                        "command": f"{gate.preferred_launcher_path()} cancel --project {project}"
+                        "command": f"{gate.stable_launcher_path()} cancel --project {project}"
                     },
                 }
             )
@@ -2117,7 +2117,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "tool_name": "Bash",
                     "cwd": str(project),
                     "session_id": "fake-launcher",
-                    "tool_input": {"command": "./tao-hook start"},
+                    "tool_input": {"command": "./moru-hook start"},
                 }
             )
         self.assertEqual(0, code)
@@ -2684,8 +2684,8 @@ class ClaudePreToolGateTests(unittest.TestCase):
             )
 
             reason = json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"]
-            self.assertIn(str(gate.preferred_launcher_path()), reason)
-            self.assertNotIn("~/.tao", reason)
+            self.assertIn(str(gate.stable_launcher_path()), reason)
+            self.assertNotIn("~/.moru", reason)
 
     def test_malformed_stdin_fails_open(self) -> None:
         with patch_stdin("not json{{"):
@@ -2817,23 +2817,6 @@ class ClaudePreToolGateTests(unittest.TestCase):
         for session in ("sp", "a/b..c", "", "uuid-1_2"):
             ack = gate.sprawl_ack_file(root, session)
             self.assertTrue(_is_own_sprawl_ack(ack, root, session), session)
-
-    def test_migrated_project_writes_gate_markers_in_moru(self) -> None:
-        from claude_continuation_hook import _is_own_sprawl_ack
-
-        with tempfile.TemporaryDirectory() as tmp:
-            project = Path(tmp)
-            state = project / ".moru"
-            state.mkdir()
-            (state / "state-ready").write_text("ready\n")
-            gate.record_edit_activity(project, "session")
-
-            self.assertTrue((state / "claude-pretool-gate" / "session.edited").is_file())
-            self.assertEqual(state / "claude-pretool-gate" / "session.newfiles",
-                             gate.sprawl_state_file(project, "session"))
-            self.assertTrue(_is_own_sprawl_ack(gate.sprawl_ack_file(project, "session"),
-                                                project, "session"))
-            self.assertFalse((project / ".tao").exists())
 
     def test_non_source_new_files_are_never_counted(self) -> None:
         # Doc/content sprawl (e.g. a writing workspace) must not be blocked.
@@ -3217,7 +3200,7 @@ class ProjectRootIsTheRepositoryTests(unittest.TestCase):
     @staticmethod
     def _repo(root: Path) -> None:
         (root / ".git").mkdir(parents=True)
-        (root / "AGENTS.md").write_text("# tao-agent project\n")
+        (root / "AGENTS.md").write_text("# moru-agent project\n")
 
     def test_docs_subdirectory_resolves_to_the_repository(self) -> None:
         stop_gate = _load_stop_gate()
@@ -3230,7 +3213,7 @@ class ProjectRootIsTheRepositoryTests(unittest.TestCase):
             self._repo(repo)
             docs = repo / ".agents"
             docs.mkdir()
-            (docs / "AGENTS.md").write_text("# tao-agent shared docs\n")
+            (docs / "AGENTS.md").write_text("# moru-agent shared docs\n")
             deep = docs / "shared" / "llm-skills" / "task"
             deep.mkdir(parents=True)
 
@@ -3253,7 +3236,7 @@ class ProjectRootIsTheRepositoryTests(unittest.TestCase):
             worktree.mkdir(parents=True)
             # A linked worktree records .git as a file.
             (worktree / ".git").write_text("gitdir: ../../../.git/worktrees/TASK-1\n")
-            (worktree / "AGENTS.md").write_text("# tao-agent project\n")
+            (worktree / "AGENTS.md").write_text("# moru-agent project\n")
             inside = worktree / "app" / "src"
             inside.mkdir(parents=True)
 
@@ -3271,7 +3254,7 @@ class ProjectRootIsTheRepositoryTests(unittest.TestCase):
 
             plain = home / "tools" / "runtime"
             plain.mkdir(parents=True)
-            (plain / "AGENTS.md").write_text("# tao-agent runtime\n")
+            (plain / "AGENTS.md").write_text("# moru-agent runtime\n")
             inside = plain / "scripts"
             inside.mkdir()
 
@@ -3307,7 +3290,7 @@ class SessionProjectIndexFollowsStateHomeTests(unittest.TestCase):
             self.assertIn(str(project), recorded)
             # Nothing may appear beside the override.
             self.assertFalse(
-                (Path.home() / ".tao" / "claude-session-projects" / "probe-session").exists()
+                (Path.home() / ".moru" / "claude-session-projects" / "probe-session").exists()
             )
 
     def test_a_subagent_edit_stays_out_of_the_parent_session_index(self) -> None:
@@ -3359,7 +3342,7 @@ class DeclaredPolicyGovernsLinkedWorktreesTests(unittest.TestCase):
     def _worktree(self, base: Path) -> Path:
         """A linked worktree that declares the policy and nothing else.
 
-        Deliberately no ``.tao`` and no opt-in token: those are the two signals
+        Deliberately no ``.moru`` and no opt-in token: those are the two signals
         this case exists because a worktree does not have.
         """
 
@@ -3474,7 +3457,7 @@ class DeclaredPolicyGovernsLinkedWorktreesTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "starting",
                     "tool_input": {
-                        "command": f"{gate.preferred_launcher_path()} start --project {project}"
+                        "command": f"{gate.stable_launcher_path()} start --project {project}"
                     },
                 }
             )
@@ -3686,7 +3669,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
                 "tool_name": "Bash", "cwd": str(project), "session_id": "s",
                 "tool_input": {"command": (
                     "MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 "
-                    f"{gate.preferred_launcher_path()} start --project {project} --command task"
+                    f"{gate.stable_launcher_path()} start --project {project} --command task"
                 )},
             })
         self.assertEqual(0, code)
@@ -3703,7 +3686,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
                     code, out = _decide({
                         "tool_name": "Bash", "cwd": str(project), "session_id": "s",
                         "tool_input": {"command": (
-                            f"{gate.preferred_launcher_path()} start --project {project} "
+                            f"{gate.stable_launcher_path()} start --project {project} "
                             f"--command {route} --request 'clean merged work and push main'"
                         )},
                     })
@@ -3721,7 +3704,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
                 _require_linked_worktree(project)
                 _, out = _decide({
                     "tool_name": "Bash", "cwd": str(project), "session_id": "s",
-                    "tool_input": {"command": f"{gate.preferred_launcher_path()} start --project {project} {suffix}"},
+                    "tool_input": {"command": f"{gate.stable_launcher_path()} start --project {project} {suffix}"},
                 })
                 self.assertEqual(
                     "defer" if "&&" in suffix else "deny",
@@ -4873,7 +4856,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
         )
 
     def test_every_lifecycle_hook_stays_available_to_a_read_only_run(self) -> None:
-        launcher = gate.preferred_launcher_path()
+        launcher = gate.stable_launcher_path()
         hooks = (
             "finish", "cancel", "gate", "gate-batch", "fingerprint",
             "checkpoint", "review", "handoff", "resume", "repair-verify",
@@ -4888,7 +4871,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
                     self.assertEqual("", out, f"{hook} must not be refused by the read contract")
 
     def test_mailbox_exchange_precedes_start(self) -> None:
-        launcher = gate.preferred_launcher_path()
+        launcher = gate.stable_launcher_path()
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp))
             _require_linked_worktree(project)
@@ -4912,7 +4895,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
     def test_the_escalation_the_denial_names_is_reachable(self) -> None:
         """fingerprint then start is the whole escape route; both must pass."""
 
-        launcher = gate.preferred_launcher_path()
+        launcher = gate.stable_launcher_path()
         with tempfile.TemporaryDirectory() as tmp:
             project = self._read_run(Path(tmp))
 
@@ -4950,7 +4933,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
 
 
     def test_lifecycle_hook_cannot_hide_bootstrap_or_source_mutation(self) -> None:
-        launcher = gate.preferred_launcher_path()
+        launcher = gate.stable_launcher_path()
         with tempfile.TemporaryDirectory() as tmp:
             project = self._read_run(Path(tmp))
             for hook in ("fingerprint", "finish", "start"):
@@ -4969,7 +4952,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
 
     def test_direct_python_fingerprint_and_read_only_pipe_remain_available(self) -> None:
         script = Path(gate.__file__).with_name("agent-hook.py")
-        launcher = gate.preferred_launcher_path()
+        launcher = gate.stable_launcher_path()
         with tempfile.TemporaryDirectory() as tmp:
             project = self._read_run(Path(tmp))
             for command in (
@@ -4983,7 +4966,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
 
 
     def test_output_options_never_inherit_read_run_exemption(self) -> None:
-        launcher = gate.preferred_launcher_path()
+        launcher = gate.stable_launcher_path()
         script = Path(gate.__file__).with_name("agent-hook.py")
         with tempfile.TemporaryDirectory() as tmp:
             project = self._read_run(Path(tmp))
@@ -5011,7 +4994,7 @@ class ProjectMemoryIsAgentWrittenTests(unittest.TestCase):
     def test_memory_writes_on_protected_main_need_no_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp))
-            launcher = gate.preferred_launcher_path()
+            launcher = gate.stable_launcher_path()
             _require_linked_worktree(project)
             for command in (
                 f"{launcher} project-memory --project {project} approve 0123456789abcdef --digest d",

@@ -37,12 +37,13 @@ from workflow_gate_policy import (
 from workflow_parallel_validate import validate_parallel_execution_plan
 from workflow_route import REVIEW_HOOK_REQUIRED_COMMANDS, resolve_docs, route_gates
 from workflow_spill import validate_spill_label_contracts
+from support import legacy_names
 
 
 MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 REMOVED_GATE_OPTION_RE = re.compile(r"--gate(?![-\w])")
 FRONTMATTER_REQUIRED_KEYS = ("keyflow_id:", "status:", "type:")
-STRICT_CARD_MARKER = "tao_card_contract: strict"
+STRICT_CARD_MARKER = "moru_card_contract: strict"
 STRICT_CARD_REQUIRED_HEADINGS = (
     "## Use When",
     "## Decision Rule",
@@ -61,7 +62,7 @@ MARKDOWN_VALIDATE_IGNORED_DIRS = {
     "local",
     # Agent task checkouts are separate repositories, not canonical guidance.
     ".claude/worktrees",
-    ".tao",
+    legacy_names.STATE_DIR,
     ".moru",
     ".git",
     ".mypy_cache",

@@ -41,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--global",
         dest="global_scope",
         action="store_true",
-        help="Install the runtime bundle under ~/.tao and refresh user-level links.",
+        help="Install the runtime bundle under ~/.moru and refresh user-level links.",
     )
     parser.add_argument(
         "--runtime",

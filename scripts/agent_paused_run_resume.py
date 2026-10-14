@@ -10,7 +10,6 @@ re-stamps the binding the evidence already records, as that hook does.
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import json
 import os
@@ -71,7 +70,7 @@ def resume_session_paused_run(project: Path, evidence: Path | None) -> tuple[Pat
     ``evidence`` names a different run.
     """
 
-    if env_get("MORU_WORKER_EVIDENCE") or env_get("MORU_PARENT_EVIDENCE_READONLY") == "1":
+    if os.environ.get("MORU_WORKER_EVIDENCE", "") or os.environ.get("MORU_PARENT_EVIDENCE_READONLY", "") == "1":
         return None, ""
     session = runtime_session()
     if not session:

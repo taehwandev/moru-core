@@ -47,7 +47,7 @@ def setUpModule() -> None:
     # Every start here opens a user-local work card, and `environment()` hands
     # os.environ to each hook process. Without this the suite fills the
     # developer's own ~/.moru/work-cards with cards for throwaway checkouts.
-    directory = tempfile.TemporaryDirectory(prefix="tao-state-home-")
+    directory = tempfile.TemporaryDirectory(prefix="moru-state-home-")
     patch = mock.patch.dict(os.environ, {"MORU_STATE_HOME": directory.name})
     patch.start()
     # These scenarios test continuity, not audit findings: every hook process

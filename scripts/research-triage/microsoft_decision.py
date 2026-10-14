@@ -240,7 +240,7 @@ def evaluate(payload: dict, options: argparse.Namespace) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
-    parser.add_argument("--cache-dir", type=Path, default=Path(".tao/research-cache/ms"))
+    parser.add_argument("--cache-dir", type=Path, default=Path(".moru/research-cache/ms"))
     parser.add_argument("--execute", action="store_true", help="Allow new API calls")
     parser.add_argument("--model", choices=(MODEL, PAID_MODEL), default=MODEL,
                         help="Decisions model; the default is free, the Microsoft option is paid")

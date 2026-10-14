@@ -547,7 +547,7 @@ def active_run_bindings(
     with project_state_lock(project), state_lock(path):
         payload = _read_registry(path)
         latest: dict[str, dict[str, Any]] = {}
-        legacy_default = project.resolve() / ".tao" / "preflight.json"
+        legacy_default = project_state_dir_target(project.resolve()) / "preflight.json"
         legacy_key = _evidence_key(project, legacy_default)
         for run in payload["runs"]:
             key = str(run.get("evidence_key") or "")
@@ -1418,7 +1418,7 @@ def _matches_evidence(run: dict[str, Any], project: Path, evidence_path: Path) -
     key = str(run.get("evidence_key") or "")
     if key:
         return key == _evidence_key(project, evidence_path)
-    legacy_default = project.resolve() / ".tao" / "preflight.json"
+    legacy_default = project_state_dir_target(project.resolve()) / "preflight.json"
     return (
         evidence_path.resolve() == legacy_default
         and run.get("evidence_name") == evidence_path.name

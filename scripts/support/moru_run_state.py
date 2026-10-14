@@ -105,13 +105,6 @@ def gate_progress(project: Path, run: dict[str, Any]) -> str:
 
     evidence_path = Path(str(ledger.get("preflight_evidence") or ""))
     evidence = read_json(evidence_path)
-    if not evidence:
-        try:
-            relative = evidence_path.resolve().relative_to((project / ".tao").resolve())
-            if ".." not in relative.parts:
-                evidence = read_json(project_state_dir_target(project) / relative)
-        except (OSError, ValueError):
-            pass
     route = evidence.get("route")
     gates = route.get("gates") if isinstance(route, dict) else None
     if not isinstance(gates, list) or not gates:
@@ -137,13 +130,13 @@ def gate_ledger(project: Path, run: dict[str, Any]) -> dict[str, Any]:
     if not evidence_name:
         return {}
     stem = Path(evidence_name).stem
-    tao = project_state_dir_target(project)
+    state = project_state_dir_target(project)
     candidates = [
-        tao / "evidence" / f"{stem}-gate-evidence.json",
-        tao / f"{stem}-gate-evidence.json",
+        state / "evidence" / f"{stem}-gate-evidence.json",
+        state / f"{stem}-gate-evidence.json",
     ]
     if stem == "preflight":
-        candidates.append(tao / "gate-evidence.json")
+        candidates.append(state / "gate-evidence.json")
     for candidate in candidates:
         ledger = read_json(candidate)
         bound = str(ledger.get("preflight_evidence") or "")

@@ -17,7 +17,7 @@ class AgentFinishFinalChecksTests(unittest.TestCase):
     """Final-check behaviour, decided by the arguments and nothing else.
 
     These tests pass ``ROOT`` as the project, so the repository's own review
-    cache under ``.tao`` was read as real input: a run that had just recorded a
+    cache under ``.moru`` was read as real input: a run that had just recorded a
     review made the cached result stand in for the patched validation, and the
     same test passed or failed depending on what the checkout had been doing.
     Every test that does not set the cache up itself neutralises it here.

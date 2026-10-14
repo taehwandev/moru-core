@@ -1,7 +1,7 @@
 """Parallel agents that share one runtime session id keep their own runs.
 
 Claude Code subagents inherit the parent's session id, and each usually works
-in its own linked worktree nested under the parent checkout's ``.tao``. These
+in its own linked worktree nested under the parent checkout's ``.moru``. These
 tests interleave start (supersession), gate/edit-admission lookups and Stop
 boundaries across those checkouts and assert that each run stays addressable
 by its own project path.
@@ -42,7 +42,7 @@ INTAKE = {"request": "parallel worker fixture", "request_classified": False}
 def start_run(project: Path, session: dict[str, str] = SESSION) -> Path:
     """Register one run-local run the way `start` does and stamp its session."""
 
-    evidence = project / ".tao" / "runs" / uuid.uuid4().hex / "preflight.json"
+    evidence = project / ".moru" / "runs" / uuid.uuid4().hex / "preflight.json"
     evidence.parent.mkdir(parents=True)
     register_run(project, evidence, ROUTE, INTAKE)
     evidence.write_text(
@@ -82,14 +82,14 @@ class ParallelSessionBindingTests(unittest.TestCase):
         self.main = Path(self._directory.name) / "repo"
         self.main.mkdir()
         (self.main / ".git").mkdir()
-        (self.main / "AGENTS.md").write_text("uses tao\n", encoding="utf-8")
+        (self.main / "AGENTS.md").write_text("uses moru\n", encoding="utf-8")
         self.worktrees = {}
         for name in ("worker-a", "worker-b"):
-            checkout = self.main / ".tao" / "worktrees" / name
+            checkout = self.main / ".moru" / "worktrees" / name
             checkout.mkdir(parents=True)
             # A linked worktree marks its root with a `.git` file.
             (checkout / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
-            (checkout / "AGENTS.md").write_text("uses tao\n", encoding="utf-8")
+            (checkout / "AGENTS.md").write_text("uses moru\n", encoding="utf-8")
             self.worktrees[name] = checkout
 
     def test_each_worktree_resolves_its_own_run_for_the_shared_session(self) -> None:
@@ -101,19 +101,10 @@ class ParallelSessionBindingTests(unittest.TestCase):
         self.assertEqual(b, resolve_runtime_evidence(self.worktrees["worker-b"], SESSION))
         self.assertEqual(parent, resolve_runtime_evidence(self.main, SESSION))
 
-    def test_migrated_runs_link_keeps_session_evidence_visible(self) -> None:
-        state = self.main / ".moru" / "runs"
-        state.mkdir(parents=True)
-        (self.main / ".moru" / "state-ready").touch()
-        (self.main / ".tao" / "runs").symlink_to(Path("../.moru/runs"))
-        evidence = start_run(self.main)
-
-        self.assertEqual(evidence, resolve_runtime_evidence(self.main, SESSION))
-
     def test_runs_link_outside_project_is_not_session_evidence(self) -> None:
         foreign_runs = Path(self._directory.name) / "foreign" / "runs"
         foreign_runs.mkdir(parents=True)
-        (self.main / ".tao" / "runs").symlink_to(foreign_runs)
+        (self.main / ".moru" / "runs").symlink_to(foreign_runs)
         evidence = start_run(self.main)
 
         self.assertIsNone(resolve_runtime_evidence(self.main, SESSION))
@@ -157,7 +148,7 @@ class ParallelSessionBindingTests(unittest.TestCase):
 
     def test_same_checkout_stop_leaves_the_isolated_worker_run_active(self) -> None:
         parent = start_run(self.main)
-        worker = self.main / ".tao" / "workers" / "0123456789abcdef" / "preflight.json"
+        worker = self.main / ".moru" / "workers" / "0123456789abcdef" / "preflight.json"
         worker.parent.mkdir(parents=True)
         register_run(self.main, worker, ROUTE, INTAKE)
         worker.write_text(
@@ -173,13 +164,13 @@ class ParallelSessionBindingTests(unittest.TestCase):
             self.assertEqual(worker.resolve(), resolve_runtime_evidence(self.main, SESSION))
 
     def test_worker_checkout_churn_does_not_drop_the_parent_binding(self) -> None:
-        # The parent checkout's `.tao` holds every linked worktree, so its scan
+        # The parent checkout's `.moru` holds every linked worktree, so its scan
         # walked their whole source trees. A directory a parallel worker
         # creates or removes mid-walk (unreadable here, deterministically) made
         # the scan incomplete, and any active binding the scan could not
         # account for then denied the parent's own edit admission.
         parent = start_run(self.main)
-        orphan = self.main / ".tao" / "runs" / uuid.uuid4().hex / "preflight.json"
+        orphan = self.main / ".moru" / "runs" / uuid.uuid4().hex / "preflight.json"
         orphan.parent.mkdir(parents=True)
         register_run(self.main, orphan, ROUTE, INTAKE)  # evidence never written
         churn = self.worktrees["worker-a"] / "build" / "tmp"

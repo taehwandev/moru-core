@@ -160,7 +160,7 @@ class AdoptedRunStartTests(unittest.TestCase):
             git(project, "init", "-q", ".")
             git(project, "config", "user.email", "probe@example.invalid")
             git(project, "config", "user.name", "probe")
-            (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
+            (project / "AGENTS.md").write_text("uses moru-hook\n", encoding="utf-8")
             git(project, "add", "AGENTS.md")
             git(project, "commit", "-q", "-m", "first", "--no-verify")
 

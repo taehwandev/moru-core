@@ -20,6 +20,7 @@ from support.project_tree import PRUNED_DIRECTORIES, iter_project_files
 from support.stage_timing import stage
 from support.global_state import project_state_dir_target
 from workflow_gate_policy import READ_ONLY_LOOKUP
+from support import legacy_names
 
 
 WIKIMAP_VERSION = "1.0.0"
@@ -28,13 +29,13 @@ WIKIMAP_SHA256 = "1e81848539ad959d90c15441b08cc95073619331afe4562f3960808f755970
 WIKIMAP_SCRIPT = Path(__file__).resolve().parent / "third_party" / "wikimap" / "wikimap.py"
 WIKIMAP_TIMEOUT_SECONDS = 15
 WIKIMAP_IGNORES = (
-    ".tao",
+    legacy_names.STATE_DIR,
     ".moru",
     ".agents/skills/graphify",
     ".claude/skills/graphify",
     ".codex/skills/graphify",
     "graphify-out",
-    "scripts/.tao",
+    f"scripts/{legacy_names.STATE_DIR}",
     "scripts/.moru",
     "scripts/third_party",
 )

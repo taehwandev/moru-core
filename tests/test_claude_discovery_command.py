@@ -66,7 +66,7 @@ class DiscoveryCommandTests(unittest.TestCase):
         for command in ("python3 /tmp/project-discover.py --request x",
                         "/tmp/agent-entry.py --request x",
                         f"python3 -c {shlex.quote(str(self.scripts / 'project-discover.py'))}",
-                        "/tmp/tao-hook project-discover --request x"):
+                        "/tmp/moru-hook project-discover --request x"):
             with self.subTest(command=command):
                 self.assertNotEqual("read_only", self.effect(command))
 
@@ -81,7 +81,7 @@ class DiscoveryCommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=self.scripts.parent) as directory:
             root = Path(directory).resolve()
             subprocess.run(["git", "init", "-q", str(root)], check=True)
-            (root / "AGENTS.md").write_text("Uses tao-hook.\n")
+            (root / "AGENTS.md").write_text("Uses moru-hook.\n")
             policy = root / ".agents/shared"
             policy.mkdir(parents=True)
             (policy / "worktree-policy.json").write_text(json.dumps({

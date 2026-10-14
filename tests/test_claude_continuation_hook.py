@@ -542,7 +542,7 @@ class ClaudeContinuationSetupTests(unittest.TestCase):
     def test_setup_installs_session_and_both_post_tool_events_idempotently(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "settings.json"
-            launcher = Path(directory) / "tao-hook"
+            launcher = Path(directory) / "moru-hook"
 
             first = configure_claude_continuation(
                 target,

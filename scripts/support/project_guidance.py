@@ -14,8 +14,6 @@ from support.setup_config_files import BACKUP_SUFFIX, SetupConfigError, _atomic_
 
 _MARKERS = (
     ("<!-- BEGIN MANAGED MORU CORE ROUTING -->", "<!-- END MANAGED MORU CORE ROUTING -->"),
-    # Written before the Moru rename; refreshed in place under its old name.
-    ("<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->", "<!-- END MANAGED TAO AGENT OS ROUTING -->"),
 )
 _OLD = re.compile(
     r"For a Codex leaf, use `dispatch --execute`\s+"

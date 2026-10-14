@@ -186,7 +186,7 @@ def _add_route_parser(subparsers: argparse._SubParsersAction) -> None:
         type=Path,
         help=(
             "Parent preflight evidence whose execution capsule may honor "
-            "--request-classified. Defaults to <project>/.tao/preflight.json."
+            "--request-classified. Defaults to <project>/.moru/preflight.json."
         ),
     )
     route.add_argument(
@@ -268,7 +268,7 @@ def _add_dispatch_parser(subparsers: argparse._SubParsersAction) -> None:
         "--delegation-plan",
         type=Path,
         default=None,
-        help="Delegation plan path (default: <project>/.tao/agent-delegation-plan.json).",
+        help="Delegation plan path (default: <project>/.moru/agent-delegation-plan.json).",
     )
     dispatch.add_argument("--heartbeat-interval-seconds", type=float, default=0)
     dispatch.add_argument("--execute", action="store_true")

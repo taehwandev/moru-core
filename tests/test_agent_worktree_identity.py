@@ -97,16 +97,6 @@ class WorktreeIdentityTests(unittest.TestCase):
                     new_worktree_path(self.project),
                 )
 
-    def test_migrated_project_creates_worker_paths_under_moru(self) -> None:
-        moru_dir = self.project / ".moru"
-        moru_dir.mkdir()
-        (moru_dir / "state-ready").touch()
-        (self.project / ".tao").symlink_to(moru_dir, target_is_directory=True)
-
-        candidate = new_worktree_path(self.project)
-        self.assertEqual(moru_dir / "worktrees", candidate.parent)
-        self.assertEqual(candidate.resolve(), generated_worker_path(self.project, candidate))
-
     def test_resolve_base_ref_rejects_non_repository(self) -> None:
         with tempfile.TemporaryDirectory() as plain_dir:
             with self.assertRaises(WorktreeSessionError):

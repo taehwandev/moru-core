@@ -23,14 +23,14 @@ class CommitReadyTests(unittest.TestCase):
         self.fixture.source.evidence.write_text(json.dumps(preflight))
         reset_gate_evidence_ledger(self.fixture.source.evidence, preflight)
         if self._testMethodName == "test_migrated_state_is_selected_for_completed_review":
-            legacy = self.fixture.project / '.tao'
+            legacy = self.fixture.project / '.moru'
             migrated = self.fixture.project / '.moru'
             legacy.rename(migrated)
             (migrated / 'state-ready').write_text('ready\n')
             self.fixture.source.evidence = migrated / 'runs' / preflight['agent_run_id'] / 'preflight.json'
             reset_gate_evidence_ledger(self.fixture.source.evidence, preflight)
         self.registry = self.fixture.project / (
-            '.moru' if self._testMethodName == "test_migrated_state_is_selected_for_completed_review" else '.tao'
+            '.moru' if self._testMethodName == "test_migrated_state_is_selected_for_completed_review" else '.moru'
         ) / "run-registry.json"
         self.registry.write_text(json.dumps({"runs": [{
             "run_id": preflight["agent_run_id"], "state": "completed",
@@ -92,7 +92,7 @@ class CommitReadyTests(unittest.TestCase):
 
     def test_public_literal_pathspec_scope_reuses_the_exact_completed_review(self):
         self.publish_pathspec(["source.py", "extra.py"], scope="pathspec")
-        path = self.fixture.project / ".tao" / "review-checks-latest.json"
+        path = self.fixture.project / ".moru" / "review-checks-latest.json"
         self.assertEqual("pathspec", json.loads(path.read_text())["snapshot"]["scope"])
         calls = []
 
@@ -103,10 +103,6 @@ class CommitReadyTests(unittest.TestCase):
 
         self.assertEqual(0, prepare_commit(self.args, self.start, dispatch))
         self.assertEqual(["review", "finish"], calls)
-
-    def test_migrated_state_is_selected_for_completed_review(self):
-        self.assertEqual(0, prepare_commit(self.args, self.start, self.dispatch))
-        self.assertEqual(2, self.dispatch.call_count, self.output._new_target.getvalue())
 
     def test_same_paths_cannot_replace_the_completed_review_scope(self):
         self.publish_pathspec(["source.py", "extra.py"])
@@ -152,7 +148,7 @@ class CommitReadyTests(unittest.TestCase):
         self.assert_ordinary_entry()
 
     def _separate_review_rules(self):
-        rules = self.fixture.project / ".tao" / "separate-rules"
+        rules = self.fixture.project / ".moru" / "separate-rules"
         rules.mkdir()
         self.fixture.git("init", "-q", str(rules))
         self.fixture.git("-C", str(rules), "-c", "user.name=Review Test", "-c",
@@ -303,7 +299,7 @@ class CommitReadyTests(unittest.TestCase):
 
     def test_pathspec_review_rejects_changed_rule_or_checker_proof(self):
         self.publish_pathspec(["source.py", "extra.py"])
-        path = self.fixture.project / ".tao" / "review-checks-latest.json"
+        path = self.fixture.project / ".moru" / "review-checks-latest.json"
         original = json.loads(path.read_text())
         for field in ("rules_sha256", "checker_sha256"):
             with self.subTest(field=field):
@@ -345,7 +341,7 @@ class CommitReadyTests(unittest.TestCase):
 
     def test_pathspec_review_narrative_tampering_prevents_reuse(self):
         self.publish_pathspec(["source.py", "extra.py"])
-        path = self.fixture.project / ".tao" / "review-checks-latest.json"
+        path = self.fixture.project / ".moru" / "review-checks-latest.json"
         cache = json.loads(path.read_text())
         cache["checks"]["review_input"]["code_review_evidence"] = "Changed review statement"
         path.write_text(json.dumps(cache))
@@ -444,7 +440,7 @@ class CommitReadyTests(unittest.TestCase):
         self.dispatch.assert_not_called()
 
     def test_altered_review_narrative_is_not_reused(self):
-        path = self.fixture.project / ".tao" / "review-checks-latest.json"
+        path = self.fixture.project / ".moru" / "review-checks-latest.json"
         cache = json.loads(path.read_text())
         cache["checks"]["review_input"]["code_review_evidence"] = "Altered narrative"
         path.write_text(json.dumps(cache))

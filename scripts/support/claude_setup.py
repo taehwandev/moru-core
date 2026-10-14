@@ -20,6 +20,7 @@ from support.runtime_bridge import (
 )
 from support.global_state import global_state_dir
 from support.setup_config_files import merge_permissions_allow, quote, read_json, write_json
+from support import legacy_names
 
 # Identify the managed hook by the command it runs, not by the launcher's
 # filename. Keying on the launcher name means a renamed launcher stops matching
@@ -44,7 +45,7 @@ _STATUSLINE_ALIAS = "claude-statusline"
 # the eviction the chain exists to prevent.
 _STATUSLINE_MARKER = "MORU_STATUSLINE=1"
 # The marker written before the Moru rename still identifies our own entry.
-_STATUSLINE_MARKERS = (_STATUSLINE_MARKER, "TAO_STATUSLINE=1")
+_STATUSLINE_MARKERS = (_STATUSLINE_MARKER, legacy_names.STATUSLINE_MARKER)
 
 
 def configure_claude(

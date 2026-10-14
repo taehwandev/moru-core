@@ -7,7 +7,6 @@ why, but callers should treat any non-zero exit as blocking.
 
 from __future__ import annotations
 
-from support.env_names import env_get
 
 import argparse
 import json
@@ -150,7 +149,7 @@ from agent_context_store import (
 )
 from support.global_state import ensure_local_only_state_dir, project_state_dir_target
 from support.git_read_scope import git_read_scope
-from support.stable_launcher import preferred_launcher_path
+from support.stable_launcher import stable_launcher_path
 from workflow_catalog import COMMANDS, CONCERNS, PLATFORM_CONCERNS
 from support.stage_timing import append_recorded_stages, set_timing_sink, stage
 ROOT = Path(__file__).resolve().parents[1]
@@ -385,7 +384,7 @@ def _project_memory_upkeep_lines(project: Path, records: list[dict[str, Any]]) -
     """Counts of records awaiting a decision; advisory, content-free, never a gate."""
     try:
         report = project_memory_findings(records, 0, today=date.today())
-        line = project_memory_upkeep_line(report, project.resolve(), str(preferred_launcher_path()))
+        line = project_memory_upkeep_line(report, project.resolve(), str(stable_launcher_path()))
     except (OSError, ValueError):
         return []
     return [line] if line else []
@@ -1044,7 +1043,7 @@ def _closed_run_lines(project: Path) -> list[str]:
         + _fast_forward_line(project),
         "Project memory: if this run verified a project fact worth reusing (a root "
         "cause, a pitfall, or a decision reason the code does not show), capture it "
-        f"once with {preferred_launcher_path()} project-memory --project {project} "
+        f"once with {stable_launcher_path()} project-memory --project {project} "
         "capture --source <evidence> --review-on <YYYY-MM-DD> [--source-path <file>], "
         "the one-line body on stdin; otherwise nothing is needed.",
     ]
@@ -1236,7 +1235,7 @@ def _claim_refusal_detail(claim: dict[str, Any]) -> str:
 
     detail = (
         "preflight evidence is already bound to another active request; "
-        "use one isolated --evidence .tao/runs/<opaque>/preflight.json path "
+        "use one isolated --evidence .moru/runs/<opaque>/preflight.json path "
         "for the full start/gate/review/finish lifecycle"
     )
     if claim.get("held"):
@@ -2836,9 +2835,9 @@ def _checkpointed_hook(
 
 
 def _apply_worker_evidence_boundary(args: argparse.Namespace) -> str:
-    if env_get("MORU_PARENT_EVIDENCE_READONLY") == "1":
+    if os.environ.get("MORU_PARENT_EVIDENCE_READONLY", "") == "1":
         return "reusable worker capsule cannot run lifecycle hooks that write parent evidence"
-    expected = env_get("MORU_WORKER_EVIDENCE")
+    expected = os.environ.get("MORU_WORKER_EVIDENCE", "")
     if not expected:
         return ""
     expected_path = Path(expected).expanduser().resolve()

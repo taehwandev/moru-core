@@ -20,7 +20,7 @@ class ScratchHelperScripts(_Fixture):
         # file, whose default requires a workflow run before unverified commands.
         self.spill = self.base / "home" / "spill"
         self.spill.mkdir(parents=True)
-        (self.spill / "AGENTS.md").write_text("Uses tao-hook.\n")
+        (self.spill / "AGENTS.md").write_text("Uses moru-hook.\n")
         _git("init", "-q", "-b", "main", cwd=self.spill)
         _git("add", ".", cwd=self.spill)
         _git("commit", "-q", "-m", "init", cwd=self.spill)

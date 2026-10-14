@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from support import legacy_names
+
 
 RUNTIME_TO_PLATFORM = {
     "agy": "antigravity",
@@ -80,7 +82,7 @@ def resolve_graph_path(project: Path) -> Path | None:
 # These paths identify the removed project-bundle design. Their presence means
 # setup has leaked common runtime assets into a target checkout.
 PROJECT_RUNTIME_ASSET_PATHS = (
-    Path(".tao/skills/graphify"),
+    Path(legacy_names.STATE_DIR) / "skills" / "graphify",
     Path(".moru/skills/graphify"),
     Path(".agents/skills/graphify"),
     Path(".agents/rules/graphify.md"),
@@ -138,7 +140,6 @@ def leaked_runtime_asset(project_path: Path, relative: Path) -> bool:
 GRAPHIFY_INPUT_BLOCK = "\n".join(
     (
         "# moru-graphify-inputs:start",
-        ".tao/",
         ".moru/",
         ".agents/local/",
         "graphify-out/",

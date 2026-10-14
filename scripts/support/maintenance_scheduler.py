@@ -8,11 +8,12 @@ import pwd
 import subprocess
 import sys
 from pathlib import Path
+from support import legacy_names
 
 
 LAUNCH_AGENT_LABEL = "com.taehwandev.moru-core.maintenance"
 # The label setup installed before the Moru rename; replaced, never run twice.
-LEGACY_LAUNCH_AGENT_LABEL = "com.taehwandev.tao-agent-os.maintenance"
+LEGACY_LAUNCH_AGENT_LABEL = legacy_names.LAUNCH_AGENT_LABEL
 MAINTENANCE_INTERVAL_SECONDS = 24 * 60 * 60
 
 

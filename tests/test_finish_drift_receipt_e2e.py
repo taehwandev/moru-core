@@ -59,8 +59,8 @@ _FIXTURE = TemplateRepository(_build_fixture, repositories=("rules", "project"))
 
 
 def setUpModule() -> None:
-    # Keep work cards out of the developer's ~/.tao and skip the real audit.
-    directory = tempfile.TemporaryDirectory(prefix="tao-state-home-")
+    # Keep work cards out of the developer's ~/.moru and skip the real audit.
+    directory = tempfile.TemporaryDirectory(prefix="moru-state-home-")
     state = mock.patch.dict(os.environ, {"MORU_STATE_HOME": directory.name})
     state.start()
     vibeguard = fake_vibeguard_environment()

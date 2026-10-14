@@ -145,8 +145,8 @@ class CodexApprovalIntegrationTests(unittest.TestCase):
 
 
 class MailboxDeliverySetupTests(unittest.TestCase):
-    CODEX = "/stable/tao-hook mailbox-hook deliver --runtime codex"
-    CLAUDE = "/stable/tao-hook mailbox-hook deliver --runtime claude"
+    CODEX = "/stable/moru-hook mailbox-hook deliver --runtime codex"
+    CLAUDE = "/stable/moru-hook mailbox-hook deliver --runtime claude"
 
     def _commands(self, target: Path) -> list[str]:
         payload = json.loads(target.read_text(encoding="utf-8"))
@@ -158,7 +158,7 @@ class MailboxDeliverySetupTests(unittest.TestCase):
             target = Path(directory) / "hooks.json"
             target.write_text(json.dumps({"hooks": {"UserPromptSubmit": [
                 {"hooks": [{"type": "command", "command": "other-prompt-hook"}]},
-                {"hooks": [{"type": "command", "command": "/old/tao-hook mailbox-hook deliver --runtime codex"}]},
+                {"hooks": [{"type": "command", "command": "/old/moru-hook mailbox-hook deliver --runtime codex"}]},
             ]}}), encoding="utf-8")
             first = merge_codex_mailbox_delivery(target, self.CODEX, dry_run=False)
             second = merge_codex_mailbox_delivery(target, self.CODEX, dry_run=False)
@@ -171,13 +171,13 @@ class MailboxDeliverySetupTests(unittest.TestCase):
             target = Path(directory) / "settings.json"
             target.write_text(json.dumps({"hooks": {"UserPromptSubmit": [
                 {"matcher": ".*", "hooks": [{"type": "command",
-                                             "command": "tao-hook workflow route triage --advisory"}]},
+                                             "command": "moru-hook workflow route triage --advisory"}]},
             ]}}), encoding="utf-8")
             first = _merge_claude_mailbox_delivery(target, self.CLAUDE, dry_run=False)
             second = _merge_claude_mailbox_delivery(target, self.CLAUDE, dry_run=False)
             commands = self._commands(target)
         self.assertEqual(("installed", "ok"), (first, second))
-        self.assertEqual(["tao-hook workflow route triage --advisory", self.CLAUDE], commands)
+        self.assertEqual(["moru-hook workflow route triage --advisory", self.CLAUDE], commands)
 
     def test_dry_run_reports_missing_without_writing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -190,7 +190,7 @@ class CodexSetupTests(unittest.TestCase):
     def test_pretool_refresh_adds_native_patch_without_replacing_other_hooks(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "hooks.json"
-            command = "/stable/tao-hook codex-pretool-gate"
+            command = "/stable/moru-hook codex-pretool-gate"
             other = {"matcher": ".*", "hooks": [{"type": "command", "command": "other-hook"}]}
             original = {"hooks": {"PreToolUse": [other, {
                 "matcher": "Edit|Write|MultiEdit|ApplyPatch|Bash",
@@ -234,10 +234,10 @@ class CodexSetupTests(unittest.TestCase):
             )
 
             first = merge_codex_stop_gate(
-                target, "/stable/tao-hook codex-stop-gate", dry_run=False
+                target, "/stable/moru-hook codex-stop-gate", dry_run=False
             )
             second = merge_codex_stop_gate(
-                target, "/stable/tao-hook codex-stop-gate", dry_run=False
+                target, "/stable/moru-hook codex-stop-gate", dry_run=False
             )
             payload = json.loads(target.read_text(encoding="utf-8"))
 
@@ -249,7 +249,7 @@ class CodexSetupTests(unittest.TestCase):
         self.assertEqual("installed", first)
         self.assertEqual("ok", second)
         self.assertEqual(
-            ["node spill-stop.js", "/stable/tao-hook codex-stop-gate"],
+            ["node spill-stop.js", "/stable/moru-hook codex-stop-gate"],
             commands,
         )
 
@@ -258,7 +258,7 @@ class CodexSetupTests(unittest.TestCase):
             target = Path(directory) / "hooks.json"
 
             status = merge_codex_stop_gate(
-                target, "/stable/tao-hook codex-stop-gate", dry_run=True
+                target, "/stable/moru-hook codex-stop-gate", dry_run=True
             )
 
             self.assertEqual("missing", status)
@@ -276,7 +276,7 @@ class CodexSetupTests(unittest.TestCase):
                                     "hooks": [
                                         {
                                             "type": "command",
-                                            "command": "/old/tao-hook codex-stop-gate",
+                                            "command": "/old/moru-hook codex-stop-gate",
                                         }
                                     ]
                                 }
@@ -288,7 +288,7 @@ class CodexSetupTests(unittest.TestCase):
             )
 
             status = merge_codex_stop_gate(
-                target, "/stable/tao-hook codex-stop-gate", dry_run=False
+                target, "/stable/moru-hook codex-stop-gate", dry_run=False
             )
             payload = json.loads(target.read_text(encoding="utf-8"))
 
@@ -298,7 +298,7 @@ class CodexSetupTests(unittest.TestCase):
             for hook in group["hooks"]
         ]
         self.assertEqual("installed", status)
-        self.assertEqual(["/stable/tao-hook codex-stop-gate"], commands)
+        self.assertEqual(["/stable/moru-hook codex-stop-gate"], commands)
 
 
 class CodexAgentIntegrationTests(unittest.TestCase):

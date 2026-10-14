@@ -177,7 +177,7 @@ def run_verification_command(command: list[str], cwd: Path) -> dict[str, Any]:
     """
 
     try:
-        cache = tempfile.mkdtemp(prefix="tao-verify-cache-")
+        cache = tempfile.mkdtemp(prefix="moru-verify-cache-")
     except OSError:
         return _run_with_cache(command, cwd, None)
     # Creation and cleanup are separated on purpose. Wrapping both in one try

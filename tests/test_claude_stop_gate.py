@@ -50,7 +50,7 @@ def _blocked(out: str) -> bool:
 def _opt_in_project(base: Path) -> Path:
     project = base / "proj"
     (project / ".moru" / gate.SESSION_MARKER_DIR).mkdir(parents=True)
-    (project / "AGENTS.md").write_text("uses tao\n", encoding="utf-8")
+    (project / "AGENTS.md").write_text("uses moru\n", encoding="utf-8")
     return project
 
 
@@ -100,20 +100,6 @@ def _payload(project: Path, session_id: str, **extra) -> dict:
 
 
 class ClaudeStopGateTests(unittest.TestCase):
-    def test_migrated_project_reads_moru_edit_and_finish_markers(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            project = Path(tmp)
-            state = project / ".moru"
-            state.mkdir()
-            (state / "state-ready").write_text("ready\n")
-            marker = gate.edit_activity_marker(project, "session")
-            marker.parent.mkdir(parents=True)
-            marker.write_text("", encoding="utf-8")
-            self.assertTrue(gate.has_unreported_edits(project, "session"))
-            gate.finished_marker(project, "session").write_text("", encoding="utf-8")
-            self.assertTrue(gate.session_closed(project, "session"))
-            self.assertEqual(state / "claude-pretool-gate" / "session.edited", marker)
-
     def test_read_only_session_may_stop(self) -> None:
         # Nothing was mutated, so there is nothing to finish.
         with tempfile.TemporaryDirectory() as tmp:
@@ -351,8 +337,8 @@ class ClaudeStopGateTests(unittest.TestCase):
             _, out = _decide(_payload(project, "s1"))
 
         reason = json.loads(out)["reason"]
-        self.assertIn(str(gate.preferred_launcher_path()), reason)
-        self.assertNotIn("~/.tao", reason)
+        self.assertIn(str(gate.stable_launcher_path()), reason)
+        self.assertNotIn("~/.moru", reason)
 
     def test_setup_installs_stop_gate_without_removing_user_hooks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -361,7 +347,7 @@ class ClaudeStopGateTests(unittest.TestCase):
             target.write_text(json.dumps({
                 "hooks": {"Stop": [{"matcher": "", "hooks": [user_hook]}]}
             }))
-            command = "MORU_HOOK_SOFT_FAIL=1 /abs/tao-hook claude-stop-gate"
+            command = "MORU_HOOK_SOFT_FAIL=1 /abs/moru-hook claude-stop-gate"
 
             status = _merge_claude_stop_gate(target, command, dry_run=False)
             commands = [
@@ -378,7 +364,7 @@ class ClaudeStopGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "settings.json"
             target.write_text(json.dumps({"hooks": {}}))
-            command = "MORU_HOOK_SOFT_FAIL=1 /abs/tao-hook claude-stop-gate"
+            command = "MORU_HOOK_SOFT_FAIL=1 /abs/moru-hook claude-stop-gate"
 
             first = _merge_claude_stop_gate(target, command, dry_run=False)
             after_first = target.read_text()
@@ -407,11 +393,11 @@ from support.global_state import STATE_HOME_ENV
 
 
 def _make_global_state_dir(home: Path) -> Path:
-    """Build a .tao that looks like the global install, not project state."""
-    state = home / ".tao"
+    """Build a .moru that looks like the global install, not project state."""
+    state = home / ".moru"
     (state / "bin").mkdir(parents=True)
-    (state / "bin" / "tao-hook").write_text("#!/usr/bin/env python3\n")
-    (state / "tao-root").write_text("/somewhere/tao-agent-os\n")
+    (state / "bin" / "moru-hook").write_text("#!/usr/bin/env python3\n")
+    (state / "tao-root").write_text("/somewhere/moru-core\n")
     (state / "projects.json").write_text("{}")
     (state / "claude-session-projects").mkdir()
     return state
@@ -557,9 +543,9 @@ class SessionStampReaderTests(unittest.TestCase):
 
 
 class GlobalInstallIsNotAProjectTests(unittest.TestCase):
-    """`.tao` names both the global install and per-project state.
+    """`.moru` names both the global install and per-project state.
 
-    Both gates classified any directory containing a `.tao` as a project, so the
+    Both gates classified any directory containing a `.moru` as a project, so the
     home directory hosting the global install always classified as one. A
     harness write under `$HOME` (Claude's plan mode writes `~/.claude/plans/*.md`)
     then registered `$HOME` as a session project, and the Stop gate demanded a
@@ -592,7 +578,7 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             home = Path(tmp) / "home"
             home.mkdir()
             _make_global_state_dir(home)
-            os.environ[STATE_HOME_ENV] = str(Path(tmp) / "elsewhere" / ".tao")
+            os.environ[STATE_HOME_ENV] = str(Path(tmp) / "elsewhere" / ".moru")
 
             self.assertFalse(gate.opts_in(home))
             self.assertFalse(pretool.opts_in(home))
@@ -604,7 +590,7 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             (state / "bin").mkdir(parents=True)
             (state / "bin" / "moru-hook").write_text("#!/usr/bin/env python3\n")
             (state / "moru-root").write_text("/somewhere/moru-core\n")
-            os.environ[STATE_HOME_ENV] = str(Path(tmp) / "elsewhere" / ".tao")
+            os.environ[STATE_HOME_ENV] = str(Path(tmp) / "elsewhere" / ".moru")
 
             self.assertFalse(gate.opts_in(home))
             self.assertFalse(pretool.opts_in(home))
@@ -642,7 +628,7 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             self.assertTrue(pretool.opts_in(project))
 
     def test_fresh_project_without_state_still_opts_in_by_marker_file(self) -> None:
-        # A repo that has never run `start` has no .tao yet; the opt-in file is
+        # A repo that has never run `start` has no .moru yet; the opt-in file is
         # what must keep working, or a fresh project can never begin.
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "home"
@@ -766,7 +752,7 @@ class HostConfigDirIsNotAProjectTests(unittest.TestCase):
 
             project = home / "git" / "some-repo"
             project.mkdir(parents=True)
-            (project / "AGENTS.md").write_text("# tao project\n")
+            (project / "AGENTS.md").write_text("# moru project\n")
 
             self.assertTrue(gate.opts_in(project))
             self.assertTrue(pretool.opts_in(project))
@@ -781,7 +767,7 @@ class HostConfigDirIsNotAProjectTests(unittest.TestCase):
 
             project = home / "work" / ".hidden-repo"
             project.mkdir(parents=True)
-            (project / "AGENTS.md").write_text("# tao project\n")
+            (project / "AGENTS.md").write_text("# moru project\n")
 
             self.assertTrue(gate.opts_in(project))
             self.assertTrue(pretool.opts_in(project))
@@ -794,7 +780,7 @@ class HostConfigDirIsNotAProjectTests(unittest.TestCase):
 
             project = home / ".dotfiles"
             (project / ".git").mkdir(parents=True)
-            (project / "AGENTS.md").write_text("# tao project\n", encoding="utf-8")
+            (project / "AGENTS.md").write_text("# moru project\n", encoding="utf-8")
 
             self.assertTrue(gate.opts_in(project))
             self.assertTrue(pretool.opts_in(project))

@@ -7,15 +7,16 @@ import stat
 import subprocess
 import tempfile
 from pathlib import Path
+from support import legacy_names
 
 
 _START = "# graphify-checkout-hook-start"
 _END = "# graphify-checkout-hook-end"
 _COMMIT_START = "# graphify-hook-start"
 _COMMIT_END = "# graphify-hook-end"
-_VERSION = "# tao-graphify-checkout:v1"
+_VERSION = "# moru-graphify-checkout:v1"
 _GUARD = '''BRANCH_SWITCH=$3
-# tao-graphify-checkout:v1
+# moru-graphify-checkout:v1
 [ "${GRAPHIFY_SKIP_HOOK:-0}" = "1" ] && exit 0
 [ "$PREV_HEAD" = "$NEW_HEAD" ] && exit 0
 export GRAPHIFY_PREV_HEAD="$PREV_HEAD" GRAPHIFY_NEW_HEAD="$NEW_HEAD"
@@ -152,7 +153,7 @@ def _disable_hook(
             hook,
             original,
             updated,
-            backup_suffix=".tao-before-on-demand",
+            backup_suffix=".moru-before-on-demand",
         )
     return {
         "ready": True,
@@ -175,6 +176,13 @@ def _patched(content: str) -> str:
     if end <= start:
         raise ValueError("Graphify checkout markers are out of order")
     block = content[start:end]
+    # A block repaired before the rename differs only in its version line.
+    legacy_guard = _GUARD.replace(_VERSION, legacy_names.GRAPHIFY_CHECKOUT_MARKER)
+    if legacy_names.GRAPHIFY_CHECKOUT_MARKER in block and legacy_guard in block:
+        block = block.replace(legacy_guard, _GUARD, 1)
+        if _REBUILD not in block:
+            raise ValueError("modified Moru checkout repair block; manual review required")
+        return content[:start] + block + content[end:]
     if _VERSION in block:
         if _GUARD not in block or _REBUILD not in block:
             raise ValueError("modified Moru checkout repair block; manual review required")
@@ -193,7 +201,7 @@ def _patched(content: str) -> str:
 
 
 def _write_repair(hook: Path, original: bytes, updated: bytes) -> None:
-    _write_hook(hook, original, updated, backup_suffix=".tao-before-repair")
+    _write_hook(hook, original, updated, backup_suffix=".moru-before-repair")
 
 
 def _write_hook(
@@ -209,7 +217,7 @@ def _write_hook(
         with backup.open("xb") as stream:
             stream.write(original)
         backup.chmod(mode)
-    descriptor, name = tempfile.mkstemp(prefix=".tao-checkout-", dir=hook.parent)
+    descriptor, name = tempfile.mkstemp(prefix=".moru-checkout-", dir=hook.parent)
     temporary = Path(name)
     try:
         with os.fdopen(descriptor, "wb") as stream:

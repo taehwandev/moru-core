@@ -1,6 +1,4 @@
 # Agent/runtime evidence and generated graph outputs are not guidance sources.
-.tao
-scripts/.tao
 graphify-out
 .pytest_cache
 

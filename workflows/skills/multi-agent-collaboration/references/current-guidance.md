@@ -213,7 +213,7 @@ plan before workers start. The plan coordinates concurrent writers, so a
 `sequential` run does not need one; every other delegated or parallel run does:
 
 ```text
-<TARGET_REPO>/.tao/agent-delegation-plan.json
+<TARGET_REPO>/.moru/agent-delegation-plan.json
 ```
 
 Use this schema:

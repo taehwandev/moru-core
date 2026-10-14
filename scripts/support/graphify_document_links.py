@@ -10,7 +10,7 @@ from pathlib import Path
 from support.graphify_contract import PROJECT_GRAPH_PATH
 
 
-EDGE_ORIGIN = "tao_explicit_path"
+EDGE_ORIGIN = "moru_explicit_path"
 CODE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".java", ".js", ".kt",
     ".kts", ".mjs", ".py", ".rs", ".sh", ".swift", ".ts", ".tsx",

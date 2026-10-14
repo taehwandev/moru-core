@@ -249,7 +249,7 @@ controls:
 
 1. **Canonical containment.** Resolve the project root and packet parent without
    following a packet or run-directory symlink. The only accepted path is
-   `<TARGET_REPO>/.tao/runs/<run-id>/continuation.json`, where `<run-id>` is the
+   `<TARGET_REPO>/.moru/runs/<run-id>/continuation.json`, where `<run-id>` is the
    exact opaque registry id. Reject alternate names, `..`, absolute path
    fragments, symlinked parents, hard links, and any path outside the selected
    project.

@@ -180,7 +180,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
         policy, details = hook_failure_policy(success=False, repair_cycle=0)
 
         self.assertEqual("retrospective_then_repair_verify_resume", policy["next_action"])
-        self.assertEqual("verified_tao_improvement", policy["recovery_required"])
+        self.assertEqual("verified_moru_improvement", policy["recovery_required"])
         joined_details = " ".join(details)
         self.assertIn("actionable retrospective", joined_details)
         self.assertIn("Moru Core doc, hook, validator, or test", joined_details)

@@ -23,8 +23,8 @@ class PretoolExecutionTests(unittest.TestCase):
         self.project.mkdir()
         # The routing block is what makes the governed default protect main.
         (self.project / "AGENTS.md").write_text(
-            "Uses tao-hook.\n<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n"
-            "<!-- END MANAGED TAO AGENT OS ROUTING -->\n"
+            "Uses moru-hook.\n<!-- BEGIN MANAGED MORU CORE ROUTING -->\n"
+            "<!-- END MANAGED MORU CORE ROUTING -->\n"
         )
         (self.project / ".gitignore").write_text(".moru/\n")
         self.environment = dict(os.environ)

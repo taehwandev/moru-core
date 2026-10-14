@@ -77,7 +77,7 @@ class LauncherTests(unittest.TestCase):
 
 
 class InstallTests(unittest.TestCase):
-    MANAGED = f"{_STATUSLINE_MARKER} '/tao/bin/tao-hook' agy-statusline"
+    MANAGED = f"{_STATUSLINE_MARKER} '/moru/bin/moru-hook' agy-statusline"
 
     def _settings(self, root: Path, statusline: object | None) -> Path:
         target = root / "settings.json"
@@ -91,11 +91,11 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = self._settings(Path(tmp), None)
 
-            self.assertEqual("installed", _merge_agy_statusline(target, "tao statusline", False))
+            self.assertEqual("installed", _merge_agy_statusline(target, "moru statusline", False))
 
             config = read_json(target)
             self.assertEqual(
-                {"type": "command", "command": "tao statusline", "enabled": True}, config["statusLine"]
+                {"type": "command", "command": "moru statusline", "enabled": True}, config["statusLine"]
             )
             self.assertEqual("opus", config["model"])
 
@@ -107,10 +107,10 @@ class InstallTests(unittest.TestCase):
                 Path(tmp), {"type": "command", "command": "node spill.mjs --chain 'orca.sh'"}
             )
 
-            self.assertEqual("installed", _merge_agy_statusline(target, "tao statusline", False))
+            self.assertEqual("installed", _merge_agy_statusline(target, "moru statusline", False))
 
             self.assertEqual(
-                "tao statusline --chain 'node spill.mjs --chain '\\''orca.sh'\\'''",
+                "moru statusline --chain 'node spill.mjs --chain '\\''orca.sh'\\'''",
                 read_json(target)["statusLine"]["command"],
             )
 
@@ -145,7 +145,7 @@ class InstallTests(unittest.TestCase):
                 Path(tmp),
                 {
                     "type": "command",
-                    "command": f"{_STATUSLINE_MARKER} '/old/tao' agy-statusline"
+                    "command": f"{_STATUSLINE_MARKER} '/old/moru' agy-statusline"
                     " --chain 'node spill.mjs'",
                 },
             )
@@ -173,7 +173,7 @@ class InstallTests(unittest.TestCase):
                     False,
                     root=ROOT,
                     scripts_dir=ROOT / "scripts",
-                    launcher_path=Path("/custom/tao-hook"),
+                    launcher_path=Path("/custom/moru-hook"),
                     spill_available=False,
                 )
 
@@ -186,14 +186,14 @@ class InstallTests(unittest.TestCase):
             data = read_json(cli_settings)
             statusline_cmd = data["statusLine"]["command"]
             self.assertTrue(statusline_cmd.startswith(f"{_STATUSLINE_MARKER} "))
-            self.assertIn("'/custom/tao-hook' agy-statusline", statusline_cmd)
+            self.assertIn("'/custom/moru-hook' agy-statusline", statusline_cmd)
 
     def test_a_dry_run_writes_nothing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             target = self._settings(Path(tmp), None)
 
             self.assertEqual(
-                "would_update", _merge_agy_statusline(target, "tao statusline", True)
+                "would_update", _merge_agy_statusline(target, "moru statusline", True)
             )
             self.assertNotIn("statusLine", read_json(target))
 
