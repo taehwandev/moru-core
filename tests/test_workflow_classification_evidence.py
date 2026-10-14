@@ -19,9 +19,19 @@ from workflow_request import (
     classification_evidence_requires_clarification,
     classified_route_block_reason,
 )
+from workflow_classified_exemption import parent_evidence_path
 
 
 class ClassificationEvidencePolicyTests(unittest.TestCase):
+    def test_parent_evidence_uses_migrated_project_state(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            state = project / ".moru"
+            state.mkdir()
+            (state / "state-ready").write_text("ready\n")
+            self.assertEqual(state / "preflight.json", parent_evidence_path(project, None))
+
     def test_empty_or_unresolved_evidence_blocks_finish_reuse(self) -> None:
         for evidence in (
             "",

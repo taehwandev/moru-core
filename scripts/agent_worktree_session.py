@@ -23,6 +23,7 @@ from agent_worktree_identity import (
 from agent_repository_checkouts import unsettled_run_states
 from agent_worktree_fingerprint import WorktreeSnapshot, capture_worktree_state
 from support.bounded_git import run_git
+from support.global_state import project_state_dir_target
 
 try:  # pragma: no cover - platform guard
     import fcntl
@@ -45,7 +46,7 @@ def _creation_lock(project: Path) -> Iterator[None]:
     the fallback against contention.
     """
 
-    lock_dir = Path(project) / ".tao"
+    lock_dir = project_state_dir_target(Path(project))
     lock_dir.mkdir(parents=True, exist_ok=True)
     lock_path = lock_dir / LOCK_FILENAME
     handle = open(lock_path, "w", encoding="ascii")

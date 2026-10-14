@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 from urllib.parse import urlsplit
+from support.global_state import global_state_dir
 
 
 class DeviceMcpSetup:
@@ -160,7 +161,7 @@ def _main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['status', 'ensure'])
     parser.add_argument('--runtime', required=True, choices=['codex', 'claude'])
-    parser.add_argument('--registry', type=Path, default=Path.home() / '.tao' / 'device-mcp.json')
+    parser.add_argument('--registry', type=Path, default=global_state_dir() / 'device-mcp.json')
     args = parser.parse_args(argv)
     try:
         setup = DeviceMcpSetup(args.registry, args.runtime)

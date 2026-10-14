@@ -10,10 +10,19 @@ import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from device_mcp import DeviceMcpSetup
+from device_mcp import DeviceMcpSetup, _main
 
 
 class DeviceMcpSetupTests(unittest.TestCase):
+    def test_default_registry_uses_selected_global_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            with patch('device_mcp.global_state_dir', return_value=state), \
+                 patch('device_mcp.DeviceMcpSetup') as setup:
+                setup.return_value.status.return_value = 'ready'
+                self.assertEqual(0, _main(['status', '--runtime', 'codex']))
+            setup.assert_called_once_with(state / 'device-mcp.json', 'codex')
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

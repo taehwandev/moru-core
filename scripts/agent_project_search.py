@@ -11,6 +11,7 @@ from typing import Iterable
 
 from agent_project_types import INSTRUCTION_FILES, PROJECT_MARKERS, ProjectCandidate
 from workflow_common import unique
+from support.global_state import global_state_dir
 
 
 DEFAULT_SEARCH_ROOT_NAMES = ("Documents", "Developer", "GitHub", "git", "Projects", "Downloads")
@@ -219,7 +220,7 @@ def default_registry_path() -> Path:
     raw = os.environ.get("TAO_PROJECT_REGISTRY")
     if raw:
         return Path(os.path.expandvars(raw)).expanduser()
-    return Path.home() / ".tao" / "projects.json"
+    return global_state_dir() / "projects.json"
 
 
 def iter_child_dirs(path: Path) -> list[Path]:

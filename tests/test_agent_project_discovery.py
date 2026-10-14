@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,9 +14,15 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from agent_project_discovery import build_entry_manifest, discover_projects, find_project_root
 from agent_project_types import format_entry_text
+from agent_project_search import default_registry_path
 
 
 class AgentProjectDiscoveryTests(unittest.TestCase):
+    def test_default_registry_uses_moru_state_home(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(os.environ, {"MORU_STATE_HOME": directory, "TAO_PROJECT_REGISTRY": ""}):
+                self.assertEqual(Path(directory) / "projects.json", default_registry_path())
+
     def test_find_project_root_uses_nearest_agent_instructions(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir) / "project"

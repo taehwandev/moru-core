@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from support.global_state import project_state_dir_target
 
 
 PARENT_EVIDENCE_NAME = "preflight.json"
@@ -121,7 +122,7 @@ def parent_evidence_path(project: Path | None, explicit: Path | None) -> Path | 
         return explicit.expanduser().absolute()
     if project is None:
         return None
-    return project.expanduser().absolute() / ".tao" / PARENT_EVIDENCE_NAME
+    return project_state_dir_target(project.expanduser().absolute()) / PARENT_EVIDENCE_NAME
 
 
 def parent_capsule_exemption(
