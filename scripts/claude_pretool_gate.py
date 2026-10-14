@@ -52,6 +52,7 @@ try:  # The gate must never fail to load; the import is only used for a message.
     from support.stable_launcher import stable_launcher_path
     from support.global_state import (
         global_state_dir,
+        project_state_dir_target,
         is_host_config_dir,
         is_project_state_dir,
         marks_tao_project,
@@ -125,6 +126,9 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
         import os
         override = os.environ.get("TAO_STATE_HOME", "").strip()
         return Path(override).expanduser() if override else Path.home() / ".tao"
+
+    def project_state_dir_target(project: Path) -> Path:
+        return project / (".moru" if (project / ".moru" / "state-ready").is_file() else ".tao")
 
     def is_host_config_dir(path: Path) -> bool:
         resolved = path.expanduser().resolve()
@@ -1294,7 +1298,7 @@ def record_edit_activity(root: Path, session_id: str) -> None:
     only what the Stop gate needs to know a missing finish is worth blocking on.
     A read-only session never gets this marker and is never blocked at Stop.
     """
-    marker = root / STATE_DIR / SESSION_MARKER_DIR / (safe_session_id(session_id) + EDIT_ACTIVITY_SUFFIX)
+    marker = project_state_dir_target(root) / SESSION_MARKER_DIR / (safe_session_id(session_id) + EDIT_ACTIVITY_SUFFIX)
     try:
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text("", encoding="utf-8")
@@ -1432,11 +1436,11 @@ def is_relative_to(path: Path, root: Path) -> bool:
 
 
 def sprawl_state_file(root: Path, session_id: str) -> Path:
-    return root / STATE_DIR / SESSION_MARKER_DIR / (safe_session_id(session_id) + NEW_FILE_STATE_SUFFIX)
+    return project_state_dir_target(root) / SESSION_MARKER_DIR / (safe_session_id(session_id) + NEW_FILE_STATE_SUFFIX)
 
 
 def sprawl_ack_file(root: Path, session_id: str) -> Path:
-    return root / STATE_DIR / SESSION_MARKER_DIR / (safe_session_id(session_id) + SPRAWL_ACK_SUFFIX)
+    return project_state_dir_target(root) / SESSION_MARKER_DIR / (safe_session_id(session_id) + SPRAWL_ACK_SUFFIX)
 
 
 def read_new_files(state: Path) -> list[str]:
@@ -1479,7 +1483,7 @@ def sprawl_deny(tool: str, payload: dict, root: Path, cwd: Path, session_id: str
         if target is None or target.exists():
             # No path, or editing/overwriting an existing file -- not new-file sprawl.
             return None
-        if STATE_DIR in target.parts:
+        if any(name in target.parts for name in (STATE_DIR, ".moru")):
             return None  # agent state (including the ack file itself) never counts
         if not is_relative_to(target, root):
             return None  # outside the project

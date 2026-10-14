@@ -18,7 +18,7 @@ from agent_runtime_session import (
     is_run_local_continuation_evidence,
     resolve_runtime_evidence,
 )
-from support.global_state import is_project_state_dir
+from support.global_state import is_project_state_dir, project_state_dir_target
 
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -45,7 +45,7 @@ def _is_own_sprawl_ack(target: Path, root: Path, session_id: str) -> bool:
     reach other project state through the exemption.
     """
     cleaned = "".join(ch for ch in session_id if ch.isalnum() or ch in "-_")
-    ack = root / ".tao" / "claude-pretool-gate" / f"{cleaned or 'unknown-session'}.sprawl-ack"
+    ack = project_state_dir_target(root) / "claude-pretool-gate" / f"{cleaned or 'unknown-session'}.sprawl-ack"
     try:
         return target.resolve() == ack.resolve()
     except OSError:
@@ -79,7 +79,7 @@ class ClaudeContinuationAdapter:
             # runtime config, and sibling checkout an agent legitimately edits
             # while a project run is open -- a scope this adapter never owned.
             return None
-        if ".tao" in Path(relative).parts:
+        if any(name in Path(relative).parts for name in (".tao", ".moru")):
             if _is_own_sprawl_ack(target, root, session_id):
                 # The proportionality gate tells the agent to write exactly
                 # this file to justify going over its new-file budget. It is
@@ -323,14 +323,14 @@ def _event_project(payload: dict[str, Any]) -> Path | None:
 
 
 def _opts_in(path: Path) -> bool:
-    if is_project_state_dir(path / ".tao"):
+    if any(is_project_state_dir(path / name) for name in (".moru", ".tao")):
         return True
     for name in OPT_IN_FILES:
         try:
             head = (path / name).read_text(encoding="utf-8", errors="ignore")[:8192]
         except OSError:
             continue
-        if "tao" in head.lower():
+        if any(token in head.lower() for token in ("moru", "tao")):
             return True
     return False
 

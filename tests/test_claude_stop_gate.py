@@ -100,6 +100,20 @@ def _payload(project: Path, session_id: str, **extra) -> dict:
 
 
 class ClaudeStopGateTests(unittest.TestCase):
+    def test_migrated_project_reads_moru_edit_and_finish_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            state = project / ".moru"
+            state.mkdir()
+            (state / "state-ready").write_text("ready\n")
+            marker = gate.edit_activity_marker(project, "session")
+            marker.parent.mkdir(parents=True)
+            marker.write_text("", encoding="utf-8")
+            self.assertTrue(gate.has_unreported_edits(project, "session"))
+            gate.finished_marker(project, "session").write_text("", encoding="utf-8")
+            self.assertTrue(gate.session_closed(project, "session"))
+            self.assertEqual(state / "claude-pretool-gate" / "session.edited", marker)
+
     def test_read_only_session_may_stop(self) -> None:
         # Nothing was mutated, so there is nothing to finish.
         with tempfile.TemporaryDirectory() as tmp:

@@ -64,6 +64,7 @@ try:  # Never fail to load; used for the message and the project lookup.
     from support.stable_launcher import stable_launcher_path
     from support.global_state import (
         global_state_dir,
+        project_state_dir_target,
         is_host_config_dir,
         is_project_state_dir,
         prefer_git_root,
@@ -79,6 +80,9 @@ except ImportError:  # pragma: no cover - exercised only on a broken install
         import os
         override = os.environ.get("TAO_STATE_HOME", "").strip()
         return Path(override).expanduser() if override else Path.home() / ".tao"
+
+    def project_state_dir_target(project: Path) -> Path:
+        return project / (".moru" if (project / ".moru" / "state-ready").is_file() else ".tao")
 
     def is_host_config_dir(path: Path) -> bool:
         resolved = path.expanduser().resolve()
@@ -157,11 +161,11 @@ def find_project_root(cwd: Path) -> Path | None:
 
 
 def edit_activity_marker(root: Path, session_id: str) -> Path:
-    return root / STATE_DIR / SESSION_MARKER_DIR / (safe_session_id(session_id) + EDIT_ACTIVITY_SUFFIX)
+    return project_state_dir_target(root) / SESSION_MARKER_DIR / (safe_session_id(session_id) + EDIT_ACTIVITY_SUFFIX)
 
 
 def blocked_marker(root: Path, session_id: str) -> Path:
-    return root / STATE_DIR / SESSION_MARKER_DIR / (safe_session_id(session_id) + BLOCKED_SUFFIX)
+    return project_state_dir_target(root) / SESSION_MARKER_DIR / (safe_session_id(session_id) + BLOCKED_SUFFIX)
 
 
 def marker_mtime(marker: Path) -> float | None:
@@ -200,11 +204,11 @@ def record_block(root: Path, session_id: str) -> None:
 
 
 def finished_marker(root: Path, session_id: str) -> Path:
-    return root / STATE_DIR / SESSION_MARKER_DIR / (safe_session_id(session_id) + FINISHED_SUFFIX)
+    return project_state_dir_target(root) / SESSION_MARKER_DIR / (safe_session_id(session_id) + FINISHED_SUFFIX)
 
 
 def settled_marker(root: Path, session_id: str) -> Path:
-    return root / STATE_DIR / SESSION_MARKER_DIR / (safe_session_id(session_id) + SETTLED_SUFFIX)
+    return project_state_dir_target(root) / SESSION_MARKER_DIR / (safe_session_id(session_id) + SETTLED_SUFFIX)
 
 
 def session_closed(root: Path, session_id: str) -> bool:
@@ -258,7 +262,7 @@ def session_closed(root: Path, session_id: str) -> bool:
 
 def shared_finish_mtime(root: Path, session_id: str) -> float | None:
     """Timestamp of the shared finish record, only when it names this session."""
-    path = root / STATE_DIR / FINISH_NAME
+    path = project_state_dir_target(root) / FINISH_NAME
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):

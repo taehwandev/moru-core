@@ -2818,6 +2818,23 @@ class ClaudePreToolGateTests(unittest.TestCase):
             ack = gate.sprawl_ack_file(root, session)
             self.assertTrue(_is_own_sprawl_ack(ack, root, session), session)
 
+    def test_migrated_project_writes_gate_markers_in_moru(self) -> None:
+        from claude_continuation_hook import _is_own_sprawl_ack
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            state = project / ".moru"
+            state.mkdir()
+            (state / "state-ready").write_text("ready\n")
+            gate.record_edit_activity(project, "session")
+
+            self.assertTrue((state / "claude-pretool-gate" / "session.edited").is_file())
+            self.assertEqual(state / "claude-pretool-gate" / "session.newfiles",
+                             gate.sprawl_state_file(project, "session"))
+            self.assertTrue(_is_own_sprawl_ack(gate.sprawl_ack_file(project, "session"),
+                                                project, "session"))
+            self.assertFalse((project / ".tao").exists())
+
     def test_non_source_new_files_are_never_counted(self) -> None:
         # Doc/content sprawl (e.g. a writing workspace) must not be blocked.
         with tempfile.TemporaryDirectory() as tmp:

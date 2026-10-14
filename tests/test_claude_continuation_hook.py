@@ -98,6 +98,16 @@ def _second_session_run(
 
 
 class ClaudeMutationAdapterTests(unittest.TestCase):
+    def test_moru_project_opts_in_and_protects_state_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            state = project / ".moru"
+            state.mkdir()
+            (state / "state-ready").write_text("ready\n")
+            self.assertTrue(claude_continuation_hook._opts_in(project))
+            self.assertFalse(claude_continuation_hook._is_own_sprawl_ack(
+                state / "runs" / "foreign.json", project, "session"))
+
     def test_custom_evidence_post_hook_skips_unreachable_continuation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / "project"
