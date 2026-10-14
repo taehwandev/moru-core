@@ -33,7 +33,7 @@ OTHER = "other-session"
 def _build(project: Path) -> None:
     (project / "src").mkdir(parents=True)
     (project / "src" / "module.py").write_text("value = 1\n", encoding="utf-8")
-    (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+    (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
     git(project, "init", "-q")
     git(project, "config", "user.email", "settle@example.invalid")
     git(project, "config", "user.name", "Settle")
@@ -63,7 +63,7 @@ def tearDownModule() -> None:
 
 
 def runs(project: Path) -> dict[str, dict]:
-    path = project / ".tao" / "run-registry.json"
+    path = project / ".moru" / "run-registry.json"
     return {run["run_id"]: run for run in json.loads(path.read_text(encoding="utf-8"))["runs"]}
 
 

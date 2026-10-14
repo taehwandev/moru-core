@@ -53,9 +53,11 @@ def global_state_dir() -> Path:
     if override:
         return Path(override).expanduser()
     moru_dir = Path.home() / MORU_STATE_DIR_NAME
-    if (moru_dir / MORU_STATE_READY_MARKER).is_file():
+    legacy_dir = Path.home() / STATE_DIR_NAME
+    # A new install has no legacy records to wait for.
+    if (moru_dir / MORU_STATE_READY_MARKER).is_file() or not legacy_dir.exists():
         return moru_dir
-    return Path.home() / STATE_DIR_NAME
+    return legacy_dir
 
 
 # Marks a process tree started by `python -m unittest`. Discover imports every
@@ -227,10 +229,10 @@ def prefer_git_root(candidates: list[Path]) -> Path | None:
     return candidates[0] if candidates else None
 
 def project_state_dir_target(project: Path) -> Path:
-    """Keep run evidence in the old tree until every writer has migrated."""
+    """Keep run evidence in an unmigrated ``.tao``; everything else uses ``.moru``."""
     moru = project / MORU_STATE_DIR_NAME
     legacy = project / STATE_DIR_NAME
-    if (moru / MORU_STATE_READY_MARKER).is_file():
+    if (moru / MORU_STATE_READY_MARKER).is_file() or not legacy.is_dir():
         return moru
     return legacy
 
@@ -268,6 +270,11 @@ def ensure_local_only_state_dir(project: Path) -> Path:
     ignore_path = state_dir / ".gitignore"
     if not ignore_path.exists():
         ignore_path.write_text(STATE_DIR_IGNORE, encoding="utf-8")
+    if state_dir.name == MORU_STATE_DIR_NAME:
+        # Readers that look for the marker treat this tree as the live one.
+        ready = state_dir / MORU_STATE_READY_MARKER
+        if not ready.exists():
+            ready.write_text("", encoding="utf-8")
     return state_dir
 
 

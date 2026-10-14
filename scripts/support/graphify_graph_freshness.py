@@ -171,7 +171,8 @@ def _is_potential_graph_input(relative: str) -> bool:
 def _is_local_graph_state(relative: str) -> bool:
     parts = Path(relative).parts
     return (
-        ".tao" in parts
+        ".moru" in parts
+        or ".tao" in parts
         or parts[:2] == (".agents", "local")
         or relative.startswith("graphify-out/")
         or relative.startswith(f"{PROJECT_GRAPH_DIR.as_posix()}/")

@@ -89,7 +89,7 @@ class StatelessLookupTests(unittest.TestCase):
                     envelope.update(mode="work", requested_effects=["local_write"])
                     args.intent_envelope = json.dumps(envelope)
                 else:
-                    args.output = project / ".tao" / "output.json"
+                    args.output = project / ".moru" / "output.json"
                 with (
                     patch.dict(os.environ, {}, clear=True),
                     patch.object(agent_lookup_start, "resolve_docs", side_effect=AssertionError("unauthorized route")),
@@ -102,7 +102,7 @@ class StatelessLookupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             scenarios = (
-                ({"evidence": project / ".tao" / "existing" / "preflight.json"}, {}),
+                ({"evidence": project / ".moru" / "existing" / "preflight.json"}, {}),
                 ({}, {"MORU_WORKER_EVIDENCE": str(project / "worker.json")}),
                 ({}, {"MORU_PARENT_EVIDENCE_READONLY": "1"}),
                 ({"worker_reservation_token": "reservation"}, {}),
@@ -165,13 +165,13 @@ class StatelessLookupTests(unittest.TestCase):
     def test_read_only_lookup_keeps_existing_graph_cache_byte_identical(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / ".tao").mkdir()
+            (root / ".moru").mkdir()
             token = READ_ONLY_LOOKUP.set(True)
             try:
                 workflow_doc_graph_cache.write_cached_graph(root, "cold", {"owner.md": []})
             finally:
                 READ_ONLY_LOOKUP.reset(token)
-            self.assertEqual([], list((root / ".tao").iterdir()))
+            self.assertEqual([], list((root / ".moru").iterdir()))
 
 
 if __name__ == "__main__":

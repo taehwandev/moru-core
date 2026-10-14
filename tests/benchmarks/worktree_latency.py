@@ -212,7 +212,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pairs", type=int, default=5)
     parser.add_argument("--output", type=Path,
-                        default=PROJECT / ".tao/performance/worktree-latency.json")
+                        default=PROJECT / ".moru/performance/worktree-latency.json")
     args = parser.parse_args()
     if args.pairs < 5:
         parser.error("At least five paired samples are required")

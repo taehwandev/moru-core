@@ -95,8 +95,8 @@ def worker(root, delivery_docs, mode):
     snapshots = [{"path": p, "sha256": hashlib.sha256(text.encode()).hexdigest(),
                   "size_bytes": len(text.encode())} for p, text in content.items()]
     for case in ("unread", "proven_reuse", "already_delivered", "read_in_context"):
-        project = root / ".tao" / case
-        evidence = project / ".tao" / "runs" / ("b" * 32) / "preflight.json"
+        project = root / ".moru" / case
+        evidence = project / ".moru" / "runs" / ("b" * 32) / "preflight.json"
         evidence.parent.mkdir(parents=True, exist_ok=True)
         common = {"project": str(project), "rules": str(root),
                   "runtime_session": {"runtime": "codex", "session_id": "benchmark-only"},
@@ -110,7 +110,7 @@ def worker(root, delivery_docs, mode):
             prior.write_text(json.dumps({**common, "agent_run_id": "a" * 32}))
             record_doc_takeaway(prior, "benchmark applied every required document")
             records = [{"run_id": "a" * 32, "state": "completed", "evidence_name": "preflight.json"}]
-        (project / ".tao" / "run-registry.json").write_text(json.dumps({"schema_version": 1, "runs": records}))
+        (project / ".moru" / "run-registry.json").write_text(json.dumps({"schema_version": 1, "runs": records}))
         transcript = project / "transcript.jsonl"
         rows = []
         if case == "read_in_context":
@@ -164,9 +164,9 @@ def worker(root, delivery_docs, mode):
         out["source_rebuild_comparison"] = {
             "equal": True, "nodes": len(uncached),
             "edges": sum(len(edges) for edges in uncached.values())}
-        fixture = root / ".tao" / "frozen_metadata"
+        fixture = root / ".moru" / "frozen_metadata"
         fixture.mkdir()
-        (fixture / ".tao").mkdir()
+        (fixture / ".moru").mkdir()
         for name in ("alpha", "omega"):
             (fixture / (name + ".md")).write_text("# " + name)
         document = fixture / "guide.md"
@@ -225,7 +225,7 @@ if __name__ == "__main__":
                 with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
                     assert all(not Path(m.name).is_absolute() and ".." not in Path(m.name).parts for m in tar)
                     tar.extractall(root)
-                (root / ".tao").mkdir(exist_ok=True)
+                (root / ".moru").mkdir(exist_ok=True)
             for path in ("scripts/agent_required_doc_delivery.py", "workflow-doc-surfaces.json"):
                 old = subprocess.run(["git", "-C", str(PROJECT), "show", "180bb39:" + path],
                                      check=True, stdout=subprocess.PIPE).stdout
@@ -249,7 +249,7 @@ if __name__ == "__main__":
             assert data["current"]["delivery"]["proven_reuse"]["io"]["opens"] == 0
             assert len(data["before"]["selected_docs"]) == len(data["current"]["selected_docs"]) + 1
             data["benchmark_sha256"] = hashlib.sha256(SCRIPT.read_bytes()).hexdigest()
-            target = PROJECT / ".tao" / "performance" / "health-measurements.json"
+            target = PROJECT / ".moru" / "performance" / "health-measurements.json"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(json.dumps(data, indent=2))
             for name in roots:

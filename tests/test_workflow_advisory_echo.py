@@ -66,10 +66,10 @@ class AdvisoryRouteIsDeliveredOncePerSessionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary_directory.name)
-        (self.root / ".tao").mkdir()
+        (self.root / ".moru").mkdir()
 
     def test_migrated_state_remembers_delivery_in_moru(self) -> None:
-        (self.root / ".tao").rename(self.root / ".moru")
+        (self.root / ".moru").rename(self.root / ".moru")
         (self.root / ".moru" / "state-ready").write_text("ready\n")
 
         record_delivery(self.root, "session-a", "digest-1")
@@ -125,12 +125,12 @@ class AdvisoryRouteIsDeliveredOncePerSessionTests(unittest.TestCase):
             root = Path(bare)
             record_delivery(root, "session-a", "digest-1")
 
-            self.assertFalse((root / ".tao").exists())
+            self.assertFalse((root / ".moru").exists())
             self.assertFalse(already_delivered(root, "session-a", "digest-1"))
 
     def test_a_corrupt_cache_costs_a_delivery_not_a_crash(self) -> None:
         record_delivery(self.root, "session-a", "digest-1")
-        (self.root / ".tao" / "cache" / "advisory-route.json").write_text(
+        (self.root / ".moru" / "cache" / "advisory-route.json").write_text(
             "{ not json", encoding="utf-8"
         )
 
@@ -151,7 +151,7 @@ class AdvisoryRouteIsDeliveredOncePerSessionTests(unittest.TestCase):
             record_delivery(self.root, f"session-{index}", "digest-1")
 
         payload = json.loads(
-            (self.root / ".tao" / "cache" / "advisory-route.json").read_text(encoding="utf-8")
+            (self.root / ".moru" / "cache" / "advisory-route.json").read_text(encoding="utf-8")
         )
 
         self.assertEqual(MAX_REMEMBERED_SESSIONS, len(payload["deliveries"]))
@@ -184,7 +184,7 @@ class AdvisoryRouteCommandLineTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.project = Path(self.temporary_directory.name)
-        (self.project / ".tao").mkdir()
+        (self.project / ".moru").mkdir()
 
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
@@ -269,7 +269,7 @@ class AdvisoryListingIsCompactTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.project = Path(self.temporary_directory.name)
-        (self.project / ".tao").mkdir()
+        (self.project / ".moru").mkdir()
 
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()

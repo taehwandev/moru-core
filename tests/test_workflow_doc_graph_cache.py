@@ -36,7 +36,7 @@ class DocGraphCacheTests(unittest.TestCase):
     def test_migrated_state_stores_graph_cache_in_moru(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = self._project(directory)
-            (project / ".tao").rename(project / ".moru")
+            # The fixture already starts in `.moru`; mark it migrated.
             (project / ".moru" / "state-ready").write_text("ready\n")
 
             build.build_doc_graph(project)
@@ -51,13 +51,13 @@ class DocGraphCacheTests(unittest.TestCase):
     def _project(self, directory: str, *, state: bool = True) -> Path:
         project = Path(directory)
         project.mkdir(exist_ok=True)
-        (project / ".tao").mkdir() if state else None
+        (project / ".moru").mkdir() if state else None
         (project / "AGENTS.md").write_text("# guide\n\nsee [other](other.md)\n", encoding="utf-8")
         (project / "other.md").write_text("# other\n", encoding="utf-8")
         return project
 
     def _cache(self, project: Path) -> Path:
-        return project / ".tao" / "cache" / "doc-graph"
+        return project / ".moru" / "cache" / "doc-graph"
 
     def test_a_second_build_of_unchanged_documents_does_not_rebuild(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -512,7 +512,7 @@ class DocGraphCacheTests(unittest.TestCase):
             graph = build.build_doc_graph(project)
 
             self.assertIn("AGENTS.md", graph)
-            self.assertFalse((project / ".tao").exists())
+            self.assertFalse((project / ".moru").exists())
 
     def test_an_unreadable_generation_is_built_instead(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -137,8 +137,8 @@ class GitStateScopeTests(unittest.TestCase):
         self.assertEqual(live, strong)
 
     def test_check_ignore_is_asked_once_per_path(self):
-        (self.project / ".gitignore").write_text(".tao/\n")
-        packet = self.project / ".tao" / "runs" / "r" / "continuation.json"
+        (self.project / ".gitignore").write_text(".moru/\n")
+        packet = self.project / ".moru" / "runs" / "r" / "continuation.json"
         with git_read_scope():
             answers = [agent_continuation_store._git_ignores(self.project, packet) for _ in range(3)]
         self.assertEqual([True, True, True], answers)

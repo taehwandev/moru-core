@@ -67,7 +67,7 @@ class WorkCardResumeTests(unittest.TestCase):
     def test_legacy_binding_requires_evidence_for_that_exact_work(self) -> None:
         cards.open_card(self.project, WORK_A, summary="old", command="task")
         [card] = cards.list_cards(self.project)
-        path = self.project / ".tao" / "runs" / WORK_A / "preflight.json"
+        path = self.project / ".moru" / "runs" / WORK_A / "preflight.json"
         path.parent.mkdir(parents=True)
         for work, runtime, expected in ((WORK_B, "codex", ""), (WORK_A, "claude", ""),
                                          (WORK_A, "codex", SESSION)):

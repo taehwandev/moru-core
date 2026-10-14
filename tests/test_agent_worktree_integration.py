@@ -25,7 +25,7 @@ class FinalizeWorkerWorktreeTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.project = Path(self.temporary_directory.name) / "project"
         self.project.mkdir()
-        (self.project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (self.project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
         (self.project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
         self._git("init", "-q")
         self._git("config", "user.email", "tests@example.invalid")
@@ -89,11 +89,11 @@ class FinalizeWorkerWorktreeTests(unittest.TestCase):
 
     def test_ignored_worker_file_requires_explicit_discard_policy(self) -> None:
         (self.worktree / ".gitignore").write_text(
-            ".tao/\nignored-output.txt\n",
+            ".moru/\nignored-output.txt\n",
             encoding="utf-8",
         )
         (self.project / ".gitignore").write_text(
-            ".tao/\nignored-output.txt\n",
+            ".moru/\nignored-output.txt\n",
             encoding="utf-8",
         )
         (self.worktree / "ignored-output.txt").write_text("not collected\n", encoding="utf-8")
@@ -105,11 +105,11 @@ class FinalizeWorkerWorktreeTests(unittest.TestCase):
 
     def test_explicit_policy_can_discard_ignored_files_after_other_results_integrate(self) -> None:
         (self.worktree / ".gitignore").write_text(
-            ".tao/\nignored-output.txt\n",
+            ".moru/\nignored-output.txt\n",
             encoding="utf-8",
         )
         (self.project / ".gitignore").write_text(
-            ".tao/\nignored-output.txt\n",
+            ".moru/\nignored-output.txt\n",
             encoding="utf-8",
         )
         (self.worktree / "ignored-output.txt").write_text("disposable\n", encoding="utf-8")

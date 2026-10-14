@@ -72,7 +72,7 @@ class RetrospectiveSkillBindingTests(unittest.TestCase):
             project = root / "project"
             rules = root / "rules"
             state = root / "state"
-            evidence = project / ".tao" / "runs" / "one" / "preflight.json"
+            evidence = project / ".moru" / "runs" / "one" / "preflight.json"
             skill = rules / "workflows" / "skills" / "retrospective-learning" / "SKILL.md"
             skill.parent.mkdir(parents=True)
             skill.write_text("canonical\n", encoding="utf-8")
@@ -169,7 +169,7 @@ class RetrospectiveSkillBindingTests(unittest.TestCase):
                 result, details = record_skill_feedback(
                     project=root,
                     rules=root,
-                    evidence_path=root / ".tao" / "preflight.json",
+                    evidence_path=root / ".moru" / "preflight.json",
                     outcome="observed",
                     skill_id="retrospective-learning",
                     signal="weak_verification",

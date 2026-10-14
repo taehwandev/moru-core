@@ -26,7 +26,7 @@ class PretoolExecutionTests(unittest.TestCase):
             "Uses tao-hook.\n<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->\n"
             "<!-- END MANAGED TAO AGENT OS ROUTING -->\n"
         )
-        (self.project / ".gitignore").write_text(".tao/\n")
+        (self.project / ".gitignore").write_text(".moru/\n")
         self.environment = dict(os.environ)
         for key in ("CODEX_THREAD_ID", "MORU_WORKER_EVIDENCE", "MORU_PARENT_EVIDENCE_READONLY"):
             self.environment.pop(key, None)
@@ -72,7 +72,7 @@ class PretoolExecutionTests(unittest.TestCase):
         command = [sys.executable, "tools/check.py"]
         verdict = self.decision(command)
         self.assertIsNone(verdict, "Opaque local runners defer to native permissions")
-        self.assertFalse((self.project / ".tao" / "runs").exists())
+        self.assertFalse((self.project / ".moru" / "runs").exists())
         self.start(read_only=True)
         verdict = self.decision(command)
         self.assertEqual("deny", verdict["permissionDecision"])
@@ -137,12 +137,12 @@ class PretoolExecutionTests(unittest.TestCase):
         self.assertIn("effect: unknown", deferred["additionalContext"])
         self.assertIn("put -q first", deferred["additionalContext"])
         self.assertIsNone(self.decision(["curl", "-q", "https://example.invalid"]))
-        self.assertFalse((self.project / ".tao" / "runs").exists())
+        self.assertFalse((self.project / ".moru" / "runs").exists())
 
     def test_multiline_reads_need_no_run_but_writes_still_need_authority(self):
         self.assertIsNone(self.decision('git status --short\ncat AGENTS.md'))
         self.assertIsNone(self.decision("rg 'first\nsecond' AGENTS.md"))
-        self.assertFalse((self.project / '.tao' / 'runs').exists())
+        self.assertFalse((self.project / '.moru' / 'runs').exists())
         for command in ('git status --short\ntouch result',
                         'cat AGENTS.md\ncat AGENTS.md > result',
                         'cat $\\\n(touch result)'):
@@ -158,7 +158,7 @@ class PretoolExecutionTests(unittest.TestCase):
         for method in ([], ['--method', 'GET']):
             self.assertIsNone(self.decision(['gh', 'api', *method, endpoint, '--jq', query]))
         self.assertIsNone(self.decision('git status --short; gh api ' + endpoint))
-        self.assertFalse((self.project / '.tao' / 'runs').exists())
+        self.assertFalse((self.project / '.moru' / 'runs').exists())
         for args in (['--method', 'POST'], ['-f', 'state=success'], ['--cache', '1h'],
                      ['--method', 'GET', '--input', 'payload.json']):
             with self.subTest(args=args):

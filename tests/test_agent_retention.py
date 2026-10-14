@@ -21,7 +21,7 @@ class AgentRetentionTests(unittest.TestCase):
             evidence = project / "preflight.json"
             run = register_run(project, evidence, {"command": "task"}, {})
             transition_run(project, evidence, "completed")
-            registry = project / ".tao" / "run-registry.json"
+            registry = project / ".moru" / "run-registry.json"
             payload = json.loads(registry.read_text())
             payload["runs"][0]["updated_at"] = (datetime.now(timezone.utc) - timedelta(days=40)).isoformat()
             registry.write_text(json.dumps(payload), encoding="utf-8")
@@ -38,7 +38,7 @@ class AgentRetentionTests(unittest.TestCase):
             runs = [register_run(project, project / f"preflight-{index}.json", {"command": "task"}, {}) for index in range(3)]
 
             removed = prune_runtime_state(project, retention_seconds=60, max_records=1)
-            registry = project / ".tao" / "run-registry.json"
+            registry = project / ".moru" / "run-registry.json"
             remaining = json.loads(registry.read_text())["runs"]
             self.assertEqual(0, removed["runs"])
             self.assertEqual({run["run_id"] for run in runs}, {item["run_id"] for item in remaining})

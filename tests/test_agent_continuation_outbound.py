@@ -22,7 +22,7 @@ from agent_lesson_store import upsert_retrospective_candidate
 
 
 RUN_ID = "a" * 32
-PACKET_PATH = f".tao/runs/{RUN_ID}/continuation.json"
+PACKET_PATH = f".moru/runs/{RUN_ID}/continuation.json"
 MORU_PACKET_PATH = f".moru/runs/{RUN_ID}/continuation.json"
 
 
@@ -90,7 +90,7 @@ class AgentContinuationOutboundTests(unittest.TestCase):
                     run_id=CONTINUATION_STORAGE_CLASS,
                     state="running",
                 )
-            self.assertFalse((project / ".tao" / "events.json").exists())
+            self.assertFalse((project / ".moru" / "events.json").exists())
 
     def test_global_lesson_rejects_before_candidate_storage(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

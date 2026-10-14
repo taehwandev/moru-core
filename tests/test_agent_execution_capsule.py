@@ -84,7 +84,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
             "reference_docs": [],
             "gates": ["verify"],
         }
-        self.evidence_path = self.project / ".tao" / "preflight.json"
+        self.evidence_path = self.project / ".moru" / "preflight.json"
         self.evidence_path.parent.mkdir(parents=True, exist_ok=True)
         self.evidence_path.write_text(
             json.dumps(
@@ -845,7 +845,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
                     "target": "guide.md",
                     "reason": "fields alone cannot invent a failed checkpoint",
                     "resume_checkpoint": "source docs",
-                    "repair_evidence": ".tao/repair-verification/missing.json",
+                    "repair_evidence": ".moru/repair-verification/missing.json",
                 },
             )
         record_failure_checkpoints(
@@ -865,7 +865,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
                     "target": "guide.md",
                     "reason": "a failed checkpoint still needs a verified receipt",
                     "resume_checkpoint": "source docs",
-                    "repair_evidence": ".tao/repair-verification/missing.json",
+                    "repair_evidence": ".moru/repair-verification/missing.json",
                 },
             )
 
@@ -1392,7 +1392,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
         alias_root = public_var / physical_root.relative_to(private_var)
         alias_project = alias_root / "project"
         alias_rules = alias_root / "rules"
-        alias_evidence = alias_project / ".tao" / "preflight.json"
+        alias_evidence = alias_project / ".moru" / "preflight.json"
 
         capsule = refresh_execution_capsule(
             alias_project,
@@ -1499,7 +1499,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            (self.project / ".tao" / "workers").resolve(),
+            (self.project / ".moru" / "workers").resolve(),
             worker_evidence.parent.parent.resolve(),
         )
         self.assertEqual(
@@ -1515,6 +1515,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
         migrated_runs = self.project / ".moru" / "runs"
         migrated_runs.mkdir(parents=True)
         (self.project / ".moru" / "state-ready").touch()
+        (self.project / ".tao").mkdir(exist_ok=True)
         (self.project / ".tao" / "runs").symlink_to(Path("../.moru/runs"))
         evidence = self.project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
         evidence.parent.mkdir(parents=True)
@@ -1541,6 +1542,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
     def test_migrated_runs_link_requires_ready_marker(self) -> None:
         migrated_runs = self.project / ".moru" / "runs"
         migrated_runs.mkdir(parents=True)
+        (self.project / ".tao").mkdir(exist_ok=True)
         (self.project / ".tao" / "runs").symlink_to(Path("../.moru/runs"))
         evidence = self.project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
         evidence.parent.mkdir(parents=True)
@@ -1730,7 +1732,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
     @classmethod
     def _init_repository(cls, path: Path, files: dict[str, str]) -> None:
         path.mkdir(parents=True)
-        (path / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (path / ".gitignore").write_text(".moru/\n", encoding="utf-8")
         for relative, content in files.items():
             destination = path / relative
             destination.parent.mkdir(parents=True, exist_ok=True)

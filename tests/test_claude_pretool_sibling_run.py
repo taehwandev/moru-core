@@ -23,7 +23,7 @@ class SiblingOpenRunTest(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         base = Path(temp.name).resolve()
         self.main = base / "repo"
-        self.task = base / "repo" / ".tao" / "worktrees" / "task"
+        self.task = base / "repo" / ".moru" / "worktrees" / "task"
         self.other_repo = base / "other"
         for directory in (self.main / ".git" / "worktrees" / "task", self.task, self.other_repo):
             directory.mkdir(parents=True, exist_ok=True)

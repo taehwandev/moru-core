@@ -170,7 +170,7 @@ class AgentHookSummaryTests(unittest.TestCase):
             )
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertIn("request fingerprint:", result.stdout)
-            self.assertFalse((root / ".tao").exists())
+            self.assertFalse((root / ".moru").exists())
 
     def test_lookup_scope_is_delivered_without_runtime_or_extra_reads(self) -> None:
         from workflow_route import LOOKUP_READING_GUIDANCE
@@ -329,7 +329,7 @@ class AgentHookSummaryTests(unittest.TestCase):
     def test_commit_summary_separates_reused_docs_and_prior_review_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
+            evidence = project / ".moru" / "runs" / ("a" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(json.dumps({
                 "project": str(project),
@@ -370,7 +370,7 @@ class AgentHookSummaryTests(unittest.TestCase):
     def test_summary_replays_takeaways_and_lists_project_route_docs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
+            evidence = project / ".moru" / "runs" / ("a" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(json.dumps({
                 "project": str(project),
@@ -402,7 +402,7 @@ class AgentHookSummaryTests(unittest.TestCase):
     def test_project_doc_takeaways_are_not_repeated_after_required_doc_takeaways(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
+            evidence = project / ".moru" / "runs" / ("a" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(json.dumps({
                 "project": str(project),
@@ -438,7 +438,7 @@ class AgentHookSummaryTests(unittest.TestCase):
     def test_commit_summary_keeps_required_docs_when_reuse_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
+            evidence = project / ".moru" / "runs" / ("a" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(json.dumps({
                 "project": str(project),
@@ -555,7 +555,7 @@ class AgentHookSummaryTests(unittest.TestCase):
     def test_review_rejects_an_unwritable_output_parent_before_dispatch(self) -> None:
         with tempfile.TemporaryDirectory() as project_directory:
             project = Path(project_directory)
-            output = project / ".tao" / "review.json"
+            output = project / ".moru" / "review.json"
             output.parent.mkdir()
             args = Namespace(project=project, output=output, hook="review")
 

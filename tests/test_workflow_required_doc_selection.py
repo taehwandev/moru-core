@@ -78,7 +78,7 @@ class EntrypointResolutionTests(unittest.TestCase):
                 path.write_text(f"# Canonical {index}\n\nRepository pointer body.\n", encoding="utf-8")
                 canonical.append(path.relative_to(root).as_posix())
             for index in range(21):
-                path = root / ".tao" / "runtime" / "skills" / f"copy-{index}" / "SKILL.md"
+                path = root / ".moru" / "runtime" / "skills" / f"copy-{index}" / "SKILL.md"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(f"# Runtime {index}\n\nRuntime copy body.\n", encoding="utf-8")
 

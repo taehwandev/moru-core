@@ -145,7 +145,7 @@ class CodexPermissionsTests(unittest.TestCase):
     def test_worktree_roots_create_workspace_profile_and_are_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "config.toml"
-            roots = [Path(directory) / "project" / ".tao" / "worktrees"]
+            roots = [Path(directory) / "project" / ".moru" / "worktrees"]
 
             target.write_text('default_permissions = ":workspace"\n')
             first = merge_codex_worktree_roots(target, roots, dry_run=False)
@@ -176,7 +176,7 @@ class CodexPermissionsTests(unittest.TestCase):
                 'trust_level = "trusted"\n',
                 encoding="utf-8",
             )
-            root = Path(directory) / "project" / ".tao" / "worktrees"
+            root = Path(directory) / "project" / ".moru" / "worktrees"
 
             status = merge_codex_worktree_roots(target, [root], dry_run=False)
             text = target.read_text(encoding="utf-8")
@@ -204,7 +204,7 @@ class CodexPermissionsTests(unittest.TestCase):
 
                 status = merge_codex_worktree_roots(
                     target,
-                    [Path(directory) / "project" / ".tao" / "worktrees"],
+                    [Path(directory) / "project" / ".moru" / "worktrees"],
                     dry_run=False,
                 )
 
@@ -253,7 +253,7 @@ class CodexPermissionsTests(unittest.TestCase):
 
             status = merge_codex_worktree_roots(
                 target,
-                [Path(directory) / "project" / ".tao" / "worktrees"],
+                [Path(directory) / "project" / ".moru" / "worktrees"],
                 dry_run=False,
             )
             text = target.read_text(encoding="utf-8")

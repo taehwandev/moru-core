@@ -294,7 +294,7 @@ class ReadDelegationPlanTests(unittest.TestCase):
     """read_delegation_plan must fail closed on an unreadable plan path."""
 
     def test_directory_plan_returns_invalid_json_marker(self) -> None:
-        # A .tao/agent-delegation-plan.json that is a directory has exists()==True,
+        # A .moru/agent-delegation-plan.json that is a directory has exists()==True,
         # so read_text raises IsADirectoryError. Catching OSError turns that into
         # the invalid_json marker instead of a raw traceback, and structural
         # validation then reports it as not-valid-JSON.

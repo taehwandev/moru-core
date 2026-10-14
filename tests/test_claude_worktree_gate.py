@@ -177,8 +177,8 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
         # A writing vault a run once touched holds a `.tao` directory and a
         # Moru doc-enforcement note, but never adopted the code routing block.
         root = self.plain("vault")
-        (root / ".tao").mkdir()
-        (root / ".tao" / "context-snapshot.json").write_text("{}")
+        (root / ".moru").mkdir()
+        (root / ".moru" / "context-snapshot.json").write_text("{}")
         (root / "AGENTS.md").write_text(
             "<!-- BEGIN MANAGED TAO AGENT OS DOC ENFORCEMENT --> tao-hook <!-- END -->\n"
         )

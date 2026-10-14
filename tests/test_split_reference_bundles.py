@@ -155,7 +155,7 @@ class GuardRemovalTests(unittest.TestCase):
         oversized = sorted(
             str(path.relative_to(ROOT))
             for path in ROOT.rglob("*/references/*.md")
-            if ".tao" not in path.parts
+            if ".moru" not in path.parts
             and path.stat().st_size > self.FORMER_GUARD_BYTES
         )
 

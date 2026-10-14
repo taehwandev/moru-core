@@ -16,10 +16,10 @@ class ReadOnlyDiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             ancestor = Path(folder).resolve()
             project = ancestor / "project"
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             route = {"command": "bugfix", "gates": []}
-            register_run(ancestor, ancestor / ".tao" / "other.json", route, {})
+            register_run(ancestor, ancestor / ".moru" / "other.json", route, {})
             register_run(project, evidence, route, {})
             before = {p: p.read_bytes() for p in ancestor.rglob("*") if p.is_file()}
             with patch("agent_run_registry.project_state_lock", side_effect=PermissionError("write denied")):
@@ -31,7 +31,7 @@ class ReadOnlyDiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             ancestor = Path(folder).resolve()
             project = ancestor / "project"
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             route = {"command": "bugfix", "gates": []}
             register_run(ancestor, evidence, route, {})
@@ -46,13 +46,13 @@ class ReadOnlyDiscoveryTests(unittest.TestCase):
             path.parent.mkdir()
             path.write_text(json.dumps({"schema_version": 1, "runs": [None]}))
             with self.assertRaises((ValueError, PermissionError)):
-                _claim_project(project / ".tao" / "preflight.json")
+                _claim_project(project / ".moru" / "preflight.json")
 
     def test_legacy_shaped_ancestor_registry_claims_nothing(self):
         with tempfile.TemporaryDirectory() as folder:
             ancestor = Path(folder).resolve()
             project = ancestor / "project"
-            evidence = project / ".tao" / "runs" / ("c" * 32) / "preflight.json"
+            evidence = project / ".moru" / "runs" / ("c" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             registry_path(ancestor).parent.mkdir(parents=True, exist_ok=True)
             registry_path(ancestor).write_text(
@@ -65,7 +65,7 @@ class ReadOnlyDiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             ancestor = Path(folder).resolve()
             project = ancestor / "project"
-            evidence = project / ".tao" / "runs" / ("d" * 32) / "preflight.json"
+            evidence = project / ".moru" / "runs" / ("d" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             registry_path(ancestor).parent.mkdir(parents=True, exist_ok=True)
             registry_path(ancestor).write_text("{")

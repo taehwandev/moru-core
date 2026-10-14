@@ -20,7 +20,7 @@ def _build_baselines(template: Path) -> None:
         GateEvidenceReuseTests.git(root, "init", "-q")
         GateEvidenceReuseTests.git(root, "config", "user.email", "test@example.invalid")
         GateEvidenceReuseTests.git(root, "config", "user.name", "Test")
-        (root / ".gitignore").write_text(".tao/\n")
+        (root / ".gitignore").write_text(".moru/\n")
         (root / "README.md").write_text("Existing release contract.\n")
         GateEvidenceReuseTests.git(root, "add", ".")
         GateEvidenceReuseTests.git(root, "commit", "-qm", "baseline")
@@ -45,7 +45,7 @@ class GateEvidenceReuseTests(unittest.TestCase):
         self.source_id, self.target_id = "a" * 32, "b" * 32
         self.source = self.make_run(self.source_id, "배포")
         self.target = self.make_run(self.target_id, "아니 바로 배포는 알아서 다시해야하는거 아니니? 왜 자꾸 멈춰")
-        registry = self.project / ".tao" / "run-registry.json"
+        registry = self.project / ".moru" / "run-registry.json"
         registry.write_text(json.dumps({"schema_version": 1, "runs": [
             {"run_id": self.source_id, "state": "completed", "evidence_name": "preflight.json"},
             {"run_id": self.target_id, "state": "running", "evidence_name": "preflight.json"},
@@ -56,7 +56,7 @@ class GateEvidenceReuseTests(unittest.TestCase):
         subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
 
     def make_run(self, run_id, request):
-        path = self.project / ".tao" / "runs" / run_id / "preflight.json"
+        path = self.project / ".moru" / "runs" / run_id / "preflight.json"
         path.parent.mkdir(parents=True)
         path.write_text(json.dumps({"project": str(self.project), "rules": str(self.rules),
             "agent_run_id": run_id, "runtime_session": {"runtime": "codex", "session_id": "same-session"},

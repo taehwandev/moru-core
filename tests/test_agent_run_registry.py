@@ -93,7 +93,7 @@ class AgentRunRegistryTests(unittest.TestCase):
         """A registry read against a directory with no runtime state must not
         create one.
 
-        Acquiring the registry locks creates `.tao/` plus two lock files as a
+        Acquiring the registry locks creates `.moru/` plus two lock files as a
         side effect, so a read against a documentation directory that merely
         carries an opt-in marker planted dead runtime state in checkouts that
         never ran a lifecycle -- and that state then made the directory opt in
@@ -103,18 +103,18 @@ class AgentRunRegistryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
 
             self.assertEqual([], active_runs(project))
             self.assertEqual({}, active_run_bindings(project))
             self.assertIsNone(agent_run_registry.latest_run_id(project, evidence))
             self.assertIsNone(agent_run_registry.registered_run(project, evidence))
-            self.assertFalse((project / ".tao").exists())
+            self.assertFalse((project / ".moru").exists())
 
     def test_register_and_transition_run_without_content_or_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             run = register_run(
                 project,
                 evidence,
@@ -142,7 +142,7 @@ class AgentRunRegistryTests(unittest.TestCase):
         for settled in ("completed", "cancelled"):
             with self.subTest(settled=settled), tempfile.TemporaryDirectory() as directory:
                 project = Path(directory)
-                evidence = project / ".tao" / "preflight.json"
+                evidence = project / ".moru" / "preflight.json"
                 run = register_run(project, evidence, {"command": "task"}, {})
                 transition_run(project, evidence, settled, run_id=run["run_id"])
 
@@ -162,7 +162,7 @@ class AgentRunRegistryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             run = register_run(project, evidence, {"command": "task"}, {})
             registry = registry_path(project)
             payload = json.loads(registry.read_text(encoding="utf-8"))
@@ -184,7 +184,7 @@ class AgentRunRegistryTests(unittest.TestCase):
     def test_dead_owner_takeover_requires_the_same_runtime_session(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             run = register_run(project, evidence, {"command": "task"}, {})
             registry = registry_path(project)
             payload = json.loads(registry.read_text(encoding="utf-8"))
@@ -205,7 +205,7 @@ class AgentRunRegistryTests(unittest.TestCase):
     def test_same_runtime_closeout_never_takes_a_live_foreign_owner(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             run = register_run(project, evidence, {"command": "task"}, {})
             registry = registry_path(project)
             payload = json.loads(registry.read_text(encoding="utf-8"))
@@ -238,7 +238,7 @@ class AgentRunRegistryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             run = register_run(project, evidence, {"command": "task"}, {})
             transition_run(project, evidence, "completed", run_id=run["run_id"])
 
@@ -259,7 +259,7 @@ class AgentRunRegistryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             run = register_run(project, evidence, {"command": "task"}, {})
             registry = registry_path(project)
             payload = json.loads(registry.read_text(encoding="utf-8"))
@@ -286,7 +286,7 @@ class AgentRunRegistryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             run_id = uuid.uuid4().hex
-            evidence = project / ".tao" / "runs" / run_id / "preflight.json"
+            evidence = project / ".moru" / "runs" / run_id / "preflight.json"
             evidence.parent.mkdir(parents=True)
             first = register_run(project, evidence, {"command": "task"}, {})
             registry = registry_path(project)
@@ -315,7 +315,7 @@ class AgentRunRegistryTests(unittest.TestCase):
         from agent_run_evidence import prune_run_evidence
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao/runs" / ("e" * 32) / "preflight.json"
+            evidence = project / ".moru/runs" / ("e" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text("{}")
             run = register_run(project, evidence, {"command": "task"}, {})
@@ -337,7 +337,7 @@ class AgentRunRegistryTests(unittest.TestCase):
     def test_retained_canonical_evidence_can_be_resumed(self):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao/runs" / ("e" * 32) / "preflight.json"
+            evidence = project / ".moru/runs" / ("e" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text("{}")
             run = register_run(project, evidence, {"command": "task"}, {})
@@ -358,7 +358,7 @@ class AgentRunRegistryTests(unittest.TestCase):
     def test_active_request_cannot_overwrite_the_same_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(
                 project,
                 evidence,
@@ -377,13 +377,13 @@ class AgentRunRegistryTests(unittest.TestCase):
             self.assertFalse(
                 active_run_conflict(
                     project,
-                    project / ".tao" / "runs" / "second" / "preflight.json",
+                    project / ".moru" / "runs" / "second" / "preflight.json",
                     command="task",
                     request_intake={"request": "second", "request_classified": False},
                 )
             )
 
-            persisted = (project / ".tao" / "run-registry.json").read_text()
+            persisted = (project / ".moru" / "run-registry.json").read_text()
             self.assertNotIn("first", persisted)
             self.assertNotIn("second", persisted)
 
@@ -398,7 +398,7 @@ class LiveRunSurvivalTests(unittest.TestCase):
 
     @staticmethod
     def _age(project: Path, minutes: int) -> None:
-        registry = project / ".tao" / "run-registry.json"
+        registry = project / ".moru" / "run-registry.json"
         payload = json.loads(registry.read_text())
         old = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
         for run in payload["runs"]:
@@ -408,7 +408,7 @@ class LiveRunSurvivalTests(unittest.TestCase):
     def test_heartbeat_keeps_a_long_running_run_alive(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(project, evidence, {"command": "task"}, {"request": "long build"})
             self._age(project, minutes=90)
 
@@ -427,9 +427,9 @@ class LiveRunSurvivalTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(project, evidence, {"command": "task"}, {"request": "build"})
-            registry = project / ".tao" / "run-registry.json"
+            registry = project / ".moru" / "run-registry.json"
             before = registry.read_text(encoding="utf-8")
 
             self.assertIsNotNone(touch_run(project, evidence))
@@ -439,10 +439,10 @@ class LiveRunSurvivalTests(unittest.TestCase):
     def test_a_stale_heartbeat_is_still_written(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(project, evidence, {"command": "task"}, {"request": "build"})
             self._age(project, minutes=5)
-            registry = project / ".tao" / "run-registry.json"
+            registry = project / ".moru" / "run-registry.json"
             before = registry.read_text(encoding="utf-8")
 
             self.assertIsNotNone(touch_run(project, evidence))
@@ -454,9 +454,9 @@ class LiveRunSurvivalTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(project, evidence, {"command": "task"}, {"request": "build"})
-            registry = project / ".tao" / "run-registry.json"
+            registry = project / ".moru" / "run-registry.json"
             payload = json.loads(registry.read_text())
             for run in payload["runs"]:
                 run["updated_at"] = "not a timestamp"
@@ -478,7 +478,7 @@ class LiveRunSurvivalTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "task"},
                 {"request": "abandoned"},
             )
@@ -492,7 +492,7 @@ class LiveRunSurvivalTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "runs" / "peer" / "preflight.json",
+                project / ".moru" / "runs" / "peer" / "preflight.json",
                 {"command": "task"},
                 {"request": "concurrent peer"},
             )
@@ -500,7 +500,7 @@ class LiveRunSurvivalTests(unittest.TestCase):
 
             recovered = recover_stale_runs(
                 project,
-                evidence_path=project / ".tao" / "preflight.json",
+                evidence_path=project / ".moru" / "preflight.json",
             )
 
             self.assertEqual([], recovered)
@@ -509,12 +509,12 @@ class LiveRunSurvivalTests(unittest.TestCase):
     def test_heartbeat_ignores_finished_runs_and_other_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(project, evidence, {"command": "task"}, {"request": "done"})
             transition_run(project, evidence, "completed")
 
             self.assertIsNone(touch_run(project, evidence))
-            self.assertIsNone(touch_run(project, project / ".tao" / "other.json"))
+            self.assertIsNone(touch_run(project, project / ".moru" / "other.json"))
 
 
 class BoundedHistoryTests(unittest.TestCase):
@@ -530,7 +530,7 @@ class BoundedHistoryTests(unittest.TestCase):
     ROUTE = {"command": "task", "gates": ["finish"], "required_docs": []}
 
     def _register(self, project: Path, name: str, *, settle: bool = False) -> str:
-        evidence = project / ".tao" / "runs" / name / "preflight.json"
+        evidence = project / ".moru" / "runs" / name / "preflight.json"
         evidence.parent.mkdir(parents=True, exist_ok=True)
         run_id = register_run(project, evidence, self.ROUTE, {"request": name})["run_id"]
         if settle:
@@ -558,7 +558,7 @@ class BoundedHistoryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / "the-failed-run" / "preflight.json"
+            evidence = project / ".moru" / "runs" / "the-failed-run" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             failed = register_run(project, evidence, self.ROUTE, {"request": "failed"})["run_id"]
             transition_run(project, evidence, "failed", run_id=failed)
@@ -595,7 +595,7 @@ class CrashedClaimantRetryTests(unittest.TestCase):
     def test_crashed_claimant_frees_a_fresh_binding_immediately(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             intake = {"request": "the task", "request_classified": False}
             claim_run(project, evidence, {"command": "bugfix"}, intake)
             age_runs(project, minutes=10, owner_pid=dead_pid())
@@ -619,7 +619,7 @@ class CrashedClaimantRetryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             intake = {"request": "the task", "request_classified": False}
             first = claim_run(project, evidence, {"command": "bugfix"}, intake)
             age_runs(project, minutes=10)
@@ -643,7 +643,7 @@ class CrashedClaimantRetryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             intake = {"request": "the task", "request_classified": False}
             claim_run(project, evidence, {"command": "bugfix"}, intake)
             _strip_owners(project)
@@ -662,7 +662,7 @@ class CrashedClaimantRetryTests(unittest.TestCase):
     def test_live_owner_keeps_its_extended_window_and_its_ceiling(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             intake = {"request": "the task", "request_classified": False}
             claim_run(project, evidence, {"command": "bugfix"}, intake)
             age_runs(project, minutes=90, owner_pid=os.getpid())
@@ -701,7 +701,7 @@ class ClaimRunTests(unittest.TestCase):
         for attempt in range(5):
             with self.subTest(attempt=attempt), tempfile.TemporaryDirectory() as directory:
                 project = Path(directory)
-                evidence = project / ".tao" / "preflight.json"
+                evidence = project / ".moru" / "preflight.json"
                 results: list = []
                 ready = threading.Barrier(2)
 
@@ -727,7 +727,7 @@ class ClaimRunTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             first = claim_run(
                 project, evidence, {"command": "bugfix"}, {"request": "first"}
             )
@@ -746,7 +746,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_successive_same_request_independent_claim_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             intake = {"request": "same request", "request_classified": False}
 
             first = claim_run(project, evidence, {"command": "bugfix"}, intake)
@@ -763,7 +763,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_claimed_run_can_be_explicitly_rebound_by_run_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             intake = {"request": "same request", "request_classified": False}
             claim = claim_run(project, evidence, {"command": "bugfix"}, intake)
 
@@ -791,7 +791,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_direct_registration_cannot_bypass_an_existing_transient_claim(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             claim = claim_run(
                 project, evidence, {"command": "bugfix"}, {"request": "work"}
             )
@@ -813,7 +813,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_negative_control_direct_registration_without_a_claim_still_works(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
 
             run = register_run(
                 project, evidence, {"command": "bugfix"}, {"request": "work"}
@@ -836,7 +836,7 @@ class ClaimRunTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             with patch("agent_run_registry.process_owner", side_effect=claimant_owner):
                 claim = claim_run(
                     project, evidence, {"command": "bugfix"}, {"request": "work"}
@@ -876,7 +876,7 @@ class ClaimRunTests(unittest.TestCase):
         for state in ("cancelled", "failed"):
             with self.subTest(state=state), tempfile.TemporaryDirectory() as directory:
                 project = Path(directory)
-                evidence = project / ".tao" / "preflight.json"
+                evidence = project / ".moru" / "preflight.json"
                 with patch(
                     "agent_run_registry.process_owner", side_effect=claimant_owner
                 ):
@@ -912,7 +912,7 @@ class ClaimRunTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             with patch("agent_run_registry.process_owner", side_effect=owner_identity):
                 claim = claim_run(
                     project, evidence, {"command": "bugfix"}, {"request": "work"}
@@ -930,7 +930,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_transient_claim_is_not_runtime_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
 
             claim = claim_run(
                 project, evidence, {"command": "bugfix"}, {"request": "new work"}
@@ -943,7 +943,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_wrong_reuse_id_cannot_append_a_second_run(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             claim_run(project, evidence, {"command": "bugfix"}, {"request": "work"})
 
             with self.assertRaises(ValueError):
@@ -961,7 +961,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_generic_transition_cannot_publish_an_incomplete_claim(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             claim = claim_run(
                 project, evidence, {"command": "bugfix"}, {"request": "work"}
             )
@@ -980,7 +980,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_generic_transition_cannot_create_a_transient_claim(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             run = register_run(
                 project, evidence, {"command": "bugfix"}, {"request": "work"}
             )
@@ -996,7 +996,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_claim_recovers_an_abandoned_holder_of_the_same_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(project, evidence, {"command": "docs"}, {"request": "crashed"})
             abandon_runs(project, minutes=90)
 
@@ -1014,7 +1014,7 @@ class ClaimRunTests(unittest.TestCase):
     def test_claim_reports_a_silent_holder_it_refused_to_release(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(project, evidence, {"command": "docs"}, {"request": "long build"})
             age_runs(project, minutes=90)
 
@@ -1041,7 +1041,7 @@ class IsolatedEvidenceIdAdoptionTests(unittest.TestCase):
     @staticmethod
     def _isolated(project: Path) -> tuple[str, Path]:
         run_id = uuid.uuid4().hex
-        evidence = project / ".tao" / "runs" / run_id / "preflight.json"
+        evidence = project / ".moru" / "runs" / run_id / "preflight.json"
         evidence.parent.mkdir(parents=True)
         return run_id, evidence
 
@@ -1083,7 +1083,7 @@ class IsolatedEvidenceIdAdoptionTests(unittest.TestCase):
     def test_a_non_isolated_evidence_path_is_never_adopted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
 
             run = register_run(project, evidence, self._route(), {"request": "a"})

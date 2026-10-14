@@ -143,7 +143,7 @@ class ListTests(unittest.TestCase):
             fixture = free_fixture(directory, "already finished")
             transition_run(
                 fixture.project,
-                fixture.project / ".tao" / "preflight.json",
+                fixture.project / ".moru" / "preflight.json",
                 "completed",
                 run_id=fixture.run_id,
             )

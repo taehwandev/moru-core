@@ -34,7 +34,7 @@ class AgentReviewValidationStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             project = Path(temporary_directory)
             initialize_repository(project)
-            evidence_path = project / ".tao" / "runs" / "review" / "preflight.json"
+            evidence_path = project / ".moru" / "runs" / "review" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text(
                 json.dumps({"route": {"command": "refactor"}}),
@@ -58,10 +58,10 @@ class AgentReviewValidationStateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             project = Path(temporary_directory)
             initialize_repository(project)
-            (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+            (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
             subprocess.run(["git", "add", ".gitignore"], cwd=project, check=True)
             subprocess.run(["git", "commit", "-q", "-m", "ignore state"], cwd=project, check=True)
-            evidence_path = project / ".tao" / "runs" / "review" / "preflight.json"
+            evidence_path = project / ".moru" / "runs" / "review" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text(json.dumps({"route": {"command": "refactor"}}), encoding="utf-8")
 
@@ -76,7 +76,7 @@ class AgentReviewValidationStateTests(unittest.TestCase):
 
             validation_path = review_validation_path(project)
             self.assertTrue(validation_path.is_file())
-            self.assertEqual(project.resolve() / ".tao", validation_path.parent)
+            self.assertEqual(project.resolve() / ".moru", validation_path.parent)
             status = subprocess.run(
                 ["git", "status", "--porcelain"],
                 cwd=project,

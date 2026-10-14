@@ -141,7 +141,7 @@ class CompoundShellCommandTests(unittest.TestCase):
 
     def test_mailbox_task_decisions_have_only_the_local_metadata_contract(self) -> None:
         entry = f"{worktree_gate.stable_launcher_path()} mailbox-hook"
-        for command in ("authorize-task --runtime codex --evidence /repo/.tao/run.json --message-id abc",
+        for command in ("authorize-task --runtime codex --evidence /repo/.moru/run.json --message-id abc",
                         "pause-tasks --runtime claude", "complete-task --runtime codex --message-id abc"):
             self.assertEqual("runtime_control", self._kind(f"{entry} {command}"))
             self.assertEqual("mutating", self._kind(f"{entry} {command} && touch changed"))

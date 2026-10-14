@@ -560,7 +560,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 cwd=str(project),
                 check=True,
             )
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {"route": {"command": "bugfix", "gates": ["tests", "handoff"]}}
             evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
@@ -651,7 +651,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 cwd=str(project),
                 check=True,
             )
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {"route": {"command": "bugfix", "gates": ["tests", "handoff"]}}
             evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
@@ -710,7 +710,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 cwd=str(project),
                 check=True,
             )
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {"route": {"command": "bugfix", "gates": ["tests", "handoff"]}}
             evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
@@ -1175,7 +1175,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 start_exit = agent_hook.main()
             self.assertEqual(0, start_exit)
 
-            run_evidence = tuple((project / ".tao" / "runs").glob("*/preflight.json"))
+            run_evidence = tuple((project / ".moru" / "runs").glob("*/preflight.json"))
             self.assertEqual(
                 1,
                 len(run_evidence),

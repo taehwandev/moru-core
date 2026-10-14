@@ -71,7 +71,7 @@ class _Fixture(unittest.TestCase):
         root.mkdir(parents=True)
         (root / "AGENTS.md").write_text("Uses tao-hook.\n")
         (root / "notes.txt").write_text("n\n")
-        (root / ".gitignore").write_text(".tao/\n")
+        (root / ".gitignore").write_text(".moru/\n")
         shared = root / ".agents" / "shared"
         shared.mkdir(parents=True)
         (shared / "worktree-policy.json").write_text(
@@ -390,7 +390,7 @@ class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
         origin = self.base / "home" / "other-origin"
         origin.mkdir(parents=True)
         (origin / "AGENTS.md").write_text("Uses tao-hook.\n")
-        (origin / ".gitignore").write_text(".tao/\n")
+        (origin / ".gitignore").write_text(".moru/\n")
         _git("init", "-q", "-b", "main", cwd=origin)
         _git("add", ".", cwd=origin)
         _git("commit", "-q", "-m", "init", cwd=origin)

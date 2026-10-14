@@ -42,7 +42,7 @@ class AgentNextActionTests(unittest.TestCase):
 
     def test_active_run_progresses_from_tests_to_review_to_closeout(self) -> None:
         run_id = "a" * 32
-        run_dir = self.project / ".tao" / "runs" / run_id
+        run_dir = self.project / ".moru" / "runs" / run_id
         run_dir.mkdir(parents=True)
         preflight_path = run_dir / "preflight.json"
         preflight = {
@@ -86,10 +86,10 @@ class AgentNextActionTests(unittest.TestCase):
         self.assertEqual("<SUCCESS or FAIL>", record["status"])
 
     def test_another_sessions_registered_run_is_not_selected(self) -> None:
-        run_dir = self.project / ".tao" / "runs" / ("c" * 32)
+        run_dir = self.project / ".moru" / "runs" / ("c" * 32)
         run_dir.mkdir(parents=True)
         (run_dir / "preflight.json").write_text("{}", encoding="utf-8")
-        (self.project / ".tao" / "preflight.json").write_text("{}", encoding="utf-8")
+        (self.project / ".moru" / "preflight.json").write_text("{}", encoding="utf-8")
         with mock.patch.object(next_action, "runtime_session", return_value={}):
             info = next_action.inspect_next_action(self.project)
         self.assertEqual("no_active_run", info["status"])

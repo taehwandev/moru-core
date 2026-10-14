@@ -27,6 +27,9 @@ class StableLauncherTests(unittest.TestCase):
     def test_ready_global_state_prefers_moru_launcher(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_home:
             with patch.dict(os.environ, {"HOME": temporary_home}):
+                # A new install has no legacy launcher to keep using.
+                self.assertEqual(moru_launcher_path(), preferred_launcher_path())
+                (Path(temporary_home) / ".tao").mkdir()
                 self.assertEqual(stable_launcher_path(), preferred_launcher_path())
                 state = Path(temporary_home) / ".moru"
                 state.mkdir()

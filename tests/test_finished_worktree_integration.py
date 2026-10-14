@@ -1,6 +1,6 @@
 """A finished worktree run admits the fast-forward that brings it home.
 
-The goal loop finishes in `<repo>/.tao/worktrees/<slice>` and then runs
+The goal loop finishes in `<repo>/.moru/worktrees/<slice>` and then runs
 `git -C <repo> merge --ff-only <sha>`. That merge used to need a second
 lifecycle in the main checkout, because publication admission covered only
 add/commit/push/tag and looked the finish up against the checkout the command
@@ -96,15 +96,15 @@ class FinishedWorktreeIntegrationTests(unittest.TestCase):
         self.git(self.main, "init", "-q", "-b", "main")
         self.git(self.main, "config", "user.email", "test@example.invalid")
         self.git(self.main, "config", "user.name", "Test")
-        (self.main / ".gitignore").write_text(".tao/\n")
+        (self.main / ".gitignore").write_text(".moru/\n")
         (self.main / "AGENTS.md").write_text("uses tao-hook\n")
         (self.main / "source").write_text("original")
         self.git(self.main, "add", ".")
         self.git(self.main, "commit", "-qm", "base")
-        self.worktree = self.main / ".tao" / "worktrees" / "slice"
+        self.worktree = self.main / ".moru" / "worktrees" / "slice"
         self.git(self.main, "worktree", "add", "-q", "-b", "slice", str(self.worktree))
         self.worktree = self.worktree.resolve()
-        self.evidence = self.worktree / ".tao" / "runs" / "example" / "preflight.json"
+        self.evidence = self.worktree / ".moru" / "runs" / "example" / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
 
     def git(self, root: Path, *arguments: str) -> str:
@@ -338,12 +338,12 @@ class FinishedWorktreeIntegrationGateTests(unittest.TestCase):
         self.git(self.main, "init", "-q", "-b", "main")
         self.git(self.main, "config", "user.email", "test@example.invalid")
         self.git(self.main, "config", "user.name", "Test")
-        (self.main / ".gitignore").write_text(".tao/\n")
+        (self.main / ".gitignore").write_text(".moru/\n")
         (self.main / "AGENTS.md").write_text("uses tao-hook\n")
         (self.main / "source").write_text("original")
         self.git(self.main, "add", ".")
         self.git(self.main, "commit", "-qm", "base")
-        self.worktree = self.main / ".tao" / "worktrees" / "slice"
+        self.worktree = self.main / ".moru" / "worktrees" / "slice"
         self.git(self.main, "worktree", "add", "-q", "-b", "slice", str(self.worktree))
         self.worktree = self.worktree.resolve()
 

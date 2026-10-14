@@ -28,7 +28,7 @@ class AgentRepairGateReceiptTests(unittest.TestCase):
         subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "init"],
                        cwd=self.project, check=True)
         self.preflight = {"route": {"command": "task", "gates": ["tests", "handoff"]}}
-        self.evidence = self.project / ".tao" / "preflight.json"
+        self.evidence = self.project / ".moru" / "preflight.json"
         self.evidence.parent.mkdir()
         self.evidence.write_text(json.dumps(self.preflight))
         (self.project / "target.py").write_text("VALUE = 1\n")

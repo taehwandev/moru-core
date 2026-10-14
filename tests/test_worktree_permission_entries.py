@@ -1,6 +1,6 @@
 """Every project that installs Moru Core should get the worktree rules.
 
-A task runs in its own linked worktree under `.tao/worktrees/<16-hex>`, and that
+A task runs in its own linked worktree under `.moru/worktrees/<16-hex>`, and that
 directory name is fresh every time. Without a rule covering the whole root, a
 permission approved for one worktree never matches the next, so the prompts
 never stop and the honest response is to switch permissions off -- which is how
@@ -70,7 +70,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             rules = Path(directory) / "tao.rules"
             rules.write_text("\n".join(codex_prefix_rule_entries(SCRIPTS)) + "\n")
-            fresh = Path(directory) / ".tao" / WORKTREE_DIRNAME / "0123456789abcdef"
+            fresh = Path(directory) / ".moru" / WORKTREE_DIRNAME / "0123456789abcdef"
 
             def check(*tokens: str) -> dict:
                 result = subprocess.run(
@@ -98,7 +98,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
 
         for tool in ("Read", "Edit"):
             with self.subTest(tool=tool):
-                self.assertIn(f"{tool}(/.tao/{WORKTREE_DIRNAME}/**)", entries)
+                self.assertIn(f"{tool}(/.moru/{WORKTREE_DIRNAME}/**)", entries)
 
     def test_no_write_path_rule_is_written(self) -> None:
         """A Write(path) rule matches nothing, so writing one is only a warning."""
@@ -119,21 +119,22 @@ class WorktreePermissionEntryTests(unittest.TestCase):
     def test_the_rules_point_at_the_worktree_root_from_inside_a_worktree(self) -> None:
         """The anchoring, checked by where the rule lands -- not by its spelling.
 
-        An agent working on a task is *inside* `<project>/.tao/worktrees/<hex>`,
+        An agent working on a task is *inside* `<project>/.moru/worktrees/<hex>`,
         so that is the working directory these rules are read against. Written
-        without the leading slash they ask for a second `.tao/worktrees` nested
+        without the leading slash they ask for a second `.moru/worktrees` nested
         under the first, match nothing, and every path prompts again -- the
         failure the entries exist to end. The earlier test asserted the string
         was present, which both spellings satisfy.
         """
 
         project = PurePosixPath("/repo")
-        inside = project / ".tao" / WORKTREE_DIRNAME / "0123456789abcdef"
-        want = project / ".tao" / WORKTREE_DIRNAME / "**"
 
         for entry in _entries():
             if not entry.startswith(("Read(", "Edit(", "Write(")):
                 continue
+            state_dir = ".moru" if "/.moru/" in entry else ".tao"
+            inside = project / state_dir / WORKTREE_DIRNAME / "0123456789abcdef"
+            want = project / state_dir / WORKTREE_DIRNAME / "**"
             with self.subTest(entry=entry):
                 rule = _path_rule(entry)
                 self.assertEqual(
@@ -147,7 +148,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
     def test_entering_a_worktree_is_covered(self) -> None:
         # `cd` into a fresh worktree is the first thing a task does there.
         # A Bash rule matches command text, so it keeps the relative spelling.
-        self.assertIn(f"Bash(cd .tao/{WORKTREE_DIRNAME}/*)", _entries())
+        self.assertIn(f"Bash(cd .moru/{WORKTREE_DIRNAME}/*)", _entries())
 
     def test_the_rules_name_the_directory_the_dispatcher_uses(self) -> None:
         """Written against `agent_worktree_identity`, not a repeated literal.
@@ -159,7 +160,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
 
         self.assertEqual("worktrees", WORKTREE_DIRNAME)
         self.assertTrue(
-            any(f".tao/{WORKTREE_DIRNAME}/" in entry for entry in _entries())
+            any(f".moru/{WORKTREE_DIRNAME}/" in entry for entry in _entries())
         )
 
     def test_the_rules_stay_portable(self) -> None:
@@ -183,7 +184,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
         An earlier installer emitted these without the leading slash. A refresh
         adds the anchored rules, and without naming the old spelling as cleanup
         it leaves both: settings that still carry a pattern resolving to a
-        `.tao/worktrees` nested inside a worktree, matching nothing.
+        `.moru/worktrees` nested inside a worktree, matching nothing.
         """
 
         from support.permission_entries import claude_legacy_permission_entries

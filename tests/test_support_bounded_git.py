@@ -122,8 +122,8 @@ class ConvertedCallersFailClosedTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             subprocess.run(["git", "init", "-q", "."], cwd=project, check=True)
-            (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
-            packet = project / ".tao" / "runs" / ("0" * 32) / "continuation.json"
+            (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
+            packet = project / ".moru" / "runs" / ("0" * 32) / "continuation.json"
             packet.parent.mkdir(parents=True)
             packet.write_text("{}", encoding="utf-8")
 

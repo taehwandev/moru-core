@@ -70,7 +70,7 @@ class OwnerLivenessTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "task"},
                 {"request": "one very long build"},
             )
@@ -86,7 +86,7 @@ class OwnerLivenessTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "task"},
                 {"request": "crashed agent"},
             )
@@ -108,7 +108,7 @@ class OwnerLivenessTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "task"},
                 {"request": "agent killed, owner still running"},
             )
@@ -124,7 +124,7 @@ class OwnerLivenessTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "task"},
                 {"request": "still building"},
             )
@@ -138,7 +138,7 @@ class OwnerLivenessTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "task"},
                 {"request": "short window"},
             )
@@ -151,7 +151,7 @@ class OwnerLivenessTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "task"},
                 {"request": "pre-upgrade record"},
             )

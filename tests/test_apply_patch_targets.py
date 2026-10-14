@@ -85,7 +85,7 @@ class CodexPatchPolicyTests(unittest.TestCase):
         _require_linked_worktree(self.main)
         policy = self.main / gate.WORKTREE_POLICY_PATH
         policy.write_text(json.dumps({**json.loads(policy.read_text()), "require_workflow_entry": True}))
-        (self.main / ".gitignore").write_text(".tao/\n")
+        (self.main / ".gitignore").write_text(".moru/\n")
         self.worktree = self.base / "worktree"
         for args in (
             ("init", "-b", "main"),

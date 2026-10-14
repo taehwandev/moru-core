@@ -47,7 +47,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
 
     def _project(self, base: Path, *, linked: bool = True) -> Path:
         project = _opt_in_project(base)
-        (project / ".gitignore").write_text(".tao/\n")
+        (project / ".gitignore").write_text(".moru/\n")
         (project / "tools").mkdir()
         (project / "tools/check.py").write_text("print('checked')\n")
         policy = project / gate.WORKTREE_POLICY_PATH
@@ -63,7 +63,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
             target = base / "linked"
             subprocess.run(["git", "-C", str(project), "worktree", "add", "-qb", "task", str(target)],
                            check=True, capture_output=True)
-            (target / ".tao").mkdir()
+            (target / ".moru").mkdir()
             return target
         return project
 
@@ -146,7 +146,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
                                     env=os.environ, timeout=30)
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             self.assertIn("Ran 1 test", result.stderr)
-            self.assertFalse((project / ".tao/runs").exists())
+            self.assertFalse((project / ".moru/runs").exists())
             self.assertFalse((Path(tmp) / "state/codex-operator-review").exists())
 
     def test_finished_codex_unknown_keeps_conditional_recovery_without_operator(self):
@@ -169,7 +169,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
 
 # `record_session_project` writes under the global state home, and these cases
 # run it for real against temporary projects. With no override it wrote into
-# the developer's own `~/.tao/claude-session-projects/`, where nothing removes
+# the developer's own `~/.moru/claude-session-projects/`, where nothing removes
 # it: one session id there had reached 465 KB of paths that stopped existing
 # months ago, and the Stop gate walks every one of them. The cases that assert
 # the override itself patch the same variable inside their own `with`, so they
@@ -234,7 +234,7 @@ def _decision_of(out: str) -> str:
 
 def _opt_in_project(base: Path) -> Path:
     project = base / "proj"
-    (project / ".tao").mkdir(parents=True)
+    (project / ".moru").mkdir(parents=True)
     (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
     return project
 
@@ -265,7 +265,7 @@ def _write_preflight(
 ) -> None:
     """Write preflight evidence the way `start` does, stamped with its session."""
     if session_id is None:
-        (project / ".tao" / "preflight.json").write_text("{}", encoding="utf-8")
+        (project / ".moru" / "preflight.json").write_text("{}", encoding="utf-8")
         return
     session = {"runtime": runtime, "session_id": session_id}
     if resolve_runtime_evidence(project, session) is not None:
@@ -273,7 +273,7 @@ def _write_preflight(
     route = {"command": command, "gates": ["finish"], "required_docs": []}
     intake = {"request": "test request", "request_classified": False}
     run_id = uuid.uuid4().hex
-    evidence = project / ".tao" / "runs" / run_id / "preflight.json"
+    evidence = project / ".moru" / "runs" / run_id / "preflight.json"
     evidence.parent.mkdir(parents=True)
     registered = register_run(project, evidence, route, intake)
     assert registered["run_id"] == run_id
@@ -311,7 +311,7 @@ def _write_custom_preflight(
     session = {"runtime": "claude", "session_id": session_id}
     route = {"command": "task", "gates": ["finish"], "required_docs": []}
     intake = {"request": "test request", "request_classified": False}
-    evidence = project / ".tao" / relative_path
+    evidence = project / ".moru" / relative_path
     evidence.parent.mkdir(parents=True, exist_ok=True)
     register_run(project, evidence, route, intake)
     evidence.write_text(
@@ -345,9 +345,9 @@ def _age_preflight(
         if session_id
         else None
     )
-    candidates = list((project / ".tao").glob("runs/*/preflight.json"))
+    candidates = list((project / ".moru").glob("runs/*/preflight.json"))
     preflight = preflight or (
-        candidates[-1] if candidates else project / ".tao" / "preflight.json"
+        candidates[-1] if candidates else project / ".moru" / "preflight.json"
     )
     stamp = time.time() - seconds
     os.utime(preflight, (stamp, stamp))
@@ -538,7 +538,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             main = _opt_in_project(Path(tmp))
             _require_linked_worktree(main)
             linked = Path(tmp) / "linked"
-            (linked / ".tao").mkdir(parents=True)
+            (linked / ".moru").mkdir(parents=True)
             (linked / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
             _require_linked_worktree(linked, linked=True)
 
@@ -1977,7 +1977,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             main = _opt_in_project(Path(tmp))
             _require_linked_worktree(main)
             worktree = Path(tmp) / "wt"
-            (worktree / ".tao").mkdir(parents=True)
+            (worktree / ".moru").mkdir(parents=True)
             (worktree / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
             (worktree / ".git").write_text("gitdir: ../proj/.git/worktrees/wt\n", encoding="utf-8")
             policy = worktree / gate.WORKTREE_POLICY_PATH
@@ -2425,7 +2425,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             session_id = "shared-session"
             _write_custom_preflight(project, session_id)
             invalid = (
-                project / ".tao" / "workers" / "too" / "deep" / "preflight.json"
+                project / ".moru" / "workers" / "too" / "deep" / "preflight.json"
             )
 
             with patch.dict(
@@ -2569,7 +2569,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             _decide({"tool_name": "Write", "cwd": str(project), "session_id": "sX"})
 
             self.assertEqual(
-                [], list((project / ".tao").glob("runs/*/continuation.json"))
+                [], list((project / ".moru").glob("runs/*/continuation.json"))
             )
 
     def test_deny_reason_names_the_actual_cause(self) -> None:
@@ -2757,7 +2757,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             _write_preflight(project)
             for index in range(gate.DEFAULT_NEW_FILE_BUDGET):
                 self._write_new_source(project, "sp", f"src/file{index}.py")
-            ack = project / ".tao" / "claude-pretool-gate" / "sp.sprawl-ack"
+            ack = project / ".moru" / "claude-pretool-gate" / "sp.sprawl-ack"
             ack.parent.mkdir(parents=True, exist_ok=True)
             ack.write_text("each file owns a distinct platform adapter\n", encoding="utf-8")
             code, out = self._write_new_source(project, "sp", "src/one_too_many.py")
@@ -2799,7 +2799,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
             project = _opt_in_project(Path(tmp))
             _write_preflight(project)
             _satisfy_workflow_entry(project, "sp")
-            state = project / ".tao"
+            state = project / ".moru"
             denied = (
                 gate.sprawl_ack_file(project, "other-session"),
                 state / "runs" / "abc" / "evidence.json",
@@ -3249,7 +3249,7 @@ class ProjectRootIsTheRepositoryTests(unittest.TestCase):
 
             repo = home / "git" / "project"
             self._repo(repo)
-            worktree = repo / ".tao" / "worktrees" / "TASK-1"
+            worktree = repo / ".moru" / "worktrees" / "TASK-1"
             worktree.mkdir(parents=True)
             # A linked worktree records .git as a file.
             (worktree / ".git").write_text("gitdir: ../../../.git/worktrees/TASK-1\n")
@@ -3372,7 +3372,7 @@ class DeclaredPolicyGovernsLinkedWorktreesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             project = self._worktree(Path(tmp))
 
-            self.assertFalse((project / ".tao").exists())
+            self.assertFalse((project / ".moru").exists())
             self.assertFalse((project / "AGENTS.md").exists())
             self.assertTrue(gate.opts_in(project))
             self.assertEqual(project, gate.find_project_root(project))
@@ -3737,7 +3737,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
                     project = _opt_in_project(Path(tmp))
                     _require_linked_worktree(project)
                     subprocess.run(["git", "init", "-q"], cwd=project, check=True, capture_output=True)
-                    (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+                    (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
                     _write_preflight(project, "s", command=route, runtime=runtime)
                     _, out = _decide({
                         "tool_name": "Write", "cwd": str(project), "session_id": "s",
@@ -4339,7 +4339,7 @@ def _attest_finished_publication(project: Path, evidence: Path, effect: str = 'e
     metadata = project.parent / ('publication-git-' + uuid.uuid4().hex)
     marker.rename(metadata)
     marker.write_text(f'gitdir: {metadata}\n')
-    (project / '.gitignore').write_text('.tao/\n')
+    (project / '.gitignore').write_text('.moru/\n')
     payload = json.loads(evidence.read_text())
     payload['route']['request_classification'] = {'intent_envelope': {
         'authority': 'envelope', 'schema_valid': True, 'failures': [],
@@ -4825,7 +4825,7 @@ class FinishAuthorizesItsOwnPublicationTests(unittest.TestCase):
             project = self._finished_project(Path(tmp))
 
             code, out = self._decide(
-                project, f"gh pr create --base main --body-file {project}/.tao/policy-pr.md"
+                project, f"gh pr create --base main --body-file {project}/.moru/policy-pr.md"
             )
 
         self.assertEqual(0, code)
@@ -4896,7 +4896,7 @@ class ReadOnlyRunCanStillEndItselfTests(unittest.TestCase):
             self.assertEqual((0, ""), self._bash(project, command))
             self.assertEqual((0, ""), self._bash(project,
                 f"{launcher} agent-mailbox send --to claude --project {project}"))
-            self.assertFalse((project / ".tao/runs").exists())
+            self.assertFalse((project / ".moru/runs").exists())
             for forbidden in (
                 command + " && touch changed", command + " > output",
             ):
@@ -5026,7 +5026,7 @@ class ProjectMemoryIsAgentWrittenTests(unittest.TestCase):
                     self.assertEqual("", out)
                     chained = self._decide(project, command + " && touch changed")[1]
                     self.assertEqual("defer", _decision_of(chained))
-            self.assertFalse((project / ".tao/runs").exists())
+            self.assertFalse((project / ".moru/runs").exists())
             self.assertEqual("", self._decide(
                 project, f"{launcher} project-memory --project {project} recall --scope task")[1])
 

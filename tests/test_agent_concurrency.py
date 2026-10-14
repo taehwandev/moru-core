@@ -17,7 +17,7 @@ from agent_scheduler import claim_next, enqueue_task
 
 def _register_worker(project_name: str, index: int, results) -> None:
     project = Path(project_name)
-    run = register_run(project, project / ".tao" / f"preflight-{index}.json", {"command": "task"}, {})
+    run = register_run(project, project / ".moru" / f"preflight-{index}.json", {"command": "task"}, {})
     results.put(run["run_id"])
 
 
@@ -53,7 +53,7 @@ class AgentConcurrencyTests(unittest.TestCase):
             args = [(directory, index, queue) for index in range(12)]
             _start_processes(self.ctx, _register_worker, args)
             run_ids = [queue.get(timeout=2) for _ in args]
-            payload = json.loads((Path(directory) / ".tao" / "run-registry.json").read_text())
+            payload = json.loads((Path(directory) / ".moru" / "run-registry.json").read_text())
             self.assertEqual(12, len(run_ids))
             self.assertEqual(12, len(payload["runs"]))
             self.assertEqual(12, len({run["run_id"] for run in payload["runs"]}))
@@ -64,7 +64,7 @@ class AgentConcurrencyTests(unittest.TestCase):
             args = [(directory, index, queue) for index in range(12)]
             _start_processes(self.ctx, _event_worker, args)
             event_ids = [queue.get(timeout=2) for _ in args]
-            payload = json.loads((Path(directory) / ".tao" / "events.json").read_text())
+            payload = json.loads((Path(directory) / ".moru" / "events.json").read_text())
             self.assertEqual(12, len(event_ids))
             self.assertEqual(12, len(payload["events"]))
             self.assertEqual(12, len({event["event_id"] for event in payload["events"]}))

@@ -26,7 +26,7 @@ class WorktreeFingerprintTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.project = Path(self.temporary_directory.name) / "project"
         self.project.mkdir()
-        (self.project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (self.project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
         (self.project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
         self._git("init", "-q")
         self._git("config", "user.email", "tests@example.invalid")

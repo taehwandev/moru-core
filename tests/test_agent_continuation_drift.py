@@ -52,7 +52,7 @@ def bound_packet(project: Path, rules: Path, records: list | None = None, **over
 
 def git_workspace(directory: str) -> Path:
     project = Path(directory)
-    (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+    (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
     (project / "module.py").write_text("value = 1\n", encoding="utf-8")
     run = ["git", "-c", "user.email=t@example.test", "-c", "user.name=t"]
     subprocess.run(["git", "init", "-q"], cwd=project, check=True)

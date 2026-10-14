@@ -35,7 +35,7 @@ import claude_stop_gate
 
 
 class MailboxTaskTests(unittest.TestCase):
-    state_dir_name = ".tao"
+    state_dir_name = ".moru"
 
     def test_migrated_project_selects_moru_task_queue(self):
         state = self.project / ".moru"
@@ -57,7 +57,7 @@ class MailboxTaskTests(unittest.TestCase):
         (self.rules / "guide.md").write_text("guidance\n")
         initialize_git(self.project)
         if self.state_dir_name == ".moru":
-            (self.project / ".gitignore").write_text(".tao/\n.moru/\n", encoding="utf-8")
+            (self.project / ".gitignore").write_text(".moru/\n.moru/\n", encoding="utf-8")
             subprocess.run(["git", "-C", str(self.project), "add", ".gitignore"], check=True)
             subprocess.run(["git", "-C", str(self.project), "commit", "-qm", "ignore Moru state"], check=True)
             state = self.project / ".moru"

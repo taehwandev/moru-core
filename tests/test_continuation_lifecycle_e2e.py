@@ -161,7 +161,7 @@ class Checkout:
         self.project = Path(directory) / "project"
         (self.project / "src").mkdir(parents=True)
         (self.project / "src" / "module.py").write_text("value = 1\n", encoding="utf-8")
-        (self.project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (self.project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
         for command in (
             ("init", "-q"),
             ("config", "user.email", "resume@example.invalid"),
@@ -177,7 +177,7 @@ class Checkout:
                 stderr=subprocess.DEVNULL,
             )
         self.run_id = uuid.uuid4().hex
-        self.evidence = self.project / ".tao" / "runs" / self.run_id / "preflight.json"
+        self.evidence = self.project / ".moru" / "runs" / self.run_id / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
         self.directory = Path(directory)
 
@@ -326,7 +326,7 @@ class KillNineResumeTests(unittest.TestCase):
 
             self.assertIn("status=legacy_no_packet", listed.stdout)
             self.assertFalse(
-                (checkout.project / ".tao" / "runs" / checkout.run_id / "continuation.json").exists()
+                (checkout.project / ".moru" / "runs" / checkout.run_id / "continuation.json").exists()
             )
             self.assertEqual(1, resumed.returncode)
             self.assertIn("FAIL resume", resumed.stdout)

@@ -42,7 +42,7 @@ class GateRecordInvocationTests(unittest.TestCase):
     def test_rejected_retrospective_stays_missing_until_a_valid_retry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir()
             preflight = {
                 "project": str(project), "rules": str(ROOT),
@@ -74,7 +74,7 @@ class GateRecordInvocationTests(unittest.TestCase):
     def test_batch_reports_remaining_gates_without_a_second_query(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir()
             preflight = {"project": str(project), "rules": str(ROOT),
                          "route": {"command": "analysis", "gates": ["investigate", "report"]}}
@@ -158,7 +158,7 @@ class GateRecordInvocationTests(unittest.TestCase):
         for hook_name, hook, record_target in hooks:
             with self.subTest(hook=hook_name), tempfile.TemporaryDirectory() as temp_dir:
                 project = Path(temp_dir)
-                evidence_path = project / ".tao" / "preflight.json"
+                evidence_path = project / ".moru" / "preflight.json"
                 rollback = Mock()
                 record = {
                     "gate": "risk review",
@@ -199,7 +199,7 @@ class GateRecordInvocationTests(unittest.TestCase):
         for hook_name, hook in hooks:
             with self.subTest(hook=hook_name), tempfile.TemporaryDirectory() as temp_dir:
                 project = Path(temp_dir)
-                evidence_path = project / ".tao" / "runs" / "probe" / "preflight.json"
+                evidence_path = project / ".moru" / "runs" / "probe" / "preflight.json"
                 output_path = evidence_path.with_name(f"{hook_name}-result.json")
                 evidence_path.parent.mkdir(parents=True)
                 route = {"command": "review", "gates": ["risk review"]}
@@ -272,7 +272,7 @@ class GateRecordInvocationTests(unittest.TestCase):
         for hook_name, hook, record_target in hooks:
             with self.subTest(hook=hook_name), tempfile.TemporaryDirectory() as temp_dir:
                 project = Path(temp_dir)
-                evidence_path = project / ".tao" / "preflight.json"
+                evidence_path = project / ".moru" / "preflight.json"
                 output_path = evidence_path.with_name(f"{hook_name}-result.json")
                 evidence_path.parent.mkdir(parents=True)
                 record = {
@@ -328,7 +328,7 @@ class GateRecordInvocationTests(unittest.TestCase):
         for hook_name, hook in hooks:
             with self.subTest(hook=hook_name), tempfile.TemporaryDirectory() as temp_dir:
                 project = Path(temp_dir)
-                evidence_path = project / ".tao" / "preflight.json"
+                evidence_path = project / ".moru" / "preflight.json"
                 output_path = evidence_path.with_name(f"{hook_name}-result.json")
                 evidence_path.parent.mkdir(parents=True)
                 route = {"command": "review", "gates": ["review hook"]}
@@ -461,7 +461,7 @@ class GateRecordFieldTypeTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             gate_json = project / "records.json"
             gate_json.write_text(

@@ -62,7 +62,7 @@ class AgentMailboxTests(unittest.TestCase):
         self.addCleanup(self.environment.stop)
         self.project = root / "project"
         self.rules = root / "rules"
-        self.evidence = self.project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
+        self.evidence = self.project / ".moru" / "runs" / ("a" * 32) / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
         self.evidence.write_text(json.dumps({"route": {"command": "review"}}), encoding="utf-8")
         capsule_path_for_evidence(self.evidence).write_text("{}\n", encoding="utf-8")

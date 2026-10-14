@@ -178,16 +178,20 @@ def _worktree_permission_entries() -> list[str]:
 
     from agent_worktree_identity import WORKTREE_DIRNAME
 
-    root = f"/.tao/{WORKTREE_DIRNAME}"
-    return [
-        f"Read({root}/**)",
-        # Edit covers every file-editing tool; a Write(path) rule is not matched
-        # by Claude Code's file permission checks, so it only drew a warning.
-        f"Edit({root}/**)",
-        # A Bash rule matches command text, not a path, so it keeps the
-        # spelling an agent actually types -- no leading slash to anchor.
-        f"Bash(cd {root[1:]}/*)",
-    ]
+    entries: list[str] = []
+    # Projects not yet moved to `.moru` keep their worktrees under `.tao`.
+    for state_dir in (".moru", ".tao"):
+        root = f"/{state_dir}/{WORKTREE_DIRNAME}"
+        entries += [
+            f"Read({root}/**)",
+            # Edit covers every file-editing tool; a Write(path) rule is not matched
+            # by Claude Code's file permission checks, so it only drew a warning.
+            f"Edit({root}/**)",
+            # A Bash rule matches command text, not a path, so it keeps the
+            # spelling an agent actually types -- no leading slash to anchor.
+            f"Bash(cd {root[1:]}/*)",
+        ]
+    return entries
 
 
 def agy_permission_entries(scripts_dir: Path, *, spill_available: bool = True) -> list[str]:

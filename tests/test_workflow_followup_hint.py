@@ -35,7 +35,7 @@ class FollowupHintTest(unittest.TestCase):
         self.runs: dict[tuple[Path, str], Path] = {}
 
     def _evidence(self, root: Path, run_id: str) -> Path:
-        path = root / ".tao" / "runs" / run_id / "preflight.json"
+        path = root / ".moru" / "runs" / run_id / "preflight.json"
         path.parent.mkdir(parents=True)
         path.write_text("{}", encoding="utf-8")
         return path

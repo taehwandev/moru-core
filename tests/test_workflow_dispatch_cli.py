@@ -64,7 +64,7 @@ class _IsolationDerivationTestCase(unittest.TestCase):
                 "final_verification": ["python3 -m unittest discover tests"],
             },
         }
-        tao_dir = project / ".tao"
+        tao_dir = project / ".moru"
         tao_dir.mkdir(parents=True, exist_ok=True)
         (tao_dir / "agent-delegation-plan.json").write_text(
             json.dumps(plan), encoding="utf-8"
@@ -254,7 +254,7 @@ class MalformedPlanFailClosedTests(_IsolationDerivationTestCase):
     def _write_raw_plan(self, project: Path, content: str) -> None:
         """Write arbitrary bytes to the default plan path (bypasses schema helper)."""
 
-        tao_dir = project / ".tao"
+        tao_dir = project / ".moru"
         tao_dir.mkdir(parents=True, exist_ok=True)
         (tao_dir / "agent-delegation-plan.json").write_text(content, encoding="utf-8")
 
@@ -368,11 +368,11 @@ class MalformedPlanFailClosedTests(_IsolationDerivationTestCase):
         self.assertNotIn("Traceback", completed.stderr)
 
     def test_default_directory_delegation_plan_fails_closed_without_traceback(self) -> None:
-        # Same defect on the default path: a .tao/agent-delegation-plan.json that
+        # Same defect on the default path: a .moru/agent-delegation-plan.json that
         # is a directory used to crash read_delegation_plan with a raw OSError.
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            plan_path = project / ".tao" / "agent-delegation-plan.json"
+            plan_path = project / ".moru" / "agent-delegation-plan.json"
             plan_path.mkdir(parents=True, exist_ok=True)
             completed = self._dispatch(project)
 
@@ -416,7 +416,7 @@ class DispatchFinalizeCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir) / "project"
             project.mkdir()
-            (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+            (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
             (project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
             for args in (
                 ("init", "-q"),
@@ -479,7 +479,7 @@ class DispatchFinalizeCliTests(unittest.TestCase):
                     stdout=subprocess.PIPE,
                 ).stdout,
             )
-            self.assertFalse((project / ".tao" / "worktrees").exists())
+            self.assertFalse((project / ".moru" / "worktrees").exists())
 
 
 if __name__ == "__main__":

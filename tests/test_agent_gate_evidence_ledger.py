@@ -165,7 +165,7 @@ class GateEvidenceLedgerTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             route = {"command": "task", "gates": ["review hook"]}
             owner = {"pid": 111, "start_token": "owner-a"}
@@ -468,7 +468,7 @@ class GateEvidenceLedgerTests(unittest.TestCase):
         # than skip the check.
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             route = {"command": "task", "gates": ["review hook"]}
             owner = {"pid": 111, "start_token": "owner-a"}
@@ -533,7 +533,7 @@ class GateEvidenceLedgerTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             route = {"command": "task", "gates": ["review hook"]}
             run = register_run(project, evidence_path, route, {})
@@ -623,7 +623,7 @@ class GateEvidenceLedgerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             project = root / "project"
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             elsewhere = root / "elsewhere"
             route = {"command": "task", "gates": ["review hook"]}
@@ -686,11 +686,11 @@ class GateEvidenceLedgerTests(unittest.TestCase):
         # rather than the project, and evidence beside the state root resolved
         # to nothing at all. Both disabled the guard for a real claim.
         shapes = (
-            Path(".tao") / "preflight.json",
-            Path(".tao") / "runs" / ("a" * 32) / "preflight.json",
-            Path(".tao") / "nested" / "deep" / "preflight.json",
-            Path(".tao") / "workers" / "0123456789abcdef" / "preflight.json",
-            Path(".tao") / "inner" / ".tao" / "preflight.json",
+            Path(".moru") / "preflight.json",
+            Path(".moru") / "runs" / ("a" * 32) / "preflight.json",
+            Path(".moru") / "nested" / "deep" / "preflight.json",
+            Path(".moru") / "workers" / "0123456789abcdef" / "preflight.json",
+            Path(".moru") / "inner" / ".moru" / "preflight.json",
             Path(".taofoo") / "preflight.json",
         )
         route = {"command": "task", "gates": ["review hook"]}
@@ -766,13 +766,13 @@ class GateEvidenceLedgerTests(unittest.TestCase):
             # Candidate discovery must select the registry that actually binds
             # this evidence. A closer state root with no matching claim is not
             # an ownership boundary and must not switch the guard off.
-            (evidence_path.parent / ".tao").mkdir()
+            (evidence_path.parent / ".moru").mkdir()
             with patch(
                 "agent_run_registry.process_owner", return_value=foreign_owner
             ):
                 register_run(
                     evidence_path.parent,
-                    evidence_path.parent / ".tao" / "unrelated.json",
+                    evidence_path.parent / ".moru" / "unrelated.json",
                     route,
                     {},
                 )
@@ -814,7 +814,7 @@ class GateEvidenceLedgerTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             route = {"command": "task", "gates": ["review hook"]}
             run = register_run(project, evidence_path, route, {})
@@ -880,8 +880,8 @@ class GateEvidenceLedgerTests(unittest.TestCase):
         for state in writable + settled:
             with self.subTest(state=state), tempfile.TemporaryDirectory() as temp_dir:
                 project = Path(temp_dir) / "project"
-                (project / ".tao").mkdir(parents=True)
-                evidence_path = project / ".tao" / "preflight.json"
+                (project / ".moru").mkdir(parents=True)
+                evidence_path = project / ".moru" / "preflight.json"
                 run = register_run(project, evidence_path, route, None)
                 preflight = {
                     "project": str(project),
@@ -914,8 +914,8 @@ class GateEvidenceLedgerTests(unittest.TestCase):
     def test_custom_preflight_evidence_uses_separate_gate_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            default_evidence = root / ".tao" / "preflight.json"
-            custom_evidence = root / ".tao" / "preflight-smoke.json"
+            default_evidence = root / ".moru" / "preflight.json"
+            custom_evidence = root / ".moru" / "preflight-smoke.json"
             default_evidence.parent.mkdir(parents=True)
 
             self.assertEqual(
@@ -935,7 +935,7 @@ class GateEvidenceLedgerTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "project": str(project),
@@ -997,8 +997,8 @@ class GateEvidenceLedgerTests(unittest.TestCase):
         route = {"command": "task", "gates": ["retrospective check"]}
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
-            output_path = project / ".tao" / "gate-result.json"
+            evidence_path = project / ".moru" / "preflight.json"
+            output_path = project / ".moru" / "gate-result.json"
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text(
                 json.dumps(

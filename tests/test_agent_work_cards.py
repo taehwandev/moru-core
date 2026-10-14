@@ -45,7 +45,7 @@ class WorkCardTests(unittest.TestCase):
         return path
 
     def _register(self, project: Path, runs: dict[str, str]) -> None:
-        registry = project / ".tao" / "run-registry.json"
+        registry = project / ".moru" / "run-registry.json"
         registry.parent.mkdir(parents=True, exist_ok=True)
         registry.write_text(json.dumps({"schema_version": 1, "runs": [
             {"run_id": run, "state": state} for run, state in runs.items()
@@ -186,7 +186,7 @@ class WorkCardTests(unittest.TestCase):
 
     def test_start_records_the_run_id_the_registry_is_asked_about(self) -> None:
         run = "e" * 32
-        evidence = self.root / ".tao" / "runs" / run / "preflight.json"
+        evidence = self.root / ".moru" / "runs" / run / "preflight.json"
         evidence.parent.mkdir(parents=True)
         evidence.write_text(json.dumps({"work": {"id": WORK_A, "schema_version": 1}}))
         cards.start_lines(self.project, evidence, summary="continued work", command="task")

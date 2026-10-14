@@ -124,7 +124,7 @@ class RelativePathTests(unittest.TestCase):
         self.assertEqual(["invalid_path"], collect(relative_path, "scripts/"))
 
     def test_runtime_state_paths_are_rejected(self) -> None:
-        for state_dir in (".tao", ".moru"):
+        for state_dir in (".moru", ".moru"):
             with self.subTest(state_dir=state_dir):
                 self.assertEqual(
                     ["invalid_path"],

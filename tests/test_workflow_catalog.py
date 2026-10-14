@@ -253,7 +253,7 @@ class WorkflowCatalogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             docs_dir = root / "docs"
-            agent_cache_dir = root / ".tao" / "skills" / "graphify"
+            agent_cache_dir = root / ".moru" / "skills" / "graphify"
             cache_dir = root / ".pytest_cache"
             graphify_dir = root / "graphify-out"
             docs_dir.mkdir()

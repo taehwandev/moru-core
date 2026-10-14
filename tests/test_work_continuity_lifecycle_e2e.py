@@ -7,7 +7,7 @@ answering one of them decided another by accident.
 
 Nothing is simulated: each test runs `start`, the Claude Stop gate, `resume`,
 `gate-batch` and `cancel` as separate processes against a real checkout, and
-the nested cases run in a linked worktree under `<repo>/.tao/worktrees/<name>`
+the nested cases run in a linked worktree under `<repo>/.moru/worktrees/<name>`
 so ownership is proven by where the bytes land rather than by argument.
 """
 
@@ -46,7 +46,7 @@ _STATE_HOME: list = []
 def setUpModule() -> None:
     # Every start here opens a user-local work card, and `environment()` hands
     # os.environ to each hook process. Without this the suite fills the
-    # developer's own ~/.tao/work-cards with cards for throwaway checkouts.
+    # developer's own ~/.moru/work-cards with cards for throwaway checkouts.
     directory = tempfile.TemporaryDirectory(prefix="tao-state-home-")
     patch = mock.patch.dict(os.environ, {"MORU_STATE_HOME": directory.name})
     patch.start()
@@ -139,7 +139,7 @@ def remaining_gates(result: subprocess.CompletedProcess) -> list[str]:
 
 
 def states(project: Path) -> list[str]:
-    path = project / ".tao" / "run-registry.json"
+    path = project / ".moru" / "run-registry.json"
     return [run["state"] for run in json.loads(path.read_text(encoding="utf-8"))["runs"]]
 
 
@@ -154,7 +154,7 @@ def record_gate(
 def _build_plain_checkout(project: Path) -> None:
     (project / "src").mkdir(parents=True)
     (project / "src" / "module.py").write_text("value = 1\n", encoding="utf-8")
-    (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+    (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
     (project / "README.md").write_text("Baseline contract.\n", encoding="utf-8")
     git(project, "init", "-q")
     git(project, "config", "user.email", "continuity@example.invalid")
@@ -268,7 +268,7 @@ class WorkContinuityTests(unittest.TestCase):
 
 
 class NestedWorktreeContinuityTests(unittest.TestCase):
-    """A linked worktree at `<repo>/.tao/worktrees/<name>` owns its own state."""
+    """A linked worktree at `<repo>/.moru/worktrees/<name>` owns its own state."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -281,7 +281,7 @@ class NestedWorktreeContinuityTests(unittest.TestCase):
             symlinks=True,
             # `.codegraph/` holds a live daemon socket in a developer checkout;
             # copytree cannot copy a socket, and the fixture needs no index.
-            ignore=shutil.ignore_patterns(".git", ".tao", "__pycache__", ".pytest_cache", ".codegraph"),
+            ignore=shutil.ignore_patterns(".git", ".moru", "__pycache__", ".pytest_cache", ".codegraph"),
         )
         git(cls.rules, "init", "-q")
         git(cls.rules, "config", "user.email", "continuity@example.invalid")
@@ -289,7 +289,7 @@ class NestedWorktreeContinuityTests(unittest.TestCase):
         git(cls.rules, "add", "-A")
         git(cls.rules, "commit", "-qm", "rules fixture")
         # An ancestor workspace directory that no lifecycle write may reach.
-        cls.ancestor = cls.root / ".tao"
+        cls.ancestor = cls.root / ".moru"
         cls.ancestor.mkdir()
         os.chmod(cls.ancestor, 0o500)
 
@@ -299,7 +299,7 @@ class NestedWorktreeContinuityTests(unittest.TestCase):
         cls._temporary.cleanup()
 
     def worktree(self, name: str) -> Path:
-        path = self.rules / ".tao" / "worktrees" / name
+        path = self.rules / ".moru" / "worktrees" / name
         git(self.rules, "worktree", "add", "-q", str(path), "-b", f"fix/{name}")
         return path
 
@@ -315,18 +315,18 @@ class NestedWorktreeContinuityTests(unittest.TestCase):
 
     def test_the_worktree_owns_every_lifecycle_write(self) -> None:
         worktree = self.worktree("ownership")
-        before = self.files(self.rules / ".tao")
+        before = self.files(self.rules / ".moru")
 
         started = start(worktree, self.rules, "src/module.py 의 가드를 고쳐줘")
 
         self.assertEqual(0, started.returncode, started.stdout)
-        self.assertEqual(before, self.files(self.rules / ".tao"))
+        self.assertEqual(before, self.files(self.rules / ".moru"))
         self.assertEqual({}, self.files(self.ancestor))
         self.assertTrue(
-            (worktree / ".tao" / "runs" / run_id(started) / "preflight.json").is_file()
+            (worktree / ".moru" / "runs" / run_id(started) / "preflight.json").is_file()
         )
         self.assertIn(
-            str(worktree / ".tao"), detail(started, "evidence: ")
+            str(worktree / ".moru"), detail(started, "evidence: ")
         )
 
     def test_a_turn_boundary_and_an_advancing_rules_root_keep_one_run(self) -> None:
@@ -385,7 +385,7 @@ class NestedWorktreeContinuityTests(unittest.TestCase):
             self.rules,
             "cancel",
             "--evidence",
-            str(worktree / ".tao" / "runs" / run_id(superseded) / "preflight.json"),
+            str(worktree / ".moru" / "runs" / run_id(superseded) / "preflight.json"),
             "--replacement-evidence",
             str(replacement_evidence),
         )

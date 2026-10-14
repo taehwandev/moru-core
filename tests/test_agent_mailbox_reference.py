@@ -135,13 +135,13 @@ class ReferenceMailboxTests(unittest.TestCase):
         self.assertEqual(0, sent.returncode, sent.stderr)
         packet = json.loads(sent.stdout)
         self.assertNotIn("source_run_id", packet)
-        self.assertFalse((linked / ".tao").exists())
+        self.assertFalse((linked / ".moru").exists())
         read = subprocess.run(command + ["receive", "--project", str(self.project),
                                         "--runtime", "claude", "--json"], text=True, capture_output=True)
         self.assertEqual(0, read.returncode, read.stderr)
         self.assertEqual([packet], json.loads(read.stdout))
         self.assertEqual([], AgentMailbox(self.project, ROOT).receive("claude"))
-        self.assertFalse((self.project / ".tao").exists())
+        self.assertFalse((self.project / ".moru").exists())
 
     def test_status_is_read_only_and_repository_recipient_isolation(self):
         self.assertEqual(0, self.store.status("claude")["pending"])

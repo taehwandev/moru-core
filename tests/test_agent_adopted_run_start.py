@@ -91,7 +91,7 @@ class AdoptedRunStartTests(unittest.TestCase):
     def test_a_run_with_no_packet_yet_is_initialised(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
 
             kind, work = wiring.start_checkpoint(
                 self._args(project, evidence, command="bugfix")
@@ -107,7 +107,7 @@ class AdoptedRunStartTests(unittest.TestCase):
             project = Path(directory)
 
             kind, work = wiring.start_checkpoint(
-                self._args(project, project / ".tao" / "preflight.json")
+                self._args(project, project / ".moru" / "preflight.json")
             )
 
         self.assertEqual("initial", kind)
@@ -182,12 +182,12 @@ class AdoptedRunStartTests(unittest.TestCase):
                 capture_output=True, text=True, check=True,
             ).stdout.strip()
             packets = sorted(
-                (project / ".tao" / "runs").glob("*/continuation.json"),
+                (project / ".moru" / "runs").glob("*/continuation.json"),
                 key=lambda path: path.stat().st_mtime,
             )
             packet = json.loads(packets[-1].read_text(encoding="utf-8"))
             registry = json.loads(
-                (project / ".tao" / "run-registry.json").read_text(encoding="utf-8")
+                (project / ".moru" / "run-registry.json").read_text(encoding="utf-8")
             )
 
         self.assertIn("continuation checkpoint: initial recorded", first)

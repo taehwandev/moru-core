@@ -374,7 +374,7 @@ class ReadOnlyClaimEnforcementTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             self._init_repository(project)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text(
                 json.dumps({"execution_mode": {"read_only": True}}),

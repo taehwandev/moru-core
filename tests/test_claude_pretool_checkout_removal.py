@@ -36,7 +36,7 @@ def _git(cwd: Path, *args: str) -> str:
 
 def _write_registry(checkout: Path, *states: str) -> None:
     runs = [{"run_id": f"{index:032x}", "state": state} for index, state in enumerate(states)]
-    path = checkout / ".tao" / "run-registry.json"
+    path = checkout / ".moru" / "run-registry.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"schema_version": 1, "runs": runs}), encoding="utf-8")
 
@@ -59,7 +59,7 @@ class _Repository(unittest.TestCase):
         _git(self.main, "init", "-q", "-b", "main")
         _git(self.main, "config", "user.email", "tests@example.invalid")
         _git(self.main, "config", "user.name", "Moru Tests")
-        (self.main / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (self.main / ".gitignore").write_text(".moru/\n", encoding="utf-8")
         (self.main / "module.py").write_text("value = 1\n", encoding="utf-8")
         _git(self.main, "add", "-A")
         _git(self.main, "commit", "-qm", "initial")
@@ -115,8 +115,8 @@ class DirtyCheckoutIsKeptTests(_Repository):
         self.assertEqual("it has uncommitted or untracked changes", checkout_removal_hazard(self.task))
 
     def test_ignored_files_alone_are_not_work(self) -> None:
-        (self.task / ".tao").mkdir()
-        (self.task / ".tao" / "cache.txt").write_text("x\n", encoding="utf-8")
+        (self.task / ".moru").mkdir()
+        (self.task / ".moru" / "cache.txt").write_text("x\n", encoding="utf-8")
         self.assertEqual("", checkout_removal_hazard(self.task))
 
 
@@ -124,10 +124,10 @@ class UnsettledRunIsKeptTests(_Repository):
     def test_migrated_registry_and_packet_keep_checkout_visible(self) -> None:
         _write_registry(self.task, "running")
         run_id = "0" * 32
-        packet = self.task / ".tao" / "runs" / run_id / "continuation.json"
+        packet = self.task / ".moru" / "runs" / run_id / "continuation.json"
         packet.parent.mkdir(parents=True)
         packet.write_text(json.dumps({"work": {"remaining_work": ["finish task"]}}))
-        (self.task / ".tao").rename(self.task / ".moru")
+        (self.task / ".moru").rename(self.task / ".moru")
         (self.task / ".moru" / "state-ready").write_text("ready\n")
 
         self.assertIn(self.task, checkouts_with_run_state(self.main))
@@ -153,7 +153,7 @@ class UnsettledRunIsKeptTests(_Repository):
                 self.assertIn(state, checkout_removal_hazard(self.task))
 
     def test_unreadable_registry_keeps_the_checkout(self) -> None:
-        path = self.task / ".tao" / "run-registry.json"
+        path = self.task / ".moru" / "run-registry.json"
         path.parent.mkdir(parents=True)
         path.write_text("{not json", encoding="utf-8")
         self.assertIn("unreadable", checkout_removal_hazard(self.task))
@@ -168,7 +168,7 @@ class FinishedCleanCheckoutIsRemovableTests(_Repository):
         command = f"git worktree remove {self.task}"
         for each in [command, *self.removal_commands()]:
             with self.subTest(command=each):
-                # The task's `.tao/` makes it a Moru project, so the existing
+                # The task's `.moru/` makes it a Moru project, so the existing
                 # workflow-entry rules still apply; this guard adds nothing.
                 self.assertNotIn("deletes the checkout", self.decision(each)[1])
                 self.assertEqual("", checkout_removal_hazard(self.task))
@@ -199,7 +199,7 @@ class WorkerWorktreeRunTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.project = Path(temporary.name).resolve() / "project"
         self.project.mkdir()
-        (self.project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (self.project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
         (self.project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
         _git(self.project, "init", "-q")
         _git(self.project, "config", "user.email", "tests@example.invalid")

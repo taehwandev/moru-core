@@ -39,7 +39,7 @@ ADMITTED = {
     "unittest with attached warning filter": "python3 -B -Wignore -m unittest tests.test_x",
     "process listing": "pgrep -fl vite",
     "open ports": "lsof -i :5173",
-    "archive listing": "tar -tzf backup.tgz .tao/run-registry.json",
+    "archive listing": "tar -tzf backup.tgz .moru/run-registry.json",
     "archive stdout": "unzip -p animation-sources.jar commonMain/SharedElement.kt",
     "video metadata": "ffprobe -v error -show_entries format=duration -show_entries stream=width,height -of json /tmp/report.mp4",
     "video streams": "ffprobe -v error -show_format -show_streams /tmp/report.mp4",
@@ -228,7 +228,7 @@ class GateTests(unittest.TestCase):
         self._outer = os.environ.get(STATE_HOME_ENV)
         os.environ[STATE_HOME_ENV] = str(Path(self._tmp.name) / "state")
         self.project = Path(self._tmp.name) / "proj"
-        (self.project / ".tao").mkdir(parents=True)
+        (self.project / ".moru").mkdir(parents=True)
         (self.project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
 
     def tearDown(self) -> None:

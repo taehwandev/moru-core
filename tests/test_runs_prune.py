@@ -45,6 +45,8 @@ class RunsPruneTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.project = Path(self.directory.name)
+        # These cases cover a project still on the legacy `.tao` tree.
+        (self.project / ".tao").mkdir()
         self.runs = runs_prune.runs_dir(self.project)
         self.runs.mkdir(parents=True)
         self.clock = 1_700_000_000
@@ -343,6 +345,8 @@ class MaintenanceRunsThisPolicyTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.project = Path(self.directory.name)
+        # These cases cover a project still on the legacy `.tao` tree.
+        (self.project / ".tao").mkdir()
         self.runs = runs_prune.runs_dir(self.project)
         self.runs.mkdir(parents=True)
 

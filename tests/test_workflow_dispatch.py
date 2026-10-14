@@ -58,6 +58,8 @@ from agent_vibeguard_cache import cached_vibeguard
 from support.agy_setup import AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES, _agy_runtime_bridge_block
 from support.claude_setup import _merge_claude_user_prompt_submit
 from support.permission_entries import agy_permission_entries, claude_permission_entries, codex_prefix_rule_entries
+from support.global_state import project_state_dir_target
+STATE_ROOT = project_state_dir_target(ROOT)
 from support.runtime_bridge import (
     CODEX_DISPATCH_BRIDGE_PHRASE,
     RUNTIME_BRIDGE_GRAPH_PHRASES,
@@ -208,7 +210,7 @@ def _init_git_repo(project: Path) -> None:
     """Create a real committed git repo so isolated dispatch can add a worktree."""
 
     project.mkdir(parents=True, exist_ok=True)
-    (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+    (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
     (project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
     for args in (
         ("init", "-q"),
@@ -468,7 +470,7 @@ class WorkflowDispatchTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "cannot honor worktree isolation"):
                 execute_dispatch_manifest(manifest, runner=runner)
             self.assertEqual([], received)
-            self.assertFalse((Path(temp_dir) / ".tao" / "scheduler.json").exists())
+            self.assertFalse((Path(temp_dir) / ".moru" / "scheduler.json").exists())
 
     def test_injected_runner_on_inline_manifest_keeps_inline_guard(self) -> None:
         """A non-isolated manifest is inline, so the injected runner still hits the
@@ -855,7 +857,7 @@ class WorkflowDispatchTests(unittest.TestCase):
 
             self.assertEqual("inline", manifest["execution_mode"])
             self.assertFalse(manifest["handoff_state"]["worker_evidence_reserved"])
-            self.assertFalse((project / ".tao" / "workers").exists())
+            self.assertFalse((project / ".moru" / "workers").exists())
 
     def test_dispatch_requires_child_when_isolation_is_explicit(self) -> None:
         manifest = build_dispatch_manifest(
@@ -984,7 +986,7 @@ class WorkflowDispatchTests(unittest.TestCase):
     def test_dispatch_finalize_wires_explicit_ignored_discard_policy(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir).resolve()
-            worktree = project / ".tao" / "worktrees" / ("a" * 16)
+            worktree = project / ".moru" / "worktrees" / ("a" * 16)
             args = build_parser().parse_args(
                 [
                     "dispatch-finalize",
@@ -1077,7 +1079,7 @@ class WorkflowDispatchTests(unittest.TestCase):
         request = "기획변경 때 문서 정리가 누락되는 걸 막아줘"
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             parent_route = {
                 "command": "feature",
@@ -1128,7 +1130,7 @@ class WorkflowDispatchTests(unittest.TestCase):
     def test_dispatch_rejects_stale_same_command_parent_request_context(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(
                 json.dumps(
@@ -1179,7 +1181,7 @@ class WorkflowDispatchTests(unittest.TestCase):
         request = "기획변경 때 문서 정리가 누락되는 걸 막아줘"
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(
                 json.dumps(
@@ -1239,7 +1241,7 @@ class WorkflowDispatchTests(unittest.TestCase):
             project = root / "current"
             foreign = root / "foreign"
             project.mkdir()
-            evidence = foreign / ".tao" / "preflight.json"
+            evidence = foreign / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(
                 json.dumps(
@@ -1285,7 +1287,7 @@ class WorkflowDispatchTests(unittest.TestCase):
                 "foreign-parent-only.md", build.call_args.kwargs["route"]["required_docs"]
             )
             self.assertEqual(
-                project.resolve() / ".tao" / "preflight.json",
+                project.resolve() / ".moru" / "preflight.json",
                 build.call_args.kwargs["evidence_path"],
             )
 
@@ -1296,7 +1298,7 @@ class WorkflowDispatchTests(unittest.TestCase):
         classification = "answered direct question; separate actionable clear-scoped workflow setup"
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             parent_route = {
                 "command": "workflow-setup",
@@ -1382,7 +1384,7 @@ class WorkflowDispatchTests(unittest.TestCase):
     def test_dispatch_invalid_capsule_uses_isolated_worker_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            worker_evidence = project / ".tao" / "workers" / "test-worker" / "preflight.json"
+            worker_evidence = project / ".moru" / "workers" / "test-worker" / "preflight.json"
             capsule_state = {
                 "path": "/tmp/execution-capsule.json",
                 "reusable": False,
@@ -1414,9 +1416,9 @@ class WorkflowDispatchTests(unittest.TestCase):
             self.assertTrue(worker_reservation_matches(worker_evidence.parent, token))
 
     def test_dispatch_rejects_worker_evidence_outside_isolated_root_or_parent_collision(self) -> None:
-        parent = ROOT / ".tao" / "preflight.json"
-        outside = ROOT / ".tao" / "not-isolated.json"
-        parent_in_worker_root = ROOT / ".tao" / "workers" / "parent" / "preflight.json"
+        parent = STATE_ROOT / "preflight.json"
+        outside = STATE_ROOT / "not-isolated.json"
+        parent_in_worker_root = STATE_ROOT / "workers" / "parent" / "preflight.json"
         for parent_path, worker_path, expected in (
             (parent, parent, "under the project state workers directory"),
             (parent, outside, "under the project state workers directory"),
@@ -1437,9 +1439,9 @@ class WorkflowDispatchTests(unittest.TestCase):
             root = Path(temp_dir)
             project = root / "project"
             outside = root / "outside"
-            (project / ".tao").mkdir(parents=True)
+            (project / ".moru").mkdir(parents=True)
             outside.mkdir()
-            (project / ".tao" / "workers").symlink_to(
+            (project / ".moru" / "workers").symlink_to(
                 outside,
                 target_is_directory=True,
             )
@@ -1458,7 +1460,7 @@ class WorkflowDispatchTests(unittest.TestCase):
             rules = root / "rules"
             project.mkdir()
             rules.mkdir()
-            evidence = project / ".tao" / "parent-a.json"
+            evidence = project / ".moru" / "parent-a.json"
             manifest = build_dispatch_manifest(
                 "feature",
                 "기획변경 때 문서 정리가 누락되는 걸 막아줘",
@@ -1542,7 +1544,7 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
                     with self.assertRaises(WorktreeSessionError):
                         execute_dispatch_manifest(manifest)
 
-            scheduler = json.loads((project / ".tao" / "scheduler.json").read_text())
+            scheduler = json.loads((project / ".moru" / "scheduler.json").read_text())
 
         self.assertEqual("failed", scheduler["tasks"][-1]["state"])
 
@@ -1570,7 +1572,7 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
                     with self.assertRaises(WorktreeSessionError):
                         execute_dispatch_manifest(manifest)
 
-            scheduler = json.loads((project / ".tao" / "scheduler.json").read_text())
+            scheduler = json.loads((project / ".moru" / "scheduler.json").read_text())
 
         self.assertEqual("failed", scheduler["tasks"][-1]["state"])
 
@@ -1609,7 +1611,7 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
                 ):
                     self.assertEqual(1, execute_dispatch_manifest(manifest))
 
-            scheduler = json.loads((project / ".tao" / "scheduler.json").read_text())
+            scheduler = json.loads((project / ".moru" / "scheduler.json").read_text())
             self.assertTrue(Path(str(manifest["worktree_path"])).is_dir())
 
         self.assertEqual("failed", scheduler["tasks"][-1]["state"])

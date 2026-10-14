@@ -33,7 +33,7 @@ class GraphifyWorktreePortabilityTests(unittest.TestCase):
     def test_global_setup_copies_runtime_bundle_and_creates_user_links(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            source = root / "runtime" / ".tao" / "skills" / "graphify"
+            source = root / "runtime" / ".moru" / "skills" / "graphify"
             home = root / "home"
             source.mkdir(parents=True)
             (source / "SKILL.md").write_text("# bundled graphify\n", encoding="utf-8")
@@ -149,7 +149,7 @@ class GraphifyWorktreePortabilityTests(unittest.TestCase):
                     ["claude", "codex"],
                     home_path=home,
                 )
-                leaked = project / ".tao" / "skills" / "graphify" / "SKILL.md"
+                leaked = project / ".moru" / "skills" / "graphify" / "SKILL.md"
                 leaked.parent.mkdir(parents=True)
                 leaked.write_text("# project copy\n", encoding="utf-8")
                 rejected = inspect_target_graphify(
@@ -189,7 +189,7 @@ class GraphifyWorktreePortabilityTests(unittest.TestCase):
             root_ignore = gitignore.read_text(encoding="utf-8")
             input_state = inspect_project_graph_inputs(project)
 
-        self.assertIn(".tao/", policy)
+        self.assertIn(".moru/", policy)
         self.assertIn(".agents/local/", policy)
         self.assertEqual(".claude/\n.codex/\n", root_ignore)
         self.assertEqual([], input_state["blanket_knowledge_input_exclusions"])

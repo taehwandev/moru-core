@@ -122,7 +122,7 @@ class SessionDeliveryTests(unittest.TestCase):
         output = json.loads(self._deliver("s1"))["hookSpecificOutput"]
         self.assertIn("Do not restart checks.", output["additionalContext"])
         self.assertEqual("", self._deliver("s1"))
-        self.assertFalse((self.project / ".tao" / "run-registry.json").exists())
+        self.assertFalse((self.project / ".moru" / "run-registry.json").exists())
 
     def test_guidance_is_independent_for_each_runtime_and_session(self):
         payload = {"session_id": "s1", "cwd": str(self.project)}

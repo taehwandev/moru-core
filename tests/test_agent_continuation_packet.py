@@ -222,7 +222,7 @@ class BoundedCollectionTests(unittest.TestCase):
 
 class PathAndIdentifierTests(unittest.TestCase):
     def test_absolute_traversal_and_state_paths_are_rejected(self) -> None:
-        for value in ("/etc/passwd", "../outside.py", "./here.py", ".git/config", ".tao/preflight.json"):
+        for value in ("/etc/passwd", "../outside.py", "./here.py", ".git/config", ".moru/preflight.json"):
             with self.subTest(value=value):
                 failures = validate_continuation_packet(
                     packet(work=work(changed_scope=[{"path": value, "role": "modified"}]))

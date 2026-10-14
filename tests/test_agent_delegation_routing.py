@@ -108,13 +108,13 @@ class DelegationEvidenceTests(unittest.TestCase):
     def test_gate_batch_rejects_incomplete_parallel_record_before_writing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text(
                 json.dumps({"route": {"gates": [MULTI_AGENT_GATE]}}),
                 encoding="utf-8",
             )
-            (project / ".tao" / "agent-delegation-plan.json").write_text(
+            (project / ".moru" / "agent-delegation-plan.json").write_text(
                 json.dumps(valid_delegation_plan()),
                 encoding="utf-8",
             )
@@ -148,13 +148,13 @@ class DelegationEvidenceTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text(
                 json.dumps({"route": {"gates": [MULTI_AGENT_GATE]}}),
                 encoding="utf-8",
             )
-            (project / ".tao" / "agent-delegation-plan.json").write_text(
+            (project / ".moru" / "agent-delegation-plan.json").write_text(
                 json.dumps(valid_delegation_plan()),
                 encoding="utf-8",
             )
@@ -184,7 +184,7 @@ class DelegationEvidenceTests(unittest.TestCase):
     def test_gate_batch_rejects_whitespace_only_parallel_fields_before_writing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text(
                 json.dumps({"route": {"gates": [MULTI_AGENT_GATE]}}),
@@ -218,7 +218,7 @@ class DelegationEvidenceTests(unittest.TestCase):
     def test_gate_batch_cli_rejects_invalid_evidence_without_retry_policy(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             evidence_path.write_text(
                 json.dumps({"route": {"gates": [MULTI_AGENT_GATE]}}),
@@ -261,12 +261,12 @@ class DelegationEvidenceTests(unittest.TestCase):
     def test_gate_batch_accepts_complete_parallel_record_as_finish_ready(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             route = {"gates": [MULTI_AGENT_GATE]}
             preflight = {"route": route}
             evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
-            (project / ".tao" / "agent-delegation-plan.json").write_text(
+            (project / ".moru" / "agent-delegation-plan.json").write_text(
                 json.dumps(valid_delegation_plan()),
                 encoding="utf-8",
             )
@@ -359,7 +359,7 @@ class DelegationEvidenceTests(unittest.TestCase):
     def test_corrected_gate_record_clears_legacy_missing_field_diagnostics(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             route = {"gates": [MULTI_AGENT_GATE]}
             preflight = {"route": route}

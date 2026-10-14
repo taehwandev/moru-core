@@ -47,7 +47,7 @@ time.sleep(300)
 
 
 def initialize_git(project: Path) -> None:
-    (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+    (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
     for command in (
         ("init", "-q"),
         ("config", "user.email", "checkpoint@example.invalid"),
@@ -77,10 +77,10 @@ class Fixture:
             self.rules.mkdir()
             (self.rules / GUIDANCE).write_text("# guidance\n", encoding="utf-8")
         self.run = register_run(
-            self.project, self.project / ".tao" / "preflight.json", ROUTE, INTAKE
+            self.project, self.project / ".moru" / "preflight.json", ROUTE, INTAKE
         )
         self.run_id = self.run["run_id"]
-        self.binding_path = self.project / ".tao" / "runs" / self.run_id / "preflight.json"
+        self.binding_path = self.project / ".moru" / "runs" / self.run_id / "preflight.json"
         self.binding_path.parent.mkdir(parents=True)
         self.preflight = {
             "project": str(self.project),
@@ -207,7 +207,7 @@ class InitialCheckpointTests(unittest.TestCase):
     def test_a_binding_outside_the_run_directory_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = Fixture(directory)
-            outside = fixture.project / ".tao" / "preflight.json"
+            outside = fixture.project / ".moru" / "preflight.json"
             outside.write_text(fixture.binding_path.read_text(encoding="utf-8"), encoding="utf-8")
 
             with self.assertRaises(ContinuationPacketError) as raised:
@@ -584,7 +584,7 @@ class OwnerCompareAndSwapTests(unittest.TestCase):
             fixture = Fixture(directory)
             transition_run(
                 fixture.project,
-                fixture.project / ".tao" / "preflight.json",
+                fixture.project / ".moru" / "preflight.json",
                 "completed",
                 run_id=fixture.run_id,
             )

@@ -262,7 +262,7 @@ class GenericGateEvidenceTests(unittest.TestCase):
         # validation and persistence must use the current route as authority.
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "route": {

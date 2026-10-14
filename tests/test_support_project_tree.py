@@ -42,8 +42,8 @@ class PrunedWalkTests(unittest.TestCase):
                 base,
                 "guide.md",
                 "nested/guide.md",
-                ".tao/runs/abc/guide.md",
-                "nested/.tao/guide.md",
+                ".moru/runs/abc/guide.md",
+                "nested/.moru/guide.md",
                 ".git/guide.md",
             )
 
@@ -90,7 +90,7 @@ class PrunedWalkTests(unittest.TestCase):
             build(
                 base,
                 ".moru/skills/graphify/SKILL.md",
-                ".tao/runs/abc/integration/skills/other/SKILL.md",
+                ".moru/runs/abc/integration/skills/other/SKILL.md",
                 "runs/keep/SKILL.md",
             )
 
@@ -173,7 +173,7 @@ class PrunedWalkTests(unittest.TestCase):
     def test_an_empty_name_yields_every_file_outside_the_pruned_set(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            build(base, "guide.md", "code.py", ".tao/runs/abc/state.json")
+            build(base, "guide.md", "code.py", ".moru/runs/abc/state.json")
 
             found = {path.relative_to(base).as_posix() for path in iter_project_files(base)}
 
@@ -219,9 +219,9 @@ class PrunedTraversalTests(unittest.TestCase):
         build(
             base,
             "guide.md",
-            ".tao/runs/one/copy.md",
-            ".tao/runs/one/deeper/copy.md",
-            ".tao/runs/two/copy.md",
+            ".moru/runs/one/copy.md",
+            ".moru/runs/one/deeper/copy.md",
+            ".moru/runs/two/copy.md",
         )
 
     def test_a_pruned_directory_is_never_scanned(self) -> None:
@@ -234,7 +234,7 @@ class PrunedTraversalTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                [], [path for path in visited if ".tao" in path], visited
+                [], [path for path in visited if ".moru" in path], visited
             )
 
     def test_the_recorder_does_see_a_walk_that_enters_it(self) -> None:
@@ -246,7 +246,7 @@ class PrunedTraversalTests(unittest.TestCase):
 
             visited = scanned_directories(lambda: list(base.rglob("*.md")))
 
-            self.assertTrue([path for path in visited if ".tao" in path])
+            self.assertTrue([path for path in visited if ".moru" in path])
 
     def test_no_caller_walks_the_state_it_excludes(self) -> None:
         """Pinned per caller, because each one can regress on its own.
@@ -256,9 +256,9 @@ class PrunedTraversalTests(unittest.TestCase):
         """
 
         callers = (
-            ("document graph", _markdown_docs, ".tao"),
-            ("markdown validator", markdown_files_to_validate, ".tao"),
-            ("skill catalogue", agent_skill_catalog._skill_ids_under, ".tao/runs"),
+            ("document graph", _markdown_docs, ".moru"),
+            ("markdown validator", markdown_files_to_validate, ".moru"),
+            ("skill catalogue", agent_skill_catalog._skill_ids_under, ".moru/runs"),
         )
         for name, caller, excluded in callers:
             with self.subTest(caller=name), tempfile.TemporaryDirectory() as directory:
@@ -280,7 +280,7 @@ class PrunedTraversalTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            build(base, ".moru/skills/graphify/SKILL.md", ".tao/runs/one/copy/SKILL.md")
+            build(base, ".moru/skills/graphify/SKILL.md", ".moru/runs/one/copy/SKILL.md")
 
             visited = scanned_directories(
                 lambda: agent_skill_catalog._skill_ids_under(base)
@@ -345,8 +345,8 @@ class CallerResultsAreUnchangedTests(unittest.TestCase):
             path.relative_to(ROOT).as_posix()
             for path in ROOT.rglob("*.md")
             if not (
-                path.relative_to(ROOT).as_posix().startswith(".tao/")
-                or "/.tao/" in path.relative_to(ROOT).as_posix()
+                path.relative_to(ROOT).as_posix().startswith(".moru/")
+                or "/.moru/" in path.relative_to(ROOT).as_posix()
                 or path.relative_to(ROOT).as_posix().startswith(".moru/")
                 or "/.moru/" in path.relative_to(ROOT).as_posix()
             )
@@ -361,7 +361,7 @@ class CallerResultsAreUnchangedTests(unittest.TestCase):
             base = Path(directory)
             subprocess.run(["git", "init", str(base)], check=True, capture_output=True)
             (base / ".gitignore").write_text("generated/\n", encoding="utf-8")
-            build(base, "guide.md", "nested/guide.md", "generated/copy.md", ".tao/run.md")
+            build(base, "guide.md", "nested/guide.md", "generated/copy.md", ".moru/run.md")
             self.assertEqual({"guide.md", "nested/guide.md"}, _markdown_docs(base))
 
     def test_the_validator_keeps_exactly_the_files_it_kept(self) -> None:
@@ -379,8 +379,8 @@ class CallerResultsAreUnchangedTests(unittest.TestCase):
         """Pruning all of `.tao` would have dropped a tracked skill id."""
 
         self.assertIn("graphify", canonical_skill_ids(ROOT, ROOT))
-        self.assertIn(".tao", PRUNED_DIRECTORIES)
-        self.assertNotIn(".tao", PRUNED_RUN_STATE)
+        self.assertIn(".moru", PRUNED_DIRECTORIES)
+        self.assertNotIn(".moru", PRUNED_RUN_STATE)
 
 
 

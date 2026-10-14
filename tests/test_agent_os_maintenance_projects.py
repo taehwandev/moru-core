@@ -56,7 +56,7 @@ class ProjectFixture:
 
     def __init__(self, root: Path) -> None:
         self.root = root
-        self.runs = root / ".tao" / "runs"
+        self.runs = root / ".moru" / "runs"
         self.runs.mkdir(parents=True, exist_ok=True)
         self.records: list[dict] = []
 
@@ -84,11 +84,11 @@ class ProjectFixture:
         return path
 
     def registry(self) -> dict[str, str]:
-        payload = json.loads((self.root / ".tao" / "run-registry.json").read_text())
+        payload = json.loads((self.root / ".moru" / "run-registry.json").read_text())
         return {run["run_id"]: run["state"] for run in payload["runs"]}
 
     def _write_registry(self) -> None:
-        (self.root / ".tao" / "run-registry.json").write_text(
+        (self.root / ".moru" / "run-registry.json").write_text(
             json.dumps({"schema_version": 1, "runs": self.records}), encoding="utf-8"
         )
 
@@ -103,7 +103,7 @@ def _snapshot(root: Path) -> dict[str, bytes]:
 class MaintenanceProjectTests(unittest.TestCase):
     def test_migrated_projects_and_worktrees_are_discovered(self) -> None:
         listed = ProjectFixture(self.base / "listed").root
-        (listed / ".tao").rename(listed / ".moru")
+        (listed / ".moru").rename(listed / ".moru")
         (listed / ".moru" / "state-ready").write_text("ready\n")
         worktree = ProjectFixture(listed / ".moru" / "worktrees" / "task").root
         self._register(listed)
@@ -127,7 +127,7 @@ class MaintenanceProjectTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
         self.tao_root = self.base / "tao-agent-os"
-        (self.tao_root / ".tao").mkdir(parents=True)
+        (self.tao_root / ".moru").mkdir(parents=True)
         self.registry_file = self.base / "projects.json"
 
     def _register(self, *roots: Path, search_roots: list[Path] | None = None) -> None:
@@ -144,7 +144,7 @@ class MaintenanceProjectTests(unittest.TestCase):
 
     def test_every_managed_checkout_and_its_worktrees_are_visited(self) -> None:
         listed = ProjectFixture(self.base / "listed").root
-        worktree = ProjectFixture(listed / ".tao" / "worktrees" / "task").root
+        worktree = ProjectFixture(listed / ".moru" / "worktrees" / "task").root
         search = self.base / "src"
         found = ProjectFixture(search / "found").root
         (search / "plain").mkdir(parents=True)  # no Moru state: not visited
@@ -161,7 +161,7 @@ class MaintenanceProjectTests(unittest.TestCase):
     def test_a_pass_applies_retention_in_every_checkout(self) -> None:
         first = ProjectFixture(self.base / "first")
         second = ProjectFixture(self.base / "second")
-        worktree = ProjectFixture(second.root / ".tao" / "worktrees" / "task")
+        worktree = ProjectFixture(second.root / ".moru" / "worktrees" / "task")
         for fixture in (first, second, worktree):
             fixture.record(99, "completed", age=60)
             fixture.directory(1, "acting", age=20 * DAY)  # orphan past 14 days
@@ -267,7 +267,7 @@ class MaintenanceProjectTests(unittest.TestCase):
 
     def test_an_unreadable_registry_never_makes_every_run_an_orphan(self) -> None:
         project = ProjectFixture(self.base / "project")
-        (project.root / ".tao" / "run-registry.json").write_text("{", encoding="utf-8")
+        (project.root / ".moru" / "run-registry.json").write_text("{", encoding="utf-8")
         path = project.directory(1, "acting", age=20 * DAY)
 
         evidence = run_maintenance(project.root, dry_run=True)["pruned_run_evidence"]

@@ -36,16 +36,16 @@ class FinishedCheckoutPushTests(unittest.TestCase):
         self.git(self.main, "init", "-q", "-b", "main")
         self.git(self.main, "config", "user.email", "test@example.invalid")
         self.git(self.main, "config", "user.name", "Test")
-        (self.main / ".gitignore").write_text(".tao/\n")
+        (self.main / ".gitignore").write_text(".moru/\n")
         (self.main / "source").write_text("original")
         self.git(self.main, "add", ".")
         self.git(self.main, "commit", "-qm", "base")
-        self.worktree = self.main / ".tao" / "worktrees" / "slice"
+        self.worktree = self.main / ".moru" / "worktrees" / "slice"
         self.git(self.main, "worktree", "add", "-q", "-b", "slice", str(self.worktree))
         self.worktree = self.worktree.resolve()
-        (self.worktree / ".tao").mkdir(exist_ok=True)
-        (self.worktree / ".tao" / "run-registry.json").write_text('{"runs": []}')
-        self.evidence = self.worktree / ".tao" / "runs" / "example" / "preflight.json"
+        (self.worktree / ".moru").mkdir(exist_ok=True)
+        (self.worktree / ".moru" / "run-registry.json").write_text('{"runs": []}')
+        self.evidence = self.worktree / ".moru" / "runs" / "example" / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
         self.main_evidence: "Path | None" = None
         self.session = self.SESSION
@@ -136,7 +136,7 @@ class FinishedCheckoutPushTests(unittest.TestCase):
                 self.assertFalse(self.admits(command))
 
     def test_the_same_checkout_admission_is_unchanged(self) -> None:
-        self.main_evidence = self.main / ".tao" / "runs" / "own" / "preflight.json"
+        self.main_evidence = self.main / ".moru" / "runs" / "own" / "preflight.json"
         self.main_evidence.parent.mkdir(parents=True)
         (self.main / "source").write_text("main change")
         self.finish(self.main, self.main_evidence, "external_write")

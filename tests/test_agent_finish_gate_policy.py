@@ -240,7 +240,7 @@ class FinishGatePolicyTests(unittest.TestCase):
             ):
                 self.assertEqual(0, agent_preflight.run_preflight(args, ROOT))
 
-            evidence = json.loads((project / ".tao" / "preflight.json").read_text(encoding="utf-8"))
+            evidence = json.loads((project / ".moru" / "preflight.json").read_text(encoding="utf-8"))
 
         self.assertEqual(1, routed.call_count)
         self.assertIn("execution_snapshot", evidence)
@@ -250,7 +250,7 @@ class FinishGatePolicyTests(unittest.TestCase):
         self.assertEqual(route, evidence["route"])
         self.assertNotIn("stdout", evidence["route_command"])
         self.assertNotIn("project_git", evidence["execution_snapshot"])
-        self.assertFalse((project / ".tao" / "execution-capsule.json").exists())
+        self.assertFalse((project / ".moru" / "execution-capsule.json").exists())
 
     def test_a_route_that_failed_keeps_the_only_account_of_why(self) -> None:
         """With no parsed route, the string in `stdout` is the diagnostic."""

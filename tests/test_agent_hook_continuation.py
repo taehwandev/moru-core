@@ -79,7 +79,7 @@ class HookRun:
             (self.project / "src" / "module.py").write_text("value = 1\n", encoding="utf-8")
             self.rules.mkdir()
             (self.rules / GUIDANCE).write_text("# guidance\n", encoding="utf-8")
-        self.evidence = self.project / ".tao" / "runs" / run_id / "preflight.json"
+        self.evidence = self.project / ".moru" / "runs" / run_id / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
         self.run = register_run(self.project, self.evidence, ROUTE, INTAKE) if register else {}
         self.run_id = str(self.run.get("run_id") or run_id)
@@ -143,7 +143,7 @@ class RunBindingTests(unittest.TestCase):
             self.assertNotEqual(RUN_ID, second["run_id"])
 
     def test_evidence_outside_a_run_directory_has_no_reachable_packet(self) -> None:
-        """The default `.tao/preflight.json` path is not a run directory.
+        """The default `.moru/preflight.json` path is not a run directory.
 
         The packet binds to a trust record in its own run directory because the
         gate ledger and route manifest are resolved from beside it. Evidence at
@@ -153,7 +153,7 @@ class RunBindingTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             run = HookRun(directory)
-            args = run.args(evidence=run.project / ".tao" / "preflight.json")
+            args = run.args(evidence=run.project / ".moru" / "preflight.json")
 
             self.assertIsNone(wiring.run_binding_path(args))
             detail = wiring.record_lifecycle_checkpoint(args, "initial", work={"objective": "x"})

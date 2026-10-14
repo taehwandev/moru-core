@@ -70,7 +70,7 @@ class ResumeSessionPausedRunTests(unittest.TestCase):
     def test_explicit_evidence_of_another_run_is_left_alone(self):
         with tempfile.TemporaryDirectory() as directory:
             run = self._stopped(directory)
-            other = run.project / '.tao' / 'runs' / 'other' / 'preflight.json'
+            other = run.project / '.moru' / 'runs' / 'other' / 'preflight.json'
             self.assertEqual((None, ''), self._resume(run, run.session, other))
             self.assertEqual('interrupted', run.state())
 
@@ -94,7 +94,7 @@ class ResumeSessionPausedRunTests(unittest.TestCase):
 class LedgerHookDispatchTests(unittest.TestCase):
     def _dispatch(self, hook, **extra):
         args = argparse.Namespace(hook=hook, project=Path('/project'), evidence=None, **extra)
-        resumed = Path('/project/.tao/runs/abc/preflight.json')
+        resumed = Path('/project/.moru/runs/abc/preflight.json')
         with patch('agent_paused_run_resume.resume_session_paused_run', return_value=(resumed, 'resumed')) as resume, \
                 patch.object(agent_hook, '_checkpointed_hook', return_value=0), \
                 patch.object(agent_hook, 'finish_hook', return_value=0):

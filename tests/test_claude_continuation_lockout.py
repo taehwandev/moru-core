@@ -145,10 +145,10 @@ class ContinuationLockoutTests(unittest.TestCase):
         # The storage layer proves local-only status by asking Git. Nothing used
         # to create this file, so `check-ignore` answered "no" in every checkout
         # that had not been set up by hand.
-        ignore = self.project / ".tao" / ".gitignore"
+        ignore = self.project / ".moru" / ".gitignore"
         self.assertTrue(ignore.is_file(), "start must establish the ignore rule")
         probe = subprocess.run(
-            ["git", "check-ignore", "-q", str(self.project / ".tao" / "runs")],
+            ["git", "check-ignore", "-q", str(self.project / ".moru" / "runs")],
             cwd=self.project, check=False,
         )
         self.assertEqual(0, probe.returncode, "the state root must be ignored")
@@ -160,7 +160,7 @@ class ContinuationLockoutTests(unittest.TestCase):
     def test_existing_ignore_rules_are_not_replaced(self) -> None:
         # A project that already declared rules for this directory -- tracking a
         # skills subtree, as this repository does -- must keep them.
-        ignore = self.project / ".tao" / ".gitignore"
+        ignore = self.project / ".moru" / ".gitignore"
         ignore.write_text("/*\n!/keep-me\n", encoding="utf-8")
         subprocess.run(
             [sys.executable, str(ROOT / "scripts" / "agent-hook.py"), "gate",
@@ -175,10 +175,10 @@ class ContinuationLockoutTests(unittest.TestCase):
         # rules do not cover the run directory keeps a state root the packet
         # cannot legally be written to. Storage that cannot exist is not a
         # mutation running against a wrong checkpoint; there is no checkpoint.
-        ignore = self.project / ".tao" / ".gitignore"
+        ignore = self.project / ".moru" / ".gitignore"
         ignore.write_text("/vibeguard-cache.json\n", encoding="utf-8")
         probe = subprocess.run(
-            ["git", "check-ignore", "-q", str(self.project / ".tao" / "runs")],
+            ["git", "check-ignore", "-q", str(self.project / ".moru" / "runs")],
             cwd=self.project, check=False,
         )
         self.assertNotEqual(0, probe.returncode, "fixture must leave runs unignored")
@@ -282,7 +282,7 @@ class ContinuationLockoutTests(unittest.TestCase):
     # genuinely prevents something -- precisely what the relaxed cases lacked.
 
     def _run_evidence_dir(self) -> Path:
-        return next((self.project / ".tao" / "runs").iterdir())
+        return next((self.project / ".moru" / "runs").iterdir())
 
     def test_run_evidence_cannot_be_edited(self) -> None:
         self.target = self._run_evidence_dir() / "preflight.json"

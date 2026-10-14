@@ -143,9 +143,9 @@ class TheHooksAreActuallyInstrumentedTests(unittest.TestCase):
             project.mkdir()
             subprocess.run(["git", "init", "-q", "."], cwd=project, check=True)
             (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             evidence.parent.mkdir(parents=True)
-            output = project / ".tao" / "start.json"
+            output = project / ".moru" / "start.json"
 
             subprocess.run(
                 [
@@ -417,7 +417,7 @@ class OnlyTheHookProcessNamesTheSinkTests(unittest.TestCase):
 
         return types.SimpleNamespace(
             project=project,
-            evidence=project / ".tao" / "runs" / RUN_ID / "preflight.json",
+            evidence=project / ".moru" / "runs" / RUN_ID / "preflight.json",
             hook=hook,
         )
 
@@ -477,7 +477,7 @@ class TheHooksLeaveTheirNumbersInTheRunTests(unittest.TestCase):
             project.mkdir()
             subprocess.run(["git", "init", "-q", "."], cwd=project, check=True)
             (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             evidence.parent.mkdir(parents=True)
 
             subprocess.run(

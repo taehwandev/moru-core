@@ -319,10 +319,10 @@ class ReviewScopeGuardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
             subprocess.run(["git", "init", "-q"], cwd=project, check=True)
-            (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+            (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
             (project / "tracked.txt").write_text("base\n", encoding="utf-8")
             commit(project, "base")
-            evidence = project / ".tao/preflight.json"
+            evidence = project / ".moru/preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(
                 '{"route":{"concerns":["branch","worktree"],'
@@ -599,7 +599,7 @@ class ReviewScopeGuardTests(unittest.TestCase):
             project = Path(temp_dir)
             subprocess.run(["git", "init", "-q"], cwd=project, check=True)
             (project / ".gitignore").write_text(
-                ".tao/\n.codex/\n",
+                ".moru/\n.codex/\n",
                 encoding="utf-8",
             )
             (project / "tracked.txt").write_text("base\n", encoding="utf-8")
@@ -607,7 +607,7 @@ class ReviewScopeGuardTests(unittest.TestCase):
             config = project / ".codex/hooks.json"
             config.parent.mkdir(parents=True)
             config.write_text('{"hooks": {}}\n', encoding="utf-8")
-            evidence = project / ".tao/preflight.json"
+            evidence = project / ".moru/preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(
                 '{"route":{"command":"workflow-setup"},'

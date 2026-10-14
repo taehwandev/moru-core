@@ -32,7 +32,7 @@ class StructurePreviewTests(unittest.TestCase):
             capture_output=True, text=True, check=False,
         )
         self.assertEqual(before, self.git("status", "--porcelain=v1", "--untracked-files=all"))
-        self.assertFalse((self.project / ".tao").exists())
+        self.assertFalse((self.project / ".moru").exists())
         return result.returncode, json.loads(result.stdout)
 
     def test_catches_long_function_before_build(self):

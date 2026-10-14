@@ -68,7 +68,8 @@ class MoruStateSelectionTest(unittest.TestCase):
     def test_project_switches_only_after_explicit_migration(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            self.assertEqual(project / ".tao", global_state.project_state_dir_target(project))
+            # A project with no legacy tree starts in `.moru`.
+            self.assertEqual(project / ".moru", global_state.project_state_dir_target(project))
             (project / ".tao").mkdir()
             self.assertEqual(project / ".tao", global_state.project_state_dir_target(project))
             (project / ".moru").mkdir()
@@ -81,6 +82,9 @@ class MoruStateSelectionTest(unittest.TestCase):
             home = Path(directory)
             with (patch.object(Path, "home", return_value=home),
                   patch.dict(os.environ, _env_without_test_markers(), clear=True)):
+                # A new install has no legacy records to wait for.
+                self.assertEqual(home / ".moru", global_state.global_state_dir())
+                (home / ".tao").mkdir()
                 (home / ".moru").mkdir()
                 self.assertEqual(home / ".tao", global_state.global_state_dir())
                 (home / ".moru" / global_state.MORU_STATE_READY_MARKER).touch()

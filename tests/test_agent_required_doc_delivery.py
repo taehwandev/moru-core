@@ -33,9 +33,9 @@ class DeliveryTests(unittest.TestCase):
                           (BIG, "x" * 9000)):
             (self.rules / doc).parent.mkdir(parents=True, exist_ok=True)
             (self.rules / doc).write_text(f"---\nkeyflow_id: k\n---\n{body}\n", encoding="utf-8")
-        run = self.project / ".tao" / "runs" / ("a" * 32)
+        run = self.project / ".moru" / "runs" / ("a" * 32)
         run.mkdir(parents=True)
-        (self.project / ".tao" / "run-registry.json").write_text("{}", encoding="utf-8")
+        (self.project / ".moru" / "run-registry.json").write_text("{}", encoding="utf-8")
         self.evidence = run / "preflight.json"
         self.transcript = base / "transcript.jsonl"
         self._preflight([CORE, OTHER])

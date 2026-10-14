@@ -566,7 +566,7 @@ class SupersededManagedBlockTests(unittest.TestCase):
 
         block = (
             "# tao-graphify-inputs:start\n"
-            ".tao/\n"
+            ".moru/\n"
             "# tao-graphify-inputs:end"
         )
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -594,7 +594,7 @@ class SupersededManagedBlockTests(unittest.TestCase):
 
         block = (
             "# tao-graphify-inputs:start\n"
-            ".tao/\n"
+            ".moru/\n"
             "# tao-graphify-inputs:end"
         )
         with tempfile.TemporaryDirectory() as temp_dir:

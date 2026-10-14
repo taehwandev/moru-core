@@ -177,10 +177,10 @@ class FallbackGraphReadinessTests(unittest.TestCase):
         self.assertFalse(readiness["ready"])
 
     def test_committed_local_runtime_state_does_not_stale_the_graph(self) -> None:
-        local_state = self.project / ".tao" / "skills" / "local.md"
+        local_state = self.project / ".moru" / "skills" / "local.md"
         local_state.parent.mkdir(parents=True)
         local_state.write_text("# local runtime state\n", encoding="utf-8")
-        self._commit("add local state", ".tao/skills/local.md")
+        self._commit("add local state", ".moru/skills/local.md")
 
         readiness = self._inspect()
 

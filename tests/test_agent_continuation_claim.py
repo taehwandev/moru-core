@@ -45,7 +45,7 @@ if os.environ.get("MORU_TEST_CHECKPOINT") == "1":
         binding_path=binding,
         work={"objective": "work that must outlive this process"},
     )
-registry = project / ".tao" / "run-registry.json"
+registry = project / ".moru" / "run-registry.json"
 payload = json.loads(registry.read_text(encoding="utf-8"))
 for run in payload["runs"]:
     run["owner"] = {"pid": os.getpid(), "start_token": ""}
@@ -170,7 +170,7 @@ class KilledOwnerTests(unittest.TestCase):
             age(fixture, minutes=1, owner_pid=dead_pid())
             transition_run(
                 fixture.project,
-                fixture.project / ".tao" / "preflight.json",
+                fixture.project / ".moru" / "preflight.json",
                 "failed",
                 run_id=fixture.run_id,
             )
@@ -447,7 +447,7 @@ class BindingTests(unittest.TestCase):
             fixture.checkpoint("initial")
             transition_run(
                 fixture.project,
-                fixture.project / ".tao" / "preflight.json",
+                fixture.project / ".moru" / "preflight.json",
                 "completed",
                 run_id=fixture.run_id,
             )

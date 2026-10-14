@@ -67,12 +67,12 @@ def project_bytes(project: Path) -> dict[str, bytes]:
     tracked = {
         path.relative_to(project).as_posix(): path.read_bytes()
         for path in project.rglob("*")
-        if path.is_file() and ".tao" not in path.relative_to(project).parts
+        if path.is_file() and ".moru" not in path.relative_to(project).parts
     }
     for path in (
         registry_path(project),
-        *sorted((project / ".tao" / "runs").rglob("continuation.json")),
-        *sorted((project / ".tao" / "runs").rglob("gate-evidence.json")),
+        *sorted((project / ".moru" / "runs").rglob("continuation.json")),
+        *sorted((project / ".moru" / "runs").rglob("gate-evidence.json")),
     ):
         if path.is_file():
             tracked[path.relative_to(project).as_posix()] = path.read_bytes()

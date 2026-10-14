@@ -124,11 +124,11 @@ class PublicationAdmissionTests(unittest.TestCase):
         self.git('init', '-q')
         self.git('config', 'user.email', 'test@example.invalid')
         self.git('config', 'user.name', 'Test')
-        (self.root / '.gitignore').write_text('.tao/\n')
+        (self.root / '.gitignore').write_text('.moru/\n')
         (self.root / 'source').write_text('original')
         self.git('add', '.')
         self.git('commit', '-qm', 'base')
-        self.evidence = self.root / '.tao/runs/example/preflight.json'
+        self.evidence = self.root / '.moru/runs/example/preflight.json'
         self.evidence.parent.mkdir(parents=True)
 
     def git(self, *args):
@@ -153,7 +153,7 @@ class PublicationAdmissionTests(unittest.TestCase):
         intake = {'request': request, 'continuation_scope': '',
                   'request_classified': False, 'classification_evidence': ''}
         session = {'runtime': 'codex', 'session_id': 'publication-session'}
-        evidence = self.root / '.tao' / 'preflight.json'
+        evidence = self.root / '.moru' / 'preflight.json'
         evidence.write_text(json.dumps({
             'project': str(self.root), 'rules': str(self.root),
             'request_fingerprint': request_fingerprint(intake),
@@ -389,12 +389,12 @@ class PublicationAdmissionTests(unittest.TestCase):
         import time
         from datetime import datetime, timedelta, timezone
 
-        evidence = self.root / '.tao/runs/finished/preflight.json'
+        evidence = self.root / '.moru/runs/finished/preflight.json'
         evidence.parent.mkdir(parents=True)
         evidence.write_text('{}')
         two_days_ago = time.time() - 2 * 86400
         os.utime(evidence, (two_days_ago, two_days_ago))
-        registry = self.root / '.tao/run-registry.json'
+        registry = self.root / '.moru/run-registry.json'
         for finished, fresh in ((datetime.now(timezone.utc), True),
                                 (datetime.now(timezone.utc) - timedelta(days=2), False)):
             registry.write_text(json.dumps({'runs': [{

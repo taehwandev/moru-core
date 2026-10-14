@@ -93,7 +93,7 @@ class LeakedRuntimeAssetTests(unittest.TestCase):
             ]
 
             self.assertIn(".moru/skills/graphify", leaks)
-            self.assertIn(Path(".tao/skills/graphify"), PROJECT_RUNTIME_ASSET_PATHS)
+            self.assertIn(Path(".moru/skills/graphify"), PROJECT_RUNTIME_ASSET_PATHS)
             self.assertIn(".agents/skills/graphify", leaks)
 
     def test_copied_bundle_in_the_runtime_root_is_still_a_leak(self) -> None:

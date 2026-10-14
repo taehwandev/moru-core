@@ -49,7 +49,7 @@ def _blocked(out: str) -> bool:
 
 def _opt_in_project(base: Path) -> Path:
     project = base / "proj"
-    (project / ".tao" / gate.SESSION_MARKER_DIR).mkdir(parents=True)
+    (project / ".moru" / gate.SESSION_MARKER_DIR).mkdir(parents=True)
     (project / "AGENTS.md").write_text("uses tao\n", encoding="utf-8")
     return project
 
@@ -90,7 +90,7 @@ def _write_finish(project: Path, session_id: str | None = None) -> None:
     payload: dict = {}
     if session_id is not None:
         payload["runtime_session"] = {"runtime": "claude", "session_id": session_id}
-    (project / ".tao" / "finish.json").write_text(
+    (project / ".moru" / "finish.json").write_text(
         json.dumps(payload), encoding="utf-8"
     )
 
@@ -218,7 +218,7 @@ class ClaudeStopGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp))
             _write_finish(project, "s1")
-            _record_edit(project, "s1", newer_than=project / ".tao" / "finish.json")
+            _record_edit(project, "s1", newer_than=project / ".moru" / "finish.json")
 
             _, out = _decide(_payload(project, "s1"))
 
@@ -262,7 +262,7 @@ class ClaudeStopGateTests(unittest.TestCase):
 
             finish_check.record_session_finished(project, {})
 
-            marker_dir = project / ".tao" / gate.SESSION_MARKER_DIR
+            marker_dir = project / ".moru" / gate.SESSION_MARKER_DIR
             self.assertEqual([], list(marker_dir.iterdir()))
 
     def test_second_stop_without_new_edits_is_not_blocked_again(self) -> None:
@@ -475,7 +475,7 @@ class CancelWritesTheSessionMarkerTests(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.project = _opt_in_project(Path(self._tmp.name))
         self.session = "s-writer"
-        self.evidence = self.project / ".tao" / "runs" / "r1" / "preflight.json"
+        self.evidence = self.project / ".moru" / "runs" / "r1" / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
         self.evidence.write_text(
             json.dumps(
@@ -503,7 +503,7 @@ class CancelWritesTheSessionMarkerTests(unittest.TestCase):
 
         self.assertEqual(
             [],
-            list((self.project / ".tao" / gate.SESSION_MARKER_DIR).glob("*.settled")),
+            list((self.project / ".moru" / gate.SESSION_MARKER_DIR).glob("*.settled")),
         )
 
 
@@ -616,7 +616,7 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             os.environ[STATE_HOME_ENV] = str(_make_global_state_dir(home))
 
             project = home / "git" / "repo"
-            state = project / ".tao"
+            state = project / ".moru"
             state.mkdir(parents=True)
             (state / "preflight.json").write_text("{}")
 
@@ -653,7 +653,7 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             project.mkdir(parents=True)
             (project / "AGENTS.md").write_text("# Moru Core project\n")
 
-            self.assertFalse((project / ".tao").exists())
+            self.assertFalse((project / ".moru").exists())
             self.assertTrue(gate.opts_in(project))
             self.assertTrue(pretool.opts_in(project))
 
@@ -716,7 +716,7 @@ class GlobalInstallIsNotAProjectTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 agent_preflight.resolve_evidence_path(args, project),
             )
 

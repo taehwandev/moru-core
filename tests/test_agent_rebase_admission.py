@@ -21,7 +21,7 @@ class RebaseAdmissionTests(unittest.TestCase):
         self.git(self.main, "init", "-qb", "main")
         self.git(self.main, "config", "user.name", "Test")
         self.git(self.main, "config", "user.email", "test@example.invalid")
-        (self.main / ".gitignore").write_text(".tao/\n")
+        (self.main / ".gitignore").write_text(".moru/\n")
         (self.main / "base.txt").write_text("base")
         (self.main / "AGENTS.md").write_text("Uses tao-hook.\n")
         policy = self.main / gate.WORKTREE_POLICY_PATH
@@ -35,7 +35,7 @@ class RebaseAdmissionTests(unittest.TestCase):
         (self.root / "task.txt").write_text("tested task")
         self.git(self.root, "add", ".")
         self.git(self.root, "commit", "-qm", "task")
-        self.evidence = self.root / ".tao/runs/test/preflight.json"
+        self.evidence = self.root / ".moru/runs/test/preflight.json"
         self.evidence.parent.mkdir(parents=True)
         self.evidence.write_text(json.dumps({"rules": str(self.root), "route": {
             "request_classification": {"intent_envelope": {

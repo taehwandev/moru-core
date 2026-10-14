@@ -171,7 +171,7 @@ class ReviewHookTests(unittest.TestCase):
     def test_settled_review_run_state_reads_terminal_registry_binding(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "runs" / "review" / "preflight.json"
+            evidence_path = project / ".moru" / "runs" / "review" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             route = {"command": "review", "gates": ["review hook"]}
             run = register_run(project, evidence_path, route, {})
@@ -217,7 +217,7 @@ class ReviewHookTests(unittest.TestCase):
 
         args = SimpleNamespace(
             project=ROOT,
-            evidence=ROOT / ".tao" / "settled-preflight.json",
+            evidence=ROOT / ".moru" / "settled-preflight.json",
             output=None,
             repair_cycle=0,
         )
@@ -246,7 +246,7 @@ class ReviewHookTests(unittest.TestCase):
     def test_review_hook_rejects_missing_pre_review_gate_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "route": {
@@ -290,7 +290,7 @@ class ReviewHookTests(unittest.TestCase):
             expected_rules = project / "runtime"
             actual_rules = project / "runtime" / ".agents" / "rules"
             actual_rules.mkdir(parents=True)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "rules": str(expected_rules),
@@ -328,7 +328,7 @@ class ReviewHookTests(unittest.TestCase):
     def test_review_hook_treats_missing_prerequisites_as_invocation_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "route": {
@@ -398,7 +398,7 @@ class ReviewHookTests(unittest.TestCase):
         args = SimpleNamespace(
             project=ROOT,
             rules=ROOT,
-            evidence=ROOT / ".tao" / "preflight.json",
+            evidence=ROOT / ".moru" / "preflight.json",
             output=None,
             repair_cycle=0,
             allow_vibeguard_review="",
@@ -468,7 +468,7 @@ class ReviewHookTests(unittest.TestCase):
     def test_review_hook_accepts_complete_pre_review_gate_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "route": {
@@ -497,7 +497,7 @@ class ReviewHookTests(unittest.TestCase):
     def test_review_hook_ignores_failed_post_review_gate_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "route": {
@@ -544,7 +544,7 @@ class ReviewHookTests(unittest.TestCase):
     def test_failed_review_invalidates_an_earlier_successful_review_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "route": {
@@ -845,7 +845,7 @@ class ReviewHookTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {"route": {"command": "review", "gates": ["review hook"]}}
             evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
@@ -864,7 +864,7 @@ class ReviewHookTests(unittest.TestCase):
     def test_review_success_cannot_skip_an_unreadable_attestation_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            missing_evidence = project / ".tao" / "missing-preflight.json"
+            missing_evidence = project / ".moru" / "missing-preflight.json"
             args = SimpleNamespace(
                 project=project,
                 rules=project,

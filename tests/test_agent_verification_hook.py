@@ -20,7 +20,7 @@ from agent_gate_evidence import gate_evidence_path_for_preflight
 
 def _build_fixture(project):
     subprocess.run(["git", "init", "-q", str(project)], check=True)
-    (project / ".gitignore").write_text(".tao/\n__pycache__/\n")
+    (project / ".gitignore").write_text(".moru/\n__pycache__/\n")
     subprocess.run(["git", "-C", str(project), "add", ".gitignore"], check=True)
     subprocess.run(["git", "-C", str(project), "-c", "user.name=Test", "-c",
                     "user.email=test@example.invalid", "commit", "-qm", "fixture"], check=True)
@@ -40,7 +40,7 @@ class VerificationHookTests(unittest.TestCase):
         self.project = Path(self.temp.name).resolve()
         _FIXTURE.copy_to(self.project)
         (self.project / "tests").mkdir()
-        self.path = self.project / ".tao" / "preflight.json"
+        self.path = self.project / ".moru" / "preflight.json"
         self.path.parent.mkdir()
         self.session = {"runtime": "codex", "session_id": "fixture"}
         self.preflight = {"project": str(self.project), "rules": str(self.project),

@@ -58,7 +58,7 @@ class RuntimeFixture:
         self.rules.mkdir()
         self.run_id = uuid.uuid4().hex
         self.evidence = (
-            self.project / ".tao" / "runs" / self.run_id / "preflight.json"
+            self.project / ".moru" / "runs" / self.run_id / "preflight.json"
         )
         self.evidence.parent.mkdir(parents=True)
         run = register_run(self.project, self.evidence, ROUTE, INTAKE)
@@ -118,11 +118,11 @@ class RuntimeEvidenceTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = RuntimeFixture(directory)
-            custom = fixture.project / ".tao" / "preflight-hotfix.json"
+            custom = fixture.project / ".moru" / "preflight-hotfix.json"
             custom.write_text("{}", encoding="utf-8")
             spoofed = (
                 fixture.project
-                / ".tao"
+                / ".moru"
                 / "runs"
                 / "not-an-opaque-run"
                 / "preflight.json"
@@ -146,7 +146,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / "project"
             project.mkdir()
-            evidence = project / ".tao" / "preflight-hotfix.json"
+            evidence = project / ".moru" / "preflight-hotfix.json"
             evidence.parent.mkdir()
             register_run(project, evidence, ROUTE, INTAKE)
             evidence.write_text(
@@ -193,7 +193,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / "project"
             project.mkdir()
-            registered = project / ".tao" / "nested" / "preflight-hotfix.json"
+            registered = project / ".moru" / "nested" / "preflight-hotfix.json"
             registered.parent.mkdir(parents=True)
             register_run(project, registered, ROUTE, INTAKE)
             payload = {
@@ -203,7 +203,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
                 }
             }
             registered.write_text(json.dumps(payload), encoding="utf-8")
-            forged = project / ".tao" / registered.name
+            forged = project / ".moru" / registered.name
             forged.write_text(json.dumps(payload), encoding="utf-8")
 
             resolved = resolve_runtime_evidence(
@@ -226,7 +226,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
                 }
             }
             for name in ("preflight-one.json", "preflight-two.json"):
-                evidence = project / ".tao" / name
+                evidence = project / ".moru" / name
                 evidence.parent.mkdir(exist_ok=True)
                 register_run(project, evidence, ROUTE, INTAKE)
                 evidence.write_text(json.dumps(payload), encoding="utf-8")
@@ -247,13 +247,13 @@ class RuntimeEvidenceTests(unittest.TestCase):
             project = Path(directory) / "project"
             project.mkdir()
             session = {"runtime": "claude", "session_id": "walk-session"}
-            evidence = project / ".tao" / "preflight-parent.json"
+            evidence = project / ".moru" / "preflight-parent.json"
             evidence.parent.mkdir()
             register_run(project, evidence, ROUTE, INTAKE)
             evidence.write_text(
                 json.dumps({"runtime_session": session}), encoding="utf-8"
             )
-            unrelated = project / ".tao" / "worktrees" / "stale"
+            unrelated = project / ".moru" / "worktrees" / "stale"
             unrelated.mkdir(parents=True)
 
             with unreadable_directory(self, unrelated):
@@ -272,9 +272,9 @@ class RuntimeEvidenceTests(unittest.TestCase):
             project.mkdir()
             session = {"runtime": "claude", "session_id": "walk-session"}
             payload = json.dumps({"runtime_session": session})
-            visible = project / ".tao" / "preflight-one.json"
+            visible = project / ".moru" / "preflight-one.json"
             visible.parent.mkdir()
-            hidden_root = project / ".tao" / "hidden"
+            hidden_root = project / ".moru" / "hidden"
             hidden_root.mkdir()
             hidden = hidden_root / "preflight-two.json"
             for evidence in (visible, hidden):
@@ -296,15 +296,15 @@ class RuntimeEvidenceTests(unittest.TestCase):
             project.mkdir()
             session = {"runtime": "claude", "session_id": "walk-session"}
             payload = json.dumps({"runtime_session": session})
-            parent = project / ".tao" / "preflight-parent.json"
+            parent = project / ".moru" / "preflight-parent.json"
             worker = (
-                project / ".tao" / "workers" / "0123456789abcdef" / "preflight.json"
+                project / ".moru" / "workers" / "0123456789abcdef" / "preflight.json"
             )
             for evidence in (parent, worker):
                 evidence.parent.mkdir(parents=True, exist_ok=True)
                 register_run(project, evidence, ROUTE, INTAKE)
                 evidence.write_text(payload, encoding="utf-8")
-            unrelated = project / ".tao" / "worktrees" / "stale"
+            unrelated = project / ".moru" / "worktrees" / "stale"
             unrelated.mkdir(parents=True)
 
             with patch.dict(os.environ, {}, clear=True):
@@ -324,9 +324,9 @@ class RuntimeEvidenceTests(unittest.TestCase):
             project.mkdir()
             session = {"runtime": "claude", "session_id": "walk-session"}
             payload = json.dumps({"runtime_session": session})
-            parent = project / ".tao" / "preflight-parent.json"
+            parent = project / ".moru" / "preflight-parent.json"
             worker = (
-                project / ".tao" / "workers" / "0123456789abcdef" / "preflight.json"
+                project / ".moru" / "workers" / "0123456789abcdef" / "preflight.json"
             )
             for evidence in (parent, worker):
                 evidence.parent.mkdir(parents=True, exist_ok=True)
@@ -334,7 +334,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
                 evidence.write_text(payload, encoding="utf-8")
 
             with patch.dict(os.environ, {}, clear=True):
-                with unreadable_directory(self, project / ".tao" / "workers"):
+                with unreadable_directory(self, project / ".moru" / "workers"):
                     self.assertEqual(
                         parent.resolve(),
                         resolve_runtime_evidence(project, session),
@@ -348,10 +348,10 @@ class RuntimeEvidenceTests(unittest.TestCase):
                 "runtime": "claude",
                 "session_id": "shared-session",
             }
-            parent = project / ".tao" / "custom" / "preflight-parent.json"
+            parent = project / ".moru" / "custom" / "preflight-parent.json"
             worker = (
                 project
-                / ".tao"
+                / ".moru"
                 / "workers"
                 / "0123456789abcdef"
                 / "preflight.json"
@@ -390,7 +390,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
                 "runtime": "claude",
                 "session_id": "shared-session",
             }
-            parent = project / ".tao" / "preflight-parent.json"
+            parent = project / ".moru" / "preflight-parent.json"
             parent.parent.mkdir()
             register_run(project, parent, ROUTE, INTAKE)
             parent.write_text(
@@ -398,8 +398,8 @@ class RuntimeEvidenceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             invalid_hints = (
-                project / ".tao" / "workers" / "too" / "deep" / "preflight.json",
-                root / "foreign" / ".tao" / "workers" / "one" / "preflight.json",
+                project / ".moru" / "workers" / "too" / "deep" / "preflight.json",
+                root / "foreign" / ".moru" / "workers" / "one" / "preflight.json",
             )
 
             for hint in invalid_hints:
@@ -424,7 +424,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
             for index in range(3):
                 evidence = (
                     project
-                    / ".tao"
+                    / ".moru"
                     / f"nested-{index}"
                     / f"preflight-{index}.json"
                 )
@@ -512,7 +512,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
 
             self.assertEqual(first, second)
             self.assertEqual("preflight.json", first.name)
-            self.assertEqual(project / ".tao" / "runs", first.parent.parent)
+            self.assertEqual(project / ".moru" / "runs", first.parent.parent)
             self.assertEqual(32, len(first.parent.name))
 
     def test_generic_start_without_explicit_evidence_is_run_local(self) -> None:
@@ -527,7 +527,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
 
             self.assertEqual(first, second)
             self.assertEqual("preflight.json", first.name)
-            self.assertEqual(project / ".tao" / "runs", first.parent.parent)
+            self.assertEqual(project / ".moru" / "runs", first.parent.parent)
             self.assertEqual(32, len(first.parent.name))
 
     def test_start_identity_is_independent_of_request_words_and_route(self):
@@ -564,7 +564,7 @@ class SupersededSessionRunTests(unittest.TestCase):
     @staticmethod
     def _extra_run(fixture: RuntimeFixture, *, session_id: str) -> str:
         run_id = uuid.uuid4().hex
-        evidence = fixture.project / ".tao" / "runs" / run_id / "preflight.json"
+        evidence = fixture.project / ".moru" / "runs" / run_id / "preflight.json"
         evidence.parent.mkdir(parents=True)
         register_run(fixture.project, evidence, ROUTE, INTAKE)
         preflight = dict(fixture.preflight)
@@ -603,7 +603,7 @@ class SupersededSessionRunTests(unittest.TestCase):
             self.assertEqual("cancelled", self._states(fixture.project)[fixture.run_id])
             self.assertEqual(
                 (
-                    fixture.project / ".tao" / "runs" / kept / "preflight.json"
+                    fixture.project / ".moru" / "runs" / kept / "preflight.json"
                 ).resolve(),
                 resolve_runtime_evidence(fixture.project, session),
             )
@@ -623,7 +623,7 @@ class SupersededSessionRunTests(unittest.TestCase):
                     fixture.project, keep_run_id=kept)
             self.assertEqual([], settled)
             self.assertEqual("running", self._states(fixture.project)[fixture.run_id])
-            own_path = fixture.project / ".tao/runs" / kept / "preflight.json"
+            own_path = fixture.project / ".moru/runs" / kept / "preflight.json"
             self.assertEqual(own_path.resolve(), resolve_runtime_evidence(fixture.project, session))
             self.assertEqual(own_path.resolve(), resolve_runtime_evidence(
                 fixture.project, session, agent_run_registry.TRANSFER_CANCELLABLE_RUN_STATES))
@@ -676,7 +676,7 @@ class SupersededSessionRunTests(unittest.TestCase):
             second = self._extra_run(fixture, session_id="second")
             paths = {
                 "first": fixture.evidence,
-                "second": fixture.project / ".tao" / "runs" / second / "preflight.json",
+                "second": fixture.project / ".moru" / "runs" / second / "preflight.json",
             }
             for name in ("first", "second", "first", "second"):
                 self.assertEqual(paths[name].resolve(), resolve_runtime_evidence(
@@ -740,7 +740,7 @@ class SupersededSessionRunTests(unittest.TestCase):
             with self.subTest(keeps_work=keeps_work), tempfile.TemporaryDirectory() as directory:
                 main = RuntimeFixture(str(Path(directory) / "main"), session_id="claude-session")
                 linked = RuntimeFixture(str(Path(directory) / "linked"), session_id="claude-session")
-                marker = main.project / ".tao" / "claude-pretool-gate" / "claude-session.settled"
+                marker = main.project / ".moru" / "claude-pretool-gate" / "claude-session.settled"
                 with (
                     patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "claude-session"}, clear=True),
                     patch.object(agent_runtime_session, "checkouts_with_run_state", return_value=[main.project]),
@@ -756,7 +756,7 @@ class SupersededSessionRunTests(unittest.TestCase):
                 self.assertEqual("cancelled", self._states(main.project)[main.run_id])
                 self.assertEqual(not keeps_work, marker.exists())
                 # The checkout that keeps the new run is never marked closed by its own start.
-                self.assertFalse((linked.project / ".tao" / "claude-pretool-gate" / "claude-session.settled").exists())
+                self.assertFalse((linked.project / ".moru" / "claude-pretool-gate" / "claude-session.settled").exists())
 
     def test_worker_start_settles_nothing(self) -> None:
         """A worker's claim runs alongside its parent's, so neither cancels it."""

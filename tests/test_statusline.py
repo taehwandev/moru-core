@@ -40,12 +40,12 @@ HOME = Path("/home/someone")
 
 
 def _project(root: Path) -> Path:
-    (root / ".tao" / "evidence").mkdir(parents=True)
+    (root / ".moru" / "evidence").mkdir(parents=True)
     return root
 
 
 def _open_run(project: Path, *, command: str, evidence_name: str) -> None:
-    (project / ".tao" / "run-registry.json").write_text(
+    (project / ".moru" / "run-registry.json").write_text(
         json.dumps({
             "schema_version": 1,
             "runs": [{
@@ -61,9 +61,9 @@ def _open_run(project: Path, *, command: str, evidence_name: str) -> None:
 
 
 def _ledger(project: Path, *, evidence_name: str, gates: list[str], recorded: list[str]) -> None:
-    evidence = project / ".tao" / "evidence" / evidence_name
+    evidence = project / ".moru" / "evidence" / evidence_name
     evidence.write_text(json.dumps({"route": {"gates": gates}}), encoding="utf-8")
-    ledger = project / ".tao" / "evidence" / f"{Path(evidence_name).stem}-gate-evidence.json"
+    ledger = project / ".moru" / "evidence" / f"{Path(evidence_name).stem}-gate-evidence.json"
     ledger.write_text(
         json.dumps({
             "preflight_evidence": str(evidence),
@@ -197,7 +197,7 @@ class WorkingPathTests(unittest.TestCase):
     def test_the_middle_gives_way_and_both_names_survive(self) -> None:
         # The project and the leaf are what answer "where am I". What sits
         # between them is boilerplate: every task worktree lives under the same
-        # `.tao/worktrees`.
+        # `.moru/worktrees`.
         self.assertEqual(
             "~/git/tao-agent-os/…/gauge",
             shorten_path("/home/someone/git/tao-agent-os/.tao/worktrees/gauge", HOME),
@@ -256,7 +256,7 @@ class CurrentWorkTests(unittest.TestCase):
             project = _project(Path(tmp))
             _open_run(project, command="task", evidence_name="statusline.json")
             _ledger(project, evidence_name="statusline.json", gates=["a", "b"], recorded=["a"])
-            (project / ".tao").rename(project / ".moru")
+            (project / ".moru").rename(project / ".moru")
             (project / ".moru" / "state-ready").write_text("ready\n")
 
             self.assertEqual("task 1/2", work_segment({"cwd": str(project / "src")}))
@@ -275,7 +275,7 @@ class CurrentWorkTests(unittest.TestCase):
         # draws where it names something real.
         with tempfile.TemporaryDirectory() as tmp:
             project = _project(Path(tmp))
-            (project / ".tao" / "run-registry.json").write_text(
+            (project / ".moru" / "run-registry.json").write_text(
                 json.dumps({"runs": [{"command": "task", "state": "completed"}]}),
                 encoding="utf-8",
             )
@@ -283,15 +283,15 @@ class CurrentWorkTests(unittest.TestCase):
             self.assertEqual("", work_segment({"cwd": str(project)}))
 
     def test_a_ledger_belonging_to_another_run_is_not_counted(self) -> None:
-        # `.tao/gate-evidence.json` is tracked, so a fresh worktree starts life
+        # `.moru/gate-evidence.json` is tracked, so a fresh worktree starts life
         # holding a finished run's ledger. Without the binding check a new run
         # would report that run's progress as its own.
         with tempfile.TemporaryDirectory() as tmp:
             project = _project(Path(tmp))
             _open_run(project, command="task", evidence_name="mine.json")
-            (project / ".tao" / "evidence" / "mine-gate-evidence.json").write_text(
+            (project / ".moru" / "evidence" / "mine-gate-evidence.json").write_text(
                 json.dumps({
-                    "preflight_evidence": str(project / ".tao" / "evidence" / "other.json"),
+                    "preflight_evidence": str(project / ".moru" / "evidence" / "other.json"),
                     "entries": [{"gate": g, "status": "SUCCESS"} for g in "abcdefg"],
                 }),
                 encoding="utf-8",
@@ -303,9 +303,9 @@ class CurrentWorkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             project = _project(Path(tmp))
             _open_run(project, command="task", evidence_name="statusline.json")
-            evidence = project / ".tao" / "evidence" / "statusline.json"
+            evidence = project / ".moru" / "evidence" / "statusline.json"
             evidence.write_text(json.dumps({"route": {"gates": ["a", "b"]}}), encoding="utf-8")
-            (project / ".tao" / "evidence" / "statusline-gate-evidence.json").write_text(
+            (project / ".moru" / "evidence" / "statusline-gate-evidence.json").write_text(
                 json.dumps({
                     "preflight_evidence": str(evidence),
                     "entries": [
@@ -332,7 +332,7 @@ class CurrentWorkTests(unittest.TestCase):
     def test_an_unreadable_registry_leaves_the_line_short(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = _project(Path(tmp))
-            (project / ".tao" / "run-registry.json").write_text("{ not json", encoding="utf-8")
+            (project / ".moru" / "run-registry.json").write_text("{ not json", encoding="utf-8")
 
             self.assertIsNone(open_run(project))
 

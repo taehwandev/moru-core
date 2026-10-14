@@ -200,7 +200,7 @@ class TransferredRunCancellationTests(unittest.TestCase):
             unrelated = fixture.root / "unrelated"
             unrelated.mkdir()
             fixture.git("init", str(unrelated), cwd=fixture.root)
-            (unrelated / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+            (unrelated / ".gitignore").write_text(".moru/\n", encoding="utf-8")
             fixture.git("config", "user.email", "test@example.com", cwd=unrelated)
             fixture.git("config", "user.name", "Test User", cwd=unrelated)
             fixture.git("add", ".gitignore", cwd=unrelated)
@@ -673,7 +673,7 @@ class NoChangeCancellationTests(unittest.TestCase):
                 original = transfer_cancel.cancel_run
 
                 def change_then_cancel(*args, **kwargs):
-                    path = fixture.source / ".tao/run-registry.json"
+                    path = fixture.source / ".moru/run-registry.json"
                     payload = json.loads(path.read_text())
                     run = next(item for item in payload["runs"]
                                if item["run_id"] == kwargs["run_id"])
@@ -984,7 +984,7 @@ class TransferFixture:
         self.git("config", "user.email", "test@example.com", cwd=self.source)
         self.git("config", "user.name", "Test User", cwd=self.source)
         (self.source / "tracked.txt").write_text("base\n", encoding="utf-8")
-        (self.source / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (self.source / ".gitignore").write_text(".moru/\n", encoding="utf-8")
         self.git("add", "tracked.txt", ".gitignore", cwd=self.source)
         self.git("commit", "-m", "base", cwd=self.source)
         self.git(
@@ -1087,7 +1087,7 @@ class TransferFixture:
 
     @staticmethod
     def evidence(project: Path) -> Path:
-        path = project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
+        path = project / ".moru" / "runs" / ("a" * 32) / "preflight.json"
         path.parent.mkdir(parents=True)
         return path
 
@@ -1136,14 +1136,14 @@ class TransferFixture:
 
         if token is None:
             token = _process_start_token(pid) if pid == 1 else "gone"
-        registry = self.source / ".tao" / "run-registry.json"
+        registry = self.source / ".moru" / "run-registry.json"
         payload = json.loads(registry.read_text(encoding="utf-8"))
         for run in payload["runs"]:
             run["owner"] = {"pid": pid, "start_token": token}
         registry.write_text(json.dumps(payload), encoding="utf-8")
 
     def set_source_state(self, state: str) -> None:
-        registry = self.source / ".tao" / "run-registry.json"
+        registry = self.source / ".moru" / "run-registry.json"
         payload = json.loads(registry.read_text(encoding="utf-8"))
         for run in payload["runs"]:
             run["state"] = state
@@ -1153,7 +1153,7 @@ class TransferFixture:
         """Backdate every activity signal of the source run."""
 
         stamp = time.time() - seconds
-        registry = self.source / ".tao" / "run-registry.json"
+        registry = self.source / ".moru" / "run-registry.json"
         payload = json.loads(registry.read_text(encoding="utf-8"))
         for run in payload["runs"]:
             run["updated_at"] = datetime.fromtimestamp(stamp, timezone.utc).isoformat()

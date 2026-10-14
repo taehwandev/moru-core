@@ -110,7 +110,7 @@ class AgentFinishSkillFollowupTests(unittest.TestCase):
             root = Path(directory)
             project = root / "project"
             project.mkdir()
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             preflight = {
                 "agent_run_id": "current-run",
@@ -124,7 +124,7 @@ class AgentFinishSkillFollowupTests(unittest.TestCase):
                 project=project,
                 rules=project,
                 evidence=evidence,
-                output=project / ".tao" / "finish.json",
+                output=project / ".moru" / "finish.json",
                 allow_vibeguard_review=None,
             )
             stderr = io.StringIO()

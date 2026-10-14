@@ -25,7 +25,7 @@ class WorktreeIdentityTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.project = Path(self.temporary_directory.name) / "project"
         self.project.mkdir()
-        (self.project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (self.project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
         (self.project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
         for args in (
             ("init", "-q"),
@@ -84,7 +84,7 @@ class WorktreeIdentityTests(unittest.TestCase):
 
     def test_rejects_symlinked_worker_root(self) -> None:
         with tempfile.TemporaryDirectory() as outside_dir:
-            tao_dir = self.project / ".tao"
+            tao_dir = self.project / ".moru"
             tao_dir.mkdir()
             (tao_dir / "worktrees").symlink_to(
                 Path(outside_dir),

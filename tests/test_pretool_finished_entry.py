@@ -39,7 +39,7 @@ class FinishedEntryRefusalTests(unittest.TestCase):
         payload["runtime_session"]["runtime"] = "codex"
         self.evidence.write_text(json.dumps(payload))
         self.assertTrue(PublicationAdmission.record_finish(self.project, self.evidence))
-        self.paused = self.project / ".tao" / "old-paused" / "preflight.json"
+        self.paused = self.project / ".moru" / "old-paused" / "preflight.json"
         self.paused.parent.mkdir()
         self.paused.write_text("{}")
         earlier = time.time() - 300

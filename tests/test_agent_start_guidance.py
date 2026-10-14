@@ -52,7 +52,7 @@ class StartOutputEndToEnd(unittest.TestCase):
         self.project = base / "project"
         (self.project / "src").mkdir(parents=True)
         (self.project / "src" / "module.py").write_text("value = 1\n")
-        (self.project / ".gitignore").write_text(".tao/\n")
+        (self.project / ".gitignore").write_text(".moru/\n")
         _git(self.project, "init", "-q")
         _git(self.project, "config", "user.email", "guidance@example.invalid")
         _git(self.project, "config", "user.name", "Guidance")
@@ -85,7 +85,7 @@ class StartOutputEndToEnd(unittest.TestCase):
                                               f"- Route: {command} gates="]:
                 self.assertIn(paragraph, output)
             self.assertNotIn("static paragraphs omitted", output)
-        self.assertFalse((self.project / ".tao/start-guidance-shown.json").exists())
+        self.assertFalse((self.project / ".moru/start-guidance-shown.json").exists())
 
     def test_bugfix_route(self) -> None:
         self.check_route("bugfix", ["Closeout reuse:"])

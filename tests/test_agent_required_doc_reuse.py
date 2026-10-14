@@ -28,7 +28,7 @@ class RequiredDocReuseTests(unittest.TestCase):
         takeaway: str = "prior run applied the operating contract",
         migrated: bool = False,
     ) -> Path:
-        tao = root / (".moru" if migrated else ".tao")
+        tao = root / (".moru" if migrated else ".moru")
         if migrated:
             tao.mkdir()
             (tao / "state-ready").touch()
@@ -139,7 +139,7 @@ class RequiredDocReuseTests(unittest.TestCase):
                 payload = json.loads(current.read_text())
                 payload['route']['required_docs'] = payload['route']['required_docs'][:1]
                 current.write_text(json.dumps(payload))
-                registry = root / '.tao/run-registry.json'
+                registry = root / '.moru/run-registry.json'
                 records = json.loads(registry.read_text())
                 recent = records['runs'][0]
                 records['runs'] = [
@@ -147,7 +147,7 @@ class RequiredDocReuseTests(unittest.TestCase):
                     for index in range(count - 1)
                 ] + [recent]
                 for record in records['runs'][:-1]:
-                    historical = root / '.tao/runs' / record['run_id'] / 'preflight.json'
+                    historical = root / '.moru/runs' / record['run_id'] / 'preflight.json'
                     historical.parent.mkdir()
                     historical.write_text(json.dumps({**payload, 'agent_run_id': record['run_id']}))
                 registry.write_text(json.dumps(records))
@@ -160,7 +160,7 @@ class RequiredDocReuseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             current = self._fixture(root)
-            registry = root / '.tao/run-registry.json'
+            registry = root / '.moru/run-registry.json'
             registry.write_text(json.dumps({'runs': [
                 {'run_id': f'{index:032x}', 'state': 'completed'} for index in range(150)
             ]}))
@@ -192,7 +192,7 @@ class RequiredDocReuseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             current = self._fixture(root, takeaway="")
-            ledger = root / ".tao/runs" / ("a" * 32) / "gate-evidence.json"
+            ledger = root / ".moru/runs" / ("a" * 32) / "gate-evidence.json"
             ledger.write_text(json.dumps({"entries": [
                 {"gate": "source docs", "status": "SUCCESS",
                  "fields": {"takeaway": "stage before review;\n  one lifecycle per task"}},
@@ -210,7 +210,7 @@ class RequiredDocReuseTests(unittest.TestCase):
             with self.subTest(entries=entries), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 current = self._fixture(root, takeaway="")
-                ledger = root / ".tao/runs" / ("a" * 32) / "gate-evidence.json"
+                ledger = root / ".moru/runs" / ("a" * 32) / "gate-evidence.json"
                 ledger.write_text(json.dumps({"entries": entries}))
                 reuse = required_doc_reuse(current)
                 self.assertEqual([], reuse["reused"])
@@ -233,13 +233,13 @@ class RequiredDocReuseTests(unittest.TestCase):
             runs = []
             for index, doc in enumerate(docs):
                 run_id = f"{index + 1:032x}"
-                prior = root / ".tao/runs" / run_id / "preflight.json"
+                prior = root / ".moru/runs" / run_id / "preflight.json"
                 prior.parent.mkdir(parents=True)
                 prior.write_text(json.dumps({**payload, "agent_run_id": run_id,
                                              "execution_snapshot": {"required_docs": [doc]}}))
                 record_doc_takeaway(prior, f"takeaway {index}")
                 runs.append({"run_id": run_id, "state": "completed"})
-            (root / ".tao/run-registry.json").write_text(json.dumps({"runs": runs}))
+            (root / ".moru/run-registry.json").write_text(json.dumps({"runs": runs}))
 
             reuse = required_doc_reuse(current)
 
@@ -264,7 +264,7 @@ class RequiredDocReuseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             current = self._fixture(root, takeaway="")
-            prior = root / ".tao/runs" / ("a" * 32) / "preflight.json"
+            prior = root / ".moru/runs" / ("a" * 32) / "preflight.json"
             for path in (prior, current):
                 payload = json.loads(path.read_text())
                 payload["project_route_docs"] = [document]
@@ -283,7 +283,7 @@ class RequiredDocReuseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             current = self._fixture(root)
-            prior = root / ".tao/runs" / ("a" * 32) / "preflight.json"
+            prior = root / ".moru/runs" / ("a" * 32) / "preflight.json"
             prior_payload = json.loads(prior.read_text())
             prior_payload["project_route_docs"] = [document, {**changed, "sha256": "0" * 64}]
             prior.write_text(json.dumps(prior_payload))
@@ -305,7 +305,7 @@ class RequiredDocReuseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             current = self._fixture(root, takeaway="")
-            prior = root / ".tao/runs" / ("a" * 32) / "preflight.json"
+            prior = root / ".moru/runs" / ("a" * 32) / "preflight.json"
             for path in (prior, current):
                 payload = json.loads(path.read_text())
                 payload["project_route_docs"] = [document]
@@ -339,7 +339,7 @@ class ReuseAcrossRunsTests(unittest.TestCase):
     DOC_B = "workflows/skills/review-and-commit/SKILL.md"
 
     def _run(self, root: Path, run_id: str, docs: list[str], takeaway: str = "") -> Path:
-        path = root / ".tao" / "runs" / run_id / "preflight.json"
+        path = root / ".moru" / "runs" / run_id / "preflight.json"
         path.parent.mkdir(parents=True)
         records = [{"path": doc, "sha256": "a" * 64, "size_bytes": 10} for doc in docs]
         path.write_text(json.dumps({
@@ -352,7 +352,7 @@ class ReuseAcrossRunsTests(unittest.TestCase):
         return path
 
     def _registry(self, root: Path, run_ids: list[str]) -> None:
-        (root / ".tao" / "run-registry.json").write_text(json.dumps({"runs": [
+        (root / ".moru" / "run-registry.json").write_text(json.dumps({"runs": [
             {"run_id": run_id, "state": "completed", "evidence_name": "preflight.json"}
             for run_id in run_ids]}), encoding="utf-8")
 

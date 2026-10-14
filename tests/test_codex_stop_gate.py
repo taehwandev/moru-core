@@ -33,7 +33,7 @@ def _decide(payload: dict) -> tuple[int, str]:
 
 def _project(base: Path) -> Path:
     project = base / "project"
-    (project / ".tao").mkdir(parents=True)
+    (project / ".moru").mkdir(parents=True)
     (project / "AGENTS.md").write_text("uses tao\n", encoding="utf-8")
     return project
 
@@ -52,7 +52,7 @@ class CodexStopGateTests(unittest.TestCase):
     def test_active_exact_session_is_continued_for_closeout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = _project(Path(directory))
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             with patch.object(gate, "resolve_runtime_evidence", return_value=evidence):
                 code, output = _decide(
                     {"cwd": str(project), "session_id": "codex-session"}
@@ -69,7 +69,7 @@ class CodexStopGateTests(unittest.TestCase):
     def test_closeout_prompt_does_not_revive_a_superseded_cancelled_run(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = _project(Path(directory))
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.write_text(
                 json.dumps({"rules": str(project)}),
                 encoding="utf-8",
@@ -83,7 +83,7 @@ class CodexStopGateTests(unittest.TestCase):
     def test_real_active_run_resolves_only_its_bound_codex_session(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = _project(Path(directory))
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             register_run(
                 project,
                 evidence,
@@ -128,7 +128,7 @@ class CodexStopGateTests(unittest.TestCase):
     def test_repeated_unresolved_stop_fails_closed_without_looping(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = _project(Path(directory))
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             with patch.object(gate, "resolve_runtime_evidence", return_value=evidence):
                 code, output = _decide(
                     {

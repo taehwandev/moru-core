@@ -9,6 +9,9 @@ import tempfile
 from pathlib import Path
 from typing import List, Union
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from support.global_state import project_state_dir_target  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -46,7 +49,7 @@ def test_start_hook(temp_dir: str) -> None:
 
     # Start now claims a run-scoped evidence path; the legacy flat path remains
     # valid for direct preflight callers, so accept either location.
-    state_dir = Path(temp_dir) / ".tao"
+    state_dir = project_state_dir_target(Path(temp_dir))
     candidates = [state_dir / "preflight.json", *state_dir.glob("runs/*/preflight.json")]
     assert any(path.exists() for path in candidates), "preflight.json was not created!"
     print("SUCCESS: preflight.json exists.")
@@ -122,7 +125,7 @@ def test_gate_validation_success(temp_dir: str) -> None:
         }
         for data in gates_data
     ]
-    batch = Path(temp_dir) / ".tao" / "smoke-gates.json"
+    batch = project_state_dir_target(Path(temp_dir)) / "smoke-gates.json"
     batch.write_text(json.dumps(records), encoding="utf-8")
     result = run_command(
         [

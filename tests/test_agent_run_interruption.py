@@ -41,7 +41,7 @@ class Run:
         if version is not None:
             self.route['lifecycle_version'] = version
         self.intake = {'request': 'bounded local work', 'request_classified': False}
-        self.evidence = self.project / '.tao' / 'runs' / uuid.uuid4().hex / 'preflight.json'
+        self.evidence = self.project / '.moru' / 'runs' / uuid.uuid4().hex / 'preflight.json'
         self.evidence.parent.mkdir(parents=True)
         self.run = register_run(self.project, self.evidence, self.route, self.intake)
         self.session = {'runtime': runtime, 'session_id': 'bound-session'}
@@ -121,7 +121,7 @@ class RunInterruptionTests(unittest.TestCase):
             packet = json.loads(continuation_path(run.project, run.run['run_id']).read_text())
             self.assertIsNone(packet['checkpoint']['mutation_pending'])
             self.assertEqual([], packet['work']['verification'])
-            self.assertFalse(list((run.project / '.tao').rglob('finish.json')))
+            self.assertFalse(list((run.project / '.moru').rglob('finish.json')))
 
     def test_reconcile_requires_own_session_and_empty_verification(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -164,8 +164,8 @@ class RunInterruptionTests(unittest.TestCase):
                 self.assertEqual('', output.getvalue())
                 self.assertEqual('interrupted', run.state())
                 self.assertEqual([], active_runs(run.project))
-                self.assertFalse(list((run.project / '.tao').rglob('finish.json')))
-                self.assertFalse(list((run.project / '.tao').rglob('*.finished')))
+                self.assertFalse(list((run.project / '.moru').rglob('finish.json')))
+                self.assertFalse(list((run.project / '.moru').rglob('*.finished')))
 
     def test_stop_retains_authorized_work_that_records_no_action(self):
         # No recorded action is indistinguishable from a legitimate wait on a
@@ -188,7 +188,7 @@ class RunInterruptionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             self.assertFalse(boundary.record_turn_boundary(project, 'claude', 'session'))
-            self.assertFalse((project / '.tao').exists())
+            self.assertFalse((project / '.moru').exists())
 
     def test_foreign_session_and_unknown_versions_do_not_write(self):
         for version in [None, 1, 99, '2', True]:
@@ -245,7 +245,7 @@ class RunInterruptionTests(unittest.TestCase):
             self.assertEqual('ready', result['result'])
             self.assertEqual('blocked', result['packet']['phase'])
             self.assertEqual(['external outcome unresolved'], result['packet']['work']['blockers'])
-            self.assertFalse(list((run.project / '.tao').rglob('finish.json')))
+            self.assertFalse(list((run.project / '.moru').rglob('finish.json')))
 
     def test_stopped_session_cannot_bypass_a_foreign_owner(self):
         with tempfile.TemporaryDirectory() as directory:

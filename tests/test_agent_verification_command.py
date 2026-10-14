@@ -10,12 +10,12 @@ class VerificationTargetTests(unittest.TestCase):
     def test_nested_project_change_is_checked_in_its_own_repository(self):
         with tempfile.TemporaryDirectory() as directory:
             rules = Path(directory).resolve()
-            project = rules / '.tao' / 'worktrees' / 'task'
+            project = rules / '.moru' / 'worktrees' / 'task'
             project.mkdir(parents=True)
             git = fixture.GateEvidenceReuseTests.git
             for root in (rules, project):
                 git(root, 'init', '-q')
-                (root / '.gitignore').write_text('.tao/\n')
+                (root / '.gitignore').write_text('.moru/\n')
             target = project / 'owner.py'
             target.write_text('VALUE = 1\n')
             resolved = resolve_verification_target(project, rules, 'owner.py')

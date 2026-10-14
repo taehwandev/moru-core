@@ -29,7 +29,7 @@ class LiveCodexWorktreeEndToEndTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir) / "project"
             project.mkdir()
-            (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+            (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
             (project / "tracked.txt").write_text("tracked\n", encoding="utf-8")
             policy = project / ".codex" / "config.toml"
             policy.parent.mkdir()
@@ -100,7 +100,7 @@ class LiveCodexWorktreeEndToEndTests(unittest.TestCase):
                 return argv
 
             reusable_capsule = {
-                "path": str(project / ".tao" / "execution-capsule.json"),
+                "path": str(project / ".moru" / "execution-capsule.json"),
                 "reusable": True,
                 "invalidation_reasons": [],
                 "phase": "ready",
@@ -122,7 +122,7 @@ class LiveCodexWorktreeEndToEndTests(unittest.TestCase):
                 "authoring_policy": "authoring allowed",
                 "handoff_state": {
                     "rules": str(ROOT),
-                    "preflight_evidence": str(project / ".tao" / "preflight.json"),
+                    "preflight_evidence": str(project / ".moru" / "preflight.json"),
                     "route_manifest": {"required_docs": [], "gates": []},
                     "parent_context_reusable": True,
                     "execution_capsule": reusable_capsule,
@@ -133,7 +133,7 @@ class LiveCodexWorktreeEndToEndTests(unittest.TestCase):
                 runner=None,
                 execution_capsule_state=lambda *_args, **_kwargs: reusable_capsule,
                 isolated_worker_evidence=lambda *_args, **_kwargs: (
-                    project / ".tao" / "workers" / "unused" / "preflight.json"
+                    project / ".moru" / "workers" / "unused" / "preflight.json"
                 ),
                 codex_argv=production_argv,
                 build_handoff_prompt=lambda *_args, **_kwargs: (
@@ -192,7 +192,7 @@ class LiveCodexWorktreeEndToEndTests(unittest.TestCase):
                     stdout=subprocess.PIPE,
                 ).stdout,
             )
-            self.assertFalse((project / ".tao" / "worktrees").exists())
+            self.assertFalse((project / ".moru" / "worktrees").exists())
             self.assertEqual(
                 "isolated by codex\n",
                 (project / "live-worker-output.txt").read_text(encoding="utf-8"),
@@ -209,8 +209,8 @@ class CodexArgvTrustBoundaryTests(unittest.TestCase):
                 profile,
                 "workspace-write",
                 "bounded worker prompt",
-                ROOT / ".tao" / "worktrees" / ("a" * 16),
-                trusted_worktree=ROOT / ".tao" / "worktrees" / ("b" * 16),
+                ROOT / ".moru" / "worktrees" / ("a" * 16),
+                trusted_worktree=ROOT / ".moru" / "worktrees" / ("b" * 16),
             )
 
 

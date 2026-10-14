@@ -169,7 +169,7 @@ class VibeguardCacheTests(unittest.TestCase):
                     )
 
                 self.assertFalse(audit()["cached"])
-                cache_path = project / ".tao" / "vibeguard-cache.json"
+                cache_path = project / ".moru" / "vibeguard-cache.json"
                 self.assertFalse(cache_path.exists())
                 verdict = "Ready"
                 self.assertFalse(audit()["cached"])
@@ -721,7 +721,7 @@ class VibeguardCacheTests(unittest.TestCase):
                 vibeguard_command=command,
                 parse_overall=parse,
             )
-            cache_path = project / ".tao" / "vibeguard-cache.json"
+            cache_path = project / ".moru" / "vibeguard-cache.json"
             payload = json.loads(cache_path.read_text(encoding="utf-8"))
             payload["result"]["returncode"] = 1
             payload["result"]["stderr"] = "old failure"

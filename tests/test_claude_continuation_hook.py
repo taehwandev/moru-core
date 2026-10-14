@@ -72,7 +72,7 @@ def _second_session_run(
     """
 
     run_id = uuid.uuid4().hex
-    evidence = fixture.project / ".tao" / "runs" / run_id / "preflight.json"
+    evidence = fixture.project / ".moru" / "runs" / run_id / "preflight.json"
     evidence.parent.mkdir(parents=True)
     if register_run(fixture.project, evidence, ROUTE, INTAKE)["run_id"] != run_id:
         raise AssertionError("fixture run id was not adopted")
@@ -114,7 +114,7 @@ class ClaudeMutationAdapterTests(unittest.TestCase):
             target = project / "src" / "module.py"
             target.parent.mkdir(parents=True)
             target.write_text("value = 1\n", encoding="utf-8")
-            evidence = project / ".tao" / "custom" / "preflight-hotfix.json"
+            evidence = project / ".moru" / "custom" / "preflight-hotfix.json"
             evidence.parent.mkdir(parents=True)
             route = {"command": "task", "gates": [], "required_docs": []}
             intake = {"request": "custom evidence test"}
@@ -291,7 +291,7 @@ class ClaudeSessionResumeTests(unittest.TestCase):
             self.assertEqual(
                 0,
                 json.loads(
-                    (mine.project / ".tao" / "runs" / other / "continuation.json").read_text(
+                    (mine.project / ".moru" / "runs" / other / "continuation.json").read_text(
                         encoding="utf-8"
                     )
                 )["generation"],

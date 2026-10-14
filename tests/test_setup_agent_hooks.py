@@ -83,7 +83,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             config = (home / ".codex" / "config.toml").read_text()
 
         self.assertIn(
-            f'"{(project / ".tao" / "worktrees").resolve()}" = true',
+            f'"{(project / ".moru" / "worktrees").resolve()}" = true',
             config,
         )
         self.assertFalse((project / ".claude" / "settings.json").exists())
@@ -396,7 +396,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 guide.write_text("# Project guide\n", encoding="utf-8")
             managed = (
                 "# tao-graphify-inputs:start\n"
-                ".tao/\n.agents/\n.agents/local/\ngraphify-out/\n"
+                ".moru/\n.agents/\n.agents/local/\ngraphify-out/\n"
                 "# tao-graphify-inputs:end\n"
             )
             (project / ".graphifyignore").write_text(managed, encoding="utf-8")
@@ -434,7 +434,7 @@ class SetupAgentHooksTests(unittest.TestCase):
         self.assertTrue(after["graph_input_policy_ready"])
         self.assertTrue(after["knowledge_manifest_ready"])
         self.assertNotIn("\n.agents/\n", policy)
-        self.assertIn(".tao/", policy)
+        self.assertIn(".moru/", policy)
         self.assertIn(".agents/local/", policy)
         self.assertIn("graphify-out/", policy)
 
@@ -532,7 +532,7 @@ class SetupAgentHooksTests(unittest.TestCase):
         self.assertNotIn("\n.codex/\n", content)
         self.assertIn("\n.claude/\n", content)
         self.assertIn(".codex/**", content)
-        self.assertIn(".tao/", content)
+        self.assertIn(".moru/", content)
         self.assertIn(".agents/local/", content)
         self.assertIn("graphify-out/", content)
         # Graphify no longer owns the project .gitignore.
@@ -592,7 +592,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             adapter = project / ".agents" / "rules" / "graphify.md"
             adapter.parent.mkdir(parents=True)
             adapter.write_text("# legacy adapter\n", encoding="utf-8")
-            nested_evidence = project / "scripts" / ".tao" / "preflight.json"
+            nested_evidence = project / "scripts" / ".moru" / "preflight.json"
             nested_evidence.parent.mkdir(parents=True)
             nested_evidence.write_text('{"runtime": true}', encoding="utf-8")
 

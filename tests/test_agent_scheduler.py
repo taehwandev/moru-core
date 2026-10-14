@@ -67,7 +67,7 @@ class AgentSchedulerTests(unittest.TestCase):
             queued = enqueue_task(project, "run-queued", max_retries=1)
             running = enqueue_task(project, "run-running", max_retries=1)
             claim_task(project, running["task_id"])
-            scheduler = project / ".tao" / "scheduler.json"
+            scheduler = project / ".moru" / "scheduler.json"
             payload = json.loads(scheduler.read_text())
             old = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
             for task in payload["tasks"]:

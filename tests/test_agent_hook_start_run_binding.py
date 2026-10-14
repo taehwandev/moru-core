@@ -115,7 +115,7 @@ class StartRunBindingTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "docs"},
                 {"request": "an earlier, unrelated request", "request_classified": False},
             )
@@ -141,7 +141,7 @@ class StartRunBindingTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "docs"},
                 {"request": "an interrupted earlier request", "request_classified": False},
             )
@@ -166,7 +166,7 @@ class StartRunBindingTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "docs"},
                 {"request": "a concurrent live request", "request_classified": False},
             )
@@ -184,7 +184,7 @@ class StartRunBindingTests(unittest.TestCase):
             project = Path(directory)
             register_run(
                 project,
-                project / ".tao" / "runs" / "other" / "preflight.json",
+                project / ".moru" / "runs" / "other" / "preflight.json",
                 {"command": "review"},
                 {"request": "another agent's isolated run", "request_classified": False},
             )
@@ -199,7 +199,7 @@ class StartRunBindingTests(unittest.TestCase):
     def test_failed_same_request_refresh_restores_existing_preflight_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "preflight.json"
+            evidence = project / ".moru" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             original = b'{"agent_run_id":"existing","route":{"command":"bugfix"}}\n'
             evidence.write_bytes(original)
@@ -308,7 +308,7 @@ class ConcurrentStartClaimTests(unittest.TestCase):
             request = "same successive request"
             claimed = claim_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "bugfix"},
                 {
                     "request": request,
@@ -427,7 +427,7 @@ with patch.object(module, "run_script_main", side_effect=block_after_claim):
 
             retry = claim_run(
                 project,
-                project / ".tao" / "preflight.json",
+                project / ".moru" / "preflight.json",
                 {"command": "bugfix"},
                 {"request": "repair interrupted start", "request_classified": True},
             )

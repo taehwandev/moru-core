@@ -47,7 +47,7 @@ class UnbindableRunDirectoryTests(unittest.TestCase):
     45 of 48 local run directories had readable names, so every one of those
     runs recorded no checkpoint and none could be resumed. The lifecycle said
     so on each hook, after the choice could no longer be undone, in a sentence
-    that named the wrong cause: the evidence *was* a `.tao/runs/<name>/`
+    that named the wrong cause: the evidence *was* a `.moru/runs/<name>/`
     preflight path -- the name simply was not opaque.
     """
 
@@ -57,7 +57,7 @@ class UnbindableRunDirectoryTests(unittest.TestCase):
     def test_a_readable_run_directory_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / "persist-timings-20260822" / "preflight.json"
+            evidence = project / ".moru" / "runs" / "persist-timings-20260822" / "preflight.json"
 
             message = wiring.unbindable_run_directory_error(self._args(project, evidence))
 
@@ -68,7 +68,7 @@ class UnbindableRunDirectoryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / "readable" / "preflight.json"
+            evidence = project / ".moru" / "runs" / "readable" / "preflight.json"
 
             message = wiring.unbindable_run_directory_error(self._args(project, evidence))
 
@@ -78,7 +78,7 @@ class UnbindableRunDirectoryTests(unittest.TestCase):
     def test_an_opaque_run_directory_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
 
             self.assertEqual(
                 "", wiring.unbindable_run_directory_error(self._args(project, evidence))
@@ -90,9 +90,9 @@ class UnbindableRunDirectoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             for evidence in (
-                project / ".tao" / "preflight.json",
-                project / ".tao" / "workers" / "abcd1234" / "preflight.json",
-                project / ".tao" / "runs" / RUN_ID / "nested" / "preflight.json",
+                project / ".moru" / "preflight.json",
+                project / ".moru" / "workers" / "abcd1234" / "preflight.json",
+                project / ".moru" / "runs" / RUN_ID / "nested" / "preflight.json",
             ):
                 with self.subTest(evidence=evidence.name):
                     self.assertEqual(
@@ -120,7 +120,7 @@ class UnbindableRunDirectoryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / "readable" / "preflight.json"
+            evidence = project / ".moru" / "runs" / "readable" / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text("{}", encoding="utf-8")
 
@@ -150,7 +150,7 @@ class StartNamesItsOwnRunTests(unittest.TestCase):
     def test_registration_states_the_run_id_the_evidence_and_the_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             evidence.parent.mkdir(parents=True)
             route = {"command": "bugfix"}
             intake = {"request": "fix the lifecycle overhead", "request_classified": False}
@@ -190,7 +190,7 @@ class SideFileNamedAsEvidenceTests(unittest.TestCase):
     def test_the_gate_ledger_is_refused_and_the_preflight_is_named(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            run = project / ".tao" / "runs" / RUN_ID
+            run = project / ".moru" / "runs" / RUN_ID
             run.mkdir(parents=True)
             preflight = run / "preflight.json"
             preflight.write_text(json.dumps({"route": {"command": "bugfix"}}), encoding="utf-8")
@@ -218,7 +218,7 @@ class SideFileNamedAsEvidenceTests(unittest.TestCase):
     def test_the_continuation_packet_is_refused_too(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            run = project / ".tao" / "runs" / RUN_ID
+            run = project / ".moru" / "runs" / RUN_ID
             run.mkdir(parents=True)
             packet = run / "continuation.json"
             packet.write_text(
@@ -247,7 +247,7 @@ class SideFileNamedAsEvidenceTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            run = project / ".tao" / "runs" / RUN_ID
+            run = project / ".moru" / "runs" / RUN_ID
             run.mkdir(parents=True)
             legacy = run / "preflight.json"
             legacy.write_text("{}", encoding="utf-8")

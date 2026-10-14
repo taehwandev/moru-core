@@ -84,7 +84,8 @@ except ImportError:  # pragma: no cover - exercised only on a broken install
         return Path(override).expanduser() if override else Path.home() / ".tao"
 
     def project_state_dir_target(project: Path) -> Path:
-        return project / (".moru" if (project / ".moru" / "state-ready").is_file() else ".tao")
+        moru, legacy = project / ".moru", project / ".tao"
+        return moru if (moru / "state-ready").is_file() or not legacy.is_dir() else legacy
 
     def is_host_config_dir(path: Path) -> bool:
         resolved = path.expanduser().resolve()

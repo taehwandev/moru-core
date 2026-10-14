@@ -213,7 +213,7 @@ class AgentRepairVerificationTests(unittest.TestCase):
 
     def _prepared_repair(self, project: Path) -> tuple[Path, dict]:
         _init_repo(project)
-        evidence_path = project / ".tao" / "preflight.json"
+        evidence_path = project / ".moru" / "preflight.json"
         evidence_path.parent.mkdir(parents=True)
         preflight = {"route": {"command": "bugfix", "gates": ["tests", "handoff"]}}
         evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
@@ -332,7 +332,7 @@ class AgentRepairVerificationTests(unittest.TestCase):
             target = rules / "repair.py"
             original = "x = 1\n"
             target.write_text(original, encoding="utf-8")
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             preflight = {
                 "route": {"command": "bugfix", "gates": ["tests", "handoff"]},
@@ -383,7 +383,7 @@ class AgentRepairVerificationTests(unittest.TestCase):
     def test_receipt_accepts_non_git_target_changed_after_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             started_at = datetime.now(timezone.utc)
             preflight = {
@@ -426,7 +426,7 @@ class AgentRepairVerificationTests(unittest.TestCase):
             project.mkdir()
             rules.mkdir()
             _init_repo(project)
-            evidence_path = project / ".tao" / "preflight.json"
+            evidence_path = project / ".moru" / "preflight.json"
             evidence_path.parent.mkdir(parents=True)
             started_at = datetime.now(timezone.utc)
             preflight = {

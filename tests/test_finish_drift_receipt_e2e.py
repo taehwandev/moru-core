@@ -37,11 +37,11 @@ def _build_fixture(root: Path) -> None:
         rules,
         symlinks=True,
         # `.codegraph/` can hold a live socket; the fixture needs no index.
-        ignore=shutil.ignore_patterns(".git", ".tao", "__pycache__", ".pytest_cache", ".codegraph"),
+        ignore=shutil.ignore_patterns(".git", ".moru", "__pycache__", ".pytest_cache", ".codegraph"),
     )
     project = root / "project"
     project.mkdir()
-    (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+    (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
     (project / "README.md").write_text("Baseline readme.\n", encoding="utf-8")
     for checkout in (rules, project):
         git(checkout, "init", "-q")
@@ -108,7 +108,7 @@ class RequiredDocDriftReceiptTests(unittest.TestCase):
         return result, json.loads(output.read_text(encoding="utf-8"))
 
     def run_state(self) -> str:
-        registry = json.loads((self.project / ".tao" / "run-registry.json").read_text())
+        registry = json.loads((self.project / ".moru" / "run-registry.json").read_text())
         return registry["runs"][-1]["state"]
 
     def start_and_record_gates(self) -> list[str]:
@@ -117,7 +117,7 @@ class RequiredDocDriftReceiptTests(unittest.TestCase):
             "--intent", "drift_receipt_scenario", "--target-summary", "the fixture readme",
             "--approved-effect", "git_write",
         )
-        evidence = next((self.project / ".tao" / "runs").glob("*/preflight.json"))
+        evidence = next((self.project / ".moru" / "runs").glob("*/preflight.json"))
         self.assertIn(str(evidence), started.stdout)
         docs = json.loads(evidence.read_text(encoding="utf-8"))["route"]["required_docs"]
         self.assertTrue(docs)
@@ -208,7 +208,7 @@ class RequiredDocDriftReceiptTests(unittest.TestCase):
         self.assertEqual("continue", payload["policy"]["next_action"])
         self.assertEqual("completed", self.run_state())
         # The recovery reused the one run: no second start was needed.
-        self.assertEqual(1, len(list((self.project / ".tao" / "runs").glob("*/preflight.json"))))
+        self.assertEqual(1, len(list((self.project / ".moru" / "runs").glob("*/preflight.json"))))
 
     def test_doc_drift_with_stale_review_recovers_in_the_same_run(self) -> None:
         relative = self.start_and_record_gates()[-1]

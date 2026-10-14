@@ -25,7 +25,7 @@ class StartResumeStampTests(unittest.TestCase):
     def test_refreshed_start_stamps_claimed_resume_generation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
+            evidence = project / ".moru" / "runs" / ("a" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(json.dumps({
                 "runtime_session": {"runtime": "codex", "session_id": "session"},
@@ -50,7 +50,7 @@ class StartResumeStampTests(unittest.TestCase):
         # starts a week into the recurring-block report.
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / ("a" * 32) / "preflight.json"
+            evidence = project / ".moru" / "runs" / ("a" * 32) / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text(json.dumps({"route": {"command": "bugfix"}}), encoding="utf-8")
             args = Namespace(project=project, rules=ROOT, evidence=evidence)

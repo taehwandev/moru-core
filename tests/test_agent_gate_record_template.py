@@ -29,7 +29,7 @@ REQUIRED_DOCS = ["common/skills/agent-operating-skill/SKILL.md"]
 def _run(hook_name: str, **overrides: object) -> tuple[int, str, dict]:
     with tempfile.TemporaryDirectory() as directory:
         project = Path(directory)
-        evidence = project / ".tao" / "preflight.json"
+        evidence = project / ".moru" / "preflight.json"
         evidence.parent.mkdir()
         preflight = {
             "project": str(project),

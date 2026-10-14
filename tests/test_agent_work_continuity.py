@@ -157,7 +157,7 @@ class WorkContinuityTests(unittest.TestCase):
             self.target.reuse_inputs = "Same inputs"
             self.assert_started_as_new_work(WorkContinuity(self.target), "another session")
         gate_evidence_path_for_preflight(self.target.evidence).unlink(missing_ok=True)
-        path = self.project / ".tao" / "run-registry.json"
+        path = self.project / ".moru" / "run-registry.json"
         registry = json.loads(path.read_text())
         registry["runs"][0]["state"] = "cancelled"
         path.write_text(json.dumps(registry))
@@ -199,7 +199,7 @@ class WorkContinuityTests(unittest.TestCase):
         session = dict(prior["runtime_session"])
         prior["runtime_session"] = {**session, "resume_generation": 1}
         self.source.evidence.write_text(json.dumps(prior))
-        path = self.project / ".tao" / "run-registry.json"
+        path = self.project / ".moru" / "run-registry.json"
         registry = json.loads(path.read_text())
         for run in registry["runs"]:
             if run["run_id"] == self.source_id:

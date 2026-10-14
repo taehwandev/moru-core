@@ -47,7 +47,13 @@ def preflight_identity_failures(
     )
     in_legacy_root = resolved_evidence.is_relative_to(legacy_root)
     in_migrated_runs = migrated_state_ready and resolved_evidence.is_relative_to(migrated_runs)
-    if not in_legacy_root and not in_migrated_runs:
+    # A project that never had a legacy tree starts directly in `.moru`.
+    in_new_state = (
+        not legacy_root.exists()
+        and not migrated_state.is_symlink()
+        and resolved_evidence.is_relative_to(migrated_state)
+    )
+    if not in_legacy_root and not in_migrated_runs and not in_new_state:
         failures.append(
             "execution capsule preflight evidence is outside the current project evidence root"
         )

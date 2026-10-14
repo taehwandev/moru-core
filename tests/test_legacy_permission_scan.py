@@ -30,13 +30,13 @@ class LegacyScanSkipsRuntimeStateTests(unittest.TestCase):
         # there repeats every script under a path that is deleted with the task,
         # so entries built from it name files that will not exist.
         project = self._project()
-        run_dir = project / ".tao" / "runs" / "414f42c1ebf14948bd794cfd5a5b1efb"
+        run_dir = project / ".moru" / "runs" / "414f42c1ebf14948bd794cfd5a5b1efb"
         run_dir.mkdir(parents=True)
         (run_dir / "evidence.py").write_text("", encoding="utf-8")
 
         scripts = _legacy_tao_python_scripts(project / "scripts")
 
-        self.assertFalse([path for path in scripts if ".tao" in path.parts])
+        self.assertFalse([path for path in scripts if ".moru" in path.parts])
 
     def test_a_directory_removed_mid_walk_costs_only_that_directory(self) -> None:
         # The maintenance job prunes finished runs while the installer walks the

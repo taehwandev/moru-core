@@ -43,7 +43,7 @@ class FinishSupersededRunTest(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.project = Path(temp.name)
-        self.evidence = self.project / ".tao" / "runs" / RUN_ID / "preflight.json"
+        self.evidence = self.project / ".moru" / "runs" / RUN_ID / "preflight.json"
         self.evidence.parent.mkdir(parents=True)
         self.evidence.write_text(json.dumps({"agent_run_id": RUN_ID}), encoding="utf-8")
         self.args = Namespace(

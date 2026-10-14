@@ -80,7 +80,7 @@ class HookEvidenceFallbackTest(unittest.TestCase):
         self.found: dict[str, Path | None] = {"active": None, "failed": self.failed, "completed": None, "settled": None}
 
     def _run(self, run_id: str) -> Path:
-        evidence = self.project / ".tao" / "runs" / run_id / "preflight.json"
+        evidence = self.project / ".moru" / "runs" / run_id / "preflight.json"
         evidence.parent.mkdir(parents=True)
         evidence.write_text("{}", encoding="utf-8")
         return evidence
@@ -115,18 +115,18 @@ class HookEvidenceFallbackTest(unittest.TestCase):
         cancelled = self._run("d" * 32)
         self.found["failed"] = None
         self.found["settled"] = cancelled
-        (self.project / ".tao" / "preflight.json").write_text("{}", encoding="utf-8")
+        (self.project / ".moru" / "preflight.json").write_text("{}", encoding="utf-8")
         self.assertEqual(cancelled, self._path())
 
     def test_without_any_run_of_this_session_the_legacy_preflight_remains(self) -> None:
         self.found["failed"] = None
-        self.assertEqual(self.project / ".tao" / "preflight.json", self._path())
+        self.assertEqual(self.project / ".moru" / "preflight.json", self._path())
 
     def test_start_still_creates_its_own_run(self) -> None:
         self.found["failed"] = None
         self.found["settled"] = self.completed
         path = self._path(hook="start")
-        self.assertEqual(self.project / ".tao" / "runs", path.parent.parent)
+        self.assertEqual(self.project / ".moru" / "runs", path.parent.parent)
         self.assertNotIn(path, (self.completed, self.failed))
 
     def test_a_failed_run_newer_than_the_completed_one_still_wins(self) -> None:

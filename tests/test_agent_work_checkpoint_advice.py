@@ -68,7 +68,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text("{}", encoding="utf-8")
 
@@ -89,7 +89,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
     def test_a_run_with_a_packet_is_told_how_to_fill_it(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
 
             advice = wiring.work_checkpoint_advice(self._args(project, evidence))
             work_file = (evidence.parent / "work.json").resolve()
@@ -109,7 +109,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
 
             advice = "\n".join(
                 wiring.work_checkpoint_advice(self._args(project, evidence))
@@ -146,7 +146,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             advice = "\n".join(
                 wiring.work_checkpoint_advice(self._args(project, evidence))
             )
@@ -166,7 +166,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             advice = "\n".join(
                 wiring.work_checkpoint_advice(self._args(project, evidence))
             )
@@ -193,7 +193,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
                 ["git", "commit", "-q", "-m", "probe", "--no-verify"],
             ):
                 subprocess.run(command, cwd=project, check=True)
-            evidence = project / ".tao" / "runs" / RUN_ID / "preflight.json"
+            evidence = project / ".moru" / "runs" / RUN_ID / "preflight.json"
             evidence.parent.mkdir(parents=True)
 
             result = subprocess.run(
@@ -226,7 +226,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
             project = Path(directory)
             advice = "\n".join(
                 wiring.work_checkpoint_advice(
-                    self._args(project, project / ".tao" / "runs" / RUN_ID / "preflight.json")
+                    self._args(project, project / ".moru" / "runs" / RUN_ID / "preflight.json")
                 )
             )
 
@@ -305,7 +305,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
             git(project, "config", "user.name", "probe")
             (project / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
             # Match the repository's ignored local runtime evidence boundary.
-            (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+            (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
             git(project, "add", "AGENTS.md", ".gitignore")
             git(project, "commit", "-q", "-m", "first", "--no-verify")
             launcher = Path(home) / ".tao" / "bin" / "tao-hook"
@@ -338,7 +338,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
                 line for line in started.stdout.splitlines()
                 if line.startswith(f"{launcher} checkpoint ")
             )
-            evidence = next((project / ".tao" / "runs").glob("*/preflight.json"))
+            evidence = next((project / ".moru" / "runs").glob("*/preflight.json"))
             command = shlex.split(printed)
             work_file = Path(command[command.index("--work-file") + 1])
             self.assertEqual(evidence.parent.resolve() / "work.json", work_file)
@@ -378,7 +378,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
             self.assertEqual(
                 [],
                 wiring.work_checkpoint_advice(
-                    self._args(project, project / ".tao" / "preflight.json")
+                    self._args(project, project / ".moru" / "preflight.json")
                 ),
             )
 

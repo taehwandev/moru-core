@@ -113,7 +113,7 @@ class IndexRefreshIsSkippedOnlyWhenNothingChangedTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
-        (self.root / ".tao").mkdir()
+        (self.root / ".moru").mkdir()
         (self.root / ".wikimap").mkdir()
         (self.root / ".wikimap" / "index.db").write_bytes(b"index")
         (self.root / "docs").mkdir()
@@ -124,7 +124,7 @@ class IndexRefreshIsSkippedOnlyWhenNothingChangedTests(unittest.TestCase):
         clear_wikimap_cache()
 
     def test_migrated_state_receipt_stays_in_moru(self) -> None:
-        (self.root / ".tao").rename(self.root / ".moru")
+        (self.root / ".moru").rename(self.root / ".moru")
         (self.root / ".moru" / "state-ready").write_text("ready\n")
 
         self.assertTrue(self._refresh())

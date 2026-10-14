@@ -92,7 +92,7 @@ class CommitReadyExecutionTests(unittest.TestCase):
         fixture.run_command(["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
                              "commit", "-qm", "fixture policy"], check=True)
         fixture.start()
-        evidence = next((fixture.project / ".tao/runs").glob("*/preflight.json"))
+        evidence = next((fixture.project / ".moru/runs").glob("*/preflight.json"))
         source = fixture.project / "answer.txt"
         source.write_text("verified fixture\n")
         base = [sys.executable, str(fixture_module.ROOT / "scripts/agent-hook.py")]

@@ -34,7 +34,7 @@ def rules(failures: list[dict[str, str]]) -> set[str]:
 def git_project(directory: str, *, ignore_state: bool) -> Path:
     project = Path(directory)
     if ignore_state:
-        (project / ".gitignore").write_text(".tao/\n", encoding="utf-8")
+        (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=project, check=True)
     return project
 
@@ -87,7 +87,7 @@ class RoundTripTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             write_continuation_packet(project, packet(run_id=RUN_ID))
-            (project / ".tao" / "runs" / "not-a-run-id").mkdir(parents=True)
+            (project / ".moru" / "runs" / "not-a-run-id").mkdir(parents=True)
 
             self.assertEqual([RUN_ID], list_continuation_run_ids(project))
 
@@ -140,9 +140,9 @@ class ContainmentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / "project"
             other = Path(directory) / "other"
-            (other / ".tao" / "runs" / RUN_ID).mkdir(parents=True)
+            (other / ".moru" / "runs" / RUN_ID).mkdir(parents=True)
             project.mkdir()
-            foreign = other / ".tao" / "runs" / RUN_ID / "continuation.json"
+            foreign = other / ".moru" / "runs" / RUN_ID / "continuation.json"
             foreign.write_bytes(canonical_packet_bytes(packet(run_id=RUN_ID)))
 
             result = read_continuation_packet(project, foreign)
@@ -158,7 +158,7 @@ class ContainmentTests(unittest.TestCase):
             (elsewhere / "continuation.json").write_bytes(
                 canonical_packet_bytes(packet(run_id=RUN_ID))
             )
-            runs = project / ".tao" / "runs"
+            runs = project / ".moru" / "runs"
             runs.mkdir(parents=True)
             (runs / RUN_ID).symlink_to(elsewhere)
 
@@ -173,7 +173,7 @@ class ContainmentTests(unittest.TestCase):
             external = Path(directory) / "external"
             project.mkdir()
             external.mkdir(mode=0o755)
-            runs = project / ".tao" / "runs"
+            runs = project / ".moru" / "runs"
             runs.mkdir(parents=True)
             (runs / RUN_ID).symlink_to(external)
             before_mode = stat.S_IMODE(external.stat().st_mode)
@@ -191,7 +191,7 @@ class ContainmentTests(unittest.TestCase):
             external = Path(directory) / "external"
             project.mkdir()
             external.mkdir()
-            state = project / ".tao"
+            state = project / ".moru"
             state.mkdir()
             (state / "runs").symlink_to(external)
 
@@ -209,7 +209,7 @@ class ContainmentTests(unittest.TestCase):
             packet_dir = external / RUN_ID
             packet_dir.mkdir(parents=True)
             (packet_dir / "continuation.json").write_text("{}", encoding="utf-8")
-            state = project / ".tao"
+            state = project / ".moru"
             state.mkdir()
             (state / "runs").symlink_to(external)
 

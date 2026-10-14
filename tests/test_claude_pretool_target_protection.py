@@ -35,7 +35,7 @@ class TargetProtectionTests(unittest.TestCase):
     def test_sibling_checkout_rename_is_owned_by_source_repo(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp) / "workspace"
-            (workspace / ".tao").mkdir(parents=True)
+            (workspace / ".moru").mkdir(parents=True)
             (workspace / "AGENTS.md").write_text("uses tao-hook\n", encoding="utf-8")
             source = _opt_in_project(workspace)
             (source / ".git").mkdir()
