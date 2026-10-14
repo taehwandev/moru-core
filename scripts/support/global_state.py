@@ -63,7 +63,7 @@ def global_state_dir() -> Path:
 # module, so the marker is in the environment before the first test starts and
 # every hook subprocess a test launches inherits it. `tests/__init__.py` cannot
 # carry this: with `-t tests` discover never imports it as a package.
-UNDER_TEST_ENV = "TAO_UNDER_UNITTEST"
+UNDER_TEST_ENV = "MORU_UNDER_UNITTEST"
 
 
 _UNITTEST_CASE_FILE = os.path.join("unittest", "case.py")
@@ -75,7 +75,7 @@ def _inside_unittest_case() -> bool:
     `python -m unittest` is only one way in. A test file run as a script,
     `python -c` driving the loader, and `agent_unittest_result.py` all leave a
     plain `__main__`, and under them the guard below stayed off: a test that
-    cleared TAO_STATE_HOME wrote the developer's real lesson inbox. Whatever
+    cleared MORU_STATE_HOME wrote the developer's real lesson inbox. Whatever
     the entry point, a test body runs beneath `unittest/case.py`.
     """
     if "unittest" not in sys.modules:
@@ -104,7 +104,7 @@ if _running_unittest():
 def user_store_write_error() -> str:
     """Why a user-level store (work cards, project memory) may not be written.
 
-    A test that forgets TAO_STATE_HOME would otherwise write into the
+    A test that forgets MORU_STATE_HOME would otherwise write into the
     developer's real `~/.tao`, where nothing removes it. Only writes are
     refused; lookups read nothing that is not already there.
     """

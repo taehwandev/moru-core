@@ -236,7 +236,7 @@ class ClaudeAgentSetupTests(unittest.TestCase):
                     self.assertIn("Bash only for read-only commands", body)
                 self.assertTrue(body.strip())
                 self.assertNotIn(str(ROOT), text)
-                self.assertNotIn("<TAO_LAUNCHER>", text)
+                self.assertNotIn("<MORU_LAUNCHER>", text)
                 self.assertNotIn("Codex", text)
 
 

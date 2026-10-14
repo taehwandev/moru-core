@@ -27,7 +27,7 @@ class SessionDeliveryTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         self.project = self.root / "project"
         (self.project / ".git").mkdir(parents=True)
-        environment = patch.dict(os.environ, {"TAO_STATE_HOME": str(self.root / "state")})
+        environment = patch.dict(os.environ, {"MORU_STATE_HOME": str(self.root / "state")})
         environment.start()
         self.addCleanup(environment.stop)
         self.now = datetime(2026, 10, 1, tzinfo=timezone.utc)

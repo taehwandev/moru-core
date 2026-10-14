@@ -46,7 +46,7 @@ _FIXTURE = TemplateRepository(_build)
 
 def setUpModule() -> None:
     directory = tempfile.TemporaryDirectory(prefix="tao-state-home-")
-    state = mock.patch.dict(os.environ, {"TAO_STATE_HOME": directory.name})
+    state = mock.patch.dict(os.environ, {"MORU_STATE_HOME": directory.name})
     state.start()
     vibeguard = fake_vibeguard_environment()
     vibeguard.start()
@@ -73,7 +73,7 @@ def pretool(cwd: Path, command: str) -> str:
     result = subprocess.run(
         [sys.executable, str(SCRIPTS / "claude_pretool_gate.py")],
         input=json.dumps(payload), capture_output=True, text=True,
-        env={**environment(SESSION), "TAO_PRETOOL_RUNTIME": "claude"},
+        env={**environment(SESSION), "MORU_PRETOOL_RUNTIME": "claude"},
     )
     output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout.strip() else {}
     return str(output.get("permissionDecisionReason") or output.get("additionalContext") or "")

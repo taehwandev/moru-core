@@ -22,16 +22,16 @@ Task:
 <TASK>
 
 Moru Core root:
-<TAO_ROOT>
+<MORU_ROOT>
 
 Moru Core stable launcher:
-<TAO_LAUNCHER>
+<MORU_LAUNCHER>
 
 VibeGuard human docs:
 https://vibeguard.thdev.app/
 
 Rules:
-0. Resolve `<TAO_LAUNCHER>` to the installed stable launcher's absolute
+0. Resolve `<MORU_LAUNCHER>` to the installed stable launcher's absolute
    path. Never invoke an internal runtime Python entrypoint directly.
 1. Identify the target repo and read repo-local instructions first, including
    AGENTS.md, CLAUDE.md, CODEX.md, .agents/README.md, CONTRIBUTING.md, task
@@ -39,7 +39,7 @@ Rules:
    override files.
    If the target repo is not explicit or the runtime current directory is
    outside the target, run:
-   <TAO_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>
+   <MORU_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>
    Continue on `selected`. If I explicitly named a new project path, create
    and edit it even if discovery returns `not_found`; read its instructions
    once present and apply its Git/worktree policy after initialization. Ask
@@ -58,14 +58,14 @@ Rules:
    apology-only message. Repair the action path or stop with the specific
    blocker.
 2. Do not assume this runtime automatically loaded Moru Core. Explicitly
-   read <TAO_ROOT>/AGENTS.md. Let the start hook route the smallest
-   required document set for tracked work. Open <TAO_ROOT>/index.md only when
+   read <MORU_ROOT>/AGENTS.md. Let the start hook route the smallest
+   required document set for tracked work. Open <MORU_ROOT>/index.md only when
    the task is about the catalog or the router is unavailable and I approve
    that fallback; never to repeat successful routing or answer a simple lookup.
 3. Do not copy the whole Moru Core library into this repo. Link only the
    relevant root, index, workflow script, and selected cards. If you edit
    committed repo-local instruction files, use a portable root reference such
-   as ${TAO_HOME} or a repo-relative pinned path like
+   as ${MORU_HOME} or a repo-relative pinned path like
    .agents/moru-core; do not commit a personal absolute path. Full local
    paths are acceptable only in this one-shot prompt, shell env setup, or
    uncommitted user-level runtime bridges.
@@ -73,7 +73,7 @@ Rules:
    dependency, data, deployment, or credential surfaces, inspect existing
    VibeGuard files and agent instructions. If they already exist, ask the
    application drill before running setup or update. Then apply the selected
-   VibeGuard mode with the published package command and <TAO_ROOT>
+   VibeGuard mode with the published package command and <MORU_ROOT>
    as the rule source. The VibeGuard site is a human reference and does not
    need to be fetched by the agent. If the VibeGuard command cannot run, stop
    and report the blocker. Use VibeGuard update only when I explicitly choose
@@ -86,7 +86,7 @@ Rules:
    requirements below apply only to tracked work, not these read-only answers.
    For tracked multi-step tasks, run this once before selecting task documents,
    editing, reviewing, committing, or reporting completion:
-   <TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command <COMMAND> --request "<USER_REQUEST>" [--platform <PLATFORM>] [--concern <CONCERN>]
+   <MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command <COMMAND> --request "<USER_REQUEST>" [--platform <PLATFORM>] [--concern <CONCERN>]
    It performs workflow routing/preflight and returns the command manifest. Do
    not separately repeat workflow list, classify, route, or preflight.
    Do not wait for me to name document keywords. Let routing/search infer the
@@ -104,7 +104,7 @@ Rules:
    serial reason. Use Codex native workers, Claude Agent/Task workers, or the
    Gemini/AGY Antigravity agent runner according to the active runtime. At each
    parent-to-worker boundary, run:
-   <TAO_LAUNCHER> handoff --project <TARGET_REPO> --rules <TAO_ROOT>
+   <MORU_LAUNCHER> handoff --project <TARGET_REPO> --rules <MORU_ROOT>
    This refreshes the provider-neutral, content-free execution capsule and
    validates it once. A ready and valid handoff lets the worker reuse the
    parent's route, preflight, and required-doc manifest and skip duplicate
@@ -158,11 +158,11 @@ Rules:
    recommended default.
 15. Before finishing, confirm every required route gate is `🐱🟢 SUCCESS` with ledger
     evidence. Before executing wrapper commands, replace
-    `<TAO_ROOT>` with the resolved absolute path; do not leave
+    `<MORU_ROOT>` with the resolved absolute path; do not leave
     `$HOME`, `${HOME}`, `~`, or a relative path in the executable command. When
     available, run:
-    <TAO_LAUNCHER> finish --project <TARGET_REPO> --rules <TAO_ROOT>
-    Record manual gate facts first with `<TAO_LAUNCHER> gate` or `gate-batch`.
+    <MORU_LAUNCHER> finish --project <TARGET_REPO> --rules <MORU_ROOT>
+    Record manual gate facts first with `<MORU_LAUNCHER> gate` or `gate-batch`.
     Finish is read-only: it accepts no inline gate evidence and never mutates
     the ledger while validating completion.
     Missing wrapper evidence or missing route gate evidence is non-compliant.

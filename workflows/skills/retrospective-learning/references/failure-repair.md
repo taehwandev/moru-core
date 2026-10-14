@@ -107,7 +107,7 @@ Generate the receipt first, then resume with its project-local path:
 
 ```text
 tao-hook repair-verify \
-  --project <TARGET_REPO> --rules <TAO_ROOT> \
+  --project <TARGET_REPO> --rules <MORU_ROOT> \
   --repair-target <changed_file> \
   --resume-checkpoint <recorded_failed_checkpoint> \
   --repair-verification-kind <workflow_validate|unittest|py_compile|vibeguard>

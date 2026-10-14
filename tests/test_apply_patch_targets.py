@@ -77,7 +77,7 @@ class CodexPatchPolicyTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.base = Path(directory.name)
         environment = patch.dict(os.environ, {
-            "TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: str(self.base / "state"),
+            "MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: str(self.base / "state"),
         })
         environment.start()
         self.addCleanup(environment.stop)

@@ -19,7 +19,7 @@ Step 1 - Apply Moru Core to this project:
 https://github.com/taehwandev/moru-core
 
 Moru Core stable launcher:
-<TAO_LAUNCHER>
+<MORU_LAUNCHER>
 
 Resolve that placeholder to the installed launcher's absolute path. Do not
 invoke an internal runtime Python entrypoint directly.
@@ -37,13 +37,13 @@ Do not claim the file was read unless you actually opened it.
 If the target project is not explicit or the runtime starts outside the target,
 run the Moru Core entry helper before reading project docs:
 
-<TAO_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>
+<MORU_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>
 
 Continue only when it returns `selected`. If it returns `ambiguous` or
 `not_found`, ask me for the target project instead of guessing.
 
 Use an existing local Moru Core install if one is available. Check an
-explicit path from me first, then TAO_HOME, then common local clones
+explicit path from me first, then MORU_HOME, then common local clones
 such as ~/.moru/core or ~/git/moru-core. Also check legacy Moru locations
 when reusing an existing installation.
 
@@ -63,18 +63,18 @@ Select one setup mode and tell me which one you selected before editing:
   submodule, vendored dependency, or workspace dependency.
 
 A usable Moru Core root must contain AGENTS.md, index.md, and
-<TAO_LAUNCHER> workflow. Validate it with:
+<MORU_LAUNCHER> workflow. Validate it with:
 
-<TAO_LAUNCHER> workflow validate
+<MORU_LAUNCHER> workflow validate
 
 Check user-level runtime bridges, hooks, and permission allowlists:
 
-<TAO_LAUNCHER> setup-agent-hooks --check
+<MORU_LAUNCHER> setup-agent-hooks --check
 
 If the check reports missing bridges, hooks, or permissions, ask for approval
 to update user-level runtime config, then run:
 
-<TAO_LAUNCHER> setup-agent-hooks
+<MORU_LAUNCHER> setup-agent-hooks
 
 This setup is global by design. It allows only Moru Core-managed
 entrypoints with suffix-aware runtime matchers. It must not broadly allow
@@ -85,7 +85,7 @@ paths, or shell `-lc` wrappers around the launcher: those forms can be treated
 as shell expansion or a single shell string before the runtime permission
 matcher sees the trusted command. For Claude Code, update
 `~/.claude/settings.json` so managed hooks
-call `<TAO_LAUNCHER>`, and refresh
+call `<MORU_LAUNCHER>`, and refresh
 `~/.tao/tao-root` to the selected Moru Core checkout so
 moves or migrations do not leave Claude pointing at a stale checkout-local
 command. For
@@ -117,19 +117,19 @@ drill before running setup or update:
 
 If I choose audit-only:
 
-npx --yes @taehwandev/vibeguard audit . --rules <TAO_ROOT>
+npx --yes @taehwandev/vibeguard audit . --rules <MORU_ROOT>
 
 If I explicitly choose to refresh the managed VibeGuard block:
 
-npx --yes @taehwandev/vibeguard update . --rules <TAO_ROOT>
-npx --yes @taehwandev/vibeguard audit . --fix --rules <TAO_ROOT>
-npx --yes @taehwandev/vibeguard audit . --rules <TAO_ROOT>
+npx --yes @taehwandev/vibeguard update . --rules <MORU_ROOT>
+npx --yes @taehwandev/vibeguard audit . --fix --rules <MORU_ROOT>
+npx --yes @taehwandev/vibeguard audit . --rules <MORU_ROOT>
 
 If this repo has never used VibeGuard and I choose first-time setup:
 
-npx --yes @taehwandev/vibeguard setup . --rules <TAO_ROOT>
-npx --yes @taehwandev/vibeguard audit . --fix --rules <TAO_ROOT>
-npx --yes @taehwandev/vibeguard audit . --rules <TAO_ROOT>
+npx --yes @taehwandev/vibeguard setup . --rules <MORU_ROOT>
+npx --yes @taehwandev/vibeguard audit . --fix --rules <MORU_ROOT>
+npx --yes @taehwandev/vibeguard audit . --rules <MORU_ROOT>
 
 For full VibeGuard usage, use https://vibeguard.thdev.app/ as a human
 reference. Do not block only because your browsing/fetch tool cannot read that
@@ -144,7 +144,7 @@ with a short routing block. Preserve existing project rules. Keep repo-specific
 commands, paths, services, product policy, and domain language in this repo.
 
 When writing committed repo-local instruction files, do not commit my personal
-absolute path such as /Users/.../moru-core. Use ${TAO_HOME} for a
+absolute path such as /Users/.../moru-core. Use ${MORU_HOME} for a
 shared local install, or a repo-relative pinned path such as
 .agents/moru-core for a team-pinned install. Full local paths are allowed
 only in shell environment setup, one-shot prompts, or uncommitted user-level
@@ -166,12 +166,12 @@ enter the writable lifecycle before an authorized edit. Replace older blanket
 multi-step requirements rather than appending a contradictory alternative.
 The lifecycle requirements below apply only to tracked work.
 
-For tracked multi-step setup or follow-up work, run `<TAO_LAUNCHER> start` once with
+For tracked multi-step setup or follow-up work, run `<MORU_LAUNCHER> start` once with
 `--request "<USER_REQUEST>"` before selecting task documents, editing,
 reviewing, committing, or reporting completion. It performs workflow routing
 and preflight; do not separately repeat workflow list, classify, route, or
-preflight after it succeeds. Direct `<TAO_LAUNCHER> workflow route` and
-`<TAO_LAUNCHER> agent-preflight` calls are lower-level diagnostic or compatibility
+preflight after it succeeds. Direct `<MORU_LAUNCHER> workflow route` and
+`<MORU_LAUNCHER> agent-preflight` calls are lower-level diagnostic or compatibility
 fallbacks only. If the request is a direct
 question, answer it before routing or editing. If the direct question asks how
 to start app, product, or feature work, answer with PRD -> ARD ->
@@ -190,11 +190,11 @@ recovery. Do not report any third gate state.
 When the wrapper scripts are available, use the single start hook before
 editing, reviewing, committing, or reporting completion:
 
-Before executing wrapper commands, replace `<TAO_ROOT>` with the
+Before executing wrapper commands, replace `<MORU_ROOT>` with the
 resolved absolute path; do not leave `$HOME`, `${HOME}`, `~`, or a relative path
 in the executable command.
 
-<TAO_LAUNCHER> start --project . --rules <TAO_ROOT> --command <COMMAND> --request "<USER_REQUEST>" [--platform <PLATFORM>] [--concern <CONCERN>]
+<MORU_LAUNCHER> start --project . --rules <MORU_ROOT> --command <COMMAND> --request "<USER_REQUEST>" [--platform <PLATFORM>] [--concern <CONCERN>]
 
 Read every route `required_docs` entry directly after start and before editing
 or reviewing. Use the route's review hook after meaningful edits.
@@ -202,10 +202,10 @@ or reviewing. Use the route's review hook after meaningful edits.
 Before final report, commit, release, or handoff, record any remaining manual
 gate evidence, then run the read-only finish check:
 
-<TAO_LAUNCHER> gate-batch --project . --rules <TAO_ROOT> --gate-record '[{"gate":"<gate>","status":"SUCCESS","evidence":"<evidence>"}]'
-<TAO_LAUNCHER> finish --project . --rules <TAO_ROOT>
+<MORU_LAUNCHER> gate-batch --project . --rules <MORU_ROOT> --gate-record '[{"gate":"<gate>","status":"SUCCESS","evidence":"<evidence>"}]'
+<MORU_LAUNCHER> finish --project . --rules <MORU_ROOT>
 
-Call `<TAO_LAUNCHER> workflow route`, `<TAO_LAUNCHER> agent-preflight`, or `<TAO_LAUNCHER> agent-finish-check`
+Call `<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`, or `<MORU_LAUNCHER> agent-finish-check`
 directly only as lower-level diagnostic or compatibility fallbacks when the
 corresponding hook is unavailable; never run them as a second lifecycle.
 
@@ -239,16 +239,16 @@ not replace unrelated user content.
 
 Also run the Moru Core runtime setup check:
 
-<TAO_LAUNCHER> setup-agent-hooks --check
+<MORU_LAUNCHER> setup-agent-hooks --check
 
 If bridges, hooks, or permissions are missing, ask for approval to update
 user-level runtime config and then run:
 
-<TAO_LAUNCHER> setup-agent-hooks
+<MORU_LAUNCHER> setup-agent-hooks
 
 Keep the permission allowlist narrow: allow only Moru Core-managed
 entrypoints by suffix-aware runtime matcher, not broad `python3`. For Claude
-managed hooks, prefer `<TAO_LAUNCHER>` plus the refreshed root pointer
+managed hooks, prefer `<MORU_LAUNCHER>` plus the refreshed root pointer
 over a moving checkout-local command.
 The setup command should install or repair the managed bridge block for Codex,
 Claude, and Gemini/Antigravity/AGY when those runtimes are present.
@@ -263,7 +263,7 @@ file the active runtime loads.
 The bridge must force this behavior:
 - Start every task by identifying the current project root.
 - If the runtime starts from ~ or another non-project directory, resolve the
-  target with `<TAO_LAUNCHER> agent-entry` or `<TAO_LAUNCHER> project-discover` before project work.
+  target with `<MORU_LAUNCHER> agent-entry` or `<MORU_LAUNCHER> project-discover` before project work.
 - Ask me when discovery leaves the target ambiguous or unidentified. If I
   explicitly named a new project path, create and edit it on `not_found`.
 - Before project work, open its project-root instruction file for the active runtime when present. A new path may not have one yet; continue under the request and shared guidance.
@@ -275,13 +275,13 @@ The bridge must force this behavior:
   bounded direct evidence without start, fingerprint, mailbox, checkpoint, gate,
   review, or finish. Preserve applicable project contracts. Explicit change/PR reviews
   retain their workflow; authorized edits must enter the writable lifecycle.
-- For tracked multi-step work, run `<TAO_LAUNCHER> start` once with my current request;
+- For tracked multi-step work, run `<MORU_LAUNCHER> start` once with my current request;
   it performs Moru Core workflow routing and preflight. Do not separately
   repeat workflow list, classify, route, or preflight after it succeeds.
 - Read every route `required_docs` entry directly after start and before editing
   or reviewing. Keep the route's review and finish hooks in the lifecycle.
-- Treat direct `<TAO_LAUNCHER> workflow route`, `<TAO_LAUNCHER> agent-preflight`, and
-  `<TAO_LAUNCHER> agent-finish-check` calls as lower-level diagnostic or compatibility
+- Treat direct `<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`, and
+  `<MORU_LAUNCHER> agent-finish-check` calls as lower-level diagnostic or compatibility
   fallbacks only; never run them as a second lifecycle.
 - Do not wait for me to name document keywords. Infer the work surface from the
   request, platform, concern, and touched files, then read the route

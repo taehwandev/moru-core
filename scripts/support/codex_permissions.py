@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 
-TAO_WORKSPACE_PROFILE = "tao-workspace"
+MORU_WORKSPACE_PROFILE = "tao-workspace"
 _TABLE_HEADER = re.compile(r"(?m)^[ \t]*\[([^\]\n]+)\][ \t]*(?:#.*)?$")
 # Where the top level ends: a `[table]` or an `[[array.of.tables]]`. A key under
 # either one is nested, so the reset must never read it as the top-level selection.
@@ -76,7 +76,7 @@ def merge_codex_worktree_roots(
 
 
 def _permission_ownership_conflicts(text: str, roots: list[str]) -> bool:
-    profile = _section(text, f"permissions.{TAO_WORKSPACE_PROFILE}")
+    profile = _section(text, f"permissions.{MORU_WORKSPACE_PROFILE}")
     if profile:
         body = text[profile[0] : profile[1]]
         extensions = _quoted_values(body, "extends")
@@ -87,7 +87,7 @@ def _permission_ownership_conflicts(text: str, roots: list[str]) -> bool:
 
     roots_section = _section(
         text,
-        f"permissions.{TAO_WORKSPACE_PROFILE}.workspace_roots",
+        f"permissions.{MORU_WORKSPACE_PROFILE}.workspace_roots",
     )
     if not roots_section:
         return False
@@ -104,13 +104,13 @@ def _permission_ownership_conflicts(text: str, roots: list[str]) -> bool:
 
 def _ensure_workspace_profile(text: str) -> str:
     updated = text
-    profile = _section(updated, f"permissions.{TAO_WORKSPACE_PROFILE}")
+    profile = _section(updated, f"permissions.{MORU_WORKSPACE_PROFILE}")
     if not profile:
         return _append_block(
             updated,
             "\n".join(
                 (
-                    f"[permissions.{TAO_WORKSPACE_PROFILE}]",
+                    f"[permissions.{MORU_WORKSPACE_PROFILE}]",
                     'description = "Workspace access plus the shared Moru Core runtime."',
                     'extends = ":workspace"',
                 )
@@ -124,10 +124,10 @@ def _ensure_workspace_profile(text: str) -> str:
 def _ensure_worktree_roots(text: str, roots: list[str]) -> str:
     roots_section = _section(
         text,
-        f"permissions.{TAO_WORKSPACE_PROFILE}.workspace_roots",
+        f"permissions.{MORU_WORKSPACE_PROFILE}.workspace_roots",
     )
     if not roots_section:
-        block = [f"[permissions.{TAO_WORKSPACE_PROFILE}.workspace_roots]"]
+        block = [f"[permissions.{MORU_WORKSPACE_PROFILE}.workspace_roots]"]
         block += [f"{_toml_key(root)} = true" for root in roots]
         return _append_block(text, "\n".join(block))
 

@@ -148,13 +148,13 @@ def route_doc(path: str) -> str:
 
 class FinishGatePolicyTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._old_state_home = os.environ.get("TAO_STATE_HOME")
+        self._old_state_home = os.environ.get("MORU_STATE_HOME")
 
     def tearDown(self) -> None:
         if self._old_state_home is None:
-            os.environ.pop("TAO_STATE_HOME", None)
+            os.environ.pop("MORU_STATE_HOME", None)
         else:
-            os.environ["TAO_STATE_HOME"] = self._old_state_home
+            os.environ["MORU_STATE_HOME"] = self._old_state_home
 
     def test_documentation_concern_routes_to_documentation_workflow(self) -> None:
         self.assertEqual(
@@ -340,7 +340,7 @@ class FinishGatePolicyTests(unittest.TestCase):
 
     def test_finish_final_check_failure_requires_retrospective_lesson(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            os.environ["TAO_STATE_HOME"] = temp_dir
+            os.environ["MORU_STATE_HOME"] = temp_dir
 
             retrospective_required = requires_retrospective(
                 missed_gates=[],
@@ -368,7 +368,7 @@ class FinishGatePolicyTests(unittest.TestCase):
 
     def test_unattributed_read_only_revision_drift_requires_runtime_repair(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            os.environ["TAO_STATE_HOME"] = temp_dir
+            os.environ["MORU_STATE_HOME"] = temp_dir
             failures = [
                 "read-only execution was declared but the project root changed after "
                 "start; a clean worktree cannot attribute the revision change to an "
@@ -389,7 +389,7 @@ class FinishGatePolicyTests(unittest.TestCase):
 
     def test_intrinsic_analysis_revision_drift_requires_fresh_lifecycle(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            os.environ["TAO_STATE_HOME"] = temp_dir
+            os.environ["MORU_STATE_HOME"] = temp_dir
             failures = [
                 "read-only execution was declared but the project root changed after start; "
                 "a clean worktree cannot attribute the revision change to an external actor, so "
@@ -411,7 +411,7 @@ class FinishGatePolicyTests(unittest.TestCase):
 
     def test_required_doc_drift_failure_names_exact_documentation_receipt_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            os.environ["TAO_STATE_HOME"] = temp_dir
+            os.environ["MORU_STATE_HOME"] = temp_dir
             failures = ["execution capsule required doc hash changed: AGENTS.md"]
 
             agent_finish_check.process_failure_learning(

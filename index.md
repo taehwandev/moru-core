@@ -159,9 +159,9 @@ catalog itself only when that is the task.
 
 ## Workflow
 
-- Workflow script command list: `<TAO_LAUNCHER> workflow list`
+- Workflow script command list: `<MORU_LAUNCHER> workflow list`
 - Lifecycle aliases supported by the workflow router: `spec`, `plan`, `build`, `test`, `review`, `webperf`, `code-simplify`, and `ship`. These aliases map to Moru Core routes and must not replace the router with a second active command framework.
-- Canonical lifecycle start (once per task): `<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command <command> --request "<USER_REQUEST>"`
+- Canonical lifecycle start (once per task): `<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command <command> --request "<USER_REQUEST>"`
 - After start succeeds, open every route `required_docs` entry directly. Run the review hook after meaningful changes and the finish hook before final report, commit, release, or handoff.
 - `workflow.py route`, `agent-preflight.py`, and `agent-finish-check.py` are lower-level diagnostics or compatibility fallbacks when the hook is unavailable; do not run them as a second lifecycle for the same task.
 - Agent task lifecycle: `workflows/skills/agent-task-lifecycle/SKILL.md`
@@ -187,7 +187,7 @@ catalog itself only when that is the task.
 
 ## Loading Rule
 
-For any multi-step agent task, start with `workflows/skills/agent-task-lifecycle/SKILL.md`. Run `<TAO_LAUNCHER> start` once to classify, route, audit, and create the parent evidence. Open every route `required_docs` entry directly before work, keep the route gate ledger current, run the review hook after meaningful changes, and run the finish hook before final report, commit, release, or handoff. If the hook is unavailable, the lower-level router/preflight/finish wrappers are a compatibility fallback, not a second lifecycle. Missing start, gate, review, or finish evidence is non-compliant.
+For any multi-step agent task, start with `workflows/skills/agent-task-lifecycle/SKILL.md`. Run `<MORU_LAUNCHER> start` once to classify, route, audit, and create the parent evidence. Open every route `required_docs` entry directly before work, keep the route gate ledger current, run the review hook after meaningful changes, and run the finish hook before final report, commit, release, or handoff. If the hook is unavailable, the lower-level router/preflight/finish wrappers are a compatibility fallback, not a second lifecycle. Missing start, gate, review, or finish evidence is non-compliant.
 
 For any new request, first classify clarity, effort, and model tier with `common/skills/task-intake-effort-routing/SKILL.md`. Do not use the strongest model, longest reasoning, or full-document loading by default. Use quick/fast for exact low-risk requests, standard/balanced for scoped implementation, and deep/frontier only for ambiguous, broad, high-risk, or cross-boundary work. Runtime bridges may map the abstract tier to concrete model ids such as Codex Luna, Terra, or Sol; non-Codex runtimes must use their own mapping or keep the current model.
 
@@ -196,20 +196,20 @@ Before running project commands, adding dependencies, or using framework-specifi
 For PRD-only work, use `workflows/skills/prd-creation/SKILL.md` and select the PRD command at the canonical start:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command prd --request "<USER_REQUEST>" --platform <platform> --concern <concern>
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command prd --request "<USER_REQUEST>" --platform <platform> --concern <concern>
 ```
 
 For product or feature work that needs PRD -&gt; ARD -&gt; implementation -&gt; verification gates, use `workflows/skills/product-architecture-delivery/SKILL.md` and run the product command at the canonical start:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command product --request "<USER_REQUEST>" --platform <platform> --concern <concern>
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command product --request "<USER_REQUEST>" --platform <platform> --concern <concern>
 ```
 
 Use this `product` route, not the lower-level `feature` route, when the request is broad app-building, product delivery, a new multi-screen flow, architecture, data/auth/billing/release behavior, or a "show me how to build it" request that will continue into code. The `feature` route is only for scoped slices where the PRD/ARD gate is already satisfied or clearly unnecessary.
 
 For lower-level multi-step development work, continue with `workflows/skills/development-cycle/SKILL.md`. For vague or risky requests, use `workflows/skills/ambiguity-gate/SKILL.md` before PRD, ARD, task breakdown, or implementation. After a task, incident, handoff, repeated mistake, or missed signal, use `workflows/skills/retrospective-learning/SKILL.md` only when there is a reusable lesson. For coding, read `common/skills/agent-operating-skill/SKILL.md`, `common/skills/llm-coding-discipline/SKILL.md`, and `common/skills/code-conventions/SKILL.md` first. Then read one platform architecture card. Add platform detail, common, or product-pattern cards only when the task touches that concern.
 
-For documentation-only work, use `workflows/skills/documentation-update/SKILL.md`. For wiki, knowledge-base, source-grounded/living/generated docs, runbook, onboarding, durable architecture, or operational docs that humans and agents will read, also use `common/skills/llm-wiki-documentation/SKILL.md`. For documentation review, use `<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command docs-review --request "<USER_REQUEST>" --concern wiki`or manually combine `workflows/skills/review-and-commit/SKILL.md`, `workflows/skills/documentation-update/SKILL.md`, and `common/skills/llm-wiki-documentation/SKILL.md`. For planning, research, comparison, or recommendations before implementation, use `workflows/skills/planning-research/SKILL.md`. For interrupted, long-running, or transferred work, use `workflows/skills/agent-handoff-continuation/SKILL.md`; when the work must survive the session process itself ending, add `workflows/skills/session-continuation-protocol/SKILL.md`.
+For documentation-only work, use `workflows/skills/documentation-update/SKILL.md`. For wiki, knowledge-base, source-grounded/living/generated docs, runbook, onboarding, durable architecture, or operational docs that humans and agents will read, also use `common/skills/llm-wiki-documentation/SKILL.md`. For documentation review, use `<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command docs-review --request "<USER_REQUEST>" --concern wiki`or manually combine `workflows/skills/review-and-commit/SKILL.md`, `workflows/skills/documentation-update/SKILL.md`, and `common/skills/llm-wiki-documentation/SKILL.md`. For planning, research, comparison, or recommendations before implementation, use `workflows/skills/planning-research/SKILL.md`. For interrupted, long-running, or transferred work, use `workflows/skills/agent-handoff-continuation/SKILL.md`; when the work must survive the session process itself ending, add `workflows/skills/session-continuation-protocol/SKILL.md`.
 
 For delegated or parallel agent work, use `workflows/skills/multi-agent-collaboration/SKILL.md`. For non-trivial reviews, release candidates, or changes that need product, UX, architecture, reliability, security, and QA lenses, use `workflows/skills/multi-perspective-review/SKILL.md`.
 

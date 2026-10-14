@@ -39,7 +39,7 @@ class NamedProjectTestRuns(_Fixture):
             f"echo ready && cd {self.bench} && python3 -m unittest discover -s {self.project}",
             f"echo ready && cd {self.project} && pytest",
             f"echo ready && cd {self.bench} && env pytest {self.project}",
-            'echo ready && cd "$TAO_HOME" && pytest',
+            'echo ready && cd "$MORU_HOME" && pytest',
         ):
             with self.subTest(command=command):
                 # The compound line cannot be read, so it defers, never approves.

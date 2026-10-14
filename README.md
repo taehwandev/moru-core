@@ -61,7 +61,7 @@ Korean guide: [README.ko.md](README.ko.md). Existing-install update guide: [docs
 The repository is now `taehwandev/moru-core`. The website still uses
 `tao.thdev.app`. Runtime identifiers are moving in stages: the Moru launcher
 can be installed at `~/.moru/bin/moru-hook`, while existing installations and
-records still use `TAO_HOME`, `<TAO_LAUNCHER>`, and `.tao`. A `state-ready`
+records still use `MORU_HOME`, `<MORU_LAUNCHER>`, and `.tao`. A `state-ready`
 marker selects `.moru` records only after the offline migration is verified.
 Do not move or delete `.tao` records merely to follow the new name. See
 [the migration plan](docs/migration/moru-rename.md).
@@ -98,8 +98,8 @@ Choose one setup path first. Existing local or repo-pinned roots are the default
 
 Use this when Moru Core is already on the machine.
 
-1. Locate the existing root. Prefer an explicit path from the user, then `MORU_HOME` or the compatibility variable `TAO_HOME`, then the current install location. Check legacy installation locations when migrating an existing installation.
-2. Verify that the root contains `AGENTS.md`, `index.md`, and the lifecycle scripts. The installed launcher is the preferred execution path: `<TAO_LAUNCHER>`.
+1. Locate the existing root. Prefer an explicit path from the user, then `MORU_HOME` or the compatibility variable `MORU_HOME`, then the current install location. Check legacy installation locations when migrating an existing installation.
+2. Verify that the root contains `AGENTS.md`, `index.md`, and the lifecycle scripts. The installed launcher is the preferred execution path: `<MORU_LAUNCHER>`.
 3. Point the target repo to that root. Do not clone, vendor, or copy another Moru Core checkout.
 
 If a usable root is found but the agent believes a fresh download is needed, it must ask first:
@@ -110,8 +110,8 @@ pin a new copy anyway, or should I reuse the existing root?
 ```
 
 ```bash
-export TAO_HOME="/path/to/existing/moru-core"
-<TAO_LAUNCHER> workflow validate
+export MORU_HOME="/path/to/existing/moru-core"
+<MORU_LAUNCHER> workflow validate
 ```
 
 ### Path B: First-Time Local Shared Install
@@ -119,9 +119,9 @@ export TAO_HOME="/path/to/existing/moru-core"
 Use this when no usable local or repo-pinned copy exists and the user wants one shared install for multiple personal repos.
 
 ```bash
-export TAO_HOME="$HOME/.moru/core"
-git clone https://github.com/taehwandev/moru-core.git "$TAO_HOME"
-python3 "$TAO_HOME/scripts/workflow.py" validate
+export MORU_HOME="$HOME/.moru/core"
+git clone https://github.com/taehwandev/moru-core.git "$MORU_HOME"
+python3 "$MORU_HOME/scripts/workflow.py" validate
 ```
 
 ### Path C: Team-Pinned Install
@@ -138,9 +138,9 @@ python3 .agents/moru-core/scripts/workflow.py validate
 Use Git as the update mechanism. For a personal or shared local checkout, update the selected Moru Core root between tasks:
 
 ```bash
-cd "${TAO_HOME}"
+cd "${MORU_HOME}"
 git pull --ff-only
-<TAO_LAUNCHER> workflow validate
+<MORU_LAUNCHER> workflow validate
 npx --yes @taehwandev/vibeguard audit . --rules .
 ```
 
@@ -151,7 +151,7 @@ For a team-pinned submodule, update the pinned commit through the target repo's 
 ```bash
 cd <target-repo>
 git submodule update --remote .agents/moru-core
-<TAO_LAUNCHER> workflow validate
+<MORU_LAUNCHER> workflow validate
 git add .agents/moru-core
 ```
 
@@ -159,7 +159,7 @@ Public site: `https://tao.thdev.app/#update`
 
 ### Automatic Project Memory
 
-The installed `<TAO_LAUNCHER> project-memory` command lets agents capture,
+The installed `<MORU_LAUNCHER> project-memory` command lets agents capture,
 recall, replace, and retire short, source-attributed project guidance. A capture
 is recalled by later task starts without an approval step; records expire on
 their review date. Memory is reference context, never instructions: the current
@@ -209,11 +209,11 @@ route command, project path, state, and timestamps. A run continued with
 completed replacement marks it `done`, and a no-change cancel marks it
 `cancelled`. Start lists up to three other open cards
 of the same repository as reference context, so unfinished work stays visible in
-a new session. `<TAO_LAUNCHER> work-cards list [--all]` shows the board and
+a new session. `<MORU_LAUNCHER> work-cards list [--all]` shows the board and
 `work-cards close <work id>` settles a card by hand.
 
 For Codex, start also records the runtime session automatically. From the
-repository, run `<TAO_LAUNCHER> work-cards resume` and choose a numbered task
+repository, run `<MORU_LAUNCHER> work-cards resume` and choose a numbered task
 summary to open its exact conversation, including completed tasks. No session
 renaming or UUID entry is needed. The current directory is the default project;
 `--project <repo>` selects another repository. Selection uses the displayed
@@ -230,19 +230,19 @@ content-free delegation queue in `.tao/scheduler.json` is separate.
 
 After choosing the root, add a short pointer to the target repo's canonical agent instruction file. Prefer `AGENTS.md` when the active runtimes read it. If existing runtime-specific files such as `CLAUDE.md`, `CODEX.md`, `.agents/README.md`, Antigravity CLI docs, or explicitly documented local override files are present, update their Moru Core pointer in the same pass or point them back to `AGENTS.md`. Do not create extra runtime-specific files only to duplicate the same routing block.
 
-Keep committed repo-local instructions portable. Do not write a personal absolute path such as `/Users/.../moru-core` into files that will be shared through Git. Use `${TAO_HOME}` for a shared local install during the compatibility period, or a repo-relative path such as `.agents/moru-core` for a repo-pinned install. Personal full paths belong only in shell environment setup, one-shot prompts, or uncommitted user-level runtime bridges.
+Keep committed repo-local instructions portable. Do not write a personal absolute path such as `/Users/.../moru-core` into files that will be shared through Git. Use `${MORU_HOME}` for a shared local install during the compatibility period, or a repo-relative path such as `.agents/moru-core` for a repo-pinned install. Personal full paths belong only in shell environment setup, one-shot prompts, or uncommitted user-level runtime bridges.
 
 When starting an agent from `~`, a workspace parent, or another repo, resolve the target first:
 
 ```bash
-<TAO_LAUNCHER> agent-entry --runtime codex --request "<USER_REQUEST>" --cwd "$PWD"
+<MORU_LAUNCHER> agent-entry --runtime codex --request "<USER_REQUEST>" --cwd "$PWD"
 ```
 
 If discovery returns `selected`, use the reported `runtime_launch` guidance for the next session. For Codex, the normal shape is:
 
 ```bash
 codex -C <TARGET_REPO>
-codex -C <TARGET_REPO> --add-dir "${TAO_HOME}"
+codex -C <TARGET_REPO> --add-dir "${MORU_HOME}"
 ```
 
 Use the second form only when the task needs the Moru Core root in the session workspace, such as maintaining shared Moru Core docs, scripts, or runtime bridges. Repo instruction files decide behavior; `-C` and `--add-dir` decide which filesystem roots the runtime can use without repeated prompts.
@@ -268,20 +268,20 @@ When an agent starts in one repo and discovers that another repo must be written
 
 ```text
 Shared Moru Core guidance:
-${TAO_HOME}/AGENTS.md
-${TAO_HOME}/index.md
-<TAO_LAUNCHER>
-<TAO_LAUNCHER> workflow
-<TAO_LAUNCHER> setup-agent-hooks
-<TAO_LAUNCHER> agent-preflight
-<TAO_LAUNCHER> agent-finish-check
+${MORU_HOME}/AGENTS.md
+${MORU_HOME}/index.md
+<MORU_LAUNCHER>
+<MORU_LAUNCHER> workflow
+<MORU_LAUNCHER> setup-agent-hooks
+<MORU_LAUNCHER> agent-preflight
+<MORU_LAUNCHER> agent-finish-check
 
 Use repo-local instructions first.
-For multi-step tasks, run `<TAO_LAUNCHER> start` once. It performs routing and
+For multi-step tasks, run `<MORU_LAUNCHER> start` once. It performs routing and
 preflight; then read every route required_docs entry directly before work.
 Use the review hook after meaningful edits and the finish hook before final
-report, commit, release, or handoff. Direct <TAO_LAUNCHER> workflow route,
-<TAO_LAUNCHER> agent-preflight, and <TAO_LAUNCHER> agent-finish-check calls are lower-level diagnostic
+report, commit, release, or handoff. Direct <MORU_LAUNCHER> workflow route,
+<MORU_LAUNCHER> agent-preflight, and <MORU_LAUNCHER> agent-finish-check calls are lower-level diagnostic
 or compatibility fallbacks only; never run them as a second lifecycle.
 Use the shared index only to select the smallest relevant document set.
 Do not load every shared document by default.
@@ -311,29 +311,29 @@ After the user answers, use the matching command shape.
 Audit only, preserving existing guardrails:
 
 ```bash
-export TAO_HOME="/path/to/existing/moru-core"
-<TAO_LAUNCHER> workflow validate
-npx --yes @taehwandev/vibeguard audit . --rules "${TAO_HOME}"
+export MORU_HOME="/path/to/existing/moru-core"
+<MORU_LAUNCHER> workflow validate
+npx --yes @taehwandev/vibeguard audit . --rules "${MORU_HOME}"
 ```
 
 Refresh an existing managed VibeGuard block only when explicitly requested:
 
 ```bash
-export TAO_HOME="/path/to/existing/moru-core"
-<TAO_LAUNCHER> workflow validate
-npx --yes @taehwandev/vibeguard update . --rules "${TAO_HOME}"
-npx --yes @taehwandev/vibeguard audit . --fix --rules "${TAO_HOME}"
-npx --yes @taehwandev/vibeguard audit . --rules "${TAO_HOME}"
+export MORU_HOME="/path/to/existing/moru-core"
+<MORU_LAUNCHER> workflow validate
+npx --yes @taehwandev/vibeguard update . --rules "${MORU_HOME}"
+npx --yes @taehwandev/vibeguard audit . --fix --rules "${MORU_HOME}"
+npx --yes @taehwandev/vibeguard audit . --rules "${MORU_HOME}"
 ```
 
 First-time VibeGuard setup only when the target has no guardrails yet:
 
 ```bash
-export TAO_HOME="/path/to/existing/moru-core"
-<TAO_LAUNCHER> workflow validate
-npx --yes @taehwandev/vibeguard setup . --rules "${TAO_HOME}"
-npx --yes @taehwandev/vibeguard audit . --fix --rules "${TAO_HOME}"
-npx --yes @taehwandev/vibeguard audit . --rules "${TAO_HOME}"
+export MORU_HOME="/path/to/existing/moru-core"
+<MORU_LAUNCHER> workflow validate
+npx --yes @taehwandev/vibeguard setup . --rules "${MORU_HOME}"
+npx --yes @taehwandev/vibeguard audit . --fix --rules "${MORU_HOME}"
+npx --yes @taehwandev/vibeguard audit . --rules "${MORU_HOME}"
 ```
 
 Full VibeGuard usage for humans: `https://vibeguard.thdev.app/`
@@ -363,12 +363,12 @@ Inspect the current repo instructions and VibeGuard files first. If either
 already exists, ask me a short application drill before running setup or update.
 Use the selected Moru Core root as the VibeGuard rule source. For
 multi-step work, run the stable launcher once:
-`<TAO_LAUNCHER> start --request "<USER_REQUEST>"`.
+`<MORU_LAUNCHER> start --request "<USER_REQUEST>"`.
 It owns routing and preflight; read its required documents before editing.
 Update the repo-local agent instructions with a short routing block. Keep
 repo-specific commands, paths, services, product policy, and domain language in
 this repo. In committed repo-local instruction files, use a portable
-Moru Core root reference: `${TAO_HOME}` for shared local installs
+Moru Core root reference: `${MORU_HOME}` for shared local installs
 or a repo-relative pinned path such as `.agents/moru-core`; do not commit my
 personal absolute path. If existing repo-local Claude, Codex, Antigravity, or
 other runtime instruction files are present, update the necessary Moru Core
@@ -384,17 +384,17 @@ When an agent applies Moru Core to a target repo, it should execute this flow in
  1. Identify the target repo and read its existing local instructions first.
  2. Choose one setup mode: existing local install, first-time local shared install, or team-pinned install.
  3. If any usable local or repo-pinned root exists, stop install selection there and reuse it unless the user explicitly approves a new download or pinned copy.
- 4. Validate the selected Moru Core root with `<TAO_LAUNCHER> workflow validate`.
+ 4. Validate the selected Moru Core root with `<MORU_LAUNCHER> workflow validate`.
  5. Inspect existing VibeGuard and repo-local instruction files. Ask the application drill when the repo already has custom instructions or guardrails.
  6. Apply the selected VibeGuard mode with the selected Moru Core root as the rule source: audit-only, refresh with `update`, or first-time `setup`.
  7. Add a short routing block to the repo instruction file the agent runtime actually reads, preferring `AGENTS.md` when supported.
- 8. Use a portable Moru Core root reference in committed repo-local files: `${TAO_HOME}` for shared local installs during compatibility or a repo-relative pinned path such as `.agents/moru-core`. Personal absolute paths are allowed only in shell env setup, one-shot prompts, or uncommitted user-level runtime bridges. Replace existing committed personal paths before reporting success.
+ 8. Use a portable Moru Core root reference in committed repo-local files: `${MORU_HOME}` for shared local installs during compatibility or a repo-relative pinned path such as `.agents/moru-core`. Personal absolute paths are allowed only in shell env setup, one-shot prompts, or uncommitted user-level runtime bridges. Replace existing committed personal paths before reporting success.
  9. Keep repo-specific commands, paths, services, product policy, and domain language in the target repo.
 10. Update any existing runtime-specific instruction files, such as `CLAUDE.md`, `CODEX.md`, `.agents/README.md`, or Antigravity CLI docs, so they point to the same Moru Core root or back to `AGENTS.md`.
 11. Do not create new runtime-specific instruction files when the active runtime already reads `AGENTS.md`.
 12. Offer optional Step 2 for user-level runtime bridges. Only update personal or global runtime instruction files when the user chooses that option. The bridge must explicitly tell the runtime to read the current target project's local instructions first: Codex-style agents read `AGENTS.md`, Claude reads `CLAUDE.md`, and Antigravity reads `AGENTS.md`.
-13. For multi-step follow-up work, run `<TAO_LAUNCHER> start ... --request "<USER_REQUEST>"` once and follow its route and gate ledger. It performs classification, routing, and preflight; do not repeat those commands after a successful start. Answer direct questions before start.
-14. Read every route `required_docs` entry directly after start, run the review hook after meaningful edits, and run the finish hook before final report, commit, release, or handoff. Direct `<TAO_LAUNCHER> workflow route`, `<TAO_LAUNCHER> agent-preflight`, and `<TAO_LAUNCHER> agent-finish-check` calls are lower-level diagnostic or compatibility fallbacks only.
+13. For multi-step follow-up work, run `<MORU_LAUNCHER> start ... --request "<USER_REQUEST>"` once and follow its route and gate ledger. It performs classification, routing, and preflight; do not repeat those commands after a successful start. Answer direct questions before start.
+14. Read every route `required_docs` entry directly after start, run the review hook after meaningful edits, and run the finish hook before final report, commit, release, or handoff. Direct `<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`, and `<MORU_LAUNCHER> agent-finish-check` calls are lower-level diagnostic or compatibility fallbacks only.
 15. Before reporting success, verify the routing block, VibeGuard gate result, and any route gates that were required.
 
 ## Prompt A Local Agent
@@ -415,24 +415,24 @@ present, and Antigravity should read the current project's AGENTS.md before
 Moru Core.
 
 Then use Moru Core:
-<TAO_ROOT>/AGENTS.md
-<TAO_ROOT>/index.md
-<TAO_LAUNCHER>
-<TAO_LAUNCHER> workflow
-<TAO_LAUNCHER> agent-preflight
-<TAO_LAUNCHER> agent-finish-check
+<MORU_ROOT>/AGENTS.md
+<MORU_ROOT>/index.md
+<MORU_LAUNCHER>
+<MORU_LAUNCHER> workflow
+<MORU_LAUNCHER> agent-preflight
+<MORU_LAUNCHER> agent-finish-check
 
-Apply the required VibeGuard safety gate with <TAO_ROOT> as the rule
+Apply the required VibeGuard safety gate with <MORU_ROOT> as the rule
 source before editing. Use the published VibeGuard package command; the
 VibeGuard site is a human reference and does not need to be fetched by the
 agent.
-For multi-step work, run `<TAO_LAUNCHER> start` once with `--request
+For multi-step work, run `<MORU_LAUNCHER> start` once with `--request
 "<USER_REQUEST>"`; it performs routing and preflight. Read every route
 `required_docs` entry directly before work and follow the gate ledger. If the
 user asks a direct question, answer it before starting project work. Run the
 review hook after meaningful edits and the finish hook before final report,
-commit, release, or handoff. Direct `<TAO_LAUNCHER> workflow route`, `<TAO_LAUNCHER> agent-preflight`,
-and `<TAO_LAUNCHER> agent-finish-check` calls are lower-level diagnostic or compatibility
+commit, release, or handoff. Direct `<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`,
+and `<MORU_LAUNCHER> agent-finish-check` calls are lower-level diagnostic or compatibility
 fallbacks only. Missing wrapper evidence or missing route gate evidence is
 non-compliant.
 After each completed or failed gate or task step, show:
@@ -443,10 +443,10 @@ gate was blocked, failed, missed, or lacks evidence and must use missed-gate
 recovery. Do not report any third gate state.
 
 For PRD-only work:
-<TAO_LAUNCHER> start --command prd --request "<USER_REQUEST>" --platform <platform> --concern <concern>
+<MORU_LAUNCHER> start --command prd --request "<USER_REQUEST>" --platform <platform> --concern <concern>
 
 For PRD -> ARD -> implementation:
-<TAO_LAUNCHER> start --command product --request "<USER_REQUEST>" --platform <platform> --concern <concern>
+<MORU_LAUNCHER> start --command product --request "<USER_REQUEST>" --platform <platform> --concern <concern>
 ```
 
 Full bootstrap instructions live in docs/skills/agent-bootstrap/SKILL.md. A shorter reusable prompt lives in templates/apply-tao-request.md.
@@ -458,18 +458,18 @@ Moru Core is not tied to one runtime. Codex and Antigravity may discover `AGENTS
 - For long-lived repo setup, add the routing block from templates/repo-agents-routing.md to the instruction file the runtime reads, preferring `AGENTS.md` when supported. If `CLAUDE.md`, `CODEX.md`, `.agents/README.md`, or Antigravity CLI docs already exist, update their pointer in the same pass instead of leaving stale runtime guidance.
 - For one-shot use, paste templates/use-tao-prompt.mdinto the agent with the target repo, task, Moru Core root, and VibeGuard docs link filled in.
 - For stronger future behavior, use the optional Step 2 prompt in templates/apply-tao-request.mdto update user-level runtime bridges such as `~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`, `~/.antigravity`, `~/.antigravitycli`, or `~/.antigravity-ide`. The managed bridge must route the current request before document selection, use the local document graph and `workflow-doc-surfaces.json`, and read the route's `required_docs` even when the user did not name document keywords.
-- When a runtime starts from `~` or another non-project directory, resolve the target first with `<TAO_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>`. Continue only when it returns `selected`; ask the user when it returns `ambiguous` or `not_found`. Optional local aliases can live in `~/.tao/projects.json`.
-- To avoid repeated prompts for Moru Core commands, run `<TAO_LAUNCHER> setup-agent-hooks --check`, then run `<TAO_LAUNCHER> setup-agent-hooks` after approval if user-level bridges, hooks, or permissions are missing. This writes short managed bridge blocks for Codex, Claude, and AGY plus global runtime config only for Moru Core-managed entrypoints; it does not broadly allow `python3`. Codex and AGY permissions use the resolved absolute stable launcher path, not `$HOME`, `~`, relative paths, or shell `-lc` strings. Claude managed hooks use the same launcher plus a refreshed `~/.tao/tao-root` pointer, so moving or migrating the checkout does not leave `~/.claude/settings.json` pointing at a stale checkout-local command. Rerun setup after moving Moru Core to refresh that pointer and repair stale managed bridges and hooks.
+- When a runtime starts from `~` or another non-project directory, resolve the target first with `<MORU_LAUNCHER> agent-entry --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>`. Continue only when it returns `selected`; ask the user when it returns `ambiguous` or `not_found`. Optional local aliases can live in `~/.tao/projects.json`.
+- To avoid repeated prompts for Moru Core commands, run `<MORU_LAUNCHER> setup-agent-hooks --check`, then run `<MORU_LAUNCHER> setup-agent-hooks` after approval if user-level bridges, hooks, or permissions are missing. This writes short managed bridge blocks for Codex, Claude, and AGY plus global runtime config only for Moru Core-managed entrypoints; it does not broadly allow `python3`. Codex and AGY permissions use the resolved absolute stable launcher path, not `$HOME`, `~`, relative paths, or shell `-lc` strings. Claude managed hooks use the same launcher plus a refreshed `~/.tao/tao-root` pointer, so moving or migrating the checkout does not leave `~/.claude/settings.json` pointing at a stale checkout-local command. Rerun setup after moving Moru Core to refresh that pointer and repair stale managed bridges and hooks.
 - Spill workflow labels are written only after a successful real route or start preflight. Advisory prompt routing never writes labels; classify/list/query/validate use `--if-absent` and cannot replace an active task. A successful preflight records the selected route mapping (for example bugfix -> debugging/implement, commit -> git_commit/implement, review -> code_review/verify), including in-process routing. Failed routes preserve the prior label. Bounded synchronous helper writes prevent late detached classify writes from winning. Existing hooks and per-turn fallback remain enabled.
-- Spill token metering is optional and separate. Moru Core does not install token-usage event hooks. If the local Spill setup helper is present, `<TAO_LAUNCHER> setup-agent-hooks` may wire a safe workflow label bridge; if the helper is absent, it removes only Moru Core-managed Spill label hooks/env and leaves Moru Core routing and evidence wrappers working normally.
+- Spill token metering is optional and separate. Moru Core does not install token-usage event hooks. If the local Spill setup helper is present, `<MORU_LAUNCHER> setup-agent-hooks` may wire a safe workflow label bridge; if the helper is absent, it removes only Moru Core-managed Spill label hooks/env and leaves Moru Core routing and evidence wrappers working normally.
 - To refresh the obsolete Codex dispatch paragraph in an existing managed project `AGENTS.md`, add `--refresh-project-guidance <PROJECT>` to setup (repeat per project). Preview with `--dry-run`; `--check` verifies it afterward. Only the recognized paragraph inside the managed routing block changes; repo-owned instructions remain intact, and the previous file is kept as `AGENTS.md.tao-backup`. Unknown or unmanaged text is left unchanged with a diagnostic.
-- For Codex, Claude, and Antigravity/AGY, `<TAO_LAUNCHER> setup-agent-hooks --check` also verifies the managed user bridge in the runtime's user-level instruction file. A missing or stale bridge is treated as missing setup so the runtime cannot proceed as if project discovery, graph-backed document routing, fail-closed, and silence rules were installed.
+- For Codex, Claude, and Antigravity/AGY, `<MORU_LAUNCHER> setup-agent-hooks --check` also verifies the managed user bridge in the runtime's user-level instruction file. A missing or stale bridge is treated as missing setup so the runtime cannot proceed as if project discovery, graph-backed document routing, fail-closed, and silence rules were installed.
 - For runtime-specific setup rules, read docs/skills/agent-runtime-integration/SKILL.md.
 
 ## Distribution Modes
 
 - Existing local install: required by default when the user already has Moru Core. Link the target repo to that root and do not reinstall unless the user explicitly approves a new copy after seeing the found path.
-- Local shared install: clone once to `~/.moru/core` and reuse it across personal repos; set `TAO_HOME` until all runtime bridges accept `MORU_HOME`.
+- Local shared install: clone once to `~/.moru/core` and reuse it across personal repos; set `MORU_HOME` until all runtime bridges accept `MORU_HOME`.
 - Team-pinned install: add Moru Core as a git submodule or vendored dependency when every teammate and agent must use the same reviewed version.
 
 In every mode, VibeGuard is mandatory. Moru Core names that requirement and the selected rule source; VibeGuard owns the operating flow. Use the published VibeGuard package command, with <https://vibeguard.thdev.app/> as the human-facing reference. If an agent browsing/fetch tool cannot read the site, do not treat that alone as a blocker. If the VibeGuard command itself cannot run, report the blocker instead of bypassing the gate. The target repo keeps its own commands, paths, services, product policy, and domain rules. Moru Core provides shared defaults only.
@@ -479,16 +479,16 @@ In every mode, VibeGuard is mandatory. Moru Core names that requirement and the 
 For multi-step work, agents generate the route manifest through one start hook before selecting documents manually, editing, reviewing, committing, or reporting completion:
 
 ```bash
-<TAO_LAUNCHER> start --command product --request "<USER_REQUEST>" --platform web --concern security --concern ui
+<MORU_LAUNCHER> start --command product --request "<USER_REQUEST>" --platform web --concern security --concern ui
 ```
 
 The start hook performs classification, routing, and preflight. Read its `required_docs` directly before work; do not separately repeat the lower-level commands. Use these only for diagnostics, compatibility fallback, or route development when the start hook is unavailable:
 
 ```bash
-<TAO_LAUNCHER> workflow list
-<TAO_LAUNCHER> workflow classify "Change the button on home"
-<TAO_LAUNCHER> workflow route triage --request "Change the button on home"
-<TAO_LAUNCHER> workflow validate
+<MORU_LAUNCHER> workflow list
+<MORU_LAUNCHER> workflow classify "Change the button on home"
+<MORU_LAUNCHER> workflow route triage --request "Change the button on home"
+<MORU_LAUNCHER> workflow validate
 ```
 
 `triage` and `ambiguity` route without intake evidence. Every work route (`product`, `feature`, `docs-review`, and the rest) refuses a bare `workflow route` with "Work routes require a current, session-bound intent envelope"; to inspect one directly, pass the compatibility `--intent-envelope`, `--approval-record`, and `--runtime-session-id` arguments, or run `start` with the platform and concern flags shown above.
@@ -509,14 +509,14 @@ If the workflow router cannot run, the agent must stop and report the blocker or
 
 For stronger enforcement, agents should use the wrapper scripts that turn the route, VibeGuard checks, git status, validation, and gate ledger into local JSON evidence.
 
-When an agent runtime executes these wrapper commands, resolve `${TAO_HOME}` to the absolute path first. Do not leave `$HOME`, `${HOME}`, `~`, or a relative path in approval-sensitive executable commands.
+When an agent runtime executes these wrapper commands, resolve `${MORU_HOME}` to the absolute path first. Do not leave `$HOME`, `${HOME}`, `~`, or a relative path in approval-sensitive executable commands.
 
 Before multi-step edits, run one lifecycle entry that performs routing and preflight:
 
 ```bash
-<TAO_LAUNCHER> start \
+<MORU_LAUNCHER> start \
   --project . \
-  --rules "${TAO_HOME}" \
+  --rules "${MORU_HOME}" \
   --command task \
   --request "<USER_REQUEST>" \
   --concern wiki
@@ -527,19 +527,19 @@ Read every route `required_docs` entry directly after start and before work. Run
 Leave `--max-added-lines` at its default for ordinary source changes. Raise it only for one named, indivisible standalone artifact, and name that exact file plus the reason it cannot be split in `--structure-review-evidence`.
 
 ```bash
-<TAO_LAUNCHER> gate-batch \
+<MORU_LAUNCHER> gate-batch \
   --project . \
-  --rules "${TAO_HOME}" \
+  --rules "${MORU_HOME}" \
   --gate-record '[{"gate":"orient","status":"SUCCESS","evidence":"<instructions and required-doc route>"},{"gate":"scope","status":"SUCCESS","evidence":"<scope decision>"},{"gate":"act","status":"SUCCESS","evidence":"<diff or changed files>"},{"gate":"verify","status":"SUCCESS","evidence":"<commands and results>"},{"gate":"retrospective check","status":"SUCCESS","evidence":"<skills checked and closeout outcome>","fields":{"skills_checked":"<canonical skill ids>","outcome":"no_reusable_gap","observation":"not_needed"}},{"gate":"report","status":"SUCCESS","evidence":"<final report prepared>"}]'
 
-<TAO_LAUNCHER> finish \
+<MORU_LAUNCHER> finish \
   --project . \
-  --rules "${TAO_HOME}"
+  --rules "${MORU_HOME}"
 ```
 
 `finish` never writes or overrides the gate ledger. Record corrections through `gate` or `gate-batch`; the latest structured status for each gate is authoritative.
 
-Direct `<TAO_LAUNCHER> workflow route`, `<TAO_LAUNCHER> agent-preflight`, and `<TAO_LAUNCHER> agent-finish-check`calls remain available only as lower-level diagnostic or compatibility fallbacks when the corresponding hook cannot run; never run them as a second lifecycle after a successful start or finish hook.
+Direct `<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`, and `<MORU_LAUNCHER> agent-finish-check`calls remain available only as lower-level diagnostic or compatibility fallbacks when the corresponding hook cannot run; never run them as a second lifecycle after a successful start or finish hook.
 
 The scripts write to `.tao/preflight.json` and `.tao/finish.json`. That directory is local runtime evidence and should usually be gitignored. Missing wrapper evidence or missing route gate evidence is non-compliant even if the resulting code or docs look correct. Human-visible gate reports use only two cat signal badges so failures are hard to miss: `🐱🟢 SUCCESS` and `🐱🔴 FAIL`. The JSON evidence keeps the plain signal values for automation. When `--request-classified` is used, pass `--classification-evidence`; otherwise request intake is treated as skipped. Evidence alone does not honor the flag: it applies only to a delegated worker whose parent left a ready and valid execution capsule, and the form with neither a request nor a capsule is rejected. Every other caller passes `--request "<USER_REQUEST>"` and lets the classifier run. A caller that only wants the document listing without asserting intake uses `--advisory`, which satisfies no downstream gate and never writes Spill label context. If route classification or stored request text asks for Grill-Me, the finish check must receive Grill-Me protocol evidence such as `grill-me if needed=</grilling session/output evidence>`. Work routes require resolved-scope classification evidence such as `clear-exact`, `clear-scoped`, `answered ... separate actionable`, or `blockers resolved`; weak evidence such as `classified`, `done`, `clarified`, or `no blockers` does not open work routes by itself.
 
@@ -582,21 +582,21 @@ Moru Core cards should not stop at "write clean code." Platform routes now inclu
 For implementation work, start once with the platform and concern instead of relying on only a broad architecture card. Each line is an alternative task entry, not a sequence:
 
 ```bash
-<TAO_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform ios --concern swiftui
-<TAO_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform ios --concern uikit
-<TAO_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform web --concern react --concern ui
-<TAO_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform android --concern compose
-<TAO_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform kmp --concern compose --concern platform
-<TAO_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform flutter --concern widget --concern channel
-<TAO_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform server --concern api --concern auth
-<TAO_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform application --concern desktop
+<MORU_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform ios --concern swiftui
+<MORU_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform ios --concern uikit
+<MORU_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform web --concern react --concern ui
+<MORU_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform android --concern compose
+<MORU_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform kmp --concern compose --concern platform
+<MORU_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform flutter --concern widget --concern channel
+<MORU_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform server --concern api --concern auth
+<MORU_LAUNCHER> start --command feature --request "<USER_REQUEST>" --platform application --concern desktop
 ```
 
 ## Loading Model
 
 1. Start from the target repo's local instructions.
 2. Open this repository's `AGENTS.md`.
-3. For multi-step work, run `<TAO_LAUNCHER> start ... --request "<USER_REQUEST>"` once to generate routing and preflight evidence before selecting task documents. Do not repeat lower-level route or preflight.
+3. For multi-step work, run `<MORU_LAUNCHER> start ... --request "<USER_REQUEST>"` once to generate routing and preflight evidence before selecting task documents. Do not repeat lower-level route or preflight.
 4. Read every route `required_docs` entry directly before work; use `index.md`only for a simple answer or an explicitly accepted fallback.
 5. Read the common baseline cards required for the task.
 6. Add exactly the platform, product-pattern, or workflow cards that match the touched surface.
@@ -610,8 +610,8 @@ This is the core design: small cards, loaded only when relevant.
 - `AGENTS.md` is the shared entrypoint for agent runtimes.
 - Use `index.md` to choose only the needed documents.
 - Answer direct user questions before starting workflow routing, editing, or project-specific commands.
-- Run `<TAO_LAUNCHER> start ... --request "<USER_REQUEST>"` once for multi-step workflows, then read every route `required_docs` entry directly.
-- Use the review hook after meaningful edits and the finish hook before final report, commit, release, or handoff. Direct `<TAO_LAUNCHER> workflow route`, `<TAO_LAUNCHER> agent-preflight`, and `<TAO_LAUNCHER> agent-finish-check` calls are lower-level diagnostic or compatibility fallbacks only; missing executable evidence is non-compliant.
+- Run `<MORU_LAUNCHER> start ... --request "<USER_REQUEST>"` once for multi-step workflows, then read every route `required_docs` entry directly.
+- Use the review hook after meaningful edits and the finish hook before final report, commit, release, or handoff. Direct `<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`, and `<MORU_LAUNCHER> agent-finish-check` calls are lower-level diagnostic or compatibility fallbacks only; missing executable evidence is non-compliant.
 - Classify unclear requests before loading broad context or using deep model effort.
 - Discover the repo stack before choosing package managers, framework APIs, or project commands.
 - Diagnose command failures from stdout/stderr before changing code or deciding whether a changed condition justifies another execution.

@@ -18,50 +18,50 @@ type: human-reviewed-needed
 ## 경로 표기 원칙
 
 - Git에 커밋되는 `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.agents/README.md`같은 repo-local 지침에는 `/Users/.../moru-core` 같은 개인 절대 경로를 넣지 마세요.
-- 개인 로컬 공유 설치는 호환 환경변수 `${TAO_HOME}`으로 가리키고, 팀 고정 설치는 `.agents/moru-core` 같은 repo-relative 경로를 사용하세요.
+- 개인 로컬 공유 설치는 호환 환경변수 `${MORU_HOME}`으로 가리키고, 팀 고정 설치는 `.agents/moru-core` 같은 repo-relative 경로를 사용하세요.
 - 개인 절대 경로는 shell 환경변수 설정, 커밋하지 않는 사용자 전역 런타임 브리지, 또는 한 번만 붙여넣는 one-shot 프롬프트에서만 허용합니다.
 - 기존에 커밋된 지침에서 개인 절대 경로를 발견하면 push 전에 portable reference로 바꿔야 합니다.
 
 ## 개인 로컬 설치 최신화
 
 ```bash
-cd "${TAO_HOME}"
+cd "${MORU_HOME}"
 git pull --ff-only
 python3 scripts/workflow.py validate
 vibeguard audit . --rules .
 ```
 
-`TAO_HOME`을 쓰지 않는다면 실제 모루 코어 경로로 이동해서 같은 명령을 실행하면 됩니다.
+`MORU_HOME`을 쓰지 않는다면 실제 모루 코어 경로로 이동해서 같은 명령을 실행하면 됩니다.
 
 ## 실행 근거 강제
 
 최신화 후 여러 단계 작업을 맡길 때는 에이전트가 wrapper evidence를 만들게 하는 것이 안전합니다. 지침을 읽었다는 말만으로는 충분하지 않습니다.
 
-작업 전에는 설치된 `<TAO_LAUNCHER> start`를 한 번만 실행합니다. 이 명령이 라우팅과
-preflight를 함께 수행하므로 성공 뒤에 `<TAO_LAUNCHER> workflow route`나
-`<TAO_LAUNCHER> agent-preflight`를 따로 반복하지 않습니다:
+작업 전에는 설치된 `<MORU_LAUNCHER> start`를 한 번만 실행합니다. 이 명령이 라우팅과
+preflight를 함께 수행하므로 성공 뒤에 `<MORU_LAUNCHER> workflow route`나
+`<MORU_LAUNCHER> agent-preflight`를 따로 반복하지 않습니다:
 
-에이전트 런타임에서 실행할 때는 `${TAO_HOME}`을 먼저 실제 절대 경로로 치환하세요. 승인 민감 명령에는 `$HOME`, `${HOME}`, `~`, 상대 경로를 남기지 않습니다.
+에이전트 런타임에서 실행할 때는 `${MORU_HOME}`을 먼저 실제 절대 경로로 치환하세요. 승인 민감 명령에는 `$HOME`, `${HOME}`, `~`, 상대 경로를 남기지 않습니다.
 
 ```bash
-<TAO_LAUNCHER> start \
+<MORU_LAUNCHER> start \
   --project . \
-  --rules "${TAO_HOME}" \
+  --rules "${MORU_HOME}" \
   --command task \
   --request "<USER_REQUEST>"
 ```
 
 start가 만든 route의 `required_docs`를 수정이나 검토 전에 직접 읽습니다.
-의미 있는 수정 뒤에는 `<TAO_LAUNCHER> review` review hook을 실행하고,
+의미 있는 수정 뒤에는 `<MORU_LAUNCHER> review` review hook을 실행하고,
 실제 route가 요구한 gate만 구조화된 근거로 기록한 다음 마무리 전에는
-`<TAO_LAUNCHER> finish`를 실행합니다. 고정된 gate 목록을 복사해 제출하지
+`<MORU_LAUNCHER> finish`를 실행합니다. 고정된 gate 목록을 복사해 제출하지
 않습니다. 런처는 새 설치의 `~/.moru/bin/moru-hook` 또는 기존 설치의
 `~/.tao/bin/tao-hook`처럼 실제로 설치된 절대 경로를 사용합니다.
 
 `finish`는 gate ledger를 쓰거나 덮어쓰지 않습니다. gate 상태 수정은
 `gate`/`gate-batch`로만 기록하며, 각 gate의 가장 최신 구조 상태가 기준입니다.
 
-`<TAO_LAUNCHER> workflow route`, `<TAO_LAUNCHER> agent-preflight`, `<TAO_LAUNCHER> agent-finish-check` 직접 호출은
+`<MORU_LAUNCHER> workflow route`, `<MORU_LAUNCHER> agent-preflight`, `<MORU_LAUNCHER> agent-finish-check` 직접 호출은
 hook이 unavailable인 경우의 하위(lower-level) 진단 또는 호환성 fallback일 뿐이며 같은
 작업에서 두 번째 lifecycle로 실행하지 않습니다.
 

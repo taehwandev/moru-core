@@ -183,7 +183,7 @@ class LoopBodiesAreReadTests(unittest.TestCase):
                     'do if [ -f "$p" ]; then echo "FILE $p"; cat "$p"; fi; done\n'
                     'if [ -f .agents/AGENTS.md ]; then cat .agents/AGENTS.md; fi'
                 )
-                with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": runtime}):
+                with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": runtime}):
                     result = _run(project, command)
                 self.assertEqual((0, ""), result)
 
@@ -197,7 +197,7 @@ class LoopBodiesAreReadTests(unittest.TestCase):
                     'if [ -f AGENTS.md ]; then cat AGENTS.md; else rm changed; fi',
                 ):
                     with self.subTest(command=command), patch.dict(
-                        os.environ, {"TAO_PRETOOL_RUNTIME": runtime}
+                        os.environ, {"MORU_PRETOOL_RUNTIME": runtime}
                     ):
                         code, out = _run(project, command)
                     self.assertEqual(0, code)

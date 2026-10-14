@@ -182,13 +182,13 @@ class VibeguardCacheTests(unittest.TestCase):
                 self.assertEqual(["Needs review", "Ready", "Ready"], audits)
 
     def setUp(self) -> None:
-        self._old_state_home = os.environ.get("TAO_STATE_HOME")
+        self._old_state_home = os.environ.get("MORU_STATE_HOME")
 
     def tearDown(self) -> None:
         if self._old_state_home is None:
-            os.environ.pop("TAO_STATE_HOME", None)
+            os.environ.pop("MORU_STATE_HOME", None)
         else:
-            os.environ["TAO_STATE_HOME"] = self._old_state_home
+            os.environ["MORU_STATE_HOME"] = self._old_state_home
 
     def test_vibeguard_cache_reuses_staged_bytes_and_invalidates_on_content_change(self) -> None:
         calls: list[list[str]] = []

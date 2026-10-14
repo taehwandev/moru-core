@@ -286,13 +286,13 @@ class GateTests(unittest.TestCase):
 
     def test_reported_archive_pipeline_passes_codex_without_operator_state(self) -> None:
         self.protect_main_checkout()
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}):
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}):
             code, out = self.decide(ADMITTED["archive stdout pipeline"])
         self.assertEqual((0, ""), (code, out))
         self.assertFalse((Path(os.environ[STATE_HOME_ENV]) / "codex-operator-review").exists())
 
     def test_archive_writes_still_pause_codex(self) -> None:
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}):
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}):
             for family, command in STILL_REFUSED.items():
                 if family.startswith("unzip"):
                     with self.subTest(family=family):
@@ -307,7 +307,7 @@ class GateTests(unittest.TestCase):
         helper.write_text("// identity fixture; never executed\n")
         label = f'node "{helper}" --label codex --task-type debugging --stage plan --if-absent'
         calls = [label, "command -v ffmpeg", ADMITTED["video metadata"], "rg --files feature app"]
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}), patch.object(Path, "home", return_value=home):
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}), patch.object(Path, "home", return_value=home):
             bundle = (f'if test -f "{helper}"; then {label}; fi\n' + "\n".join(calls[1:])
                       + " | rg -i 'portfolio.*(detail|screen)|image.*(viewer|detail|zoom)'")
             self.assertEqual((0, ""), self.decide(bundle))

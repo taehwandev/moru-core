@@ -155,7 +155,7 @@ class TheHooksAreActuallyInstrumentedTests(unittest.TestCase):
                     "--read-only", "--evidence", str(evidence), "--output", str(output),
                 ],
                 cwd=project, capture_output=True, text=True,
-                env={**os.environ, "TAO_STATE_HOME": state},
+                env={**os.environ, "MORU_STATE_HOME": state},
             )
             record = json.loads(output.read_text(encoding="utf-8"))
 
@@ -488,7 +488,7 @@ class TheHooksLeaveTheirNumbersInTheRunTests(unittest.TestCase):
                     "--read-only", "--evidence", str(evidence),
                 ],
                 cwd=project, capture_output=True, text=True,
-                env={**os.environ, "TAO_STATE_HOME": state},
+                env={**os.environ, "MORU_STATE_HOME": state},
             )
             sink = evidence.parent / "timings.jsonl"
             recorded = json.loads(sink.read_text(encoding="utf-8").splitlines()[0])

@@ -20,7 +20,7 @@ unresolved procedure.
 3. Count touched legacy owners/spans before edits; put new exports in
    purpose-named modules and extract long handlers. Kotlin overloads and
    compatibility wrappers each count as declarations. Before behavior builds,
-   run the stateless preview with `<TAO_ROOT>/scripts/agent-structure-check.py
+   run the stateless preview with `<MORU_ROOT>/scripts/agent-structure-check.py
    --project <TARGET_REPO>`; it checks structure without granting review approval.
    Stale links also block
    review: fix without raising limits. Resume the first failed checkpoint

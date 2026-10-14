@@ -12,7 +12,7 @@ released too: that it *could* write anywhere is no risk the command shows. What
 the command shows is judged instead. A word, an option value, an assignment's
 value or a redirect target that resolves into a governed project outside temp,
 or into the repository the checkout shares, keeps the checkout governed, so
-`TAO_HOME=<project> python3 x.py` gets the verdict it had before the exemption.
+`MORU_HOME=<project> python3 x.py` gets the verdict it had before the exemption.
 Known file utilities are held to more: their write operands and redirect
 targets must resolve inside temp, with only options whose effect is known.
 Keeping the checkout governed is the only effect: nothing here denies anything.

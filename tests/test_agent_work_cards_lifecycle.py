@@ -48,7 +48,7 @@ class WorkCardLifecycleTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         # The hook subprocesses inherit this, so no card reaches the real ~/.tao.
-        state_home = mock.patch.dict(os.environ, {"TAO_STATE_HOME": str(Path(temp.name) / "state-home")})
+        state_home = mock.patch.dict(os.environ, {"MORU_STATE_HOME": str(Path(temp.name) / "state-home")})
         state_home.start()
         self.addCleanup(state_home.stop)
         self.checkout = PlainCheckout(temp.name)
@@ -120,7 +120,7 @@ class ProjectMemoryAtStartTests(unittest.TestCase):
     def setUp(self) -> None:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        state_home = mock.patch.dict(os.environ, {"TAO_STATE_HOME": str(Path(temp.name) / "state-home")})
+        state_home = mock.patch.dict(os.environ, {"MORU_STATE_HOME": str(Path(temp.name) / "state-home")})
         state_home.start()
         self.addCleanup(state_home.stop)
         self.project = PlainCheckout(temp.name).project
@@ -192,7 +192,7 @@ class ProjectMemoryAtStartTests(unittest.TestCase):
 
 
 class TestRunsNeverReachTheUsersStoreTests(unittest.TestCase):
-    """A test that forgets TAO_STATE_HOME still cannot write the real ~/.tao.
+    """A test that forgets MORU_STATE_HOME still cannot write the real ~/.tao.
 
     HOME stands in for the developer's home: with no state-home override, the
     stores would resolve to `<HOME>/.tao`, which is exactly where a forgotten

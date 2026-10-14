@@ -317,11 +317,15 @@ def _obsolete_stable_launcher_commands(tool: str) -> list[str]:
         "",
         f"SPILL_AI_TOOL={tool} ",
         f"SPILL_TOKEN_USAGE_AI_TOOL={tool} ",
+        f"MORU_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} ",
         f"TAO_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} ",
     )
     for path in _obsolete_stable_launcher_path_variants():
         for prefix in env_prefixes:
             commands.append(f"{prefix}{path}")
+    # The pre-rename soft-fail spelling on the launchers setup still emits.
+    for path in _stable_launcher_path_variants():
+        commands.append(f"TAO_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} {path}")
     return commands
 
 
@@ -332,7 +336,7 @@ def _stable_launcher_commands(tool: str, *, include_spill_env: bool = True) -> l
         env_prefixes += (
             f"SPILL_AI_TOOL={tool} ",
             f"SPILL_TOKEN_USAGE_AI_TOOL={tool} ",
-            f"TAO_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} ",
+            f"MORU_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} ",
         )
     for path in _stable_launcher_path_variants():
         for prefix in env_prefixes:
@@ -395,15 +399,15 @@ def _legacy_entrypoint_path_variants(script: Path, project_root: Path | None = N
             f"${{HOME}}/{suffix}",
             _double_quote(f"${{HOME}}/{suffix}"),
         ]
-    # Add $TAO_HOME variants for the scripts/ relative path.
-    # TAO_HOME points to the Moru Core root, so the relative
+    # Add $MORU_HOME variants for the scripts/ relative path.
+    # MORU_HOME points to the Moru Core root, so the relative
     # path from root is scripts/<name> — not the same suffix as from HOME.
     ap_rel = f"scripts/{script.name}"
     variants += [
-        f"$TAO_HOME/{ap_rel}",
-        _double_quote(f"$TAO_HOME/{ap_rel}"),
-        f"${{TAO_HOME}}/{ap_rel}",
-        _double_quote(f"${{TAO_HOME}}/{ap_rel}"),
+        f"$MORU_HOME/{ap_rel}",
+        _double_quote(f"$MORU_HOME/{ap_rel}"),
+        f"${{MORU_HOME}}/{ap_rel}",
+        _double_quote(f"${{MORU_HOME}}/{ap_rel}"),
     ]
     return _dedupe(variants)
 

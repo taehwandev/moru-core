@@ -9,6 +9,8 @@ their existing lifecycle boundary.
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import argparse
 import json
 import os
@@ -27,8 +29,8 @@ def lookup_start(args: argparse.Namespace) -> int | None:
 
     if args.hook != "start":
         return None
-    if any(os.environ.get(name) for name in (
-        "TAO_PARENT_EVIDENCE_READONLY", "TAO_WORKER_EVIDENCE",
+    if any(env_get(name) for name in (
+        "MORU_PARENT_EVIDENCE_READONLY", "MORU_WORKER_EVIDENCE",
     )) or args.worker_reservation_token:
         return None
     if args.evidence:

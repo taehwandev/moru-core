@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import argparse
 import os
 import sys
@@ -691,9 +693,9 @@ def _evaluate_route_gates(
 
 
 def _apply_worker_evidence_boundary(args: argparse.Namespace) -> str:
-    if os.environ.get("TAO_PARENT_EVIDENCE_READONLY") == "1":
+    if env_get("MORU_PARENT_EVIDENCE_READONLY") == "1":
         return "reusable worker capsule cannot run a finish check against parent evidence"
-    expected = os.environ.get("TAO_WORKER_EVIDENCE")
+    expected = env_get("MORU_WORKER_EVIDENCE")
     if not expected:
         return ""
     expected_path = Path(expected).expanduser().resolve()

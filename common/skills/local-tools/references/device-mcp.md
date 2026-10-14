@@ -22,7 +22,7 @@ Use the active runtime's registered tool when it is available and healthy.
 Otherwise run the installed Moru helper with the current runtime:
 
 ```text
-python3 <TAO_ROOT>/scripts/device-mcp.py ensure --runtime <codex|claude>
+python3 <MORU_ROOT>/scripts/device-mcp.py ensure --runtime <codex|claude>
 ```
 
 This uses the operator-owned `~/.tao/device-mcp.json` registry across projects.

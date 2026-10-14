@@ -204,7 +204,7 @@ conflicts between unrelated changes.
 
 ### Optional Python unittest verification
 
-`<TAO_LAUNCHER> verify --project <TARGET_REPO> --rules <TAO_ROOT>
+`<MORU_LAUNCHER> verify --project <TARGET_REPO> --rules <MORU_ROOT>
 --test-pattern 'test_owner*.py'` executes a bounded standard unittest selection
 and records its observed tests-gate result. It requires this session's active
 run with a tests gate. A zero count, failure, timeout, missing receipt, process

@@ -93,7 +93,7 @@ class DiscoveryCommandTests(unittest.TestCase):
                 f"{self.launcher} project-discover --request x --cwd {root}", True),
                 (f"touch {root}/owned.txt", False)):
                 output = io.StringIO()
-                with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}, clear=True), \
+                with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}, clear=True), \
                         redirect_stdout(output):
                     pretool.decide({"tool_name": "Bash", "cwd": "/workspace",
                                     "session_id": "discovery-regression",

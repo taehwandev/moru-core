@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import hashlib
 import json
 import os
@@ -13,7 +15,7 @@ from typing import Any
 from agent_block_lessons import is_stale, recurring_signatures
 from agent_lesson_store import promote_repaired_candidates, upsert_retrospective_candidate
 from agent_skill_retention import skill_learning_summary
-from support.global_state import STATE_HOME_ENV, global_state_dir
+from support.global_state import MORU_STATE_HOME_ENV, global_state_dir
 from workflow_common import (
     REPAIR_CYCLE_LIMIT,
     REPAIR_POLICY,
@@ -48,7 +50,7 @@ def _lesson_summary(limit: int) -> dict[str, Any]:
     root = state_home()
     summary: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
-        "state_home": "env" if os.environ.get(STATE_HOME_ENV) else "default",
+        "state_home": "env" if env_get(MORU_STATE_HOME_ENV) else "default",
         "available": root.exists(),
         "accepted": [],
         "promoted": [],

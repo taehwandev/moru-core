@@ -41,7 +41,7 @@ class _Fixture(unittest.TestCase):
         self.scratch.mkdir(parents=True)
         environment = patch.dict(
             os.environ,
-            {"TAO_HOME": str(self.tao), "CLAUDE_PROJECT_DIR": str(self.app)},
+            {"MORU_HOME": str(self.tao), "CLAUDE_PROJECT_DIR": str(self.app)},
             clear=True,
         )
         environment.start()
@@ -200,12 +200,12 @@ class QuotedTextTests(_Fixture):
 
     def test_a_commit_message_names_no_checkout(self) -> None:
         """Observed: a keyflow-cli commit refused as a write into tao-agent-os,
-        because its message mentioned `$TAO_HOME`."""
+        because its message mentioned `$MORU_HOME`."""
 
         def command(checkout: Path) -> str:
             return (
                 f'cd {checkout} && git commit -q -m "chore: move assets\n\n'
-                "Update checks to use\n\\$TAO_HOME paths.\n\nCo-Authored-By: A <a@b.c>\" "
+                "Update checks to use\n\\$MORU_HOME paths.\n\nCo-Authored-By: A <a@b.c>\" "
                 '2>&1 | grep -E "rror"; git log --oneline -1'
             )
 

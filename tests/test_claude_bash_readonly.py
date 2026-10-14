@@ -119,7 +119,7 @@ class CompoundShellCommandTests(unittest.TestCase):
                 self.assertEqual(self._kind(f"{entry} receive --runtime codex > out"), "mutating")
                 self.assertEqual(self._kind(f"{entry} receive --runtime codex && touch out"), "mutating")
         for entry in ("/tmp/agent-mailbox.py", "python3 /tmp/agent-mailbox.py",
-                      "/tmp/tao-hook agent-mailbox", f"env TAO_HOME=/tmp/other {launcher} agent-mailbox"):
+                      "/tmp/tao-hook agent-mailbox", f"env MORU_HOME=/tmp/other {launcher} agent-mailbox"):
             self.assertEqual(self._kind(f"{entry} receive --runtime codex"), "mutating")
 
     def test_local_context_writes_need_no_development_lifecycle(self) -> None:
@@ -394,15 +394,15 @@ class CompoundShellCommandTests(unittest.TestCase):
             "workflow_start",
         )
         self.assertEqual(
-            self._kind(f"TAO_HOOK_SOFT_FAIL=1 {launcher} finish"),
+            self._kind(f"MORU_HOOK_SOFT_FAIL=1 {launcher} finish"),
             bash_readonly.RUNTIME_CONTROL_KIND,
         )
         self.assertEqual(
-            self._kind(f"TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 {launcher} start --project /tmp/x"),
+            self._kind(f"MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 {launcher} start --project /tmp/x"),
             "workflow_start",
         )
         self.assertEqual(
-            self._kind(f"TAO_CODEX_GATE=0 {launcher} start --project /tmp/x"),
+            self._kind(f"MORU_CODEX_GATE=0 {launcher} start --project /tmp/x"),
             "workflow_start",
         )
         self.assertEqual(
@@ -410,7 +410,7 @@ class CompoundShellCommandTests(unittest.TestCase):
             "read_only",
         )
         self.assertEqual(
-            self._kind("TAO_CODEX_GATE=0 rm -rf build"), "mutating"
+            self._kind("MORU_CODEX_GATE=0 rm -rf build"), "mutating"
         )
         self.assertEqual(
             self._kind(f"LD_PRELOAD=/tmp/evil.so {launcher} start"), "mutating"
@@ -436,7 +436,7 @@ class CompoundShellCommandTests(unittest.TestCase):
             "workflow_start",
         )
         self.assertEqual(
-            self._kind(f"env TAO_HOOK_SOFT_FAIL=1 {launcher} finish"),
+            self._kind(f"env MORU_HOOK_SOFT_FAIL=1 {launcher} finish"),
             bash_readonly.RUNTIME_CONTROL_KIND,
         )
         self.assertEqual(self._kind("env -- git status"), "read_only")
@@ -448,7 +448,7 @@ class CompoundShellCommandTests(unittest.TestCase):
         for hidden in (
             f"env -S '{launcher} start' --project /tmp/x",
             f"env -i {launcher} start --project /tmp/x",
-            f"env -u TAO_HOOK_SOFT_FAIL {launcher} start --project /tmp/x",
+            f"env -u MORU_HOOK_SOFT_FAIL {launcher} start --project /tmp/x",
             f"env -C /tmp/x {launcher} start",
             f"env -P /usr/bin {launcher} start",
             f"env --split-string='{launcher} start'",
@@ -457,7 +457,7 @@ class CompoundShellCommandTests(unittest.TestCase):
                 self.assertEqual(self._kind(hidden), "mutating")
 
     def test_an_env_wrapper_cannot_launder_a_root_pointer(self) -> None:
-        """`TAO_HOME` selects which checkout's scripts the launcher runs.
+        """`MORU_HOME` selects which checkout's scripts the launcher runs.
 
         It is an executor variable in the same sense `LD_PRELOAD` is, so it is
         outside the inert and runtime-hook allowlists and stays outside them.
@@ -467,11 +467,11 @@ class CompoundShellCommandTests(unittest.TestCase):
 
         launcher = str(worktree_gate.stable_launcher_path())
         self.assertEqual(
-            self._kind(f"env TAO_HOME=/tmp/other {launcher} start --project /tmp/x"),
+            self._kind(f"env MORU_HOME=/tmp/other {launcher} start --project /tmp/x"),
             "mutating",
         )
         self.assertEqual(
-            self._kind(f"TAO_HOME=/tmp/other {launcher} start --project /tmp/x"),
+            self._kind(f"MORU_HOME=/tmp/other {launcher} start --project /tmp/x"),
             "mutating",
         )
 
@@ -556,7 +556,7 @@ class ReadOnlyScriptDeclarationTests(unittest.TestCase):
     interpreter's first argument.
     """
 
-    DECLARATIONS_ENV = "TAO_CLAUDE_READ_ONLY_PYTHON_SCRIPTS"
+    DECLARATIONS_ENV = "MORU_CLAUDE_READ_ONLY_PYTHON_SCRIPTS"
 
     @staticmethod
     def _kind(command: str, cwd: Path = Path("/tmp")) -> str:
@@ -622,7 +622,7 @@ class ReadOnlyScriptDeclarationTests(unittest.TestCase):
         (state_dir / "read-only-scripts.json").write_text(
             json.dumps({"scripts": [str(self.script)]}), encoding="utf-8"
         )
-        with patch.dict(os.environ, {"TAO_STATE_HOME": str(state_dir)}):
+        with patch.dict(os.environ, {"MORU_STATE_HOME": str(state_dir)}):
             os.environ.pop(self.DECLARATIONS_ENV, None)
             self.assertEqual(self._kind(self._command()), "mutating")
 

@@ -89,12 +89,12 @@ vibeguard evidence install-claude-hook .
 - Initial Moru Core application in a repo with no guardrails should use the current VibeGuard command policy with the selected Moru Core root as `--rules`. Prefer `vibeguard` when installed, otherwise use the package command:
 
   ```bash
-  vibeguard setup . --rules <TAO_ROOT>
-  vibeguard audit . --fix --rules <TAO_ROOT>
-  vibeguard audit . --rules <TAO_ROOT>
+  vibeguard setup . --rules <MORU_ROOT>
+  vibeguard audit . --fix --rules <MORU_ROOT>
+  vibeguard audit . --rules <MORU_ROOT>
   ```
 
-- Existing managed VibeGuard guardrails should be refreshed with `vibeguard update . --rules <TAO_ROOT>` only when the user explicitly selects that operation, then checked with `vibeguard audit . --rules <TAO_ROOT>`. Use the package command only if no trusted binary is installed or the user explicitly requests the latest published package.
+- Existing managed VibeGuard guardrails should be refreshed with `vibeguard update . --rules <MORU_ROOT>` only when the user explicitly selects that operation, then checked with `vibeguard audit . --rules <MORU_ROOT>`. Use the package command only if no trusted binary is installed or the user explicitly requests the latest published package.
 
 - Automatic refresh reminders are disabled by default. A repository that wants
   them must explicitly set `update.mode` to `scheduled` and choose a positive
@@ -122,6 +122,6 @@ vibeguard evidence install-claude-hook .
 Before finishing Moru Core changes, run:
 
 ```bash
-<TAO_LAUNCHER> workflow validate
+<MORU_LAUNCHER> workflow validate
 vibeguard audit . --rules .
 ```

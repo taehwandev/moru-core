@@ -48,7 +48,7 @@ project and selected Moru Core rule source before editing, reviewing,
 committing, or reporting completion:
 
 When executing wrapper commands from an agent runtime, replace
-`<TAO_ROOT>` with the resolved absolute path first. Do not leave
+`<MORU_ROOT>` with the resolved absolute path first. Do not leave
 `$HOME`, `${HOME}`, `~`, or a relative path in the executable command; those
 forms can bypass narrow permission-prefix matching and cause repeated approval
 prompts. Always register and request command permissions using the parameter-free
@@ -65,16 +65,16 @@ shape with only an absolute wrapper command plus a trailing argument wildcard.
 Specifically, for any command, AGY requires registering three concurrent entries
 to handle all parameter variations without prompts: `command(executable)`,
 `command(executable:*)`, and `command(executable *)`. When implementing new
-internal entrypoints under `scripts/`, ensure `<TAO_LAUNCHER> setup-agent-hooks` (via
+internal entrypoints under `scripts/`, ensure `<MORU_LAUNCHER> setup-agent-hooks` (via
 `permission_entries.py`) automatically generates and updates these wildcard
 combinations in settings.json and config.json. Claude managed user-level
-hooks must use the stable launcher installed by `<TAO_LAUNCHER> setup-agent-hooks` at
-`<TAO_LAUNCHER>`; setup refreshes
+hooks must use the stable launcher installed by `<MORU_LAUNCHER> setup-agent-hooks` at
+`<MORU_LAUNCHER>`; setup refreshes
 `~/.tao/tao-root` after moves or migrations so the Claude
 hook command does not point at a stale checkout path.
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command <command> --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" [--approval-record "<JSON_OR_PATH>"] --runtime-session-id "<OPAQUE_SESSION_ID>" [--platform <platform>] [--concern <concern>]
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command <command> --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" [--approval-record "<JSON_OR_PATH>"] --runtime-session-id "<OPAQUE_SESSION_ID>" [--platform <platform>] [--concern <concern>]
 ```
 
 Omit `--evidence` unless a run genuinely needs a path of its own: start then
@@ -116,7 +116,7 @@ the handoff boundary and reuses the snapshot. The route manifest remains the
 single source for required-document selection, and `reference_docs` remain
 on-demand context. An empty `required_docs` manifest is a valid document-free
 route state: record the no-source decision and continue without polling or
-forcing the execution capsule back to preflight. Call `<TAO_LAUNCHER> agent-preflight` directly only as a lower-level
+forcing the execution capsule back to preflight. Call `<MORU_LAUNCHER> agent-preflight` directly only as a lower-level
 diagnostic or compatibility fallback when the start hook is unavailable, and do
 not run both for the same startup.
 
@@ -207,7 +207,7 @@ run as the completion checklist. Never reuse a gate list from another run,
 route, or example; immediately before `finish`, compare the current ledger with
 that exact list and record every missing gate through `gate` or `gate-batch`.
 
-`<TAO_LAUNCHER> handoff` refreshes the optional parent-to-worker execution
+`<MORU_LAUNCHER> handoff` refreshes the optional parent-to-worker execution
 capsule only. It does not record the route's user-facing `handoff` gate. Record
 that gate explicitly with `gate` or `gate-batch` and concrete final handoff
 evidence before `finish`; do not invoke the worker handoff hook merely to satisfy
@@ -222,8 +222,8 @@ compatible. The canonical decision rules live in
 `workflows/skills/ambiguity-gate/SKILL.md`.
 
 ```text
-<TAO_LAUNCHER> gate-batch --project <TARGET_REPO> --rules <TAO_ROOT> --gate-record '[{"gate":"orient","status":"SUCCESS","evidence":"<evidence>"},{"gate":"scope","status":"SUCCESS","evidence":"<evidence>"},{"gate":"act","status":"SUCCESS","evidence":"<evidence>"},{"gate":"verify","status":"SUCCESS","evidence":"<evidence>"},{"gate":"report","status":"SUCCESS","evidence":"<evidence>"}]'
-<TAO_LAUNCHER> finish --project <TARGET_REPO> --rules <TAO_ROOT>
+<MORU_LAUNCHER> gate-batch --project <TARGET_REPO> --rules <MORU_ROOT> --gate-record '[{"gate":"orient","status":"SUCCESS","evidence":"<evidence>"},{"gate":"scope","status":"SUCCESS","evidence":"<evidence>"},{"gate":"act","status":"SUCCESS","evidence":"<evidence>"},{"gate":"verify","status":"SUCCESS","evidence":"<evidence>"},{"gate":"report","status":"SUCCESS","evidence":"<evidence>"}]'
+<MORU_LAUNCHER> finish --project <TARGET_REPO> --rules <MORU_ROOT>
 ```
 
 Structured gate fields must be passed in the record's `fields` object; putting
@@ -237,7 +237,7 @@ JSON-shaped text inside `evidence` does not populate them. For example:
 for a gate invalidates an earlier `SUCCESS` until a later verified `SUCCESS` is
 recorded through `gate` or `gate-batch`.
 
-Call `<TAO_LAUNCHER> agent-finish-check` directly only as a lower-level diagnostic or
+Call `<MORU_LAUNCHER> agent-finish-check` directly only as a lower-level diagnostic or
 compatibility fallback when the finish hook is unavailable.
 
 The wrappers write local JSON evidence under `<TARGET_REPO>/.tao/`.
@@ -266,7 +266,7 @@ secrets, or project-specific display names.
 
 Missing preflight evidence, missing finish-check evidence, or missing gate
 evidence is non-compliant even when the final code or documentation appears
-correct. `<TAO_LAUNCHER> agent-preflight --request-classified` must include
+correct. `<MORU_LAUNCHER> agent-preflight --request-classified` must include
 `--classification-evidence`; otherwise request intake is treated as skipped.
 Evidence alone is not sufficient: the flag is honored only when a ready and
 valid parent execution capsule backs it, and the requestless form is rejected.
@@ -278,7 +278,7 @@ unresolved, must-fix, should-fix, blocking, or deferred issue must fail the gate
 instead of passing with a note; use missed-gate recovery and retrospective
 learning to fix the process.
 If route classification or stored request text says `grill_me: true`, legacy
-`question_drill: true`, or explicitly asks for Grill-Me, `<TAO_LAUNCHER> agent-finish-check`
+`question_drill: true`, or explicitly asks for Grill-Me, `<MORU_LAUNCHER> agent-finish-check`
 must receive Grill-Me protocol evidence such as
 `grill-me if needed=</grilling session/output evidence>`. Legacy
 `question drill if needed=<evidence>` or `ask blockers=<evidence>` is accepted
@@ -293,7 +293,7 @@ work, VibeGuard again before finishing, and report each required gate with
 concrete evidence. Do not claim wrapper evidence exists unless the wrapper was
 actually run.
 
-When `<TAO_LAUNCHER> agent-finish-check` marks `retrospective_required`, run the
+When `<MORU_LAUNCHER> agent-finish-check` marks `retrospective_required`, run the
 canonical retrospective repair cycle before reporting completion. Improve and
 verify the owning Moru Core guidance, hook, validator, or test, apply safe
 scoped fixes, then resume at `first_failed_checkpoint`. Stop instead of

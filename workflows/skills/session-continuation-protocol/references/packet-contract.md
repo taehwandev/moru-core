@@ -434,7 +434,7 @@ without explicit evidence allocates one
 `.tao/runs/<opaque-run-id>/preflight.json` path and every later hook resolves
 that same path only when runtime name, session id, registry evidence key, and
 resume generation agree. An isolated worker resolves only the exact
-launcher-issued `TAO_WORKER_EVIDENCE` path and never falls back to parent
+launcher-issued `MORU_WORKER_EVIDENCE` path and never falls back to parent
 evidence. A caller without that binding traverses the worker subtree only to
 account for active worker registry keys, excludes its files from parent
 matching, and requires exactly one parent-scope match, so a legitimate parent

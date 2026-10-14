@@ -69,20 +69,20 @@ A usable root contains `AGENTS.md`, `index.md`, and `scripts/workflow.py`.
 Validate the selected root with:
 
 ```text
-<TAO_LAUNCHER> workflow validate
+<MORU_LAUNCHER> workflow validate
 ```
 
 Check runtime bridges, hooks, and permission allowlists with:
 
 ```text
-<TAO_LAUNCHER> setup-agent-hooks --check
+<MORU_LAUNCHER> setup-agent-hooks --check
 ```
 
 If bridges, hooks, or permissions are missing, ask for approval to write
 user-level runtime config, then run:
 
 ```text
-<TAO_LAUNCHER> setup-agent-hooks
+<MORU_LAUNCHER> setup-agent-hooks
 ```
 
 Without a `--runtime` selector, that one command configures every detected
@@ -107,13 +107,13 @@ To repair only one runtime without touching other agent settings, pass its
 runtime selector. For example, Codex-only setup uses:
 
 ```text
-<TAO_LAUNCHER> setup-agent-hooks --runtime codex
+<MORU_LAUNCHER> setup-agent-hooks --runtime codex
 ```
 
 To apply automatic approval review on another computer, explicitly opt in:
 
 ```text
-<TAO_LAUNCHER> setup-agent-hooks --runtime codex --codex-auto-review
+<MORU_LAUNCHER> setup-agent-hooks --runtime codex --codex-auto-review
 ```
 
 This selects `approvals_reviewer = "auto_review"` in the local Codex config.
@@ -162,8 +162,8 @@ repo is not explicit in the current request, resolve the project before reading
 project docs or running task commands. Use the local entry helpers:
 
 ```text
-<TAO_LAUNCHER> project-discover --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>"
-<TAO_LAUNCHER> agent-entry --runtime <codex|claude|antigravity|generic> --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>"
+<MORU_LAUNCHER> project-discover --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>"
+<MORU_LAUNCHER> agent-entry --runtime <codex|claude|antigravity|generic> --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>"
 ```
 
 `project-discover.py` returns one of three states:
@@ -253,7 +253,7 @@ When the current task may also edit or run shared Moru Core files, add the
 selected Moru Core root explicitly:
 
 ```text
-codex -C <TARGET_REPO> --add-dir <TAO_ROOT>
+codex -C <TARGET_REPO> --add-dir <MORU_ROOT>
 ```
 
 Use `--add-dir` only for additional roots that belong in the current session's
@@ -369,19 +369,19 @@ Use `templates/repo-agents-routing.md` as the source block. Keep the block
 short and point to:
 
 ```text
-<TAO_ROOT>/AGENTS.md
-<TAO_ROOT>/index.md
-<TAO_ROOT>/scripts/agent-entry.py
-<TAO_ROOT>/scripts/project-discover.py
-<TAO_LAUNCHER>
-<TAO_ROOT>/scripts/workflow.py
-<TAO_ROOT>/scripts/setup-agent-hooks.py
-<TAO_ROOT>/scripts/agent-preflight.py
-<TAO_ROOT>/scripts/agent-finish-check.py
+<MORU_ROOT>/AGENTS.md
+<MORU_ROOT>/index.md
+<MORU_ROOT>/scripts/agent-entry.py
+<MORU_ROOT>/scripts/project-discover.py
+<MORU_LAUNCHER>
+<MORU_ROOT>/scripts/workflow.py
+<MORU_ROOT>/scripts/setup-agent-hooks.py
+<MORU_ROOT>/scripts/agent-preflight.py
+<MORU_ROOT>/scripts/agent-finish-check.py
 ```
 
 For committed repo-local instruction files, keep the root reference portable.
-Use `${TAO_HOME}` when each machine can set the variable, or a
+Use `${MORU_HOME}` when each machine can set the variable, or a
 repo-relative pinned path such as `.agents/moru-core` when Moru Core is
 kept with the target repo. Do not commit personal absolute paths such as
 `/Users/.../moru-core`; keep them in shell environment setup, one-shot

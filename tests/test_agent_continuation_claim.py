@@ -36,7 +36,7 @@ from agent_continuation_checkpoint import write_continuation_checkpoint
 
 project, rules, binding = Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[5])
 run_id = sys.argv[4]
-if os.environ.get("TAO_TEST_CHECKPOINT") == "1":
+if os.environ.get("MORU_TEST_CHECKPOINT") == "1":
     write_continuation_checkpoint(
         project=project,
         rules=rules,
@@ -82,7 +82,7 @@ def run_record(fixture: Fixture) -> dict:
 def kill_after_checkpoint(fixture: Fixture, *, write_checkpoint: bool) -> None:
     """Run a real process that dies with no shutdown path of any kind."""
 
-    environment = dict(os.environ, TAO_TEST_CHECKPOINT="1" if write_checkpoint else "0")
+    environment = dict(os.environ, MORU_TEST_CHECKPOINT="1" if write_checkpoint else "0")
     process = subprocess.Popen(
         [
             sys.executable, "-c", CHILD, str(ROOT / "scripts"),

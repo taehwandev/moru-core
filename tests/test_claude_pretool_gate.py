@@ -69,7 +69,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
 
     def test_unknown_command_recovers_through_authorized_start_without_operator(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
         ):
             project = self._project(Path(tmp))
             payload = {"tool_name": "Bash", "cwd": str(project), "session_id": "recovery",
@@ -88,7 +88,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
 
     def test_unknown_in_read_only_run_stays_denied_without_useless_approval(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
         ):
             project = self._project(Path(tmp))
             _write_preflight(project, "lookup", command="analysis", read_only=True, runtime="codex")
@@ -102,7 +102,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
 
     def test_default_checkout_runner_deferral_cannot_bypass_read_only_run(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
         ):
             project = self._project(Path(tmp), linked=False)
             (project / gate.WORKTREE_POLICY_PATH).unlink()
@@ -114,7 +114,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
 
     def test_unknown_in_protected_checkout_keeps_isolation_without_operator(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
         ):
             project = self._project(Path(tmp), linked=False)
             _, out = _decide({"tool_name": "Bash", "cwd": str(project), "session_id": "isolation",
@@ -127,7 +127,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
     def test_literal_env_unittest_glob_executes_without_extra_tao_permission(self):
         import shlex
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
         ):
             project = self._project(Path(tmp))
             tests = project / "tests"
@@ -151,7 +151,7 @@ class CodexRepairableApprovalTests(unittest.TestCase):
 
     def test_finished_codex_unknown_keeps_conditional_recovery_without_operator(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: tmp + "/state"}
         ):
             project = self._project(Path(tmp))
             _write_preflight(project, "finished", runtime="codex")
@@ -1935,7 +1935,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "session_id": "s",
                     "tool_input": {
                         "command": (
-                            "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 "
+                            "MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 "
                             f"{gate.preferred_launcher_path()} start --project {project}"
                         )
                     },
@@ -2216,7 +2216,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     "cwd": str(project),
                     "session_id": "bash-prefix-override",
                     "tool_input": {
-                        "command": "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 python3 mutate.py"
+                        "command": "MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 python3 mutate.py"
                     },
                 }
             )
@@ -2228,12 +2228,12 @@ class ClaudePreToolGateTests(unittest.TestCase):
     def test_main_checkout_override_prefix_requires_the_exact_value_and_position(self) -> None:
         self.assertFalse(
             gate._requests_main_checkout_override(
-                ["TAO_ALLOW_MAIN_CHECKOUT_EDIT=0", "python3", "mutate.py"]
+                ["MORU_ALLOW_MAIN_CHECKOUT_EDIT=0", "python3", "mutate.py"]
             )
         )
         self.assertFalse(
             gate._requests_main_checkout_override(
-                ["python3", "mutate.py", "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1"]
+                ["python3", "mutate.py", "MORU_ALLOW_MAIN_CHECKOUT_EDIT=1"]
             )
         )
 
@@ -2256,7 +2256,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
         self.assertEqual(STOP_DECISION, decision["permissionDecision"])
         self.assertIn("start hook", decision["permissionDecisionReason"])
         self.assertNotIn("Approve to proceed", decision["permissionDecisionReason"])
-        self.assertNotIn("TAO_CLAUDE_GATE=0", decision["permissionDecisionReason"])
+        self.assertNotIn("MORU_CLAUDE_GATE=0", decision["permissionDecisionReason"])
         # An edit is what this reader did, so it is what the message names.
         # Asserted as the whole sentence: a fragment check passed while the
         # sentence around it read "this project in this project".
@@ -2409,7 +2409,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
                 self.assertEqual((0, ""), (code, out))
             with patch.dict(
                 os.environ,
-                _isolated_env(TAO_WORKER_EVIDENCE=str(worker)),
+                _isolated_env(MORU_WORKER_EVIDENCE=str(worker)),
                 clear=True,
             ):
                 self.assertEqual(
@@ -2430,7 +2430,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
 
             with patch.dict(
                 os.environ,
-                _isolated_env(TAO_WORKER_EVIDENCE=str(invalid)),
+                _isolated_env(MORU_WORKER_EVIDENCE=str(invalid)),
                 clear=True,
             ):
                 code, out = _decide(
@@ -2535,7 +2535,7 @@ class ClaudePreToolGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp))
 
-            with patch.dict("os.environ", {"TAO_CLAUDE_GATE": "0"}):
+            with patch.dict("os.environ", {"MORU_CLAUDE_GATE": "0"}):
                 code, out = _decide(
                     {"tool_name": "Write", "cwd": str(project), "session_id": "s1"}
                 )
@@ -2861,8 +2861,8 @@ class ClaudePreToolGateTests(unittest.TestCase):
     def test_new_file_budget_can_be_disabled_with_zero(self) -> None:
         import os as _os
 
-        previous = _os.environ.get("TAO_CLAUDE_GATE_NEW_FILE_BUDGET")
-        _os.environ["TAO_CLAUDE_GATE_NEW_FILE_BUDGET"] = "0"
+        previous = _os.environ.get("MORU_CLAUDE_GATE_NEW_FILE_BUDGET")
+        _os.environ["MORU_CLAUDE_GATE_NEW_FILE_BUDGET"] = "0"
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 project = _opt_in_project(Path(tmp))
@@ -2872,9 +2872,9 @@ class ClaudePreToolGateTests(unittest.TestCase):
                     self.assertEqual("", out)
         finally:
             if previous is None:
-                _os.environ.pop("TAO_CLAUDE_GATE_NEW_FILE_BUDGET", None)
+                _os.environ.pop("MORU_CLAUDE_GATE_NEW_FILE_BUDGET", None)
             else:
-                _os.environ["TAO_CLAUDE_GATE_NEW_FILE_BUDGET"] = previous
+                _os.environ["MORU_CLAUDE_GATE_NEW_FILE_BUDGET"] = previous
 
 
 class EveryGovernedProjectNeedsItsOwnEntryTests(unittest.TestCase):
@@ -3128,7 +3128,7 @@ class ClaudePreToolGateSetupTests(unittest.TestCase):
     def test_merge_installs_pre_tool_use_group(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "settings.json"
-            command = f"TAO_HOOK_SOFT_FAIL=1 launcher {_PRETOOL_GATE_ALIAS}"
+            command = f"MORU_HOOK_SOFT_FAIL=1 launcher {_PRETOOL_GATE_ALIAS}"
             status = _merge_claude_pre_tool_gate(target, command, dry_run=False)
             self.assertEqual("installed", status)
             config = read_json(target)
@@ -3139,7 +3139,7 @@ class ClaudePreToolGateSetupTests(unittest.TestCase):
     def test_merge_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "settings.json"
-            command = f"TAO_HOOK_SOFT_FAIL=1 launcher {_PRETOOL_GATE_ALIAS}"
+            command = f"MORU_HOOK_SOFT_FAIL=1 launcher {_PRETOOL_GATE_ALIAS}"
             _merge_claude_pre_tool_gate(target, command, dry_run=False)
             status = _merge_claude_pre_tool_gate(target, command, dry_run=False)
             self.assertEqual("ok", status)
@@ -3283,7 +3283,7 @@ class SessionProjectIndexFollowsStateHomeTests(unittest.TestCase):
     """The session project index belongs to the global state home, not to `$HOME`.
 
     Both call sites used to build this path from ``Path.home()`` directly, which
-    made ``TAO_STATE_HOME`` a partial override: the suite wrote its temporary
+    made ``MORU_STATE_HOME`` a partial override: the suite wrote its temporary
     project paths into the real user's index, and the Stop gate then walked them.
     The writer and the reader must agree, so both are asserted here.
     """
@@ -3555,7 +3555,7 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
 
     def _verdict(self, code: str, runtime: str) -> dict:
         buffer = io.StringIO()
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": runtime}), redirect_stdout(
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": runtime}), redirect_stdout(
             buffer
         ):
             gate.deny_or_ask("reason", code)
@@ -3595,7 +3595,7 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
     def test_codex_operator_question_then_attested_answer_allows_once(self) -> None:
         payload = {"session_id": "operator-test", "cwd": "/project", "tool_name": "Bash",
                    "tool_input": {"command": "git status && git fetch"}}
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}):
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}):
             buffer = io.StringIO()
             with redirect_stdout(buffer):
                 gate.deny_or_ask("reason", "unreadable_command_effect", payload)
@@ -3615,7 +3615,7 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
 
     def test_codex_operator_approval_does_not_override_read_only_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}
         ), patch.object(gate, "_read_run_mutation_denial", return_value="read-only run"), patch.object(
             OperatorReview, "request", return_value=(True, "")
         ):
@@ -3629,7 +3629,7 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
     def test_paused_entry_question_preserves_payload_and_consumes_explicit_answer(self) -> None:
         import re
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}
         ), patch.object(gate, "paused_session_evidence", return_value=Path(tmp) / "preflight.json"), patch.object(
             gate, "deny_reason", return_value="paused run refused"
         ), patch.object(gate, "ticketed_product_branch_denial", return_value=None), patch.object(
@@ -3652,7 +3652,7 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
                     self.assertEqual("consumed", OperatorReview._read(OperatorReview._path(request_id))["status"])
 
     def test_approval_state_error_stays_blocked(self) -> None:
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}), patch.object(
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}), patch.object(
             OperatorReview, "request", side_effect=OSError("unavailable")
         ), redirect_stdout(io.StringIO()) as output:
             gate.deny_or_ask("reason", "unreadable_command_effect", {})
@@ -3660,7 +3660,7 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
 
     def test_codex_ticket_exception_still_requires_workflow_entry(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}
         ), patch.object(gate, "ticketed_product_branch_denial", return_value="ticketless"), patch.object(
             OperatorReview, "request", return_value=(True, "")
         ):
@@ -3678,14 +3678,14 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
 class CodexRuntimePreToolGateTests(unittest.TestCase):
     def test_codex_review_request_defers_to_native_permissions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}
         ):
             project = _opt_in_project(Path(tmp))
             _require_linked_worktree(project)
             code, out = _decide({
                 "tool_name": "Bash", "cwd": str(project), "session_id": "s",
                 "tool_input": {"command": (
-                    "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 "
+                    "MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 "
                     f"{gate.preferred_launcher_path()} start --project {project} --command task"
                 )},
             })
@@ -3696,7 +3696,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
         for runtime in ("claude", "codex"):
             for route in ("cleanup", "commit", "git_commit"):
                 with self.subTest(runtime=runtime, route=route), tempfile.TemporaryDirectory() as tmp, patch.dict(
-                    os.environ, {"TAO_PRETOOL_RUNTIME": runtime}
+                    os.environ, {"MORU_PRETOOL_RUNTIME": runtime}
                 ):
                     project = _opt_in_project(Path(tmp))
                     _require_linked_worktree(project)
@@ -3732,7 +3732,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
         for runtime in ("claude", "codex"):
             for route in ("cleanup", "commit"):
                 with self.subTest(runtime=runtime, route=route), tempfile.TemporaryDirectory() as tmp, patch.dict(
-                    os.environ, {"TAO_PRETOOL_RUNTIME": runtime}
+                    os.environ, {"MORU_PRETOOL_RUNTIME": runtime}
                 ):
                     project = _opt_in_project(Path(tmp))
                     _require_linked_worktree(project)
@@ -3754,7 +3754,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
         """
 
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
-            os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}
+            os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}
         ):
             project = _opt_in_project(Path(tmp))
             _require_linked_worktree(project, linked=True)
@@ -3775,7 +3775,7 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
             session_id = "codex-pretool-session"
             with patch.dict(
                 os.environ,
-                {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: state},
+                {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: state},
             ):
                 _write_preflight(project, session_id, runtime="codex")
                 code, out = _decide(
@@ -3794,8 +3794,8 @@ class CodexRuntimePreToolGateTests(unittest.TestCase):
 class FreshnessWindowIsTheSameForBothRuntimesTests(unittest.TestCase):
     """The variable name carries the runtime, so only one of them was set.
 
-    `TAO_CLAUDE_GATE_MAX_AGE_SECONDS` was set to a day by hand and
-    `TAO_CODEX_GATE_MAX_AGE_SECONDS` never was, so Codex ran on the default
+    `MORU_CLAUDE_GATE_MAX_AGE_SECONDS` was set to a day by hand and
+    `MORU_CODEX_GATE_MAX_AGE_SECONDS` never was, so Codex ran on the default
     while Claude ran on a day -- and raising the variable that got named would
     have changed nothing for Codex.
     """
@@ -3804,10 +3804,10 @@ class FreshnessWindowIsTheSameForBothRuntimesTests(unittest.TestCase):
         for runtime in ("claude", "codex"):
             with self.subTest(runtime=runtime):
                 with patch.dict(
-                    os.environ, {"TAO_PRETOOL_RUNTIME": runtime}, clear=False
+                    os.environ, {"MORU_PRETOOL_RUNTIME": runtime}, clear=False
                 ):
-                    os.environ.pop("TAO_CLAUDE_GATE_MAX_AGE_SECONDS", None)
-                    os.environ.pop("TAO_CODEX_GATE_MAX_AGE_SECONDS", None)
+                    os.environ.pop("MORU_CLAUDE_GATE_MAX_AGE_SECONDS", None)
+                    os.environ.pop("MORU_CODEX_GATE_MAX_AGE_SECONDS", None)
                     self.assertEqual(24 * 60 * 60, gate.max_age_seconds())
 
     def test_each_runtime_still_sets_its_own(self) -> None:
@@ -3816,15 +3816,15 @@ class FreshnessWindowIsTheSameForBothRuntimesTests(unittest.TestCase):
         with patch.dict(
             os.environ,
             {
-                "TAO_PRETOOL_RUNTIME": "codex",
-                "TAO_CLAUDE_GATE_MAX_AGE_SECONDS": "60",
-                "TAO_CODEX_GATE_MAX_AGE_SECONDS": "120",
+                "MORU_PRETOOL_RUNTIME": "codex",
+                "MORU_CLAUDE_GATE_MAX_AGE_SECONDS": "60",
+                "MORU_CODEX_GATE_MAX_AGE_SECONDS": "120",
             },
             clear=False,
         ):
             self.assertEqual(120, gate.max_age_seconds())
             self.assertEqual(
-                "TAO_CODEX_GATE_MAX_AGE_SECONDS",
+                "MORU_CODEX_GATE_MAX_AGE_SECONDS",
                 gate.runtime_setting("_MAX_AGE_SECONDS"),
             )
 
@@ -3834,12 +3834,12 @@ class FreshnessWindowIsTheSameForBothRuntimesTests(unittest.TestCase):
         with patch.dict(
             os.environ,
             {
-                "TAO_PRETOOL_RUNTIME": "codex",
-                "TAO_CLAUDE_GATE_MAX_AGE_SECONDS": "60",
+                "MORU_PRETOOL_RUNTIME": "codex",
+                "MORU_CLAUDE_GATE_MAX_AGE_SECONDS": "60",
             },
             clear=False,
         ):
-            os.environ.pop("TAO_CODEX_GATE_MAX_AGE_SECONDS", None)
+            os.environ.pop("MORU_CODEX_GATE_MAX_AGE_SECONDS", None)
             self.assertEqual(24 * 60 * 60, gate.max_age_seconds())
 
 
@@ -4647,7 +4647,7 @@ class FinishAuthorizesItsOwnPublicationTests(unittest.TestCase):
         rule: finishing twice cannot withdraw the allowance in either runtime.
         """
 
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}):
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}):
             with tempfile.TemporaryDirectory() as tmp:
                 project = _opt_in_project(Path(tmp))
                 session = {"runtime": "codex", "session_id": self.SESSION}

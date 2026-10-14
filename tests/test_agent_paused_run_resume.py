@@ -77,7 +77,7 @@ class ResumeSessionPausedRunTests(unittest.TestCase):
     def test_worker_never_resumes_the_parents_run(self):
         with tempfile.TemporaryDirectory() as directory:
             run = self._stopped(directory)
-            with patch.dict(os.environ, {'TAO_WORKER_EVIDENCE': str(run.evidence)}):
+            with patch.dict(os.environ, {'MORU_WORKER_EVIDENCE': str(run.evidence)}):
                 self.assertEqual((None, ''), self._resume(run, run.session))
             self.assertEqual('interrupted', run.state())
 

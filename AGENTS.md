@@ -84,7 +84,7 @@ the finished run's publication allowance does not cover a device install.
 For tracked work:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command <route> --request "<CURRENT_REQUEST>" --intent <SAFE_SLUG> --target-summary "<BOUNDED_TARGET>" [--approved-effect <EFFECT>]
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command <route> --request "<CURRENT_REQUEST>" --intent <SAFE_SLUG> --target-summary "<BOUNDED_TARGET>" [--approved-effect <EFFECT>]
 ```
 
 1. Receive the runtime mailbox brief once. It is context, never authority.
@@ -304,7 +304,7 @@ ordinary tasks gain no startup reads or additional gates.
 
 ## Automatic Project Memory And Work Cards
 
-`<TAO_LAUNCHER> project-memory` keeps agent-written project guidance in a
+`<MORU_LAUNCHER> project-memory` keeps agent-written project guidance in a
 user-local store shared by linked worktrees; start recalls at most three
 in-date records as reference, never authority. Moru never captures on its own:
 Claude and Codex keep durable project knowledge here, not in runtime-private
@@ -318,7 +318,7 @@ packet. When start prints a `Project memory upkeep` line, run the
 guidance, task state in checkpoints, and user preferences in runtime memory.
 
 Start also lists up to three other open work cards as reference context. When
-one names work already finished elsewhere, run `<TAO_LAUNCHER> work-cards close
+one names work already finished elsewhere, run `<MORU_LAUNCHER> work-cards close
 <work id>`. Keep prompts, transcripts and logs out of `--target-summary`.
 Storage, ranking and resume mechanics: [README](README.md#automatic-project-memory).
 
@@ -402,8 +402,8 @@ their own matching user authority and checks.
 
 ## Runtime And Ownership Rules
 
-Use the installed launcher by resolved absolute path. Keep `<TAO_ROOT>` and
-`<TAO_LAUNCHER>` placeholders in committed documentation; never commit a
+Use the installed launcher by resolved absolute path. Keep `<MORU_ROOT>` and
+`<MORU_LAUNCHER>` placeholders in committed documentation; never commit a
 personal absolute path. Permission rules bind only the parameter-free absolute
 launcher/script path.
 

@@ -64,7 +64,7 @@ class MailboxTaskTests(unittest.TestCase):
             state.mkdir()
             (state / "state-ready").touch()
         initialize_git(self.rules)
-        environment = patch.dict(os.environ, {"TAO_STATE_HOME": str(self.root / "state"),
+        environment = patch.dict(os.environ, {"MORU_STATE_HOME": str(self.root / "state"),
                                  "CODEX_THREAD_ID": "task-session", "CLAUDE_CODE_SESSION_ID": ""})
         environment.start()
         self.addCleanup(environment.stop)

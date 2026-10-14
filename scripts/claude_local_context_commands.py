@@ -14,7 +14,7 @@ import stat
 
 # The suffix both setup writers use (support/setup_config_files.BACKUP_SUFFIX,
 # support/project_guidance). Kept literal so the gate imports no setup code.
-TAO_BACKUP_SUFFIX = ".tao-backup"
+MORU_BACKUP_SUFFIX = ".tao-backup"
 _GLOB_CHARACTERS = frozenset("*?[]{}")
 
 
@@ -56,7 +56,7 @@ def _is_tao_backup_file(operand: str, cwd: Path | None) -> bool:
             return False
         lexical = cwd / lexical
     name = lexical.name
-    if not name.endswith(TAO_BACKUP_SUFFIX) or name == TAO_BACKUP_SUFFIX:
+    if not name.endswith(MORU_BACKUP_SUFFIX) or name == MORU_BACKUP_SUFFIX:
         return False
     try:
         # The parent may be reached through a symlinked directory; the entry

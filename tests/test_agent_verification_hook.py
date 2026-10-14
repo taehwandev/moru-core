@@ -210,7 +210,7 @@ class VerificationHookTests(unittest.TestCase):
             ensure_stable_launcher(ROOT, dry_run=False)
             launcher = stable_launcher_path()
         result = subprocess.run([str(launcher), "verify", "--help"],
-                                env={**os.environ, "TAO_HOME": str(ROOT)},
+                                env={**os.environ, "MORU_HOME": str(ROOT)},
                                 capture_output=True, text=True, check=False)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("--test-pattern", result.stdout)

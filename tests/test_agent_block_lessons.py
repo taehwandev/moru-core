@@ -49,7 +49,7 @@ class _StateHome(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.state = Path(directory.name)
         self.inbox = self.state / "lessons" / "inbox"
-        environment = patch.dict(os.environ, {"TAO_STATE_HOME": str(self.state)})
+        environment = patch.dict(os.environ, {"MORU_STATE_HOME": str(self.state)})
         environment.start()
         self.addCleanup(environment.stop)
 
@@ -90,7 +90,7 @@ class PretoolDenialRecordingTests(_StateHome):
         expected = self._deny("reason", "worktree_isolation")
         blocker = self.state / "not-a-directory"
         blocker.write_text("file", encoding="utf-8")
-        with patch.dict(os.environ, {"TAO_STATE_HOME": str(blocker)}):
+        with patch.dict(os.environ, {"MORU_STATE_HOME": str(blocker)}):
             actual = self._deny("reason", "worktree_isolation")
         self.assertEqual(expected, actual)
         self.assertEqual("deny", json.loads(actual)["hookSpecificOutput"]["permissionDecision"])
@@ -120,7 +120,7 @@ class RateLimitTests(_StateHome):
         self.assertEqual(3, self.records()[0]["occurrence_count"])
 
     def test_a_test_run_without_a_state_home_writes_nothing(self) -> None:
-        with patch.dict(os.environ, {"TAO_STATE_HOME": ""}):
+        with patch.dict(os.environ, {"MORU_STATE_HOME": ""}):
             result = blocks.record_block("pretool_gate", "file_sprawl_budget", session_id="s1")
         self.assertEqual("store_not_writable_here", result["reason"])
 

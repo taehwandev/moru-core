@@ -104,7 +104,7 @@ class ContinuationLockoutTests(unittest.TestCase):
         _FRESH_REPOSITORY.copy_to(self.project)
         # The fixture is a governed main checkout; the lockout is the subject
         # here, not the default isolation boundary it would otherwise meet.
-        override = patch.dict(os.environ, {"TAO_ALLOW_MAIN_CHECKOUT_EDIT": "1"})
+        override = patch.dict(os.environ, {"MORU_ALLOW_MAIN_CHECKOUT_EDIT": "1"})
         override.start()
         self.addCleanup(override.stop)
 

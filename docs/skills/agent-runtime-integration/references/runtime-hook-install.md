@@ -108,7 +108,7 @@ recorded process owner's death is proven. The atomic takeover increments the
 resume generation; a live owner, different session, settled run, or public
 packet-less `resume --last` request remains refused.
 For Claude, `setup-agent-hooks.py` installs a stable user-level launcher at
-`<TAO_LAUNCHER>` and writes the current checkout to
+`<MORU_LAUNCHER>` and writes the current checkout to
 `~/.tao/tao-root`. Rerun setup after moving or migrating
 Moru Core so the pointer is refreshed without changing the Claude hook
 command.
@@ -197,7 +197,7 @@ loses emphasis and nothing else.
 That slot holds one command and other tools install into it, so the managed
 entry never replaces what it finds: it puts Moru in front and passes the untouched
 payload on through `--chain`, keeping that output beside its own. A managed entry
-is recognised by the `TAO_STATUSLINE=1` prefix rather than by the script name,
+is recognised by the `MORU_STATUSLINE=1` prefix rather than by the script name,
 because a chained third-party script may itself be named for the status line.
 Reinstalling rewrites the launcher path and preserves the existing chain instead
 of nesting a second copy.

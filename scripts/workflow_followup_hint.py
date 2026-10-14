@@ -67,7 +67,7 @@ def followup_hint(session_id: str, cwd_root: Path | None, runtime: str = "claude
     return (
         f"Moru lifecycle: this session's last run {run_id} in {root} is finished and "
         "admits no new edit, commit, merge or push. If this request writes, first run "
-        f"`{preferred_launcher_path()} start --project <project> --rules <TAO_ROOT> "
+        f"`{preferred_launcher_path()} start --project <project> --rules <MORU_ROOT> "
         f"--command <route> --request \"<this request>\" --continue-from {run_id}` "
         "(with --approved-effect when the request authorizes git_write or more). "
         "A read-only answer needs no start."

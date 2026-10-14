@@ -8,7 +8,7 @@ type: ai-generated
 
 ## Problem
 
-`<TAO_LAUNCHER> project-memory` stores agent-written, source-attributed records
+`<MORU_LAUNCHER> project-memory` stores agent-written, source-attributed records
 under `~/.tao/project-memory/<repository-id>/` (`scripts/agent_project_memory.py`).
 Records leave recall only when they reach their `--review-on` date, or when an
 agent replaces or retires them. Nothing reviews the store as a whole. As
@@ -71,7 +71,7 @@ already needs to get recall.
 ## Command
 
 ```text
-<TAO_LAUNCHER> project-memory --project <PATH> consolidate [--within-days N]
+<MORU_LAUNCHER> project-memory --project <PATH> consolidate [--within-days N]
 ```
 
 The command is read-only and prints one JSON object. Each finding carries
@@ -102,7 +102,7 @@ store errors keep the existing `parser.exit(2, ...)` convention.
 `start` appends at most one line when any finding is non-empty:
 
 ```text
-Project memory upkeep: expired=1 expiring=2 duplicates=1 shared_source=0 unfinished=0 -> <TAO_LAUNCHER> project-memory --project <PATH> consolidate
+Project memory upkeep: expired=1 expiring=2 duplicates=1 shared_source=0 unfinished=0 -> <MORU_LAUNCHER> project-memory --project <PATH> consolidate
 ```
 
 The line holds counts only and never record content. It is advisory and creates
@@ -140,7 +140,7 @@ scan that recall already performs, keeping its cost at one directory read per
 
 - A new subject test for the `agent_project_memory_consolidate` module covers
   each finding rule.
-  Fixtures are written into a temporary `TAO_STATE_HOME`, including:
+  Fixtures are written into a temporary `MORU_STATE_HOME`, including:
   - a replaced-but-live record;
   - scope `all` pairing with a route scope;
   - a below-threshold near-duplicate, which must not be reported.

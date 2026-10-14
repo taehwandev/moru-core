@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import json
 import os
 import re
@@ -48,8 +50,8 @@ WORKTREE_POLICY_OPTIONAL_KEYS = frozenset(
     }
 )
 ROUTE_DOCS_COMMAND = re.compile(r"^[a-z][a-z0-9_-]{0,39}$")
-REQUIRE_LINKED_WORKTREE_ENV = "TAO_REQUIRE_LINKED_WORKTREE"
-MAIN_CHECKOUT_OVERRIDE_ENV = "TAO_ALLOW_MAIN_CHECKOUT_EDIT"
+REQUIRE_LINKED_WORKTREE_ENV = "MORU_REQUIRE_LINKED_WORKTREE"
+MAIN_CHECKOUT_OVERRIDE_ENV = "MORU_ALLOW_MAIN_CHECKOUT_EDIT"
 
 
 def default_worktree_policy() -> dict:
@@ -89,7 +91,7 @@ def same_git_repository(left: Path, right: Path) -> bool:
 
 
 def local_worktree_policy_applies(root: Path) -> bool:
-    if os.environ.get(REQUIRE_LINKED_WORKTREE_ENV, "").strip() != "1":
+    if env_get(REQUIRE_LINKED_WORKTREE_ENV, "").strip() != "1":
         return False
     declared_root = os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
     if not declared_root:
@@ -121,7 +123,7 @@ def worktree_policy(root: Path) -> dict | None:
 
 # The block `setup-agent-hooks` writes into a project that adopts the Moru code
 # workflow; see support/project_guidance.py.
-TAO_ROUTING_MARKER = "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->"
+MORU_ROUTING_MARKER = "<!-- BEGIN MANAGED TAO AGENT OS ROUTING -->"
 
 
 def adopts_tao_routing(root: Path) -> bool:
@@ -137,7 +139,7 @@ def adopts_tao_routing(root: Path) -> bool:
         return False
     for name in ("AGENTS.md", "CLAUDE.md", "CODEX.md"):
         try:
-            if TAO_ROUTING_MARKER in (root / name).read_text(encoding="utf-8", errors="ignore"):
+            if MORU_ROUTING_MARKER in (root / name).read_text(encoding="utf-8", errors="ignore"):
                 return True
         except OSError:
             continue
@@ -483,7 +485,7 @@ def worktree_deny_reason(
             "Next: a lookup runs that step alone; a write uses the task "
             "worktree (`git worktree add <path> -b <branch> <base>`)."
         )
-    if require_linked_worktree and os.environ.get("TAO_PRETOOL_RUNTIME") == "codex":
+    if require_linked_worktree and env_get("MORU_PRETOOL_RUNTIME") == "codex":
         remedy = (
             "Next: target the existing task worktree explicitly with "
             '`git -C "<worktree>" <args>` or `cd "<worktree>" && <command>`. '
@@ -498,7 +500,7 @@ def worktree_denial(
     root: Path, cause: str = "", named: str = "", *, remedy: str = ""
 ) -> str | None:
     policy = worktree_policy(root)
-    if policy is None or os.environ.get(MAIN_CHECKOUT_OVERRIDE_ENV, "").strip() == "1":
+    if policy is None or env_get(MAIN_CHECKOUT_OVERRIDE_ENV, "").strip() == "1":
         return None
     branch = current_branch(root)
     requires_linked = policy["require_linked_worktree"]

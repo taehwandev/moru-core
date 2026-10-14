@@ -12,7 +12,7 @@ implementation, tests, or release planning.
 For agent execution, run the canonical start once before writing the PRD:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command prd --request "<USER_REQUEST>" --platform <platform> --concern <concern>
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command prd --request "<USER_REQUEST>" --platform <platform> --concern <concern>
 ```
 
 Open every route `required_docs` entry directly. Run the review hook after

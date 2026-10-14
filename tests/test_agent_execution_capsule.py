@@ -1477,7 +1477,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
         self.assertRegex(fingerprint, r"^[0-9a-f]{64}$")
 
     def test_reusable_worker_environment_cannot_write_parent_gate_evidence(self) -> None:
-        with patch.dict("os.environ", {"TAO_PARENT_EVIDENCE_READONLY": "1"}):
+        with patch.dict("os.environ", {"MORU_PARENT_EVIDENCE_READONLY": "1"}):
             with self.assertRaisesRegex(PermissionError, "cannot write parent"):
                 from agent_gate_evidence import record_gate_evidence
 

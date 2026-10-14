@@ -25,7 +25,7 @@ reuse eligible evidence without replacing the new authority check.
 For an exact staged unit reviewed and finished in this runtime session, use:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command commit --request "<CURRENT_REQUEST>" --intent prepare_commit --target-summary "<AUTHORIZED_UNIT>" --approved-effect git_write --commit-ready
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command commit --request "<CURRENT_REQUEST>" --intent prepare_commit --target-summary "<AUTHORIZED_UNIT>" --approved-effect git_write --commit-ready
 ```
 
 This reuses attested review narratives and machine checks, then executes
@@ -141,7 +141,7 @@ context; do not rediscover development guidance just because a diff exists.
    every route-required evidence field in the same call:
 
    ```text
-   tao-hook review --project <TARGET_REPO> --rules <TAO_ROOT> \
+   tao-hook review --project <TARGET_REPO> --rules <MORU_ROOT> \
      --review-outcome pass \
      --code-review-evidence "<exact diff and request/rule review>" \
      --docs-freshness-evidence "<updated or grounded unchanged docs>" \
@@ -238,7 +238,7 @@ context; do not rediscover development guidance just because a diff exists.
      secrets, arbitrary ignored files, product source, or committed changes.
 
    ```text
-   tao-hook review --project <TARGET_REPO> --rules <TAO_ROOT> \
+   tao-hook review --project <TARGET_REPO> --rules <MORU_ROOT> \
      --review-scope commit-range \
      --review-base <BASE_COMMIT> --review-head <HEAD_COMMIT> \
      --review-outcome pass \

@@ -12,6 +12,8 @@ the structured finish ledger and its skill follow-up validators.
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import json
 import os
 import sys
@@ -49,7 +51,7 @@ def stop_incomplete(reason: str) -> int:
 
 
 def gate_enabled() -> bool:
-    return os.environ.get("TAO_CODEX_STOP_GATE", "").strip() != "0"
+    return env_get("MORU_CODEX_STOP_GATE", "").strip() != "0"
 
 
 def find_project_root(cwd: Path) -> Path | None:

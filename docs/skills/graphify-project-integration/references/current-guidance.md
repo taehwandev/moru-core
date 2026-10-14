@@ -14,7 +14,7 @@ checkout. Do not turn the shared skill into a project asset.
 The active Moru Core source is:
 
 ```text
-<TAO_ROOT>/.moru/skills/graphify/
+<MORU_ROOT>/.moru/skills/graphify/
   SKILL.md
   references/
   runtime/
@@ -70,8 +70,8 @@ outside it, stays a reported leak even in the runtime source root.
 Install or inspect the common skill:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-project-graphify.py --global
-python3 <TAO_ROOT>/scripts/setup-project-graphify.py --global --check
+python3 <MORU_ROOT>/scripts/setup-project-graphify.py --global
+python3 <MORU_ROOT>/scripts/setup-project-graphify.py --global --check
 ```
 
 Global installation copies from the active runtime bundle; it does not invoke a
@@ -87,7 +87,7 @@ checked; it never changes a target repository.
 Inspect target graph readiness without repository mutation:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-project-graphify.py \
+python3 <MORU_ROOT>/scripts/setup-project-graphify.py \
   --project <TARGET_REPO> \
   --check
 ```
@@ -107,9 +107,9 @@ version may skip an existing marker instead of refreshing it. Moru offers a
 separate, opt-in compatibility repair for its recognized checkout block:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-project-graphify.py \
+python3 <MORU_ROOT>/scripts/setup-project-graphify.py \
   --project <TARGET_REPO> --repair-checkout-hook --check
-python3 <TAO_ROOT>/scripts/setup-project-graphify.py \
+python3 <MORU_ROOT>/scripts/setup-project-graphify.py \
   --project <TARGET_REPO> --repair-checkout-hook
 ```
 
@@ -203,7 +203,7 @@ If an older Graphify CLI produced dangling or self-loop edges, repair only the
 replaceable project-local graph:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-project-graphify.py \
+python3 <MORU_ROOT>/scripts/setup-project-graphify.py \
   --project <TARGET_REPO> \
   --repair-graph-integrity
 ```
@@ -214,7 +214,7 @@ not invoke an LLM or create project-local runtime assets.
 Explicit source-path repair uses the same local graph:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-project-graphify.py \
+python3 <MORU_ROOT>/scripts/setup-project-graphify.py \
   --project <TARGET_REPO> \
   --repair-document-links
 ```

@@ -27,11 +27,11 @@ class FinishedEntryRefusalTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         base = Path(self.temp.name)
-        env = patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: str(base / "state")})
+        env = patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: str(base / "state")})
         env.start()
         self.addCleanup(env.stop)
         self.session = "finished-session"
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "claude"}):
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "claude"}):
             self.project = fixtures.FinishAuthorizesItsOwnPublicationTests()._finished_project(base)
             self.evidence = gate.finished_session_evidence(self.project, self.session)
         self.assertIsNotNone(self.evidence)

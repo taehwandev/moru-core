@@ -108,7 +108,7 @@ class ReferenceMailboxTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         self.project = self.root / "project"
         self.project.mkdir()
-        environment = patch.dict(os.environ, {"TAO_STATE_HOME": str(self.root / "state")})
+        environment = patch.dict(os.environ, {"MORU_STATE_HOME": str(self.root / "state")})
         environment.start()
         self.addCleanup(environment.stop)
         self.now = datetime(2026, 9, 23, tzinfo=timezone.utc)
@@ -181,7 +181,7 @@ class ReferenceMailboxTests(unittest.TestCase):
         self.assertEqual(8, len(self.store.consume("claude")))
 
     def test_test_isolation_and_symlink_protection(self):
-        with patch.dict(os.environ, {"TAO_STATE_HOME": "", "TAO_UNDER_UNITTEST": "1"}):
+        with patch.dict(os.environ, {"MORU_STATE_HOME": "", "MORU_UNDER_UNITTEST": "1"}):
             with self.assertRaisesRegex(RuntimeError, "refusing to write"):
                 ReferenceMailboxStore(self.project).enqueue(sender="codex", recipient="claude",
                     kind="review", body="No real user writes", ttl_seconds=60)

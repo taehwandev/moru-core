@@ -99,7 +99,7 @@ does not prove better ranking. Check important-source misses on labeled Korean
 and English samples before trusting either model's score. The selected model is
 part of the cache key, so switching models cannot reuse another model's result.
 
-For another target repository, execute the script from its resolved `<TAO_ROOT>`
+For another target repository, execute the script from its resolved `<MORU_ROOT>`
 path and place inputs/cache in that target's ignored local directory. Confirm
 the directory is ignored before saving research data. Use collected public
 sources for the first experiment; remote disclosure still needs matching scope.

@@ -192,13 +192,13 @@ def routed_areas(route: dict) -> set[str]:
 
 class WorkflowCatalogTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._old_state_home = os.environ.get("TAO_STATE_HOME")
+        self._old_state_home = os.environ.get("MORU_STATE_HOME")
 
     def tearDown(self) -> None:
         if self._old_state_home is None:
-            os.environ.pop("TAO_STATE_HOME", None)
+            os.environ.pop("MORU_STATE_HOME", None)
         else:
-            os.environ["TAO_STATE_HOME"] = self._old_state_home
+            os.environ["MORU_STATE_HOME"] = self._old_state_home
 
     def test_required_hook_commands_use_stable_launcher(self) -> None:
         hooks = route_hooks("task")
@@ -206,7 +206,7 @@ class WorkflowCatalogTests(unittest.TestCase):
         for name in ("start", "review", "finish"):
             self.assertIn(str(preferred_launcher_path()), commands[name])
             self.assertNotIn("scripts/agent-hook.py", commands[name])
-            self.assertIn("--rules <TAO_ROOT>", commands[name])
+            self.assertIn("--rules <MORU_ROOT>", commands[name])
             self.assertIn("--evidence <RUN_EVIDENCE>", commands[name])
 
     def test_read_only_routes_skip_mutation_only_preflight_gates(self) -> None:

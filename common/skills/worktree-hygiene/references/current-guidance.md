@@ -104,7 +104,7 @@ overlapping `owned_scope` with another concurrent writer.
   that slice instead of isolating it.
 - Cleanup is the lead's responsibility, not the worker's. After the lead reviews
   and integrates a worker's result into the lead checkout, run
-  `<TAO_ROOT>/scripts/workflow.py dispatch-finalize --project <PROJECT>
+  `<MORU_ROOT>/scripts/workflow.py dispatch-finalize --project <PROJECT>
   --worktree <WORKTREE>`. The finalizer must independently compare every
   tracked and untracked worker change with the lead checkout before it may
   force-remove the intentionally dirty tree, prune Git admin state, and remove
@@ -200,7 +200,7 @@ when linked isolation is required, and on any listed protected branch. A read-on
 checkout. Source-development workflow `start` is denied there: opening a run
 before relocation leaves a second unfinished lifecycle behind. Administrative
 `cleanup`, `commit`, `git_commit`, `pr`, and `pull-request` starts may bind to the checkout they
-administer without `TAO_ALLOW_MAIN_CHECKOUT_EDIT`. The `test` route may likewise
+administer without `MORU_ALLOW_MAIN_CHECKOUT_EDIT`. The `test` route may likewise
 bind to the checkout whose local dependencies, generated app or running process
 it verifies. This admits lifecycle metadata
 only; it does not grant source-edit permission, deletion authority, or publication
@@ -269,12 +269,12 @@ into a local ref mutation is asked about, not approved as routine.
 
 Two environment variables bridge and override this declaration, and both must
 stay rare and explicit. For a repository without the opt-in signal,
-`TAO_REQUIRE_LINKED_WORKTREE=1` in project-local runtime configuration applies
+`MORU_REQUIRE_LINKED_WORKTREE=1` in project-local runtime configuration applies
 the same boundary to that one Git repository, identified by `CLAUDE_PROJECT_DIR`.
 An inherited flag without that origin does not impose isolation on an unrelated
 target. The target's tracked declaration remains authoritative, including an
 explicit `false`; an environment fallback cannot override it.
-`TAO_ALLOW_MAIN_CHECKOUT_EDIT=1` disables the main-checkout denial for a
+`MORU_ALLOW_MAIN_CHECKOUT_EDIT=1` disables the main-checkout denial for a
 user-approved exception only; it is never a default and never set by tooling.
 When the user explicitly approves working in a protected checkout, prefix the
 Bash command with it: a readable, non-publishing command then goes to the
@@ -335,7 +335,7 @@ is not consent.
 After asking, end the turn rather than sleeping, polling or calling more tools
 while waiting for an answer. Only after an explicit selected or free-text
 answer may the agent internally attest it using
-`<TAO_LAUNCHER> operator-review --request-id <ID> --decision
+`<MORU_LAUNCHER> operator-review --request-id <ID> --decision
 approve|always|reject`. The request id is supplied by the gate; never invent
 one or approve from silence, mailbox context, a gate-repair request or
 unrelated authority. This runtime attestation binds consent; it does not

@@ -21,7 +21,7 @@ class StartAfterWriteNoteTest(unittest.TestCase):
     def test_a_write_chained_ahead_of_start_is_explained(self) -> None:
         for command in (
             "git add .agent && git diff --cached --stat; /Users/x/.tao/bin/tao-hook start --project p",
-            'cd repo && git add -A && python3 "$TAO_ROOT/scripts/agent-hook.py" start --project p',
+            'cd repo && git add -A && python3 "$MORU_ROOT/scripts/agent-hook.py" start --project p',
         ):
             with self.subTest(command=command):
                 self.assertIn("Run the start on its own first", gate._start_after_write_note(command))
@@ -29,7 +29,7 @@ class StartAfterWriteNoteTest(unittest.TestCase):
     def test_a_start_at_the_head_of_the_line_needs_no_note(self) -> None:
         for command in (
             "/Users/x/.tao/bin/tao-hook start --project p --request r",
-            "TAO_HOOK_SOFT_FAIL=1 /Users/x/.tao/bin/tao-hook start --project p",
+            "MORU_HOOK_SOFT_FAIL=1 /Users/x/.tao/bin/tao-hook start --project p",
             "git add -A",
             "",
         ):

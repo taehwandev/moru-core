@@ -324,7 +324,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
                 self.assertIn(RUNTIME_NATIVE_DELEGATION_PHRASES[runtime_name], block)
                 self.assertIn("worker-specific evidence paths", block)
                 self.assertNotIn("docs-read", block.lower())
-                self.assertNotIn("receipt", block.replace(str(ROOT), "<TAO_ROOT>").lower())
+                self.assertNotIn("receipt", block.replace(str(ROOT), "<MORU_ROOT>").lower())
 
     def test_start_bridge_never_teaches_unconditional_request_classified(self) -> None:
         # The flag is honored only for a delegated worker whose parent left a
@@ -615,20 +615,20 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
         prompt_template = (ROOT / "templates" / "use-tao-prompt.md").read_text()
         normalized_repo_template = " ".join(repo_template.split())
 
-        self.assertIn("run `<TAO_LAUNCHER> start` once", repo_template)
+        self.assertIn("run `<MORU_LAUNCHER> start` once", repo_template)
         self.assertIn("read the route's `required_docs`", normalized_repo_template)
-        self.assertIn("<TAO_LAUNCHER> handoff", repo_template)
-        self.assertEqual(1, repo_template.count("<TAO_LAUNCHER> start"))
+        self.assertIn("<MORU_LAUNCHER> handoff", repo_template)
+        self.assertEqual(1, repo_template.count("<MORU_LAUNCHER> start"))
 
-        self.assertIn("<TAO_LAUNCHER> start", prompt_template)
+        self.assertIn("<MORU_LAUNCHER> start", prompt_template)
         self.assertIn("Read every `required_docs` entry", prompt_template)
-        self.assertIn("<TAO_LAUNCHER> handoff", prompt_template)
+        self.assertIn("<MORU_LAUNCHER> handoff", prompt_template)
         self.assertNotIn("scripts/workflow.py list", prompt_template)
         self.assertNotIn("scripts/workflow.py classify", prompt_template)
         self.assertNotIn("scripts/agent-preflight.py --project", prompt_template)
         self.assertNotIn("scripts/agent-finish-check.py --project", prompt_template)
-        self.assertIn("<TAO_LAUNCHER> finish", prompt_template)
-        self.assertNotIn("read <TAO_ROOT>/AGENTS.md and <TAO_ROOT>/index.md", prompt_template)
+        self.assertIn("<MORU_LAUNCHER> finish", prompt_template)
+        self.assertNotIn("read <MORU_ROOT>/AGENTS.md and <MORU_ROOT>/index.md", prompt_template)
         for template in (repo_template, prompt_template):
             normalized = " ".join(template.split())
             self.assertIn("only when isolation is explicitly required", normalized)

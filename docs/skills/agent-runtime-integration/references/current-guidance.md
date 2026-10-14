@@ -40,7 +40,7 @@ source text, environment values, or secrets.
 
 The parent owns the capsule lifecycle:
 
-1. Run `<TAO_LAUNCHER> start` once for the multi-step task. Do not separately run
+1. Run `<MORU_LAUNCHER> start` once for the multi-step task. Do not separately run
    workflow list, classify, route, and preflight as a second startup sequence.
 2. Read the route's `required_docs` directly before work. Do not add a second
    document-confirmation step.
@@ -143,11 +143,11 @@ Required sequence:
 1. From the selected project, the sender posts one compact brief through stdin:
 
    ```text
-   <bounded review brief> | <TAO_LAUNCHER> agent-mailbox send --to claude --kind review
+   <bounded review brief> | <MORU_LAUNCHER> agent-mailbox send --to claude --kind review
    ```
 
 2. The target remains idle. On its next normal user-visible prompt, its runtime
-   bridge runs `<TAO_LAUNCHER> agent-mailbox receive --runtime <target>` once
+   bridge runs `<MORU_LAUNCHER> agent-mailbox receive --runtime <target>` once
    from the selected project. A returned brief is context, not authority: the
    current user request and the target's normal Moru lifecycle still decide what
    it may do.
@@ -321,7 +321,7 @@ Codex:
   location denial; do not restart its workflow or create another worktree.
   This compatibility path does not grant sandbox access, suppress native
   approval, or permit commands that explicitly target a protected checkout.
-- Add `--add-dir <TAO_ROOT>` only when the task must include the
+- Add `--add-dir <MORU_ROOT>` only when the task must include the
   shared Moru Core root in the session workspace, such as maintaining
   Moru Core itself or editing shared runtime bridge files.
 - Do not expect `AGENTS.md` or `.codex/rules` to change sandbox roots; they
@@ -342,7 +342,7 @@ Codex:
   access from a request to set up worktrees. Existing Moru default selections are
   preserved, not silently migrated. A Codex-scoped target setup must not create
   or alter Claude project settings.
-- Use `<TAO_LAUNCHER> start` once for multi-step work; do not run a second
+- Use `<MORU_LAUNCHER> start` once for multi-step work; do not run a second
   classify, route, or preflight sequence after it succeeds.
 - Keep the managed Codex `PreToolUse` and `Stop` hooks enabled when the optional
   user-level runtime bridge is installed. It resolves only the active run bound
@@ -357,7 +357,7 @@ Codex:
   per-tool path.
 - Moru Core command permissions belong in user-level
   `~/.codex/rules/default.rules` as narrow `prefix_rule` entries for the
-  current `<TAO_ROOT>/scripts/*.py` files. The managed `cd` rule covers the
+  current `<MORU_ROOT>/scripts/*.py` files. The managed `cd` rule covers the
   directory-change command for newly generated worktree paths; it does not
   approve the following command, file edits, Git writes, or sandbox access.
 - Generate direct `python3 <script>` argv prefixes for those same scripts using
@@ -404,7 +404,7 @@ Claude:
   `~/.claude/settings.json`, not repo-local `.claude/settings.json`, because
   the Moru Core `scripts/*.py` entrypoints are shared across projects.
 - Claude managed hooks should call the stable launcher
-  `<TAO_LAUNCHER>`, not a moving checkout path such as
+  `<MORU_LAUNCHER>`, not a moving checkout path such as
   `/absolute/path/to/moru-core/scripts/workflow.py`. The setup script
   refreshes `~/.tao/tao-root` to the current checkout and
   removes stale managed hook commands that still point at old roots. The stable
@@ -420,7 +420,7 @@ Claude:
   argument-specific variants for shared wrappers.
 - A non-runtime Python query helper may run read-only in a protected checkout
   only when the environment inherited from Claude's parent process contains
-  `TAO_CLAUDE_READ_ONLY_PYTHON_SCRIPTS`. The value is strict JSON with this
+  `MORU_CLAUDE_READ_ONLY_PYTHON_SCRIPTS`. The value is strict JSON with this
   exact shape:
 
   ```json
@@ -442,9 +442,9 @@ Claude:
   same absolute canonical script path as the first operand; relative operands,
   including `cd /path && python query.py`, are never allowed. Arguments are not
   classified, so declare only a helper that cannot write for any accepted
-  argument. `TAO_STATE_HOME/read-only-scripts.json` is not an authorization
+  argument. `MORU_STATE_HOME/read-only-scripts.json` is not an authorization
   surface and is ignored.
-- Remove `TAO_CLAUDE_READ_ONLY_PYTHON_SCRIPTS` from the parent environment to
+- Remove `MORU_CLAUDE_READ_ONLY_PYTHON_SCRIPTS` from the parent environment to
   revoke all helper access. Editing a declared script revokes that entry
   automatically because its digest no longer matches; after an intentional,
   reviewed edit, compute the new lowercase SHA-256 and refresh the parent
@@ -539,7 +539,7 @@ For every runtime:
    separate file exists. Offer optional Step 2 for personal/global runtime
    bridges; only update those files when the user chooses it.
 11. Read Moru Core `AGENTS.md`.
-12. For multi-step tasks, run `<TAO_LAUNCHER> start` once with the
+12. For multi-step tasks, run `<MORU_LAUNCHER> start` once with the
     current request to produce routing and preflight evidence. If the request
     is a direct question, answer it before the start hook or editing. Use
     `index.md` only for simple answer-only work or an explicitly accepted
@@ -555,14 +555,14 @@ For every runtime:
     `required_docs` list is a valid no-source state and must continue once,
     with a recorded no-source decision, rather than retrying or blocking the
     capsule in preflight.
-14. Before delegating, run `<TAO_LAUNCHER> handoff` to lazily create and
+14. Before delegating, run `<MORU_LAUNCHER> handoff` to lazily create and
     validate the execution capsule once. A worker may reuse the parent route,
     preflight, and required-doc brief only after a ready-and-valid result; it
     must not repeat required-doc reads, VibeGuard, review, or final validation.
     An invalid result is a successful fallback decision requiring the normal
     lifecycle on worker-specific evidence paths. Keep the parent as the sole
     gate-ledger owner and never overwrite its evidence during fallback.
-15. When wrapper scripts are available, run `<TAO_LAUNCHER> finish`
+15. When wrapper scripts are available, run `<MORU_LAUNCHER> finish`
     before final report, commit, release, or handoff. Call
     `scripts/agent-finish-check.py` directly only as a lower-level fallback.
     Missing wrapper evidence or route gate evidence is non-compliant.
@@ -598,7 +598,7 @@ call Moru Core routing instead of creating a second active workflow router.
 The alias should run:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --command <route-command> --request "<USER_REQUEST>"
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command <route-command> --request "<USER_REQUEST>"
 ```
 
 Do not let aliases bypass Start Hook, direct reading of the route
@@ -666,7 +666,7 @@ After connecting a runtime, verify:
   returns a successful normal-lifecycle fallback decision on mismatch, uses
   worker-specific evidence paths for that fallback, and leaves the parent gate
   ledger unchanged
-- `<TAO_LAUNCHER> agent-mailbox --help` resolves through the installed stable
+- `<MORU_LAUNCHER> agent-mailbox --help` resolves through the installed stable
   launcher, and focused tests prove exact active-work send binding, project and
   source-run isolation, TTL and size caps, atomic one-time consumption,
   body-free acknowledgement records, symlink refusal, next-prompt runtime guidance,
@@ -677,7 +677,7 @@ After connecting a runtime, verify:
 - the agent can produce a route, such as:
 
 ```text
-<TAO_LAUNCHER> workflow route task --request "<USER_REQUEST>"
+<MORU_LAUNCHER> workflow route task --request "<USER_REQUEST>"
 ```
 
 ## Stop If

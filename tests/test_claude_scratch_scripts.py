@@ -15,7 +15,7 @@ import claude_scratch_checkout as scratch
 class ScratchHelperScripts(_Fixture):
     def setUp(self) -> None:
         super().setUp()
-        # `self.project` is the Moru-like checkout (TAO_HOME, linked-worktree
+        # `self.project` is the Moru-like checkout (MORU_HOME, linked-worktree
         # policy); `self.spill` is an ordinary governed project with no policy
         # file, whose default requires a workflow run before unverified commands.
         self.spill = self.base / "home" / "spill"
@@ -60,7 +60,7 @@ class ScratchHelperScripts(_Fixture):
         (fixture / "x.py").write_text("print(1)\n")
         pad = self.pad
         for command in (
-            f"TAO_HOME={self.spill} python3 {pad}/hello.py",
+            f"MORU_HOME={self.spill} python3 {pad}/hello.py",
             f"python3 {pad}/hello.py > {self.spill}/x",
             f"python3 {pad}/hello.py {self.spill}",
             f"python3 {inside}",

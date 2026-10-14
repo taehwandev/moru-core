@@ -91,7 +91,7 @@ Local reuse is the default and a hard stop for install work:
    Moru Core root's entry helper before project work:
 
    ```text
-   python3 <TAO_ROOT>/scripts/agent-entry.py --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>
+   python3 <MORU_ROOT>/scripts/agent-entry.py --request "<USER_REQUEST>" --cwd "<CURRENT_DIRECTORY>" --runtime <RUNTIME>
    ```
 
    Continue only when it returns `selected`. If it returns `ambiguous` or
@@ -103,7 +103,7 @@ Local reuse is the default and a hard stop for install work:
    `CONTRIBUTING.md`, task docs, PRD/ARD docs, equivalent project docs, or an
    explicitly documented local override file.
 4. Check whether the user supplied an explicit Moru Core path.
-5. Check `MORU_HOME` and the compatibility variable `TAO_HOME`.
+5. Check `MORU_HOME` and the compatibility variable `MORU_HOME`.
 6. Check legacy `KEYFLOW_AGENT_ROOT` only when present.
 7. Check current locations such as `~/.moru/core` and `~/git/moru-core`.
    During migration, also inspect legacy Moru install locations.
@@ -153,24 +153,24 @@ Application drill:
 Audit only, preserving existing guardrails:
 
 ```bash
-vibeguard audit . --rules <TAO_ROOT>
+vibeguard audit . --rules <MORU_ROOT>
 ```
 
 Refresh an existing managed VibeGuard block only when the user explicitly
 selects that option:
 
 ```bash
-vibeguard update . --rules <TAO_ROOT>
-vibeguard audit . --fix --rules <TAO_ROOT>
-vibeguard audit . --rules <TAO_ROOT>
+vibeguard update . --rules <MORU_ROOT>
+vibeguard audit . --fix --rules <MORU_ROOT>
+vibeguard audit . --rules <MORU_ROOT>
 ```
 
 Use `setup` only for first-time target repos with no guardrails:
 
 ```bash
-vibeguard setup . --rules <TAO_ROOT>
-vibeguard audit . --fix --rules <TAO_ROOT>
-vibeguard audit . --rules <TAO_ROOT>
+vibeguard setup . --rules <MORU_ROOT>
+vibeguard audit . --fix --rules <MORU_ROOT>
+vibeguard audit . --rules <MORU_ROOT>
 ```
 
 If `vibeguard` is not installed, use the same command shapes with
@@ -206,14 +206,14 @@ writing outside the target repo.
 After installing or selecting a root, run:
 
 ```bash
-python3 <TAO_ROOT>/scripts/workflow.py validate
+python3 <MORU_ROOT>/scripts/workflow.py validate
 ```
 
 For an explicit target repo, install project permissions and Graphify runtime
 integration together. Graphify is included by default for `--target`:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-agent-hooks.py --target <TARGET_REPO>
+python3 <MORU_ROOT>/scripts/setup-agent-hooks.py --target <TARGET_REPO>
 ```
 
 This installs the runtime-owned Graphify bundle once under the user's shared
@@ -231,14 +231,14 @@ from reporting on repositories the caller never meant to include.
 Then check runtime bridges, hooks, and permission allowlists:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-agent-hooks.py --check
+python3 <MORU_ROOT>/scripts/setup-agent-hooks.py --check
 ```
 
 If the check reports missing bridges, hooks, or permissions, ask for approval
 before writing user-level runtime config, then run:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-agent-hooks.py
+python3 <MORU_ROOT>/scripts/setup-agent-hooks.py
 ```
 
 The setup is global because the workflow router, graph-backed document routing,
@@ -247,7 +247,7 @@ only Moru Core-managed bridge blocks and allow only the current
 Moru Core Python entrypoints by exact path, not broad `python3` execution:
 
 ```text
-<TAO_ROOT>/scripts/*.py
+<MORU_ROOT>/scripts/*.py
 ```
 
 Claude Code permissions belong in `~/.claude/settings.json`. AGY/Antigravity
@@ -288,7 +288,7 @@ that subsystem.
    short pointer or by pointing them back to `AGENTS.md`.
 7. Do not create new runtime-specific instruction files when the runtime already
    reads `AGENTS.md`.
-8. Keep committed repo-local paths portable. Prefer `${TAO_HOME}` for
+8. Keep committed repo-local paths portable. Prefer `${MORU_HOME}` for
    a shared local install, or use a repo-relative pinned path such as
    `.agents/moru-core`. Do not commit personal absolute paths such as
    `/Users/.../moru-core`; use those only in shell env setup, one-shot
@@ -306,7 +306,7 @@ that subsystem.
     runtime links or thin adapters. Do not maintain parallel Codex, Claude, and
     Antigravity/AGY copies of the same knowledge.
 11. Do not paste the full Moru Core library into repo-local files.
-12. For multi-step setup or migration work, run `<TAO_LAUNCHER> start` once with
+12. For multi-step setup or migration work, run `<MORU_LAUNCHER> start` once with
    the current request. Open every route `required_docs` entry directly, keep
    the workflow route gate ledger, run the review hook after meaningful
    changes, and run the finish hook before final report, commit, release, or

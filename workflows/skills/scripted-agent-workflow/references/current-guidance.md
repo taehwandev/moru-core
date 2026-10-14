@@ -42,7 +42,7 @@ Run the shared start hook once for every multi-step task when it exists. It
 performs request intake, routing, and preflight as one lifecycle entry:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --evidence <RUN_EVIDENCE> --command <command> --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" [--approval-record "<JSON_OR_PATH>"] --runtime-session-id "<OPAQUE_SESSION_ID>" [--continuation-scope "<ESTABLISHED_TARGET>"] [--platform <platform>] [--concern <concern>]
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --evidence <RUN_EVIDENCE> --command <command> --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" [--approval-record "<JSON_OR_PATH>"] --runtime-session-id "<OPAQUE_SESSION_ID>" [--continuation-scope "<ESTABLISHED_TARGET>"] [--platform <platform>] [--concern <concern>]
 ```
 
 `--rules` must point to the Moru Core root directory, not to an
@@ -144,7 +144,7 @@ and record its output.
 Discover the supported values from the script itself:
 
 ```text
-python3 <TAO_ROOT>/scripts/workflow.py list
+python3 <MORU_ROOT>/scripts/workflow.py list
 ```
 
 Treat the executable `list` output as the only current command, platform, and
@@ -176,11 +176,11 @@ list.
 Examples:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --evidence <RUN_EVIDENCE> --command product --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" --runtime-session-id "<OPAQUE_SESSION_ID>" --platform android --concern security --concern ui
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --evidence <RUN_EVIDENCE> --command bugfix --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" --runtime-session-id "<OPAQUE_SESSION_ID>" --platform server --concern api
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --evidence <RUN_EVIDENCE> --command docs-review --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" --runtime-session-id "<OPAQUE_SESSION_ID>" --concern wiki
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --evidence <RUN_EVIDENCE> --command product --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" --runtime-session-id "<OPAQUE_SESSION_ID>" --platform android --concern security --concern ui
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --evidence <RUN_EVIDENCE> --command bugfix --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" --runtime-session-id "<OPAQUE_SESSION_ID>" --platform server --concern api
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --evidence <RUN_EVIDENCE> --command docs-review --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" --runtime-session-id "<OPAQUE_SESSION_ID>" --concern wiki
 Answer "Show me how we build an app feature here" in the conversation; do not start a work route for the question alone.
-<TAO_LAUNCHER> workflow validate
+<MORU_LAUNCHER> workflow validate
 ```
 
 Do not force broad app/product requests through the `feature` route. The router
@@ -514,7 +514,7 @@ Before finalizing, compare the route's `gates` with the ledger:
 - Every required gate must be marked `executed` with evidence.
 - Every required gate must be `🐱🟢 SUCCESS` before completion is reported.
 - If the route includes a `review hook` gate, run
-  `python3 <TAO_ROOT>/scripts/agent-hook.py review --review-outcome <pass|findings> ...`
+  `python3 <MORU_ROOT>/scripts/agent-hook.py review --review-outcome <pass|findings> ...`
   and record
   the hook result as that gate's evidence. Do not replace it with a memory-only
   manual review unless the hook is unavailable and the fallback is reported.
@@ -654,7 +654,7 @@ Workflow route:
 - concerns: ...
 
 Verified:
-- python3 <TAO_ROOT>/scripts/workflow.py validate
+- python3 <MORU_ROOT>/scripts/workflow.py validate
 - ...task-specific checks...
 
 Gate ledger:

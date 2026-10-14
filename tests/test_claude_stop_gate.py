@@ -324,7 +324,7 @@ class ClaudeStopGateTests(unittest.TestCase):
             project = _opt_in_project(Path(tmp))
             _record_edit(project, "s1")
 
-            with patch.dict("os.environ", {"TAO_CLAUDE_STOP_GATE": "0"}):
+            with patch.dict("os.environ", {"MORU_CLAUDE_STOP_GATE": "0"}):
                 code, out = _decide(_payload(project, "s1"))
 
         self.assertEqual(0, code)
@@ -361,7 +361,7 @@ class ClaudeStopGateTests(unittest.TestCase):
             target.write_text(json.dumps({
                 "hooks": {"Stop": [{"matcher": "", "hooks": [user_hook]}]}
             }))
-            command = "TAO_HOOK_SOFT_FAIL=1 /abs/tao-hook claude-stop-gate"
+            command = "MORU_HOOK_SOFT_FAIL=1 /abs/tao-hook claude-stop-gate"
 
             status = _merge_claude_stop_gate(target, command, dry_run=False)
             commands = [
@@ -378,7 +378,7 @@ class ClaudeStopGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "settings.json"
             target.write_text(json.dumps({"hooks": {}}))
-            command = "TAO_HOOK_SOFT_FAIL=1 /abs/tao-hook claude-stop-gate"
+            command = "MORU_HOOK_SOFT_FAIL=1 /abs/tao-hook claude-stop-gate"
 
             first = _merge_claude_stop_gate(target, command, dry_run=False)
             after_first = target.read_text()

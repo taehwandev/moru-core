@@ -90,7 +90,7 @@ class ProjectBootstrapTests(unittest.TestCase):
                         {"tool_input": {"command": command}}, "Bash", launcher)
                     self.assertIn(protected, scope.roots)
             output = io.StringIO()
-            with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}, clear=True), \
+            with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}, clear=True), \
                     patch.object(pretool, "throwaway_checkout", return_value=False), redirect_stdout(output):
                 pretool.decide({"tool_name": "Bash", "cwd": str(launcher),
                                 "session_id": "location-independent-projects",
@@ -106,7 +106,7 @@ class ProjectBootstrapTests(unittest.TestCase):
             f"cd {external} && printf content > another.txt",
         ):
             output = io.StringIO()
-            with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}, clear=True), \
+            with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}, clear=True), \
                     patch.object(pretool, "throwaway_checkout", return_value=False), redirect_stdout(output):
                 pretool.decide({"tool_name": "Bash", "cwd": str(protected),
                                 "session_id": "location-independent-projects",
@@ -115,7 +115,7 @@ class ProjectBootstrapTests(unittest.TestCase):
         alias = external / "protected-link.txt"
         alias.symlink_to(protected / "file.txt")
         output = io.StringIO()
-        with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}, clear=True), \
+        with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}, clear=True), \
                 patch.object(pretool, "throwaway_checkout", return_value=False), redirect_stdout(output):
             pretool.decide({"tool_name": "Bash", "cwd": str(self.workspace),
                             "session_id": "location-independent-projects",

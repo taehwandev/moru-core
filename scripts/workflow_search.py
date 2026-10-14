@@ -329,7 +329,7 @@ def print_query_results(query: str, results: List[Dict[str, object]]) -> None:
     print()
     print("To get a structured route:")
     print(
-        "  python3 <TAO_ROOT>/scripts/workflow.py route <command>"
+        "  python3 <MORU_ROOT>/scripts/workflow.py route <command>"
         ' --request "<request>"'
     )
 

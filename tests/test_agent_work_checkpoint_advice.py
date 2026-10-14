@@ -204,7 +204,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
                     "--read-only", "--evidence", str(evidence),
                 ],
                 cwd=project, capture_output=True, text=True,
-                env={**os.environ, "TAO_STATE_HOME": state},
+                env={**os.environ, "MORU_STATE_HOME": state},
             )
 
         self.assertRegex(result.stdout, r"(?:tao|moru)-hook checkpoint")
@@ -322,7 +322,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
             environment = {
                 **os.environ,
                 "HOME": home,
-                "TAO_STATE_HOME": state,
+                "MORU_STATE_HOME": state,
             }
 
             started = subprocess.run(

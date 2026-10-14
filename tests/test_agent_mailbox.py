@@ -57,7 +57,7 @@ class AgentMailboxTests(unittest.TestCase):
     def setUp(self) -> None:
         self._temporary = tempfile.TemporaryDirectory()
         root = Path(self._temporary.name)
-        self.environment = patch.dict(os.environ, {"TAO_STATE_HOME": str(root / "state")})
+        self.environment = patch.dict(os.environ, {"MORU_STATE_HOME": str(root / "state")})
         self.environment.start()
         self.addCleanup(self.environment.stop)
         self.project = root / "project"

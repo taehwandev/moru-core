@@ -26,7 +26,7 @@ workflow's executable checklist:
 Before editing, reviewing, committing, or reporting completion:
 
 ```text
-<TAO_LAUNCHER> start --project <TARGET_REPO> --rules <TAO_ROOT> --evidence <RUN_EVIDENCE> --command <command> --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" [--approval-record "<JSON_OR_PATH>"] --runtime-session-id "<OPAQUE_SESSION_ID>" [--platform <platform>] [--concern <concern>]
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --evidence <RUN_EVIDENCE> --command <command> --request "<USER_REQUEST>" --intent-envelope "<JSON_OR_PATH>" [--approval-record "<JSON_OR_PATH>"] --runtime-session-id "<OPAQUE_SESSION_ID>" [--platform <platform>] [--concern <concern>]
 ```
 
 The route may promote additional `required_docs` from the root
@@ -163,7 +163,7 @@ user-facing `handoff`, and only then invoke the finish hook.
 Before final report, commit, release, or handoff:
 
 ```text
-python3 <TAO_ROOT>/scripts/agent-hook.py finish --project <TARGET_REPO> --rules <TAO_ROOT> --evidence <RUN_EVIDENCE>
+python3 <MORU_ROOT>/scripts/agent-hook.py finish --project <TARGET_REPO> --rules <MORU_ROOT> --evidence <RUN_EVIDENCE>
 ```
 
 Do not wait until finish to write all gate evidence by hand. The only gate-state
@@ -209,7 +209,7 @@ retrying a batch after the validation-recovery rule above says to isolate the
 failing gate:
 
 ```text
-python3 <TAO_ROOT>/scripts/agent-hook.py gate-batch --project <TARGET_REPO> --rules <TAO_ROOT> --evidence <RUN_EVIDENCE> --gate-record '[{"gate":"cycle contract","fields":{"cycle_type":"workflow_setup","input_scope":"<safe-source-scope>","allowed_changes":"<safe-scope>","forbidden_changes":"<safe-boundary>","acceptance_criteria":"<safe-criteria>","verification":"<check>","stop_condition":"<condition>","checkpoint":"<handoff-or-next-cycle>"}},{"gate":"agentic run state","fields":{"state":"scoped","transition":"scoped -> acting","evidence":"<gate-or-command>","checkpoint":"<resume-or-handoff>","blockers":"<none-or-current-blocker>"}},{"gate":"boundary plan","fields":{"scope":"<owned-scope>","verification":"<nearest-check>"}}]'
+python3 <MORU_ROOT>/scripts/agent-hook.py gate-batch --project <TARGET_REPO> --rules <MORU_ROOT> --evidence <RUN_EVIDENCE> --gate-record '[{"gate":"cycle contract","fields":{"cycle_type":"workflow_setup","input_scope":"<safe-source-scope>","allowed_changes":"<safe-scope>","forbidden_changes":"<safe-boundary>","acceptance_criteria":"<safe-criteria>","verification":"<check>","stop_condition":"<condition>","checkpoint":"<handoff-or-next-cycle>"}},{"gate":"agentic run state","fields":{"state":"scoped","transition":"scoped -> acting","evidence":"<gate-or-command>","checkpoint":"<resume-or-handoff>","blockers":"<none-or-current-blocker>"}},{"gate":"boundary plan","fields":{"scope":"<owned-scope>","verification":"<nearest-check>"}}]'
 ```
 
 Every mutating ledger path revalidates the run claim the registry holds for the

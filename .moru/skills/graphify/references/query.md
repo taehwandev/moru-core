@@ -15,7 +15,7 @@ Do not guess the output directory from which paths happen to exist. Run Moru's
 read-only readiness inspection first:
 
 ```bash
-python3 <TAO_ROOT>/scripts/setup-project-graphify.py --project . --check --format json
+python3 <MORU_ROOT>/scripts/setup-project-graphify.py --project . --check --format json
 ```
 
 Read `projects[0].readiness` from that output. Continue only when all three are

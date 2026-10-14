@@ -36,7 +36,7 @@ class WorkflowStartDenialTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.base = Path(temporary.name).resolve()
         environment = patch.dict(os.environ, {
-            "TAO_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: str(self.base / "state")
+            "MORU_PRETOOL_RUNTIME": "codex", STATE_HOME_ENV: str(self.base / "state")
         }, clear=True)
         environment.start()
         self.addCleanup(environment.stop)
@@ -196,7 +196,7 @@ class WorkflowStartDenialTests(unittest.TestCase):
         for runtime in ("codex", "claude"):
             for declared in (True, False):
                 with self.subTest(runtime=runtime, declared=declared):
-                    os.environ["TAO_PRETOOL_RUNTIME"] = runtime
+                    os.environ["MORU_PRETOOL_RUNTIME"] = runtime
                     if declared:
                         policy.write_text(declared_policy)
                     elif policy.exists():

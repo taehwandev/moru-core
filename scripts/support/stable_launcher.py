@@ -264,7 +264,7 @@ HOOK_ALIASES = {
 # main()) entirely -- it is a lower-level fallback for human debugging only,
 # never the normal agent path. Require an explicit opt-in so an agent cannot
 # casually use it to dodge the wrapped `finish` hook's guardrails.
-DIRECT_FINISH_CHECK_ENV = "TAO_ALLOW_DIRECT_FINISH_CHECK"
+DIRECT_FINISH_CHECK_ENV = "MORU_ALLOW_DIRECT_FINISH_CHECK"
 
 def main():
     if len(sys.argv) < 2:
@@ -281,7 +281,7 @@ def main():
     if script_alias in HOOK_ALIASES:
         script_name = "agent-hook.py"
         passthrough_args.insert(0, script_alias)
-    elif script_alias == "agent-finish-check" and os.environ.get(DIRECT_FINISH_CHECK_ENV) != "1":
+    elif script_alias == "agent-finish-check" and _env(DIRECT_FINISH_CHECK_ENV) != "1":
         return _soft_fail(
             "direct agent-finish-check is a human-debugging fallback and skips the "
             "finish hook's repair-cycle checks; run 'tao-hook finish' instead, "
@@ -304,7 +304,7 @@ def main():
             "Moru Core root pointer is stale. Run setup-agent-hooks.py from the current Moru Core checkout."
         )
 
-    os.environ.setdefault("TAO_HOME", str(root))
+    os.environ.setdefault("MORU_HOME", str(root))
     return _run_in_process(script, passthrough_args)
 
 def _run_in_process(script, passthrough_args):
@@ -323,7 +323,7 @@ def _run_in_process(script, passthrough_args):
         sys.path.insert(0, scripts_directory)
 
     # A crash used to reach the caller as the child's non-zero exit, which
-    # TAO_HOOK_SOFT_FAIL then absorbed. In-process it would reach the runtime as
+    # MORU_HOOK_SOFT_FAIL then absorbed. In-process it would reach the runtime as
     # a launcher traceback and a hook that brings down the tool call it gates,
     # so the same failure is converted back into the same exit code here.
     # KeyboardInterrupt is deliberately not caught: an interrupt belongs to the
@@ -342,13 +342,13 @@ def _run_in_process(script, passthrough_args):
         traceback.print_exc()
         code = 1
 
-    if code and os.environ.get("TAO_HOOK_SOFT_FAIL") == "1":
+    if code and _env("MORU_HOOK_SOFT_FAIL") == "1":
         return 0
     return code
 
 def _find_root():
     candidates: list[Path] = []
-    env_root = os.environ.get("TAO_HOME", "").strip()
+    env_root = _env("MORU_HOME").strip()
     if env_root:
         candidates.append(Path(env_root).expanduser())
 
@@ -389,9 +389,16 @@ def _find_root():
 def _is_tao_root(path):
     return all((path / marker).exists() for marker in REQUIRED_MARKERS)
 
+def _env(name):
+    # Hook commands written before the rename still pass the TAO_ spelling.
+    value = os.environ.get(name)
+    if value is None:
+        value = os.environ.get("TAO_" + name[len("MORU_"):])
+    return value or ""
+
 def _soft_fail(message):
     print(f"Moru Core hook skipped: {message}", file=sys.stderr)
-    if os.environ.get("TAO_HOOK_SOFT_FAIL") == "1":
+    if _env("MORU_HOOK_SOFT_FAIL") == "1":
         return 0
     return 1
 
@@ -407,13 +414,4 @@ def _moru_launcher_script_text() -> str:
         .replace('STATE_DIR_NAME = ".tao"', 'STATE_DIR_NAME = ".moru"')
         .replace('ROOT_POINTER_NAME = "tao-root"', 'ROOT_POINTER_NAME = "moru-root"')
         .replace("tao-hook", "moru-hook")
-        .replace(
-            '    os.environ.setdefault("TAO_HOME", str(root))',
-            '    os.environ.setdefault("MORU_HOME", str(root))\n'
-            '    os.environ.setdefault("TAO_HOME", str(root))',
-        )
-        .replace(
-            '    env_root = os.environ.get("TAO_HOME", "").strip()',
-            '    env_root = os.environ.get("MORU_HOME", "").strip() or os.environ.get("TAO_HOME", "").strip()',
-        )
     )

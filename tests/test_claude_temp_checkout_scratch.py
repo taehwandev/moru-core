@@ -56,8 +56,8 @@ class _Fixture(unittest.TestCase):
         environment = patch.dict(
             os.environ,
             {
-                "TAO_HOME": str(self.project),
-                "TAO_STATE_HOME": str(self.base / "state"),
+                "MORU_HOME": str(self.project),
+                "MORU_STATE_HOME": str(self.base / "state"),
                 "CLAUDE_PROJECT_DIR": str(self.project),
                 "PATH": os.environ.get("PATH", ""),
             },
@@ -211,7 +211,7 @@ class CodeRunsInTheTempCheckoutTests(_Fixture):
             "python3 script.py > out.log 2>&1",
             "npm test && python3 script.py",
             f"cd {self.bench} && make",
-            "python3 -c \"import os; print(os.environ['TAO_HOME'])\"",
+            "python3 -c \"import os; print(os.environ['MORU_HOME'])\"",
         ):
             with self.subTest(command=command):
                 self.assertEqual(self._bash(command, cwd=self.bench), "allow")
@@ -287,7 +287,7 @@ class CodeRunsInTheTempCheckoutTests(_Fixture):
 
 
 class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
-    """Observed: `TAO_HOME=<project> python3 ...` run in the temp worktree
+    """Observed: `MORU_HOME=<project> python3 ...` run in the temp worktree
     rewrote a file of the original project, and the gate allowed it.
 
     A line that visibly reaches a real project -- a word, an option value, an
@@ -317,11 +317,11 @@ class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
         escape = "../" * 5 + "home/proj"
         common = self.project / ".git"
         return [
-            f"TAO_HOME={self.project} python3 x.py",
-            f"TAO_STATE_HOME={self.project}/.tao python3 x.py",
+            f"MORU_HOME={self.project} python3 x.py",
+            f"MORU_STATE_HOME={self.project}/.tao python3 x.py",
             f"PWD={self.project} npm test",
             f"env GIT_DIR={common} python3 x.py",
-            f"export TAO_HOME={self.project} && python3 x.py",
+            f"export MORU_HOME={self.project} && python3 x.py",
             f"python3 tool.py --project {self.project}",
             f"python3 tool.py --output={real}",
             f"python3 tool.py -o{real}",
@@ -349,7 +349,7 @@ class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
         with patch.dict(os.environ, {"HOME": str(home)}):
             for command in (
                 "python3 x.py --project ~/proj",
-                "TAO_HOME=$HOME/proj python3 x.py",
+                "MORU_HOME=$HOME/proj python3 x.py",
                 "python3 x.py ${HOME}/proj/notes.txt",
             ):
                 self._assert_unexempted(command)
@@ -369,8 +369,8 @@ class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
 
     def test_the_observed_tao_home_write_stays_denied(self) -> None:
         command = (
-            f"TAO_HOME={self.project} python3 -c \"import os; "
-            "open(os.environ['TAO_HOME'] + '/notes.txt', 'w')\""
+            f"MORU_HOME={self.project} python3 -c \"import os; "
+            "open(os.environ['MORU_HOME'] + '/notes.txt', 'w')\""
         )
         self._assert_unexempted(command)
         self.assertEqual(self._bash(command, cwd=self.bench), "deny")
@@ -399,7 +399,7 @@ class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
         other = self.base / "home" / "other"
         _git("worktree", "add", "-q", "-b", "work", str(other), cwd=origin)
         commands = [
-            f"TAO_HOME={other} python3 x.py",
+            f"MORU_HOME={other} python3 x.py",
             f"python3 tool.py --project {other}",
             f"cp a {other / 'b'}",
         ]

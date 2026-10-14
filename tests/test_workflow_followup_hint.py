@@ -29,7 +29,7 @@ class FollowupHintTest(unittest.TestCase):
         (self.state / "claude-session-projects" / SESSION).write_text(
             f"{self.project}\n{base / 'removed-worktree'}\n", encoding="utf-8"
         )
-        environment = patch.dict(os.environ, {"TAO_STATE_HOME": str(self.state)})
+        environment = patch.dict(os.environ, {"MORU_STATE_HOME": str(self.state)})
         environment.start()
         self.addCleanup(environment.stop)
         self.runs: dict[tuple[Path, str], Path] = {}

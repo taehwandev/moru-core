@@ -47,8 +47,8 @@ FOREIGN_SHARED_PREFIX = "SPILL_AI_TOOL=claude python3 '/opt/vendor-a/adapters/ho
 FOREIGN_IMPORTER = "node /opt/vendor-a/adapters/importer.mjs --since-hours 6"
 FOREIGN_STOP = "/opt/vendor-b/bin/tool hook --event Stop"
 UNKNOWN_STOP = "/opt/vendor-c/bin/whatever --event Stop --flag"
-TAO_STOP_GATE = "TAO_HOOK_SOFT_FAIL=1 '/Users/x/.tao/bin/tao-hook' claude-stop-gate"
-TAO_LABEL_BRIDGE = "SPILL_AI_TOOL=claude tao-hook workflow route triage --advisory"
+MORU_STOP_GATE = "MORU_HOOK_SOFT_FAIL=1 '/Users/x/.tao/bin/tao-hook' claude-stop-gate"
+MORU_LABEL_BRIDGE = "SPILL_AI_TOOL=claude tao-hook workflow route triage --advisory"
 
 
 def _hook(command: str, timeout: int = 10) -> dict:
@@ -79,7 +79,7 @@ class OwnershipPredicateTests(unittest.TestCase):
     def test_the_label_bridge_needs_more_than_the_shared_env_prefix(self) -> None:
         # A companion tool's hook carries the same prefix. Ownership rests on the
         # Moru route command that follows it, not on the prefix.
-        self.assertTrue(_is_managed_claude_spill_bridge_command(TAO_LABEL_BRIDGE))
+        self.assertTrue(_is_managed_claude_spill_bridge_command(MORU_LABEL_BRIDGE))
         self.assertFalse(_is_managed_claude_spill_bridge_command(FOREIGN_SHARED_PREFIX))
 
 
@@ -107,11 +107,11 @@ class ClaudeSettingsMergeTests(_SettingsFixture, unittest.TestCase):
                                _hook(UNKNOWN_STOP)]},
             "model": "opus",
         })
-        _merge_claude_stop_gate(self.settings, TAO_STOP_GATE, dry_run=False)
+        _merge_claude_stop_gate(self.settings, MORU_STOP_GATE, dry_run=False)
         after = _commands(self.settings, "Stop")
         for command in (FOREIGN_SHARED_PREFIX, FOREIGN_STOP, UNKNOWN_STOP):
             self.assertIn(command, after)
-        self.assertIn(TAO_STOP_GATE, after)
+        self.assertIn(MORU_STOP_GATE, after)
 
     def test_unrelated_keys_and_user_settings_survive(self) -> None:
         self._write({
@@ -120,7 +120,7 @@ class ClaudeSettingsMergeTests(_SettingsFixture, unittest.TestCase):
             "permissions": {"allow": ["Bash(ls:*)"]},
             "statusLine": {"type": "command", "command": "mine"},
         })
-        _merge_claude_stop_gate(self.settings, TAO_STOP_GATE, dry_run=False)
+        _merge_claude_stop_gate(self.settings, MORU_STOP_GATE, dry_run=False)
         config = json.loads(self.settings.read_text(encoding="utf-8"))
         self.assertEqual("opus", config["model"])
         self.assertEqual(["Bash(ls:*)"], config["permissions"]["allow"])
@@ -129,9 +129,9 @@ class ClaudeSettingsMergeTests(_SettingsFixture, unittest.TestCase):
     def test_repeated_setup_does_not_duplicate(self) -> None:
         self._write({"hooks": {"Stop": [_hook(FOREIGN_SHARED_PREFIX, 5)]}})
         for _ in range(3):
-            _merge_claude_stop_gate(self.settings, TAO_STOP_GATE, dry_run=False)
+            _merge_claude_stop_gate(self.settings, MORU_STOP_GATE, dry_run=False)
         after = _commands(self.settings, "Stop")
-        self.assertEqual(1, after.count(TAO_STOP_GATE))
+        self.assertEqual(1, after.count(MORU_STOP_GATE))
         self.assertEqual(1, after.count(FOREIGN_SHARED_PREFIX))
 
     def test_a_tao_hook_sharing_a_group_with_a_foreign_hook_is_removed_alone(self) -> None:
@@ -140,14 +140,14 @@ class ClaudeSettingsMergeTests(_SettingsFixture, unittest.TestCase):
         self._write({"hooks": {"Stop": [{
             "matcher": "",
             "hooks": [
-                {"type": "command", "command": TAO_STOP_GATE, "timeout": 10},
+                {"type": "command", "command": MORU_STOP_GATE, "timeout": 10},
                 {"type": "command", "command": FOREIGN_SHARED_PREFIX, "timeout": 5},
             ],
         }]}})
-        _merge_claude_stop_gate(self.settings, TAO_STOP_GATE + " --updated", dry_run=False)
+        _merge_claude_stop_gate(self.settings, MORU_STOP_GATE + " --updated", dry_run=False)
         after = _commands(self.settings, "Stop")
         self.assertIn(FOREIGN_SHARED_PREFIX, after)
-        self.assertNotIn(TAO_STOP_GATE, after)
+        self.assertNotIn(MORU_STOP_GATE, after)
 
 
 class RuntimeEnvOwnershipTests(_SettingsFixture, unittest.TestCase):

@@ -15,7 +15,7 @@ from support.stable_launcher import stable_launcher_path
 
 AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES = runtime_bridge_required_phrases("Antigravity", "AGENTS.md")
 _STATUSLINE_ALIAS = "agy-statusline"
-_STATUSLINE_MARKER = "TAO_STATUSLINE=1"
+_STATUSLINE_MARKER = "MORU_STATUSLINE=1"
 
 
 def agy_runtime_bridge_targets(home: Path | None = None) -> tuple[tuple[str, Path], ...]:

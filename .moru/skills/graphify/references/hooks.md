@@ -25,8 +25,8 @@ To return a Moru-managed project to on-demand refresh while preserving unrelated
 hook content, preview and then apply the narrow removal helper:
 
 ```bash
-<TAO_ROOT>/scripts/setup-project-graphify.py --project <TARGET_REPO> --disable-rebuild-hooks --check
-<TAO_ROOT>/scripts/setup-project-graphify.py --project <TARGET_REPO> --disable-rebuild-hooks
+<MORU_ROOT>/scripts/setup-project-graphify.py --project <TARGET_REPO> --disable-rebuild-hooks --check
+<MORU_ROOT>/scripts/setup-project-graphify.py --project <TARGET_REPO> --disable-rebuild-hooks
 ```
 
 ---

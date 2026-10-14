@@ -196,7 +196,7 @@ class CodexAgentSetupTests(unittest.TestCase):
                 else:
                     self.assertEqual("read-only", role["sandbox_mode"])
                 self.assertNotIn(str(ROOT), text)
-                self.assertNotIn("<TAO_LAUNCHER>", text)
+                self.assertNotIn("<MORU_LAUNCHER>", text)
 
 
 if __name__ == "__main__":

@@ -314,21 +314,21 @@ def worker_environment(
 ) -> dict[str, str]:
     environment = dict(os.environ)
     if worktree_path:
-        environment["TAO_WORKER_WORKTREE"] = worktree_path
+        environment["MORU_WORKER_WORKTREE"] = worktree_path
     capsule = handoff.get("execution_capsule")
     if isinstance(capsule, Mapping) and capsule.get("reusable"):
-        environment["TAO_PARENT_EVIDENCE_READONLY"] = "1"
-        environment["TAO_CAPABILITY_ENFORCEMENT"] = "parent-evidence-readonly"
+        environment["MORU_PARENT_EVIDENCE_READONLY"] = "1"
+        environment["MORU_CAPABILITY_ENFORCEMENT"] = "parent-evidence-readonly"
         return environment
-    environment["TAO_WORKER_EVIDENCE"] = str(handoff["worker_preflight_evidence"])
-    environment["TAO_WORKER_RESERVATION_TOKEN"] = str(
+    environment["MORU_WORKER_EVIDENCE"] = str(handoff["worker_preflight_evidence"])
+    environment["MORU_WORKER_RESERVATION_TOKEN"] = str(
         handoff["worker_reservation_token"]
     )
-    environment["TAO_CAPABILITY_ENFORCEMENT"] = "worker-evidence-and-state"
+    environment["MORU_CAPABILITY_ENFORCEMENT"] = "worker-evidence-and-state"
     if task and task.get("task_id"):
-        environment["TAO_TASK_ID"] = str(task["task_id"])
+        environment["MORU_TASK_ID"] = str(task["task_id"])
     if task and task.get("partial_result_id"):
-        environment["TAO_RESUME_RESULT_ID"] = str(task["partial_result_id"])
+        environment["MORU_RESUME_RESULT_ID"] = str(task["partial_result_id"])
     return environment
 
 

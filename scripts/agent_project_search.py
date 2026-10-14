@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import json
 import os
 import re
@@ -138,7 +140,7 @@ def registry_search_roots(registry: dict[str, object]) -> list[Path]:
 
 
 def env_search_roots() -> list[Path]:
-    raw = os.environ.get("TAO_PROJECT_SEARCH_ROOTS", "")
+    raw = env_get("MORU_PROJECT_SEARCH_ROOTS", "")
     if not raw:
         return []
     return [
@@ -217,7 +219,7 @@ def safe_resolve(path: Path) -> Path:
 
 
 def default_registry_path() -> Path:
-    raw = os.environ.get("TAO_PROJECT_REGISTRY")
+    raw = env_get("MORU_PROJECT_REGISTRY")
     if raw:
         return Path(os.path.expandvars(raw)).expanduser()
     return global_state_dir() / "projects.json"

@@ -103,8 +103,8 @@ class StatelessLookupTests(unittest.TestCase):
             project = Path(directory)
             scenarios = (
                 ({"evidence": project / ".tao" / "existing" / "preflight.json"}, {}),
-                ({}, {"TAO_WORKER_EVIDENCE": str(project / "worker.json")}),
-                ({}, {"TAO_PARENT_EVIDENCE_READONLY": "1"}),
+                ({}, {"MORU_WORKER_EVIDENCE": str(project / "worker.json")}),
+                ({}, {"MORU_PARENT_EVIDENCE_READONLY": "1"}),
                 ({"worker_reservation_token": "reservation"}, {}),
             )
             for overrides, environment in scenarios:

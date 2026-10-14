@@ -28,10 +28,10 @@ class PretoolExecutionTests(unittest.TestCase):
         )
         (self.project / ".gitignore").write_text(".tao/\n")
         self.environment = dict(os.environ)
-        for key in ("CODEX_THREAD_ID", "TAO_WORKER_EVIDENCE", "TAO_PARENT_EVIDENCE_READONLY"):
+        for key in ("CODEX_THREAD_ID", "MORU_WORKER_EVIDENCE", "MORU_PARENT_EVIDENCE_READONLY"):
             self.environment.pop(key, None)
-        self.environment.update(TAO_STATE_HOME=str(Path(self.directory.name) / "state"),
-                                TAO_PRETOOL_RUNTIME="claude", CLAUDE_CODE_SESSION_ID="execution-test")
+        self.environment.update(MORU_STATE_HOME=str(Path(self.directory.name) / "state"),
+                                MORU_PRETOOL_RUNTIME="claude", CLAUDE_CODE_SESSION_ID="execution-test")
         self.run_command(["git", "init", "-q"])
         self.run_command(["git", "add", "AGENTS.md", ".gitignore"])
         self.run_command(["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
@@ -44,7 +44,7 @@ class PretoolExecutionTests(unittest.TestCase):
     def decision(self, argv):
         payload = {"tool_name": "Bash", "cwd": str(self.project),
                    "session_id": "execution-test", "tool_input": {"command": argv if isinstance(argv, str) else shlex.join(argv)}}
-        adapter = "codex_pretool_gate.py" if self.environment["TAO_PRETOOL_RUNTIME"] == "codex" else "claude_pretool_gate.py"
+        adapter = "codex_pretool_gate.py" if self.environment["MORU_PRETOOL_RUNTIME"] == "codex" else "claude_pretool_gate.py"
         result = self.run_command([sys.executable, str(ROOT / "scripts" / adapter)],
                                   input=json.dumps(payload))
         self.assertEqual(0, result.returncode, result.stderr)
@@ -58,12 +58,12 @@ class PretoolExecutionTests(unittest.TestCase):
                 "--target-summary", "Local integration fixture", "--runtime-session-id", "execution-test"]
         if read_only:
             args.append("--read-only")
-        args.extend(["--runtime", self.environment["TAO_PRETOOL_RUNTIME"]])
+        args.extend(["--runtime", self.environment["MORU_PRETOOL_RUNTIME"]])
         result = self.run_command(args)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_codex_default_runner_defers_to_native_permissions_and_keeps_read_contract(self):
-        self.environment["TAO_PRETOOL_RUNTIME"] = "codex"
+        self.environment["MORU_PRETOOL_RUNTIME"] = "codex"
         self.environment["CODEX_THREAD_ID"] = "execution-test"
         self.environment.pop("CLAUDE_CODE_SESSION_ID", None)
         tools = self.project / "tools"

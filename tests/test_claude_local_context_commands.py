@@ -30,7 +30,7 @@ class LocalContextCommandTests(unittest.TestCase):
                 '--label codex --task-type code_generation --stage implement --if-absent; fi'
             )
             for runtime in ("codex", "claude"):
-                with self.subTest(runtime=runtime), patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": runtime}):
+                with self.subTest(runtime=runtime), patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": runtime}):
                     for command in (valid, valid.replace("$HOME/", "${HOME}/"), valid.replace("$HOME", str(home))):
                         payload = {"tool_name": "Bash", "cwd": str(project), "session_id": "guard-test",
                                    "tool_input": {"command": command}}
@@ -57,7 +57,7 @@ class LocalContextCommandTests(unittest.TestCase):
     def test_only_installed_label_mode_is_exempt_without_a_run(self):
         from tests.test_claude_pretool_gate import _opt_in_project, _decide, _require_linked_worktree
         with tempfile.TemporaryDirectory() as directory, patch.object(Path, "home", return_value=Path(directory)), \
-                patch.dict(os.environ, {"TAO_ALLOW_MAIN_CHECKOUT_EDIT": "0"}):
+                patch.dict(os.environ, {"MORU_ALLOW_MAIN_CHECKOUT_EDIT": "0"}):
             home = Path(directory)
             helper = home / "Library/Application Support/Spill/adapters/setup/spill-token-metering-setup.mjs"
             helper.parent.mkdir(parents=True)

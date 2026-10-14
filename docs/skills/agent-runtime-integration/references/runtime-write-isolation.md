@@ -46,7 +46,7 @@ explicit evidence path was supplied, including runtimes without a session id.
 When Claude supplies a runtime session id, every later hook uses the common
 exact-session resolver and requires runtime name, session id, registry evidence
 key, and resume generation to identify that path. An isolated worker additionally binds
-the resolver to the exact launcher-issued `TAO_WORKER_EVIDENCE` path and never
+the resolver to the exact launcher-issued `MORU_WORKER_EVIDENCE` path and never
 falls back to parent evidence; without that worker binding, the resolver
 traverses worker evidence only to account for its active registry keys,
 excludes those files from parent matching, and then requires one exact
@@ -61,7 +61,7 @@ when the required pre-mutation checkpoint cannot be written. The post hooks
 clear the pending mutation after success or failure and block the next agentic
 step when reconciliation is required. Non-edit tools and directories outside
 Moru Core remain outside this gate. Tune the freshness window with
-`TAO_CLAUDE_GATE_MAX_AGE_SECONDS` (default 8 hours). Policy violations return a
+`MORU_CLAUDE_GATE_MAX_AGE_SECONDS` (default 8 hours). Policy violations return a
 deterministic denial instead of an operator confirmation, so Claude repairs the
 workflow or worktree boundary without asking for every Edit, Write, or Bash call.
 
@@ -146,5 +146,5 @@ write with the provider-neutral `checkpoint --checkpoint-kind pre_mutation`
 and `post_mutation` commands and the complete bounded path set. Do not parse
 command prose to guess ownership or describe Bash as automatically covered.
 When executing Moru Core wrapper commands from an agent runtime, replace
-`<TAO_ROOT>` with the resolved absolute path. Do not leave `$HOME`,
+`<MORU_ROOT>` with the resolved absolute path. Do not leave `$HOME`,
 `${HOME}`, `~`, or a relative path in the executable command.

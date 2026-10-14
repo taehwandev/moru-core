@@ -30,7 +30,7 @@ Before implementation:
   internal note written afterward is not alignment. For prose, a tone cue
   does not establish genre, point of view or structure: clarify genuinely
   ambiguous writing modes.
-- Use one successful `<TAO_LAUNCHER> start` for tracked work and consume its
+- Use one successful `<MORU_LAUNCHER> start` for tracked work and consume its
   required_docs manifest. Do not repeat list/classify/route/preflight or add a document
   receipt. Read-only lookup stays stateless under `AGENTS.md`; legacy runs
   retain their pinned gates. Commit-only requests use `commit`/`git_commit`;

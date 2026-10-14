@@ -42,7 +42,7 @@ _STATUSLINE_ALIAS = "claude-statusline"
 # this slot chains a script named `claude-statusline.sh`, so searching for the
 # alias matched a command Moru does not own and replaced it -- which is exactly
 # the eviction the chain exists to prevent.
-_STATUSLINE_MARKER = "TAO_STATUSLINE=1"
+_STATUSLINE_MARKER = "MORU_STATUSLINE=1"
 
 
 def configure_claude(
@@ -67,7 +67,7 @@ def configure_claude(
     # it spent thousands of tokens a turn restating what the session already
     # held. Label context is written by a successful real task start instead.
     baseline_cmd = (
-        f"TAO_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL=claude {quote(str(launcher_path))}"
+        f"MORU_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL=claude {quote(str(launcher_path))}"
         " workflow"
         " route triage --advisory --hook-stdin"
     )
@@ -93,13 +93,13 @@ def configure_claude(
     results.append({"tool": "claude", "hook": "UserPromptSubmit_spill_bridge", "status": status, "path": str(target)})
 
     mailbox_cmd = (
-        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} {_MAILBOX_HOOK_ALIAS} deliver --runtime claude"
+        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} {_MAILBOX_HOOK_ALIAS} deliver --runtime claude"
     )
     status = _merge_claude_mailbox_delivery(target, mailbox_cmd, dry_run)
     results.append({"tool": "claude", "hook": "UserPromptSubmit_mailbox_delivery", "status": status, "path": str(target)})
 
     gate_cmd = (
-        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} {_PRETOOL_GATE_ALIAS}"
+        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} {_PRETOOL_GATE_ALIAS}"
     )
     status = _merge_claude_pre_tool_gate(target, gate_cmd, dry_run)
     results.append({"tool": "claude", "hook": "PreToolUse_workflow_gate", "status": status, "path": str(target)})
@@ -114,7 +114,7 @@ def configure_claude(
     )
 
     stop_cmd = (
-        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} {_STOP_GATE_ALIAS}"
+        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} {_STOP_GATE_ALIAS}"
     )
     status = _merge_claude_stop_gate(target, stop_cmd, dry_run)
     results.append({"tool": "claude", "hook": "Stop_finish_gate", "status": status, "path": str(target)})

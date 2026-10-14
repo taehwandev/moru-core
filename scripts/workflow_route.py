@@ -1485,7 +1485,7 @@ def route_hooks(command: str) -> list[dict[str, object]]:
             "when": "before edits, reviews, commits, or completion reports",
             "command": (
                 f"{launcher} start "
-                "--project <TARGET_REPO> --rules <TAO_ROOT> "
+                "--project <TARGET_REPO> --rules <MORU_ROOT> "
                 "--evidence <RUN_EVIDENCE> "
                 f"--command {command} --request \"<USER_REQUEST>\"{read_only}"
             ),
@@ -1512,7 +1512,7 @@ def route_hooks(command: str) -> list[dict[str, object]]:
             ),
             "command": (
                 f"{launcher} finish "
-                "--project <TARGET_REPO> --rules <TAO_ROOT> "
+                "--project <TARGET_REPO> --rules <MORU_ROOT> "
                 "--evidence <RUN_EVIDENCE>"
             ),
         }
@@ -1531,7 +1531,7 @@ def _retrospective_hooks(launcher: str) -> list[dict[str, object]]:
             ),
             "command": (
                 f"{launcher} {SKILL_FEEDBACK_HOOK} "
-                "--project <TARGET_REPO> --rules <TAO_ROOT> "
+                "--project <TARGET_REPO> --rules <MORU_ROOT> "
                 "--evidence <RUN_EVIDENCE> "
                 "--skill-feedback-outcome observed --skill-id <safe_skill_slug> "
                 "--feedback-signal <"
@@ -1548,7 +1548,7 @@ def _retrospective_hooks(launcher: str) -> list[dict[str, object]]:
             ),
             "command": (
                 f"{launcher} {SKILL_DRAFT_HOOK} "
-                "--project <TARGET_REPO> --rules <TAO_ROOT> "
+                "--project <TARGET_REPO> --rules <MORU_ROOT> "
                 "--evidence <RUN_EVIDENCE> "
                 "--skill-id <safe_skill_slug> "
                 "--feedback-signal <"
@@ -1563,7 +1563,7 @@ def _retrospective_hooks(launcher: str) -> list[dict[str, object]]:
             "when": "in the same closeout after the observation, before review",
             "command": (
                 f"{launcher} {SKILL_CURATE_HOOK} "
-                "--project <TARGET_REPO> --rules <TAO_ROOT> "
+                "--project <TARGET_REPO> --rules <MORU_ROOT> "
                 "--evidence <RUN_EVIDENCE>"
             ),
         },
@@ -1573,7 +1573,7 @@ def _retrospective_hooks(launcher: str) -> list[dict[str, object]]:
             "when": "in the same closeout after curation, before the skill-document edit",
             "command": (
                 f"{launcher} {SKILL_REVIEW_HOOK} "
-                "--project <TARGET_REPO> --rules <TAO_ROOT> "
+                "--project <TARGET_REPO> --rules <MORU_ROOT> "
                 "--evidence <RUN_EVIDENCE> "
                 "--feedback-candidate-id <opaque_candidate_id> "
                 "--skill-review-outcome <no_change|stage_patch> "
@@ -1587,7 +1587,7 @@ def _retrospective_hooks(launcher: str) -> list[dict[str, object]]:
             "when": "in the same closeout after the canonical skill-document edit and its verification",
             "command": (
                 f"{launcher} {SKILL_MAINTENANCE_HOOK} "
-                "--project <TARGET_REPO> --rules <TAO_ROOT> "
+                "--project <TARGET_REPO> --rules <MORU_ROOT> "
                 "--evidence <RUN_EVIDENCE> "
                 "--feedback-candidate-id <opaque_candidate_id> "
                 "--skill-maintenance-outcome <applied|rejected> "
@@ -1609,7 +1609,7 @@ def _review_hook_command(command: str) -> str:
     launcher = str(preferred_launcher_path())
     base = (
         f"{launcher} review "
-        "--project <TARGET_REPO> --rules <TAO_ROOT> "
+        "--project <TARGET_REPO> --rules <MORU_ROOT> "
         "--evidence <RUN_EVIDENCE> "
         "--review-scope working-tree "
         "--review-outcome <pass|findings> "

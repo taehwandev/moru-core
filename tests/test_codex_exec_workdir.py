@@ -101,9 +101,9 @@ class GateUsesTheExecWorkdirTests(unittest.TestCase):
             transcript.write_text(json.dumps(_code_call(code)) + "\n", encoding="utf-8")
             payload = {"cwd": "/", "transcript_path": str(transcript),
                        "tool_name": "Bash", "tool_input": {"command": "pwd"}}
-            with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}):
+            with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}):
                 self.assertEqual(str(worktree), gate._with_codex_exec_workdir(payload)["cwd"])
-            with patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "claude"}):
+            with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "claude"}):
                 self.assertEqual("/", gate._with_codex_exec_workdir(payload)["cwd"])
 
 

@@ -58,10 +58,10 @@ class SiteWorkflowTests(unittest.TestCase):
         # Reviewed before copy editing; these carry runtime, permissions and
         # metering responsibilities and are not marketing prose.
         expected = [
-            '368f159b1d048158f15ab55c8c97fc42a60cf01b270c36b293e66a64708d4aaa',
+            '1602dcc4d6fbf33df42f30cfcfad88e7e91ef820ea272f1d697273505897d519',
             'e2839a39552933f3e3d7fc68c64d79ed8aa9ed6c47c872a1e715a7ff3b4c27f5',
-            'b0ac6f392356b8447a81f08f6d3fa20a14c714d61b35c84dac0f6b87edfc003e',
-            '899462ed4d749d2e3e1fb0fe6530d1ddb25b7aa4b2a37b16a5933f7e5e971283',
+            'b6cd24ef3e519674f4a4fa89a1fd94930ad4ea2d62c729b7397aac74ce31ab50',
+            '8d0163297f34da7725e4867aed29ab0ee00291cdbb622b30e5038a7a37d1c627',
         ]
         values = re.findall(r'"quick\.prompt\.step[12]":\s*("(?:\\.|[^"\\])*")', self.html)
         self.assertEqual(expected, [hashlib.sha256(json.loads(value).encode()).hexdigest() for value in values])

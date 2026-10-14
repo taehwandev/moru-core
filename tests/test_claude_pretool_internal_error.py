@@ -37,7 +37,7 @@ class InternalErrorTests(unittest.TestCase):
         self.cwd.mkdir()
         environment = patch.dict(
             os.environ,
-            {"TAO_STATE_HOME": str(self.state), "TAO_PRETOOL_RUNTIME": "claude"},
+            {"MORU_STATE_HOME": str(self.state), "MORU_PRETOOL_RUNTIME": "claude"},
         )
         environment.start()
         self.addCleanup(environment.stop)
@@ -96,7 +96,7 @@ class InternalErrorTests(unittest.TestCase):
 
     def test_codex_keeps_its_silent_deferral_and_warns_on_stderr(self) -> None:
         with (
-            patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": "codex"}),
+            patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "codex"}),
             patch.object(gate, "_call_scope", side_effect=ValueError(SECRET)),
         ):
             out, err = self.decide()

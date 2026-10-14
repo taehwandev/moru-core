@@ -371,7 +371,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
                 )
             with patch.dict(
                 os.environ,
-                {"TAO_WORKER_EVIDENCE": str(worker)},
+                {"MORU_WORKER_EVIDENCE": str(worker)},
                 clear=True,
             ):
                 self.assertEqual(
@@ -406,7 +406,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
                 with self.subTest(hint=hint):
                     with patch.dict(
                         os.environ,
-                        {"TAO_WORKER_EVIDENCE": str(hint)},
+                        {"MORU_WORKER_EVIDENCE": str(hint)},
                         clear=True,
                     ):
                         self.assertIsNone(
@@ -769,7 +769,7 @@ class SupersededSessionRunTests(unittest.TestCase):
                 os.environ,
                 {
                     "CLAUDE_CODE_SESSION_ID": "claude-session",
-                    "TAO_WORKER_EVIDENCE": str(fixture.evidence),
+                    "MORU_WORKER_EVIDENCE": str(fixture.evidence),
                 },
                 clear=True,
             ):

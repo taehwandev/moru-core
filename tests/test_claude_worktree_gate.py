@@ -37,7 +37,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
         return root
 
     def test_codex_refusal_explains_lost_workdir_without_restarting_a_bound_task(self):
-        os.environ["TAO_PRETOOL_RUNTIME"] = "codex"
+        os.environ["MORU_PRETOOL_RUNTIME"] = "codex"
         reason = gate.worktree_deny_reason(self.base, "main")
         self.assertIn("workdir", reason)
         self.assertIn('git -C "<worktree>"', reason)
@@ -58,7 +58,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
                 self.assertIn("write blocked", gate.worktree_deny_reason(self.base, "main", cause))
 
     def test_explicit_codex_worktree_command_targets_preserve_main_protection(self):
-        os.environ["TAO_PRETOOL_RUNTIME"] = "codex"
+        os.environ["MORU_PRETOOL_RUNTIME"] = "codex"
         main = self.project("main")
         worktree = self.project("task with spaces")
         (worktree / ".git").rmdir()
@@ -204,17 +204,17 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
         elsewhere = self.plain("elsewhere")
         dest = root / "draft.md"
         for cwd, command in (
-            (root, f"TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 cp AGENTS.md {dest}"),
-            (elsewhere, f"TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 cp {root / 'AGENTS.md'} {dest}"),
-            (elsewhere, f"cd {root} && TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 cp AGENTS.md {dest}"),
+            (root, f"MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 cp AGENTS.md {dest}"),
+            (elsewhere, f"MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 cp {root / 'AGENTS.md'} {dest}"),
+            (elsewhere, f"cd {root} && MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 cp AGENTS.md {dest}"),
         ):
             with self.subTest(cwd=cwd.name, command=command):
                 self.assertEqual("ask", self.bash_decision(cwd, command).get("permissionDecision"))
         for command in (
             f"cp AGENTS.md {dest}",
-            "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 git push origin main",
-            "TAO_ALLOW_MAIN_CHECKOUT_EDIT=1 cp $(ls) draft.md",
-            "TAO_ALLOW_MAIN_CHECKOUT_EDIT=0 cp AGENTS.md draft.md",
+            "MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 git push origin main",
+            "MORU_ALLOW_MAIN_CHECKOUT_EDIT=1 cp $(ls) draft.md",
+            "MORU_ALLOW_MAIN_CHECKOUT_EDIT=0 cp AGENTS.md draft.md",
         ):
             with self.subTest(command=command):
                 self.assertNotEqual("ask", self.bash_decision(root, command).get("permissionDecision"))
@@ -222,7 +222,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
     def test_main_checkout_refusal_names_the_approved_route(self):
         root = self.project("governed")
         reason = self.bash_decision(root, "cp AGENTS.md draft.md").get("permissionDecisionReason", "")
-        self.assertIn("TAO_ALLOW_MAIN_CHECKOUT_EDIT=1", gate.worktree_denial(root) or "")
+        self.assertIn("MORU_ALLOW_MAIN_CHECKOUT_EDIT=1", gate.worktree_denial(root) or "")
         self.assertIn("explicitly approved", gate.worktree_denial(root) or "")
         self.assertTrue(reason)
 
@@ -238,7 +238,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
             for command in ("npm install", "npm install --package-lock=false",
                             "npm run dev", "npm run build", "python3 tools/check.py"):
                 with self.subTest(runtime=runtime, command=command):
-                    os.environ["TAO_PRETOOL_RUNTIME"] = runtime
+                    os.environ["MORU_PRETOOL_RUNTIME"] = runtime
                     output = io.StringIO()
                     with redirect_stdout(output):
                         code = pretool.decide({
@@ -251,7 +251,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
 
     def test_default_runner_deferral_keeps_explicit_source_writes_blocked(self):
         root = self.project("governed")
-        os.environ["TAO_PRETOOL_RUNTIME"] = "codex"
+        os.environ["MORU_PRETOOL_RUNTIME"] = "codex"
         for command in ("touch code.py", "cp AGENTS.md copy.md",
                         "npm install > code.py", "git add code.py", "sed -i s/a/b/ code.py",
                         "npm install && touch code.py"):
@@ -270,7 +270,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
     def test_default_local_runner_does_not_admit_a_second_project(self):
         root = self.project("governed")
         other = self.project("other")
-        os.environ["TAO_PRETOOL_RUNTIME"] = "codex"
+        os.environ["MORU_PRETOOL_RUNTIME"] = "codex"
         output = io.StringIO()
         with redirect_stdout(output):
             pretool.decide({

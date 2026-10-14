@@ -13,6 +13,8 @@ finish-reporting regression tests before broader workflow validation.
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
@@ -324,8 +326,8 @@ def _same_evidence_path(recorded: Any, evidence_path: Path) -> bool:
 def _enforce_worker_evidence_boundary(evidence_path: Path) -> None:
     import os
 
-    if os.environ.get("TAO_PARENT_EVIDENCE_READONLY") == "1":
+    if env_get("MORU_PARENT_EVIDENCE_READONLY") == "1":
         raise PermissionError("reusable worker capsule cannot write parent repair evidence")
-    expected = os.environ.get("TAO_WORKER_EVIDENCE")
+    expected = env_get("MORU_WORKER_EVIDENCE")
     if expected and evidence_path.resolve() != Path(expected).expanduser().resolve():
         raise PermissionError("worker may write only its launcher-issued repair evidence")

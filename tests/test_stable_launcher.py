@@ -46,7 +46,7 @@ class StableLauncherTests(unittest.TestCase):
                 self.assertEqual(old_pointer.read_text(), new_pointer.read_text())
                 self.assertTrue(os.access(old_launcher, os.X_OK))
                 self.assertTrue(os.access(new_launcher, os.X_OK))
-                self.assertNotIn("MORU_HOME", old_launcher.read_text())
+                self.assertIn('os.environ.get("TAO_" + name[len("MORU_"):])', old_launcher.read_text())
                 self.assertIn('STATE_DIR_NAME = ".moru"', new_launcher.read_text())
                 self.assertIn('os.environ.setdefault("MORU_HOME", str(root))', new_launcher.read_text())
                 self.assertEqual({"ok"}, {
@@ -54,8 +54,8 @@ class StableLauncherTests(unittest.TestCase):
                 })
 
                 environment = dict(os.environ)
-                environment.pop("TAO_HOME", None)
                 environment.pop("MORU_HOME", None)
+                environment.pop("TAO_HOME", None)
                 result = subprocess.run(
                     [str(new_launcher), "workflow", "validate"],
                     cwd=temporary_home, env=environment, capture_output=True,
@@ -77,7 +77,7 @@ class StableLauncherTests(unittest.TestCase):
 
                 pointer.write_text("/missing/tao-agent-os\n", encoding="utf-8")
                 environment = dict(os.environ)
-                environment["TAO_HOOK_SOFT_FAIL"] = "1"
+                environment["MORU_HOOK_SOFT_FAIL"] = "1"
                 result = subprocess.run(
                     [str(launcher), "workflow", "validate"],
                     cwd=temporary_home,
@@ -219,9 +219,9 @@ class LauncherRunsTheScriptInProcessTests(unittest.TestCase):
     def _run(self, *arguments: str, soft_fail: bool = False):
         environment = dict(os.environ)
         environment["HOME"] = str(self.home)
-        environment["TAO_HOME"] = str(self.root)
-        environment["TAO_REPORT"] = str(self.report)
-        environment["TAO_HOOK_SOFT_FAIL"] = "1" if soft_fail else "0"
+        environment["MORU_HOME"] = str(self.root)
+        environment["MORU_REPORT"] = str(self.report)
+        environment["MORU_HOOK_SOFT_FAIL"] = "1" if soft_fail else "0"
         return subprocess.run(
             [sys.executable, str(self.launcher), "workflow", *arguments],
             env=environment,
@@ -235,7 +235,7 @@ class LauncherRunsTheScriptInProcessTests(unittest.TestCase):
             "import json, os, sys\n"
             "json.dump(\n"
             "    {'ppid': os.getppid(), 'argv': sys.argv, 'path0': sys.path[0]},\n"
-            "    open(os.environ['TAO_REPORT'], 'w'),\n"
+            "    open(os.environ['MORU_REPORT'], 'w'),\n"
             ")\n"
         )
 

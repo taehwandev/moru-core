@@ -167,13 +167,13 @@ def _legacy_launcher_only():
 
 class RuntimeSetupTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._old_state_home = os.environ.get("TAO_STATE_HOME")
+        self._old_state_home = os.environ.get("MORU_STATE_HOME")
 
     def tearDown(self) -> None:
         if self._old_state_home is None:
-            os.environ.pop("TAO_STATE_HOME", None)
+            os.environ.pop("MORU_STATE_HOME", None)
         else:
-            os.environ["TAO_STATE_HOME"] = self._old_state_home
+            os.environ["MORU_STATE_HOME"] = self._old_state_home
 
     def test_claude_user_prompt_hook_replaces_request_classified_install(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -193,7 +193,7 @@ class RuntimeSetupTests(unittest.TestCase):
                 }
             }))
             new_command = (
-                f"TAO_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL=claude '{stable_launcher_path()}' workflow "
+                f"MORU_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL=claude '{stable_launcher_path()}' workflow "
                 "route triage --advisory"
             )
 
@@ -316,7 +316,7 @@ class RuntimeSetupTests(unittest.TestCase):
         self.assertEqual(len(expected), len(entry_list), "duplicate permission rule")
         self.assertNotIn("$HOME", entries)
         self.assertNotIn("${HOME}", entries)
-        self.assertNotIn("$TAO_HOME", entries)
+        self.assertNotIn("$MORU_HOME", entries)
         self.assertNotIn("~/", entries)
         self.assertNotIn('", "scripts/', entries)
         self.assertNotIn("--project", entries)
@@ -549,7 +549,7 @@ class RuntimeSetupTests(unittest.TestCase):
         self.assertEqual("codex", label)
 
     def test_spill_tool_label_allows_explicit_tao_override(self) -> None:
-        label = spill_tool_label({"TAO_AI_TOOL": "agy", "CODEX_SANDBOX": "seatbelt"})
+        label = spill_tool_label({"MORU_AI_TOOL": "agy", "CODEX_SANDBOX": "seatbelt"})
 
         self.assertEqual("antigravity", label)
 
@@ -618,7 +618,7 @@ class ManagedHookLauncherRenameTests(unittest.TestCase):
             "--request-classified --classification-evidence 'evidence'"
         )
         installed_under_the_current_name = (
-            "TAO_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL=claude "
+            "MORU_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL=claude "
             "'/Users/someone/.tao/bin/tao-hook' workflow route triage "
             "--request-classified --classification-evidence 'evidence'"
         )

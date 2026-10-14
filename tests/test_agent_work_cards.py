@@ -27,7 +27,7 @@ class WorkCardTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
-        state_home = mock.patch.dict(os.environ, {"TAO_STATE_HOME": str(self.root / "state-home")})
+        state_home = mock.patch.dict(os.environ, {"MORU_STATE_HOME": str(self.root / "state-home")})
         state_home.start()
         self.addCleanup(state_home.stop)
         self.project = self.root / "project"

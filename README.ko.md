@@ -24,12 +24,12 @@ type: human-reviewed-needed
 
 기존 설치나 팀에서 고정한 복사본이 있다면 해당 경로를 재사용합니다. 새 복사본을 만들기 전에 현재 설치 위치와 프로젝트의 `AGENTS.md` 등 지침을 확인하세요.
 
-처음 설치하는 개인 환경의 예시는 다음과 같습니다. 전환 기간에는 `TAO_HOME`이 호환 환경변수이고, `<TAO_LAUNCHER>`는 설치된 런처의 절대 경로를 뜻합니다.
+처음 설치하는 개인 환경의 예시는 다음과 같습니다. 전환 기간에는 `MORU_HOME`이 호환 환경변수이고, `<MORU_LAUNCHER>`는 설치된 런처의 절대 경로를 뜻합니다.
 
 ```bash
-export TAO_HOME="$HOME/.moru/core"
-git clone https://github.com/taehwandev/moru-core.git "$TAO_HOME"
-python3 "$TAO_HOME/scripts/workflow.py" validate
+export MORU_HOME="$HOME/.moru/core"
+git clone https://github.com/taehwandev/moru-core.git "$MORU_HOME"
+python3 "$MORU_HOME/scripts/workflow.py" validate
 ```
 
 팀에서 버전을 고정하려면 대상 저장소의 승인과 업데이트 정책에 따라 서브모듈 등의 방식으로 `.agents/moru-core`에 연결할 수 있습니다. 개인 절대 경로를 커밋되는 프로젝트 지침에 넣지 마세요.
@@ -52,7 +52,7 @@ git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
 
 ## 이름과 기록 경로 전환
 
-저장소 이름은 `moru-core`입니다. `.moru-core`라는 기록 폴더를 사용하지 않습니다. 새 런처는 `~/.moru/bin/moru-hook`에 설치할 수 있지만, 기존 설치의 `~/.tao/bin/tao-hook`, `TAO_HOME`, `<TAO_LAUNCHER>` 표기와 `.tao` 기록은 아직 호환 기간에 있습니다. 검증된 오프라인 기록 복사 후 `state-ready` 표시가 있어야 `.moru` 기록으로 전환됩니다. 기존 `.tao` 기록을 이름만 보고 이동하거나 삭제하지 마세요.
+저장소 이름은 `moru-core`입니다. `.moru-core`라는 기록 폴더를 사용하지 않습니다. 새 런처는 `~/.moru/bin/moru-hook`에 설치할 수 있지만, 기존 설치의 `~/.tao/bin/tao-hook`, `MORU_HOME`, `<MORU_LAUNCHER>` 표기와 `.tao` 기록은 아직 호환 기간에 있습니다. 검증된 오프라인 기록 복사 후 `state-ready` 표시가 있어야 `.moru` 기록으로 전환됩니다. 기존 `.tao` 기록을 이름만 보고 이동하거나 삭제하지 마세요.
 
 현재 공개 사이트 주소 `tao.thdev.app`도 그대로입니다. 단계별 상태는 [이름 변경 계획](docs/migration/moru-rename.md)에 기록합니다.
 

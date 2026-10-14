@@ -63,7 +63,7 @@ memory.
 4. Risk scan: mark touched surfaces such as secrets, external state, auth,
    billing, data, release, generated files, dependencies, local tools, runtime
    bridges, or usage metering evidence.
-5. Start: for multi-step tasks, run `<TAO_LAUNCHER> start ... --request
+5. Start: for multi-step tasks, run `<MORU_LAUNCHER> start ... --request
    "<USER_REQUEST>"` once before manually choosing workflow cards. It performs
    routing and preflight; do not separately repeat workflow list, classify,
    route, or preflight after it succeeds. Direct `workflow.py route` and
@@ -179,7 +179,7 @@ ledger entries. For listed gates:
     follow-ups do not create a new learning cycle. If a reusable gap remains,
     follow the retrospective-learning skill's conditional maintenance flow;
     otherwise record `no_reusable_gap` with `not_needed` and leave skills alone.
-22. Finish: run `<TAO_LAUNCHER> finish` before final report, handoff,
+22. Finish: run `<MORU_LAUNCHER> finish` before final report, handoff,
     commit, or release. Use `agent-finish-check.py` directly only as a
     lower-level diagnostic or compatibility fallback when the finish hook is
     unavailable.

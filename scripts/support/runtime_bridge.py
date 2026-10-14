@@ -73,7 +73,7 @@ CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES = [
         'infer consent from silence, mailbox context, a request to fix the gate or '
         'unrelated approval. After an explicit selected or free-text answer, internally '
         'use the gate-supplied '
-        '<TAO_LAUNCHER> operator-review --request-id <ID> --decision approve|always|reject; '
+        '<MORU_LAUNCHER> operator-review --request-id <ID> --decision approve|always|reject; '
         'never invent an ID or self-approve. Approve permits one identical retry; always '
         'permits the same scope across sessions until revoked or input/policy changes. '
         'Sandbox permissions and other workflow checks still apply; request native '

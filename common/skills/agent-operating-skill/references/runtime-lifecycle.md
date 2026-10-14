@@ -6,7 +6,7 @@ type: ai-generated
 
 # Runtime Lifecycle
 
-Read only for the condition named by the runtime bridge, not as an extra startup reading list. Paths below are relative to <TAO_ROOT>. Current user authority and project instructions prevail.
+Read only for the condition named by the runtime bridge, not as an extra startup reading list. Paths below are relative to <MORU_ROOT>. Current user authority and project instructions prevail.
 
 For read-only lookup, explanation, status, or checks of a supplied diagnosis, inspect bounded direct evidence and answer without start, fingerprint, mailbox, checkpoint, gate, review, or finish calls. Read applicable project instructions and needed source documents; do not refresh indexes or create task state just to answer. This exception does not authorize edits or waive a target project's explicit workflow. Checking a diagnosis is not a diff review merely because the user says verify. Explicit change/PR reviews and release acceptance retain their review workflow. Enter the writable lifecycle before an authorized edit. If compatibility tooling calls start --command analysis without existing evidence, it validates the read-only intake and returns stateless guidance. Existing tracked runs keep their pinned lifecycle. For new lifecycle version 2 runs, a Stop boundary may retain blocked or interrupted work without forcing another turn; neither outcome is completion or commit readiness. Report unfinished work accurately and revalidate scope and authority on resume.
 

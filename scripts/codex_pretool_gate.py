@@ -8,5 +8,5 @@ import runpy
 from pathlib import Path
 
 
-os.environ["TAO_PRETOOL_RUNTIME"] = "codex"
+os.environ["MORU_PRETOOL_RUNTIME"] = "codex"
 runpy.run_path(str(Path(__file__).with_name("claude_pretool_gate.py")), run_name="__main__")

@@ -23,7 +23,7 @@ class AgentDoctorTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.state_home = self.root / "state-home"
-        env = mock.patch.dict(os.environ, {"TAO_STATE_HOME": str(self.state_home)})
+        env = mock.patch.dict(os.environ, {"MORU_STATE_HOME": str(self.state_home)})
         env.start()
         self.addCleanup(env.stop)
         self.project = self.root / "sample-project"

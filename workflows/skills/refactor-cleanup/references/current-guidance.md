@@ -35,7 +35,7 @@ ownership, deletion, or maintainability.
    count alone does not determine the commit boundary. Make the moves needed
    to improve that boundary while preserving its behavior.
    After an extraction unit, check its structural boundaries before broad builds
-   or browser suites: `python3 <TAO_ROOT>/scripts/agent-structure-check.py
+   or browser suites: `python3 <MORU_ROOT>/scripts/agent-structure-check.py
    --project <TARGET_REPO> --review-path <OWNED_PATH>` (repeat the path option
    for disjoint owners). This read-only preview uses the final review's checks;
    it creates no lifecycle state and does not replace behavior tests or review.

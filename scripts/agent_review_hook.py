@@ -54,7 +54,7 @@ FinishWithResult = Callable[..., int]
 
 
 BASE_DRIFT_CANDIDATE_REFS = ("origin/develop", "origin/main", "origin/master")
-TAO_FRONTMATTER_ROOT_MARKERS = (
+MORU_FRONTMATTER_ROOT_MARKERS = (
     "index.md",
     "scripts/workflow.py",
     "common/skills/agent-operating-skill/SKILL.md",
@@ -1284,7 +1284,7 @@ def review_input_invocation_failure_details(
 def _tao_frontmatter_contract(project: Path) -> bool:
     """Whether this checkout owns Moru's card metadata convention."""
 
-    return all((project / marker).is_file() for marker in TAO_FRONTMATTER_ROOT_MARKERS)
+    return all((project / marker).is_file() for marker in MORU_FRONTMATTER_ROOT_MARKERS)
 
 
 def documentation_reference_failures(

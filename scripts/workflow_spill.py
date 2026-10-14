@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import os
 import re
 import subprocess
@@ -20,7 +22,7 @@ DEFAULT_SPILL_SETUP_HELPER = (
     / "setup"
     / "spill-token-metering-setup.mjs"
 )
-SPILL_HELPER_PATH_ENV = "TAO_SPILL_HELPER_PATH"
+SPILL_HELPER_PATH_ENV = "MORU_SPILL_HELPER_PATH"
 SPILL_ALLOWED_TOOLS = {"codex", "claude", "antigravity", "openai"}
 SPILL_TOOL_ALIASES = {"agy": "antigravity"}
 CODEX_RUNTIME_ENV_KEYS = ("CODEX_SANDBOX", "CODEX_THREAD_ID", "CODEX_CI")
@@ -38,7 +40,7 @@ REQUIRED_SPILL_ACTION_LABELS = {
 def spill_tool_label(env: dict[str, str] | None = None) -> str:
     values = env if env is not None else os.environ
 
-    explicit_tool = _normal_tool_label(values.get("TAO_AI_TOOL", ""))
+    explicit_tool = _normal_tool_label(values.get("MORU_AI_TOOL") or values.get("TAO_AI_TOOL", ""))
     if explicit_tool:
         return explicit_tool
 
@@ -59,7 +61,7 @@ def _normal_tool_label(value: str) -> str:
 
 
 def spill_setup_helper_path() -> Path:
-    override = os.environ.get(SPILL_HELPER_PATH_ENV, "")
+    override = env_get(SPILL_HELPER_PATH_ENV, "")
     return Path(override) if override else DEFAULT_SPILL_SETUP_HELPER
 
 

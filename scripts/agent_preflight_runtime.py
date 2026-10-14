@@ -19,10 +19,10 @@ from support.stable_launcher import stable_launcher_issue
 
 
 MANAGED_HOOK_RE = re.compile(
-    r"(?:workflow\.py.*route|tao-hook.*workflow.*route).*triage.*(?:--advisory|--request-classified)"
+    r"(?:workflow\.py.*route|(?:tao|moru)-hook.*workflow.*route).*triage.*(?:--advisory|--request-classified)"
 )
 ADVISORY_HOOK_RE = re.compile(
-    r"(?:workflow\.py.*route|tao-hook.*workflow.*route).*triage.*--advisory"
+    r"(?:workflow\.py.*route|(?:tao|moru)-hook.*workflow.*route).*triage.*--advisory"
 )
 AGY_GEMINI_RUNTIME_BRIDGE_PATH = Path.home() / ".gemini" / "GEMINI.md"
 AGY_RUNTIME_BRIDGE_PATH = Path.home() / ".antigravity" / "AGENTS.md"
@@ -50,7 +50,7 @@ def check_agent_hooks(tao_root: Path) -> tuple[list[str], list[str]]:
 
 
 def active_runtime_label() -> str:
-    for key in ("TAO_AI_TOOL", "SPILL_AI_TOOL", "SPILL_TOKEN_USAGE_AI_TOOL"):
+    for key in ("MORU_AI_TOOL", "TAO_AI_TOOL", "SPILL_AI_TOOL", "SPILL_TOKEN_USAGE_AI_TOOL"):
         value = os.environ.get(key, "").strip().lower()
         if value in {"agy", "antigravity"}:
             return "antigravity"

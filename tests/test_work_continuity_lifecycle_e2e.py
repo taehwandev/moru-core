@@ -48,7 +48,7 @@ def setUpModule() -> None:
     # os.environ to each hook process. Without this the suite fills the
     # developer's own ~/.tao/work-cards with cards for throwaway checkouts.
     directory = tempfile.TemporaryDirectory(prefix="tao-state-home-")
-    patch = mock.patch.dict(os.environ, {"TAO_STATE_HOME": directory.name})
+    patch = mock.patch.dict(os.environ, {"MORU_STATE_HOME": directory.name})
     patch.start()
     # These scenarios test continuity, not audit findings: every hook process
     # sees a Ready VibeGuard stand-in instead of paying for the real audit.

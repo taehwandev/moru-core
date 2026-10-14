@@ -1000,7 +1000,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                     ]
                 }
             }))
-            command = "TAO_HOOK_SOFT_FAIL=1 launcher codex-pretool-gate"
+            command = "MORU_HOOK_SOFT_FAIL=1 launcher codex-pretool-gate"
 
             first = merge_codex_pre_tool_gate(target, command, dry_run=False)
             second = merge_codex_pre_tool_gate(target, command, dry_run=False)
@@ -1035,7 +1035,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 stable_root_pointer_path().write_text("/missing/tao-agent-os\n")
                 launcher = stable_launcher_path()
                 env = os.environ.copy()
-                env["TAO_HOOK_SOFT_FAIL"] = "1"
+                env["MORU_HOOK_SOFT_FAIL"] = "1"
 
                 result = subprocess.run(
                     [str(launcher), "workflow", "validate"],
@@ -1060,7 +1060,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 ensure_stable_launcher(ROOT, dry_run=False)
                 launcher = stable_launcher_path()
                 env = os.environ.copy()
-                env.pop("TAO_HOOK_SOFT_FAIL", None)
+                env.pop("MORU_HOOK_SOFT_FAIL", None)
 
                 result = subprocess.run(
                     [str(launcher), "totally-bogus-alias"],
@@ -1124,7 +1124,7 @@ class SetupAgentHooksTests(unittest.TestCase):
                 launcher = stable_launcher_path()
             # Test runs must name their state home; the stores refuse the default.
             environment = {**os.environ, "HOME": temp_home,
-                           "TAO_STATE_HOME": str(Path(temp_home) / ".tao")}
+                           "MORU_STATE_HOME": str(Path(temp_home) / ".tao")}
 
             def invoke(*args: str, body: str = "") -> subprocess.CompletedProcess[str]:
                 return subprocess.run(
@@ -1150,7 +1150,7 @@ class SetupAgentHooksTests(unittest.TestCase):
             environment = dict(os.environ)
             environment["HOME"] = temp_home
             # Test runs must name their state home; the stores refuse the default.
-            environment["TAO_STATE_HOME"] = str(Path(temp_home) / ".tao")
+            environment["MORU_STATE_HOME"] = str(Path(temp_home) / ".tao")
             with patch.dict(os.environ, environment, clear=True):
                 ensure_stable_launcher(ROOT, dry_run=False)
                 launcher = stable_launcher_path()

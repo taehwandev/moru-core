@@ -19,7 +19,7 @@ def configure_claude_continuation(
     matcher: str,
 ) -> list[dict]:
     command = (
-        f"TAO_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} {CONTINUATION_ALIAS}"
+        f"MORU_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} {CONTINUATION_ALIAS}"
     )
     events = (
         ("SessionStart", SESSION_START_MATCHER),

@@ -137,7 +137,7 @@ verification scope.
 - Use `scripts/workflow.py classify "<request>"` for unclear, direct-question,
   or multi-step requests when the script is available; skip it only for clear,
   low-risk answer-only tasks after answering them.
-- For multi-step work, run `<TAO_LAUNCHER> start` once with the selected
+- For multi-step work, run `<MORU_LAUNCHER> start` once with the selected
   command and current request. Open every route `required_docs` entry directly,
   run the review hook after meaningful changes, and run the finish hook before
   handoff. Direct `workflow.py route` is a lower-level diagnostic fallback when

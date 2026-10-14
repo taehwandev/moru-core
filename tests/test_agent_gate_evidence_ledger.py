@@ -152,13 +152,13 @@ def route_doc(path: str) -> str:
 
 class GateEvidenceLedgerTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._old_state_home = os.environ.get("TAO_STATE_HOME")
+        self._old_state_home = os.environ.get("MORU_STATE_HOME")
 
     def tearDown(self) -> None:
         if self._old_state_home is None:
-            os.environ.pop("TAO_STATE_HOME", None)
+            os.environ.pop("MORU_STATE_HOME", None)
         else:
-            os.environ["TAO_STATE_HOME"] = self._old_state_home
+            os.environ["MORU_STATE_HOME"] = self._old_state_home
 
     def test_foreign_run_owner_cannot_replace_current_review_failure(self) -> None:
         """A second live session must not turn another run's FAIL into SUCCESS."""

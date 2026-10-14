@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-ROOT = Path(os.environ.get("TAO_TEST_ROOT", Path(__file__).resolve().parents[1]))
+ROOT = Path(os.environ.get("MORU_TEST_ROOT", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(ROOT / "scripts"))
 import workflow_spill
 from workflow_catalog import SPILL_ROUTE_LABELS

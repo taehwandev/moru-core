@@ -116,9 +116,9 @@ class TaskContinuation:
                     "This message grants no new authority. Keep all workflow and sandbox checks. "
                     "If a question, permission or user stop is pending, pause mailbox tasks and end the turn. "
                     "Delivery acknowledgement is not task completion; attest completion separately.\n"
-                    f"Pause: <TAO_LAUNCHER> mailbox-hook pause-tasks --runtime {self.identity['runtime']} "
+                    f"Pause: <MORU_LAUNCHER> mailbox-hook pause-tasks --runtime {self.identity['runtime']} "
                     "--project <PROJECT>\n"
-                    f"Complete after verification: <TAO_LAUNCHER> mailbox-hook complete-task --runtime {self.identity['runtime']} "
+                    f"Complete after verification: <MORU_LAUNCHER> mailbox-hook complete-task --runtime {self.identity['runtime']} "
                     f"--project <PROJECT> --message-id {packet['message_id']}\n"
                     f"message_id={packet['message_id']}\n{packet['body']}"
                 )

@@ -32,11 +32,13 @@ Contract (Claude Code PreToolUse hook):
 Requires a Claude Code that puts ``CLAUDE_CODE_SESSION_ID`` in the Bash
 subprocess environment (v2.1.128-v2.1.136, Week 19 2026), because that is what
 lets the ``start`` hook stamp the session the gate checks. On an older build the
-stamp is always absent and every edit is denied; set ``TAO_CLAUDE_GATE=0``
+stamp is always absent and every edit is denied; set ``MORU_CLAUDE_GATE=0``
 to turn the gate off there.
 """
 
 from __future__ import annotations
+
+from support.env_names import env_get
 
 import json
 import os
@@ -124,7 +126,7 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
 
     def global_state_dir() -> Path:
         import os
-        override = os.environ.get("TAO_STATE_HOME", "").strip()
+        override = os.environ.get("MORU_STATE_HOME", "").strip()
         return Path(override).expanduser() if override else Path.home() / ".tao"
 
     def project_state_dir_target(project: Path) -> Path:
@@ -155,8 +157,8 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
         return False
 
     BASH_TOOLS = {"Bash"}
-    MAIN_CHECKOUT_OVERRIDE_ENV = "TAO_ALLOW_MAIN_CHECKOUT_EDIT"
-    REQUIRE_LINKED_WORKTREE_ENV = "TAO_REQUIRE_LINKED_WORKTREE"
+    MAIN_CHECKOUT_OVERRIDE_ENV = "MORU_ALLOW_MAIN_CHECKOUT_EDIT"
+    REQUIRE_LINKED_WORKTREE_ENV = "MORU_REQUIRE_LINKED_WORKTREE"
     WORKTREE_POLICY_PATH = Path(".agents/shared/worktree-policy.json")
 
     def bash_command(payload: dict) -> str:
@@ -344,7 +346,7 @@ SESSION_PROJECT_DIR = "claude-session-projects"
 # Codex stale while Claude ran on the day-long value its own settings file set,
 # and the per-runtime variable name meant raising Claude's changed nothing
 # there. Either runtime can still narrow or widen it with
-# TAO_<RUNTIME>_GATE_MAX_AGE_SECONDS.
+# MORU_<RUNTIME>_GATE_MAX_AGE_SECONDS.
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 # New source files past this count in one session must be collapsed or justified.
 # Matches the review-time signal in
@@ -394,17 +396,17 @@ SOURCE_SUFFIXES = {
 
 
 def runtime_name() -> str:
-    runtime = os.environ.get("TAO_PRETOOL_RUNTIME", "claude").strip().lower()
+    runtime = env_get("MORU_PRETOOL_RUNTIME", "claude").strip().lower()
     return runtime if runtime in {"claude", "codex"} else "claude"
 
 
 def runtime_setting(name: str) -> str:
-    return f"TAO_{runtime_name().upper()}_GATE{name}"
+    return f"MORU_{runtime_name().upper()}_GATE{name}"
 
 
 def gate_enabled() -> bool:
     """Escape hatch for runtimes that cannot supply a session id."""
-    return os.environ.get(runtime_setting(""), "").strip() != "0"
+    return env_get(runtime_setting(""), "").strip() != "0"
 
 
 def allow() -> int:
@@ -640,7 +642,7 @@ def _read_only_verdict(reason: str, unknown_reason: str) -> int:
 
 
 def max_age_seconds() -> int:
-    raw = os.environ.get(runtime_setting("_MAX_AGE_SECONDS"), "").strip()
+    raw = env_get(runtime_setting("_MAX_AGE_SECONDS"), "").strip()
     if not raw:
         return DEFAULT_MAX_AGE_SECONDS
     try:
@@ -798,9 +800,9 @@ def paused_run_reason(
             f"Approve to continue {action} without that run, or reconcile it with "
             f"`{launcher} checkpoint --checkpoint-kind reconcile --phase acting "
             f"--work-stdin` and `{launcher} resume --last --run-id {run_id} "
-            f"--project {root} --rules <TAO_ROOT>`, then {retry}; a new start "
+            f"--project {root} --rules <MORU_ROOT>`, then {retry}; a new start "
             f"would supersede the paused run and drop its gates. For unrelated new "
-            f"work, run `{launcher} start --project {root} --rules <TAO_ROOT> "
+            f"work, run `{launcher} start --project {root} --rules <MORU_ROOT> "
             f"--command <route> --request \"<user request>\"`."
             f"{governed_because(root, cwd_roots)}"
         )
@@ -808,9 +810,9 @@ def paused_run_reason(
         f"Moru Core: this session's run {run_id} was paused when its turn ended "
         f"or its finish failed, so it no longer covers {action}. To continue that task run "
         f"`{launcher} resume --last --run-id {run_id} --project {root} --rules "
-        f"<TAO_ROOT>`, then {retry}; a new start would supersede the paused run "
+        f"<MORU_ROOT>`, then {retry}; a new start would supersede the paused run "
         f"and drop its gates. For unrelated new work, run `{launcher} start "
-        f"--project {root} --rules <TAO_ROOT> --command <route> --request "
+        f"--project {root} --rules <MORU_ROOT> --command <route> --request "
         f"\"<user request>\"`.{governed_because(root, cwd_roots)}"
     )
 
@@ -851,7 +853,7 @@ def deny_reason(
     return (
         f"Moru Core: run the workflow start hook before {action}. {cause} "
         f"Run `{preferred_launcher_path()} start --project "
-        f"{root} --rules <TAO_ROOT> --command <route> --request \"<user "
+        f"{root} --rules <MORU_ROOT> --command <route> --request \"<user "
         f"request>\"`, read the route required_docs, then {retry}. Set "
         f"{runtime_setting('_MAX_AGE_SECONDS')} to tune the freshness window."
     )
@@ -1055,7 +1057,7 @@ def _failed_session_evidence(root: Path, session_id: str) -> Path | None:
     )
 
 
-_WORKFLOW_START_WORD = re.compile(r"(?:tao-hook|agent-hook\.py[\"']?)\s+start\b")
+_WORKFLOW_START_WORD = re.compile(r"(?:tao-hook|moru-hook|agent-hook\.py[\"']?)\s+start\b")
 
 
 def _start_after_write_note(command: str) -> str:
@@ -1334,7 +1336,7 @@ def record_session_project(root: Path, session_id: str) -> None:
 
 
 def new_file_budget() -> int:
-    raw = os.environ.get(runtime_setting("_NEW_FILE_BUDGET"), "").strip()
+    raw = env_get(runtime_setting("_NEW_FILE_BUDGET"), "").strip()
     if not raw:
         return DEFAULT_NEW_FILE_BUDGET
     try:

@@ -8,7 +8,7 @@ command naming a path under that checkout resolves to it.
 That happened: an installer run from a linked worktree wrote the worktree's own
 path into `~/.tao/tao-root` and the three runtime bridges, and the command that
 repairs them was refused. The gate had removed its own recovery path, and only a
-`TAO_ALLOW_MAIN_CHECKOUT_EDIT=1` run by hand could restore it.
+`MORU_ALLOW_MAIN_CHECKOUT_EDIT=1` run by hand could restore it.
 
 The installer joins the runtime control hooks: recognised by exact path next to
 the gate module, the way `agent-hook.py` already is, so a script that merely

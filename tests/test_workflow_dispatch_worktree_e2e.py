@@ -21,8 +21,8 @@ from workflow_dispatch_launch import execute_dispatch_manifest as execute_launch
 
 
 @unittest.skipUnless(
-    os.environ.get("TAO_RUN_LIVE_CODEX_E2E") == "1" and shutil.which("codex"),
-    "set TAO_RUN_LIVE_CODEX_E2E=1 with Codex installed to run the live worker proof",
+    os.environ.get("MORU_RUN_LIVE_CODEX_E2E") == "1" and shutil.which("codex"),
+    "set MORU_RUN_LIVE_CODEX_E2E=1 with Codex installed to run the live worker proof",
 )
 class LiveCodexWorktreeEndToEndTests(unittest.TestCase):
     def test_real_codex_loads_local_policy_and_writes_only_in_verified_worktree(self) -> None:
@@ -35,7 +35,7 @@ class LiveCodexWorktreeEndToEndTests(unittest.TestCase):
             policy.parent.mkdir()
             policy.write_text(
                 'developer_instructions = """\n'
-                "TAO_CODEX_PROJECT_POLICY_SENTINEL\n"
+                "MORU_CODEX_PROJECT_POLICY_SENTINEL\n"
                 "When asked to run the live isolation proof, create "
                 "live-worker-output.txt containing exactly: isolated by codex\n"
                 "Do not modify tracked files.\n"
@@ -94,7 +94,7 @@ class LiveCodexWorktreeEndToEndTests(unittest.TestCase):
                     )
                     self.assertEqual(0, prompt_input.returncode, prompt_input.stderr)
                     self.assertIn(
-                        "TAO_CODEX_PROJECT_POLICY_SENTINEL",
+                        "MORU_CODEX_PROJECT_POLICY_SENTINEL",
                         prompt_input.stdout,
                     )
                 return argv

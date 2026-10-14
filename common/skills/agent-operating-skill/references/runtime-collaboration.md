@@ -6,7 +6,7 @@ type: ai-generated
 
 # Runtime Collaboration
 
-Read only for the condition named by the runtime bridge, not as an extra startup reading list. Paths below are relative to <TAO_ROOT>. Current user authority and project instructions prevail.
+Read only for the condition named by the runtime bridge, not as an extra startup reading list. Paths below are relative to <MORU_ROOT>. Current user authority and project instructions prevail.
 
 At each parent-to-worker boundary, run Moru Core agent-hook.py handoff; it lazily creates the provider-neutral, content-free execution capsule for that worker and validates it once.
 
@@ -37,7 +37,7 @@ request fingerprint and ready execution capsule. The source capsule must also
 be valid and name the same request. Existing workflow and sandbox checks remain.
 
 ```text
-<TAO_LAUNCHER> mailbox-hook authorize-task --runtime <claude|codex> --project <PROJECT> --evidence <PREFLIGHT> --message-id <ID>
+<MORU_LAUNCHER> mailbox-hook authorize-task --runtime <claude|codex> --project <PROJECT> --evidence <PREFLIGHT> --message-id <ID>
 ```
 
 Use the existing handoff path to prepare a ready capsule; enrollment never

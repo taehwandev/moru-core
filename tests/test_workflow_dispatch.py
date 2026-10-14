@@ -266,13 +266,13 @@ def routed_areas(route: dict) -> set[str]:
 
 class WorkflowDispatchTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._old_state_home = os.environ.get("TAO_STATE_HOME")
+        self._old_state_home = os.environ.get("MORU_STATE_HOME")
 
     def tearDown(self) -> None:
         if self._old_state_home is None:
-            os.environ.pop("TAO_STATE_HOME", None)
+            os.environ.pop("MORU_STATE_HOME", None)
         else:
-            os.environ["TAO_STATE_HOME"] = self._old_state_home
+            os.environ["MORU_STATE_HOME"] = self._old_state_home
 
     def test_dispatch_profiles_match_stage_policy(self) -> None:
         expected = {
@@ -638,12 +638,12 @@ class WorkflowDispatchTests(unittest.TestCase):
                     self.assertEqual(0, execute_dispatch_manifest(manifest))
 
         environment = launch.call_args.kwargs["env"]
-        self.assertTrue(environment["TAO_WORKER_EVIDENCE"].endswith("preflight.json"))
-        self.assertRegex(environment["TAO_WORKER_RESERVATION_TOKEN"], r"^[0-9a-f]{32}$")
-        self.assertEqual("worker-evidence-and-state", environment["TAO_CAPABILITY_ENFORCEMENT"])
-        self.assertNotIn("TAO_PARENT_EVIDENCE_READONLY", environment)
+        self.assertTrue(environment["MORU_WORKER_EVIDENCE"].endswith("preflight.json"))
+        self.assertRegex(environment["MORU_WORKER_RESERVATION_TOKEN"], r"^[0-9a-f]{32}$")
+        self.assertEqual("worker-evidence-and-state", environment["MORU_CAPABILITY_ENFORCEMENT"])
+        self.assertNotIn("MORU_PARENT_EVIDENCE_READONLY", environment)
         # Isolation binds the worker to a real git worktree, not the shared checkout.
-        self.assertTrue(environment["TAO_WORKER_WORKTREE"].endswith(manifest["worktree_path"].rsplit("/", 1)[-1]))
+        self.assertTrue(environment["MORU_WORKER_WORKTREE"].endswith(manifest["worktree_path"].rsplit("/", 1)[-1]))
         launched_argv = launch.call_args.args[0]
         self.assertEqual(manifest["worktree_path"], launched_argv[launched_argv.index("--cd") + 1])
         self.assertNotIn("--skip-git-repo-check", launched_argv)
@@ -664,11 +664,11 @@ class WorkflowDispatchTests(unittest.TestCase):
             },
             {"partial_result_id": "result-1"},
         )
-        self.assertEqual("result-1", environment["TAO_RESUME_RESULT_ID"])
+        self.assertEqual("result-1", environment["MORU_RESUME_RESULT_ID"])
         self.assertEqual("task-1", worker_environment({
             "worker_preflight_evidence": "/tmp/preflight.json",
             "worker_reservation_token": "a" * 32,
-        }, {"task_id": "task-1"})["TAO_TASK_ID"])
+        }, {"task_id": "task-1"})["MORU_TASK_ID"])
 
     def test_dispatch_manifest_carries_explicit_partial_result_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1376,7 +1376,7 @@ class WorkflowDispatchTests(unittest.TestCase):
 
         self.assertTrue(str(handoff_state["preflight_evidence"]).endswith("preflight.json"))
         self.assertTrue(str(handoff_state["gate_ledger"]).endswith("gate-evidence.json"))
-        self.assertNotIn("receipt", prompt.replace(str(ROOT), "<TAO_ROOT>").lower())
+        self.assertNotIn("receipt", prompt.replace(str(ROOT), "<MORU_ROOT>").lower())
         self.assertIn("Do not overwrite parent gate-ledger entries", prompt)
 
     def test_dispatch_invalid_capsule_uses_isolated_worker_evidence(self) -> None:

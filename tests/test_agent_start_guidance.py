@@ -63,7 +63,7 @@ class StartOutputEndToEnd(unittest.TestCase):
         env = dict(os.environ)
         env.pop("CODEX_THREAD_ID", None)
         env["CLAUDE_CODE_SESSION_ID"] = session
-        env["TAO_STATE_HOME"] = self.state_home
+        env["MORU_STATE_HOME"] = self.state_home
         result = subprocess.run(
             [sys.executable, str(HOOK), "start", "--project", str(self.project), "--rules", str(ROOT),
              "--command", command, "--request", request, "--intent", "guidance_scenario",

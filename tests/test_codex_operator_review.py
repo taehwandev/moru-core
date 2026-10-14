@@ -208,7 +208,7 @@ class CodexOperatorReviewTests(unittest.TestCase):
         launcher.write_text(_launcher_script_text())
         command = [sys.executable, str(launcher), "operator-review", "--request-id", request_id,
                    "--decision"]
-        environment = {**os.environ, "TAO_HOME": str(ROOT), "CODEX_THREAD_ID": "codex-session"}
+        environment = {**os.environ, "MORU_HOME": str(ROOT), "CODEX_THREAD_ID": "codex-session"}
         for decision, expected in (("always", True), ("revoke", False)):
             result = subprocess.run([*command, decision], env=environment, capture_output=True, text=True)
             self.assertEqual(0, result.returncode, result.stderr)

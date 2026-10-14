@@ -148,7 +148,7 @@ class AdoptedRunStartTests(unittest.TestCase):
                 # start records `initial` again.
                 env={
                     **os.environ,
-                    "TAO_STATE_HOME": state,
+                    "MORU_STATE_HOME": state,
                     "CLAUDE_CODE_SESSION_ID": "adopted-run-probe",
                     "CODEX_THREAD_ID": "",
                 },

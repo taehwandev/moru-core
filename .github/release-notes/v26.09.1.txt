@@ -73,8 +73,8 @@ The public workflow guide now includes bilingual flowcharts for analysis, change
 - New installations get the current Claude, Codex, and Antigravity integration through the unified setup. For an existing installation, run:
 
   ```text
-  <TAO_LAUNCHER> setup-agent-hooks --check
-  <TAO_LAUNCHER> setup-agent-hooks
+  <MORU_LAUNCHER> setup-agent-hooks --check
+  <MORU_LAUNCHER> setup-agent-hooks
   ```
 
   Run the second command only when the check reports missing or stale managed setup. Existing user-owned status-line configuration is preserved.

@@ -76,7 +76,7 @@ worker 종료 코드에 따라 completed/failed로 전환한다. 실제 runtime 
   stale worker를 재개할 때 기존 근거를 재사용할 수 있게 한다.
 - partial-result 본문은 저장하지 않고 opaque ID만 보존한다. dispatch 호출자가
   `partial_result_id`를 제공하면 실패 task의 bounded resume이 활성화되고,
-  `TAO_RESUME_RESULT_ID`와 `TAO_TASK_ID`로 worker 경계에 전달된다.
+  `MORU_RESUME_RESULT_ID`와 `MORU_TASK_ID`로 worker 경계에 전달된다.
 - context snapshot은 start 시 기존 snapshot을 request/route fingerprint로 검증하고,
   현재 요청으로 새 snapshot을 작성한 뒤 다시 검증한다. 이 read/write/re-validate
   구간은 project-state와 context 파일 lock으로 원자화한다.

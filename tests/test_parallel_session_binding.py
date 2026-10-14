@@ -169,7 +169,7 @@ class ParallelSessionBindingTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             self.assertTrue(record_turn_boundary(self.main, "claude", SESSION["session_id"]))
         self.assertEqual("interrupted", states(self.main)[run_id(parent)])
-        with patch.dict(os.environ, {"TAO_WORKER_EVIDENCE": str(worker)}, clear=True):
+        with patch.dict(os.environ, {"MORU_WORKER_EVIDENCE": str(worker)}, clear=True):
             self.assertEqual(worker.resolve(), resolve_runtime_evidence(self.main, SESSION))
 
     def test_worker_checkout_churn_does_not_drop_the_parent_binding(self) -> None:

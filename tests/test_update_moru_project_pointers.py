@@ -11,12 +11,12 @@ class MoruProjectPointersTests(unittest.TestCase):
     def test_updates_current_paths_without_changing_compatibility_variable(self) -> None:
         home = str(Path.home())
         source = (
-            'TAO_ROOT="${TAO_HOME:-$HOME/git/tao-agent-os}"\n'
+            'MORU_ROOT="${MORU_HOME:-$HOME/git/tao-agent-os}"\n'
             f'launcher={home}/.tao/bin/tao-hook\n'
             'pin=.agents/tao-agent-os\n'
         )
         result = updated_text(source)
-        self.assertIn("${TAO_HOME:-$HOME/git/moru-core}", result)
+        self.assertIn("${MORU_HOME:-$HOME/git/moru-core}", result)
         self.assertIn(f"{home}/.moru/bin/moru-hook", result)
         self.assertIn(".agents/moru-core", result)
 

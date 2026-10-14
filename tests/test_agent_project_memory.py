@@ -33,7 +33,7 @@ class ProjectMemoryTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.project = Path(self.temp.name)
-        state_home = mock.patch.dict(os.environ, {"TAO_STATE_HOME": str(self.project / "state-home")})
+        state_home = mock.patch.dict(os.environ, {"MORU_STATE_HOME": str(self.project / "state-home")})
         state_home.start()
         self.addCleanup(state_home.stop)
         self.review_on = (date.today() + timedelta(days=30)).isoformat()

@@ -151,17 +151,17 @@ def route_doc(path: str) -> str:
 
 class LessonStoreTests(unittest.TestCase):
     def setUp(self) -> None:
-        self._old_state_home = os.environ.get("TAO_STATE_HOME")
+        self._old_state_home = os.environ.get("MORU_STATE_HOME")
 
     def tearDown(self) -> None:
         if self._old_state_home is None:
-            os.environ.pop("TAO_STATE_HOME", None)
+            os.environ.pop("MORU_STATE_HOME", None)
         else:
-            os.environ["TAO_STATE_HOME"] = self._old_state_home
+            os.environ["MORU_STATE_HOME"] = self._old_state_home
 
     def test_retrospective_candidate_writes_safe_global_lesson(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            os.environ["TAO_STATE_HOME"] = temp_dir
+            os.environ["MORU_STATE_HOME"] = temp_dir
 
             result = write_retrospective_candidate(
                 {

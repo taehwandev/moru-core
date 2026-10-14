@@ -29,6 +29,8 @@ Contract (Claude Code Stop hook):
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import json
 import os
 import sys
@@ -78,7 +80,7 @@ except ImportError:  # pragma: no cover - exercised only on a broken install
 
     def global_state_dir() -> Path:
         import os
-        override = os.environ.get("TAO_STATE_HOME", "").strip()
+        override = os.environ.get("MORU_STATE_HOME", "").strip()
         return Path(override).expanduser() if override else Path.home() / ".tao"
 
     def project_state_dir_target(project: Path) -> Path:
@@ -300,9 +302,9 @@ def block_reason(root: Path) -> str:
     return (
         "Moru Core: this session edited files but has no passing finish check. "
         "Record the remaining route gates with `gate` or `gate-batch`, then run "
-        f"`{launcher} review --project {root} --rules <TAO_ROOT> "
+        f"`{launcher} review --project {root} --rules <MORU_ROOT> "
         "--review-scope working-tree --review-outcome <pass|findings> ...` and "
-        f"`{launcher} finish --project {root} --rules <TAO_ROOT>`. "
+        f"`{launcher} finish --project {root} --rules <MORU_ROOT>`. "
         "If finish reports failures, repair them instead of reporting completion. "
         "If review or finish cannot run (a permission was refused, or the work "
         "is blocked on the user), stop and report the work as unfinished with "
@@ -311,7 +313,7 @@ def block_reason(root: Path) -> str:
 
 
 def gate_enabled() -> bool:
-    return os.environ.get("TAO_CLAUDE_STOP_GATE", "").strip() != "0"
+    return env_get("MORU_CLAUDE_STOP_GATE", "").strip() != "0"
 
 
 def decide(payload: dict) -> int:

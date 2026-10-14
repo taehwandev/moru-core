@@ -22,7 +22,7 @@ class AgentNextActionTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        env = mock.patch.dict(os.environ, {"TAO_STATE_HOME": str(self.root / "state-home")})
+        env = mock.patch.dict(os.environ, {"MORU_STATE_HOME": str(self.root / "state-home")})
         env.start()
         self.addCleanup(env.stop)
         self.project = self.root / "project"

@@ -399,7 +399,7 @@ class GateCarriesTheDeliveryTests(unittest.TestCase):
         import claude_pretool_gate as gate
 
         for runtime in ("claude", "codex"):
-            with self.subTest(runtime=runtime), patch.dict(os.environ, {"TAO_PRETOOL_RUNTIME": runtime}):
+            with self.subTest(runtime=runtime), patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": runtime}):
                 gate._PENDING_CONTEXT.append("delivered docs")
                 output = io.StringIO()
                 with redirect_stdout(output):

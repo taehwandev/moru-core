@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from support.env_names import env_get
+
 import hashlib
 import json
 import os
@@ -97,6 +99,11 @@ INERT_ENV_PREFIXES = ("LC_",)
 RUNTIME_HOOK_ENV_ASSIGNMENTS = frozenset(
     {
         "CLAUDE_CODE_SESSION_ID",
+        "MORU_ALLOW_MAIN_CHECKOUT_EDIT",
+        "MORU_CLAUDE_GATE",
+        "MORU_CODEX_GATE",
+        "MORU_HOOK_SOFT_FAIL",
+        # Hook commands written before the Moru rename.
         "TAO_ALLOW_MAIN_CHECKOUT_EDIT",
         "TAO_CLAUDE_GATE",
         "TAO_CODEX_GATE",
@@ -196,7 +203,7 @@ RUNTIME_CONTROL_KIND = "runtime_control"
 # from agent-writable state. Each entry binds one canonical script path to its
 # exact content. An operator revokes it by removing the environment declaration
 # and refreshes it by recomputing the digest after an intentional script edit.
-READ_ONLY_PYTHON_SCRIPTS_ENV = "TAO_CLAUDE_READ_ONLY_PYTHON_SCRIPTS"
+READ_ONLY_PYTHON_SCRIPTS_ENV = "MORU_CLAUDE_READ_ONLY_PYTHON_SCRIPTS"
 READ_ONLY_PYTHON_SCRIPTS_SCHEMA_VERSION = 1
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
@@ -323,7 +330,7 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
     # root. Classified as an ordinary mutation it could not run against a
     # protected checkout from anywhere, because any command naming a path under
     # that checkout resolves to it -- so a bridge written to the wrong root
-    # could only be repaired by a hand-run TAO_ALLOW_MAIN_CHECKOUT_EDIT=1. A
+    # could only be repaired by a hand-run MORU_ALLOW_MAIN_CHECKOUT_EDIT=1. A
     # guard that removes its own undo is worse than the state it guards.
     #
     # Matched by position inside a checkout -- `<root>/scripts/` -- never by
@@ -392,7 +399,7 @@ def read_only_python_scripts() -> dict[Path, str]:
     check, so the only safe fallback is no script allowance.
     """
 
-    raw_declaration = os.environ.get(READ_ONLY_PYTHON_SCRIPTS_ENV, "")
+    raw_declaration = env_get(READ_ONLY_PYTHON_SCRIPTS_ENV, "")
     if not raw_declaration:
         return {}
     try:
@@ -1073,7 +1080,7 @@ LIFECYCLE_PROSE_OPTIONS = frozenset(
 )
 PROSE_EVIDENCE_OPTION_RE = re.compile(r"--[a-z][a-z-]*-evidence")
 # A commit or tag message is text Git stores; it names no file. Reading
-# `\$TAO_HOME` in a keyflow-cli commit message as a path put the Moru checkout
+# `\$MORU_HOME` in a keyflow-cli commit message as a path put the Moru checkout
 # in the refusal of a commit into keyflow-cli.
 #
 # A message long enough and free of `/` read as one over-long file name, which
@@ -1412,7 +1419,7 @@ def strip_env_wrapper(tokens: list[str]) -> list[str] | None:
     above refuses to guess at, and `-S` hides the program inside its own value.
     Each assignment behind `env` is put back through that inertness rule, so
     `env LD_PRELOAD=... cat f` is refused exactly as its bare spelling is --
-    and so is `env TAO_HOME=<root> <launcher> start`, because that name
+    and so is `env MORU_HOME=<root> <launcher> start`, because that name
     selects which checkout's scripts the launcher will run.
     """
 
