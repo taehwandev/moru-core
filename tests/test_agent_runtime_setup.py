@@ -532,6 +532,9 @@ class RuntimeSetupTests(unittest.TestCase):
         self.assertIn("never invokes a provider CLI or API", detail)
         self.assertIn("never creates a daemon, watcher, polling loop", detail)
         self.assertIn("next normal prompt", detail)
+        self.assertIn('TypeName="research"', detail)
+        self.assertIn('TypeName="self"', detail)
+        self.assertIn('Workspace="inherit"', detail)
 
     def test_setup_hook_runtime_selection_is_scoped(self) -> None:
         from support.setup_agent_hooks_impl import _runtime_selected

@@ -80,11 +80,17 @@ For a bounded Codex leaf, use workflow.py dispatch --execute only when isolation
 Use available `tao_explorer`, `tao_worker`, and `tao_reviewer` custom agents for
 bounded evidence gathering, implementation, and review respectively. In Codex
 they are custom agent roles; in Claude Code they are subagents selected with
-the Agent tool's `subagent_type`. Fall back to the corresponding native agent
-when a custom role is unavailable; do not install settings during an ordinary
-task. These roles are thin runtime adapters to the existing collaboration and
-handoff contracts, not separate workflows. A role's availability never
-replaces a ready handoff or grants write authority.
+the Agent tool's `subagent_type`. In Antigravity/AGY, where subagents are not
+installed as global role files, map `tao_explorer` and `tao_reviewer` to
+`invoke_subagent` with `TypeName="research"` (or session `define_subagent` with
+`enable_write_tools=false`) and `tao_worker` to `TypeName="self"` (or session
+`define_subagent` with `enable_write_tools=true`), keeping `Model="inherit"` and
+`Workspace="inherit"` unless explicit worktree isolation (`"share"` or `"branch"`)
+is required. Fall back to the corresponding native agent when a custom role is
+unavailable; do not install settings during an ordinary task. These roles are
+thin runtime adapters to the existing collaboration and handoff contracts, not
+separate workflows. A role's availability never replaces a ready handoff or
+grants write authority.
 
 Start eligible work with two workers at most. Use a third only for another
 meaningful independent slice whose benefit exceeds its startup and integration
@@ -97,9 +103,10 @@ ownership, including the parent's concurrent edits, follows
 `workflows/skills/multi-agent-collaboration/references/current-guidance.md`.
 In Codex, use a bounded brief with `fork_turns=none` when it carries all
 applicable instructions and required-doc takeaways; otherwise retain the context
-the worker needs. A Claude subagent does not see the parent's conversation, so
-its brief must carry the applicable instructions and takeaways the parent
-gathered. Never omit applicable instructions to reduce tokens. Reuse the
+the worker needs. A Claude or Antigravity/AGY subagent does not see the parent's
+conversation, so its brief must carry the applicable instructions, takeaways, and
+any fallback worker `--evidence` path (plus `--runtime-session-id` in AGY) the
+parent gathered. Never omit applicable instructions to reduce tokens. Reuse the
 parent's required-doc brief only after the ready and valid handoff above.
 
 Roles inherit the current model and reasoning effort unless the user or an

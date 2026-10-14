@@ -39,9 +39,13 @@ class MoruProjectPointersTests(unittest.TestCase):
             config = home / ".codex" / "config.toml"
             config.parent.mkdir()
             config.write_bytes(b'root = "$HOME/git/tao-agent-os"\r\n')
+            gemini = home / ".gemini" / "GEMINI.md"
+            gemini.parent.mkdir()
+            gemini.write_text("~/git/tao-agent-os\n", encoding="utf-8")
             (home / "history.txt").write_text("~/git/tao-agent-os")
-            self.assertEqual([config], update_home_configs(home, apply=True))
+            self.assertEqual([config, gemini], update_home_configs(home, apply=True))
             self.assertEqual(b'root = "$HOME/git/moru-core"\r\n', config.read_bytes())
+            self.assertEqual("~/git/moru-core\n", gemini.read_text(encoding="utf-8"))
             self.assertEqual("~/git/tao-agent-os", (home / "history.txt").read_text())
 
 

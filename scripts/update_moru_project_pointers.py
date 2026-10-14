@@ -15,7 +15,7 @@ FILES = (
 )
 HOME_FILES = (
     ".codex/AGENTS.md", ".codex/config.toml", ".claude/CLAUDE.md",
-    ".claude/settings.json", ".antigravity/AGENTS.md",
+    ".claude/settings.json", ".gemini/GEMINI.md", ".antigravity/AGENTS.md",
     ".antigravitycli/AGENTS.md", ".antigravity-ide/AGENTS.md",
 )
 HOME = str(Path.home())
