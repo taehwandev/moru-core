@@ -477,7 +477,7 @@ class ReviewAttestationTests(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 ValueError,
-                "evidence path must be inside the review project .tao root",
+                "evidence path must be inside the review project state root",
             ):
                 ReviewAttestation.record(
                     project=self.project,

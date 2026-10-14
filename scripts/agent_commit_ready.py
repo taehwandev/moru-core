@@ -23,6 +23,7 @@ from agent_required_doc_reuse import required_doc_reuse
 from agent_review_attestation import ReviewAttestation
 from agent_review_reuse import ReviewReuse
 from agent_runtime_session import runtime_session
+from support.global_state import project_state_dir_target
 
 COMMIT_READINESS_GATE = "commit readiness"
 
@@ -125,9 +126,10 @@ def derive_commit_readiness(project: Path, rules: Path, evidence_path: Path) -> 
 
 def _completed_review(args: Any) -> tuple[ReviewReuse, dict[str, str]]:
     project = args.project.resolve()
-    cached = ReviewReuse.read(project / ".tao" / "review-checks-latest.json")
-    source = (project / ".tao" / cached["evidence"]).resolve()
-    source.relative_to(project / ".tao" / "runs")
+    state_dir = project_state_dir_target(project)
+    cached = ReviewReuse.read(state_dir / "review-checks-latest.json")
+    source = (state_dir / cached["evidence"]).resolve()
+    source.relative_to((state_dir / "runs").resolve())
     preflight = ReviewReuse.read(source)
     session = runtime_session()
     prior_session = preflight.get("runtime_session") or {}
@@ -135,12 +137,12 @@ def _completed_review(args: Any) -> tuple[ReviewReuse, dict[str, str]]:
         prior_session.get(key) != session.get(key) for key in ("runtime", "session_id")
     ):
         raise ValueError("prior review belongs to a different or unknown runtime session")
-    registry = ReviewReuse.read(project / ".tao" / "run-registry.json")
+    registry = ReviewReuse.read(state_dir / "run-registry.json")
     records = [record for record in registry.get("runs", [])
                if record.get("run_id") == preflight.get("agent_run_id")]
     if len(records) != 1 or records[0].get("state") != "completed":
         raise ValueError("prior review run has not completed")
-    if source != project / ".tao" / "runs" / preflight["agent_run_id"] / "preflight.json":
+    if source != (state_dir / "runs" / preflight["agent_run_id"] / "preflight.json").resolve():
         raise ValueError("prior review is not canonical run evidence")
     if args.review_scope not in {"working-tree", "pathspec"} or cached["snapshot"].get("scope") != args.review_scope:
         raise ValueError("compact preparation requires the exact completed review scope")

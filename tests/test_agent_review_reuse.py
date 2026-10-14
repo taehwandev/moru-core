@@ -24,7 +24,7 @@ def _build_initial_commit(project: Path) -> None:
     git('init', '-q')
     git('config', 'user.email', 'review@example.invalid')
     git('config', 'user.name', 'Review Test')
-    (project / '.gitignore').write_text('.tao/\n')
+    (project / '.gitignore').write_text('.tao/\n.moru/\n')
     (project / 'source.py').write_text('value = 1\n')
     (project / 'rule.md').write_text('review rules\n')
     git('add', '.')
@@ -182,6 +182,21 @@ class ReviewReuseTests(unittest.TestCase):
         self.assertEqual(source.reused, None)
         (self.project / 'source.py').write_text('value = 99\n')
         self.assertIsNone(ReviewReuse.publication_candidate(args.evidence))
+
+    def test_migrated_state_receipt_and_evidence_use_moru(self):
+        legacy = self.project / '.tao'
+        migrated = self.project / '.moru'
+        legacy.rename(migrated)
+        (migrated / 'state-ready').write_text('ready\n')
+        self.source.evidence = migrated / 'runs' / ('a' * 32) / 'preflight.json'
+        reset_gate_evidence_ledger(self.source.evidence, json.loads(self.source.evidence.read_text()))
+
+        source = self.publish()
+
+        self.assertEqual((migrated / 'review-checks-latest.json').resolve(), source.path)
+        self.assertEqual('runs/' + 'a' * 32 + '/preflight.json',
+                         ReviewReuse.read(source.path)['evidence'])
+        self.assertFalse(legacy.exists())
 
     def test_publication_does_not_recapture_and_late_edits_still_miss(self):
         source = self.cache()

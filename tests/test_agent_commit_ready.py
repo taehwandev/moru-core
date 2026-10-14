@@ -22,7 +22,16 @@ class CommitReadyTests(unittest.TestCase):
         preflight["runtime_session"] = self.session
         self.fixture.source.evidence.write_text(json.dumps(preflight))
         reset_gate_evidence_ledger(self.fixture.source.evidence, preflight)
-        self.registry = self.fixture.project / ".tao" / "run-registry.json"
+        if self._testMethodName == "test_migrated_state_is_selected_for_completed_review":
+            legacy = self.fixture.project / '.tao'
+            migrated = self.fixture.project / '.moru'
+            legacy.rename(migrated)
+            (migrated / 'state-ready').write_text('ready\n')
+            self.fixture.source.evidence = migrated / 'runs' / preflight['agent_run_id'] / 'preflight.json'
+            reset_gate_evidence_ledger(self.fixture.source.evidence, preflight)
+        self.registry = self.fixture.project / (
+            '.moru' if self._testMethodName == "test_migrated_state_is_selected_for_completed_review" else '.tao'
+        ) / "run-registry.json"
         self.registry.write_text(json.dumps({"runs": [{
             "run_id": preflight["agent_run_id"], "state": "completed",
         }]}))
@@ -51,6 +60,12 @@ class CommitReadyTests(unittest.TestCase):
 
     def _start(self, args):
         commit = self.fixture.args("commit", "b" * 32)
+        if self._testMethodName == "test_migrated_state_is_selected_for_completed_review":
+            migrated = self.fixture.project / '.moru' / 'runs' / ('b' * 32)
+            migrated.mkdir(parents=True, exist_ok=True)
+            target = migrated / 'preflight.json'
+            commit.evidence.rename(target)
+            commit.evidence = target
         preflight = json.loads(commit.evidence.read_text())
         preflight["route"]["gates"] = ["request intake", "review hook", "commit readiness"]
         commit.evidence.write_text(json.dumps(preflight))
@@ -88,6 +103,10 @@ class CommitReadyTests(unittest.TestCase):
 
         self.assertEqual(0, prepare_commit(self.args, self.start, dispatch))
         self.assertEqual(["review", "finish"], calls)
+
+    def test_migrated_state_is_selected_for_completed_review(self):
+        self.assertEqual(0, prepare_commit(self.args, self.start, self.dispatch))
+        self.assertEqual(2, self.dispatch.call_count, self.output._new_target.getvalue())
 
     def test_same_paths_cannot_replace_the_completed_review_scope(self):
         self.publish_pathspec(["source.py", "extra.py"])

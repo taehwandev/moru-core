@@ -2,6 +2,7 @@
 
 from copy import copy
 from pathlib import Path
+from support.global_state import project_state_dir_target
 
 
 def reuse_committed_review(reuse, validate):
@@ -20,7 +21,7 @@ def reuse_committed_review(reuse, validate):
         current = reuse.before
         for root in roots:
             try:
-                path = root / '.tao' / 'review-checks-latest.json'
+                path = project_state_dir_target(root) / 'review-checks-latest.json'
                 cached = reuse.read(path)
                 snapshot = cached['snapshot']
                 if snapshot.get('project') != str(root) or snapshot.get('scope') != 'working-tree':
@@ -35,7 +36,7 @@ def reuse_committed_review(reuse, validate):
                 if {k: v for k, v in snapshot.items() if k not in ignored} != {k: v for k, v in current.items() if k not in ignored}:
                     continue
                 candidate = copy(reuse)
-                candidate.project, candidate.path = root, path
+                candidate.project, candidate.state_dir, candidate.path = root, project_state_dir_target(root), path
                 candidate.before, candidate.subject = snapshot, {'kind': 'working-tree'}
                 checks = validate(candidate, require_fully_staged=False, require_commit_route=False)
                 if checks is not None:

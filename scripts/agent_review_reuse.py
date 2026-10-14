@@ -18,6 +18,7 @@ from agent_gate_evidence import gate_evidence_path_for_preflight
 from agent_review_attestation import ReviewAttestation, _attestation_id, _record_shape_failures
 from agent_route_state import route_fingerprint
 from support.bounded_git import run_git
+from support.global_state import project_state_dir_target
 from support.stage_timing import stage
 from agent_review_integration_reuse import reuse_committed_review
 from agent_review_scope_inputs import scoped_review_binding, scoped_review_digest
@@ -41,8 +42,9 @@ class ReviewReuse:
     def __init__(self, args: Any, paths: list[str], subject: dict[str, Any]):
         self.args, self.paths, self.subject = args, paths, subject
         self.project, self.rules = args.project.resolve(), args.rules.resolve()
-        self.evidence = args.evidence or self.project / '.tao' / 'preflight.json'
-        self.path = self.project / '.tao' / 'review-checks-latest.json'
+        self.state_dir = project_state_dir_target(self.project)
+        self.evidence = args.evidence or self.state_dir / 'preflight.json'
+        self.path = self.state_dir / 'review-checks-latest.json'
         # complete() captures again to prove nothing moved while the hook ran.
         # Rules and checker files are ~1100 unchanged reads the second time, so
         # it reuses their hashes while every stat field still matches.
@@ -128,7 +130,7 @@ class ReviewReuse:
             atomic_write_json(self.path, {
                 'schema_version': 2, 'snapshot': self.before,
                 'checks': _reusable_checks(checks),
-                'evidence': self.evidence.resolve().relative_to(self.project / '.tao').as_posix(),
+                'evidence': self.evidence.resolve().relative_to(self.state_dir.resolve()).as_posix(),
                 'attestation_id': attestation['attestation_id'],
             })
         except (OSError, RuntimeError, ValueError, TypeError, KeyError):
@@ -146,8 +148,9 @@ def _publication_candidate(
             return None
         project = Path(preflight['project']).resolve()
         rules = Path(preflight['rules']).resolve()
-        evidence.resolve().relative_to(project / '.tao' / 'runs')
-        cached = reuse_type.read(project / '.tao' / 'review-checks-latest.json')
+        state_dir = project_state_dir_target(project)
+        evidence.resolve().relative_to((state_dir / 'runs').resolve())
+        cached = reuse_type.read(state_dir / 'review-checks-latest.json')
         snapshot = cached.get('snapshot')
         if not isinstance(snapshot, dict):
             return None
@@ -369,8 +372,8 @@ def _load(
             return None
         if cached['schema_version'] not in {1, 2} or cached['snapshot'] != reuse.before:
             return None
-        source = (reuse.project / '.tao' / cached['evidence']).resolve()
-        source.relative_to(reuse.project / '.tao')
+        source = (reuse.state_dir / cached['evidence']).resolve()
+        source.relative_to(reuse.state_dir.resolve())
         attestation = reuse.read(ReviewAttestation.path(source))
         if _record_shape_failures(attestation) or _attestation_id(attestation) != cached['attestation_id']:
             return None

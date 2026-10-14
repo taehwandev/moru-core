@@ -21,6 +21,7 @@ from agent_route_state import route_fingerprint
 from agent_review_rules_inputs import review_rules_inputs
 from agent_evidence_inputs import EvidenceInputs
 from agent_review_scope_inputs import scoped_review_digest
+from support.global_state import project_state_dir_target
 
 
 SCHEMA_VERSION = 3
@@ -40,35 +41,13 @@ LOCAL_AGENT_CONFIG_PATHS = frozenset(
 
 
 def _project_evidence_relative(project: Path, evidence_path: Path) -> str:
-    """Bind evidence under this checkout's original or migrated run directory."""
-
-    project = project.resolve()
-    evidence_path = evidence_path.resolve()
-    legacy = project / ".tao"
+    """Bind evidence under this checkout's selected state directory."""
     try:
-        return evidence_path.relative_to(legacy.resolve()).as_posix()
+        return evidence_path.resolve().relative_to(
+            project_state_dir_target(project.resolve()).resolve()
+        ).as_posix()
     except ValueError:
-        pass
-
-    migrated = project / ".moru"
-    migrated_runs = migrated / "runs"
-    linked_runs = legacy / "runs"
-    if (
-        not legacy.is_symlink()
-        and not migrated.is_symlink()
-        and (migrated / "state-ready").is_file()
-        and migrated_runs.is_dir()
-        and not migrated_runs.is_symlink()
-        and linked_runs.is_symlink()
-        and linked_runs.resolve() == migrated_runs.resolve()
-    ):
-        try:
-            return (Path("runs") / evidence_path.relative_to(migrated_runs.resolve())).as_posix()
-        except ValueError:
-            pass
-    raise ValueError(
-        "review attestation evidence path must be inside the review project .tao root"
-    )
+        raise ValueError("review attestation evidence path must be inside the review project state root")
 
 
 class ReviewAttestation:
