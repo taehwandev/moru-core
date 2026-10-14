@@ -101,6 +101,18 @@ def _snapshot(root: Path) -> dict[str, bytes]:
 
 
 class MaintenanceProjectTests(unittest.TestCase):
+    def test_migrated_projects_and_worktrees_are_discovered(self) -> None:
+        listed = ProjectFixture(self.base / "listed").root
+        (listed / ".tao").rename(listed / ".moru")
+        (listed / ".moru" / "state-ready").write_text("ready\n")
+        worktree = ProjectFixture(listed / ".moru" / "worktrees" / "task").root
+        self._register(listed)
+
+        self.assertEqual(
+            [self.tao_root, listed, worktree],
+            managed_projects(self.tao_root, projects_registry=self.registry_file),
+        )
+
     def setUp(self) -> None:
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)

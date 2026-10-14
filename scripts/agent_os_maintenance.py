@@ -34,11 +34,12 @@ from agent_run_registry import (
 )
 from agent_scheduler import recover_stale_tasks, retry_task
 from agent_skill_feedback import record_skill_curation
+from support.global_state import project_state_dir_target
 
 DEFAULT_RETENTION_SECONDS = 30 * 24 * 60 * 60
 # macOS asks the user before a background process reads these folders. A daily
 # LaunchAgent must never raise that prompt by scanning them; a project that
-# lives in one is included only when ~/.tao/projects.json names it.
+# lives in one is included only when the global projects.json names it.
 PRIVACY_PROTECTED_HOME_FOLDERS = frozenset({"Desktop", "Documents", "Downloads"})
 SKIPPED_SCAN_NAMES = frozenset({"node_modules", "build", "dist", "target"})
 
@@ -124,11 +125,10 @@ def managed_projects(
 ) -> list[Path]:
     """Every checkout a maintenance pass visits, each named once.
 
-    The Tao root, every project ``projects.json`` names, and every directory
-    at or directly under a search root that already holds Tao run state. Then
-    the linked worktrees under each one's ``.tao/worktrees``, which keep their
-    own run registry and evidence. Missing directories, and ones without a
-    ``.tao`` directory, are skipped.
+    The shared root, every project ``projects.json`` names, and every directory
+    at or directly under a search root that already holds run state. Then
+    the linked worktrees under each selected state directory's ``worktrees``;
+    each keeps its own registry and evidence. Missing state is skipped.
     """
 
     registry = load_registry(projects_registry)
@@ -163,7 +163,7 @@ def managed_projects(
                 continue
             # A checkout that never ran a Tao lifecycle has nothing to maintain,
             # and visiting it would create lock files in it.
-            if resolved in seen or not (resolved / ".tao").is_dir():
+            if resolved in seen or not project_state_dir_target(resolved).is_dir():
                 continue
             seen.add(resolved)
             checkouts.append(resolved)
@@ -220,8 +220,8 @@ def format_project_line(checkout: str, result: dict[str, Any]) -> str:
 
 
 def _has_run_state(path: Path) -> bool:
-    tao = path / ".tao"
-    return (tao / "run-registry.json").is_file() or (tao / "runs").is_dir()
+    state = project_state_dir_target(path)
+    return (state / "run-registry.json").is_file() or (state / "runs").is_dir()
 
 
 def _projects_under(root: Path) -> list[Path]:
@@ -248,7 +248,7 @@ def _projects_under(root: Path) -> list[Path]:
 
 
 def _linked_worktrees(project: Path) -> list[Path]:
-    directory = project / ".tao" / "worktrees"
+    directory = project_state_dir_target(project) / "worktrees"
     try:
         return sorted(path for path in directory.iterdir() if path.is_dir())
     except OSError:
