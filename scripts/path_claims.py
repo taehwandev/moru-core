@@ -1,9 +1,10 @@
 """Claim project paths before editing them, and record which session edited what.
 
 Owner: the per-project path claim store under ``<project>/.moru/claims/`` and
-the live-web edit log ``<project>/.moru/live-web/edits.jsonl``.
-Allowed imports: the standard library only, so any agent runtime or hook can
-run it without the Moru lifecycle.
+the live-web edit log ``<project>/.moru/live-web/edits.jsonl``. The ``check``
+subcommand delegates to ``live_web_checks``.
+Allowed imports: the standard library and the sibling ``live_web_checks``
+only, so any agent runtime or hook can run it without the Moru lifecycle.
 Forbidden imports: the workflow route, the agent lifecycle and hook installers;
 a claim is a courtesy lock between agents, never an authority decision.
 Callers/tests: agents following the ``live-web`` card, and an optional Claude
@@ -29,6 +30,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
+
+import live_web_checks
 
 CONFLICT_EXIT = 3
 DEFAULT_TTL_SECONDS = 1800
@@ -261,7 +264,7 @@ def _cmd_record(project: Optional[Path], args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("claim", "release", "status", "record"):
+    for name in ("claim", "release", "status", "record", "check"):
         sub = commands.add_parser(name)
         sub.add_argument("--project", type=Path, required=name != "record")
         sub.add_argument("--holder", default=None)
@@ -275,6 +278,7 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--json", action="store_true")
     record_cmd.add_argument("--files", nargs="+")
     record_cmd.add_argument("--from-hook", action="store_true")
+    live_web_checks.add_arguments(commands.choices["check"])
     return parser
 
 
@@ -283,6 +287,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     args.holder = args.holder or default_holder()
     project = args.project.expanduser().resolve() if args.project else None
     handlers = {"claim": _cmd_claim, "release": _cmd_release, "status": _cmd_status, "record": _cmd_record}
+    handlers["check"] = live_web_checks.run
     try:
         return handlers[args.command](project, args)
     except PathError as error:

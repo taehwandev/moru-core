@@ -43,11 +43,22 @@ editing the same project.
    stop and tell the user who holds the path. Never edit a claimed path.
 4. Make the change. Stay inside your assigned area; ask before touching shared
    files another area owns.
-5. Release when done, also after a failure:
+5. After saving, wait about 2 seconds for the page to reload, then read what
+   Moru saw for the files you changed:
+   `path_claims.py check --project <PROJECT> --files src/components/Header.tsx`.
+   It prints one line such as
+   `check 2026-10-15T09:16:12Z src/components/Header.tsx: Phone 1 element (388x47), Desktop 1 element; errors 0; reload ok`.
+   Exit 0 is clean; exit 4 means `errors N: <first error>` or
+   `reload FAILED`, so fix the cause, save and check again; exit 5 means no
+   check exists yet for those files, so wait a little and run it once more
+   (Moru is not showing the page when it stays 5). An element count of 0 for
+   a file that should render means the change removed or hid it.
+6. Release when done, also after a failure:
    `path_claims.py release --project <PROJECT> --all`.
-6. Verify from the reference and DOM information (selector, text, size). Take
-   a screenshot only when the user asks for one or the change is purely
-   visual and cannot be checked otherwise; screenshots cost far more tokens.
+7. Verify with `check` and the reference and DOM information (selector, text,
+   size). Take a screenshot only when the user asks for one or the change is
+   purely visual and cannot be checked otherwise; screenshots cost far more
+   tokens.
 
 ## Common Rationalizations
 
@@ -55,7 +66,8 @@ editing the same project.
 | --- | --- |
 | "It is a one-line change, no claim needed." | Claim it; another agent may be editing the same file. |
 | "The holder is probably idle." | Wait or ask the user; claims expire on their own (30 minutes by default). |
-| "A screenshot is the safest check." | Use the reference and DOM data first; screenshot only on request. |
+| "A screenshot is the safest check." | Run `check` and use the reference and DOM data first; screenshot only on request. |
+| "It saved, so it works." | Run `check`; a failed reload or console error is only visible there. |
 
 ## Do Not
 
@@ -63,6 +75,7 @@ editing the same project.
   assigned area to block other agents.
 - Do not delete another holder's claim file by hand.
 - Do not leave claims behind when you finish or abandon the work.
+- Do not say a change is done while its latest `check` exits 4.
 
 ## Stop If
 
@@ -73,6 +86,8 @@ editing the same project.
 
 ## Verification
 
+- `path_claims.py check --project <PROJECT> --files <changed files>` exits 0
+  for the last save.
 - `path_claims.py status --project <PROJECT>` shows none of your claims after
   release.
 - The changed element still matches the reference's selector and text, or the
@@ -80,5 +95,5 @@ editing the same project.
 
 ## Report
 
-Report the referenced element, the files changed, the claims taken and
-released, and any conflict and who held it.
+Report the referenced element, the files changed, the last `check` line, the
+claims taken and released, and any conflict and who held it.

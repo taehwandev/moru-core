@@ -23,6 +23,7 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+import live_web_checks  # noqa: E402
 import path_claims  # noqa: E402
 
 
@@ -212,6 +213,123 @@ class PathClaimsTests(unittest.TestCase):
         self.assertEqual(self.read_edits(), [])
 
 
+class PathClaimsCheckTests(unittest.TestCase):
+    """``check`` replaces a screenshot, so a wrong match or a wrong exit hides a broken save."""
+
+    def setUp(self) -> None:
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.project = Path(directory.name).resolve()
+
+    def write_checks(self, *lines) -> None:
+        log = live_web_checks.checks_log(self.project)
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text("".join((line if isinstance(line, str) else json.dumps(line)) + "\n" for line in lines))
+
+    @staticmethod
+    def entry(time: str, files: list, errors: tuple = (), reload_failed: bool = False, views=None) -> dict:
+        return {
+            "time": time,
+            "files": files,
+            "views": views if views is not None else [{"viewport": "Phone", "elements": 1, "boxes": [[0, 0, 388, 47]]}],
+            "errors": list(errors),
+            "reloadFailed": reload_failed,
+        }
+
+    def check(self, *argv: str) -> tuple[int, str]:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+            code = path_claims.main(["check", "--project", str(self.project), *argv])
+        return code, output.getvalue().strip()
+
+    def test_latest_check_for_given_files_skips_newer_unrelated_ones(self) -> None:
+        self.write_checks(
+            self.entry("2026-10-15T09:10:00Z", ["src/components/Header.tsx"], errors=("old",)),
+            self.entry("2026-10-15T09:16:12Z", ["src/components/Header.tsx"], views=[
+                {"viewport": "Phone", "elements": 1, "boxes": [[0, 0, 388, 47]]},
+                {"viewport": "Desktop", "elements": 1, "boxes": []},
+            ]),
+            self.entry("2026-10-15T09:20:00Z", ["src/App.tsx"], errors=("boom",)),
+        )
+        code, output = self.check("--files", "src/components/Header.tsx")
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            output,
+            "check 2026-10-15T09:16:12Z src/components/Header.tsx: Phone 1 element (388x47), "
+            "Desktop 1 element; errors 0; reload ok",
+        )
+
+    def test_without_files_prints_latest_overall(self) -> None:
+        self.write_checks(
+            self.entry("2026-10-15T09:16:12Z", ["src/components/Header.tsx"]),
+            self.entry("2026-10-15T09:20:00Z", ["src/App.tsx"], errors=("boom", "second")),
+        )
+        code, output = self.check()
+        self.assertEqual(code, live_web_checks.CHECK_PROBLEM_EXIT)
+        self.assertTrue(output.startswith("check 2026-10-15T09:20:00Z src/App.tsx:"), output)
+        self.assertIn("errors 2: boom", output)
+
+    def test_suffix_matching_in_both_directions_but_not_partial_names(self) -> None:
+        self.write_checks(self.entry("2026-10-15T09:16:12Z", ["src/components/Header.tsx"]))
+        self.assertEqual(self.check("--files", "Header.tsx")[0], 0)
+        self.assertEqual(self.check("--files", "components/Header.tsx")[0], 0)
+        self.assertEqual(self.check("--files", str(self.project / "src/components/Header.tsx"))[0], 0)
+        self.assertEqual(self.check("--files", "eader.tsx")[0], live_web_checks.CHECK_MISSING_EXIT)
+        self.write_checks(self.entry("2026-10-15T09:16:12Z", ["Header.tsx"]))
+        self.assertEqual(self.check("--files", "web/src/Header.tsx")[0], 0)
+
+    def test_exit_codes(self) -> None:
+        self.assertEqual(self.check(), (live_web_checks.CHECK_MISSING_EXIT, "no check yet"))
+        self.write_checks(self.entry("2026-10-15T09:16:12Z", ["a.tsx"]))
+        self.assertEqual(self.check()[0], 0)
+        self.write_checks(self.entry("2026-10-15T09:16:12Z", ["a.tsx"], reload_failed=True))
+        code, output = self.check()
+        self.assertEqual(code, live_web_checks.CHECK_PROBLEM_EXIT)
+        self.assertTrue(output.endswith("errors 0; reload FAILED"), output)
+        self.write_checks(self.entry("2026-10-15T09:16:12Z", ["a.tsx"], errors=("TypeError: x",)))
+        self.assertEqual(self.check()[0], live_web_checks.CHECK_PROBLEM_EXIT)
+        self.assertEqual(self.check("--files", "b.tsx"), (live_web_checks.CHECK_MISSING_EXIT, "no check yet for b.tsx"))
+
+    def test_malformed_lines_are_skipped(self) -> None:
+        self.write_checks(
+            self.entry("2026-10-15T09:16:12Z", ["a.tsx"]),
+            "{broken",
+            "[1, 2]",
+            "",
+            {"time": "2026-10-15T09:17:00Z", "files": "a.tsx", "views": "x", "errors": 3},
+            {"time": "2026-10-15T09:18:00Z", "files": ["b.tsx"], "views": [None, {"viewport": "Phone", "boxes": [["x"]]}]},
+        )
+        self.assertEqual(self.check("--files", "a.tsx")[0], 0)
+        code, output = self.check()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, "check 2026-10-15T09:18:00Z b.tsx: ?, Phone 0 elements; errors 0; reload ok")
+
+    def test_reads_only_the_tail_of_a_large_log(self) -> None:
+        old = self.entry("2026-10-15T08:00:00Z", ["old.tsx"])
+        filler = [self.entry("2026-10-15T09:00:00Z", ["filler.tsx"]) for _ in range(800)]
+        self.write_checks(old, *filler, self.entry("2026-10-15T09:30:00Z", ["new.tsx"]))
+        self.assertGreater(live_web_checks.checks_log(self.project).stat().st_size, live_web_checks.CHECK_TAIL_BYTES)
+        self.assertEqual(self.check("--files", "new.tsx")[0], 0)
+        self.assertEqual(self.check("--files", "old.tsx")[0], live_web_checks.CHECK_MISSING_EXIT)
+        self.assertTrue(all(isinstance(entry, dict) for entry in live_web_checks.read_checks(self.project)))
+
+    def test_since_drops_older_checks(self) -> None:
+        self.write_checks(self.entry("2026-10-15T09:16:12Z", ["a.tsx"]), {"time": "garbage", "files": ["a.tsx"]})
+        self.assertEqual(self.check("--since", "2026-10-15T09:16:00Z")[0], 0)
+        self.assertEqual(self.check("--since", "2026-10-15T09:17:00+00:00")[0], live_web_checks.CHECK_MISSING_EXIT)
+
+    def test_json_shape(self) -> None:
+        code, output = self.check("--json")
+        self.assertEqual((code, json.loads(output)), (live_web_checks.CHECK_MISSING_EXIT, {"status": "none", "check": None}))
+        problem = self.entry("2026-10-15T09:16:12Z", ["a.tsx"], errors=("boom",))
+        self.write_checks(problem)
+        code, output = self.check("--json", "--files", "a.tsx")
+        self.assertEqual((code, json.loads(output)), (live_web_checks.CHECK_PROBLEM_EXIT, {"status": "problems", "check": problem}))
+        clean = self.entry("2026-10-15T09:17:00Z", ["a.tsx"])
+        self.write_checks(problem, clean)
+        self.assertEqual(json.loads(self.check("--json")[1]), {"status": "ok", "check": clean})
+
+
 class PathClaimsProcessTests(unittest.TestCase):
     """The hook and agents run the file as a script, not through ``main``."""
 
@@ -236,6 +354,8 @@ class PathClaimsProcessTests(unittest.TestCase):
         self.assertEqual([json.loads(line)["session"] for line in edits], ["t1"])
         self.assertEqual(run("t1", "release", "--project", str(project), "--all").returncode, 0)
         self.assertEqual(run("t2", "status", "--project", str(project)).stdout.strip(), "no active claims")
+        missing = run("t1", "check", "--project", str(project), "--files", "src/a.tsx")
+        self.assertEqual((missing.returncode, missing.stdout.strip()), (live_web_checks.CHECK_MISSING_EXIT, "no check yet for src/a.tsx"))
 
 
 if __name__ == "__main__":
