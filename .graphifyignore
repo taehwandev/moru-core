@@ -1,5 +1,4 @@
 # moru-graphify-inputs:start
-.tao/
 .moru/
 .agents/skills/graphify
 .agents/rules/graphify.md

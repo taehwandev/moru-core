@@ -108,5 +108,5 @@ are separate inventories.
 
 - Trademark, domain and existing-product checks for "Moru" have not been run.
   Do them before phase 4 or any public announcement.
-- Whether the site moves off `tao.thdev.app` (phase 4).
+- The site stays on `tao.thdev.app` (CNAME, `og:url`, README and guide links) until the new domain is connected; only then do docs and prompts switch to it (phase 4).
 - Publication: phase 1 is merged locally only; pushing publishes the site.
