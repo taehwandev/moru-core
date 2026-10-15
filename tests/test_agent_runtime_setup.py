@@ -279,7 +279,7 @@ class RuntimeSetupTests(unittest.TestCase):
         entry_list = codex_prefix_rule_entries(ROOT / "scripts")
         entries = "\n".join(entry_list)
 
-        self.assertEqual(21, len(EXECUTABLE_ENTRYPOINTS))
+        self.assertEqual(20, len(EXECUTABLE_ENTRYPOINTS))
         self.assertTrue(all((ROOT / "scripts" / name).is_file() for name in EXECUTABLE_ENTRYPOINTS))
         for name in EXECUTABLE_ENTRYPOINTS:
             self.assertIn(str(ROOT / "scripts" / name), entries)
@@ -541,50 +541,6 @@ if __name__ == "__main__":
 
 class SupersededManagedBlockTests(unittest.TestCase):
     """A renamed marker must migrate the old block, not duplicate beside it."""
-
-    def test_write_managed_block_replaces_block_under_a_superseded_marker(self) -> None:
-        from support.graphify_tracking import write_managed_block
-
-        block = (
-            "# moru-graphify-inputs:start\n"
-            ".moru/\n"
-            "# moru-graphify-inputs:end"
-        )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / ".graphifyignore"
-            path.write_text(
-                "node_modules/\n\n"
-                "# oldname-graphify-inputs:start\n"
-                ".oldname/\n"
-                "# oldname-graphify-inputs:end\n\n"
-                "dist/\n",
-                encoding="utf-8",
-            )
-
-            self.assertEqual("installed", write_managed_block(path, block))
-
-            updated = path.read_text(encoding="utf-8")
-            self.assertIn("node_modules/", updated)
-            self.assertIn("dist/", updated)
-            self.assertNotIn("oldname-graphify-inputs", updated)
-            self.assertNotIn(".oldname/", updated)
-            self.assertEqual(1, updated.count("# moru-graphify-inputs:start"))
-
-    def test_write_managed_block_is_idempotent_for_the_current_marker(self) -> None:
-        from support.graphify_tracking import write_managed_block
-
-        block = (
-            "# moru-graphify-inputs:start\n"
-            ".moru/\n"
-            "# moru-graphify-inputs:end"
-        )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / ".graphifyignore"
-            self.assertEqual("installed", write_managed_block(path, block))
-            self.assertEqual("ok", write_managed_block(path, block))
-            self.assertEqual(
-                1, path.read_text(encoding="utf-8").count("# moru-graphify-inputs:start")
-            )
 
 
 class ManagedHookLauncherRenameTests(unittest.TestCase):

@@ -230,7 +230,7 @@ Structured gate fields must be passed in the record's `fields` object; putting
 JSON-shaped text inside `evidence` does not populate them. For example:
 
 ```json
-{"gate":"retrospective check","status":"SUCCESS","evidence":"closeout checked","fields":{"skills_checked":"graphify","outcome":"no_reusable_gap","observation":"not_needed"}}
+{"gate":"retrospective check","status":"SUCCESS","evidence":"closeout checked","fields":{"skills_checked":"agent-operating-skill","outcome":"no_reusable_gap","observation":"not_needed"}}
 ```
 
 `finish` must not create or override gate evidence. A later structured `FAIL`

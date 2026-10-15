@@ -287,12 +287,9 @@ for an explicit catalog task or, with user approval, when routing is unavailable
 For code-only ownership, call flow or impact, use bounded direct search first,
 then one precise CodeGraph question only if a current `.codegraph` exists.
 Limit results to useful files, treat returned source as read, and check
-staleness after edits. Do not initialize an index during ordinary work.
-Graphify is only for explicit requests or mixed corpora that CodeGraph does not
-model, never a code-only fallback or cross-check; never use both for the same
-code-structure question. Refresh only for that explicit mixed-corpus work,
-not on checkout or commit. Stale or absent graphs fall back to direct evidence;
-an empty search is terminal without a new lead. A missing required document
+staleness after edits. Do not initialize an index during ordinary work. Stale
+or absent graphs fall back to direct evidence; an empty search is terminal
+without a new lead. A missing required document
 invalidates the manifest and stops work.
 
 ## Moru Maintenance Audits

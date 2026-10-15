@@ -61,7 +61,7 @@ class DocReferenceCheckTests(unittest.TestCase):
     def test_a_vendored_skill_is_not_held_to_this_repositorys_paths(self) -> None:
         """Its example paths name the repository the skill is pointed at."""
         changed = self.write(
-            ".moru/skills/graphify/references/extraction-spec.md",
+            ".moru/skills/example-tool/references/extraction-spec.md",
             "A node id looks like `docs/v1/api/README.md`.\n",
             frontmatter=False,
         )
@@ -297,7 +297,7 @@ class HookPassesTheRightPathsTests(unittest.TestCase):
         """A reference inside a regenerated artifact is not a break to fix.
 
         Widening the scan to reach a top-level README also reached
-        `.agents/local/graphify-out/` and `graphify-out/`, which are gitignored
+        `.agents/local/generated/` and `local/`, which are gitignored
         and rebuilt. Failing review on one would be a check that starts red.
         """
         structure = {
@@ -306,8 +306,8 @@ class HookPassesTheRightPathsTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
-            (project / "graphify-out").mkdir(parents=True)
-            (project / "graphify-out" / "GRAPH_REPORT.md").write_text(
+            (project / "local").mkdir(parents=True)
+            (project / "local" / "GENERATED_REPORT.md").write_text(
                 FRONTMATTER + "See `common/a/old.md`.\n", encoding="utf-8"
             )
             (project / "keeper.md").write_text(
@@ -479,8 +479,8 @@ class RealRepositoryTests(unittest.TestCase):
         """A regenerated report holding a stale path is not a break to fix."""
         self.write("common/a/old.md", "# Old\n")
         self.write("keeper.md", "Unrelated.\n")
-        (self.project / ".gitignore").write_text("graphify-out/\n", encoding="utf-8")
-        self.write("graphify-out/GRAPH_REPORT.md", "See `common/a/old.md`.\n")
+        (self.project / ".gitignore").write_text("local/\n", encoding="utf-8")
+        self.write("local/GENERATED_REPORT.md", "See `common/a/old.md`.\n")
         self.commit_initial()
         self.git("rm", "-q", "common/a/old.md")
 

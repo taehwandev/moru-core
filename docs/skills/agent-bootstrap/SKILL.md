@@ -11,8 +11,6 @@ Use when routed to `docs/skills/agent-bootstrap/SKILL.md` or when work needs thi
 ## Read
 
 - `references/current-guidance.md` for the detailed guidance for this skill.
-- `../graphify-project-integration/SKILL.md` when the target project uses or
-  should install Graphify.
 - Related `SKILL.md` entrypoints named by the reference before loading their detailed references.
 
 ## Process

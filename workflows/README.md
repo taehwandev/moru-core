@@ -154,8 +154,9 @@ the update.
   `requires_docs` relation promotes them. Agents read `required_docs` directly;
   hooks do not mutate the route. The existing `source docs` finish evidence
   records which routed required documents were read and the task-specific
-  takeaway that was applied. Graphify remains responsible for target-project
-  code and relationship analysis.
+  takeaway that was applied. Use bounded direct repository search for
+  target-project code and relationship analysis, with CodeGraph only when a
+  current project index is available.
   Use `<MORU_LAUNCHER> start --command <command> --request "<request>"`.
 - `Required Documents`: after Start Hook, read the route's `required_docs`
   directly before edits or review. Keep `reference_docs` for on-demand context.

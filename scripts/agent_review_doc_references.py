@@ -228,7 +228,7 @@ def _markdown_files(project: Path) -> list[Path]:
 
     skip = {
         ".git", ".moru", "node_modules", "__pycache__", ".venv", "venv",
-        "graphify-out", "local",
+        "local",
     }
     files: list[Path] = []
     for path in sorted(project.rglob("*.md")):

@@ -42,7 +42,7 @@ def render_advisory_markdown(route: dict[str, object]) -> str:
     The prompt hook injects this into a session's context, and an advisory route
     satisfies no gate, so everything that only serves gate execution -- hook
     command templates, the parallel plan, the gate ledger, retrospective policy,
-    graphify readiness, the agent contract -- is left to the real route that
+    the agent contract -- is left to the real route that
     `moru-hook start` produces. What stays is what orients the agent before it
     starts: the route identity, what to read, the gate names, the notes, and
     anything missing or blocking, which is never dropped.
@@ -157,8 +157,6 @@ def print_markdown(route: dict[str, object]) -> None:
         _print_skill_feedback(route["skill_feedback"])
     if route.get("parallel_execution"):
         _print_parallel_execution(route["parallel_execution"])
-    if route.get("target_project_graphify"):
-        _print_graphify_readiness(route["target_project_graphify"])
     print("## Required Hooks")
     for hook in route["hooks"]:
         required = "required" if hook["required"] else "conditional"
@@ -261,47 +259,5 @@ def _print_skill_feedback(policy: dict[str, object]) -> None:
     print(
         "- A reusable gap requires same-closeout draft, review, and verified skill-document "
         "maintenance before finish; no gap leaves the canonical document unchanged."
-    )
-    print()
-
-
-def _print_graphify_readiness(readiness: dict[str, object]) -> None:
-    print("## Target Project Graphify")
-    print(f"- Project: `{readiness.get('project') or 'missing'}`")
-    print(f"- Static readiness: `{str(bool(readiness.get('ready'))).lower()}`")
-    print(f"- CLI: `{readiness.get('cli') or 'missing'}`")
-    if readiness.get("canonical_skill_doc"):
-        installed = str(bool(readiness.get("canonical_skill_exists"))).lower()
-        print(
-            f"- Shared runtime skill installed: `{installed}` at "
-            f"`{readiness['canonical_skill_doc']}`; read evidence is still required"
-        )
-    for runtime, link in (readiness.get("runtime_skill_links") or {}).items():
-        print(f"- {runtime} link: `{link}`")
-    print(
-        "- Runtime links ready: "
-        f"`{str(not bool(readiness.get('invalid_runtime_links'))).lower()}`"
-    )
-    print(
-        "- Shared runtime ownership: "
-        f"`{str(bool(readiness.get('runtime_ownership_ready'))).lower()}`"
-    )
-    print(
-        "- Project integration ready: "
-        f"`{str(bool(readiness.get('project_integration_ready'))).lower()}`"
-    )
-    if readiness.get("graph_path"):
-        print(f"- Graph: `{readiness['graph_path']}`")
-    print(
-        "- Graph checks: "
-        f"fresh=`{str(readiness.get('graph_fresh') is True).lower()}`, "
-        f"integrity=`{str(bool(readiness.get('graph_integrity_ready'))).lower()}`, "
-        f"inputs=`{str(bool(readiness.get('graph_input_policy_ready') and readiness.get('knowledge_manifest_ready'))).lower()}`, "
-        f"relationships=`{str(bool(readiness.get('graph_relationship_ready'))).lower()}`"
-    )
-    print("- Query/path smoke: `manual evidence required`")
-    print(
-        "- Static inspection does not substitute for canonical skill read evidence or "
-        "the scoped query/path smoke result."
     )
     print()

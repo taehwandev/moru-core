@@ -210,12 +210,6 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
     "sitemap": PUBLIC_DISCOVERY_DOCS,
     "structured-data": PUBLIC_DISCOVERY_DOCS,
     "wiki": ("workflows/skills/documentation-update/SKILL.md", "common/skills/llm-wiki-documentation/SKILL.md"),
-    "graphify": (
-        "docs/skills/graphify-project-integration/SKILL.md",
-        "docs/skills/agent-bootstrap/SKILL.md",
-        "common/skills/llm-wiki-documentation/SKILL.md",
-        "common/skills/verification-policy/SKILL.md",
-    ),
     "auth": ("product-patterns/skills/auth-rbac-permissions/SKILL.md", "product-patterns/skills/auth-rbac-implementation/SKILL.md"),
     "invite": ("product-patterns/skills/invitation-workflows/SKILL.md", "product-patterns/skills/invitation-implementation/SKILL.md"),
     "billing": (

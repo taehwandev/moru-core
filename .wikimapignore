@@ -1,12 +1,5 @@
-# Agent/runtime evidence and generated graph outputs are not guidance sources.
-graphify-out
+# Test caches are not guidance sources.
 .pytest_cache
-
-# Runtime Graphify discovery views resolve to the canonical project skill and
-# would otherwise duplicate it in document retrieval.
-.agents/skills/graphify
-.claude/skills/graphify
-.codex/skills/graphify
 
 # Vendored dependency notices are provenance, not Moru Core guidance.
 scripts/third_party

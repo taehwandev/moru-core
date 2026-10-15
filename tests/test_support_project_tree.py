@@ -66,7 +66,7 @@ class PrunedWalkTests(unittest.TestCase):
             build(
                 base,
                 "guide.md",
-                ".moru/cleanup-archives/old/skills/graphify/SKILL.md",
+                ".moru/cleanup-archives/old/skills/example-tool/SKILL.md",
                 "nested/.moru/runs/abc/guide.md",
             )
 
@@ -89,7 +89,7 @@ class PrunedWalkTests(unittest.TestCase):
             base = Path(directory)
             build(
                 base,
-                ".moru/skills/graphify/SKILL.md",
+                ".moru/skills/example-tool/SKILL.md",
                 ".moru/runs/abc/integration/skills/other/SKILL.md",
                 "runs/keep/SKILL.md",
             )
@@ -100,7 +100,7 @@ class PrunedWalkTests(unittest.TestCase):
             }
 
             self.assertEqual(
-                {".moru/skills/graphify/SKILL.md", "runs/keep/SKILL.md"},
+                {".moru/skills/example-tool/SKILL.md", "runs/keep/SKILL.md"},
                 found,
                 "a bare `runs` directory elsewhere is not project state",
             )
@@ -264,7 +264,7 @@ class PrunedTraversalTests(unittest.TestCase):
             with self.subTest(caller=name), tempfile.TemporaryDirectory() as directory:
                 base = Path(directory)
                 self._tree(base)
-                build(base, ".moru/skills/graphify/SKILL.md", "skills/local/SKILL.md")
+                build(base, ".moru/skills/example-tool/SKILL.md", "skills/local/SKILL.md")
 
                 visited = scanned_directories(lambda: caller(base))
 
@@ -280,7 +280,7 @@ class PrunedTraversalTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            build(base, ".moru/skills/graphify/SKILL.md", ".moru/runs/one/copy/SKILL.md")
+            build(base, ".moru/skills/example-tool/SKILL.md", ".moru/runs/one/copy/SKILL.md")
 
             visited = scanned_directories(
                 lambda: agent_skill_catalog._skill_ids_under(base)
@@ -378,10 +378,12 @@ class CallerResultsAreUnchangedTests(unittest.TestCase):
     def test_the_skill_catalogue_keeps_the_skills_stored_under_project_state(self) -> None:
         """Pruning all of `.moru` would have dropped a tracked skill id."""
 
-        self.assertIn("graphify", canonical_skill_ids(ROOT, ROOT))
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            build(project, ".moru/skills/example-tool/SKILL.md")
+            self.assertIn("example_tool", canonical_skill_ids(project, project))
         self.assertIn(".moru", PRUNED_DIRECTORIES)
         self.assertNotIn(".moru", PRUNED_RUN_STATE)
-
 
 
 class GitIgnoredTests(unittest.TestCase):
@@ -442,9 +444,9 @@ class GraphDocumentSelectionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             subprocess.run(["git", "init", "-q", "."], cwd=project, check=True)
-            (project / ".gitignore").write_text("graphify-out/\n", encoding="utf-8")
-            (project / "graphify-out").mkdir()
-            (project / "graphify-out" / "GRAPH_REPORT.md").write_text("#\n", encoding="utf-8")
+            (project / ".gitignore").write_text("local/\n", encoding="utf-8")
+            (project / "local").mkdir()
+            (project / "local" / "GENERATED_REPORT.md").write_text("#\n", encoding="utf-8")
             (project / "AGENTS.md").write_text("#\n", encoding="utf-8")
             (project / "draft.md").write_text("#\n", encoding="utf-8")
 

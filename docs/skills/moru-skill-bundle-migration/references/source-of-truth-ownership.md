@@ -181,5 +181,3 @@ For each cleanup slice:
    removed rather than restating the rule.
 4. Run the relevant tests for workflow routing when route surfaces changed.
 5. Run `vibeguard audit . --rules .`.
-6. If graphify output is maintained for the repo, run `graphify update .` after
-   modifying docs or scripts.

@@ -132,19 +132,6 @@ class WorkSurfaceResolutionRoutingTests(unittest.TestCase):
             any(match["name"] == "graphify_integration" for match in route["doc_surface_matches"])
         )
 
-    def test_verified_graphify_owner_still_requests_readiness(self) -> None:
-        route = resolve_docs(
-            "task",
-            None,
-            [],
-            request_classified=True,
-            surface_paths=["scripts/workflow_graphify_route.py"],
-        )
-
-        self.assertIn("graphify readiness", route["gates"])
-        self.assertTrue(
-            any(match["name"] == "graphify_integration" for match in route["doc_surface_matches"])
-        )
 
     def test_clearing_run_state_routes_to_the_retention_rule(self) -> None:
         """The rule exists to be read before the deletion, not after it.

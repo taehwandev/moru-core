@@ -24,7 +24,6 @@ from agent_finish_gate_policy import (
     PRD_DRAFT_GATE,
     REVIEW_READINESS_GATE,
     VALIDATED_GATES,
-    validate_gate_evidence,
 )
 from agent_finish_check_steps import (
     check_request_intake,
@@ -32,14 +31,11 @@ from agent_finish_check_steps import (
     validate_grill_me_skill_evidence,
 )
 from agent_gate_evidence import (
-    GRAPHIFY_READINESS_STATUS,
-    canonical_gate_fields,
     gate_evidence_path_for_preflight,
     merge_gate_evidence_from_ledger,
     record_gate_evidence,
     record_many_gate_evidence,
     reset_gate_evidence_ledger,
-    synthesize_gate_evidence,
 )
 from agent_worker_evidence import worker_reservation_matches
 from agent_delegation_plan import validate_delegation_plan_evidence
@@ -196,7 +192,6 @@ def required_areas(route: dict) -> set[str]:
     form delivers the area as required reading.
     """
     return {guidance_area(doc) for doc in route["required_docs"]}
-
 
 
 def _scripted_workflow_guidance() -> str:
@@ -396,39 +391,18 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
             any(match["name"] == "runtime_model_dispatch" for match in route["doc_surface_matches"])
         )
 
-    def test_graphify_request_records_selected_project_readiness(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            project = Path(temp_dir)
-            route = resolve_docs(
-                "task",
-                None,
-                [],
-                request_classified=True,
-                request_text="Set up Graphify for the target project.",
-                project_root=project,
-            )
 
-        self.assertIn(guidance_area("docs/skills/agent-bootstrap/SKILL.md"), routed_areas(route))
-        self.assertIn(guidance_area("docs/skills/graphify-project-integration/SKILL.md"), required_areas(route))
-        self.assertIn(guidance_area("common/skills/llm-wiki-documentation/SKILL.md"), routed_areas(route))
-        self.assertEqual(False, route["target_project_graphify"]["ready"])
-        self.assertIn("graphify readiness", route["gates"])
-        self.assertTrue(any(match["name"] == "target_project_graphify" for match in route["doc_surface_matches"]))
-
-    def test_graphify_setup_request_promotes_readiness_docs(self) -> None:
+    def test_removed_graphify_request_does_not_add_readiness_or_guidance(self) -> None:
         route = resolve_docs(
-            "task",
-            None,
-            ["graphify"],
-            request_classified=True,
-            request_text="Fix Graphify setup wiring.",
-            surface_paths=["scripts/support/setup_agent_hooks_impl.py"],
+            "workflow-setup", None, [], request_classified=True,
+            request_text="Install Graphify and build the project graph.",
         )
-
-        self.assertIn(guidance_area("docs/skills/agent-bootstrap/SKILL.md"), routed_areas(route))
-        self.assertIn(guidance_area("docs/skills/graphify-project-integration/SKILL.md"), required_areas(route))
-        self.assertIn("graphify readiness", route["gates"])
-        self.assertTrue(any(match["name"] == "target_project_graphify" for match in route["doc_surface_matches"]))
+        self.assertNotIn("graphify", route["concerns"])
+        self.assertNotIn("graphify readiness", route["gates"])
+        self.assertNotIn("target_project_graphify", route)
+        self.assertFalse(any(
+            "graphify" in str(doc).lower() for doc in route["required_docs"]
+        ))
 
     def test_codex_permission_setup_path_does_not_load_unrelated_guidance(self) -> None:
         route = resolve_docs(
@@ -460,156 +434,6 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
             required_areas(route),
         )
 
-    def test_classified_graphify_evidence_still_infers_route_concern(self) -> None:
-        request = "apply the confirmed change in scripts/workflow_doc_surfaces.py"
-        session_id = "workflow-doc-surfaces-session"
-        classification_evidence = (
-            "answered direct question; separate actionable clear-scoped Graphify "
-            "project install and readiness workflow"
-        )
-        # The envelope binds the whole request intake, not the request text
-        # alone, so a delegated-worker call has to hash the classified flag and
-        # its evidence too.
-        envelope = {
-            "schema_version": 1,
-            "request_fingerprint": request_fingerprint(
-                {
-                    "request": request,
-                    "request_classified": True,
-                    "classification_evidence": classification_evidence,
-                }
-            ),
-            "runtime_session_id": session_id,
-            "mode": "work",
-            "intent": "configure",
-            "target_summary": "the confirmed document surface change",
-            "requested_effects": ["local_write"],
-            "ambiguity": "resolved",
-        }
-        result = subprocess.run(
-            [
-                sys.executable,
-                str(ROOT / "scripts" / "workflow.py"),
-                "route",
-                "workflow-setup",
-                "--project",
-                str(ROOT),
-                # --request-classified no longer suppresses classification, so the
-                # real request must be supplied; the concern still has to come out
-                # of the classification evidence, which is where the scope is named.
-                "--request",
-                request,
-                "--intent-envelope",
-                json.dumps(envelope),
-                "--runtime-session-id",
-                session_id,
-                "--request-classified",
-                "--classification-evidence",
-                classification_evidence,
-                "--format",
-                "json",
-            ],
-            cwd=str(ROOT),
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
-
-        self.assertEqual(0, result.returncode, result.stderr)
-        route = json.loads(result.stdout)
-        self.assertIn("graphify", route["inferred_concerns"])
-        self.assertIn("graphify readiness", route["gates"])
-        self.assertIn(
-            guidance_area("docs/skills/graphify-project-integration/SKILL.md"),
-            routed_areas(route),
-        )
-
-    def test_graphify_readiness_gate_requires_all_structured_fields(self) -> None:
-        success_fields = {
-            "cli": GRAPHIFY_READINESS_STATUS,
-            "skill_doc": GRAPHIFY_READINESS_STATUS,
-            "runtime_links": GRAPHIFY_READINESS_STATUS,
-            "runtime_ownership": GRAPHIFY_READINESS_STATUS,
-            "project_integration": GRAPHIFY_READINESS_STATUS,
-            "graph": GRAPHIFY_READINESS_STATUS,
-            "query_smoke": GRAPHIFY_READINESS_STATUS,
-        }
-        evidence, missing = synthesize_gate_evidence(
-            "graphify readiness",
-            "graph details are recorded outside the status fields",
-            success_fields,
-        )
-
-        self.assertEqual([], missing)
-        self.assertEqual([], validate_gate_evidence({"graphify readiness": evidence}, ["graphify readiness"]))
-
-        for field, value in (("graph", "fresh and valid"), ("query_smoke", "passed")):
-            with self.subTest(field=field, value=value):
-                values = dict(success_fields)
-                values[field] = value
-                _, failures = synthesize_gate_evidence("graphify readiness", "", values)
-                self.assertTrue(any("exact success" in failure for failure in failures))
-
-        _, missing = synthesize_gate_evidence(
-            "graphify readiness",
-            "",
-            {key: value for key, value in success_fields.items() if key != "query_smoke"},
-        )
-        self.assertEqual(["query_smoke"], missing)
-
-        _, missing = synthesize_gate_evidence(
-            "graphify readiness",
-            "",
-            {
-                key: value
-                for key, value in success_fields.items()
-                if key != "runtime_ownership"
-            },
-        )
-        self.assertEqual(["runtime_ownership"], missing)
-
-        legacy_fields = {
-            **{
-                key: value
-                for key, value in success_fields.items()
-                if key != "runtime_ownership"
-            },
-            "git_ownership": "success",
-        }
-        legacy_evidence, missing = synthesize_gate_evidence(
-            "graphify readiness",
-            "",
-            legacy_fields,
-        )
-        self.assertEqual([], missing)
-        self.assertIn("runtime ownership=success", legacy_evidence)
-        self.assertNotIn("git ownership=", legacy_evidence)
-        self.assertEqual(
-            success_fields,
-            canonical_gate_fields("graphify readiness", legacy_fields, {}),
-        )
-        self.assertEqual(
-            [],
-            validate_gate_evidence(
-                {
-                    "graphify readiness": legacy_evidence.replace(
-                        "runtime ownership=",
-                        "git ownership=",
-                    )
-                },
-                ["graphify readiness"],
-            ),
-        )
-
-    def test_scripted_workflow_guidance_emits_canonical_graphify_fields(self) -> None:
-        guidance = _scripted_workflow_guidance()
-
-        self.assertIn(
-            "`runtime_ownership`, `project_integration`, `graph`, and `query_smoke`",
-            guidance,
-        )
-        self.assertNotIn("`git ownership=`", guidance)
 
     def test_scripted_workflow_guidance_separates_claim_refusal_from_repair(self) -> None:
         guidance = _scripted_workflow_guidance()

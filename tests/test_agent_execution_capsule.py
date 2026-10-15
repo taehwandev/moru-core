@@ -186,7 +186,7 @@ class ExecutionCapsuleTests(unittest.TestCase):
             ),
         )
 
-        generated = self.rules / "graphify-out"
+        generated = self.rules / "local"
         generated.mkdir()
         (generated / "cache.json").write_text("{}", encoding="utf-8")
         self.assertEqual(

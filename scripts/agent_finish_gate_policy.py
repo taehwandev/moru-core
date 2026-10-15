@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import agent_gate_evidence
-
 from agent_finish_gate_boundary_validators import (
     validate_agentic_run_state,
     validate_boundary_plan,
@@ -54,7 +52,6 @@ AGENTIC_RUN_STATE_GATE = "agentic run state"
 SOURCE_DOCS_GATE = "source docs"
 PRODUCT_REENTRY_GATE = "product route re-entry"
 RETROSPECTIVE_CHECK_GATE = "retrospective check"
-GRAPHIFY_READINESS_GATE = "graphify readiness"
 WORK_SURFACE_RESOLUTION_GATE = "work surface resolution"
 PLATFORM_SELECTION_GATE = "platform selection"
 REVIEW_READINESS_GATE = "review readiness"
@@ -89,7 +86,6 @@ VALIDATED_GATES = {
     SOURCE_DOCS_GATE,
     PRODUCT_REENTRY_GATE,
     RETROSPECTIVE_CHECK_GATE,
-    GRAPHIFY_READINESS_GATE,
     WORK_SURFACE_RESOLUTION_GATE,
     PLATFORM_SELECTION_GATE,
     REVIEW_READINESS_GATE,
@@ -158,8 +154,6 @@ def validate_gate_evidence(
                 loaded_skill_ids=loaded,
             )
         )
-    if GRAPHIFY_READINESS_GATE in required:
-        failures.extend(_validate_graphify_readiness(gate_evidence.get(GRAPHIFY_READINESS_GATE, "")))
     if WORK_SURFACE_RESOLUTION_GATE in required:
         failures.extend(
             validate_work_surface_resolution(
@@ -207,48 +201,3 @@ def validate_gate_evidence(
         if gate in gate_evidence:
             failures.extend(validate_workspace_scope_checkpoint(gate_evidence[gate]))
     return failures
-
-
-def _validate_graphify_readiness(evidence: str) -> list[str]:
-    lower = evidence.lower()
-    ownership_anchor = (
-        "runtime ownership="
-        if "runtime ownership=" in lower
-        else "git ownership="
-        if "git ownership=" in lower
-        else "runtime ownership="
-    )
-    required_anchors = (
-        "cli=",
-        "skill doc=",
-        "runtime links=",
-        ownership_anchor,
-        "project integration=",
-        "target graph=",
-        "query smoke=",
-    )
-    missing = [anchor.rstrip("=") for anchor in required_anchors if anchor not in lower]
-    if missing:
-        return [
-            "graphify readiness evidence must contain structured status for " + ", ".join(missing)
-        ]
-    invalid: list[str] = []
-    for index, anchor in enumerate(required_anchors):
-        start = lower.find(anchor) + len(anchor)
-        later_positions = [
-            lower.find(later, start)
-            for later in required_anchors[index + 1:]
-            if lower.find(later, start) >= 0
-        ]
-        finish = min(later_positions) if later_positions else len(lower)
-        value = lower[start:finish].strip(" ;")
-        if value != agent_gate_evidence.GRAPHIFY_READINESS_STATUS:
-            invalid.append(anchor.rstrip("="))
-    if invalid:
-        return [
-            "graphify readiness structured status must be exactly "
-            + agent_gate_evidence.GRAPHIFY_READINESS_STATUS
-            + " for "
-            + ", ".join(invalid)
-        ]
-    return []

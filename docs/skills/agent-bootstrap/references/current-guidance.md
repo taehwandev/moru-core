@@ -209,24 +209,11 @@ After installing or selecting a root, run:
 python3 <MORU_ROOT>/scripts/workflow.py validate
 ```
 
-For an explicit target repo, install project permissions and Graphify runtime
-integration together. Graphify is included by default for `--target`:
+For an explicit target repo, install its project permissions:
 
 ```bash
 python3 <MORU_ROOT>/scripts/setup-agent-hooks.py --target <TARGET_REPO>
 ```
-
-This installs the runtime-owned Graphify bundle once under the user's shared
-Moru home and links Codex, Claude, and AGY to that canonical copy. The target
-repo receives no skill bundle or runtime link; it owns only generated state
-under `.agents/local/graphify-out`. Setup must not silently run initial
-extraction. Read `docs/skills/graphify-project-integration/SKILL.md`, then read
-the installed canonical Graphify `SKILL.md`, build the initial graph from the
-target root, and rerun the check. Use `--skip-graphify` only as an explicit
-project opt-out. Bulk `--github-projects` needs explicit `--graphify` because
-that flag adds a Graphify readiness check to every discovered repository; the
-check inspects and writes nothing, but opting in per run keeps a wide sweep
-from reporting on repositories the caller never meant to include.
 
 Then check runtime bridges, hooks, and permission allowlists:
 
@@ -293,39 +280,26 @@ that subsystem.
    `.agents/moru-core`. Do not commit personal absolute paths such as
    `/Users/.../moru-core`; use those only in shell env setup, one-shot
    prompts, or uncommitted user-level runtime bridges.
-9. Decide whether the target repo uses Graphify. A shared Moru Core graph
-   never substitutes for the target repo's own graph. When Graphify is enabled,
-   build or refresh it from the target repo root using the project-local
-   procedure below and keep its input scope and generated-output policy in the
-   repo-local instructions.
-10. Link only `AGENTS.md`, `index.md`, and any direct route cards the repo wants.
+9. Link only `AGENTS.md`, `index.md`, and any direct route cards the repo wants.
    Prefer shared route cards over per-repo skill copies unless the repo has a
    genuine local skill surface.
     When several runtimes need that local skill, keep its shared operational
     content once under `.moru/skills/<skill>` and use repo-relative
     runtime links or thin adapters. Do not maintain parallel Codex, Claude, and
     Antigravity/AGY copies of the same knowledge.
-11. Do not paste the full Moru Core library into repo-local files.
-12. For multi-step setup or migration work, run `<MORU_LAUNCHER> start` once with
+10. Do not paste the full Moru Core library into repo-local files.
+11. For multi-step setup or migration work, run `<MORU_LAUNCHER> start` once with
    the current request. Open every route `required_docs` entry directly, keep
    the workflow route gate ledger, run the review hook after meaningful
    changes, and run the finish hook before final report, commit, release, or
    handoff.
-13. Direct `workflow.py route`, `agent-preflight.py`, and
+12. Direct `workflow.py route`, `agent-preflight.py`, and
    `agent-finish-check.py` calls are lower-level diagnostics or compatibility
    fallbacks when the hook is unavailable, not a second lifecycle. Missing
    start or gate evidence is non-compliant. Human-visible status should use
    only `🐱🟢 SUCCESS` and `🐱🔴 FAIL` badges. Do not report a third gate state.
 
 Use `templates/repo-agents-routing.md` as the routing block source.
-
-## Project-Local Graphify Procedure
-
-Use `docs/skills/graphify-project-integration/SKILL.md` as the canonical owner
-for installation, runtime skill paths, initial graph creation, query smoke, and
-the seven-field readiness gate. The target repo owns its graph; another repo's
-Graphify output never substitutes for it. Keep this bootstrap card focused on
-Moru Core application instead of duplicating the Graphify procedure here.
 
 ## Verify
 
@@ -343,12 +317,6 @@ Before reporting success:
   scripts are available.
 - The target repo's local instruction file still contains its original
   repo-specific rules.
-- When Graphify is enabled, the `graphify readiness` gate proves CLI, the
-  installed and read canonical `.moru` `SKILL.md`, runtime links that
-  resolve to it, runtime ownership, project integration, a fresh and
-  input-complete target-root graph, and a successful scoped query smoke check.
-  When project docs and code coexist, the check also proves a representative
-  project-doc-to-source relationship rather than mere co-presence of nodes.
 - The routing block points to the selected root.
 - The stamped routing block carries the non-negotiable baseline enforcement
   clause: the `documentation` gate always runs with non-empty, inspection-proven

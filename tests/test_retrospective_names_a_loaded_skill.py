@@ -13,7 +13,7 @@ from agent_skill_catalog import skill_ids_from_doc_paths
 KNOWN = {
     "agent_task_lifecycle",
     "ambiguity_gate",
-    "graphify",
+    "refactoring",
     "retrospective_learning",
     "review_and_commit",
     "testing",
@@ -80,13 +80,13 @@ class SkillIdsFromDocPathsTests(unittest.TestCase):
 
 class RetrospectiveNamesALoadedSkillTests(unittest.TestCase):
     def test_a_skill_this_run_never_loaded_is_refused_and_the_loaded_set_is_named(self) -> None:
-        failures = check("graphify", {"agent_task_lifecycle", "ambiguity_gate"})
+        failures = check("refactoring", {"agent_task_lifecycle", "ambiguity_gate"})
         self.assertEqual(1, len(failures))
         self.assertIn("must name at least one skill this run actually loaded", failures[0])
         self.assertIn("agent_task_lifecycle, ambiguity_gate", failures[0])
 
     def test_one_loaded_name_is_enough_so_a_wider_retrospective_is_not_punished(self) -> None:
-        self.assertEqual([], check("graphify, testing, ambiguity_gate", {"ambiguity_gate"}))
+        self.assertEqual([], check("refactoring, testing, ambiguity_gate", {"ambiguity_gate"}))
 
     def test_the_gate_that_every_route_requires_may_always_name_its_own_skill(self) -> None:
         # All 27 routes require `retrospective check`, so the skill governing
@@ -95,12 +95,12 @@ class RetrospectiveNamesALoadedSkillTests(unittest.TestCase):
         self.assertEqual([], check("retrospective_learning", {"ambiguity_gate"}))
         self.assertIn(
             "retrospective_learning",
-            check("graphify", {"ambiguity_gate"})[0],
+            check("refactoring", {"ambiguity_gate"})[0],
         )
 
     def test_a_route_with_no_skill_documents_cannot_judge_and_does_not_block(self) -> None:
-        self.assertEqual([], check("graphify", set()))
-        self.assertEqual([], check("graphify", None))
+        self.assertEqual([], check("refactoring", set()))
+        self.assertEqual([], check("refactoring", None))
 
     def test_no_skill_used_stays_exempt(self) -> None:
         self.assertEqual(
@@ -109,7 +109,7 @@ class RetrospectiveNamesALoadedSkillTests(unittest.TestCase):
 
     def test_a_reusable_gap_is_held_to_the_same_rule(self) -> None:
         failures = check(
-            "graphify", {"ambiguity_gate"},
+            "refactoring", {"ambiguity_gate"},
             outcome="reusable_gap", observation="recorded",
         )
         self.assertTrue(any("actually loaded" in item for item in failures))
@@ -128,7 +128,7 @@ class RetrospectiveNamesALoadedSkillTests(unittest.TestCase):
 class RoutePolicyIntegrationTests(unittest.TestCase):
     def test_the_policy_derives_the_loaded_set_from_the_route_required_docs(self) -> None:
         failures = validate_gate_evidence(
-            {"retrospective check": evidence("graphify")},
+            {"retrospective check": evidence("refactoring")},
             ["retrospective check"],
             route={"required_docs": ROUTE_DOCS},
             allowed_skill_ids=KNOWN,
@@ -148,7 +148,7 @@ class RoutePolicyIntegrationTests(unittest.TestCase):
         self.assertEqual(
             [],
             validate_gate_evidence(
-                {"retrospective check": evidence("graphify")},
+                {"retrospective check": evidence("refactoring")},
                 ["retrospective check"],
                 route=None,
                 allowed_skill_ids=KNOWN,

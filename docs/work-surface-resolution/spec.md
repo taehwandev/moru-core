@@ -6,6 +6,11 @@ type: human-reviewed-needed
 
 # Work-Surface Resolution Technical Specification
 
+Graphify-specific ownership, precision, and verification clauses below record
+the original implementation. That integration was removed on 2026-10-15;
+those clauses no longer require a module, route, or readiness gate. The
+remaining owner-resolution contract still applies.
+
 ## Scope
 
 This specification implements the contract in `docs/work-surface-resolution/prd.md`

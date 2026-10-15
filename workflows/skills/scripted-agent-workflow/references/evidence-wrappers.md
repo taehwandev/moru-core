@@ -59,8 +59,8 @@ branch, and sensitive visual contents must not be persisted in route metadata.
 The route/search layer uses the repository-pinned Wikimap source for
 deterministic, incremental section retrieval over Moru Core guidance. It
 runs only `update --no-map` and `search --json`; do not wire Wikimap install,
-hook, migration, semantic-note, source-editing, or Graphify-import commands into
-the workflow. The ignored `.wikimap/` SQLite index is disposable. The pinned
+hook, migration, semantic-note, source-editing, or external graph-import
+commands into the workflow. The ignored `.wikimap/` SQLite index is disposable. The pinned
 source checksum is verified by the local adapter; provenance and license are
 covered by the vendor manifest and integration tests. The previous in-process
 scorer remains a reported recovery path when Wikimap cannot run.
@@ -81,10 +81,9 @@ existing `source docs` gate validates evidence that the routed required docs
 were read directly and applied. The router and `workflow.py query` carry
 retrieval through Wikimap, then apply reusable policy facets such
 as cleanup, review, verification, UI feature work, skill docs, or document
-routing and use the local document graph to add connected candidates. Target
-projects continue to use Graphify for code symbols, architecture, and
-relationships; Wikimap does not replace the project graph or its readiness
-gate.
+routing and use the local document graph to add connected candidates. For
+target-project code symbols, architecture, and relationships, use bounded
+direct repository search and, when a current index exists, CodeGraph.
 
 Wikimap completion is explicit: `no_matches` is a terminal no-source result,
 while `invalid_manifest` names route paths that are actually missing. Neither
@@ -250,12 +249,9 @@ If a structured entry is missing required fields, finish-check should fail and
 the recovery is to complete or record the missing gate fact, not to add a vague
 sentence. Use `agent-hook.py gate` for a single immediate gate and
 `agent-hook.py gate-batch` for a bounded set. Keep the evidence machine-clear
-instead of relying on equivalent prose or alternate key spellings. Use the
-Graphify readiness fields exactly as `cli`, `skill_doc`, `runtime_links`,
-`runtime_ownership`, `project_integration`, `graph`, and `query_smoke`, with
-every value exactly `success`; keep
-descriptive facts in separate gate evidence rather than keyword-parsing the
-status. For `source docs`, say which
+instead of relying on equivalent prose or alternate key spellings. Keep
+descriptive facts in gate evidence rather than keyword-parsing the status.
+For `source docs`, say which
 source-of-truth class was searched and opened before implementation and how it
 affected the decision. For `documentation`, include the literal decision
 (`updated`, `created`, `unchanged`, or `not applicable`), the doc path or class,

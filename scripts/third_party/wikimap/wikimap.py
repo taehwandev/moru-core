@@ -19,7 +19,6 @@ import json
 import math
 import os
 import re
-import shutil
 import sqlite3
 import sys
 import time
@@ -37,7 +36,7 @@ VERSION = "1.5.0"
 PARSER_VERSION = "3"
 
 IGNORE_DIRS = {
-    ".obsidian", ".git", ".wikimap", "graphify-out", "node_modules",
+    ".obsidian", ".git", ".wikimap", "node_modules",
     ".claude", ".github", "__pycache__", ".venv", "venv", ".trash",
 }
 IGNORE_FILES = {"MAP.md", ".wikimapignore"}
@@ -75,8 +74,6 @@ All commands: `__WIKIMAP__ [--root <vault>] <cmd>` (or just `wikimap <cmd>` when
 | `edge add --src a.md --dst b.md --relation ... --rationale "..."` | confirm a connection (both shas pinned; goes stale if either file changes) |
 | `edge repin --src a.md --dst b.md` | after reviewing both ends of a stale edge: refresh the sha pins, keep the rationale |
 | `edges [--all] [--prune]` | list inferred connections |
-| `migrate [--apply] [--no-import]` | move a graphify vault to wikimap in one command — imports inferred edges, removes graphify artifacts, reindexes. Dry run unless `--apply` |
-| `import-graphify <graph.json>` | one-time import of INFERRED edges from an existing graphify graph (`migrate` does this for you) |
 | `install --hook` | git post-commit hook that runs `update` automatically (appends to an existing hook) |
 | `mv <old> <new> [--apply]` | move/rename a doc AND rewrite every wikilink/md/img reference to it (dry run without `--apply`); semantics.jsonl paths updated too |
 | `fix-links [--json]` | for every broken link the Health section counts: suggest close-match targets (suggestions only, never auto-applied); links whose target exists on disk but was never indexed (dot-dir, `.wikimapignore`) are listed apart as `unindexed`, not as broken |
@@ -101,45 +98,6 @@ wikimap makes no network calls by default. Set `WIKIMAP_CHECK_UPDATE=1` and `upd
 7. **A stale edge whose connection still holds**: if it went stale only because an endpoint was edited, review both docs and run `edge repin --src a --dst b` — the rationale is kept, only the sha pins refresh. Re-add only when the relationship itself changed.
 8. **Bootstrapping a link-less corpus** (docs with no links between them): ① `suggest -n 0 --json` for the full candidate list. ② Judge each pair from its titles, headings, and the shared signals only — do not read whole files; the cost cap is the point. Work through candidates by `dir` stratum: `same` first, then `sibling`, and take `far` pairs only when their score is high — measured precision drops an order of magnitude from same-directory to far pairs. ③ Apply the genuine ones with `link add <doc> <target> --apply` (batch several targets per doc). Judge honestly: shared rare terms across unrelated projects (or matching REQ-IDs from different specs) are false signals — reject them.
 9. **Semantic search for natural-language questions** (the language-agnostic path, when keyword search comes up `weak` and reformulation doesn't help): keyword matching is substring-based, so a conversational question that shares no exact terms with the doc ("how is the impression flag reset?" vs a doc titled "노출 트래킹") won't match by keyword in any language. If an embedding index exists, generate a query embedding **yourself** (any embedding model — wikimap is model-agnostic) and either run `semsearch --vector <json>` for a pure semantic ranking, or `search "<q>" --hybrid <json>` to blend it with keyword hits in a single call (docs found by both signals rank highest). To make docs searchable this way, embed them once: for each doc `embed set <path> --vector <json>` with a vector you generate; `embed status` shows what's missing or stale. wikimap only stores and cosine-ranks — the vectors, and the cost, are yours and scale with what you embed, not with build time.
-"""
-
-MIGRATE_SKILL = r"""---
-name: graphify-to-wikimap
-description: Migrate a knowledge vault from graphify (build-time LLM knowledge graph) to wikimap (zero-LLM incremental index). Use when a vault has a graphify-out/ directory, a graphify graph.json, or graphify-specific config/rules, and the user wants to switch to wikimap. Drives `wikimap migrate` (which imports graphify's inferred edges, removes its artifacts, and reindexes — dry run by default), then switches the vault's operating rules and git config over. Do not use for the initial wikimap setup of a vault that never used graphify — that is just `wikimap update`.
----
-
-# Migrate graphify → wikimap
-
-graphify extracts a knowledge graph with an LLM **at build time**; wikimap indexes the same vault deterministically with **no build-time LLM**. The vault's source documents are identical for both tools — migration removes graphify's *artifacts and config*, not your content, then builds a wikimap index over the same files.
-
-**Ground rule: never touch source content.** graphify-out/ and .graphifyignore are artifacts (delete them). A `foo-graphify-benchmark.md` the user wrote, or a `graphify-graph.png`, is content (keep it — a filename containing "graphify" does not make it an artifact).
-
-## The migration itself is one command
-
-```bash
-wikimap migrate            # dry run: prints exactly what it will remove and import
-wikimap migrate --apply    # execute
-```
-
-`migrate` imports graphify's INFERRED edges **before** deleting `graph.json` (reverse that order by hand and the connections are lost for good), removes `graphify-out/` and `.graphifyignore`, then reindexes and writes `MAP.md`. Source documents are never modified. Imported edges are pinned to both endpoints' content hashes, so each goes stale automatically when either file changes — a freshness guarantee graphify's own graph lacks.
-
-**Show the user the dry run first.** It lists the delete set; confirm before `--apply`. If the user wants a clean break with no imported edges, use `--apply --no-import` (`suggest` can regenerate candidates later, deterministically and free).
-
-## What the command cannot do for you
-
-1. **Switch the operating rules.** graphify vaults usually have rules pointing agents at graphify — in a `CLAUDE.md`, `AGENTS.md`, an editor hook, or a skill file. Find and update them:
-   - navigation order: read `MAP.md` first, then `wikimap search "<q>" --json`, then open the doc — replacing "read graphify-out/GRAPH_REPORT.md first".
-   - after editing vault files, run `wikimap update` (not a graphify rebuild).
-   - if a rule triggered on `graphify-out/graph.json` existing, retrigger it on `MAP.md` existing instead.
-   `wikimap install --agents-md` drops a maintained usage block into `AGENTS.md` idempotently.
-
-2. **Clean up git.** If the artifacts were tracked, `git rm -r --cached graphify-out` and drop any `graphify-out/cache/` lines from `.gitignore`.
-
-3. **Set the storage model** so nothing important gets gitignored by accident: `.wikimap/index.db` is a disposable cache (safe to gitignore — `update` rebuilds it), while `.wikimap/semantics.jsonl` is the source of truth for notes and edges (commit it).
-
-## Reversibility
-
-Source documents are never modified. To undo the wikimap index entirely, delete `.wikimap/` and `MAP.md` — no trace remains. To undo just the edge import, remove the `origin: graphify-import` lines from `.wikimap/semantics.jsonl` and run `wikimap update`.
 """
 
 HEADING = re.compile(r"^(#{1,6})\s+(.*)")
@@ -1159,63 +1117,6 @@ def sync_semantics(root: Path, db):
             )
     db.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('semantics_sha', ?)", (sha,))
     db.commit()
-
-
-def import_graphify_edges(root, db, graph_path):
-    data = json.loads(Path(graph_path).expanduser().read_text())
-    nodes = {n["id"]: n for n in data.get("nodes", [])}
-    known = {p for (p,) in db.execute("SELECT path FROM files")}
-
-    def resolve(p):
-        if not p:
-            return None
-        if p in known:
-            return p
-        if "wiki/" + p in known:
-            return "wiki/" + p
-        return None
-
-    pairs, skipped = {}, 0
-    for l in data.get("links", []):
-        if l.get("confidence") != "INFERRED":
-            continue
-        s, t = nodes.get(l.get("source")), nodes.get(l.get("target"))
-        sp = resolve(s.get("source_file")) if s else None
-        tp = resolve(t.get("source_file")) if t else None
-        if not sp or not tp or sp == tp:
-            skipped += 1
-            continue
-        key = tuple(sorted([sp, tp]))
-        info = pairs.setdefault(key, {"relations": [], "rationales": []})
-        info["relations"].append(l.get("relation", "conceptually_related_to"))
-        if len(info["rationales"]) < 3:
-            info["rationales"].append(f'{s.get("label")} --{l.get("relation","")}→ {t.get("label")}')
-
-    shas = {p: sha for p, sha in db.execute("SELECT path, sha FROM files")}
-    existing = {(s, d, r) for s, d, r in db.execute("SELECT src, dst, relation FROM edges")}
-    now = datetime.now(timezone.utc).isoformat()
-    added = 0
-    for (a, b), info in pairs.items():
-        rel = max(set(info["relations"]), key=info["relations"].count)
-        if (a, b, rel) in existing:
-            continue
-        append_semantics(root, {
-            "type": "edge", "src": a, "dst": b, "relation": rel,
-            "rationale": " | ".join(info["rationales"]), "origin": "graphify-import",
-            "created": now, "src_sha": shas[a], "dst_sha": shas[b],
-        })
-        added += 1
-    sync_semantics(root, db)
-    write_map(root, db)
-    return added, len(pairs), skipped
-
-
-def cmd_import_graphify(root, db, args):
-    added, pairs, skipped = import_graphify_edges(root, db, args.graph)
-    print(
-        f"imported {added} doc-pair edges (from {pairs} pairs; "
-        f"{skipped} entity-edges skipped: same-doc or unresolved path)"
-    )
 
 
 TOKEN = re.compile(r"[^\W\d_]\w+")
@@ -3264,80 +3165,6 @@ def install_agents_md(cwd):
         print(f"appended the wikimap block to {p} (existing content untouched)")
 
 
-GRAPHIFY_ARTIFACT_DIRS = ("graphify-out",)
-GRAPHIFY_ARTIFACT_FILES = (".graphifyignore",)
-
-
-def find_graphify_artifacts(root: Path):
-    """graphify가 *생성한* 것만 고른다. 사용자가 쓴 문서는 이름에 graphify가 들어가도 손대지 않는다."""
-    dirs, files, graphs = [], [], []
-    for p in root.rglob("*"):
-        if any(part in IGNORE_DIRS for part in p.relative_to(root).parts[:-1]):
-            continue
-        rel = p.relative_to(root).as_posix()
-        if p.is_dir() and p.name in GRAPHIFY_ARTIFACT_DIRS:
-            dirs.append(rel)
-        elif p.is_file() and p.name in GRAPHIFY_ARTIFACT_FILES:
-            files.append(rel)
-    for d in dirs:
-        g = root / d / "graph.json"
-        if g.is_file():
-            graphs.append(g.relative_to(root).as_posix())
-    # 아티팩트 디렉터리 밖의 graph.json 은 사용자 파일일 수 있으므로 자동 삭제 대상에서 뺀다
-    dirs = [d for d in dirs if not any(d.startswith(o + "/") for o in dirs if o != d)]
-    return dirs, files, graphs
-
-
-def cmd_migrate(root, db, args):
-    dirs, files, graphs = find_graphify_artifacts(root)
-    if not dirs and not files:
-        print("no graphify artifacts found — nothing to migrate.")
-        print("if this vault never used graphify, just run: wikimap update")
-        return
-
-    graph = args.graph or (graphs[0] if graphs else None)
-    print(f"migrate graphify → wikimap  ({root})")
-    print()
-    print("  will REMOVE (graphify's own artifacts):")
-    for d in dirs:
-        print(f"    {d}/")
-    for f in files:
-        print(f"    {f}")
-    print()
-    if graph and not args.no_import:
-        print(f"  will IMPORT inferred edges from {graph} first (before removal)")
-    elif graph:
-        print(f"  will SKIP the edge import (--no-import); {graph} is deleted with its directory")
-    else:
-        print("  no graph.json found — nothing to import, only artifacts to remove")
-    print("  will REINDEX with wikimap (sub-second, 0 tokens) and write MAP.md")
-    print()
-    print("  your source documents are never touched.")
-    if not args.apply:
-        print()
-        print("dry run — nothing written. Re-run with --apply to execute.")
-        return
-
-    if graph and not args.no_import:
-        added, pairs, skipped = import_graphify_edges(root, db, root / graph)
-        print(f"imported {added} doc-pair edges (from {pairs} pairs; {skipped} skipped)")
-
-    for d in dirs:
-        shutil.rmtree(root / d, ignore_errors=True)
-        print(f"removed {d}/")
-    for f in files:
-        (root / f).unlink(missing_ok=True)
-        print(f"removed {f}")
-
-    args.ignore = None
-    cmd_update(root, db, args)
-    print()
-    print("migration done. Next: point your agent rules at wikimap")
-    print("  - navigation: read MAP.md, then `wikimap search \"<q>\" --json`")
-    print("  - after editing vault files: `wikimap update`")
-    print("  - `wikimap install --agents-md` drops a usage block into AGENTS.md")
-
-
 def cmd_install(args):
     if args.hook:
         install_hook(find_root(args.root))
@@ -3364,13 +3191,6 @@ def cmd_install(args):
             skill.write_text(SKILL_TEMPLATE.replace("__WIKIMAP__", f"python3 {tool}"),
                              encoding="utf-8")
             print(f"wrote {skill}")
-        migrate = dest.parent / "graphify-to-wikimap" / "SKILL.md"
-        if migrate.exists():
-            print(f"kept existing {migrate} (customizations preserved)")
-        else:
-            migrate.parent.mkdir(parents=True, exist_ok=True)
-            migrate.write_text(MIGRATE_SKILL, encoding="utf-8")
-            print(f"wrote {migrate}")
         print(f"installed wikimap {VERSION} to {dest}")
     print("next: cd <your-vault> && wikimap update")
 
@@ -3471,14 +3291,6 @@ def main():
     lsp.add_argument("--prune", action="store_true")
     lsp.add_argument("--json", action="store_true", help="structured output for agents/scripts")
 
-    ig = sub.add_parser("import-graphify", help="import INFERRED edges from a graphify graph.json")
-    ig.add_argument("graph", help="path to graph.json")
-
-    mg = sub.add_parser("migrate", help="migrate a graphify vault to wikimap (one command, dry run by default)")
-    mg.add_argument("--apply", action="store_true", help="actually do it (default: dry run)")
-    mg.add_argument("--no-import", action="store_true", help="discard graphify's inferred edges instead of importing them")
-    mg.add_argument("--graph", help="path to graph.json (default: auto-detect in graphify-out/)")
-
     sg = sub.add_parser("suggest", help="heuristic candidates for inferred doc connections (no LLM)")
     sg.add_argument("--doc", help="limit to pairs involving this vault-relative path")
     sg.add_argument("-n", type=int, default=10, help="max candidates (0 = no cap)")
@@ -3549,10 +3361,6 @@ def main():
             cmd_note_add(root, db, args)
         elif args.cmd == "notes":
             cmd_notes(root, db, args)
-        elif args.cmd == "import-graphify":
-            cmd_import_graphify(root, db, args)
-        elif args.cmd == "migrate":
-            cmd_migrate(root, db, args)
         elif args.cmd == "embed":
             cmd_embed(root, db, args)
         elif args.cmd == "semsearch":

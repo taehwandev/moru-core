@@ -253,7 +253,7 @@ class TargetProtectionTests(unittest.TestCase):
             planted = Path(tmp) / "setup-agent-hooks.py"
             planted.write_text("print('hi')\n", encoding="utf-8")
             for command, expected in (
-                (f"{launcher} setup-agent-hooks --dry-run --skip-graphify --target {target}", []),
+                (f"{launcher} setup-agent-hooks --dry-run --target {target}", []),
                 (f"{launcher} setup-agent-hooks --check --target={target}", []),
                 (f"{launcher} setup-agent-hooks --target {target}", owned),
                 (f"/usr/bin/python3 {planted} --dry-run --target {target}", owned),

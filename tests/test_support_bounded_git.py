@@ -23,7 +23,6 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import agent_continuation_store
 import agent_worktree_fingerprint
-import support.graphify_graph_freshness as graph_freshness
 import agent_worktree_scan  # noqa: F401  (patched by the stream tests)
 from support.bounded_git import (
     GIT_READ_TIMEOUT_SECONDS,
@@ -131,10 +130,6 @@ class ConvertedCallersFailClosedTests(unittest.TestCase):
                 ignored = agent_continuation_store._git_ignores(project, packet)
 
         self.assertFalse(ignored, "an unanswered git check-ignore may not read as ignored")
-
-    def test_graph_freshness_reports_no_head_rather_than_a_stale_one(self) -> None:
-        with patch("subprocess.run", timing_out):
-            self.assertIsNone(graph_freshness._git_head(ROOT))
 
 
 class StreamingReadsAreBoundedTests(unittest.TestCase):

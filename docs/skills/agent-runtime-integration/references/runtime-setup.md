@@ -126,9 +126,7 @@ in the [official configuration reference](https://learn.chatgpt.com/docs/config-
 (verified 2026-10-09 with Codex 0.161.0).
 
 A runtime-scoped check or repair validates and changes that runtime's managed
-bridge and permission rules only. In particular, `--runtime codex` must not
-run, require, or alter global Graphify setup; use the unscoped setup or the
-explicit target Graphify flow when Graphify is in scope.
+bridge and permission rules only.
 
 This setup is global because the Moru Core Python wrappers and graph-backed
 document routing are shared by every target repo. Keep it narrow: install or
@@ -389,13 +387,9 @@ prompts, or uncommitted user-level runtime bridges only.
 
 Do not paste the full Moru Core library into runtime-specific files.
 
-For Graphify specifically, follow
-`docs/skills/graphify-project-integration/SKILL.md`: the canonical project
-bundle lives at `.moru/skills/graphify`, while only the Graphify
-discovery paths below `.codex`, `.claude`, and `.agents` are repo-relative
-links or genuinely runtime-specific hooks, rules, workflows, and registration.
-Other project-local knowledge under those directories remains independently
-owned project input and must not be hidden by a blanket runtime-directory rule.
+Project-local knowledge under `.codex`, `.claude`, and `.agents` remains
+independently owned project input and must not be hidden by a blanket
+runtime-directory rule.
 
 ## One-Shot Prompt Setup
 

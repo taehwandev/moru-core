@@ -1,7 +1,7 @@
 """Exact read-only grammars for local developer tools the core list leaves out.
 
 Owner: command-shape recognition for Node test/typecheck runs and pure lookups
-(npm registry and dependency-tree queries, graphify graph queries,
+(npm registry and dependency-tree queries,
 `defaults read`, and the macOS process probes footprint, top and sample),
 consulted by claude_bash_readonly.
 Allowed imports: standard library, claude_bash_compile_check, claude_bash_syntax.
@@ -40,9 +40,6 @@ TSC_PATH_OPTIONS = frozenset({"-p", "--project"})
 # options that move those are refused.
 NPM_LOOKUPS = frozenset({"view", "info", "show", "v", "whoami", "ls", "list", "la", "ll"})
 NPM_LOCATION_OPTIONS = frozenset({"--cache", "--logs-dir"})
-GRAPHIFY_LOOKUPS = frozenset({"query", "path", "explain"})
-GRAPHIFY_SWITCHES = frozenset({"--dfs"})
-GRAPHIFY_VALUE_OPTIONS = frozenset({"--context", "--budget", "--graph"})
 DEFAULTS_READS = frozenset({"read", "read-type"})
 FOOTPRINT_OUTPUT_OPTIONS = frozenset({"-j", "--json"})
 SAMPLE_SWITCHES = frozenset({"-wait", "-mayDie", "-fullPaths"})
@@ -141,8 +138,6 @@ def lookup_command_kind(command: list[str], cwd: Path | None) -> str | None:
         admitted = bool(arguments) and arguments[0] in NPM_LOOKUPS and not any(
             word.partition("=")[0] in NPM_LOCATION_OPTIONS for word in arguments
         )
-    elif name == "graphify":
-        admitted = bool(arguments) and arguments[0] in GRAPHIFY_LOOKUPS and _graphify_options(arguments[1:])
     elif name == "defaults":
         if arguments[:1] == ["-currentHost"]:
             arguments = arguments[1:]
@@ -158,20 +153,6 @@ def lookup_command_kind(command: list[str], cwd: Path | None) -> str | None:
     else:
         return None
     return "read_only" if admitted else None
-
-
-def _graphify_options(arguments: list[str]) -> bool:
-    index = 0
-    while index < len(arguments):
-        word = arguments[index]
-        index += 1
-        flag, equal, _value = word.partition("=")
-        if flag in GRAPHIFY_VALUE_OPTIONS:
-            if not equal:
-                index += 1
-        elif word.startswith("-") and word not in GRAPHIFY_SWITCHES:
-            return False
-    return index <= len(arguments)
 
 
 def _outputs_scratch(arguments: list[str], output_options: frozenset[str], cwd: Path | None) -> bool:

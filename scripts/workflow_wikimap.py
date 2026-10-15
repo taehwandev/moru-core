@@ -1,7 +1,7 @@
 """Pinned Wikimap adapter for Moru Core document discovery.
 
-Only deterministic indexing and read-only search are exposed here. Graphify,
-hook installation, migration, semantic notes, and source edits stay outside
+Only deterministic indexing and read-only search are exposed here.
+Hook installation, migration, semantic notes, and source edits stay outside
 this boundary.
 """
 
@@ -24,15 +24,11 @@ from workflow_gate_policy import READ_ONLY_LOOKUP
 
 WIKIMAP_VERSION = "1.5.0"
 WIKIMAP_COMMIT = "ede03cd8ddb545b6b538237509516948fdf00174"
-WIKIMAP_SHA256 = "ae179ab38a03765844cd6cf506de6c512e3b61ca468515f222d62c74179210a6"
+WIKIMAP_SHA256 = "0322cd07037f33d8f7a42a84ced4ba8a10bc9d3829cc4b0faea4b1a566c4ea4d"
 WIKIMAP_SCRIPT = Path(__file__).resolve().parent / "third_party" / "wikimap" / "wikimap.py"
 WIKIMAP_TIMEOUT_SECONDS = 15
 WIKIMAP_IGNORES = (
     ".moru",
-    ".agents/skills/graphify",
-    ".claude/skills/graphify",
-    ".codex/skills/graphify",
-    "graphify-out",
     "scripts/.moru",
     "scripts/third_party",
 )
@@ -44,7 +40,7 @@ _WIKIMAP_INDEX_EXTENSIONS = frozenset(
     ".adoc .gif .htm .html .jpeg .jpg .md .org .pdf .png .rst .svg .txt .webp".split()
 )
 _WIKIMAP_BUILTIN_IGNORED_DIRECTORIES = frozenset(
-    ".claude .github .obsidian .trash __pycache__ .venv graphify-out node_modules venv".split()
+    ".claude .github .obsidian .trash __pycache__ .venv node_modules venv".split()
 )
 
 # What the signature walks has to match what the index can read: the same CLI

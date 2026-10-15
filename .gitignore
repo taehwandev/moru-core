@@ -28,16 +28,6 @@ build/
 # the deterministic SQLite cache is rebuilt locally by workflow.py.
 .wikimap/
 
-# Graphify local cache/runtime state. Keep current curated graph outputs visible.
-graphify-out/cache/
-graphify-out/.graphify_*
-graphify-out/**/.graphify_*
-graphify-out/cost.json
-graphify-out/**/cost.json
-graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
-
-# The generated graph moved to .agents/local/graphify-out, and the rules above
-# are anchored to the repository root, so they never covered the new location.
 # `.agents/local` is local generated state by contract -- only `.agents/shared`
 # is durable project knowledge -- so ignore the whole boundary.
 .agents/local/
@@ -50,8 +40,6 @@ graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 !.moru/.gitignore
 !.moru/skills/
 .moru/skills/*
-!.moru/skills/graphify/
-!.moru/skills/graphify/**
 # moru-project-assets:end
 
 # Evidence emitted from a nested working directory is always local runtime state.

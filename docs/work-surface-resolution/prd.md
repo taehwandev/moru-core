@@ -6,6 +6,12 @@ type: human-reviewed-needed
 
 # Evidence-First Work-Surface Resolution
 
+Graphify-specific requirements and regression cases below are historical:
+Moru Core removed that integration on 2026-10-15. They preserve the routing
+incident that motivated owner verification and do not require Graphify setup,
+readiness gates, or support in the current implementation. The remaining
+owner-resolution contract still applies.
+
 ## Decision
 
 Moru Core should select task-specific guidance only after it has verified the

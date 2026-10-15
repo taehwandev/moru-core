@@ -37,6 +37,6 @@ Only repository-verified owner paths may be passed through --surface-path; reque
 
 Use workflow-doc-surfaces.json for verified owner/action selection and follow only explicit requires_docs dependencies from already selected documents; ordinary links and graph neighbors never form a reading queue.
 
-Use Wikimap only for an unresolved analysis or guidance-discovery question, and use Graphify only when bounded direct repository search cannot resolve a structural ownership, dependency, or impact question. Refresh Graphify explicitly on demand, never automatically on checkout or commit.
+Use Wikimap only for an unresolved analysis or guidance-discovery question. For code ownership, dependencies, or impact, use bounded direct search first, then one precise CodeGraph question only when a current `.codegraph` exists. Do not initialize an index during ordinary work.
 
 If deterministic routing misses a clearly relevant platform, concern, document surface, or explicit dependency, stop and report the gap instead of proceeding from memory or widening discovery automatically.

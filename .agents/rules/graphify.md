@@ -1,1 +1,0 @@
-../../.moru/skills/graphify/runtime/antigravity/rule.md

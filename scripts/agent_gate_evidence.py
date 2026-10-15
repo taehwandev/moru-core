@@ -67,15 +67,6 @@ FIELD_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     ),
     "documentation": ("decision", "target", "reason"),
     "documentation impact": ("artifact", "decision", "reason"),
-    "graphify readiness": (
-        "cli",
-        "skill_doc",
-        "runtime_links",
-        "runtime_ownership",
-        "project_integration",
-        "graph",
-        "query_smoke",
-    ),
     "work surface resolution": (
         "result",
         "owner",
@@ -96,7 +87,6 @@ FIELD_REQUIREMENTS: dict[str, tuple[str, ...]] = {
 AMBIGUITY_BLOCKER_STATUSES = ("none", "resolved")
 AMBIGUITY_DECISIONS = ("proceed",)
 ALIGNMENT_BRIEF_CHECKPOINTS = ("user_visible_before_edits",)
-GRAPHIFY_READINESS_STATUS = "success"
 WORK_SURFACE_RESOLUTION_RESULTS = ("resolved",)
 
 
@@ -135,10 +125,6 @@ def gate_field_enums(gate: str) -> dict[str, tuple[str, ...]]:
         "retrospective check": {
             "outcome": tuple(sorted(RETROSPECTIVE_OUTCOMES)),
             "observation": tuple(sorted(RETROSPECTIVE_OBSERVATION_STATES)),
-        },
-        "graphify readiness": {
-            field: (GRAPHIFY_READINESS_STATUS,)
-            for field in FIELD_REQUIREMENTS["graphify readiness"]
         },
         "work surface resolution": {
             "result": WORK_SURFACE_RESOLUTION_RESULTS,
@@ -812,31 +798,6 @@ def _render_tests(
     return f"test/check run: {fields['check']}; result: {fields['result']}", []
 
 
-def _render_graphify_readiness(
-    gate: str, fields: dict[str, str], evidence: str
-) -> tuple[str, list[str]]:
-    """Render recorded evidence for the 'graphify readiness' gate."""
-
-    invalid = [
-        field
-        for field in FIELD_REQUIREMENTS[gate]
-        if fields[field].strip().lower() != GRAPHIFY_READINESS_STATUS
-    ]
-    if invalid:
-        return "", [
-            "graphify readiness fields must use exact success status: "
-            + ", ".join(invalid)
-        ]
-    return (
-        f"graphify readiness: cli={fields['cli']}; skill doc="
-        f"{fields['skill_doc']}; runtime links={fields['runtime_links']}; "
-        f"runtime ownership={fields['runtime_ownership']}; project integration="
-        f"{fields['project_integration']}; target graph={fields['graph']}; "
-        f"query smoke={fields['query_smoke']}",
-        [],
-    )
-
-
 # One renderer per gate, because that is what the chain this replaced was:
 # fourteen `if gate == ...` arms in one 181-line block, against the
 # 120-line limit this repository enforces on every change. A table also
@@ -856,7 +817,6 @@ _GATE_RENDERERS = {
     "documentation": _render_documentation,
     "source docs": _render_source_docs,
     "tests": _render_tests,
-    "graphify readiness": _render_graphify_readiness,
 }
 
 
@@ -865,7 +825,6 @@ def synthesize_gate_evidence(
     evidence: str,
     fields: dict[str, str],
 ) -> tuple[str, list[str]]:
-    fields = _canonical_structured_gate_fields(gate, fields)
     missing = missing_structured_gate_fields(gate, evidence, fields)
     if missing:
         return "", missing
@@ -897,7 +856,6 @@ def missing_structured_gate_fields(
 ) -> list[str]:
     """Return the complete structured-field requirement for one gate record."""
 
-    fields = _canonical_structured_gate_fields(gate, fields)
     if gate in PROSE_COMPATIBLE_STRUCTURED_GATES and evidence.strip():
         return []
 
@@ -918,23 +876,6 @@ def missing_structured_gate_fields(
             if not fields.get(field, "").strip()
         )
     return list(dict.fromkeys(missing))
-
-
-def _canonical_structured_gate_fields(
-    gate: str,
-    fields: dict[str, str],
-) -> dict[str, str]:
-    """Translate bounded legacy field names without preserving them on new writes."""
-
-    if gate != "graphify readiness":
-        return fields
-    canonical = dict(fields)
-    if not canonical.get("runtime_ownership", "").strip():
-        legacy_value = canonical.get("git_ownership", "")
-        if legacy_value.strip():
-            canonical["runtime_ownership"] = legacy_value
-    canonical.pop("git_ownership", None)
-    return canonical
 
 
 def incomplete_gate_evidence_failures(diagnostics: dict[str, Any]) -> list[str]:
@@ -1040,7 +981,6 @@ def canonical_gate_fields(
 ) -> dict[str, str]:
     """Populate fields the agent must not be allowed to self-declare."""
 
-    fields = _canonical_structured_gate_fields(gate, fields)
     if gate != "source docs":
         return fields
     required_docs = required_docs_for_route(preflight.get("route") or {})

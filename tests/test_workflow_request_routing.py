@@ -147,6 +147,16 @@ class WorkflowRequestIntakeTests(unittest.TestCase):
 
 
 class ConcernInferenceTests(unittest.TestCase):
+    def test_removed_graphify_never_adds_a_concern(self) -> None:
+        for request in (
+            "Install Graphify and build a project graph.",
+            "Graphify는 제외하지 마.",
+            "그래피를 실행해줘",
+            "Use CodeGraph instead of Graphify.",
+        ):
+            with self.subTest(request=request):
+                self.assertNotIn("graphify", infer_concerns_from_request(request))
+
     def test_auth_concern_requires_a_korean_term_boundary(self) -> None:
         self.assertNotIn(
             "auth",
@@ -189,90 +199,12 @@ class ConcernInferenceTests(unittest.TestCase):
                     infer_concerns_from_request(request),
                 )
 
-    def test_explicit_graphify_opt_out_drops_the_concern(self) -> None:
-        for request in (
-            "Do not run Graphify for this task.",
-            "Never include Graphify here.",
-            "Graphify는 제외해줘.",
-            "그래피는 지금 돌리면 안됨",
-        ):
-            with self.subTest(request=request):
-                self.assertNotIn("graphify", infer_concerns_from_request(request))
-
-    def test_double_negation_keeps_the_graphify_concern(self) -> None:
-        for request in (
-            "Do not skip Graphify.",
-            "Graphify는 제외하지 마.",
-            "그래피는 건너뛰지 마.",
-        ):
-            with self.subTest(request=request):
-                self.assertIn("graphify", infer_concerns_from_request(request))
-
-    def test_graphify_replacement_questions_do_not_require_graphify_readiness(self) -> None:
-        for request in (
-            "Use CodeGraph instead of Graphify.",
-            "Can CodeGraph replace Graphify?",
-            "Graphify replacement을 검토해줘.",
-            "그래피파이 대신 CodeGraph를 적용해줘.",
-            "Graphify를 CodeGraph로 교체할 수 있는지 확인해줘.",
-        ):
-            with self.subTest(request=request):
-                self.assertNotIn("graphify", infer_concerns_from_request(request))
-
-    def test_graphify_replacement_negation_keeps_the_concern(self) -> None:
-        for request in (
-            "Do not replace Graphify.",
-            "Graphify는 대체하지 마.",
-        ):
-            with self.subTest(request=request):
-                self.assertIn("graphify", infer_concerns_from_request(request))
-
-    def test_attached_hangul_particles_match_complete_latin_keywords(self) -> None:
-        self.assertIn("graphify", infer_concerns_from_request("Graphify를 실행해줘"))
-        self.assertNotIn("graphify", infer_concerns_from_request("graphifyer를 검토해줘"))
-
 
 class AttachedHangulParticleTests(unittest.TestCase):
-    """Korean writes "Graphify는", not "Graphify 는".
-
-    Python's \\b finds no boundary between a Latin letter and a Hangul particle
-    because both are word characters, so the ordinary Korean spelling used to
-    match no hint at all: "Graphify는 제외하지 마" inferred nothing, which looks
-    to the user exactly like the inverted match — they asked to keep Graphify
-    and lost it.
-    """
-
-    def test_attached_particle_opt_out_drops_the_concern(self) -> None:
-        for request in (
-            "Graphify는 빼줘",
-            "Graphify는 제외해줘",
-            "graphify는 생략",
-            "Graphify는 하지 마",
-            "graphify없이 진행해줘",
-        ):
-            with self.subTest(request=request):
-                self.assertNotIn("graphify", infer_concerns_from_request(request))
-
-    def test_attached_particle_double_negation_keeps_the_concern(self) -> None:
-        for request in (
-            "Graphify는 제외하지 마",
-            "Graphify는 빼지 말고 돌려줘",
-            "graphify는 생략하지 마",
-        ):
-            with self.subTest(request=request):
-                self.assertIn("graphify", infer_concerns_from_request(request))
-
-    def test_attached_particle_request_infers_the_concern(self) -> None:
-        """The control that fails if the junction fix is reverted.
-
-        Without it the hint itself never fires, so the concern is absent no
-        matter which direction the sentence argues.
-        """
-
-        self.assertIn("graphify", infer_concerns_from_request("Graphify는 어떻게 써?"))
+    """Attached Hangul particles must preserve complete keyword matches."""
 
     def test_other_latin_keyword_concerns_share_the_fix(self) -> None:
-        """The blind spot was never graphify-specific: 228 hints are \\b-anchored."""
+        """The normalization applies to every Latin keyword hint."""
 
         for request, concern in (
             ("SwiftUI는 어떻게 쓰지", "swift"),
@@ -290,149 +222,9 @@ class AttachedHangulParticleTests(unittest.TestCase):
         Hangul syllable, so a longer identifier still has to fail the hint.
         """
 
-        self.assertNotIn("graphify", infer_concerns_from_request("graphifyer를 고쳐줘"))
+        self.assertNotIn("swift", infer_concerns_from_request("swifter를 고쳐줘"))
         self.assertNotIn(
-            "graphify", infer_concerns_from_request("graphifyui는 무엇인가")
-        )
-
-
-class GraphifyExclusionPhrasingTests(unittest.TestCase):
-    """Opting out of Graphify must not depend on one exact verb.
-
-    The exclusion patterns were anchored to run/use/invoke/call/install/enable,
-    so "do not execute Graphify" still inferred the concern and pulled the whole
-    Graphify surface into the route. Korean drops the verb entirely.
-    """
-
-    EXCLUSIONS = (
-        "Do not execute Graphify for this task",
-        "Do not run Graphify for this task",
-        "Never execute graphify here",
-        "Finish without executing graphify",
-        "Don't include Graphify",
-        "Don’t include Graphify",
-        "Do not include graphify in this task",
-        "Never include Graphify here",
-        "Proceed without including Graphify",
-        "Graphify should not be included",
-        "Graphify 는 하지 마",
-        "graphify 하지 않습니다",
-        "그래프 는 제외",
-    )
-
-    def test_exclusion_phrasings_drop_the_graphify_concern(self) -> None:
-        for request in self.EXCLUSIONS:
-            with self.subTest(request=request):
-                self.assertNotIn("graphify", infer_concerns_from_request(request))
-
-    def test_negated_include_regresses_the_old_action_verb_gap(self) -> None:
-        """`include` was absent from the action verbs, so this kept Graphify."""
-
-        self.assertNotIn(
-            "graphify",
-            infer_concerns_from_request("Don't include Graphify"),
-        )
-
-    def test_negative_control_ordinary_graphify_requests_still_infer_it(self) -> None:
-        """The control: broadening the exclusion must not disable inference.
-
-        If it did, a genuine Graphify request would silently lose its concern
-        and the route would never load the Graphify surface at all.
-        """
-
-        for request in (
-            "Run graphify and report the project graph",
-            "Include Graphify in the routing review",
-            "graphify 그래프를 갱신해줘",
-            "Rebuild the knowledge graph with graphify update",
-        ):
-            with self.subTest(request=request):
-                self.assertIn("graphify", infer_concerns_from_request(request))
-
-    def test_double_negation_include_fix_does_not_invert_removal_verbs(self) -> None:
-        for request in (
-            "Do not exclude Graphify",
-            "Don’t exclude Graphify",
-            "Graphify 는 제외하지 마",
-        ):
-            with self.subTest(request=request):
-                self.assertIn("graphify", infer_concerns_from_request(request))
-
-
-class GraphifyOptOutVerbTests(unittest.TestCase):
-    """Opting out by removal verb, and the double negation that undoes it.
-
-    "Skip Graphify" was not recognised at all, and "Graphify 는 제외하지 마"
-    ("do NOT exclude Graphify") matched a bare-negation pattern and dropped the
-    concern the user had just asked to keep.
-    """
-
-    OPT_OUTS = (
-        "Skip Graphify for this task",
-        "Omit graphify here",
-        "Please exclude graphify",
-        "Disable graphify for now",
-        "Bypass graphify entirely",
-        "Leave out graphify",
-        "Leave graphify out of this",
-        "Drop graphify from this run",
-        "Graphify should be skipped",
-        "그래피는 빼줘",
-        "그래피 빼고 진행해줘",
-        "그래피를 제외해줘",
-        "지식 그래프는 생략해줘",
-        "graphify 는 건너뛰어",
-        "프로젝트 그래프는 무시해줘",
-    )
-
-    DOUBLE_NEGATIONS = (
-        "Do not skip graphify",
-        "Don't exclude graphify",
-        "Never omit graphify",
-        "do not disable graphify",
-        "You should not bypass graphify",
-        "Graphify 는 제외하지 마",
-        "그래피는 빼지 마",
-        "그래피 건너뛰지 마",
-        "graphify 생략하지 말고 진행해",
-        "지식 그래프는 무시하지 않는다",
-    )
-
-    def test_opt_out_verbs_drop_the_graphify_concern(self) -> None:
-        for request in self.OPT_OUTS:
-            with self.subTest(request=request):
-                self.assertNotIn("graphify", infer_concerns_from_request(request))
-
-    def test_double_negation_keeps_the_graphify_concern(self) -> None:
-        """Negating the opt-out verb asks for the opposite of the opt-out."""
-
-        for request in self.DOUBLE_NEGATIONS:
-            with self.subTest(request=request):
-                self.assertIn("graphify", infer_concerns_from_request(request))
-
-    def test_negative_control_genuine_graphify_requests_still_infer_it(self) -> None:
-        """The opposite direction: the broadened opt-out must not swallow work.
-
-        Korean 그래프 is an ordinary word, so an over-broad opt-out pattern
-        would strip the concern from requests that are asking for Graphify.
-        """
-
-        for request in (
-            "Run graphify update on the repo",
-            "graphify query 로 구조를 설명해줘",
-            "graphify 그래프를 갱신해줘",
-            "지식 그래프를 만들어줘",
-            "Rebuild the knowledge graph with graphify update",
-        ):
-            with self.subTest(request=request):
-                self.assertIn("graphify", infer_concerns_from_request(request))
-
-    def test_unrelated_chart_sentence_is_unaffected(self) -> None:
-        """A bare 그래프 mention is not a Graphify request either way."""
-
-        self.assertEqual(
-            infer_concerns_from_request("차트에서 그래프를 제외한 나머지를 보여줘"),
-            [],
+            "swift", infer_concerns_from_request("swifters는 무엇인가")
         )
 
 
@@ -610,8 +402,6 @@ class KoreanReleaseScopeSignalTests(unittest.TestCase):
 
     def test_unrelated_requests_keep_their_route(self) -> None:
         self.assertEqual("code-simplify", classify_request("리팩터링해줘")["route_shape"])
-
-
 
 
 class DeviceMcpRoutingTests(unittest.TestCase):

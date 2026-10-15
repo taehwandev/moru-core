@@ -295,27 +295,6 @@
   },
   "request_intents": [
     {
-      "name": "target_project_graphify",
-      "commands": [
-        "workflow-setup",
-        "task",
-        "docs",
-        "review"
-      ],
-      "request_any": [
-        "\\bgraphify\\b",
-        "\\b(knowledge graph|codebase graph|project graph)\\b"
-      ],
-      "docs": [
-        "docs/skills/graphify-project-integration/SKILL.md",
-        "docs/skills/agent-bootstrap/SKILL.md",
-        "common/skills/llm-wiki-documentation/SKILL.md",
-        "workflows/skills/documentation-update/SKILL.md",
-        "common/skills/verification-policy/SKILL.md"
-      ],
-      "reason": "Target-project Graphify setup and readiness work must use the bootstrap procedure, derived-wiki boundary, documentation policy, and verification rules."
-    },
-    {
       "name": "code_cleanup",
       "commands": [
         "code-simplify",
@@ -1715,24 +1694,6 @@
     }
   ],
   "path_surfaces": [
-    {
-      "name": "graphify_integration",
-      "patterns": [
-        "scripts/support/graphify_*.py",
-        "scripts/workflow_graphify_route.py",
-        "docs/skills/graphify-project-integration/**",
-        "docs/skills/agent-bootstrap/**",
-        "templates/repo-agents-routing.md"
-      ],
-      "docs": [
-        "docs/skills/graphify-project-integration/SKILL.md",
-        "docs/skills/agent-bootstrap/SKILL.md",
-        "common/skills/llm-wiki-documentation/SKILL.md",
-        "workflows/skills/documentation-update/SKILL.md",
-        "common/skills/verification-policy/SKILL.md"
-      ],
-      "reason": "Graphify integration changes must preserve target-project ownership, derived-artifact boundaries, bootstrap instructions, and readiness verification."
-    },
     {
       "name": "runtime_setup",
       "patterns": [

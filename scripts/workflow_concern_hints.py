@@ -7,19 +7,6 @@ from typing import Tuple
 
 REQUEST_CONCERN_HINTS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
     (
-        "graphify",
-        (
-            r"\bgraphify\b",
-            r"\bknowledge graphs?\b",
-            r"\bcodebase graphs?\b",
-            r"\bproject graphs?\b",
-            "그래피",
-            "그래프 설치",
-            "프로젝트 그래프",
-            "지식 그래프",
-        ),
-    ),
-    (
         "swift",
         (
             r"\bswift\b",

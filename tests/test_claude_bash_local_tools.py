@@ -74,6 +74,11 @@ class NodeTestAndLookupClassification(_Fixture):
         self.assertEqual("mutating", local_tools.node_test_kind(["npm", "test"], None))
         self.assertIsNone(local_tools.node_test_kind(["npx", "tsc"], self.project))
 
+    def test_removed_graphify_commands_have_no_lookup_exemption(self) -> None:
+        for arguments in (["query", "policy"], ["path", "a", "b"], ["explain", "a"]):
+            with self.subTest(arguments=arguments):
+                self.assertIsNone(local_tools.lookup_command_kind(["graphify", *arguments], self.project))
+
     def test_pure_lookups_are_read_only(self) -> None:
         for command in (
             "npm view @scope/pkg version",
@@ -81,9 +86,6 @@ class NodeTestAndLookupClassification(_Fixture):
             "npm whoami",
             "npm ls",
             "npm ls --depth=0",
-            'graphify query "push command" --budget 200',
-            'graphify path "A" "B" --graph graphify-out/graph.json',
-            'graphify explain "X"',
             "defaults read /Applications/Spill.app/Contents/Info.plist CFBundleShortVersionString",
             "defaults -currentHost read com.apple.dock",
             "defaults read-type com.apple.dock tilesize",
@@ -103,8 +105,6 @@ class NodeTestAndLookupClassification(_Fixture):
             "npm publish",
             f"npm view left-pad --logs-dir={self.other}",
             f"npm ls --cache {self.other}",
-            "graphify update .",
-            "graphify query x --out result.json",
             "defaults write com.x key value",
             "defaults delete com.x",
             "defaults import com.x plist",
@@ -145,7 +145,7 @@ class NodeTestAndLookupClassification(_Fixture):
 
         for command in (
             "npm test", "npm run test", "npx tsc --noEmit -p .", "npm view @scope/pkg version",
-            "npm whoami", "npm ls", 'graphify query "push command" --budget 200',
+            "npm whoami", "npm ls",
             "defaults read /Applications/Spill.app/Contents/Info.plist CFBundleShortVersionString",
             "footprint -p 18008", "top -l 1 -pid 18008",
             f"sample 61464 30 -file {self.scratch / 'sample.txt'}",

@@ -18,7 +18,6 @@ import importlib.util
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -30,11 +29,8 @@ from agent_finish_gate_learning_validators import (
     RETROSPECTIVE_OUTCOMES,
     validate_retrospective_check,
 )
-import agent_finish_gate_policy
-import agent_gate_evidence
 from agent_gate_evidence import (
     FIELD_REQUIREMENTS,
-    GRAPHIFY_READINESS_STATUS,
     gate_field_enums,
     synthesize_gate_evidence,
 )
@@ -88,7 +84,6 @@ class RegistryShape(unittest.TestCase):
             ("ambiguity check", gate_field_enums("ambiguity check")),
             ("alignment brief", gate_field_enums("alignment brief")),
             ("retrospective check", gate_field_enums("retrospective check")),
-            ("graphify readiness", gate_field_enums("graphify readiness")),
         ):
             for field in fields:
                 with self.subTest(gate=gate, field=field):
@@ -99,7 +94,6 @@ class RegistryShape(unittest.TestCase):
             "ambiguity check",
             "alignment brief",
             "retrospective check",
-            "graphify readiness",
         ):
             for field, values in gate_field_enums(gate).items():
                 with self.subTest(gate=gate, field=field):
@@ -223,49 +217,6 @@ class RetrospectiveEnumsMatchTheValidator(unittest.TestCase):
             self.assertTrue(
                 any("observation must be" in failure for failure in failures),
                 f"observation membership not the stated reason: {failures}",
-            )
-
-
-class GraphifyEnumsMatchTheValidator(unittest.TestCase):
-    GATE = "graphify readiness"
-
-    def _synthesize(self, value):
-        fields = {field: value for field in FIELD_REQUIREMENTS[self.GATE]}
-        return synthesize_gate_evidence(self.GATE, "", fields)
-
-    def test_every_required_field_is_advertised(self):
-        self.assertEqual(
-            sorted(gate_field_enums(self.GATE)),
-            sorted(FIELD_REQUIREMENTS[self.GATE]),
-        )
-
-    def test_advertised_value_is_accepted(self):
-        _, failures = self._synthesize(GRAPHIFY_READINESS_STATUS)
-        self.assertEqual(failures, [])
-
-    def test_unadvertised_value_is_rejected(self):
-        for bogus in ("ok", "pass", "SUCCESSFUL", "ready"):
-            with self.subTest(bogus=bogus):
-                _, failures = self._synthesize(bogus)
-                self.assertTrue(failures, f"unadvertised value {bogus!r} was accepted")
-
-    def test_final_validator_reads_the_same_runtime_status_constant(self):
-        probe = "runtime_probe"
-        fields = {field: probe for field in FIELD_REQUIREMENTS[self.GATE]}
-
-        with patch.object(agent_gate_evidence, "GRAPHIFY_READINESS_STATUS", probe):
-            evidence, failures = synthesize_gate_evidence(self.GATE, "", fields)
-
-            self.assertEqual(failures, [])
-            self.assertEqual(
-                gate_field_enums(self.GATE),
-                {field: (probe,) for field in FIELD_REQUIREMENTS[self.GATE]},
-            )
-            self.assertEqual(
-                agent_finish_gate_policy.validate_gate_evidence(
-                    {self.GATE: evidence}, [self.GATE]
-                ),
-                [],
             )
 
 

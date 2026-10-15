@@ -30,7 +30,6 @@ EXCLUDED_DIRECTORY_NAMES = frozenset(
         ".vibeguard",
         ".wikimap",
         "__pycache__",
-        "graphify-out",
         "node_modules",
     }
 )

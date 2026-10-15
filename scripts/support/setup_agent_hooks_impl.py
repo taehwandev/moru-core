@@ -21,13 +21,6 @@ from support.codex_setup import (
     merge_codex_stop_gate,
 )
 from support.codex_statusline_setup import merge_codex_status_line
-from support.graphify_setup import (
-    CANONICAL_SKILL_PATH,
-    configure_global_graphify,
-    configure_target_graphify,
-    graphify_platforms_for_runtimes,
-)
-from support.graphify_contract import RUNTIME_BUNDLED_SKILL_DIR
 from support.maintenance_scheduler import configure_maintenance_scheduler
 from support.permission_entries import (
     claude_legacy_permission_entries,
@@ -96,17 +89,6 @@ def _argument_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Also install project-level permissions for all ~/GitHub/* projects.",
     )
-    graphify_group = parser.add_mutually_exclusive_group()
-    graphify_group.add_argument(
-        "--graphify",
-        action="store_true",
-        help="Also check Graphify local-graph readiness for --github-projects; --target enables it by default.",
-    )
-    graphify_group.add_argument(
-        "--skip-graphify",
-        action="store_true",
-        help="Skip the default target-project Graphify readiness check (explicit opt-out).",
-    )
     parser.add_argument(
         "--runtime",
         action="append",
@@ -138,9 +120,6 @@ def _main() -> None:
     if args.reset_codex_permission_default:
         _reset_codex_default(args, parser)
         return
-
-    if (args.graphify or args.skip_graphify) and not (args.target or args.github_projects):
-        parser.error("--graphify/--skip-graphify requires --target or --github-projects")
 
     dry_run = args.dry_run or args.check
     selected_runtimes = set(args.runtime)
@@ -186,22 +165,6 @@ def _main() -> None:
             spill_available=spill_available,
         )
 
-    global_graphify_platforms = graphify_platforms_for_runtimes(
-        selected_runtimes or {"agy", "claude", "codex"}
-    )
-    bundled_graphify = ROOT / RUNTIME_BUNDLED_SKILL_DIR
-    if _should_configure_global_graphify(selected_runtimes) and (
-        shutil.which("graphify")
-        or (Path.home() / CANONICAL_SKILL_PATH).is_file()
-        or (bundled_graphify / "SKILL.md").is_file()
-    ):
-        results += configure_global_graphify(
-            Path.home(),
-            global_graphify_platforms,
-            dry_run,
-            bundled_skill_dir=bundled_graphify,
-        )
-
     results += configure_target_projects(
         args,
         selected_runtimes=selected_runtimes,
@@ -215,7 +178,7 @@ def _main() -> None:
 
 
 def _reset_codex_default(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    if args.target or args.github_projects or args.graphify or args.skip_graphify or args.runtime not in ([], ["codex"]):
+    if args.target or args.github_projects or args.runtime not in ([], ["codex"]):
         parser.error("--reset-codex-permission-default cannot be combined with other setup targets")
     target = Path.home() / ".codex" / "config.toml"
     try:
@@ -264,7 +227,7 @@ def configure_target_projects(
     launcher_configured: bool,
     spill_available: bool,
 ) -> list[dict]:
-    """Configure explicit or bulk target repos without widening Graphify scope."""
+    """Configure the selected runtime integrations in explicit or bulk target repos."""
     explicit_target = Path(args.target).expanduser().resolve() if args.target else None
     target_paths = [explicit_target] if explicit_target else []
     if args.github_projects:
@@ -276,10 +239,6 @@ def configure_target_projects(
 
     configure_claude_target = _runtime_selected("claude", selected_runtimes) and _has_claude()
     configure_codex_target = _runtime_selected("codex", selected_runtimes) and _has_codex()
-    # Never create Graphify skill copies or discovery links in target repos.
-    graphify_platforms = graphify_platforms_for_runtimes(
-        selected_runtimes or {"agy", "claude", "codex"}
-    )
     for project_path in target_paths:
         if configure_claude_target:
             results += configure_external_project(
@@ -300,11 +259,6 @@ def configure_target_projects(
                     "path": str(config_target),
                 }
             )
-        graphify_enabled = not args.skip_graphify and bool(
-            args.graphify or (explicit_target and project_path == explicit_target)
-        )
-        if graphify_enabled:
-            results += configure_target_graphify(project_path, graphify_platforms, dry_run)
     return results
 
 
@@ -320,14 +274,6 @@ def fail_if_setup_incomplete(args: argparse.Namespace, results: list[dict]) -> N
         result["status"] == "would_update" and result["tool"] in {"codex", "claude"}
         and (result.get("hook", "").startswith("agents.") or result.get("hook") == "approvalsReviewer")
     )]
-    if any(result["tool"] == "graphify" for result in missing):
-        print(
-            "\nGraphify setup is incomplete. Repair the shared ~/.moru skill and "
-            "user-level runtime links, then read that skill, build the target graph "
-            "under .agents/local/graphify-out, and rerun --check.",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
     if args.check and missing:
         if any(result.get("hook") == "approvalsReviewer" for result in missing):
             print("\nRun `python3 scripts/setup-agent-hooks.py --runtime codex --codex-auto-review` to apply the requested reviewer setting.", file=sys.stderr)
@@ -346,11 +292,6 @@ def _has_claude() -> bool:
 
 def _runtime_selected(runtime: str, selected_runtimes: set[str]) -> bool:
     return not selected_runtimes or runtime in selected_runtimes
-
-
-def _should_configure_global_graphify(selected_runtimes: set[str]) -> bool:
-    """Keep runtime-scoped repair from mutating the shared Graphify install."""
-    return not selected_runtimes
 
 
 def _has_codex() -> bool:

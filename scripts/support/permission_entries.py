@@ -33,7 +33,6 @@ EXECUTABLE_ENTRYPOINTS = (
     "project-discover.py",
     "run_smoke_checks.py",
     "setup-agent-hooks.py",
-    "setup-project-graphify.py",
     "workflow.py",
     "workflow_dispatch.py",
     "workflow_dispatch_launch.py",

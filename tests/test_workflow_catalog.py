@@ -253,13 +253,13 @@ class WorkflowCatalogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             docs_dir = root / "docs"
-            agent_cache_dir = root / ".moru" / "skills" / "graphify"
+            agent_cache_dir = root / ".moru" / "skills" / "example-tool"
             cache_dir = root / ".pytest_cache"
-            graphify_dir = root / "graphify-out"
+            generated_dir = root / "local"
             docs_dir.mkdir()
             agent_cache_dir.mkdir(parents=True)
             cache_dir.mkdir()
-            graphify_dir.mkdir()
+            generated_dir.mkdir()
             valid_doc = docs_dir / "guide.md"
             valid_doc.write_text(
                 "---\nkeyflow_id: test\nstatus: stable\ntype: human-reviewed\n---\n# Guide\n",
@@ -267,7 +267,7 @@ class WorkflowCatalogTests(unittest.TestCase):
             )
             (agent_cache_dir / "SKILL.md").write_text("# Local skill cache\n", encoding="utf-8")
             (cache_dir / "README.md").write_text("# Cache\n", encoding="utf-8")
-            (graphify_dir / "GRAPH_REPORT.md").write_text("# Generated graph report\n", encoding="utf-8")
+            (generated_dir / "GENERATED_REPORT.md").write_text("# Generated graph report\n", encoding="utf-8")
 
             self.assertEqual([valid_doc], markdown_files_to_validate(root))
 

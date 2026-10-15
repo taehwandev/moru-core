@@ -42,7 +42,6 @@ from workflow_gate_policy import (
     automatic_docs,
     skill_feedback_policy,
 )
-from workflow_graphify_route import graphify_route_context
 from workflow_doc_resolution import doc_size, is_pointer_entrypoint, resolve_guidance_docs
 from workflow_doc_surfaces import infer_surface_docs, required_surface_docs
 from workflow_parallel import parallel_execution_plan
@@ -565,7 +564,6 @@ def _document_search_notes(
     return notes
 
 
-
 # Selection reasons, strongest first. The order is the attribution order below:
 # a document selected by more than one rule is reported under the strongest one,
 # because that is the rule that would still require it if the others went away.
@@ -708,16 +706,7 @@ def resolve_docs(
     doc_graph_matches = documents.graph_matches
     document_resolution = documents.resolution
 
-    graphify_context = graphify_route_context(
-        concerns=concerns,
-        surface_matches=surface_matches,
-        project_root=project_root,
-        inferred_concerns=inferred,
-        # The concern may have been inferred from either text, so both are read.
-        request_text=f"{request_text}\n{classification_evidence}",
-    )
-    graphify_requested = bool(graphify_context["requested"])
-    gates = route_gates(command, graphify_required=graphify_requested)
+    gates = route_gates(command)
     # Compact start already binds the exact request and its authority for a
     # small change. Asking the agent to restate that same intake in the ledger
     # made a sub-four-file correction pay a manual gate before any edit.
@@ -734,8 +723,7 @@ def resolve_docs(
         request_classified=request_classified,
         classification_evidence=classification_evidence,
     )
-    graphify_readiness = graphify_context["readiness"]
-    blocking = list(graphify_context["blocking"])
+    blocking: list[str] = []
     concern_set = set(concerns)
     if (
         command in {"release", "ship"}
@@ -752,7 +740,6 @@ def resolve_docs(
         "billing", "payment", "architecture", "infrastructure",
     }:
         blocking.append("small-change excludes risk-sensitive concerns; select the matching full route")
-    notes.extend(graphify_context["notes"])
 
     route = {
         "lifecycle_version": 2,
@@ -833,8 +820,6 @@ def resolve_docs(
         "fused": search_outcome.fused,
         "candidates": search_seed_docs,
     }
-    if graphify_readiness:
-        route["target_project_graphify"] = graphify_readiness
     return route
 
 
@@ -1450,19 +1435,12 @@ def _select_within_budget(
     return selected
 
 
-def route_gates(command: str, *, graphify_required: bool = False) -> list[str]:
+def route_gates(command: str) -> list[str]:
     gates = (
         [TEST_GATE, RETROSPECTIVE_CHECK_GATE]
         if command in SCOPE_CHANGE_LIFECYCLE_COMMANDS
         else add_automatic_gates(command, list(COMMANDS[command].gates))
     )
-    if graphify_required and "graphify readiness" not in gates:
-        for anchor in ("verify", "verification", "handoff", "report"):
-            if anchor in gates:
-                gates.insert(gates.index(anchor), "graphify readiness")
-                break
-        else:
-            gates.append("graphify readiness")
     if command not in REVIEW_HOOK_REQUIRED_COMMANDS or "review hook" in gates:
         return gates
 

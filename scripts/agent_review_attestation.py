@@ -28,10 +28,6 @@ SCHEMA_VERSION = 3
 REVIEW_HOOK_GATE = "review hook"
 LOCAL_AGENT_CONFIG_PATHS = frozenset(
     {
-        ".agents/local/graphify-out/GRAPH_REPORT.md",
-        ".agents/local/graphify-out/graph.html",
-        ".agents/local/graphify-out/graph.json",
-        ".agents/local/graphify-out/manifest.json",
         ".claude/settings.json",
         ".claude/settings.local.json",
         ".codex/config.toml",
