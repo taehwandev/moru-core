@@ -40,10 +40,17 @@ from agent_run_registry import (
 from agent_worker_evidence import is_isolated_worker_evidence
 from support.global_state import project_state_dir_target
 
-SESSION_ENV_VARS = (
+STRICT_SESSION_ENV_VARS = (
     ("claude", "CLAUDE_CODE_SESSION_ID"),
     ("codex", "CODEX_THREAD_ID"),
 )
+SESSION_ENV_VARS = (
+    *STRICT_SESSION_ENV_VARS,
+    ("antigravity", "ANTIGRAVITY_CONVERSATION_ID"),
+)
+RUNTIME_ALIASES = {
+    "agy": "antigravity",
+}
 WORKER_EVIDENCE_ENV = "MORU_WORKER_EVIDENCE"
 RUN_ID_LENGTH = 32
 # The Claude Stop gate reads these; it keeps its own copy of the directory name
@@ -55,26 +62,39 @@ SETTLED_SUFFIX = ".settled"
 _CLI_SESSION_OVERRIDE: dict[str, str] | None = None
 
 
+def _normalize_runtime_name(value: object) -> str:
+    cleaned = str(value or "").strip().lower()
+    return RUNTIME_ALIASES.get(cleaned, cleaned)
+
+
 def _inferred_cli_runtime() -> str:
-    if os.environ.get("ANTIGRAVITY_CLI_ALIAS", "").strip():
+    if (
+        os.environ.get("ANTIGRAVITY_CLI_ALIAS", "").strip()
+        or os.environ.get("ANTIGRAVITY_AGENT", "").strip()
+        or os.environ.get("ANTIGRAVITY_TRAJECTORY_ID", "").strip()
+    ):
         return "antigravity"
     if os.environ.get("GEMINI_CLI", "").strip():
         return "gemini"
+    for key in ("MORU_AI_TOOL", "SPILL_AI_TOOL", "SPILL_TOKEN_USAGE_AI_TOOL"):
+        normalized = _normalize_runtime_name(os.environ.get(key, ""))
+        if normalized in {"antigravity", "gemini", "codex", "claude"}:
+            return normalized
     return "cli"
 
 
 @contextmanager
 def cli_runtime_session_scope(session_id: str = "", runtime: str = "") -> Iterator[None]:
-    """Bind an explicit CLI `--runtime-session-id` when the environment exposes none."""
+    """Bind an explicit CLI `--runtime-session-id` when no strict hook session variable is set."""
 
     global _CLI_SESSION_OVERRIDE
     cleaned_session_id = str(session_id or "").strip()
     if not cleaned_session_id or any(
-        os.environ.get(variable, "").strip() for _, variable in SESSION_ENV_VARS
+        os.environ.get(variable, "").strip() for _, variable in STRICT_SESSION_ENV_VARS
     ):
         yield
         return
-    cleaned_runtime = str(runtime or "").strip() or _inferred_cli_runtime()
+    cleaned_runtime = _normalize_runtime_name(runtime) or _inferred_cli_runtime()
     previous = _CLI_SESSION_OVERRIDE
     _CLI_SESSION_OVERRIDE = {
         "runtime": cleaned_runtime,
@@ -87,12 +107,18 @@ def cli_runtime_session_scope(session_id: str = "", runtime: str = "") -> Iterat
 
 
 def runtime_session() -> dict[str, str]:
-    for runtime, variable in SESSION_ENV_VARS:
+    for runtime, variable in STRICT_SESSION_ENV_VARS:
         value = os.environ.get(variable, "").strip()
         if value:
             return {"runtime": runtime, "session_id": value}
     if _CLI_SESSION_OVERRIDE is not None:
         return dict(_CLI_SESSION_OVERRIDE)
+    for runtime, variable in SESSION_ENV_VARS:
+        if (runtime, variable) in STRICT_SESSION_ENV_VARS:
+            continue
+        value = os.environ.get(variable, "").strip()
+        if value:
+            return {"runtime": runtime, "session_id": value}
     return {}
 
 
@@ -115,11 +141,14 @@ def same_runtime_session(
 
     if not isinstance(bound, dict) or not isinstance(identity, dict):
         return False
-    runtime = identity.get("runtime")
+    runtime = _normalize_runtime_name(identity.get("runtime"))
+    bound_runtime = _normalize_runtime_name(bound.get("runtime"))
     session_id = identity.get("session_id")
     if not runtime or not session_id:
         return False
-    if bound.get("runtime") != runtime or bound.get("session_id") != session_id:
+    if bound.get("session_id") != session_id:
+        return False
+    if bound_runtime != runtime and "cli" not in {bound_runtime, runtime}:
         return False
     if resume_generation is None:
         return True
@@ -319,7 +348,7 @@ def resolve_owned_runtime_evidence(
     candidates, _out_of_scope, _complete = _runtime_evidence_candidates(
         project, evidence_names
     )
-    env_runtimes = {name for name, _ in SESSION_ENV_VARS}
+    env_runtimes = {name for name, _ in STRICT_SESSION_ENV_VARS}
     matches: list[Path] = []
     for candidate in candidates:
         key = evidence_binding_key(project, candidate)

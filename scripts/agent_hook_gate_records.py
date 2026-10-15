@@ -62,6 +62,19 @@ def preflight_evidence_path(args: argparse.Namespace) -> Path:
 
     if args.evidence:
         return args.evidence
+    run_id = str(getattr(args, "resume_run_id", "") or "").strip()
+    if (
+        run_id
+        and getattr(args, "hook", "") not in {"start", "resume"}
+        and len(run_id) == 32
+        and all(ch in "0123456789abcdef" for ch in run_id)
+    ):
+        candidate = (
+            project_state_dir_target(args.project) / "runs" / run_id / "preflight.json"
+        )
+        if candidate.is_file() and not candidate.is_symlink():
+            args.evidence = candidate
+            return candidate
     session = runtime_session()
     if session and getattr(args, "hook", "") != "start":
         active = resolve_runtime_evidence(args.project, session)

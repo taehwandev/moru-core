@@ -529,10 +529,46 @@ class RuntimeSetupTests(unittest.TestCase):
 
         self.assertEqual("codex", label)
 
+    def test_spill_tool_label_prefers_antigravity_runtime_over_stale_spill_env(self) -> None:
+        label = spill_tool_label(
+            {"ANTIGRAVITY_CONVERSATION_ID": "conv-123", "SPILL_AI_TOOL": "claude"}
+        )
+
+        self.assertEqual("antigravity", label)
+
     def test_spill_tool_label_allows_explicit_moru_override(self) -> None:
         label = spill_tool_label({"MORU_AI_TOOL": "agy", "CODEX_SANDBOX": "seatbelt"})
 
         self.assertEqual("antigravity", label)
+
+    def test_kmp_compose_paths_surface_rule_uses_focused_touch_doc_set(self) -> None:
+        from workflow_doc_surfaces import required_surface_docs
+
+        docs, matches = infer_surface_docs(
+            command="build",
+            request_text="Update ImagePreviewCanvas.kt zoom",
+            surface_paths=[
+                "desktop-kmp/feature/workbench/src/commonMain/kotlin/io/moru/workbench/ui/ImagePreviewCanvas.kt"
+            ],
+        )
+        required = required_surface_docs(matches)
+
+        self.assertEqual(
+            [
+                route_doc("platforms/kmp/skills/kmp-compose-ui/SKILL.md"),
+                route_doc("platforms/kmp/skills/kmp-review/SKILL.md"),
+                route_doc("common/skills/ui-visual-verification/SKILL.md"),
+            ],
+            required,
+        )
+        self.assertIn(
+            route_doc("platforms/kmp/skills/kmp-module-structure/SKILL.md"),
+            docs,
+        )
+        self.assertNotIn(
+            route_doc("platforms/kmp/skills/kmp-module-structure/SKILL.md"),
+            required,
+        )
 
 
 if __name__ == "__main__":

@@ -174,6 +174,7 @@ def _preflight_arguments(args: argparse.Namespace) -> list[str]:
         ("--intent-envelope", getattr(args, "intent_envelope", "")),
         ("--approval-record", getattr(args, "approval_record", "")),
         ("--runtime-session-id", getattr(args, "runtime_session_id", "")),
+        ("--runtime", getattr(args, "runtime", "")),
     ):
         if value:
             command.extend([option, value])
@@ -2721,8 +2722,8 @@ def _dispatch_hook(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     writes the line, so nothing else in the process can.
     """
 
-    _validate_hook_arguments_before_repair(parser, args)
     if args.hook == "resume":
+        _validate_hook_arguments_before_repair(parser, args)
         if args.resume_run_id and not args.list_mode:
             # Naming the run is the claim: --run-id only ever selects what
             # --last claims, so refusing it for a missing --last cost a retry.
@@ -2738,6 +2739,7 @@ def _dispatch_hook(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
         getattr(args, "runtime_session_id", ""),
         getattr(args, "runtime", ""),
     ):
+        _validate_hook_arguments_before_repair(parser, args)
         # Must follow _apply_worker_evidence_boundary so a worker refreshes its own
         # run, and must skip `start`: start refreshes nothing it is about to sweep,
         # or it would revive the very record whose evidence path it needs to claim.

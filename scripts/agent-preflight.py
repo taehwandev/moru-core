@@ -267,6 +267,11 @@ def build_parser(moru_root: Path) -> argparse.ArgumentParser:
         help="current opaque runtime session id that must match the intent envelope",
     )
     parser.add_argument(
+        "--runtime",
+        default="",
+        help="explicit runtime name for CLI session binding when no session env var is set",
+    )
+    parser.add_argument(
         "--continuation-scope",
         default="",
         help=(

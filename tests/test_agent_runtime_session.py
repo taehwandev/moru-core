@@ -821,6 +821,40 @@ class SupersededSessionRunTests(unittest.TestCase):
                     agent_runtime_session.resolve_owned_runtime_evidence(fixture.project),
                 )
 
+    def test_antigravity_conversation_id_binds_session_and_allows_cli_override(self) -> None:
+        """ANTIGRAVITY_CONVERSATION_ID provides native session binding while permitting CLI override."""
+
+        with patch.dict(
+            os.environ,
+            {"ANTIGRAVITY_CONVERSATION_ID": "conv-native-123"},
+            clear=True,
+        ):
+            self.assertEqual(
+                {"runtime": "antigravity", "session_id": "conv-native-123"},
+                agent_runtime_session.runtime_session(),
+            )
+            with agent_runtime_session.cli_runtime_session_scope("conv-explicit-456", "agy"):
+                self.assertEqual(
+                    {"runtime": "antigravity", "session_id": "conv-explicit-456"},
+                    agent_runtime_session.runtime_session(),
+                )
+
+    def test_post_start_hook_resolves_explicit_run_id_to_run_evidence(self) -> None:
+        """A post-start hook passed --run-id resolves that run's preflight.json directly."""
+
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory, session_id="agy-run")
+            args = Namespace(
+                project=fixture.project,
+                evidence=None,
+                hook="review",
+                resume_run_id=fixture.run_id,
+            )
+            with patch.dict(os.environ, {}, clear=True):
+                resolved = preflight_evidence_path(args)
+
+            self.assertEqual(fixture.evidence.resolve(), resolved.resolve())
+
 
 if __name__ == "__main__":
     unittest.main()

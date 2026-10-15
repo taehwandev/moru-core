@@ -494,6 +494,13 @@ Gemini/Antigravity/AGY:
   `command(/Users/USER/.moru/bin/moru-hook *)`.
   Avoid `$HOME`, `${HOME}`, `~`, relative script paths, and saved prefixes that
   include task-specific arguments.
+- Antigravity runtimes bind active runs natively when
+  `ANTIGRAVITY_CONVERSATION_ID` is present in the environment, and also support
+  explicit `--runtime-session-id` (or `--run-id <run-id>` on post-start hooks)
+  when a shell invocation does not export a conversation id. Spill tool
+  detection prefers `ANTIGRAVITY_CONVERSATION_ID`, `ANTIGRAVITY_AGENT`,
+  `ANTIGRAVITY_CLI_ALIAS`, and `ANTIGRAVITY_TRAJECTORY_ID` over a stale fallback
+  `SPILL_AI_TOOL` environment variable.
 
 Generic agents:
 

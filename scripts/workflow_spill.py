@@ -25,6 +25,12 @@ SPILL_HELPER_PATH_ENV = "MORU_SPILL_HELPER_PATH"
 SPILL_ALLOWED_TOOLS = {"codex", "claude", "antigravity", "openai"}
 SPILL_TOOL_ALIASES = {"agy": "antigravity"}
 CODEX_RUNTIME_ENV_KEYS = ("CODEX_SANDBOX", "CODEX_THREAD_ID", "CODEX_CI")
+ANTIGRAVITY_RUNTIME_ENV_KEYS = (
+    "ANTIGRAVITY_CONVERSATION_ID",
+    "ANTIGRAVITY_AGENT",
+    "ANTIGRAVITY_CLI_ALIAS",
+    "ANTIGRAVITY_TRAJECTORY_ID",
+)
 SAFE_WORKFLOW_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
 REQUIRED_SPILL_ACTION_LABELS = {
     "classify",
@@ -45,6 +51,8 @@ def spill_tool_label(env: dict[str, str] | None = None) -> str:
 
     if any(values.get(key) for key in CODEX_RUNTIME_ENV_KEYS):
         return "codex"
+    if any(values.get(key) for key in ANTIGRAVITY_RUNTIME_ENV_KEYS):
+        return "antigravity"
 
     for key in ("SPILL_TOKEN_USAGE_AI_TOOL", "SPILL_AI_TOOL"):
         tool = _normal_tool_label(values.get(key, ""))

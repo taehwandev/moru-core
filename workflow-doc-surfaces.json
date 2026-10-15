@@ -217,6 +217,11 @@
       "platforms/web/skills/web-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
     ],
+    "kmp_compose_touch": [
+      "platforms/kmp/skills/kmp-compose-ui/SKILL.md",
+      "platforms/kmp/skills/kmp-review/SKILL.md",
+      "common/skills/ui-visual-verification/SKILL.md"
+    ],
     "android_ui_performance": [
       "platforms/android/skills/android-compose-ui/references/compose-performance.md",
       "common/skills/performance-verification/SKILL.md",
@@ -1928,7 +1933,25 @@
       "name": "kmp_compose_paths",
       "patterns": [
         "**/commonMain/**/ui/**/*.kt",
+        "**/commonMain/**/ui/*.kt",
         "**/commonMain/**/compose/**/*.kt",
+        "**/commonMain/**/compose/*.kt",
+        "**/commonMain/**/*Screen.kt",
+        "**/commonMain/**/*Composable.kt",
+        "**/commonMain/**/*UiState.kt"
+      ],
+      "doc_sets": [
+        "kmp_compose_touch"
+      ],
+      "reason": "Touched KMP commonMain Compose UI paths imply Compose Multiplatform UI, review, and visual verification guidance should be read."
+    },
+    {
+      "name": "kmp_compose_ecosystem",
+      "patterns": [
+        "**/commonMain/**/ui/**/*.kt",
+        "**/commonMain/**/ui/*.kt",
+        "**/commonMain/**/compose/**/*.kt",
+        "**/commonMain/**/compose/*.kt",
         "**/commonMain/**/*Screen.kt",
         "**/commonMain/**/*Composable.kt",
         "**/commonMain/**/*UiState.kt"
@@ -1936,7 +1959,8 @@
       "doc_sets": [
         "kmp_compose_ui"
       ],
-      "reason": "Touched KMP commonMain Compose UI paths imply Compose Multiplatform state/module guidance should be read."
+      "reference_only": true,
+      "reason": "Touching this surface makes the platform's wider card set worth offering as reference candidates; what the change actually needs is decided by the change-action rules, not by the file's path."
     },
     {
       "name": "swift_design_paths",
