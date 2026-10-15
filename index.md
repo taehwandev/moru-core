@@ -135,6 +135,7 @@ catalog itself only when that is the task.
 - Web accessibility/i18n: `platforms/web/skills/web-accessibility-i18n/SKILL.md`
 - Web security: `platforms/web/skills/web-security/SKILL.md`
 - Web review: `platforms/web/skills/web-review/SKILL.md`
+- Live web editing from inspect references, path claims across agents: `platforms/web/skills/live-web/SKILL.md`
 - Server architecture: `platforms/server/skills/server-architecture/SKILL.md`
 - Server API implementation: `platforms/server/skills/server-api-implementation/SKILL.md`
 - Server data/jobs: `platforms/server/skills/server-data-jobs/SKILL.md`
