@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_continuation_checkpoint import write_continuation_checkpoint
+from agent_delegation_plan import delegation_plan_path
 from agent_continuation_packet import ContinuationPacketError
 from agent_continuation_resume import resume_last, session_resume_summaries
 from agent_runtime_session import (
@@ -34,6 +35,16 @@ OPT_IN_FILES = ("AGENTS.md", "CLAUDE.md", "CODEX.md")
 # boundary than the same feature is at its own gates, and it costs the user the
 # editor to fix the setup with.
 UNAVAILABLE_RULES = frozenset({"not_git_ignored", "local_boundary_unavailable"})
+
+
+def _is_delegation_plan(target: Path, root: Path) -> bool:
+    """True only for the project's ``agent-delegation-plan.json``, the file
+    ``agent_delegation_plan.delegation_plan_path`` reads; both sides are
+    resolved like the sprawl acknowledgement so no other state is reachable."""
+    try:
+        return target.resolve() == delegation_plan_path(root).resolve()
+    except OSError:
+        return False
 
 
 def _is_own_sprawl_ack(target: Path, root: Path, session_id: str) -> bool:
@@ -80,10 +91,10 @@ class ClaudeContinuationAdapter:
             # while a project run is open -- a scope this adapter never owned.
             return None
         if any(name in Path(relative).parts for name in (".moru",)):
-            if _is_own_sprawl_ack(target, root, session_id):
-                # The proportionality gate tells the agent to write exactly
-                # this file to justify going over its new-file budget. It is
-                # a session marker, not run state, and no packet records it.
+            if _is_own_sprawl_ack(target, root, session_id) or _is_delegation_plan(target, root):
+                # The two state files agents are told to write: the proportionality
+                # gate's acknowledgement (a session marker) and the plan the
+                # split-decision gate reads. No packet records either.
                 return None
             return "Moru continuation checkpoint refuses mutations inside project state."
         kind = (

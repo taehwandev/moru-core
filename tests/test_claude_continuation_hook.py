@@ -175,6 +175,27 @@ class ClaudeMutationAdapterTests(unittest.TestCase):
                 fixture.packet()["work"]["changed_scope"],
             )
 
+    def test_the_documented_delegation_plan_may_be_written_but_other_state_may_not(self) -> None:
+        # multi-agent-collaboration tells the parent to write this exact file before
+        # workers start; refusing it left the split-decision gate unrecordable.
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory)
+            payload = _payload(fixture, event="PreToolUse")
+
+            def write_to(path: Path) -> str | None:
+                return ClaudeContinuationAdapter.pre_mutation(
+                    {**payload, "tool_input": {"file_path": str(path)}},
+                    root=fixture.project,
+                    cwd=fixture.project,
+                    session_id="old-session",
+                )
+
+            state = fixture.project / ".moru"
+            self.assertIsNone(write_to(state / "agent-delegation-plan.json"))
+            self.assertIsNotNone(write_to(state / "runs" / "agent-delegation-plan.json"))
+            self.assertIsNotNone(write_to(state / "agent-delegation-plan.json.bak"))
+            self.assertIsNotNone(write_to(state / "gate-ledger.json"))
+
     def test_failed_noop_tool_clears_pending_without_claiming_a_changed_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = RuntimeFixture(directory)
