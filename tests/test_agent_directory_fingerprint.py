@@ -9,7 +9,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from agent_directory_fingerprint import directory_signature
-from support import legacy_names  # noqa: E402
 
 
 class DirectorySignatureTests(unittest.TestCase):
@@ -20,7 +19,7 @@ class DirectorySignatureTests(unittest.TestCase):
             source.write_text("first\n", encoding="utf-8")
             original = directory_signature(project)
 
-            for state_name in (".moru", legacy_names.STATE_DIR):
+            for state_name in (".moru",):
                 state = project / state_name / "runs"
                 state.mkdir(parents=True)
                 (state / "private.json").write_text("{}", encoding="utf-8")

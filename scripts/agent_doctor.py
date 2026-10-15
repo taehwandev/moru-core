@@ -4,8 +4,7 @@
 Owner: developer-experience project diagnostics; it never writes project files.
 Allowed imports: standard library, support.global_state, support.stable_launcher,
 support.project_type_detection, agent_observability, agent_project_memory,
-agent_project_memory_consolidate, agent_work_cards, update_moru_project_pointers
-(dry-run only).
+agent_project_memory_consolidate, agent_work_cards.
 Forbidden imports: mutating lifecycle hooks, shell execution of arbitrary user code.
 Callers: stable launcher `doctor` alias; tests: test_agent_doctor.
 """
@@ -29,8 +28,6 @@ from support.stable_launcher import (
     stable_launcher_path,
     stable_root_pointer_path,
 )
-from update_moru_project_pointers import FILES as POINTER_FILES, update_project
-from support import legacy_names
 
 ROOT = Path(__file__).resolve().parents[1]
 MANAGED_BEGIN = "<!-- BEGIN MANAGED MORU CORE ROUTING -->"
@@ -70,8 +67,6 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
     resolved = project.expanduser().resolve()
     launcher_warning = stable_launcher_issue(rules)
     state_dir = project_state_dir_target(resolved)
-    legacy_state = resolved / legacy_names.STATE_DIR
-    legacy_global = Path.home() / legacy_names.STATE_DIR
     agents_file = resolved / "AGENTS.md"
     has_agents = agents_file.is_file()
     has_managed_block = False
@@ -82,10 +77,6 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
         except OSError:
             has_managed_block = False
 
-    stale_pointers = [
-        path.relative_to(resolved).as_posix()
-        for path in update_project(resolved, apply=False)
-    ]
     stacks = detect_project_stacks(resolved)
     permissions = detect_project_permissions(resolved)
     snapshot = status_snapshot(resolved)
@@ -110,17 +101,6 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
         recommendations.append(
             f"No AGENTS.md; add the managed routing block from `{rules / 'templates' / 'repo-agents-routing.md'}`."
         )
-    if stale_pointers:
-        recommendations.append(
-            f"Stale Moru/Moru pointers in {', '.join(stale_pointers)}; run "
-            f"`python3 {rules / 'scripts' / 'update_moru_project_pointers.py'} --project {resolved} --apply`."
-        )
-    if legacy_state.exists() or legacy_state.is_symlink():
-        recommendations.append(
-            f"A pre-rename `{legacy_names.STATE_DIR}` state tree remains; run "
-            f"`python3 {rules / 'scripts' / 'migrate_moru_local_state.py'} --project {resolved} --apply` "
-            "to move it into `.moru`."
-        )
     if memory_stats["expired_or_due"] > 0:
         recommendations.append(
             f"Project memory has {memory_stats['expired_or_due']} record(s) due for review; run "
@@ -128,7 +108,7 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
         )
 
     return {
-        "status": "ok" if not launcher_warning and not stale_pointers else "attention",
+        "status": "ok" if not launcher_warning else "attention",
         "project": str(resolved),
         "rules": str(rules.resolve()),
         "stacks": stacks,
@@ -136,12 +116,9 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
         "instructions": {
             "agents_md_present": has_agents,
             "managed_routing_block": has_managed_block,
-            "stale_pointer_files": stale_pointers,
         },
         "state": {
             "active_state_dir": str(state_dir),
-            "legacy_project_state": legacy_state.exists() or legacy_state.is_symlink(),
-            "legacy_global_state": legacy_global.exists() or legacy_global.is_symlink(),
             "active_runs": snapshot.get("active_runs", 0),
             "open_work_cards": len(open_cards),
             "project_memory": memory_stats,
@@ -162,9 +139,7 @@ def _render_markdown_doctor(report: dict[str, Any]) -> str:
         f"(permissions: {report['detected_permission_count']})",
         f"- AGENTS.md: {'present' if report['instructions']['agents_md_present'] else 'missing'} "
         f"(managed block: {'yes' if report['instructions']['managed_routing_block'] else 'no'})",
-        f"- state root: {report['state']['active_state_dir']} "
-        f"(legacy project tree: {report['state']['legacy_project_state']}, "
-        f"legacy global tree: {report['state']['legacy_global_state']})",
+        f"- state root: {report['state']['active_state_dir']}",
         f"- active runs: {report['state']['active_runs']}, "
         f"open work cards: {report['state']['open_work_cards']}, "
         f"project memory: {report['state']['project_memory']['active_records']} active "

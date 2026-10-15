@@ -9,7 +9,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from agent_continuation_mutation_state import MutationCheckpointState
-from support import legacy_names  # noqa: E402
 
 
 class MutationLocalPathsTests(unittest.TestCase):
@@ -17,7 +16,7 @@ class MutationLocalPathsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             (project / "source.py").write_text("value = 1\n", encoding="utf-8")
-            for state_dir in (".moru", legacy_names.STATE_DIR):
+            for state_dir in (".moru",):
                 state = project / state_dir / "runs"
                 state.mkdir(parents=True)
                 (state / "private.json").write_text("{}", encoding="utf-8")

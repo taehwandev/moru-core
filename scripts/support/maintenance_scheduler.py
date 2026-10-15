@@ -8,12 +8,9 @@ import pwd
 import subprocess
 import sys
 from pathlib import Path
-from support import legacy_names
 
 
 LAUNCH_AGENT_LABEL = "com.taehwandev.moru-core.maintenance"
-# The label setup installed before the Moru rename; replaced, never run twice.
-LEGACY_LAUNCH_AGENT_LABEL = legacy_names.LAUNCH_AGENT_LABEL
 MAINTENANCE_INTERVAL_SECONDS = 24 * 60 * 60
 
 
@@ -43,16 +40,9 @@ def configure_maintenance_scheduler(root: Path, dry_run: bool) -> list[dict]:
         return [{"tool": "moru", "hook": "maintenance.launchd",
                  "status": "skipped_isolated_home", "path": str(target)}]
     loaded = _launchctl(["print", service]).returncode == 0
-    legacy_target = target.with_name(f"{LEGACY_LAUNCH_AGENT_LABEL}.plist")
-    legacy_service = f"{domain}/{LEGACY_LAUNCH_AGENT_LABEL}"
-    legacy_present = legacy_target.is_file()
-    if legacy_present and not dry_run:
-        # Two labels would run the same daily pass twice.
-        _launchctl(["bootout", legacy_service])
-        legacy_target.unlink(missing_ok=True)
 
     if dry_run:
-        status = "ok" if matches and loaded and not legacy_present else "missing"
+        status = "ok" if matches and loaded else "missing"
     elif matches and loaded:
         status = "ok"
     else:

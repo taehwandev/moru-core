@@ -19,7 +19,6 @@ from agent_runtime_session import (
     resolve_runtime_evidence,
 )
 from support.global_state import is_project_state_dir, project_state_dir_target
-from support import legacy_names
 
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -80,7 +79,7 @@ class ClaudeContinuationAdapter:
             # runtime config, and sibling checkout an agent legitimately edits
             # while a project run is open -- a scope this adapter never owned.
             return None
-        if any(name in Path(relative).parts for name in (".moru", legacy_names.STATE_DIR)):
+        if any(name in Path(relative).parts for name in (".moru",)):
             if _is_own_sprawl_ack(target, root, session_id):
                 # The proportionality gate tells the agent to write exactly
                 # this file to justify going over its new-file budget. It is

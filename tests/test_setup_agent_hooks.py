@@ -1457,10 +1457,10 @@ class SetupAgentHooksTests(unittest.TestCase):
             rules.write_text(
                 "\n".join(
                     [
-                        "# tao-hooks:begin",
+                        "# moru-hooks:begin",
                         f"# Managed by {obsolete_brand}",
                         stale_rule,
-                        "# tao-hooks:end",
+                        "# moru-hooks:end",
                         stale_rule,
                         'prefix_rule(pattern=["custom-tool"], decision="allow")',
                         "",

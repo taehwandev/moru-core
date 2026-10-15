@@ -14,7 +14,6 @@ from agent_review_purpose import purpose_failures
 from agent_review_removals import classify_net_deletions
 from agent_structure_rules import structure_rule_review
 from agent_workspace_policy import is_non_git_workspace, is_writing_workspace
-from support import legacy_names
 
 
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
@@ -88,7 +87,6 @@ STRUCTURE_REVIEW_SCOPE_NOTE = (
     "from runtime hard gates; test files are exempt only from the oversized-block check"
 )
 REVIEW_SKIP_PARTS = {
-    legacy_names.STATE_DIR,
     ".git",
     ".next",
     "DerivedData",

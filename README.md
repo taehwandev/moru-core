@@ -10,7 +10,6 @@ type: ai-generated
 
 Moru Core is a reusable guidance and runtime layer for AI coding agents. It gives agents a compact set of operating rules, workflow paths, review criteria, platform guidance, product-pattern checks, and executable lifecycle evidence that can be linked from any software project.
 
-Moru Core was formerly named Tao Agent OS.
 
 Use it when you want repo-local instructions to stay small while still giving an agent enough shared engineering discipline to plan, edit, review, test, and handoff work reliably.
 
@@ -56,19 +55,12 @@ The website includes the current copy-and-paste prompts, application modes, and 
 
 Korean guide: [README.ko.md](README.ko.md). Existing-install update guide: [docs/ko/update-moru.md](docs/ko/update-moru.md).
 
-### Rename status
+### Names and site
 
-The repository is `taehwandev/moru-core`; the website still uses
-`tao.thdev.app`. Runtime identifiers use the Moru names: the `moru-hook`
-launcher in `~/.moru/bin`, `MORU_*` settings, `<MORU_ROOT>`/`<MORU_LAUNCHER>`
-placeholders, `.moru` state and the `moru_*` agent roles. New installs and new
-projects start on them directly.
-
-The old names are retired. Setup removes what an earlier setup wrote under
-them (the `tao-hook` launcher, managed blocks, roles and permission entries),
-and `scripts/migrate_moru_local_state.py` moves a remaining `.tao` state tree
-into `.moru` without leaving links behind. See
-[the migration plan](docs/migration/moru-rename.md).
+The repository is `taehwandev/moru-core`. Runtime names are `moru-hook` in
+`~/.moru/bin`, `MORU_*` settings, `<MORU_ROOT>`/`<MORU_LAUNCHER>` placeholders,
+`.moru` state and the `moru_*` agent roles. The public site stays at
+`tao.thdev.app` until its new domain is connected.
 
 ## Website Deployment Versioning
 
@@ -1126,7 +1118,7 @@ are outside the comparison. There is no end-to-end Codex speedup estimate.
 | --- | --- | --- | --- |
 | F22 | Medium / H07, H10 | Identical local work adds roughly 0.20 seconds through linked worktrees in this corpus. This does not explain minute-scale latency or price the cost of rebuilding dependencies. | [Offline benchmark](tests/benchmarks/worktree_latency.py). All ten fixtures matched exact patch, test counts, tracked content and main integration; 350 test cases passed. Keep required isolation; measure environment setup separately before changing it. |
 | F23 | High / H02, H09 | `functions.exec` can print adjacent serialized JSON results. The delivery reader treated the whole stream as plain escaped text, missing complete reads and requesting them again. A synthetic replay of this run's 19 current required docs marked all 162,772 bytes unread and rendered a 25,879-byte notice. | [Delivery reader](scripts/agent_required_doc_delivery.py), [regressions](tests/test_agent_required_doc_delivery.py). Decode complete structured result streams and the completed orchestration envelope. The same replay now recognizes all 19 docs and renders no notice. Failed, rejected, pending, malformed and truncated results remain unconfirmed; compaction and current-content checks remain. |
-| F24 | Medium / H06, H10 | A separate TaoIDE trace lasted 3,268.17 seconds. Its 24 recorded lifecycle hooks total 26.26 seconds; non-overlapping wall categories contain 263.83 seconds of escalation observation, 759.84 seconds of Gradle observation, 52.30 seconds of other foreground tools and 2,192.20 seconds uncovered. | Existing [stage timing](scripts/support/stage_timing.py) and that run's ignored latency timeline. Hook totals overlap tool windows and must not be added to them. Escalation windows do not prove a visible dialog or human waiting. Uncovered time is unclassified, not proven model inference. This is another workload, not the approval patch or a controlled worktree comparison. |
+| F24 | Medium / H06, H10 | A separate Moru app trace lasted 3,268.17 seconds. Its 24 recorded lifecycle hooks total 26.26 seconds; non-overlapping wall categories contain 263.83 seconds of escalation observation, 759.84 seconds of Gradle observation, 52.30 seconds of other foreground tools and 2,192.20 seconds uncovered. | Existing [stage timing](scripts/support/stage_timing.py) and that run's ignored latency timeline. Hook totals overlap tool windows and must not be added to them. Escalation windows do not prove a visible dialog or human waiting. Uncovered time is unclassified, not proven model inference. This is another workload, not the approval patch or a controlled worktree comparison. |
 
 The document replay uses synthetic read evidence, not a real transcript.
 Its local scan median increases from 1.38 to 3.20 ms across 100 warm scans:

@@ -7,7 +7,6 @@ import stat
 import subprocess
 import tempfile
 from pathlib import Path
-from support import legacy_names
 
 
 _START = "# graphify-checkout-hook-start"
@@ -176,13 +175,6 @@ def _patched(content: str) -> str:
     if end <= start:
         raise ValueError("Graphify checkout markers are out of order")
     block = content[start:end]
-    # A block repaired before the rename differs only in its version line.
-    legacy_guard = _GUARD.replace(_VERSION, legacy_names.GRAPHIFY_CHECKOUT_MARKER)
-    if legacy_names.GRAPHIFY_CHECKOUT_MARKER in block and legacy_guard in block:
-        block = block.replace(legacy_guard, _GUARD, 1)
-        if _REBUILD not in block:
-            raise ValueError("modified Moru checkout repair block; manual review required")
-        return content[:start] + block + content[end:]
     if _VERSION in block:
         if _GUARD not in block or _REBUILD not in block:
             raise ValueError("modified Moru checkout repair block; manual review required")

@@ -36,15 +36,14 @@ from typing import Iterable
 from typing import Iterator
 
 from support.bounded_git import run_git
-from support import legacy_names
 
 
 # What every caller here already discards: project state and the repository's
 # own storage. A caller that wants part of `.moru` names a narrower set. `.moru`
 # is the same project state under its Moru name.
-PRUNED_DIRECTORIES = frozenset({".moru", legacy_names.STATE_DIR, ".git"})
+PRUNED_DIRECTORIES = frozenset({".moru", ".git"})
 # For callers that want `.moru/skills` but not one directory per run.
-PRUNED_RUN_STATE = frozenset({".git", ".moru/runs", f"{legacy_names.STATE_DIR}/runs"})
+PRUNED_RUN_STATE = frozenset({".git", ".moru/runs"})
 
 
 def iter_project_files(

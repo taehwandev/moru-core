@@ -1,4 +1,4 @@
-"""Removing Moru's own `*.moru-backup` (and pre-rename `*.tao-backup`) files needs no workflow lifecycle.
+"""Removing Moru's own `*.moru-backup` (and pre-rename `*.moru-backup`) files needs no workflow lifecycle.
 
 Setup writes `<name>.moru-backup` beside a file before rewriting it. Deleting
 those Moru-made files from a governed project was refused until a workflow run
@@ -74,34 +74,34 @@ def _decision(project: Path, command: str) -> str:
 
 def _populate(project: Path) -> None:
     (project / "AGENTS.md").write_text("guidance\n", encoding="utf-8")
-    (project / "AGENTS.md.tao-backup").write_text("old\n", encoding="utf-8")
     (project / "AGENTS.md.moru-backup").write_text("old\n", encoding="utf-8")
-    (project / "settings.json.tao-backup").write_text("{}\n", encoding="utf-8")
+    (project / "AGENTS.md.moru-backup").write_text("old\n", encoding="utf-8")
+    (project / "settings.json.moru-backup").write_text("{}\n", encoding="utf-8")
     (project / "other.txt").write_text("x\n", encoding="utf-8")
-    (project / "dir.tao-backup").mkdir()
-    (project / "dir.tao-backup" / "inner").write_text("x\n", encoding="utf-8")
-    (project / "link.tao-backup").symlink_to(project / "AGENTS.md")
+    (project / "dir.moru-backup").mkdir()
+    (project / "dir.moru-backup" / "inner").write_text("x\n", encoding="utf-8")
+    (project / "link.moru-backup").symlink_to(project / "AGENTS.md")
 
 
 ADMITTED = (
-    "rm {project}/AGENTS.md.tao-backup",
-    "rm -f {project}/AGENTS.md.tao-backup",
-    "rm AGENTS.md.tao-backup settings.json.tao-backup",
-    "/bin/rm -f -- {project}/AGENTS.md.tao-backup",
-    "rm {project}/AGENTS.md.moru-backup AGENTS.md.tao-backup",
+    "rm {project}/AGENTS.md.moru-backup",
+    "rm -f {project}/AGENTS.md.moru-backup",
+    "rm AGENTS.md.moru-backup settings.json.moru-backup",
+    "/bin/rm -f -- {project}/AGENTS.md.moru-backup",
+    "rm {project}/AGENTS.md.moru-backup AGENTS.md.moru-backup",
 )
 
 NOT_ADMITTED = (
     "rm {project}/AGENTS.md",
-    "rm -r {project}/dir.tao-backup/",
-    "rm -rf {project}/dir.tao-backup",
-    "rm {project}/AGENTS.md.tao-backup {project}/other.txt",
-    "rm {project}/link.tao-backup",
-    "rm {project}/*.tao-backup",
-    "rm {project}/dir.tao-backup/../AGENTS.md.tao-backup",
-    "rm {project}/missing.tao-backup",
-    "rm {project}/.tao-backup",
-    "rm {project}/AGENTS.md.tao-backup && touch {project}/other.txt",
+    "rm -r {project}/dir.moru-backup/",
+    "rm -rf {project}/dir.moru-backup",
+    "rm {project}/AGENTS.md.moru-backup {project}/other.txt",
+    "rm {project}/link.moru-backup",
+    "rm {project}/*.moru-backup",
+    "rm {project}/dir.moru-backup/../AGENTS.md.moru-backup",
+    "rm {project}/missing.moru-backup",
+    "rm {project}/.moru-backup",
+    "rm {project}/AGENTS.md.moru-backup && touch {project}/other.txt",
 )
 
 SCENARIOS = ("plain", "protected_main", "linked_entry_required")
@@ -121,10 +121,10 @@ class MoruBackupRemovalTests(unittest.TestCase):
         # The reported shape: the session sits in one governed project and the
         # backup belongs to another project's protected main checkout.
         for command, admitted in (
-            ("rm {project}/AGENTS.md.tao-backup", True),
-            ("rm -f {project}/AGENTS.md.tao-backup {project}/settings.json.tao-backup", True),
+            ("rm {project}/AGENTS.md.moru-backup", True),
+            ("rm -f {project}/AGENTS.md.moru-backup {project}/settings.json.moru-backup", True),
             ("rm {project}/AGENTS.md", False),
-            ("rm {project}/AGENTS.md.tao-backup {project}/other.txt", False),
+            ("rm {project}/AGENTS.md.moru-backup {project}/other.txt", False),
         ):
             with self.subTest(command=command), tempfile.TemporaryDirectory() as tmp:
                 session_project = _scenario(Path(tmp) / "here", "plain")
@@ -160,14 +160,14 @@ class MoruBackupRemovalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp).resolve()
             _populate(project)
-            self.assertTrue(moru_backup_removal(["rm", "AGENTS.md.tao-backup"], project))
-            self.assertFalse(moru_backup_removal(["rm", "AGENTS.md.tao-backup"], None))
-            self.assertFalse(moru_backup_removal(["rm", "link.tao-backup"], project))
-            self.assertFalse(moru_backup_removal(["rm", "-r", "dir.tao-backup"], project))
-            self.assertFalse(moru_backup_removal(["rm", "dir.tao-backup"], project))
-            self.assertFalse(moru_backup_removal(["rm", "-i", "AGENTS.md.tao-backup"], project))
+            self.assertTrue(moru_backup_removal(["rm", "AGENTS.md.moru-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm", "AGENTS.md.moru-backup"], None))
+            self.assertFalse(moru_backup_removal(["rm", "link.moru-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm", "-r", "dir.moru-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm", "dir.moru-backup"], project))
+            self.assertFalse(moru_backup_removal(["rm", "-i", "AGENTS.md.moru-backup"], project))
             self.assertFalse(moru_backup_removal(["rm"], project))
-            self.assertFalse(moru_backup_removal(["unlink", "AGENTS.md.tao-backup"], project))
+            self.assertFalse(moru_backup_removal(["unlink", "AGENTS.md.moru-backup"], project))
             self.assertTrue((project / "AGENTS.md").is_file())
 
 

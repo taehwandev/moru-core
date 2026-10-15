@@ -1,6 +1,5 @@
 .DS_Store
 .antigravitycli/
-.taoide/
 *.log
 node_modules/
 dist/

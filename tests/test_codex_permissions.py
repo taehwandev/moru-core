@@ -18,7 +18,7 @@ class CodexPermissionsTests(unittest.TestCase):
     def test_reset_repairs_missing_default_with_retained_profiles(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "config.toml"
-            original = '[permissions.tao-workspace]\nextends = ":workspace"\n'
+            original = '[permissions.moru-workspace]\nextends = ":workspace"\n'
             target.write_text(original)
             self.assertEqual("would_update", reset_moru_permission_default(target, True))
             self.assertEqual(original, target.read_text())
@@ -33,14 +33,14 @@ class CodexPermissionsTests(unittest.TestCase):
             self.assertFalse(target.exists())
 
     def test_explicit_reset_preserves_everything_except_moru_default(self) -> None:
-        for selection in ('"tao-workspace"', "'tao-workspace'"):
+        for selection in ('"moru-workspace"', "'moru-workspace'"):
             with self.subTest(selection=selection), tempfile.TemporaryDirectory() as directory:
                 target = Path(directory) / "config.toml"
                 prefix = 'approval_policy = "on-request"\n'
                 suffix = (
-                    '[permissions.tao-workspace]\nextends = ":workspace"\n'
-                    '[permissions.tao-workspace.network]\nenabled = false\n'
-                    '[custom]\ndefault_permissions = "tao-workspace"\n'
+                    '[permissions.moru-workspace]\nextends = ":workspace"\n'
+                    '[permissions.moru-workspace.network]\nenabled = false\n'
+                    '[custom]\ndefault_permissions = "moru-workspace"\n'
                 )
                 original = prefix + f'default_permissions = {selection} # prior selection\n' + suffix
                 target.write_text(original)
@@ -58,7 +58,7 @@ class CodexPermissionsTests(unittest.TestCase):
             for original in (
                 'default_permissions = "personal"\n',
                 'sandbox_mode = "danger-full-access"\n',
-                '[custom]\ndefault_permissions = "tao-workspace"\n',
+                '[custom]\ndefault_permissions = "moru-workspace"\n',
             ):
                 with self.subTest(original=original):
                     target.write_text(original)
@@ -68,7 +68,7 @@ class CodexPermissionsTests(unittest.TestCase):
     def test_reset_leaves_a_selection_under_an_array_of_tables_untouched(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "config.toml"
-            original = 'model = "keep"\n[[profiles]]\ndefault_permissions = "tao-workspace"\n'
+            original = 'model = "keep"\n[[profiles]]\ndefault_permissions = "moru-workspace"\n'
             target.write_text(original)
             self.assertEqual("ok", reset_moru_permission_default(target, False))
             self.assertEqual(original, target.read_text())
@@ -78,7 +78,7 @@ class CodexPermissionsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / ".codex" / "config.toml"
             target.parent.mkdir()
-            original = 'default_permissions = "tao-workspace"\ndefault_permissions = "personal"\n'
+            original = 'default_permissions = "moru-workspace"\ndefault_permissions = "personal"\n'
             target.write_text(original)
             output = io.StringIO()
             with patch.object(Path, "home", return_value=Path(directory)), patch(
@@ -92,7 +92,7 @@ class CodexPermissionsTests(unittest.TestCase):
     def test_reset_rejects_duplicate_defaults_without_writing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "config.toml"
-            original = 'default_permissions = "tao-workspace"\ndefault_permissions = "personal"\n'
+            original = 'default_permissions = "moru-workspace"\ndefault_permissions = "personal"\n'
             target.write_text(original)
             with self.assertRaisesRegex(ValueError, "Ambiguous"):
                 reset_moru_permission_default(target, False)
@@ -103,7 +103,7 @@ class CodexPermissionsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / ".codex" / "config.toml"
             target.parent.mkdir()
-            target.write_text('default_permissions = "tao-workspace"\nmodel = "keep"\n')
+            target.write_text('default_permissions = "moru-workspace"\nmodel = "keep"\n')
             with patch.object(Path, "home", return_value=Path(directory)), patch.object(
                 sys, "argv", ["setup-agent-hooks.py", "--reset-codex-permission-default"]
             ), patch.object(setup, "ensure_stable_launcher") as launcher:
@@ -116,7 +116,7 @@ class CodexPermissionsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / ".codex" / "config.toml"
             target.parent.mkdir()
-            original = 'default_permissions = "tao-workspace"\n'
+            original = 'default_permissions = "moru-workspace"\n'
             target.write_text(original)
             output = io.StringIO()
             with patch.object(Path, "home", return_value=Path(directory)), patch(
@@ -133,7 +133,7 @@ class CodexPermissionsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / ".codex" / "config.toml"
             target.parent.mkdir()
-            original = 'default_permissions = "tao-workspace"\n'
+            original = 'default_permissions = "moru-workspace"\n'
             target.write_text(original)
             with patch.object(Path, "home", return_value=Path(directory)), patch.object(
                 sys, "argv", ["setup-agent-hooks.py", "--reset-codex-permission-default", "--check"]
@@ -166,11 +166,11 @@ class CodexPermissionsTests(unittest.TestCase):
             target = Path(directory) / "config.toml"
             target.write_text(
                 'model = "gpt-test"\n'
-                'default_permissions = "tao-workspace"\n\n'
-                '[permissions.tao-workspace]\n'
+                'default_permissions = "moru-workspace"\n\n'
+                '[permissions.moru-workspace]\n'
                 'description = "Custom local description"\n'
                 'extends = ":workspace"\n\n'
-                '[permissions.tao-workspace.workspace_roots]\n'
+                '[permissions.moru-workspace.workspace_roots]\n'
                 '"/existing/root" = true\n\n'
                 '[projects."/existing/project"]\n'
                 'trust_level = "trusted"\n',
@@ -195,7 +195,7 @@ class CodexPermissionsTests(unittest.TestCase):
             'approval_policy = "on-request"\n',
             'sandbox_mode = "workspace-write"\n',
             '[sandbox_workspace_write]\nwritable_roots = ["/personal"]\n',
-            'default_permissions = "tao-workspace"\napproval_policy = "on-request"\n',
+            'default_permissions = "moru-workspace"\napproval_policy = "on-request"\n',
         )
         for original in configs:
             with self.subTest(original=original), tempfile.TemporaryDirectory() as directory:
@@ -212,36 +212,13 @@ class CodexPermissionsTests(unittest.TestCase):
                 updated = target.read_text(encoding="utf-8")
                 self.assertTrue(updated.startswith(original))
                 self.assertEqual(original.count("default_permissions ="), updated.count("default_permissions ="))
-                if original.startswith('default_permissions = "tao-workspace"'):
+                if original.startswith('default_permissions = "moru-workspace"'):
                     # The selected pre-rename profile keeps its name.
-                    self.assertIn('[permissions.tao-workspace.workspace_roots]', updated)
+                    self.assertIn('[permissions.moru-workspace.workspace_roots]', updated)
                 elif original.startswith('default_permissions'):
                     self.assertIn('[permissions.moru-workspace.workspace_roots]', updated)
                 else:
                     self.assertEqual(original, updated)
-
-    def test_unselected_pre_rename_profile_is_carried_over_to_moru_name(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            target = Path(directory) / "config.toml"
-            target.write_text(
-                'default_permissions = ":workspace"\n\n'
-                '[permissions.tao-workspace]\n'
-                'description = "Workspace access plus the shared Tao Agent OS runtime."\n'
-                'extends = ":workspace"\n\n'
-                '[permissions.tao-workspace.workspace_roots]\n'
-                '"/existing/root" = true\n',
-                encoding="utf-8",
-            )
-            root = Path(directory) / "project" / ".moru" / "worktrees"
-
-            status = merge_codex_worktree_roots(target, [root], dry_run=False)
-            text = target.read_text(encoding="utf-8")
-
-        self.assertEqual("installed", status)
-        self.assertNotIn("tao-workspace", text)
-        self.assertIn('[permissions.moru-workspace]\ndescription = "Workspace access plus the shared Moru Core runtime."', text)
-        self.assertIn('[permissions.moru-workspace.workspace_roots]\n"/existing/root" = true', text)
-        self.assertIn(f'"{root.resolve()}" = true', text)
 
     def test_nested_default_permissions_key_does_not_replace_profile_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -267,8 +244,8 @@ class CodexPermissionsTests(unittest.TestCase):
             target = Path(directory) / "config.toml"
             root = Path(directory) / "worktrees"
             for original in (
-                '[permissions.tao-workspace]\nextends = ":other"\n',
-                '[permissions.tao-workspace.workspace_roots]\n'
+                '[permissions.moru-workspace]\nextends = ":other"\n',
+                '[permissions.moru-workspace.workspace_roots]\n'
                 f'"{root.resolve()}" = false\n',
             ):
                 with self.subTest(original=original):

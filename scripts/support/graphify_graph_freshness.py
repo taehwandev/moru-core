@@ -11,7 +11,6 @@ from support.graphify_input_inspection import (
 )
 from support.graphify_contract import PROJECT_GRAPH_DIR
 from support.bounded_git import run_git
-from support import legacy_names
 
 
 GRAPH_INPUT_SUFFIXES = {
@@ -173,7 +172,6 @@ def _is_local_graph_state(relative: str) -> bool:
     parts = Path(relative).parts
     return (
         ".moru" in parts
-        or legacy_names.STATE_DIR in parts
         or parts[:2] == (".agents", "local")
         or relative.startswith("graphify-out/")
         or relative.startswith(f"{PROJECT_GRAPH_DIR.as_posix()}/")

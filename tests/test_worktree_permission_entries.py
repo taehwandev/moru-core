@@ -113,7 +113,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
         from support.permission_entries import claude_legacy_permission_entries
 
         cleanup = claude_legacy_permission_entries(SCRIPTS)
-        self.assertIn(f"Write(/.tao/{WORKTREE_DIRNAME}/**)", cleanup)
+        self.assertIn(f"Write(/.moru/{WORKTREE_DIRNAME}/**)", cleanup)
         self.assertIn("Write(**/*.py)", cleanup)
 
     def test_the_rules_point_at_the_worktree_root_from_inside_a_worktree(self) -> None:
@@ -132,7 +132,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
         for entry in _entries():
             if not entry.startswith(("Read(", "Edit(", "Write(")):
                 continue
-            state_dir = ".moru" if "/.moru/" in entry else ".tao"
+            state_dir = ".moru"
             inside = project / state_dir / WORKTREE_DIRNAME / "0123456789abcdef"
             want = project / state_dir / WORKTREE_DIRNAME / "**"
             with self.subTest(entry=entry):
@@ -192,7 +192,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
         cleanup = claude_legacy_permission_entries(SCRIPTS)
         for tool in ("Read", "Edit", "Write"):
             with self.subTest(tool=tool):
-                self.assertIn(f"{tool}(.tao/{WORKTREE_DIRNAME}/**)", cleanup)
+                self.assertIn(f"{tool}(.moru/{WORKTREE_DIRNAME}/**)", cleanup)
 
     def test_cleanup_never_removes_a_rule_the_installer_adds(self) -> None:
         # The two lists meet in one merge, so an entry in both would be added

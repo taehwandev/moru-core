@@ -37,7 +37,6 @@ from workflow_gate_policy import (
 from workflow_parallel_validate import validate_parallel_execution_plan
 from workflow_route import REVIEW_HOOK_REQUIRED_COMMANDS, resolve_docs, route_gates
 from workflow_spill import validate_spill_label_contracts
-from support import legacy_names
 
 
 MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
@@ -62,7 +61,6 @@ MARKDOWN_VALIDATE_IGNORED_DIRS = {
     "local",
     # Agent task checkouts are separate repositories, not canonical guidance.
     ".claude/worktrees",
-    legacy_names.STATE_DIR,
     ".moru",
     ".git",
     ".mypy_cache",

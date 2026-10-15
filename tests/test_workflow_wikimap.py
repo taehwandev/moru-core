@@ -269,7 +269,6 @@ class WikimapCorpusIgnoreTests(unittest.TestCase):
             "README.ko.md",
             "docs/ko/update-moru.md",
             "docs/ko/moru-core-roadmap.md",
-            "docs/migration/moru-core-rename.md",
             "docs/minimal-workflow/prd.md",
             "docs/work-surface-resolution/spec.md",
             "docs/index.html",

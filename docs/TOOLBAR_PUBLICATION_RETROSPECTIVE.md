@@ -6,7 +6,7 @@ type: ai-generated
 
 # Toolbar Publication Retrospective
 
-The compact Project toolbar was committed to TaoIDE main as `b042f544`.
+The compact Project toolbar was committed to the Moru app main branch as `b042f544`.
 The user reported roughly 90 minutes of delay and then explicitly stopped
 further verification. This document records observed causes, not a measured
 allocation of that entire duration.

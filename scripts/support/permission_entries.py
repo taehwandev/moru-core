@@ -10,7 +10,6 @@ from support.setup_config_files import quote
 from support.spill_permissions import obsolete_spill_helper_permission_commands as _obsolete_spill_helper_permission_commands
 from support.spill_permissions import spill_helper_permission_commands as _spill_helper_permission_commands
 from support.stable_launcher import stable_launcher_path
-from support import legacy_names
 
 
 # The public Python commands that an agent may invoke directly. This is the
@@ -97,11 +96,8 @@ def _legacy_worktree_permission_entries() -> list[str]:
 
     from agent_worktree_identity import WORKTREE_DIRNAME
 
-    entries: list[str] = []
-    for state_dir in (".moru", legacy_names.STATE_DIR):
-        root = f"{state_dir}/{WORKTREE_DIRNAME}"
-        entries += [f"{tool}({root}/**)" for tool in ("Read", "Edit", "Write")]
-    return entries
+    root = f".moru/{WORKTREE_DIRNAME}"
+    return [f"{tool}({root}/**)" for tool in ("Read", "Edit", "Write")]
 
 
 def _unmatched_write_permission_entries() -> list[str]:
@@ -120,7 +116,6 @@ def _unmatched_write_permission_entries() -> list[str]:
 
     return [
         "Write(**/*.py)",
-        f"Write(/{legacy_names.STATE_DIR}/{WORKTREE_DIRNAME}/**)",
         f"Write(/.moru/{WORKTREE_DIRNAME}/**)",
     ]
 
@@ -269,7 +264,6 @@ def _legacy_moru_python_scripts(scripts_dir: Path) -> list[Path]:
     exclude_dirs = {
         ".git",
         ".pytest_cache",
-        legacy_names.STATE_DIR,
         ".moru",
         ".venv",
         ".wikimap",
@@ -323,13 +317,10 @@ def _obsolete_stable_launcher_commands(tool: str) -> list[str]:
         f"SPILL_AI_TOOL={tool} ",
         f"SPILL_TOKEN_USAGE_AI_TOOL={tool} ",
         f"MORU_HOOK_SOFT_FAIL=1 SPILL_AI_TOOL={tool} ",
-        f"{legacy_names.HOOK_SOFT_FAIL} SPILL_AI_TOOL={tool} ",
     )
     for path in _obsolete_stable_launcher_path_variants():
         for prefix in env_prefixes:
             commands.append(f"{prefix}{path}")
-    for path in _stable_launcher_path_variants():
-        commands.append(f"{legacy_names.HOOK_SOFT_FAIL} SPILL_AI_TOOL={tool} {path}")
     return commands
 
 
@@ -359,25 +350,19 @@ def _stable_launcher_path_variants() -> list[str]:
 
 
 def _obsolete_stable_launcher_path_variants() -> list[str]:
-    """Launcher spellings that setup must now remove.
-
-    Home-relative spellings of the current launcher, and every spelling of the
-    pre-rename launcher, which setup no longer installs.
-    """
-    home = Path.home()
-    legacy = str(home / legacy_names.STATE_DIR / "bin" / legacy_names.LAUNCHER)
-    variants: list[str] = [legacy]
-    for raw in (str(stable_launcher_path()), legacy):
-        variants += [quote(raw), _double_quote(raw)]
-        if raw.startswith(str(home) + "/"):
-            suffix = raw[len(str(home)) + 1:]
-            variants += [
-                f"~/{suffix}",
-                f"$HOME/{suffix}",
-                _double_quote(f"$HOME/{suffix}"),
-                f"${{HOME}}/{suffix}",
-                _double_quote(f"${{HOME}}/{suffix}"),
-            ]
+    """Home-relative launcher spellings that setup must now remove."""
+    raw = str(stable_launcher_path())
+    variants = [quote(raw), _double_quote(raw)]
+    home = str(Path.home())
+    if raw.startswith(home + "/"):
+        suffix = raw[len(home) + 1:]
+        variants += [
+            f"~/{suffix}",
+            f"$HOME/{suffix}",
+            _double_quote(f"$HOME/{suffix}"),
+            f"${{HOME}}/{suffix}",
+            _double_quote(f"${{HOME}}/{suffix}"),
+        ]
     return _dedupe(variants)
 
 

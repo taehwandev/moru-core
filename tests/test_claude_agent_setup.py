@@ -17,8 +17,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from support.claude_agent_setup import (
     AGENT_NAMES,
     FRONTMATTER_FENCE,
-    LEGACY_MANAGED_MARKER,
-    MANAGED_MARKER,
+        MANAGED_MARKER,
     SOURCE_SUFFIX,
     install_claude_agents,
 )
@@ -85,24 +84,6 @@ class ClaudeAgentSetupTests(unittest.TestCase):
                 (TEMPLATES / f"{name}{SOURCE_SUFFIX}").read_bytes(), Path(row["path"]).read_bytes(),
             )
 
-    def test_pre_rename_managed_roles_are_removed_and_user_roles_kept(self) -> None:
-        self.agents_dir.mkdir(parents=True)
-        legacy = self.agents_dir / "tao_explorer.md"
-        legacy.write_text(f"{FRONTMATTER_FENCE}\n{LEGACY_MANAGED_MARKER}\nname: tao_explorer\n")
-        user_owned = self.agents_dir / "tao_worker.md"
-        user_owned.write_text("---\nname: tao_worker\n---\nmine\n")
-
-        dry = self.statuses(self.install(dry_run=True))
-        self.assertEqual("would_remove", dry["agents.tao_explorer"])
-        self.assertTrue(legacy.exists())
-
-        rows = self.statuses(self.install())
-        self.assertEqual("removed", rows["agents.tao_explorer"])
-        self.assertNotIn("agents.tao_worker", rows)
-        self.assertFalse(legacy.exists())
-        self.assertTrue(user_owned.exists())
-        self.assertTrue((self.agents_dir / "moru_explorer.md").is_file())
-
     def test_missing_dry_run_does_not_create_directory(self) -> None:
         rows = self.install(dry_run=True)
         self.assertEqual(["missing"] * 3, [row["status"] for row in rows])
@@ -117,14 +98,6 @@ class ClaudeAgentSetupTests(unittest.TestCase):
         self.assertEqual([target], list(self.agents_dir.iterdir()))
         self.assertEqual("installed", self.statuses(self.install())["agents.moru_worker"])
         self.assertEqual((TEMPLATES / f"moru_worker{SOURCE_SUFFIX}").read_bytes(), target.read_bytes())
-
-    def test_legacy_managed_role_upgrades_to_moru_marker(self) -> None:
-        legacy = f"{FRONTMATTER_FENCE}\n{LEGACY_MANAGED_MARKER}\nname: moru_worker\n---\n".encode()
-        target = self.write_role("moru_worker", legacy)
-        self.assertEqual("would_update", self.statuses(self.install(dry_run=True))["agents.moru_worker"])
-        self.assertEqual(legacy, target.read_bytes())
-        self.assertEqual("installed", self.statuses(self.install())["agents.moru_worker"])
-        self.assertEqual(MANAGED_MARKER, target.read_text().splitlines()[1])
 
     def test_same_name_user_role_and_unrelated_role_are_preserved(self) -> None:
         custom = b"---\nname: moru_worker\ndescription: Mine\n---\nMy instructions\n"

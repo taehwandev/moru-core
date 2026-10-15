@@ -5,12 +5,9 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from support import legacy_names
 
 
 MORU_WORKSPACE_PROFILE = "moru-workspace"
-# The profile name setup wrote before the Moru rename.
-LEGACY_WORKSPACE_PROFILE = legacy_names.WORKSPACE_PROFILE
 _TABLE_HEADER = re.compile(r"(?m)^[ \t]*\[([^\]\n]+)\][ \t]*(?:#.*)?$")
 # Where the top level ends: a `[table]` or an `[[array.of.tables]]`. A key under
 # either one is nested, so the reset must never read it as the top-level selection.
@@ -26,7 +23,7 @@ def reset_moru_permission_default(target: Path, dry_run: bool) -> str:
     top = original[:header.start()] if header else original
     pattern = re.compile(
         r"(?m)^[ \t]*default_permissions[ \t]*=[ \t]*"
-        rf"(['\"])(?:moru-workspace|{LEGACY_WORKSPACE_PROFILE})\1[ \t]*(?:#[^\n]*)?(?:\n|$)"
+        r"(['\"])moru-workspace\1[ \t]*(?:#[^\n]*)?(?:\n|$)"
     )
     matches = list(pattern.finditer(top))
     count = _assignment_count(top, "default_permissions")
@@ -64,14 +61,11 @@ def merge_codex_worktree_roots(
             return "missing"
         return "ok: optional Moru profile skipped because no default_permissions is selected"
     root_strings = list(dict.fromkeys(str(root.expanduser().resolve()) for root in roots))
-    # A configuration that selects the pre-rename profile keeps it, so the
-    # selection never points at a profile that no longer exists.
-    profile = LEGACY_WORKSPACE_PROFILE if _selects_legacy_profile(original) else MORU_WORKSPACE_PROFILE
+    profile = MORU_WORKSPACE_PROFILE
     if _permission_ownership_conflicts(original, root_strings, profile):
         return "missing"
 
-    updated = _rename_legacy_profile(original)
-    updated = _ensure_workspace_profile(updated, profile)
+    updated = _ensure_workspace_profile(original, profile)
     updated = _ensure_worktree_roots(updated, root_strings, profile)
     if updated == original:
         return "ok"
@@ -80,12 +74,6 @@ def merge_codex_worktree_roots(
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(updated, encoding="utf-8")
     return "installed"
-
-
-def _selects_legacy_profile(text: str) -> bool:
-    return bool(re.search(
-        rf"(?m)^[ \t]*default_permissions[ \t]*=[ \t]*(['\"]){LEGACY_WORKSPACE_PROFILE}\1", text
-    ))
 
 
 def _permission_ownership_conflicts(text: str, roots: list[str], name: str) -> bool:
@@ -110,27 +98,6 @@ def _permission_ownership_conflicts(text: str, roots: list[str], name: str) -> b
         if len(values) > 1 or (values and values[0] != "true"):
             return True
     return False
-
-
-def _rename_legacy_profile(text: str) -> str:
-    """Carry the pre-rename profile's tables over under the Moru name.
-
-    Only when nothing selects the old name and no Moru profile exists yet, so a
-    configuration a user points at keeps resolving and nothing is duplicated.
-    """
-    legacy = f"permissions.{LEGACY_WORKSPACE_PROFILE}"
-    if _section(text, f"permissions.{MORU_WORKSPACE_PROFILE}") or not _section(text, legacy):
-        return text
-    if _selects_legacy_profile(text):
-        return text
-    header = re.compile(rf"(?m)^([ \t]*\[){re.escape(legacy)}((?:\.[^\]\n]+)?\][ \t]*(?:#.*)?)$")
-    renamed = header.sub(
-        lambda match: f"{match.group(1)}permissions.{MORU_WORKSPACE_PROFILE}{match.group(2)}", text
-    )
-    return renamed.replace(
-        legacy_names.WORKSPACE_DESCRIPTION,
-        'description = "Workspace access plus the shared Moru Core runtime."',
-    )
 
 
 def _ensure_workspace_profile(text: str, name: str) -> str:

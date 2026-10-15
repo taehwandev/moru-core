@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from support import legacy_names
 
 
 LAUNCHER_NAME = "moru-hook"
@@ -26,7 +25,7 @@ def is_disposable_root(root: Path) -> bool:
 
     parts = Path(root).resolve(strict=False).parts
     return any(
-        parts[index] in (STATE_DIR_NAME, legacy_names.STATE_DIR)
+        parts[index] == STATE_DIR_NAME
         and parts[index + 1] == "worktrees"
         for index in range(len(parts) - 1)
     )
@@ -86,7 +85,6 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
         and _is_executable(launcher_path)
     )
     pointer_ok = pointer_path.exists() and _read_text(pointer_path) == root_text
-    legacy = _legacy_launcher_files()
 
     if dry_run:
         rows = [
@@ -95,8 +93,6 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
             {"tool": "moru", "hook": "root_pointer",
              "status": "ok" if pointer_ok else "missing", "path": str(pointer_path)},
         ]
-        rows += [{"tool": "moru", "hook": "legacy_launcher", "status": "would_remove",
-                  "path": str(path)} for path in legacy]
         return rows
 
     launcher_status = "ok"
@@ -110,38 +106,10 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
         pointer_path.parent.mkdir(parents=True, exist_ok=True)
         pointer_path.write_text(root_text)
         pointer_status = "installed"
-    removed = []
-    for path in legacy:
-        path.unlink(missing_ok=True)
-        removed.append({"tool": "moru", "hook": "legacy_launcher", "status": "removed",
-                        "path": str(path)})
     return [
         {"tool": "moru", "hook": "stable_launcher", "status": launcher_status, "path": str(launcher_path)},
         {"tool": "moru", "hook": "root_pointer", "status": pointer_status, "path": str(pointer_path)},
-        *removed,
     ]
-
-
-def _legacy_launcher_files() -> list[Path]:
-    """The pre-rename launcher and root pointer an older setup installed.
-
-    Only files this installer wrote: a launcher that dispatches Moru Core
-    scripts and a pointer naming a directory. Anything else is left alone.
-    """
-    home = Path.home()
-    found: list[Path] = []
-    for state_dir in (legacy_names.STATE_DIR, STATE_DIR_NAME):
-        launcher = home / state_dir / "bin" / legacy_names.LAUNCHER
-        if launcher.is_file() and not launcher.is_symlink() and "SCRIPT_ALIASES" in _read_text(launcher):
-            found.append(launcher)
-        pointer = home / state_dir / legacy_names.ROOT_POINTER
-        if pointer.is_file() and not pointer.is_symlink() and Path(_read_text(pointer).strip() or "/nonexistent").is_dir():
-            found.append(pointer)
-    unique: list[Path] = []
-    for path in found:
-        if all(path.resolve() != seen.resolve() for seen in unique):
-            unique.append(path)
-    return unique
 
 
 def stable_launcher_issue(root: Path) -> str:
