@@ -2943,6 +2943,15 @@ def _decide(payload: dict) -> int:
     if tool in BASH_TOOLS:
         _settle_paused_runs_before_publication(payload, roots, command_cwd)
     if tool in BASH_TOOLS and bash_kind in {"bootstrap", RUNTIME_CONTROL_KIND}:
+        if bash_kind == RUNTIME_CONTROL_KIND:
+            from claude_pretool_finish_readiness import finish_readiness_denial
+
+            finish_reason = finish_readiness_denial(
+                tokens, command_cwd, str(payload.get("session_id") or ""),
+                lambda project, session: session_evidence(project, session) or paused_session_evidence(project, session),
+            )
+            if finish_reason:
+                return deny(finish_reason, code="finish_before_gates")
         return _bootstrap_verdict(root, roots, tokens, syntax_is_simple, command_cwd)
     # Every governed project, not just the first: a session inside a linked
     # worktree satisfies its own policy while naming the protected checkout it
