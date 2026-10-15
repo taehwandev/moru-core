@@ -1,0 +1,40 @@
+name: Bug report
+description: Something in Moru Core does not work as expected.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Issues here are public. Do not include API keys, tokens, passwords or private code.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead. You can attach screenshots here.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: input
+    id: version
+    attributes:
+      label: Moru Core version
+      placeholder: "e.g. v26.42.0 or a commit hash"
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: "Coding agent (Claude Code, Codex, Antigravity or Gemini CLI), its version, and your OS"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste relevant output. Remove secrets first.
+      render: text
