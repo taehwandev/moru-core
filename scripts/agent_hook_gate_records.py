@@ -38,7 +38,11 @@ from agent_hook_runtime import finish_with_result
 from agent_route_state import required_docs_for_route
 from agent_skill_catalog import canonical_skill_ids, skill_ids_from_doc_paths
 from agent_run_registry import SETTLED_RUN_STATES
-from agent_runtime_session import resolve_runtime_evidence, runtime_session
+from agent_runtime_session import (
+    resolve_owned_runtime_evidence,
+    resolve_runtime_evidence,
+    runtime_session,
+)
 from agent_gate_reuse import GateEvidenceReuse
 from support.global_state import project_state_dir_target
 
@@ -88,6 +92,28 @@ def preflight_evidence_path(args: argparse.Namespace) -> Path:
         # is never its subject: it keeps reporting that none is settleable.
         settled = None if getattr(args, "hook", "") == "cancel" else resolve_runtime_evidence(
             args.project, session, SETTLED_RUN_STATES, latest_of_several=True
+        )
+        if settled is not None:
+            args.evidence = settled
+            return settled
+    elif getattr(args, "hook", "") != "start":
+        active = resolve_owned_runtime_evidence(args.project)
+        if active is not None:
+            args.evidence = active
+            return active
+        failed = resolve_owned_runtime_evidence(
+            args.project, frozenset({"failed"}), latest_of_several=True
+        )
+        completed = resolve_owned_runtime_evidence(
+            args.project, frozenset({"completed"}), latest_of_several=True
+        )
+        if failed is not None and (
+            completed is None or _last_moved(failed) > _last_moved(completed)
+        ):
+            args.evidence = failed
+            return failed
+        settled = None if getattr(args, "hook", "") == "cancel" else resolve_owned_runtime_evidence(
+            args.project, SETTLED_RUN_STATES, latest_of_several=True
         )
         if settled is not None:
             args.evidence = settled

@@ -23,17 +23,18 @@ import shutil
 import sqlite3
 import sys
 import time
+import urllib.parse
 import zlib
 from collections import Counter, deque
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.5.0"
 
 # bump when parse_file output changes shape/semantics — forces a full reparse of
 # cached index.db files that would otherwise silently miss the new fields
-PARSER_VERSION = "2"
+PARSER_VERSION = "3"
 
 IGNORE_DIRS = {
     ".obsidian", ".git", ".wikimap", "graphify-out", "node_modules",
@@ -60,8 +61,8 @@ All commands: `__WIKIMAP__ [--root <vault>] <cmd>` (or just `wikimap <cmd>` when
 
 | Command | Purpose |
 |---------|---------|
-| `update [--ignore <dir\|glob>] [--map-path <rel> \| --no-map]` | incremental re-index + regenerate the map (sha-diff, changed files only; prints coverage: indexed vs skipped; map ends with a Health section — orphans, broken links, stale semantics). Persistent excludes: `.wikimapignore` at vault root, one dir/glob per line. `--map-path`/`--no-map` persist — use when another tool also indexes the vault root |
-| `search "query" ["variant" ...] [-n 8] [-C 3 \| --full]` | ranked section search (filename/title/heading boosted; FTS5-accelerated when available); shows matched lines (≤3); `-C N` adds N context lines, `--full` prints the whole section; fresh notes surface first; CJK substring-safe. Query syntax: `"exact phrase"`, `title:x` `path:x` `heading:x` `tag:x` field filters (frontmatter `tags: [a, b]` are indexed), `type:md\|html\|pdf\|image\|text` file-type filter. Frontmatter `aliases:` match at title weight — give a doc a same-language alias to make it findable across languages. When no section matches every term, results relax to a majority-of-terms OR and are marked `partial k/n` (field filters stay hard). **Several phrasings of one question in one call are rank-fused (RRF)** into a single document ranking — a doc multiple phrasings agree on wins |
+| `update [--ignore <dir\|glob>] [--map-path <rel> \| --no-map]` | incremental re-index + regenerate the map (sha-diff, changed files only; prints coverage: indexed vs skipped; map ends with a Health section — orphans, broken links, links to unindexed files, stale semantics). Persistent excludes: `.wikimapignore` at vault root, one dir/glob per line. `--map-path`/`--no-map` persist — use when another tool also indexes the vault root |
+| `search "query" ["variant" ...] [-n 8] [-C 3 \| --full]` | ranked section search (filename/title/heading boosted); shows the best-matching lines from the *whole* document (≤5, so the answer line surfaces even when it lives outside the top-scoring section); `-C N` adds N context lines, `--full` prints the whole section; fresh notes surface first; CJK substring-safe. Query syntax: `"exact phrase"`, `title:x` `path:x` `heading:x` `tag:x` field filters (frontmatter `tags: [a, b]` are indexed), `type:md\|html\|pdf\|image\|text` file-type filter. Frontmatter `aliases:` match at title weight — give a doc a same-language alias to make it findable across languages. When no section matches every term, results relax to a majority-of-terms OR and are marked `partial k/n` (field filters stay hard). **Several phrasings of one question in one call are rank-fused (RRF)** into a single document ranking — a doc multiple phrasings agree on wins |
 | `links <REQ-ID|filename|path>` | docs mentioning a requirement ID, or a doc's outlinks/backlinks/inferred connections — entries tagged `[linked|…]` (written by a human) vs `[inferred|…]` (confirmed guess) |
 | `path <a> <b>` | shortest connection path between two docs (BFS over wiki/md links + fresh edges, both directions) |
 | `note add --question "..." --insight "..." --sources a.md,b.md` | save an answer-time insight (source shas pinned) |
@@ -78,17 +79,20 @@ All commands: `__WIKIMAP__ [--root <vault>] <cmd>` (or just `wikimap <cmd>` when
 | `import-graphify <graph.json>` | one-time import of INFERRED edges from an existing graphify graph (`migrate` does this for you) |
 | `install --hook` | git post-commit hook that runs `update` automatically (appends to an existing hook) |
 | `mv <old> <new> [--apply]` | move/rename a doc AND rewrite every wikilink/md/img reference to it (dry run without `--apply`); semantics.jsonl paths updated too |
-| `fix-links [--json]` | for every broken link the Health section counts: suggest close-match targets (suggestions only, never auto-applied) |
+| `fix-links [--json]` | for every broken link the Health section counts: suggest close-match targets (suggestions only, never auto-applied); links whose target exists on disk but was never indexed (dot-dir, `.wikimapignore`) are listed apart as `unindexed`, not as broken |
+| `doctor [--json]` | read-only integrity check in one shot: index freshness (behind disk?), `semantics.jsonl` validity, broken links, stale pins — ends with the command that fixes each finding. Run it when a vault behaves oddly |
 
-`search`/`links`/`path`/`suggest`/`notes`/`edges`/`semsearch` accept `--json` for structured output — prefer it when a script consumes the result. `search --json` carries `weak: true` when the result set is empty, fell back to a partial match, or has a low top score — the signal to try the semantic path (see rule 9). It also carries `terms: [{term, df}]` — the document frequency of each query token in this corpus. A `df: 0` term is dead vocabulary (nothing in the vault contains it): when reformulating, replace exactly those terms and keep the ones that hit.
+`search`/`links`/`path`/`suggest`/`notes`/`edges`/`semsearch`/`doctor` accept `--json` for structured output — prefer it when a script consumes the result. `search --json` carries `weak: true` when the query contains dead vocabulary (a `df: 0` term nothing in the vault contains), the result set is empty or a short query fell back to a partial match, or the top score is low — the signal to fan out with rewrites (rule 1) or try the semantic path (rule 9). It also carries `terms: [{term, df}]` — the document frequency of each query token in this corpus: when reformulating, replace exactly the `df: 0` terms and keep the ones that hit. `search --compact` returns one best line per result — the diet mode for multi-query loops.
 
 Notes and edges live in `.wikimap/semantics.jsonl` (append-only, git-committable — the source of truth); `.wikimap/index.db` is a disposable cache rebuilt from files + that jsonl.
+
+wikimap makes no network calls by default. Set `WIKIMAP_CHECK_UPDATE=1` and `update`/`doctor` will mention a newer release (PyPI, at most once a day, 2s timeout, silent on any failure); `WIKIMAP_NO_UPDATE_CHECK=1` forces it back off.
 
 ## Rules for the agent
 
 1. **On a vault question**: read `MAP.md` at the vault root first, then `search` for relevant sections, then Read only those file sections. Never sweep whole files. For fact/value questions ("what is the limit/period/owner?"), retry with `-C 3` or `--full` before falling back to Read.
-   **Ask in full sentences, fanned out**: a whole conversational question ("탭 토글하면 N뱃지 다시 뜨던 버그 어떻게 막았어?") searches better than hand-picked keywords — long queries are matched by information content (rare terms carry the weight; function words are ignored) and rolled up per document. For a natural-language question, pass the raw question **plus 1–2 rewrites in the vault's own vocabulary** in one call — `search "<raw question>" "<rewrite 1>" "<rewrite 2>" --json` — and the rankings are rank-fused (RRF). Never *replace* the raw question with a rewrite: the raw phrasing is a free vote and your rewrite can miss the corpus vocabulary; fusion keeps both. Rewrites that help: the document-title phrasing of the concept, the other language (Korean↔English), the technical term behind a colloquial description. Reserve `field:` filters for when you truly want to constrain.
-   **Re-query before giving up**: on 0 results, a `partial` marker, or `weak: true`, look at `terms` in the JSON — replace exactly the `df: 0` (dead) tokens with synonyms/the concept behind them/the other language, keep the tokens that hit, and search once more. The index is deterministic; the reformulation is your job. If reformulation still comes up weak and an embedding index exists (`embed status`), fall to the semantic path (rule 9) — or pass your query embedding straight into `search --hybrid` to get both halves in one call.
+   **Ask in full sentences**: a whole conversational question ("탭 토글하면 N뱃지 다시 뜨던 버그 어떻게 막았어?") searches better than hand-picked keywords — long queries are matched by information content (rare terms carry the weight; function words are ignored) and rolled up per document. Search the raw question **alone** first. Reserve `field:` filters for when you truly want to constrain.
+   **Fan out only on `weak: true`**: when the response says `weak: true`, the query carries vocabulary the vault doesn't (`terms` shows which tokens have `df: 0`). Then — and only then — re-issue as one fused call with 1–2 rewrites: `search "<raw question>" "<rewrite 1>" "<rewrite 2>" --json` (rank-fused via RRF). Never *replace* the raw question with a rewrite: the raw phrasing is a free vote and your rewrite can miss the corpus vocabulary; fusion keeps both. Rewrites that help: the document-title phrasing of the concept, the other language (Korean↔English), the technical term behind a colloquial description — swap exactly the `df: 0` tokens, keep the ones that hit. Do **not** fan out when `weak` is false: measured on 135 blind queries, unconditional fan-out diluted easy queries' top-5 precision (recall@5 0.830 → 0.741) while the weak-gated protocol kept both sides (0.889). If a fan-out still comes up weak and an embedding index exists (`embed status`), fall to the semantic path (rule 9) — or pass your query embedding straight into `search --hybrid` to get both halves in one call.
 2. **After answering**: if the answer synthesized multiple documents into a non-obvious conclusion, save it with `note add` (sources = the actual evidence files, vault-relative paths).
 3. **After creating/editing/deleting vault files**: run `update` before the session ends (sub-second, zero tokens).
 4. **`[NOTE fresh]` in search results**: sha-verified cache — trust and reuse it. Stale notes are hidden automatically.
@@ -140,7 +144,7 @@ Source documents are never modified. To undo the wikimap index entirely, delete 
 
 HEADING = re.compile(r"^(#{1,6})\s+(.*)")
 WIKILINK = re.compile(r"\[\[([^\]|#]+)")
-MDLINK = re.compile(r"\]\(([^)#\s]+\.md)\)")
+MDLINK = re.compile(r"\]\(([^)#\s]+\.md)(?:#[^)\s]*)?\)")
 IMGLINK = re.compile(r"!\[([^\]]*)\]\(([^)#\s]+)\)")
 CODEREF = re.compile(r"\b[\w/.-]*\w\.(?:kt|kts|swift|java|py|ts|tsx|gradle)\b")
 REQID = re.compile(r"\bREQ-\d+\b")
@@ -157,13 +161,27 @@ PDF_TITLE = re.compile(rb"/Title\s*\(((?:\\.|[^\\()])*)\)")
 PDF_WORD = re.compile(r"[^\W\d_]{2,}")
 
 
-def sha256_of(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def norm_rel(p):
     # index keys are POSIX-style — Windows args/paths would miss otherwise
     return str(p).replace("\\", "/")
+
+
+def decode_link(url):
+    """Percent-decode a markdown link target so it can match the file on disk.
+
+    Editors write `[x](with%20space.md)` for a file literally named "with space.md".
+    Only applied when the URL actually carries an escape, and rolled back if
+    decoding yields nothing usable — a filename containing a bare '%' must survive
+    untouched (`100%.md` is a real name, and unquote would leave it alone anyway,
+    but `%zz` style near-misses must not corrupt the path).
+    """
+    if "%" not in url:
+        return url
+    try:
+        decoded = urllib.parse.unquote(url, errors="strict")
+    except (UnicodeDecodeError, ValueError):
+        return url
+    return decoded or url
 
 
 def find_root(cli_root):
@@ -206,58 +224,22 @@ def open_db(root: Path) -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS img_alts(src TEXT, dst TEXT, alt TEXT);
         CREATE INDEX IF NOT EXISTS idx_img_alts_src ON img_alts(src);
         CREATE TABLE IF NOT EXISTS embeds(path TEXT PRIMARY KEY, sha TEXT, vec TEXT);
+        CREATE TABLE IF NOT EXISTS haystacks(path TEXT PRIMARY KEY, hay TEXT);
         """
     )
-    try:
-        db.execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS sections_fts USING fts5("
-            "path UNINDEXED, line UNINDEXED, heading, content, tokenize='trigram')"
-        )
-    except sqlite3.OperationalError:
-        pass  # sqlite < 3.34 has no trigram tokenizer — search falls back to linear scan
     return db
 
 
-FTS_MIN_DOCS = 500  # below this a linear scan is already sub-100ms — skip FTS upkeep
+PREFILTER_MIN_DOCS = 500  # below this search scans every section, as it always has
 
 
-def has_fts(db):
-    return bool(
-        db.execute("SELECT 1 FROM sqlite_master WHERE name='sections_fts'").fetchone()
-    )
-
-
-def fts_populated(db):
-    return bool(db.execute("SELECT 1 FROM sections_fts LIMIT 1").fetchone())
-
-
-def sync_fts(db, changed_rels, deleted_rels):
-    if not has_fts(db):
-        return
-    total = db.execute("SELECT COUNT(*) FROM files").fetchone()[0]
-    if total < FTS_MIN_DOCS:
-        if fts_populated(db):
-            db.execute("DELETE FROM sections_fts")
-        return
-    if not fts_populated(db):
-        db.execute(
-            "INSERT INTO sections_fts(path, line, heading, content) "
-            "SELECT path, line, heading, content FROM sections"
-        )
-        return
-    stale = sorted(set(changed_rels) | set(deleted_rels))
-    for i in range(0, len(stale), 500):
-        chunk = stale[i : i + 500]
-        db.execute(
-            "DELETE FROM sections_fts WHERE path IN (%s)" % ",".join("?" * len(chunk)),
-            chunk,
-        )
-    for rel in changed_rels:
-        db.execute(
-            "INSERT INTO sections_fts(path, line, heading, content) "
-            "SELECT path, line, heading, content FROM sections WHERE path=?",
-            (rel,),
-        )
+def drop_legacy_fts(db):
+    """Older indexes carried a trigram FTS5 table that was 3x the corpus on disk
+    and slower than scanning the in-memory haystacks search loads anyway."""
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE name='sections_fts'").fetchone():
+        return False
+    db.execute("DROP TABLE sections_fts")
+    return True
 
 
 def parse_frontmatter(lines):
@@ -804,7 +786,7 @@ def parse_file(root: Path, path: Path):
     stat_mtime = path.stat().st_mtime
 
     def resolve_doc_link(dst):
-        resolved = (path.parent / dst).resolve()
+        resolved = (path.parent / decode_link(dst)).resolve()
         try:
             return resolved.relative_to(root).as_posix()
         except ValueError:
@@ -1086,6 +1068,37 @@ def write_semantics(root: Path, recs):
     tmp.replace(p)
 
 
+def text_sha(text):
+    # the index pins text docs by the sha of their decoded text (parse_file), not raw
+    # bytes — CRLF on disk and LF in memory must hash identically
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def repin_rewritten(sem, resha):
+    # when wikimap itself rewrites a doc's bytes (mv link fixes, link add inserts), records
+    # pinned to the pre-edit content would go stale — and a routine --prune would delete
+    # them. Repin to the new bytes, but only pins that matched the pre-edit content:
+    # already-stale must stay stale.
+    def repin(holder, pathkey, shakey):
+        pair = resha.get(holder.get(pathkey))
+        if pair and holder.get(shakey) == pair[0]:
+            holder[shakey] = pair[1]
+            return 1
+        return 0
+
+    changed = 0
+    for r in sem:
+        if r["type"] == "note":
+            for s in r.get("sources", []):
+                changed += repin(s, "path", "sha")
+        elif r["type"] == "embed":
+            changed += repin(r, "path", "sha")
+        elif r["type"] == "edge":
+            changed += repin(r, "src", "src_sha")
+            changed += repin(r, "dst", "dst_sha")
+    return changed
+
+
 def append_semantics(root: Path, rec):
     p = semantics_path(root)
     p.parent.mkdir(exist_ok=True)
@@ -1224,6 +1237,10 @@ def structure_words(paths, ratio=0.06):
     return {t for t, c in df.items() if c >= cutoff}
 
 
+# an alternation that can never match — see the guards below
+NEVER_MATCHES = r"(?!)"
+
+
 def minimal_variants(variants):
     """The subset of variants sufficient for a boolean substring hit-test: if a
     kept variant is itself a substring of another, the longer one can never match
@@ -1236,15 +1253,80 @@ def minimal_variants(variants):
     return out
 
 
-def doc_haystacks(db):
+def corpus_fingerprint(db):
+    """Cheap identity of the indexed corpus: count + a sha of the sha column."""
+    n, blob = db.execute(
+        "SELECT COUNT(*), COALESCE(GROUP_CONCAT(sha), '') FROM "
+        "(SELECT sha FROM files ORDER BY path)").fetchone()
+    return f"{n}:{hashlib.sha256(blob.encode()).hexdigest()[:16]}"
+
+
+def build_haystacks(db, only=None):
+    """Per-doc lowercase text the idf prefilter matches against.
+
+    `only` restricts the work to a set of paths so an incremental update doesn't
+    re-lower a corpus that didn't change.
+    """
+    if only is not None and not only:
+        return {}
+    where, params = "", ()
+    if only is not None:
+        pl = sorted(only)
+        where = " WHERE path IN (%s)" % ",".join("?" * len(pl))
+        params = tuple(pl)
     hays = {}
-    for path, title in db.execute("SELECT path, title FROM files"):
+    for path, title in db.execute("SELECT path, title FROM files" + where, params):
         hays[path] = [(title or "").lower() + " " + path.lower()]
-    for path, heading, content in db.execute("SELECT path, heading, content FROM sections"):
+    for path, heading, content in db.execute(
+            "SELECT path, heading, content FROM sections" + where, params):
         if path in hays:
             hays[path].append(heading.lower())
             hays[path].append(content.lower())
     return {p: " ".join(parts) for p, parts in hays.items()}
+
+
+def sync_haystacks(db, changed=None, deleted=()):
+    """Materialize the per-doc lowercase haystack at build time.
+
+    Byte-identical to what build_haystacks() computes on the fly — search reads
+    it instead of re-lowering the whole corpus on every query.
+    """
+    fp = corpus_fingerprint(db)
+    row = db.execute("SELECT value FROM meta WHERE key='haystack_fp'").fetchone()
+    covered = db.execute("SELECT COUNT(*) FROM haystacks").fetchone()[0] == \
+        db.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+    if row and row[0] == fp and covered:
+        return  # corpus unchanged — a no-op update shouldn't rebuild the cache
+    if changed is None or not (row and covered):
+        # no delta to trust (first build, or the cache is already out of step)
+        db.execute("DELETE FROM haystacks")
+        rows = build_haystacks(db)
+    else:
+        stale = sorted(set(changed) | set(deleted))
+        for i in range(0, len(stale), 500):
+            chunk = stale[i : i + 500]
+            db.execute("DELETE FROM haystacks WHERE path IN (%s)" % ",".join("?" * len(chunk)),
+                       chunk)
+        rows = build_haystacks(db, only=set(changed))
+    db.executemany("INSERT OR REPLACE INTO haystacks VALUES(?,?)", rows.items())
+    db.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('haystack_fp', ?)", (fp,))
+
+
+def doc_haystacks(db):
+    """Prebuilt haystacks when they cover the corpus, else compute them live.
+
+    A partially-stale table (files indexed after the last sync) would silently
+    drop those docs from every ranking, so the row count is checked against
+    files rather than merely testing for emptiness.
+    """
+    row = db.execute("SELECT value FROM meta WHERE key='haystack_fp'").fetchone()
+    if row and row[0] == corpus_fingerprint(db):
+        cached = dict(db.execute("SELECT path, hay FROM haystacks"))
+        # the fingerprint covers files, not the cache table: a haystacks row lost
+        # on its own would otherwise drop that doc from every ranking silently
+        if len(cached) == db.execute("SELECT COUNT(*) FROM files").fetchone()[0]:
+            return cached
+    return build_haystacks(db)
 
 
 def query_idf(db, terms, hays=None):
@@ -1258,18 +1340,23 @@ def query_idf(db, terms, hays=None):
         hays = doc_haystacks(db)
     df = {t: 0 for t in terms}
     variants = {t: minimal_variants(term_variants(t)) for t in terms}
-    # a token repeated in the query has always been df-counted once per
-    # occurrence; keep that so rankings stay byte-identical
-    counts = {}
-    for t in terms:
-        counts[t] = counts.get(t, 0) + 1
+    # one compiled alternation per term beats a Python any(v in hay ...) loop:
+    # the C regex engine scans each haystack once per term instead of once per
+    # (term, variant) pair. Same matches — verified byte-identical df/doc_hits.
+    # NEVER_MATCHES guards the empty variant set: "|".join([]) is "", and an empty
+    # pattern matches every string — the exact inverse of any(v in hay for v in []).
+    # Unreachable today (1-char plain terms are dropped upstream), but the two
+    # matchers below must not silently invert if that filter ever changes.
+    pats = {t: re.compile("|".join(re.escape(v)
+            for v in sorted(vs, key=len, reverse=True)) or NEVER_MATCHES)
+            for t, vs in variants.items()}
     doc_hits = {}
     for path, hay in hays.items():
-        hits = {t for t in counts if any(v in hay for v in variants[t])}
+        hits = {t for t in df if pats[t].search(hay)}
         if hits:
             doc_hits[path] = hits
             for t in hits:
-                df[t] += counts[t]
+                df[t] += 1
     ndocs = max(len(hays), 1)
     idf = {t: math.log(ndocs / df[t]) if df[t] else math.log(ndocs) for t in terms}
     return idf, sum(idf.values()), df, doc_hits
@@ -1580,10 +1667,8 @@ def cmd_update(root, db, args):
     row = db.execute("SELECT value FROM meta WHERE key='parser_version'").fetchone()
     if (row[0] if row else None) != PARSER_VERSION:
         # cached rows predate the current parser — they'd silently miss new fields
-        for t in ("files", "sections", "links", "tags", "aliases", "img_alts"):
+        for t in ("files", "sections", "links", "tags", "aliases", "img_alts", "haystacks"):
             db.execute(f"DELETE FROM {t}")
-        if has_fts(db):
-            db.execute("DELETE FROM sections_fts")
         db.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('parser_version', ?)",
                    (PARSER_VERSION,))
     known = {p: (sha, mt) for p, sha, mt in db.execute("SELECT path, sha, mtime FROM files")}
@@ -1629,12 +1714,16 @@ def cmd_update(root, db, args):
     db.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('pdf_name_only', ?)",
                (json.dumps(sorted(pdf_no)),))
     img_changed = rebuild_image_sections(db)
-    sync_fts(db, changed_rels + [p for p in img_changed if p not in deleted], deleted)
+    hay_changed = changed_rels + [p for p in img_changed if p not in deleted]
+    dropped_fts = drop_legacy_fts(db)
+    sync_haystacks(db, hay_changed, deleted)
     db.execute(
         "INSERT OR REPLACE INTO meta(key, value) VALUES('skipped', ?)",
         (json.dumps(dict(skipped.most_common())),),
     )
     db.commit()
+    if dropped_fts:
+        db.execute("VACUUM")  # DROP TABLE only frees pages; the file keeps its size without this
 
     fresh = stale = 0
     for (src,) in db.execute("SELECT sources FROM notes"):
@@ -1658,6 +1747,83 @@ def cmd_update(root, db, args):
         + f" | notes: {fresh} fresh, {stale} stale | "
         f"edges: {len(e['fresh'])} fresh, {len(e['stale'])} stale | {map_note}"
     )
+    note = latest_version_note(db)
+    if note:
+        print(note)
+
+
+UPDATE_CHECK_URL = "https://pypi.org/pypi/wikimap/json"
+UPDATE_CHECK_INTERVAL = 86400  # at most one request per day
+UPDATE_CHECK_TIMEOUT = 2.0
+
+
+def parse_version(v):
+    """(1, 3, 10, 0) from '1.3.10' — numeric compare, so 1.3.10 > 1.3.9.
+
+    A trailing suffix marks a prerelease: '1.4.0rc1' → (1, 4, 0, -1), which sorts
+    below the final '1.4.0' → (1, 4, 0, 0). Returns None when nothing parses,
+    which callers treat as "don't compare".
+    """
+    parts, pre = [], 0
+    for chunk in str(v).strip().split("."):
+        num = ""
+        for ch in chunk:
+            if not ch.isdigit():
+                break
+            num += ch
+        if len(num) != len(chunk):
+            pre = -1  # rc/dev/post tail — anything but a bare number
+        parts.append(int(num) if num else -1)
+    if not any(p >= 0 for p in parts):
+        return None
+    return tuple(parts) + (pre,)
+
+
+def update_check_enabled():
+    """Off unless explicitly switched on, and never in a non-interactive pipe.
+
+    wikimap makes no network calls by default — the whole point of the tool is
+    that it works offline and is auditable. Opting in is a deliberate act.
+    """
+    if os.environ.get("WIKIMAP_NO_UPDATE_CHECK"):
+        return False
+    return os.environ.get("WIKIMAP_CHECK_UPDATE", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def latest_version_note(db, now=None):
+    """A one-line 'newer version available' note, or None.
+
+    Every failure mode is silent: no network, DNS down, proxy, timeout, garbage
+    JSON, PyPI outage. An index command must never fail or hang because a
+    version check couldn't reach the internet.
+    """
+    if not update_check_enabled():
+        return None
+    now = int(time.time() if now is None else now)
+    row = db.execute("SELECT value FROM meta WHERE key='update_check_at'").fetchone()
+    try:
+        last = int(row[0]) if row else 0
+    except (TypeError, ValueError):
+        last = 0
+    if now - last < UPDATE_CHECK_INTERVAL:
+        return None
+    # stamp before the request: a hanging or failing endpoint must not cause a
+    # retry on every single invocation
+    db.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('update_check_at', ?)", (str(now),))
+    db.commit()
+    try:
+        import urllib.request
+        req = urllib.request.Request(UPDATE_CHECK_URL, headers={
+            "User-Agent": f"wikimap/{VERSION}", "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=UPDATE_CHECK_TIMEOUT) as r:
+            latest = json.loads(r.read().decode("utf-8"))["info"]["version"]
+    except Exception:
+        return None
+    mine, theirs = parse_version(VERSION), parse_version(latest)
+    if not mine or not theirs or theirs <= mine:
+        return None
+    return (f"~ wikimap {latest} is available (you have {VERSION}) — "
+            "pipx upgrade wikimap")
 
 
 def backlink_counts(db):
@@ -1670,10 +1836,29 @@ def backlink_counts(db):
     return counts
 
 
-def vault_health(db):
+def link_exists_on_disk(root, src, dst):
+    """True when an md/img link target is a real file that simply wasn't indexed.
+
+    `dst` is already vault-root-relative and `..`-collapsed by resolve_doc_link, so
+    anything still starting with '..' points outside the vault and is not ours to
+    judge. Percent-escapes are decoded because that is how they reach the disk.
+    """
+    if dst.startswith("../") or dst.startswith("/") or "://" in dst:
+        return False
+    cand = decode_link(dst)
+    try:
+        target = (Path(root) / cand).resolve()
+        target.relative_to(Path(root).resolve())
+    except (ValueError, OSError):
+        return False
+    return target.is_file()
+
+
+def vault_health(db, root=None):
     stems = stem_map(db)
     known = {p for (p,) in db.execute("SELECT path FROM files")}
     connected, broken, broken_seen = set(), [], set()
+    unindexed, unindexed_seen = [], set()
     for src, dst, kind in db.execute(
         "SELECT src, dst, kind FROM links WHERE kind IN ('wiki','md','img')"
     ):
@@ -1683,6 +1868,14 @@ def vault_health(db):
             connected.add(target)
         elif not target:
             label = f"[[{dst}]]" if kind == "wiki" else dst
+            # a relative link into a dot-dir or an ignored path resolves on disk but
+            # was never indexed — calling that "target missing" is a false positive,
+            # so it gets its own state instead of polluting the broken count
+            if kind != "wiki" and root is not None and link_exists_on_disk(root, src, dst):
+                if (label, src) not in unindexed_seen:
+                    unindexed_seen.add((label, src))
+                    unindexed.append((label, src))
+                continue
             if (label, src) not in broken_seen:
                 broken_seen.add((label, src))
                 broken.append((label, src))
@@ -1696,6 +1889,7 @@ def vault_health(db):
     return {
         "orphans": sorted(known - connected),
         "broken": broken,
+        "unindexed": unindexed,
         "stale_notes": stale_notes,
         "stale_edges": len(edges["stale"]),
     }
@@ -1778,7 +1972,7 @@ def write_map(root, db):
         out += ["", "## Semantic notes " + f"({len(fresh)} fresh / {len(notes) - len(fresh)} stale)", ""]
         out += [f"- {q}" for q in fresh[:10]]
 
-    h = vault_health(db)
+    h = vault_health(db, root)
     out += ["", "## Health", ""]
     if h["orphans"]:
         sample = " · ".join(f"`{p}`" for p in h["orphans"][:5])
@@ -1792,6 +1986,11 @@ def write_map(root, db):
         out.append(f"- broken links (target missing): {len(h['broken'])} — {sample}{more}")
     else:
         out.append("- broken links: 0")
+    if h["unindexed"]:
+        sample = " · ".join(f"`{lbl}` in {src}" for lbl, src in h["unindexed"][:5])
+        more = f" · … +{len(h['unindexed']) - 5}" if len(h["unindexed"]) > 5 else ""
+        out.append(f"- links to unindexed files (present on disk, not in the index): "
+                   f"{len(h['unindexed'])} — {sample}{more}")
     out.append(
         f"- stale semantics: {h['stale_notes']} notes, {h['stale_edges']} edges"
         + (" — `wikimap notes --prune` / `wikimap edges --prune`"
@@ -1803,34 +2002,21 @@ def write_map(root, db):
     target.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
-def candidate_paths(db, terms, titles, doc_aliases):
-    """FTS5 pre-filter: docs that can possibly satisfy every term.
+def candidate_paths(terms, hays, doc_aliases):
+    """Pre-filter: docs whose title, path, headings or body contain every term.
 
-    Returns None to request a full linear scan (no FTS, or a term shorter
-    than the trigram minimum — pitfall: trigram cannot match <3 chars).
+    Returns None to request a full linear scan (a small corpus, or a term shorter
+    than 3 chars) — the same cases the old trigram FTS fell back on, so rankings
+    don't shift. A term with no space can't straddle the haystack's joins.
     """
-    if not has_fts(db) or not fts_populated(db):
+    if len(hays) < PREFILTER_MIN_DOCS:
         return None
     paths = None
     for t in terms:
         if len(t) < 3:
             return None
-        cur = {
-            p for p in titles
-            if t in p.lower() or t in (titles[p] or "").lower()
-            or any(t in a for a in doc_aliases.get(p, ()))
-        }
-        match = '"%s"' % t.replace('"', '""')
-        try:
-            cur |= {
-                r[0]
-                for r in db.execute(
-                    "SELECT DISTINCT path FROM sections_fts WHERE sections_fts MATCH ?",
-                    (match,),
-                )
-            }
-        except sqlite3.OperationalError:
-            return None
+        cur = {p for p, h in hays.items() if t in h}
+        cur |= {p for p, al in doc_aliases.items() if any(t in a for a in al)}
         paths = cur if paths is None else (paths & cur)
         if not paths:
             return paths
@@ -1843,6 +2029,8 @@ WEAK_SCORE = 10
 LONG_QUERY = 6
 COVER_RATIO = 0.3
 RRF_K = 60
+DEAD_ECHO_TERMS = 5
+DEAD_ECHO_CHARS = 40
 TYPE_EXTS = {
     "md": {".md"},
     "html": HTML_EXTS,
@@ -1888,6 +2076,19 @@ def term_variants(term):
     return {v for v in vs if len(v) >= 2}
 
 
+def dead_echo(dead):
+    """Bounded echo of the terms that hit nothing.
+
+    An agent driving wikimap gets this line back into its own context, so a long
+    query must not be mirrored verbatim — cap both the per-term length and how
+    many terms are listed.
+    """
+    shown = [t if len(t) <= DEAD_ECHO_CHARS else t[:DEAD_ECHO_CHARS] + "…"
+             for t in dead[:DEAD_ECHO_TERMS]]
+    rest = len(dead) - len(shown)
+    return ", ".join(shown) + (f" … +{rest} more" if rest > 0 else "")
+
+
 def cmd_search(root, db, args):
     queries = args.query
 
@@ -1907,6 +2108,20 @@ def cmd_search(root, db, args):
                 db.execute("SELECT path, line, heading, content FROM sections").fetchall())
         return full_scan[0]
 
+    def sections_of(paths):
+        # rowid order = all_sections() order; near-tie rankings keep row order
+        rows = []
+        plist = sorted(paths)
+        for i in range(0, len(plist), 500):
+            chunk = plist[i : i + 500]
+            rows += db.execute(
+                "SELECT rowid, path, line, heading, content FROM sections WHERE path IN (%s)"
+                % ",".join("?" * len(chunk)),
+                chunk,
+            ).fetchall()
+        rows.sort(key=lambda r: r[0])
+        return [r[1:] for r in rows]
+
     hay_cache = []
 
     def doc_hays():
@@ -1915,6 +2130,12 @@ def cmd_search(root, db, args):
         return hay_cache[0]
 
     def collect(section_rows, require_all, terms, plain, idf, total_idf, long_query, pvariants, doc_hits, hitvs):
+        # existence tests over a section reduce to one compiled alternation per
+        # term (boolean only — the frequency term below still uses str.count,
+        # which is NOT regex-equivalent when variants overlap).
+        hit_re = {t: re.compile("|".join(re.escape(v)
+                  for v in sorted(vs, key=len, reverse=True)) or NEVER_MATCHES)
+                  for t, vs in hitvs.items()}
         # roll matches up to the DOCUMENT: plain terms scattered across several
         # sections of one doc are unioned, so a doc that mentions each query term
         # once (in different sections) still clears the coverage gate. The single
@@ -1958,8 +2179,9 @@ def cmd_search(root, db, args):
                         continue
                     in_title, alias_hit, in_path = doc_field
                     vs = hitvs[t]
-                    in_head = any(v in heading_l for v in vs)
-                    in_body = any(v in content_l for v in vs)
+                    rx = hit_re[t]
+                    in_head = rx.search(heading_l) is not None
+                    in_body = rx.search(content_l) is not None
                     if in_title or alias_hit or in_path or in_head or in_body:
                         sec_terms.add(t)
                         w = 1 + idf.get(t, 0)
@@ -1992,7 +2214,10 @@ def cmd_search(root, db, args):
                 continue
             if require_all and len(mterms) < len(plain):
                 continue
-            matched_idf = sum(idf.get(t, 0) for t in mterms)
+            # sum in query order, not set order: float addition isn't associative,
+            # and a hash-seed-dependent iteration produced last-ulp differences that
+            # flipped near-tie rankings between processes (1 seed in 24, measured)
+            matched_idf = sum(idf.get(t, 0) for t in plain if t in mterms)
             top_idf = max((idf.get(t, 0) for t in plain), default=0)
             if not require_all and plain:
                 if long_query:
@@ -2024,6 +2249,9 @@ def cmd_search(root, db, args):
         # as a rare literal it scores a deceptively high idf and can dominate the
         # coverage gate. Drop it — field-qualified terms are kept regardless.
         terms = [(f, t) for f, t in terms if f is not None or len(t) >= 2]
+        # a repeated token would double its df and section score and make
+        # every-term AND unsatisfiable (matched terms are a set)
+        terms = list(dict.fromkeys(terms))
         plain = [t for f, t in terms if f is None]
         idf, total_idf, df, doc_hits = query_idf(db, plain, doc_hays())
         hitvs = {t: minimal_variants(term_variants(t)) for t in plain}
@@ -2037,13 +2265,22 @@ def cmd_search(root, db, args):
         # term is impossible, so long queries skip the AND pre-filter and go
         # straight to an idf-gated OR over a full scan. Short queries keep strict AND.
         long_query = len(plain) >= LONG_QUERY
-        fts_terms = [] if long_query else [t for f, t in terms if f in (None, "heading")]
-        paths = candidate_paths(db, fts_terms, titles, doc_aliases) if fts_terms else None
+        prefilter_terms = [] if long_query else [t for f, t in terms if f in (None, "heading")]
+        paths = candidate_paths(prefilter_terms, doc_hays(), doc_aliases) if prefilter_terms else None
+        # collect() drops every doc whose plain-term hits aren't in doc_hits, so
+        # sections of other docs can never surface — skip reading them at all
+        any_hit = set(doc_hits) if plain else None
+        all_hit = {p for p, h in doc_hits.items() if len(h) == len(plain)} if plain else None
         if paths is None:
-            rows = all_sections()
+            if plain:
+                rows = sections_of(any_hit if long_query else all_hit)
+            else:
+                rows = all_sections()
         elif not paths:
             rows = []
         else:
+            if plain:
+                paths &= any_hit if long_query else all_hit
             rows = []
             plist = sorted(paths)
             for i in range(0, len(plist), 500):
@@ -2058,14 +2295,18 @@ def cmd_search(root, db, args):
         partial = long_query
         if not results and not long_query and len(plain) >= 2:
             # every-term AND came up empty — relax plain terms to an idf-gated OR
-            results = collect(all_sections(), False, terms, plain, idf, total_idf, long_query, pvariants, doc_hits, hitvs)
+            results = collect(sections_of(any_hit), False, terms, plain, idf, total_idf, long_query, pvariants, doc_hits, hitvs)
             partial = True
         results.sort(key=lambda r: (-r[2], -r[1], -r[0]))
-        # a weak result set (empty, partial-fallback, or a low top score) is the signal
-        # for an agent to reformulate the dead terms (see `terms` df feedback) or fall
-        # to the semantic path. Keyword search stays the fast $0 default.
+        # weak is the fan-out trigger, so it must not saturate: long queries always
+        # run in partial/OR mode, and treating that as weakness fired on 135/135
+        # natural-language queries (v14). A dead (df=0) term is the actual
+        # vocabulary-gap signal — gating fan-out on it kept easy queries' top-5
+        # precision while recovering the gap queries (0.830 vs 0.741 always-on).
         top_score = results[0][2] if results else 0
-        weak = (not results) or partial or top_score < WEAK_SCORE
+        dead_term = any(df.get(t, 0) == 0 for t in plain)
+        weak = (not results) or dead_term or (partial and not long_query) \
+            or top_score < WEAK_SCORE
         return {"query": query, "results": results, "partial": partial, "weak": weak,
                 "plain": plain, "pvariants": pvariants, "df": df}
 
@@ -2165,18 +2406,98 @@ def cmd_search(root, db, args):
         weak = all(r["weak"] for r in ranked)
         plain = first["plain"]
 
-    # highlight on the term variants actually matched, not the raw tokens — a
-    # particle-suffixed query token ('컴포넌트들') should still light up its stem
-    hl = {v for r in ranked for t in r["plain"] for v in r["pvariants"][t]}
     dead = [t for t in first["plain"] if first["df"].get(t, 0) == 0]
+
+    shown = results[: args.n]
+    # the answer line often lives outside the best-scoring section (v8 bench: 25/28
+    # evidence misses) — candidate lines come from the whole doc, best lines win the cap.
+    # matching is on term variants, not raw tokens — a particle-suffixed query token
+    # ('컴포넌트들') should still light up its stem
+    var_by_term = {}
+    for r in ranked:
+        for t in r["plain"]:
+            var_by_term.setdefault(t, set()).update(r["pvariants"][t])
+    flat_hl = sorted({v for vs in var_by_term.values() for v in vs}, key=len, reverse=True)
+    hl_re = re.compile("|".join(re.escape(v) for v in flat_hl)) if flat_hl else None
+    ndocs = max(1, db.execute("SELECT COUNT(*) FROM files").fetchone()[0])
+    df_by_term = {}
+    for r in ranked:
+        for t in r["plain"]:
+            df_by_term.setdefault(t, r["df"].get(t, 0))
+    idf_by_term = {t: math.log(ndocs / df) if df else math.log(ndocs)
+                   for t, df in df_by_term.items()}
+    doc_lines, doc_cands = {}, {}
+    plist = sorted({r[3] for r in shown})
+    for i in range(0, len(plist), 500):
+        chunk = plist[i:i + 500]
+        secs = {}
+        for p, sline, content in db.execute(
+                "SELECT path, line, content FROM sections WHERE path IN (%s)"
+                % ",".join("?" * len(chunk)), chunk):
+            secs.setdefault(p, []).append((sline, content))
+        for p, srows in secs.items():
+            dlines = [ln for _, c in sorted(srows) for ln in c.splitlines()]
+            doc_lines[p] = dlines
+            cands = []
+            for order, ln in enumerate(dlines):
+                low = ln.lower()
+                if hl_re is None or not hl_re.search(low):
+                    continue
+                idfsum = sum(idf_by_term.get(t, 0) for t, vs in var_by_term.items()
+                             if any(v in low for v in vs))
+                cands.append((idfsum, order, ln))
+            doc_cands[p] = cands
+
+    # a line is a mini-doc: rank by matched idf mass (same principle as sections),
+    # prefer the displayed section on ties, then document order
+    def pick_lines(path, section_content, limit=5):
+        own = {ln.strip() for ln in section_content.splitlines()}
+        ranked_lines = sorted(
+            doc_cands.get(path, ()),
+            key=lambda c: (-c[0], 0 if c[2].strip() in own else 1, c[1]))
+        out, seen = [], set()
+        for _, order, ln in ranked_lines:
+            s = ln.strip()
+            if not s or s in seen:
+                continue
+            seen.add(s)
+            out.append((order, s))
+            if len(out) == limit:
+                break
+        return out
+
+    # top results earn more display budget: the answer line often sits next to a
+    # matched line rather than on it (v14: 23/51 evidence misses were within ±2
+    # lines of an already-shown line), so the first three results carry ±2 lines
+    # of context around each pick, merged into contiguous blocks
+    def snippet_blocks(path, section_content, top_slot):
+        picked = pick_lines(path, section_content, 8 if top_slot else 5)
+        dlines = doc_lines.get(path)
+        if not top_slot or not dlines:
+            return [s for _, s in picked]
+        idxs = set()
+        for order, _ in picked:
+            idxs.update(range(max(0, order - 2), min(len(dlines), order + 3)))
+        blocks, cur, prev = [], [], None
+        for j in sorted(idxs):
+            if prev is not None and j > prev + 1:
+                blocks.append("\n".join(cur).strip("\n"))
+                cur = []
+            cur.append(dlines[j].rstrip())
+            prev = j
+        if cur:
+            blocks.append("\n".join(cur).strip("\n"))
+        return [b for b in blocks if b]
 
     if args.json:
         out = []
-        for nmatched, midf, score, path, line, heading, content in results[: args.n]:
-            lines = content.splitlines()
-            hits = [ln.strip() for ln in lines if any(t in ln.lower() for t in hl)]
+        for pos, (nmatched, midf, score, path, line, heading, content) in enumerate(shown):
+            if args.compact:
+                hits = [s for _, s in pick_lines(path, content, 1)]
+            else:
+                hits = snippet_blocks(path, content, pos < 3)
             rec = {"path": path, "line": line, "heading": heading,
-                   "score": round(score, 4 if fused else 2), "matched": hits[:3]}
+                   "score": round(score, 4 if fused else 2), "matched": hits}
             if fused:
                 rec["sources"] = f"{nsources[path]}/{nvotes}"
             if path in sem_ranks:
@@ -2202,9 +2523,9 @@ def cmd_search(root, db, args):
     if not results and not matched_notes:
         print("no results")
         if dead:
-            print(f"~ no corpus hits for: {', '.join(dead)} — swap these for document vocabulary")
+            print(f"~ no corpus hits for: {dead_echo(dead)} — swap these for document vocabulary")
         return
-    for nmatched, midf, score, path, line, heading, content in results[: args.n]:
+    for pos, (nmatched, midf, score, path, line, heading, content) in enumerate(shown):
         if fused:
             tag = f"rrf {score:.4f}, {nsources[path]}/{nvotes} queries"
         elif partial:
@@ -2214,27 +2535,37 @@ def cmd_search(root, db, args):
         if path in sem_ranks:
             tag += f", cos {sem_ranks[path][1]:.3f}"
         print(f"{path}:{line}  [{heading}]  ({tag})")
-        lines = content.splitlines()
         if args.full:
-            for ln in lines:
+            for ln in content.splitlines():
                 print(f"  {ln.rstrip()}")
             continue
-        hits = [i for i, ln in enumerate(lines) if any(t in ln.lower() for t in hl)]
+        if args.compact:
+            for _, s in pick_lines(path, content, 1):
+                print(f"  {s[:160]}")
+            continue
+        picked = pick_lines(path, content)
         if args.context:
-            shown = set()
-            for i in hits:
-                shown.update(range(max(0, i - args.context), min(len(lines), i + args.context + 1)))
+            dlines = doc_lines.get(path) or content.splitlines()
+            ctx = set()
+            for i, _ in picked:
+                ctx.update(range(max(0, i - args.context), min(len(dlines), i + args.context + 1)))
             prev = None
-            for j in sorted(shown):
+            for j in sorted(ctx):
                 if prev is not None and j > prev + 1:
                     print("  ⋯")
-                print(f"  {lines[j].rstrip()[:200]}")
+                print(f"  {dlines[j].rstrip()[:200]}")
                 prev = j
+        elif pos < 3:
+            for bi, blk in enumerate(snippet_blocks(path, content, True)):
+                if bi:
+                    print("  ⋯")
+                for ln in blk.splitlines():
+                    print(f"  {ln[:200]}")
         else:
-            for i in hits[:3]:
-                print(f"  {lines[i].strip()[:160]}")
+            for _, s in picked:
+                print(f"  {s[:160]}")
     if weak and dead:
-        print(f"~ no corpus hits for: {', '.join(dead)} — swap these for document vocabulary")
+        print(f"~ no corpus hits for: {dead_echo(dead)} — swap these for document vocabulary")
 
 
 def cmd_links(root, db, args):
@@ -2416,8 +2747,9 @@ def cmd_embed(root, db, args):
             dim = len(arr)
             break
     fresh = [p for p, (s, _) in embeds.items() if files.get(p) == s]
-    stale = [p for p, (s, _) in embeds.items() if p in files and files[p] != s]
-    missing = [p for p in files if p not in embeds]
+    # sorted so the report is stable across cache rebuilds (row order isn't)
+    stale = sorted(p for p, (s, _) in embeds.items() if p in files and files[p] != s)
+    missing = sorted(p for p in files if p not in embeds)
     if args.json:
         print(json.dumps({"total_docs": len(files), "embedded": len(fresh),
                           "stale": stale, "missing": missing, "dims": dim},
@@ -2506,7 +2838,7 @@ def cmd_notes(root, db, args):
         print(f"({n_stale} stale notes hidden — use --all to show, --prune to delete)")
 
 
-MDURL = re.compile(r"\]\(([^)#\s]+)\)")
+MDURL = re.compile(r"\]\(([^)#\s]+)(#[^)\s]*)?\)")
 
 
 # English standards only — language-specific conventions (관련 문서, 関連, 相关…) would
@@ -2595,7 +2927,12 @@ def cmd_link_add(root, db, args):
     if not args.apply:
         print("dry run — nothing written. Re-run with --apply to execute.")
         return
-    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    new_text = "\n".join(lines) + "\n"
+    p.write_text(new_text, encoding="utf-8")
+    sem = load_semantics(root)
+    if repin_rewritten(sem, {doc: (text_sha(text), text_sha(new_text))}):
+        write_semantics(root, sem)
+        sync_semantics(root, db)
     cmd_update(root, db, argparse.Namespace(ignore=[], map_path=None, no_map=False))
 
 
@@ -2617,7 +2954,7 @@ def cmd_mv(root, db, args):
         "SELECT alias FROM aliases WHERE path=?", (old,))}
 
     def resolve_from(src_rel, url):
-        resolved = ((root / src_rel).parent / url).resolve()
+        resolved = ((root / src_rel).parent / decode_link(url)).resolve()
         try:
             return resolved.relative_to(root).as_posix()
         except ValueError:
@@ -2631,7 +2968,21 @@ def cmd_mv(root, db, args):
         if target == old and src != old:
             ref_srcs.add(src)
 
+    def wiki_sub_for(counter):
+        def sub(m):
+            target = m.group(1).strip()
+            if link_stem(target) in alias_keys:
+                return m.group(0)
+            if resolve_stem(stems, target) == old:
+                repl = new_no_ext if "/" in target else new_stem
+                if repl != target:
+                    counter[0] += 1
+                    return "[[" + repl
+            return m.group(0)
+        return sub
+
     edits = []
+    resha = {}
     for src in sorted(ref_srcs):
         p = root / src
         if not p.is_file() or p.suffix.lower() not in {".md"} | PLAIN_EXTS:
@@ -2639,29 +2990,19 @@ def cmd_mv(root, db, args):
         text = p.read_text(encoding="utf-8", errors="replace")
         n = [0]
 
-        def wiki_sub(m):
-            target = m.group(1).strip()
-            if link_stem(target) in alias_keys:
-                return m.group(0)
-            if resolve_stem(stems, target) == old:
-                repl = new_no_ext if "/" in target else new_stem
-                if repl != target:
-                    n[0] += 1
-                    return "[[" + repl
-            return m.group(0)
-
         def url_sub(m):
-            url = m.group(1)
+            url, anchor = m.group(1), m.group(2) or ""
             if url.startswith(("http://", "https://", "mailto:", "//")):
                 return m.group(0)
             if resolve_from(src, url) == old:
                 n[0] += 1
-                return "](" + norm_rel(os.path.relpath(str(root / new), str(p.parent))) + ")"
+                return "](" + norm_rel(os.path.relpath(str(root / new), str(p.parent))) + anchor + ")"
             return m.group(0)
 
-        new_text = MDURL.sub(url_sub, WIKILINK.sub(wiki_sub, text))
+        new_text = MDURL.sub(url_sub, WIKILINK.sub(wiki_sub_for(n), text))
         if n[0]:
             edits.append((src, new_text, n[0]))
+            resha[src] = (text_sha(text), text_sha(new_text))
 
     moved_text = None
     own_n = [0]
@@ -2669,20 +3010,24 @@ def cmd_mv(root, db, args):
         text = old_abs.read_text(encoding="utf-8", errors="replace")
 
         def own_sub(m):
-            url = m.group(1)
+            url, anchor = m.group(1), m.group(2) or ""
             if url.startswith(("http://", "https://", "mailto:", "//")):
                 return m.group(0)
             target = resolve_from(old, url)
-            if (root / target).exists():
-                new_url = norm_rel(os.path.relpath(str(root / target), str(new_abs.parent)))
-                if new_url != url:
-                    own_n[0] += 1
-                    return "](" + new_url + ")"
+            if target == old:
+                target = new  # a self-link travels with the file
+            elif not (root / target).exists():
+                return m.group(0)
+            new_url = norm_rel(os.path.relpath(str(root / target), str(new_abs.parent)))
+            if new_url != url:
+                own_n[0] += 1
+                return "](" + new_url + anchor + ")"
             return m.group(0)
 
-        rewritten = MDURL.sub(own_sub, text)
+        rewritten = MDURL.sub(own_sub, WIKILINK.sub(wiki_sub_for(own_n), text))
         if own_n[0]:
             moved_text = rewritten
+            resha[new] = (text_sha(text), text_sha(rewritten))
 
     sem = load_semantics(root)
     sem_changed = 0
@@ -2705,6 +3050,7 @@ def cmd_mv(root, db, args):
                 r["src"], r["dst"] = r["dst"], r["src"]
                 r["src_sha"], r["dst_sha"] = r.get("dst_sha"), r.get("src_sha")
             sem_changed += 1
+    sem_changed += repin_rewritten(sem, resha)
 
     print(f"mv {old} → {new}")
     for src, _, n in edits:
@@ -2730,18 +3076,30 @@ def cmd_mv(root, db, args):
 
 def cmd_fix_links(root, db, args):
     stems = stem_map(db)
+    h = vault_health(db, root)
     items = []
-    for label, src in vault_health(db)["broken"]:
+    for label, src in h["broken"]:
         raw = label[2:-2] if label.startswith("[[") else label
         cands = difflib.get_close_matches(
             link_stem(raw), sorted(stems.keys()), n=3, cutoff=0.6
         )
         items.append({"link": label, "in": src, "candidates": [stems[c] for c in cands]})
+    unindexed = [{"link": lbl, "in": src} for lbl, src in h["unindexed"]]
     if args.json:
-        print(json.dumps({"broken": items}, ensure_ascii=False, indent=2))
+        print(json.dumps({"broken": items, "unindexed": unindexed},
+                         ensure_ascii=False, indent=2))
         return
+    def report_unindexed():
+        if not unindexed:
+            return
+        print(f"\n{len(unindexed)} link(s) to files that exist but aren't indexed "
+              "(dot-directory or .wikimapignore) — not broken, but they won't be searchable:")
+        for it in unindexed:
+            print(f"   {it['link']}  (in {it['in']})")
+
     if not items:
         print("no broken links")
+        report_unindexed()
         return
     for it in items:
         print(f"{it['link']}  (in {it['in']})")
@@ -2751,6 +3109,95 @@ def cmd_fix_links(root, db, args):
             print("   → no candidate")
     print(f"\n{len(items)} broken link(s). Suggestions only — fix by editing the doc, or use "
           "`wikimap mv` next time you relocate a file.")
+    report_unindexed()
+
+
+def cmd_doctor(root, db, args):
+    patterns = load_ignore_patterns(root, None)
+    map_rel = map_setting(db)
+    skip_rels = frozenset({map_rel} if map_rel != MAP_DISABLED else ())
+    known = {p: mt for p, mt in db.execute("SELECT path, mtime FROM files")}
+    seen, pending = set(), 0
+    for p in scan_files(root, None, patterns, skip_rels):
+        rel = p.relative_to(root).as_posix()
+        seen.add(rel)
+        mt = known.get(rel)
+        if mt is None or abs(mt - p.stat().st_mtime) >= 1e-6:
+            pending += 1
+    deleted = len(set(known) - seen)
+
+    sem_p = semantics_path(root)
+    total_lines = malformed = unknown = 0
+    by_type = {}
+    if sem_p.is_file():
+        for ln in sem_p.read_text(encoding="utf-8", errors="replace").splitlines():
+            ln = ln.strip()
+            if not ln:
+                continue
+            total_lines += 1
+            try:
+                r = json.loads(ln)
+            except ValueError:
+                malformed += 1
+                continue
+            if not isinstance(r, dict) or not isinstance(r.get("type"), str):
+                malformed += 1
+                continue
+            t = r["type"]
+            by_type[t] = by_type.get(t, 0) + 1
+            if t not in ("note", "edge", "embed"):
+                unknown += 1
+
+    h = vault_health(db, root)
+    files = {p: s for p, s in db.execute("SELECT path, sha FROM files")}
+    stale_embeds = sum(1 for p, s in db.execute("SELECT path, sha FROM embeds")
+                       if p in files and files[p] != s)
+
+    issues = []
+    if pending or deleted:
+        issues.append(f"index behind disk: {pending} changed/new, {deleted} deleted "
+                      "— run `wikimap update`")
+    if malformed:
+        issues.append(f"{malformed} malformed line(s) in semantics.jsonl "
+                      "— those records are invisible until the line is fixed")
+    if h["broken"]:
+        issues.append(f"{len(h['broken'])} broken link(s) — see `wikimap fix-links`")
+    if h["stale_notes"] or h["stale_edges"] or stale_embeds:
+        issues.append(f"stale pins: {h['stale_notes']} notes, {h['stale_edges']} edges, "
+                      f"{stale_embeds} embeds — re-verify and repin, or prune")
+
+    if args.json:
+        print(json.dumps({
+            "index": {"files": len(files), "pending": pending, "deleted": deleted},
+            "semantics": {"lines": total_lines, "malformed": malformed,
+                          "by_type": by_type, "unknown_types": unknown},
+            "links": {"broken": len(h["broken"]), "unindexed": len(h["unindexed"]),
+                      "orphans": len(h["orphans"])},
+            "stale": {"notes": h["stale_notes"], "edges": h["stale_edges"],
+                      "embeds": stale_embeds},
+            "healthy": not issues,
+        }, ensure_ascii=False, indent=2))
+        return
+    print(f"index    : {len(files)} files"
+          + (f", {pending} changed/new + {deleted} deleted pending update"
+             if pending or deleted else " — up to date"))
+    print(f"semantics: {total_lines} record line(s)"
+          + (f", {malformed} malformed" if malformed else "")
+          + (f", {unknown} from a newer wikimap (kept as-is)" if unknown else ""))
+    print(f"links    : {len(h['broken'])} broken, {len(h['orphans'])} orphan doc(s)"
+          + (f", {len(h['unindexed'])} to unindexed file(s)" if h["unindexed"] else ""))
+    print(f"stale    : {h['stale_notes']} notes, {h['stale_edges']} edges, "
+          f"{stale_embeds} embeds")
+    if issues:
+        print("attention:")
+        for i in issues:
+            print(f"  - {i}")
+    else:
+        print("healthy — nothing to do")
+    # a version note is not a vault problem: it never affects `healthy`
+    note = latest_version_note(db)
+    if note:
+        print(note)
 
 
 def install_hook(root: Path):
@@ -2974,6 +3421,8 @@ def main():
     sp.add_argument("-C", type=int, default=0, dest="context",
                     help="show N context lines around each matched line")
     sp.add_argument("--full", action="store_true", help="print the whole matched section")
+    sp.add_argument("--compact", action="store_true",
+                    help="best matched line only per result (diet mode for multi-query loops)")
     sp.add_argument("--json", action="store_true", help="structured output for agents/scripts")
     sp.add_argument("--hybrid", metavar="VEC", nargs="?", const="-",
                     help="blend agent-supplied query embedding into the ranking "
@@ -2991,6 +3440,10 @@ def main():
 
     fl = sub.add_parser("fix-links", help="suggest targets for broken links (suggestions only)")
     fl.add_argument("--json", action="store_true", help="structured output for agents/scripts")
+
+    dr = sub.add_parser("doctor", help="read-only integrity check: index freshness, "
+                                       "semantics validity, broken links, stale pins")
+    dr.add_argument("--json", action="store_true", help="structured output for agents/scripts")
 
     lk = sub.add_parser("link", help="insert a [[wikilink]] into a doc's link-list section "
                                      "(idempotent; dry run by default)")
@@ -3088,6 +3541,8 @@ def main():
             cmd_mv(root, db, args)
         elif args.cmd == "fix-links":
             cmd_fix_links(root, db, args)
+        elif args.cmd == "doctor":
+            cmd_doctor(root, db, args)
         elif args.cmd == "link":
             cmd_link_add(root, db, args)
         elif args.cmd == "note":

@@ -25,6 +25,8 @@ misclassified substantive entrypoint would silently drop guidance.
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import re
 from collections import defaultdict
 from functools import lru_cache
@@ -32,6 +34,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping
 
+from support.global_state import project_state_dir_target
 from support.project_tree import iter_project_files
 from workflow_skill_paths import guidance_reference_path
 
@@ -44,6 +47,7 @@ _WHITESPACE = re.compile(r"\s+")
 # generated template.  Rather than guess, we stop classifying anything as a
 # pointer and let every entrypoint stay in the route.
 _MIN_TEMPLATE_GROUP = 20
+_POINTER_CACHE_FILE = "pointer-entrypoints.json"
 
 
 def _normalised_body(root: Path, path: str) -> str:
@@ -64,6 +68,60 @@ def _digest(root: Path, path: str) -> str:
     return hashlib.sha256(_normalised_body(root, path).encode("utf-8")).hexdigest()
 
 
+def _pointer_cache_path(root: Path) -> Path | None:
+    try:
+        state_dir = project_state_dir_target(root)
+    except OSError:
+        return None
+    if not state_dir.is_dir():
+        return None
+    return state_dir / "cache" / _POINTER_CACHE_FILE
+
+
+def _read_pointer_cache(
+    cache_path: Path | None, signature: list[list[object]]
+) -> tuple[str, Mapping[str, str]] | None:
+    if cache_path is None or not cache_path.is_file():
+        return None
+    try:
+        payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("signature") != signature:
+        return None
+    winner = payload.get("winner")
+    digests = payload.get("digests")
+    if not isinstance(winner, str) or not isinstance(digests, dict):
+        return None
+    if not all(isinstance(k, str) and isinstance(v, str) for k, v in digests.items()):
+        return None
+    return winner, MappingProxyType(dict(digests))
+
+
+def _write_pointer_cache(
+    cache_path: Path | None,
+    signature: list[list[object]],
+    winner: str,
+    digests: dict[str, str],
+) -> None:
+    if cache_path is None:
+        return
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = cache_path.with_name(f".{cache_path.name}.{os.getpid()}.tmp")
+        tmp_path.write_text(
+            json.dumps(
+                {"signature": signature, "winner": winner, "digests": digests},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+            encoding="utf-8",
+        )
+        os.replace(tmp_path, cache_path)
+    except OSError:
+        return
+
+
 @lru_cache(maxsize=8)
 def _corpus_vote(root_key: str) -> tuple[str, Mapping[str, str]]:
     """Digest the entrypoint corpus once: the modal body, and every document's.
@@ -77,13 +135,28 @@ def _corpus_vote(root_key: str) -> tuple[str, Mapping[str, str]]:
     """
 
     root = Path(root_key)
-    digests: dict[str, str] = {}
-    groups: dict[str, int] = defaultdict(int)
+    candidates: list[str] = []
+    signature: list[list[object]] = []
     for skill in iter_project_files(root, "SKILL.md"):
         relative = skill.relative_to(root)
         if len(relative.parts) < 3 or relative.parts[-3] != "skills":
             continue
         rel = relative.as_posix()
+        try:
+            stat = skill.stat()
+        except OSError:
+            continue
+        candidates.append(rel)
+        signature.append([rel, stat.st_size, stat.st_mtime_ns])
+
+    cache_path = _pointer_cache_path(root)
+    cached = _read_pointer_cache(cache_path, signature)
+    if cached is not None:
+        return cached
+
+    digests: dict[str, str] = {}
+    groups: dict[str, int] = defaultdict(int)
+    for rel in candidates:
         body = _normalised_body(root, rel)
         if body:
             digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
@@ -91,9 +164,12 @@ def _corpus_vote(root_key: str) -> tuple[str, Mapping[str, str]]:
             groups[digest] += 1
     corpus = MappingProxyType(digests)
     if not groups:
+        _write_pointer_cache(cache_path, signature, "", digests)
         return "", corpus
     winner, count = max(groups.items(), key=lambda item: item[1])
-    return (winner if count >= _MIN_TEMPLATE_GROUP else ""), corpus
+    resolved_winner = winner if count >= _MIN_TEMPLATE_GROUP else ""
+    _write_pointer_cache(cache_path, signature, resolved_winner, digests)
+    return resolved_winner, corpus
 
 
 def is_pointer_entrypoint(root: Path, path: str) -> bool:

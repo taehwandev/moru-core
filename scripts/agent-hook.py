@@ -112,6 +112,7 @@ from agent_run_registry import (
 )
 from agent_route_state import request_fingerprint, request_intake_from_args
 from agent_runtime_session import (
+    cli_runtime_session_scope,
     rebind_recorded_runtime_session,
     recorded_session_id,
     runtime_session,
@@ -2658,7 +2659,11 @@ def _name_timing_sink(args: argparse.Namespace) -> None:
     if args.hook in ("resume", "fingerprint"):
         return
     try:
-        set_timing_sink(preflight_evidence_path(args).parent / "timings.jsonl")
+        with cli_runtime_session_scope(
+            getattr(args, "runtime_session_id", "") if args.hook != "start" else "",
+            getattr(args, "runtime", "") if args.hook != "start" else "",
+        ):
+            set_timing_sink(preflight_evidence_path(args).parent / "timings.jsonl")
     except (OSError, RuntimeError, TypeError, ValueError):
         return
 
@@ -2717,13 +2722,6 @@ def _dispatch_hook(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     """
 
     _validate_hook_arguments_before_repair(parser, args)
-    # Must follow _apply_worker_evidence_boundary so a worker refreshes its own
-    # run, and must skip `start`: start refreshes nothing it is about to sweep,
-    # or it would revive the very record whose evidence path it needs to claim.
-    # `resume` is skipped for the opposite reason: a heartbeat is a registry
-    # write, and `resume --list` promises to leave the registry byte-identical.
-    if args.hook not in ("start", "resume"):
-        _refresh_run_heartbeat(args)
     if args.hook == "resume":
         if args.resume_run_id and not args.list_mode:
             # Naming the run is the claim: --run-id only ever selects what
@@ -2736,24 +2734,35 @@ def _dispatch_hook(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
             # --run-id would read as a filter that had been applied.
             parser.error("resume --run-id selects what --last claims; it does not filter --list")
         return resume_hook(args)
-    if args.hook == "cancel":
-        return _run_cancel_hook(parser, args)
-    if args.hook == "checkpoint":
-        return _run_checkpoint_hook(parser, args)
-    if args.hook == "repair-verify":
-        return _run_repair_verify_hook(args)
-    if args.repair_cycle:
-        _apply_repair_cycle_context(parser, args)
-    if args.hook == "start":
-        if getattr(args, "commit_ready", False):
-            from agent_commit_ready import prepare_commit
-            return prepare_commit(args, start_hook, lambda step: _dispatch_hook(parser, step))
-        return start_hook(args)
-    # Review and finish re-read the same worktree state many times; one scope
-    # per invocation lets those reads share answers. Each hook drops worktree
-    # answers after the checks it runs, so its post-check reads stay fresh.
-    with git_read_scope(enabled=args.hook in ("review", "finish")):
-        return _dispatch_lifecycle_hook(args)
+    with cli_runtime_session_scope(
+        getattr(args, "runtime_session_id", ""),
+        getattr(args, "runtime", ""),
+    ):
+        # Must follow _apply_worker_evidence_boundary so a worker refreshes its own
+        # run, and must skip `start`: start refreshes nothing it is about to sweep,
+        # or it would revive the very record whose evidence path it needs to claim.
+        # `resume` is skipped for the opposite reason: a heartbeat is a registry
+        # write, and `resume --list` promises to leave the registry byte-identical.
+        if args.hook != "start":
+            _refresh_run_heartbeat(args)
+        if args.hook == "cancel":
+            return _run_cancel_hook(parser, args)
+        if args.hook == "checkpoint":
+            return _run_checkpoint_hook(parser, args)
+        if args.hook == "repair-verify":
+            return _run_repair_verify_hook(args)
+        if args.repair_cycle:
+            _apply_repair_cycle_context(parser, args)
+        if args.hook == "start":
+            if getattr(args, "commit_ready", False):
+                from agent_commit_ready import prepare_commit
+                return prepare_commit(args, start_hook, lambda step: _dispatch_hook(parser, step))
+            return start_hook(args)
+        # Review and finish re-read the same worktree state many times; one scope
+        # per invocation lets those reads share answers. Each hook drops worktree
+        # answers after the checks it runs, so its post-check reads stay fresh.
+        with git_read_scope(enabled=args.hook in ("review", "finish")):
+            return _dispatch_lifecycle_hook(args)
 
 
 def _dispatch_lifecycle_hook(args: argparse.Namespace) -> int:

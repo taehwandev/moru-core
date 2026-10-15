@@ -795,6 +795,32 @@ class SupersededSessionRunTests(unittest.TestCase):
             self.assertEqual([], settled)
             self.assertEqual("running", self._states(fixture.project)[fixture.run_id])
 
+    def test_cli_runtime_session_scope_and_owned_evidence_fallback(self) -> None:
+        """An explicit CLI session id binds the run when the environment exposes no session variable."""
+
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory, session_id="agy-cli-session")
+            fixture.preflight["runtime_session"] = {
+                "runtime": "antigravity",
+                "session_id": "agy-cli-session",
+            }
+            fixture.evidence.write_text(json.dumps(fixture.preflight), encoding="utf-8")
+            with patch.dict(os.environ, {"ANTIGRAVITY_CLI_ALIAS": "agy"}, clear=True):
+                self.assertEqual({}, agent_runtime_session.runtime_session())
+                with agent_runtime_session.cli_runtime_session_scope("agy-cli-session"):
+                    self.assertEqual(
+                        {"runtime": "antigravity", "session_id": "agy-cli-session"},
+                        agent_runtime_session.runtime_session(),
+                    )
+                    self.assertEqual(
+                        fixture.evidence.resolve(),
+                        agent_runtime_session.resolve_runtime_evidence(fixture.project),
+                    )
+                self.assertEqual(
+                    fixture.evidence.resolve(),
+                    agent_runtime_session.resolve_owned_runtime_evidence(fixture.project),
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

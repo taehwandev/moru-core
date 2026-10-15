@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from agent_run_owner import process_owner
 from agent_repository_checkouts import (
@@ -51,12 +52,47 @@ SESSION_MARKER_DIR = "claude-pretool-gate"
 FINISHED_SUFFIX = ".finished"
 SETTLED_SUFFIX = ".settled"
 
+_CLI_SESSION_OVERRIDE: dict[str, str] | None = None
+
+
+def _inferred_cli_runtime() -> str:
+    if os.environ.get("ANTIGRAVITY_CLI_ALIAS", "").strip():
+        return "antigravity"
+    if os.environ.get("GEMINI_CLI", "").strip():
+        return "gemini"
+    return "cli"
+
+
+@contextmanager
+def cli_runtime_session_scope(session_id: str = "", runtime: str = "") -> Iterator[None]:
+    """Bind an explicit CLI `--runtime-session-id` when the environment exposes none."""
+
+    global _CLI_SESSION_OVERRIDE
+    cleaned_session_id = str(session_id or "").strip()
+    if not cleaned_session_id or any(
+        os.environ.get(variable, "").strip() for _, variable in SESSION_ENV_VARS
+    ):
+        yield
+        return
+    cleaned_runtime = str(runtime or "").strip() or _inferred_cli_runtime()
+    previous = _CLI_SESSION_OVERRIDE
+    _CLI_SESSION_OVERRIDE = {
+        "runtime": cleaned_runtime,
+        "session_id": cleaned_session_id,
+    }
+    try:
+        yield
+    finally:
+        _CLI_SESSION_OVERRIDE = previous
+
 
 def runtime_session() -> dict[str, str]:
     for runtime, variable in SESSION_ENV_VARS:
         value = os.environ.get(variable, "").strip()
         if value:
             return {"runtime": runtime, "session_id": value}
+    if _CLI_SESSION_OVERRIDE is not None:
+        return dict(_CLI_SESSION_OVERRIDE)
     return {}
 
 
@@ -249,6 +285,64 @@ def resolve_runtime_evidence(
                  if owner and bindings[evidence_binding_key(project, candidate)].get("owner") == owner]
         if len(owned) == 1:
             return owned[0]
+    return matches[0] if len(matches) == 1 else None
+
+
+def resolve_owned_runtime_evidence(
+    project: Path,
+    states: "frozenset[str] | None" = None,
+    *,
+    latest_of_several: bool = False,
+) -> Path | None:
+    """Resolve a CLI-session run owned by the current process when no session env var exists."""
+
+    if runtime_session() or os.environ.get(WORKER_EVIDENCE_ENV, "").strip():
+        return None
+    owner = process_owner()
+    if not owner:
+        return None
+    project = project.resolve()
+    bindings = (
+        active_run_bindings(project)
+        if states is None
+        else active_run_bindings(project, states)
+    )
+    if not bindings:
+        return None
+    evidence_names = {
+        str(run.get("evidence_name") or "")
+        for run in bindings.values()
+        if _safe_evidence_name(run) and run.get("owner") == owner
+    }
+    if not evidence_names:
+        return None
+    candidates, _out_of_scope, _complete = _runtime_evidence_candidates(
+        project, evidence_names
+    )
+    env_runtimes = {name for name, _ in SESSION_ENV_VARS}
+    matches: list[Path] = []
+    for candidate in candidates:
+        key = evidence_binding_key(project, candidate)
+        run = bindings.get(key)
+        if run is None or run.get("owner") != owner:
+            continue
+        payload = _read_object(candidate)
+        recorded = payload.get("runtime_session")
+        if not isinstance(recorded, dict):
+            continue
+        recorded_runtime = str(recorded.get("runtime") or "").strip()
+        recorded_sid = str(recorded.get("session_id") or "").strip()
+        if not recorded_runtime or not recorded_sid or recorded_runtime in env_runtimes:
+            continue
+        if not same_runtime_session(
+            recorded,
+            {"runtime": recorded_runtime, "session_id": recorded_sid},
+            resume_generation=int(run.get("resume_generation") or 0),
+        ):
+            continue
+        matches.append(candidate)
+    if latest_of_several and matches:
+        return max(matches, key=_evidence_mtime)
     return matches[0] if len(matches) == 1 else None
 
 

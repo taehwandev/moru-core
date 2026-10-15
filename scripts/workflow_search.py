@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Sequence
 
+from workflow_catalog import CONCERNS
+from workflow_request import infer_concerns_from_request
 from workflow_search_facets import facet_docs, query_terms
 from workflow_wikimap import WIKIMAP_VERSION, search_wikimap
 from support.stage_timing import stage
@@ -40,9 +43,16 @@ class SearchOutcome:
 def _parse_index_descriptions(root: Path) -> Dict[str, str]:
     """Return path → one-line description extracted from index.md."""
     index_path = root / "index.md"
-    if not index_path.exists():
+    try:
+        stat = index_path.stat()
+    except OSError:
         return {}
-    lines = index_path.read_text(encoding="utf-8", errors="ignore").split("\n")
+    return dict(_cached_index_descriptions(str(index_path.resolve()), stat.st_size, stat.st_mtime_ns))
+
+
+@lru_cache(maxsize=8)
+def _cached_index_descriptions(index_key: str, _size: int, _mtime_ns: int) -> Dict[str, str]:
+    lines = Path(index_key).read_text(encoding="utf-8", errors="ignore").split("\n")
 
     # Join indented continuation lines onto the preceding bullet line.
     joined: List[str] = []
@@ -82,6 +92,15 @@ def search_docs_outcome(root: Path, query: str, max_results: int = 8) -> SearchO
 
 def _search_docs_outcome(root: Path, query: str, max_results: int = 8) -> SearchOutcome:
     raw_terms, expanded_terms, matched_facets, doc_boosts = query_terms(query)
+    for concern in infer_concerns_from_request(query):
+        if concern not in matched_facets:
+            matched_facets.append(concern)
+        for part in concern.replace("-", " ").split():
+            if part and part not in raw_terms and part not in expanded_terms:
+                expanded_terms.append(part)
+        for rank, doc_path in enumerate(CONCERNS.get(concern, ())):
+            doc_boosts[doc_path] = max(doc_boosts.get(doc_path, 0), 80 - rank * 5)
+
     if not raw_terms and not expanded_terms and not doc_boosts:
         return SearchOutcome(
             results=[],
@@ -184,7 +203,11 @@ def _legacy_search_docs(
             "title": title,
             "description": index_desc,
             "score": score,
-            "matched_facets": [facet for facet in matched_facets if rel in facet_docs(facet)],
+            "matched_facets": [
+                facet
+                for facet in matched_facets
+                if rel in facet_docs(facet) or rel in CONCERNS.get(facet, ())
+            ],
         }
         if score > 0:
             results.append(item)
@@ -206,6 +229,8 @@ def _wikimap_results(
 
     for rank, match in enumerate(matches):
         rel = str(match.get("path") or "")
+        if rel in documents:
+            continue
         item = _document_item(root, rel, descriptions, matched_facets)
         if not item:
             continue
@@ -256,7 +281,11 @@ def _document_item(
         "title": _first_title(text),
         "description": descriptions.get(rel, ""),
         "score": 0,
-        "matched_facets": [facet for facet in matched_facets if rel in facet_docs(facet)],
+        "matched_facets": [
+            facet
+            for facet in matched_facets
+            if rel in facet_docs(facet) or rel in CONCERNS.get(facet, ())
+        ],
     }
 
 

@@ -11,10 +11,10 @@ only by `scripts/workflow_wikimap.py` for deterministic document indexing and
 search.
 
 - Upstream: <https://github.com/dhha22/wikimap>
-- Version: `v1.0.0`
-- Commit: `9c26d7b66322741532ede0b474f0e5106643f275`
+- Version: `v1.5.0`
+- Commit: `ede03cd8ddb545b6b538237509516948fdf00174`
 - `wikimap.py` SHA-256:
-  `1e81848539ad959d90c15441b08cc95073619331afe4562f3960808f755970e9`
+  `ae179ab38a03765844cd6cf506de6c512e3b61ca468515f222d62c74179210a6`
 - License: MIT; see `LICENSE`.
 
 ## Integration Boundary

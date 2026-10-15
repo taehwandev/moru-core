@@ -1235,7 +1235,7 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
         )
 
         self.assertEqual("wikimap", outcome.backend)
-        self.assertEqual("1.0.0", outcome.backend_version)
+        self.assertEqual("1.5.0", outcome.backend_version)
         self.assertTrue(outcome.results)
         self.assertTrue(
             any(item.get("line") and item.get("heading") for item in outcome.results),
@@ -1281,7 +1281,7 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
         outcome = SearchOutcome(
             results=[],
             backend="wikimap",
-            backend_version="1.0.0",
+            backend_version="1.5.0",
         )
         with patch("workflow_route.search_docs_outcome", return_value=outcome) as search:
             route = resolve_docs(

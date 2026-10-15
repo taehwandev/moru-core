@@ -19,7 +19,7 @@ from agent_route_state import request_fingerprint
 from agent_block_lessons import recurring_lines
 from agent_global_lessons import lesson_summary, state_home
 from agent_skill_backlog import format_skill_backlog, skill_backlog_summary
-from agent_runtime_session import runtime_session
+from agent_runtime_session import cli_runtime_session_scope, runtime_session
 from agent_hook_gate_records import reset_and_record_preflight_gate
 from agent_preflight_runtime import (
     active_runtime_label,
@@ -533,6 +533,14 @@ def _attach_project_route_docs(preflight: dict, project: Path, route: dict) -> N
 
 
 def run_preflight(args: argparse.Namespace, moru_root: Path) -> int:
+    with cli_runtime_session_scope(
+        getattr(args, "runtime_session_id", ""),
+        getattr(args, "runtime", ""),
+    ):
+        return _run_preflight_scoped(args, moru_root)
+
+
+def _run_preflight_scoped(args: argparse.Namespace, moru_root: Path) -> int:
     project = args.project.resolve()
     rules = args.rules.resolve()
     evidence_path = resolve_evidence_path(args, project)

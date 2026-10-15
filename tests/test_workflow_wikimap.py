@@ -35,8 +35,8 @@ class WorkflowWikimapTests(unittest.TestCase):
         digest = hashlib.sha256(WIKIMAP_SCRIPT.read_bytes()).hexdigest()
         license_text = (WIKIMAP_SCRIPT.parent / "LICENSE").read_text(encoding="utf-8")
 
-        self.assertEqual("1.0.0", WIKIMAP_VERSION)
-        self.assertEqual("9c26d7b66322741532ede0b474f0e5106643f275", WIKIMAP_COMMIT)
+        self.assertEqual("1.5.0", WIKIMAP_VERSION)
+        self.assertEqual("ede03cd8ddb545b6b538237509516948fdf00174", WIKIMAP_COMMIT)
         self.assertEqual(WIKIMAP_SHA256, digest)
         self.assertIn("MIT License", license_text)
         self.assertIn("Copyright (c) 2026 Donghyun Ha", license_text)
@@ -266,6 +266,7 @@ class WikimapCorpusIgnoreTests(unittest.TestCase):
 
     def test_publications_samples_and_scaffolds_are_excluded(self) -> None:
         for relative in (
+            "README.ko.md",
             "docs/ko/update-moru.md",
             "docs/ko/moru-core-roadmap.md",
             "docs/migration/moru-core-rename.md",
@@ -297,6 +298,53 @@ class WikimapCorpusIgnoreTests(unittest.TestCase):
         for doc in sorted(routable):
             with self.subTest(doc=doc):
                 self.assertFalse(self._ignored(doc))
+
+    def test_korean_concern_query_expands_to_concern_docs_and_deduplicates_sections(self) -> None:
+        from workflow_search import _wikimap_results, search_docs
+
+        results = search_docs(ROOT, "릴리스 버전 태그 규칙", max_results=5)
+        paths = [str(item["path"]) for item in results]
+        self.assertIn("common/skills/release-versioning/SKILL.md", paths)
+        self.assertNotIn("README.ko.md", paths)
+
+        deduped = _wikimap_results(
+            ROOT,
+            [
+                {"path": "AGENTS.md", "line": 10, "heading": "Priority And Scope"},
+                {"path": "AGENTS.md", "line": 40, "heading": "Required Work Lifecycle"},
+            ],
+            matched_facets=[],
+            doc_boosts={},
+            max_results=5,
+        )
+        self.assertEqual(1, len(deduped))
+        self.assertEqual(10, deduped[0]["line"])
+
+    def test_pointer_entrypoint_corpus_vote_persists_across_cache_clear(self) -> None:
+        import workflow_doc_resolution
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".moru").mkdir()
+            for idx in range(22):
+                skill = root / "common" / "skills" / f"skill-{idx}" / "SKILL.md"
+                skill.parent.mkdir(parents=True)
+                rel = skill.relative_to(root).as_posix()
+                skill.write_text(
+                    f"---\nname: skill-{idx}\n---\n# Skill {idx}\nUse when routed to {rel}. Detailed in references/current-guidance.md.\n",
+                    encoding="utf-8",
+                )
+            workflow_doc_resolution._corpus_vote.cache_clear()
+            winner1, corpus1 = workflow_doc_resolution._corpus_vote(str(root))
+            self.assertTrue(winner1)
+            cache_file = root / ".moru" / "cache" / "pointer-entrypoints.json"
+            self.assertTrue(cache_file.is_file())
+
+            workflow_doc_resolution._corpus_vote.cache_clear()
+            with patch("workflow_doc_resolution._normalised_body", side_effect=AssertionError("should use disk cache")):
+                winner2, corpus2 = workflow_doc_resolution._corpus_vote(str(root))
+            self.assertEqual(winner1, winner2)
+            self.assertEqual(dict(corpus1), dict(corpus2))
 
 
 if __name__ == "__main__":
