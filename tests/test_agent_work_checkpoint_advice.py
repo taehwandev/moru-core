@@ -96,7 +96,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
 
         printed = "\n".join(advice)
 
-        self.assertRegex(printed, r"(?:tao|moru)-hook checkpoint")
+        self.assertIn("moru-hook checkpoint", printed)
         command = shlex.split(advice[1].splitlines()[1])
         self.assertEqual(str(work_file), command[command.index("--work-file") + 1])
         self.assertTrue(work_file.is_absolute())
@@ -207,7 +207,7 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
                 env={**os.environ, "MORU_STATE_HOME": state},
             )
 
-        self.assertRegex(result.stdout, r"(?:tao|moru)-hook checkpoint")
+        self.assertIn("moru-hook checkpoint", result.stdout)
         self.assertIn("--checkpoint-kind", result.stdout, result.stdout)
 
 

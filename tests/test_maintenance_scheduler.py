@@ -24,7 +24,7 @@ class MaintenanceSchedulerTests(unittest.TestCase):
     def test_installs_and_loads_one_bounded_daily_launch_agent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir) / "home"
-            root = Path(temp_dir) / "tao-agent-os"
+            root = Path(temp_dir) / "moru-core"
             (root / "scripts").mkdir(parents=True)
             run_results = [
                 subprocess.CompletedProcess([], 1),
@@ -64,7 +64,7 @@ class MaintenanceSchedulerTests(unittest.TestCase):
     def test_check_reports_ok_only_when_config_matches_and_service_is_loaded(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir) / "home"
-            root = Path(temp_dir) / "tao-agent-os"
+            root = Path(temp_dir) / "moru-core"
             (root / "scripts").mkdir(parents=True)
             target = home / "Library/LaunchAgents" / f"{LAUNCH_AGENT_LABEL}.plist"
             with (
@@ -161,7 +161,7 @@ class MaintenanceSchedulerTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir) / "sandbox-home"
-            root = Path(temp_dir) / "tao-agent-os"
+            root = Path(temp_dir) / "moru-core"
             (root / "scripts").mkdir(parents=True)
             with (
                 patch("support.maintenance_scheduler.sys.platform", "darwin"),
@@ -177,7 +177,7 @@ class MaintenanceSchedulerTests(unittest.TestCase):
 
     def test_non_macos_setup_does_not_install_an_os_specific_scheduler(self) -> None:
         with patch("support.maintenance_scheduler.sys.platform", "linux"):
-            self.assertEqual([], configure_maintenance_scheduler(Path("/tmp/tao"), False))
+            self.assertEqual([], configure_maintenance_scheduler(Path("/tmp/moru-core"), False))
 
 
 if __name__ == "__main__":

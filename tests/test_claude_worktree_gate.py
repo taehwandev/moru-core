@@ -180,7 +180,7 @@ class ProjectWorktreePolicyTests(unittest.TestCase):
         (root / ".moru").mkdir()
         (root / ".moru" / "context-snapshot.json").write_text("{}")
         (root / "AGENTS.md").write_text(
-            "<!-- BEGIN MANAGED TAO AGENT OS DOC ENFORCEMENT --> moru-hook <!-- END -->\n"
+            "<!-- BEGIN MANAGED MORU CORE DOC ENFORCEMENT --> moru-hook <!-- END -->\n"
         )
         self.assertTrue(gate.marks_moru_project(root))
         self.assertIsNone(gate.worktree_policy(root))

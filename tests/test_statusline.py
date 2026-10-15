@@ -180,7 +180,7 @@ class GaugeTests(unittest.TestCase):
 
 class WorkingPathTests(unittest.TestCase):
     def test_home_is_folded_the_way_a_shell_prompt_folds_it(self) -> None:
-        self.assertEqual("~/git/tao", shorten_path("/home/someone/git/tao", HOME))
+        self.assertEqual("~/git/moru-core", shorten_path("/home/someone/git/moru-core", HOME))
         self.assertEqual("~", shorten_path("/home/someone", HOME))
 
     def test_a_path_outside_home_is_left_alone(self) -> None:

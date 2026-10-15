@@ -68,7 +68,7 @@ class WorktreePermissionEntryTests(unittest.TestCase):
             self.skipTest("Codex execpolicy checker is unavailable")
 
         with tempfile.TemporaryDirectory() as directory:
-            rules = Path(directory) / "tao.rules"
+            rules = Path(directory) / "moru.rules"
             rules.write_text("\n".join(codex_prefix_rule_entries(SCRIPTS)) + "\n")
             fresh = Path(directory) / ".moru" / WORKTREE_DIRNAME / "0123456789abcdef"
 

@@ -91,7 +91,7 @@ class _SettingsFixture:
         self.addCleanup(self._temp.cleanup)
         home = Path(self._temp.name)
         self.settings = home / "settings.json"
-        self.state = home / "tao-state"
+        self.state = home / "moru-state"
         patcher = patch.object(claude_setup, "global_state_dir", lambda: self.state)
         patcher.start()
         self.addCleanup(patcher.stop)

@@ -36,7 +36,7 @@ class UserStoreWriteGuardTest(unittest.TestCase):
             self.assertIn("test run", global_state.user_store_write_error())
 
     def test_a_state_home_still_permits_the_write(self) -> None:
-        with patch.dict(os.environ, {global_state.STATE_HOME_ENV: "/tmp/tao-test-state"}):
+        with patch.dict(os.environ, {global_state.STATE_HOME_ENV: "/tmp/moru-test-state"}):
             self.assertEqual("", global_state.user_store_write_error())
 
     def test_a_process_outside_any_test_may_write(self) -> None:

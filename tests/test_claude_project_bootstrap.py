@@ -22,7 +22,7 @@ class ProjectBootstrapTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.workspace = Path(temp.name).resolve()
         (self.workspace / "AGENTS.md").write_text(
-            "<!-- BEGIN MANAGED TAO AGENT OS WORKSPACE GUARD -->\n")
+            "<!-- BEGIN MANAGED MORU CORE WORKSPACE GUARD -->\n")
         self.target = self.workspace / "new-city"
 
     def kind(self, command):

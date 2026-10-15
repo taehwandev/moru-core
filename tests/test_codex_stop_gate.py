@@ -45,7 +45,7 @@ class CodexStopGateTests(unittest.TestCase):
             (project / ".git").mkdir()
             nested = project / "docs"
             nested.mkdir()
-            (nested / "AGENTS.md").write_text("nested tao docs\n", encoding="utf-8")
+            (nested / "AGENTS.md").write_text("nested Moru docs\n", encoding="utf-8")
 
             self.assertEqual(project.resolve(), gate.find_project_root(nested.resolve()))
 

@@ -128,7 +128,7 @@ Rules:
    the scope.
 6. Read every `required_docs` entry from the route before editing or reviewing.
    The start hook records the route, git status, and VibeGuard result in
-   <TARGET_REPO>/.tao/preflight.json. Do not add a second document
+   <TARGET_REPO>/.moru/runs/<run-id>/preflight.json. Do not add a second document
    confirmation step.
 7. Keep a gate execution ledger from the route output. Mark each required gate
    when it is executed or fails, include concrete evidence such as a command,

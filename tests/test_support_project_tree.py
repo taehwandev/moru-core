@@ -54,8 +54,8 @@ class PrunedWalkTests(unittest.TestCase):
 
             self.assertEqual({"guide.md", "nested/guide.md"}, found)
 
-    def test_moru_state_is_pruned_like_tao_state(self) -> None:
-        """The .moru to .moru migration moved cleanup archives under `.moru`.
+    def test_moru_cleanup_archives_are_pruned(self) -> None:
+        """Runtime-state migration moved cleanup archives under `.moru`.
 
         Their archived skill copies have no runtime frontmatter, so walking
         them failed `workflow validate` and every review hook with it.

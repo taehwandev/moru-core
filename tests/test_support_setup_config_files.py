@@ -36,7 +36,7 @@ class JsonConfigSafetyTests(unittest.TestCase):
         self.settings.write_bytes(original)
         for merge in (
             lambda: merge_permissions_allow(self.settings, ["Bash(moru-hook)"], dry_run=False),
-            lambda: _merge_claude_statusline(self.settings, "tao-statusline", dry_run=False),
+            lambda: _merge_claude_statusline(self.settings, "moru-statusline", dry_run=False),
         ):
             with self.assertRaisesRegex(SetupConfigError, "not valid JSON"):
                 merge()
@@ -62,7 +62,7 @@ class JsonConfigSafetyTests(unittest.TestCase):
 
         with patch.object(setup_config_files.os, "replace", side_effect=spy):
             merge_permissions_allow(self.settings, ["Bash(moru-hook)"], dry_run=False)
-            _merge_claude_statusline(self.settings, "tao-statusline", dry_run=False)
+            _merge_claude_statusline(self.settings, "moru-statusline", dry_run=False)
 
         updated = json.loads(self.settings.read_text())
         self.assertEqual("opus", updated["model"])

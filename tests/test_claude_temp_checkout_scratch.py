@@ -318,7 +318,7 @@ class CommandsNamingARealProjectKeepTheirVerdictTests(_Fixture):
         common = self.project / ".git"
         return [
             f"MORU_HOME={self.project} python3 x.py",
-            f"MORU_STATE_HOME={self.project}/.tao python3 x.py",
+            f"MORU_STATE_HOME={self.project}/.moru python3 x.py",
             f"PWD={self.project} npm test",
             f"env GIT_DIR={common} python3 x.py",
             f"export MORU_HOME={self.project} && python3 x.py",

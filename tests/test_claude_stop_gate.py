@@ -397,7 +397,7 @@ def _make_global_state_dir(home: Path) -> Path:
     state = home / ".moru"
     (state / "bin").mkdir(parents=True)
     (state / "bin" / "moru-hook").write_text("#!/usr/bin/env python3\n")
-    (state / "tao-root").write_text("/somewhere/moru-core\n")
+    (state / "moru-root").write_text("/somewhere/moru-core\n")
     (state / "projects.json").write_text("{}")
     (state / "claude-session-projects").mkdir()
     return state

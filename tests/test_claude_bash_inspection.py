@@ -275,7 +275,7 @@ class GateTests(unittest.TestCase):
     def test_installed_absolute_read_passes_without_a_run(self) -> None:
         for command in (
             "/bin/cat AGENTS.md", "/usr/bin/git status",
-            "/opt/homebrew/bin/rg -n tao AGENTS.md",
+            "/opt/homebrew/bin/rg -n moru AGENTS.md",
             "/opt/homebrew/bin/python3.14 -I -m json.tool package.json",
             "/opt/homebrew/bin/vibeguard audit .",
         ):

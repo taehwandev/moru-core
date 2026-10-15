@@ -33,7 +33,7 @@ class _Fixture(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.base = Path(temporary.name).resolve()
-        self.tao = self._project("tao", policy=True)
+        self.moru = self._project("moru", policy=True)
         self.cli = self._project("cli", policy=True)
         self.app = self._project("app", policy=False)
         (self.app / "f.txt").write_text("x\n")
@@ -41,7 +41,7 @@ class _Fixture(unittest.TestCase):
         self.scratch.mkdir(parents=True)
         environment = patch.dict(
             os.environ,
-            {"MORU_HOME": str(self.tao), "CLAUDE_PROJECT_DIR": str(self.app)},
+            {"MORU_HOME": str(self.moru), "CLAUDE_PROJECT_DIR": str(self.app)},
             clear=True,
         )
         environment.start()
@@ -189,14 +189,14 @@ class QuotedTextTests(_Fixture):
         self.assertEqual("subject\n\nbody line", tokens[-1])
 
     def test_an_unquoted_newline_is_still_two_commands(self) -> None:
-        command = f"git status\ntouch {self.tao}/note"
+        command = f"git status\ntouch {self.moru}/note"
 
         _, _, simple = bash_invocation({"tool_input": {"command": command}}, self.app)
-        reason = self._verdict(command, cwd=self.tao)
+        reason = self._verdict(command, cwd=self.moru)
 
         self.assertFalse(simple)
         self.assertIn("use one literal command", reason)
-        self.assertIn(str(self.tao), reason)
+        self.assertIn(str(self.moru), reason)
 
     def test_a_commit_message_names_no_checkout(self) -> None:
         """Observed: a keyflow-cli commit refused as a write into moru-core,
@@ -214,7 +214,7 @@ class QuotedTextTests(_Fixture):
         # (e35caf14); the attribution is what this test pins.
         protected = self._verdict(command(self.cli))
         self.assertIn(f"main checkout: {self.cli}.", protected)
-        self.assertNotIn(str(self.tao), protected)
+        self.assertNotIn(str(self.moru), protected)
         # One without a policy is judged by the ordinary rules, never under the
         # name of the checkout its message happened to mention.
         unprotected = self._project("cli-open", policy=False)
@@ -222,16 +222,16 @@ class QuotedTextTests(_Fixture):
             {"tool_input": {"command": command(unprotected)}}, self.app
         )
         self.assertNotIn(
-            self.tao, pretool.bash_governed_roots(tokens, unprotected, command="")
+            self.moru, pretool.bash_governed_roots(tokens, unprotected, command="")
         )
-        self.assertNotIn(str(self.tao), self._verdict(command(unprotected)))
+        self.assertNotIn(str(self.moru), self._verdict(command(unprotected)))
 
     def test_an_escaped_backquote_is_not_computed_text(self) -> None:
         """Observed: a chained start refused as a write into its `--rules` root,
         because `\\`` inside double quotes read as a command substitution."""
 
         command = (
-            f"{self.launcher} start --project {self.app} --rules {self.tao} "
+            f"{self.launcher} start --project {self.app} --rules {self.moru} "
             '--command task --request "two\nlines" --intent x --target-summary y '
             '2>&1 | grep -E "^SUCCESS"; '
             f'cd {self.app} && grep -n "a\\|^5\\. \\`keyflow\\`" f.txt'
@@ -241,12 +241,12 @@ class QuotedTextTests(_Fixture):
         reason = self._verdict(command)
 
         self.assertTrue(tokens)
-        self.assertNotIn(str(self.tao), reason)
+        self.assertNotIn(str(self.moru), reason)
 
     def test_start_prose_options_name_no_target(self) -> None:
         command = (
-            f"{self.launcher} start --project {self.app} --rules {self.tao} "
-            f'--command bugfix --request "compare with {self.tao}/scripts" '
+            f"{self.launcher} start --project {self.app} --rules {self.moru} "
+            f'--command bugfix --request "compare with {self.moru}/scripts" '
             f'--target-summary "{self.cli}/x.py" --intent x'
         )
 
@@ -254,7 +254,7 @@ class QuotedTextTests(_Fixture):
         roots = pretool.bash_target_project_roots(tokens, self.base)
 
         self.assertIn(self.app, roots)
-        self.assertNotIn(self.tao, roots)
+        self.assertNotIn(self.moru, roots)
         self.assertNotIn(self.cli, roots)
 
     def test_a_real_substitution_is_still_unreadable(self) -> None:
@@ -271,12 +271,12 @@ class QuotedTextTests(_Fixture):
                 self.assertFalse(simple)
 
     def test_commit_message_exemption_covers_only_the_message(self) -> None:
-        command = f'git -C {self.app} commit -m "see {self.tao}" {self.cli}/f'
+        command = f'git -C {self.app} commit -m "see {self.moru}" {self.cli}/f'
 
         _, tokens, _ = bash_invocation({"tool_input": {"command": command}}, self.base)
         indices = bash_readonly.read_only_path_token_indices(tokens)
 
-        self.assertIn(tokens.index(f"see {self.tao}"), indices)
+        self.assertIn(tokens.index(f"see {self.moru}"), indices)
         self.assertNotIn(tokens.index(f"{self.cli}/f"), indices)
 
 

@@ -99,7 +99,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
 
     def test_compact_bridge_routes_details_without_a_blanket_read(self):
         for runtime, entry in (("Codex", "AGENTS.md"), ("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
-            block = runtime_bridge_block(Path("/tao"), runtime, entry)
+            block = runtime_bridge_block(Path("/moru-core"), runtime, entry)
             moved_guidance = sum(len(phrase.encode()) + 3 for phrase in CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES) if runtime == "Codex" else 0
             # Codex alone carries approval, sandbox, worktree and dispatch safety
             # rules that have no other always-loaded home; its native-role and
@@ -112,7 +112,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
                 self.assertTrue((ROOT / relative).is_file(), relative)
             self.assertNotIn("fallback worker evidence path and opaque reservation token", block)
             self.assertIn("fallback worker evidence path and opaque reservation token", _runtime_detail("collaboration"))
-        self.assertIn("Before interruption/retry", runtime_bridge_block(Path("/tao"), "Codex", "AGENTS.md"))
+        self.assertIn("Before interruption/retry", runtime_bridge_block(Path("/moru-core"), "Codex", "AGENTS.md"))
 
     def test_codex_operator_procedure_lives_in_session_instructions(self):
         block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
