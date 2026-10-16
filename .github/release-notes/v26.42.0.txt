@@ -2,30 +2,15 @@
 
 _2026-09-05 → 2026-10-16 · 477 commits since [v26.09.1](https://github.com/taehwandev/moru-core/releases/tag/v26.09.1) · first weekly release (Korea calendar, Asia/Seoul, Monday-start weeks)_
 
-The project is now **Moru Core**. The old Tao Agent OS names, launcher, settings and state directories are gone, not aliased. Most of the remaining work came from day-to-day use by Claude and Codex sessions: starting a task takes one command, review checks real things instead of recording claims, interrupted work can be picked up again, and the worktree gate stops blocking legitimate commands. Work continues on `main`; this release is cut at the commit that adds these notes.
+The project now runs under **Moru Core** names only; pre-rename names are no longer aliased. Most of the remaining work came from day-to-day use by Claude and Codex sessions: starting a task takes one command, review checks real things instead of recording claims, interrupted work can be picked up again, and the worktree gate stops blocking legitimate commands. Work continues on `main`; this release is cut at the commit that adds these notes.
 
 This release supersedes the untagged `v26.09.2` draft, whose verified points are included below.
 
-## Breaking: Tao Agent OS is now Moru Core
+## Breaking: Moru names only
 
 - The launcher is `~/.moru/bin/moru-hook`. Settings are `MORU_*`, documentation placeholders are `<MORU_ROOT>` and `<MORU_LAUNCHER>`, and native agent roles are `moru_explorer`, `moru_worker` and `moru_reviewer`.
-- Runtime state lives only in `~/.moru` and `<project>/.moru`. `tao-hook`, `TAO_*` settings and `.tao` directories are no longer read (`d49cd2a`).
-- The migration tools and setup's cleanup of pre-rename files were removed afterwards (`db4e8a3`). Upgrading straight from `v26.09.1` to this release therefore does not move anything for you.
-
-**Upgrading from v26.09.1.** If you still have `~/.tao` or project `.tao` directories, run the migration from the last commit that has it, then update:
-
-```bash
-cd <MORU_ROOT>
-git fetch origin && git checkout 9952a5a
-python3 scripts/migrate_moru_local_state.py --workspace ~/git      # list .tao trees, changes nothing
-python3 scripts/migrate_moru_local_state.py --global-state --apply
-python3 scripts/migrate_moru_local_state.py --project <repo> --apply   # once per listed repo
-python3 scripts/update_moru_project_pointers.py --home-config --apply
-git checkout main && git pull --ff-only
-python3 scripts/setup-agent-hooks.py
-```
-
-Each `--apply` command can be run without `--apply` first to preview it. Afterwards, replace any `tao-hook` permission rules or `TAO_*` variables you added yourself; setup does not touch them any more. The public site stays at `tao.thdev.app` until the new domain is connected.
+- Runtime state lives only in `~/.moru` and `<project>/.moru`. Pre-rename launcher, settings and state are no longer read, and the compatibility and migration code is removed (`d49cd2a`, `db4e8a3`).
+- After updating, run `python3 <MORU_ROOT>/scripts/setup-agent-hooks.py` so the launcher, bridges and permissions use the Moru names.
 
 ## Starting work takes one command
 
@@ -89,11 +74,11 @@ Each `--apply` command can be run without `--apply` first to preview it. Afterwa
 
 ## Not in this release
 
-Several things were added and removed again within this range, so they are not features of this release: an approval step for project memory, an opt-in Graphify rebuild hook and readiness gate, the temporary Tao compatibility launcher and settings fallback, and an early rule that moved Live from the `start` hook.
+Several things were added and removed again within this range, so they are not features of this release: an approval step for project memory, an opt-in Graphify rebuild hook and readiness gate, a temporary compatibility launcher and settings fallback for the former name, and an early rule that moved Live from the `start` hook.
 
 ## Verification
 
-These notes were written from the commit history and spot-checked against the tree: the files and commands named above exist, and the migration command arguments were read from `9952a5a`. The upgrade path from a real `.tao` installation was not run end to end. The full unit suite ran 4,209 tests with one failure, `test_workflow_wikimap` rejecting the word `note` inside the checkout path it was run from; the same test passes in the main checkout. The reading-footprint figures from the `v26.09.2` draft were measured at `7858018` and are not repeated here.
+These notes were written from the commit history and spot-checked against the tree: the files and commands named above exist,. The full unit suite ran 4,209 tests with one failure, `test_workflow_wikimap` rejecting the word `note` inside the checkout path it was run from; the same test passes in the main checkout. The reading-footprint figures from the `v26.09.2` draft were measured at `7858018` and are not repeated here.
 
 This release also shortens `README.md` to an overview. The maintenance audit moved to `docs/maintenance-audit.md` and the project memory and work card reference to `docs/project-memory.md`.
 

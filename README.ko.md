@@ -43,7 +43,7 @@ python3 ~/.moru/core/scripts/setup-agent-hooks.py                     # 런처·
 git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
 ```
 
-갱신은 진행 중인 작업이 끝난 뒤 `git pull --ff-only`와 `workflow validate`로 합니다. 자세한 절차는 [기존 설치 최신화 안내](docs/ko/update-moru.md)에 있습니다. `.tao` 기록이 남은 `v26.09.1` 이하 설치는 한 번 이전 작업이 필요합니다. 방법은 [v26.42.0 릴리스 노트](.github/release-notes/v26.42.0.txt)를 보세요.
+갱신은 진행 중인 작업이 끝난 뒤 `git pull --ff-only`와 `workflow validate`로 합니다. 자세한 절차는 [기존 설치 최신화 안내](docs/ko/update-moru.md)에 있습니다.
 
 ## 프로젝트에 연결하기
 

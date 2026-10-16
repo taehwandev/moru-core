@@ -80,9 +80,8 @@ cd ~/.moru/core && git pull --ff-only && <MORU_LAUNCHER> workflow validate
 ```
 
 Target repos that link to the root need no update of their own. A pinned
-submodule moves through the target repo's normal review. Upgrading from
-`v26.09.1` or earlier with `.tao` state needs a one-time migration; see the
-[v26.42.0 release notes](.github/release-notes/v26.42.0.txt).
+submodule moves through the target repo's normal review. Release changes are in
+[`.github/release-notes/`](.github/release-notes/).
 
 ## Connect A Project
 
