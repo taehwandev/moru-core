@@ -11,7 +11,8 @@ Code run there -- `python3 script.py`, `npm test`, `make`, `./tool` -- is
 released too: that it *could* write anywhere is no risk the command shows. What
 the command shows is judged instead. A word, an option value, an assignment's
 value or a redirect target that resolves into a governed project outside temp,
-or into the repository the checkout shares, keeps the checkout governed, so
+or into an independent repository under temp or the repository the checkout
+shares, keeps the checkout governed, so
 `MORU_HOME=<project> python3 x.py` gets the verdict it had before the exemption.
 Known file utilities are held to more: their write operands and redirect
 targets must resolve inside temp, with only options whose effect is known.
@@ -187,7 +188,8 @@ def scratch_command(command: str, root: Path, cwd: Path, project_of: ProjectOf) 
     assignment value, `cd` target or redirect target resolving (`..` and
     symlinks followed, relative to the effective cwd, `~` and `$HOME`
     expanded) into a project `project_of` names outside temp or into the
-    shared repository; a file utility writing outside temp or with an option
+    shared repository, or an independent project under temp; a file utility
+    writing outside temp or with an option
     not modelled; a Git command other than a read or `worktree remove|prune`;
     `gh`; a publication; or a line that cannot be read.
     """
@@ -286,7 +288,10 @@ class _Reach:
         except (OSError, RuntimeError, ValueError):
             return False
         if _inside_temp(resolved):
-            return False
+            # Temp placement alone does not erase an independent project's
+            # ownership. Reuse the same marker/symlink and throwaway-checkout
+            # distinction that governs direct scratch writes.
+            return not syntax.scratch_write_target(str(resolved), cwd)
         if self._shared is not None and resolved.is_relative_to(self._shared):
             return True
         try:

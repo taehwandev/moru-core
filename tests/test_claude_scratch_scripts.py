@@ -90,6 +90,20 @@ class ScratchHelperScripts(_Fixture):
         self.assertFalse(admitted(f"ruby {self.pad}/hello.py"))
         self.assertFalse(admitted(f"python3 {self.pad}/hello.py && python3 {self.pad}/hello.py"))
 
+    def test_scratch_script_cannot_write_into_a_protected_temp_project(self) -> None:
+        """A temp output is still governed when it belongs to an independent repo."""
+        protected = self.temp / "protected"
+        self._governed_repository(protected)
+        alias = self.temp / "protected-link"
+        alias.symlink_to(protected, target_is_directory=True)
+        for output in (protected / "bundle", alias / "bundle"):
+            for option in (f"--out {output}", f"--out={output}"):
+                with self.subTest(output=output, option=option):
+                    self.assertEqual(
+                        "deny",
+                        self._bash(f"python3 -B {self.pad}/hello.py {option}", cwd=self.spill),
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
