@@ -66,7 +66,7 @@ class LiveDeviceTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("android emulator-5554: applied 2026-10-16T01:01:00Z app/src/main/java/Banner.kt in 1.6s", output)
 
-    def test_a_compile_error_or_a_waiting_rebuild_is_a_problem_but_an_ios_relaunch_is_not(self) -> None:
+    def test_a_compile_error_or_a_failed_rebuild_is_a_problem_but_a_rebuild_is_not(self) -> None:
         self.start_both()
         self.log("ios", "SIM-1", "2026-10-16T01:02:00Z", {"event": "failed", "files": ["Card.swift"], "reason": "compile",
                                                           "detail": "Card.swift:11:30: error: no member 'nam'\nmore"})
@@ -74,7 +74,15 @@ class LiveDeviceTests(unittest.TestCase):
         code, output = self.run_cli("check")
         self.assertEqual(code, live_device.PROBLEM_EXIT)
         self.assertIn("detail: Card.swift:11:30: error: no member 'nam'", output)
-        self.assertIn("waits for Rebuild in Moru", output)
+        self.assertIn("rebuilding and relaunching by itself", output)
+        code, output = self.run_cli("check", "--files", "strings.xml", "--json")
+        self.assertEqual(code, live_device.MISSING_EXIT, "the plugin is still rebuilding")
+        self.log("android", "emulator-5554", "2026-10-16T01:02:09Z", {"event": "failed", "files": [], "reason": "prepare",
+                                                                      "detail": "Gradle failed"})
+        code, output = self.run_cli("check", "--files", "strings.xml")
+        self.assertEqual(code, live_device.PROBLEM_EXIT)
+        self.assertIn("reason: prepare; detail: Gradle failed", output)
+        self.log("android", "emulator-5554", "2026-10-16T01:02:30Z", {"event": "ready", "package": "dev.moru.market", "pid": 4})
         self.log("ios", "SIM-1", "2026-10-16T01:03:00Z", {"event": "needs_rebuild", "files": ["Card.swift"], "reason": "storage"})
         self.log("ios", "SIM-1", "2026-10-16T01:03:05Z", {"event": "ready", "package": "dev.moru.market", "pid": 3})
         code, output = self.run_cli("check", "--files", "Card.swift")

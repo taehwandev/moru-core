@@ -19,8 +19,8 @@ a device does not run from this worktree (``start`` brings it here). ``start`` a
 shows a deep link in the running app and ``stop`` hands the device back.
 ``check`` reports, per
 device, the newest result for the given files: exit 0 when every device applied
-it (or rebuilt and relaunched with it), 4 when one failed or waits for a
-rebuild, 5 when a device has no result yet. Only the tail of a large log is read.
+it (or rebuilt and relaunched with it), 4 when one failed or its automatic
+rebuild failed, 5 when a device has no result yet or is still rebuilding. Only the tail of a large log is read.
 """
 
 from __future__ import annotations
@@ -110,10 +110,21 @@ def result_for(items: list[dict], files: list[str], since: Optional[float]) -> t
             return "pending", entry
         if kind not in RESULTS:
             continue
-        if kind == "needs_rebuild" and any(_kind(later) == "ready" for later in items[index + 1:]):
-            return "ok", entry
+        if kind == "needs_rebuild":
+            # The plugin rebuilds and relaunches by itself: done when it is ready again, a problem when that build fails.
+            outcome = _rebuild_outcome(items[index + 1:])
+            return {"ready": "ok", "failed": "problem"}.get(outcome, "pending"), entry
         return ("ok" if kind in {"applied", "unchanged"} else "problem"), entry
     return "pending", None
+
+
+def _rebuild_outcome(later: list[dict]) -> Optional[str]:
+    """How the plugin's own rebuild after a ``needs_rebuild`` ended: ``ready``, ``failed`` (preparation), or None."""
+    for entry in later:
+        kind = _kind(entry)
+        if kind == "ready" or (kind == "failed" and entry["event"].get("reason") == "prepare"):
+            return kind
+    return None
 
 
 def describe(name: str, entry: Optional[dict], items: list[dict]) -> str:
@@ -126,8 +137,9 @@ def describe(name: str, entry: Optional[dict], items: list[dict]) -> str:
     if isinstance(event.get("ms"), int):
         text += f" in {event['ms'] / 1000:.1f}s"
     if kind == "needs_rebuild":
-        relaunched = any(_kind(later) == "ready" for later in items[items.index(entry) + 1:])
-        text += "; rebuilt and relaunched" if relaunched else "; waits for Rebuild in Moru"
+        outcome = _rebuild_outcome(items[items.index(entry) + 1:])
+        text += {"ready": "; rebuilt and relaunched", "failed": "; the automatic rebuild failed (see status)"}.get(
+            outcome, "; rebuilding and relaunching by itself")
     for key in ("reason", "detail"):
         if event.get(key):
             text += f"; {key}: {str(event[key]).splitlines()[0]}"

@@ -32,7 +32,7 @@ project normally does. Run `<PROJECT>` below as your own worktree.
   see your change on it (Process step 1).
 - Exit 4 means at least one device is still preparing or failed preparation;
   read its event and `detail`. Preparation is not proof that device is running
-  Live or a request to press Rebuild; preserve any other devices already ready.
+  Live; preserve any other devices already ready.
   For an explicit Live test, keep live verification pending until Moru reports
   ready instead of silently replacing it with a normal build/install.
 - Preparation belongs to Moru's Devices plugin. Core only reads its events;
@@ -72,15 +72,15 @@ project normally does. Run `<PROJECT>` below as your own worktree.
    One line per running device, such as
    `android emulator-5554: applied 2026-10-16T01:05:00Z app/.../PromoBanner.kt in 1.6s`.
    Exit 0: every device has the change. Exit 4: a device reports `failed`
-   (fix the compiler error in `detail`, save again) or `needs_rebuild` that
-   still `waits for Rebuild in Moru` (tell the user to press Rebuild; do not
-   install it yourself). Exit 5: a device has no result yet; wait and run it
+   (fix the compiler error in `detail`, save again) or its automatic rebuild
+   failed (read `status`; do not install it yourself). Exit 5: a device has no
+   result yet or is `rebuilding and relaunching by itself`; wait and run it
    once more. A file only one platform builds (a `.kt` file on iOS) never gets
    a result from the other device; check each platform's files.
 7. Know what does not go live:
-   - Android: resources (`res/`), the manifest and Gradle files need a
-     rebuild, which the user starts with Rebuild in Moru. `remember` state in
-     the composable you edited resets.
+   - Android: resources (`res/`), the manifest and Gradle files make the
+     plugin rebuild and relaunch the app by itself, also after a branch
+     switch. `remember` state in the composable you edited resets.
    - iOS: adding, changing or removing a stored property, or deleting a type
      or file, makes the plugin rebuild and relaunch the app by itself; app
      state is lost, so prefer computed properties and functions when the
@@ -113,8 +113,8 @@ project normally does. Run `<PROJECT>` below as your own worktree.
 
 ## Stop If
 
-- `check` keeps reporting `needs_rebuild` that waits for Rebuild: the change
-  needs the user to rebuild in Moru.
+- `check` reports that the automatic rebuild failed and `status` shows a
+  build error you cannot fix in the app's code.
 - The fix needs a file another agent has claimed and the user has not decided
   who goes first.
 
