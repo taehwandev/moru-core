@@ -66,7 +66,7 @@ class WorkflowStartDenialTests(unittest.TestCase):
         )
         return root
 
-    def _verdict(self, command: str) -> str:
+    def _verdict(self, command: str, cwd: Path | None = None) -> str:
         """The refusal text for this command, or an empty string when allowed."""
 
         output = io.StringIO()
@@ -74,7 +74,7 @@ class WorkflowStartDenialTests(unittest.TestCase):
             pretool.decide(
                 {
                     "tool_name": "Bash",
-                    "cwd": str(self.main),
+                    "cwd": str(cwd or self.main),
                     "session_id": "start-denial",
                     "tool_input": {"command": command},
                 }
@@ -294,6 +294,41 @@ class WorkflowStartDenialTests(unittest.TestCase):
         )
 
         self.assertIn(self.main, pretool.bash_target_project_roots(tokens, self.base))
+
+    def test_direct_hook_from_shared_checkout_can_start_an_ungoverned_demo(self) -> None:
+        """An agent in a demo reads the shared hook; it does not edit its checkout."""
+        scripts = self.main / "scripts"
+        scripts.mkdir()
+        hook = scripts / "agent-hook.py"
+        demo = self.base / "demo"
+        demo.mkdir()
+        with patch.object(bash_readonly, "__file__", str(scripts / "claude_bash_readonly.py")):
+            for runner in (str(hook), f"python3 {hook}"):
+                with self.subTest(runner=runner):
+                    command = (
+                        f"{runner} start --project {demo} --rules {self.main} "
+                        "--command small-change --request 'Add a badge'"
+                    )
+                    self.assertEqual("", self._verdict(command, demo))
+
+    def test_direct_hook_still_protects_real_write_targets(self) -> None:
+        scripts = self.main / "scripts"
+        scripts.mkdir()
+        hook = scripts / "agent-hook.py"
+        with patch.object(bash_readonly, "__file__", str(scripts / "claude_bash_readonly.py")):
+            for runner in (str(hook), f"python3 {hook}"):
+                for suffix in ("", f" --output {self.main}/result", f" > {self.main}/result"):
+                    with self.subTest(runner=runner, suffix=suffix):
+                        target = self.main if not suffix else self.other
+                        command = f"{runner} start --project {target} --rules {self.main}{suffix}"
+                        self.assertNotEqual("", self._verdict(command, self.other))
+
+    def test_untrusted_hook_path_keeps_its_checkout_governed(self) -> None:
+        impostor = self.main / "agent-hook.py"
+        for runner in (str(impostor), f"python3 {impostor}"):
+            with self.subTest(runner=runner):
+                command = f"{runner} start --project {self.other} --rules {self.main}"
+                self.assertNotEqual("", self._verdict(command, self.other))
 
     def test_only_a_recognised_launcher_and_hook_earns_the_rules_exemption(self) -> None:
         for command in (

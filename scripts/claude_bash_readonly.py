@@ -1183,7 +1183,13 @@ def _declared_read_indices(tokens: list[str], offset: int, cwd: Path | None = No
     if _is_installer_without_writes(tokens):
         return _option_value_indices(tokens, offset, INSTALLER_READ_ONLY_VALUE_OPTIONS)
     if _is_lifecycle_hook_invocation(tokens):
-        return _option_value_indices(
+        # The trusted program (and its script in interpreter form) is read,
+        # even when it lives in the protected shared checkout. Keep --project,
+        # output operands and later shell segments governed as write targets.
+        program_indices = [offset]
+        if _python_interpreter(tokens[0]):
+            program_indices.append(offset + 1)
+        return program_indices + _option_value_indices(
             tokens,
             offset,
             RULES_READ_ONLY_VALUE_OPTIONS | LIFECYCLE_PROSE_OPTIONS
@@ -1356,7 +1362,7 @@ def _launcher_hook_tokens(tokens: list[str]) -> list[str]:
             return [tokens[0], *tokens[2:]]
         return list(tokens)
     if executable == Path(__file__).resolve().with_name("agent-hook.py"):
-        return [sys.executable, *tokens]
+        return list(tokens)
     if not _python_interpreter(tokens[0]) or len(tokens) < 3:
         return []
     try:
