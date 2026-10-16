@@ -47,7 +47,10 @@ project normally does. Run `<PROJECT>` below as your own worktree.
 
 1. Only when the change has to be seen on a device and `status` exits 3, start
    Live from your worktree, with the deep link of the screen you will change
-   when the app has one:
+   when the app has one. Exit 3 also covers Live the user runs from the Task
+   folder (reviewing on main or the current branch): after creating your task
+   worktree, `start` moves that Live to it without reinstalling, and your
+   `stop` gives it back:
    `live_device.py start --project <PROJECT> [--platform android|ios] [--link <deep link>]`.
    It builds only when needed (a device your worktree already runs is not
    rebuilt), waits until ready (`--wait 0` returns at once) and prints one line

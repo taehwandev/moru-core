@@ -46,9 +46,9 @@ class LiveDeviceArmTests(unittest.TestCase):
         self.addCleanup(key.stop)
         self.box = self.data / "live-device"
 
-    def arm(self, owner: Path | None = None, state: str = "armed") -> None:
+    def arm(self, owner: Path | None = None, state: str = "armed", task: Path | None = None) -> None:
         self.box.mkdir(parents=True, exist_ok=True)
-        device = {"task": str(self.project), "repo": "/repo/.git", "platform": "android", "device": "emulator-5554",
+        device = {"task": str(task or self.project), "repo": "/repo/.git", "platform": "android", "device": "emulator-5554",
                   "owner": str(owner) if owner else None, "state": state}
         (self.box / "armed.json").write_text(json.dumps({"devices": [device]}))
 
@@ -95,7 +95,8 @@ class LiveDeviceArmTests(unittest.TestCase):
         self.assertEqual(self.run_cli("status")[0], 0)
 
     def test_another_worktree_is_told_busy_at_once_and_asks_nothing(self) -> None:
-        self.arm(owner=self.project, state="ready")
+        # The device runs from an agent's worktree, not from the Task folder.
+        self.arm(owner=self.project, state="ready", task=Path("/work/task"))
         code, output = self.run_cli("start", project=self.other)
         self.assertEqual(code, live_device.BUSY_EXIT)
         self.assertIn(f"busy, run from {self.project}", output)
@@ -114,6 +115,26 @@ class LiveDeviceArmTests(unittest.TestCase):
         self.assertEqual(self.run_cli("stop")[0], 0)
         self.assertEqual([(r["action"], r["link"]) for r in self.requests()].count(("open", "moru://product/7")), 1)
         self.assertIn(("stop", None), [(r["action"], r["link"]) for r in self.requests()])
+
+    def test_live_the_task_folder_runs_moves_to_a_new_worktree_and_check_never_calls_it_off(self) -> None:
+        # Someone reviews on the Task folder (self.other); an agent then works in its worktree (self.project).
+        self.arm(owner=self.other, state="ready", task=self.other)
+        code, output = self.run_cli("status")
+        self.assertEqual(code, live_device.ARMED_EXIT)
+        self.assertIn("run live_device.py start to move it to this worktree", output)
+        code, output = self.run_cli("check", "--files", "app/src/main/java/A.kt")
+        self.assertEqual(code, live_device.ARMED_EXIT)
+        self.assertNotIn("Live is off", output)
+
+        def moru(_seconds: float) -> None:
+            if self.requests() and json.loads((self.box / "armed.json").read_text())["devices"][0]["owner"] == str(self.other):
+                self.arm(owner=self.project, state="ready", task=self.other)
+                self.ready()
+
+        with mock.patch.object(live_device_arm.time, "sleep", side_effect=moru):
+            code, output = self.run_cli("start")
+        self.assertEqual((code, output), (0, "android emulator-5554: ready for dev.moru.market"))
+        self.assertEqual(self.requests()[0]["action"], "start")
 
     def test_moru_not_answering_is_reported_instead_of_waiting_forever(self) -> None:
         self.arm()

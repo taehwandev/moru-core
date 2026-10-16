@@ -5,7 +5,10 @@ and the request files agents leave for Moru (``requests/`` next to it).
 Turning Live on in Moru arms a device for a repository without building; the app
 is built and run from the worktree of the first agent that asks (``start``), and
 that worktree owns the device until it asks to ``stop`` or Live is turned off.
-Agents sharing that worktree share Live; another worktree gets "busy" at once.
+Agents sharing that worktree share Live; another agent's worktree gets "busy" at
+once. Live run from the Task folder itself (someone reviewing on main or the
+current branch) is movable: a worktree's ``start`` takes it over without a
+reinstall, and its ``stop`` gives it back to the Task folder.
 Allowed imports: the standard library.
 Forbidden imports: the workflow route, the agent lifecycle and hook installers.
 Callers/tests: ``live_device.py`` (``status``, ``start``, ``open``, ``stop``);
@@ -71,6 +74,12 @@ def owned_by(device: dict, project: Path) -> bool:
     return bool(owner) and Path(owner).resolve() == project.resolve()
 
 
+def movable(device: dict, project: Path) -> bool:
+    """Whether ``project`` may take the device: free, its own, or run from the Task folder rather than an agent's worktree."""
+    owner = device.get("owner")
+    return not owner or owned_by(device, project) or (bool(device.get("task")) and Path(owner).resolve() == Path(device["task"]).resolve())
+
+
 def request(project: Path, action: str, platform: Optional[str] = None, link: Optional[str] = None,
             base: Optional[Path] = None) -> str:
     """Leaves ``action`` for Moru and returns its id."""
@@ -104,6 +113,9 @@ def describe(device: dict, project: Path) -> str:
     name = f"{device.get('platform', '?')} {device.get('device', '?')}"
     if owned_by(device, project):
         return f"{name}: Live runs from this worktree ({device.get('state', '?')})"
+    if device.get("owner") and movable(device, project):
+        return (f"{name}: Live runs from the Task folder {device['owner']}; run live_device.py start to move it to this "
+                f"worktree (no reinstall)")
     if device.get("owner"):
         return f"{name}: Live is busy, run from {device['owner']} ({device.get('state', '?')})"
     return f"{name}: Live armed, not started; run live_device.py start"
@@ -122,14 +134,15 @@ def start(project: Path, platform: Optional[str], link: Optional[str], wait: flo
     devices = armed_devices(project, platform, base)
     if not devices:
         return 5, ["Live is not armed for this project; build and run as usual"]
-    if all(device.get("owner") and not owned_by(device, project) for device in devices):
+    if not any(movable(device, project) for device in devices):
         return 6, [describe(device, project) for device in devices]
     fresh = not all(owned_by(device, project) for device in devices)
     # A device this worktree already runs counts as ready from its last start.
     asked = time.time() if fresh else 0.0
     if fresh:
         request(project, "start", platform, link, base)
-        wait_until(lambda: all(d.get("owner") for d in armed_devices(project, platform, base)), answer_seconds, sleep=sleep)
+        wait_until(lambda: all(d.get("owner") and not (movable(d, project) and not owned_by(d, project))
+                               for d in armed_devices(project, platform, base)), answer_seconds, sleep=sleep)
     elif link:
         request(project, "open", platform, link, base)
     devices = armed_devices(project, platform, base)

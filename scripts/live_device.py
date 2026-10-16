@@ -169,7 +169,7 @@ def armed_status(project: Path, devices: list[dict]) -> int:
         else:
             print(live_device_arm.describe(device, project))
             mine = live_device_arm.owned_by(device, project)
-            codes.append(BUSY_EXIT if device.get("owner") and not mine else ARMED_EXIT)
+            codes.append(ARMED_EXIT if live_device_arm.movable(device, project) else BUSY_EXIT)
     return next((code for code in (PROBLEM_EXIT, ARMED_EXIT, 0) if code in codes), BUSY_EXIT)
 
 
@@ -194,6 +194,10 @@ def status(project: Path, args: argparse.Namespace) -> int:
 
 def check(project: Path, args: argparse.Namespace) -> int:
     live = live_devices(read_events(project))
+    armed = live_device_arm.armed_devices(project)
+    if not live and armed and not args.json:
+        # Live runs, but not from this worktree: the save cannot have reached the app.
+        return armed_status(project, armed)
     if not live:
         print(json.dumps({"status": "off", "devices": {}}) if args.json else "Live is off")
         return MISSING_EXIT
