@@ -136,6 +136,7 @@ catalog itself only when that is the task.
 - Web security: `platforms/web/skills/web-security/SKILL.md`
 - Web review: `platforms/web/skills/web-review/SKILL.md`
 - Live web editing from inspect references, path claims across agents: `platforms/web/skills/live-web/SKILL.md`
+- Android/iOS Live (saves sent into the running app), what not to run while it is on, reading save results: `common/skills/live-device/SKILL.md`
 - Server architecture: `platforms/server/skills/server-architecture/SKILL.md`
 - Server API implementation: `platforms/server/skills/server-api-implementation/SKILL.md`
 - Server data/jobs: `platforms/server/skills/server-data-jobs/SKILL.md`
