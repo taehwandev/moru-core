@@ -37,6 +37,7 @@ class ReviewShape(unittest.TestCase):
     def test_required_structure_flag_is_not_repeated_as_conditional(self) -> None:
         line = review_shape_line(["--code-review-evidence", "--structure-review-evidence"])
         self.assertEqual(line.count("--structure-review-evidence"), 1)
+        self.assertIn("--allow-vibeguard-review", line)
 
 
 def _git(root: Path, *arguments: str) -> None:

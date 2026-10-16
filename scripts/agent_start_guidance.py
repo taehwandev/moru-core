@@ -36,6 +36,7 @@ def review_shape_line(required_flags: Iterable[str]) -> str:
     )
     return (
         f"Review shape: review --review-outcome pass|findings {required}{structure} "
+        '[--allow-vibeguard-review "<reason>" when VibeGuard overall is Needs review (also pass to finish)] '
         "(evidence text, not a file path); --review-scope "
         + "|".join(scopes) + " (default working-tree)."
     )
