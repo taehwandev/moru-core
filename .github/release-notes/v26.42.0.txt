@@ -1,0 +1,100 @@
+# Moru Core v26.42.0
+
+_2026-09-05 → 2026-10-16 · 477 commits since [v26.09.1](https://github.com/taehwandev/moru-core/releases/tag/v26.09.1) · first weekly release (Korea calendar, Asia/Seoul, Monday-start weeks)_
+
+The project is now **Moru Core**. The old Tao Agent OS names, launcher, settings and state directories are gone, not aliased. Most of the remaining work came from day-to-day use by Claude and Codex sessions: starting a task takes one command, review checks real things instead of recording claims, interrupted work can be picked up again, and the worktree gate stops blocking legitimate commands. Work continues on `main`; this release is cut at the commit that adds these notes.
+
+This release supersedes the untagged `v26.09.2` draft, whose verified points are included below.
+
+## Breaking: Tao Agent OS is now Moru Core
+
+- The launcher is `~/.moru/bin/moru-hook`. Settings are `MORU_*`, documentation placeholders are `<MORU_ROOT>` and `<MORU_LAUNCHER>`, and native agent roles are `moru_explorer`, `moru_worker` and `moru_reviewer`.
+- Runtime state lives only in `~/.moru` and `<project>/.moru`. `tao-hook`, `TAO_*` settings and `.tao` directories are no longer read (`d49cd2a`).
+- The migration tools and setup's cleanup of pre-rename files were removed afterwards (`db4e8a3`). Upgrading straight from `v26.09.1` to this release therefore does not move anything for you.
+
+**Upgrading from v26.09.1.** If you still have `~/.tao` or project `.tao` directories, run the migration from the last commit that has it, then update:
+
+```bash
+cd <MORU_ROOT>
+git fetch origin && git checkout 9952a5a
+python3 scripts/migrate_moru_local_state.py --workspace ~/git      # list .tao trees, changes nothing
+python3 scripts/migrate_moru_local_state.py --global-state --apply
+python3 scripts/migrate_moru_local_state.py --project <repo> --apply   # once per listed repo
+python3 scripts/update_moru_project_pointers.py --home-config --apply
+git checkout main && git pull --ff-only
+python3 scripts/setup-agent-hooks.py
+```
+
+Each `--apply` command can be run without `--apply` first to preview it. Afterwards, replace any `tao-hook` permission rules or `TAO_*` variables you added yourself; setup does not touch them any more. The public site stays at `tao.thdev.app` until the new domain is connected.
+
+## Starting work takes one command
+
+- `start` derives the request fingerprint, runtime-session binding and effect authorization from its compact flags. Agents no longer call `fingerprint` first or hand-build approval JSON (`651ec16`).
+- Static guidance prints once per session. Route documents already read in the session are reused, and their recorded takeaways replay after a context compaction instead of a full reread (`238f654`, `3f7f52f`).
+- Required documents an agent has not opened yet are delivered once, just before its first edit (`d1119e6`).
+- A new `small-change` route covers low-risk fixes with one owner and at most four files: tests, review and a short closeout check.
+- Read-only routes refuse writes for the whole run.
+
+## Review checks real things
+
+- Review checks links and repository paths in changed Markdown, and finds surviving references to a moved document anywhere in the repository. This replaces a gate that only recorded an agent's claim (`46ea161`).
+- When a commit candidate has the same content, base, rules and checker state as a reviewed one, structural, workflow and VibeGuard results are reused. The staged diff, base drift and worktree stability are still checked (`1c163be`).
+- A commit range that includes merges reviews only the commits written in that range (`be12813`).
+- `finish` rejects a run whose required gate evidence is missing (`90139d9`).
+
+## Interrupted work can be resumed
+
+- A stopped session can resume its own unfinished run. `start --continue-from <run id>` links a new action to earlier work while its scope and authority are checked again; a foreign or cancelled run is not inherited (`91c06fd`, `651a902`).
+- Paused runs are resumed rather than restarted, superseded or failed runs are closed when a new request arrives, and a run whose finish failed can be repaired in place (`935a440`, `c311bfb`, `0c27e39`).
+
+## Project memory, work cards and messages
+
+- **Project memory** keeps verified project facts (a root cause, a pitfall, a decision reason) in a user-local store shared by linked worktrees. `start` recalls up to three in-date records ranked by relevance to the request, including Korean word stems. Saving needs no approval step. `consolidate` reports records due for review (`7ebe4b3`, `a7a6668`).
+- **Work cards** show unfinished work across sessions; `start` lists other open cards as reference (`ae5db09`).
+- **Mailbox**: the prompt hook delivers messages between Claude and Codex sessions without loss (`fd10ffc`).
+- **`moru-hook doctor`** prints a read-only health report for a project, and **`moru-hook next`** prints the next lifecycle step with a copyable command and suggested tests for changed files. Neither writes anything (`ad5858b`).
+
+## The worktree gate blocks less, and more accurately
+
+- A run bound to one project cannot be used to write another (`9c09675`).
+- A finished run may publish or fast-forward the exact work it attested (`fcf48ea`).
+- Commands the gate cannot classify go to the runtime's own permission prompt instead of being denied (`e35caf1`).
+- More read-only commands pass without a run. The budget for new source files per change rises from 5 to 20 (`a9da415`).
+- Removing a checkout that still has unfinished work is refused (`bb4806a`).
+
+## Runtimes: Codex, Claude, Antigravity
+
+- Codex accepts conversational and standing operator consent, can run a native low-effort worker, and can resume a conversation from its work card (`8fec342`, `4b088f2`).
+- Claude and Codex both get the native `moru_*` subagent roles (`11e3dd7`).
+- Antigravity (AGY) receives a `GEMINI.md` bridge (`8f8c877`).
+- The status line now reads model, location, then quota (`124015f`).
+
+## Android, Compose and KMP
+
+- Structural review fails a changed composable that builds a route or notice request, calls a data service, or dispatches navigation directly. ViewModel effect collectors and declared leaf callbacks stay valid. Violations in unchanged code are reported as warnings (`dfaad28`, `f3ed4bc`). This is a source-level check of Moru Core review, not a change to any app.
+- UI changes now need a baseline comparison as evidence (`a4e2f2c`).
+- New guidance for Kotlin Multiplatform and desktop targets (`24066f1`).
+
+## Live device and Live web (new, early)
+
+- `scripts/live_device.py` tells agents whether Android or iOS Live is running and reports its result. Live moves to the worktree of the agent that asks for it (`6ae496e`, `5e10f59`).
+- `scripts/path_claims.py` lets several agents edit one web project by claiming paths and recording edits (`029e560`, `acd5ec4`).
+
+## Tools, docs and site
+
+- Code structure questions go to CodeGraph when a current index exists, with direct source inspection as the fallback (`1b8b192`).
+- **Breaking:** the Graphify integration is removed entirely, including its setup, hooks and gate (`4e0b127`).
+- Wikimap is updated to v1.5.0 (`9952a5a`). The documentation site relaunched under the Moru name (`862f382`).
+- Release versions follow weekly CalVer `vYY.WW.N` from a configured country calendar, counting from `.0` each week (`8c97d81`). Earlier monthly tags keep their meaning.
+
+## Not in this release
+
+Several things were added and removed again within this range, so they are not features of this release: an approval step for project memory, an opt-in Graphify rebuild hook and readiness gate, the temporary Tao compatibility launcher and settings fallback, and an early rule that moved Live from the `start` hook.
+
+## Verification
+
+These notes were written from the commit history and spot-checked against the tree: the files and commands named above exist, and the migration command arguments were read from `9952a5a`. The upgrade path from a real `.tao` installation was not run end to end. The full unit suite ran 4,209 tests with one failure, `test_workflow_wikimap` rejecting the word `note` inside the checkout path it was run from; the same test passes in the main checkout. The reading-footprint figures from the `v26.09.2` draft were measured at `7858018` and are not repeated here.
+
+This release also shortens `README.md` to an overview. The maintenance audit moved to `docs/maintenance-audit.md` and the project memory and work card reference to `docs/project-memory.md`.
+
+**Full changelog:** https://github.com/taehwandev/moru-core/compare/v26.09.1...v26.42.0

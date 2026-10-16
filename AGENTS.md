@@ -295,7 +295,7 @@ invalidates the manifest and stops work.
 ## Moru Maintenance Audits
 
 For an explicit Moru health or efficiency audit, use the living checks and
-recorded findings in [README](README.md#moru-maintenance-audit). Extend that
+recorded findings in [docs/maintenance-audit.md](docs/maintenance-audit.md). Extend that
 section with source evidence and verification. This reference is on demand;
 ordinary tasks gain no startup reads or additional gates.
 
@@ -317,7 +317,7 @@ guidance, task state in checkpoints, and user preferences in runtime memory.
 Start also lists up to three other open work cards as reference context. When
 one names work already finished elsewhere, run `<MORU_LAUNCHER> work-cards close
 <work id>`. Keep prompts, transcripts and logs out of `--target-summary`.
-Storage, ranking and resume mechanics: [README](README.md#automatic-project-memory).
+Storage, ranking and resume mechanics: [docs/project-memory.md](docs/project-memory.md).
 
 When changing document routing, read
 `docs/skills/agent-runtime-integration/references/document-routing-changes.md`.
