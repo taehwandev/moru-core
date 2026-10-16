@@ -95,8 +95,11 @@ class LiveDeviceArmTests(unittest.TestCase):
         self.assertEqual(self.run_cli("status")[0], 0)
 
     def test_another_worktree_is_told_busy_at_once_and_asks_nothing(self) -> None:
-        # The device runs from an agent's worktree, not from the Task folder.
+        # The device runs from an agent's worktree, not from the Task folder, and that agent is working.
         self.arm(owner=self.project, state="ready", task=Path("/work/task"))
+        working = mock.patch.object(live_device_arm, "unsettled_run_states", return_value=["running"])
+        working.start()
+        self.addCleanup(working.stop)
         code, output = self.run_cli("start", project=self.other)
         self.assertEqual(code, live_device.BUSY_EXIT)
         self.assertIn(f"busy, run from {self.project}", output)

@@ -6,10 +6,13 @@ Turning Live on in Moru arms a device for a repository without building; the app
 is built and run from the worktree of the first agent that asks (``start``), and
 that worktree owns the device until it asks to ``stop`` or Live is turned off.
 Agents sharing that worktree share Live; another agent's worktree gets "busy" at
-once. Live run from the Task folder itself (someone reviewing on main or the
-current branch) is movable: a worktree's ``start`` takes it over without a
+once while the owner has an active Moru run. Live is movable otherwise: run from
+the Task folder itself (someone reviewing on main or the current branch), from a
+worktree whose run finished (Live stays there so its result can be reviewed),
+or from a worktree that is gone. A worktree's ``start`` takes it over without a
 reinstall, and its ``stop`` gives it back to the Task folder.
-Allowed imports: the standard library.
+Allowed imports: the standard library and ``agent_repository_checkouts`` (the
+owner worktree's run states).
 Forbidden imports: the workflow route, the agent lifecycle and hook installers.
 Callers/tests: ``live_device.py`` (``status``, ``start``, ``open``, ``stop``);
 coverage lives in ``tests/test_live_device_arm.py``.
@@ -19,8 +22,10 @@ Verification: run that module.
 "state"}]}``: ``repo`` is the git common directory every worktree of the
 project shares, ``owner`` the worktree running Live there (null while armed and
 unstarted), ``state`` one of ``armed``, ``preparing``, ``ready``, ``failed``.
-A request is ``{"id", "time", "action", "project", "repo", "platform", "link"}``
-with ``action`` ``start``, ``open`` or ``stop``; Moru removes it once handled.
+A request is ``{"id", "time", "action", "project", "repo", "platform", "link",
+"takeover"}`` with ``action`` ``start``, ``open`` or ``stop``; ``takeover`` lists
+the devices whose owner worktree is idle or gone, which Moru then hands over.
+Moru removes a request once handled.
 """
 
 from __future__ import annotations
@@ -33,6 +38,11 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
+
+from agent_repository_checkouts import unsettled_run_states
+
+# Run states of an agent that is working now; anything else (finished, failed, interrupted) leaves Live movable.
+WORKING_RUN_STATES = frozenset({"running", "paused", "resuming", "claiming", "unreadable"})
 
 
 def data_dir() -> Path:
@@ -74,21 +84,36 @@ def owned_by(device: dict, project: Path) -> bool:
     return bool(owner) and Path(owner).resolve() == project.resolve()
 
 
-def movable(device: dict, project: Path) -> bool:
-    """Whether ``project`` may take the device: free, its own, or run from the Task folder rather than an agent's worktree."""
+def from_task(device: dict) -> bool:
+    """Whether the device runs Live from the Task folder itself rather than from an agent's worktree."""
     owner = device.get("owner")
-    return not owner or owned_by(device, project) or (bool(device.get("task")) and Path(owner).resolve() == Path(device["task"]).resolve())
+    return bool(owner) and bool(device.get("task")) and Path(owner).resolve() == Path(device["task"]).resolve()
+
+
+def idle_owner(device: dict) -> bool:
+    """Whether the device's owner is an agent worktree that is gone or has no working Moru run."""
+    owner = device.get("owner")
+    if not owner or from_task(device):
+        return False
+    folder = Path(owner)
+    return not folder.is_dir() or not (set(unsettled_run_states(folder)) & WORKING_RUN_STATES)
+
+
+def movable(device: dict, project: Path) -> bool:
+    """Whether ``project`` may take the device: free, its own, run from the Task folder, or held by an idle worktree."""
+    return not device.get("owner") or owned_by(device, project) or from_task(device) or idle_owner(device)
 
 
 def request(project: Path, action: str, platform: Optional[str] = None, link: Optional[str] = None,
-            base: Optional[Path] = None) -> str:
-    """Leaves ``action`` for Moru and returns its id."""
+            base: Optional[Path] = None, takeover: Optional[list[str]] = None) -> str:
+    """Leaves ``action`` for Moru and returns its id; ``takeover`` names devices held by an idle worktree."""
     folder = (base or data_dir()) / "requests"
     folder.mkdir(parents=True, exist_ok=True)
     ident = uuid.uuid4().hex
     body = {
         "id": ident, "time": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "action": action,
         "project": str(project.resolve()), "repo": repo_key(project), "platform": platform, "link": link,
+        "takeover": takeover or [],
     }
     temporary = folder / f".{ident}.tmp"
     temporary.write_text(json.dumps(body))
@@ -113,8 +138,11 @@ def describe(device: dict, project: Path) -> str:
     name = f"{device.get('platform', '?')} {device.get('device', '?')}"
     if owned_by(device, project):
         return f"{name}: Live runs from this worktree ({device.get('state', '?')})"
-    if device.get("owner") and movable(device, project):
+    if from_task(device):
         return (f"{name}: Live runs from the Task folder {device['owner']}; run live_device.py start to move it to this "
+                f"worktree (no reinstall)")
+    if idle_owner(device):
+        return (f"{name}: Live stays on {device['owner']}, whose work is done; run live_device.py start to move it to this "
                 f"worktree (no reinstall)")
     if device.get("owner"):
         return f"{name}: Live is busy, run from {device['owner']} ({device.get('state', '?')})"
@@ -140,7 +168,7 @@ def start(project: Path, platform: Optional[str], link: Optional[str], wait: flo
     # A device this worktree already runs counts as ready from its last start.
     asked = time.time() if fresh else 0.0
     if fresh:
-        request(project, "start", platform, link, base)
+        request(project, "start", platform, link, base, takeover=[d.get("device") for d in devices if idle_owner(d)])
         wait_until(lambda: all(d.get("owner") and not (movable(d, project) and not owned_by(d, project))
                                for d in armed_devices(project, platform, base)), answer_seconds, sleep=sleep)
     elif link:

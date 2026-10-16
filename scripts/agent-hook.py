@@ -1333,6 +1333,20 @@ def _atomic_write_bytes(path: Path, content: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _live_follow_lines(args: argparse.Namespace, route: dict[str, Any]) -> list[str]:
+    """Moves armed Android/iOS Live to this run's worktree when it is mobile UI work; never fails the start."""
+
+    try:
+        from live_device_follow import on_start
+
+        platform = route.get("platform")
+        platforms = list(args.platform or []) + (platform if isinstance(platform, list) else [platform] if platform else [])
+        concerns = list(route.get("concerns") or []) + list(route.get("inferred_concerns") or [])
+        return on_start(Path(args.project), platforms, concerns)
+    except Exception:  # noqa: BLE001 - Live is a convenience; the run starts regardless
+        return []
+
+
 def _register_started_run(
     args: argparse.Namespace,
     details: list[str],
@@ -1365,6 +1379,7 @@ def _register_started_run(
         if run.get("run_id") != claimed_run_id or run.get("state") != "running":
             raise ValueError("start claim was not promoted atomically")
         details.append("agent run registry: running")
+        details.extend(_live_follow_lines(args, payload.get("route") or {}))
         # Neither of these was printed anywhere, and a run now lives in a
         # directory named by an opaque id, so the only way to reach it was to
         # guess: one session spent eight of its thirteen hook calls on that,
