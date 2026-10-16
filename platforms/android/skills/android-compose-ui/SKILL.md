@@ -18,9 +18,11 @@ mixing; `## Design-System Consumption Gate` when no component fits;
 `## Screen Skeleton` for IME owner choice; `## Authoring Rules` for effects or
 deferred reads; `## Steps` for new-screen, inset and preview files.
 
-When Moru's Android Live runs for the project (`live_device.py status` exits
-0), also follow `common/skills/live-device/SKILL.md`: do not install or
-relaunch the app, and read each save's result with `live_device.py check`.
+When Moru's Android Live is armed or runs for the project (`live_device.py
+status` exits 0, 3 or 6), also follow `common/skills/live-device/SKILL.md`:
+start it from your worktree only when the change must be seen on a device, do
+not install or relaunch the app, and read each save's result with
+`live_device.py check`.
 
 ## Must
 

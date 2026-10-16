@@ -12,15 +12,24 @@ sent into the app already running on the emulator, device or simulator, in
 about a second, without a reinstall or restart. Several agents may be saving
 into the same running app at once.
 
+Turning Live on in Moru only arms a device; nothing is built until an agent
+starts Live from its own worktree, so the app runs exactly the code that agent
+(or its group sharing the worktree) is changing. That worktree owns the device
+until it stops Live.
+
 Skip when `live_device.py status` exits 5 (Live is off); build and run as the
-project normally does.
+project normally does. Run `<PROJECT>` below as your own worktree.
 
 ## Inspect First
 
 - Whether Live runs, on which devices and for which app:
   `python3 <MORU_ROOT>/scripts/live_device.py status --project <PROJECT>`.
   Exit 0 lists lines such as
-  `ios SIM-1: Live on for dev.moru.market, last applied 2026-10-16T01:05:01Z`.
+  `ios SIM-1: Live on for dev.moru.market, last applied 2026-10-16T01:05:01Z`
+  for devices your worktree runs. Exit 3 means a device is armed and waits for
+  `start` (Process step 1). Exit 6 means another worktree runs Live there: do
+  not build, install or start on that device; keep working with compile-only
+  checks and report that the device is busy, with its owner.
 - Exit 4 means at least one device is still preparing or failed preparation;
   read its event and `detail`. Preparation is not proof that device is running
   Live or a request to press Rebuild; preserve any other devices already ready.
@@ -36,17 +45,28 @@ project normally does.
 
 ## Process
 
-1. While Live is on, do not build, install, launch or restart the app yourself
+1. Only when the change has to be seen on a device and `status` exits 3, start
+   Live from your worktree, with the deep link of the screen you will change
+   when the app has one:
+   `live_device.py start --project <PROJECT> [--platform android|ios] [--link <deep link>]`.
+   It builds only when needed (a device your worktree already runs is not
+   rebuilt), waits until ready (`--wait 0` returns at once) and prints one line
+   per device. Exit 6: another worktree took it first; continue as for busy.
+   Agents sharing your worktree share this Live; one start is enough.
+2. Show the screen you change: `live_device.py open --project <PROJECT> --link <deep link>`.
+   After a rebuild or relaunch the plugin opens the last link again. Without a
+   deep link to that screen, say which screen the user should open.
+3. While Live is on, do not build, install, launch or restart the app yourself
    (no `gradlew installDebug`, `adb install`, `am start`, `xcodebuild` with a
    simulator destination, `simctl install` or `simctl launch`). Live owns the
    running app; a normal install replaces the Live build and ends Live for
    every agent. Compile-only checks that write elsewhere are fine.
-2. Claim the files you will edit when another agent may be working in the same
+4. Claim the files you will edit when another agent may be working in the same
    project (`path_claims.py claim --project <PROJECT> --path <file>`), and
    release them when done, as the `live-web` card describes.
-3. Save small, complete edits. Each save is compiled and sent as it is, so a
+5. Save small, complete edits. Each save is compiled and sent as it is, so a
    half-written file shows up as a failed save.
-4. After saving, wait about 2 seconds, then read what reached the app:
+6. After saving, wait about 2 seconds, then read what reached the app:
    `live_device.py check --project <PROJECT> --files <changed files> --since <time before the save>`.
    One line per running device, such as
    `android emulator-5554: applied 2026-10-16T01:05:00Z app/.../PromoBanner.kt in 1.6s`.
@@ -56,7 +76,7 @@ project normally does.
    install it yourself). Exit 5: a device has no result yet; wait and run it
    once more. A file only one platform builds (a `.kt` file on iOS) never gets
    a result from the other device; check each platform's files.
-5. Know what does not go live:
+7. Know what does not go live:
    - Android: resources (`res/`), the manifest and Gradle files need a
      rebuild, which the user starts with Rebuild in Moru. `remember` state in
      the composable you edited resets.
@@ -64,7 +84,10 @@ project normally does.
      or file, makes the plugin rebuild and relaunch the app by itself; app
      state is lost, so prefer computed properties and functions when the
      design allows it. UIKit screens show a change only when they redraw.
-6. Release your claims, also after a failure.
+8. Release your claims, also after a failure. When your worktree's work is
+   done (the last agent of a group, not each one), hand the device back:
+   `live_device.py stop --project <PROJECT>`. The app keeps running; the next
+   worktree's `start` builds its own code.
 
 ## Common Rationalizations
 
@@ -74,11 +97,14 @@ project normally does.
 | "It compiled in my head, so it applied." | Run `check`; a failed save keeps the app on its last good code. |
 | "The user will see it on the device." | Report the `check` line; screenshot only on request. |
 | "Only my platform matters." | When the change was asked for both apps, check both devices. |
+| "Live is armed, so I start it for every task." | Start only when the change must be seen on a device; a start builds. |
+| "The device is busy, so I install my build anyway." | Never; report busy and keep to compile-only checks. |
 
 ## Do Not
 
 - Do not install, relaunch or kill the app, emulator or simulator while Live is on.
-- Do not stop or restart the Live plugin process.
+- Do not stop or restart the Live plugin process; hand Live back with `stop`.
+- Do not `start` on a device another worktree runs, or `stop` one you do not run.
 - Do not say a change is done while its latest `check` exits 4.
 - Do not edit `.moru/live-device/events.jsonl`; only Moru writes it.
 - Do not fix a preparation failure by changing the app's build variants or
@@ -95,8 +121,11 @@ project normally does.
 
 - `live_device.py check --project <PROJECT> --files <changed files> --since <time>` exits 0.
 - `path_claims.py status --project <PROJECT>` shows none of your claims.
+- After `stop`, `live_device.py status --project <PROJECT>` no longer lists the
+  device as run from this worktree.
 
 ## Report
 
 Report the files changed, the last `check` line for each device, any rebuild
-the user has to start, and the claims taken and released.
+the user has to start, the claims taken and released, and whether you started
+and stopped Live (or found the device busy and with whom).

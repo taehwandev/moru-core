@@ -2,8 +2,9 @@
 
 Owner: reading ``<project>/.moru/live-device/events.jsonl``; the Moru app is the
 only writer and appends every event a Devices Live plugin reports.
-Allowed imports: the standard library and the sibling ``live_web_checks``
-(file matching, time parsing, project-relative paths).
+Allowed imports: the standard library, the sibling ``live_web_checks``
+(file matching, time parsing, project-relative paths) and ``live_device_arm``
+(armed Live, start/open/stop requests).
 Forbidden imports: the workflow route, the agent lifecycle and hook installers.
 Callers/tests: agents following the ``live-device`` card; coverage lives in
 ``tests/test_live_device.py``.
@@ -13,7 +14,11 @@ against a scratch project with a hand-written log.
 A log line is ``{"time", "platform", "device", "event": {"event", "files",
 "ms", "reason", "detail", ...}}`` with moru-live-events/1 inside. ``status``
 exits 0 while devices run Live, 4 for preparation in progress or failure, and 5
-when none does. ``check`` reports, per
+when none does; when Moru only armed Live (see ``live_device_arm``) it exits 3
+while a device waits for an agent to ``start`` it and 6 when another worktree
+runs it. ``start`` asks Moru to build and run from this worktree, ``open``
+shows a deep link in the running app and ``stop`` hands the device back.
+``check`` reports, per
 device, the newest result for the given files: exit 0 when every device applied
 it (or rebuilt and relaunched with it), 4 when one failed or waits for a
 rebuild, 5 when a device has no result yet. Only the tail of a large log is read.
@@ -28,10 +33,13 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+import live_device_arm
 from live_web_checks import _relative, _same_file, _since_epoch, _strings
 
+ARMED_EXIT = 3
 PROBLEM_EXIT = 4
 MISSING_EXIT = 5
+BUSY_EXIT = 6
 TAIL_BYTES = 128 * 1024
 RESULTS = {"applied", "unchanged", "failed", "needs_rebuild"}
 
@@ -128,7 +136,47 @@ def describe(name: str, entry: Optional[dict], items: list[dict]) -> str:
     return text
 
 
+def ready_line(project: Path, name: str, since: float) -> Optional[str]:
+    """How ``name``'s newest start ended at or after ``since``: ready or failed; None while it prepares."""
+    for entry in reversed(by_device(read_events(project)).get(name, [])):
+        kind = _kind(entry)
+        if kind == "preparing":
+            return None
+        moment = _since_epoch(entry.get("time", "")) or 0.0
+        if kind == "ready":
+            return f"ready for {entry['event'].get('package', '?')}" if moment >= since else None
+        if kind == "failed" and entry["event"].get("reason") == "prepare" and moment >= since:
+            return describe(name, entry, []).split(": ", 1)[1]
+    return None
+
+
+def _live_line(name: str, items: list[dict]) -> str:
+    ready = next((item for item in reversed(items) if _kind(item) == "ready"), None)
+    app = ready["event"].get("package", "?") if ready else "?"
+    return f"{name}: Live on for {app}, last {_kind(items[-1])} {items[-1].get('time', '?')}"
+
+
+def armed_status(project: Path, devices: list[dict]) -> int:
+    """``status`` when Moru armed Live: this worktree's devices as before, the others by owner."""
+    live = live_devices(read_events(project))
+    codes = []
+    for device in devices:
+        name = f"{device.get('platform')} {device.get('device')}"
+        if live_device_arm.owned_by(device, project) and name in live:
+            preparation = _preparation_result(live[name])
+            print(describe(name, preparation, live[name]) if preparation else _live_line(name, live[name]))
+            codes.append(PROBLEM_EXIT if preparation else 0)
+        else:
+            print(live_device_arm.describe(device, project))
+            mine = live_device_arm.owned_by(device, project)
+            codes.append(BUSY_EXIT if device.get("owner") and not mine else ARMED_EXIT)
+    return next((code for code in (PROBLEM_EXIT, ARMED_EXIT, 0) if code in codes), BUSY_EXIT)
+
+
 def status(project: Path, args: argparse.Namespace) -> int:
+    armed = live_device_arm.armed_devices(project)
+    if armed and not args.json:
+        return armed_status(project, armed)
     live = live_devices(read_events(project))
     preparation = {name: entry for name, items in live.items() if (entry := _preparation_result(items))}
     if args.json:
@@ -140,9 +188,7 @@ def status(project: Path, args: argparse.Namespace) -> int:
             if name in preparation:
                 print(describe(name, preparation[name], items))
                 continue
-            ready = next((item for item in reversed(items) if _kind(item) == "ready"), None)
-            app = ready["event"].get("package", "?") if ready else "?"
-            print(f"{name}: Live on for {app}, last {_kind(items[-1])} {items[-1].get('time', '?')}")
+            print(_live_line(name, items))
     return PROBLEM_EXIT if preparation else 0 if live else MISSING_EXIT
 
 
@@ -171,16 +217,29 @@ def check(project: Path, args: argparse.Namespace) -> int:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Android/iOS Live state and save results for agents.")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("status", "check"):
+    for name in ("status", "check", "start", "open", "stop"):
         command = commands.add_parser(name)
         command.add_argument("--project", default=".")
         command.add_argument("--json", action="store_true")
         if name == "check":
             command.add_argument("--files", nargs="+", default=[])
             command.add_argument("--since", default=None)
+        if name == "start":
+            command.add_argument("--platform", choices=("android", "ios"), default=None)
+            command.add_argument("--wait", type=float, default=300.0, help="seconds to wait for ready; 0 returns at once")
+        if name in ("start", "open"):
+            command.add_argument("--link", required=name == "open", default=None)
     args = parser.parse_args(argv)
     project = Path(args.project).expanduser().resolve()
-    return status(project, args) if args.command == "status" else check(project, args)
+    if args.command in ("status", "check"):
+        return status(project, args) if args.command == "status" else check(project, args)
+    if args.command == "start":
+        code, lines = live_device_arm.start(project, args.platform, args.link, args.wait,
+                                            lambda name, since: ready_line(project, name, since))
+    else:
+        code, lines = live_device_arm.send(project, args.command, getattr(args, "link", None))
+    print("\n".join(lines))
+    return code
 
 
 if __name__ == "__main__":
