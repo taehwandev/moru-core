@@ -21,6 +21,16 @@ project normally does.
   `python3 <MORU_ROOT>/scripts/live_device.py status --project <PROJECT>`.
   Exit 0 lists lines such as
   `ios SIM-1: Live on for dev.moru.market, last applied 2026-10-16T01:05:01Z`.
+- Exit 4 means at least one device is still preparing or failed preparation;
+  read its event and `detail`. Preparation is not proof that device is running
+  Live or a request to press Rebuild; preserve any other devices already ready.
+  For an explicit Live test, keep live verification pending until Moru reports
+  ready instead of silently replacing it with a normal build/install.
+- Preparation belongs to Moru's Devices plugin. Core only reads its events;
+  it does not select or execute a Gradle installation task. An ambiguous task
+  must be resolved from the project's actual module, variants, selected app
+  and existing configuration. Do not force `:app`, `installDebug`, a Dev/Alpha
+  flavor, or a specific task merely because it appears in an example or error.
 - Current claims when other agents edit the same project:
   `python3 <MORU_ROOT>/scripts/path_claims.py status --project <PROJECT>`.
 
@@ -71,6 +81,8 @@ project normally does.
 - Do not stop or restart the Live plugin process.
 - Do not say a change is done while its latest `check` exits 4.
 - Do not edit `.moru/live-device/events.jsonl`; only Moru writes it.
+- Do not fix a preparation failure by changing the app's build variants or
+  installing a different variant without an established project target.
 
 ## Stop If
 

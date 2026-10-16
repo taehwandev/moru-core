@@ -26,7 +26,7 @@ from claude_bash_inspection import inspection_command_kind
 from claude_bash_local_tools import lookup_command_kind, node_test_kind
 from claude_discovery_command import discovery_command_kind
 from claude_project_bootstrap import project_directory_bootstrap
-from claude_local_context_commands import guarded_label_tokens, local_context_kind, spill_label_kind, moru_backup_removal
+from claude_local_context_commands import guarded_label_tokens, live_context_kind, local_context_kind, spill_label_kind, moru_backup_removal
 from claude_bash_syntax import (
     DIRECTORY_CHANGERS,
     ENV_ASSIGNMENT_RE,
@@ -314,12 +314,9 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
         return discovery_command_kind(script.stem, tokens[2:])
     if script == here.with_name("codex_operator_review.py"):
         return RUNTIME_CONTROL_KIND if not writes_output else "mutating"
-    if script == here.with_name("agent-mailbox.py"):
-        return "mutating" if writes_output else _mailbox_intake_kind(tokens[2:])
-    if script == here.with_name("agent_project_memory.py"):
-        return "mutating" if writes_output else local_context_kind("project-memory", tokens[2:])
-    if script == here.with_name("agent-structure-check.py"):
-        return "mutating" if writes_output else "read_only"
+    context_kind = _local_context_script_kind(script, tokens[2:], writes_output)
+    if context_kind is not None:
+        return context_kind
     # The installer is how a runtime is set up, repaired, and re-pointed at its
     # root. Classified as an ordinary mutation it could not run against a
     # protected checkout from anywhere, because any command naming a path under
@@ -353,6 +350,20 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
     if tokens[2] in RUNTIME_WRITE_HOOKS:
         return "bootstrap"
     return RUNTIME_CONTROL_KIND if tokens[2] in RUNTIME_CONTROL_HOOKS else None
+
+
+def _local_context_script_kind(script: Path, arguments: list[str], writes_output: bool) -> str | None:
+    """Canonical local utilities keep their individual, bounded effect contracts."""
+    here = Path(__file__).resolve()
+    if script in {here.with_name("live_device.py"), here.with_name("path_claims.py")}:
+        return live_context_kind(script.name, arguments)
+    if script == here.with_name("agent-mailbox.py"):
+        return "mutating" if writes_output else _mailbox_intake_kind(arguments)
+    if script == here.with_name("agent_project_memory.py"):
+        return "mutating" if writes_output else local_context_kind("project-memory", arguments)
+    if script == here.with_name("agent-structure-check.py"):
+        return "mutating" if writes_output else "read_only"
+    return None
 
 
 # Launcher aliases whose one subcommand only reads the user-local store:

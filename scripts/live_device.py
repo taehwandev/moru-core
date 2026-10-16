@@ -12,7 +12,8 @@ against a scratch project with a hand-written log.
 
 A log line is ``{"time", "platform", "device", "event": {"event", "files",
 "ms", "reason", "detail", ...}}`` with moru-live-events/1 inside. ``status``
-exits 0 while any device runs Live and 5 when none does. ``check`` reports, per
+exits 0 while devices run Live, 4 for preparation in progress or failure, and 5
+when none does. ``check`` reports, per
 device, the newest result for the given files: exit 0 when every device applied
 it (or rebuilt and relaunched with it), 4 when one failed or waits for a
 rebuild, 5 when a device has no result yet. Only the tail of a large log is read.
@@ -77,6 +78,17 @@ def live_devices(entries: list[dict]) -> dict[str, list[dict]]:
     return {name: items for name, items in by_device(entries).items() if _kind(items[-1]) != "stopped"}
 
 
+def _preparation_result(items: list[dict]) -> Optional[dict]:
+    """A new preparation owns the session until ready, even after an old ready."""
+    for entry in reversed(items):
+        kind = _kind(entry)
+        if kind == "ready":
+            return None
+        if kind == "preparing" or (kind == "failed" and entry["event"].get("reason") == "prepare"):
+            return entry
+    return None
+
+
 def result_for(items: list[dict], files: list[str], since: Optional[float]) -> tuple[str, Optional[dict]]:
     """(``ok``, ``problem`` or ``pending``, the deciding entry) for one device's events."""
     for index in range(len(items) - 1, -1, -1):
@@ -118,16 +130,20 @@ def describe(name: str, entry: Optional[dict], items: list[dict]) -> str:
 
 def status(project: Path, args: argparse.Namespace) -> int:
     live = live_devices(read_events(project))
+    preparation = {name: entry for name, items in live.items() if (entry := _preparation_result(items))}
     if args.json:
         print(json.dumps({name: items[-1] for name, items in live.items()}))
     elif not live:
         print("Live is off")
     for name, items in live.items():
         if not args.json:
+            if name in preparation:
+                print(describe(name, preparation[name], items))
+                continue
             ready = next((item for item in reversed(items) if _kind(item) == "ready"), None)
             app = ready["event"].get("package", "?") if ready else "?"
             print(f"{name}: Live on for {app}, last {_kind(items[-1])} {items[-1].get('time', '?')}")
-    return 0 if live else MISSING_EXIT
+    return PROBLEM_EXIT if preparation else 0 if live else MISSING_EXIT
 
 
 def check(project: Path, args: argparse.Namespace) -> int:
@@ -137,7 +153,10 @@ def check(project: Path, args: argparse.Namespace) -> int:
         return MISSING_EXIT
     files = [_relative(project, raw) for raw in args.files]
     since = _since_epoch(args.since) if args.since else None
-    results = {name: result_for(items, files, since) for name, items in live.items()}
+    results = {
+        name: ("problem", preparation) if (preparation := _preparation_result(items)) else result_for(items, files, since)
+        for name, items in live.items()
+    }
     states = {state for state, _ in results.values()}
     code = PROBLEM_EXIT if "problem" in states else MISSING_EXIT if "pending" in states else 0
     if args.json:

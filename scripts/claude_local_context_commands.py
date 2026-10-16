@@ -1,7 +1,8 @@
 """Classify trusted user-local context commands and Moru-owned artifact cleanup.
 
-Neither grants ordinary project writes: the only project path this module can
-admit is a regular file Moru itself names `*.moru-backup`.
+These contracts do not grant ordinary project writes. Context commands read
+logs or maintain Moru's bounded local stores; cleanup only admits regular
+files Moru itself names `*.moru-backup`.
 """
 
 from __future__ import annotations
@@ -184,3 +185,68 @@ def local_context_kind(alias: str, arguments: list[str]) -> str | None:
         return None
     return ("read_only" if operation in {"recall", "history", "consolidate", "status"}
             else "runtime_control")
+
+
+def live_context_kind(script: str, arguments: list[str]) -> str | None:
+    """Exact CLI grammar, called only after the canonical script is verified.
+
+    Claims touch only Moru's local coordination store, including expiry cleanup
+    during status. Live/save checks only read logs. Neither admits app installs
+    or project source writes; record/from-hook is outside this contract.
+    """
+    if not arguments:
+        return None
+    operation = arguments[0]
+    if script == "live_device.py":
+        if operation not in {"status", "check"}:
+            return None
+        valued, switches, lists = {"--project"}, {"--json"}, set()
+        kind = "read_only"
+    elif script == "path_claims.py":
+        if operation not in {"status", "check", "claim", "release"}:
+            return None
+        valued, switches, lists = {"--project", "--holder"}, set(), set()
+        kind = "read_only" if operation == "check" else "runtime_control"
+        if operation == "status":
+            switches.add("--json")
+        elif operation == "claim":
+            valued.update({"--path", "--ttl", "--wait"})
+        elif operation == "release":
+            valued.add("--path")
+            switches.add("--all")
+    else:
+        return None
+    if operation == "check":
+        valued.add("--since")
+        switches.add("--json")
+        lists.add("--files")
+    seen, index = set(), 1
+    while index < len(arguments):
+        flag, equal, value = arguments[index].partition("=")
+        if flag in seen and flag != "--path":
+            return None
+        if flag in switches and not equal:
+            pass
+        elif flag in valued or flag in lists:
+            if not equal:
+                index += 1
+                if index >= len(arguments):
+                    return None
+                value = arguments[index]
+            if not value or value.startswith("-"):
+                return None
+            if flag in lists and not equal:
+                while index + 1 < len(arguments) and not arguments[index + 1].startswith("-"):
+                    index += 1
+        else:
+            return None
+        seen.add(flag)
+        index += 1
+    if script == "path_claims.py":
+        if "--project" not in seen:
+            return None
+        if operation == "claim" and "--path" not in seen:
+            return None
+        if operation == "release" and (("--path" in seen) == ("--all" in seen)):
+            return None
+    return kind

@@ -97,6 +97,41 @@ class LiveDeviceTests(unittest.TestCase):
             handle.write("not json\n{\"event\": 3}\n")
         self.assertEqual(self.run_cli("status")[0], 0)
 
+    def test_prepare_failure_reports_problem_without_claiming_live_is_running(self) -> None:
+        self.log("android", "DEVICE-1", "2026-10-16T04:26:19Z", {"event": "preparing", "step": "build"})
+        self.log("android", "DEVICE-1", "2026-10-16T04:26:25Z", {
+            "event": "failed", "files": [], "reason": "prepare",
+            "detail": "Cannot locate tasks that match ':app:installDebug': installDebug is ambiguous.",
+        })
+        for command in ("status", "check"):
+            with self.subTest(command=command):
+                arguments = ["--files", "Tabs.kt"] if command == "check" else []
+                code, output = self.run_cli(command, *arguments)
+                self.assertEqual(code, live_device.PROBLEM_EXIT)
+                self.assertIn("installDebug is ambiguous", output)
+                self.assertNotIn("Live on", output)
+                self.assertNotIn("waits for Rebuild", output)
+                code, output = self.run_cli(command, "--json")
+                self.assertEqual(code, live_device.PROBLEM_EXIT)
+                self.assertIn("prepare", output)
+
+    def test_preparing_is_not_ready_and_stop_clears_preparation_failure(self) -> None:
+        self.log("android", "DEVICE-1", "2026-10-16T04:26:19Z", {"event": "preparing", "step": "build"})
+        self.assertEqual(self.run_cli("status")[0], live_device.PROBLEM_EXIT)
+        self.assertNotIn("Live on", self.run_cli("status")[1])
+        self.log("android", "DEVICE-1", "2026-10-16T04:26:25Z", {"event": "failed", "reason": "prepare"})
+        self.log("android", "DEVICE-1", "2026-10-16T04:27:00Z", {"event": "stopped"})
+        self.assertEqual(self.run_cli("status"), (live_device.MISSING_EXIT, "Live is off"))
+
+    def test_ready_recovers_preparation_and_mixed_device_failure_still_blocks_success(self) -> None:
+        self.start_both()
+        self.log("android", "emulator-5554", "2026-10-16T04:26:19Z", {"event": "preparing", "step": "build"})
+        self.log("android", "emulator-5554", "2026-10-16T04:26:25Z", {"event": "failed", "reason": "prepare"})
+        self.assertEqual(self.run_cli("status")[0], live_device.PROBLEM_EXIT)
+        self.assertEqual(self.run_cli("check")[0], live_device.PROBLEM_EXIT)
+        self.log("android", "emulator-5554", "2026-10-16T04:27:00Z", {"event": "ready", "package": "dev.moru.market"})
+        self.assertEqual(self.run_cli("status")[0], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
