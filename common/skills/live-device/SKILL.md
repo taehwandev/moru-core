@@ -12,10 +12,10 @@ sent into the app already running on the emulator, device or simulator, in
 about a second, without a reinstall or restart. Several agents may be saving
 into the same running app at once.
 
-Turning Live on in Moru only arms a device; nothing is built until an agent
-starts Live from its own worktree, so the app runs exactly the code that agent
-(or its group sharing the worktree) is changing. That worktree owns the device
-until it stops Live.
+Moru offers the devices shown in its Devices tool; nothing is built until an
+agent starts Live from its own worktree, so the app runs exactly the code that
+agent (or its group sharing the worktree) is changing. The agent that last asked
+has the device; nothing moves it on its own.
 
 Skip when `live_device.py status` exits 5 (Live is off); build and run as the
 project normally does. Run `<PROJECT>` below as your own worktree.
@@ -26,10 +26,9 @@ project normally does. Run `<PROJECT>` below as your own worktree.
   `python3 <MORU_ROOT>/scripts/live_device.py status --project <PROJECT>`.
   Exit 0 lists lines such as
   `ios SIM-1: Live on for dev.moru.market, last applied 2026-10-16T01:05:01Z`
-  for devices your worktree runs. Exit 3 means a device is armed and waits for
-  `start` (Process step 1). Exit 6 means another worktree runs Live there: do
-  not build, install or start on that device; keep working with compile-only
-  checks and report that the device is busy, with its owner.
+  for devices your worktree runs. Exit 3 means a device does not run your
+  worktree's code (free, or another checkout has it): `start` when you need to
+  see your change on it (Process step 1).
 - Exit 4 means at least one device is still preparing or failed preparation;
   read its event and `detail`. Preparation is not proof that device is running
   Live or a request to press Rebuild; preserve any other devices already ready.
@@ -47,17 +46,13 @@ project normally does. Run `<PROJECT>` below as your own worktree.
 
 1. Only when the change has to be seen on a device and `status` exits 3, start
    Live from your worktree, with the deep link of the screen you will change
-   when the app has one. Exit 3 also covers Live the user runs from the Task
-   folder (reviewing on main or the current branch) or by a worktree whose work
-   is done. Moru Core's start hook already asks for it when a mobile UI run
-   (android, ios or kmp, or a UI concern) starts in a task worktree; run
-   `start` yourself otherwise. It moves without reinstalling. Live stays on your
-   worktree after you finish so the user can review; `stop` gives it back:
+   when the app has one. The device comes to you from whoever had it, without
+   reinstalling; nothing moves Live on its own, so ask only when you need it:
    `live_device.py start --project <PROJECT> [--platform android|ios] [--link <deep link>]`.
    It builds only when needed (a device your worktree already runs is not
    rebuilt), waits until ready (`--wait 0` returns at once) and prints one line
-   per device. Exit 6: another worktree took it first; continue as for busy.
-   Agents sharing your worktree share this Live; one start is enough.
+   per device. Agents sharing your worktree share this Live; one start is
+   enough.
 2. Show the screen you change: `live_device.py open --project <PROJECT> --link <deep link>`.
    After a rebuild or relaunch the plugin opens the last link again. Without a
    deep link to that screen, say which screen the user should open.
@@ -103,7 +98,7 @@ project normally does. Run `<PROJECT>` below as your own worktree.
 | "The user will see it on the device." | Report the `check` line; screenshot only on request. |
 | "Only my platform matters." | When the change was asked for both apps, check both devices. |
 | "Live is armed, so I start it for every task." | Start only when the change must be seen on a device; a start builds. |
-| "The device is busy, so I install my build anyway." | Never; report busy and keep to compile-only checks. |
+| "Another checkout runs Live, so I install my build anyway." | Never; `start` brings Live to you without a reinstall. |
 
 ## Do Not
 
@@ -133,4 +128,4 @@ project normally does. Run `<PROJECT>` below as your own worktree.
 
 Report the files changed, the last `check` line for each device, any rebuild
 the user has to start, the claims taken and released, and whether you started
-and stopped Live (or found the device busy and with whom).
+and stopped Live.

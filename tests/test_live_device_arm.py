@@ -72,7 +72,7 @@ class LiveDeviceArmTests(unittest.TestCase):
     def test_without_arming_start_says_to_build_as_usual(self) -> None:
         code, output = self.run_cli("start")
         self.assertEqual(code, live_device.MISSING_EXIT)
-        self.assertIn("not armed", output)
+        self.assertIn("not available", output)
         self.assertEqual(self.requests(), [])
 
     def test_an_armed_device_waits_for_start_then_runs_from_the_asking_worktree(self) -> None:
@@ -94,18 +94,21 @@ class LiveDeviceArmTests(unittest.TestCase):
         self.assertEqual(self.requests()[0]["link"], "moru://cart")
         self.assertEqual(self.run_cli("status")[0], 0)
 
-    def test_another_worktree_is_told_busy_at_once_and_asks_nothing(self) -> None:
-        # The device runs from an agent's worktree, not from the Task folder, and that agent is working.
+    def test_the_last_agent_to_ask_gets_the_device_from_whoever_had_it(self) -> None:
         self.arm(owner=self.project, state="ready", task=Path("/work/task"))
-        working = mock.patch.object(live_device_arm, "unsettled_run_states", return_value=["running"])
-        working.start()
-        self.addCleanup(working.stop)
-        code, output = self.run_cli("start", project=self.other)
-        self.assertEqual(code, live_device.BUSY_EXIT)
-        self.assertIn(f"busy, run from {self.project}", output)
-        self.assertEqual(self.requests(), [])
-        self.assertEqual(self.run_cli("status", project=self.other)[0], live_device.BUSY_EXIT)
-        self.assertEqual(self.run_cli("open", "--link", "moru://x", project=self.other)[0], live_device.MISSING_EXIT)
+        code, output = self.run_cli("status", project=self.other)
+        self.assertEqual(code, live_device.ARMED_EXIT)
+        self.assertIn(f"Live runs from {self.project}; run live_device.py start to bring it", output)
+
+        def moru(_seconds: float) -> None:
+            if self.requests():
+                self.arm(owner=self.other, state="ready", task=Path("/work/task"))
+
+        with mock.patch.object(live_device_arm.time, "sleep", side_effect=moru):
+            code, output = self.run_cli("start", "--wait", "0", project=self.other)
+        self.assertEqual(code, 0, output)
+        self.assertEqual(self.requests()[0]["project"], str(self.other))
+        self.assertEqual(self.run_cli("open", "--link", "moru://x")[0], live_device.MISSING_EXIT)
 
     def test_the_owning_worktree_starts_again_without_a_rebuild_and_can_open_and_stop(self) -> None:
         self.arm(owner=self.project, state="ready")
@@ -124,13 +127,13 @@ class LiveDeviceArmTests(unittest.TestCase):
         self.arm(owner=self.other, state="ready", task=self.other)
         code, output = self.run_cli("status")
         self.assertEqual(code, live_device.ARMED_EXIT)
-        self.assertIn("run live_device.py start to move it to this worktree", output)
+        self.assertIn("run live_device.py start to bring it to this worktree", output)
         code, output = self.run_cli("check", "--files", "app/src/main/java/A.kt")
         self.assertEqual(code, live_device.ARMED_EXIT)
         self.assertNotIn("Live is off", output)
 
         def moru(_seconds: float) -> None:
-            if self.requests() and json.loads((self.box / "armed.json").read_text())["devices"][0]["owner"] == str(self.other):
+            if self.requests() and json.loads((self.box / "armed.json").read_text())["devices"][0]["owner"] == str(self.other):  # noqa: E501
                 self.arm(owner=self.project, state="ready", task=self.other)
                 self.ready()
 

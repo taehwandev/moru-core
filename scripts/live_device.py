@@ -14,9 +14,8 @@ against a scratch project with a hand-written log.
 A log line is ``{"time", "platform", "device", "event": {"event", "files",
 "ms", "reason", "detail", ...}}`` with moru-live-events/1 inside. ``status``
 exits 0 while devices run Live, 4 for preparation in progress or failure, and 5
-when none does; when Moru only armed Live (see ``live_device_arm``) it exits 3
-while a device waits for an agent to ``start`` it and 6 when another worktree
-runs it. ``start`` asks Moru to build and run from this worktree, ``open``
+when none does; when Moru offers Live (see ``live_device_arm``) it exits 3 while
+a device does not run from this worktree (``start`` brings it here). ``start`` asks Moru to build and run from this worktree, ``open``
 shows a deep link in the running app and ``stop`` hands the device back.
 ``check`` reports, per
 device, the newest result for the given files: exit 0 when every device applied
@@ -39,7 +38,6 @@ from live_web_checks import _relative, _same_file, _since_epoch, _strings
 ARMED_EXIT = 3
 PROBLEM_EXIT = 4
 MISSING_EXIT = 5
-BUSY_EXIT = 6
 TAIL_BYTES = 128 * 1024
 RESULTS = {"applied", "unchanged", "failed", "needs_rebuild"}
 
@@ -169,8 +167,8 @@ def armed_status(project: Path, devices: list[dict]) -> int:
         else:
             print(live_device_arm.describe(device, project))
             mine = live_device_arm.owned_by(device, project)
-            codes.append(ARMED_EXIT if live_device_arm.movable(device, project) else BUSY_EXIT)
-    return next((code for code in (PROBLEM_EXIT, ARMED_EXIT, 0) if code in codes), BUSY_EXIT)
+            codes.append(ARMED_EXIT)
+    return next((code for code in (PROBLEM_EXIT, ARMED_EXIT) if code in codes), 0)
 
 
 def status(project: Path, args: argparse.Namespace) -> int:
