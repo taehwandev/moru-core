@@ -2,8 +2,9 @@
 
 Owner: the armed-Live state Moru writes (``~/Library/Application Support/Moru/live-device/armed.json``)
 and the request files agents leave for Moru (``requests/`` next to it).
-Moru publishes the devices Live can run on for a repository; nothing is built
-until an agent asks. Live runs from the worktree of the agent that last asked
+Moru publishes the devices Live can run on for a repository (every device its
+Android, iOS or Compare Devices tool shows; there is no switch); nothing is
+built until an agent asks. Live runs from the worktree of the agent that last asked
 (``start``): the latest request wins, whoever held the device before, and the
 move needs no reinstall. Nothing moves Live on its own, so worktrees created by
 other agents never take it. ``stop`` gives the device back to the Task folder.

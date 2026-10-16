@@ -12,8 +12,9 @@ sent into the app already running on the emulator, device or simulator, in
 about a second, without a reinstall or restart. Several agents may be saving
 into the same running app at once.
 
-Moru offers the devices shown in its Devices tool; nothing is built until an
-agent starts Live from its own worktree, so the app runs exactly the code that
+Moru has no Live switch: it offers every device shown in its Android, iOS or
+Compare Devices tool, and nothing is built until an agent starts Live from its
+own worktree, so the app runs exactly the code that
 agent (or its group sharing the worktree) is changing. The agent that last asked
 has the device; nothing moves it on its own.
 
