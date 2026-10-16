@@ -84,6 +84,6 @@ git add .agents/moru-core
 
 ## 링크
 
-- 모루 코어 사이트: `https://tao.thdev.app/#update`
+- 모루 코어 사이트: `https://getmoru.com/core`
 - 모루 코어 저장소: `https://github.com/taehwandev/moru-core`
 - VibeGuard 사이트: `https://vibeguard.thdev.app/`

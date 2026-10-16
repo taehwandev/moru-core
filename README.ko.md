@@ -11,7 +11,7 @@ type: human-reviewed-needed
 모루 코어는 AI 코딩 에이전트를 위한 공통 지침이자 실행 계층입니다. 체크아웃 하나만 있으면 연결한 모든 저장소에서 Claude, Codex, Antigravity 같은 에이전트가 같은 작업 규칙, 작업 경로(route), 리뷰 검사, 플랫폼 지침, 실행 근거를 씁니다. 저장소별 지침은 짧게 유지되고, 충돌하면 저장소 지침이 우선합니다.
 
 - 저장소: <https://github.com/taehwandev/moru-core>
-- 사이트: <https://tao.thdev.app/> (새 도메인을 연결할 때까지 유지)
+- 사이트: <https://getmoru.com/core>
 - 릴리스: <https://github.com/taehwandev/moru-core/releases> · 릴리스 노트는 [`.github/release-notes/`](.github/release-notes/)
 
 에이전트가 따르는 기준은 [AGENTS.md](AGENTS.md)와 영문 공통 지침입니다. 이 문서는 사람을 위한 한국어 안내입니다.

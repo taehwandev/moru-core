@@ -15,7 +15,7 @@ lifecycle evidence across every repository you link to it. Repo-local
 instructions stay small and keep the final say.
 
 - Repository: <https://github.com/taehwandev/moru-core>
-- Website: <https://tao.thdev.app/> (the domain stays until the new one is connected)
+- Website: <https://getmoru.com/core>
 - Releases: <https://github.com/taehwandev/moru-core/releases> · release notes in [`.github/release-notes/`](.github/release-notes/)
 
 ## What It Is
@@ -229,8 +229,9 @@ recorded findings, are in [docs/maintenance-audit.md](docs/maintenance-audit.md)
 
 ## Website Deployment
 
-The site is served by GitHub Pages from `/docs` on `main` and deploys on every
-merge; a public release is cut only for a meaningful change set. Trace a deploy
+The public site is <https://getmoru.com/core>. This repository's `/docs` tree is
+still built by GitHub Pages from `main` on every merge; a public release is cut
+only for a meaningful change set. Trace a Pages deploy
 by its commit SHA and Pages build id:
 
 ```bash
