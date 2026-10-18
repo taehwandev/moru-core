@@ -77,7 +77,9 @@ failure-repair and skill-learning automation boundary.
 - Do not let an agent report successful closeout while the current reusable gap
   is still waiting for curation, review, or verified maintenance.
 - Do not skip the retrospective check merely because no reusable gap is
-  expected; record `no_reusable_gap` or `no_skill_used` explicitly.
+  expected. When the agent records none, finish records `no_reusable_gap`
+  against the route's loaded skills and says it was derived; record the gate
+  yourself for `reusable_gap`, `no_skill_used` or a fixed recurring block.
 - Do not route a user-confirmed wrong completion as an ordinary follow-up,
   optional improvement, or successful-task observation.
 - Do not treat prose keywords as truth, recurrence, or promotion evidence.

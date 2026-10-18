@@ -694,7 +694,13 @@ def _continuation_summary_lines(command: str) -> list[str]:
 def _review_prerequisite_lines(gates: list[str]) -> list[str]:
     if "review hook" not in gates:
         return []
-    prerequisites = gates[:gates.index("review hook")]
+    # Start records `request intake` itself. Naming it here sent agents to
+    # record it again on every commit route, one redundant call each time.
+    prerequisites = [
+        gate for gate in gates[:gates.index("review hook")] if gate != "request intake"
+    ]
+    if not prerequisites:
+        return []
     return [
         f"Before review, record successful evidence for: {prerequisites}. A passing "
         "command alone records nothing; review is not for discovering missing records.",
@@ -747,7 +753,11 @@ def _closeout_gate_lines(gates: list[str]) -> list[str]:
     if "commit readiness" in gates and "review hook" in gates:
         lines.append("Commit readiness: finish derives commit readiness from the current "
                      "review when reviewed bytes are unchanged; record no separate gate.")
-    closeout = _closeout_record_gates(gates)
+    closeout = [gate for gate in _closeout_record_gates(gates) if gate != "retrospective check"]
+    if "retrospective check" in gates:
+        lines.append("Retrospective: finish records `retrospective check` as no_reusable_gap when "
+                     "you record none; record it yourself only for a reusable gap or a recurring "
+                     "block you fixed.")
     if closeout:
         when = "after the review hook passes" if "review hook" in gates else "before finish"
         handoff = (
@@ -869,6 +879,19 @@ def _start_capsule_detail(args: argparse.Namespace) -> str:
     return "execution capsule creation deferred until a worker handoff"
 
 
+def _derive_finish_gates(args: argparse.Namespace) -> list[str]:
+    """Gates finish records itself when their proof already exists."""
+
+    from agent_commit_ready import derive_commit_readiness
+    from agent_finish_retrospective_default import derive_retrospective_default
+
+    evidence = preflight_evidence_path(args)
+    return [line for line in (
+        derive_commit_readiness(args.project, args.rules, evidence),
+        derive_retrospective_default(evidence),
+    ) if line]
+
+
 def finish_hook(args: argparse.Namespace) -> int:
     transferred_cancellation, cancellation_failure = _transferred_cancellation(args)
     if cancellation_failure is not None:
@@ -912,14 +935,12 @@ def finish_hook(args: argparse.Namespace) -> int:
     if args.allow_vibeguard_review:
         command.extend(["--allow-vibeguard-review", args.allow_vibeguard_review])
 
-    from agent_commit_ready import derive_commit_readiness
-
-    derived = derive_commit_readiness(args.project, args.rules, preflight_evidence_path(args))
+    derived = _derive_finish_gates(args)
     with stage("finish_check"):
         result = run_script_main(ROOT / "scripts" / "agent-finish-check.py", command, args.project)
     success = result["returncode"] == 0
     details = ["finish check completed" if success else "finish check failed"]
-    details.extend(filter(None, [derived]))
+    details.extend(derived)
     details.extend(_summary_lines(result))
     if success:
         from agent_publication_admission import PublicationAdmission

@@ -303,7 +303,8 @@ forgets them:
 - `retrospective check` (required gate): after verification and review but
   before finish, inspect the skills actually used and record
   `no_reusable_gap`, `reusable_gap`, or `no_skill_used` with the observation
-  disposition.
+  disposition. When none is recorded, finish derives `no_reusable_gap` with
+  source `finish`, as it derives `commit readiness`; an agent record wins.
 - `skill-feedback` (conditional closeout hook): when the check finds a reusable
   gap, record the retrospective with `observation: recorded` and queue only one
   reusable content-free observation when its canonical skill id matches the

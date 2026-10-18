@@ -88,15 +88,16 @@ class AgentHookSummaryTests(unittest.TestCase):
     def test_closeout_reminder_names_post_review_gates_for_every_route_kind(self):
         from workflow_route import route_gates
 
+        # Finish derives `retrospective check` when none is recorded, so it is
+        # advertised on its own line rather than as a gate to record.
         cases = {
-            "bugfix": (["retrospective check"], "after the review hook passes"),
-            "docs": (["retrospective check"], "after the review hook passes"),
-            "task": (["retrospective check"], "after the review hook passes"),
-            "triage": (["retrospective check"], "before finish"),
-            "multi-agent": (["retrospective check", "handoff"], "after the review hook passes"),
-            "spec": (["retrospective check", "handoff", "cycle contract"],
-                     "after the review hook passes"),
-            "review": (["retrospective check"], "after the review hook passes"),
+            "bugfix": ([], "after the review hook passes"),
+            "docs": ([], "after the review hook passes"),
+            "task": ([], "after the review hook passes"),
+            "triage": ([], "before finish"),
+            "multi-agent": (["handoff"], "after the review hook passes"),
+            "spec": (["handoff", "cycle contract"], "after the review hook passes"),
+            "review": ([], "after the review hook passes"),
         }
         with tempfile.TemporaryDirectory() as tmp:
             evidence = Path(tmp) / "preflight.json"
@@ -107,9 +108,13 @@ class AgentHookSummaryTests(unittest.TestCase):
                         "hooks": [{"hook": "review", "required": True}],
                     }}))
                     summary = agent_hook._hook_summary_from_preflight(evidence)
+                    self.assertTrue(any(line.startswith("Retrospective: finish records")
+                                        for line in summary))
                     reminders = [line for line in summary
                                  if line.startswith("Closeout gate reminder:")]
-                    self.assertEqual(len(reminders), 1)
+                    self.assertEqual(len(reminders), 1 if expected else 0)
+                    if not expected:
+                        continue
                     self.assertIn(f"{when}, record {expected} with gate-batch", reminders[0])
                     self.assertIn("call finish once", reminders[0])
                     self.assertNotIn("commit readiness", reminders[0])
@@ -140,7 +145,13 @@ class AgentHookSummaryTests(unittest.TestCase):
                         "gates": gates, "hooks": [{"hook": "review", "required": True}],
                     }}))
                     summary = agent_hook._hook_summary_from_preflight(evidence)
-                    reminder = next(line for line in summary if line.startswith("Before review,"))
+                    reminder = next(
+                        (line for line in summary if line.startswith("Before review,")), None
+                    )
+                    if not expected:
+                        # Nothing to record before review prints no instruction.
+                        self.assertIsNone(reminder)
+                        continue
                     self.assertIn(f"evidence for: {expected}.", reminder)
                     self.assertNotIn("commit readiness", reminder)
                     self.assertNotIn("retrospective check", reminder)
@@ -232,11 +243,16 @@ class AgentHookSummaryTests(unittest.TestCase):
         self.assertIn("literal -> separator from anchor to verified owner", summary)
 
     def test_unfielded_prerequisites_still_get_a_record_shape(self) -> None:
-        commit = "\n".join(agent_hook._review_prerequisite_lines(
+        unfielded = "\n".join(agent_hook._review_prerequisite_lines(
+            ["request intake", "smoke check", "review hook", "commit readiness"]
+        ))
+        self.assertIn('gate-batch --gate-record shape: [{"gate":"smoke check"', unfielded)
+        self.assertIn('"fields":{"evidence":"<observed evidence>"}', unfielded)
+        self.assertNotIn("request intake", unfielded)
+        # Start records request intake, so a commit route asks for nothing more.
+        self.assertEqual([], agent_hook._review_prerequisite_lines(
             ["request intake", "review hook", "commit readiness"]
         ))
-        self.assertIn('gate-batch --gate-record shape: [{"gate":"request intake"', commit)
-        self.assertIn('"fields":{"evidence":"<observed evidence>"}', commit)
         # A fielded prerequisite already gets the shape from the field lines.
         task = "\n".join(agent_hook._review_prerequisite_lines(
             ["tests", "review hook", "retrospective check"]
