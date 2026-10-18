@@ -65,8 +65,9 @@ Keep the key in the user-level file `~/.moru/research.env` with file permissions
 `600`. It lives outside every repository, so all checkouts, worktrees, other
 target repositories and agent sessions share one location. It is not in shell
 profiles such as `~/.zshrc`; an agent that finds `OPENROUTER_API_KEY` unset
-should look for this file before concluding there is no key. Put this line in
-it and fill in the value locally:
+should look for this file before concluding there is no key. The agent then
+sources it and runs the call itself; it never asks the user to paste the key
+or run the command. Put this line in it and fill in the value locally:
 
 ```sh
 export OPENROUTER_API_KEY=
@@ -86,6 +87,15 @@ but it is visible only to that checkout.
 
 ```sh
 python3 scripts/research-triage/microsoft_decision.py \
+  --input .moru/research-input.json --cache-dir .moru/research-cache/ms \
+  --execute --max-calls 10
+```
+
+From another target repository, use the adapter's path under the Moru root
+instead of writing a project-local script:
+
+```sh
+source ~/.moru/research.env && python3 <MORU_ROOT>/scripts/research-triage/microsoft_decision.py \
   --input .moru/research-input.json --cache-dir .moru/research-cache/ms \
   --execute --max-calls 10
 ```
