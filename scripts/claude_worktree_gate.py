@@ -61,7 +61,55 @@ def default_worktree_policy() -> dict:
     }
 
 
+def _checkout_git_dir(root: Path) -> Path | None:
+    """`root`'s own git directory, read from disk the way git resolves it.
+
+    The gate asked git for this up to ten times per tool call at ~12 ms each,
+    most of its latency. Only the plain shapes are read here: a `.git`
+    directory, or a `.git` file naming one. Anything else -- no `.git` at
+    `root`, a git directory without HEAD -- returns None and the caller asks
+    git, so an unusual layout keeps git's own answer.
+    """
+
+    marker = root / ".git"
+    try:
+        if marker.is_dir():
+            git_dir = marker
+        elif marker.is_file():
+            text = marker.read_text(encoding="utf-8").strip()
+            if not text.startswith("gitdir:"):
+                return None
+            named = Path(text[len("gitdir:"):].strip())
+            git_dir = named if named.is_absolute() else root / named
+        else:
+            return None
+        if not (git_dir / "HEAD").is_file():
+            return None
+        return git_dir.resolve()
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _common_dir_from_disk(root: Path) -> Path | None:
+    git_dir = _checkout_git_dir(root)
+    if git_dir is None:
+        return None
+    try:
+        named = (git_dir / "commondir").read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        common = git_dir
+    except (OSError, UnicodeDecodeError):
+        return None
+    else:
+        common = (git_dir / named).resolve() if named else git_dir
+    # Without objects git does not accept the directory as a repository.
+    return common if (common / "objects").is_dir() else None
+
+
 def git_common_dir(root: Path) -> Path | None:
+    from_disk = _common_dir_from_disk(root)
+    if from_disk is not None:
+        return from_disk
     try:
         result = subprocess.run(
             ["git", "-C", str(root), "rev-parse", "--git-common-dir"],
@@ -352,6 +400,16 @@ def ticketed_product_branch_denial(root: Path, target: Path) -> str | None:
 
 
 def current_branch(root: Path) -> str:
+    # HEAD names the branch as `ref: refs/heads/<name>`; anything else, such as
+    # a detached commit, is left for git to report.
+    git_dir = _checkout_git_dir(root) if _common_dir_from_disk(root) else None
+    if git_dir is not None:
+        try:
+            head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            head = ""
+        if head.startswith("ref: refs/heads/"):
+            return head[len("ref: refs/heads/"):]
     try:
         result = subprocess.run(
             ["git", "-C", str(root), "branch", "--show-current"],

@@ -66,9 +66,12 @@ def sibling_open_run(
         resolved = _resolved(candidate)
         if resolved is None or resolved == root_resolved or not resolved.is_dir():
             continue
-        if _resolved(main_checkout_for(resolved) or resolved) != main:
+        # Evidence first: it is a file lookup, while the repository check runs
+        # git, and every candidate paid for git before most turned out to hold
+        # no run at all.
+        if session_evidence(resolved, session_id) is None:
             continue
-        if session_evidence(resolved, session_id) is not None:
+        if _resolved(main_checkout_for(resolved) or resolved) == main:
             return resolved
     return None
 
