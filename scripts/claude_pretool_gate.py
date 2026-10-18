@@ -39,6 +39,7 @@ to turn the gate off there.
 from __future__ import annotations
 
 
+import hashlib
 import json
 import os
 import re
@@ -605,6 +606,31 @@ OPERATOR_DECIDES = frozenset(
 )
 
 
+def _noted_this_session(payload: dict | None, code: str) -> bool:
+    """Whether this session already read the note; marks it read otherwise.
+
+    The unknown-effect note fired on about 3,600 calls in 30 days, mostly
+    lookup pipelines, and never changed a verdict. Once a session has read it,
+    repeating it was noise. The session is the transcript Claude names in the
+    payload; without an existing transcript, or when the marker cannot be
+    written, the note is shown.
+    """
+
+    transcript = str((payload or {}).get("transcript_path") or "")
+    if not transcript or not Path(transcript).is_file():
+        return False
+    digest = hashlib.sha256(f"{transcript}\0{code}".encode()).hexdigest()[:32]
+    marker = global_state_dir() / "policy-notes" / digest
+    if marker.exists():
+        return True
+    try:
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+    except OSError:
+        pass
+    return False
+
+
 def deny_or_ask(reason: str, code: str, payload: dict | None = None,
                 *, continue_on_approval: bool = False) -> int | None:
     """Refuse, or hand an operator decision to the runtime that owns it.
@@ -619,6 +645,8 @@ def deny_or_ask(reason: str, code: str, payload: dict | None = None,
     if code not in OPERATOR_DECIDES:
         return deny(reason, code)
     if runtime_name() != "codex":
+        if code == "unreadable_command_effect" and _noted_this_session(payload, code):
+            return _emit(None)
         return _emit({"additionalContext": f"Moru policy note: {reason}"})
     try:
         from codex_operator_review import OperatorReview

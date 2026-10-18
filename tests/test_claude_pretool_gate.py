@@ -3564,6 +3564,27 @@ class TicketedProductBranchPolicyTests(unittest.TestCase):
         self.assertNotIn("permissionDecision", decision)
         self.assertIn("reason", decision["additionalContext"])
 
+    def test_unreadable_command_note_is_shown_once_per_session(self) -> None:
+        def note(payload: dict) -> str:
+            buffer = io.StringIO()
+            with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": "claude"}), redirect_stdout(
+                buffer
+            ):
+                gate.deny_or_ask("reason", "unreadable_command_effect", payload)
+            return buffer.getvalue()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            first, second = Path(tmp) / "first.jsonl", Path(tmp) / "second.jsonl"
+            first.touch()
+            second.touch()
+            self.assertIn("Moru policy note", note({"transcript_path": str(first)}))
+            self.assertEqual("", note({"transcript_path": str(first)}))
+            self.assertIn("Moru policy note", note({"transcript_path": str(second)}))
+            # Without an existing transcript there is no session to remember.
+            missing = {"transcript_path": str(Path(tmp) / "missing.jsonl")}
+            self.assertIn("Moru policy note", note(missing))
+            self.assertIn("Moru policy note", note(missing))
+
     def test_unreadable_command_pauses_on_codex_without_bound_request(self) -> None:
         decision = self._verdict("unreadable_command_effect", "codex")
 
