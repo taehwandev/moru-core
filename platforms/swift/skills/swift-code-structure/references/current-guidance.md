@@ -72,6 +72,9 @@ entitlements.
 - Use extensions to group protocol conformances, preview helpers, or small
   domain-specific APIs when it improves scanning. Do not scatter one type across
   many files without a clear reason.
+- Keep individual Swift `extension` blocks within the 120-line structure review
+  budget by splitting distinct private helper concerns into separate extensions,
+  and pass `--structure-review-evidence` whenever editing a Swift file over 300 lines.
 - Keep generated code, DTOs, persistence rows, fixtures, and production models
   in separate owners.
 - Keep resources with the target or package that owns them. Package resources
