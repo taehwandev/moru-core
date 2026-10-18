@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -36,7 +37,7 @@ def verification_hook(args) -> int:
                 or preflight.get("rules") != str(args.rules.resolve())
                 or "tests" not in (preflight.get("route") or {}).get("gates", [])):
             raise ValueError("verify requires matching project/rules and a tests gate")
-        command = _command(args)
+        command = unittest_command(args)
         check = " ".join(command)
         # Clear an older pass before execution, including interruption/timeout.
         # The normal ledger writer enforces live ownership before any test runs.
@@ -47,7 +48,7 @@ def verification_hook(args) -> int:
                      "fields": {"check": check, "result": "pending"}}
         before = _snapshot(preflight, candidate)
         started = monotonic()
-        code, count, passed = _execute(command, args.project, args.verify_timeout)
+        code, count, passed = execute_unittest(command, args.project, args.verify_timeout)
         after = _snapshot(preflight, candidate)
         stable = before["reuse_snapshot"] == after["reuse_snapshot"]
         success = code == 0 and passed and count > 0 and stable
@@ -86,7 +87,7 @@ def _snapshot(preflight, candidate):
     return record
 
 
-def _command(args) -> list[str]:
+def unittest_command(args) -> list[str]:
     directory = (args.project / args.test_directory).resolve()
     if not directory.is_relative_to(args.project.resolve()) or not directory.is_dir():
         raise ValueError("test directory must exist inside the project")
@@ -106,15 +107,24 @@ def _command(args) -> list[str]:
     return [python, "-B", str(runner), str(args.project.resolve()), str(directory), pattern]
 
 
-def _execute(command: list[str], project: Path, timeout: int) -> tuple[int, int, bool]:
+def execute_unittest(command: list[str], project: Path, timeout: float,
+                     extra_env: dict[str, str] | None = None,
+                     process_admission=None) -> tuple[int, int, bool]:
     # Spool output rather than retaining an unbounded child log in memory or
     # the ledger. Print a bounded tail for diagnosis; persist only result facts.
+    if process_admission is not None and os.name != "posix":
+        raise ValueError("guarded unittest execution requires POSIX process groups")
     with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryFile() as output:
         receipt = Path(temporary) / "result.json"
         try:
-            process = subprocess.run([*command, str(receipt)], cwd=project, stdout=output, stderr=output,
-                                     timeout=timeout, check=False)
-            code = process.returncode
+            environment = None if extra_env is None else {**os.environ, **extra_env}
+            if process_admission is not None:
+                code = _execute_admitted([*command, str(receipt)], project, timeout,
+                                         environment, output, process_admission)
+            else:
+                process = subprocess.run([*command, str(receipt)], cwd=project, stdout=output, stderr=output,
+                                         timeout=timeout, check=False, env=environment)
+                code = process.returncode
         except subprocess.TimeoutExpired:
             code = 124
         output.seek(0, 2)
@@ -130,3 +140,34 @@ def _execute(command: list[str], project: Path, timeout: int) -> tuple[int, int,
         except (OSError, ValueError, KeyError, TypeError):
             count, passed = 0, False
         return code, count, passed
+
+
+def _execute_admitted(command, project, timeout, environment, output, process_admission):
+    deadline = monotonic() + timeout
+    environment = {**(os.environ if environment is None else environment), "MORU_UNITTEST_ADMISSION": "1"}
+    # Only the trusted runtime starts before admission. Isolated/no-site mode
+    # prevents .pth, sitecustomize and PYTHONPATH code from running in this phase.
+    runner = Path(__file__).resolve().with_name("agent_unittest_result.py")
+    bootstrap = [sys.executable, "-I", "-S", str(runner), *command]
+    process = subprocess.Popen(bootstrap, cwd=project, stdout=output, stderr=output,
+                               stdin=subprocess.PIPE, start_new_session=True, env=environment)
+    try:
+        process_admission(process.pid)
+        if deadline <= monotonic():
+            raise subprocess.TimeoutExpired(command, timeout)
+        process.stdin.write(b"\x01")
+        process.stdin.flush()
+        process.stdin.close()
+        return process.wait(timeout=max(0, deadline - monotonic()))
+    except BaseException:
+        # Only this Popen owns the newly created session/group. No name lookup
+        # or caller-supplied PID can broaden the cleanup target.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+        raise
+    finally:
+        if not process.stdin.closed:
+            process.stdin.close()

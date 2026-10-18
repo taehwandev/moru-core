@@ -28,6 +28,7 @@ class LauncherHelpTests(unittest.TestCase):
                     self.assertEqual(0, result.returncode, result.stdout + result.stderr)
                     self.assertIn("lifecycle: ", result.stdout)
                     self.assertIn("gate-batch", result.stdout)
+                    self.assertIn("loop", result.stdout)
                     self.assertNotIn("unsupported", result.stdout + result.stderr)
 
     def test_the_gate_reads_launcher_help_as_read_only(self) -> None:

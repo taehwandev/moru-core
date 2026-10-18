@@ -5,10 +5,13 @@ import importlib.util
 import io
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+import venv
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -27,6 +30,22 @@ def _build_fixture(project):
 
 
 _FIXTURE = TemplateRepository(_build_fixture)
+
+
+def _startup_fixture(project):
+    environment = project / ".venv"
+    venv.EnvBuilder(with_pip=False, symlinks=True).create(environment)
+    packages = environment / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
+    marker, env_marker = project / ".moru" / "venv-startup", project / ".moru" / "env-startup"
+    (packages / "proof.pth").write_text(
+        f"import pathlib; pathlib.Path({str(marker)!r}).write_text('started')\n")
+    (packages / "loop_review_dependency.py").write_text("VALUE = 'venv'\n")
+    extra = project / ".moru" / "extra-python"
+    extra.mkdir()
+    (extra / "sitecustomize.py").write_text(
+        f"from pathlib import Path\nPath({str(env_marker)!r}).write_text('started')\n")
+    (extra / "loop_review_env_dependency.py").write_text("VALUE = 'environment'\n")
+    return marker, env_marker, extra
 
 
 def tearDownModule():
@@ -92,6 +111,27 @@ class VerificationHookTests(unittest.TestCase):
         self.assertEqual(1, self.run_hook())
         self.assertIn("tests=0", self.entries()[-1]["fields"]["result"])
 
+    def test_only_skips_or_expected_failures_do_not_pass(self):
+        for decorator in ("unittest.skip('unavailable')", "unittest.expectedFailure"):
+            with self.subTest(decorator=decorator):
+                (self.project / "tests" / "test_case.py").write_text(
+                    "import unittest\nclass Case(unittest.TestCase):\n"
+                    f"    @{decorator}\n    def test_case(self):\n"
+                    "        self.fail('goal not reached')\n")
+                self.assertEqual(1, self.run_hook())
+                self.assertEqual("FAIL", self.entries()[-1]["status"])
+                self.assertIn("exit=0; tests=1", self.entries()[-1]["fields"]["result"])
+
+    def test_real_pass_and_optional_skip_remain_valid(self):
+        self.write_test("self.assertTrue(True)\n"
+                        "        for item in range(3):\n"
+                        "            with self.subTest(item=item):\n"
+                        "                self.skipTest('optional subtest')")
+        with (self.project / "tests" / "test_case.py").open("a") as output:
+            output.write("    @unittest.skip('optional')\n    def test_optional(self):\n        pass\n")
+        self.assertEqual(0, self.run_hook())
+        self.assertIn("tests=2", self.entries()[-1]["fields"]["result"])
+
     def test_project_packages_take_priority_over_hook_packages(self):
         (self.project / "tests" / "__init__.py").write_text("")
         (self.project / "tests" / "helper.py").write_text("VALUE = 'project tests'\n")
@@ -128,13 +168,13 @@ class VerificationHookTests(unittest.TestCase):
         python = self.project / ".venv" / "bin" / "python"
         python.parent.mkdir(parents=True)
         python.symlink_to(sys.executable)
-        self.assertEqual(str(python), verify._command(self.args)[0])
+        self.assertEqual(str(python), verify.unittest_command(self.args)[0])
         self.write_test()
         self.assertEqual(0, self.run_hook())
         self.assertIn(str(python), self.entries()[-1]["fields"]["check"])
 
     def test_zero_exit_without_receipt_fails_closed(self):
-        with patch.object(verify, "_command", return_value=[sys.executable, "-c", "pass"]):
+        with patch.object(verify, "unittest_command", return_value=[sys.executable, "-c", "pass"]):
             self.assertEqual(1, self.run_hook())
         self.assertEqual("FAIL", self.entries()[-1]["status"])
         self.assertIn("exit=0; tests=0", self.entries()[-1]["fields"]["result"])
@@ -145,7 +185,7 @@ class VerificationHookTests(unittest.TestCase):
             "open(sys.argv[1], 'w').write(json.dumps({'tests_run': 1, 'successful': True})); "
             "sys.exit(1)"
         )
-        with patch.object(verify, "_command", return_value=[sys.executable, "-c", script]):
+        with patch.object(verify, "unittest_command", return_value=[sys.executable, "-c", script]):
             self.assertEqual(1, self.run_hook())
         self.assertEqual("FAIL", self.entries()[-1]["status"])
         self.assertIn("exit=1; tests=1", self.entries()[-1]["fields"]["result"])
@@ -171,14 +211,14 @@ class VerificationHookTests(unittest.TestCase):
         self.args.verify_timeout = 1
         self.assertEqual(1, self.run_hook())
         self.assertIn("exit=124", self.entries()[-1]["fields"]["result"])
-        with patch.object(verify, "_execute", side_effect=KeyboardInterrupt):
+        with patch.object(verify, "execute_unittest", side_effect=KeyboardInterrupt):
             with self.assertRaises(KeyboardInterrupt):
                 self.run_hook()
         self.assertEqual("FAIL", self.entries()[-1]["status"])
         self.assertEqual("incomplete", self.entries()[-1]["fields"]["result"])
 
     def test_foreign_closed_run_or_missing_gate_never_executes(self):
-        with patch.object(verify, "_execute") as execute:
+        with patch.object(verify, "execute_unittest") as execute:
             self.bound.return_value = None
             self.assertEqual(1, self.run_hook())
             self.bound.return_value = self.project / "other.json"
@@ -190,7 +230,7 @@ class VerificationHookTests(unittest.TestCase):
             execute.assert_not_called()
 
     def test_directory_escape_or_invalid_pattern_never_executes(self):
-        with patch.object(verify, "_execute") as execute:
+        with patch.object(verify, "execute_unittest") as execute:
             self.args.test_directory = ".."
             self.assertEqual(1, self.run_hook())
             self.args.test_directory = "tests"
@@ -198,9 +238,153 @@ class VerificationHookTests(unittest.TestCase):
             self.assertEqual(1, self.run_hook())
             execute.assert_not_called()
 
+    @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
+    def test_guarded_admission_precedes_import_and_denial_prevents_project_effect(self):
+        effect = self.project / ".moru" / "effect"
+        (self.project / "tests" / "test_case.py").write_text(
+            "from pathlib import Path\nimport unittest\n"
+            "Path('.moru/effect').write_text('imported')\n"
+            "class Case(unittest.TestCase):\n    def test_case(self):\n        pass\n")
+        admitted = []
+
+        def admit(pid):
+            admitted.append(pid)
+            self.assertEqual(pid, os.getpgid(pid))
+            time.sleep(0.05)
+            self.assertFalse(effect.exists())
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            result = verify.execute_unittest(verify.unittest_command(self.args), self.project, 5,
+                                             process_admission=admit)
+        self.assertEqual((0, 1, True), result)
+        self.assertTrue(effect.exists())
+        effect.unlink()
+
+        def deny(pid):
+            admit(pid)
+            raise PermissionError("admission denied")
+
+        with self.assertRaisesRegex(PermissionError, "admission denied"):
+            verify.execute_unittest(verify.unittest_command(self.args), self.project, 5,
+                                     process_admission=deny)
+        self.assertFalse(effect.exists())
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(admitted[-1], os.WNOHANG)
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
+    def test_guarded_callback_time_consumes_deadline_without_releasing_project(self):
+        self.write_test("Path('.moru/effect').write_text('bad')")
+        with contextlib.redirect_stdout(io.StringIO()):
+            result = verify.execute_unittest(verify.unittest_command(self.args), self.project, 0.05,
+                                             process_admission=lambda pid: time.sleep(0.1))
+        self.assertEqual((124, 0, False), result)
+        self.assertFalse((self.project / ".moru" / "effect").exists())
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
+    def test_denied_admission_prevents_venv_and_pythonpath_startup(self):
+        marker, env_marker, extra = _startup_fixture(self.project)
+        self.write_test()
+
+        def deny(pid):
+            time.sleep(0.1)
+            raise PermissionError("admission denied")
+
+        with patch.dict(os.environ, PYTHONPATH=str(extra)):
+            with self.assertRaisesRegex(PermissionError, "admission denied"):
+                verify.execute_unittest(verify.unittest_command(self.args), self.project, 5,
+                                         process_admission=deny)
+        self.assertFalse(marker.exists())
+        self.assertFalse(env_marker.exists())
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
+    def test_admission_preserves_normal_venv_and_pythonpath_behavior(self):
+        marker, env_marker, extra = _startup_fixture(self.project)
+        self.write_test("self.assertEqual('venv', __import__('loop_review_dependency').VALUE)\n"
+                        "        self.assertEqual('environment', __import__('loop_review_env_dependency').VALUE)\n"
+                        "        self.assertTrue(Path('.moru/venv-startup').exists())\n"
+                        "        self.assertTrue(Path('.moru/env-startup').exists())")
+
+        def admit(pid):
+            time.sleep(0.1)
+            self.assertFalse(marker.exists())
+            self.assertFalse(env_marker.exists())
+
+        with patch.dict(os.environ, PYTHONPATH=str(extra)), contextlib.redirect_stdout(io.StringIO()):
+            result = verify.execute_unittest(verify.unittest_command(self.args), self.project, 5,
+                                             process_admission=admit)
+        self.assertEqual((0, 1, True), result)
+        self.assertTrue(marker.exists())
+        self.assertTrue(env_marker.exists())
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
+    def test_guarded_runner_eof_never_imports_project(self):
+        self.write_test("Path('.moru/effect').write_text('bad')")
+        process = subprocess.Popen(
+            [*verify.unittest_command(self.args), str(self.project / ".moru" / "receipt")],
+            cwd=self.project, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, env={**os.environ, "MORU_UNITTEST_ADMISSION": "1"})
+        process.stdin.close()
+        self.assertEqual(125, process.wait(timeout=5))
+        self.assertFalse((self.project / ".moru" / "effect").exists())
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
+    def test_guarded_keyboard_interrupt_kills_and_reaps_spawned_group(self):
+        self.write_test("__import__('os').kill(__import__('os').getppid(), "
+                        "__import__('signal').SIGINT); time.sleep(30)")
+        admitted = []
+        with self.assertRaises(KeyboardInterrupt):
+            verify.execute_unittest(verify.unittest_command(self.args), self.project, 5,
+                                     process_admission=admitted.append)
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(admitted[0], os.WNOHANG)
+        with self.assertRaises(ProcessLookupError):
+            os.killpg(admitted[0], 0)
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
+    def test_admitted_child_group_remains_observable_after_executor_sigkill(self):
+        self.write_test("Path('.moru/effect').write_text('running'); time.sleep(30)")
+        script = (
+            "import sys\nfrom pathlib import Path\nfrom types import SimpleNamespace\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "from agent_verification_hook import execute_unittest, unittest_command\n"
+            "project = Path(sys.argv[2])\n"
+            "args = SimpleNamespace(project=project, test_directory='tests', "
+            "test_pattern='test_case.py', verify_timeout=60)\n"
+            "execute_unittest(unittest_command(args), project, 60, process_admission="
+            "lambda pid: (project / '.moru/group').write_text(str(pid)))\n")
+        root = subprocess.Popen([sys.executable, "-B", "-c", script, str(ROOT / "scripts"),
+                                 str(self.project)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        group = None
+        try:
+            deadline = time.monotonic() + 5
+            while not (self.project / ".moru" / "effect").exists() and time.monotonic() < deadline:
+                self.assertIsNone(root.poll(), "executor exited before starting project tests")
+                time.sleep(0.01)
+            self.assertTrue((self.project / ".moru" / "effect").exists())
+            group = int((self.project / ".moru" / "group").read_text())
+            root.kill()
+            self.assertEqual(-signal.SIGKILL, root.wait(timeout=5))
+            os.killpg(group, 0)
+        finally:
+            if root.poll() is None:
+                root.kill()
+                root.wait()
+            path = self.project / ".moru" / "group"
+            group = group or (int(path.read_text()) if path.exists() else None)
+            if group is not None:
+                with contextlib.suppress(ProcessLookupError):
+                    os.killpg(group, signal.SIGKILL)
+
+    def test_guarded_non_posix_execution_is_refused_before_spawning(self):
+        command = verify.unittest_command(self.args)
+        with patch.object(verify.os, "name", "nt"), patch.object(verify.subprocess, "Popen") as popen:
+            with self.assertRaisesRegex(ValueError, "requires POSIX"):
+                verify.execute_unittest(command, self.project, 5, process_admission=lambda pid: None)
+            popen.assert_not_called()
+
     def test_ledger_ownership_rejection_prevents_execution(self):
         with patch.object(verify, "record_hook_gate", side_effect=PermissionError("not owner")):
-            with patch.object(verify, "_execute") as execute:
+            with patch.object(verify, "execute_unittest") as execute:
                 self.assertEqual(1, self.run_hook())
                 execute.assert_not_called()
 

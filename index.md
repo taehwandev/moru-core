@@ -137,6 +137,7 @@ catalog itself only when that is the task.
 - Web review: `platforms/web/skills/web-review/SKILL.md`
 - Live web editing from inspect references, path claims across agents: `platforms/web/skills/live-web/SKILL.md`
 - Android/iOS Live (saves sent into the running app): starting it from your worktree when armed, opening the changed screen, what not to run while it is on, reading save results, handing it back: `common/skills/live-device/SKILL.md`
+- Explicit bounded goal loops: frozen checks, attempt budgets, measured accept/reject and safe resume: `common/skills/bounded-loop/SKILL.md`
 - Server architecture: `platforms/server/skills/server-architecture/SKILL.md`
 - Server API implementation: `platforms/server/skills/server-api-implementation/SKILL.md`
 - Server data/jobs: `platforms/server/skills/server-data-jobs/SKILL.md`
