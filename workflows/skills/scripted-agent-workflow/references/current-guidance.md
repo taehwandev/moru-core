@@ -332,10 +332,11 @@ forgets them:
 - `boundary plan`: before code edits, name the owned boundary, file/module
   scope, caller-facing contract, or existing same-file scope, plus the nearest
   verification that will prove the change.
-- `multi-agent split decision`: for code work, decide whether to spawn
-  subagents/parallel workers. Use them when owned files/modules are disjoint and
-  the shared contract is stable. If work stays serial, record why the change is
-  too small, same-file, contract-bound, or otherwise not safe to split.
+- `multi-agent split decision`: keep roles in the same session by default.
+  Delegate when a concrete benefit exceeds coordination cost and the needed
+  capability is available. Parallel writers also need disjoint files/modules
+  and a stable contract. If work stays serial, record the concrete benefit,
+  scope, access, or safety reason.
 - `agentic run state`: for work-producing or multi-agent routes, record the
   current state, the next transition or resume point, the gate/command
   evidence that justifies that transition, the checkpoint or stop condition,
@@ -410,11 +411,12 @@ shows which parts can overlap safely.
   split-decision, role, owned-scope, forbidden-scope, contract, and verification
   gates are recorded. If those cannot be named, execute that phase serially and
   record the concrete reason.
-- Consume `parallel_execution.delegation_policy` before deciding. When its
-  preconditions are met and the runtime exposes workers, delegation is
-  automatic and does not require explicit user multi-agent wording. A missing
-  user request is never a valid serial fallback; use one of the concrete safety
-  or runtime-capability reasons from the policy.
+- Consume `parallel_execution.delegation_policy` before deciding. Its default
+  is same-session work; parallel phases do not require additional agents.
+  Delegate on demand only when a concrete benefit exceeds coordination cost
+  and the required tools and existing access are available. Record the
+  concrete serial reason when staying in the parent. Other runtimes are
+  optional; never assume subscriptions or switch to paid APIs automatically.
 - Treat one model-profile dispatch as a leaf worker, not fanout. The parent
   records the split decision first and remains the integration owner.
 - At each parent-to-worker boundary, run `agent-hook.py handoff` to refresh the

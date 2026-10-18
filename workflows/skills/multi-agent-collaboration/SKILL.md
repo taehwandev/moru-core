@@ -11,6 +11,8 @@ Use when routed to `workflows/skills/multi-agent-collaboration/SKILL.md` or when
 ## Read
 
 - `references/current-guidance.md` for the detailed guidance for this skill.
+- `references/on-demand-orchestration.md` for role selection, execution choice,
+  access failures, and closeout evidence.
 - Related `SKILL.md` entrypoints named by the reference before loading their detailed references.
 
 ## Process
@@ -21,11 +23,11 @@ Use when routed to `workflows/skills/multi-agent-collaboration/SKILL.md` or when
 
 ## Delegation Rule
 
-When a route requires this skill, consume its `parallel_execution` policy. If
-the runtime exposes workers and two or more meaningful slices meet the detailed
-scope, contract, integration, and verification rules, delegate automatically;
-explicit user multi-agent wording is not required. Otherwise record the
-concrete serial reason. Map the execution primitive to the active runtime:
+When a route requires this skill, consume its `parallel_execution` policy. Keep
+roles in the same session by default. Delegate on demand for a concrete benefit
+that exceeds coordination cost, with available tools and existing access.
+Independent slices alone do not require delegation. Otherwise record the
+concrete serial reason. Map the selected execution primitive to the active runtime:
 Codex native workers, Claude Agent/Task workers, or the available
 Gemini/Antigravity/AGY agent runner.
 

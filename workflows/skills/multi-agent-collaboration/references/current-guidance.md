@@ -9,6 +9,10 @@ type: human-reviewed-needed
 Use when work is split across subagents, multiple agents, delegated roles,
 parallel tasks, or a builder/verifier pair.
 
+Choose roles and execution using [On-Demand Orchestration](on-demand-orchestration.md).
+The roles below can be performed in the same session; they do not each require
+a separate agent or product subscription.
+
 ## Roles
 
 Product owner agent:
@@ -62,13 +66,11 @@ review.
 
 Rules:
 
-- The lead agent should actively look for safe subagent/parallel slices when a
-  task has independent surfaces. Do not wait for the user to request parallel
-  agents when the split is obvious and low risk.
-- Treat two or more meaningful independent slices as the automatic-delegation
-  threshold when the runtime exposes workers and the contract, scopes,
-  integration owner, and focused checks are already stable. Explicit user
-  multi-agent wording is not required and its absence is not a serial reason.
+- Keep work in the parent unless a bounded question, risk, or decision makes
+  separate execution useful enough to cover its coordination cost.
+- Two meaningful independent slices make parallel work possible only after
+  the benefit, available capability, contract, scopes, integration owner, and
+  focused checks are clear. Independent slices alone do not require delegation.
 - A `multi-agent` route's worker phase is parallel by contract after roles,
   scopes, briefs, and the delegation plan are valid. Other code routes remain
   conditional until the lead records the eligibility decision.
@@ -204,7 +206,7 @@ uncommitted parent changes the lead must make a checkpoint commit first, or
 serialize that slice instead of isolating it.
 
 Choose the `multi-agent` route only when the parallel decision is already
-positive. When automatic eligibility fails, stay on the original work route,
+positive. When the on-demand decision stays serial, stay on the original work route,
 record its structured serial split decision with the concrete policy reason,
 and do not create a parallel delegation plan.
 

@@ -57,8 +57,9 @@ dependencies. Keep mutations/approvals sequential. Return on decisions,
 surprises, failures or pending handles; never hide failed prerequisites.
 Wait on handles; no relaunch, short-polling or idle sleeps. Silence is no answer.
 
-Resolved installation/procedural work uses a same-model `low` native worker per
-`references/runtime-collaboration.md`; short commands stay inline.
+Resolved installation/procedural work may use a same-model `low` native worker
+when the benefit exceeds coordination cost per `references/runtime-collaboration.md`;
+short commands stay inline.
 
 Hooks own mechanical admission/checks and print their fields; agents own scope,
 truthful evidence and next action. Do not duplicate checks or read validators

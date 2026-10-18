@@ -110,6 +110,8 @@ RUNTIME_NATIVE_DELEGATION_PHRASES = {
     'Antigravity': 'Use the available Gemini/AGY parallel runner for an eligible split; the parent integrates and verifies.',
 }
 AUTO_DELEGATION_BRIDGE_PHRASE = (
+    'Keep roles in the same session by default; delegate only for a concrete benefit '
+    'with available tools and existing access, without assuming subscriptions. '
     'When delegation is applicable, read '
     'common/skills/agent-operating-skill/references/runtime-collaboration.md before '
     'handoff; use independent scopes with one integration owner.'

@@ -39,10 +39,16 @@ def _validate_delegation_policy(policy: object, failures: list[str]) -> None:
         failures.append("parallel_execution.delegation_policy must be an object")
         return
     mode = policy.get("mode")
-    if mode not in {"automatic_when_eligible", "serial"}:
+    if mode not in {"on_demand", "serial"}:
         failures.append(
-            "parallel_execution.delegation_policy.mode must be automatic_when_eligible or serial"
+            "parallel_execution.delegation_policy.mode must be on_demand or serial"
         )
+    for key, expected in (
+        ("default_execution", "same_session"),
+        ("cross_runtime_policy", "optional_existing_access"),
+    ):
+        if policy.get(key) != expected:
+            failures.append(f"parallel_execution.delegation_policy.{key} must be {expected}")
     if policy.get("explicit_user_request_required") is not False:
         failures.append(
             "parallel_execution.delegation_policy.explicit_user_request_required must be false"

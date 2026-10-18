@@ -605,7 +605,7 @@ class RequiredDocMembershipTests(unittest.TestCase):
         ):
             with self.subTest(review_label=label):
                 self.assertIn(label, review_text)
-        for contract in ("parallel_execution", "delegate automatically", "serial reason"):
+        for contract in ("parallel_execution", "on demand", "serial reason"):
             with self.subTest(multi_agent_contract=contract):
                 self.assertIn(contract, multi_text)
 

@@ -31,6 +31,7 @@ from support.runtime_bridge import (
 from workflow_gate_policy import MULTI_AGENT_GATE
 from workflow_common import SCOPE_CHANGE_LIFECYCLE_COMMANDS
 from workflow_parallel import parallel_execution_plan
+from workflow_parallel_validate import validate_parallel_execution_plan
 from workflow_route import resolve_docs
 
 
@@ -420,7 +421,7 @@ class DelegationEvidenceTests(unittest.TestCase):
         self.assertTrue(any("overlapping owned_scope" in failure for failure in failures))
 
 
-class AutomaticDelegationRoutingTests(unittest.TestCase):
+class OnDemandDelegationRoutingTests(unittest.TestCase):
     def test_code_work_routes_keep_multi_agent_guidance_on_demand(self) -> None:
         for command in sorted(SCOPE_CHANGE_LIFECYCLE_COMMANDS - {"test"}):
             with self.subTest(command=command):
@@ -428,21 +429,52 @@ class AutomaticDelegationRoutingTests(unittest.TestCase):
                 self.assertNotIn(MULTI_AGENT_SKILL, route["required_docs"])
                 self.assertNotIn(MULTI_AGENT_SKILL, route["reference_docs"])
                 self.assertEqual(
-                    "automatic_when_eligible",
+                    "on_demand",
                     route["parallel_execution"]["delegation_policy"]["mode"],
                 )
 
-    def test_parallel_plan_requires_automatic_delegation_when_eligible(self) -> None:
+    def test_parallel_plan_keeps_same_session_work_as_the_default(self) -> None:
         plan = parallel_execution_plan(
             "feature",
             ["request intake", "source docs", MULTI_AGENT_GATE, "implementation", "tests"],
         )
 
         policy = plan["delegation_policy"]
-        self.assertEqual("automatic_when_eligible", policy["mode"])
+        self.assertEqual("on_demand", policy["mode"])
+        self.assertEqual("same_session", policy["default_execution"])
+        self.assertEqual("optional_existing_access", policy["cross_runtime_policy"])
         self.assertFalse(policy["explicit_user_request_required"])
         self.assertEqual(2, policy["minimum_independent_slices"])
         self.assertTrue(any("concrete serial reason" in note for note in plan["notes"]))
+
+    def test_validation_rejects_unconditional_or_paid_fallback_policies(self) -> None:
+        gates = ["implementation", "tests"]
+        for key, value in (
+            ("mode", "automatic_when_eligible"),
+            ("default_execution", "native_worker"),
+            ("cross_runtime_policy", "automatic_paid_fallback"),
+        ):
+            with self.subTest(key=key):
+                plan = parallel_execution_plan("feature", gates)
+                plan["delegation_policy"][key] = value
+                failures = validate_parallel_execution_plan(plan, gates)
+                self.assertTrue(any(key in failure for failure in failures), failures)
+
+    def test_analysis_stays_serial_without_optional_workers(self) -> None:
+        gates = ["report"]
+        plan = parallel_execution_plan("analysis", gates)
+        self.assertEqual("serial", plan["delegation_policy"]["mode"])
+        self.assertEqual(0, plan["delegation_policy"]["maximum_workers"])
+        self.assertEqual([], validate_parallel_execution_plan(plan, gates))
+
+    def test_policy_cannot_omit_same_session_or_existing_access_controls(self) -> None:
+        gates = ["implementation", "tests"]
+        for key in ("default_execution", "cross_runtime_policy"):
+            with self.subTest(key=key):
+                plan = parallel_execution_plan("feature", gates)
+                del plan["delegation_policy"][key]
+                failures = validate_parallel_execution_plan(plan, gates)
+                self.assertTrue(any(key in failure for failure in failures), failures)
 
     def test_multi_agent_route_worker_phase_is_parallel(self) -> None:
         route = resolve_docs("multi-agent", None, [], request_classified=True)
@@ -450,7 +482,7 @@ class AutomaticDelegationRoutingTests(unittest.TestCase):
 
         self.assertEqual("parallel", phases["worker_execution"]["mode"])
 
-    def test_runtime_bridges_require_auto_delegation_before_codex_leaf_dispatch(self) -> None:
+    def test_runtime_bridges_carry_the_same_session_default_before_leaf_dispatch(self) -> None:
         for runtime_name, instruction_file in (
             ("Codex", "AGENTS.md"),
             ("Claude", "CLAUDE.md"),
@@ -461,6 +493,8 @@ class AutomaticDelegationRoutingTests(unittest.TestCase):
                 block = runtime_bridge_block(ROOT, runtime_name, instruction_file)
                 self.assertIn(AUTO_DELEGATION_BRIDGE_PHRASE, required)
                 self.assertIn(AUTO_DELEGATION_BRIDGE_PHRASE, block)
+                self.assertIn("same session", AUTO_DELEGATION_BRIDGE_PHRASE)
+                self.assertIn("concrete benefit", AUTO_DELEGATION_BRIDGE_PHRASE)
                 self.assertIn(RUNTIME_NATIVE_DELEGATION_PHRASES[runtime_name], required)
                 self.assertIn(RUNTIME_NATIVE_DELEGATION_PHRASES[runtime_name], block)
 

@@ -327,11 +327,17 @@ their output path.
 
 ## Parallel Work And Handoffs
 
-Consume `parallel_execution.delegation_policy`. Delegate only when at least two
-meaningful slices have disjoint owned and forbidden scopes, a stable shared
-contract, a named integration owner, and focused verification. Otherwise
-record the concrete serial safety or capability reason. Small bounded tasks
-stay serial; eligible tasks use at most two or three workers.
+Consume `parallel_execution.delegation_policy`. Keep roles in the same session
+by default. Delegate only when a bounded question, risk, or decision has a
+concrete benefit that exceeds coordination cost. Parallel work also needs at
+least two meaningful slices, disjoint owned and forbidden scopes, a stable
+shared contract, a named integration owner, and focused verification.
+Independent slices alone do not require delegation. Other runtimes are optional
+and need available tools and existing access; never assume subscriptions or
+switch to paid APIs automatically. Record the concrete serial reason when
+staying in the parent. See
+`workflows/skills/multi-agent-collaboration/references/on-demand-orchestration.md`
+for role selection, unavailable-provider handling, and closeout evidence.
 
 Before any worker boundary, run the handoff hook. Only a ready, valid execution
 capsule permits reuse of the parent's route, preflight, required-doc brief, and
