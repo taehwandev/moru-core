@@ -13,8 +13,10 @@ Usage:
       [--moru-root <checkout>] [--alias-root <old checkout>] [--exclude-session ID]
       [--include-subagents] [--out report.json] [--md report.md]
 
-It reads only local transcripts and timing records and prints aggregates. Rerun
-with the same window flags after a change to compare before and after.
+It reads only local transcripts and timing records and prints aggregates. Only
+transcript entries inside the window count, so a session that spans a change is
+split at the window edge. Rerun with the same window flags after a change to
+compare before and after; timings.jsonl is summarized whole.
 """
 
 from __future__ import annotations
@@ -128,13 +130,9 @@ def collect_sessions(args: argparse.Namespace, roots: list[str], since: dt.datet
             continue
         if modified < since or any(skip in os.path.basename(path) for skip in args.exclude_session):
             continue
-        session = measure_session(path, roots, shared)
-        if session["assistant_turns"] < args.min_turns:
-            continue
-        first, last = session["first_ts"], session["last_ts"]
-        if first and (first > until or (last and last < since)):
-            continue
-        sessions.append(session)
+        session = measure_session(path, roots, shared, (since, until))
+        if session["assistant_turns"] >= args.min_turns:
+            sessions.append(session)
     return sessions
 
 

@@ -162,9 +162,11 @@ class _HookEventTally:
 class SessionTally(_HookEventTally):
     """Accumulates one transcript; shared message counters span all sessions."""
 
-    def __init__(self, path: str, moru_roots: list[str], shared: dict[str, Any]) -> None:
+    def __init__(self, path: str, moru_roots: list[str], shared: dict[str, Any],
+                 window: tuple[dt.datetime | None, dt.datetime | None] = (None, None)) -> None:
         self.moru_roots = moru_roots
         self.shared = shared
+        self.window = window
         self.row: dict[str, Any] = {name: 0 for name in COUNTERS}
         self.row.update({
             "file": os.path.basename(path), "project_dir": os.path.basename(os.path.dirname(path)),
@@ -175,12 +177,17 @@ class SessionTally(_HookEventTally):
         self._seen_tools: set[Any] = set()
 
     def add(self, entry: dict[str, Any]) -> None:
+        if not self.row["cwd"] and isinstance(entry.get("cwd"), str):
+            self.row["cwd"] = entry["cwd"]
         stamp = parse_timestamp(entry["timestamp"]) if entry.get("timestamp") else None
+        since, until = self.window
+        # A session that straddles the window contributes only its in-window entries,
+        # so a before/after run right after a change does not mix in older behavior.
+        if stamp and ((since and stamp < since) or (until and stamp > until)):
+            return
         if stamp:
             self.row["first_ts"] = min(self.row["first_ts"] or stamp, stamp)
             self.row["last_ts"] = max(self.row["last_ts"] or stamp, stamp)
-        if not self.row["cwd"] and isinstance(entry.get("cwd"), str):
-            self.row["cwd"] = entry["cwd"]
         kind = entry.get("type")
         if kind == "assistant":
             self._assistant(entry.get("message") or {}, entry.get("uuid"))
@@ -249,10 +256,11 @@ class SessionTally(_HookEventTally):
         return row
 
 
-def measure_session(path: str, moru_roots: list[str], shared: dict[str, Any]) -> dict[str, Any]:
-    """Read one transcript; malformed lines are skipped, never fatal."""
+def measure_session(path: str, moru_roots: list[str], shared: dict[str, Any],
+                    window: tuple[dt.datetime | None, dt.datetime | None] = (None, None)) -> dict[str, Any]:
+    """Read one transcript's entries inside the window; malformed lines are skipped."""
 
-    tally = SessionTally(path, moru_roots, shared)
+    tally = SessionTally(path, moru_roots, shared, window)
     with open(path, encoding="utf-8", errors="replace") as handle:
         for line in handle:
             try:

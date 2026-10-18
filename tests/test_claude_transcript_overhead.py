@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import tempfile
 import unittest
@@ -81,6 +82,17 @@ class TranscriptOverheadTests(unittest.TestCase):
         (message,) = shared["notes"]
         self.assertNotIn("/Users", message)
         self.assertIn("<id>", message)
+
+    def test_window_keeps_only_entries_inside_it(self) -> None:
+        before = _assistant("m1", [("t1", "Bash", {"command": "moru-hook start"})])
+        after = {**_assistant("m2", [("t2", "Bash", {"command": "moru-hook review"})]),
+                 "timestamp": "2026-10-12T00:00:00Z"}
+        self.path.write_text(json.dumps(before) + "\n" + json.dumps(after) + "\n", encoding="utf-8")
+        since = dt.datetime(2026, 10, 11, tzinfo=dt.timezone.utc)
+        row = measure_session(str(self.path), [ROOT], new_shared_counters(), (since, None))
+        self.assertEqual({"review": 1}, dict(row["lifecycle_calls"]))
+        self.assertEqual(1, row["assistant_turns"])
+        self.assertTrue(row["moru_core"])  # cwd still comes from the earlier entry
 
     def test_pre_rename_brand_is_normalized(self) -> None:
         self.assertEqual("Moru Core gate: <path>", normalize_message("Tao Agent OS gate: /Users/a/b"))
