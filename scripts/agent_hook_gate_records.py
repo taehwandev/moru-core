@@ -35,6 +35,7 @@ from agent_finish_gate_policy import MULTI_AGENT_GATE, validate_gate_evidence
 from agent_finish_check_steps import validate_recorded_grill_me_evidence
 from agent_finish_documentation import required_doc_target_failures
 from agent_hook_runtime import finish_with_result
+from agent_review_structure_preview import structure_review_preview
 from agent_route_state import required_docs_for_route
 from agent_skill_catalog import canonical_skill_ids, skill_ids_from_doc_paths
 from agent_run_registry import SETTLED_RUN_STATES
@@ -225,6 +226,8 @@ def gate_batch_hook(args: argparse.Namespace) -> int:
     else:
         details.append(f"Remaining route gates: {progress['remaining_gates']}")
         details.append("Ledger snapshot only; finish still validates evidence and freshness.")
+        if "review hook" in progress["remaining_gates"]:
+            details.extend(structure_review_preview(args.project))
     return finish_with_result(
         "gate-batch",
         True,

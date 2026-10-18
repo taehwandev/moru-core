@@ -27,7 +27,7 @@ the required lifecycle before edits; reuse the living task and existing authorit
 | H07 | Authority and isolation | Reuse scope-matched authority; protect exact repository/worktree/session/effect. Denied, foreign, diverged, and post-finish writes remain denied. | [Identity tests](../tests/test_agent_worktree_identity.py), [finished integration tests](../tests/test_finished_worktree_integration.py), [read-only tests](../tests/test_read_only_lifecycle.py). |
 | H08 | Verification truth | Reproduce the actual condition, verify it after repair, and retain negative controls. Never report a failed wrapper or partial suite as passing. | [Verification contract](../common/skills/verification-policy/references/current-guidance.md), affected owner tests, and smoke's rejection check. |
 | H09 | Runtime wiring | Resolved launcher/root and exact worktree targeting are correct; supported Claude/Codex payloads reach the protected boundary. Inspect without reinstalling. | Delivery tests above, [Codex cwd tests](../tests/test_codex_exec_workdir.py), [continuation hook tests](../tests/test_agent_hook_continuation.py). |
-| H10 | Measured efficiency | Separate selected bytes, actual reads/delivery, checker calls, and elapsed time. Compare identical inputs; do not estimate token or latency savings. | Owners above, [status snapshot](../scripts/agent_observability.py), [snapshot tests](../tests/test_agent_observability.py), controlled probes. |
+| H10 | Measured efficiency | Separate selected bytes, actual reads/delivery, checker calls, and elapsed time. Compare identical inputs; do not estimate token or latency savings. | Owners above, [status snapshot](../scripts/agent_observability.py), [snapshot tests](../tests/test_agent_observability.py), [overhead report](../scripts/moru_overhead_report.py), [report tests](../tests/test_moru_overhead_report.py), controlled probes. |
 
 ## Verification And Maintenance
 
@@ -475,3 +475,24 @@ dialog. Runtime latency and overall CI health remain outside this correction.
 Verification commands: `python3 scripts/workflow.py validate` and
 `git diff --check`, followed by the final review. This documentation correction
 does not establish a runtime speedup or a passing application CI run.
+
+## Audit: 2026-10-18, Workflow Overhead
+
+Source baseline: `33ad1052`. Environment: Claude Code on macOS. The window is
+2026-09-18 to 2026-10-18 UTC: 222 main-session transcripts, 28 of them in this
+repository, measured with the [overhead report](../scripts/moru_overhead_report.py).
+Rerun it with the same `--since`/`--until` flags after later changes; a pre-rename
+checkout is counted with `--alias-root`. Token figures marked chars/4 are
+approximations, not tokenizer counts.
+
+| ID | Priority / check | Evidence and expected behavior | Owner / proving check / disposition |
+| --- | --- | --- | --- |
+| F26 | Medium / H10 | Launcher calls were 14.2% of all tool calls; hook-injected context was about 1.2% of new input tokens. An unknown-effect Claude policy note, which decides nothing, was repeated 3,586 times. Show it once per transcript. | [Claude PreToolUse gate](../scripts/claude_pretool_gate.py), its gate tests. Resolved in `62c1a2f2`. |
+| F27 | Medium / H10 | Each gate process ran up to 11 git subprocesses to resolve its checkout; median process time was 172 ms. Read the git directory, common directory and branch from disk, falling back to git for unusual layouts. | [Worktree gate](../scripts/claude_worktree_gate.py), [git-dir tests](../tests/test_claude_worktree_gate_git_dir.py). Resolved in `5d0692f9`; median 62 ms on the same probe. |
+| F28 | Low / H06 | Start asked for `request intake` that it had already recorded, and every closeout spent a gate-batch on a `no_reusable_gap` retrospective. Omit start-recorded gates and let finish derive the default retrospective. | [Hook CLI](../scripts/agent-hook.py), [retrospective default](../scripts/agent_finish_retrospective_default.py) and its tests. Resolved in `89e06e64`; this change lets the Claude finish guard admit an unrecorded retrospective and keeps a failed agent record from being replaced by the default. |
+| F29 | Low / H06 | Review rejected calls that lacked structure evidence for large changed files, and most source files here exceed the 300-line review-pressure size. A successful gate-batch now previews those requirements while the review hook is outstanding. | [Structure preview](../scripts/agent_review_structure_preview.py) and its tests. Resolved in this change. |
+
+Bridge-instruction compaction was not pursued: injected context is a small
+share of input, and its phrasing is pinned by regression tests. A before/after
+comparison needs sessions recorded after these changes; it is not established
+by this entry.

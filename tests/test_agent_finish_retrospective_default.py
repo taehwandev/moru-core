@@ -54,6 +54,15 @@ class RetrospectiveDefaultTests(unittest.TestCase):
         self.assertEqual("", derive_retrospective_default(self.evidence))
         self.assertIn("reusable_gap", self._recorded()["retrospective check"])
 
+    def test_failed_agent_record_is_not_replaced(self) -> None:
+        record_gate_evidence(
+            evidence_path=self.evidence, preflight=self.preflight, gate="retrospective check",
+            fields={"skills_checked": "agent_operating_skill", "outcome": "reusable_gap",
+                    "observation": "recorded"}, status="FAIL",
+        )
+        self.assertEqual("", derive_retrospective_default(self.evidence))
+        self.assertNotIn("retrospective check", self._recorded())
+
     def test_route_without_the_gate_is_untouched(self) -> None:
         route = {**ROUTE, "gates": ["request intake", "review hook", "commit readiness"]}
         self.evidence.write_text(json.dumps({**self.preflight, "route": route}), encoding="utf-8")

@@ -30,6 +30,19 @@ RETROSPECTIVE_GATE = "retrospective check"
 ALWAYS_LOADED_SKILL = "retrospective_learning"
 
 
+def retrospective_left_to_finish(evidence: dict, diagnostics: dict) -> bool:
+    """True only when the ledger holds no retrospective record of any status.
+
+    A failed, malformed or incomplete agent record stays authoritative: finish
+    reports it instead of replacing it with the default.
+    """
+
+    return RETROSPECTIVE_GATE not in evidence and not any(
+        RETROSPECTIVE_GATE in (diagnostics.get(key) or {})
+        for key in ("failed_gates", "invalid_statuses", "missing_fields")
+    )
+
+
 def derive_retrospective_default(evidence_path: Path) -> str:
     """Record the default retrospective when the route needs one and none exists."""
 
@@ -38,8 +51,8 @@ def derive_retrospective_default(evidence_path: Path) -> str:
         route = preflight.get("route") or {}
         if RETROSPECTIVE_GATE not in (route.get("gates") or []):
             return ""
-        evidence, _ = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence_path)
-        if RETROSPECTIVE_GATE in evidence:
+        evidence, diagnostics = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence_path)
+        if not retrospective_left_to_finish(evidence, diagnostics):
             return ""
         loaded = sorted(skill_ids_from_doc_paths(required_docs_for_route(route) or []))
         skills = ", ".join(loaded or [ALWAYS_LOADED_SKILL])

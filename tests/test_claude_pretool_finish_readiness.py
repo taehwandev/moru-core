@@ -58,7 +58,7 @@ class FinishReadinessTests(unittest.TestCase):
         record_gate_evidence(evidence_path=self.evidence, preflight=self.preflight,
                              gate=gate, fields=fields, status=status, source="fixture")
 
-    def test_rejected_skill_record_blocks_finish_without_failing_a_checkpoint(self):
+    def test_rejected_skill_record_leaves_the_default_to_finish_without_failing_a_checkpoint(self):
         self.record("tests")
         record = {"gate": "retrospective check", "status": "SUCCESS", "fields": {
             "skills_checked": "agent_operating_skill,unknown_external_skill",
@@ -71,14 +71,24 @@ class FinishReadinessTests(unittest.TestCase):
         with redirect_stdout(io.StringIO()) as output:
             self.assertEqual(1, gate_batch_hook(args))
         self.assertIn("unknown canonical skills", output.getvalue())
-        self.assertIn("retrospective check", self.denial())
+        self.assertEqual("", self.denial())
         self.assertFalse((self.evidence.parent / "repair-checkpoints.json").exists())
 
-    def test_corrected_record_releases_finish(self):
+    def test_unrecorded_retrospective_is_left_to_finish(self):
+        self.assertEqual(["tests"], self._missing())
         self.record("tests")
+        self.assertEqual("", self.denial())
+
+    def test_failed_retrospective_blocks_until_corrected(self):
+        self.record("tests")
+        self.record("retrospective check", "FAIL")
         self.assertIn("retrospective check", self.denial())
         self.record("retrospective check")
         self.assertEqual("", self.denial())
+
+    def _missing(self):
+        denial = self.denial()
+        return [gate for gate in ("tests", "retrospective check") if f"'{gate}'" in denial]
 
     def test_latest_failed_gate_cannot_reuse_an_earlier_success(self):
         self.record("tests")
@@ -119,11 +129,11 @@ class FinishReadinessTests(unittest.TestCase):
             [str(ROOT / "scripts/agent-hook.py"), *self.command[1:]],
         ):
             with self.subTest(command=command):
-                self.assertIn("retrospective check", self.denial(command))
+                self.assertIn("tests", self.denial(command))
 
     def test_explicit_evidence_and_relative_project_use_the_requested_run(self):
         command = [self.command[0], "finish", "--project=.", f"--evidence={self.evidence}"]
-        self.assertIn("retrospective check", self.denial(command))
+        self.assertIn("tests", self.denial(command))
 
     def test_finish_owned_checks_do_not_require_prerecorded_success(self):
         self.preflight["route"]["gates"] = ["finish", "commit readiness", "request intake"]

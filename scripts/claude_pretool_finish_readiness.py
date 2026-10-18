@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Callable
 
+from agent_finish_retrospective_default import RETROSPECTIVE_GATE, retrospective_left_to_finish
 from agent_gate_evidence import merge_gate_evidence_from_ledger
 from agent_run_registry import registered_run
 from claude_bash_readonly import _launcher_hook_tokens
@@ -63,6 +64,9 @@ def finish_readiness_denial(
             raise ValueError("invalid route gates")
         evidence, diagnostics = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence_path)
         remaining = [gate for gate in gates if gate not in _FINISH_OWNED_GATES and not evidence.get(gate)]
+        # Finish records the default retrospective only when the agent recorded none.
+        if RETROSPECTIVE_GATE in remaining and retrospective_left_to_finish(evidence, diagnostics):
+            remaining.remove(RETROSPECTIVE_GATE)
         if diagnostics["warnings"]:
             raise ValueError("unreadable gate ledger")
     except (OSError, RuntimeError, ValueError, KeyError, TypeError):
