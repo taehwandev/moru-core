@@ -229,16 +229,10 @@ recorded findings, are in [docs/maintenance-audit.md](docs/maintenance-audit.md)
 
 ## Website Deployment
 
-The public site is <https://getmoru.com/core>. This repository's `/docs` tree is
-still built by GitHub Pages from `main` on every merge; a public release is cut
-only for a meaningful change set. Trace a Pages deploy
-by its commit SHA and Pages build id:
-
-```bash
-gh api repos/taehwandev/moru-core/pages/builds/latest --jq '{status, commit, created_at}'
-```
-
-Roll back by reverting or fixing forward on `main`. The general contract is
+The public site is <https://getmoru.com/core>, deployed on Vercel as part of
+the Moru site; this repository no longer carries a custom-domain `CNAME`. A
+public release is cut only for a meaningful change set, not for every merge.
+The general contract is
 [web deployment versioning](common/skills/web-deployment-versioning/SKILL.md).
 Release tags use weekly CalVer `vYY.WW.N` on the Korean calendar (Asia/Seoul,
 Monday-start weeks), as defined by
