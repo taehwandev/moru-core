@@ -6,12 +6,23 @@ type: ai-generated
 
 # Flutter Review
 
-Use when the active route selects this skill or its topic applies.
+Use when reviewing a Flutter diff: widgets, state owners, Dart packages,
+repositories, platform channels, plugins, native code, target setup, release
+configuration, or mobile/desktop/web behavior.
 
-Read `references/current-guidance.md` for applicable decision rules, stop
-conditions and verification before acting. Open related cards only for
-in-scope work, starting with their `SKILL.md`. Use this canonical bundle,
-not legacy flat paths.
+Do not use as an implementation guide; load the matching Flutter card for the
+change itself.
 
-When changing routing, confirm it selects this entrypoint. When changing
-guidance, validate the reference's links and frontmatter.
+## Read
+
+- `references/current-guidance.md` for findings priority, checks, approval
+  blockers, and output shape.
+- `references/mobile-release-checks.md` when the diff touches build setup,
+  signing, target SDK, permissions, privacy disclosures, or store submission.
+- `platforms/flutter/skills/flutter-architecture/references/reusable-layers.md`
+  when the diff adds a shared layer, package, or fake.
+
+## Verification
+
+- Confirm analyzer/test/build evidence exists for each affected package and
+  target, or record the gap as residual risk in the review output.

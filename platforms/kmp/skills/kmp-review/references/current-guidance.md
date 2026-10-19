@@ -52,6 +52,10 @@ modules, source-set changes, platform actuals, or target app integration.
 - Are release checks covering serialization/minification rules, signing,
   framework export, package identifiers, config injection, and target smoke
   paths when release surfaces changed?
+- For iOS targets, do Swift-only APIs sit behind a Kotlin interface
+  implemented in Swift, does one coroutine/Flow bridge style apply across the
+  exported surface, and do permission states stay typed per
+  `../../kmp-platform-integration/references/mobile-targets.md`?
 - Do Gradle project dependencies match the layer map in
   `../../kmp-architecture/references/layering.md`, with no unused declared
   edge, no feature-to-feature implementation edge, and no app-target screen,

@@ -10,14 +10,14 @@ Use for Flutter apps, Dart packages, widgets, navigation, state management,
 repositories, platform channels, plugins, mobile/desktop/web targets, and
 shared UI/data architecture.
 
-For widget implementation, also use `flutter-widget-ui.md`. For state,
+For widget implementation, also use `platforms/flutter/skills/flutter-widget-ui/SKILL.md`. For state,
 async data, repositories, storage, and streams, also use
-`flutter-state-data.md`. For platform channels, plugins, lifecycle,
+`platforms/flutter/skills/flutter-state-data/SKILL.md`. For platform channels, plugins, lifecycle,
 permissions, isolates, or target-specific behavior, also use
-`flutter-platform-integration.md`.
+`platforms/flutter/skills/flutter-platform-integration/SKILL.md`.
 For feature folders, local packages, monorepo package boundaries, package
 exports, plugins, or federated plugin splits, also use
-`flutter-project-structure.md`.
+`platforms/flutter/skills/flutter-project-structure/SKILL.md`.
 
 ## Boundaries
 

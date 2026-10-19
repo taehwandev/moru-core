@@ -8,8 +8,9 @@ type: ai-generated
 
 Use when Kotlin Multiplatform work touches source sets, `expect`/`actual`,
 native interop, platform services, files, shell/process execution, clipboard,
-notifications, permissions, secure storage, background work, app lifecycle, or
-desktop (JVM) packaging and distribution.
+notifications, permissions, secure storage, background work, app lifecycle,
+iOS framework export and Swift interop, OS data stores, or desktop (JVM)
+packaging and distribution.
 
 Do not use when the change stays in platform-neutral `commonMain` logic with no
 adapter or target API, or when the app is Android-only (use the Android
@@ -19,6 +20,9 @@ background-work and architecture cards).
 
 - `references/current-guidance.md` for adapter choice, app wiring, adapter
   patterns, release and packaging checks, stop conditions, and verification.
+- `references/mobile-targets.md` for Android/iOS targets: framework export,
+  Swift-only frameworks behind Kotlin interfaces, coroutine/Flow bridging,
+  permissions, OS data stores, push, lifecycle, and mobile build setup.
 - For desktop shells, also read
   `platforms/application/skills/application-system-integration/SKILL.md`.
 - For source-set hierarchy and module splits, read
