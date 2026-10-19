@@ -55,9 +55,10 @@ python3 scripts/research-triage/microsoft_decision.py \
   --input .moru/research-input.json --cache-dir .moru/research-cache/ms
 ```
 
-New calls require `--execute`. Read `OPENROUTER_API_KEY` from the invoking
-process environment; the CLI does not create credentials, read env files, or
-print the key. The free model has provider rate limits; an OpenRouter account
+New calls require `--execute`. The CLI reads `OPENROUTER_API_KEY` from the
+invoking process environment and, when it is unset, from `~/.moru/research.env`
+and then the checkout's `.moru/research.env`. It never creates credentials or
+prints the key. The free model has provider rate limits; an OpenRouter account
 and credits are needed for paid requests. There is no automatic paid fallback.
 The operator can manage a capped key in the provider console.
 
@@ -65,25 +66,25 @@ Keep the key in the user-level file `~/.moru/research.env` with file permissions
 `600`. It lives outside every repository, so all checkouts, worktrees, other
 target repositories and agent sessions share one location. It is not in shell
 profiles such as `~/.zshrc`; an agent that finds `OPENROUTER_API_KEY` unset
-should look for this file before concluding there is no key. The agent then
-sources it and runs the call itself; it never asks the user to paste the key
-or run the command. Put this line in it and fill in the value locally:
+should look for this file before concluding there is no key. The agent runs
+the call itself; it never asks the user to paste the key or run the command. Put this line in it and fill in the value locally:
 
 ```sh
 export OPENROUTER_API_KEY=
 ```
 
-Load that file in the same shell that runs the CLI:
+The adapter loads that file itself. Other OpenRouter calls, such as an ad hoc
+script, load it in the same shell first:
 
 ```sh
 source ~/.moru/research.env
 ```
 
-The adapter does not load this file automatically. An already-running agent
-does not inherit an export from a different terminal; load the file in the
-invoking shell instead. Never paste the key into chat or tracked files. A
-checkout-local `.moru/research.env` also works because `.moru/` is Git-ignored,
-but it is visible only to that checkout.
+An already-running agent does not inherit an export from a different terminal.
+Every runtime bridge names this file, so agents in other projects find it.
+Never paste the key into chat or tracked files. A checkout-local
+`.moru/research.env` also works because `.moru/` is Git-ignored, but it is
+visible only to that checkout.
 
 ```sh
 python3 scripts/research-triage/microsoft_decision.py \
@@ -95,7 +96,7 @@ From another target repository, use the adapter's path under the Moru root
 instead of writing a project-local script:
 
 ```sh
-source ~/.moru/research.env && python3 <MORU_ROOT>/scripts/research-triage/microsoft_decision.py \
+python3 <MORU_ROOT>/scripts/research-triage/microsoft_decision.py \
   --input .moru/research-input.json --cache-dir .moru/research-cache/ms \
   --execute --max-calls 10
 ```

@@ -52,6 +52,10 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"})
         self.environment.start()
         self.addCleanup(self.environment.stop)
+        self.key_file = self.root / "research.env"
+        key_files = patch.object(adapter, "KEY_FILES", (self.key_file,))
+        key_files.start()
+        self.addCleanup(key_files.stop)
         network = patch.object(adapter.urllib.request, "urlopen", side_effect=AssertionError("unmocked network"))
         network.start()
         self.addCleanup(network.stop)
@@ -81,6 +85,24 @@ class OpenRouterDecisionTests(unittest.TestCase):
         call.assert_not_called()
         self.assertEqual("missing_key", result["results"][0]["reason"])
         self.assertFalse(self.cache.exists())
+
+    def test_unset_variable_falls_back_to_the_user_env_file(self):
+        self.key_file.write_text("# OpenRouter\nexport OPENROUTER_API_KEY='file-key'\n", encoding="utf-8")
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}):
+            self.assertEqual("file-key", adapter.openrouter_api_key())
+            with patch.object(adapter, "send_request", return_value=response()) as call:
+                status, result, errors = self.run_cli("--execute")
+        self.assertEqual(0, status)
+        self.assertEqual("file-key", call.call_args.args[1])
+        self.assertEqual("scored", result["results"][0]["status"])
+        self.assertNotIn("file-key", json.dumps(result) + errors)
+
+    def test_environment_wins_and_an_empty_file_value_is_no_key(self):
+        self.key_file.write_text("OPENROUTER_API_KEY=file-key\n", encoding="utf-8")
+        self.assertEqual("test-key", adapter.openrouter_api_key())
+        self.key_file.write_text("export OPENROUTER_API_KEY=\n", encoding="utf-8")
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}):
+            self.assertEqual("", adapter.openrouter_api_key())
 
     def test_http_contract_and_persistent_reuse_via_cli(self):
         with patch.object(adapter.urllib.request, "urlopen", return_value=io.BytesIO(

@@ -128,6 +128,10 @@ RUNTIME_MEMORY_BRIDGE_PHRASE = (
     'capture a verified root cause, pitfall, decision reason or user-asked fact when '
     'confirmed or at finish; if none, skip.'
 )
+# One home for the research key so other projects and runtimes stop reporting none.
+RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE = (
+    'OpenRouter key: ~/.moru/research.env (source it if unset); never print or request it.'
+)
 RUNTIME_LOOKUP_BRIDGE_PHRASE = (
     'For read-only lookup or checks of a supplied diagnosis, use bounded evidence without '
     'start, fingerprint, mailbox, checkpoint, gate, review, or finish calls. This does '
@@ -202,6 +206,7 @@ RUNTIME_BRIDGE_COMMON_REQUIRED_PHRASES = [
     AUTO_DELEGATION_BRIDGE_PHRASE,
     LOCAL_AGENT_MAILBOX_BRIDGE_PHRASE,
     RUNTIME_MEMORY_BRIDGE_PHRASE,
+    RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
     "Do not mention Moru Core setup, hook, permission, helper, or label commands in normal conversation.",
     "Do not report whether background labels, hooks, or metering ran unless the user explicitly asks about that subsystem.",
 ]

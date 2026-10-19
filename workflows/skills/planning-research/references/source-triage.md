@@ -25,8 +25,9 @@ is described in the [repository integration guide](../../../../scripts/research-
 Provider configuration and credentials belong there, outside shared policy.
 From any project, run the adapter at its Moru root path. Its key lives in the
 user-level env file that guide names, `~/.moru/research.env`, not in shell
-profiles. When the key variable is unset, source that file in the invoking
-shell and run the adapter yourself before concluding there is no key. Never
+profiles. The adapter loads that file when the key variable is unset; for any
+other OpenRouter call, source it in the invoking shell before concluding there
+is no key. Never
 ask the user to paste the key or run the call for you.
 
 ## Decision Rule

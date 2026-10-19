@@ -73,6 +73,7 @@ from support.runtime_bridge import (
     CODEX_DISPATCH_BRIDGE_PHRASE,
     LOCAL_AGENT_MAILBOX_BRIDGE_PHRASE,
     RUNTIME_MEMORY_BRIDGE_PHRASE,
+    RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
     RUNTIME_BRIDGE_GRAPH_PHRASES,
     RUNTIME_START_BRIDGE_PHRASE,
     runtime_bridge_block,
@@ -490,6 +491,17 @@ class RuntimeSetupTests(unittest.TestCase):
         for required in ("Moru project-memory", "not runtime-private memory",
                          "verified root cause", "if none, skip"):
             self.assertIn(required, RUNTIME_MEMORY_BRIDGE_PHRASE)
+
+    def test_every_runtime_bridge_names_the_shared_research_key_file(self) -> None:
+        for surface in (
+            _agy_runtime_bridge_block(ROOT),
+            runtime_bridge_block(ROOT, "Codex", "AGENTS.md"),
+            runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"),
+            AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES,
+        ):
+            self.assertIn(RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE, surface)
+        self.assertIn("~/.moru/research.env", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
+        self.assertIn("never print", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
 
     def test_every_runtime_bridge_exposes_the_project_local_agent_mailbox(self) -> None:
         surfaces = (

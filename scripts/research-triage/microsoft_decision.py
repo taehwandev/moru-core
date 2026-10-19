@@ -175,9 +175,33 @@ def send_request(request: dict, api_key: str) -> dict:
         return json.load(response)
 
 
+KEY_NAME = "OPENROUTER_API_KEY"
+# User-level first so every checkout, worktree and target repository shares one key.
+KEY_FILES = (Path.home() / ".moru" / "research.env", Path(".moru") / "research.env")
+
+
+def openrouter_api_key(files: tuple[Path, ...] | None = None) -> str:
+    """The key from the environment, else from the first env file that sets it; never printed."""
+
+    key = os.environ.get(KEY_NAME, "").strip()
+    if key:
+        return key
+    for path in KEY_FILES if files is None else files:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            name, separator, value = line.strip().removeprefix("export ").partition("=")
+            value = value.strip().strip("'\"")
+            if separator and name.strip() == KEY_NAME and value:
+                return value
+    return ""
+
+
 def evaluate(payload: dict, options: argparse.Namespace) -> dict:
     now = time.time()
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    api_key = openrouter_api_key()
     results, evaluated, warnings = [], {}, []
     calls, hits, cost, known_costs = 0, 0, 0.0, 0
     can_call = options.execute and bool(api_key)
