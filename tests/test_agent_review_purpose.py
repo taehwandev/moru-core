@@ -406,6 +406,25 @@ internal fun shouldCollapseInput() = Unit
                 )
                 self.assertEqual(should_block, any("grab-bag package" in item for item in failures))
 
+    def test_dart_package_lib_and_src_roots_are_not_package_segments(self) -> None:
+        # Dart requires lib/ as the package root and uses lib/src/ for private code.
+        for path, should_block in (
+            (Path("packages/tw_core/lib/src/clock.dart"), False),
+            (Path("app/lib/main.dart"), False),
+            (Path("packages/tw_design/lib/src/components/card.dart"), False),
+            (Path("packages/tw_core/lib/src/utils/clock.dart"), True),
+            (Path("src/lib/clock.ts"), True),
+        ):
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as temp_dir:
+                project = Path(temp_dir)
+                (project / path).parent.mkdir(parents=True)
+                (project / path).write_text("// source\n", encoding="utf-8")
+                failures = purpose_failures(
+                    project, [path], {str(path): {"status": "A", "additions": 1}},
+                    lambda root, item: (root / item).is_file(), lambda item: False,
+                )
+                self.assertEqual(should_block, any("grab-bag package" in item for item in failures))
+
 
 class KotlinDefaultPublicOwnerTests(unittest.TestCase):
     """Kotlin top-level functions are public with no modifier to match on.
@@ -543,6 +562,57 @@ class KotlinMultiplatformOwnerTests(unittest.TestCase):
         found = top_level_type_declarations(path, source.splitlines())
 
         self.assertEqual([], top_level_declaration_failures(path, found))
+
+    def test_dart_sealed_family_in_one_library_is_one_owner(self) -> None:
+        # Dart requires every subtype of a sealed class in the same library.
+        path = Path("lib/src/result.dart")
+        source = """
+sealed class Result<T> {
+  const Result();
+}
+
+final class Ok<T> extends Result<T> {
+  const Ok(this.value);
+  final T value;
+}
+
+final class Err<T> extends Result<T> {
+  const Err(this.failure);
+  final Object failure;
+}
+"""
+        self.assertEqual([], top_level_declaration_failures(path, declarations(source, path)))
+
+    def test_dart_sealed_family_does_not_absorb_unrelated_owners(self) -> None:
+        path = Path("lib/src/step_card.dart")
+        source = """
+sealed class StepCardState {
+  const StepCardState();
+}
+
+final class StepCardLoading extends StepCardState {
+  const StepCardLoading();
+}
+
+class StepCountCard extends StatelessWidget {
+  const StepCountCard();
+}
+"""
+        failures = top_level_declaration_failures(path, declarations(source, path))
+        self.assertTrue(any("2 public/exported top-level owners" in failure for failure in failures))
+
+    def test_non_sealed_dart_subclasses_stay_separate_owners(self) -> None:
+        path = Path("lib/src/clock.dart")
+        source = """
+abstract class Clock {
+  DateTime now();
+}
+
+final class SystemClock extends Clock {
+  DateTime now() => DateTime.now();
+}
+"""
+        self.assertTrue(top_level_declaration_failures(path, declarations(source, path)))
 
 
 if __name__ == "__main__":

@@ -94,6 +94,19 @@ class AgentReviewStructureTests(unittest.TestCase):
 
             self.assertTrue(review_source_path(project, source.relative_to(project)))
 
+    def test_pigeon_schema_input_is_generator_config(self) -> None:
+        # Pigeon requires every API type in one input file under pigeons/.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            schema = project / "packages" / "tw_health" / "pigeons" / "step_api.dart"
+            runtime = project / "packages" / "tw_health" / "lib" / "pigeons.dart"
+            for path in (schema, runtime):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("class A {}\n", encoding="utf-8")
+
+            self.assertFalse(review_source_path(project, schema.relative_to(project)))
+            self.assertTrue(review_source_path(project, runtime.relative_to(project)))
+
     def test_changed_source_paths_can_be_limited_to_review_pathspec(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
