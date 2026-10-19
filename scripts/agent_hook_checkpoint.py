@@ -20,7 +20,7 @@ from agent_hook_continuation import run_binding_path
 from agent_hook_runtime import finish_with_result
 
 # Mirrors agent_continuation_fields.CHECKPOINT_RE and its 64-character bound.
-LAST_COMPLETED_RULE = "1-64 chars of lowercase a-z, 0-9, space, '_', '.', '-'"
+LAST_COMPLETED_RULE = "1-64 chars of a-z, A-Z, 0-9, space, '_', '.', '/', '-'"
 
 
 def add_checkpoint_arguments(parser: argparse.ArgumentParser) -> None:

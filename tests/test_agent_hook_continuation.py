@@ -245,7 +245,11 @@ class CheckpointContentTests(unittest.TestCase):
             self.assertIsNone(
                 wiring.gate_checkpoint_name(run.args(gate_name="scope", status="FAIL"))
             )
-            self.assertIsNone(wiring.gate_checkpoint_name(run.args(gate_name="Not/A gate")))
+            self.assertEqual(
+                "PRD draft", wiring.gate_checkpoint_name(run.args(gate_name="PRD draft"))
+            )
+            self.assertIsNone(wiring.gate_checkpoint_name(run.args(gate_name="-not a gate")))
+            self.assertIsNone(wiring.gate_checkpoint_name(run.args(gate_name="a\ngate")))
 
 
 class MutationEntryPointTests(unittest.TestCase):
