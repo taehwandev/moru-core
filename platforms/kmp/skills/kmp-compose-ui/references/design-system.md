@@ -124,6 +124,12 @@ A component must render a sensible default on every target the module
 compiles to. Desktop-only components still need a `commonMain` contract when a
 shared screen calls them.
 
+Android and iOS differ in system chrome (app bar, tab bar, sheets, dialogs,
+switches, transitions). Those wrappers are `expect`/`actual` design-system
+components with a semantic `commonMain` contract; the per-control table, UIKit
+interop rules and scroll-edge rules are in
+[mobile-platform-native-ui.md](mobile-platform-native-ui.md).
+
 ## Feature Consumption Rules
 
 Feature modules depend on `:core:designsystem` from `commonMain` whenever they
