@@ -40,7 +40,7 @@ stable export surface usually adds `pubspec.yaml` overhead before it adds value.
 
 ## File And Class Split
 
-Apply `../../common/skills/code-structure-ownership/SKILL.md` before growing Dart files.
+Apply `common/skills/code-structure-ownership/SKILL.md` before growing Dart files.
 Default to one primary public widget, controller, notifier, view model,
 repository, service, DTO, mapper, adapter, fixture, or test assertion owner per
 Dart file. Private helper widgets or functions may stay near a single caller

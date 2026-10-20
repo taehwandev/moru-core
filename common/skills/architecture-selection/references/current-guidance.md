@@ -22,6 +22,8 @@ those decisions.
 - SaaS/admin UI: feature modules, route/data boundaries, server-state cache, reusable form/table patterns.
 - Real-time/collab: event model, sync boundary, optimistic updates, conflict rules.
 - iOS/Android: MVVM or unidirectional state, repositories, platform adapters.
+  When one codebase must target both, choose the stack with
+  `cross-platform-mobile-selection.md` in this folder.
 - Application: commands/use cases, window/menu state, local persistence, system adapters.
 - Backend API: route/controller, use case/service, repository/client, explicit auth/tenant boundary.
 

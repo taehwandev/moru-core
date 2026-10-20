@@ -22,7 +22,7 @@ platform channels, plugins, target setup, or mobile/desktop/web behavior.
 
 - Does the change follow the repo's chosen state management and navigation style?
 - Are feature folder, package, plugin, or federated plugin boundaries checked
-  against `flutter-project-structure.md` when package exports, path
+  against `platforms/flutter/skills/flutter-project-structure/SKILL.md` when package exports, path
   dependencies, platform implementations, or package moves changed?
 - Are widgets rendering state and emitting events rather than owning business logic?
 - Are platform channels, plugins, and native callbacks behind typed services?

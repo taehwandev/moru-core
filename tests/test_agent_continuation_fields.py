@@ -107,8 +107,21 @@ class IdentifierTests(unittest.TestCase):
     def test_checkpoint_accepts_an_exact_gate_name_with_spaces(self) -> None:
         self.assertEqual([], collect(checkpoint_name, "source docs"))
         self.assertEqual([], collect(checkpoint_name, "retrospective check"))
-        self.assertEqual(["invalid_checkpoint"], collect(checkpoint_name, "Source Docs"))
+        self.assertEqual(["invalid_checkpoint"], collect(checkpoint_name, " source docs"))
+        self.assertEqual(["invalid_checkpoint"], collect(checkpoint_name, "source\ndocs"))
         self.assertEqual(["invalid_checkpoint"], collect(checkpoint_name, "x" * 65))
+
+    def test_checkpoint_accepts_capitalized_and_slashed_gate_names(self) -> None:
+        self.assertEqual([], collect(checkpoint_name, "PRD draft"))
+        self.assertEqual([], collect(checkpoint_name, "PRD/ARD applicability"))
+
+    def test_every_catalog_gate_is_a_valid_checkpoint(self) -> None:
+        from workflow_catalog import COMMANDS
+
+        for command, profile in COMMANDS.items():
+            for gate in profile.gates:
+                with self.subTest(command=command, gate=gate):
+                    self.assertEqual([], collect(checkpoint_name, gate))
 
 
 class RelativePathTests(unittest.TestCase):

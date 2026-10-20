@@ -13,7 +13,7 @@ or async effects.
 For general state-shape guidance, also use `common/skills/state-modeling/SKILL.md` and
 `common/skills/error-modeling/SKILL.md`.
 For repository package boundaries, local packages, and plugin/service ownership,
-also use `flutter-project-structure.md`.
+also use `platforms/flutter/skills/flutter-project-structure/SKILL.md`.
 
 ## Defaults
 

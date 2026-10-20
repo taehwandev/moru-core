@@ -205,6 +205,7 @@ def type_declaration(
         "exported": bool(re.search(r"\b(export|public|pub)\b", line)),
         "role": role,
         "owner": top_level_owner(kind, name, line, role=role, default_public=default_public),
+        "source": line.strip(),
     }
 
 
@@ -275,10 +276,14 @@ def top_level_declaration_failures(
         if declaration["internal"] is False
         and (declaration["exported"] or exported_by_default(path))
     ]
-    visible_owners = coalesce_kotlin_extension_families(path, visible)
-    public_owners = coalesce_kotlin_extension_families(path, public)
-    previous_visible_owners = coalesce_kotlin_extension_families(path, previous_visible)
-    previous_public_owners = coalesce_kotlin_extension_families(path, previous_public)
+    visible_owners = coalesce_kotlin_extension_families(path, coalesce_dart_sealed_families(path, visible))
+    public_owners = coalesce_kotlin_extension_families(path, coalesce_dart_sealed_families(path, public))
+    previous_visible_owners = coalesce_kotlin_extension_families(
+        path, coalesce_dart_sealed_families(path, previous_visible)
+    )
+    previous_public_owners = coalesce_kotlin_extension_families(
+        path, coalesce_dart_sealed_families(path, previous_public)
+    )
     if declaration_limit_failed(public_owners, previous_public_owners, MAX_PUBLIC_TOP_LEVEL_OWNERS):
         failures.append(
             f"{path} declares {len(public_owners)} public/exported top-level owners "
@@ -434,6 +439,54 @@ def coalesce_kotlin_extension_families(
     return owners
 
 
+DART_SEALED_CLASS_RE = re.compile(r"^(?:abstract\s+)?sealed\s+class\s+([A-Za-z_]\w*)")
+
+
+def coalesce_dart_sealed_families(
+    path: Path,
+    declarations: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Count a Dart sealed class and its same-file subtypes as one owner.
+
+    Dart requires every direct subtype of a sealed class to be declared in the
+    same library, so the family cannot be split into one file per type. Only a
+    declaration whose own header extends or implements the sealed type joins
+    the family; any other type stays a separate owner.
+    """
+    if path.suffix.lower() != ".dart":
+        return declarations
+
+    families: dict[str, dict[str, Any]] = {}
+    for declaration in declarations:
+        match = DART_SEALED_CLASS_RE.match(declaration.get("source", ""))
+        if match:
+            families[match.group(1)] = declaration
+    if not families:
+        return declarations
+
+    owners: list[dict[str, Any]] = []
+    for declaration in declarations:
+        if declaration["name"] in families:
+            family = dict(declaration)
+            family["kind"] = "sealed-family"
+            family["name"] = f"{declaration['name']} sealed family"
+            families[declaration["name"]] = family
+            owners.append(family)
+            continue
+        header = declaration.get("source", "").split("{", 1)[0]
+        parent = next(
+            (
+                name
+                for name in families
+                if re.search(rf"\b(?:extends|implements)\b.*\b{re.escape(name)}\b", header)
+            ),
+            None,
+        )
+        if parent is None:
+            owners.append(declaration)
+    return owners
+
+
 def declaration_limit_failed(
     declarations: list[dict[str, Any]],
     previous_declarations: list[dict[str, Any]],
@@ -467,7 +520,9 @@ def package_role_failures(
     failures: list[str] = []
     for parent in sorted({path.parent for path in paths if not test_exempt_path(path)}):
         changed = [path for path in paths if path.parent == parent and not test_exempt_path(path)]
-        package_parts = source_root_package_parts(parent.parts)
+        package_parts = source_root_package_parts(
+            parent.parts, dart=any(path.suffix.lower() == ".dart" for path in changed)
+        )
         if package_parts[:2] == (".agents", "shared"):
             package_parts = package_parts[2:]
         generic = [part for part in package_parts if part.lower() in GENERIC_PACKAGE_PARTS]
@@ -482,11 +537,16 @@ def package_role_failures(
 JVM_SOURCE_LANGUAGE_DIRS = {"kotlin", "java"}
 
 
-def source_root_package_parts(parts: tuple[str, ...]) -> tuple[str, ...]:
+def source_root_package_parts(parts: tuple[str, ...], *, dart: bool = False) -> tuple[str, ...]:
     """Drop Gradle module directories before `src/<sourceSet>/kotlin|java/`.
     A module named `shared` (the KMP convention) is a build unit, not a package.
+    For Dart sources, drop the package directory and its mandatory `lib/` root,
+    plus the conventional private `src/` directory directly under it.
     """
 
+    if dart and "lib" in parts:
+        below = parts[len(parts) - 1 - parts[::-1].index("lib") + 1:]
+        return below[1:] if below[:1] == ("src",) else below
     for index in range(len(parts) - 2):
         if parts[index] == "src" and parts[index + 2] in JVM_SOURCE_LANGUAGE_DIRS:
             return parts[index + 3:]

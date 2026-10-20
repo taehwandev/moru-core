@@ -6,12 +6,35 @@ type: ai-generated
 
 # Flutter Architecture
 
-Use when the active route selects this skill or its topic applies.
+Use when a Flutter change creates or moves a layer, feature slice, state owner,
+repository, use case, platform service, composition root, or navigation shell,
+or when shared Dart code must stay reusable across features, apps, or targets.
 
-Read `references/current-guidance.md` for applicable decision rules, stop
-conditions and verification before acting. Open related cards only for
-in-scope work, starting with their `SKILL.md`. Use this canonical bundle,
-not legacy flat paths.
+Do not use for a widget-only visual change (start with
+`platforms/flutter/skills/flutter-widget-ui/SKILL.md`) or for pure
+package/folder placement (start with
+`platforms/flutter/skills/flutter-project-structure/SKILL.md`).
 
-When changing routing, confirm it selects this entrypoint. When changing
-guidance, validate the reference's links and frontmatter.
+## Read
+
+- `references/current-guidance.md` for the layer direction, rules, refactor
+  signals, and verification.
+- `references/reusable-layers.md` before adding a repository, service, use
+  case, result/failure type, command, dependency wiring, or test fake, or when
+  the request asks for reusable code.
+- For native APIs, permissions, or channels, also read
+  `platforms/flutter/skills/flutter-platform-integration/SKILL.md`.
+- For choosing between Flutter and another stack, read
+  `common/skills/architecture-selection/SKILL.md`.
+
+## Stop If
+
+- The change needs a second state-management or DI style without a repo-level
+  decision.
+- A new layer only forwards calls and adds no rule, mapping, test seam, or risk
+  isolation.
+
+## Verification
+
+- Run the narrowest `flutter analyze` and `flutter test` scope for the affected
+  package, plus unit tests for changed state transitions and adapter mappings.

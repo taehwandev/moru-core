@@ -33,9 +33,10 @@ GIT_HEAD_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 RFC3339_UTC_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|\+00:00)$"
 )
-# A gate name is an exact catalog entry and may contain spaces; a checkpoint
-# that is not a gate is a safe slug.  Nothing else is a checkpoint.
-CHECKPOINT_RE = re.compile(r"^[a-z0-9][a-z0-9 _.-]*$")
+# A gate name is an exact catalog entry and may contain spaces, capitals and
+# "/" (for example "PRD draft", "PRD/ARD applicability"); a checkpoint that is
+# not a gate is a safe slug.  Nothing else is a checkpoint.
+CHECKPOINT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _./-]*$")
 FORBIDDEN_PATH_SEGMENTS = frozenset({"", ".", "..", ".git", ".moru"})
 # High-confidence credential shapes only.  No validator can prove a
 # 280-character sentence holds no secret; pretending otherwise is exactly why

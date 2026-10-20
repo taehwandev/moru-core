@@ -13,7 +13,7 @@ or widget tests.
 For reusable UI extraction, also read `common/skills/reusable-code-design/SKILL.md`,
 `common/skills/component-api-design/SKILL.md`, and `common/skills/design-system/SKILL.md`.
 For feature folders, local packages, package exports, and design-system
-promotion decisions, also read `flutter-project-structure.md`.
+promotion decisions, also read `platforms/flutter/skills/flutter-project-structure/SKILL.md`.
 
 ## Widget Layers
 

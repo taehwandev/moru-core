@@ -981,6 +981,9 @@ def config_or_generated_path(path: Path) -> bool:
         return True
 
     name = path.name.lower()
+    # Pigeon code-generator schemas: one input file must declare every API type.
+    if name.endswith(".dart") and path.parent.name == "pigeons":
+        return True
     return name in REVIEW_CONFIG_FILE_NAMES or name.endswith(REVIEW_CONFIG_SUFFIXES)
 
 

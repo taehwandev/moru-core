@@ -105,6 +105,10 @@ Do not:
 - Model desktop and mobile ergonomics intentionally: keyboard/focus, pointer
   hover, window resizing, touch targets, scroll behavior, and text scaling may
   differ by target.
+- For Android plus iOS apps, decide per control whether it is a native
+  platform control, a platform-styled Compose control, or shared product UI,
+  using [mobile-platform-native-ui.md](mobile-platform-native-ui.md). Do not
+  ship Material-shaped system chrome on iOS by default.
 
 ## State Holder And MVI Shape
 
