@@ -9,24 +9,27 @@ type: human-reviewed-needed
 Use before packaging, deploying, publishing, tagging, migration rollout,
 signing, or handing off release-sensitive work.
 
-## Read
+## Reading Scope
 
-- `common/skills/release-deployment/SKILL.md`
-- `common/skills/release-versioning/SKILL.md`
-- `common/skills/commit-workflow/SKILL.md` and `common/skills/worktree-hygiene/SKILL.md` when the release
-  action creates, moves, pushes, or publishes a source-control tag or branch
-- `common/skills/ci-cd-automation/SKILL.md` when workflow files, release automation,
-  package publishing, deployment jobs, or CI gates are touched
-- `common/skills/deprecation-migration/SKILL.md` when release work removes, renames,
-  migrates, or changes compatibility
-- `common/skills/verification-policy/SKILL.md`
-- `common/skills/secure-development-baseline/SKILL.md`
-- `common/skills/generated-files-policy/SKILL.md`
-- `common/skills/runtime-url-configuration/SKILL.md` when runtime URLs, callback URLs,
-  redirect URIs, webhook endpoints, CORS origins, or asset hosts vary by
-  environment
-- `common/skills/dependency-policy/SKILL.md` when packages or lockfiles changed
-- matching platform security or review card from `index.md`
+Use the route's `required_docs` and explicit `requires_docs` dependencies as
+the mandatory reading manifest. Reuse complete, unchanged readings already
+retained in the living session. The references below are decision aids, not a
+second startup manifest or a recursive queue of cards and their references:
+
+- Deployment and versioning contracts selected by the route remain required.
+- Read the commit and worktree contracts before source-control changes when
+  their applicable guidance is not already retained.
+- Open CI/CD, dependency, compatibility, generated-file, runtime-URL, security,
+  verification, or platform guidance only for a concrete unresolved decision
+  or a changed risk owned by that contract. Follow any explicit required
+  dependency it declares; do not browse `index.md` after successful routing.
+
+For an existing pipeline with unchanged security and packaging policy, inspect
+its repo-owned release checklist, configuration, commands and artifact inputs.
+Creating another local candidate does not by itself require rereading every
+general verification, security and generated-file card. This bounds reading
+only: signing, secret, authority, isolation, rollback and post-release checks
+below still apply.
 
 ## Steps
 
@@ -48,6 +51,22 @@ signing, or handing off release-sensitive work.
    scoped to the intended branch, tag, environment, or approval path.
 
 ## Release Orchestration Context
+
+Keep execution proportional as well as the document manifest. Before another
+check, inspect the existing runner's coverage: a verification command may
+already build the release bundle and run its resource and runtime checks.
+Run only the still-missing checks, and use the resulting bundle for packaging
+when its source, flags, identity and provenance match. Do not rebuild merely
+to advance a phase or recreate evidence that is already valid.
+
+Use consistent literal runner and environment prefixes for required native
+permissions, as specified by the runtime recovery contract. Keep one pending
+request and resume its handle with bounded waits; repeated one-second polls
+and gaps spent re-planning the next resolved action add no verification.
+Batch independent reads within output limits, recover only missing ranges,
+and record simultaneously ready gates together. Use the printed remaining
+gate template after context loss rather than reconstructing it from hook
+source. None of these shortcuts admits a denied command or weakens a check.
 
 Carry one release context through commit, review, packaging, tagging and
 publication: revision, version, artifact, target, verification and recovery path.
