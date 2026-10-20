@@ -289,8 +289,11 @@ class ReviewReuseTests(unittest.TestCase):
 
     def test_same_size_rewrite_with_restored_mtime_still_changes_the_snapshot(self):
         rule = self.project / 'rule.md'
+        # Keep the rule in the reviewed file set before preserving its timestamps.
+        rule.write_text('review rule0\n')
         with patch('agent_review_reuse.RACY_WINDOW_NS', 0):
             cache = self.cache()
+            self.assertIn('rule.md', cache.before['files'])
             before = rule.stat()
             rule.write_text('review ruleX\n')
             os.utime(rule, ns=(before.st_atime_ns, before.st_mtime_ns))
@@ -300,6 +303,8 @@ class ReviewReuseTests(unittest.TestCase):
             cache.complete(self.checks, failures)
         self.assertIn('reviewed bytes changed', failures[0])
         self.assertIn('rules_sha256', self.checks['review_snapshot_stability']['changed_fields'])
+        self.assertIn('changed fields: files, rules_sha256', failures[0])
+        self.assertNotIn(str(self.project), failures[0])
 
     def test_attestation_revalidates_the_validation_states_instead_of_recapturing(self):
         from agent_execution_capsule_state import git_states_for_paths
@@ -353,7 +358,7 @@ class ReviewReuseTests(unittest.TestCase):
         failures = []
         with patch.object(cache, 'capture', return_value=None):
             cache.complete(self.checks, failures)
-        self.assertEqual(['reviewed bytes changed while the review hook was running'], failures)
+        self.assertEqual(['review snapshot unavailable after checks; byte stability cannot be verified'], failures)
         self.assertEqual({'status': 'FAIL', 'snapshot_available': False, 'changed_fields': []},
                          self.checks['review_snapshot_stability'])
         self.assertNotIn('review_checks', self.checks)
@@ -365,6 +370,8 @@ class ReviewReuseTests(unittest.TestCase):
         with patch.object(cache, 'capture', return_value=after):
             cache.complete(self.checks, failures)
         self.assertEqual(['rules_sha256'], self.checks['review_snapshot_stability']['changed_fields'])
+        self.assertIn('changed fields: rules_sha256', failures[0])
+        self.assertNotIn(str(self.project), failures[0])
         self.assertNotIn('review_checks', self.checks)
         self.assertEqual(1, len(failures))
 

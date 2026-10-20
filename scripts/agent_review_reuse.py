@@ -101,7 +101,11 @@ class ReviewReuse:
                     key for key in self.before if after is not None and self.before[key] != after.get(key)
                 ),
             }
-            failures.append('reviewed bytes changed while the review hook was running')
+            if after is None:
+                failures.append('review snapshot unavailable after checks; byte stability cannot be verified')
+            else:
+                fields = ', '.join(checks['review_snapshot_stability']['changed_fields'])
+                failures.append(f'reviewed bytes changed while the review hook was running (changed fields: {fields})')
             return
         if failures:
             return
