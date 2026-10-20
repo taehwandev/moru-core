@@ -499,3 +499,39 @@ comparison needs sessions recorded after these changes. A first reading from
 2026-10-18 06:45 UTC (10 sessions, 564 tool calls, too small to conclude) showed
 policy notes at 1.8 per 100 tool calls against 7.6 before, and a PreToolUse
 median of 326 ms against 436 ms.
+
+## Audit: 2026-10-20, Release Preparation Reading And Round Trips
+
+Source baseline: `625deb4d`. This focused audit uses one completed Codex Spill
+release-preparation turn, from 05:59:02.176 to 06:19:55.527 UTC. It does not
+compare a matching Claude run or establish a model speed difference.
+
+| Observation | Measured value |
+| --- | ---: |
+| User request to task completion | 1,253.351 s |
+| Outer orchestration calls | 44 exec, 16 wait |
+| Nested command executions | 118 |
+| Commands reading source or docs with cat or sed | 36 |
+| Lifecycle commands | 11; 5.243 s summed process duration |
+| All command durations | 171.061 s summed process duration |
+| Awaited outer tool intervals | 280.820 s |
+| Six escalated calls, invocation to command start | 410.940 s summed interval |
+
+These measures are not additive wall-time categories: commands can overlap,
+and background execution or permission processing can continue outside an
+awaited outer interval. The remaining 972.531 seconds outside those intervals
+are unclassified, not a measurement of model inference or human approval time.
+The six escalated calls took 67.883 to 69.897 seconds each before their matching
+command started. This includes permission processing and transport; it does
+not prove a visible dialog, human delay, or time spent specifically in the
+native reviewer. No token totals were reconstructed.
+
+| ID | Priority / check | Evidence and expected behavior | Owner / proving check / disposition |
+| --- | --- | --- | --- |
+| F30 | Medium / H01, H02, H06, H10 | Release preparation followed the routed manifest with a broad second Read list, then opened generic cards and their references. It also used many short waits and separated checks whose existing runner already built the bundle. Bound reading to the manifest and unresolved decisions; retain valid checks and artifact inputs, batch ready work, and continue resolved actions. | [Release readiness](../workflows/skills/release-readiness/references/current-guidance.md). Resolved as a guidance correction; workflow validation and required-document selection tests must still pass. Safety, permission enforcement, release checks and production approval rules are unchanged. |
+
+The observed stale verifier paths were corrected in Spill. An environment
+selector was also conservatively rejected as a protected-root target; this
+audit does not relax that parser's executor-variable safeguards. The agent's
+over-reading and deliberation contributed to the turn and are not attributed
+to hook CPU time. This correction has no measured end-to-end speedup yet.
