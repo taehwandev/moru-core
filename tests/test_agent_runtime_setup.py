@@ -73,6 +73,7 @@ from support.runtime_bridge import (
     CODEX_DISPATCH_BRIDGE_PHRASE,
     LOCAL_AGENT_MAILBOX_BRIDGE_PHRASE,
     RUNTIME_MEMORY_BRIDGE_PHRASE,
+    RUNTIME_NATIVE_MEMORY_PHRASES,
     RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
     RUNTIME_BRIDGE_GRAPH_PHRASES,
     RUNTIME_START_BRIDGE_PHRASE,
@@ -491,6 +492,15 @@ class RuntimeSetupTests(unittest.TestCase):
         for required in ("Moru project-memory", "not runtime-private memory",
                          "verified root cause", "if none, skip"):
             self.assertIn(required, RUNTIME_MEMORY_BRIDGE_PHRASE)
+
+    def test_claude_bridge_routes_auto_memory_project_facts_to_project_memory(self) -> None:
+        claude_phrase = RUNTIME_NATIVE_MEMORY_PHRASES["Claude"]
+        self.assertIn(claude_phrase, runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"))
+        self.assertNotIn(claude_phrase, runtime_bridge_block(ROOT, "Codex", "AGENTS.md"))
+        for required in ("overrides Claude auto-memory", "project-memory --project <repo> capture",
+                         "--review-on", "~/.claude/projects/*/memory",
+                         "user, feedback and reference"):
+            self.assertIn(required, claude_phrase)
 
     def test_every_runtime_bridge_names_the_shared_research_key_file(self) -> None:
         for surface in (

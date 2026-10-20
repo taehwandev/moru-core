@@ -128,6 +128,15 @@ RUNTIME_MEMORY_BRIDGE_PHRASE = (
     'capture a verified root cause, pitfall, decision reason or user-asked fact when '
     'confirmed or at finish; if none, skip.'
 )
+# Claude's built-in auto-memory also defines a `project` type; without this line it wins.
+RUNTIME_NATIVE_MEMORY_PHRASES = {
+    'Claude': (
+        'This overrides Claude auto-memory for project facts: save a project-type or '
+        'repository fact with <MORU_LAUNCHER> project-memory --project <repo> capture '
+        '--source "<evidence>" --review-on <YYYY-MM-DD> (body on stdin), not in '
+        '~/.claude/projects/*/memory, which keeps only user, feedback and reference entries.'
+    ),
+}
 # One home for the research key so other projects and runtimes stop reporting none.
 RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE = (
     'OpenRouter key: ~/.moru/research.env (source it if unset); never print or request it.'
@@ -221,6 +230,9 @@ def runtime_bridge_required_phrases(runtime_name: str, instruction_file: str) ->
     native_delegation = RUNTIME_NATIVE_DELEGATION_PHRASES.get(runtime_name)
     if native_delegation:
         phrases.append(native_delegation)
+    native_memory = RUNTIME_NATIVE_MEMORY_PHRASES.get(runtime_name)
+    if native_memory:
+        phrases.append(native_memory)
     if runtime_name == "Codex":
         phrases.append(CODEX_DISPATCH_BRIDGE_PHRASE)
         phrases.append(CODEX_APPROVAL_WAIT_BRIDGE_PHRASE)
