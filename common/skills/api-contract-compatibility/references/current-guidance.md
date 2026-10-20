@@ -50,6 +50,27 @@ what clients, tests, docs, integrations, and users can rely on.
 - Keep read/response and write/request models and mapping paths separate; do
   not reuse one direction's mapper as the other direction's contract.
 
+## Switching A Client To Another Endpoint
+
+When a client screen moves its data source to a different endpoint (a new list
+API, a replacement detail API, a consolidated feed), the old response may have
+carried values that existing behavior still needs.
+
+- Before switching, list every user action on that screen (open, swipe, menu,
+  leave, delete, edit). For each action, record the values it uses, with the old
+  response field beside the new response field.
+- Do not silently fill a missing value with an extra call. Raise it as a contract
+  request to the API owner and report it.
+- If a stopgap call is unavoidable until the contract changes, make it only
+  when the action actually runs, for example after the user confirms. Never make
+  it just to decide which branch to show. Record the stopgap where the next
+  maintainer will see it.
+- Compare the action rules with the other clients and other entry points for the
+  same feature. Owner, permission and closed-state branches diverge most often.
+- Read the field descriptions in the new contract. Usage conditions written
+  there, such as "owners cannot leave an active room", must map to client
+  branches.
+
 ## Compatibility Questions
 
 - Which released client versions or external integrations depend on this shape?
