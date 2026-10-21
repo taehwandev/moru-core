@@ -51,5 +51,60 @@ class EfficiencyAssessmentTests(unittest.TestCase):
                 self.assertTrue(validate_retrospective_check(self.render(**fields)))
 
 
+class CausalRetrospectiveTests(unittest.TestCase):
+    render = EfficiencyAssessmentTests.render
+
+    def assess(self, **extra):
+        fields = dict(
+            alignment_evidence="Agreed ticket AC1 includes null input after Q&A; artifact and test T1 cover AC1",
+            causal_assessment="Agreement, ticket, execution and observed result match; no corrective intervention",
+            learning_decision="Keep existing null-input check; no reusable guidance gap evidenced",
+        )
+        fields.update(extra)
+        return validate_retrospective_check(self.render(**fields), contract="causal_v1")
+
+    def test_success_still_requires_actual_assessment(self):
+        self.assertEqual([], self.assess())
+        self.assertTrue(validate_retrospective_check(self.render(), contract="causal_v1"))
+        for name in ("alignment_evidence", "causal_assessment", "learning_decision"):
+            with self.subTest(name=name):
+                self.assertTrue(any(name.replace("_", " ") in error for error in self.assess(**{name: ""})))
+
+    def test_runtime_judgment_is_not_reclassified_from_words_or_turn_counts(self):
+        scenarios = (
+            ("User adds JSON after accepting CSV; ticket v2 supersedes v1", "Legitimate requirement evolution"),
+            ("Null input was required in AC1 but omitted until user pointed to Q&A", "Execution drift and missed verification"),
+            ("Agent assumed an unresolved format; clarification led to correct final artifact", "Ambiguity mishandled before recovery"),
+            ("Original check passed but did not exercise AC2; user intervention supplied missing case", "Verification gap despite eventual success"),
+            ("Several questions resolved format before execution; ticket and output agree", "Successful clarification without failure"),
+            ("아까 논의한 빈 입력 조건이 결과에서 빠졌어; 티켓 AC2와 검증 T2를 비교함", "누락은 구현에서 시작했고 검증이 놓침"),
+        )
+        for alignment, cause in scenarios:
+            with self.subTest(alignment=alignment):
+                self.assertEqual([], self.assess(alignment_evidence=alignment, causal_assessment=cause))
+
+    def test_causal_fields_survive_rendering_and_unknown_contract_fails(self):
+        text = self.render(alignment_evidence="Ticket AC1 -> artifact -> T1",
+                           causal_assessment="No divergence observed", learning_decision="Keep existing check")
+        self.assertIn("alignment evidence: Ticket AC1 -> artifact -> T1", text)
+        for contract in ("unknown_future_contract", "", None, {}):
+            with self.subTest(contract=contract):
+                self.assertTrue(validate_retrospective_check(text, contract=contract))
+
+    def test_new_route_binds_the_assessment_to_real_gate_validation(self):
+        from agent_finish_gate_policy import validate_gate_evidence
+        from workflow_route import resolve_docs
+
+        for command in ("build", "bugfix", "docs", "test", "retrospective"):
+            with self.subTest(command=command):
+                route = resolve_docs(command, None, [], request_classified=True)
+                self.assertEqual("causal_v1", route["retrospective_contract"])
+                self.assertIn("retrospective check", route["gates"])
+                failures = validate_gate_evidence(
+                    {"retrospective check": self.render()}, ["retrospective check"], route=route,
+                )
+                self.assertTrue(any("causal assessment" in error for error in failures))
+
+
 if __name__ == "__main__":
     unittest.main()

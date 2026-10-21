@@ -303,8 +303,11 @@ forgets them:
 - `retrospective check` (required gate): after verification and review but
   before finish, inspect the skills actually used and record
   `no_reusable_gap`, `reusable_gap`, or `no_skill_used` with the observation
-  disposition. When none is recorded, finish derives `no_reusable_gap` with
-  source `finish`, as it derives `commit readiness`; an agent record wins.
+  disposition. New `causal_v1` manifests also require `alignment_evidence`,
+  `causal_assessment`, and `learning_decision` on this same gate, even on
+  success: compare agreement/Q&A, ticket/plan, work, checks and result using
+  existing evidence. Missing assessment blocks finish. Only legacy unversioned
+  runs retain the old derived default; see the retrospective-learning owner.
 - `skill-feedback` (conditional closeout hook): when the check finds a reusable
   gap, record the retrospective with `observation: recorded` and queue only one
   reusable content-free observation when its canonical skill id matches the

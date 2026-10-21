@@ -19,8 +19,6 @@ from workflow_request_patterns import (
     COMMIT_BLOCKING_RISK_PATTERNS,
     COMMIT_NEGATION_PATTERNS,
     COMMIT_RELEASE_SUBSTEP_PATTERNS,
-    COMPLETION_FAILURE_PATTERNS,
-    CORRECTION_ACTION_PATTERNS,
     CORRECTION_WORD_SENSE_QUESTION_PATTERNS,
     DIRECT_QUESTION_PATTERNS,
     EXACT_PATTERNS,
@@ -29,7 +27,6 @@ from workflow_request_patterns import (
     IMPERATIVE_CORRECTION_ACTION_PATTERNS,
     INSPECTION_PATTERNS,
     MUTATION_ACTION_NEGATION_PATTERNS,
-    PRIOR_COMPLETION_REFERENCE_PATTERNS,
     QUESTION_ACTION_PATTERNS,
     REFACTOR_ACTION_PATTERNS,
     RELEASE_ACTION_PATTERNS,
@@ -475,7 +472,6 @@ def _request_flags(normalized: str, lowered: str) -> dict[str, object]:
     )
     short_without_target = len(normalized.split()) <= 8 and not (has_exact or has_scoped)
     asks_drill = _matches(GRILL_ME_REQUEST_PATTERNS, lowered)
-    has_user_correction = _has_user_confirmed_correction(lowered)
     underspecified_action = (
         asks_agent_action
         and not (has_exact or has_scoped or has_inspection)
@@ -548,7 +544,6 @@ def _request_flags(normalized: str, lowered: str) -> dict[str, object]:
         "asks_agent_action": asks_agent_action,
         "short_without_target": short_without_target,
         "asks_drill": asks_drill,
-        "has_user_correction": has_user_correction,
         "underspecified_action": underspecified_action,
     }
 
@@ -583,14 +578,6 @@ def _has_release_action(text: str) -> bool:
         MUTATION_ACTION_NEGATION_PATTERNS,
         text,
         re.IGNORECASE,
-    )
-
-
-def _has_user_confirmed_correction(text: str) -> bool:
-    return (
-        _matches(PRIOR_COMPLETION_REFERENCE_PATTERNS, text, re.IGNORECASE)
-        and _matches(COMPLETION_FAILURE_PATTERNS, text, re.IGNORECASE)
-        and _matches(CORRECTION_ACTION_PATTERNS, text, re.IGNORECASE)
     )
 
 

@@ -35,12 +35,36 @@ failure-repair and skill-learning automation boundary.
    the user explicitly starts a runtime migration task.
 4. After task verification and review, but before finish, inspect the skills
    actually loaded and applied and complete the required `retrospective check`.
-   Use existing evidence to identify needless reads, repeated calls, or missing
-   guidance. Keep this short; no new investigation is needed to find a lesson.
+   On successful work too, compare the agreed requirements and clarifying
+   discussion, ticket/plan, execution, verification and delivered result. Use
+   existing references and retained decisions, not a transcript/history scan.
+   Explain the earliest divergence and why later steps missed it, or why the
+   chain held. Include user intervention and recovered detours; eventual success
+   does not erase them. Distinguish legitimate requirement evolution from
+   mishandled uncertainty, lost agreement, execution drift and weak verification.
+   Judge the full context, never a word, phrase, turn count or retry count.
+   Keep this short; no new investigation is needed to find a lesson.
    Load the detailed maintenance flow only for an evidenced reusable gap that
    remains after the authorized fix. Do not reopen an already corrected issue
    or force a skill edit merely because code changed.
 5. Record the exact fields `skills_checked`, `outcome`, and `observation`.
+   New routes declare `retrospective_contract: causal_v1` and also require
+   `alignment_evidence`, `causal_assessment`, and `learning_decision` on this
+   same gate. Reference the agreed baseline, applicable Q&A/ticket/plan and
+   result/check evidence, including authorized revisions and user interventions
+   (or their absence). Explain correction versus requirement evolution against
+   that baseline; mark uncertainty rather than silently choosing evolution.
+   Say when an artifact is absent or evidence is unknown. Explain the cause and
+   detection gap, then cite the actual repair target and observed check result
+   or justify no change. Resolve cited references against retained/current
+   evidence; a named future repair is not a verified repair. An authorized
+   follow-up may track non-blocking work, never an unmet acceptance condition.
+   An unresolved acceptance condition blocks task
+   completion; a filled field alone does not prove that the result is correct.
+   The validator checks completeness, not the truth of the agent's judgment.
+   Active/resumed runs keep the contract frozen in their own manifest, including
+   the old three-field contract of unversioned runs. Updating runtime code
+   never silently upgrades, reclassifies or backfills those historical records.
    Every named skill must resolve to a canonical Moru Core bundle or an
    allowlisted project-local bundle; normalize hyphens to underscores when
    binding it to the feedback record.
@@ -85,9 +109,13 @@ failure-repair and skill-learning automation boundary.
 - Do not let an agent report successful closeout while the current reusable gap
   is still waiting for curation, review, or verified maintenance.
 - Do not skip the retrospective check merely because no reusable gap is
-  expected. When the agent records none, finish records `no_reusable_gap`
-  against the route's loaded skills and says it was derived; record the gate
-  yourself for `reusable_gap`, `no_skill_used` or a fixed recurring block.
+  expected. New runs require an explicit assessment even for clean success;
+  missing evidence never means `no_reusable_gap`. Reuse the existing gate and
+  batch ready records, rather than adding a separate report or approval cycle.
+- Do not force a skill edit for every correction. Repair the owner that caused
+  the mismatch: requirement/decision capture, ticket/plan, execution, check, or
+  completion judgment. Use skill maintenance only for an evidenced reusable
+  rule gap; existing guidance covering an execution lapse needs no duplicate.
 - Do not route a user-confirmed wrong completion as an ordinary follow-up,
   optional improvement, or successful-task observation.
 - Do not treat prose keywords as truth, recurrence, or promotion evidence.

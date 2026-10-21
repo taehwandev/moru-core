@@ -152,6 +152,7 @@ def validate_gate_evidence(
                 gate_evidence.get(RETROSPECTIVE_CHECK_GATE, ""),
                 allowed_skill_ids=allowed_skill_ids,
                 loaded_skill_ids=loaded,
+                contract=(route or {}).get("retrospective_contract", "legacy"),
             )
         )
     if WORK_SURFACE_RESOLUTION_GATE in required:

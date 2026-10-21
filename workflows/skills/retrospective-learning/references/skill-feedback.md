@@ -30,9 +30,22 @@ explicit caps, staging, and verification before canonical writes:
 
 ## 1. Evaluate Before Finish
 
-After task verification and review, ask one bounded question: would a future
-agent materially benefit from changing one skill actually used in this task,
-including a rule that caused avoidable reading, repeated analysis or calls?
+After task verification and review, trace the agreed requirements (including
+clarifying questions and discussion decisions) through the ticket/plan,
+execution, verification and delivered result. Reference existing evidence in
+the same retrospective gate, identify the first deviation and missed detection,
+or explain why they stayed aligned. Include recovered mistakes and user
+intervention even when the final result succeeds. Do not infer causes from
+words, turn counts, passing test totals or retry counts, and do not create a
+parallel history store or scan transcripts to reconstruct them.
+
+Distinguish a legitimate new requirement from an unconfirmed assumption, a
+decision lost in the ticket, implementation drift, a check that missed the
+agreed behavior, or an unsupported completion claim. Name uncertainty instead
+of assigning blame without evidence. A good clarification before execution is
+successful handling, not a defect. Then ask: would a future agent materially
+benefit from changing one skill actually used in this task, including a rule
+that caused avoidable reading, repeated analysis or calls?
 
 - If no, record `outcome: no_reusable_gap` and `observation: not_needed` on the
   required `retrospective check` gate. Do not create a separate observation.
@@ -68,7 +81,19 @@ Structured gate fields are:
 skills_checked: <used skill id(s) or none>
 outcome: <no_reusable_gap|reusable_gap|no_skill_used>
 observation: <not_needed|recorded>
+alignment_evidence: <baseline/Q&A/ticket/plan, authorized revisions and user interventions versus result/check refs>
+causal_assessment: <why aligned or first drift and missed detection; correction versus authorized evolution and why>
+learning_decision: <actual repair artifact and observed check result, or evidence-based reason for no change>
 ```
+
+The last three fields are required by new `causal_v1` route manifests, including
+clean success. Missing assessment blocks finish; only unversioned historical
+runs retain the old derived default. This is an extension of the existing gate,
+not a new gate, per-turn receipt or report. The deterministic validator checks
+field completeness only; the runtime owns semantic comparison and truthful
+references. Keep absent artifacts explicit and unresolved acceptance conditions
+open. Never force every correction into skill prose: fix the owning task or
+verification surface when existing guidance is already sufficient.
 
 ### Bounded Efficiency Assessment
 

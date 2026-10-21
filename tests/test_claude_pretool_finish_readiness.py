@@ -79,6 +79,29 @@ class FinishReadinessTests(unittest.TestCase):
         self.record("tests")
         self.assertEqual("", self.denial())
 
+    def test_new_contract_blocks_silence_and_rejects_a_three_field_success(self):
+        self.preflight["route"]["retrospective_contract"] = "causal_v1"
+        self.evidence.write_text(json.dumps(self.preflight))
+        self.record("tests")
+        self.assertIn("retrospective check", self.denial())
+        fields = dict(skills_checked="agent_operating_skill", outcome="no_reusable_gap", observation="not_needed")
+        args = HOOK.build_parser().parse_args([
+            "gate-batch", "--project", str(self.project), "--rules", str(ROOT),
+            "--evidence", str(self.evidence), "--gate-record",
+            json.dumps({"gate": "retrospective check", "fields": fields}),
+        ])
+        with redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(1, gate_batch_hook(args))
+        self.assertIn("alignment evidence", output.getvalue())
+        self.assertIn("retrospective check", self.denial())
+        fields.update(alignment_evidence="AC1 from discussion and ticket maps to artifact and passing T1",
+                      causal_assessment="Clarification resolved before work and AC1 held through verification",
+                      learning_decision="Keep current owner and T1; no reusable rule gap observed")
+        args.gate_record = [json.dumps({"gate": "retrospective check", "fields": fields})]
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(0, gate_batch_hook(args))
+        self.assertEqual("", self.denial())
+
     def test_failed_retrospective_blocks_until_corrected(self):
         self.record("tests")
         self.record("retrospective check", "FAIL")

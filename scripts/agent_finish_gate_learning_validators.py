@@ -22,6 +22,8 @@ RETROSPECTIVE_OBSERVATION_STATES = {
 # refused the one retrospective most likely to be true: the one about
 # retrospectives.
 ALWAYS_LOADED_SKILL_IDS = frozenset({"retrospective_learning"})
+CAUSAL_RETROSPECTIVE_CONTRACT = "causal_v1"
+CAUSAL_RETROSPECTIVE_FIELDS = ("alignment_evidence", "causal_assessment", "learning_decision")
 
 
 def validate_retrospective_check(
@@ -29,6 +31,7 @@ def validate_retrospective_check(
     *,
     allowed_skill_ids: set[str] | None = None,
     loaded_skill_ids: set[str] | None = None,
+    contract: str = "legacy",
 ) -> list[str]:
     """Require an explicit skill check and same-closeout gap resolution."""
 
@@ -111,8 +114,21 @@ def validate_retrospective_check(
             failures.extend(
                 _unloaded_skill_failures(normalized_skills, loaded_skill_ids)
             )
+    failures.extend(_causal_assessment_failures(text, contract))
     failures.extend(_efficiency_failures(text, outcome))
     return failures
+
+
+def _causal_assessment_failures(text: str, contract: str) -> list[str]:
+    """Check presence, never infer agreement, failure or causality from wording."""
+
+    if contract not in ("legacy", CAUSAL_RETROSPECTIVE_CONTRACT):
+        return [f"unsupported retrospective contract: {contract!r}"]
+    labels = tuple(name.replace("_", " ") for name in CAUSAL_RETROSPECTIVE_FIELDS)
+    if contract == "legacy" and not any(_field(text, label) for label in labels):
+        return []  # Historical runs retain their original evidence contract.
+    missing = [label for label in labels if not _field(text, label)]
+    return ["retrospective causal assessment requires " + ", ".join(missing)] if missing else []
 
 
 def _efficiency_failures(text: str, outcome: str) -> list[str]:

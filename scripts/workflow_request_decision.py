@@ -27,7 +27,6 @@ def _intake_gate_decision(
     if (
         flags["has_direct_question"]
         and not flags["asks_agent_action"]
-        and not flags["has_user_correction"]
     ):
         flags["clarity"] = ANSWER_ONLY_CLARITY
         flags["effort"] = "standard" if has_broad else "quick"
@@ -72,17 +71,6 @@ def _explicit_action_decision(
             flags["has_ui_feature_action"],
         )
     )
-    if flags["has_user_correction"]:
-        flags["clarity"] = "clear-scoped"
-        flags["effort"] = "standard"
-        return (
-            "retrospective",
-            False,
-            "work",
-            "The user explicitly reports that a previously completed result was wrong "
-            "and asks to correct that same result; repair the failed closeout before "
-            "resuming the original work.",
-        )
     if (
         flags.get("has_branch_cleanup_action")
         and not flags["has_commit_action"]

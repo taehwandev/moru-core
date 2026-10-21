@@ -88,8 +88,8 @@ class AgentHookSummaryTests(unittest.TestCase):
     def test_closeout_reminder_names_post_review_gates_for_every_route_kind(self):
         from workflow_route import route_gates
 
-        # Finish derives `retrospective check` when none is recorded, so it is
-        # advertised on its own line rather than as a gate to record.
+        # Causal assessment is explicit, advertised on its own line so callers
+        # can batch it without adding a separate learning cycle.
         cases = {
             "bugfix": ([], "after the review hook passes"),
             "docs": ([], "after the review hook passes"),
@@ -108,8 +108,9 @@ class AgentHookSummaryTests(unittest.TestCase):
                         "hooks": [{"hook": "review", "required": True}],
                     }}))
                     summary = agent_hook._hook_summary_from_preflight(evidence)
-                    self.assertTrue(any(line.startswith("Retrospective: finish records")
+                    self.assertTrue(any(line.startswith("Retrospective: explicitly record")
                                         for line in summary))
+                    self.assertIn("Missing is not no gap", "\n".join(summary))
                     reminders = [line for line in summary
                                  if line.startswith("Closeout gate reminder:")]
                     self.assertEqual(len(reminders), 1 if expected else 0)

@@ -32,13 +32,19 @@ _PLACEHOLDERS = {
     ("tests", "check"): "<command run>",
     ("tests", "result"): "<observed result>",
     ("retrospective check", "skills_checked"): "<canonical skill slugs this run loaded>",
+    ("retrospective check", "alignment_evidence"): "<agreed baseline, revisions/interventions, ticket and artifact/check references>",
+    ("retrospective check", "causal_assessment"): "<why aligned or first drift and missed detection; correction versus authorized evolution>",
+    ("retrospective check", "learning_decision"): "<actual repair artifact/check result or grounded no-change>",
 }
 
 
 def gate_record_template(gate: str, *, hook: str = "gate-batch", extra_fields: Iterable[str] = ()) -> str:
     """Return one copyable record for exactly this gate, every required field a placeholder."""
 
-    names = list(dict.fromkeys([*FIELD_REQUIREMENTS.get(gate, ()), *extra_fields]))
+    from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS
+
+    causal = CAUSAL_RETROSPECTIVE_FIELDS if gate == "retrospective check" else ()
+    names = list(dict.fromkeys([*FIELD_REQUIREMENTS.get(gate, ()), *causal, *extra_fields]))
     enums = gate_field_enums(gate)
     fields = {name: _placeholder(gate, name, enums) for name in names}
     if hook == "gate":

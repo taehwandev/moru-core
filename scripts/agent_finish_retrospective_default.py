@@ -1,15 +1,13 @@
-"""Derive a default `retrospective check` at finish when the agent recorded none.
+"""Preserve the retrospective default only for legacy, unversioned runs.
 
 Owner: the finish-time default for the retrospective gate. Allowed imports: gate
 evidence, route state and the skill catalog. Forbidden: Git, provider calls and
 any other gate. Callers/tests: agent-hook finish,
 tests/test_agent_finish_retrospective_default.py.
 
-Most closeouts recorded the same answer -- no reusable gap, nothing to observe --
-in a gate-batch call of their own, and 69% of 140 sampled entries named skills
-the run had not loaded to get there. Finish now records that answer itself, as
-it already does for commit readiness, and says it was derived. An agent that
-found a gap still records `reusable_gap` before finish, and that record wins.
+New routes require an explicit causal assessment even on success. Silence is
+not evidence that agreement, execution and verification were aligned. Legacy
+bindings retain their frozen manifest; do not fabricate new causal evidence.
 """
 
 from __future__ import annotations
@@ -49,6 +47,8 @@ def derive_retrospective_default(evidence_path: Path) -> str:
     try:
         preflight = json.loads(evidence_path.read_text(encoding="utf-8"))
         route = preflight.get("route") or {}
+        if "retrospective_contract" in route:
+            return ""
         if RETROSPECTIVE_GATE not in (route.get("gates") or []):
             return ""
         evidence, diagnostics = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence_path)

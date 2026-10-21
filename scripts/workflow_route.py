@@ -743,6 +743,7 @@ def resolve_docs(
 
     route = {
         "lifecycle_version": 2,
+        "retrospective_contract": "causal_v1",
         "root": str(ROOT),
         "command": command,
         "platform": platform,

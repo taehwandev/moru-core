@@ -25,8 +25,11 @@ A user-confirmed wrong completion is failure evidence even when every earlier
 gate said success: the completion decision itself is the failed checkpoint.
 This trigger does not require two occurrences.
 
-The closeout check asks whether the skills actually used should change. The
-check is required so a route cannot finish without making that decision. When
+The closeout check first traces agreement through the delivered result using
+the existing Q&A, ticket/plan, work artifacts and verification evidence, even on
+success. It explains why the chain held or where it first diverged and why later
+steps failed to catch it. Only then does it ask whether a used skill should
+change. The check is required so a route cannot finish without that assessment. When
 it finds a reusable gap, the same closeout runs observation, deterministic
 curation, bounded review, staging, and verified canonical maintenance. The
 runtime still keeps those authority boundaries separate: the agent authors the
@@ -44,6 +47,10 @@ actually used. No gap leaves the canonical document unchanged.
    `no_reusable_gap`, `reusable_gap`, or `no_skill_used` on the required
    `retrospective check` gate.
    Record the exact fields `skills_checked`, `outcome`, and `observation`.
+   For `retrospective_contract: causal_v1`, also record `alignment_evidence`,
+   `causal_assessment`, and `learning_decision` as defined in the entrypoint.
+   Never derive a clean assessment from silence. Legacy unversioned manifests
+   keep their previous contract; no migration or reconstructed history is needed.
    `observation` is an enum, not a free-form summary: pair
    `no_reusable_gap` or `no_skill_used` with `not_needed`, and pair
    `reusable_gap` with `recorded`. Put task-specific correction details in the
@@ -70,28 +77,38 @@ actually used. No gap leaves the canonical document unchanged.
 Classify a follow-up as blocking failure repair only when the available
 conversation context establishes all three facts:
 
-1. it refers to an earlier result that the agent reported as completed,
-2. it explicitly states that result is wrong, broken, incomplete, or mistaken,
-3. it asks to correct, redo, or repair that same result.
+1. the referenced result and its prior completion are established,
+2. comparison with the agreed requirements establishes an unmet condition,
+3. the current user request authorizes correcting that same result.
 
 An optional improvement, an unrelated new request, a question without a
 correction action, or a bare preference change remains an ordinary follow-up.
-Words such as `previous`, `last`, `just`, `work`, `change`, or `output` are not
-independent evidence that Moru Core completed the referenced result. The correction
-trigger requires one phrase that explicitly binds a completion action to the
-result, plus the failure statement and correction action.
+The runtime makes this contextual judgment from the discussion, agreed
+decisions, task records and observed result. No particular completion phrase,
+failure word or correction verb is necessary or sufficient. A terse follow-up
+can rely on an established result; mentioning an error in a hypothetical
+example proves no failure. Do not infer failure from multiple turns or retries.
 For a terse runtime follow-up, the runtime adapter must keep the user's actual
 correction verbatim in `--request` and pass the already-established target in
 the separate bounded `--continuation-scope`. Moru Core must not concatenate prior
 conversation prose into the current request or guess an earlier run from
 whichever project run happens to be newest. Scope words provide target identity
-only; the current request still has to establish the correction action and any
-failure claim.
+only and grant no authority. Resolve the current action and authority from the
+whole conversation; do not require the user to repeat already settled facts.
 
-Once that trigger is established, work routes that could bypass repair fail
-closed. `triage`, `ambiguity`, and read-only `analysis` remain available so an
-agent can inspect uncertainty before entering `retrospective`; diagnosis must
-not require pretending the correction is already understood.
+During active work, a mismatch found by the user, the agent or review is also
+causal evidence. Correct it within current authority and preserve the reason in
+the existing task records; do not wait for a wrong completion or self-retry.
+When requirements legitimately evolve, retain the earlier baseline and the
+authorized decision that superseded it, rather than labelling the earlier work
+wrong. If evidence cannot distinguish evolution from lost agreement, mark the
+uncertainty and resolve a material acceptance question before completion.
+
+Once wrong completion is established, use blocking failure repair rather than
+claiming ordinary successful closeout. `triage`, `ambiguity`, and read-only
+`analysis` remain available for uncertain diagnosis. Natural-language intake
+does not establish this boundary or authorize a repair route; the runtime's
+bound scope and authority still govern executable work.
 
 ## Automation Boundary
 

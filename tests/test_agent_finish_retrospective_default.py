@@ -45,6 +45,14 @@ class RetrospectiveDefaultTests(unittest.TestCase):
             recorded["retrospective check"], loaded_skill_ids={"agent_operating_skill"},
         ))
 
+    def test_causal_contract_never_infers_a_retrospective_from_silence(self) -> None:
+        for contract in ("causal_v1", "unknown_future_contract"):
+            with self.subTest(contract=contract):
+                route = {**ROUTE, "retrospective_contract": contract}
+                self.evidence.write_text(json.dumps({**self.preflight, "route": route}), encoding="utf-8")
+                self.assertEqual("", derive_retrospective_default(self.evidence))
+                self.assertNotIn("retrospective check", self._recorded())
+
     def test_agent_record_wins(self) -> None:
         record_gate_evidence(
             evidence_path=self.evidence, preflight=self.preflight, gate="retrospective check",

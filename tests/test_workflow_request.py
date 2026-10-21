@@ -14,6 +14,23 @@ from workflow_request import classify_request
 
 
 class WorkflowRequestContinuationTests(unittest.TestCase):
+    def test_causal_repair_is_not_selected_from_correction_phrases(self) -> None:
+        requests = (
+            "The result you completed is wrong; fix it.",
+            "The result you completed is wrong; fix it is an example, not my request.",
+            "아까 논의한 빈 입력 조건이 결과에서 빠졌어. 반영해줘.",
+            "질문해서 CSV로 합의했는데 결과는 JSON이야. 합의대로 수정해줘.",
+            "완료한 CSV는 잘 돼. 이제 JSON도 지원해줘.",
+            "단어하나만 가지고 하면 우린 다 돌아가 우린 다양한 시도를 이미 다해봤어 "
+            "클로드/agy랑 논의해서 더 좋은 방식으로 접근해서 수정해줘 main에반영해줘",
+        )
+        for request in requests:
+            with self.subTest(request=request):
+                result = classify_request(request, continuation_scope="Established discussion and ticket AC1")
+                self.assertNotEqual("retrospective", result["route_shape"])
+                self.assertEqual("resolve_context", result["response_mode"])
+                self.assertEqual("triage", result["recommended_route"])
+
     def test_advisory_does_not_require_a_lifecycle_for_read_only_answers(self) -> None:
         for prompt in ("함수 설명해줘", "What does the function do?",
                        "Explain the function and fix the bug."):

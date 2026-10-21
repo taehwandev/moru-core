@@ -64,8 +64,9 @@ def finish_readiness_denial(
             raise ValueError("invalid route gates")
         evidence, diagnostics = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence_path)
         remaining = [gate for gate in gates if gate not in _FINISH_OWNED_GATES and not evidence.get(gate)]
-        # Finish records the default retrospective only when the agent recorded none.
-        if RETROSPECTIVE_GATE in remaining and retrospective_left_to_finish(evidence, diagnostics):
+        # Only legacy manifests permit a derived default; new runs need agent evidence.
+        if ("retrospective_contract" not in route and RETROSPECTIVE_GATE in remaining
+                and retrospective_left_to_finish(evidence, diagnostics)):
             remaining.remove(RETROSPECTIVE_GATE)
         if diagnostics["warnings"]:
             raise ValueError("unreadable gate ledger")

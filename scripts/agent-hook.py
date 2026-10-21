@@ -755,9 +755,10 @@ def _closeout_gate_lines(gates: list[str]) -> list[str]:
                      "review when reviewed bytes are unchanged; record no separate gate.")
     closeout = [gate for gate in _closeout_record_gates(gates) if gate != "retrospective check"]
     if "retrospective check" in gates:
-        lines.append("Retrospective: finish records `retrospective check` as no_reusable_gap when "
-                     "you record none; record it yourself only for a reusable gap or a recurring "
-                     "block you fixed.")
+        lines.append("Retrospective: explicitly record the existing `retrospective check` even on "
+                     "success. Compare agreed requirements/Q&A, ticket/plan, execution, checks and "
+                     "delivered result using current evidence; explain the first divergence and "
+                     "why later checks missed it, or why the chain held. Missing is not no gap.")
     if closeout:
         when = "after the review hook passes" if "review hook" in gates else "before finish"
         handoff = (
@@ -849,6 +850,12 @@ def _structured_gate_field_lines(gates: list[str]) -> list[str]:
         if gate == "work surface resolution":
             lines.append("    evidence chain: include the literal -> separator from anchor to verified owner.")
         if gate == "retrospective check":
+            lines.append(
+                "    causal_v1 requires alignment_evidence (baseline, revisions/interventions, ticket/result/check refs), "
+                "causal_assessment (why aligned or first drift/missed detection; correction versus evolution), "
+                "learning_decision (repair artifact/check result or grounded no-change). Runtime judges context, not keywords, "
+                "turn counts or test totals; reuse existing records and note unavailable evidence."
+            )
             lines.append(
                 "    skills_checked: use canonical skill slugs such as agent_operating_skill, "
                 "not file paths; include a skill actually loaded by this run."

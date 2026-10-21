@@ -21,6 +21,11 @@ not yet satisfy its execution contract.
 3. Separate facts, assumptions, missed signals, and unknowns. Name the root
    cause as a missing rule, unclear ownership, weak verification, stale docs,
    missing platform guidance, ambiguous decision, or execution error.
+   Trace the agreed requirement and Q&A through the ticket/plan, actual work,
+   verification and reported result. Locate the earliest divergence and why
+   downstream checks allowed it. Distinguish an authorized requirement change
+   from mishandled ambiguity or lost agreement; do not choose a cause from a
+   user word, the final success status, or who noticed the defect first.
 4. Select the canonical Moru Core owner. When the failure exposes a reusable
    operating-rule gap, update the owning guidance directly under standing
    self-evolution authority (without asking the user for permission) before
