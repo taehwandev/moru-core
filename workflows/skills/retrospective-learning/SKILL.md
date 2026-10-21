@@ -55,15 +55,23 @@ failure-repair and skill-learning automation boundary.
    check uses. Name as many further skills as
    the retrospective genuinely covered; only a list with no loaded skill in it
    at all is refused, and the refusal names what the run did load.
-6. For a reusable gap, also write the proposal through the `skill-draft` hook
-   while this run still holds the context. Records carry only `skill_id`,
-   `signal`, and counts; the draft carries the bounded rationale needed to
-   author the change.
+6. For a reusable gap, write the proposal through `skill-draft` (or pass
+   `--draft-proposal` / `--draft-proposal-file` directly to `skill-feedback` to
+   auto-stage in one call) while this run still holds the context. When a gap is
+   provably confounded by an evidenced external/transient cause (network,
+   timeout, environment) or passing rerun, record `no_reusable_gap` with
+   `efficiency: unmeasured` rather than encoding noise into skill prose; this
+   never waives a failed gate checkpoint.
 7. Keep observation, drafting, curation, review, staging, and canonical
-   maintenance as separate authority boundaries, but complete them in the same
-   closeout when `reusable_gap` is recorded. The runtime does not blindly write
-   prose: the agent authors the canonical skill change, then the maintenance
-   recorder verifies the changed target before finish.
+   maintenance as distinct records, and complete them automatically in the same
+   closeout when `reusable_gap` is recorded. In an active writable worktree,
+   canonical skill and rule updates carry standing `local_write` self-evolution
+   authority (never overriding `--read-only`/`analysis`, protected-checkout
+   isolation, or explicit user prohibitions, and never auto-authorizing
+   `git_write`/`external_write` publication): do not pause to ask the user for
+   permission to edit a canonical skill. The agent authors the canonical skill
+   change, and `skill-maintenance` verifies the changed target and re-seals the
+   active review attestation before finish when no other file drifted.
 8. Read the `Skill learning backlog` line that start and finish print whenever
    anything waits. It counts what earlier runs left in the review queue and in
    staging, and ages the oldest from when it was queued. It is a report, not a

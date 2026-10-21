@@ -117,6 +117,38 @@ def worktree_fingerprint(path: Path) -> str:
     return capture_worktree_state(path).fingerprint
 
 
+def worktree_fingerprint_excluding_path(path: Path, excluded_relative: str) -> str:
+    """Compute worktree_fingerprint as if excluded_relative were untouched at HEAD."""
+
+    fingerprint = hashlib.sha256()
+    signature = hashlib.sha256()
+    budget = _new_budget()
+    _capture_status(
+        path,
+        fingerprint,
+        signature,
+        budget,
+        excluded_path=os.fsencode(excluded_relative),
+    )
+    base = () if git_output(path, "rev-parse", "--verify", "HEAD").strip() == "unborn" else ("HEAD",)
+    hash_git_component(
+        fingerprint,
+        b"working-tree",
+        path,
+        "diff",
+        *base,
+        "--binary",
+        "--no-renames",
+        "--diff-filter=a",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--",
+        ".",
+        f":(exclude){excluded_relative}",
+    )
+    return fingerprint.hexdigest()
+
+
 def worktree_signature(path: Path) -> str:
     """Return a content-free invalidation filter for a prior strong fingerprint.
 
@@ -140,6 +172,8 @@ def _capture_status(
     fingerprint: Any | None,
     signature: Any,
     budget: UntrackedBudget,
+    *,
+    excluded_path: bytes | None = None,
 ) -> None:
     expecting_original_path = False
     original_path_is_deleted = False
@@ -157,7 +191,7 @@ def _capture_status(
         kind, relative_bytes, renamed = _status_path(record)
         expecting_original_path = renamed
         original_path_is_deleted = renamed and _rename_removes_original(record)
-        if relative_bytes is None:
+        if relative_bytes is None or (excluded_path is not None and relative_bytes == excluded_path):
             return
         if kind in {b"1", b"2"} and _dirty_submodule(record):
             raise RuntimeError(

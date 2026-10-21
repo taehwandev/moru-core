@@ -574,5 +574,387 @@ class PromotionTargetIsCheckedBeforeStaging(unittest.TestCase):
         self.assertTrue(self._is_staged())
 
 
+class AutonomousSkillEvolutionTests(unittest.TestCase):
+    """Verify one-step auto-staging, review re-sealing, and pretool gate exemption."""
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.project = _project_with_skill(self.root, SKILL)
+        self.candidate = candidate_id(SKILL, SIGNAL)
+
+    def test_skill_feedback_with_draft_proposal_auto_stages_and_reopens(self):
+        import agent_skill_feedback
+
+        evidence_path = self.project / ".moru" / "preflight.json"
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        preflight = {
+            "agent_run_id": "run-auto-1",
+            "route": {"command": "build", "gates": ["retrospective check"]},
+        }
+        evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
+        from agent_gate_evidence import record_gate_evidence
+
+        record_gate_evidence(
+            evidence_path=evidence_path,
+            preflight=preflight,
+            gate="retrospective check",
+            evidence="checked",
+            fields={
+                "skills_checked": SKILL,
+                "outcome": "reusable_gap",
+                "observation": "recorded",
+            },
+            status="SUCCESS",
+        )
+        with patch.object(agent_skill_feedback, "state_home", return_value=self.root):
+            result, _ = agent_skill_feedback.record_skill_feedback(
+                project=self.project,
+                rules=ROOT,
+                evidence_path=evidence_path,
+                outcome="observed",
+                skill_id=SKILL,
+                signal=SIGNAL,
+                proposal=PROPOSAL,
+            )
+            self.assertTrue(result.get("created"), result)
+            self.assertEqual((result.get("review") or {}).get("status"), "staged_patch")
+            staged_file = self.root / "skill-learning" / "staged" / f"{self.candidate}.json"
+            self.assertTrue(staged_file.is_file())
+
+            # Close it as rejected, then verify a new proposal without explicit gap_type reopens it.
+            agent_skill_feedback.record_skill_maintenance(
+                project=self.project,
+                rules=ROOT,
+                candidate_id=self.candidate,
+                outcome="rejected",
+                verification_kind="not_applicable",
+                target="",
+                test_selector="",
+                evidence_path=evidence_path,
+            )
+            preflight["agent_run_id"] = "run-auto-2"
+            evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
+            record_gate_evidence(
+                evidence_path=evidence_path,
+                preflight=preflight,
+                gate="retrospective check",
+                evidence="checked again",
+                fields={
+                    "skills_checked": SKILL,
+                    "outcome": "reusable_gap",
+                    "observation": "recorded",
+                },
+                status="SUCCESS",
+            )
+            result2, _ = agent_skill_feedback.record_skill_feedback(
+                project=self.project,
+                rules=ROOT,
+                evidence_path=evidence_path,
+                outcome="observed",
+                skill_id=SKILL,
+                signal=SIGNAL,
+                proposal=PROPOSAL + "\nSecond distinct proposal.",
+            )
+            self.assertEqual((result2.get("review") or {}).get("status"), "staged_patch")
+
+    def test_skill_maintenance_reseals_review_attestation(self):
+        import subprocess
+        import agent_skill_feedback
+        from agent_gate_evidence import merge_gate_evidence_from_ledger, record_gate_evidence
+        from agent_review_attestation import ReviewAttestation
+
+        (self.project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
+        subprocess.run(["git", "init"], cwd=self.project, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=self.project, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.project, check=True)
+        subprocess.run(["git", "add", "."], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=self.project, check=True, capture_output=True)
+
+        state_dir = self.project / ".moru"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        evidence_path = state_dir / "preflight.json"
+        route = {"command": "build", "gates": ["review hook", "retrospective check"]}
+        preflight = {"agent_run_id": "run-reseal-1", "route": route}
+        evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
+
+        attestation = ReviewAttestation.record(
+            project=self.project,
+            rules=ROOT,
+            evidence_path=evidence_path,
+            preflight=preflight,
+            review_scope="working-tree",
+            review_paths=[],
+            changed_path_count=1,
+            checks={
+                "review_outcome": "pass",
+                "workflow_validate": {"returncode": 0},
+                "diff_check": {"returncode": 0},
+                "vibeguard": {"returncode": 0, "overall": "Ready"},
+            },
+        )
+        record_gate_evidence(
+            evidence_path=evidence_path,
+            preflight=preflight,
+            gate="review hook",
+            evidence="review passed",
+            fields={
+                **ReviewAttestation.ledger_fields(attestation),
+                "workflow_validate": "0",
+                "vibeguard": "Ready",
+            },
+            status="SUCCESS",
+            source="review",
+        )
+        record_gate_evidence(
+            evidence_path=evidence_path,
+            preflight=preflight,
+            gate="retrospective check",
+            evidence="checked",
+            fields={"skills_checked": SKILL, "outcome": "reusable_gap", "observation": "recorded"},
+            status="SUCCESS",
+        )
+
+        with patch.object(agent_skill_feedback, "state_home", return_value=self.root):
+            agent_skill_feedback.record_skill_feedback(
+                project=self.project,
+                rules=ROOT,
+                evidence_path=evidence_path,
+                outcome="observed",
+                skill_id=SKILL,
+                signal=SIGNAL,
+                proposal=PROPOSAL,
+            )
+            skill_dir = SKILL.replace("_", "-")
+            skill_file = self.project / ".agents" / "shared" / "llm-skills" / skill_dir / "SKILL.md"
+            skill_file.write_text(skill_file.read_text(encoding="utf-8") + "\nUpdated rule.\n", encoding="utf-8")
+            with patch(
+                "agent_skill_maintenance.run_verification_command",
+                return_value={"returncode": 0, "stdout": "ok", "stderr": ""},
+            ):
+                maint, _ = agent_skill_feedback.record_skill_maintenance(
+                    project=self.project,
+                    rules=ROOT,
+                    candidate_id=self.candidate,
+                    outcome="applied",
+                    verification_kind="workflow_validate",
+                    target=f".agents/shared/llm-skills/{skill_dir}/SKILL.md",
+                    test_selector="",
+                    evidence_path=evidence_path,
+                )
+            self.assertTrue(maint.get("updated"), maint)
+
+        _merged, diag = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence_path)
+        failures = ReviewAttestation.failures(
+            project=self.project,
+            rules=ROOT,
+            evidence_path=evidence_path,
+            route=route,
+            ledger_fields=diag["entry_fields"]["review hook"],
+            ledger_source=diag["sources"]["review hook"],
+        )
+        self.assertEqual(failures, [])
+
+    def test_pretool_gate_allows_staged_skill_maintenance_edit(self):
+        import claude_pretool_gate
+
+        evidence_path = self.project / ".moru" / "preflight.json"
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        evidence_path.write_text(
+            json.dumps({"agent_run_id": "run-gate-1", "rules": str(ROOT), "route": {"command": "build"}}),
+            encoding="utf-8",
+        )
+        record_observation(
+            self.root, skill_id=SKILL, signal=SIGNAL, occurrence_id="run-gate-1", gap_type="gap_1"
+        )
+        curate_observations(self.root, min_occurrences=1)
+        record_draft(
+            self.root, project=self.project, rules=ROOT, skill_id=SKILL,
+            signal=SIGNAL, proposal=PROPOSAL, occurrence_id="run-gate-1",
+        )
+        review_candidate(
+            self.root, candidate_id=self.candidate, decision="stage_patch",
+            gap_type="gap_1", change_type="add_rule", promotion_target=SKILL, min_occurrences=1,
+        )
+        skill_target = self.project / ".agents" / "shared" / "llm-skills" / SKILL.replace("_", "-") / "SKILL.md"
+        unrelated_target = self.project / "README.md"
+        unrelated_target.write_text("hi\n", encoding="utf-8")
+
+        with (
+            patch.object(claude_pretool_gate, "global_state_dir", return_value=self.root),
+            patch.object(claude_pretool_gate, "workflow_entry_allows", return_value=True),
+            patch.object(claude_pretool_gate, "session_evidence", return_value=evidence_path),
+            patch.object(claude_pretool_gate, "_read_run_mutation_denial", return_value=None),
+        ):
+            allowed = claude_pretool_gate._staged_skill_maintenance_edit_allowed(
+                {"session_id": "sess-1", "tool_input": {"file_path": str(skill_target)}},
+                "Edit",
+                self.project,
+                [self.project],
+            )
+            new_ref = skill_target.parent / "references" / "new-guide.md"
+            allowed_new_ref = claude_pretool_gate._staged_skill_maintenance_edit_allowed(
+                {"session_id": "sess-1", "tool_input": {"file_path": str(new_ref)}},
+                "Write",
+                self.project,
+                [self.project],
+            )
+            denied_delete = claude_pretool_gate._staged_skill_maintenance_edit_allowed(
+                {
+                    "session_id": "sess-1",
+                    "tool_input": {
+                        "patch": f"*** Begin Patch\n*** Delete File: {skill_target}\n*** End Patch"
+                    },
+                },
+                "ApplyPatch",
+                self.project,
+                [self.project],
+            )
+            denied = claude_pretool_gate._staged_skill_maintenance_edit_allowed(
+                {"session_id": "sess-1", "tool_input": {"file_path": str(unrelated_target)}},
+                "Edit",
+                self.project,
+                [self.project],
+            )
+        self.assertTrue(allowed)
+        self.assertTrue(allowed_new_ref)
+        self.assertFalse(denied_delete)
+        self.assertFalse(denied)
+
+        # Foreign run id must not borrow another run's staged candidate
+        evidence_path.write_text(
+            json.dumps({"agent_run_id": "foreign-run-999", "rules": str(ROOT), "route": {"command": "build"}}),
+            encoding="utf-8",
+        )
+        with (
+            patch.object(claude_pretool_gate, "global_state_dir", return_value=self.root),
+            patch.object(claude_pretool_gate, "workflow_entry_allows", return_value=True),
+            patch.object(claude_pretool_gate, "session_evidence", return_value=evidence_path),
+            patch.object(claude_pretool_gate, "_read_run_mutation_denial", return_value=None),
+        ):
+            foreign_allowed = claude_pretool_gate._staged_skill_maintenance_edit_allowed(
+                {"session_id": "sess-1", "tool_input": {"file_path": str(skill_target)}},
+                "Edit",
+                self.project,
+                [self.project],
+            )
+        self.assertFalse(foreign_allowed)
+
+    def test_reseal_refuses_when_unrelated_worktree_file_drifted_after_review(self):
+        import subprocess
+        import agent_skill_feedback
+        from agent_gate_evidence import merge_gate_evidence_from_ledger, record_gate_evidence
+        from agent_review_attestation import ReviewAttestation
+
+        (self.project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
+        subprocess.run(["git", "init"], cwd=self.project, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=self.project, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.project, check=True)
+        subprocess.run(["git", "add", "."], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=self.project, check=True, capture_output=True)
+
+        evidence_path = self.project / ".moru" / "runs" / "run-drift-1" / "preflight.json"
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        route = {"command": "build", "gates": ["review hook", "retrospective check"], "required_docs": []}
+        preflight = {"agent_run_id": "run-drift-1", "route": route}
+        evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
+
+        attestation = ReviewAttestation.record(
+            project=self.project,
+            rules=ROOT,
+            evidence_path=evidence_path,
+            preflight=preflight,
+            review_scope="working-tree",
+            review_paths=[],
+            changed_path_count=1,
+            checks={
+                "review_outcome": "pass",
+                "workflow_validate": {"returncode": 0},
+                "diff_check": {"returncode": 0},
+                "vibeguard": {"returncode": 0, "overall": "Ready"},
+            },
+        )
+        record_gate_evidence(
+            evidence_path=evidence_path,
+            preflight=preflight,
+            gate="review hook",
+            evidence="review passed",
+            fields={
+                **ReviewAttestation.ledger_fields(attestation),
+                "workflow_validate": "0",
+                "vibeguard": "Ready",
+            },
+            status="SUCCESS",
+            source="review",
+        )
+        record_gate_evidence(
+            evidence_path=evidence_path,
+            preflight=preflight,
+            gate="retrospective check",
+            evidence="checked",
+            fields={"skills_checked": SKILL, "outcome": "reusable_gap", "observation": "recorded"},
+            status="SUCCESS",
+        )
+
+        with patch.object(agent_skill_feedback, "state_home", return_value=self.root):
+            # Also verify hyphenated promotion_target normalizes and replay restages cleanly
+            agent_skill_feedback.record_skill_feedback(
+                project=self.project,
+                rules=ROOT,
+                evidence_path=evidence_path,
+                outcome="observed",
+                skill_id=SKILL,
+                signal=SIGNAL,
+                proposal=PROPOSAL,
+                promotion_target=SKILL.replace("_", "-"),
+            )
+            revised = PROPOSAL + " Also reject unrelated worktree drift during reseal."
+            fb2, _ = agent_skill_feedback.record_skill_feedback(
+                project=self.project,
+                rules=ROOT,
+                evidence_path=evidence_path,
+                outcome="observed",
+                skill_id=SKILL,
+                signal=SIGNAL,
+                proposal=revised,
+                promotion_target=SKILL.replace("_", "-"),
+            )
+            self.assertTrue((fb2.get("review") or {}).get("updated"), fb2)
+
+            skill_dir = SKILL.replace("_", "-")
+            skill_file = self.project / ".agents" / "shared" / "llm-skills" / skill_dir / "SKILL.md"
+            skill_file.write_text(skill_file.read_text(encoding="utf-8") + "\nUpdated rule.\n", encoding="utf-8")
+            # Sneak in an unreviewed product change after ReviewAttestation.record
+            (self.project / "unreviewed.py").write_text("x = 1\n", encoding="utf-8")
+            with patch(
+                "agent_skill_maintenance.run_verification_command",
+                return_value={"returncode": 0, "stdout": "ok", "stderr": ""},
+            ):
+                maint, details = agent_skill_feedback.record_skill_maintenance(
+                    project=self.project,
+                    rules=ROOT,
+                    candidate_id=self.candidate,
+                    outcome="applied",
+                    verification_kind="workflow_validate",
+                    target=f".agents/shared/llm-skills/{skill_dir}/SKILL.md",
+                    test_selector="",
+                    evidence_path=evidence_path,
+                )
+            self.assertTrue(maint.get("updated"), maint)
+            self.assertTrue(any("unrelated worktree changes" in line for line in details), details)
+
+        _merged, diag = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence_path)
+        failures = ReviewAttestation.failures(
+            project=self.project,
+            rules=ROOT,
+            evidence_path=evidence_path,
+            route=route,
+            ledger_fields=diag["entry_fields"]["review hook"],
+            ledger_source=diag["sources"]["review hook"],
+        )
+        self.assertTrue(failures)
+
+
 if __name__ == "__main__":
     unittest.main()

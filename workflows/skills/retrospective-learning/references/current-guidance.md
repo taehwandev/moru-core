@@ -48,15 +48,22 @@ actually used. No gap leaves the canonical document unchanged.
    `no_reusable_gap` or `no_skill_used` with `not_needed`, and pair
    `reusable_gap` with `recorded`. Put task-specific correction details in the
    gate evidence text rather than inventing another observation value.
-4. When the outcome is `reusable_gap`, run the feedback hook immediately. The
-   hook accepts the observation only when its normalized skill id exists in a
-   canonical bundle and matches the current successful retrospective record.
+4. When the outcome is `reusable_gap`, run the feedback hook immediately (passing
+   `--draft-proposal` or `--draft-proposal-file` auto-stages the candidate in
+   one step). Skip provably `confounded` environmental, network, or timeout noise
+   (backed by an evidenced external error or passing rerun) as `no_reusable_gap`
+   with `efficiency: unmeasured`, without waiving any failed gate checkpoint.
 5. Write the bounded proposal, curate the current occurrence, and run bounded
    review in this closeout. `stage_patch` requires a usable draft and binds its
    digest.
-6. Apply the canonical skill-document change, run fixed verification, and record
-   `applied` or `rejected` before finish. Finish refuses the current occurrence
-   while any of these states is pending.
+6. In an active writable worktree, apply the canonical skill-document change
+   directly under standing `local_write` self-evolution authority (do not ask
+   the user for permission; never override `--read-only`/`analysis` or
+   protected-checkout isolation), run fixed verification via `skill-maintenance`,
+   and record `applied` or `rejected` before finish. Verified `skill-maintenance`
+   automatically re-seals the active run's review attestation when no other file
+   drifted. Finish refuses the current occurrence while any of these states is
+   pending.
 
 ## User-Correction Boundary
 

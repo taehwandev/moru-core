@@ -2999,6 +2999,8 @@ def _decide(payload: dict) -> int:
         )
         if verdict is not None:
             return verdict
+    if tool in EDIT_TOOLS and _staged_skill_maintenance_edit_allowed(payload, tool, cwd, roots):
+        return allow()
     if worktree_policy_satisfied(root) and not policy_requires_workflow_entry(root):
         protected = protected_branch_names(root)
         hazard = shared_repository_hazard(tokens, protected)
@@ -3033,6 +3035,110 @@ def _decide(payload: dict) -> int:
         payload, tool, root, cwd, tokens, syntax_is_simple, roots, cwd_roots,
         scope.unknown_reason, effective_cwd,
     )
+
+
+def _patch_contains_move(payload: dict) -> bool:
+    body = payload.get("tool_input")
+    if isinstance(body, dict):
+        for key in ("patch", "input", "command"):
+            if isinstance(body.get(key), str):
+                body = body[key]
+                break
+    return isinstance(body, str) and any(
+        line.startswith("*** Move to: ") for line in body.splitlines()
+    )
+
+
+def _staged_skill_maintenance_edit_allowed(
+    payload: dict, tool: str, cwd: Path, roots: list[Path]
+) -> bool:
+    """Allow an active writable run to edit a canonical skill file that has a valid staged_patch."""
+
+    session_id = str(payload.get("session_id") or "")
+    if not session_id:
+        return False
+    if tool in PATCH_TOOLS:
+        patched = _patch_target_paths(payload, cwd)
+        if not patched or any(not keep for _, keep in patched) or _patch_contains_move(payload):
+            return False
+        targets = [path for path, _ in patched]
+    else:
+        target = write_target_path(payload, cwd)
+        targets = [target] if target is not None else []
+    staged_dir = global_state_dir() / "skill-learning" / "staged"
+    if not targets or not staged_dir.is_dir():
+        return False
+    staged_files = list(staged_dir.glob("*.json"))
+    if not staged_files:
+        return False
+    from agent_skill_draft import read_draft
+    from agent_skill_maintenance import _load_staged_candidate, _target_scope_is_allowed
+    from agent_skill_state import opaque_key
+    from agent_verification_command import resolve_skill_bundle_target
+
+    candidates: list[Path] = []
+    cwd_root = find_project_root(cwd)
+    if cwd_root is not None:
+        candidates.append(cwd_root)
+    candidates.extend(roots)
+    try:
+        for line in session_projects_index(session_id).read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                candidates.append(Path(line.strip()))
+    except OSError:
+        pass
+    seen: set[Path] = set()
+    for project_root in candidates:
+        try:
+            project_root = project_root.resolve()
+        except OSError:
+            continue
+        if project_root in seen or not workflow_entry_allows(project_root, session_id):
+            continue
+        seen.add(project_root)
+        if _read_run_mutation_denial([project_root], session_id, "edit"):
+            continue
+        evidence = session_evidence(project_root, session_id)
+        try:
+            preflight = json.loads(evidence.read_text(encoding="utf-8")) if evidence else {}
+            run_id = str(preflight.get("agent_run_id") or "")
+            run_key = opaque_key(run_id) if run_id else ""
+            rules_raw = str(preflight.get("rules") or "")
+            rules_root = Path(rules_raw).resolve() if rules_raw else Path(__file__).resolve().parents[1]
+        except (OSError, ValueError):
+            continue
+        if not run_key:
+            continue
+        for candidate_file in staged_files:
+            staged, err = _load_staged_candidate(global_state_dir(), candidate_file.stem)
+            if err or not staged:
+                continue
+            draft = read_draft(global_state_dir(), candidate_file.stem) or {}
+            if run_key not in set(draft.get("occurrence_keys") or []):
+                continue
+            promotion_target = str(staged.get("promotion_target") or "")
+            resolved_all = [
+                resolve_skill_bundle_target(project_root, rules_root, str(target_path))
+                for target_path in targets
+            ]
+            if all(
+                res is not None
+                and not worktree_denial(res[3])
+                and _target_scope_is_allowed(
+                    project=project_root,
+                    rules=rules_root,
+                    target_path=res[0],
+                    target_scope=res[1],
+                    target_relative=res[2],
+                    promotion_target=promotion_target,
+                )
+                for res in resolved_all
+            ):
+                for owner_root in {project_root, *(res[3] for res in resolved_all if res is not None)}:
+                    record_edit_activity(owner_root, session_id)
+                    record_session_project(owner_root, session_id)
+                return True
+    return False
 
 
 def main() -> int:

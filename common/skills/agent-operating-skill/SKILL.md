@@ -15,24 +15,26 @@ type: ai-generated
    missing/conflicting evidence, applicable rules or failures. Empty searches
    need a new lead.
 3. Optional reads/tools must answer a decision. Reuse unchanged reads and
-   compaction takeaways; read only new, changed or lost guidance. Deduplicate
-   paths. Links, spare budget, catalogs, available tools, platform names and
-   graph neighbors select nothing alone. Stop at the answering entrypoint.
-4. Change only the authorized outcome. Incidental findings grant no cleanup or
-   environment authority. Report excess selection; repair its owner only with
-   authority, never waive it. Existing pointers need no edit when they already
-   load the changed source.
+   compaction takeaways; read only new/changed/lost guidance. Deduplicate paths.
+   Links, spare budget, catalogs, tools, platform names and graph neighbors
+   select nothing alone. Stop at the answering entrypoint; report excess
+   selection, never waive it.
+4. Change only the authorized outcome; incidental product findings grant no
+   cleanup authority. In an active writable worktree, canonical skill/rule
+   updates for a verified reusable_gap or failure-repair are pre-authorized
+   local_write edits: apply and verify without asking. Existing pointers need no
+   edit when they already load the changed source.
 5. Stop after outcome/checks; extra checks need evidence.
 
 ## Live Session Continuity
 
-Status questions, impatience and complaints about repeated procedure retain the
-active outcome and passed evidence. Answer briefly and continue the next missing
-authorized action; do not reopen intake, start an audit/retrospective or repair
-the workflow unless requested or a concrete failure requires it. Remaining gates
-are work to close, not a reason to repeat passed tests or review.
-Automatic hook checkpoints need no manual checkpoint; write semantic resume
-state only for interruption, changed scope or handoff.
+Status questions, impatience and procedure complaints retain the active outcome
+and passed evidence. Answer briefly and continue the next missing authorized
+action; do not reopen intake, start an audit/retrospective or repair the
+workflow unless requested or a concrete failure requires it. Remaining gates are
+work to close, not a reason to repeat passed tests or review. Automatic hook
+checkpoints need no manual checkpoint; write semantic resume state only for
+interruption, changed scope or handoff.
 
 The prompt hook delivers this section once per session and again only when it
 changes. It starts no task, invalidates no passed check and grants no authority;

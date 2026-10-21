@@ -165,10 +165,16 @@ def review_candidate(
     if decision not in {"no_change", "stage_patch"}:
         return {"updated": False, "reason": "invalid_review_decision"}
     queue_path = root / _review_queue_path(candidate_id)
+    staged_file = root / _staged_path(candidate_id)
     with state_lock(root / _candidate_lock_path(candidate_id)):
         queued = _read_json(queue_path)
+        restaging = False
         if not _valid_candidate_record(queued, candidate_id, expected_status="review_ready"):
-            return {"updated": False, "reason": "candidate_not_found"}
+            staged = _read_json(staged_file) if decision == "stage_patch" else {}
+            if not _valid_candidate_record(staged, candidate_id, expected_status="staged_patch"):
+                return {"updated": False, "reason": "candidate_not_found"}
+            queued = staged
+            restaging = True
         if _candidate_occurrence_count(root, candidate_id) < max(1, int(min_occurrences)):
             return {"updated": False, "reason": "candidate_observations_missing"}
         if decision == "stage_patch" and not all(
@@ -180,18 +186,28 @@ def review_candidate(
             return {"updated": False, "reason": "skill_draft_required"}
         cap_lock = (
             state_lock(root / "skill-learning" / "locks" / "staged-cap.json")
-            if decision == "stage_patch"
+            if decision == "stage_patch" and not restaging
             else nullcontext()
         )
         with cap_lock:
             if (
                 decision == "stage_patch"
+                and not restaging
                 and _json_count(root / "skill-learning" / "staged") >= MAX_STAGED
             ):
                 return {"updated": False, "reason": "staged_queue_full"}
             status = "no_change" if decision == "no_change" else "staged_patch"
+            existing_gaps = [
+                g for g in (queued.get("gap_types") or []) if isinstance(g, str) and _safe_slug(g)
+            ]
+            merged_gaps = (
+                [gap_type, *(g for g in existing_gaps if g != gap_type)][:4]
+                if gap_type and _safe_slug(gap_type)
+                else existing_gaps[:4]
+            )
             payload = {
                 **queued,
+                "gap_types": merged_gaps,
                 "status": status,
                 "reviewed_at": _now(),
                 "review_decision": decision,
@@ -204,12 +220,15 @@ def review_candidate(
                     next_action="separate_verified_skill_maintenance",
                 )
                 payload.update(reviewed_draft)
-                destination = root / _staged_path(candidate_id)
+                destination = staged_file
             else:
                 payload["next_action"] = "none"
                 destination = root / _completed_path(candidate_id)
             try:
-                _transition_record(queue_path, destination, payload)
+                if restaging:
+                    atomic_write_json(destination, payload)
+                else:
+                    _transition_record(queue_path, destination, payload)
             except (OSError, ValueError) as error:
                 return {"updated": False, "reason": "write_failed", "error": error.__class__.__name__}
     return {"updated": True, "candidate_id": candidate_id, "status": status}

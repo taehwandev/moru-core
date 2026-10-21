@@ -152,6 +152,9 @@ def complete_verified_skill_maintenance(
         "candidate_id": candidate_id,
         "status": "applied",
         "verification_kind": verification_kind,
+        "target_relative": target_relative,
+        "target_scope": target_scope,
+        "target_root": str(target_root),
     }
 
 

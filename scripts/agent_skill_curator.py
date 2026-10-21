@@ -295,6 +295,8 @@ def _curate_observations_locked(root: Path, *, min_occurrences: int) -> dict[str
             root, compatible_candidates, gap_type_set
         )
         if blocked:
+            if blocked == "already_awaiting_review":
+                _refresh_queued_gap_types(root, candidate, gap_types, len(occurrence_keys), observations)
             not_queued.append({"candidate_id": candidate, "reason": blocked})
             continue
         if queue_count >= MAX_REVIEW_QUEUE:
@@ -337,3 +339,34 @@ def _curate_observations_locked(root: Path, *, min_occurrences: int) -> dict[str
         "legacy_mapped_count": legacy_mapped_count,
         "legacy_unmapped_count": legacy_unmapped_count,
     }
+
+
+def _refresh_queued_gap_types(
+    root: Path,
+    candidate: str,
+    gap_types: list[str],
+    distinct_occurrences: int,
+    observations: list[dict[str, Any]],
+) -> None:
+    queue_path = root / review_queue_path(candidate)
+    try:
+        with state_lock(root / candidate_lock_path(candidate)):
+            if not queue_path.exists():
+                return
+            current = read_json(queue_path)
+            if not valid_candidate_record(current, candidate, expected_status="review_ready"):
+                return
+            merged = _bounded_gap_types(
+                candidate_gap_types(current) | set(gap_types),
+                priority=gap_types,
+            )
+            updated = {
+                **current,
+                "gap_types": merged,
+                "distinct_occurrences": max(int(current.get("distinct_occurrences") or 1), distinct_occurrences),
+                "last_observed_at": max(str(item.get("created_at") or "") for item in observations),
+            }
+            if updated != current:
+                atomic_write_json(queue_path, updated)
+    except (OSError, ValueError):
+        return

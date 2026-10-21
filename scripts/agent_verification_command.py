@@ -53,6 +53,79 @@ def resolve_verification_target(
             except ValueError:
                 continue
             return resolved, scope, relative.as_posix(), root
+        if raw.is_absolute():
+            wt_root = _linked_rules_worktree_root(resolved, rules.resolve())
+            if wt_root is not None:
+                return resolved, "rules", resolved.relative_to(wt_root).as_posix(), wt_root
+    return None
+
+
+def resolve_skill_bundle_target(
+    project: Path, rules: Path, target: str
+) -> tuple[Path, str, str, Path] | None:
+    """Resolve an existing or newly added file inside a project, rules, or linked rules worktree."""
+
+    existing = resolve_verification_target(project, rules, target)
+    if existing is not None:
+        return existing
+    raw = Path(target.strip()).expanduser()
+    if not raw.name or raw.name in {".", ".."} or ".." in raw.parts:
+        return None
+    candidates = [raw] if raw.is_absolute() else [project / raw, rules / raw]
+    roots = sorted((("rules", rules.resolve()), ("project", project.resolve())),
+                   key=lambda item: len(item[1].parts), reverse=True)
+    for candidate in candidates:
+        try:
+            ancestor = candidate.parent
+            tail: list[str] = [candidate.name]
+            while not ancestor.exists() and ancestor != ancestor.parent:
+                tail.append(ancestor.name)
+                ancestor = ancestor.parent
+            if not ancestor.is_dir() or ancestor.is_symlink():
+                continue
+            resolved_ancestor = ancestor.resolve()
+        except OSError:
+            continue
+        resolved = resolved_ancestor.joinpath(*reversed(tail))
+        for scope, root in roots:
+            try:
+                relative = resolved.relative_to(root)
+            except ValueError:
+                continue
+            return resolved, scope, relative.as_posix(), root
+        if raw.is_absolute():
+            wt_root = _linked_rules_worktree_root(resolved_ancestor, rules.resolve())
+            if wt_root is not None:
+                return resolved, "rules", resolved.relative_to(wt_root).as_posix(), wt_root
+    return None
+
+
+def _linked_rules_worktree_root(target: Path, rules: Path) -> Path | None:
+    """Return the linked worktree root if target sits inside a linked Git worktree of rules."""
+
+    from support.bounded_git import run_git
+
+    current = target if target.is_dir() else target.parent
+    for parent in (current, *current.parents):
+        git_marker = parent / ".git"
+        try:
+            if not git_marker.is_file() or git_marker.is_symlink():
+                continue
+            identities = []
+            for repo in (parent, rules):
+                res = run_git(
+                    ["git", "-C", str(repo), "rev-parse", "--show-toplevel", "--git-common-dir"],
+                    capture_output=True, text=True,
+                )
+                if res.returncode != 0:
+                    return None
+                top, common = res.stdout.strip().splitlines()
+                if Path(top).resolve() != repo.resolve():
+                    return None
+                identities.append((repo.resolve() / common).resolve())
+            return parent.resolve() if identities[0] == identities[1] else None
+        except (OSError, RuntimeError, ValueError):
+            return None
     return None
 
 
@@ -135,7 +208,8 @@ def verification_command(
     test_selector: str,
 ) -> list[str]:
     if verification_kind == "workflow_validate":
-        script = rules / "scripts" / "workflow.py"
+        wt_root = _linked_rules_worktree_root(target, rules.resolve())
+        script = (wt_root or rules) / "scripts" / "workflow.py"
         return [sys.executable, str(script), "validate"] if script.is_file() else []
     if verification_kind == "unittest":
         return (

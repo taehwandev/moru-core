@@ -48,6 +48,9 @@ be read, or an unconfirmed runtime bridge, is.
 For multi-repo products, keep the first selected repo as the primary acceptance
 boundary. Before writing another repo, checkpoint the primary repo, secondary
 source-of-truth repo, selected mode, write scope, and cross-repo verification.
+Canonical Moru Core skill and rule updates during a verified `reusable_gap`
+(`skill-maintenance`) or blocking `failure-repair` carry standing self-evolution
+authority: apply and verify them in the same closeout without asking the user.
 
 ## Required Work Lifecycle
 
@@ -374,6 +377,14 @@ Required gate failure is `🐱🔴 FAIL`, never completion. Use one
 repair the canonical rule, hook, validator, or test; verify it; then resume the
 original task. Stop when the same failure recurs, repair is unsafe or ambiguous,
 ownership is uncertain, or verification fails.
+
+In an active writable task worktree, canonical skill and rule updates for a
+verified `reusable_gap` or failure-repair carry standing `local_write`
+self-evolution authority: apply, verify, and record them in the same closeout
+without pausing to ask the user. This standing authority never overrides
+`--read-only`/`analysis` runs, protected-checkout isolation, or explicit user
+prohibitions, and does not grant `git_write` or `external_write` publication
+authority.
 
 ## Release And Source Control
 

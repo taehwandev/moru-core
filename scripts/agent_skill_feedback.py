@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 from agent_global_lessons import state_home
-from agent_gate_evidence import latest_successful_gate_fields
+from agent_gate_evidence import latest_successful_gate_fields, record_gate_evidence
 from agent_skill_catalog import (
     canonical_skill_ids,
     normalize_feedback_signal,
     normalize_skill_id,
     parse_skill_ids,
 )
-from agent_skill_draft import record_draft
+from agent_skill_draft import normalize_proposal, record_draft
 from agent_skill_learning import (
     curate_observations,
     record_observation,
@@ -34,6 +35,9 @@ def record_skill_feedback(
     skill_id: str,
     signal: str,
     gap_type: str = "",
+    proposal: str = "",
+    change_type: str = "",
+    promotion_target: str = "",
 ) -> tuple[dict[str, Any], list[str]]:
     """Record an observation and immediately prepare same-closeout maintenance.
 
@@ -76,12 +80,17 @@ def record_skill_feedback(
             "task completion is unchanged"
         ]
 
+    normalized_proposal = normalize_proposal(proposal)
+    effective_gap = gap_type.strip()
+    if not effective_gap and normalized_proposal:
+        digest = hashlib.sha256(normalized_proposal.encode("utf-8")).hexdigest()[:12]
+        effective_gap = f"gap_{digest}"
     result = record_observation(
         state_home(),
         occurrence_id=_occurrence_id(evidence_path),
         skill_id=normalized_skill,
         signal=normalized_signal,
-        gap_type=gap_type,
+        gap_type=effective_gap,
     )
     if result.get("idempotent"):
         details = [
@@ -104,11 +113,46 @@ def record_skill_feedback(
     )
     result["curation"] = curation
     details.extend(curation_details)
-    if candidate and candidate in set(curation.get("queued") or []):
+    if normalized_proposal:
+        _auto_stage_skill_feedback(
+            project=project, rules=rules, evidence_path=evidence_path,
+            skill_id=normalized_skill, signal=normalized_signal, candidate_id=candidate,
+            gap_type=effective_gap, proposal=proposal, change_type=change_type,
+            promotion_target=promotion_target, result=result, details=details,
+        )
+    elif candidate and candidate in set(curation.get("queued") or []):
         details.append(
             f"current skill candidate requires bounded review before finish: {candidate}"
         )
     return result, details
+
+
+def _auto_stage_skill_feedback(
+    *, project: Path, rules: Path, evidence_path: Path, skill_id: str, signal: str,
+    candidate_id: str, gap_type: str, proposal: str, change_type: str,
+    promotion_target: str, result: dict[str, Any], details: list[str],
+) -> None:
+    """Record draft and stage patch in one step when --draft-proposal is supplied."""
+    draft, draft_details = record_skill_draft(
+        project=project, rules=rules, evidence_path=evidence_path,
+        skill_id=skill_id, signal=signal, proposal=proposal,
+    )
+    result["draft"] = draft
+    details.extend(draft_details)
+    if not (draft.get("created") or draft.get("idempotent")) or not candidate_id:
+        return
+    normalized_target = (
+        normalize_skill_id(promotion_target) or promotion_target.strip()
+        if promotion_target.strip()
+        else skill_id
+    )
+    review, review_details = record_skill_review(
+        project=project, rules=rules, candidate_id=candidate_id, decision="stage_patch",
+        gap_type=gap_type, change_type=change_type.strip() or "clarify_rule",
+        promotion_target=normalized_target,
+    )
+    result["review"] = review
+    details.extend(review_details)
 
 
 def record_skill_draft(
@@ -234,8 +278,6 @@ def _declined_curation_details(
 
 
 def _is_canonical_skill(project: Path, rules: Path, skill_id: str) -> bool:
-    # Imported here because the catalog walks the project tree, and the other
-    # entry points in this module must not pay for that.
     from agent_skill_catalog import canonical_skill_ids
 
     normalized = normalize_skill_id(skill_id)
@@ -243,27 +285,10 @@ def _is_canonical_skill(project: Path, rules: Path, skill_id: str) -> bool:
 
 
 def record_skill_review(
-    *,
-    project: Path,
-    rules: Path,
-    candidate_id: str,
-    decision: str,
-    gap_type: str,
-    change_type: str,
-    promotion_target: str,
+    *, project: Path, rules: Path, candidate_id: str, decision: str,
+    gap_type: str, change_type: str, promotion_target: str,
 ) -> tuple[dict[str, Any], list[str]]:
-    """Stage a reviewed patch, but only against a target maintenance can reach.
-
-    Maintenance compares the staged promotion target with the skill segment of
-    the path it is given, so a plausible-looking value such as
-    `<skill>_current_guidance` can never match. That mismatch used to surface a
-    hook later, by which point queued had become staged -- a transition with no
-    reverse -- and the candidate could only be closed as rejected.
-
-    The catalog settles it, and `record_draft` already checks the skill id
-    against the same catalog. Refusing here leaves the candidate reviewable.
-    """
-
+    """Stage a reviewed patch only against a canonical skill id."""
     if decision == "stage_patch" and not _is_canonical_skill(
         project, rules, promotion_target
     ):
@@ -273,12 +298,8 @@ def record_skill_review(
         ]
     try:
         result = review_candidate(
-            state_home(),
-            candidate_id=candidate_id,
-            decision=decision,
-            gap_type=gap_type,
-            change_type=change_type,
-            promotion_target=promotion_target,
+            state_home(), candidate_id=candidate_id, decision=decision,
+            gap_type=gap_type, change_type=change_type, promotion_target=promotion_target,
             min_occurrences=CURRENT_TASK_REVIEW_THRESHOLD,
         )
     except (OSError, ValueError) as error:
@@ -293,14 +314,8 @@ def record_skill_review(
 
 
 def record_skill_maintenance(
-    *,
-    project: Path,
-    rules: Path,
-    candidate_id: str,
-    outcome: str,
-    verification_kind: str,
-    target: str,
-    test_selector: str,
+    *, project: Path, rules: Path, candidate_id: str, outcome: str,
+    verification_kind: str, target: str, test_selector: str,
     evidence_path: Path | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     try:
@@ -320,12 +335,127 @@ def record_skill_maintenance(
     if not result.get("updated"):
         reason = str(result.get("reason") or "not_updated")
         return result, [f"skill maintenance status skipped: {reason}"]
-    return result, [f"skill maintenance completed: {result['status']}"]
+    details = [f"skill maintenance completed: {result['status']}"]
+    if result.get("status") == "applied" and evidence_path is not None:
+        note = _reseal_review_after_skill_maintenance(
+            project=project, rules=rules, evidence_path=Path(evidence_path),
+            candidate_id=candidate_id,
+            target_relative=str(result.get("target_relative") or target.strip()),
+            target_scope=str(result.get("target_scope") or ""),
+            target_root=Path(str(result.get("target_root") or project)),
+        )
+        if note:
+            details.append(note)
+    return result, details
+
+
+def _no_unrelated_worktree_drift(
+    project_resolved: Path, rules_resolved: Path, target_root: Path,
+    target_relative: str, record: dict[str, Any],
+) -> bool:
+    from agent_execution_capsule_state import git_states_for_paths
+    from agent_worktree_fingerprint import worktree_fingerprint_excluding_path
+
+    cur_proj, cur_rules = git_states_for_paths(project_resolved, rules_resolved)
+    rec_proj = record.get("project_git") if isinstance(record.get("project_git"), dict) else {}
+    rec_rules = record.get("rules_git") if isinstance(record.get("rules_git"), dict) else {}
+    if cur_proj.get("head") != rec_proj.get("head") or cur_rules.get("head") != rec_rules.get("head"):
+        return False
+    if target_root == project_resolved:
+        proj_ok = worktree_fingerprint_excluding_path(project_resolved, target_relative) == rec_proj.get("worktree_fingerprint")
+        return proj_ok and (project_resolved == rules_resolved or cur_rules == rec_rules)
+    if target_root == rules_resolved:
+        rules_ok = worktree_fingerprint_excluding_path(rules_resolved, target_relative) == rec_rules.get("worktree_fingerprint")
+        return rules_ok and cur_proj == rec_proj
+    return cur_proj == rec_proj and cur_rules == rec_rules
+
+
+def _reseal_review_after_skill_maintenance(
+    *, project: Path, rules: Path, evidence_path: Path, candidate_id: str,
+    target_relative: str, target_scope: str, target_root: Path,
+) -> str:
+    """Re-seal review attestation only when no other file drifted since review."""
+    from agent_context_store import (
+        context_snapshot_failures_are_required_doc_drift, context_snapshot_path,
+        refresh_context_snapshot, validate_context_snapshot,
+    )
+    from agent_evidence_inputs import EvidenceInputs
+    from agent_execution_capsule_state import atomic_write_json, git_states_for_paths, read_json_object
+    from agent_finish_final_checks import review_validation_path
+    from agent_review_attestation import ReviewAttestation, _attestation_id
+    from agent_review_rules_inputs import review_rules_inputs
+    from agent_review_scope_inputs import scoped_review_digest
+    from agent_route_state import required_docs_for_route
+    from support.git_read_scope import invalidate_worktree_reads
+
+    invalidate_worktree_reads()
+    preflight = _preflight_payload(evidence_path)
+    if not isinstance(preflight, dict):
+        return ""
+    route = preflight.get("route") if isinstance(preflight.get("route"), dict) else {}
+    required_docs = set(required_docs_for_route(route))
+    route_gates = {str(g) for g in (route.get("gates") or [])}
+    try:
+        if target_relative in required_docs and context_snapshot_path(project).is_file():
+            snap_failures = validate_context_snapshot(project, rules, route, preflight.get("request_intake"))
+            if context_snapshot_failures_are_required_doc_drift(snap_failures) and all(
+                item.endswith(f": {target_relative}") for item in snap_failures
+            ):
+                refresh_context_snapshot(project, rules, route, preflight.get("request_intake"))
+        if target_relative in required_docs and bool({"documentation", "source docs"} & route_gates):
+            record_gate_evidence(
+                evidence_path=evidence_path.resolve(), preflight=preflight, gate="documentation",
+                evidence="required skill document updated by verified skill maintenance",
+                fields={
+                    "decision": "updated", "target": target_relative,
+                    "reason": "verified skill maintenance", "maintenance_candidate_id": candidate_id,
+                },
+                status="SUCCESS", source="skill-maintenance",
+            )
+        attestation_path = ReviewAttestation.path(evidence_path.resolve())
+        record = read_json_object(attestation_path) if attestation_path.is_file() else {}
+        if not record or record.get("status") != "SUCCESS" or record.get("schema_version") not in {2, 3}:
+            return ""
+        if (
+            str(record.get("review_scope") or "").startswith("pathspec:")
+            and target_scope == "project"
+            and target_relative not in (record.get("review_paths") or [])
+        ):
+            return "review reseal skipped: target outside review_paths; rerun review hook"
+        project_resolved, rules_resolved = project.resolve(), rules.resolve()
+        if not _no_unrelated_worktree_drift(project_resolved, rules_resolved, target_root.resolve(), target_relative, record):
+            return "review reseal skipped: unrelated worktree changes detected since review; rerun review hook"
+        record["project_git"], record["rules_git"] = git_states_for_paths(project_resolved, rules_resolved)
+        record.pop("review_checks", None)
+        rules_inputs = review_rules_inputs(project_resolved, rules_resolved)
+        if rules_inputs:
+            record["rules_inputs"] = rules_inputs
+        elif "rules_inputs" in record:
+            record["rules_inputs"] = EvidenceInputs.capture(rules_resolved, [])
+        if "project_inputs" in record and record.get("review_paths"):
+            record["project_inputs"] = scoped_review_digest(
+                project_resolved, [str(p) for p in record["review_paths"]], include_index=True
+            )
+        record["attestation_id"] = _attestation_id(record)
+        review_validation_path(project_resolved).unlink(missing_ok=True)
+        checks = record.get("checks") if isinstance(record.get("checks"), dict) else {}
+        record_gate_evidence(
+            evidence_path=evidence_path.resolve(), preflight=preflight, gate="review hook",
+            evidence="review hook attestation refreshed after verified skill maintenance",
+            fields={
+                **ReviewAttestation.ledger_fields(record),
+                "workflow_validate": str(checks.get("workflow_validate", 0)),
+                "vibeguard": str(checks.get("vibeguard") or ""),
+            },
+            status="SUCCESS", source="review",
+        )
+        atomic_write_json(attestation_path, record)
+        return "review attestation refreshed for verified skill maintenance"
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return "review reseal failed; rerun review hook if finish reports stale review"
 
 
 def _preflight_payload(evidence_path: Path | None) -> dict[str, Any] | None:
-    """Read preflight evidence for non-Git runtime maintenance proof."""
-
     if evidence_path is None:
         return None
     try:
@@ -336,23 +466,15 @@ def _preflight_payload(evidence_path: Path | None) -> dict[str, Any] | None:
 
 
 def _occurrence_id(evidence_path: Path) -> str:
-    try:
-        payload = json.loads(evidence_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return ""
-    return str(payload.get("agent_run_id") or "")
+    payload = _preflight_payload(evidence_path)
+    return str(payload.get("agent_run_id") or "") if payload else ""
 
 
 def _retrospective_fields(evidence_path: Path) -> dict[str, str]:
-    try:
-        payload = json.loads(evidence_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    route = payload.get("route") or {}
+    payload = _preflight_payload(evidence_path)
+    route = payload.get("route") if payload else None
     if not isinstance(route, dict):
         return {}
     return latest_successful_gate_fields(
-        route=route,
-        evidence_path=evidence_path,
-        gate="retrospective check",
+        route=route, evidence_path=evidence_path, gate="retrospective check",
     )

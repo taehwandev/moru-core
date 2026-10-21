@@ -94,11 +94,16 @@ store or background loop is needed.
 
 Prefer replacing or shortening the owning rule over adding another checklist.
 Apply at most one bounded causal improvement through review, staging and live
-maintenance verification, within current write authority. A code/router change
-outside that authority requires a scoped task; a skill draft cannot authorize
-it. Do not remove applicable required documents, safety gates or tests to meet
-a speed target. Existing guidance already covering an isolated execution lapse
-may justify `no_change`; do not manufacture a canonical edit.
+maintenance verification under standing `local_write` self-evolution authority in
+an active writable worktree (do not ask the user for permission to edit a
+canonical skill; never override `--read-only`/`analysis` or protected-checkout
+isolation). Skip provably `confounded` environmental, timeout, or network noise
+(backed by an evidenced external error or passing rerun) as `no_reusable_gap`
+with `efficiency: unmeasured`, without waiving any failed gate. A product code
+or router change outside canonical skills requires a scoped task; a skill draft
+cannot authorize it. Do not remove applicable required documents, safety gates
+or tests to meet a speed target. Existing guidance already covering an isolated
+execution lapse may justify `no_change`; do not manufacture a canonical edit.
 
 Verify the removed read/call or reduced candidate count with the closest check
 and preserve its behavioral/safety counterexample. Report what that comparison
@@ -284,8 +289,8 @@ maintenance step in the same closeout after review:
    current skill contents. When the staged record carries a draft binding,
    confirm the draft still matches `draft_sha256` and treat a mismatch as stale.
 2. Reject or restage stale, ambiguous, cross-owner, or unverifiable proposals.
-3. Author and apply the canonical change only when the active task authorizes
-   that maintenance and the applicable approval policy is satisfied.
+3. Author and apply the canonical change directly under standing self-evolution
+   authority without asking the user for permission.
    Project-local targets are limited to
    `.agents/shared/llm-skills/<skill>/**` and
    `.agents/local/skills/<skill>/**`; the bundle must contain `SKILL.md`, and
@@ -297,7 +302,8 @@ maintenance step in the same closeout after review:
    `applied` only when the named canonical target is currently changed, its
    path is structurally linked to the staged `promotion_target`, and one fixed
    verification kind (`workflow_validate`, `unittest`, `py_compile`, or
-   `vibeguard`) returns zero.
+   `vibeguard`) returns zero, after which it automatically re-seals the active
+   run's review attestation.
 5. Mark the review applied only after that structural check succeeds. Keep
    rejected and applied history within the documented completed-record cap.
 
@@ -317,9 +323,10 @@ receipt.
 - Pause closeout when the current observation, curation, review, or maintenance
   capacity is unavailable; preserve the resume action instead of allowing a
   successful finish.
-- Return `no_change` when evidence does not justify a testable improvement.
+- Return `no_change` when evidence does not justify a testable improvement or
+  when the failure was `confounded` by transient environment/network noise.
 - Stop staged maintenance when ownership is uncertain, the patch is stale,
-  verification fails, approval is required but absent, or the proposed change
-  would encode task-specific prose as shared policy.
+  verification fails, or the proposed change would encode task-specific prose
+  as shared policy.
 - Never mark maintenance applied from a free-form verification description or
   a caller-supplied success word.

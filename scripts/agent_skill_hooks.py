@@ -17,6 +17,26 @@ from agent_skill_state import CURRENT_TASK_REVIEW_THRESHOLD
 
 
 def skill_feedback_hook(args: Any) -> int:
+    proposal, unreadable = _draft_proposal_with_status(args)
+    if unreadable:
+        return finish_with_result(
+            "skill-feedback",
+            False,
+            ["skill feedback failed: draft proposal file cannot be read"],
+            args.output,
+            {"skill_feedback": {"created": False, "reason": "unreadable_proposal_file"}},
+            0,
+            invocation_error=True,
+        )
+    extra = (
+        {
+            "proposal": proposal,
+            "change_type": str(getattr(args, "change_type", "") or ""),
+            "promotion_target": str(getattr(args, "promotion_target", "") or ""),
+        }
+        if proposal.strip()
+        else {}
+    )
     feedback, details = record_skill_feedback(
         project=args.project,
         rules=getattr(args, "rules", Path(__file__).resolve().parents[1]),
@@ -25,8 +45,12 @@ def skill_feedback_hook(args: Any) -> int:
         skill_id=args.skill_id,
         signal=args.feedback_signal,
         gap_type=str(getattr(args, "feedback_gap", "") or ""),
+        **extra,
     )
-    success = feedback.get("reason") != "retrospective_gate_required"
+    stage_ok = not extra or not (feedback.get("created") or feedback.get("idempotent")) or bool(
+        (feedback.get("review") or {}).get("updated")
+    )
+    success = feedback.get("reason") != "retrospective_gate_required" and stage_ok
     return finish_with_result(
         "skill-feedback",
         success,
@@ -53,15 +77,19 @@ def skill_draft_hook(args: Any) -> int:
 
 
 def _draft_proposal(args: Any) -> str:
+    return _draft_proposal_with_status(args)[0]
+
+
+def _draft_proposal_with_status(args: Any) -> tuple[str, bool]:
     """Prefer a file so a bounded rationale never depends on shell quoting."""
 
     source = getattr(args, "draft_proposal_file", "")
     if source:
         try:
-            return Path(source).read_text(encoding="utf-8")
+            return Path(source).read_text(encoding="utf-8"), False
         except OSError:
-            return ""
-    return str(getattr(args, "draft_proposal", "") or "")
+            return "", True
+    return str(getattr(args, "draft_proposal", "") or ""), False
 
 
 def skill_review_hook(args: Any) -> int:

@@ -136,7 +136,21 @@ def _validate_off_route_required_doc_repair(
     target: str,
     fields: dict[str, str],
 ) -> None:
-    """Require structural repair proof before an off-route receipt is minted."""
+    """Require structural repair or verified skill-maintenance proof before an off-route receipt is minted."""
+
+    maintenance_candidate = fields.get("maintenance_candidate_id", "").strip()
+    if maintenance_candidate:
+        from agent_global_lessons import state_home
+        from agent_skill_state import completed_path, read_json, skill_name_segment, valid_candidate_record
+
+        completed = read_json(state_home() / completed_path(maintenance_candidate))
+        if (
+            valid_candidate_record(completed, maintenance_candidate, expected_status="applied")
+            and completed.get("maintenance_outcome") == "applied"
+            and str(completed.get("promotion_target") or "") == skill_name_segment(target)
+        ):
+            return
+        raise ValueError("off-route required-doc skill maintenance proof is invalid")
 
     checkpoint = fields.get("resume_checkpoint", "").strip()
     repair_evidence = fields.get("repair_evidence", "").strip()

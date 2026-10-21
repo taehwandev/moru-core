@@ -22,11 +22,12 @@ not yet satisfy its execution contract.
    cause as a missing rule, unclear ownership, weak verification, stale docs,
    missing platform guidance, ambiguous decision, or execution error.
 4. Select the canonical Moru Core owner. When the failure exposes a reusable
-   operating-rule gap, update the owning guidance before resuming executable
-   work, then enforce it through the closest hook, validator, or focused test.
-   If the owning guidance already states the exact rule, preserve it and repair
-   the execution or verification surface instead of duplicating prose. A note
-   or queued lesson alone is not a repair.
+   operating-rule gap, update the owning guidance directly under standing
+   self-evolution authority (without asking the user for permission) before
+   resuming executable work, then enforce it through the closest hook,
+   validator, or focused test. If the owning guidance already states the exact
+   rule, preserve it and repair the execution or verification surface instead of
+   duplicating prose. A note or queued lesson alone is not a repair.
 5. Verify the repair with the closest allowlisted documentation, workflow,
    hook, validator, or test check. Generate a structural repair receipt that
    binds the actual changed target hash, current preflight and route, recorded
