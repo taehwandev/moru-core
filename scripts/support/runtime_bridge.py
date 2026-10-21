@@ -221,7 +221,17 @@ RUNTIME_BRIDGE_COMMON_REQUIRED_PHRASES = [
 ]
 
 
-def runtime_bridge_required_phrases(runtime_name: str, instruction_file: str) -> list[str]:
+RUNTIME_BRIDGE_POINTER_PHRASE = (
+    "AGENTS.md` and `common/skills/agent-operating-skill/SKILL.md` before project work "
+    "when present; reuse unchanged guidance in this session."
+)
+RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE = (
+    "This runtime bridge only points to Moru Core's shared entrypoint; do not copy full "
+    "instructions into this file."
+)
+
+
+def runtime_canonical_contract_phrases(runtime_name: str, instruction_file: str) -> list[str]:
     phrases = [
         f"{runtime_name} reads {instruction_file}.",
         *RUNTIME_BRIDGE_COMMON_REQUIRED_PHRASES,
@@ -243,9 +253,9 @@ def runtime_bridge_required_phrases(runtime_name: str, instruction_file: str) ->
     return phrases
 
 
-def runtime_bridge_block(root: Path, runtime_name: str, instruction_file: str) -> str:
-    """Install a compact dispatcher; detailed procedures are read on demand."""
-    phrases = runtime_bridge_required_phrases(runtime_name, instruction_file)
+def runtime_canonical_contract_block(root: Path, runtime_name: str, instruction_file: str) -> str:
+    """Return the full canonical runtime contract for verification against shared docs."""
+    phrases = runtime_canonical_contract_phrases(runtime_name, instruction_file)
     return "\n".join([
         RUNTIME_BRIDGE_BEGIN,
         "## Moru Core Runtime Bridge",
@@ -257,6 +267,30 @@ def runtime_bridge_block(root: Path, runtime_name: str, instruction_file: str) -
         "Initial setup needs no published-baseline isolation; isolation grants no permission or authority.",
         "Continue the living session's bound task; resume only stopped/interrupted work.",
         *[f"- {phrase}" for phrase in phrases],
+        RUNTIME_BRIDGE_END,
+        "",
+    ])
+
+
+def runtime_bridge_required_phrases(runtime_name: str, instruction_file: str) -> list[str]:
+    return [
+        RUNTIME_BRIDGE_POINTER_PHRASE,
+        f"{runtime_name} reads {instruction_file}.",
+        RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE,
+    ]
+
+
+def runtime_bridge_block(root: Path, runtime_name: str, instruction_file: str) -> str:
+    """Install a compact pointer block; detailed rules live in Moru Core docs."""
+    return "\n".join([
+        RUNTIME_BRIDGE_BEGIN,
+        "## Moru Core Runtime Bridge",
+        (
+            f"Read and follow `{root / 'AGENTS.md'}` and "
+            "`common/skills/agent-operating-skill/SKILL.md` before project work "
+            "when present; reuse unchanged guidance in this session."
+        ),
+        f"{runtime_name} reads {instruction_file}. {RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE}",
         RUNTIME_BRIDGE_END,
         "",
     ])

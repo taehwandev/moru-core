@@ -63,8 +63,11 @@ STATE_ROOT = project_state_dir_target(ROOT)
 from support.runtime_bridge import (
     CODEX_DISPATCH_BRIDGE_PHRASE,
     RUNTIME_BRIDGE_GRAPH_PHRASES,
+    RUNTIME_BRIDGE_POINTER_PHRASE,
     runtime_bridge_block,
     runtime_bridge_required_phrases,
+    runtime_canonical_contract_block,
+    runtime_canonical_contract_phrases,
 )
 from support.stable_launcher import stable_launcher_path
 from workflow_catalog import COMMANDS, CONCERNS, SPILL_ACTION_LABELS
@@ -1501,10 +1504,12 @@ class WorkflowDispatchTests(unittest.TestCase):
             self.assertIn(guidance_area(doc), routed_areas(route))
 
     def test_codex_runtime_bridge_requires_stage_profile_dispatch(self) -> None:
-        codex_required = runtime_bridge_required_phrases("Codex", "AGENTS.md")
-        codex_block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        claude_block = runtime_bridge_block(ROOT, "Claude", "CLAUDE.md")
+        codex_required = runtime_canonical_contract_phrases("Codex", "AGENTS.md")
+        codex_block = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
+        claude_block = runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md")
+        pointer_block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
 
+        self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, pointer_block)
         self.assertIn(CODEX_DISPATCH_BRIDGE_PHRASE, codex_required)
         self.assertIn(CODEX_DISPATCH_BRIDGE_PHRASE, codex_block)
         self.assertNotIn(CODEX_DISPATCH_BRIDGE_PHRASE, claude_block)

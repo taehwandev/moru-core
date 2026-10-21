@@ -152,8 +152,11 @@ For tracked work:
    is not final validation: `finish` still checks evidence and freshness.
 
 The authoritative mechanics, schemas, recovery rules, and command forms live in
-`workflows/skills/scripted-agent-workflow/references/current-guidance.md` and
-`docs/skills/agent-runtime-integration/references/executable-evidence-gate.md`.
+`workflows/skills/scripted-agent-workflow/references/current-guidance.md`,
+`docs/skills/agent-runtime-integration/references/executable-evidence-gate.md`,
+and on-demand runtime references under
+`common/skills/agent-operating-skill/references/` (`runtime-lifecycle.md`,
+`runtime-collaboration.md`, and `runtime-recovery.md`).
 Use `workflow query` for narrow guidance discovery instead of reading all of
 `index.md`. Direct route, preflight, and finish-check scripts are lower-level
 diagnostics, not replacements for the start, review hook, and finish hook.
@@ -308,14 +311,16 @@ ordinary tasks gain no startup reads or additional gates.
 user-local store shared by linked worktrees; start recalls at most three
 in-date records as reference, never authority. Moru never captures on its own:
 Claude and Codex keep durable project knowledge here, not in runtime-private
-memory. Capture only a verified root cause, pitfall, decision reason the code
-does not show, or a fact the user asks to remember, when confirmed or at
-finish, with `--project`, `--source` and a future `--review-on`. Correct with
-`capture --replaces <id>` or `retire <id>`. Never capture secrets, transcripts
-or speculation, and never sync it or put its content in a continuation
-packet. When start prints a `Project memory upkeep` line, run the
-`consolidate` report it names. Permanent rules belong here or in shared
-guidance, task state in checkpoints, and user preferences in runtime memory.
+memory (for Claude, this overrides `~/.claude/projects/*/memory`, which keeps
+only user, feedback, and reference entries). Capture only a verified root cause,
+pitfall, decision reason the code does not show, or a fact the user asks to
+remember, when confirmed or at finish, with `--project`, `--source` and a
+future `--review-on`. Correct with `capture --replaces <id>` or `retire <id>`.
+Never capture secrets, transcripts or speculation, and never sync it or put its
+content in a continuation packet. When start prints a `Project memory upkeep`
+line, run the `consolidate` report it names. Permanent rules belong here or in
+shared guidance, task state in checkpoints, and user preferences in runtime
+memory.
 
 Start also lists up to three other open work cards as reference context. When
 one names work already finished elsewhere, run `<MORU_LAUNCHER> work-cards close
@@ -424,9 +429,11 @@ launcher/script path.
 Keep reusable knowledge single-owned. Runtime files are thin adapters or
 pointers unless behavior is truly runtime-specific. Preserve existing Spill
 metering and label handoff integration when changing runtime bridges, prompts,
-hooks, workflows, installers, docs publishing, or release paths. Background
-metering details remain silent unless the user explicitly asks about that
-subsystem.
+hooks, workflows, installers, docs publishing, or release paths. OpenRouter key:
+`~/.moru/research.env` (source it if unset); never print or request it. Do not
+mention Moru Core setup, hook, permission, helper, or label commands in normal
+conversation, and do not report whether background labels, hooks, or metering
+ran unless the user explicitly asks about that subsystem.
 
 <!-- vibeguard:start version=1 -->
 ## VibeGuard

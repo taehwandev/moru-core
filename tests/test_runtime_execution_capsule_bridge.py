@@ -20,6 +20,8 @@ from support.runtime_bridge import (
     LEGACY_RUNTIME_BRIDGE_END,
     RUNTIME_BRIDGE_BEGIN,
     RUNTIME_BRIDGE_END,
+    RUNTIME_BRIDGE_POINTER_PHRASE,
+    RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE,
     RUNTIME_CAPSULE_BRIDGE_PHRASES,
     RUNTIME_CONTINUATION_BRIDGE_PHRASE,
     RUNTIME_FINISH_BRIDGE_PHRASE,
@@ -32,6 +34,8 @@ from support.runtime_bridge import (
     merge_runtime_bridge,
     runtime_bridge_block,
     runtime_bridge_required_phrases,
+    runtime_canonical_contract_block,
+    runtime_canonical_contract_phrases,
 )
 
 
@@ -58,7 +62,7 @@ def _runtime_detail(topic: str) -> str:
 
 class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
     def test_codex_native_review_does_not_add_duplicate_chat_approval(self):
-        block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
+        block = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
         self.assertIn("Use auto_review for escalation", block)
         self.assertIn("do not repeat settled chat approval", block)
         detail = _runtime_detail("recovery")
@@ -69,11 +73,14 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
         ):
             self.assertIn(guarantee, detail)
         for runtime, entry in (("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
-            self.assertNotIn("auto_review", runtime_bridge_block(ROOT, runtime, entry))
+            self.assertNotIn("auto_review", runtime_canonical_contract_block(ROOT, runtime, entry))
 
     def test_native_review_guidance_refresh_preserves_user_policy(self):
         current = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        legacy = current.replace(CODEX_NATIVE_APPROVAL_REUSE_BRIDGE_PHRASE, "For authorized tests/builds, reuse native prefix approvals.")
+        legacy = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md").replace(
+            CODEX_NATIVE_APPROVAL_REUSE_BRIDGE_PHRASE,
+            "For authorized tests/builds, reuse native prefix approvals.",
+        )
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "AGENTS.md"
             prefix = "Personal policy: ask before new deployment targets.\n"
@@ -99,11 +106,15 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
 
     def test_compact_bridge_routes_details_without_a_blanket_read(self):
         for runtime, entry in (("Codex", "AGENTS.md"), ("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
-            block = runtime_bridge_block(Path("/moru-core"), runtime, entry)
+            pointer_block = runtime_bridge_block(Path("/moru-core"), runtime, entry)
+            self.assertLess(len(pointer_block.encode()), 450)
+            self.assertIn("/moru-core/AGENTS.md", pointer_block)
+            self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, pointer_block)
+            self.assertIn(RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE, pointer_block)
+            self.assertIn(f"{runtime} reads {entry}.", pointer_block)
+
+            block = runtime_canonical_contract_block(Path("/moru-core"), runtime, entry)
             moved_guidance = sum(len(phrase.encode()) + 3 for phrase in CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES) if runtime == "Codex" else 0
-            # Codex alone carries approval, sandbox, worktree and dispatch safety
-            # rules that have no other always-loaded home; its native-role and
-            # approval text were already compacted, so it gets 500 bytes more.
             budget = 6500 if runtime == "Codex" else 6000
             self.assertLess(len(block.encode()) - moved_guidance, budget)
             self.assertIn("For unresolved lifecycle arguments", block)
@@ -112,15 +123,15 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
                 self.assertTrue((ROOT / relative).is_file(), relative)
             self.assertNotIn("fallback worker evidence path and opaque reservation token", block)
             self.assertIn("fallback worker evidence path and opaque reservation token", _runtime_detail("collaboration"))
-        self.assertIn("Before interruption/retry", runtime_bridge_block(Path("/moru-core"), "Codex", "AGENTS.md"))
+        self.assertIn("Before interruption/retry", runtime_canonical_contract_block(Path("/moru-core"), "Codex", "AGENTS.md"))
 
     def test_codex_operator_procedure_lives_in_session_instructions(self):
-        block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
+        block = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
         for phrase in CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES:
             self.assertEqual(1, block.count(phrase))
-            self.assertIn(phrase, runtime_bridge_required_phrases("Codex", "AGENTS.md"))
+            self.assertIn(phrase, runtime_canonical_contract_phrases("Codex", "AGENTS.md"))
             for runtime, entry in (("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
-                self.assertNotIn(phrase, runtime_bridge_block(ROOT, runtime, entry))
+                self.assertNotIn(phrase, runtime_canonical_contract_block(ROOT, runtime, entry))
         for guarantee in ("end your turn", "do not sleep, poll this request",
                           "short numbered list", "1. allow once", "2. always allow", "3. reject",
                           "not through a keyword, phrase, or yes/no allowlist",
@@ -133,7 +144,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
 
     def test_operator_guidance_refresh_preserves_user_rules_and_is_idempotent(self):
         current = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        old = current
+        old = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
         for phrase in CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES:
             old = old.replace(f"- {phrase}\n", "")
         with tempfile.TemporaryDirectory() as directory:
@@ -149,6 +160,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
 
     def test_operator_choices_refresh_without_cli_consent_or_sandbox_bypass(self):
         current = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
+        canonical = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
         for guarantee in (
             "Prefer an available approval-capable structured choice tool",
             "request_user_input_async", "plan-only request_user_input",
@@ -157,8 +169,8 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
             "1. allow once", "2. always allow this exact action and target", "3. reject",
             "request native sandbox escalation through the execution tool",
         ):
-            self.assertIn(guarantee, current)
-        legacy = current.replace(
+            self.assertIn(guarantee, canonical)
+        legacy = canonical.replace(
             CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES[0],
             "Codex operator decisions: use a structured choice tool only if permitted; "
             "otherwise ask the user to run an approval command.",
@@ -175,21 +187,22 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
             self.assertEqual(prefix + current + suffix, target.read_text())
             self.assertEqual("ok", merge_runtime_bridge(target, False, **kwargs))
         for runtime, entry in (("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
-            self.assertNotIn("request_user_input_async", runtime_bridge_block(ROOT, runtime, entry))
+            self.assertNotIn("request_user_input_async", runtime_canonical_contract_block(ROOT, runtime, entry))
 
     def test_codex_bridge_refresh_teaches_explicit_worktree_target_without_permission_bypass(self):
         current = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        lines = [line for line in current.splitlines() if "exec_command.workdir" in line]
+        canonical = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
+        lines = [line for line in canonical.splitlines() if "exec_command.workdir" in line]
         self.assertEqual(1, len(lines))
         guidance = lines[0]
         self.assertIn('git -C "<worktree>"', guidance)
         self.assertIn('cd "<worktree>" && <command>', guidance)
         self.assertIn("does not grant sandbox permission", guidance)
-        self.assertNotIn(guidance, runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"))
+        self.assertNotIn(guidance, runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md"))
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "AGENTS.md"
             prefix, suffix = "Personal rules\n", "Other integration\n"
-            target.write_text(prefix + current.replace(guidance + "\n", "") + suffix)
+            target.write_text(prefix + canonical.replace(guidance + "\n", "") + suffix)
             kwargs = dict(block=current, required_phrases=runtime_bridge_required_phrases("Codex", "AGENTS.md"))
             self.assertEqual("missing", merge_runtime_bridge(target, True, **kwargs))
             self.assertEqual("installed", merge_runtime_bridge(target, False, **kwargs))
@@ -199,9 +212,9 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
     def test_installed_bridges_exempt_stateless_lookup_before_tracked_lifecycle(self) -> None:
         for runtime, filename in (("Codex", "AGENTS.md"), ("Claude", "CLAUDE.md")):
             with self.subTest(runtime=runtime):
-                block = runtime_bridge_block(ROOT, runtime, filename)
+                block = runtime_canonical_contract_block(ROOT, runtime, filename)
                 self.assertIn(RUNTIME_LOOKUP_BRIDGE_PHRASE,
-                              runtime_bridge_required_phrases(runtime, filename))
+                              runtime_canonical_contract_phrases(runtime, filename))
                 self.assertLess(block.index(RUNTIME_LOOKUP_BRIDGE_PHRASE),
                                 block.index(RUNTIME_START_BRIDGE_PHRASE))
                 self.assertIn("without start, fingerprint, mailbox, checkpoint, gate, review, or finish",
@@ -212,22 +225,23 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
 
     def test_codex_bridge_requires_observed_permission_evidence(self) -> None:
         phrase = CODEX_PERMISSION_EVIDENCE_BRIDGE_PHRASE
-        self.assertIn(phrase, runtime_bridge_required_phrases("Codex", "AGENTS.md"))
-        self.assertIn(phrase, runtime_bridge_block(ROOT, "Codex", "AGENTS.md"))
-        self.assertNotIn(phrase, runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"))
+        self.assertIn(phrase, runtime_canonical_contract_phrases("Codex", "AGENTS.md"))
+        self.assertIn(phrase, runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md"))
+        self.assertNotIn(phrase, runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md"))
         self.assertIn("request required sandbox escalation through the tool", phrase)
         self.assertIn("DNS/name-resolution errors alone do not prove sandbox denial", phrase)
         self.assertIn("never instruct the user to approve an unconfirmed dialog", phrase)
 
     def test_permission_and_checkpoint_guidance_refreshes_without_changing_user_rules(self):
         current = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        self.assertIn("env KEY=value <runner>", current)
-        self.assertIn("Checkpoint with --work-file <path>", current)
-        self.assertNotIn("Checkpoint with --work-stdin only", current)
-        approval_line = next(line for line in current.splitlines()
+        canonical = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
+        self.assertIn("env KEY=value <runner>", canonical)
+        self.assertIn("Checkpoint with --work-file <path>", canonical)
+        self.assertNotIn("Checkpoint with --work-stdin only", canonical)
+        approval_line = next(line for line in canonical.splitlines()
                              if "env KEY=value <runner>" in line)
-        self.assertNotIn(approval_line, runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"))
-        old = current.replace(approval_line + "\n", "").replace(
+        self.assertNotIn(approval_line, runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md"))
+        old = canonical.replace(approval_line + "\n", "").replace(
             "Checkpoint with --work-file <path>", "Checkpoint with --work-stdin")
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "AGENTS.md"
@@ -247,8 +261,9 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
             with self.subTest(runtime=runtime), tempfile.TemporaryDirectory() as directory:
                 target = Path(directory) / filename
                 current = runtime_bridge_block(ROOT, runtime, filename)
+                canonical = runtime_canonical_contract_block(ROOT, runtime, filename)
                 legacy = "\n".join(
-                    line for line in current.splitlines()
+                    line for line in canonical.splitlines()
                     if line not in (RUNTIME_BRIDGE_BEGIN, RUNTIME_BRIDGE_END)
                     and RUNTIME_READING_BRIDGE_PHRASE not in line
                 ) + "\n"
@@ -267,7 +282,8 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
             with self.subTest(runtime=runtime), tempfile.TemporaryDirectory() as directory:
                 target = Path(directory) / filename
                 current = runtime_bridge_block(ROOT, runtime, filename)
-                old = "\n".join(line for line in current.split("\n")
+                canonical = runtime_canonical_contract_block(ROOT, runtime, filename)
+                old = "\n".join(line for line in canonical.split("\n")
                                 if "Need-Driven Reading Contract" not in line)
                 target.write_text("User-owned rule\n" + old, encoding="utf-8")
                 kwargs = dict(block=current,
@@ -285,8 +301,10 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
             ("Antigravity", "AGENTS.md"),
         ):
             with self.subTest(runtime=runtime_name):
-                required = runtime_bridge_required_phrases(runtime_name, instruction_file)
-                block = runtime_bridge_block(ROOT, runtime_name, instruction_file)
+                required = runtime_canonical_contract_phrases(runtime_name, instruction_file)
+                block = runtime_canonical_contract_block(ROOT, runtime_name, instruction_file)
+                pointer = runtime_bridge_block(ROOT, runtime_name, instruction_file)
+                self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, pointer)
 
                 self.assertIn(RUNTIME_START_BRIDGE_PHRASE, required)
                 self.assertIn(RUNTIME_START_BRIDGE_PHRASE, block)
@@ -341,7 +359,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
             ("Antigravity", "AGENTS.md"),
         ):
             with self.subTest(runtime=runtime_name):
-                block = runtime_bridge_block(ROOT, runtime_name, instruction_file) + _runtime_detail("lifecycle")
+                block = runtime_canonical_contract_block(ROOT, runtime_name, instruction_file) + _runtime_detail("lifecycle")
                 introducing = [
                     sentence
                     for sentence in re.split(r"(?<=[.;])\s+", block)
@@ -388,9 +406,9 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
                 )
 
     def test_codex_dispatch_is_conditional_and_does_not_require_a_fresh_process(self) -> None:
-        codex_block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        claude_block = runtime_bridge_block(ROOT, "Claude", "CLAUDE.md")
-        agy_block = runtime_bridge_block(ROOT, "Antigravity", "AGENTS.md")
+        codex_block = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
+        claude_block = runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md")
+        agy_block = runtime_canonical_contract_block(ROOT, "Antigravity", "AGENTS.md")
 
         self.assertIn(CODEX_DISPATCH_BRIDGE_PHRASE, codex_block)
         self.assertIn("only when isolation is explicitly required", CODEX_DISPATCH_BRIDGE_PHRASE)
@@ -404,14 +422,14 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
         self.assertNotIn(CODEX_DISPATCH_BRIDGE_PHRASE, agy_block)
 
     def test_codex_approval_wait_is_bounded_and_evidence_first(self) -> None:
-        codex_block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        claude_block = runtime_bridge_block(ROOT, "Claude", "CLAUDE.md")
-        agy_block = runtime_bridge_block(ROOT, "Antigravity", "AGENTS.md")
+        codex_block = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
+        claude_block = runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md")
+        agy_block = runtime_canonical_contract_block(ROOT, "Antigravity", "AGENTS.md")
 
         self.assertIn(CODEX_APPROVAL_WAIT_BRIDGE_PHRASE, codex_block)
         self.assertIn(
             CODEX_APPROVAL_WAIT_BRIDGE_PHRASE,
-            runtime_bridge_required_phrases("Codex", "AGENTS.md"),
+            runtime_canonical_contract_phrases("Codex", "AGENTS.md"),
         )
         self.assertIn(
             "not proof that the command started",
@@ -440,7 +458,6 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
         self.assertNotIn(CODEX_APPROVAL_WAIT_BRIDGE_PHRASE, agy_block)
 
     def test_failed_interrupt_does_not_block_safe_reads_or_claim_cleanup(self) -> None:
-        block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
         for clause in (
             "If interruption reports Operation not permitted, do not report the request as cancelled",
             "verified read-only lookup with no pending approval or actual execution denial",
@@ -458,7 +475,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
     def test_generated_bridges_preserve_diagnostic_lookup_boundary(self) -> None:
         for runtime, entry in (("Codex", "AGENTS.md"), ("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
             with self.subTest(runtime=runtime):
-                block = runtime_bridge_block(ROOT, runtime, entry)
+                block = runtime_canonical_contract_block(ROOT, runtime, entry)
                 self.assertIn("checks of a supplied diagnosis", block)
                 self.assertIn("without start, fingerprint, mailbox, checkpoint, gate, review, or finish calls", block)
                 self.assertIn("Explicit change/PR reviews and release acceptance retain their review workflow", block)
@@ -470,7 +487,7 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir) / "AGENTS.md"
             current = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-            stale = current.replace(
+            stale = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md").replace(
                 CODEX_APPROVAL_WAIT_BRIDGE_PHRASE,
                 "Wait once for at most 15 seconds; terminate the cell before any retry.",
             )
@@ -516,8 +533,8 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
                 self.assertNotIn("stale installer-managed bridge", updated)
                 self.assertEqual(1, updated.count(RUNTIME_BRIDGE_BEGIN))
                 self.assertEqual(1, updated.count(RUNTIME_BRIDGE_END))
-                self.assertIn(RUNTIME_START_BRIDGE_PHRASE, updated)
-                self.assertIn("worker-specific evidence paths", updated)
+                self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, updated)
+                self.assertIn(RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE, updated)
 
     def test_managed_bridge_removes_legacy_managed_block_without_touching_user_content(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

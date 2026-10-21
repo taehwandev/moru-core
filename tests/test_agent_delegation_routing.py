@@ -24,9 +24,12 @@ from agent_hook_gate_records import record_hook_gate_batch
 from support.runtime_bridge import (
     AUTO_DELEGATION_BRIDGE_PHRASE,
     CODEX_DISPATCH_BRIDGE_PHRASE,
+    RUNTIME_BRIDGE_POINTER_PHRASE,
     RUNTIME_NATIVE_DELEGATION_PHRASES,
     runtime_bridge_block,
     runtime_bridge_required_phrases,
+    runtime_canonical_contract_block,
+    runtime_canonical_contract_phrases,
 )
 from workflow_gate_policy import MULTI_AGENT_GATE
 from workflow_common import SCOPE_CHANGE_LIFECYCLE_COMMANDS
@@ -489,8 +492,10 @@ class OnDemandDelegationRoutingTests(unittest.TestCase):
             ("Antigravity", "AGENTS.md"),
         ):
             with self.subTest(runtime=runtime_name):
-                required = runtime_bridge_required_phrases(runtime_name, instruction_file)
-                block = runtime_bridge_block(ROOT, runtime_name, instruction_file)
+                pointer = runtime_bridge_block(ROOT, runtime_name, instruction_file)
+                self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, pointer)
+                required = runtime_canonical_contract_phrases(runtime_name, instruction_file)
+                block = runtime_canonical_contract_block(ROOT, runtime_name, instruction_file)
                 self.assertIn(AUTO_DELEGATION_BRIDGE_PHRASE, required)
                 self.assertIn(AUTO_DELEGATION_BRIDGE_PHRASE, block)
                 self.assertIn("same session", AUTO_DELEGATION_BRIDGE_PHRASE)
@@ -498,7 +503,7 @@ class OnDemandDelegationRoutingTests(unittest.TestCase):
                 self.assertIn(RUNTIME_NATIVE_DELEGATION_PHRASES[runtime_name], required)
                 self.assertIn(RUNTIME_NATIVE_DELEGATION_PHRASES[runtime_name], block)
 
-        codex_block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
+        codex_block = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
         self.assertLess(
             codex_block.index(AUTO_DELEGATION_BRIDGE_PHRASE),
             codex_block.index(CODEX_DISPATCH_BRIDGE_PHRASE),

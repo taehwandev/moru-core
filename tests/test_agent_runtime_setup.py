@@ -72,6 +72,8 @@ from support.spill_permissions import spill_helper_path_variants
 from support.runtime_bridge import (
     CODEX_DISPATCH_BRIDGE_PHRASE,
     LOCAL_AGENT_MAILBOX_BRIDGE_PHRASE,
+    RUNTIME_BRIDGE_POINTER_PHRASE,
+    RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE,
     RUNTIME_MEMORY_BRIDGE_PHRASE,
     RUNTIME_NATIVE_MEMORY_PHRASES,
     RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
@@ -79,6 +81,8 @@ from support.runtime_bridge import (
     RUNTIME_START_BRIDGE_PHRASE,
     runtime_bridge_block,
     runtime_bridge_required_phrases,
+    runtime_canonical_contract_block,
+    runtime_canonical_contract_phrases,
 )
 from support.stable_launcher import stable_launcher_path
 from workflow_catalog import COMMANDS, CONCERNS, SPILL_ACTION_LABELS
@@ -398,11 +402,16 @@ class RuntimeSetupTests(unittest.TestCase):
             "Before project work, read the project-root instruction file for the active runtime when present; its absence does not block a newly created project.",
         ]
         block = _agy_runtime_bridge_block(ROOT)
+        canonical_phrases = runtime_canonical_contract_phrases("Antigravity", "AGENTS.md")
+        canonical_block = runtime_canonical_contract_block(ROOT, "Antigravity", "AGENTS.md")
 
+        self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES)
+        self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, PREFLIGHT_AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES)
+        self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, block)
+        self.assertIn(RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE, block)
         for phrase in required:
-            self.assertIn(phrase, AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES)
-            self.assertIn(phrase, PREFLIGHT_AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES)
-            self.assertIn(phrase, block)
+            self.assertIn(phrase, canonical_phrases)
+            self.assertIn(phrase, canonical_block)
 
     def test_agy_runtime_bridge_issue_checks_gemini_and_antigravity_bridges(self) -> None:
         from agent_preflight_runtime import agy_runtime_bridge_issue
@@ -432,13 +441,13 @@ class RuntimeSetupTests(unittest.TestCase):
                 self.assertEqual("", agy_runtime_bridge_issue(ROOT))
 
     def test_runtime_bridge_requires_graph_backed_document_routing(self) -> None:
-        agy_block = _agy_runtime_bridge_block(ROOT)
-        codex_block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        claude_required = runtime_bridge_required_phrases("Claude", "CLAUDE.md")
+        agy_block = runtime_canonical_contract_block(ROOT, "Antigravity", "AGENTS.md")
+        codex_block = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
+        claude_required = runtime_canonical_contract_phrases("Claude", "CLAUDE.md")
+        agy_required = runtime_canonical_contract_phrases("Antigravity", "AGENTS.md")
 
         for phrase in RUNTIME_BRIDGE_GRAPH_PHRASES:
-            self.assertIn(phrase, AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES)
-            self.assertIn(phrase, PREFLIGHT_AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES)
+            self.assertIn(phrase, agy_required)
             self.assertIn(phrase, claude_required)
             self.assertIn(phrase, agy_block)
             self.assertIn(phrase, codex_block)
@@ -454,11 +463,12 @@ class RuntimeSetupTests(unittest.TestCase):
         alone.
         """
 
-        agy_block = _agy_runtime_bridge_block(ROOT)
-        codex_block = runtime_bridge_block(ROOT, "Codex", "AGENTS.md")
-        claude_block = runtime_bridge_block(ROOT, "Claude", "CLAUDE.md")
-        claude_required = runtime_bridge_required_phrases("Claude", "CLAUDE.md")
-        codex_required = runtime_bridge_required_phrases("Codex", "AGENTS.md")
+        agy_block = runtime_canonical_contract_block(ROOT, "Antigravity", "AGENTS.md")
+        codex_block = runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md")
+        claude_block = runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md")
+        claude_required = runtime_canonical_contract_phrases("Claude", "CLAUDE.md")
+        codex_required = runtime_canonical_contract_phrases("Codex", "AGENTS.md")
+        agy_required = runtime_canonical_contract_phrases("Antigravity", "AGENTS.md")
 
         for surface in (
             claude_block,
@@ -466,8 +476,7 @@ class RuntimeSetupTests(unittest.TestCase):
             agy_block,
             claude_required,
             codex_required,
-            AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES,
-            PREFLIGHT_AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES,
+            agy_required,
         ):
             self.assertIn(RUNTIME_START_BRIDGE_PHRASE, surface)
 
@@ -481,11 +490,10 @@ class RuntimeSetupTests(unittest.TestCase):
 
     def test_every_runtime_bridge_shares_the_project_memory_capture_rule(self) -> None:
         surfaces = (
-            _agy_runtime_bridge_block(ROOT),
-            runtime_bridge_block(ROOT, "Codex", "AGENTS.md"),
-            runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"),
-            AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES,
-            PREFLIGHT_AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES,
+            runtime_canonical_contract_block(ROOT, "Antigravity", "AGENTS.md"),
+            runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md"),
+            runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md"),
+            runtime_canonical_contract_phrases("Antigravity", "AGENTS.md"),
         )
         for surface in surfaces:
             self.assertIn(RUNTIME_MEMORY_BRIDGE_PHRASE, surface)
@@ -495,33 +503,34 @@ class RuntimeSetupTests(unittest.TestCase):
 
     def test_claude_bridge_routes_auto_memory_project_facts_to_project_memory(self) -> None:
         claude_phrase = RUNTIME_NATIVE_MEMORY_PHRASES["Claude"]
-        self.assertIn(claude_phrase, runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"))
-        self.assertNotIn(claude_phrase, runtime_bridge_block(ROOT, "Codex", "AGENTS.md"))
+        self.assertIn(claude_phrase, runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md"))
+        self.assertNotIn(claude_phrase, runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md"))
         for required in ("overrides Claude auto-memory", "project-memory --project <repo> capture",
                          "--review-on", "~/.claude/projects/*/memory",
                          "user, feedback and reference"):
             self.assertIn(required, claude_phrase)
+        self.assertIn("~/.claude/projects/*/memory", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
 
     def test_every_runtime_bridge_names_the_shared_research_key_file(self) -> None:
         for surface in (
-            _agy_runtime_bridge_block(ROOT),
-            runtime_bridge_block(ROOT, "Codex", "AGENTS.md"),
-            runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"),
-            AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES,
+            runtime_canonical_contract_block(ROOT, "Antigravity", "AGENTS.md"),
+            runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md"),
+            runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md"),
+            runtime_canonical_contract_phrases("Antigravity", "AGENTS.md"),
+            (ROOT / "AGENTS.md").read_text(encoding="utf-8"),
         ):
-            self.assertIn(RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE, surface)
+            self.assertIn("~/.moru/research.env", surface if isinstance(surface, str) else "\n".join(surface))
         self.assertIn("~/.moru/research.env", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
         self.assertIn("never print", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
 
     def test_every_runtime_bridge_exposes_the_project_local_agent_mailbox(self) -> None:
         surfaces = (
-            _agy_runtime_bridge_block(ROOT),
-            runtime_bridge_block(ROOT, "Codex", "AGENTS.md"),
-            runtime_bridge_block(ROOT, "Claude", "CLAUDE.md"),
-            runtime_bridge_required_phrases("Codex", "AGENTS.md"),
-            runtime_bridge_required_phrases("Claude", "CLAUDE.md"),
-            AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES,
-            PREFLIGHT_AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES,
+            runtime_canonical_contract_block(ROOT, "Antigravity", "AGENTS.md"),
+            runtime_canonical_contract_block(ROOT, "Codex", "AGENTS.md"),
+            runtime_canonical_contract_block(ROOT, "Claude", "CLAUDE.md"),
+            runtime_canonical_contract_phrases("Codex", "AGENTS.md"),
+            runtime_canonical_contract_phrases("Claude", "CLAUDE.md"),
+            runtime_canonical_contract_phrases("Antigravity", "AGENTS.md"),
         )
 
         for surface in surfaces:
