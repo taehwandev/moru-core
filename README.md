@@ -6,7 +6,7 @@ type: ai-generated
 
 # Moru Core
 
-[English](README.md) · [한국어](README.ko.md)
+[English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
 Moru Core is a shared guidance and runtime layer for AI coding agents. One
 checkout gives Claude, Codex, Antigravity and other agents the same operating
@@ -36,6 +36,8 @@ Runtime names: launcher `moru-hook` in `~/.moru/bin`, `MORU_*` settings,
 state and the `moru_explorer`/`moru_worker`/`moru_reviewer` agent roles.
 
 ## Why Moru Core (Architecture Comparison & Field Telemetry)
+
+![Moru Core v2 5-Month Field Telemetry & Architecture Comparison](docs/assets/moru-core-telemetry.svg)
 
 Native coding CLIs, on-demand skill packs (such as `Superpowers` or Agent
 Skills), and self-evolving agent runtimes (such as Nous Research's Hermes Agent

@@ -6,7 +6,7 @@ type: human-reviewed-needed
 
 # 모루 코어 (Moru Core)
 
-[한국어](README.ko.md) · [English](README.md)
+[한국어](README.ko.md) · [English](README.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
 모루 코어는 AI 코딩 에이전트를 위한 공통 지침이자 실행 계층입니다. 체크아웃 하나만 있으면 연결한 모든 저장소에서 Claude, Codex, Antigravity 같은 에이전트가 같은 작업 규칙, 작업 경로(route), 리뷰 검사, 플랫폼 지침, 실행 근거를 씁니다. 저장소별 지침은 짧게 유지되고, 충돌하면 저장소 지침이 우선합니다.
 
@@ -27,6 +27,8 @@ type: human-reviewed-needed
 런타임 이름: 런처 `~/.moru/bin/moru-hook`, 설정 `MORU_*`, 커밋되는 문서의 표기 `<MORU_ROOT>`/`<MORU_LAUNCHER>`, 로컬 기록 `.moru`, 에이전트 역할 `moru_explorer`/`moru_worker`/`moru_reviewer`.
 
 ## 왜 모루 코어인가 (에이전트 아키텍처 비교 및 현장 텔레메트리)
+
+![Moru Core v2 5-Month Field Telemetry & Architecture Comparison](docs/assets/moru-core-telemetry.svg)
 
 네이티브 코딩 CLI, 온디맨드 스킬 팩(`Superpowers`·Claude Agent Skills 등), 자기 진화형 독립 런타임(Nous Research의 Hermes Agent·OpenHands 등)은 각각 서로 다른 계층의 문제를 풉니다. 모루 코어는 기존 CLI를 대체하는 별도 런타임이나 단순 프롬프트 모음집이 아니라, **호스트 CLI 안에서 어떤 필수 문서를 읽고·어떻게 규칙과 메모리를 검증해 진화시키며·어떤 실행 근거가 확인될 때 완료(Done)를 인정할지 통제하는 저장소 운영 계약**입니다.
 

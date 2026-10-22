@@ -18,6 +18,8 @@ scripts/third_party
 # Localized publications. AGENTS.md: public docs may be localized but do not
 # become the guidance source of truth.
 README.ko.md
+README.ja.md
+README.zh-CN.md
 docs/ko
 
 # One-off historical notes and sample PRD/ARD/spec outputs, not rules.
