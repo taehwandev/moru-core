@@ -15,7 +15,7 @@ lifecycle evidence across every repository you link to it. Repo-local
 instructions stay small and keep the final say.
 
 - Repository: <https://github.com/taehwandev/moru-core>
-- Website: <https://getmoru.com/core>
+- Website: <https://getmoru.com/core> · [Efficiency Report](https://getmoru.com/report)
 - Releases: <https://github.com/taehwandev/moru-core/releases> · release notes in [`.github/release-notes/`](.github/release-notes/)
 
 ## What It Is
@@ -34,6 +34,50 @@ instructions stay small and keep the final say.
 Runtime names: launcher `moru-hook` in `~/.moru/bin`, `MORU_*` settings,
 `<MORU_ROOT>`/`<MORU_LAUNCHER>` placeholders in committed docs, `.moru` local
 state and the `moru_explorer`/`moru_worker`/`moru_reviewer` agent roles.
+
+## Why Moru Core (Architecture Comparison & Field Telemetry)
+
+Native coding CLIs, on-demand skill packs (such as `Superpowers` or Agent
+Skills), and self-evolving agent runtimes (such as Nous Research's Hermes Agent
+or OpenHands) each address different layers of the agent stack. Moru Core is not
+a replacement runtime or a static prompt pack—it is a **host-native repository
+operating contract** that governs what guidance is required for a route, how
+shared rules and project memory evolve, and what executable evidence is checked
+before work is marked complete.
+
+| Dimension | Native CLI (Stock Claude Code / Codex) | Rulebooks & Skill Packs (Mega `CLAUDE.md` / `Superpowers`) | Self-Evolving Agent Runtime (e.g., Hermes Agent) | **Moru Core (Host-Native Repository Contract)** |
+| --- | --- | --- | --- | --- |
+| **Who owns the loop** | Host CLI (native permissions, plan/sandbox modes, optional hooks) | Host CLI (eager monolithic rulebook or `SessionStart` bootstrap skill) | Standalone runtime loop (owns orchestration, subagents, terminal backends, gateway) | **Host CLI layer**: keeps your native Claude Code, Codex, or Antigravity session and binds shared repo contracts |
+| **Guidance & context loading** | Loads repo instructions only; discovers build/test conventions ad hoc | Monolithic `CLAUDE.md` pays an eager prefix tax every turn; skill packs load bodies on demand via tool calls | Bounded frozen memory snapshot (`~1.3K` tok `MEMORY.md` + `USER.md`), `~3K` skill index, on-demand `skill_view` / FTS5 search | **Deterministic route manifest**: selects exact `required_docs` (`4.15` avg in Oct, **-79.7%** vs our Jul `20.45` baseline); references open only for unresolved decisions |
+| **Read-only questions** *(“Why is this slow?”)* | Supports manual plan/read-only modes, not automatically separated from repo workflows | Monolithic files still load review/release rules; skill packs still inject bootstrap instructions | Runs inside the general agent loop with startup snapshot and skill index attached | **Stateless Read-Only Fast Path**: skips Moru `start`/`review`/`finish` lifecycle and worktree setup; active read-only runs block writes |
+| **How skills & memory evolve** | Manual edits to `CLAUDE.md` / `AGENTS.md` or local notes | Hand-written static markdown skills; no automated verification or TTL expiry | Agent auto-creates/patches skills via `skill_manage` (`write_approval` off by default, no TTL/expiry) + persistent `MEMORY.md` | **Governed evolution**: canonical rules update only on a verified `reusable_gap` checked by `workflow.py validate`; `project-memory` recalls `≤3` entries with mandatory `--review-on` expiry and `--applies-when`/`--not-when` guards |
+| **Follow-up runs & re-verification** | Conversational context only; no structured gate ledger across runs | Prompt checklists; follow-ups repeat checks or rely on conversational recall | FTS5 session search recalls prior chats, but no file-hash gate ledger to carry local checks | **`--continue-from` & `--reuse-inputs`** carry eligible local gates when declared `input_paths` hashes and attested scope/toolchain match (observed **-54.4%** p50 events in Oct continuation vs fresh cohort) |
+| **Definition of “Done” & tradeoffs** | Model self-report unless custom repo hooks are hand-built per project | Prompt-enforced checklists (e.g., `verification-before-completion`); model can drift | Provides sandboxes, messaging gateways, cron, and autonomous skills, but completion relies on model judgment | **Executable `finish` gate** checks fresh test evidence, `≤300` added-line dev file budget, and VibeGuard (hook-enforced in Claude Code; CLI-verified elsewhere). *Tradeoff: does not provide sandboxes, chat gateways, cron, or unreviewed skill generation.* |
+
+### Observed May–October 2026 Field Cohorts (Single Operator · 26 Repos · 4,984 Git Commits · 419,857 Spill Events)
+
+The figures below summarize our own May–October 2026 field telemetry (`419,857`
+recorded Spill events, `1,207` Codex threads, `584` Moru tracked runs, and `265`
+October session-bound runs across `26` repositories). They document how our
+workflow cohorts evolved over time—not a randomized controlled benchmark against
+external runtimes:
+
+- **-79.7% route `required_docs` per run** (`20.45` docs in our Jul v1 manifest → `4.29` in Sep → `4.15` in Oct via Need-Driven Reading).
+- **-60.7% recorded events per Git commit** (`150.7` events/commit in Jul → `59.2` in Oct) and **+122.4% daily commit rate** (`29.5/day` across `11` active repos [`2.68/day/repo`] → `65.6/day` across `17` active repos [`3.86/day/repo`, **+44.0% per active repo**]).
+- **-78.1% reference-weighted tokens per changed file** (`432.5K` in Jul → `94.6K` in Oct using Spill's `1.0 / 1.25 / 0.1 / 1.0` comparison index; weighted tokens per commit moved from `3.07M` in Jul → `1.47M` in Sep → `1.63M` in Oct [**-46.9%** vs Jul] alongside larger multi-file refactors averaging `17.2` files/commit in Oct).
+- **-93.8% Codex median thread tokens (p50)** (`20.28M` → `1.25M`; p90 tail dropped from `146.1M` → `17.9M`).
+- **Within-model observational cohorts (holding model ID constant)**:
+  - On `claude-opus-5-5` (Sep → Oct), median recorded events per run dropped from **`591.0 → 35.5` (-94.0%)**, median weighted tokens from **`33.47M → 0.41M` (-98.8%)**, and average context per event from **`488.3K → 301.0K` (-38.4%)**.
+  - On `gpt-6-sol` (Sep → Oct), median recorded events per run dropped from **`855.0 → 174.5` (-79.6%)**, with `classify`-stage events per run falling from **`1,215.2 → 6.0` (-99.5%)**.
+  - Within October 2026 (`265` session-bound runs, `92.98%` session match coverage), `continuation` runs had lower median events than `fresh` runs on `claude-opus-5-5` (**`45.0 → 20.5` events, -54.4%**) and on the `commit` route (**`52.5 → 13.0` events, -75.2%**; weighted tokens **`2.02M → 0.29M`, -85.6%**).
+
+Inspect your own local cohort and monthly/weekly period efficiency trends (`W1–W4` when `--month` is passed; content-free, no prompts or file paths exported):
+
+```bash
+python3 scripts/agent-os-status.py --efficiency-trends --all-projects --month 2026-10
+```
+
+Full architectural scenario walkthrough and May–October field ledger: <https://getmoru.com/report>.
 
 ## Quick Start
 
@@ -193,7 +237,7 @@ product-patterns/ Reusable product mechanics such as auth, invite, billing and a
 workflows/        Repeatable agent work paths
 scripts/          Launcher, hooks, routers, validators
 templates/        Repo-local routing block and prompts
-docs/             Public site source and longer reference pages
+docs/             Reference pages, specs and bootstrap/runtime skills
 ```
 
 Start most coding work from

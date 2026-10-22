@@ -24,12 +24,5 @@ docs/ko
 docs/minimal-workflow
 docs/work-surface-resolution
 
-# The published site itself: markup, styles, scripts, and images.
-docs/index.html
-docs/styles
-docs/styles.css
-docs/workflow
-docs/*.svg
-
 # Copy-paste scaffolding for target repositories.
 templates

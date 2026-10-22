@@ -271,8 +271,6 @@ class WikimapCorpusIgnoreTests(unittest.TestCase):
             "docs/ko/moru-core-roadmap.md",
             "docs/minimal-workflow/prd.md",
             "docs/work-surface-resolution/spec.md",
-            "docs/index.html",
-            "docs/logo.svg",
             "templates/use-moru-prompt.md",
         ):
             with self.subTest(relative=relative):

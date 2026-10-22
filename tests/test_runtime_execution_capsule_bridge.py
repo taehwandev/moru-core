@@ -663,7 +663,6 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
             "workflows/skills/agent-task-lifecycle/references/current-guidance.md",
             "workflows/skills/scripted-agent-workflow/references/current-guidance.md",
             "templates/apply-moru-request.md",
-            "docs/index.html",
             "docs/ko/update-moru.md",
             "index.md",
             "docs/skills/agent-bootstrap/references/current-guidance.md",
@@ -699,18 +698,6 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
                 self.assertIn("lower-level", normalized)
                 for stale in stale_sequences:
                     self.assertNotIn(stale, normalized)
-
-        public_html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
-        self.assertIn(
-            "For multi-step work, run agent-hook.py start once with --request",
-            public_html,
-        )
-        self.assertIn(
-            "여러 단계 작업이면 agent-hook.py start를 --request와 함께 한 번만 실행해줘",
-            public_html,
-        )
-        self.assertIn('"evidence.body": "Use one start hook', public_html)
-        self.assertIn('"evidence.body": "start hook 한 번으로', public_html)
 
     def test_runtime_guidance_is_canonical_capsule_policy(self) -> None:
         guidance = (
