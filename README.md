@@ -202,9 +202,12 @@ When a task changes files, the agent runs it through the launcher:
    reference docs only if a question comes up.
 3. **Work and record** test results with `<MORU_LAUNCHER> gate-batch`. Run
    `<MORU_LAUNCHER> next` anytime to see the next step and exact command.
-4. **Review** checks the diff, file sizes, links, and VibeGuard safety rules.
-5. **Finish** confirms all required checks passed before reporting done or
+4. **Review hook** checks the diff, file sizes, links, and VibeGuard safety rules.
+5. **Finish hook** confirms all required checks passed before reporting done or
    committing.
+
+Use the launcher for these steps. The lower-level route, preflight, and
+finish-check scripts are diagnostics; they do not replace this lifecycle.
 
 Check status is always `🐱🟢 SUCCESS` or `🐱🔴 FAIL`. To pick up an interrupted
 task or do a follow-up, run `start --continue-from <run id>`. Mechanics and
