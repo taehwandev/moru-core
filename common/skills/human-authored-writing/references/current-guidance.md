@@ -61,6 +61,43 @@ Concision removes words the reader does not need. Over-compression removes the c
 
 For example, "Keep shared rules at the root and module rules close to the code" is compact but assumes the reader already knows which root, which rules, and why location matters. A usable explanation would say: "Put rules that apply to every task in the repository's root instruction file. Put rules used only by one module in that module's own documentation so someone changing that module can find and update its guidance with the code."
 
+### Translating Internal Mechanics For User-Facing Docs And Product Copy
+
+Internal gate names, schema keys, validator identifiers, CLI flags, and
+architecture labels exist for runtime scripts and agent contracts—not as
+user-facing headlines, comparison table rows, or chart labels. When writing or
+updating a README, product or report page, comparison table, SVG chart, or
+localized guide:
+
+1. **Calibrate against existing user-facing copy first.** Before drafting a new
+   page (such as a report, comparison, or feature page) or expanding a README,
+   inspect two or three existing user-facing pages in the same repository and
+   match their vocabulary level, sentence rhythm, and warmth. Never drop a dry
+   internal telemetry or validator spec into a site whose other pages speak in
+   plain everyday language.
+2. **State the observable action and outcome before the mechanism.** Replace
+   abstract internal labels in headings, bullets, and table cells with what the
+   user or system actually does and what changes for the reader (for example,
+   "Answer questions right away without extra steps" instead of "Stateless
+   Read-Only Fast Path", or "Reuse passed tests when the code hasn't changed"
+   instead of "Input-attested byte-hash continuation"). Put exact CLI flags,
+   file paths, or command names in parentheses or code blocks only where a
+   reader needs to run or configure them.
+3. **Label metrics in plain human units first.** In charts, KPI cards, and
+   comparison tables, name what the number means in daily work ("Rule files
+   read per task", "Steps per task on the same model", "Token usage per task")
+   and place statistical qualifiers (`median / p50`, weighting formulas, cohort
+   sizes) in supporting detail text or methodology notes.
+4. **Never calque internal compound nouns word-for-word in localized docs.**
+   When writing or localizing into Korean, Japanese, or Chinese, do not
+   transliterate or literally calque internal English terms into stiff compound
+   nouns (such as "결정론적 라우트 명세", "무상태 Read-Only Fast Path",
+   "호스트 네이티브 저장소 운영 계약", "참조 가중 토큰 중앙값", "세션 결합 코호트").
+   Translate the concrete action and meaning into natural native developer
+   phrasing ("지금 할 일에 필요한 규칙 문서만 골라 읽습니다", "단순한 질문에는
+   절차 없이 바로 답합니다", "쓰던 CLI에 그대로 연결하는 규칙", "작업 한 번에 쓰는
+   토큰 양") while preserving every number, command, and factual boundary.
+
 ### Evidence Ladder For Technical Explanations
 
 Do not keep rephrasing abstract technical prose when the reader still cannot
@@ -164,8 +201,8 @@ Use these passes when the writing task is more than a one-line copy edit.
 | --- | --- | --- |
 | Korean prose | Translationese, overformal connective adverbs, passive or nominalized phrasing, mechanical numbered structure, excessive headings or decoration, overuse of English in parentheses, repeated endings, an honorific-ending drift (`합니다`/`됩니다`/`보입니다`) away from the author's established plain declarative register (`다`/`했다`/`이다`), formal nouns such as "것/점/수/바" when they only pad the sentence, stock connective frames such as "핵심은", "중요한 점은", "반대로", or "이 글에서는" when the author's style would be more direct, and plausible but non-authorial metaphors such as "금방 갈라진다" when concrete maintenance wording fits better | Rewrite into natural Korean idiom while preserving the original claim and register |
 | English prose | Inflated significance, generic enthusiasm, promotional adjectives, shallow participial clauses, excessive hedging, repeated signposting, symmetric sentence rhythm, overuse of em dashes or paired contrasts, rule-of-three lists, synonym cycling, false ranges | Replace with specific claims, direct verbs, sourced detail, varied rhythm, and simpler punctuation |
-| Documentation | Polished filler, unsupported value claims, unnecessary summaries, "this guide explores" framing, duplicated overview bullets, diff-anchored narration, inline header lists where the heading repeats the sentence | Start with the action path, keep constraints explicit, and remove decorative framing |
-| Marketing or product copy | Vague benefits, buzzwords, "unlock/transform/revolutionize" language, claims without proof | Tie copy to concrete user outcomes, product evidence, and a clear audience |
+| Documentation | Polished filler, unsupported value claims, unnecessary summaries, "this guide explores" framing, duplicated overview bullets, diff-anchored narration, inline header lists where the heading repeats the sentence, raw internal gate/validator/flag names used as user-facing headings or table labels, and literal word-for-word jargon calques in localized READMEs | Start with the action path and observable user outcome in plain words, keep constraints and commands explicit where needed, and remove decorative framing or internal-spec jargon |
+| Marketing, report, or product copy | Vague benefits, buzzwords, "unlock/transform/revolutionize" language, claims without proof, or dry telemetry/contract jargon dumped onto a user-facing page without matching the site's existing voice | Calibrate to 2–3 existing product pages, state metrics in plain human units first, and tie copy to concrete user outcomes and verified product evidence |
 | Email or workplace prose | Over-apology, over-hedging, generic warmth, long preambles, unclear ask | Lead with the ask, state context plainly, and keep the tone professional |
 | Social or short-form copy | Fake-candid openers, manufactured punchlines, over-neat aphorisms, forced attitude, and engagement-bait summaries | Use one concrete observation or stance; keep the ending short without pretending to be spontaneous |
 | Academic or regulated prose | Style cleanup that weakens citations, evidence, scope limits, uncertainty, required disclosure, or policy wording | Preserve the formal contract first; simplify only where accuracy and compliance remain intact |
@@ -189,6 +226,8 @@ Use these passes when the writing task is more than a one-line copy edit.
 | "The Korean sentence is grammatical, so it matches the author." | Check whether the phrase belongs to the author's observed wording. Replace plausible but non-authorial phrases with concrete wording from the draft, samples, or user feedback. |
 | "The shorter version is automatically clearer." | Keep the shorter version only when it preserves the reader's ability to identify the actor, condition, and relationship between ideas. Restore needed semantic links before optimizing rhythm. |
 | "The term is accurate, so readers will understand it." | Define unfamiliar or project-specific terms at first use and add the smallest concrete explanation the intended audience needs. Accuracy does not replace context. |
+| "Internal contract, gate, or telemetry names are precise, so they belong in the README or product report headings." | Translate internal mechanics into reader-visible actions and outcomes in headings, chart labels, and comparison tables; keep CLI flags and internal identifiers in parentheses or code blocks only where the reader runs them. |
+| "Literal translation of the English technical phrase preserves accuracy in Korean, Japanese, or Chinese." | Replace stiff word-for-word calques of internal compound nouns with natural native phrasing that states who does what and what changes, while keeping numbers and commands exact. |
 | "The user flagged only this sentence, so only this sentence needs review." | Repair the sentence, then scan the whole artifact for analogous shorthand and omitted context. Treat the report as evidence of a pattern until the scan shows otherwise. |
 | "The author supplied a clearer paraphrase, so I only need to replace that sentence." | Treat the paraphrase as thesis and voice evidence. Check the title, opening, headings, and conclusion before returning to local edits. |
 | "The architecture rule is technically correct, so another paragraph of prose is enough." | If the intended reader still cannot reconstruct the caller, relationship direction, implementation location, and consequence, stop rephrasing. Add the smallest labeled diagram, table, code, or configuration example that proves the interaction. |

@@ -17,7 +17,7 @@ Use when creating, reviewing, or restructuring docs, guides, specs, READMEs, age
   Moru Core guidance card
 - `common/skills/project-naming/SKILL.md` when names, slugs, or product identifiers appear
 - `common/skills/verification-policy/SKILL.md` when links, examples, or commands can be checked
-- `common/skills/human-authored-writing/SKILL.md` when the task changes prose voice, tone, or AI-writing signals, or repairs a reader-comprehension failure without changing facts
+- `common/skills/human-authored-writing/SKILL.md` before drafting or materially editing user-facing READMEs, public product/report pages, comparison tables, chart labels, or localized guides, and whenever the task changes prose voice, tone, or AI-writing signals or repairs a reader-comprehension failure without changing facts
 - task-specific architecture, product-pattern, security, or release cards when the docs describe those surfaces
 
 ## Steps
@@ -36,9 +36,10 @@ Use when creating, reviewing, or restructuring docs, guides, specs, READMEs, age
  6. Keep repo-specific commands, paths, role matrices, and domain terms in repo-local docs.
  7. Write shared agent library guidance in English. Localize only public-facing site copy or repo-local docs that intentionally target another locale.
  8. Link to shared cards instead of copying full guidance.
- 9. For prose cleanup, preserve the original factual commitments and report when a style edit would change meaning, genre, or voice ownership.
-10. Verify examples, links, file paths, commands, and metadata where practical.
-11. Report what changed, what was verified, and any stale or missing source material.
+ 9. For user-facing READMEs, product or report pages, comparison tables, chart labels, and localized guides, calibrate to 2–3 existing user-facing pages in the repo first and translate internal gate, flag, validator, or telemetry jargon into plain reader-visible actions and outcomes (per `common/skills/human-authored-writing/SKILL.md`). Keep exact CLI flags and commands in code blocks or parentheses where readers run them, and never use literal word-for-word calques of internal compound nouns in localized copy.
+10. For prose cleanup, preserve the original factual commitments and report when a style edit would change meaning, genre, or voice ownership.
+11. Verify examples, links, file paths, commands, and metadata where practical.
+12. Report what changed, what was verified, and any stale or missing source material.
 
 ## Documentation Impact Checkpoint
 
