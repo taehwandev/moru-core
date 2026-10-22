@@ -14,13 +14,13 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
-from agent_project_memory import RECALLABLE_STATUSES, scan_records
+from agent_project_memory import APPLICABILITY_FIELDS, RECALLABLE_STATUSES, scan_records
 
 
 DEFAULT_WITHIN_DAYS = 14
 DUPLICATE_JACCARD = 0.8
 _PUNCTUATION_RE = re.compile(r"[^\w\s]")
-_DECISION_FIELDS = ("id", "scope", "body", "source", "review_on")
+_DECISION_FIELDS = ("id", "scope", "body", "source", "review_on", *APPLICABILITY_FIELDS)
 
 
 def normalize(text: str) -> str:
@@ -43,7 +43,7 @@ def _scopes_overlap(left: str, right: str) -> bool:
 
 
 def _entry(record: dict[str, Any], reason: str = "") -> dict[str, Any]:
-    entry = {key: record[key] for key in _DECISION_FIELDS}
+    entry = {key: record[key] for key in _DECISION_FIELDS if key in record}
     if reason:
         entry["reason"] = reason
     return entry

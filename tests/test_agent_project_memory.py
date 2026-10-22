@@ -226,7 +226,7 @@ class ProjectMemoryTests(unittest.TestCase):
         self.assertEqual(useful["id"], records[0]["id"])
         lines = recall_lines(self.project, "task", request="Fix retry_queue dispatcher")
         self.assertEqual(useful["id"], json.loads(lines[1][2:])["id"])
-        self.assertEqual(4, len(lines))
+        self.assertEqual(2, len(lines))
 
     def test_each_query_input_affects_ranking(self) -> None:
         self.candidate("Unrelated guidance", scope="task")
@@ -309,7 +309,7 @@ class ProjectMemoryTests(unittest.TestCase):
         retired = self.candidate("retry_queue")
         retire(self.project, retired["id"])
         old = self.candidate("retry_queue")
-        replacement = self.candidate("Use the current contract", replaces=old["id"])
+        replacement = self.candidate("Use the current retry_queue contract", replaces=old["id"])
         expired = capture(self.project, body="retry_queue", source="note", scope="all",
                           review_on=(date.today() + timedelta(days=1)).isoformat())
         result = recall(self.project, "task", today=date.today() + timedelta(days=1), request="retry_queue")
@@ -317,12 +317,13 @@ class ProjectMemoryTests(unittest.TestCase):
         self.assertTrue({foreign["id"], retired["id"], old["id"], expired["id"]}.isdisjoint(
             {r["id"] for r in result}))
 
-    def test_no_overlap_and_ties_keep_legacy_order(self) -> None:
+    def test_context_free_and_positive_ties_keep_legacy_order(self) -> None:
         general = self.candidate("Same advice", scope="all")
         task = self.candidate("Same advice", scope="task")
         before = [task["id"], general["id"]]
-        for request in ("", "unrelated", "same advice", "same " * 10):
+        for request in ("", "same advice", "same " * 10):
             self.assertEqual(before, [r["id"] for r in recall(self.project, "task", request=request)])
+        self.assertEqual([], recall(self.project, "task", request="unrelated"))
 
     def tracked_source(self, path: str = "src/queue.py") -> Path:
         subprocess.run(["git", "init", "-q", "--object-format=sha1", str(self.project)], check=True)

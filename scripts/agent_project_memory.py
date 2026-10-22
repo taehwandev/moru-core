@@ -34,6 +34,8 @@ MAX_RECALL_CHARS = 1200
 MAX_SOURCE_FILES = 4
 MAX_PREVIOUS_CHARS = 160
 MAX_HISTORY_ITEMS = 20
+APPLICABILITY_FIELDS = ("applies_when", "not_when")
+MAX_CONDITION_CHARS = 160
 BLOB_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 PATH_RE = re.compile(r"[\w.-]+(?:/[\w.-]+)+|[\w-]+\.[a-zA-Z0-9]+")
@@ -54,8 +56,9 @@ def _timestamp() -> str:
 
 def _digest(record: dict[str, Any]) -> str:
     content = {key: record[key] for key in ("body", "source", "scope", "review_on")}
-    if "source_files" in record:
-        content["source_files"] = record["source_files"]
+    for key in ("source_files", *APPLICABILITY_FIELDS):
+        if key in record:
+            content[key] = record[key]
     return hashlib.sha256(
         json.dumps(content, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()
@@ -161,7 +164,9 @@ def _terms(text: str) -> tuple[set[str], set[str], set[str]]:
 
 
 def _relevance(record: dict[str, Any], query: tuple[set[str], set[str], set[str]]) -> int:
-    text = " ".join([record["body"], record["source"],
+    # A known exception must be visible to the agent without making that
+    # exception a positive retrieval match. Superseded bodies are not indexed.
+    text = " ".join([record["body"], record["source"], record.get("applies_when", ""),
                      *(item["path"] for item in record.get("source_files", []))])
     words, paths, modules = _terms(text)
     query_words, query_paths, query_modules = query
@@ -232,6 +237,9 @@ def read_record(path: Path) -> dict[str, Any] | None:
             and record["digest"] == _digest(record)
             and ID_RE.fullmatch(record.get("replaces") or "0" * 16) is not None
             and ("source_files" not in record or _valid_source_files(record["source_files"]))
+            and all(key not in record or (isinstance(record[key], str)
+                    and 1 <= len(record[key]) <= MAX_CONDITION_CHARS
+                    and record[key].isprintable()) for key in APPLICABILITY_FIELDS)
         )
     except (KeyError, TypeError, ValueError):
         return None
@@ -260,7 +268,8 @@ def _retire(project: Path, record_id: str, *, replaced_by: str = "") -> dict[str
 
 
 def _capture(project: Path, *, body: str, source: str, scope: str, review_on: str,
-             replaces: str = "", source_paths: tuple[str, ...] = ()) -> dict[str, Any]:
+             replaces: str = "", source_paths: tuple[str, ...] = (),
+             applies_when: str = "", not_when: str = "") -> dict[str, Any]:
     body, source = body.strip(), source.strip()
     if not (1 <= len(body) <= 500 and body.isprintable()):
         raise ValueError("memory body must be one line of 1–500 characters")
@@ -270,6 +279,11 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
         raise ValueError("scope must be a reusable workflow slug")
     if date.fromisoformat(review_on) <= date.today():
         raise ValueError("review date must be in the future")
+    conditions = {key: value.strip() for key, value in
+                  zip(APPLICABILITY_FIELDS, (applies_when, not_when)) if value.strip()}
+    if any(len(value) > MAX_CONDITION_CHARS or not value.isprintable()
+           for value in conditions.values()):
+        raise ValueError(f"applicability conditions must be one line of 1–{MAX_CONDITION_CHARS} characters")
     if replaces:
         _existing(project, replaces)
     if len(source_paths) > MAX_SOURCE_FILES:
@@ -291,6 +305,7 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
         "source": source,
         "review_on": review_on,
         "created_at": _timestamp(),
+        **conditions,
     }
     if replaces:
         record["replaces"] = replaces
@@ -336,9 +351,15 @@ def _recall(project: Path, scope: str, *, today: date | None = None,
         and record["scope"] in {scope, "all"}
         and date.fromisoformat(record["review_on"]) > today
     ]
-    query = _terms(" ".join((request, target_summary, *map(str, target_paths))))
+    context = " ".join((request, target_summary, *map(str, target_paths)))
+    query = _terms(context)
+    scores = {item["id"]: _relevance(item, query) for item in eligible}
+    # Empty slots are preferable to unrelated advice. Context-free inspection
+    # still lists every eligible record; lexical matching is not a truth check.
+    if context.strip():
+        eligible = [item for item in eligible if scores[item["id"]] > 0]
     # Relevance comes first; ties and context-free calls retain the old order.
-    eligible.sort(key=lambda item: (-_relevance(item, query), item["scope"] != scope,
+    eligible.sort(key=lambda item: (-scores[item["id"]], item["scope"] != scope,
                                     item["review_on"], item["id"]))
     return eligible
 
@@ -376,7 +397,8 @@ def _history(project: Path, record_id: str) -> list[dict[str, Any]]:
         seen.add(current)
         record = by_id[current]
         chain.append({key: record[key] for key in
-                      ("id", "status", "body", "source", "created_at", "retired_at", "replaces")
+                      ("id", "status", "body", "source", "created_at", "retired_at", "replaces",
+                       *APPLICABILITY_FIELDS)
                       if key in record})
         current = record.get("replaces") or ""
     return chain
@@ -400,6 +422,7 @@ def recall_lines(project: Path, scope: str, *,
         if len(lines) >= MAX_RECALL_ITEMS:
             break
         fields = {**{key: record[key] for key in ("id", "body", "source", "review_on")},
+                  **{key: record[key] for key in APPLICABILITY_FIELDS if key in record},
                   **_previously(record, by_id)}
         # Evidence status only lengthens the payload, so a record that is
         # already too long is skipped before any of its files are hashed.
@@ -415,7 +438,8 @@ def recall_lines(project: Path, scope: str, *,
     if not lines:
         return []
     return ["Project memory (agent-written reference; the current request, repo rules "
-            "and source evidence prevail):", *lines]
+            "and source evidence prevail; check applicability before use; "
+            "previously is superseded history, never current advice):", *lines]
 
 
 def _main(argv: list[str] | None = None) -> int:
@@ -427,6 +451,8 @@ def _main(argv: list[str] | None = None) -> int:
     capture_parser.add_argument("--scope", default="all")
     capture_parser.add_argument("--review-on", required=True)
     capture_parser.add_argument("--replaces", default="")
+    capture_parser.add_argument("--applies-when", default="", help="verified applicability condition, at most 160 characters")
+    capture_parser.add_argument("--not-when", default="", help="known exception, at most 160 characters; not used for ranking")
     capture_parser.add_argument("--source-path", action="append", default=[],
                                 help="tracked repository-relative evidence file; repeat up to four times")
     # Former review step, kept so older instructions still run; it changes nothing.
@@ -452,7 +478,8 @@ def _main(argv: list[str] | None = None) -> int:
         if args.command == "capture":
             result = _capture(project, body=sys.stdin.read(), source=args.source,
                               scope=args.scope, review_on=args.review_on,
-                              replaces=args.replaces, source_paths=tuple(args.source_path))
+                              replaces=args.replaces, source_paths=tuple(args.source_path),
+                              applies_when=args.applies_when, not_when=args.not_when)
         elif args.command == "approve":
             result = _existing(project, args.id)[1]
         elif args.command == "retire":

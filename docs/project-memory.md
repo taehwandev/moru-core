@@ -24,10 +24,25 @@ extra weight; a path's two nearest directories count only as plain words and
 its other directories not at all, so a repository-wide prefix such as
 `app/src/main/java/...` matches nothing. A Hangul word also matches without a
 trailing particle (`프로필을` matches `프로필`). Ties retain route-specific, review-date,
-then id ordering. The route/`all`, expiry, replacement, three-item and
-1,200-character limits still apply. Query context is never saved as memory.
+then id ordering. With query context, records with no matching terms are
+withheld instead of filling empty slots. Context-free recall still lists all
+eligible records. This is lexical retrieval: paraphrases without shared terms
+can be missed, and a match does not prove applicability. The route/`all`, expiry,
+replacement, three-item and 1,200-character limits still apply. Query context
+is never saved as memory.
 Standalone `project-memory recall` accepts `--request`, `--target-summary`,
 and repeatable `--target-path` values for the same ranking.
+
+Capture may include `--applies-when` and `--not-when`, each a single line of at
+most 160 characters. Use verified conditions and known exceptions, not guessed
+generalizations. The positive condition participates in ranking; the exception
+does not, so naming a prohibited context does not itself attract the record.
+Both are shown to the agent, protected by the record digest, and counted in the
+same 1,200-character start budget. Empty options are omitted; older records
+remain readable. These fields describe applicability, not a machine-enforced
+predicate: the agent must compare them with the current request and evidence,
+withhold in reversed conditions, and inspect missing evidence before acting.
+They cannot waive required documents, verification or action authority.
 
 Capture can include up to four repeatable `--source-path` values naming tracked,
 repository-relative evidence files. Moru Core stores their paths and Git blob hashes
@@ -46,11 +61,18 @@ next to the current guidance; the old body is history, not advice. The
 read-only `project-memory history <id>` prints the replacement chain through
 any of its records, newest first, up to 20 entries; a missing link or a cycle
 ends the chain.
+History and consolidation reports retain the applicability conditions so a
+correction does not erase why the earlier advice stopped applying. Neither
+superseded text nor a negative condition contributes to retrieval ranking.
 
 The command and start behavior travel with every Moru Core installation.
 Records live in that PC's user-local `~/.moru/project-memory/` store;
 linked worktrees of the same repository share them, while another PC starts
 with its own empty store. Moru Core does not sync memory content between PCs.
+
+The [conditional experience reuse experiment](experiments/project-memory-2026-10-22.md)
+records the implementation's bounded retrieval and live judgment evidence,
+including lexical misses and limits of the synthetic comparison.
 
 ## Work Cards
 

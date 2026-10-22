@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "description": "Synthetic retrieval cases. Relevance labels are explicit human expectations; lexical failures and condition-reversal judgments remain visible rather than being scored as model learning.",
+  "records": [
+    {"id":"0000000000000001","body":"Check retry_queue before changing its dispatcher.","source":"synthetic fixture: queue incident","scope":"task"},
+    {"id":"0000000000000002","body":"Keep cancellation propagation in src/network/RetryGateway.kt.","source":"synthetic fixture: network review","scope":"task"},
+    {"id":"000000000000000e","body":"Release established login state independently from secondary fetches.","source":"synthetic fixture: identity incident","scope":"task","applies_when":"An authenticated screen waits for quota telemetry before becoming usable.","not_when":"The request establishes identity or checks authorization itself."},
+    {"id":"0000000000000004","body":"Billing invoices use monthly totals.","source":"synthetic fixture: billing convention","scope":"task"},
+    {"id":"0000000000000005","body":"Typography uses the rounded display font.","source":"synthetic fixture: visual convention","scope":"task"},
+    {"id":"0000000000000006","body":"Keep buffered canvas redraw work coalesced.","source":"synthetic fixture: paint incident","scope":"task","applies_when":"High-frequency mouse movement overwhelms canvas paints.","not_when":"Investigating ethernet negotiation or packetloss."},
+    {"id":"0000000000000007","body":"Trust legacy_fuse to restore previews.","source":"synthetic fixture: superseded lesson","scope":"task"},
+    {"id":"0000000000000008","body":"Require durable receipts before restoration.","source":"synthetic fixture: corrected lesson","scope":"task","replaces":"0000000000000007"},
+    {"id":"0000000000000009","body":"Check expired_sentinel first.","source":"synthetic fixture: expired note","scope":"task","review_in_days":0},
+    {"id":"000000000000000a","body":"Check retired_sentinel first.","source":"synthetic fixture: retired note","scope":"task","status":"retired"},
+    {"id":"000000000000000b","body":"Check scope_sentinel first.","source":"synthetic fixture: another scope","scope":"docs"},
+    {"id":"000000000000000c","body":"Keep shared errors in ProfilePane.","source":"synthetic fixture: lexical distractor","scope":"task"},
+    {"id":"000000000000000d","body":"프로필을 열기 전에 계정 식별을 확인한다.","source":"synthetic fixture: Korean navigation","scope":"task"}
+  ],
+  "cases": [
+    {"id":"identifier","category":"direct_match","request":"Fix retry_queue dispatcher","expected_relevant":["0000000000000001"]},
+    {"id":"exact_path","category":"direct_match","target_paths":["src/network/RetryGateway.kt"],"expected_relevant":["0000000000000002"]},
+    {"id":"summary_context","category":"direct_match","target_summary":"Typography rounded font","expected_relevant":["0000000000000005"]},
+    {"id":"condition_transfer","category":"condition_transfer","request":"An authenticated dashboard waits for quota telemetry in BillingPanel.tsx.","expected_relevant":["000000000000000e"],"applicability_expectation":"Relevant through the positive condition despite a different filename; current source must still establish that identity is already verified. The record sorts outside the default first three so an unrelated-slot fallback cannot masquerade as transfer."},
+    {"id":"unrelated","category":"withholding","request":"Inspect ethernet negotiation packetloss","expected_relevant":[]},
+    {"id":"negative_only","category":"withholding","request":"ethernet negotiation","expected_relevant":[],"applicability_expectation":"The negative condition alone must not make the canvas lesson relevant."},
+    {"id":"superseded_terms","category":"correction","request":"legacy_fuse","expected_relevant":[],"applicability_expectation":"The superseded body's unique identifier must not be an active retrieval signal."},
+    {"id":"corrected_lesson","category":"correction","request":"durable receipts restoration","expected_relevant":["0000000000000008"]},
+    {"id":"ineligible_records","category":"eligibility","request":"expired_sentinel retired_sentinel scope_sentinel","expected_relevant":[]},
+    {"id":"generic_overlap","category":"known_lexical_limit","request":"shared billing invoices","expected_relevant":["0000000000000004"],"applicability_expectation":"The generic word shared produces a false inclusion; this fixture intentionally retains that limitation."},
+    {"id":"zero_overlap_paraphrase","category":"known_lexical_limit","request":"Session bootstrap must finish without waiting for auxiliary metrics.","expected_relevant":["000000000000000e"],"applicability_expectation":"A human sees the relationship, but the query has no indexed lexical overlap. A miss must remain visible; this is not a semantic retriever."},
+    {"id":"korean_particles","category":"direct_match","request":"프로필에서 계정을 확인한다","expected_relevant":["000000000000000d"]},
+    {"id":"context_free","category":"listing","expected_relevant":["0000000000000001","0000000000000002","0000000000000004"],"applicability_expectation":"With no query, preserve the existing bounded listing order. This case checks listing compatibility rather than relevance judgment."},
+    {"id":"conditional_reversal","category":"requires_model_judgment","request":"High-frequency mouse movement overwhelms canvas paints while investigating ethernet negotiation.","expected_relevant":["0000000000000006"],"applicability_expectation":"Retrieval should expose both conditions. A model must recognize the negative condition and withhold the canvas recommendation for the ethernet investigation; this runner does not judge that decision."}
+  ]
+}

@@ -315,7 +315,10 @@ memory (for Claude, this overrides `~/.claude/projects/*/memory`, which keeps
 only user, feedback, and reference entries). Capture only a verified root cause,
 pitfall, decision reason the code does not show, or a fact the user asks to
 remember, when confirmed or at finish, with `--project`, `--source` and a
-future `--review-on`. Correct with `capture --replaces <id>` or `retire <id>`.
+future `--review-on`. When verified, include the applicability and known
+exceptions with `--applies-when` and `--not-when`; compare recalled conditions
+with current evidence before using the advice. Correct with
+`capture --replaces <id>` or `retire <id>`.
 Never capture secrets, transcripts or speculation, and never sync it or put its
 content in a continuation packet. When start prints a `Project memory upkeep`
 line, run the `consolidate` report it names. Permanent rules belong here or in
