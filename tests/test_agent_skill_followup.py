@@ -268,6 +268,71 @@ class AgentSkillFollowupTests(unittest.TestCase):
                 self._failures(root, "run-two"),
             )
 
+    def test_merged_entry_fields_diagnostics_detects_missing_observation_for_reusable_gap(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            diagnostics = {
+                "entry_fields": {
+                    "retrospective check": {
+                        "skills_checked": "verification_policy",
+                        "outcome": "reusable_gap",
+                        "observation": "recorded",
+                    }
+                }
+            }
+            failures = skill_followup_failures(
+                state_root=root,
+                preflight={"agent_run_id": "run-merged-diag"},
+                gate_evidence_ledger=diagnostics,
+            )
+            self.assertTrue(
+                any("observation" in item for item in failures),
+                f"Expected missing observation failure from entry_fields diagnostics, got: {failures}",
+            )
+
+    def test_auto_bridge_causal_reusable_gap_stages_candidate_from_gate_ledger(self) -> None:
+        from agent_gate_evidence import record_gate_evidence
+        from agent_skill_feedback import auto_bridge_causal_reusable_gap
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            bundle = root / "common" / "skills" / "verification-policy"
+            bundle.mkdir(parents=True, exist_ok=True)
+            (bundle / "SKILL.md").write_text("---\nname: verification-policy\n---\n# Skill\n", encoding="utf-8")
+            preflight_path = root / "preflight.json"
+            preflight = {
+                "agent_run_id": "a" * 32,
+                "route": {
+                    "command": "bugfix",
+                    "gates": ["retrospective check"],
+                    "retrospective_contract": "causal_v1",
+                },
+            }
+            preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+            record_gate_evidence(
+                evidence_path=preflight_path,
+                preflight=preflight,
+                gate="retrospective check",
+                evidence="",
+                fields={
+                    "skills_checked": "verification_policy",
+                    "outcome": "reusable_gap",
+                    "observation": "recorded",
+                    "alignment_evidence": "User reported missing check -> fixed in validator",
+                    "causal_assessment": "Skill lacked explicit rule for entry_fields diagnostics",
+                    "learning_decision": "Update verification_policy skill with entry_fields rule",
+                },
+            )
+            with patch("agent_skill_feedback.state_home", return_value=root):
+                notes = auto_bridge_causal_reusable_gap(
+                    project=root,
+                    rules=root,
+                    evidence_path=preflight_path,
+                )
+            self.assertTrue(any("bounded skill review recorded: staged_patch" in line for line in notes))
+            staged_files = list((root / "skill-learning" / "staged").glob("*.json"))
+            self.assertEqual(1, len(staged_files))
+
     def _observe_twice(
         self,
         root: Path,

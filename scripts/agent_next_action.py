@@ -2,7 +2,8 @@
 """Read-only next-action advisor and target test discovery for active Moru Core runs.
 
 Owner: developer-experience next-step guidance and changed-file test discovery.
-Allowed imports: standard library, agent_gate_evidence, agent_gate_record_template,
+Allowed imports: standard library, agent_finish_gate_learning_validators,
+agent_gate_evidence, agent_gate_record_template,
 agent_review_hook, agent_route_state, agent_runtime_session,
 agent_skill_catalog, agent_start_guidance, support.bounded_git, support.stable_launcher.
 Forbidden imports: mutating lifecycle writers or test execution side effects.
@@ -122,9 +123,12 @@ def _build_gate_batch_command(
     gates: list[str],
     loaded_skills: list[str],
 ) -> str:
+    from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS
+
     records: list[dict[str, Any]] = []
     for gate in gates:
-        names = list(FIELD_REQUIREMENTS.get(gate, ()))
+        causal = CAUSAL_RETROSPECTIVE_FIELDS if gate == "retrospective check" else ()
+        names = list(dict.fromkeys([*FIELD_REQUIREMENTS.get(gate, ()), *causal]))
         enums = gate_field_enums(gate)
         fields = {name: _placeholder(gate, name, enums) for name in names}
         if gate == "retrospective check" and loaded_skills:

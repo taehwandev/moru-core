@@ -83,6 +83,9 @@ class AgentNextActionTests(unittest.TestCase):
         self.assertEqual("bugfix_debugging", record["fields"]["skills_checked"])
         self.assertEqual("<no_reusable_gap|no_skill_used|reusable_gap>", record["fields"]["outcome"])
         self.assertEqual("<not_needed|recorded>", record["fields"]["observation"])
+        self.assertIn("alignment_evidence", record["fields"])
+        self.assertIn("causal_assessment", record["fields"])
+        self.assertIn("learning_decision", record["fields"])
         self.assertEqual("<SUCCESS or FAIL>", record["status"])
 
     def test_another_sessions_registered_run_is_not_selected(self) -> None:

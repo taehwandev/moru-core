@@ -105,6 +105,29 @@ class CausalRetrospectiveTests(unittest.TestCase):
                 )
                 self.assertTrue(any("causal assessment" in error for error in failures))
 
+    def test_ungrounded_no_change_dismissals_are_rejected_while_grounded_decisions_pass(self):
+        for ungrounded in (
+            "No canonical skill change needed; existing workflow rules matched",
+            "No additional canonical skill update required",
+            "No canonical skill or rule change needed",
+            "none",
+            "n/a",
+            "not needed",
+        ):
+            with self.subTest(ungrounded=ungrounded):
+                failures = self.assess(learning_decision=ungrounded)
+                self.assertTrue(
+                    any("learning decision" in error for error in failures),
+                    f"Expected rejection for {ungrounded!r}, got {failures}",
+                )
+        for grounded in (
+            "Keep existing null-input check; no reusable guidance gap evidenced",
+            "Keep existing check",
+            "Updated retrospective validator and unit tests",
+        ):
+            with self.subTest(grounded=grounded):
+                self.assertEqual([], self.assess(learning_decision=grounded))
+
 
 if __name__ == "__main__":
     unittest.main()

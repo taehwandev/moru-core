@@ -91,17 +91,24 @@ def _retrospective_fields(gate_evidence_ledger: dict[str, Any] | None) -> dict[s
     made, and the correction is what the finish is judging.
     """
 
-    entries = (gate_evidence_ledger or {}).get("entries")
-    if not isinstance(entries, list):
-        return {}
-    fields: dict[str, Any] = {}
-    for item in entries:
-        if not isinstance(item, dict) or item.get("gate") != "retrospective check":
-            continue
-        recorded = item.get("fields")
+    ledger = gate_evidence_ledger or {}
+    entries = ledger.get("entries")
+    if isinstance(entries, list):
+        fields: dict[str, Any] = {}
+        for item in entries:
+            if not isinstance(item, dict) or item.get("gate") != "retrospective check":
+                continue
+            recorded = item.get("fields")
+            if isinstance(recorded, dict):
+                fields = recorded
+        if fields:
+            return fields
+    entry_fields = ledger.get("entry_fields")
+    if isinstance(entry_fields, dict):
+        recorded = entry_fields.get("retrospective check")
         if isinstance(recorded, dict):
-            fields = recorded
-    return fields
+            return recorded
+    return {}
 
 
 def _valid_current_observation(payload: dict[str, Any], occurrence_key: str) -> bool:

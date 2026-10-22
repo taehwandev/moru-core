@@ -107,6 +107,12 @@ def gate_value_hints(gate: str, failures: list[str], loaded_skills: Iterable[str
             '"no_reusable_gap" + "not_needed", "no_skill_used" + "not_needed" '
             '(with "skills_checked":"none"), or "reusable_gap" + "recorded"'
         )
+    if "learning decision" in text:
+        hints.append(
+            'retrospective check: fields.learning_decision must name the specific existing check/rule/owner '
+            'kept (e.g. "Keep existing <check/rule>; no reusable gap") or, when a gap was found, edit the '
+            'canonical skill and use "outcome":"reusable_gap", "observation":"recorded" with the repair summary'
+        )
     if "efficiency" in text:
         hints.append(
             'retrospective check: fields.efficiency is "no_waste", "unmeasured" or '

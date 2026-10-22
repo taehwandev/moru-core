@@ -179,10 +179,13 @@ def gate_hook(args: argparse.Namespace) -> int:
         return _gate_failure(args, "gate", error, invocation_error=True)
     except OSError as error:
         return _gate_failure(args, "gate", error, invocation_error=False)
+    details = [f"gate evidence recorded: {entry['gate']}" if entry else _IGNORED_HOOK_OWNED]
+    if entry:
+        details.extend(_auto_bridge_retrospective_if_needed(args, [entry]))
     return finish_with_result(
         "gate",
         True,
-        [f"gate evidence recorded: {entry['gate']}" if entry else _IGNORED_HOOK_OWNED],
+        details,
         args.output,
         {"gate_evidence": entry},
         args.repair_cycle,
@@ -220,6 +223,7 @@ def gate_batch_hook(args: argparse.Namespace) -> int:
     details.extend(f"recorded gate: {entry['gate']}" for entry in entries[:8])
     if len(entries) > 8:
         details.append(f"recorded gates truncated: {len(entries) - 8} more")
+    details.extend(_auto_bridge_retrospective_if_needed(args, entries))
     progress = _gate_progress(args)
     if progress["remaining_gates"] is None:
         details.append("Remaining route gates: unavailable; inspect the ledger before finish.")
@@ -293,6 +297,27 @@ def _gate_failure(
         {},
         args.repair_cycle,
         invocation_error=invocation_error,
+    )
+
+
+def _auto_bridge_retrospective_if_needed(
+    args: argparse.Namespace,
+    entries: list[dict[str, Any]],
+) -> list[str]:
+    if not any(
+        isinstance(item, dict)
+        and item.get("gate") == "retrospective check"
+        and item.get("status") == "SUCCESS"
+        for item in entries
+    ):
+        return []
+    from agent_skill_feedback import auto_bridge_causal_reusable_gap
+
+    rules = getattr(args, "rules", None) or Path(__file__).resolve().parents[1]
+    return auto_bridge_causal_reusable_gap(
+        project=args.project,
+        rules=rules,
+        evidence_path=preflight_evidence_path(args),
     )
 
 

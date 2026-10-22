@@ -478,3 +478,119 @@ def _retrospective_fields(evidence_path: Path) -> dict[str, str]:
     return latest_successful_gate_fields(
         route=route, evidence_path=evidence_path, gate="retrospective check",
     )
+
+
+def _changed_canonical_skill_targets(
+    project: Path, rules: Path, checked: set[str]
+) -> list[tuple[str, str]]:
+    from agent_skill_state import skill_name_segment
+    from support.bounded_git import run_git
+
+    matches: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for root in (project, rules):
+        try:
+            res = run_git(
+                ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            continue
+        if res.returncode != 0:
+            continue
+        for raw in res.stdout.splitlines():
+            if len(raw) < 4:
+                continue
+            rel = raw[3:].strip()
+            if " -> " in rel:
+                rel = rel.split(" -> ", 1)[1].strip()
+            rel = rel.strip('"')
+            if not rel.endswith(".md"):
+                continue
+            skill = skill_name_segment(rel)
+            if skill in checked and (skill, rel) not in seen and (root / rel).is_file():
+                seen.add((skill, rel))
+                matches.append((skill, rel))
+    return matches
+
+
+def auto_bridge_causal_reusable_gap(
+    *,
+    project: Path,
+    rules: Path,
+    evidence_path: Path,
+) -> list[str]:
+    """Bridge causal_v1 reusable_gap gate records into skill-learning state."""
+    from agent_skill_state import observation_dir, opaque_key, read_json
+
+    retrospective = _retrospective_fields(evidence_path)
+    if (
+        retrospective.get("outcome", "").strip().lower() != "reusable_gap"
+        or retrospective.get("observation", "").strip().lower() != "recorded"
+        or not retrospective.get("learning_decision", "").strip()
+    ):
+        return []
+    occurrence_key = opaque_key(_occurrence_id(evidence_path))
+    if not occurrence_key:
+        return []
+    obs_root = state_home() / observation_dir()
+    if obs_root.is_dir() and any(
+        read_json(path).get("occurrence_key") == occurrence_key
+        for path in obs_root.glob("*.json")
+    ):
+        return []
+
+    allowed = canonical_skill_ids(project, rules)
+    checked = [
+        normalize_skill_id(item)
+        for item in parse_skill_ids(retrospective.get("skills_checked", ""))
+        if normalize_skill_id(item) in allowed
+    ]
+    if not checked:
+        return []
+
+    changed_targets = _changed_canonical_skill_targets(project, rules, set(checked))
+    target_skill, target_rel = changed_targets[0] if changed_targets else (checked[0], "")
+    proposal = "; ".join(
+        part
+        for part in (
+            retrospective.get("causal_assessment", "").strip(),
+            retrospective.get("learning_decision", "").strip(),
+        )
+        if part
+    )
+    fb_result, fb_details = record_skill_feedback(
+        project=project,
+        rules=rules,
+        evidence_path=evidence_path,
+        outcome="observed",
+        skill_id=target_skill,
+        signal="missing_rule",
+        proposal=proposal,
+        change_type="clarify_rule",
+        promotion_target=target_skill,
+    )
+    candidate = str(fb_result.get("candidate_id") or "")
+    if not candidate:
+        return fb_details
+    if target_rel:
+        maint_result, maint_details = record_skill_maintenance(
+            project=project,
+            rules=rules,
+            candidate_id=candidate,
+            outcome="applied",
+            verification_kind="workflow_validate",
+            target=target_rel,
+            test_selector="",
+            evidence_path=evidence_path,
+        )
+        if maint_result.get("updated"):
+            return [*fb_details, *maint_details]
+    return [
+        *fb_details,
+        f"next skill step: edit canonical skill '{target_skill}' and run "
+        f"skill-maintenance --candidate-id {candidate} --maintenance-outcome applied "
+        "--verification-kind workflow_validate --maintenance-target <changed-skill-doc>",
+    ]

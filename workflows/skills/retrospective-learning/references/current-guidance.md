@@ -49,15 +49,23 @@ actually used. No gap leaves the canonical document unchanged.
    Record the exact fields `skills_checked`, `outcome`, and `observation`.
    For `retrospective_contract: causal_v1`, also record `alignment_evidence`,
    `causal_assessment`, and `learning_decision` as defined in the entrypoint.
-   Never derive a clean assessment from silence. Legacy unversioned manifests
-   keep their previous contract; no migration or reconstructed history is needed.
-   `observation` is an enum, not a free-form summary: pair
+   `learning_decision` must name the specific existing check, rule, or owner
+   kept (e.g. `Keep existing <check/rule>; ...`) or the repair artifact/check
+   result; ungrounded `"No canonical skill change needed"` dismissals are
+   rejected. Never derive a clean assessment from silence. Legacy unversioned
+   manifests keep their previous contract; no migration or reconstructed history
+   is needed. `observation` is an enum, not a free-form summary: pair
    `no_reusable_gap` or `no_skill_used` with `not_needed`, and pair
    `reusable_gap` with `recorded`. Put task-specific correction details in the
    gate evidence text rather than inventing another observation value.
-4. When the outcome is `reusable_gap`, run the feedback hook immediately (passing
+4. When a `causal_v1` gate record sets `outcome: reusable_gap` and
+   `observation: recorded` with `learning_decision`, `gate`/`gate-batch`
+   automatically bridges the observation, draft, and staged patch; if a
+   canonical skill document in `skills_checked` is already modified in the
+   worktree, it also runs `workflow_validate` maintenance in one step. When
+   running manually or before editing the skill doc, `skill-feedback` with
    `--draft-proposal` or `--draft-proposal-file` auto-stages the candidate in
-   one step). Skip provably `confounded` environmental, network, or timeout noise
+   one step. Skip provably `confounded` environmental, network, or timeout noise
    (backed by an evidenced external error or passing rerun) as `no_reusable_gap`
    with `efficiency: unmeasured`, without waiving any failed gate checkpoint.
 5. Write the bounded proposal, curate the current occurrence, and run bounded

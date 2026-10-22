@@ -115,13 +115,24 @@ def validate_retrospective_check(
             failures.extend(
                 _unloaded_skill_failures(normalized_skills, loaded_skill_ids)
             )
-    failures.extend(_causal_assessment_failures(text, contract))
+    failures.extend(_causal_assessment_failures(text, contract, outcome))
     failures.extend(_efficiency_failures(text, outcome))
     return failures
 
 
-def _causal_assessment_failures(text: str, contract: str) -> list[str]:
-    """Check presence, never infer agreement, failure or causality from wording."""
+_UNGROUNDED_LEARNING_DECISION_RE = re.compile(
+    r"^\s*(?:"
+    r"none|n/?a|not[_\s]+needed|no[_\s]+change(?:[_\s]+needed)?|nothing|"
+    r"no\s+(?:additional\s+)?(?:canonical\s+)?(?:skill|rule|guidance|doc|documentation)"
+    r"(?:\s+or\s+(?:skill|rule|guidance|doc|documentation))?\s+"
+    r"(?:change|update|edit|modification)s?\s*(?:is\s+|are\s+)?(?:needed|required|necessary|warranted)?"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _causal_assessment_failures(text: str, contract: str, outcome: str = "") -> list[str]:
+    """Check presence and grounded learning_decision without keyword-reclassifying causal_assessment."""
 
     if contract not in ("legacy", CAUSAL_RETROSPECTIVE_CONTRACT):
         return [f"unsupported retrospective contract: {contract!r}"]
@@ -129,7 +140,21 @@ def _causal_assessment_failures(text: str, contract: str) -> list[str]:
     if contract == "legacy" and not any(_field(text, label) for label in labels):
         return []  # Historical runs retain their original evidence contract.
     missing = [label for label in labels if not _field(text, label)]
-    return ["retrospective causal assessment requires " + ", ".join(missing)] if missing else []
+    if missing:
+        return ["retrospective causal assessment requires " + ", ".join(missing)]
+    decision = _field(text, "learning decision")
+    if _UNGROUNDED_LEARNING_DECISION_RE.search(decision):
+        if outcome == "reusable_gap":
+            return [
+                "retrospective learning decision for reusable_gap must name the repair artifact "
+                "and verification check, not a no-change dismissal"
+            ]
+        return [
+            "retrospective learning decision must name the specific existing check, rule, or owner "
+            "kept (e.g. 'Keep existing <check/rule>; ...') or use reusable_gap with a skill update, "
+            "not an ungrounded 'No skill change needed' dismissal"
+        ]
+    return []
 
 
 def _efficiency_failures(text: str, outcome: str) -> list[str]:
