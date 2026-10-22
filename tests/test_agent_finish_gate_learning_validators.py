@@ -110,6 +110,16 @@ class CausalRetrospectiveTests(unittest.TestCase):
             "No canonical skill change needed; existing workflow rules matched",
             "No additional canonical skill update required",
             "No canonical skill or rule change needed",
+            "No changes needed",
+            "No updates needed",
+            "Not applicable",
+            "No action needed",
+            "No-op",
+            "skip",
+            "`none`",
+            "- none",
+            "No skill-doc change needed",
+            "No SKILL.md change needed",
             "none",
             "n/a",
             "not needed",
@@ -124,6 +134,11 @@ class CausalRetrospectiveTests(unittest.TestCase):
             "Keep existing null-input check; no reusable guidance gap evidenced",
             "Keep existing check",
             "Updated retrospective validator and unit tests",
+            "No change needed because finish gate X already blocks this",
+            "No change to verification_policy because test_null_input already covers AC1",
+            "No guidance update required because rule X covers it",
+            "No rule change; keep existing finish check",
+            "None of the 3 skills lacked a rule; finish validator X covers it",
         ):
             with self.subTest(grounded=grounded):
                 self.assertEqual([], self.assess(learning_decision=grounded))

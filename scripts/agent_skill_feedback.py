@@ -481,38 +481,78 @@ def _retrospective_fields(evidence_path: Path) -> dict[str, str]:
 
 
 def _changed_canonical_skill_targets(
-    project: Path, rules: Path, checked: set[str]
-) -> list[tuple[str, str]]:
+    project: Path,
+    rules: Path,
+    checked: set[str],
+    preflight: dict[str, Any] | None = None,
+) -> list[tuple[str, str, str]]:
     from agent_skill_state import skill_name_segment
     from support.bounded_git import run_git
 
-    matches: list[tuple[str, str]] = []
-    seen: set[tuple[str, str]] = set()
-    for root in (project, rules):
+    project_resolved = project.resolve()
+    rules_resolved = rules.resolve()
+    roots = [project_resolved]
+    if rules_resolved != project_resolved and not (project_resolved / ".git").is_file():
+        roots.append(rules_resolved)
+
+    matches: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    for root in roots:
         try:
+            top_res = run_git(
+                ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
             res = run_git(
-                ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all"],
+                ["git", "-C", str(root), "status", "--porcelain", "-z", "--untracked-files=all"],
                 capture_output=True,
                 text=True,
                 check=False,
             )
         except OSError:
             continue
-        if res.returncode != 0:
+        if top_res.returncode != 0 or res.returncode != 0:
             continue
-        for raw in res.stdout.splitlines():
-            if len(raw) < 4:
+        top = Path(top_res.stdout.strip()).resolve()
+        tokens = res.stdout.split("\0")
+        idx = 0
+        while idx < len(tokens):
+            entry = tokens[idx]
+            idx += 1
+            if len(entry) < 4:
                 continue
-            rel = raw[3:].strip()
-            if " -> " in rel:
-                rel = rel.split(" -> ", 1)[1].strip()
-            rel = rel.strip('"')
+            status_xy = entry[:2]
+            rel = entry[3:]
+            if status_xy[0] in {"R", "C"} and idx < len(tokens):
+                idx += 1  # skip source path in -z porcelain format
             if not rel.endswith(".md"):
                 continue
+            full_path = (top / rel).resolve()
             skill = skill_name_segment(rel)
-            if skill in checked and (skill, rel) not in seen and (root / rel).is_file():
-                seen.add((skill, rel))
-                matches.append((skill, rel))
+            if skill in checked and str(full_path) not in seen and full_path.is_file():
+                seen.add(str(full_path))
+                matches.append((skill, rel, str(full_path)))
+        if matches:
+            return matches
+
+    for item in (preflight or {}).get("execution_snapshot", {}).get("required_docs") or ():
+        if not isinstance(item, dict):
+            continue
+        rel = str(item.get("path") or "").strip()
+        base_sha = str(item.get("sha256") or "").strip()
+        skill = skill_name_segment(rel)
+        if not rel.endswith(".md") or not base_sha or skill not in checked:
+            continue
+        for root in roots:
+            candidate = (root / rel).resolve()
+            if not candidate.is_file() or str(candidate) in seen:
+                continue
+            cur_sha = hashlib.sha256(candidate.read_bytes()).hexdigest()
+            if cur_sha != base_sha:
+                seen.add(str(candidate))
+                matches.append((skill, rel, str(candidate)))
     return matches
 
 
@@ -523,6 +563,7 @@ def auto_bridge_causal_reusable_gap(
     evidence_path: Path,
 ) -> list[str]:
     """Bridge causal_v1 reusable_gap gate records into skill-learning state."""
+    from agent_skill_followup import skill_followup_failures
     from agent_skill_state import observation_dir, opaque_key, read_json
 
     retrospective = _retrospective_fields(evidence_path)
@@ -532,13 +573,23 @@ def auto_bridge_causal_reusable_gap(
         or not retrospective.get("learning_decision", "").strip()
     ):
         return []
+    preflight = _preflight_payload(evidence_path) or {}
     occurrence_key = opaque_key(_occurrence_id(evidence_path))
     if not occurrence_key:
         return []
     obs_root = state_home() / observation_dir()
-    if obs_root.is_dir() and any(
-        read_json(path).get("occurrence_key") == occurrence_key
-        for path in obs_root.glob("*.json")
+    existing_obs = next(
+        (
+            read_json(path)
+            for path in (obs_root.glob("*.json") if obs_root.is_dir() else ())
+            if read_json(path).get("occurrence_key") == occurrence_key
+        ),
+        None,
+    )
+    if existing_obs is not None and not skill_followup_failures(
+        state_root=state_home(),
+        preflight=preflight,
+        gate_evidence_ledger={"entry_fields": {"retrospective check": retrospective}},
     ):
         return []
 
@@ -551,8 +602,13 @@ def auto_bridge_causal_reusable_gap(
     if not checked:
         return []
 
-    changed_targets = _changed_canonical_skill_targets(project, rules, set(checked))
-    target_skill, target_rel = changed_targets[0] if changed_targets else (checked[0], "")
+    existing_skill = str((existing_obs or {}).get("skill_id") or "")
+    if existing_skill in checked:
+        checked = [existing_skill]
+    changed_targets = _changed_canonical_skill_targets(project, rules, set(checked), preflight)
+    target_skill, _target_rel, target_abs = (
+        changed_targets[0] if changed_targets else (checked[0], "", "")
+    )
     proposal = "; ".join(
         part
         for part in (
@@ -575,14 +631,14 @@ def auto_bridge_causal_reusable_gap(
     candidate = str(fb_result.get("candidate_id") or "")
     if not candidate:
         return fb_details
-    if target_rel:
+    if target_abs:
         maint_result, maint_details = record_skill_maintenance(
             project=project,
             rules=rules,
             candidate_id=candidate,
             outcome="applied",
             verification_kind="workflow_validate",
-            target=target_rel,
+            target=target_abs,
             test_selector="",
             evidence_path=evidence_path,
         )

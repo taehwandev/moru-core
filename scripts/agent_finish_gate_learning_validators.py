@@ -120,15 +120,61 @@ def validate_retrospective_check(
     return failures
 
 
-_UNGROUNDED_LEARNING_DECISION_RE = re.compile(
-    r"^\s*(?:"
-    r"none|n/?a|not[_\s]+needed|no[_\s]+change(?:[_\s]+needed)?|nothing|"
-    r"no\s+(?:additional\s+)?(?:canonical\s+)?(?:skill|rule|guidance|doc|documentation)"
-    r"(?:\s+or\s+(?:skill|rule|guidance|doc|documentation))?\s+"
-    r"(?:change|update|edit|modification)s?\s*(?:is\s+|are\s+)?(?:needed|required|necessary|warranted)?"
-    r")\b",
+_BARE_DISMISSAL_RE = re.compile(
+    r"^(?:"
+    r"none|n/?a|not[_\s]+(?:needed|applicable|required)|"
+    r"no[_\s]+(?:change|changes|update|updates|action|edit|edits|modification|modifications)"
+    r"(?:[_\s]+(?:is|are))?(?:[_\s]+(?:needed|required|necessary|warranted))?|"
+    r"no-?op|nothing|skip(?:ped)?"
+    r")$",
     re.IGNORECASE,
 )
+_NO_CHANGE_PREFIX_RE = re.compile(
+    r"^no\s+(?:additional\s+|further\s+)?(?:canonical\s+)?"
+    r"(?:skill(?:-doc|\s+doc|\s+file)?|rule|guidance|doc|documentation|script\.md|skill\.md)"
+    r"(?:\s+or\s+(?:skill|rule|guidance|doc|documentation))?\s+"
+    r"(?:change|changes|update|updates|edit|edits|modification|modifications|action)"
+    r"\b",
+    re.IGNORECASE,
+)
+_GROUNDING_MARKER_RE = re.compile(
+    r"(?:"
+    r"\b(?:keep|keeps|kept|retain|retains|retained|preserve|preserves|preserved|because|since)\b|"
+    r"\balready\s+(?:cover|covers|covered|enforce|enforces|enforced|block|blocks|blocked|"
+    r"validate|validates|validated|handle|handles|handled|check|checks|checked)\b|"
+    r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+|"
+    r"\b[a-z0-9]+_[a-z0-9_]+\b|"
+    r"\b(?:SKILL|AGENTS|README)\.md\b|"
+    r"\b(?:AC|T|PR|ISSUE)[-_]?\d+\b"
+    r")",
+    re.IGNORECASE,
+)
+_KNOWN_FIELD_LABELS = (
+    "skills checked",
+    "outcome",
+    "observation",
+    "alignment evidence",
+    "causal assessment",
+    "learning decision",
+    "efficiency evidence",
+    "efficiency cause",
+    "efficiency reduction",
+    "efficiency verification",
+    "efficiency",
+)
+
+
+def _is_ungrounded_learning_decision(decision: str) -> bool:
+    cleaned = decision.strip().strip("\"'`-.;: ")
+    if not cleaned:
+        return True
+    if _BARE_DISMISSAL_RE.fullmatch(cleaned):
+        return True
+    if _NO_CHANGE_PREFIX_RE.search(cleaned):
+        remainder = _NO_CHANGE_PREFIX_RE.sub("", cleaned, count=1)
+        if not _GROUNDING_MARKER_RE.search(remainder):
+            return True
+    return False
 
 
 def _causal_assessment_failures(text: str, contract: str, outcome: str = "") -> list[str]:
@@ -142,8 +188,10 @@ def _causal_assessment_failures(text: str, contract: str, outcome: str = "") -> 
     missing = [label for label in labels if not _field(text, label)]
     if missing:
         return ["retrospective causal assessment requires " + ", ".join(missing)]
-    decision = _field(text, "learning decision")
-    if _UNGROUNDED_LEARNING_DECISION_RE.search(decision):
+    if contract != CAUSAL_RETROSPECTIVE_CONTRACT:
+        return []
+    decision = _full_field(text, "learning decision")
+    if _is_ungrounded_learning_decision(decision):
         if outcome == "reusable_gap":
             return [
                 "retrospective learning decision for reusable_gap must name the repair artifact "
@@ -214,3 +262,11 @@ def _field(evidence: str, label: str) -> str:
         flags=re.IGNORECASE,
     )
     return match.group(1).strip() if match else ""
+
+
+def _full_field(evidence: str, label: str) -> str:
+    """Extract a field value preserving internal semicolons up to the next field label or newline."""
+    other_labels = "|".join(re.escape(item) for item in _KNOWN_FIELD_LABELS if item != label.lower())
+    pattern = rf"(?:^|[;\n])\s*{re.escape(label)}\s*[:=]\s*(.+?)(?=(?:;\s*(?:{other_labels})\s*[:=])|\n|$)"
+    match = re.search(pattern, evidence, flags=re.IGNORECASE)
+    return match.group(1).strip() if match else _field(evidence, label)

@@ -333,6 +333,36 @@ class AgentSkillFollowupTests(unittest.TestCase):
             staged_files = list((root / "skill-learning" / "staged").glob("*.json"))
             self.assertEqual(1, len(staged_files))
 
+            # Replay after editing the skill doc in a non-git dir (via required_docs sha256 drift)
+            # advances the staged candidate when maintenance runs, and once completed is a no-op.
+            skill_doc = bundle / "SKILL.md"
+            orig_sha = "0" * 64
+            preflight["execution_snapshot"] = {
+                "required_docs": [{"path": "common/skills/verification-policy/SKILL.md", "sha256": orig_sha}]
+            }
+            preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+            with (
+                patch("agent_skill_feedback.state_home", return_value=root),
+                patch(
+                    "agent_skill_maintenance.verification_command",
+                    return_value=[sys.executable, "-c", "pass"],
+                ),
+            ):
+                replay_notes = auto_bridge_causal_reusable_gap(
+                    project=root,
+                    rules=root,
+                    evidence_path=preflight_path,
+                )
+                self.assertTrue(any("skill maintenance completed: applied" in line for line in replay_notes))
+                completed_files = list((root / "skill-learning" / "completed").glob("*.json"))
+                self.assertEqual(1, len(completed_files))
+                noop_notes = auto_bridge_causal_reusable_gap(
+                    project=root,
+                    rules=root,
+                    evidence_path=preflight_path,
+                )
+                self.assertEqual([], noop_notes)
+
     def _observe_twice(
         self,
         root: Path,

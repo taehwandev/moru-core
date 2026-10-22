@@ -314,11 +314,14 @@ def _auto_bridge_retrospective_if_needed(
     from agent_skill_feedback import auto_bridge_causal_reusable_gap
 
     rules = getattr(args, "rules", None) or Path(__file__).resolve().parents[1]
-    return auto_bridge_causal_reusable_gap(
-        project=args.project,
-        rules=rules,
-        evidence_path=preflight_evidence_path(args),
-    )
+    try:
+        return auto_bridge_causal_reusable_gap(
+            project=args.project,
+            rules=rules,
+            evidence_path=preflight_evidence_path(args),
+        )
+    except (OSError, RuntimeError, ValueError, TypeError):
+        return []
 
 
 def record_hook_gate(
