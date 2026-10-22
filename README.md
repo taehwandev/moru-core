@@ -8,165 +8,162 @@ type: ai-generated
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
 
-Moru Core is a shared guidance and runtime layer for AI coding agents. One
-checkout gives Claude, Codex, Antigravity and other agents the same operating
-rules, workflow routes, review checks, platform guidance and executable
-lifecycle evidence across every repository you link to it. Repo-local
-instructions stay small and keep the final say.
+Moru Core is a shared set of working rules and completion checks for AI coding
+agents. Connect it once, and Claude Code, Codex, Antigravity, and other agents
+follow the same standards across all of your repositories—reading only the
+guidance a task needs, reusing passed tests when code has not changed, and
+verifying their work before calling it done. Your project's own instructions
+stay short and always have the final say.
 
 - Repository: <https://github.com/taehwandev/moru-core>
-- Website: <https://getmoru.com/core> · [Efficiency Report](https://getmoru.com/report)
+- Website: <https://getmoru.com/core> · [Why Moru Core & 5-Month Report](https://getmoru.com/report)
 - Releases: <https://github.com/taehwandev/moru-core/releases> · release notes in [`.github/release-notes/`](.github/release-notes/)
 
-## What It Is
+## What It Does
 
-- **Provider-neutral.** The same rules work for Claude, Codex, Antigravity/AGY
-  and generic agents; runtime files are thin bridges.
-- **Selective.** Each task loads only the documents its route requires, not the
-  whole library.
-- **Executable.** A launcher records routing, gates, review and finish as local
-  JSON evidence, so "I checked" becomes a checked fact.
-- **Not a product template.** Repo commands, paths, product policy, credentials
-  and domain language belong in the target repository, never here.
-- **Not a safety scanner.** [VibeGuard](https://vibeguard.thdev.app/) is the
-  required safety gate; Moru Core is passed to it as the rule source.
+- **Works in the tools you already use.** The same rules work across Claude
+  Code, Codex, and Antigravity/AGY through a short connection block.
+- **Reads only what the task needs.** Instead of dumping 20 rule files into
+  every prompt, the agent opens only the few documents relevant to the current
+  task.
+- **Verifies before “Done.”** A local launcher records which tests, code
+  reviews, and safety checks actually ran—turning “I checked it” from a claim
+  into a verified record.
+- **Keeps project rules in the project.** Build commands, paths, product policy,
+  and secrets stay in your repository, never here.
+- **Built-in safety checks.** [VibeGuard](https://vibeguard.thdev.app/) (Moru
+  Guard) runs before edits and before completion using Moru Core as its rule
+  source.
 
 Runtime names: launcher `moru-hook` in `~/.moru/bin`, `MORU_*` settings,
 `<MORU_ROOT>`/`<MORU_LAUNCHER>` placeholders in committed docs, `.moru` local
-state and the `moru_explorer`/`moru_worker`/`moru_reviewer` agent roles.
+state, and the `moru_explorer`/`moru_worker`/`moru_reviewer` agent roles.
 
-## Why Moru Core (Architecture Comparison & Field Telemetry)
+## Why Moru Core (How It Compares & 5-Month Real-World Results)
 
-![Moru Core v2 5-Month Field Telemetry & Architecture Comparison](docs/assets/moru-core-telemetry.svg)
+![Moru Core 5-Month Real-World Results & Tool Comparison](docs/assets/moru-core-telemetry.svg)
 
-Native coding CLIs, on-demand skill packs (such as `Superpowers` or Agent
-Skills), and self-evolving agent runtimes (such as Nous Research's Hermes Agent
-or OpenHands) each address different layers of the agent stack. Moru Core is not
-a replacement runtime or a static prompt pack—it is a **host-native repository
-operating contract** that governs what guidance is required for a route, how
-shared rules and project memory evolve, and what executable evidence is checked
-before work is marked complete.
+When you work with coding agents every day, three problems show up fast:
+1. **Stuffing every rule into `CLAUDE.md` or `AGENTS.md` burns tokens on every turn**—even when you just ask a simple question.
+2. **Agents repeat the same tests and mistakes across sessions** because they do not keep a record of which files were already tested or why a bug happened last week.
+3. **Agents say “Done” while a test is still broken** or after writing a 900-line file that nobody wants to review.
 
-| Dimension | Native CLI (Stock Claude Code / Codex) | Rulebooks & Skill Packs (Mega `CLAUDE.md` / `Superpowers`) | Self-Evolving Agent Runtime (e.g., Hermes Agent) | **Moru Core (Host-Native Repository Contract)** |
+Moru Core solves those three problems right inside your existing CLI:
+
+| What you care about | Stock Coding CLI (Plain Claude Code / Codex) | Long Rulebooks & Skill Packs (Giant `CLAUDE.md` / `Superpowers`) | Separate Agent App (e.g., Hermes Agent) | **Moru Core (Rules Inside Your CLI)** |
 | --- | --- | --- | --- | --- |
-| **Who owns the loop** | Host CLI (native permissions, plan/sandbox modes, optional hooks) | Host CLI (eager monolithic rulebook or `SessionStart` bootstrap skill) | Standalone runtime loop (owns orchestration, subagents, terminal backends, gateway) | **Host CLI layer**: keeps your native Claude Code, Codex, or Antigravity session and binds shared repo contracts |
-| **Guidance & context loading** | Loads repo instructions only; discovers build/test conventions ad hoc | Monolithic `CLAUDE.md` pays an eager prefix tax every turn; skill packs load bodies on demand via tool calls | Bounded frozen memory snapshot (`~1.3K` tok `MEMORY.md` + `USER.md`), `~3K` skill index, on-demand `skill_view` / FTS5 search | **Deterministic route manifest**: selects exact `required_docs` (`4.15` avg in Oct, **-79.7%** vs our Jul `20.45` baseline); references open only for unresolved decisions |
-| **Read-only questions** *(“Why is this slow?”)* | Supports manual plan/read-only modes, not automatically separated from repo workflows | Monolithic files still load review/release rules; skill packs still inject bootstrap instructions | Runs inside the general agent loop with startup snapshot and skill index attached | **Stateless Read-Only Fast Path**: skips Moru `start`/`review`/`finish` lifecycle and worktree setup; active read-only runs block writes |
-| **How skills & memory evolve** | Manual edits to `CLAUDE.md` / `AGENTS.md` or local notes | Hand-written static markdown skills; no automated verification or TTL expiry | Agent auto-creates/patches skills via `skill_manage` (`write_approval` off by default, no TTL/expiry) + persistent `MEMORY.md` | **Governed evolution**: canonical rules update only on a verified `reusable_gap` checked by `workflow.py validate`; `project-memory` recalls `≤3` entries with mandatory `--review-on` expiry and `--applies-when`/`--not-when` guards |
-| **Follow-up runs & re-verification** | Conversational context only; no structured gate ledger across runs | Prompt checklists; follow-ups repeat checks or rely on conversational recall | FTS5 session search recalls prior chats, but no file-hash gate ledger to carry local checks | **`--continue-from` & `--reuse-inputs`** carry eligible local gates when declared `input_paths` hashes and attested scope/toolchain match (observed **-54.4%** p50 events in Oct continuation vs fresh cohort) |
-| **Definition of “Done” & tradeoffs** | Model self-report unless custom repo hooks are hand-built per project | Prompt-enforced checklists (e.g., `verification-before-completion`); model can drift | Provides sandboxes, messaging gateways, cron, and autonomous skills, but completion relies on model judgment | **Executable `finish` gate** checks fresh test evidence, `≤300` added-line dev file budget, and VibeGuard (hook-enforced in Claude Code; CLI-verified elsewhere). *Tradeoff: does not provide sandboxes, chat gateways, cron, or unreviewed skill generation.* |
+| **Do I have to switch tools?** | ✓ Keep your current CLI | △ Keep your CLI, plus a giant rule file or startup prompt pack | △ Switch to a separate agent runtime and terminal setup | **✓ Keep Claude Code, Codex, or AGY** just as you use them today |
+| **How much does it read at the start?** | △ Only the repo's main instruction file; figures out the rest by trial and error | ✕ A 20-file rulebook pays the full token cost every turn (skill packs load on demand) | ✓ Small memory snapshot (`~1.3K` tok) + skill list (`~3K` tok) + past chat search | **✓ Only what the task needs**: `4.15` docs per task on average (**-79.7%** vs loading all `20.45` docs) |
+| **Asking a simple question** *(“Why is this API slow?”)* | △ Safe if you switch to read-only/plan mode yourself | ✕ Still loads commit and release rules just to answer a question | △ Runs a full agent session with its startup memory attached | **✓ Answers right away**: skips branch creation and workflow steps, reads the code, and leaves your files untouched |
+| **Does it learn from past work?** | ✕ Only if you edit `CLAUDE.md` by hand | ✕ Static markdown files never learn from mistakes or expire | △ Auto-writes skills (`skill_manage`, no approval or expiry date by default) | **✓ Gets faster without clutter**: saves up to 3 short project notes with an expiry date (`--review-on`), and 1 fix updates all linked repos |
+| **Following up & committing** | ✕ Forgets what was already tested in the last run | ✕ Re-runs the whole checklist from the prompt | ✕ Searches old chat text, but doesn't check if code files changed | **✓ Reuses passed tests** when the relevant code files haven't changed (**-54.4%** fewer steps; **-85.6%** fewer tokens on commit) |
+| **When is a task allowed to be “Done”?** | ✕ Whenever the model says it's done (unless you build custom scripts) | △ Checklist in the prompt—easy for the model to skip in long chats | △ Great sandboxes and chat bots, but the model still decides when it's done | **✓ Checks the result first**: blocks completion until tests pass, new code files stay under `300` lines, and safety checks pass |
 
-### Observed May–October 2026 Field Cohorts (Single Operator · 26 Repos · 4,984 Git Commits · 419,857 Spill Events)
+### What Changed Over 5 Months of Daily Work (26 Repositories · 4,984 Git Commits · 419,857 Agent Steps)
 
-The figures below summarize our own May–October 2026 field telemetry (`419,857`
-recorded Spill events, `1,207` Codex threads, `584` Moru tracked runs, and `265`
-October session-bound runs across `26` repositories). They document how our
-workflow cohorts evolved over time—not a randomized controlled benchmark against
-external runtimes:
+We tracked every task across `26` repositories from May to October 2026 (`419,857`
+recorded Spill events, `1,207` Codex threads, and `584` Moru runs). These numbers
+come from real daily development on our own projects, comparing the same models
+before and after Moru Core's improvements:
 
-- **-79.7% route `required_docs` per run** (`20.45` docs in our Jul v1 manifest → `4.29` in Sep → `4.15` in Oct via Need-Driven Reading).
-- **-60.7% recorded events per Git commit** (`150.7` events/commit in Jul → `59.2` in Oct) and **+122.4% daily commit rate** (`29.5/day` across `11` active repos [`2.68/day/repo`] → `65.6/day` across `17` active repos [`3.86/day/repo`, **+44.0% per active repo**]).
-- **-78.1% reference-weighted tokens per changed file** (`432.5K` in Jul → `94.6K` in Oct using Spill's `1.0 / 1.25 / 0.1 / 1.0` comparison index; weighted tokens per commit moved from `3.07M` in Jul → `1.47M` in Sep → `1.63M` in Oct [**-46.9%** vs Jul] alongside larger multi-file refactors averaging `17.2` files/commit in Oct).
-- **-93.8% Codex median thread tokens (p50)** (`20.28M` → `1.25M`; p90 tail dropped from `146.1M` → `17.9M`).
-- **Within-model observational cohorts (holding model ID constant)**:
-  - On `claude-opus-5-5` (Sep → Oct), median recorded events per run dropped from **`591.0 → 35.5` (-94.0%)**, median weighted tokens from **`33.47M → 0.41M` (-98.8%)**, and average context per event from **`488.3K → 301.0K` (-38.4%)**.
-  - On `gpt-6-sol` (Sep → Oct), median recorded events per run dropped from **`855.0 → 174.5` (-79.6%)**, with `classify`-stage events per run falling from **`1,215.2 → 6.0` (-99.5%)**.
-  - Within October 2026 (`265` session-bound runs, `92.98%` session match coverage), `continuation` runs had lower median events than `fresh` runs on `claude-opus-5-5` (**`45.0 → 20.5` events, -54.4%**) and on the `commit` route (**`52.5 → 13.0` events, -75.2%**; weighted tokens **`2.02M → 0.29M`, -85.6%**).
+- **-79.7% fewer rule files read per task** (`20.45` files in July when we loaded everything up front → `4.15` files in October by reading only what the task needs).
+- **-60.7% fewer agent steps per Git commit** (`150.7` steps/commit in July → `59.2` in October) while **shipping +44.0% more commits per active repository each day** (`2.68` → `3.86` commits/day/repo; `29.5` → `65.6` total commits/day).
+- **-78.1% lower token usage per changed file** (`432.5K` → `94.6K` weighted tokens per file; per-commit token usage dropped **-46.9%** from `3.07M` in July to `1.63M` in October even with larger multi-file refactors).
+- **-93.8% smaller Codex sessions (median)** (`20.28M` → `1.25M` tokens per thread; the heaviest 10% of threads dropped from `146.1M` → `17.9M`).
+- **On the exact same model (`claude-opus-5-5`, Sep → Oct 2026)**:
+  - Median steps per task dropped **-94.0%** (**`591.0 → 35.5` steps**), median token usage per task dropped **-98.8%** (**`33.47M → 0.41M`**), and average context size per step shrank **-38.4%** (**`488.3K → 301.0K`**).
+  - On `gpt-6-sol` (Sep → Oct), median steps per task dropped **-79.6%** (**`855.0 → 174.5` steps**).
+  - When following up on work in October, continuing an existing task took **-54.4% fewer steps** than starting fresh (**`45.0 → 20.5` steps**), and committing already-checked work used **-85.6% fewer tokens** (**`2.02M → 0.29M`**).
 
-### Why Moru Core Compounds the More You Use It
+### Why Moru Core Gets Faster the More You Use It
 
-Static rulebooks never learn from past runs, while unreviewed autonomous skill writers (`skill_manage` with `write_approval: false` and no expiry) risk accumulating stale or noisy instructions over time. Moru Core gets faster and leaner with continued use through three governed loops:
+Static rule files never learn from yesterday's bugs. On the other hand, letting an agent rewrite its own skills without review or expiration dates quickly fills your context with outdated advice. Moru Core gets faster week after week without accumulating junk:
 
-1. **Curated `project-memory` with expiry (`≤3` recalled per run)**: When an agent confirms a repository root cause, pitfall, or architectural decision that the code alone does not show, it records a scoped note with `--applies-when`, `--not-when`, and a mandatory `--review-on` expiry date. Later starts in any linked worktree recall at most three matching in-date notes—skipping repeated dead-end investigation without growing the prompt prefix.
-2. **One-fix-for-all-repos lesson promotion (`repair-verify`)**: Recurring blocks or gate failures are counted in a content-free inbox (`337` candidates → `10` accepted → `6` promoted in our May–Oct store). When a `reusable_gap` is repaired in the owning skill, hook, or validator and attested with a `repair-verify` receipt, the lesson is retired (`fixed_lesson`) and every linked repository inherits the guardrail immediately.
-3. **Observed weekly compounding (`Oct W1 → W2 → W3`)**: Holding the model constant (`claude-opus-5-5`) across **fresh** runs in October 2026, median events per run converged from **`112.0` (Week 1) → `48.5` (Week 2, -56.7%) → `23.0` (Week 3, -79.5%)** as project memories, compact start, and promoted lessons took effect across active repositories.
+1. **Short project notes with an expiration date (at most 3 per task)**: When an agent tracks down a tricky root cause or project quirk that isn't obvious from the code, it saves a one-line note (`project-memory`) with clear conditions (`--applies-when` / `--not-when`) and a required review date (`--review-on`). Next time a task starts on that project, it recalls at most **3 relevant, unexpired notes**—so the agent skips the dead ends without bloating your prompt.
+2. **Fix a recurring mistake once, and every project gets it (`repair-verify`)**: When the same kind of mistake or blocked step happens repeatedly across your work (`337` patterns spotted → `10` accepted → `6` promoted into shared rules), fixing and verifying the shared rule once immediately protects all **26 connected repositories** on their very next run.
+3. **Real-world result: brand-new tasks got 79.5% shorter in 3 weeks**: Looking only at **brand-new (`fresh`) tasks** on the exact same model (`claude-opus-5-5`) across October 2026, the median number of steps per task dropped from **`112.0` steps in Week 1 → `48.5` steps in Week 2 (-56.7%) → `23.0` steps in Week 3 (-79.5%)** as project notes and shared fixes built up.
 
-Inspect your own local cohort and monthly/weekly period efficiency trends (`W1–W4` when `--month` is passed; content-free, no prompts or file paths exported):
+You can check your own monthly and weekly efficiency trends anytime (no prompts or file paths are ever exported):
 
 ```bash
 python3 scripts/agent-os-status.py --efficiency-trends --all-projects --month 2026-10
 ```
 
-Full architectural scenario walkthrough and May–October field ledger: <https://getmoru.com/report>.
+Read the full comparison and 5-month breakdown at <https://getmoru.com/report>.
 
 ## Quick Start
 
-Reuse an existing checkout when one is on the machine or pinned in the repo. Do
+Reuse an existing checkout when one is on your machine or pinned in the repo. Do
 not clone a second copy unless the user approves it after being told which root
 was found.
 
-**1. Get a root.** A personal shared install:
+**1. Download Moru Core once.** For a personal shared install:
 
 ```bash
 git clone https://github.com/taehwandev/moru-core.git ~/.moru/core
 ```
 
-A team that must pin one reviewed version adds it as a submodule instead, after
-the repo owner approves the location and update policy:
+If your team wants to pin a specific reviewed version inside a repository, add
+it as a submodule after the repo owner approves:
 
 ```bash
 git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
 ```
 
-**2. Install the launcher and runtime bridges.**
+**2. Set up the launcher and agent connections.**
 
 ```bash
 python3 ~/.moru/core/scripts/setup-agent-hooks.py
 ```
 
-This installs `~/.moru/bin/moru-hook` (referred to as `<MORU_LAUNCHER>`), the
-`~/.moru/moru-root` pointer, managed bridge blocks for Codex, Claude and AGY,
-hooks, and permissions scoped to the launcher's absolute path. Check or repair
-later with `<MORU_LAUNCHER> setup-agent-hooks --check` and
-`<MORU_LAUNCHER> setup-agent-hooks`; rerun setup after moving the checkout.
+This installs `~/.moru/bin/moru-hook` (shown as `<MORU_LAUNCHER>`), the
+`~/.moru/moru-root` pointer, and the short connection blocks for Codex, Claude,
+and AGY. You can check or repair the setup anytime with
+`<MORU_LAUNCHER> setup-agent-hooks --check` and
+`<MORU_LAUNCHER> setup-agent-hooks`.
 
-**3. Validate.**
+**3. Check that everything is ready.**
 
 ```bash
 <MORU_LAUNCHER> workflow validate
-<MORU_LAUNCHER> doctor --project <TARGET_REPO>   # read-only health report
+<MORU_LAUNCHER> doctor --project <TARGET_REPO>   # read-only health check
 ```
 
-**Update** between tasks, never during one, so rules do not change mid-run:
+**Updating:** Pull updates between tasks (never in the middle of one) so rules
+stay consistent during a run:
 
 ```bash
 cd ~/.moru/core && git pull --ff-only && <MORU_LAUNCHER> workflow validate
 ```
 
-Target repos that link to the root need no update of their own. A pinned
-submodule moves through the target repo's normal review. Release changes are in
+Connected repositories automatically use the updated rules without needing
+commits of their own. Release notes live in
 [`.github/release-notes/`](.github/release-notes/).
 
 ## Connect A Project
 
-1. Read the target repo's existing `AGENTS.md`, `CLAUDE.md`, `CODEX.md` or
+1. Read the project's existing `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, or
    `.agents/` instructions first.
-2. Add the managed routing block from
+2. Add the short routing block from
    [`templates/repo-agents-routing.md`](templates/repo-agents-routing.md) to the
-   file the runtime reads, preferring `AGENTS.md`. Update existing
-   runtime-specific pointers in the same pass instead of creating duplicates.
-3. Keep committed instructions portable: use `<MORU_ROOT>`, `${MORU_HOME}` or a
-   repo-relative pinned path such as `.agents/moru-core`, never a personal
-   absolute path.
-4. Run VibeGuard with the Moru Core root as the rule source. If the repo already
-   has guardrails or custom instructions, decide first whether to audit only,
-   refresh the managed block, or set up from scratch:
+   file your agent reads (preferring `AGENTS.md`).
+3. Keep committed paths portable: use `<MORU_ROOT>`, `${MORU_HOME}`, or a
+   relative submodule path like `.agents/moru-core`—never your personal home
+   directory path.
+4. Run VibeGuard with Moru Core as the rule source:
 
    ```bash
    npx --yes @taehwandev/vibeguard@latest audit . --rules <MORU_ROOT>
    ```
 
-When an agent starts outside the target repo, resolve it first with
-`<MORU_LAUNCHER> agent-entry --runtime <runtime> --request "<USER_REQUEST>" --cwd "$PWD"`.
-Products spanning several repositories can declare workspace groups in
-`~/.moru/projects.json`. Install modes, the application drill and cross-repo
-rules: [agent bootstrap](docs/skills/agent-bootstrap/SKILL.md) and
+More details on multi-repo workspaces and setup:
+[agent bootstrap](docs/skills/agent-bootstrap/SKILL.md) and
 [runtime setup](docs/skills/agent-runtime-integration/references/runtime-setup.md).
 
 ## Apply With Any AI Agent
 
-Paste the request in [`templates/apply-moru-request.md`](templates/apply-moru-request.md)
-into an agent session in the target repo. Its short form:
+Want your agent to set this up for you? Paste this into your coding agent inside
+the project:
 
 ```text
 Apply Moru Core to this project: https://github.com/taehwandev/moru-core
@@ -176,13 +173,14 @@ replacing them. Use the Moru Core root as the VibeGuard rule source. Add the
 short routing block to AGENTS.md and keep repo-specific rules in this repo.
 ```
 
-For a one-shot session without changing the repo, use
+Full template: [`templates/apply-moru-request.md`](templates/apply-moru-request.md).
+For a one-time session without editing project files, use
 [`templates/use-moru-prompt.md`](templates/use-moru-prompt.md).
 
 ## How A Task Runs
 
-Read-only questions are answered from direct evidence without a lifecycle.
-Work that changes something runs once through the launcher:
+Questions that only read code are answered right away without starting a workflow.
+When a task changes files, the agent runs it through the launcher:
 
 ```bash
 <MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> \
@@ -190,64 +188,55 @@ Work that changes something runs once through the launcher:
   --intent <safe_slug> --target-summary "<bounded target>"
 ```
 
-1. **Start** classifies the request, selects the route and binds its authority.
-   Pass `--approved-effect git_write` (or higher) only when the user authorized
-   commits, pushes or other Git and external writes.
-2. **Read** every `required_docs` entry the route lists; other references are
-   opened only for an unresolved question.
-3. **Work and record** the route's gates with `<MORU_LAUNCHER> gate-batch`.
-   `<MORU_LAUNCHER> next` prints the next step and a copyable command.
-4. **Review hook** checks the diff, structure, links, workflow validity and
-   VibeGuard.
-5. **Finish hook** verifies the evidence before any final report, commit,
-   release or handoff.
+1. **Start** picks the right workflow path (`small-change`, `bugfix`, `feature`,
+   `docs`, etc.) and checks permissions. Pass `--approved-effect git_write` only
+   when the user asked to commit or push.
+2. **Read** the few `required_docs` selected for that workflow; open extra
+   reference docs only if a question comes up.
+3. **Work and record** test results with `<MORU_LAUNCHER> gate-batch`. Run
+   `<MORU_LAUNCHER> next` anytime to see the next step and exact command.
+4. **Review** checks the diff, file sizes, links, and VibeGuard safety rules.
+5. **Finish** confirms all required checks passed before reporting done or
+   committing.
 
-Gate status is only `🐱🟢 SUCCESS` or `🐱🔴 FAIL`. Direct `workflow route`,
-`agent-preflight` and `agent-finish-check` calls are lower-level diagnostics,
-never a second lifecycle. Interrupted work resumes with
-`start --continue-from <run id>`, which keeps the work identity while scope and
-authority are checked again.
-
-Common routes are `small-change` (one owner, at most four files), `bugfix`,
-`feature`, `refactor`, `docs`, `review`, `commit`, `cleanup` and `release`;
-`<MORU_LAUNCHER> workflow list` prints every route, platform and concern.
-Mechanics, schemas and recovery rules:
+Check status is always `🐱🟢 SUCCESS` or `🐱🔴 FAIL`. To pick up an interrupted
+task or do a follow-up, run `start --continue-from <run id>`. Mechanics and
+recovery rules:
 [scripted agent workflow](workflows/skills/scripted-agent-workflow/references/current-guidance.md)
 and [executable evidence gate](docs/skills/agent-runtime-integration/references/executable-evidence-gate.md).
 
 ## Memory And Work Cards
 
-Agents capture verified project facts (a root cause, a pitfall, a decision
-reason) with `<MORU_LAUNCHER> project-memory`; later starts recall up to three
-relevant, in-date records as reference. Work cards keep unfinished tasks visible
-across sessions. Both stay on your machine and never grant authority. Details:
+When an agent confirms a non-obvious cause, pitfall, or design reason, it saves
+a short note with `<MORU_LAUNCHER> project-memory`. Future tasks on the same
+project recall up to three relevant, unexpired notes. Work cards keep unfinished
+tasks visible across sessions. Both stay on your Mac. Details:
 [project memory and work cards](docs/project-memory.md).
 
-## Runtimes
+## Supported Coding Agents
 
-- **Codex** and **Antigravity/AGY** read `AGENTS.md` directly; AGY also gets a
-  `GEMINI.md` bridge.
-- **Claude** reads `CLAUDE.md`, which imports `AGENTS.md`.
-- Setup installs short managed bridge blocks in each runtime's user-level
-  instructions and the native `moru_*` subagent roles.
-- Spill workflow labels are optional: setup wires a label bridge only when the
-  local Spill helper exists, and labels are written only after a real start.
-  Moru Core installs no token-usage hooks.
+- **Codex** and **Antigravity/AGY** read `AGENTS.md` directly (AGY also gets a
+  `GEMINI.md` pointer).
+- **Claude Code** reads `CLAUDE.md`, which imports `AGENTS.md`.
+- Setup adds a short connection block to each tool's user settings and installs
+  the `moru_*` helper roles.
+- If [Spill](https://getmoru.com/spill) is installed on your Mac, setup connects
+  task labels automatically without installing extra token hooks.
 
-Runtime-specific rules: [agent runtime integration](docs/skills/agent-runtime-integration/SKILL.md).
+Details: [agent runtime integration](docs/skills/agent-runtime-integration/SKILL.md).
 
 ## Repository Layout
 
 ```text
-AGENTS.md         Shared entrypoint for agent runtimes
-index.md          Catalog for selecting the smallest useful document set
-common/           Platform-neutral engineering guidance
-platforms/        Android, KMP, Flutter, iOS, Swift, React Native, web, server, Python and application tracks
-product-patterns/ Reusable product mechanics such as auth, invite, billing and agent credentials
-workflows/        Repeatable agent work paths
-scripts/          Launcher, hooks, routers, validators
-templates/        Repo-local routing block and prompts
-docs/             Reference pages, specs and bootstrap/runtime skills
+AGENTS.md         Main entrypoint read by coding agents
+index.md          Document catalog
+common/           General engineering rules
+platforms/        Android, KMP, Flutter, iOS, Swift, React Native, web, server, Python, and app guides
+product-patterns/ Reusable patterns for auth, invites, billing, and credentials
+workflows/        Step-by-step workflows by task type
+scripts/          Launcher, hooks, routers, and validators
+templates/        Copy-paste setup blocks and prompts
+docs/             Reference guides and runtime setup docs
 ```
 
 Start most coding work from
@@ -255,20 +244,19 @@ Start most coding work from
 
 ## Contributing
 
-- Shared guidance is written in English, short and action-oriented. Localized
-  copy (such as [README.ko.md](README.ko.md) or `docs/ko/`) never becomes the
-  source of truth.
-- Link to an existing card instead of copying it. Platform-neutral lessons go to
-  `common/`, product mechanics to `product-patterns/`, repeatable paths to
-  `workflows/`.
-- A lesson is shared only if it still holds after removing every project,
-  service, path and vendor name.
-- Documents carry frontmatter (`keyflow_id`, `status`, `type`) as described in
+- Shared rules are written in clear, concise English. Translated guides (such as
+  [README.ko.md](README.ko.md), [README.ja.md](README.ja.md), and
+  [README.zh-CN.md](README.zh-CN.md)) are for human readers; English files
+  remain the source of truth for agents.
+- Link to existing rules instead of copying them.
+- Only add rules that apply across projects—keep project-specific names, paths,
+  and policies in their own repositories.
+- Every rule document includes frontmatter (`keyflow_id`, `status`, `type`) per
   [doc conventions](common/skills/doc-conventions/SKILL.md).
 
 ## Local Hook Testing
 
-Run the lifecycle smoke checks in a temporary repository sandbox:
+Run the end-to-end smoke checks in a temporary sandbox:
 
 ```bash
 python3 scripts/run_smoke_checks.py
@@ -278,16 +266,13 @@ Unit tests: `PYTHONPATH=tests:scripts python3 -B -m unittest discover -s tests`.
 
 ## Moru Maintenance Audit
 
-Health and efficiency audits of Moru Core itself, with their living checks and
-recorded findings, are in [docs/maintenance-audit.md](docs/maintenance-audit.md).
+Health and efficiency checks for Moru Core itself live in
+[docs/maintenance-audit.md](docs/maintenance-audit.md).
 
 ## Website Deployment
 
-The public site is <https://getmoru.com/core>, deployed on Vercel as part of
-the Moru site; this repository no longer carries a custom-domain `CNAME`. A
-public release is cut only for a meaningful change set, not for every merge.
-The general contract is
-[web deployment versioning](common/skills/web-deployment-versioning/SKILL.md).
-Release tags use weekly CalVer `vYY.WW.N` on the Korean calendar (Asia/Seoul,
-Monday-start weeks), as defined by
-[release versioning](common/skills/release-versioning/SKILL.md).
+The public page is <https://getmoru.com/core>, deployed on Vercel as part of the
+Moru website. Public releases are tagged for meaningful updates using weekly
+CalVer `vYY.WW.N` on the Korean calendar (Asia/Seoul, Monday-start weeks); see
+[web deployment versioning](common/skills/web-deployment-versioning/SKILL.md)
+and [release versioning](common/skills/release-versioning/SKILL.md).

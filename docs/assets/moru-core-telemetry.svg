@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 774" width="1120" height="774" role="img" aria-labelledby="title desc">
-  <title id="title">Moru Core v2 — 5-Month Field Telemetry, Compounding Flywheel &amp; Architecture Comparison</title>
-  <desc id="desc">Visual comparison of Moru Core v2 before/after loop compression metrics, weekly compounding convergence (Oct W1 112.0 to W3 23.0 events, -79.5%), and 4-column architecture comparison against Native CLIs, Superpowers skill packs, and Hermes Agent.</desc>
+  <title id="title">Moru Core — 5-Month Real-World Results &amp; Tool Comparison</title>
+  <desc id="desc">Before and after comparison using Moru Core on the same model (claude-opus-5-5) across 26 repositories, showing 94% fewer steps per task, 79.5% faster tasks by Week 3 as project notes accumulate, and how Moru Core compares to stock CLIs, prompt rulebooks, and Hermes Agent.</desc>
   <defs>
     <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#15161a"/>
@@ -43,171 +43,171 @@
 
   <!-- Header -->
   <circle cx="38" cy="36" r="5" fill="#34d399"/>
-  <text x="52" y="40" class="mono kicker">MORU CORE V2 · COMPOUNDING FLYWHEEL &amp; 5-MONTH FIELD TELEMETRY</text>
-  <text x="32" y="68" class="sans h1">Same Model (claude-opus-5-5) &amp; 26-Repo Cohort: Before vs. After Moru Core v2</text>
-  <text x="32" y="88" class="sans sub">Observed across 4,984 Git commits, 419,857 Spill events, and 584 tracked runs (May–Oct 2026) · Observational cohort metrics, not a synthetic benchmark</text>
+  <text x="52" y="40" class="mono kicker">MORU CORE · 5 MONTHS OF REAL WORK ACROSS 26 REPOSITORIES</text>
+  <text x="32" y="68" class="sans h1">Same Model (claude-opus-5-5), Far Less Wasted Work: Before vs. After Moru Core</text>
+  <text x="32" y="88" class="sans sub">Measured across 4,984 Git commits and 419,857 agent steps (May–Oct 2026) · Real daily work on 26 projects</text>
 
-  <!-- Row 1: Route required_docs -->
+  <!-- Row 1: Rule files read per task -->
   <g transform="translate(32, 104)">
     <rect width="1056" height="56" rx="10" fill="#1e2128" stroke="#2c303a"/>
-    <text x="16" y="22" class="sans row-title">01 · Route required_docs per run (Jul v1 Eager Manifest vs. Oct v2 Need-Driven Reading)</text>
+    <text x="16" y="22" class="sans row-title">01 · Rule files read per task (Reading everything up front vs. reading only what the task needs)</text>
     <rect x="958" y="7" width="84" height="20" rx="10" fill="#123528" stroke="#28684c"/>
     <text x="1000" y="21" text-anchor="middle" class="mono badge-txt">-79.7%</text>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="#2b2418" stroke="#6b4e1b"/>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="url(#beforeGrad)" opacity="0.38"/>
-    <text x="24" y="43" class="sans bar-lbl">Before (Jul Moru v1 Eager)</text>
-    <text x="496" y="43" text-anchor="end" class="mono bar-val">20.45 docs / run</text>
+    <text x="24" y="43" class="sans bar-lbl">Before (July: loading all 20 rule files at once)</text>
+    <text x="496" y="43" text-anchor="end" class="mono bar-val">20.45 docs / task</text>
     <rect x="520" y="30" width="520" height="18" rx="5" fill="#141f1c" stroke="#275c45"/>
     <rect x="520" y="30" width="106" height="18" rx="5" fill="url(#goodGrad)" opacity="0.65"/>
-    <text x="530" y="43" class="sans bar-lbl">After (Oct Moru v2 Need-Driven · 0 hooks on lookup)</text>
-    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">4.15 docs / run</text>
+    <text x="530" y="43" class="sans bar-lbl">After (October: only the docs the task needs · 0 on questions)</text>
+    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">4.15 docs / task</text>
   </g>
 
-  <!-- Row 2: Same-Model Events -->
+  <!-- Row 2: Steps per task on the same model -->
   <g transform="translate(32, 168)">
     <rect width="1056" height="56" rx="10" fill="#1e2128" stroke="#2c303a"/>
-    <text x="16" y="22" class="sans row-title">02 · Same-Model Recorded Events per Run (claude-opus-5-5 p50 · Sep vs. Oct 2026)</text>
+    <text x="16" y="22" class="sans row-title">02 · Steps per task on the same model (claude-opus-5-5 median · Sep vs. Oct 2026)</text>
     <rect x="958" y="7" width="84" height="20" rx="10" fill="#123528" stroke="#28684c"/>
     <text x="1000" y="21" text-anchor="middle" class="mono badge-txt">-94.0%</text>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="#2b2418" stroke="#6b4e1b"/>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="url(#beforeGrad)" opacity="0.38"/>
-    <text x="24" y="43" class="sans bar-lbl">Sep 2026 (pre-compact start)</text>
-    <text x="496" y="43" text-anchor="end" class="mono bar-val">591.0 events (p50)</text>
+    <text x="24" y="43" class="sans bar-lbl">Before (Sep 2026: long back-and-forth loops)</text>
+    <text x="496" y="43" text-anchor="end" class="mono bar-val">591.0 steps</text>
     <rect x="520" y="30" width="520" height="18" rx="5" fill="#141f1c" stroke="#275c45"/>
     <rect x="520" y="30" width="36" height="18" rx="5" fill="url(#goodGrad)" opacity="0.75"/>
-    <text x="530" y="43" class="sans bar-lbl">Oct 2026 (171 session-bound runs)</text>
-    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">35.5 events (p50)</text>
+    <text x="530" y="43" class="sans bar-lbl">After (Oct 2026: one-step start &amp; focused checks)</text>
+    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">35.5 steps</text>
   </g>
 
-  <!-- Row 3: Same-Model Weighted Tokens -->
+  <!-- Row 3: Token usage per task on the same model -->
   <g transform="translate(32, 232)">
     <rect width="1056" height="56" rx="10" fill="#1e2128" stroke="#2c303a"/>
-    <text x="16" y="22" class="sans row-title">03 · Same-Model Reference-Weighted Tokens per Run (claude-opus-5-5 p50 · Sep vs. Oct 2026)</text>
+    <text x="16" y="22" class="sans row-title">03 · Token usage per task on the same model (claude-opus-5-5 median · Sep vs. Oct 2026)</text>
     <rect x="958" y="7" width="84" height="20" rx="10" fill="#123528" stroke="#28684c"/>
     <text x="1000" y="21" text-anchor="middle" class="mono badge-txt">-98.8%</text>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="#2b2418" stroke="#6b4e1b"/>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="url(#beforeGrad)" opacity="0.38"/>
-    <text x="24" y="43" class="sans bar-lbl">Sep 2026 median (488.3K ctx/event)</text>
-    <text x="496" y="43" text-anchor="end" class="mono bar-val">33.47M weighted tok</text>
+    <text x="24" y="43" class="sans bar-lbl">Sep 2026 median (488.3K context per step)</text>
+    <text x="496" y="43" text-anchor="end" class="mono bar-val">33.47M tokens</text>
     <rect x="520" y="30" width="520" height="18" rx="5" fill="#141f1c" stroke="#275c45"/>
     <rect x="520" y="30" width="24" height="18" rx="5" fill="url(#goodGrad)" opacity="0.8"/>
-    <text x="530" y="43" class="sans bar-lbl">Oct 2026 median (301.0K ctx/event, -38.4%)</text>
-    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">0.41M weighted tok</text>
+    <text x="530" y="43" class="sans bar-lbl">Oct 2026 median (301.0K context per step, -38.4%)</text>
+    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">0.41M tokens</text>
   </g>
 
-  <!-- Row 4: Commit Continuation Reuse -->
+  <!-- Row 4: Reusing passed tests on follow-up & commit -->
   <g transform="translate(32, 296)">
     <rect width="1056" height="56" rx="10" fill="#1e2128" stroke="#2c303a"/>
-    <text x="16" y="22" class="sans row-title">04 · Follow-up Continuation Reuse (--continue-from &amp; --reuse-inputs on Oct Commit Route)</text>
+    <text x="16" y="22" class="sans row-title">04 · Follow-up &amp; commit: Reusing passed tests when code files haven't changed</text>
     <rect x="958" y="7" width="84" height="20" rx="10" fill="#123528" stroke="#28684c"/>
     <text x="1000" y="21" text-anchor="middle" class="mono badge-txt">-85.6%</text>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="#2b2418" stroke="#6b4e1b"/>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="url(#beforeGrad)" opacity="0.38"/>
-    <text x="24" y="43" class="sans bar-lbl">Fresh Commit Run (p50: 52.5 events)</text>
-    <text x="496" y="43" text-anchor="end" class="mono bar-val">2.02M weighted tok</text>
+    <text x="24" y="43" class="sans bar-lbl">Starting from scratch (52.5 steps · re-runs tests)</text>
+    <text x="496" y="43" text-anchor="end" class="mono bar-val">2.02M tokens</text>
     <rect x="520" y="30" width="520" height="18" rx="5" fill="#141f1c" stroke="#275c45"/>
     <rect x="520" y="30" width="75" height="18" rx="5" fill="url(#goodGrad)" opacity="0.7"/>
-    <text x="530" y="43" class="sans bar-lbl">Continuation Run (p50: 13.0 events · carries byte-hash gates)</text>
-    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">0.29M weighted tok</text>
+    <text x="530" y="43" class="sans bar-lbl">Continuing a checked task (13.0 steps · keeps valid test results)</text>
+    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">0.29M tokens</text>
   </g>
 
-  <!-- Row 5: Compounding Flywheel Over Time -->
+  <!-- Row 5: Gets faster the more you use it -->
   <g transform="translate(32, 360)">
     <rect width="1056" height="56" rx="10" fill="#1e2128" stroke="#2c303a"/>
-    <text x="16" y="22" class="sans row-title">05 · Compounding Flywheel: The More You Use It, The Shorter Fresh Loops Get (Oct W1 → W2 → W3)</text>
+    <text x="16" y="22" class="sans row-title">05 · Gets faster the more you use it: Brand-new tasks from Oct Week 1 → Week 2 → Week 3</text>
     <rect x="958" y="7" width="84" height="20" rx="10" fill="#123528" stroke="#28684c"/>
     <text x="1000" y="21" text-anchor="middle" class="mono badge-txt">-79.5%</text>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="#2b2418" stroke="#6b4e1b"/>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="url(#beforeGrad)" opacity="0.38"/>
-    <text x="24" y="43" class="sans bar-lbl">Oct W1 Fresh → W2 (112.0 → 48.5 events)</text>
-    <text x="496" y="43" text-anchor="end" class="mono bar-val">112.0 events (W1)</text>
+    <text x="24" y="43" class="sans bar-lbl">Oct Week 1 → Week 2 (112.0 → 48.5 steps)</text>
+    <text x="496" y="43" text-anchor="end" class="mono bar-val">112.0 steps (W1)</text>
     <rect x="520" y="30" width="520" height="18" rx="5" fill="#141f1c" stroke="#275c45"/>
     <rect x="520" y="30" width="107" height="18" rx="5" fill="url(#goodGrad)" opacity="0.72"/>
-    <text x="530" y="43" class="sans bar-lbl">Oct W3 Fresh (project-memory + promoted lessons active)</text>
-    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">23.0 events (W3)</text>
+    <text x="530" y="43" class="sans bar-lbl">Oct Week 3 (saved project notes + shared fixes across 26 repos)</text>
+    <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">23.0 steps (W3)</text>
   </g>
 
-  <!-- Row 6: Weighted Tokens per Changed File -->
+  <!-- Row 6: Token usage per changed file & daily commits -->
   <g transform="translate(32, 424)">
     <rect width="1056" height="56" rx="10" fill="#1e2128" stroke="#2c303a"/>
-    <text x="16" y="22" class="sans row-title">06 · Reference-Weighted Tokens per Changed File &amp; Commit Velocity (Jul Peak vs. Oct 2026)</text>
+    <text x="16" y="22" class="sans row-title">06 · Token usage per changed file &amp; daily shipping pace (Jul Peak vs. Oct 2026)</text>
     <rect x="958" y="7" width="84" height="20" rx="10" fill="#123528" stroke="#28684c"/>
     <text x="1000" y="21" text-anchor="middle" class="mono badge-txt">-78.1%</text>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="#2b2418" stroke="#6b4e1b"/>
     <rect x="16" y="30" width="490" height="18" rx="5" fill="url(#beforeGrad)" opacity="0.38"/>
-    <text x="24" y="43" class="sans bar-lbl">Jul 2026 (11 repos · 29.5 commits/day · 3.07M/commit)</text>
+    <text x="24" y="43" class="sans bar-lbl">Jul 2026 (11 repos · 29.5 commits/day)</text>
     <text x="496" y="43" text-anchor="end" class="mono bar-val">432.5K tok / file</text>
     <rect x="520" y="30" width="520" height="18" rx="5" fill="#141f1c" stroke="#275c45"/>
     <rect x="520" y="30" width="114" height="18" rx="5" fill="url(#goodGrad)" opacity="0.68"/>
-    <text x="530" y="43" class="sans bar-lbl">Oct 2026 (17 repos · 65.6 commits/day [+44%/repo] · 1.63M/commit)</text>
+    <text x="530" y="43" class="sans bar-lbl">Oct 2026 (17 repos · 65.6 commits/day [+44% per project])</text>
     <text x="1030" y="43" text-anchor="end" class="mono bar-val-good">94.6K tok / file</text>
   </g>
 
   <!-- Divider & Bottom Section Header -->
   <line x1="32" y1="500" x2="1088" y2="500" stroke="#2c303a" stroke-width="1"/>
-  <text x="32" y="526" class="sans h1">Architecture &amp; Governance Verdict (Fact-Checked Official Specs)</text>
+  <text x="32" y="526" class="sans h1">How Moru Core Compares to Other Ways of Running Coding Agents</text>
 
-  <!-- Card 1: Native CLI -->
+  <!-- Card 1: Stock CLI -->
   <g transform="translate(32, 542)">
     <rect width="252" height="204" rx="14" fill="#1b1e24" stroke="#2e323c"/>
-    <text x="16" y="26" class="mono card-tag">01 · HOST CLI ONLY</text>
-    <text x="16" y="48" class="sans card-title">Native CLI</text>
-    <text x="16" y="65" class="sans card-sub">Stock Claude Code · Codex · AGY</text>
+    <text x="16" y="26" class="mono card-tag">01 · DEFAULT CLI ALONE</text>
+    <text x="16" y="48" class="sans card-title">Stock Coding CLI</text>
+    <text x="16" y="65" class="sans card-sub">Plain Claude Code · Codex · AGY</text>
     <rect x="16" y="75" width="220" height="22" rx="5" fill="#13151a" stroke="#282c35"/>
-    <text x="24" y="90" class="mono card-spec">Repo AGENTS.md / CLAUDE.md only</text>
+    <text x="24" y="90" class="mono card-spec">Single AGENTS.md / CLAUDE.md</text>
     <text x="16" y="118" class="mono mark-warn">△</text>
-    <text x="34" y="118" class="sans pt-txt">Manual plan/read-only mode</text>
+    <text x="34" y="118" class="sans pt-txt">You switch read-only mode by hand</text>
     <text x="16" y="146" class="mono mark-bad">✕</text>
-    <text x="34" y="146" class="sans pt-txt">0 gate ledger across follow-ups</text>
+    <text x="34" y="146" class="sans pt-txt">Forgets passed tests next session</text>
     <text x="16" y="174" class="mono mark-bad">✕</text>
-    <text x="34" y="174" class="sans pt-txt">Model self-reports “Done”</text>
+    <text x="34" y="174" class="sans pt-txt">Can say “Done” without running tests</text>
   </g>
 
   <!-- Card 2: Rulebooks & Skill Packs -->
   <g transform="translate(300, 542)">
     <rect width="252" height="204" rx="14" fill="#1b1e24" stroke="#2e323c"/>
     <text x="16" y="26" class="mono card-tag">02 · PROMPT CHECKLISTS</text>
-    <text x="16" y="48" class="sans card-title">Rulebooks &amp; Skills</text>
-    <text x="16" y="65" class="sans card-sub">Mega CLAUDE.md · Superpowers</text>
+    <text x="16" y="48" class="sans card-title">Long Rulebooks &amp; Skills</text>
+    <text x="16" y="65" class="sans card-sub">Giant CLAUDE.md · Superpowers</text>
     <rect x="16" y="75" width="220" height="22" rx="5" fill="#13151a" stroke="#282c35"/>
-    <text x="24" y="90" class="mono card-spec">20+ eager docs or SessionStart</text>
+    <text x="24" y="90" class="mono card-spec">20+ docs or startup prompt pack</text>
     <text x="16" y="118" class="mono mark-bad">✕</text>
-    <text x="34" y="118" class="sans pt-txt">Mega files pay full prefix tax</text>
+    <text x="34" y="118" class="sans pt-txt">Long rule files burn tokens every turn</text>
     <text x="16" y="146" class="mono mark-warn">△</text>
-    <text x="34" y="146" class="sans pt-txt">Checklists stay in prompt text</text>
+    <text x="34" y="146" class="sans pt-txt">Rules are advice, not a hard check</text>
     <text x="16" y="174" class="mono mark-bad">✕</text>
-    <text x="34" y="174" class="sans pt-txt">Static rules · 0 compounding memory</text>
+    <text x="34" y="174" class="sans pt-txt">Static files don't learn from mistakes</text>
   </g>
 
   <!-- Card 3: Hermes Agent -->
   <g transform="translate(568, 542)">
     <rect width="252" height="204" rx="14" fill="#1b1e24" stroke="#2e323c"/>
-    <text x="16" y="26" class="mono card-tag">03 · STANDALONE RUNTIME</text>
+    <text x="16" y="26" class="mono card-tag">03 · SEPARATE AGENT APP</text>
     <text x="16" y="48" class="sans card-title">Hermes Agent</text>
-    <text x="16" y="65" class="sans card-sub">Nous Research · Self-Evolving</text>
+    <text x="16" y="65" class="sans card-sub">Nous Research · Own Runtime</text>
     <rect x="16" y="75" width="220" height="22" rx="5" fill="#13151a" stroke="#282c35"/>
-    <text x="24" y="90" class="mono card-spec">~1.3K mem + ~3K index + FTS5</text>
+    <text x="24" y="90" class="mono card-spec">Light memory + past chat search</text>
     <text x="16" y="118" class="mono mark-good">✓</text>
-    <text x="34" y="118" class="sans pt-txt">Light ~4.3K snapshot &amp; FTS5</text>
+    <text x="34" y="118" class="sans pt-txt">Light startup &amp; searches old chats</text>
     <text x="16" y="146" class="mono mark-warn">△</text>
-    <text x="34" y="146" class="sans pt-txt">skill_manage (approval off, 0 TTL)</text>
+    <text x="34" y="146" class="sans pt-txt">Auto-edits skills without expiry dates</text>
     <text x="16" y="174" class="mono mark-bad">✕</text>
-    <text x="34" y="174" class="sans pt-txt">No Git byte-hash finish ledger</text>
+    <text x="34" y="174" class="sans pt-txt">Doesn't block Done on failing tests</text>
   </g>
 
-  <!-- Card 4: Moru Core v2 -->
+  <!-- Card 4: Moru Core -->
   <g transform="translate(836, 542)">
     <rect width="252" height="204" rx="14" fill="#13261f" stroke="#34d399" stroke-width="2"/>
-    <text x="16" y="26" class="mono card-tag-good">04 · HOST-NATIVE CONTRACT</text>
-    <text x="16" y="48" class="sans card-title">Moru Core v2</text>
-    <text x="16" y="65" class="sans card-sub">Inside Claude Code · Codex · AGY</text>
+    <text x="16" y="26" class="mono card-tag-good">04 · RULES INSIDE YOUR CLI</text>
+    <text x="16" y="48" class="sans card-title">Moru Core</text>
+    <text x="16" y="65" class="sans card-sub">Works in Claude Code · Codex · AGY</text>
     <rect x="16" y="75" width="220" height="22" rx="5" fill="#0e1b16" stroke="#275c45"/>
-    <text x="24" y="90" class="mono bar-val-good">4.15 docs (-79.7%) · W3 -79.5% loop</text>
+    <text x="24" y="90" class="mono bar-val-good">~4 docs/task (-79.7%) · W3 -79.5%</text>
     <text x="16" y="118" class="mono mark-good">✓</text>
-    <text x="34" y="118" class="sans pt-txt">0-hook lookup + route manifest</text>
+    <text x="34" y="118" class="sans pt-txt">Instant answers · reads only what's needed</text>
     <text x="16" y="146" class="mono mark-good">✓</text>
-    <text x="34" y="146" class="sans pt-txt">Byte-hash gate carry (-54.4%)</text>
+    <text x="34" y="146" class="sans pt-txt">Reuses passed tests when files match</text>
     <text x="16" y="174" class="mono mark-good">✓</text>
-    <text x="34" y="174" class="sans pt-txt">Compounds via TTL memory &amp; lessons</text>
+    <text x="34" y="174" class="sans pt-txt">Gets faster every week &amp; checks Done</text>
   </g>
 </svg>

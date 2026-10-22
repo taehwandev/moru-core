@@ -8,113 +8,124 @@ type: human-reviewed-needed
 
 [简体中文](README.zh-CN.md) · [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md)
 
-Moru Core 是面向 AI 编程代理（Coding Agents）的共享指南与可执行运行时契约层。只需一次检出（checkout），即可让 Claude Code、Codex、Antigravity 等代理在所有关联仓库中共用相同的操作规则、工作路由（route）、代码审查检查、平台规范以及可验证的生命周期证据（JSON）。各仓库自身的指令保持精简，发生冲突时始终以目标仓库指令为准。
+Moru Core 是为 AI 编程代理（Coding Agents）提供统一工作规范与完成检查的开源规则层。只需接入一次，Claude Code、Codex、Antigravity 等工具在你的所有代码仓库中都会遵循同一套标准：**只读当前任务需要的文档、在代码未改动时直接复用已通过的测试结果、并在测试与安全检查真正通过后才汇报“已完成（Done）”**。项目自身的规则保持精简，且始终具有最高优先级。
 
 - 代码仓库: <https://github.com/taehwandev/moru-core>
-- 官方网站: <https://getmoru.com/core> · [Token 效率与代理架构对比报告](https://getmoru.com/report)
+- 官方网站: <https://getmoru.com/core> · [为什么选择 Moru Core · 5 个月实测报告](https://getmoru.com/report)
 - 版本发布: <https://github.com/taehwandev/moru-core/releases> · 发布说明位于 [`.github/release-notes/`](.github/release-notes/)
 
-代理实际遵循的权威规范为 [AGENTS.md](AGENTS.md) 与英文公共指南。本文档为面向开发者的简体中文说明。
+代理直接读取的基准规范为 [AGENTS.md](AGENTS.md) 与英文公共指南。本文档是面向开发者的简体中文说明。
 
-## 核心特性
+## 它能做什么
 
-- **运行时无关（Provider-neutral）**：同一套规则同时适用于 Claude、Codex、Antigravity/AGY；各运行时配置文件仅保留极薄的桥接块。
-- **按需读取（Need-Driven Reading）**：每次任务仅加载当前路由要求的必读文档（`required_docs`），绝不全量加载整个规则库。
-- **可执行证据（Executable Evidence）**：启动器将路由、门禁（gates）、代码审查与 `finish` 记录为本地 JSON 证据，把“我已经检查过了”的口头声明转化为可机器校验的事实。
-- 项目专属的构建命令、路径、产品策略与凭证保存在目标仓库中，绝不放入本仓库。
-- 安全扫描由 [VibeGuard](https://vibeguard.thdev.app/) 负责，Moru Core 作为其规则源使用。
+- **继续使用你顺手的工具**：无需更换 Claude Code、Codex 或 Antigravity，只需添加一小段连接说明即可直接工作。
+- **只读当前任务需要的文档**：不再把 20 多篇规则文件一股脑塞进每次对话，而是只打开与当前任务相关的几篇必要文档。
+- **用真实检查记录代替口头“已检查”**：本地启动器会记录实际运行过的测试、代码审查与安全检查，全部通过后才允许结束任务。
+- **项目规则留在项目里**：构建命令、目录结构、业务策略与密钥配置都保存在各自的目标仓库中。
+- **内置修改前后的安全检查**：[VibeGuard](https://vibeguard.thdev.app/)（Moru Guard）会在修改代码前与任务完成前自动检查密钥泄露和高风险操作。
 
-运行时标识：启动器 `~/.moru/bin/moru-hook`、环境变量 `MORU_*`、文档占位符 `<MORU_ROOT>`/`<MORU_LAUNCHER>`、本地状态目录 `.moru`、子代理角色 `moru_explorer`/`moru_worker`/`moru_reviewer`。
+运行时组件：启动器 `~/.moru/bin/moru-hook`、环境变量 `MORU_*`、文档占位符 `<MORU_ROOT>`/`<MORU_LAUNCHER>`、本地记录目录 `.moru`、辅助代理角色 `moru_explorer`/`moru_worker`/`moru_reviewer`。
 
-## 为什么选择 Moru Core（架构对比与 5 个月实测遥测）
+## 为什么选择 Moru Core（与其他方式对比 & 5 个月真实数据）
 
-![Moru Core v2 5-Month Field Telemetry & Architecture Comparison](docs/assets/moru-core-telemetry.svg)
+![Moru Core 5 个月实测数据与工具对比](docs/assets/moru-core-telemetry.svg)
 
-原生编程 CLI、按需技能包（如 `Superpowers` 或 Claude Agent Skills）以及自演进独立运行时（如 Nous Research 的 Hermes Agent 或 OpenHands）各自解决代理栈不同层面的问题。Moru Core 不是替代现有 CLI 的独立运行时，也不是静态提示词合集，而是**在宿主 CLI 内部管控“按路由读取哪些必读文档”、“如何经校验地演进规则与记忆”以及“满足哪些可执行证据后才允许宣告完成（Done）”的仓库级操作契约**。
+在日常开发中把真实任务交给编程代理时，往往很快会遇到三个问题：
+1. **往 `CLAUDE.md` 里写的规则越多，每轮消耗的 Token 就越夸张**——哪怕只是问一个简单问题，提交规范和发版流程也会跟着一起加载。
+2. **每次新开会话都在重复跑相同的测试、踩相同的坑**——刚刚通过的测试又要重跑一遍，上周刚查明白的 Bug 原因到了新会话里又得重新排查。
+3. **测试还没过就急着汇报“改好了”**，或者在一个文件里塞进 900 行代码，让人根本没法做代码审查。
 
-| 对比维度 | 原生 CLI (Stock Claude Code / Codex) | 规则集与技能包 (大型 `CLAUDE.md` / `Superpowers`) | 自演进代理运行时 (如 Hermes Agent) | **Moru Core (宿主原生仓库契约)** |
+Moru Core 直接在你现有的 CLI 工具里解决这三个问题：
+
+| 你关心的重点 | 只用默认 CLI (原生 Claude Code / Codex) | 超长规则文件 & 提示词包 (巨型 `CLAUDE.md` / `Superpowers`) | 独立代理运行环境 (如 Hermes Agent) | **Moru Core (接入现有 CLI 的工作规范)** |
 | --- | --- | --- | --- | --- |
-| **代理循环所有权** | ✓ 宿主 CLI（原生权限模式、plan/read-only 沙箱、钩子扩展点） | △ 宿主 CLI（常驻巨型 `CLAUDE.md` 或 `SessionStart` 引导技能注入） | △ 独立运行时循环（接管编排、子代理委派、终端后端与网关） | **✓ 宿主 CLI 层**：保留原有的 Claude Code、Codex 或 Antigravity 会话，直接绑定共享仓库契约 |
-| **初始上下文与指南选择** | △ 仅加载仓库基础指令；构建与测试规范靠会话中临时探索 | ✕ 巨型单文件每轮支付全量 Prefix 成本（△ 技能包通过工具调用按需加载正文） | ✓ 固定内存快照（`MEMORY.md`+`USER.md` 约 `1.3K` tok）+ 技能索引（约 `3K` tok）+ 按需 FTS5 会话检索 | **✓ 确定性路由清单**：仅绑定当前 route 的 `required_docs`（10 月均值 `4.15` 篇，较 7 月 `20.45` 篇下降 **-79.7%**）；参考文档仅在存在未决决策时打开 |
-| **只读提问** *(“为什么只有这个 API 慢？”)* | △ 支持手动 plan/read-only 模式，但未与修改类工作流自动分离 | ✕ 即使只读提问也会加载提交/发布规则或引导指令 | △ 携带启动快照与技能索引在常规代理对话循环中执行 | **✓ 无状态 Read-Only Fast Path**：跳过 `start`/`review`/`finish` 钩子与 worktree 创建，4 跳内直接依据源码作答（活跃只读运行期间自动拦截文件写入） |
-| **技能与记忆演进治理** | ✕ 依赖手动编辑 `CLAUDE.md` / `AGENTS.md` 或本地笔记 | ✕ 以人工编写的静态 Markdown 为主，无自动校验或过期（TTL）元数据 | △ 任务后通过 `skill_manage` 自主创建/修补技能（默认 `write_approval: false`，无过期时间）+ 持久 `MEMORY.md` | **✓ 受控演进**：仅在确认 `reusable_gap` 时更新公共规则并通过 `workflow.py validate` 校验；`project-memory` 最多召回 3 条带必填 `--review-on` 过期日与适用条件的记录 |
-| **后续跟进（Follow-up）与验证继承** | ✕ 仅靠对话上下文，跨运行无结构化门禁台账 | ✕ 提示词检查清单模式，跟进请求需重复检查或依赖对话记忆 | ✕ FTS5 可检索历史对话，但无绑定文件字节哈希的验证继承台账 | **✓ `--continue-from` & `--reuse-inputs`**：当声明的 `input_paths` 字节哈希及范围/工具链未变时，自动继承已通过的本地测试门禁（10 月连续运行事件中位数 **-54.4%**） |
-| **“完成（Done）”判定标准与边界** | ✕ 除非按仓库自建钩子，否则依赖模型自我报告完成 | △ 依赖提示词检查清单（如 `verification-before-completion`），长上下文易漂移 | △ 提供沙箱、消息网关、定时任务与自主技能，但完成判定仍依赖模型判断 | **✓ 可执行 `finish` 硬门禁**：强制校验最新测试证据、开发文件新增 `≤300` 行预算及 VibeGuard（Claude Code 为钩子强制，其余运行时为 CLI 契约校验）。*注：不提供沙箱、聊天网关或免审自主技能生成* |
+| **需要换工具吗？** | ✓ 继续用现有的 CLI | △ 继续用现有 CLI，但需附加超长规则或启动提示词 | △ 需要切换到独立的代理程序与专属终端环境 | **✓ 直接在现有的 Claude Code、Codex、AGY 中运行** |
+| **任务开始时读多少文档？** | △ 只读项目主说明文件，其余规范靠边试边找 | ✕ 每次对话都全量加载 20 多篇规则（或通过工具逐个加载） | ✓ 简短记忆摘要（约 `1.3K`）+ 技能目录（约 `3K`）+ 历史对话搜索 | **✓ 只读当前任务需要的文档**：平均每次任务仅读 `4.15` 篇（较全量加载 `20.45` 篇减少 **-79.7%**） |
+| **只问一个简单问题** *(“为什么这个 API 慢？”)* | △ 需要自己手动切换到只读/计划模式才安全 | ✕ 哪怕只是提问，也会把提交和发布规则一起读进来 | △ 带着启动记忆走完一整套常规代理对话循环 | **✓ 跳过繁琐流程直接回答**：不建分支、不跑流程，直接查看相关源码作答（自动拦截文件修改） |
+| **能从过去的经验中学习吗？** | ✕ 只能靠人工手动修改 `CLAUDE.md` | ✕ 静态 Markdown 文档不会自动总结经验，也没有过期清理机制 | △ 会自动修改技能文件（默认无需审批），但没有到期日，久用容易堆积过期规则 | **✓ 越用越快且不留垃圾**：只把查明的根本原因存为带到期日（`--review-on`）的简短笔记（每次最多调取 3 条），一次规则修复同步惠及所有关联仓库 |
+| **接着改或提交代码时** | ✕ 记不住上一轮已经通过了哪些测试 | ✕ 按提示词里的清单从头再检查一遍 | ✕ 能搜索历史聊天记录，但无法核对代码文件是否发生变动 | **✓ 代码未改动时直接复用已通过的测试**（后续跟进步骤减少 **-54.4%**，提交阶段 Token 减少 **-85.6%**） |
+| **什么时候才算“完成（Done）”？** | ✕ 除非自己写钩子脚本，否则全凭模型自己宣布完成 | △ 靠提示词叮嘱，长对话里很容易被模型漏掉 | △ 沙箱和聊天机器人很强，但任务是否完成仍由模型自己判断 | **✓ 检查全部通过才允许完成**：测试通过、新增代码文件不超过 `300` 行、安全检查通过后，才允许标记完成 |
 
-### 2026 年 5 月–10 月生产环境群组观测记录（单操作员 · 26 个仓库 · 4,984 次 Git 提交 · 419,857 条 Spill 事件）
+### 5 个月、26 个真实项目的日常使用变化（4,984 次 Git 提交 · 419,857 个执行步骤）
 
-以下数据汇总自 2026 年 5 月至 10 月的真实开发遥测（`419,857` 条 Spill 记录事件、`1,207` 个 Codex 线程、`584` 次 Moru 追踪运行及 10 月 `265` 次会话绑定运行，覆盖 `26` 个仓库），用于展示工作流演进前后的观测群组变化，而非针对外部运行时的随机对照基准测试：
+以下数据来自 2026 年 5 月至 10 月我们在 `26` 个代码仓库中的真实日常开发记录（共 `419,857` 条 Spill 事件、`1,207` 个 Codex 会话、`584` 次 Moru 任务）。我们在固定相同模型的前提下，对比了引入并完善 Moru Core 前后的实际表现：
 
-- **单次运行必读文档（`required_docs`）-79.7%**（7 月 v1 全量清单 `20.45` 篇 → 9 月 `4.29` 篇 → 10 月 Need-Driven Reading `4.15` 篇）。
-- **每次 Git 提交记录事件数 -60.7%**（`150.7` 次 → `59.2` 次），**日均提交率 +122.4%**（7 月 11 个活跃仓库日均 `29.5` 次［每仓库 `2.68` 次/日］→ 10 月 17 个活跃仓库日均 `65.6` 次［每仓库 `3.86` 次/日，**单活跃仓库 +44.0%**］）。
-- **每个变更文件的参考加权 Token -78.1%**（按 Spill `1.0 / 1.25 / 0.1 / 1.0` 比较指数计算，7 月 `432.5K` → 10 月 `94.6K`；每次提交加权 Token 从 7 月 `3.07M` → 9 月 `1.47M` → 10 月受多文件重构［平均 `17.2` 个文件/提交］影响为 `1.63M`［**较 7 月 -46.9%**］）。
-- **Codex 线程 Token 中位数（p50）-93.8%**（`20.28M` → `1.25M`，前 10% 长尾 `p90` 从 `146.1M` 降至 `17.9M`）。
-- **同模型内部观测群组对比（固定模型 ID）**：
-  - 在 `claude-opus-5-5` 同模型下（9 月 → 10 月），单次运行记录事件中位数从 **`591.0 → 35.5`（-94.0%）**，加权 Token 中位数从 **`33.47M → 0.41M`（-98.8%）**，单事件平均上下文从 **`488.3K → 301.0K`（-38.4%）**。
-  - 在 `gpt-6-sol` 同模型下（9 月 → 10 月），单次运行记录事件中位数从 **`855.0 → 174.5`（-79.6%）**，`classify` 阶段事件从 **`1,215.2 → 6.0`（-99.5%）**。
-  - 在 2026 年 10 月内部（`265` 次会话绑定运行，匹配覆盖率 `92.98%`），延续运行（`continuation`）相比全新运行（`fresh`）在 `claude-opus-5-5` 上事件中位数降低 **-54.4%（`45.0 → 20.5`）**，在 `commit` 路由上降低 **-75.2%（`52.5 → 13.0` 次，加权 Token `2.02M → 0.29M`，-85.6%）**。
+- **每次任务读取的规则文档减少 -79.7%**（7 月全量加载时平均每次读 `20.45` 篇 → 10 月按需读取仅 `4.15` 篇）。
+- **每次 Git 提交耗费的代理步骤减少 -60.7%**（`150.7` 步 → `59.2` 步），同时 **日均提交数提升 +122.4%**（单个活跃仓库日均提交从 `2.68` 次升至 `3.86` 次，**单项目产出速度提升 +44.0%**）。
+- **每个修改文件的 Token 消耗降低 -78.1%**（从 7 月每文件 `432.5K` 降至 10 月 `94.6K`；单次提交 Token 消耗也从 `3.07M` 降至 `1.63M`，下降 **-46.9%**）。
+- **Codex 单次会话 Token 中位数下降 -93.8%**（`20.28M` → `1.25M`，最耗时的前 10% 长会话也从 `146.1M` 降至 `17.9M`）。
+- **在完全相同的模型（`claude-opus-5-5`）下对比 9 月 vs. 10 月**：
+  - 单次任务的步骤中位数从 **`591.0 步降至 35.5 步`（-94.0%）**，单次任务 Token 中位数从 **`33.47M 降至 0.41M`（-98.8%）**，单步平均上下文体积缩小 **-38.4%**（`488.3K → 301.0K`）。
+  - 在 `gpt-6-sol` 模型下，单次任务步骤中位数同样从 **`855.0 步降至 174.5 步`（-79.6%）**。
+  - 在 10 月的任务中，接着上一轮继续处理的任务比从头开始减少 **-54.4% 的步骤（`45.0 步 → 20.5 步`）**；提交已验证代码的任务节省了 **-85.6% 的 Token（`2.02M → 0.29M`）**。
 
-### 为什么 Moru Core 越用越高效（复利飞轮）
+### 为什么 Moru Core 越用越快？（复利效应）
 
-静态规则集不会从历史运行中学习，而未经验证的自主技能修补（`write_approval: false` 且无过期机制）在长期使用后容易堆积陈旧甚至冲突的指令。Moru Core 通过**三层受控复利机制**实现越用越快、越用越省 Token：
+写死的静态规则文件不会从昨天的 Bug 中吸取教训；而让代理在没有审批和过期时间的情况下自动改写技能，用久了又会塞满过时甚至互相冲突的旧指令。Moru Core 通过**三个受控机制**让你的日常开发越用越快：
 
-1. **带过期日的精选项目记忆（`project-memory`，每次最多召回 3 条）**：当代理确认了源码本身未直接体现的根因（root cause）、陷阱（pitfall）或架构决策原因时，会附带 `--applies-when` / `--not-when` 适用条件及必填的 `--review-on` 审查到期日写入本地存储。后续在任何关联工作树启动任务时，最多仅召回 3 条未过期的匹配记录——既避免重复踩坑，又不会让提示词无限膨胀。
-2. **一次修复、全仓库受益的教训晋升（`repair-verify`）**：重复出现的拦截或门禁失败会被汇总到无敏感内容的本地收件箱（`337` 条候选 → `10` 条采纳 → `6` 条晋升）。一旦针对确认的 `reusable_gap` 更新公共技能、钩子或校验器并通过 `repair-verify` 凭证验证，该类失败即可结案（`fixed_lesson`），所有关联仓库同步获得防护。
-3. **实测按周收敛效应（10 月第 1 周 → 第 2 周 → 第 3 周）**：固定同一模型（`claude-opus-5-5`）并仅观察 10 月份的**全新（`fresh`）运行**，随着项目记忆与晋升规则的积累，单次运行事件中位数从 **第 1 周 `112.0` 次 → 第 2 周 `48.5` 次（-56.7%）→ 第 3 周 `23.0` 次（-79.5%）** 持续收敛。
+1. **带到期日的简短项目笔记（每次任务最多调取 3 条）**：当代理排查出光看代码很难发现的深层原因或项目陷阱时，会附带适用条件和必填的**复查到期日（`--review-on`）**存为一条简短笔记（`project-memory`）。下次在该项目启动任务时，最多只调取 **3 条未过期的相关笔记**——既能直接避开死胡同，又不会撑爆提示词。
+2. **在一个项目里修好的问题，26 个关联项目立即同步受益（`repair-verify`）**：对于反复出现的卡点或检查失败（5 个月内捕获 `337` 条候选 → 采纳 `10` 条 → 正式升级为 `6` 条公共规则），只要在公共规则或检查器中修好并验证一次，**所有 26 个关联仓库在下一轮任务中都会立即获得保护**。
+3. **实测结果：即使是全新的任务，也在 3 周内缩短了 79.5%**：即便撇开续接任务、只看**从零开始的全新（`fresh`）任务**（固定使用 `claude-opus-5-5` 模型），随着项目笔记和公共改进的积累，单次任务的步骤中位数也从 **10 月第 1 周的 `112.0 步` → 第 2 周 `48.5 步`（-56.7%）→ 第 3 周 `23.0 步`（-79.5%）** 逐周大幅缩短。
 
-随时在本地查询各项目、群组及月/周效率趋势（传入 `--month` 时按 `W1–W4` 汇总，不导出提示词或文件路径的 Content-Free JSON）：
+你可以随时在本地运行以下命令查看自己的月度与按周效率趋势（绝不导出任何提示词内容或文件路径）：
 
 ```bash
 python3 scripts/agent-os-status.py --efficiency-trends --all-projects --month 2026-10
 ```
 
-4 大开发场景架构对比与 5 个月完整台账请见：<https://getmoru.com/report>。
+4 大日常开发场景对比与 5 个月完整数据账本请见：<https://getmoru.com/report>。
 
 ## 快速开始
 
-如果本机已有检出副本或仓库已固定子模块，请直接复用；下载新副本前应先征求用户同意。
+如果本机已经下载过 Moru Core 或仓库中已有子模块，请直接复用；下载新副本前会先征求你的同意。
 
 ```bash
-git clone https://github.com/taehwandev/moru-core.git ~/.moru/core   # 个人共享安装
-python3 ~/.moru/core/scripts/setup-agent-hooks.py                     # 安装启动器与运行时桥接
+git clone https://github.com/taehwandev/moru-core.git ~/.moru/core   # 个人共享安装（仅需一次）
+python3 ~/.moru/core/scripts/setup-agent-hooks.py                     # 配置代理连接与启动器
 <MORU_LAUNCHER> workflow validate
-<MORU_LAUNCHER> doctor --project <目标仓库>                            # 只读健康检查
+<MORU_LAUNCHER> doctor --project <目标仓库>                            # 检查连接状态（只读）
 ```
 
-团队若需固定版本，可在获得仓库维护者批准后将其添加为 Git 子模块：
+如果团队希望固定使用同一个审核过的版本，经仓库管理员同意后可以添加为 Git 子模块：
 
 ```bash
 git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
 ```
 
-更新应在任务间隙通过 `git pull --ff-only` 与 `workflow validate` 进行，切勿在任务运行中途更新规则。
+日常更新请在任务间隙运行 `git pull --ff-only` 与 `workflow validate`。
 
-## 接入目标项目
+## 接入你的项目
 
-1. 先阅读目标仓库现有的 `AGENTS.md`、`CLAUDE.md`、`CODEX.md` 等指令文件。
-2. 将 [`templates/repo-agents-routing.md`](templates/repo-agents-routing.md) 中的托管路由块添加到运行时读取的入口文件（优先 `AGENTS.md`）。
-3. 提交到仓库的指令应保持可移植：使用 `<MORU_ROOT>`、`${MORU_HOME}` 或 `.agents/moru-core`，不要硬编码个人绝对路径。
-4. 将 Moru Core 根目录作为 VibeGuard 规则源执行安全检查：
+1. 先查看项目中现有的 `AGENTS.md`、`CLAUDE.md`、`CODEX.md` 等说明文件。
+2. 将 [`templates/repo-agents-routing.md`](templates/repo-agents-routing.md) 中的简短连接块添加到代理读取的入口文件（优先推荐 `AGENTS.md`）。
+3. 提交到 Git 的文件中请使用 `<MORU_ROOT>`、`${MORU_HOME}` 或 `.agents/moru-core` 等通用路径，不要写死个人电脑的绝对路径。
+4. 使用 Moru Core 作为规则源运行 VibeGuard（Moru Guard）安全检查。
 
-```bash
-npx --yes @taehwandev/vibeguard@latest audit . --rules <MORU_ROOT>
+如果想直接让 AI 代理帮你完成接入，只需在项目中打开代理并粘贴下面这段话：
+
+```text
+请将 Moru Core 接入当前项目：https://github.com/taehwandev/moru-core
+如果本机已有本地副本请直接复用；如需重新下载请先询问我。
+请先阅读本仓库现有的指令文件和 VibeGuard 配置，修改前先向我确认。
+将简短的路由块添加到 AGENTS.md，并保留本仓库特有的规则。
 ```
 
-可直接粘贴给任何 AI 代理的接入请求模板见 [`templates/apply-moru-request.md`](templates/apply-moru-request.md) 及英文版 [Apply With Any AI Agent](README.md#apply-with-any-ai-agent)。
+完整模板见 [`templates/apply-moru-request.md`](templates/apply-moru-request.md)。
 
-## 任务执行流程
+## 日常任务如何运行
 
-只读提问直接依据源码证据回答，不启动生命周期。涉及修改的任务通过启动器运行一次：
+只读提问不会启动工作流，代理会直接查看相关代码并回答。
+需要修改文件的任务则会通过启动器按以下步骤执行：
 
 ```bash
 <MORU_LAUNCHER> start --project <目标仓库> --rules <MORU_ROOT> \
-  --command <route> --request "<用户请求>" \
-  --intent <简短分类名> --target-summary "<有界目标摘要>"
+  --command <任务路径> --request "<用户请求>" \
+  --intent <简短分类名> --target-summary "<任务目标摘要>"
 ```
 
-1. **`start`** 对请求进行分类，选定 route 并绑定权限范围。
-2. 阅读该 route 列出的所有 **`required_docs`**。
-3. 执行任务并通过 **`gate-batch`** 记录门禁证据；随时运行 `<MORU_LAUNCHER> next` 查看下一步与可复制命令。
-4. 运行 **`review`** 检查差异、文件结构、链接与 VibeGuard，并在最终汇报或提交前运行 **`finish`** 校验完整证据链。
+1. **开始（`start`）**：根据你的请求选择合适的工作路径（如 `small-change`、`bugfix`、`feature`、`docs`）并确认权限范围。
+2. **只读必要文档**：阅读该路径列出的几篇必读文档（`required_docs`）。
+3. **修改并记录检查结果（`gate-batch`）**：完成修改并记录测试结果。随时运行 `<MORU_LAUNCHER> next` 即可查看下一步提示与可直接复制的命令。
+4. **审查（`review`）与完成确认（`finish`）**：检查代码改动大小（新增代码文件不超过 300 行）与安全项，确认所有必检项通过后才汇报完成或提交代码。
 
-门禁状态仅使用 `🐱🟢 SUCCESS` 与 `🐱🔴 FAIL`。中断恢复或后续跟进使用 `start --continue-from <run id>`。经确认的项目事实保存在 `project-memory`，未完成任务保存在 `work-cards`（详见 [docs/project-memory.md](docs/project-memory.md)）。
+检查状态统一显示为 `🐱🟢 SUCCESS` 或 `🐱🔴 FAIL`。恢复中断任务或继续跟进时，使用 `start --continue-from <上次运行 ID>` 即可继承有效结果。查明的项目原因保存在 `project-memory`，未完成的任务保存在 `work-cards`（详见 [docs/project-memory.md](docs/project-memory.md)）。
