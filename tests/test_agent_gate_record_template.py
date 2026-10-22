@@ -138,6 +138,23 @@ class RejectedGateRecordTemplateTests(unittest.TestCase):
         self.assertEqual(0, result)
         self.assertNotIn("fill-in template", output)
 
+    def test_optional_efficiency_rejection_templates_the_rejected_fields(self) -> None:
+        fields = {"skills_checked": "agent_operating_skill", "outcome": "no_reusable_gap",
+                  "observation": "not_needed", "efficiency": "measurement prose",
+                  "efficiency_evidence": "No end-to-end timing measurement."}
+        result, output, ledger = _batch({"gate": "retrospective check", "fields": fields})
+        self.assertEqual(1, result)
+        self.assertFalse(ledger.get("entries"))
+        line = next(line for line in output.splitlines() if "fill-in template for retrospective check:" in line)
+        record = json.loads(line.split(": ", 1)[1])
+        self.assertEqual("<no_waste|unmeasured|improvement_needed>", record["fields"]["efficiency"])
+        self.assertIn("efficiency_evidence", record["fields"])
+        # Efficiency remains opt-in; a normal template must not add this work.
+        ordinary = json.loads(gate_record_template("retrospective check").split(": ", 1)[1])
+        self.assertNotIn("efficiency", ordinary["fields"])
+        fields["efficiency"] = "unmeasured"
+        self.assertEqual(0, _batch({"gate": "retrospective check", "fields": fields})[0])
+
 
 class RemainingGateTemplateTests(unittest.TestCase):
     """After a compaction, the remaining records are reprinted without a failed call."""

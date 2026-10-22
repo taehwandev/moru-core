@@ -24,6 +24,7 @@ RETROSPECTIVE_OBSERVATION_STATES = {
 ALWAYS_LOADED_SKILL_IDS = frozenset({"retrospective_learning"})
 CAUSAL_RETROSPECTIVE_CONTRACT = "causal_v1"
 CAUSAL_RETROSPECTIVE_FIELDS = ("alignment_evidence", "causal_assessment", "learning_decision")
+EFFICIENCY_ASSESSMENTS = ("no_waste", "unmeasured", "improvement_needed")
 
 
 def validate_retrospective_check(
@@ -138,7 +139,7 @@ def _efficiency_failures(text: str, outcome: str) -> list[str]:
     labels = ("efficiency evidence", "efficiency cause", "efficiency reduction", "efficiency verification")
     if not assessment and not any(_field(text, label) for label in labels):
         return []
-    if assessment not in {"no_waste", "unmeasured", "improvement_needed"}:
+    if assessment not in EFFICIENCY_ASSESSMENTS:
         return ["retrospective efficiency must be no_waste, unmeasured, or improvement_needed"]
     required = labels if assessment == "improvement_needed" else labels[:1]
     missing = [label for label in required if not _field(text, label)]

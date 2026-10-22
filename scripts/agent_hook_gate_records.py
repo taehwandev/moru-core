@@ -596,5 +596,12 @@ def _content_rejection_hints(
         )
         if gate_failures:
             hints.extend(gate_value_hints(gate, gate_failures, loaded))
-            hints.append(gate_record_template(gate, hook=hook))
+            # Opt-in evidence must stay optional in normal templates, but an
+            # error's repair template must actually show the rejected fields.
+            extra = ()
+            if gate == "retrospective check" and any("efficiency" in text for text in gate_failures):
+                extra = ("efficiency", "efficiency_evidence", *(
+                    name for name in ("efficiency_cause", "efficiency_reduction", "efficiency_verification")
+                    if any(name.replace("_", " ") in text for text in gate_failures)))
+            hints.append(gate_record_template(gate, hook=hook, extra_fields=extra))
     return hints

@@ -110,6 +110,7 @@ def gate_field_enums(gate: str) -> dict[str, tuple[str, ...]]:
     # module's own consumers; a module-level import would couple load order for
     # no benefit.
     from agent_finish_gate_learning_validators import (
+        EFFICIENCY_ASSESSMENTS,
         RETROSPECTIVE_OBSERVATION_STATES,
         RETROSPECTIVE_OUTCOMES,
     )
@@ -125,6 +126,7 @@ def gate_field_enums(gate: str) -> dict[str, tuple[str, ...]]:
         "retrospective check": {
             "outcome": tuple(sorted(RETROSPECTIVE_OUTCOMES)),
             "observation": tuple(sorted(RETROSPECTIVE_OBSERVATION_STATES)),
+            "efficiency": EFFICIENCY_ASSESSMENTS,
         },
         "work surface resolution": {
             "result": WORK_SURFACE_RESOLUTION_RESULTS,
