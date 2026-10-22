@@ -124,6 +124,10 @@ guidance.
 ## Do Not
 
 - Do not cite memory as the source for volatile platform or SDK behavior.
+- Do not describe external tools, frameworks, or baselines from memory or
+  present unmeasured comparison estimates as benchmark results; verify external
+  mechanics against official documentation and label observational cohorts,
+  baselines, and denominators explicitly.
 - Do not mix snippets from different versions without a compatibility note.
 - Do not add a dependency or CLI feature before checking existing wrappers and
   package policy.
