@@ -53,9 +53,9 @@ Moru Core solves those three problems right inside your existing CLI:
 | What you care about | **Moru Core (Rules Inside Your CLI)** | Stock Coding CLI (Plain Claude Code / Codex) | Long Rulebooks & Skill Packs (Giant `CLAUDE.md` / `Superpowers`) | Separate Agent App (e.g., Hermes Agent) |
 | --- | --- | --- | --- | --- |
 | **Do I have to switch tools?** | **✓ Keep Claude Code, Codex, or AGY** just as you use them today | ✓ Keep your current CLI | △ Keep your CLI, plus a giant rule file or startup prompt pack | △ Switch to a separate agent runtime and terminal setup |
-| **How much does it read at the start?** | **✓ Only what the task needs**: `4.15` docs per task on average (**-79.7%** vs loading all `20.45` docs) | △ Only the repo's main instruction file; figures out the rest by trial and error | ✕ A 20-file rulebook pays the full token cost every turn (skill packs load on demand) | ✓ Small memory snapshot (`~1.3K` tok) + skill list (`~3K` tok) + past chat search |
+| **How needed rules are found** | **✓ Wikimap (`0` LLM tokens, sub-second section index)** picks the exact `4.15` docs the task needs before the model even guesses (**-79.7%** vs `20.45` docs) | △ Only the repo's main instruction file; figures out the rest by trial and error | ✕ A 20-file rulebook pays the full token cost every turn (skill packs load on demand) | △ Carries the full skill list (`~3K` tok) every session + spends extra LLM turns to open skills or summarize raw chat logs |
 | **Asking a simple question** *(“Why is this API slow?”)* | **✓ Answers right away**: skips branch creation and workflow steps, reads the code, and leaves your files untouched | △ Safe if you switch to read-only/plan mode yourself | ✕ Still loads commit and release rules just to answer a question | △ Runs a full agent session with its startup memory attached |
-| **Does it learn from past work?** | **✓ Gets faster without clutter**: saves up to 3 short project notes with an expiry date (`--review-on`), and 1 fix updates all linked repos | ✕ Only if you edit `CLAUDE.md` by hand | ✕ Static markdown files never learn from mistakes or expire | △ Auto-writes skills (`skill_manage`, no approval or expiry date by default) |
+| **How it learns without rotting** | **✓ Verified fixes + expiring notes**: shared rules require passing tests (`repair-verify`) before syncing across all 26 repos, and project notes carry an expiry date (`--review-on`, max 3 recalled; **-79.5%** steps in 3 weeks) | ✕ Only if you edit `CLAUDE.md` by hand | ✕ Static markdown files never learn from mistakes or expire | △ Model rewrites its own skills (`skill_manage`) without test verification or expiry dates—one bad workaround stays in the prompt forever |
 | **Following up & committing** | **✓ Reuses passed tests** when the relevant code files haven't changed (**-54.4%** fewer steps; **-85.6%** fewer tokens on commit) | ✕ Forgets what was already tested in the last run | ✕ Re-runs the whole checklist from the prompt | ✕ Searches old chat text, but doesn't check if code files changed |
 | **When is a task allowed to be “Done”?** | **✓ Checks the result first**: blocks completion until tests pass, new code files stay under `300` lines, and safety checks pass | ✕ Whenever the model says it's done (unless you build custom scripts) | △ Checklist in the prompt—easy for the model to skip in long chats | △ Great sandboxes and chat bots, but the model still decides when it's done |
 
@@ -90,6 +90,13 @@ python3 scripts/agent-os-status.py --efficiency-trends --all-projects --month 20
 ```
 
 Read the full comparison and 5-month breakdown at <https://getmoru.com/report>.
+
+> **⚡ Powered by [Wikimap](https://github.com/dhha22/wikimap) — Zero-LLM Knowledge Index for Markdown**
+> How does Moru Core pick the exact 4 rules out of hundreds in milliseconds without burning a single LLM token? Under the hood, Moru Core uses **[Wikimap](https://github.com/dhha22/wikimap)**:
+> - **0 LLM tokens & sub-second incremental indexing**: Single Python stdlib file with no external vector DB or model calls; re-parses only SHA-changed files in milliseconds.
+> - **CJK-safe ranked section search & Reciprocal Rank Fusion (RRF)**: Matches exact headings, tags, aliases, and sections across Korean, Japanese, Chinese, and English without loading whole files.
+> - **Link graph & SHA-pinned freshness**: Tracks `outlinks`, `backlinks`, and `REQ-ID` references across documents, and automatically expires notes when source files change.
+> 👉 **[Explore Wikimap on GitHub (`dhha22/wikimap`) ↗](https://github.com/dhha22/wikimap)**
 
 ## Quick Start
 
