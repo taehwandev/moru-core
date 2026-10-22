@@ -73,6 +73,14 @@ external runtimes:
   - On `gpt-6-sol` (Sep → Oct), median recorded events per run dropped from **`855.0 → 174.5` (-79.6%)**, with `classify`-stage events per run falling from **`1,215.2 → 6.0` (-99.5%)**.
   - Within October 2026 (`265` session-bound runs, `92.98%` session match coverage), `continuation` runs had lower median events than `fresh` runs on `claude-opus-5-5` (**`45.0 → 20.5` events, -54.4%**) and on the `commit` route (**`52.5 → 13.0` events, -75.2%**; weighted tokens **`2.02M → 0.29M`, -85.6%**).
 
+### Why Moru Core Compounds the More You Use It
+
+Static rulebooks never learn from past runs, while unreviewed autonomous skill writers (`skill_manage` with `write_approval: false` and no expiry) risk accumulating stale or noisy instructions over time. Moru Core gets faster and leaner with continued use through three governed loops:
+
+1. **Curated `project-memory` with expiry (`≤3` recalled per run)**: When an agent confirms a repository root cause, pitfall, or architectural decision that the code alone does not show, it records a scoped note with `--applies-when`, `--not-when`, and a mandatory `--review-on` expiry date. Later starts in any linked worktree recall at most three matching in-date notes—skipping repeated dead-end investigation without growing the prompt prefix.
+2. **One-fix-for-all-repos lesson promotion (`repair-verify`)**: Recurring blocks or gate failures are counted in a content-free inbox (`337` candidates → `10` accepted → `6` promoted in our May–Oct store). When a `reusable_gap` is repaired in the owning skill, hook, or validator and attested with a `repair-verify` receipt, the lesson is retired (`fixed_lesson`) and every linked repository inherits the guardrail immediately.
+3. **Observed weekly compounding (`Oct W1 → W2 → W3`)**: Holding the model constant (`claude-opus-5-5`) across **fresh** runs in October 2026, median events per run converged from **`112.0` (Week 1) → `48.5` (Week 2, -56.7%) → `23.0` (Week 3, -79.5%)** as project memories, compact start, and promoted lessons took effect across active repositories.
+
 Inspect your own local cohort and monthly/weekly period efficiency trends (`W1–W4` when `--month` is passed; content-free, no prompts or file paths exported):
 
 ```bash
