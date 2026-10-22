@@ -26,7 +26,7 @@ GATES = ["tests", "retrospective check"]
 REQUIRED_DOCS = ["common/skills/agent-operating-skill/SKILL.md"]
 
 
-def _run(hook_name: str, **overrides: object) -> tuple[int, str, dict]:
+def _run(hook_name: str, *, route_fields: dict | None = None, **overrides: object) -> tuple[int, str, dict]:
     with tempfile.TemporaryDirectory() as directory:
         project = Path(directory)
         evidence = project / ".moru" / "preflight.json"
@@ -34,7 +34,8 @@ def _run(hook_name: str, **overrides: object) -> tuple[int, str, dict]:
         preflight = {
             "project": str(project),
             "rules": str(ROOT),
-            "route": {"command": "bugfix", "gates": GATES, "required_docs": REQUIRED_DOCS},
+            "route": {"command": "bugfix", "gates": GATES, "required_docs": REQUIRED_DOCS,
+                      **(route_fields or {})},
         }
         evidence.write_text(json.dumps(preflight), encoding="utf-8")
         reset_gate_evidence_ledger(evidence, preflight)
@@ -61,6 +62,19 @@ def _batch(record: dict) -> tuple[int, str, dict]:
 
 
 class RejectedGateRecordTemplateTests(unittest.TestCase):
+    def test_not_needed_rejection_removes_the_record_instead_of_requesting_it(self) -> None:
+        fields = dict(skills_checked="agent_operating_skill", outcome="no_reusable_gap", observation="not_needed",
+                      memory_decision="not_needed", memory_reason="The existing canonical rule covers the case",
+                      memory_record="unwanted record")
+        result, output, ledger = _run("gate-batch", route_fields={"project_memory_contract": "decision_v1"},
+                                     gate_record=[json.dumps(dict(gate="retrospective check", fields=fields))])
+        self.assertEqual(1, result)
+        self.assertFalse(ledger.get("entries"))
+        line = next(line for line in output.splitlines() if "fill-in template for retrospective check:" in line)
+        template = json.loads(line.split(": ", 1)[1])
+        self.assertNotIn("memory_record", template["fields"])
+        self.assertIn("remove fields.memory_record", output)
+
     def test_tests_record_missing_fields_prints_a_template_with_check_and_result(self) -> None:
         result, output, _ledger = _batch({"gate": "tests", "fields": {"check": "unittest"}})
 
@@ -78,6 +92,11 @@ class RejectedGateRecordTemplateTests(unittest.TestCase):
         self.assertIn('"outcome":"<no_reusable_gap|no_skill_used|reusable_gap>"', template)
         self.assertIn('"observation":"<not_needed|recorded>"', template)
         self.assertIn('"skills_checked":', template)
+        self.assertIn('"memory_decision":"<stored|not_needed>"', template)
+        self.assertIn('"memory_reason":', template)
+        self.assertNotIn('"memory_record":', template)
+        stored = gate_record_template("retrospective check", extra_fields=("memory_record",))
+        self.assertIn('"memory_record":"<id>:<digest>"', stored)
 
     def test_single_gate_hook_gets_the_field_flag_form(self) -> None:
         result, output, _ledger = _run(

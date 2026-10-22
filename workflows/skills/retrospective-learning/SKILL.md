@@ -62,6 +62,17 @@ failure-repair and skill-learning automation boundary.
    An unresolved acceptance condition blocks task
    completion; a filled field alone does not prove that the result is correct.
    The validator checks completeness, not the truth of the agent's judgment.
+   New routes also bind `project_memory_contract: decision_v1`. On this same
+   gate record `memory_decision: stored|not_needed` and `memory_reason`.
+   For a verified reusable project fact, capture/replace it in the existing
+   project-memory store before recording this gate, or reuse a current record,
+   and supply `memory_record: <id>:<digest>`. Gate and finish read it back;
+   future capture promises do not pass. Use `not_needed` with the observed
+   reason and no record when canonical guidance already covers it or no
+   reusable fact exists. Never force a lesson or infer its truth from keywords.
+   Keep capture within current write authority, and discuss recalled advice's
+   application or omission in `causal_assessment`. No new gate or history store
+   is needed. Finish verifies persistence without writing or promoting advice.
    Active/resumed runs keep the contract frozen in their own manifest, including
    the old three-field contract of unversioned runs. Updating runtime code
    never silently upgrades, reclassifies or backfills those historical records.

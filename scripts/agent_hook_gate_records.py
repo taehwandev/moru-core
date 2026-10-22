@@ -585,10 +585,11 @@ def _validate_records_before_write(
         list(gate_evidence),
         route=route,
         allowed_skill_ids=allowed_skill_ids,
+        project=args.project,
     )
     failures.extend(content_failures)
     if content_failures:
-        hints.extend(_content_rejection_hints(gate_evidence, route, allowed_skill_ids, hook))
+        hints.extend(_content_rejection_hints(gate_evidence, route, allowed_skill_ids, hook, args.project))
     failures.extend(validate_recorded_grill_me_evidence(route, gate_evidence))
 
     if validates_delegation_plan:
@@ -608,6 +609,7 @@ def _content_rejection_hints(
     route: dict[str, Any],
     allowed_skill_ids: set[str],
     hook: str,
+    project: Path | None = None,
 ) -> list[str]:
     """Attribute each content rejection to its gate, for the message only.
 
@@ -620,7 +622,7 @@ def _content_rejection_hints(
     hints: list[str] = []
     for gate, evidence in gate_evidence.items():
         gate_failures = validate_gate_evidence(
-            {gate: evidence}, [gate], route=route, allowed_skill_ids=allowed_skill_ids
+            {gate: evidence}, [gate], route=route, allowed_skill_ids=allowed_skill_ids, project=project
         )
         if gate_failures:
             hints.extend(gate_value_hints(gate, gate_failures, loaded))
@@ -631,5 +633,10 @@ def _content_rejection_hints(
                 extra = ("efficiency", "efficiency_evidence", *(
                     name for name in ("efficiency_cause", "efficiency_reduction", "efficiency_verification")
                     if any(name.replace("_", " ") in text for text in gate_failures)))
+            if gate == "retrospective check" and any("memory_record" in text for text in gate_failures):
+                if "memory_record must be absent for not_needed" in gate_failures:
+                    hints.append("retrospective check: remove fields.memory_record for not_needed; keep memory_reason")
+                else:
+                    extra = (*extra, "memory_record")
             hints.append(gate_record_template(gate, hook=hook, extra_fields=extra))
     return hints

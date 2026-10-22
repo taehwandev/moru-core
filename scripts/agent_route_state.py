@@ -22,6 +22,8 @@ def route_fingerprint(route: dict[str, Any]) -> str:
     }
     if "lifecycle_version" in route:
         stable["lifecycle_version"] = route["lifecycle_version"]
+    if "project_memory_contract" in route:
+        stable["project_memory_contract"] = route["project_memory_contract"]
     payload = json.dumps(stable, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 

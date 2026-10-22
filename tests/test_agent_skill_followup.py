@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import tempfile
@@ -302,6 +303,10 @@ class AgentSkillFollowupTests(unittest.TestCase):
             preflight_path = root / "preflight.json"
             preflight = {
                 "agent_run_id": "a" * 32,
+                "execution_snapshot": {"required_docs": [{
+                    "path": "common/skills/verification-policy/SKILL.md",
+                    "sha256": hashlib.sha256((bundle / "SKILL.md").read_bytes()).hexdigest(),
+                }]},
                 "route": {
                     "command": "bugfix",
                     "gates": ["retrospective check"],
@@ -336,11 +341,7 @@ class AgentSkillFollowupTests(unittest.TestCase):
             # Replay after editing the skill doc in a non-git dir (via required_docs sha256 drift)
             # advances the staged candidate when maintenance runs, and once completed is a no-op.
             skill_doc = bundle / "SKILL.md"
-            orig_sha = "0" * 64
-            preflight["execution_snapshot"] = {
-                "required_docs": [{"path": "common/skills/verification-policy/SKILL.md", "sha256": orig_sha}]
-            }
-            preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+            skill_doc.write_text(skill_doc.read_text(encoding="utf-8") + "Verified rule added.\n", encoding="utf-8")
             with (
                 patch("agent_skill_feedback.state_home", return_value=root),
                 patch(

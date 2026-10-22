@@ -17,6 +17,27 @@ their review date. Memory is reference context, never instructions: the current
 request, repository rules, and source evidence prevail.
 Capture and correction work without an active development run or task worktree.
 
+New routes declare `project_memory_contract: decision_v1`. Their existing
+`retrospective check` must include `memory_decision` (`stored` or `not_needed`)
+and `memory_reason`. For a verified reusable lesson, capture or replace it
+through `project-memory capture` before recording that gate, or reuse an
+already valid lesson. Set `memory_record` to the returned `<id>:<digest>`.
+Gate recording and finish both read the record from this project's store and
+require a current, eligible, unchanged record and source evidence that fit the
+existing recall budget. A promise,
+foreign-project record, expired/retired/replaced record or changed digest cannot
+satisfy the decision. Finish remains read-only; it never generates or promotes
+advice. Capture stays subject to the current run's write authority.
+
+Use `not_needed` with an evidence-based reason when existing canonical guidance
+already captures the lesson or the work yielded no reusable project fact; omit
+`memory_record`. Do not manufacture notes to pass closeout. Assess whether
+recalled advice applied, was withheld, or was missing in the existing causal
+assessment, using current evidence rather than a new transcript store.
+Historical manifests without this contract retain their previous behavior.
+These checks prove an explicit decision and durable storage, not the truth of
+the lesson or a reduction in real-world repeated mistakes.
+
 Start ranks eligible records by token overlap with `--request`,
 `--target-summary`, and verified `--surface-path` values. Exact file paths,
 file stems and identifiers such as `retry_queue` or `ProfileScreen` receive

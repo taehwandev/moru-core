@@ -857,6 +857,20 @@ def _structured_gate_field_lines(gates: list[str]) -> list[str]:
                 "turn counts or test totals; reuse existing records and note unavailable evidence."
             )
             lines.append(
+                "    decision_v1 requires memory_decision=stored|not_needed and memory_reason on this same gate. "
+                "For stored, capture or reuse a verified project-memory record before recording this gate, "
+                "then set memory_record=<id>:<digest>; gate and finish read it back in this project. "
+                "Use not_needed with the observed reason when canonical rules already cover the lesson or no reusable fact exists; "
+                "never invent a lesson. Discuss whether recalled advice applied in the existing causal assessment."
+            )
+            lines.append(
+                f"    capture: {stable_launcher_path()} project-memory --project <TARGET_REPO> "
+                "capture --source <checked-evidence> --review-on <YYYY-MM-DD> "
+                "[--applies-when <verified-condition>] [--not-when <known-exception>] "
+                "[--source-path <tracked-file>]; verified one-line lesson on stdin. "
+                "Keep the returned id and digest for memory_record. Capture requires write authority."
+            )
+            lines.append(
                 "    skills_checked: use canonical skill slugs such as agent_operating_skill, "
                 "not file paths; include a skill actually loaded by this run."
             )
@@ -1059,9 +1073,8 @@ def _fast_forward_line(project: Path) -> str:
 def _closed_run_lines(project: Path) -> list[str]:
     """What a successful finish leaves the agent to do, including the memory capture point.
 
-    Moru recalls project memory at start but never captures on its own, so
-    finish is where an agent decides whether this run verified anything worth
-    keeping. The line is content-free and advisory; it is never a gate.
+    New routes settle memory in their existing retrospective gate before
+    finish. This reminder adds neither a new gate nor post-completion work.
     """
 
     return [
@@ -1071,11 +1084,9 @@ def _closed_run_lines(project: Path) -> list[str]:
         "report it; do not repeat review or finish merely to close publication. "
         "New effects, targets or changed evidence still require matching admission. "
         + _fast_forward_line(project),
-        "Project memory: if this run verified a project fact worth reusing (a root "
-        "cause, a pitfall, or a decision reason the code does not show), capture it "
-        f"once with {stable_launcher_path()} project-memory --project {project} "
-        "capture --source <evidence> --review-on <YYYY-MM-DD> [--source-path <file>], "
-        "the one-line body on stdin; otherwise nothing is needed.",
+        "Project memory: keep the retrospective's verified stored record or grounded not_needed decision. "
+        "Capture belongs before that gate and finish, not as an optional post-completion action. "
+        "Historical runs without decision_v1 retain their original contract.",
     ]
 
 

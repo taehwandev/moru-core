@@ -726,11 +726,11 @@ def _render_retrospective_check(
 ) -> tuple[str, list[str]]:
     """Render recorded evidence for the 'retrospective check' gate."""
 
-    from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS
+    from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS, MEMORY_DECISION_FIELDS
 
     assessment = "".join(
         f"; {name.replace('_', ' ')}: {fields[name]}"
-        for name in (*CAUSAL_RETROSPECTIVE_FIELDS, "efficiency", "efficiency_evidence", "efficiency_cause",
+        for name in (*CAUSAL_RETROSPECTIVE_FIELDS, *MEMORY_DECISION_FIELDS, "efficiency", "efficiency_evidence", "efficiency_cause",
                      "efficiency_reduction", "efficiency_verification")
         if fields.get(name)
     )

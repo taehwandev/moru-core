@@ -27,6 +27,7 @@ from agent_finish_check_steps import (
     check_read_only_execution,
     check_request_intake,
     check_required_gates,
+    revalidate_project_memory_closeout,
     enforce_review_hook_attestation,
     read_preflight,
     resolve_paths,
@@ -570,6 +571,7 @@ def main() -> int:
         route, project, rules, evidence_path, gate_evidence,
         gate_evidence_ledger, missed_gates, gate_signals, failures,
     )
+    revalidate_project_memory_closeout(route, project, gate_evidence, gate_signals, failures, gate_policy_failures)
     retrospective_required, retrospective_lesson, skill_followup = process_closeout_learning(
         preflight=preflight,
         missed_gates=missed_gates,
@@ -658,6 +660,7 @@ def _evaluate_route_gates(
         failures,
         delegation_plan,
         allowed_skill_ids=canonical_skill_ids(project, rules),
+        project=project,
     )
     capsule_binding_failures = route_gate_capsule_binding_failures(
         route,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from agent_skill_catalog import NO_SKILL_IDS, normalize_skill_id, parse_skill_ids
 
@@ -25,6 +26,7 @@ ALWAYS_LOADED_SKILL_IDS = frozenset({"retrospective_learning"})
 CAUSAL_RETROSPECTIVE_CONTRACT = "causal_v1"
 CAUSAL_RETROSPECTIVE_FIELDS = ("alignment_evidence", "causal_assessment", "learning_decision")
 EFFICIENCY_ASSESSMENTS = ("no_waste", "unmeasured", "improvement_needed")
+MEMORY_DECISION_FIELDS = ("memory_decision", "memory_reason", "memory_record")
 
 
 def validate_retrospective_check(
@@ -33,6 +35,9 @@ def validate_retrospective_check(
     allowed_skill_ids: set[str] | None = None,
     loaded_skill_ids: set[str] | None = None,
     contract: str = "legacy",
+    memory_contract: str = "legacy",
+    project: Path | None = None,
+    scope: str = "all",
 ) -> list[str]:
     """Require an explicit skill check and same-closeout gap resolution."""
 
@@ -117,6 +122,7 @@ def validate_retrospective_check(
             )
     failures.extend(_causal_assessment_failures(text, contract, outcome))
     failures.extend(_efficiency_failures(text, outcome))
+    failures.extend(validate_project_memory_decision(text, memory_contract, project, scope))
     return failures
 
 
@@ -156,6 +162,7 @@ _KNOWN_FIELD_LABELS = (
     "alignment evidence",
     "causal assessment",
     "learning decision",
+    *(name.replace("_", " ") for name in MEMORY_DECISION_FIELDS),
     "efficiency evidence",
     "efficiency cause",
     "efficiency reduction",
@@ -175,6 +182,43 @@ def _is_ungrounded_learning_decision(decision: str) -> bool:
         if not _GROUNDING_MARKER_RE.search(remainder):
             return True
     return False
+
+
+def validate_project_memory_decision(text: str, contract: str, project: Path | None, scope: str) -> list[str]:
+    """Read back a durable lesson; a promise to capture is not completion.
+
+    This is read-only and proves persistence, not the truth of the lesson or
+    the agent's reason for withholding capture. Historical manifests stay frozen.
+    """
+    if contract == "legacy":
+        return []
+    if contract != "decision_v1":
+        return [f"unsupported project memory contract: {contract!r}"]
+    decision, reason, reference = (_field(text, name.replace("_", " ")) for name in MEMORY_DECISION_FIELDS)
+    if decision not in {"stored", "not_needed"} or not reason:
+        return ["retrospective memory decision requires memory_decision (stored|not_needed) and memory_reason"]
+    if decision == "not_needed":
+        return ["memory_record must be absent for not_needed"] if reference else []
+    if project is None or not re.fullmatch(r"[0-9a-f]{16}:[0-9a-f]{64}", reference):
+        return ["stored memory decision requires this project's memory_record as <id>:<digest>"]
+
+    from agent_project_memory import _recall, _source_status, recall_lines, scan_records
+
+    try:
+        records, _ = scan_records(project)
+        record_id, digest = reference.split(":")
+        record = next((item for item in _recall(project, scope, records=records)
+                       if item["id"] == record_id and item["digest"] == digest), None)
+        if record is None:
+            return ["memory_record is missing, changed, expired, retired, replaced or outside this route's scope"]
+        if _source_status(project, record).get("warning"):
+            return ["memory_record source evidence changed or is unavailable; verify and replace it before closeout"]
+        single = [item for item in records if item["id"] in {record_id, record.get("replaces")}]
+        if not recall_lines(project, scope, records=single):
+            return ["memory_record cannot fit the existing recall budget; shorten or replace it before closeout"]
+    except (OSError, ValueError):
+        return ["memory_record could not be verified in this project's store"]
+    return []
 
 
 def _causal_assessment_failures(text: str, contract: str, outcome: str = "") -> list[str]:

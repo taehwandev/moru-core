@@ -35,15 +35,18 @@ _PLACEHOLDERS = {
     ("retrospective check", "alignment_evidence"): "<agreed baseline, revisions/interventions, ticket and artifact/check references>",
     ("retrospective check", "causal_assessment"): "<why aligned or first drift and missed detection; correction versus authorized evolution>",
     ("retrospective check", "learning_decision"): "<actual repair artifact/check result or grounded no-change>",
+    ("retrospective check", "memory_decision"): "<stored|not_needed>",
+    ("retrospective check", "memory_reason"): "<verified reusable lesson or evidence-based reason no capture is needed>",
+    ("retrospective check", "memory_record"): "<id>:<digest>",
 }
 
 
 def gate_record_template(gate: str, *, hook: str = "gate-batch", extra_fields: Iterable[str] = ()) -> str:
     """Return one copyable record for exactly this gate, every required field a placeholder."""
 
-    from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS
+    from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS, MEMORY_DECISION_FIELDS
 
-    causal = CAUSAL_RETROSPECTIVE_FIELDS if gate == "retrospective check" else ()
+    causal = (*CAUSAL_RETROSPECTIVE_FIELDS, *MEMORY_DECISION_FIELDS[:2]) if gate == "retrospective check" else ()
     names = list(dict.fromkeys([*FIELD_REQUIREMENTS.get(gate, ()), *causal, *extra_fields]))
     enums = gate_field_enums(gate)
     fields = {name: _placeholder(gate, name, enums) for name in names}

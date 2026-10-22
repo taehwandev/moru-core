@@ -272,15 +272,13 @@ class FinishGatePolicyTests(unittest.TestCase):
 
         self.assertEqual("{ not json", record["stdout"])
 
-    def test_successful_finish_names_the_project_memory_capture_point(self) -> None:
-        # Moru recalls at start but never captures, so finish is where the agent
-        # decides; the line names the command and says nothing is owed otherwise.
+    def test_successful_finish_does_not_defer_memory_capture_until_after_completion(self) -> None:
         project = Path("/repo/worktree")
         closed, memory = agent_hook._closed_run_lines(project)
         self.assertIn("This run is closed", closed)
-        self.assertIn(f"project-memory --project {project} capture", memory)
-        self.assertIn(str(agent_hook.stable_launcher_path()), memory)
-        self.assertIn("otherwise nothing is needed", memory)
+        self.assertIn("before that gate and finish", memory)
+        self.assertIn("not_needed", memory)
+        self.assertIn("Historical runs", memory)
 
     def test_finish_cli_has_no_gate_override_option(self) -> None:
         finish_options = {

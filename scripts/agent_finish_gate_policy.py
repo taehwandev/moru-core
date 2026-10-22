@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from agent_finish_gate_boundary_validators import (
     validate_agentic_run_state,
     validate_boundary_plan,
@@ -104,6 +106,7 @@ def validate_gate_evidence(
     *,
     route: dict[str, object] | None = None,
     allowed_skill_ids: set[str] | None = None,
+    project: Path | None = None,
 ) -> list[str]:
     failures: list[str] = []
     required = set(required_gates)
@@ -153,6 +156,9 @@ def validate_gate_evidence(
                 allowed_skill_ids=allowed_skill_ids,
                 loaded_skill_ids=loaded,
                 contract=(route or {}).get("retrospective_contract", "legacy"),
+                memory_contract=(route or {}).get("project_memory_contract", "legacy"),
+                project=project,
+                scope=str((route or {}).get("command") or "all"),
             )
         )
     if WORK_SURFACE_RESOLUTION_GATE in required:

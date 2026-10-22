@@ -22,6 +22,7 @@ from agent_execution_capsule_validation import (
 )
 from agent_finish_common import add_gate_signal, append_unique
 from agent_finish_gate_policy import SOURCE_DOCS_GATE, validate_gate_evidence
+from agent_finish_gate_learning_validators import validate_project_memory_decision
 from agent_finish_documentation import documented_required_doc_updates
 from agent_review_attestation import REVIEW_HOOK_GATE, ReviewAttestation
 from agent_route_state import preflight_evidence_sha256, request_fingerprint, route_fingerprint
@@ -116,6 +117,35 @@ def read_preflight(evidence_path: Path, failures: list[str]) -> dict[str, Any]:
         return {}
 
 
+def project_memory_closeout_failures(route: dict[str, Any], gate_evidence: dict[str, str], project: Path) -> list[str]:
+    """Recheck the mutable user store after final checks, without writing it."""
+    if "project_memory_contract" not in route or "retrospective check" not in (route.get("gates") or []):
+        return []
+    evidence = gate_evidence.get("retrospective check", "")
+    if not evidence:
+        return []  # Initial gate validation owns missing-gate reporting.
+    return validate_project_memory_decision(evidence, route["project_memory_contract"], project,
+                                            str(route.get("command") or "all"))
+
+
+def revalidate_project_memory_closeout(
+    route: dict[str, Any],
+    project: Path,
+    gate_evidence: dict[str, str],
+    gate_signals: list[dict[str, str]],
+    failures: list[str],
+    gate_policy_failures: list[str],
+) -> None:
+    """Replace a stale success signal when the final memory read fails."""
+    memory_failures = project_memory_closeout_failures(route, gate_evidence, project)
+    if not memory_failures:
+        return
+    failures.extend(error for error in memory_failures if error not in failures)
+    gate_policy_failures.extend(error for error in memory_failures if error not in gate_policy_failures)
+    gate_signals[:] = [signal for signal in gate_signals if signal.get("gate") != "retrospective check"]
+    add_gate_signal(gate_signals, "FAIL", "retrospective check", "failed", "; ".join(memory_failures))
+
+
 def check_required_gates(
     route: dict[str, Any],
     gate_evidence: dict[str, str],
@@ -124,6 +154,7 @@ def check_required_gates(
     delegation_plan: dict[str, Any] | None = None,
     *,
     allowed_skill_ids: set[str] | None = None,
+    project: Path | None = None,
 ) -> tuple[list[str], list[str], list[str]]:
     required_gates = route.get("gates") or []
     if not required_gates:
@@ -145,6 +176,7 @@ def check_required_gates(
         required_gates,
         route=route,
         allowed_skill_ids=allowed_skill_ids,
+        project=project,
     )
     gate_policy_failures.extend(
         validate_delegation_plan_evidence(required_gates, gate_evidence, delegation_plan or {})
