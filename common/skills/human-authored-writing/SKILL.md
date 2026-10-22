@@ -27,6 +27,14 @@ technical explanation from the text.
   Korean, Japanese, and Chinese guides, replace word-for-word calques of
   internal English nouns with natural native developer phrasing while keeping
   every measured number and fact intact.
+- **Place the subject product first and preserve its structural differentiator in comparisons.**
+  In comparison tables and cards, always put the subject product in the first
+  comparison column (or top hero box in a zero-horizontal-scroll card layout),
+  never hidden at the far right of a scrolling table. When simplifying wording,
+  never strip out *why* our mechanism beats a competitor's trade-off (for
+  example, zero-LLM section indexing vs spending extra LLM turns searching raw
+  chats, or test-verified rule promotion + expiry dates vs unverified
+  self-edits that accumulate stale rules).
 
 ## Read
 

@@ -97,6 +97,25 @@ localized guide:
    phrasing ("지금 할 일에 필요한 규칙 문서만 골라 읽습니다", "단순한 질문에는
    절차 없이 바로 답합니다", "쓰던 CLI에 그대로 연결하는 규칙", "작업 한 번에 쓰는
    토큰 양") while preserving every number, command, and factual boundary.
+5. **Put the subject product first and avoid horizontal-scroll tables on web pages.**
+   In any comparison table or card grid, place the subject product in the first
+   comparison column (immediately next to the comparison topic) or in a
+   top-highlighted hero row inside a responsive card stack—never in the last
+   far-right column where desktop or mobile readers must scroll horizontally to
+   see it. On web pages, prefer stacked comparison cards over wide
+   `overflow-x: auto` tables so mobile and desktop readers see the core value at
+   a glance.
+6. **Never flatten a structural advantage when simplifying comparison copy.**
+   Plain language must not reduce a comparison cell to a vague summary that
+   makes a competitor look equal or superior. Always state the concrete cost or
+   trade-off of the alternative alongside the specific mechanism that solves it
+   (for example: instead of labeling a competitor `✓ Small memory + skill list +
+   chat search`, state that it carries the full skill list every session and
+   spends extra LLM turns searching raw chat logs, whereas our zero-LLM section
+   index picks the exact 4 docs in milliseconds; instead of saying both tools
+   "learn from past work", state that unverified auto-skill edits without expiry
+   dates accumulate stale rules in the prompt, whereas test-verified rule fixes
+   and expiring notes prevent rule rot).
 
 ### Evidence Ladder For Technical Explanations
 
