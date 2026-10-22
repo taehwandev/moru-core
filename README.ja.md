@@ -136,3 +136,10 @@ AGENTS.mdに短いルーティングブロックを追加し、リポジトリ�
 4. **レビュー（`review`）と完了確認（`finish`）**: 変更サイズ（新規・拡張ファイル300行以内）や安全チェックを確認し、必要なチェックがすべて通ってから完了報告やコミットを行います。
 
 チェック結果は `🐱🟢 SUCCESS` または `🐱🔴 FAIL` で表示されます。作業の続きを行うときは `start --continue-from <前回のrun id>` で確認結果を引き継ぎます。判明した原因は `project-memory` に、残りのタスクは `work-cards` に残ります（詳細: [docs/project-memory.md](docs/project-memory.md)）。
+
+## 連携する Moru エコシステムツール
+
+- **[VibeGuard](https://vibeguard.thdev.app/)（Moru Guard）**: Moru Coreのルールを基準に、編集前と完了前に秘密鍵の漏洩や危険な変更をチェックします。
+- **[Wikimap](https://github.com/dhha22/wikimap)**: LLMトークンを一切使わず、0.1秒未満で今回の作業に必要なルール文書だけを特定します。
+- **[Spill](https://getmoru.com/spill)**: Mac上でコーディングエージェントのトークン消費とセッション履歴を可視化し、セットアップ時にタスクラベルが自動連携されます。
+- **[Moru Artemis (`moru-artemis`)](https://github.com/taehwandev/moru-artemis)**: Claude Code・Codex・Antigravityから接続中のAndroid実機やエミュレータをMCP経由で直接操作できるオープンソースアダプター（`google/artemis` のApache-2.0フォーク）です。追加のLLM APIキー不要で動作し、生XML比 **-96.4%軽量なコンパクトUIツリー取得（約 `0.19秒`）**、画面安定待機（`wait_for_stable`）、スクロール終端・移動量の自動検出を備えています。

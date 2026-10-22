@@ -220,15 +220,25 @@ project recall up to three relevant, unexpired notes. Work cards keep unfinished
 tasks visible across sessions. Both stay on your Mac. Details:
 [project memory and work cards](docs/project-memory.md).
 
-## Supported Coding Agents
+## Supported Coding Agents & Companion Tools
 
 - **Codex** and **Antigravity/AGY** read `AGENTS.md` directly (AGY also gets a
   `GEMINI.md` pointer).
 - **Claude Code** reads `CLAUDE.md`, which imports `AGENTS.md`.
 - Setup adds a short connection block to each tool's user settings and installs
   the `moru_*` helper roles.
-- If [Spill](https://getmoru.com/spill) is installed on your Mac, setup connects
-  task labels automatically without installing extra token hooks.
+- **[VibeGuard](https://vibeguard.thdev.app/)** runs pre-edit and pre-finish
+  safety and secret checks using Moru Core as its rule source.
+- **[Wikimap](https://github.com/dhha22/wikimap)** indexes Markdown sections
+  locally (`0` LLM tokens) so each task loads only the few rules it needs.
+- **[Spill](https://getmoru.com/spill)** tracks local token and session activity
+  on your Mac; setup connects task labels automatically without extra hooks.
+- **[Moru Artemis (`moru-artemis`)](https://github.com/taehwandev/moru-artemis)**
+  is an open-source Android MCP server (Apache-2.0 fork of `google/artemis`)
+  that lets your coding agent inspect and control connected Android devices and
+  emulators directly—with `0` secondary LLM API keys, `~0.19s` compact UI tree
+  reads (`-96.4%` payload vs raw XML), stable-screen waiting, and automatic
+  scroll-end detection.
 
 Details: [agent runtime integration](docs/skills/agent-runtime-integration/SKILL.md).
 

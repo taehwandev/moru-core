@@ -136,3 +136,10 @@ git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
 4. **审查（`review`）与完成确认（`finish`）**：检查代码改动大小（新增代码文件不超过 300 行）与安全项，确认所有必检项通过后才汇报完成或提交代码。
 
 检查状态统一显示为 `🐱🟢 SUCCESS` 或 `🐱🔴 FAIL`。恢复中断任务或继续跟进时，使用 `start --continue-from <上次运行 ID>` 即可继承有效结果。查明的项目原因保存在 `project-memory`，未完成的任务保存在 `work-cards`（详见 [docs/project-memory.md](docs/project-memory.md)）。
+
+## 配套 Moru 生态工具
+
+- **[VibeGuard](https://vibeguard.thdev.app/)（Moru Guard）**：以 Moru Core 规则为基准，在代码修改前与完成前自动检查密钥泄露与高风险改动。
+- **[Wikimap](https://github.com/dhha22/wikimap)**：零 LLM Token 消耗，0.1 秒内从数百篇规则中精准挑出当前任务所需的文档。
+- **[Spill](https://getmoru.com/spill)**：在 Mac 本地统计编程代理的 Token 消耗与会话活动，安装 Moru Core 时会自动关联任务标签。
+- **[Moru Artemis (`moru-artemis`)](https://github.com/taehwandev/moru-artemis)**：让 Claude Code、Codex 与 Antigravity 通过 MCP 直接控制 Android 真机与模拟器的开源适配器（基于 `google/artemis` 的 Apache-2.0 分支）。无需额外配置二级 LLM API Key，支持比原始 XML 精简 **-96.4% 的紧凑 UI 树读取（约 `0.19 秒`）**、画面稳定等待（`wait_for_stable`）以及滚动到底与位移量自动检测。

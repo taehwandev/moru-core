@@ -137,6 +137,13 @@ AGENTS.md에 짧은 연결 블록을 추가하고 우리 프로젝트 고유 규
 
 검사 결과는 `🐱🟢 SUCCESS`와 `🐱🔴 FAIL`로 명확히 표시됩니다. 하던 작업을 이어서 할 때는 `start --continue-from <이전 작업 ID>`로 직전 확인 결과를 이어받습니다. 찾아낸 원인은 프로젝트 메모(`project-memory`)에, 남은 할 일은 작업 카드(`work-cards`)에 기록됩니다([자세히 보기](docs/project-memory.md)).
 
+## 함께 쓰는 모루 생태계 도구
+
+- **[VibeGuard](https://vibeguard.thdev.app/) (모루 가드)**: 모루 코어 규칙을 기준으로 코드 수정 전과 완료 전에 비밀키 유출과 위험한 변경을 점검합니다.
+- **[Wikimap](https://github.com/dhha22/wikimap)**: LLM 토큰을 하나도 쓰지 않고 0.1초 만에 지금 작업에 필요한 규칙 문서만 골라 줍니다.
+- **[Spill](https://getmoru.com/spill)**: 내 맥(Mac)에서 코딩 에이전트의 토큰 사용량과 작업 흐름을 집계하며, 모루 코어 설치 시 작업 라벨이 자동으로 연결됩니다.
+- **[Moru Artemis (`moru-artemis`)](https://github.com/taehwandev/moru-artemis)**: Claude Code·Codex·Antigravity가 연결된 안드로이드 실기기와 에뮬레이터를 MCP로 직접 조작하게 해 주는 오픈소스 어댑터(`google/artemis` 기반 Apache-2.0 포크)입니다. 별도 유료 LLM API 키 없이 호스트 에이전트가 직접 화면을 판단하며, 원본 XML 대비 **-96.4% 가벼운 컴팩트 UI 트리(`~0.19초`)**, 애니메이션 종료 대기(`wait_for_stable`), 스크롤 끝·이동량(`scroll_end_reached`/`moved`) 자동 감지를 지원합니다.
+
 ## 폴더 구성
 
 - `AGENTS.md`: 에이전트가 가장 먼저 읽는 공통 시작 문서
