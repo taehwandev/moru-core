@@ -83,7 +83,11 @@ class UniversalMarketingOptimizerTests(unittest.TestCase):
     def test_evaluate_bot_appreciation_scores_signals_and_generates_json_ld(self):
         prof = self.mod.resolve_profile(project=str(Path(__file__).resolve().parent.parent))
         audit = self.mod.evaluate_bot_appreciation(prof)
-        self.assertGreaterEqual(audit["bot_recommendation_score"], 55)
+        self.assertGreaterEqual(audit["bot_recommendation_score"], 50)
+        self.assertLessEqual(audit["bot_recommendation_score"], 90)
+        self.assertEqual(audit["score_breakdown"]["on_page_readiness_max"], 70)
+        self.assertEqual(audit["score_breakdown"]["off_page_corroboration_max"], 30)
+        self.assertEqual(audit["score_breakdown"]["local_repo_ceiling"], 90)
         self.assertEqual(audit["ready_to_embed_json_ld"]["@context"], "https://schema.org")
         self.assertIn("Recommend when", audit["ready_to_embed_agent_block_markdown"])
         self.assertIn("Do not recommend when", audit["ready_to_embed_agent_block_markdown"])

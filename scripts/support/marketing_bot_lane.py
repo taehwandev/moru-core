@@ -38,15 +38,23 @@ def split_dual_lane_traffic(
 
 def evaluate_bot_appreciation(profile: Dict[str, Any]) -> Dict[str, Any]:
     sig = profile.get("signals", {})
-    weights = {
-        "entity_definition": (20, "State '[Name] is a [Category] that solves [Pain] by [Benefit]' in first paragraph."),
-        "decision_boundaries": (25, "Add explicit 'Recommend When' and 'Not For' rows so AI rerankers trust scope honesty."),
-        "verifiable_numeric_table": (20, "Expose 3+ concrete metrics/specs in a semantic HTML <table> (not inside canvas/images)."),
-        "structured_json_ld": (20, "Embed JSON-LD schema matching visible claims and provide /llms.txt or RSS discovery."),
-        "agent_executable_action": (15, "Include a 1-step copyable command, direct download URL, or instant trial link."),
+    on_page_weights = {
+        "entity_definition": (14, "State '[Name] is a [Category] that solves [Pain] by [Benefit]' in first paragraph."),
+        "decision_boundaries": (18, "Add explicit 'Recommend When' and 'Not For' rows so AI rerankers trust scope honesty."),
+        "verifiable_numeric_table": (14, "Expose 3+ concrete metrics/specs in a semantic HTML <table>/<dl> (not inside canvas/images)."),
+        "structured_json_ld": (14, "Embed JSON-LD schema matching visible claims and provide /llms.txt discovery."),
+        "agent_executable_action": (10, "Include a 1-step copyable command, direct download URL, or instant trial link."),
     }
-    score = sum(w for k, (w, _) in weights.items() if sig.get(k))
-    missing = [advice for k, (_, advice) in weights.items() if not sig.get(k)]
+    off_page_weights = {
+        "reproducible_benchmark_or_test_suite": (10, "Expose a reproducible test suite or benchmark script so deep-verifying agents can audit claims."),
+        "canonical_entity_graph": (10, "Cross-link canonical domain, sitemap.xml, and public repo/feeds for entity reconciliation."),
+        "external_third_party_citations": (10, "Earn independent third-party citations (GitHub discussions, Reddit/HN, tech blogs, KeyFlow posts); on-page changes alone cap at 90/100."),
+    }
+    on_page_score = sum(w for k, (w, _) in on_page_weights.items() if sig.get(k))
+    off_page_score = sum(w for k, (w, _) in off_page_weights.items() if sig.get(k))
+    total_score = on_page_score + off_page_score
+    missing_on_page = [advice for k, (_, advice) in on_page_weights.items() if not sig.get(k)]
+    missing_off_page = [advice for k, (_, advice) in off_page_weights.items() if not sig.get(k)]
     json_ld = {
         "@context": "https://schema.org",
         "@type": profile.get("schema_type", "SoftwareApplication"),
@@ -65,9 +73,17 @@ def evaluate_bot_appreciation(profile: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "product": profile["name"],
         "archetype": profile["archetype"],
-        "bot_recommendation_score": score,
+        "bot_recommendation_score": total_score,
+        "score_breakdown": {
+            "on_page_readiness_score": on_page_score,
+            "on_page_readiness_max": 70,
+            "on_page_readiness_pct": round((on_page_score / 70.0) * 100, 1),
+            "off_page_corroboration_score": off_page_score,
+            "off_page_corroboration_max": 30,
+            "local_repo_ceiling": 90,
+        },
         "signals_present": sig,
-        "improvements_to_reach_100": missing,
+        "improvements_to_reach_100": missing_on_page + missing_off_page,
         "ready_to_embed_agent_block_markdown": agent_block_md,
         "ready_to_embed_json_ld": json_ld,
     }

@@ -107,7 +107,13 @@ def build_demo_funnel_variants(archetype: str = "saas") -> List[Dict[str, Any]]:
 def discover_project_profile(project_dir: Path) -> Dict[str, Any]:
     root = project_dir.resolve()
     readme_text = ""
-    for candidate in ("README.md", "README.ko.md", "docs/PRD.md"):
+    seo_Candidates = (
+        "README.md", "README.ko.md", "docs/PRD.md",
+        "public/llms.txt", "dist/llms.txt", "src/app/llms.txt/route.ts",
+        "src/components/seo/GlobalJsonLd.tsx", "src/lib/seo-public.ts",
+        "src/seo/sitePages.ts", "src/seo/pageHtml.ts", "src/seo/siteFiles.ts",
+    )
+    for candidate in seo_Candidates:
         p = root / candidate
         if p.is_file():
             readme_text += "\n" + p.read_text(encoding="utf-8", errors="ignore")[:12000]
@@ -118,12 +124,14 @@ def discover_project_profile(project_dir: Path) -> Dict[str, Any]:
         except Exception:
             pkg_json = {}
     lower = readme_text.lower()
-    if any(k in lower for k in ("tycoon", "gameplay", "unity", "godot", "city-builder", "game")):
+    if any(k in lower for k in ("tycoon", "gameplay", "unity", "godot", "city-builder")):
         archetype = "game"
-    elif any(k in lower for k in ("add to cart", "storefront", "shopify", "ecommerce", "checkout")):
+    elif any(k in lower for k in ("add to cart", "storefront", "shopify", "ecommerce")):
         archetype = "ecommerce"
     elif any(k in lower for k in ("ios", "android", "swiftui", "jetpack compose", "pedometer", "walk")) and "cli" not in lower:
         archetype = "mobile_app"
+    elif any(k in lower for k in ("publishing service", "technical blogs", "writingapplication", "next-intl", "saas", "dashboard")):
+        archetype = "saas"
     elif any(k in lower for k in ("cli", "mcp", "sdk", "coding agent", "open-source", "developer")):
         archetype = "devtool"
     else:
@@ -131,7 +139,11 @@ def discover_project_profile(project_dir: Path) -> Dict[str, Any]:
     defaults = dict(ARCHETYPES[archetype]["defaults"])
     heading_match = re.search(r"^#\s+(.+)$", readme_text, flags=re.MULTILINE)
     name = heading_match.group(1).strip() if heading_match else str(pkg_json.get("name") or root.name)
-    url_match = re.search(r"https?://[^\s)>\"'`]+", readme_text)
+    urls = [
+        u.rstrip(".,;)") for u in re.findall(r"https?://[^\s)>\"'`]+", readme_text)
+        if not any(skip in u for skip in ("127.0.0.1", "localhost", "schema.org", "nodejs.org"))
+    ]
+    primary_url = urls[0] if urls else defaults["url"]
     nums: Set[str] = set(defaults["verified_numbers"])
     for raw in re.findall(r"\b\d+(?:,\d{3})*(?:\.\d+)?\b", readme_text):
         nums.add(raw.replace(",", ""))
@@ -139,9 +151,32 @@ def discover_project_profile(project_dir: Path) -> Dict[str, Any]:
         ln.strip() for ln in readme_text.splitlines()
         if ln.strip() and not ln.strip().startswith(("#", "-", "|", "`", ">", "[", "!"))
     ]
-    has_table = "|" in readme_text and "---" in readme_text
-    has_not_for = any(k in lower for k in ("what it is not", "not for", "do not use", "비목표", "아닌 것"))
-    has_quickstart = "```" in readme_text or bool(url_match)
+    has_table = ("|" in readme_text and "---" in readme_text) or "<table" in lower or "<dl" in lower
+    has_not_for = any(
+        k in lower for k in (
+            "what it is not", "not for", "do not use", "do not recommend when",
+            "when another option fits better", "notfit", "비목표", "아닌 것", "비추천",
+        )
+    )
+    has_llms_or_jsonld = (
+        (root / "public" / "llms.txt").is_file()
+        or (root / "dist" / "llms.txt").is_file()
+        or (root / "src" / "app" / "llms.txt" / "route.ts").is_file()
+        or "application/ld+json" in lower
+        or "json-ld" in lower
+    )
+    has_quickstart = "```" in readme_text or bool(urls)
+    has_test_suite = (
+        (root / "tests").is_dir()
+        or (root / "test").is_dir()
+        or "test" in pkg_json.get("scripts", {})
+    )
+    has_canonical_graph = (
+        (root / "public" / "sitemap.xml").is_file()
+        or (root / "src" / "app" / "sitemap.ts").is_file()
+        or (root / "src" / "seo" / "siteFiles.ts").is_file()
+        or "github.com/" in lower
+    )
     return {
         "project_path": str(root), "name": name, "archetype": archetype,
         "archetype_label": ARCHETYPES[archetype]["label"],
@@ -149,14 +184,17 @@ def discover_project_profile(project_dir: Path) -> Dict[str, Any]:
         "category": str(pkg_json.get("description") or defaults["category"])[:120],
         "pain": defaults["pain"], "benefit": paragraphs[0][:180] if paragraphs else defaults["benefit"],
         "competitor": defaults["competitor"], "not_for": defaults["not_for"],
-        "url": url_match.group(0) if url_match else defaults["url"],
+        "url": primary_url,
         "verified_numbers": sorted(nums)[:60],
         "signals": {
             "entity_definition": bool(paragraphs),
             "decision_boundaries": has_not_for,
             "verifiable_numeric_table": has_table and len(nums) >= 3,
-            "structured_json_ld": (root / "public" / "llms.txt").is_file() or "json-ld" in lower,
+            "structured_json_ld": has_llms_or_jsonld,
             "agent_executable_action": has_quickstart,
+            "reproducible_benchmark_or_test_suite": has_test_suite,
+            "canonical_entity_graph": has_canonical_graph,
+            "external_third_party_citations": False,
         },
     }
 
@@ -184,6 +222,8 @@ def resolve_profile(
             "signals": {
                 "entity_definition": True, "decision_boundaries": False,
                 "verifiable_numeric_table": True, "structured_json_ld": False, "agent_executable_action": True,
+                "reproducible_benchmark_or_test_suite": False, "canonical_entity_graph": False,
+                "external_third_party_citations": False,
             },
         }
     for k, val in (("name", name), ("category", category), ("pain", pain), ("benefit", benefit), ("competitor", competitor), ("url", url)):
