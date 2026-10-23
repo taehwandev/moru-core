@@ -99,8 +99,19 @@ def _worker_invocation(
     isolated_worktree = capability.get("working_dir_kind") == "worktree"
     worktree_path = str(_new_worktree_path(project)) if isolated_worktree else ""
     working_dir = Path(worktree_path) if worktree_path else project
+    output_paths = handoff_state.get("worker_output_paths")
+    last_message = (
+        Path(str(output_paths["last_message_path"]))
+        if isinstance(output_paths, Mapping) and output_paths.get("last_message_path")
+        else None
+    )
     return worktree_path, _codex_argv(
-        project, profile, sandbox_mode, handoff_prompt, working_dir
+        project,
+        profile,
+        sandbox_mode,
+        handoff_prompt,
+        working_dir,
+        output_last_message=last_message,
     )
 
 

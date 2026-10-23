@@ -45,7 +45,13 @@ The brief names the question or risk, the decision its answer may change,
 owned/read-only and forbidden scope, relevant evidence, acceptance checks,
 expected output, and stop condition. Pass the necessary instructions and
 required-doc takeaways through the existing valid handoff; keep raw search
-results and logs in the worker context. The lead integrates bounded findings.
+results and logs in the worker context. With a valid handoff brief, workers do
+not re-read `AGENTS.md`, `SKILL.md`, `preflight.json`, or `required_docs`. For
+CLI helper invocations (`codex exec -o <result> ... > <log> 2>&1` or redirected
+`claude -p`), spool intermediate `stdout`/`stderr` to run-local files and return
+only the bounded `worker_result_v1` summary (`<= 4096` bytes, preserving
+`blockers` and spilling long details to a local artifact). The lead integrates
+bounded findings.
 
 ## Existing Access And Failures
 

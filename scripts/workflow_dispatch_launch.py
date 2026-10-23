@@ -21,7 +21,11 @@ from agent_worktree_identity import (
     validate_worker_worktree_identity,
 )
 from agent_worktree_session import create_worker_worktree
-from workflow_dispatch_handoff import execution_policy
+from workflow_dispatch_handoff import (
+    build_worker_result_packet,
+    execution_policy,
+    worker_output_paths,
+)
 
 
 def execute_dispatch_manifest(
@@ -68,8 +72,16 @@ def execute_dispatch_manifest(
         non_authoring=str(manifest.get("authoring_policy", "")).startswith("read-only"),
         continuation_scope=str(manifest.get("continuation_scope", "")),
     )
+    output_paths = worker_output_paths(prepared)
+    prepared["worker_output_paths"] = output_paths
+    last_message_path = Path(output_paths["last_message_path"])
+    stream_log_path = Path(output_paths["stream_log_path"])
     argv = codex_argv(
-        Path(str(manifest["project"])), profile, str(manifest["sandbox_mode"]), prompt
+        Path(str(manifest["project"])),
+        profile,
+        str(manifest["sandbox_mode"]),
+        prompt,
+        output_last_message=last_message_path,
     )
     project = Path(str(manifest["project"])).resolve()
     scheduler_task = _claim_scheduler_task(manifest, prepared, project)
@@ -97,15 +109,28 @@ def execute_dispatch_manifest(
             prompt,
             working_dir,
             trusted_worktree=working_dir,
+            output_last_message=last_message_path,
         )
+
+    def _run_spooled(command: list[str]) -> int:
+        stream_log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(stream_log_path, "a", encoding="utf-8") as stream_log:
+            proc = subprocess.run(
+                command,
+                check=False,
+                env=worker_environment(
+                    prepared, task_context["task"], worktree_path=worktree_path
+                ),
+                stdout=stream_log,
+                stderr=subprocess.STDOUT,
+            )
+        build_worker_result_packet(prepared, returncode=proc.returncode)
+        return proc.returncode
+
     try:
         return _run_scheduled_worker(
             argv,
-            lambda command: subprocess.run(
-                command,
-                check=False,
-                env=worker_environment(prepared, task_context["task"], worktree_path=worktree_path),
-            ).returncode,
+            _run_spooled,
             project,
             scheduler_task,
             heartbeat_interval_seconds=heartbeat_interval,

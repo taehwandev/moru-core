@@ -10,6 +10,26 @@ from agent_execution_capsule import capsule_path_for_evidence
 from agent_gate_evidence import gate_evidence_path_for_preflight
 from agent_worker_evidence import create_worker_reservation, worker_reservation_matches
 
+WORKER_RESULT_SCHEMA = "worker_result_v1"
+MAX_WORKER_RESULT_BYTES = 4096
+MAX_WORKER_SUMMARY_CHARS = 600
+MAX_WORKER_FINDINGS = 10
+
+
+def worker_output_paths(handoff_state: Mapping[str, object]) -> dict[str, str]:
+    """Return run-local paths for spooled worker logs and the bounded return packet."""
+
+    parent_preflight = Path(
+        str(handoff_state.get("preflight_evidence") or ".moru/preflight.json")
+    )
+    output_dir = parent_preflight.parent / "worker-outputs"
+    return {
+        "last_message_path": str(output_dir / "worker-last-message.txt"),
+        "result_path": str(output_dir / "worker-result.json"),
+        "stream_log_path": str(output_dir / "worker-stream.log"),
+        "details_path": str(output_dir / "worker-details.md"),
+    }
+
 
 def codex_argv(
     project: Path,
@@ -19,6 +39,7 @@ def codex_argv(
     working_dir: Path | None = None,
     *,
     trusted_worktree: Path | None = None,
+    output_last_message: Path | None = None,
 ) -> list[str]:
     # ``--cd`` binds the worker's working directory. For an isolated worker that
     # is its dedicated git worktree; otherwise it is the shared project checkout.
@@ -41,6 +62,11 @@ def codex_argv(
                 f'projects={{ {quoted_path} = {{ trust_level = "trusted" }} }}',
             ]
         )
+    output_args = (
+        ["-o", str(Path(output_last_message).expanduser())]
+        if output_last_message is not None
+        else []
+    )
     return [
         "codex",
         "exec",
@@ -51,6 +77,7 @@ def codex_argv(
         sandbox_mode,
         "--cd",
         str(cd),
+        *output_args,
         handoff_prompt,
     ]
 
@@ -153,11 +180,21 @@ def build_handoff_state(
             project, parent_evidence, worker_evidence, reserve=True
         )
         token = create_worker_reservation(worker_evidence.parent)
+    required_docs_list = list(route.get("required_docs", [])) if route else []
+    gates_list = list(route.get("gates", [])) if route else []
+    verification_plan = "run the nearest verification required by the parent route"
+    output_paths = worker_output_paths(
+        {
+            "preflight_evidence": str(parent_evidence),
+            "worker_preflight_evidence": str(worker_evidence),
+            "worker_evidence_reserved": pre_reserved or should_reserve,
+        }
+    )
     return {
         "route_command": command,
         "route_manifest": dict(route or {}),
-        "required_docs": list(route.get("required_docs", [])) if route else [],
-        "gates": list(route.get("gates", [])) if route else [],
+        "required_docs": required_docs_list,
+        "gates": gates_list,
         "rules": str(rules),
         "preflight_evidence": str(parent_evidence),
         "gate_ledger": str(gate_evidence_path_for_preflight(parent_evidence)),
@@ -168,7 +205,17 @@ def build_handoff_state(
         "parent_context_reusable": parent_context_reusable,
         "capsule_validation_deferred": defer_capsule_validation,
         "execution_capsule": capsule_state,
-        "verification_plan": "run the nearest verification required by the parent route",
+        "verification_plan": verification_plan,
+        "worker_output_paths": output_paths,
+        "worker_view": {
+            "route_command": command,
+            "required_docs": required_docs_list,
+            "gates": gates_list,
+            "verification_plan": verification_plan,
+            "return_schema": WORKER_RESULT_SCHEMA,
+            "max_return_bytes": MAX_WORKER_RESULT_BYTES,
+            "output_paths": output_paths,
+        },
     }
 
 
@@ -194,6 +241,11 @@ def build_handoff_prompt(
         )
     _add_capsule_instructions(instructions, handoff_state)
     reusable_capsule = _has_reusable_capsule(handoff_state)
+    evidence_instruction = (
+        "Do not read parent preflight.json, gate-evidence.json, AGENTS.md, or required_docs; use this bounded handoff view and do not overwrite parent gate-ledger entries."
+        if reusable_capsule
+        else "Read existing parent evidence when present. Do not overwrite parent gate-ledger entries."
+    )
     instructions.extend(
         [
             f"Workflow command: {command}",
@@ -203,7 +255,8 @@ def build_handoff_prompt(
             f"Parent preflight evidence: {handoff_state['preflight_evidence']}",
             f"Parent gate ledger: {handoff_state['gate_ledger']}",
             f"Verification plan: {handoff_state['verification_plan']}",
-            "Read existing parent evidence when present. Do not overwrite parent gate-ledger entries.",
+            evidence_instruction,
+            f"Return contract: emit {WORKER_RESULT_SCHEMA} (<= {MAX_WORKER_RESULT_BYTES} bytes) with status, summary, changed_paths, findings, checks, blockers, next_action, and artifacts; keep raw diffs and command logs in run-local files.",
             "User request:",
             request,
         ]
@@ -273,3 +326,103 @@ def _add_capsule_instructions(
 def _has_reusable_capsule(handoff_state: Mapping[str, object]) -> bool:
     capsule_state = handoff_state.get("execution_capsule")
     return isinstance(capsule_state, Mapping) and bool(capsule_state.get("reusable"))
+
+
+def build_worker_result_packet(
+    handoff_state: Mapping[str, object],
+    *,
+    returncode: int,
+    raw_output: str = "",
+) -> dict[str, object]:
+    """Build and persist a bounded ``worker_result_v1`` packet (<= 4096 bytes)."""
+
+    paths = worker_output_paths(handoff_state)
+    last_message_path = Path(paths["last_message_path"])
+    stream_log_path = Path(paths["stream_log_path"])
+    details_path = Path(paths["details_path"])
+    result_path = Path(paths["result_path"])
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+
+    text = raw_output.strip()
+    if not text and last_message_path.is_file():
+        text = last_message_path.read_text(encoding="utf-8", errors="replace").strip()
+    if not text and stream_log_path.is_file():
+        text = stream_log_path.read_text(encoding="utf-8", errors="replace").strip()
+
+    parsed: Mapping[str, object] = {}
+    if text.startswith("{") and text.endswith("}"):
+        try:
+            candidate = json.loads(text)
+            if isinstance(candidate, Mapping):
+                parsed = candidate
+        except json.JSONDecodeError:
+            parsed = {}
+
+    raw_status = str(parsed.get("status") or "")
+    status = (
+        raw_status
+        if raw_status in {"ok", "findings", "blocked", "needs_inspection"}
+        else ("ok" if returncode == 0 else "blocked")
+    )
+    raw_summary = str(parsed.get("summary") or text or f"worker exited with code {returncode}").strip()
+    spilled = len(text.encode("utf-8")) > MAX_WORKER_SUMMARY_CHARS or len(raw_summary) > MAX_WORKER_SUMMARY_CHARS
+    if spilled and text:
+        details_path.write_text(text + "\n", encoding="utf-8")
+
+    blockers_raw = parsed.get("blockers")
+    blockers = (
+        [str(item) for item in blockers_raw if str(item).strip()]
+        if isinstance(blockers_raw, list)
+        else ([f"worker exited with code {returncode}"] if returncode != 0 else [])
+    )
+    changed_raw = parsed.get("changed_paths")
+    changed_paths = (
+        [str(item) for item in changed_raw[:25]]
+        if isinstance(changed_raw, list)
+        else []
+    )
+    findings_raw = parsed.get("findings")
+    findings = (
+        list(findings_raw[:MAX_WORKER_FINDINGS])
+        if isinstance(findings_raw, list)
+        else []
+    )
+    checks_raw = parsed.get("checks")
+    checks = (
+        list(checks_raw[:10])
+        if isinstance(checks_raw, list)
+        else [{"cmd": "codex exec", "exit_code": int(returncode), "outcome": "pass" if returncode == 0 else "fail"}]
+    )
+    packet: dict[str, object] = {
+        "schema_version": WORKER_RESULT_SCHEMA,
+        "status": status,
+        "summary": raw_summary[:MAX_WORKER_SUMMARY_CHARS],
+        "changed_paths": changed_paths,
+        "findings": findings,
+        "checks": checks,
+        "blockers": blockers,
+        "next_action": str(
+            parsed.get("next_action")
+            or ("integrate worker result" if returncode == 0 else "inspect worker stream log and blockers")
+        ),
+        "artifacts": {
+            "result_path": str(result_path),
+            "log_path": str(stream_log_path),
+            "details_path": str(details_path) if details_path.is_file() else "",
+        },
+    }
+    serialized = json.dumps(packet, ensure_ascii=False)
+    if len(serialized.encode("utf-8")) > MAX_WORKER_RESULT_BYTES:
+        if text and not details_path.is_file():
+            details_path.write_text(text + "\n", encoding="utf-8")
+            packet["artifacts"] = {
+                "result_path": str(result_path),
+                "log_path": str(stream_log_path),
+                "details_path": str(details_path),
+            }
+        packet["findings"] = findings[:3]
+        packet["changed_paths"] = changed_paths[:10]
+        packet["summary"] = raw_summary[:240]
+        serialized = json.dumps(packet, ensure_ascii=False)
+    result_path.write_text(serialized + "\n", encoding="utf-8")
+    return packet

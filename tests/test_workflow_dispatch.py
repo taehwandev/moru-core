@@ -929,6 +929,12 @@ class WorkflowDispatchTests(unittest.TestCase):
         self.assertIn("Do not reread required docs or rerun route, startup, preflight, VibeGuard, review, finish", prompt)
         self.assertNotIn("Open and read every required doc", prompt)
         self.assertIn("parent remains the only owner of the gate ledger", prompt)
+        self.assertIn(
+            "Do not read parent preflight.json, gate-evidence.json, AGENTS.md, or required_docs",
+            prompt,
+        )
+        self.assertIn("Return contract: emit worker_result_v1 (<= 4096 bytes)", prompt)
+        self.assertIn("-o", manifest["codex_exec_argv"][:-1])
 
     def test_dispatch_fallback_worker_keeps_normal_lifecycle_and_document_reading(self) -> None:
         capsule_state = {
@@ -1620,6 +1626,80 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
             self.assertTrue(Path(str(manifest["worktree_path"])).is_dir())
 
         self.assertEqual("failed", scheduler["tasks"][-1]["state"])
+
+    def test_execute_dispatch_spools_worker_stream_and_bounds_worker_result_packet(self) -> None:
+        from workflow_dispatch_handoff import MAX_WORKER_RESULT_BYTES, WORKER_RESULT_SCHEMA
+
+        real_run = subprocess.run
+        oversized_payload = json.dumps(
+            {
+                "status": "blocked",
+                "summary": "S" * 1200,
+                "changed_paths": [f"scripts/module_{index}.py" for index in range(20)],
+                "findings": [
+                    {
+                        "file": f"scripts/module_{index}.py",
+                        "line": index + 1,
+                        "severity": "high",
+                        "claim": "C" * 500,
+                    }
+                    for index in range(12)
+                ],
+                "checks": [{"cmd": "pytest", "exit_code": 1, "outcome": "fail"}],
+                "blockers": ["missing migration fixture"],
+                "next_action": "add fixture and rerun",
+            }
+        )
+
+        def fake_run(command, *args, **kwargs):
+            if command and command[0] == "git":
+                return real_run(command, *args, **kwargs)
+            stdout_handle = kwargs.get("stdout")
+            if stdout_handle is not None:
+                stdout_handle.write("intermediate tool log\n" * 400)
+                stdout_handle.flush()
+            if "-o" in command:
+                out_path = Path(command[command.index("-o") + 1])
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                out_path.write_text(oversized_payload, encoding="utf-8")
+            return SimpleNamespace(returncode=1)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            _init_git_repo(project)
+            with patch(
+                "workflow_dispatch._execution_capsule_state",
+                side_effect=[self._STALE_CAPSULE, self._STALE_CAPSULE],
+            ):
+                manifest = build_dispatch_manifest(
+                    "feature",
+                    "기획변경 때 문서 정리가 누락되는 걸 막아줘",
+                    project,
+                    route={"required_docs": [], "gates": []},
+                    isolation_required=True,
+                )
+                with patch(
+                    "workflow_dispatch_launch.subprocess.run",
+                    side_effect=fake_run,
+                ) as launch:
+                    self.assertEqual(1, execute_dispatch_manifest(manifest))
+
+            launched_argv = launch.call_args.args[0]
+            self.assertIn("-o", launched_argv[:-1])
+            output_paths = manifest["handoff_state"]["worker_output_paths"]
+            result_path = Path(output_paths["result_path"])
+            stream_log_path = Path(output_paths["stream_log_path"])
+            details_path = Path(output_paths["details_path"])
+            self.assertTrue(result_path.is_file())
+            self.assertTrue(stream_log_path.is_file())
+            self.assertTrue(details_path.is_file())
+            raw_packet = result_path.read_bytes()
+            self.assertLessEqual(len(raw_packet), MAX_WORKER_RESULT_BYTES)
+            packet = json.loads(raw_packet.decode("utf-8"))
+            self.assertEqual(WORKER_RESULT_SCHEMA, packet["schema_version"])
+            self.assertEqual("blocked", packet["status"])
+            self.assertEqual(["missing migration fixture"], packet["blockers"])
+            self.assertEqual(str(details_path), packet["artifacts"]["details_path"])
 
 
 if __name__ == "__main__":

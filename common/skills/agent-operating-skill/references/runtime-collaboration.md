@@ -116,6 +116,21 @@ findings with file references, checks and outcomes, blockers, and the next
 integration action; keep raw intermediate logs in the worker thread. Workers
 must not recursively delegate, publish, or settle the parent's gate ledger.
 
+## Compact Worker Transport And Return Contract
+
+When a ready and valid handoff capsule is provided, the worker must use the
+bounded handoff view and must not re-read parent `preflight.json`,
+`gate-evidence.json`, `AGENTS.md`, `SKILL.md`, or `required_docs`. When invoking
+a CLI worker (`codex exec`, `claude -p`, or `workflow.py dispatch --execute`),
+spool intermediate worker `stdout`/`stderr` to a run-local log file
+(`worker-stream.log`) and capture the final message separately (`codex exec -o
+<last-message-file> ... > <stream-log> 2>&1`) so intermediate tool transcripts
+and hook payloads never flood the parent context. Return only the bounded
+`worker_result_v1` packet (`<= 4096` bytes: `status`, `summary`,
+`changed_paths`, `findings`, `checks`, `blockers`, `next_action`, and
+`artifacts`), spilling oversized text or diffs to `worker-details.md` while
+always preserving `blockers` in the parent-visible packet.
+
 ## Mechanical Execution In Codex
 
 Preserve the user's current model and reasoning effort in the parent session.
