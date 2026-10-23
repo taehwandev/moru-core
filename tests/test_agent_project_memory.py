@@ -141,6 +141,39 @@ class ProjectMemoryTests(unittest.TestCase):
             new = self.candidate("Corrected advice", replaces=old["id"])
         self.assertEqual([new["id"]], [item["id"] for item in recall(self.project, "task")])
 
+    def test_interrupted_predecessor_never_returns_after_later_corrections(self) -> None:
+        old = self.candidate("Invalidated advice")
+        with mock.patch("agent_project_memory._retire", side_effect=OSError("interrupted retire")):
+            with self.assertRaises(OSError):
+                self.candidate("Corrected advice", replaces=old["id"])
+        replacement = recall(self.project, "task")[0]
+        latest = self.candidate("Latest correction", replaces=replacement["id"])
+        self.assertEqual([latest["id"]], [item["id"] for item in recall(self.project, "task")])
+        retire(self.project, latest["id"])
+        before = {p.name: p.read_bytes() for p in self._path(old).parent.iterdir()}
+        self.assertEqual([], recall(self.project, "task"))
+        self.assertEqual([], recall_lines(self.project, "task", request="Invalidated advice"))
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(0, main(["--project", str(self.project), "recall", "--scope", "task",
+                                      "--request", "Invalidated advice"]))
+        self.assertEqual([], json.loads(output.getvalue()))
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self._path(old).parent.iterdir()})
+
+    def test_retired_or_expired_replacement_does_not_restore_interrupted_predecessor(self) -> None:
+        for ended in ("retired", "expired"):
+            with self.subTest(ended=ended):
+                old = capture(self.project, body="Invalidated advice", source="design note", scope="task",
+                              review_on=(date.today() + timedelta(days=60)).isoformat())
+                with mock.patch("agent_project_memory._retire"):
+                    new = self.candidate("Corrected advice", replaces=old["id"])
+                if ended == "retired":
+                    retire(self.project, new["id"])
+                    self.assertEqual([], recall(self.project, "task"))
+                else:
+                    self.assertEqual([], recall(self.project, "task", today=date.fromisoformat(self.review_on)))
+                retire(self.project, old["id"])
+
     def test_replacing_an_unknown_record_writes_nothing(self) -> None:
         with self.assertRaisesRegex(ValueError, "missing or invalid"):
             self.candidate(replaces="0123456789abcdef")

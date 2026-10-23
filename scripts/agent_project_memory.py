@@ -344,7 +344,9 @@ def _recall(project: Path, scope: str, *, today: date | None = None,
     if records is None:
         records = scan_records(project)[0]
     live = [record for record in records if record["status"] in RECALLABLE_STATUSES]
-    replaced = {record.get("replaces") for record in live}
+    # Replacement is durable even if retiring its predecessor was interrupted.
+    # Retiring or replacing the successor must never resurrect invalidated advice.
+    replaced = {record.get("replaces") for record in records}
     eligible = [
         record for record in live
         if record["id"] not in replaced

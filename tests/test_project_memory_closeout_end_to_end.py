@@ -147,6 +147,16 @@ class RetrospectiveMemoryCloseoutTests(unittest.TestCase):
         path.write_text(json.dumps(live), encoding="utf-8")
         self.assertTrue(self.validate(text))
 
+    def test_superseded_lesson_cannot_complete_after_interrupted_replacement_is_retired(self):
+        old = self.capture()
+        text = self.stored(old)
+        self.assertEqual([], self.validate(text))
+        with patch("agent_project_memory._retire"):
+            corrected = self.capture(replaces=old["id"])
+        _retire(self.project, corrected["id"])
+        self.assertTrue(any("replaced" in error for error in self.validate(text)))
+        self.assertEqual([], recall_lines(self.project, "bugfix", request="retry delivery"))
+
     def test_legacy_contract_stays_frozen_and_unknown_contract_fails(self):
         del self.route["project_memory_contract"]
         self.assertEqual([], self.validate(self.render()))

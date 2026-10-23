@@ -535,3 +535,63 @@ selector was also conservatively rejected as a protected-root target; this
 audit does not relax that parser's executor-variable safeguards. The agent's
 over-reading and deliberation contributed to the turn and are not attributed
 to hook CPU time. This correction has no measured end-to-end speedup yet.
+
+## Audit: 2026-10-23, Durable Learning And Correction
+
+Source baseline: `a13e35a8`, clean main checkout; repair verified in a linked
+worktree on macOS with Codex and Python `3.9.6`. Scope: H04/H08, existing
+project-memory storage, recall and closeout validation. No transcript store,
+inference change, vector index, external model call or memory migration.
+
+At 10:17 UTC, the live store had 10 valid records (5 active, 5 retired), no
+unreadable records or unfinished replacements. The verified lesson captured on
+October 22 at 14:42 UTC remained source-unchanged and was delivered by the
+installed launcher at this task's start in a new linked worktree. The elapsed
+window was 19.58 hours, not a full day; that diagnosis was the only capture in
+the window. In the main checkout's retained manifests, five completed work
+runs carried `decision_v1` and a successful, reasoned `not_needed` decision,
+referring to their canonical source changes. A completed commit-only run had
+no retrospective requirement; an unfinished work run had no decision yet.
+This demonstrates continued decision recording and cross-worktree delivery,
+not that those decisions were semantically correct or repeated mistakes fell.
+
+The current Korean follow-up alone recalled nothing; supplying its established
+repeated-mistake/memory-reuse scope retrieved the relevant lesson. This is the
+documented lexical boundary: carry resolved conversational scope into the
+existing target summary, without guessing applicability or filling empty slots.
+The actual start did so and delivered the source-checked diagnosis. Some
+lower-ranked lexical matches remain irrelevant; agent applicability judgment
+is still required.
+
+### F31: Interrupted Correction Can Resurrect Superseded Advice
+
+P1 correctness / H04, H08; **resolved**. Owner: `_recall` in
+[project memory](../scripts/agent_project_memory.py). Replacement writes the
+new record before retiring its predecessor. If that retirement is interrupted,
+the predecessor remains active on disk. The baseline suppresses predecessors
+only through recallable successors: correcting that successor again or retiring
+it removes its exclusion link. Old invalidated advice then becomes recallable
+and can satisfy a `stored` closeout reference again.
+
+Three targeted regressions failed before repair: chained correction returned
+both old and current advice; retirement restored the old record; closeout
+accepted the superseded reference. The repair derives supersession from every
+validated record, independent of its current status, preserving the durable
+replacement commit point. Expiry or retirement withdraws advice; it does not
+undo its correction. No stored records are rewritten or automatically promoted.
+
+Proving checks are the interrupted-chain and retired/expired-successor cases in
+[memory tests](../tests/test_agent_project_memory.py), including CLI recall and
+read-only byte comparisons, and the superseded-reference rejection in
+[closeout tests](../tests/test_project_memory_closeout_end_to_end.py). The
+existing actual CLI capture, finish, next-start recall and late-retirement
+rejection flow remains covered. The live store showed no unfinished replacement;
+this is a reproduced failure mode, not a claim it occurred in that store.
+
+Final verification: **178 tests passed**, zero failures/errors/skips, across
+`test_agent_project_memory`, `test_agent_project_memory_applicability`,
+`test_agent_project_memory_consolidate`, `test_project_memory_closeout_end_to_end`,
+`test_agent_finish_gate_policy` and `test_agent_gate_record_template` using
+`PYTHONPATH=tests:scripts python3 -B -m unittest`. Workflow validation passed
+195 references, 434 Markdown blocks/links and 28 route contracts. There is no
+measured change in real-work mistake rates or model reasoning quality.
