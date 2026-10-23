@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import sys
 import tempfile
 import unittest
@@ -13,12 +14,59 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from agent_required_doc_delivery import MARKER, delivery_text, edited_paths
+from agent_required_doc_delivery import MARKER, _contains_run, _read_spans, delivery_text, edited_paths
 
 STARTED = "2026-10-02T03:00:00+00:00"
 CORE = "platforms/android/skills/sample/SKILL.md"
 OTHER = "common/skills/testing/references/final-check.md"
 BIG = "common/skills/big/references/current-guidance.md"
+
+
+class ExactReadMatchingTests(unittest.TestCase):
+    def test_repeated_prefix_comparisons_stay_linear(self) -> None:
+        class CountedLine(str):
+            comparisons = 0
+
+            def __eq__(self, other):
+                CountedLine.comparisons += 1
+                return str.__eq__(self, other)
+
+            def __ne__(self, other):
+                CountedLine.comparisons += 1
+                return str.__ne__(self, other)
+
+        document = [CountedLine("repeat") for _ in range(199)] + [CountedLine("required rule")]
+        output = [CountedLine("repeat") for _ in range(2000)]
+        self.assertFalse(_contains_run(output, document))
+        self.assertLessEqual(CountedLine.comparisons, 12 * (len(output) + len(document)))
+        CountedLine.comparisons = 0
+        self.assertEqual({}, _read_spans([CORE], {CORE: output}, "\n".join(["repeat"] * 200)))
+        self.assertLessEqual(CountedLine.comparisons, 12 * (len(output) + 200))
+
+    def test_a_complete_read_after_many_overlapping_prefixes_is_found(self) -> None:
+        document = ["repeat"] * 199 + ["required rule"]
+        output = ["repeat"] * 2000 + ["required rule"]
+        self.assertTrue(_contains_run(output, document))
+        self.assertFalse(_contains_run(output, document + ["missing rule"]))
+
+    def test_partial_read_credit_matches_an_exact_unique_span(self) -> None:
+        rng = random.Random(20261023)
+        for _ in range(500):
+            document = [rng.choice(("rule", "repeat", "한국어")) for _ in range(rng.randrange(1, 60))]
+            if rng.randrange(2):
+                start = rng.randrange(len(document))
+                fragment = document[start:start + rng.randrange(1, 15)]
+            else:
+                fragment = [rng.choice(("rule", "repeat", "한국어", "absent")) for _ in range(rng.randrange(1, 15))]
+            starts = [i for i in range(len(document) - len(fragment) + 1)
+                      if document[i:i + len(fragment)] == fragment]
+            expected = {CORE: range(starts[0], starts[0] + len(fragment))} if len(starts) == 1 else {}
+            with self.subTest(document=document, fragment=fragment):
+                self.assertEqual(bool(starts), _contains_run(document, fragment))
+                self.assertEqual(expected, _read_spans([CORE], {CORE: document}, "\n".join(fragment)))
+
+    def test_ambiguous_overlapping_partial_reads_do_not_count(self) -> None:
+        self.assertEqual({}, _read_spans([CORE], {CORE: ["repeat"] * 2000}, "\n".join(["repeat"] * 200)))
 
 
 class DeliveryTests(unittest.TestCase):

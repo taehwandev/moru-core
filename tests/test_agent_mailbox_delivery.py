@@ -163,6 +163,7 @@ class SessionDeliveryTests(unittest.TestCase):
         source = ROOT / "common/skills/agent-operating-skill/SKILL.md"
         with patch.object(hook, "_CONTINUITY_SOURCE", source):
             output = json.loads(self._deliver("s1"))["hookSpecificOutput"]["additionalContext"]
+        output = " ".join(output.split())  # Markdown wrapping does not remove a safeguard.
         self.assertIn("Status questions, impatience", output)
         self.assertIn("Automatic hook checkpoints need no manual checkpoint", output)
         self.assertIn("a completed task stays completed", output)

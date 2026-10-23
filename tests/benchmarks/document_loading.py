@@ -206,13 +206,52 @@ def child(root, docs, mode):
     return value
 
 
+def exact_matching():
+    """Measure only exact-read matching, not model inference or API savings."""
+    sys.path.insert(0, str(PROJECT / "scripts"))
+    from agent_required_doc_delivery import _contains_run
+
+    def baseline(lines, doc):
+        # Exact implementation at 3a1a21f0, before the bounded matcher.
+        first = doc[0]
+        return any(lines[index:index + len(doc)] == doc
+                   for index in range(len(lines) - len(doc) + 1) if lines[index] == first)
+
+    doc = [line.strip() for line in (PROJECT / "common/skills/agent-operating-skill/SKILL.md").read_text().splitlines() if line.strip()]
+    repeated = ["repeat"] * 399 + ["required rule"]
+    cases = {
+        "document_at_start": (doc + ["extra output"] * 4000, doc, True),
+        "document_after_chatter": (["unrelated tool output"] * 4000 + doc, doc, True),
+        "document_absent": (["unrelated tool output"] * 4000, doc, False),
+        "repeated_prefix_absent": (["repeat"] * 6000, repeated, False),
+        "repeated_prefix_complete": (["repeat"] * 6000 + ["required rule"], repeated, True),
+    }
+    results = {}
+    for name, (lines, fragment, expected) in cases.items():
+        assert baseline(lines, fragment) == _contains_run(lines, fragment) == expected
+        before = timing(lambda: baseline(lines, fragment))
+        after = timing(lambda: _contains_run(lines, fragment))
+        results[name] = {"baseline": before, "candidate": after,
+                         "speedup": before["median_ms"] / after["median_ms"]}
+    source = PROJECT / "scripts/agent_required_doc_delivery.py"
+    return {"environment": {"python": sys.version, "platform": platform.platform(), "samples": N},
+            "baseline_implementation": "3a1a21f0", "candidate_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "conditions": "Same process; 10 warmups then 200 samples per function; synthetic output with current operating document or repetitive lines",
+            "limits": "Exact matcher CPU only; no KV cache, API cost, token count or whole-agent speed measurement",
+            "cases": results}
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "worker":
         print(json.dumps(worker(Path(sys.argv[2]), json.loads(sys.argv[3]), sys.argv[4])))
     else:
         parser = argparse.ArgumentParser(description=__doc__)
         parser.add_argument("--revision", default="HEAD", help="Document corpus commit (default: HEAD)")
+        parser.add_argument("--exact-matching", action="store_true", help="Measure current exact-read matcher against its frozen baseline only")
         args = parser.parse_args()
+        if args.exact_matching:
+            print(json.dumps(exact_matching(), indent=2))
+            raise SystemExit(0)
         revision = subprocess.run(["git", "-C", str(PROJECT), "rev-parse", "--verify",
                                    args.revision + "^{commit}"], check=True,
                                   stdout=subprocess.PIPE, text=True).stdout.strip()

@@ -178,11 +178,11 @@ def _read_spans(named: list[str], texts: dict[str, list[str]], output: str,
             return {doc: range(len(texts[doc])) for doc in named}
         return {}
     doc = named[0]
-    starts = [index for index in range(len(texts[doc]) - len(lines) + 1)
-              if texts[doc][index:index + len(lines)] == lines]
-    if len(starts) != 1:
+    starts = _matching_starts(texts[doc], lines)
+    first = next(starts, None)
+    if first is None or next(starts, None) is not None:
         return {}
-    return {doc: range(starts[0], starts[0] + len(lines))}
+    return {doc: range(first, first + len(lines))}
 
 
 def _modified(path: Path) -> float:
@@ -204,9 +204,48 @@ def _stamp(row: dict) -> float:
 def _contains_run(lines: list[str], doc: list[str]) -> bool:
     """Whether `doc` occurs in `lines` as one contiguous, exact block."""
 
-    first = doc[0]
-    return any(lines[index:index + len(doc)] == doc
-               for index in range(len(lines) - len(doc) + 1) if lines[index] == first)
+    return next(_matching_starts(lines, doc), None) is not None
+
+
+def _matching_starts(lines: list[str], fragment: list[str]):
+    """Exact, overlapping spans; bound repeated-prefix work without a cache.
+
+    Normal reads use native first-line search and list comparison.
+    After eight candidates, a KMP failure table bounds the remaining
+    comparisons to linear work. Callers stop at one match or proven ambiguity.
+    """
+    size = len(fragment)
+    if not size or size > len(lines):
+        return
+    start = 0
+    limit = len(lines) - size + 1
+    for _ in range(8):
+        try:
+            start = lines.index(fragment[0], start, limit)
+        except ValueError:
+            return
+        if lines[start:start + size] == fragment:
+            yield start
+        start += 1
+
+    failure = [0] * size
+    matched = 0
+    for index in range(1, size):
+        while matched and fragment[index] != fragment[matched]:
+            matched = failure[matched - 1]
+        if fragment[index] == fragment[matched]:
+            matched += 1
+        failure[index] = matched
+
+    matched = 0
+    for index in range(start, len(lines)):
+        while matched and lines[index] != fragment[matched]:
+            matched = failure[matched - 1]
+        if lines[index] == fragment[matched]:
+            matched += 1
+        if matched == size:
+            yield index - size + 1
+            matched = failure[matched - 1]
 
 
 def _tool_events(row: dict, texts: dict[str, list[str]]):
