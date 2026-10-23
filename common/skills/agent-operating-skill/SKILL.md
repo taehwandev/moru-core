@@ -44,7 +44,10 @@ a completed task stays completed.
 
 Choose the smallest existing route covering effect, owner and risk. Content
 publication needs external-write authority, safety checks and readback, not
-unrelated code tests/builds. Reuse existing execution tools/contracts.
+unrelated code tests/builds. Reuse existing execution tools/contracts. When
+workspace tools (`read_file`, `write_file`, `edit_file`, `run_command`) exist,
+never refuse authorized coding or docs work by claiming to be "only a language
+model"; inspect the repo and execute directly.
 
 Prepare required repo records before review/finish; later ids, URLs and times
 belong in operational evidence unless user/repo requires a tracked record. A
