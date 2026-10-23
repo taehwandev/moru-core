@@ -158,6 +158,7 @@ catalog itself only when that is the task.
 - Invitation implementation: `product-patterns/skills/invitation-implementation/SKILL.md`
 - Billing/entitlements/quota: `product-patterns/skills/billing-entitlements/SKILL.md`
 - Billing/entitlements implementation: `product-patterns/skills/billing-entitlements-implementation/SKILL.md`
+- Growth, marketing keywords, conversion funnel, and OpenRouter CRO: `product-patterns/skills/growth-conversion-optimization/SKILL.md`
 - Agent credential broker ideation: `product-patterns/skills/agent-credential-broker-ideation/SKILL.md`
 
 ## Workflow
