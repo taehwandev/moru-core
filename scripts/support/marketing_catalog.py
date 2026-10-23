@@ -110,8 +110,8 @@ def discover_project_profile(project_dir: Path) -> Dict[str, Any]:
     seo_Candidates = (
         "README.md", "README.ko.md", "docs/PRD.md",
         "public/llms.txt", "dist/llms.txt", "src/app/llms.txt/route.ts",
-        "src/components/seo/GlobalJsonLd.tsx", "src/lib/seo-public.ts",
-        "src/seo/sitePages.ts", "src/seo/pageHtml.ts", "src/seo/siteFiles.ts",
+        "src/components/seo/GlobalJsonLd.tsx", "src/components/seo/global-structured-data.ts",
+        "src/lib/seo-public.ts", "src/seo/sitePages.ts", "src/seo/pageHtml.ts", "src/seo/siteFiles.ts",
     )
     for candidate in seo_Candidates:
         p = root / candidate

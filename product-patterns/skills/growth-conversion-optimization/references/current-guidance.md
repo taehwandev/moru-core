@@ -65,6 +65,7 @@ AI answer engines, RAG rerankers, and autonomous agents evaluate pages by extrac
 3. **Verifiable Numeric Proof in Semantic Tables**: Put real measurements, trial terms, specs, or benchmarks in semantic `<table>` or `<dl>` elements (never locked inside canvas/WebGL or images).
 4. **Visible-Matched JSON-LD (`SoftwareApplication`, `Product`, `VideoGame`, `FAQPage`)**: Provide machine-parsable schema matching the visible page text (`common/skills/public-discovery/SKILL.md`).
 5. **1-Step Agent-Executable Action**: Include a copyable install command, direct download URL, trial link, or API/MCP endpoint that an agent can immediately hand to its user.
+6. **70/30 On-Page vs Off-Page Score Split & Single-Owner Placement**: Score on-page readiness out of `70` points and off-page/corroboration out of `30` points (capping local-only repositories at `90/100` until independent third-party citations exist). When adding a global JSON-LD or Bot Evaluation builder to an existing codebase whose shared SEO utility already exports multiple functions, place the new builder in a dedicated single-owner module (e.g., `src/components/seo/global-structured-data.ts`) rather than expanding the legacy multi-owner file.
 
 ### 4. Universal 4-Tier Keyword Matrix & Automated Bandit + OpenRouter Loop
 
