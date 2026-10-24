@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import os
 import subprocess
 import sys
@@ -136,59 +137,65 @@ class ProjectMemoryAtStartTests(unittest.TestCase):
         )
         self.assertEqual(0, captured.returncode, captured.stderr)
 
-    def test_the_next_start_recalls_a_capture_without_approval(self) -> None:
+    def memory_command(self, command: str, *extra: str):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "agent_project_memory.py"),
+             "--project", str(self.project), command, *extra],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        return json.loads(result.stdout)
+
+    def test_start_withholds_captured_records_but_explicit_recall_keeps_them(self) -> None:
         self.capture("Run the adapter contract check first.")
+        self.capture("Avoid the adapter contract check.")
+        before = self.memory_command("recall")
 
-        started = start(self.project, ROOT, "가드를 고쳐줘")
+        started = start(self.project, ROOT, "adapter contract 가드를 고쳐줘")
 
-        self.assertEqual(0, started.returncode, started.stdout)
-        self.assertIn("Project memory (agent-written reference", started.stdout)
-        self.assertIn("Run the adapter contract check first.", started.stdout)
+        self.assertEqual(0, started.returncode, started.stdout + started.stderr)
+        self.assertNotIn("Project memory (agent-written reference", started.stdout)
         self.assertNotIn("Project memory upkeep", started.stdout)
+        for record in before:
+            self.assertNotIn(record["body"], started.stdout)
+        self.assertEqual(2, len(before))
+        self.assertEqual(before, self.memory_command("recall"))
+        self.assertTrue(self.memory_command("consolidate"))
 
-    def test_start_names_upkeep_counts_without_record_content(self) -> None:
-        self.capture("Prefer the queue for retries.")
-        self.capture("Avoid the queue for retries.")
+    def test_start_references_do_not_scan_or_maintain_memory(self) -> None:
+        module = _agent_hook()
+        args = argparse.Namespace(project=self.project, command="bugfix", target_summary="adapter")
+        with mock.patch.object(module, "work_card_start_lines", return_value=["Open work cards"]), \
+                mock.patch.object(module, "preflight_evidence_path", return_value=self.project / "preflight.json"), \
+                mock.patch("agent_project_memory.store_dir", side_effect=AssertionError("memory store access")), \
+                mock.patch("agent_project_memory_consolidate.startup_summary_line",
+                           side_effect=AssertionError("memory upkeep")):
+            self.assertEqual(["Open work cards"], module._start_reference_lines(args))
 
-        started = start(self.project, ROOT, "가드를 고쳐줘")
-
-        self.assertEqual(0, started.returncode, started.stdout)
-        [notice] = [line for line in started.stdout.splitlines() if "Project memory upkeep" in line]
-        self.assertIn("expired=0 exact_duplicates=0 shared_source=1 unfinished=0", notice)
-        self.assertIn("project-memory --project", notice)
-        self.assertTrue(notice.rstrip().endswith("consolidate"), notice)
-        self.assertNotIn("queue", notice)
-        self.assertNotIn("design note", notice)
-
-    def ranked_start(self, request: str, *extra: str, source_paths: tuple[str, ...] = ()) -> None:
+    def ranked_recall(self, *extra: str, source_paths: tuple[str, ...] = ()) -> None:
         for number in range(4):
             self.capture(f"Unrelated billing advice {number}.", scope="bugfix")
         self.capture("Uniquequeue contract.", source="queue design", source_paths=source_paths)
-        started = start(self.project, ROOT, request, *extra)
-        self.assertEqual(0, started.returncode, started.stdout + started.stderr)
-        header = started.stdout.index("Project memory (agent-written reference")
-        first_record = started.stdout[header:].splitlines()[1]
-        self.assertIn("Uniquequeue contract.", first_record)
+        recalled = self.memory_command("recall", "--scope", "bugfix", *extra)
+        self.assertEqual("Uniquequeue contract.", recalled[0]["body"])
+        self.assertLessEqual(len(recalled), 3)
 
-    def test_start_request_selects_relevant_memory_before_the_three_item_cutoff(self) -> None:
-        self.ranked_start("Uniquequeue 가드를 고쳐줘")
+    def test_explicit_request_selects_relevant_memory_before_the_three_item_cutoff(self) -> None:
+        self.ranked_recall("--request", "Uniquequeue 가드를 고쳐줘")
 
-    def test_start_target_summary_affects_memory_ranking(self) -> None:
-        self.ranked_start("가드를 고쳐줘", "--target-summary", "Uniquequeue")
+    def test_explicit_target_summary_affects_memory_ranking(self) -> None:
+        self.ranked_recall("--target-summary", "Uniquequeue")
 
-    def test_start_verified_surface_path_affects_memory_ranking(self) -> None:
-        self.ranked_start("가드를 고쳐줘", "--target-summary", "bounded repair",
-                          "--surface-path", "src/module.py",
-                          source_paths=("src/module.py",))
+    def test_explicit_target_path_affects_memory_ranking(self) -> None:
+        self.ranked_recall("--target-path", "src/module.py", source_paths=("src/module.py",))
 
-    def test_start_shows_a_warning_when_source_worktree_bytes_changed(self) -> None:
+    def test_explicit_recall_warns_when_source_worktree_bytes_changed(self) -> None:
         self.capture("Check the module contract.", source_paths=("src/module.py",))
         source = self.project / "src/module.py"
         source.write_text(source.read_text(encoding="utf-8") + "\n# changed evidence\n", encoding="utf-8")
-        started = start(self.project, ROOT, "가드를 고쳐줘")
-        self.assertEqual(0, started.returncode, started.stdout + started.stderr)
-        self.assertIn('"source_status": "changed"', started.stdout)
-        self.assertIn("Source evidence changed — verify before use", started.stdout)
+        [record] = self.memory_command("recall")
+        self.assertEqual("changed", record["source_status"])
+        self.assertIn("Source evidence changed — verify before use", record["warning"])
 
 
 class TestRunsNeverReachTheUsersStoreTests(unittest.TestCase):

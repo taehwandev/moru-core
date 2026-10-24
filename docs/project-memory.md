@@ -8,11 +8,12 @@ type: ai-generated
 
 Both stores are user-local reference context for agents. They never grant authority; the current request, repository rules and source evidence prevail.
 
-## Automatic Project Memory
+## On-Demand Project Memory
 
 The installed `<MORU_LAUNCHER> project-memory` command lets agents capture,
 recall, replace, and retire short, source-attributed project guidance. A capture
-is recalled by later task starts without an approval step; records expire on
+is available through explicit `project-memory recall`; task start does not
+scan the store, inject records, or emit upkeep notices. Records expire on
 their review date. Memory is reference context, never instructions: the current
 request, repository rules, and source evidence prevail.
 Capture and correction work without an active development run or task worktree.
@@ -38,8 +39,8 @@ Historical manifests without this contract retain their previous behavior.
 These checks prove an explicit decision and durable storage, not the truth of
 the lesson or a reduction in real-world repeated mistakes.
 
-Start ranks eligible records by token overlap with `--request`,
-`--target-summary`, and verified `--surface-path` values. Exact file paths,
+Explicit recall ranks eligible records by token overlap with `--request`,
+`--target-summary`, and `--target-path` values. Exact file paths,
 file stems and identifiers such as `retry_queue` or `ProfileScreen` receive
 extra weight; a path's two nearest directories count only as plain words and
 its other directories not at all, so a repository-wide prefix such as
@@ -59,7 +60,7 @@ most 160 characters. Use verified conditions and known exceptions, not guessed
 generalizations. The positive condition participates in ranking; the exception
 does not, so naming a prohibited context does not itself attract the record.
 Both are shown to the agent, protected by the record digest, and counted in the
-same 1,200-character start budget. Empty options are omitted; older records
+same 1,200-character recall budget. Empty options are omitted; older records
 remain readable. These fields describe applicability, not a machine-enforced
 predicate: the agent must compare them with the current request and evidence,
 withhold in reversed conditions, and inspect missing evidence before acting.
@@ -69,9 +70,9 @@ Capture can include up to four repeatable `--source-path` values naming tracked,
 repository-relative evidence files. Moru Core stores their paths and Git blob hashes
 of the current worktree bytes, without filters, contents or history. Recall
 marks changed or unavailable evidence with `verify before use`, hashing each
-file once per recall. At task start, a record is skipped before hashing when its
-base payload already exceeds the remaining character budget. Added status fields
-can still make a record exceed that budget after hashing. Recall neither retires
+file once per recall. In the bounded recall renderer, a record is skipped before
+hashing when its base payload already exceeds the remaining character budget.
+Added status fields can still make a record exceed that budget after hashing. Recall neither retires
 the record nor treats an unchanged file as proof that the guidance is
 correct. Existing records without file evidence remain readable and date-based.
 Paths outside the repository, untracked files and symlinks are rejected.
@@ -86,7 +87,7 @@ History and consolidation reports retain the applicability conditions so a
 correction does not erase why the earlier advice stopped applying. Neither
 superseded text nor a negative condition contributes to retrieval ranking.
 
-The command and start behavior travel with every Moru Core installation.
+The explicit command travels with every Moru Core installation.
 Records live in that PC's user-local `~/.moru/project-memory/` store;
 linked worktrees of the same repository share them, while another PC starts
 with its own empty store. Moru Core does not sync memory content between PCs.
@@ -95,37 +96,35 @@ The [conditional experience reuse experiment](experiments/project-memory-2026-10
 records the implementation's bounded retrieval and live judgment evidence,
 including lexical misses and limits of the synthetic comparison.
 
-### Startup maintenance cost
+The [startup ablation](experiments/project-memory-start-references-2026-10-24.md)
+records measured removal costs, raw samples and behavior-verification limits.
 
-Task start scans the existing records once for recall and produces a content-free
-upkeep notice using linear counters: `expired`, `exact_duplicates`,
-`shared_source`, and `unfinished`. Exact duplicates use case/punctuation-normalized
-bodies in overlapping scopes; an `all` record can connect route-specific copies.
-These are review hints, never a claim that matching text is true or should merge.
+### Reuse before retrieval
 
-Near-duplicate similarity is not evaluated at every task start. Use the existing
-`project-memory --project <TARGET_REPO> consolidate` command for the full
-similarity report and its source/condition evidence when consolidation is useful.
-That explicit report keeps its original behavior and can still be quadratic.
-Startup does not automatically consolidate, retire, strengthen or rewrite memories.
-Record reading and lexical recall still grow with store size; this change removes
-one quadratic startup step, not all large-store search costs or proof of learning.
+Reuse a complete skill reading or analysis while it remains available in the
+runtime context and its inputs, scope and assumptions remain valid. A repeated
+request alone is not a reason to read or analyze again. Changed source bytes,
+new contradictory evidence, a different scope, stale external facts or missing
+context require a targeted refresh. Reuse is not a claim that a model permanently
+learned the material or that different providers share a session.
 
-Reproduce the synthetic local comparison with:
+Existing same-session document and verification reuse remains in place. No new
+analysis cache, transcript store, vector database or automatic memory promotion
+is introduced. Work cards still expose unfinished work. Required instructions
+and current verification obligations remain authoritative.
 
-```sh
-python3 -B tests/benchmarks/project_memory_startup.py --sizes 100 1000 3000 --samples 5
-```
+For a missing project fact, query `project-memory recall` explicitly and check
+its applicability and source evidence. Use `project-memory consolidate` only
+when reviewing the store is useful. Existing capture, correction, retirement,
+history and closeout contracts remain unchanged; stored records are not deleted.
+The explicit consolidation report can still be quadratic. Removing startup
+recall removes that reference scan and injected text; it does not establish
+end-to-end token savings or improved judgment.
 
-It times unchanged recall plus old/full versus new/startup upkeep on the same
-in-memory records and checks byte-equivalent output for its non-duplicate corpus.
-It excludes record-file I/O, the rest of the lifecycle and model calls. On macOS
-27.0.1 arm64 / Python 3.9.6, five alternating samples gave median **211.30 to
-21.08 ms** at 1,000 records and **2,057.48 to 82.75 ms** at 3,000. Pairwise
-comparisons fell from **499,500 / 4,498,500 to zero**. These are narrow synthetic
-startup-reference measurements, not end-to-end latency, token savings or improved
-judgment. Existing source freshness, replacement and three-item/1,200-character
-delivery checks are unchanged.
+Historical startup-upkeep measurements can be reproduced with
+`python3 -B tests/benchmarks/project_memory_startup.py --sizes 100 1000 3000 --samples 5`.
+That benchmark compares the old/full and linear upkeep helpers on in-memory
+records; it no longer represents the default task-start path.
 
 ## Work Cards
 

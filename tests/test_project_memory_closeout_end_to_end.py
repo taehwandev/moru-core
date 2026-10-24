@@ -200,7 +200,7 @@ class RetrospectiveMemoryCloseoutTests(unittest.TestCase):
         self.assertNotEqual(route_fingerprint(current), route_fingerprint(dict(current, project_memory_contract="unknown")))
         self.assertEqual(old_hash, route_fingerprint(dict(legacy)))
 
-    def test_actual_cli_closeout_capture_next_start_and_late_retirement(self):
+    def test_actual_cli_closeout_explicit_recall_and_late_retirement(self):
         from support.stable_launcher import _launcher_script_text
 
         root = Path(__file__).resolve().parents[1]
@@ -248,8 +248,12 @@ class RetrospectiveMemoryCloseoutTests(unittest.TestCase):
         cli("gate-batch", *context, "--gate-record", json.dumps(gates))
         self.assertIn("SUCCESS finish", cli("finish", *context))
         next_start, next_context = start()
-        self.assertIn(record["id"], next_start)
-        self.assertIn("distinct valid event ids", next_start)
+        self.assertNotIn(record["id"], next_start)
+        self.assertNotIn("Project memory (agent-written reference", next_start)
+        recalled = json.loads(cli("project-memory", "--project", str(self.project), "recall",
+                                  "--request", "retry delivery"))
+        self.assertEqual([record["id"]], [item["id"] for item in recalled])
+        self.assertEqual("distinct valid event ids", recalled[0]["not_when"])
         cli("gate-batch", *next_context, "--gate-record", json.dumps(gates))
         spec = importlib.util.spec_from_file_location("memory_finish_race", root / "scripts/agent-finish-check.py")
         finish = importlib.util.module_from_spec(spec)

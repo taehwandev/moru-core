@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Agent-written, source-attributed project memory recalled by later Moru tasks.
+"""Agent-written, source-attributed project memory for explicit recall.
 
-A capture is active at once and later starts recall it without an approval
-step. Memory is reference, never authority: the current request, repository
-rules and source evidence prevail. Wrong records are corrected by replacing
-(`capture --replaces`) or retiring them, and every record expires on its
+A capture is active at once and available through explicit recall. Task start
+does not scan or inject these records. Memory is reference, never authority:
+the current request, repository rules and source evidence prevail. Wrong records
+are corrected by replacing (`capture --replaces`) or retiring them, and each
+record expires on its
 `--review-on` date.
 """
 

@@ -305,11 +305,14 @@ recorded findings in [docs/maintenance-audit.md](docs/maintenance-audit.md). Ext
 section with source evidence and verification. This reference is on demand;
 ordinary tasks gain no startup reads or additional gates.
 
-## Automatic Project Memory And Work Cards
+## On-Demand Project Memory And Work Cards
 
 `<MORU_LAUNCHER> project-memory` keeps agent-written project guidance in a
-user-local store shared by linked worktrees; start recalls at most three
-in-date records as reference, never authority. Moru never captures on its own:
+user-local store shared by linked worktrees. Task start does not scan, recall,
+or maintain that store. Use explicit `project-memory recall` only for a concrete
+missing project fact; its results are reference, never authority. Reuse retained,
+unchanged readings and analysis before searching again. Moru never captures
+on its own:
 Claude and Codex keep durable project knowledge here, not in runtime-private
 memory (for Claude, this overrides `~/.claude/projects/*/memory`, which keeps
 only user, feedback, and reference entries). Capture only a verified root cause,
@@ -320,8 +323,8 @@ exceptions with `--applies-when` and `--not-when`; compare recalled conditions
 with current evidence before using the advice. Correct with
 `capture --replaces <id>` or `retire <id>`.
 Never capture secrets, transcripts or speculation, and never sync it or put its
-content in a continuation packet. When start prints a `Project memory upkeep`
-line, run the `consolidate` report it names. Permanent rules belong here or in
+content in a continuation packet. Run `project-memory consolidate` only when
+reviewing the store is useful. Permanent rules belong here or in
 shared guidance, task state in checkpoints, and user preferences in runtime
 memory.
 

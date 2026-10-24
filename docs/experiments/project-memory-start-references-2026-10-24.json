@@ -1,0 +1,676 @@
+{
+  "overlapping_test_processes": {
+    "scope": "Real startup-reference helper including work cards, disk scan and source hashes; warm OS caches",
+    "excludes": "Full start lifecycle, process startup, model calls, token counts, judgment and native analysis reuse",
+    "baseline_commit": "d77f2402f376c351bc61a0a7f0d6085f51526f89",
+    "candidate_hook_sha256": "b1dcdf827e470c8357281e3256a6b7d3ac77885cec25012bb187754451263533",
+    "dependencies": "Current checkout shared by both arms; no algorithm changes in those dependencies",
+    "python": "3.9.6",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "samples_per_arm": 21,
+    "interval": "Exploratory paired-median percentile bootstrap, 2000 resamples, seed 0; one machine",
+    "results": [
+      {
+        "records": 0,
+        "operations_per_call": {
+          "baseline": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          },
+          "candidate": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          }
+        },
+        "store_unchanged": true,
+        "milliseconds": {
+          "baseline": {
+            "median": 170.648916,
+            "samples": [
+              132.668083,
+              163.170041,
+              197.203625,
+              209.66875,
+              170.648916,
+              170.226625,
+              126.672333,
+              183.755083,
+              190.686084,
+              248.258708,
+              227.064291,
+              176.244416,
+              212.993084,
+              228.1805,
+              237.570625,
+              132.650083,
+              154.35475,
+              161.070375,
+              136.738208,
+              148.811167,
+              128.492917
+            ]
+          },
+          "candidate": {
+            "median": 104.139334,
+            "samples": [
+              172.175875,
+              66.162709,
+              114.105084,
+              110.708166,
+              80.855167,
+              132.649292,
+              131.268333,
+              102.871333,
+              123.483584,
+              148.069042,
+              98.267666,
+              154.634792,
+              137.984375,
+              137.869334,
+              101.246458,
+              75.150208,
+              98.71875,
+              52.230334,
+              82.481625,
+              104.139334,
+              101.906166
+            ]
+          }
+        },
+        "paired_saved_ms": {
+          "median": 75.00870900000001,
+          "bootstrap_95_ci": [
+            54.25658299999999,
+            90.31116599999999
+          ]
+        }
+      },
+      {
+        "records": 10,
+        "operations_per_call": {
+          "baseline": {
+            "record_reads": 10,
+            "source_hash_calls": 1,
+            "output_chars": 640,
+            "output_utf8_bytes": 640,
+            "delivered_records": 3
+          },
+          "candidate": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          }
+        },
+        "store_unchanged": true,
+        "milliseconds": {
+          "baseline": {
+            "median": 97.100709,
+            "samples": [
+              249.661292,
+              190.608917,
+              170.264,
+              201.840292,
+              305.266834,
+              93.785458,
+              123.913792,
+              97.100709,
+              86.583875,
+              129.508458,
+              122.345,
+              90.88675,
+              78.103834,
+              76.472292,
+              87.52175,
+              91.022167,
+              137.363208,
+              83.295167,
+              91.639167,
+              80.090667,
+              115.371458
+            ]
+          },
+          "candidate": {
+            "median": 54.005125,
+            "samples": [
+              110.694625,
+              122.992916,
+              86.628,
+              98.565,
+              100.101541,
+              59.369625,
+              56.183083,
+              54.005125,
+              51.459875,
+              66.543375,
+              66.296166,
+              44.946958,
+              51.901875,
+              40.425958,
+              45.971625,
+              47.478417,
+              44.348625,
+              41.805125,
+              43.253042,
+              43.851667,
+              77.599916
+            ]
+          }
+        },
+        "paired_saved_ms": {
+          "median": 45.939792000000004,
+          "bootstrap_95_ci": [
+            41.49004200000001,
+            67.616001
+          ]
+        }
+      },
+      {
+        "records": 1000,
+        "operations_per_call": {
+          "baseline": {
+            "record_reads": 1000,
+            "source_hash_calls": 1,
+            "output_chars": 640,
+            "output_utf8_bytes": 640,
+            "delivered_records": 3
+          },
+          "candidate": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          }
+        },
+        "store_unchanged": true,
+        "milliseconds": {
+          "baseline": {
+            "median": 221.530667,
+            "samples": [
+              229.796375,
+              194.991584,
+              197.360583,
+              202.085042,
+              221.530667,
+              230.690584,
+              290.49975,
+              192.214416,
+              271.87125,
+              259.581167,
+              243.350166,
+              280.104917,
+              235.084333,
+              247.216958,
+              251.273833,
+              179.865,
+              161.471167,
+              159.685375,
+              173.462542,
+              173.460334,
+              180.533292
+            ]
+          },
+          "candidate": {
+            "median": 38.577292,
+            "samples": [
+              42.43675,
+              36.725625,
+              35.638917,
+              44.022083,
+              68.59025,
+              39.517375,
+              38.349583,
+              34.961708,
+              85.259167,
+              59.0735,
+              69.252334,
+              74.249334,
+              36.693666,
+              46.130292,
+              42.510541,
+              38.577292,
+              32.375792,
+              29.822875,
+              30.311958,
+              33.491042,
+              33.845042
+            ]
+          }
+        },
+        "paired_saved_ms": {
+          "median": 161.721666,
+          "bootstrap_95_ci": [
+            152.940417,
+            191.17320899999999
+          ]
+        }
+      },
+      {
+        "records": 3000,
+        "operations_per_call": {
+          "baseline": {
+            "record_reads": 3000,
+            "source_hash_calls": 1,
+            "output_chars": 640,
+            "output_utf8_bytes": 640,
+            "delivered_records": 3
+          },
+          "candidate": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          }
+        },
+        "store_unchanged": true,
+        "milliseconds": {
+          "baseline": {
+            "median": 303.792,
+            "samples": [
+              278.569792,
+              290.163292,
+              310.962583,
+              297.211084,
+              282.795208,
+              326.602,
+              271.863125,
+              302.030417,
+              294.022458,
+              536.541,
+              626.541791,
+              578.609291,
+              406.109042,
+              393.770291,
+              343.350792,
+              286.229875,
+              292.334292,
+              366.3055,
+              303.792,
+              305.809125,
+              303.505209
+            ]
+          },
+          "candidate": {
+            "median": 30.110083,
+            "samples": [
+              31.323917,
+              25.754208,
+              30.526083,
+              25.820125,
+              27.744167,
+              25.501167,
+              34.12025,
+              41.708292,
+              35.063083,
+              121.035875,
+              40.627583,
+              54.471667,
+              33.852459,
+              39.287875,
+              27.734541,
+              25.493375,
+              30.110083,
+              28.314,
+              27.318708,
+              30.051959,
+              27.216458
+            ]
+          }
+        },
+        "paired_saved_ms": {
+          "median": 276.288751,
+          "bootstrap_95_ci": [
+            260.7365,
+            315.61625100000003
+          ]
+        }
+      }
+    ]
+  },
+  "after_test_processes_completed": {
+    "scope": "Real startup-reference helper including work cards, disk scan and source hashes; warm OS caches",
+    "excludes": "Full start lifecycle, process startup, model calls, token counts, judgment and native analysis reuse",
+    "baseline_commit": "d77f2402f376c351bc61a0a7f0d6085f51526f89",
+    "candidate_hook_sha256": "b1dcdf827e470c8357281e3256a6b7d3ac77885cec25012bb187754451263533",
+    "dependencies": "Current checkout shared by both arms; no algorithm changes in those dependencies",
+    "python": "3.9.6",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "samples_per_arm": 21,
+    "interval": "Exploratory paired-median percentile bootstrap, 2000 resamples, seed 0; one machine",
+    "results": [
+      {
+        "records": 0,
+        "operations_per_call": {
+          "baseline": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          },
+          "candidate": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          }
+        },
+        "store_unchanged": true,
+        "milliseconds": {
+          "baseline": {
+            "median": 75.549917,
+            "samples": [
+              87.873292,
+              113.40525,
+              118.886916,
+              106.372916,
+              75.549917,
+              65.169833,
+              98.371541,
+              59.244292,
+              64.161583,
+              73.320041,
+              68.105584,
+              63.59775,
+              60.529,
+              75.751583,
+              69.875875,
+              61.453875,
+              66.8585,
+              101.154667,
+              90.159167,
+              129.100833,
+              136.472417
+            ]
+          },
+          "candidate": {
+            "median": 49.279167,
+            "samples": [
+              49.279167,
+              52.409125,
+              71.047834,
+              66.4055,
+              47.24425,
+              45.475541,
+              45.359708,
+              46.37375,
+              51.431125,
+              46.589791,
+              44.2275,
+              45.0405,
+              38.5015,
+              50.153416,
+              45.092792,
+              48.622458,
+              55.662291,
+              54.241917,
+              65.862083,
+              63.282916,
+              63.678916
+            ]
+          }
+        },
+        "paired_saved_ms": {
+          "median": 25.598166999999997,
+          "bootstrap_95_ci": [
+            22.027500000000003,
+            39.967416
+          ]
+        }
+      },
+      {
+        "records": 10,
+        "operations_per_call": {
+          "baseline": {
+            "record_reads": 10,
+            "source_hash_calls": 1,
+            "output_chars": 640,
+            "output_utf8_bytes": 640,
+            "delivered_records": 3
+          },
+          "candidate": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          }
+        },
+        "store_unchanged": true,
+        "milliseconds": {
+          "baseline": {
+            "median": 128.104166,
+            "samples": [
+              116.767584,
+              149.536542,
+              143.319375,
+              153.480958,
+              150.411541,
+              101.297042,
+              158.073041,
+              152.820209,
+              113.262458,
+              99.9775,
+              101.437625,
+              194.766708,
+              181.090584,
+              167.00025,
+              180.6005,
+              128.104166,
+              116.505083,
+              124.7895,
+              96.715,
+              94.762583,
+              103.544917
+            ]
+          },
+          "candidate": {
+            "median": 65.00275,
+            "samples": [
+              84.593666,
+              61.126584,
+              76.305583,
+              74.661333,
+              52.174125,
+              66.49025,
+              86.4885,
+              91.449083,
+              57.054167,
+              56.738166,
+              48.193375,
+              61.658125,
+              110.070125,
+              113.193125,
+              89.187875,
+              80.965125,
+              64.655041,
+              65.00275,
+              55.770542,
+              56.221166,
+              46.727042
+            ]
+          }
+        },
+        "paired_saved_ms": {
+          "median": 56.817875,
+          "bootstrap_95_ci": [
+            51.850042,
+            71.020459
+          ]
+        }
+      },
+      {
+        "records": 1000,
+        "operations_per_call": {
+          "baseline": {
+            "record_reads": 1000,
+            "source_hash_calls": 1,
+            "output_chars": 640,
+            "output_utf8_bytes": 640,
+            "delivered_records": 3
+          },
+          "candidate": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          }
+        },
+        "store_unchanged": true,
+        "milliseconds": {
+          "baseline": {
+            "median": 233.286167,
+            "samples": [
+              292.464125,
+              232.027875,
+              243.873,
+              231.65725,
+              184.646041,
+              196.35125,
+              219.225292,
+              222.520334,
+              218.840375,
+              211.363584,
+              228.479459,
+              233.286167,
+              217.459583,
+              249.575667,
+              238.81825,
+              265.696875,
+              271.909709,
+              236.784917,
+              325.928167,
+              261.533084,
+              409.579042
+            ]
+          },
+          "candidate": {
+            "median": 53.266167,
+            "samples": [
+              56.796875,
+              53.266167,
+              58.517625,
+              49.622417,
+              42.784875,
+              41.295083,
+              44.584166,
+              41.722291,
+              39.586958,
+              40.44225,
+              58.664167,
+              40.710834,
+              46.275583,
+              52.021666,
+              81.368792,
+              81.206209,
+              54.780333,
+              53.905,
+              109.353584,
+              82.680375,
+              187.009833
+            ]
+          }
+        },
+        "paired_saved_ms": {
+          "median": 180.798043,
+          "bootstrap_95_ci": [
+            174.64112599999999,
+            185.35537499999998
+          ]
+        }
+      },
+      {
+        "records": 3000,
+        "operations_per_call": {
+          "baseline": {
+            "record_reads": 3000,
+            "source_hash_calls": 1,
+            "output_chars": 640,
+            "output_utf8_bytes": 640,
+            "delivered_records": 3
+          },
+          "candidate": {
+            "record_reads": 0,
+            "source_hash_calls": 0,
+            "output_chars": 0,
+            "output_utf8_bytes": 0,
+            "delivered_records": 0
+          }
+        },
+        "store_unchanged": true,
+        "milliseconds": {
+          "baseline": {
+            "median": 282.939458,
+            "samples": [
+              436.208667,
+              402.279542,
+              379.348417,
+              508.623042,
+              441.858375,
+              359.387042,
+              324.479292,
+              301.061334,
+              295.814625,
+              291.795167,
+              282.939458,
+              267.756709,
+              256.564166,
+              259.277416,
+              259.2455,
+              259.746208,
+              267.023125,
+              258.116041,
+              259.238709,
+              245.655584,
+              233.115583
+            ]
+          },
+          "candidate": {
+            "median": 26.956292,
+            "samples": [
+              35.007208,
+              39.407666,
+              31.788167,
+              29.553166,
+              30.098208,
+              30.48775,
+              28.259458,
+              28.96175,
+              26.972208,
+              27.709708,
+              25.844917,
+              25.561041,
+              23.218,
+              24.631167,
+              25.369708,
+              24.294042,
+              26.338084,
+              26.956292,
+              25.112459,
+              22.539917,
+              22.952833
+            ]
+          }
+        },
+        "paired_saved_ms": {
+          "median": 257.094541,
+          "bootstrap_95_ci": [
+            234.646249,
+            296.219834
+          ]
+        }
+      }
+    ]
+  }
+}
