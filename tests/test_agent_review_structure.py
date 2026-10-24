@@ -1432,6 +1432,66 @@ class ListedPathNulSafetyTests(unittest.TestCase):
             result["test_max_added_lines"],
         )
 
+    def test_initial_git_workspace_without_head_exempts_full_build_line_caps_while_head_enforces_them(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            source = project / "src" / "city.js"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text(
+                "export class CityBuilder {\n"
+                + "".join(f"  step{idx}() {{ return {idx}; }}\n" for idx in range(360))
+                + "}\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+
+            def run_real_git(command: list[str], cwd: Path) -> dict[str, object]:
+                res = subprocess.run(
+                    command,
+                    cwd=cwd,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                )
+                return {
+                    "command": command,
+                    "cwd": str(cwd),
+                    "returncode": res.returncode,
+                    "stdout": res.stdout,
+                    "stderr": res.stderr,
+                }
+
+            initial_review = structure_review(project, 500, 120, run_real_git)
+            self.assertEqual([], initial_review["failures"])
+            self.assertTrue(
+                any("initial full-build file" in warning for warning in initial_review["warnings"])
+            )
+
+            # Once the repository has a HEAD commit, new 360-line single-file additions
+            # must be enforced by the incremental commit diff budget.
+            (project / "src" / "base.js").write_text("export const base = 1;\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/base.js"], cwd=project, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Moru Core Tests",
+                    "-c",
+                    "user.email=moru-agent@example.invalid",
+                    "commit",
+                    "-q",
+                    "-m",
+                    "initial",
+                ],
+                cwd=project,
+                check=True,
+            )
+            committed_review = structure_review(project, 500, 120, run_real_git)
+            self.assertTrue(
+                any("per-file addition limit is 300" in failure for failure in committed_review["failures"])
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

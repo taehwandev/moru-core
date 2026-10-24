@@ -45,20 +45,32 @@ permission to hide first-party code under `third_party`.
   a hard review failure unless repo-local policy explicitly sets a different
   limit.
 - Development source/style files should have one primary owner and one
-  responsibility cluster. Over about 300 lines is review pressure: require
+  responsibility cluster. In **Git-tracked repositories with commit history**
+  (`HEAD` present), over about 300 lines is review pressure: require
   structure-review evidence that names the owner, allowed imports, callers,
   tests, verification path, and split decision. A new file over about 500 lines
   fails review. An existing file already over about 500 lines must not gain
   another public owner, unclear responsibility, or hard-gate violation; when the
   change only edits an existing owner, require structure-review evidence instead
   of failing solely on pre-existing size. More than about 300 added lines in one
-  development file fails review because it is usually a "dump it all here"
-  signal.
-- Apply the added-line gate to a newly introduced but still-untracked runtime
-  file before building more behavior on top of it. If that file crosses the
-  limit during a later task, split a real owner such as identity validation,
-  mutation lifecycle, transport, or cleanup into its own purpose-named module;
-  do not treat its presence before the current edit as an exemption.
+  development file fails incremental commit review because it is usually a "dump
+  it all here" signal.
+- In **unbound or initial full-build workspaces without a Git `HEAD` commit**
+  (non-Git directories or `git init` workspaces before their first commit),
+  per-commit line-addition and file-line hard caps do not block full builds;
+  agents must still separate distinct responsibilities into purpose-named
+  modules (`textures`, `city`, `entities`, `main`, etc.) and satisfy executable
+  behavior/visual gates without truncating implementation density.
+- Never downgrade, stub, or omit domain features, geometry density, or visual
+  completeness to satisfy a line-count cap. When a Git-tracked change needs
+  more than 300 lines, split cohesive sub-owners into sibling modules or stage
+  sequential atomic commits.
+- In Git-tracked repositories (`HEAD` present), apply the added-line gate to a
+  newly introduced but still-untracked runtime file before building more
+  behavior on top of it. If that file crosses the limit during a later task,
+  split a real owner such as identity validation, mutation lifecycle,
+  transport, or cleanup into its own purpose-named module; do not treat its
+  presence before the current edit as an exemption.
 - CSS and style files follow the same ownership rule. Do not group tokens,
   primitives, component variants, page layout overrides, and one-off fixes in
   one file only because they are all styles.

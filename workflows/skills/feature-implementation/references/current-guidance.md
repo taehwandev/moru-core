@@ -39,7 +39,7 @@ return here only for the ARD-scoped code slice.
    caller-facing contracts, existing same-file scope or new package boundary,
    and the nearest verification that will prove the change.
 6. Check repo-local instructions, existing patterns, affected contracts, and affected tests.
-7. Implement only the requested behavior.
+7. Implement only the requested behavior. Keep each new or modified component/function block within the 120-line review budget by extracting cohesive render or step helpers before running `gate-batch` or `review`.
 8. Update source-of-truth docs or record why docs are intentionally unchanged.
 9. Verify with the nearest useful command or manual smoke check.
 10. Run the side-effect audit from `workflows/skills/development-cycle/SKILL.md`.

@@ -360,13 +360,21 @@ finish. A worker handoff does not satisfy the user-facing `handoff` gate.
 
 ## Review Boundaries
 
-Plan new or substantially expanded development files to stay within the default
-review budget: at most 300 added lines, four top-level owners, and one
-public/exported top-level owner unless a stricter repo rule applies. An owner
-is a type or class, a declaration marked `export`/`public`/`pub`/`internal`,
-a capitalized component or `use*` hook, or any non-private Kotlin top-level
-declaration; plain lowercase functions in languages such as Python are not
-counted. Split
+Line-count review budgets apply to **Git-tracked incremental commits** (`HEAD`
+present) where atomic diff history matters: plan new or substantially expanded
+development files within a commit to stay within at most 300 added lines, four
+top-level owners, and one public/exported top-level owner unless a stricter
+repo rule applies. In **unbound or initial full-build workspaces without Git
+commit history** (`!has_git_head` or non-Git directories), do not enforce
+per-file line-addition caps; instead, organize code into single-responsibility
+modules and enforce executable functional/visual verification gates so full
+builds are never throttled or stubbed to fit a diff budget. Even in Git-tracked
+repositories, never downgrade, simplify, or omit requested features or visual
+fidelity to stay under 300 lines—split cohesive responsibilities into sibling
+modules or sequential atomic commits instead. An owner is a type or class, a
+declaration marked `export`/`public`/`pub`/`internal`, a capitalized component
+or `use*` hook, or any non-private Kotlin top-level declaration; plain
+lowercase functions in languages such as Python are not counted. Split
 independently nameable sections before review. Tests keep their separate wider
 budget.
 

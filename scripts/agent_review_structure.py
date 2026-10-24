@@ -457,6 +457,7 @@ def changed_source_paths(
             "path_metadata": path_metadata,
             "review_only": "non_git_workspace",
         }, []
+    is_initial_full_build = head["returncode"] != 0
     if head["returncode"] == 0:
         collect_head_diff(project, run_command, commands, names, path_metadata, command_errors, review_paths)
     else:
@@ -467,7 +468,13 @@ def changed_source_paths(
         commands["ls_files_initial"] = tracked
         if tracked["returncode"] == 0:
             for name in _listed_paths(tracked["stdout"]):
-                record_path(names, path_metadata, name, status="A")
+                record_path(
+                    names,
+                    path_metadata,
+                    name,
+                    status="A",
+                    initial_full_build=True,
+                )
         else:
             command_errors.append("git ls-files changed source discovery failed")
 
@@ -478,7 +485,14 @@ def changed_source_paths(
     commands["ls_files_untracked"] = untracked
     if untracked["returncode"] == 0:
         for name in _listed_paths(untracked["stdout"]):
-            record_path(names, path_metadata, name, status="A", untracked=True)
+            record_path(
+                names,
+                path_metadata,
+                name,
+                status="A",
+                untracked=True,
+                initial_full_build=is_initial_full_build,
+            )
     else:
         command_errors.append("git ls-files untracked source discovery failed")
 
@@ -1035,6 +1049,14 @@ def check_file_size(
     review_warning_file_lines: int = REVIEW_FILE_REVIEW_WARNING_LIMIT,
 ) -> None:
     line_count = len(lines)
+    if metadata.get("initial_full_build"):
+        if line_count > review_warning_file_lines:
+            result["warnings"].append(
+                f"{path} is an initial full-build file with {line_count} lines (no Git HEAD commit); "
+                "per-commit line-addition caps do not block unbound full builds, "
+                "but keep one clear module owner per file"
+            )
+        return
     status = metadata.get("status", "")
     added_lines = metadata.get("additions")
     if added_lines is None:
@@ -1096,6 +1118,8 @@ def large_block_findings(
     current = oversized_blocks(path, lines, max_block_lines)
     if not current:
         return [], []
+    if metadata.get("initial_full_build"):
+        return [], [block_failure(record, max_block_lines) for record in current]
 
     previous = previous_oversized_blocks(project, path, metadata, run_command, max_block_lines)
     previous_by_label = {str(record["label"]): record for record in previous}
