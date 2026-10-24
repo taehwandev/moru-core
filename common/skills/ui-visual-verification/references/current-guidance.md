@@ -126,6 +126,54 @@ If the reference is cropped, the implementation route is uncertain, or a
 caller/variant cannot be identified, mark visual verification incomplete and
 stop the completion report instead of filling the gap by inference.
 
+## Existing Surface Detail Audit
+
+Use when the request is to raise quality, polish, or QA an app or screen that
+already exists, not to verify one diff. Detail defects hide in surfaces nobody
+changed recently, so walk them on purpose instead of waiting for a diff.
+
+1. Inventory every screen, sheet, and entry point, including nested and
+   platform-specific hosts (for example a shared UI screen embedded in a
+   native navigation stack).
+2. Walk each screen against the checklist below and record findings as
+   `file:line`, the symptom the user sees, the fix, and severity. Mark a
+   finding inferred when it was not observed running.
+3. Fix the most user-visible findings first in small reviewed slices. Ask
+   before changing a layout or visual design the user approved; detail fixes
+   are not a license to redesign.
+4. Confirm gesture, typography, and density findings on a real device or
+   simulator; source reading alone cannot show how text reads in a hand.
+
+Checklist per screen:
+
+- Value meaning: every number, date, fraction, progress, count, and badge has
+  a label, unit, or unambiguous format; relative and absolute dates follow one
+  rule; zero, one, and large values read correctly.
+- Platform adaptation: text sizes, line heights, spacing, and hit targets use
+  the target platform's baselines (phone reading body around 16-17pt/sp,
+  touch targets 44pt/48dp) instead of values copied from a web or desktop
+  build; system text scaling is honored without clipping fixed-height text.
+- Control placement: preferences that persist across content (text size,
+  font, theme) live in the platform's settings surface, not in a per-screen
+  toolbar copied from the web; hover-only and desktop-width affordances are
+  replaced.
+- Dead or fake state: every button has a handler with a visible result, every
+  event and effect has a consumer, every setting is applied where it claims
+  to apply and persists across relaunch when users expect it; remove state
+  fields nothing renders.
+- System navigation: back gestures, predictive back, sheet dismiss, keyboard
+  avoidance, and safe areas still work where system bars are hidden or
+  replaced, including when the embedded screen has its own inner stack.
+- States: loading, empty, error, offline, signed-out, and retry are present
+  and use product copy rather than developer messages.
+- Copy and locale: no hard-coded strings, every locale has every key, and web
+  wording that does not fit a mobile context is rewritten.
+- Release hygiene: debug logging, debug-only menus, and placeholder copy are
+  absent from user builds.
+
+Report the audit as a ranked list. Separate observed findings from inferred
+ones, and name the surfaces that were not walked.
+
 ## Do Not Accept
 
 - Do not treat a build, typecheck, or unit test as proof that a UI is readable,
@@ -140,6 +188,14 @@ stop the completion report instead of filling the gap by inference.
   sole way to open an actionable menu, dropdown, or control. Touch users cannot
   hover, so require an explicit tap/click toggle (with an outside-tap/escape
   close) and verify it on a touch/mobile viewport.
+- Do not accept an unlabeled number, date, or fraction whose meaning depends
+  on context the user cannot see.
+- Do not accept text sizes, hit targets, or toolbar controls copied from a web
+  build into a native app without re-deriving them for the platform.
+- Do not accept a control or setting that has no visible effect, or that
+  silently resets when the screen closes.
+- Do not claim system back navigation works on a screen that hides system
+  bars until the gesture was performed on a device or simulator.
 - Do not claim visual verification when the assets, icons, fonts, or remote
   data failed to load in the checked environment.
 
