@@ -1825,7 +1825,8 @@ def _add_review_arguments(parser: argparse.ArgumentParser) -> None:
     review.add_argument(
         "--structure-review-evidence",
         help=(
-            "short evidence that runtime file/function size, top-level owner count, and "
+            "inline evidence text, not a filename; read any evidence file in the caller "
+            "and pass its contents. Cover runtime file/function size, top-level owner count, and "
             "responsibility splits were reviewed; new runtime package boundaries must "
             "use explicit labels: owner: ..., allowed imports: ..., forbidden imports: ..., "
             "callers/tests: ..., verification: ..."
@@ -1846,7 +1847,10 @@ def _add_review_arguments(parser: argparse.ArgumentParser) -> None:
     review.add_argument(
         "--side-effect-audit-evidence",
         "--side-effect-review-evidence",
-        help="short evidence that the final diff and side-effect surfaces were checked",
+        help=(
+            "inline evidence text that the final diff and side-effect surfaces were checked; "
+            "pass it in the same review invocation when the route requires this audit"
+        ),
     )
     review.add_argument(
         "--review-scope",

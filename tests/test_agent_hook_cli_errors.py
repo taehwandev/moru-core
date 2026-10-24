@@ -47,6 +47,16 @@ class HookCliErrorsTests(unittest.TestCase):
         self.assertIn("--commit-ready", output.getvalue())
         self.assertIn("usage:", output.getvalue())
 
+    def test_review_help_explains_inline_evidence_and_same_invocation_audit(self):
+        with contextlib.redirect_stdout(io.StringIO()) as output, self.assertRaises(SystemExit) as result:
+            hook.build_parser().parse_args(["review", "--help"])
+        self.assertEqual(0, result.exception.code)
+        help_text = " ".join(output.getvalue().split())
+        self.assertIn("inline evidence text, not a filename", help_text)
+        self.assertIn("pass its contents", help_text)
+        self.assertIn("owner: ..., allowed imports: ..., forbidden imports: ...", help_text)
+        self.assertIn("same review invocation when the route requires this audit", help_text)
+
 
 if __name__ == "__main__":
     unittest.main()
