@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Moru Core 위에 회사·서비스별 작업 분배와 실행 관제를 연결하는 구조 제안">
+  <meta name="document-status" content="proposal">
+  <title>Moru — 요청에서 결과까지, 상위 관제 계층 설계</title>
+  <style>
+    :root { --paper:#f6f5ef; --white:#fff; --ink:#172c2a; --muted:#5e6d69; --line:#d8dfd7;
+      --green:#18574c; --mint:#e3eee5; --lime:#d7ee9d; --warm:#eee8db; --radius:18px; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; scroll-padding-top:28px; }
+    body { margin:0; color:var(--ink); background:var(--paper);
+      font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+      font-size:16px; line-height:1.8; word-break:keep-all; overflow-wrap:anywhere; }
+    a { color:inherit; text-underline-offset:4px; }
+    button { font:inherit; cursor:pointer; }
+    a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #347966; outline-offset:5px; }
+    .skip { position:absolute; top:-80px; left:20px; padding:10px; background:var(--white); z-index:10; }
+    .skip:focus { top:12px; }
+    .shell { max-width:1320px; margin:auto; padding:0 42px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px;
+      padding:25px 0; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:12px; font-size:22px; font-weight:800; letter-spacing:-1px; }
+    .mark { width:27px; height:27px; display:grid; grid-template-columns:repeat(2,1fr); gap:3px; }
+    .mark i { background:var(--green); border-radius:3px; }
+    .mark i:last-child { background:#8fac80; }
+    .header-note,.eyebrow,.section-label,.micro { font-size:11px; font-weight:750; letter-spacing:1.5px; }
+    .header-note { color:var(--muted); }
+    .print { border:1px solid var(--line); border-radius:999px; padding:7px 17px; background:transparent; }
+    .layout { display:grid; grid-template-columns:168px minmax(0,1fr); gap:56px; }
+    aside { padding-top:63px; }
+    nav { position:sticky; top:36px; display:grid; gap:4px; }
+    nav a { padding:8px 0; text-decoration:none; color:var(--muted); font-size:13px; }
+    nav a:hover { color:var(--green); }
+    nav span { display:inline-block; width:29px; color:#7d8b83; font-size:11px; }
+    .nav-caption { font-size:11px; color:var(--muted); margin-bottom:14px; letter-spacing:2px; }
+    main { min-width:0; }
+    .hero { padding:60px 0 45px; }
+    .eyebrow { display:flex; align-items:center; gap:10px; color:var(--green); }
+    .dot { height:7px; width:7px; border-radius:50%; background:var(--green); display:inline-block; }
+    h1 { font-size:clamp(38px,4.4vw,62px); line-height:1.22; letter-spacing:-2.8px; margin:24px 0; font-weight:760; }
+    .intro { font-size:18px; color:var(--muted); max-width:680px; margin:0; }
+    .metadata { display:flex; flex-wrap:wrap; gap:9px; margin-top:25px; }
+    .pill { border:1px solid var(--line); border-radius:999px; padding:4px 11px; font-size:11px; color:var(--muted); }
+    .pill.green { color:var(--green); background:var(--mint); border-color:var(--mint); }
+    section { padding:39px 0; border-top:1px solid var(--line); }
+    .section-label { color:var(--green); margin-bottom:10px; }
+    h2 { font-size:27px; line-height:1.45; letter-spacing:-1px; margin:0 0 17px; }
+    h3 { font-size:17px; line-height:1.5; margin:0 0 10px; }
+    p { margin:0 0 15px; }
+    .muted { color:var(--muted); }
+    .decision { padding:28px 31px; background:var(--green); border-radius:var(--radius); color:#fff; }
+    .decision .micro { color:var(--lime); }
+    .decision h2 { margin:12px 0; font-size:29px; }
+    .decision p { color:#e1ece5; margin:0; }
+    .decision strong { color:var(--lime); }
+    .options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:20px; }
+    .option { padding:21px; border:1px solid var(--line); border-radius:14px; font-size:13px; }
+    .option.selected { border-color:#91b395; background:var(--mint); }
+    .option p { color:var(--muted); margin:0; }
+    .option .micro { color:var(--green); margin-bottom:9px; }
+    .diagram { padding:27px; background:var(--white); border:1px solid var(--line); border-radius:var(--radius); }
+    .diagram .caption { text-align:center; font-size:12px; color:var(--muted); margin-bottom:20px; }
+    .node { text-align:center; padding:15px 20px; border:1px solid var(--line); border-radius:11px; background:#fafbf8; }
+    .node strong { display:block; font-size:16px; }
+    .node small { display:block; font-size:12px; color:var(--muted); margin-top:3px; }
+    .node.control { background:var(--green); color:#fff; border-color:var(--green); }
+    .node.control small { color:#dbe8df; }
+    .arrow { text-align:center; color:#71867a; line-height:1; font-size:23px; padding:9px; }
+    .branch { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
+    .core-band { margin-top:13px; padding:13px; background:var(--mint); border-radius:10px;
+      text-align:center; font-size:13px; color:var(--green); }
+    .return-note { text-align:center; font-size:12px; color:var(--green); margin:15px 0 0; }
+    .roles { margin-top:23px; }
+    .role { display:grid; grid-template-columns:151px minmax(0,1fr); gap:20px; padding:15px 0; border-bottom:1px solid var(--line); }
+    .role:last-child { border-bottom:0; }
+    .role strong { font-size:14px; }
+    .role p { margin:0; font-size:14px; color:var(--muted); }
+    .callout { border-left:3px solid #9dba85; background:#edf0e5; padding:18px 22px; margin:22px 0 0; font-size:14px; }
+    .callout p:last-child { margin:0; }
+    .flow { list-style:none; padding:0; margin:24px 0 0; counter-reset:step; }
+    .flow li { position:relative; padding:0 0 23px 48px; counter-increment:step; }
+    .flow li:before { content:counter(step,decimal-leading-zero); position:absolute; left:0; top:0;
+      width:30px; height:30px; border-radius:50%; background:var(--mint); color:var(--green);
+      text-align:center; line-height:30px; font-size:11px; font-weight:750; }
+    .flow li:after { content:""; position:absolute; left:14px; top:35px; bottom:5px; width:1px; background:var(--line); }
+    .flow li:last-child:after { display:none; }
+    .flow strong { display:block; font-size:16px; margin-bottom:3px; }
+    .flow p { font-size:14px; color:var(--muted); margin:0; }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
+    .card { padding:23px; background:var(--white); border:1px solid var(--line); border-radius:14px; }
+    .card p { font-size:14px; color:var(--muted); margin:0; }
+    .phase { display:grid; grid-template-columns:48px minmax(0,1fr); gap:17px; padding:25px 0; border-bottom:1px solid var(--line); }
+    .phase:last-child { border-bottom:0; }
+    .phase-number { font-size:33px; font-weight:700; line-height:1.2; color:#7f9c81; letter-spacing:-1px; }
+    .phase p { font-size:14px; color:var(--muted); margin-bottom:10px; }
+    .scope { display:inline-block; font-size:11px; border-radius:6px; padding:3px 9px; background:var(--mint); color:var(--green); }
+    details { border:1px solid var(--line); border-radius:12px; padding:16px 21px; margin-top:12px; }
+    summary { cursor:pointer; font-size:14px; font-weight:650; }
+    details p { font-size:14px; color:var(--muted); margin:13px 0 0; }
+    .review-note { font-size:13px; color:var(--muted); margin-top:18px; }
+    .sources { display:flex; flex-wrap:wrap; gap:10px 24px; font-size:12px; margin-top:20px; }
+    footer { display:flex; justify-content:space-between; gap:15px; padding:27px 0 37px;
+      border-top:1px solid var(--line); color:var(--muted); font-size:11px; letter-spacing:.5px; }
+    @media (max-width:1050px) { .layout { grid-template-columns:140px minmax(0,1fr); gap:30px; }
+      .options { grid-template-columns:1fr; } .option { padding:18px 21px; } }
+    @media (max-width:760px) { .shell { padding:0 23px; } .layout { display:block; }
+      aside,.header-note { display:none; } header { padding:20px 0; } .hero { padding:37px 0 34px; }
+      h1 { letter-spacing:-1.8px; } .intro { font-size:16px; } h2 { font-size:24px; }
+      section { padding:31px 0; } .decision { padding:23px; } .decision h2 { font-size:25px; }
+      .two,.branch { grid-template-columns:1fr; } .diagram { padding:20px 16px; }
+      .role { grid-template-columns:1fr; gap:4px; } .phase { gap:12px; } footer { flex-direction:column; gap:3px; } }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+    @media print { @page { size:A4; margin:16mm; } body { background:white; font-size:11pt; }
+      .shell { max-width:none; padding:0; } aside,.print,.skip { display:none; } .layout { display:block; }
+      header { padding:0 0 10px; } .hero { padding:20px 0; } h1 { font-size:34pt; }
+      section { padding:20px 0; } h2 { font-size:20pt; } .options { grid-template-columns:repeat(3,1fr); }
+      .two,.branch { grid-template-columns:1fr 1fr; } .card,.phase,.option,.diagram,.decision,details { break-inside:avoid; }
+      .decision { background:#e3eee5; color:#172c2a; } .decision p,.decision strong,.decision .micro { color:#172c2a; }
+      .node.control { background:#e3eee5; color:#172c2a; } .node.control small { color:#35564a; }
+      .diagram { break-before:auto; } details > * { display:block; } summary { list-style:none; }
+      p,h2,h3 { orphans:3; widows:3; } footer { padding-bottom:0; } }
+  </style>
+</head>
+<body>
+<a class="skip" href="#main">본문으로 이동</a>
+<div class="shell">
+  <header>
+    <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Moru</div>
+    <span class="header-note">ARCHITECTURE NOTE / 01</span>
+    <button class="print" type="button" id="print-button">인쇄 · PDF 저장 ↗</button>
+  </header>
+  <div class="layout">
+    <aside><nav aria-label="문서 목차"><div class="nav-caption">IN THIS NOTE</div>
+      <a href="#direction"><span>01</span>권장 방향</a><a href="#architecture"><span>02</span>전체 구조</a>
+      <a href="#execution"><span>03</span>작업 처리 흐름</a><a href="#boundaries"><span>04</span>자동화의 경계</a>
+      <a href="#roadmap"><span>05</span>개발 순서</a><a href="#discussion"><span>06</span>검토와 다음 범위</a>
+    </nav></aside>
+    <main id="main">
+      <div class="hero"><div class="eyebrow"><span class="dot"></span> FROM REQUEST TO RESULT</div>
+        <h1>요청을 주면,<br>일이 돌아가도록.</h1>
+        <p class="intro">지휘자가 원하는 결과를 요청하면, 회사·서비스별로 작업을 배분하고 실행한 뒤 검증된 결과를 돌려주는 모루의 상위 관제 계층.</p>
+        <div class="metadata"><span class="pill green">구조 제안 · 구현 전</span><span class="pill">2026.10.21</span>
+          <span class="pill">Moru Core + Control + Workbench</span></div>
+      </div>
+      <section id="direction"><div class="section-label">01 / DIRECTION</div>
+        <div class="decision"><div class="micro">RECOMMENDED STRUCTURE</div><h2>코어 위에 별도 계층을.<br>사용 경험은 모루 안으로.</h2>
+          <p><strong>Moru Core는 유지</strong>하고, 회사·서비스의 작업 배분을 맡는 <strong>Moru Control</strong>을 별도 계층으로 둡니다.
+          모루 앱과 웹은 같은 관제 계층에 연결합니다. Moru Control은 이 문서에서 사용하는 가칭입니다.</p></div>
+        <div class="options">
+          <article class="option"><div class="micro">OPTION A</div><h3>코어 자체를 확장</h3><p>조직·고객·티켓 관리가 공유 실행 기반에 섞입니다. 코어의 재사용 범위가 좁아질 수 있습니다.</p></article>
+          <article class="option selected"><div class="micro">OPTION B · 권장</div><h3>별도 상위 관제 계층</h3><p>업무 상태와 배분의 소유권이 명확합니다. 로컬에서 시작해 웹·여러 조직으로 확장할 수 있습니다.</p></article>
+          <article class="option"><div class="micro">OPTION C</div><h3>모루 앱 내부에 통합</h3><p>요청·검토 화면은 앱에 통합합니다. 회사 전체의 작업 원장과 스케줄링은 별도 계층이 맡도록 합니다.</p></article>
+        </div>
+      </section>
+      <section id="architecture"><div class="section-label">02 / ARCHITECTURE</div><h2>모루 전체를 연결하는 구조</h2>
+        <p class="muted">회사 → 서비스 → 저장소의 등록 정보를 바탕으로, 요청을 실행 가능한 작업으로 연결합니다.</p>
+        <div class="diagram" role="group" aria-label="요청이 관제 계층과 서비스별 러너를 거쳐 결과로 돌아오는 구조">
+          <div class="caption">아래는 제안 구조이며, 현재 구현 상태를 나타내지 않습니다.</div>
+          <div class="node"><strong>지휘자 · 외부 요청자</strong><small>원하는 결과, 티켓, 완료 조건</small></div>
+          <div class="arrow" aria-hidden="true">↓</div><div class="node"><strong>Moru 앱 · 웹 · 티켓 연동</strong><small>요청 접수 · 진행 확인 · 결과 검토 · 승인</small></div>
+          <div class="arrow" aria-hidden="true">↓</div><div class="node control"><strong>Moru Control</strong><small>회사·서비스별 분배 · 상태 관리 · 권한 · 재시도 · 결과 취합</small></div>
+          <div class="arrow" aria-hidden="true">↓</div><div class="branch">
+            <div class="node"><strong>회사 A / 서비스별 Runner</strong><small>해당 저장소와 실행 환경<br>Claude · Codex · AGY 등</small></div>
+            <div class="node"><strong>회사 B / 서비스별 Runner</strong><small>분리된 저장소·자격증명·결과물<br>서비스 정책에 맞는 실행 도구</small></div>
+          </div>
+          <div class="core-band"><strong>Moru Core</strong> — 각 실행에 적용되는 규칙 · 권한 확인 · 검사 · 실행 증거</div>
+          <div class="arrow" aria-hidden="true">↓</div><div class="node"><strong>검증된 결과</strong><small>변경사항 · 검사 결과 · 결과물 · 남은 문제</small></div>
+          <p class="return-note">↳ Control이 결과를 모아, 요청자가 사용한 화면으로 돌려줍니다.</p>
+        </div>
+        <div class="roles">
+          <div class="role"><strong>Moru Core</strong><p>개별 작업의 실행 규칙과 검증 기준을 제공합니다. 회사별 업무 정책은 대상 서비스가 소유합니다.</p></div>
+          <div class="role"><strong>Moru Control</strong><p>요청·하위 작업·실행 상태의 원장을 관리하고, 의존성이 풀린 작업을 적절한 Runner에 배정합니다.</p></div>
+          <div class="role"><strong>Runner</strong><p>실제 코드와 도구에 접근합니다. 작업 공간을 준비하고 에이전트를 실행해 결과와 증거를 반환합니다.</p></div>
+          <div class="role"><strong>Moru 앱 · 웹</strong><p>사용자가 요청하고, 진행을 살펴보고, 결과를 검토하고 승인하는 화면입니다.</p></div>
+        </div>
+      </section>
+      <section id="execution"><div class="section-label">03 / EXECUTION</div><h2>중간 관리자는 어떻게 일할까?</h2>
+        <p class="muted">서비스 설정과 작업 상태를 관리하는 프로그램에, 필요한 순간의 AI 판단을 결합합니다. 회사마다 상시 AI 에이전트를 띄울 필요는 없습니다.</p>
+        <ol class="flow">
+          <li><strong>요청과 완료 조건을 받습니다.</strong><p>예를 들어 “로그인 문제를 해결해줘”라는 요청에서 대상 서비스와 기대 결과를 확인합니다.</p></li>
+          <li><strong>대상과 하위 작업을 찾습니다.</strong><p>등록된 서비스·저장소를 찾고, 필요하면 AI가 웹·서버 등 대상별 작업과 선후관계를 제안합니다.</p></li>
+          <li><strong>권한과 실행 조건을 확인합니다.</strong><p>허용된 범위, 예산, 의존성을 코드로 확인한 뒤 준비된 작업을 Runner에 배정합니다.</p></li>
+          <li><strong>각 서비스에서 실행하고 검사합니다.</strong><p>Runner가 해당 저장소의 규칙과 Moru Core 절차를 적용해 작업하고, 변경사항과 검사 결과를 반환합니다.</p></li>
+          <li><strong>결과를 취합해 전달합니다.</strong><p>완료 조건과 증거를 확인하고 요청자에게 결과를 보여줍니다. 일부만 성공했다면 남은 작업도 함께 표시합니다.</p></li>
+        </ol>
+        <div class="callout"><p><strong>AI는 분해와 판단을, 코드는 상태와 권한을.</strong><br>
+          OpenRouter는 분류·분해안을 구조화된 데이터로 받는 데 활용할 수 있습니다. 실행 상태·재시도·완료 판정은 프로그램이 소유합니다.</p></div>
+      </section>
+      <section id="boundaries"><div class="section-label">04 / BOUNDARIES</div><h2>자동 실행에 필요한 경계</h2>
+        <div class="two">
+          <article class="card"><h3>요청과 실행 권한</h3><p>티켓 본문은 요청 데이터입니다. 실행 권한은 서비스 운영자가 정한 정책으로 확인합니다. 사전 승인 범위는 자동 처리하고 범위가 커지면 승인을 받습니다.</p></article>
+          <article class="card"><h3>회사별 접근 분리</h3><p>저장소·자격증명·실행 환경·결과물 접근을 회사별로 분리합니다. 외부 회사는 자신이 허용한 환경의 Runner를 연결할 수 있어야 합니다.</p></article>
+          <article class="card"><h3>중복과 재시도</h3><p>같은 티켓 이벤트가 여러 번 도착해도 작업을 중복 생성하지 않습니다. 늦게 돌아온 이전 실행이 최종 결과를 덮어쓰지 못하게 합니다.</p></article>
+          <article class="card"><h3>결과의 근거</h3><p>변경사항·검사·실행 증거를 확인해 완료를 판정합니다. 여러 서비스 중 일부만 성공하면 부분 완료와 남은 의존성을 보여줍니다.</p></article>
+        </div>
+        <details><summary>티켓, 작업, 실행을 구분하는 이유</summary><p>티켓은 원래 요청, Task는 대상별 작업, Run은 실행 단위, Attempt는 재시도 회차입니다.
+          이들을 연결해 기록하면 원래 요청의 맥락을 유지하면서 실패한 부분만 다시 실행할 수 있습니다. 기존 코어의 실행 식별자도 연결해 보존해야 합니다.</p></details>
+      </section>
+      <section id="roadmap"><div class="section-label">05 / ROADMAP</div><h2>작게 완주하고, 범위를 넓힙니다.</h2>
+        <article class="phase"><div class="phase-number">01</div><div><h3>내 작업 하나를 끝까지 자동 처리</h3>
+          <p>로컬 관제 프로세스 하나, 영속 저장소, Runner 하나로 시작합니다. 요청 한 건을 지정한 저장소에서 실행하고 변경사항·검사·결과를 반환합니다.</p>
+          <span class="scope">완료 기준: 결과 반환 · 재시작 복구 · 중복 실행 방지</span></div></article>
+        <article class="phase"><div class="phase-number">02</div><div><h3>여러 서비스로 자동 배분</h3>
+          <p>회사→서비스→저장소 등록 정보와 AI 작업 분해를 연결합니다. 서비스 간 선후관계를 처리하고 모루 앱에서 전체 진행과 승인 대기를 확인합니다.</p>
+          <span class="scope">완료 기준: 의존성 처리 · 결과 취합 · 부분 완료 표시</span></div></article>
+        <article class="phase"><div class="phase-number">03</div><div><h3>외부 회사와 서비스 연결</h3>
+          <p>조직별 인증·권한·실행 환경을 분리하고, 고객 소유 Runner와 티켓 연동을 제공합니다. 이 단계에서 여러 조직이 쓰는 서비스로 확장합니다.</p>
+          <span class="scope">완료 기준: 조직 간 접근 분리 · 고객 Runner · 외부 티켓 왕복</span></div></article>
+        <div class="callout"><p><strong>티켓 관리 화면은 필요한 만큼만.</strong><br>
+          처음에는 요청·진행·결과를 보여주는 얇은 화면을 만들고, 기존 Linear 같은 도구도 동일한 접수 경로에 연결합니다. 전체 티켓 시스템 구축은 뒤로 미룹니다.</p></div>
+      </section>
+      <section id="discussion"><div class="section-label">06 / DISCUSSION</div><h2>검토를 반영한 첫 개발 범위</h2>
+        <div class="two"><article class="card"><h3>AGY · 실행 무결성 검토</h3><p>권한과 상태의 코드 관리, 중복 실행 방지, 재시도 제어, 증거에 기반한 완료 판정을 강조했습니다.</p></article>
+          <article class="card"><h3>Claude · 공개 문서 기반 검토</h3><p>OpenRouter의 Claude Sonnet 5.5로 구조 의견을 받았습니다. 독립적인 상태 소유권과 작은 로컬 MVP를 강조했습니다.</p></article></div>
+        <p class="review-note">검토 범위는 서로 다릅니다. Claude는 공개 문서에 기반한 일반 구조 의견이며 로컬 구현을 직접 검토하지 않았습니다.
+          모루에는 이미 앱과 분리된 터미널 호스트가 있으므로, 로컬 실행부의 재사용 범위부터 확인하는 것이 좋겠습니다.</p>
+        <div class="decision"><div class="micro">FIRST VERTICAL SLICE</div><h2>요청 1건 → 저장소 1개 → 검증된 결과</h2>
+          <p>별도 상위 계층에서 요청을 받아 기존 모루 실행부와 코어를 활용하고, 검증된 결과를 되돌려주는 흐름을 먼저 완성합니다.</p></div>
+        <div class="sources"><a href="https://github.com/taehwandev/moru-core">Moru Core 공개 저장소 ↗</a>
+          <a href="https://linear.app/developers/agents">Linear 에이전트 연동 ↗</a>
+          <a href="https://openrouter.ai/docs/guides/features/structured-outputs">OpenRouter 구조화 출력 ↗</a></div>
+      </section>
+      <footer><span>MORU / ARCHITECTURE NOTE 01</span><span>대화에서 정리한 구조 제안 · 구현 및 배포 완료를 의미하지 않습니다.</span></footer>
+    </main>
+  </div>
+</div>
+<script>
+  document.getElementById('print-button').addEventListener('click', () => window.print());
+  const collapsedDetails = new Set();
+  window.addEventListener('beforeprint', () => {
+    document.querySelectorAll('details:not([open])').forEach((detail) => {
+      collapsedDetails.add(detail);
+      detail.open = true;
+    });
+  });
+  window.addEventListener('afterprint', () => {
+    collapsedDetails.forEach((detail) => { detail.open = false; });
+    collapsedDetails.clear();
+  });
+</script>
+</body>
+</html>
