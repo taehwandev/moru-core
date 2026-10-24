@@ -133,6 +133,8 @@ def _collect_runs(projects: list[Path]) -> list[dict[str, Any]]:
             reg = reg_by_id.get(run_dir.name) or {}
             session = preflight.get("runtime_session") if isinstance(preflight.get("runtime_session"), dict) else {}
             runtime, session_id = str(session.get("runtime") or "").strip().lower(), str(session.get("session_id") or "").strip()
+            if runtime == "agy":
+                runtime = "antigravity"
             norm_start = _utc_iso(reg.get("started_at") or preflight.get("timestamp"))
             if not norm_start:
                 continue
@@ -141,7 +143,7 @@ def _collect_runs(projects: list[Path]) -> list[dict[str, Any]]:
             is_cont = bool(str(work.get("previous_action") or "").strip()) or resume_gen > 0
             route_obj = preflight.get("route") if isinstance(preflight.get("route"), dict) else {}
             req_docs = route_obj.get("required_docs") if isinstance(route_obj.get("required_docs"), list) else []
-            spill_id = ("run_" + hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:24] if runtime == "codex" else session_id) if (runtime and session_id) else ""
+            spill_id = ("run_" + hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:24] if runtime in {"codex", "antigravity"} else session_id) if (runtime and session_id) else ""
             collected.append({
                 "run_id": run_dir.name, "work_id": str(work.get("id") or run_dir.name),
                 "runtime": runtime, "session_id": session_id, "spill_run_id": spill_id,

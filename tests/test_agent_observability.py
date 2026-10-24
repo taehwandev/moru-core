@@ -44,6 +44,8 @@ class AgentObservabilityTests(unittest.TestCase):
             codex_session_id = "019a0500-0000-7000-8000-000000000001"
             codex_spill_id = "run_" + hashlib.sha256(codex_session_id.encode("utf-8")).hexdigest()[:24]
             claude_session_id = "claude-sess-oct-01"
+            agy_session_id = "4e644c99-bbab-4318-a995-df2558c6a0c1"
+            agy_spill_id = "run_" + hashlib.sha256(agy_session_id.encode("utf-8")).hexdigest()[:24]
 
             (project / ".moru" / "run-registry.json").write_text(
                 json.dumps(
@@ -71,6 +73,13 @@ class AgentObservabilityTests(unittest.TestCase):
                                 "started_at": "2026-10-20T12:00:00+00:00",
                                 "resume_generation": 0,
                             },
+                            {
+                                "run_id": "run_fresh_agy",
+                                "command": "small-change",
+                                "state": "completed",
+                                "started_at": "2026-10-23T05:00:00+00:00",
+                                "resume_generation": 0,
+                            },
                         ],
                     }
                 ),
@@ -81,6 +90,7 @@ class AgentObservabilityTests(unittest.TestCase):
                 ("run_fresh_codex", "codex", codex_session_id, "2026-10-05T10:00:00+00:00", "", ["a.md", "b.md", "c.md"], False),
                 ("run_cont_codex", "codex", codex_session_id, "2026-10-16T10:00:00+00:00", "run_fresh_codex", ["a.md"], True),
                 ("run_fresh_claude", "claude", claude_session_id, "2026-10-20T12:00:00+00:00", "", ["x.md", "y.md"], False),
+                ("run_fresh_agy", "agy", agy_session_id, "2026-10-23T05:00:00+00:00", "", ["s1.md", "s2.md"], False),
             ]:
                 rdir = runs_dir / run_id
                 rdir.mkdir(parents=True)
@@ -131,6 +141,7 @@ class AgentObservabilityTests(unittest.TestCase):
                         (codex_spill_id, "2026-10-05T10:02:00+00:00", "gpt-6.1-sol", 100000, 0, 500000, 10000, 610000, 4000),
                         (codex_spill_id, "2026-10-16T10:01:00+00:00", "gpt-6.1-sol", 50000, 0, 200000, 5000, 255000, 1500),
                         (claude_session_id, "2026-10-20T12:01:00+00:00", "claude-opus-5-5", 2000, 10000, 100000, 3000, 115000, 0),
+                        (agy_spill_id, "2026-10-23T05:01:00+00:00", "gemini-4-argon", 5000, 0, 95000, 1000, 101000, 0),
                     ],
                 )
 
@@ -139,22 +150,25 @@ class AgentObservabilityTests(unittest.TestCase):
 
             report = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
             self.assertEqual("2026-10", report["month_filter"])
-            self.assertEqual(3, report["total_runs"])
-            self.assertEqual(3, report["spill_matched_runs"])
+            self.assertEqual(4, report["total_runs"])
+            self.assertEqual(4, report["spill_matched_runs"])
             self.assertEqual(1.0, report["binding_coverage_ratio"])
-            self.assertEqual(2, report["fresh_runs"])
+            self.assertEqual(3, report["fresh_runs"])
             self.assertEqual(1, report["continuation_runs"])
 
             by_mode = {(c["runtime"], c["model"], c["reasoning_effort"], c["same_work_mode"]): c for c in report["cohorts"]}
             fresh_codex = by_mode[("codex", "gpt-6.1-sol", "xhigh", "fresh")]
             cont_codex = by_mode[("codex", "gpt-6.1-sol", "xhigh", "continuation")]
+            fresh_agy = by_mode[("antigravity", "gemini-4-argon", "unknown", "fresh")]
             self.assertEqual(2.0, fresh_codex["turns_p50"])
             self.assertEqual(1.0, cont_codex["turns_p50"])
             self.assertEqual(1.0, cont_codex["avg_reused_gates"])
             self.assertEqual(3.0, fresh_codex["avg_required_docs"])
+            self.assertEqual(1.0, fresh_agy["turns_p50"])
+            self.assertEqual(2.0, fresh_agy["avg_required_docs"])
 
             periods = {p["period"] for p in report["period_trends"]}
-            self.assertEqual({"2026-10-W1", "2026-10-W3"}, periods)
+            self.assertEqual({"2026-10-W1", "2026-10-W3", "2026-10-W4"}, periods)
             self.assertNotIn("secret_prompt_fingerprint_should_never_leak", json.dumps(report))
 
             proc = subprocess.run(
@@ -177,7 +191,7 @@ class AgentObservabilityTests(unittest.TestCase):
                 text=True,
             )
             cli_payload = json.loads(proc.stdout)
-            self.assertEqual(3, cli_payload["spill_matched_runs"])
+            self.assertEqual(4, cli_payload["spill_matched_runs"])
 
 
 if __name__ == "__main__":

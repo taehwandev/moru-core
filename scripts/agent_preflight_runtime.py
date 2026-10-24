@@ -8,7 +8,11 @@ import re
 from pathlib import Path
 from typing import Any
 
-from workflow_spill import has_spill_setup_helper
+from workflow_spill import (
+    ANTIGRAVITY_RUNTIME_ENV_KEYS,
+    CODEX_RUNTIME_ENV_KEYS,
+    has_spill_setup_helper,
+)
 from support.permission_entries import (
     agy_permission_entries,
     claude_permission_entries,
@@ -49,9 +53,25 @@ def check_agent_hooks(moru_root: Path) -> tuple[list[str], list[str]]:
     return warnings, failures
 
 
-def active_runtime_label() -> str:
-    for key in ("MORU_AI_TOOL", "SPILL_AI_TOOL", "SPILL_TOKEN_USAGE_AI_TOOL"):
-        value = os.environ.get(key, "").strip().lower()
+def active_runtime_label(env: dict[str, str] | None = None) -> str:
+    values = env if env is not None else os.environ
+    explicit = values.get("MORU_AI_TOOL", "").strip().lower()
+    if explicit in {"agy", "antigravity"}:
+        return "antigravity"
+    if explicit in {"codex", "claude", "openai"}:
+        return explicit
+    if values.get("CLAUDE_CODE_SESSION_ID", "").strip():
+        return "claude"
+    if values.get("CODEX_THREAD_ID", "").strip():
+        return "codex"
+    if values.get("ANTIGRAVITY_CONVERSATION_ID", "").strip():
+        return "antigravity"
+    if any(values.get(key, "").strip() for key in CODEX_RUNTIME_ENV_KEYS):
+        return "codex"
+    if any(values.get(key, "").strip() for key in ANTIGRAVITY_RUNTIME_ENV_KEYS):
+        return "antigravity"
+    for key in ("SPILL_TOKEN_USAGE_AI_TOOL", "SPILL_AI_TOOL"):
+        value = values.get(key, "").strip().lower()
         if value in {"agy", "antigravity"}:
             return "antigravity"
         if value in {"codex", "claude", "openai"}:

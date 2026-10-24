@@ -377,6 +377,47 @@ class ReuseAcrossRunsTests(unittest.TestCase):
             self.assertEqual([self.DOC_A, self.DOC_B], reuse["reused"])
             self.assertEqual(["operating contract pass 2", "review rules applied"], reuse["takeaways"])
 
+    def test_shared_required_docs_are_reused_across_sibling_governed_repositories(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory).resolve()
+            repo_a = workspace / "moru-core"
+            repo_b = workspace / "moru-web"
+            (repo_a / ".git").mkdir(parents=True)
+            (repo_b / ".git").mkdir(parents=True)
+            self._run(repo_a, "a" * 32, [self.DOC_A], "applied shared operating contract")
+            self._registry(repo_a, ["a" * 32])
+            current = self._run(repo_b, "b" * 32, [self.DOC_A, self.DOC_B])
+            self._registry(repo_b, ["b" * 32])
+
+            reuse = required_doc_reuse(current)
+
+            self.assertEqual([self.DOC_A], reuse["reused"])
+            self.assertEqual([self.DOC_B], reuse["unread"])
+            self.assertEqual(["applied shared operating contract"], reuse["takeaways"])
+
+    def test_malformed_sibling_runtime_session_is_skipped_without_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory).resolve()
+            repo_bad = workspace / "moru-bad"
+            repo_good = workspace / "moru-core"
+            repo_cur = workspace / "moru-web"
+            for repo in (repo_bad, repo_good, repo_cur):
+                (repo / ".git").mkdir(parents=True)
+            bad_path = self._run(repo_bad, "c" * 32, [self.DOC_A], "bad takeaway")
+            bad_payload = json.loads(bad_path.read_text(encoding="utf-8"))
+            bad_payload["runtime_session"] = "malformed-string-session"
+            bad_path.write_text(json.dumps(bad_payload), encoding="utf-8")
+            self._registry(repo_bad, ["c" * 32])
+            self._run(repo_good, "a" * 32, [self.DOC_A], "applied shared operating contract")
+            self._registry(repo_good, ["a" * 32])
+            current = self._run(repo_cur, "b" * 32, [self.DOC_A])
+            self._registry(repo_cur, ["b" * 32])
+
+            reuse = required_doc_reuse(current)
+
+            self.assertEqual([self.DOC_A], reuse["reused"])
+            self.assertEqual(["applied shared operating contract"], reuse["takeaways"])
+
 
 if __name__ == "__main__":
     unittest.main()

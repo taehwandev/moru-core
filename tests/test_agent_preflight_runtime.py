@@ -10,7 +10,11 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from agent_preflight_runtime import _claude_spill_warnings, _missing_allow_entries
+from agent_preflight_runtime import (
+    _claude_spill_warnings,
+    _missing_allow_entries,
+    active_runtime_label,
+)
 
 
 class MissingAllowEntriesTests(unittest.TestCase):
@@ -117,6 +121,37 @@ class ClaudeSpillHookTests(unittest.TestCase):
         warnings = _claude_spill_warnings(config, ROOT)
 
         self.assertTrue(any("--advisory" in warning for warning in warnings))
+
+
+class ActiveRuntimeLabelTests(unittest.TestCase):
+    def test_prefers_antigravity_and_codex_runtime_env_over_stale_spill_env(self) -> None:
+        self.assertEqual(
+            "antigravity",
+            active_runtime_label(
+                {"ANTIGRAVITY_CONVERSATION_ID": "conv-123", "SPILL_AI_TOOL": "claude"}
+            ),
+        )
+        self.assertEqual(
+            "codex",
+            active_runtime_label(
+                {"CODEX_THREAD_ID": "thread-123", "SPILL_AI_TOOL": "claude"}
+            ),
+        )
+        self.assertEqual(
+            "antigravity",
+            active_runtime_label({"MORU_AI_TOOL": "agy", "CODEX_SANDBOX": "seatbelt"}),
+        )
+        self.assertEqual(
+            "claude",
+            active_runtime_label(
+                {
+                    "CLAUDE_CODE_SESSION_ID": "claude-sess-1",
+                    "ANTIGRAVITY_CLI_ALIAS": "agy",
+                    "CODEX_SANDBOX": "seatbelt",
+                    "SPILL_AI_TOOL": "claude",
+                }
+            ),
+        )
 
 
 if __name__ == "__main__":

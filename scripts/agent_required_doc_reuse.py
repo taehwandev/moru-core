@@ -49,7 +49,9 @@ def required_doc_reuse(
             return {"reused": [], "unread": unread}
         reusable_records: set[tuple[str, str, int]] = set()
         takeaways: list[str] = []
-        for prior_path, prior in _same_session_priors(preflight_path, current):
+        for prior_path, prior in _same_session_priors(
+            preflight_path, current, include_sibling_repos=True
+        ):
             try:
                 prior_records = set(_doc_records(prior).values())
             except (ValueError, TypeError):
@@ -112,14 +114,10 @@ def project_route_doc_reuse(preflight_path: Path) -> dict[str, list[str]]:
         return {"reused": [], "unread": unread}
 
 
-def _same_session_priors(preflight_path: Path, current: dict[str, Any]):
-    """Yield completed same-session runs of this repository, newest first.
-
-    A session that moves to another worktree of the same repository reads the
-    same shared docs, so every worktree's registry is searched. Records match
-    by relative path, hash and size, which already proves identical content
-    whichever checkout or rules root served it.
-    """
+def _same_session_priors(
+    preflight_path: Path, current: dict[str, Any], *, include_sibling_repos: bool = False
+):
+    """Yield completed same-session runs of this repository (and optional sibling repos), newest first."""
 
     project = Path(current["project"]).resolve()
     run_dir = preflight_path.resolve().parent
@@ -133,7 +131,7 @@ def _same_session_priors(preflight_path: Path, current: dict[str, Any]):
     if session is None:
         return
     # Lazily, this checkout's newest runs first: callers stop at full coverage.
-    for root in _repository_roots(project):
+    for root in _repository_roots(project, include_sibling_repos=include_sibling_repos):
         yield from _completed_runs(root, run_dir.name, session)
 
 
@@ -169,10 +167,11 @@ def _completed_runs(root: Path, current_run: str, session: tuple[str, str]):
         yield prior_path, prior
 
 
-def _repository_roots(project: Path) -> list[Path]:
-    """This checkout first, then the repository's other worktrees, read from git's files."""
+def _repository_roots(project: Path, *, include_sibling_repos: bool = False):
+    """Yield this checkout first, then the repository's other worktrees and lazy sibling repos."""
 
     roots = [project]
+    yield project
     try:
         dot_git = project / ".git"
         if dot_git.is_file():
@@ -182,21 +181,41 @@ def _repository_roots(project: Path) -> list[Path]:
         elif dot_git.is_dir():
             common = dot_git.resolve()
         else:
-            return roots
+            return
         candidates = [common.parent] if common.name == ".git" else []
         for link in sorted((common / "worktrees").glob("*/gitdir")):
             candidates.append(Path(link.read_text(encoding="utf-8").strip()).parent)
     except (OSError, IndexError):
-        return roots
-    siblings = []
+        return
+    worktree_roots = _recent_registered_roots(candidates, roots)
+    roots.extend(worktree_roots)
+    yield from worktree_roots
+    workspace = common.parent.parent
+    if (
+        include_sibling_repos
+        and common.name == ".git"
+        and workspace.is_dir()
+        and workspace != workspace.parent
+        and workspace != Path.home()
+    ):
+        try:
+            repo_candidates = [p for p in workspace.iterdir() if (p / ".git").exists()]
+        except OSError:
+            repo_candidates = []
+        yield from _recent_registered_roots(repo_candidates, roots)
+
+
+def _recent_registered_roots(candidates: list[Path], excluded: list[Path]) -> list[Path]:
+    ranked = []
     for candidate in candidates:
-        registry = project_state_dir_target(candidate.resolve()) / "run-registry.json"
-        if registry.parents[1] not in roots and registry.is_file():
-            siblings.append((registry.stat().st_mtime, registry.parents[1]))
-    # A repository can hold dozens of worktrees; the recently active ones are
-    # where this session's earlier runs are.
-    siblings.sort(reverse=True)
-    return roots + [root for _, root in siblings[:MAX_SIBLING_WORKTREES]]
+        try:
+            registry = project_state_dir_target(candidate.resolve()) / "run-registry.json"
+            if registry.parents[1] not in excluded and registry.is_file():
+                ranked.append((registry.stat().st_mtime, registry.parents[1]))
+        except OSError:
+            continue
+    ranked.sort(reverse=True)
+    return [root for _, root in ranked[:MAX_SIBLING_WORKTREES]]
 
 
 def record_doc_takeaway(evidence_path: Path, text: str) -> None:
@@ -300,6 +319,8 @@ def _required_paths(route: dict[str, Any]) -> list[str]:
 
 def _session(preflight: dict[str, Any]) -> tuple[str, str] | None:
     session = preflight.get("runtime_session") or {}
+    if not isinstance(session, dict):
+        return None
     runtime, session_id = session.get("runtime"), session.get("session_id")
     if not isinstance(runtime, str) or not isinstance(session_id, str):
         return None
