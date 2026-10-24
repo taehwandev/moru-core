@@ -95,6 +95,38 @@ The [conditional experience reuse experiment](experiments/project-memory-2026-10
 records the implementation's bounded retrieval and live judgment evidence,
 including lexical misses and limits of the synthetic comparison.
 
+### Startup maintenance cost
+
+Task start scans the existing records once for recall and produces a content-free
+upkeep notice using linear counters: `expired`, `exact_duplicates`,
+`shared_source`, and `unfinished`. Exact duplicates use case/punctuation-normalized
+bodies in overlapping scopes; an `all` record can connect route-specific copies.
+These are review hints, never a claim that matching text is true or should merge.
+
+Near-duplicate similarity is not evaluated at every task start. Use the existing
+`project-memory --project <TARGET_REPO> consolidate` command for the full
+similarity report and its source/condition evidence when consolidation is useful.
+That explicit report keeps its original behavior and can still be quadratic.
+Startup does not automatically consolidate, retire, strengthen or rewrite memories.
+Record reading and lexical recall still grow with store size; this change removes
+one quadratic startup step, not all large-store search costs or proof of learning.
+
+Reproduce the synthetic local comparison with:
+
+```sh
+python3 -B tests/benchmarks/project_memory_startup.py --sizes 100 1000 3000 --samples 5
+```
+
+It times unchanged recall plus old/full versus new/startup upkeep on the same
+in-memory records and checks byte-equivalent output for its non-duplicate corpus.
+It excludes record-file I/O, the rest of the lifecycle and model calls. On macOS
+27.0.1 arm64 / Python 3.9.6, five alternating samples gave median **211.30 to
+21.08 ms** at 1,000 records and **2,057.48 to 82.75 ms** at 3,000. Pairwise
+comparisons fell from **499,500 / 4,498,500 to zero**. These are narrow synthetic
+startup-reference measurements, not end-to-end latency, token savings or improved
+judgment. Existing source freshness, replacement and three-item/1,200-character
+delivery checks are unchanged.
+
 ## Work Cards
 
 Each tracked start opens a local work card holding its `--target-summary` line,

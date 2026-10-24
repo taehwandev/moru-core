@@ -154,7 +154,7 @@ class ProjectMemoryAtStartTests(unittest.TestCase):
 
         self.assertEqual(0, started.returncode, started.stdout)
         [notice] = [line for line in started.stdout.splitlines() if "Project memory upkeep" in line]
-        self.assertIn("expired=0 expiring=0 duplicates=0 shared_source=1 unfinished=0", notice)
+        self.assertIn("expired=0 exact_duplicates=0 shared_source=1 unfinished=0", notice)
         self.assertIn("project-memory --project", notice)
         self.assertTrue(notice.rstrip().endswith("consolidate"), notice)
         self.assertNotIn("queue", notice)

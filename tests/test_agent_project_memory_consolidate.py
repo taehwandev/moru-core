@@ -145,6 +145,72 @@ class ConsolidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "within-days"):
             self.report(within_days=-1)
 
+    def test_startup_notice_never_runs_pairwise_similarity(self) -> None:
+        from agent_project_memory_consolidate import startup_summary_line
+
+        records = [self.write("Secret body one", source="shared", days=0),
+                   self.write("Secret body two", source="shared")]
+        with mock.patch("agent_project_memory_consolidate._jaccard",
+                        side_effect=AssertionError("pairwise work during startup")):
+            line = startup_summary_line(records, self.project, "moru-hook", today=TODAY)
+        self.assertIn("expired=1 exact_duplicates=0 shared_source=1 unfinished=0", line)
+        self.assertNotIn("Secret", line)
+        self.assertIn("consolidate", line)
+
+    def test_startup_exact_groups_respect_scope_bridges_and_retirement(self) -> None:
+        from agent_project_memory_consolidate import startup_summary_line
+
+        records = [self.write("Same advice.", scope=scope) for scope in ("task", "review")]
+        self.assertEqual("", startup_summary_line(records, self.project, "moru-hook", today=TODAY))
+        records.append(self.write("SAME advice", scope="all"))
+        records.append(self.write("Same advice", scope="all", status="retired"))
+        self.assertIn("exact_duplicates=1", startup_summary_line(
+            records, self.project, "moru-hook", today=TODAY))
+
+    def test_near_duplicate_detection_stays_available_on_demand(self) -> None:
+        from agent_project_memory_consolidate import startup_summary_line
+
+        records = [self.write("alpha bravo charlie delta echo foxtrot"),
+                   self.write("alpha bravo charlie delta echo foxtrot golf")]
+        self.assertEqual("", startup_summary_line(records, self.project, "moru-hook", today=TODAY))
+        self.assertEqual(1, len(self.report()["duplicate_groups"]))
+
+    def test_startup_unfinished_counts_use_current_live_records(self) -> None:
+        from agent_project_memory_consolidate import startup_summary_line
+
+        old = self.write("Old advice")
+        new = self.write("Corrected advice", replaces=old["id"])
+        records = [old, new, self.write("Retired", status="retired", replaces=new["id"])]
+        self.assertIn("unfinished=1", startup_summary_line(
+            records, self.project, "moru-hook", today=TODAY))
+
+    def test_startup_empty_and_punctuation_only_bodies_do_not_create_duplicate_hints(self) -> None:
+        from agent_project_memory_consolidate import startup_summary_line
+
+        self.assertEqual("", startup_summary_line([], self.project, "moru-hook", today=TODAY))
+        records = [self.write("!!!"), self.write("???")]
+        self.assertEqual("", startup_summary_line(records, self.project, "moru-hook", today=TODAY))
+
+    def test_startup_counts_disjoint_exact_groups_and_legacy_live_statuses(self) -> None:
+        from agent_project_memory_consolidate import startup_summary_line
+
+        records = [self.write("Same advice", scope=scope, status=status)
+                   for scope in ("task", "review") for status in ("pending", "approved")]
+        self.assertIn("exact_duplicates=2", startup_summary_line(
+            records, self.project, "moru-hook", today=TODAY))
+
+    def test_startup_work_grows_linearly_without_building_full_findings(self) -> None:
+        from agent_project_memory_consolidate import normalize, startup_summary_line
+
+        records = [{"id": f"{n:016x}", "body": f"note{n}", "source": f"source{n}",
+                    "scope": "all", "status": "active", "review_on": "2099-01-01"}
+                   for n in range(5000)]
+        with mock.patch("agent_project_memory_consolidate.normalize", wraps=normalize) as normalized, \
+                mock.patch("agent_project_memory_consolidate.findings", side_effect=AssertionError), \
+                mock.patch("agent_project_memory_consolidate._duplicate_groups", side_effect=AssertionError):
+            self.assertEqual("", startup_summary_line(records, self.project, "moru-hook", today=TODAY))
+        self.assertLessEqual(normalized.call_count, 3 * len(records))
+
 
 if __name__ == "__main__":
     unittest.main()

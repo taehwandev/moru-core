@@ -63,8 +63,7 @@ from agent_inprocess import run_script_main
 from agent_global_lessons import promote_lessons_for_repair
 from agent_project_memory import recall_lines as project_memory_recall_lines
 from agent_project_memory import scan_records as project_memory_scan
-from agent_project_memory_consolidate import findings as project_memory_findings
-from agent_project_memory_consolidate import summary_line as project_memory_upkeep_line
+from agent_project_memory_consolidate import startup_summary_line as project_memory_upkeep_line
 from agent_work_cards import settle_from_evidence as settle_work_card
 from agent_work_cards import start_lines as work_card_start_lines
 from agent_review_hook import required_review_evidence_flags, review_hook
@@ -385,8 +384,9 @@ def _start_reference_lines(args: argparse.Namespace) -> list[str]:
 def _project_memory_upkeep_lines(project: Path, records: list[dict[str, Any]]) -> list[str]:
     """Counts of records awaiting a decision; advisory, content-free, never a gate."""
     try:
-        report = project_memory_findings(records, 0, today=date.today())
-        line = project_memory_upkeep_line(report, project.resolve(), str(stable_launcher_path()))
+        line = project_memory_upkeep_line(
+            records, project.resolve(), str(stable_launcher_path()), today=date.today(),
+        )
     except (OSError, ValueError):
         return []
     return [line] if line else []

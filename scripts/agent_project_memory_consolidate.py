@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import shlex
+from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -152,6 +153,36 @@ def summary_line(report: dict[str, Any], project: Path, launcher: str) -> str:
         "shared_source": len(report["shared_source_groups"]),
         "unfinished": len(report["unfinished_replacements"]),
     }
+    return _summary_counts_line(counts, project, launcher)
+
+
+def startup_summary_line(records: list[dict[str, Any]], project: Path, launcher: str,
+                         *, today: date) -> str:
+    """Linear, content-free hints; fuzzy comparison belongs to explicit consolidate."""
+    live = [record for record in records if record["status"] in RECALLABLE_STATUSES]
+    bodies: dict[str, Counter] = defaultdict(Counter)
+    sources: Counter = Counter()
+    replaced = {record.get("replaces") for record in live}
+    for record in live:
+        body = normalize(record["body"])
+        if body:
+            bodies[body][record["scope"]] += 1
+        sources[normalize(record["source"])] += 1
+    # An `all` record bridges otherwise disjoint route groups with the same body.
+    exact_duplicates = sum(
+        int(sum(scopes.values()) > 1) if scopes["all"] else sum(n > 1 for n in scopes.values())
+        for scopes in bodies.values()
+    )
+    counts = {
+        "expired": sum(date.fromisoformat(record["review_on"]) <= today for record in live),
+        "exact_duplicates": exact_duplicates,
+        "shared_source": sum(n > 1 for n in sources.values()),
+        "unfinished": sum(record["id"] in replaced for record in live),
+    }
+    return _summary_counts_line(counts, project, launcher)
+
+
+def _summary_counts_line(counts: dict[str, int], project: Path, launcher: str) -> str:
     if not any(counts.values()):
         return ""
     command = shlex.join([launcher, "project-memory", "--project", str(project), "consolidate"])

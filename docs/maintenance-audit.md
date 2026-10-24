@@ -595,3 +595,22 @@ Final verification: **178 tests passed**, zero failures/errors/skips, across
 `PYTHONPATH=tests:scripts python3 -B -m unittest`. Workflow validation passed
 195 references, 434 Markdown blocks/links and 28 route contracts. There is no
 measured change in real-work mistake rates or model reasoning quality.
+
+## F32: Every Task Start Performs Full Fuzzy Consolidation
+
+P2 efficiency / H04, H06, H10; **resolved for startup**, baseline `197d3b4e`.
+Owners: `_project_memory_upkeep_lines` in `scripts/agent-hook.py` and `findings`
+in `scripts/agent_project_memory_consolidate.py`. Every start invoked full
+pairwise near-duplicate comparison to produce a content-free hint. At 3,000
+active records this performs 4,498,500 similarity calls even if no hint appears.
+
+Startup now uses linear exact-duplicate, expiry, shared-source and unfinished
+replacement counts; its label explicitly says `exact_duplicates`. The existing
+explicit consolidation report retains full fuzzy analysis and human/agent
+decision evidence. No automatic memory mutation or advice-selection change.
+The [reproduction and measured limits](project-memory.md#startup-maintenance-cost)
+include byte-equivalent recall on the synthetic comparison. The actual CLI
+startup and memory/closeout suites passed, and a read-only probe recalled the
+source-unchanged live diagnosis without changing any of the ten stored records.
+Record-file scanning and lexical ranking remain linear; a scalable index,
+weak-link learning and real judgment improvement are not delivered by this fix.
