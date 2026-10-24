@@ -24,6 +24,7 @@ from agent_worktree_session import create_worker_worktree
 from workflow_dispatch_handoff import (
     build_worker_result_packet,
     execution_policy,
+    prepare_worker_output_dir,
     worker_output_paths,
 )
 
@@ -113,7 +114,7 @@ def execute_dispatch_manifest(
         )
 
     def _run_spooled(command: list[str]) -> int:
-        stream_log_path.parent.mkdir(parents=True, exist_ok=True)
+        prepare_worker_output_dir(prepared, clear_stale=True)
         with open(stream_log_path, "a", encoding="utf-8") as stream_log:
             proc = subprocess.run(
                 command,

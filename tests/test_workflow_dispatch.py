@@ -1701,6 +1701,84 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
             self.assertEqual(["missing migration fixture"], packet["blockers"])
             self.assertEqual(str(details_path), packet["artifacts"]["details_path"])
 
+    def test_worker_result_packet_enforces_multibyte_budget_exit_floor_and_symlink_guard(self) -> None:
+        from workflow_dispatch_handoff import (
+            MAX_WORKER_RESULT_BYTES,
+            build_worker_result_packet,
+            prepare_worker_output_dir,
+            worker_output_paths,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            handoff_a = {
+                "preflight_evidence": str(root / ".moru" / "preflight.json"),
+                "worker_preflight_evidence": str(
+                    root / ".moru" / "workers" / "slot-a" / "preflight.json"
+                ),
+            }
+            handoff_b = {
+                "preflight_evidence": str(root / ".moru" / "preflight.json"),
+                "worker_preflight_evidence": str(
+                    root / ".moru" / "workers" / "slot-b" / "preflight.json"
+                ),
+            }
+            paths_a = worker_output_paths(handoff_a)
+            paths_b = worker_output_paths(handoff_b)
+            self.assertNotEqual(paths_a["result_path"], paths_b["result_path"])
+
+            # Stale last-message file must be cleared when prepare_worker_output_dir(clear_stale=True) runs.
+            prepare_worker_output_dir(handoff_a)
+            Path(paths_a["last_message_path"]).write_text(
+                '{"status": "ok", "summary": "stale success"}', encoding="utf-8"
+            )
+            prepare_worker_output_dir(handoff_a, clear_stale=True)
+            self.assertFalse(Path(paths_a["last_message_path"]).exists())
+
+            # Fenced JSON with status="ok", empty blockers, and 6000+ UTF-8 bytes of Korean next_action
+            # on a non-zero exit code must force status="blocked", retain a failure blocker, and stay <= 4096B.
+            fenced_multibyte = (
+                "```json\n"
+                + json.dumps(
+                    {
+                        "status": "ok",
+                        "summary": "가나다라마바사" * 300,
+                        "changed_paths": [f"경로/모듈_{idx}.py" for idx in range(25)],
+                        "findings": [
+                            {
+                                "file": f"경로/파일_{idx}.py",
+                                "line": idx,
+                                "severity": "high",
+                                "claim": "다국어클레임" * 100,
+                            }
+                            for idx in range(10)
+                        ],
+                        "checks": ["unit check passed"],
+                        "blockers": [],
+                        "next_action": "다음조치한글" * 1000,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n```"
+            )
+            packet = build_worker_result_packet(
+                handoff_a, returncode=2, raw_output=fenced_multibyte
+            )
+            raw_bytes = Path(paths_a["result_path"]).read_bytes()
+            self.assertLessEqual(len(raw_bytes), MAX_WORKER_RESULT_BYTES)
+            self.assertEqual("blocked", packet["status"])
+            self.assertTrue(packet["blockers"])
+            self.assertEqual(2, packet["checks"][0]["exit_code"])
+
+            # Symlinked result path must be rejected fail-closed.
+            outside = root / "outside.json"
+            outside.write_text("do not overwrite", encoding="utf-8")
+            Path(paths_b["result_path"]).parent.mkdir(parents=True, exist_ok=True)
+            Path(paths_b["result_path"]).symlink_to(outside)
+            with self.assertRaises(OSError):
+                build_worker_result_packet(handoff_b, returncode=0, raw_output="ok")
+            self.assertEqual("do not overwrite", outside.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

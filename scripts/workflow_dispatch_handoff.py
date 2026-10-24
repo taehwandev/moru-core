@@ -12,23 +12,66 @@ from agent_worker_evidence import create_worker_reservation, worker_reservation_
 
 WORKER_RESULT_SCHEMA = "worker_result_v1"
 MAX_WORKER_RESULT_BYTES = 4096
-MAX_WORKER_SUMMARY_CHARS = 600
+MAX_WORKER_SUMMARY_BYTES = 600
 MAX_WORKER_FINDINGS = 10
+MAX_STREAM_TAIL_BYTES = 8192
+
+
+def _check_no_symlink(path: Path) -> None:
+    if path.is_symlink():
+        raise OSError(f"Symbolic link detected in worker output path: {path}")
+
+
+def _utf8_truncate(value: str, max_bytes: int) -> str:
+    encoded = value.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return value
+    return encoded[: max(0, max_bytes)].decode("utf-8", errors="ignore")
 
 
 def worker_output_paths(handoff_state: Mapping[str, object]) -> dict[str, str]:
-    """Return run-local paths for spooled worker logs and the bounded return packet."""
+    """Return per-worker run-local paths for spooled logs and the bounded return packet."""
 
-    parent_preflight = Path(
-        str(handoff_state.get("preflight_evidence") or ".moru/preflight.json")
+    parent_preflight = (
+        Path(str(handoff_state.get("preflight_evidence") or ".moru/preflight.json"))
+        .expanduser()
+        .absolute()
     )
-    output_dir = parent_preflight.parent / "worker-outputs"
+    worker_preflight = handoff_state.get("worker_preflight_evidence")
+    raw_slot = (
+        Path(str(worker_preflight)).parent.name if worker_preflight else "default"
+    )
+    slot = "".join(ch for ch in raw_slot if ch.isalnum() or ch in "-_") or "default"
+    output_dir = parent_preflight.parent / "worker-outputs" / slot
     return {
         "last_message_path": str(output_dir / "worker-last-message.txt"),
         "result_path": str(output_dir / "worker-result.json"),
         "stream_log_path": str(output_dir / "worker-stream.log"),
         "details_path": str(output_dir / "worker-details.md"),
     }
+
+
+def prepare_worker_output_dir(
+    handoff_state: Mapping[str, object], *, clear_stale: bool = False
+) -> dict[str, str]:
+    """Ensure the worker output directory is symlink-free and optionally clear stale outputs."""
+
+    paths = worker_output_paths(handoff_state)
+    output_dir = Path(paths["result_path"]).parent
+    _check_no_symlink(output_dir.parent.parent)
+    _check_no_symlink(output_dir.parent)
+    output_dir.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    _check_no_symlink(output_dir)
+    output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    for file_path in paths.values():
+        candidate = Path(file_path)
+        _check_no_symlink(candidate)
+    if clear_stale:
+        for key in ("last_message_path", "details_path"):
+            stale = Path(paths[key])
+            if stale.is_file():
+                stale.unlink()
+    return paths
 
 
 def codex_argv(
@@ -328,6 +371,144 @@ def _has_reusable_capsule(handoff_state: Mapping[str, object]) -> bool:
     return isinstance(capsule_state, Mapping) and bool(capsule_state.get("reusable"))
 
 
+def _read_bounded_tail(path: Path, max_bytes: int = MAX_STREAM_TAIL_BYTES) -> str:
+    _check_no_symlink(path)
+    if not path.is_file():
+        return ""
+    with open(path, "rb") as handle:
+        handle.seek(0, 2)
+        size = handle.tell()
+        handle.seek(max(0, size - max_bytes), 0)
+        return handle.read(max_bytes).decode("utf-8", errors="replace").strip()
+
+
+def _parse_worker_json(text: str) -> Mapping[str, object]:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) >= 3 and lines[-1].strip() == "```":
+            stripped = "\n".join(lines[1:-1]).strip()
+    if not (stripped.startswith("{") and stripped.endswith("}")):
+        start = stripped.find("{")
+        end = stripped.rfind("}")
+        if start != -1 and end > start:
+            stripped = stripped[start : end + 1]
+    if stripped.startswith("{") and stripped.endswith("}"):
+        try:
+            candidate = json.loads(stripped)
+            if isinstance(candidate, Mapping):
+                return candidate
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def _normalize_findings(raw_findings: object, *, claim_bytes: int = 240) -> list[dict[str, object]]:
+    if not isinstance(raw_findings, list):
+        return []
+    normalized: list[dict[str, object]] = []
+    for item in raw_findings[:MAX_WORKER_FINDINGS]:
+        if isinstance(item, Mapping):
+            line_val = item.get("line", 0)
+            line_num = int(line_val) if isinstance(line_val, int) else 0
+            normalized.append(
+                {
+                    "file": _utf8_truncate(str(item.get("file") or ""), 160),
+                    "line": line_num,
+                    "severity": _utf8_truncate(str(item.get("severity") or "info"), 32),
+                    "claim": _utf8_truncate(str(item.get("claim") or ""), claim_bytes),
+                }
+            )
+        elif str(item).strip():
+            normalized.append(
+                {
+                    "file": "",
+                    "line": 0,
+                    "severity": "info",
+                    "claim": _utf8_truncate(str(item).strip(), claim_bytes),
+                }
+            )
+    return normalized
+
+
+def _normalize_checks(raw_checks: object, *, returncode: int) -> list[dict[str, object]]:
+    default_check = {
+        "cmd": "codex exec",
+        "exit_code": int(returncode),
+        "outcome": "pass" if returncode == 0 else "fail",
+    }
+    if not isinstance(raw_checks, list) or not raw_checks:
+        return [default_check]
+    normalized: list[dict[str, object]] = []
+    for item in raw_checks[:10]:
+        if isinstance(item, Mapping):
+            raw_code = item.get("exit_code", returncode)
+            exit_code = int(raw_code) if isinstance(raw_code, int) else int(returncode)
+            normalized.append(
+                {
+                    "cmd": _utf8_truncate(str(item.get("cmd") or "check"), 160),
+                    "exit_code": exit_code,
+                    "outcome": _utf8_truncate(
+                        str(item.get("outcome") or ("pass" if exit_code == 0 else "fail")), 32
+                    ),
+                }
+            )
+        elif str(item).strip():
+            normalized.append(
+                {
+                    "cmd": _utf8_truncate(str(item).strip(), 160),
+                    "exit_code": int(returncode),
+                    "outcome": "pass" if returncode == 0 else "fail",
+                }
+            )
+    if returncode != 0 and all(check.get("exit_code", 0) == 0 for check in normalized):
+        normalized.insert(0, default_check)
+    return normalized[:10]
+
+
+def _compact_packet_to_budget(packet: dict[str, object]) -> str:
+    serialized = json.dumps(packet, ensure_ascii=False)
+    if len((serialized + "\n").encode("utf-8")) <= MAX_WORKER_RESULT_BYTES:
+        return serialized
+    for max_findings, max_paths, max_checks, str_budget in (
+        (3, 10, 4, 200),
+        (2, 5, 2, 120),
+        (1, 3, 1, 80),
+        (0, 0, 1, 48),
+    ):
+        packet["findings"] = [
+            {
+                **item,
+                "file": _utf8_truncate(str(item.get("file") or ""), str_budget),
+                "claim": _utf8_truncate(str(item.get("claim") or ""), str_budget),
+            }
+            for item in list(packet.get("findings") or [])[:max_findings]
+            if isinstance(item, Mapping)
+        ]
+        packet["changed_paths"] = [
+            _utf8_truncate(str(p), str_budget)
+            for p in list(packet.get("changed_paths") or [])[:max_paths]
+        ]
+        packet["checks"] = [
+            {
+                **item,
+                "cmd": _utf8_truncate(str(item.get("cmd") or "check"), str_budget),
+            }
+            for item in list(packet.get("checks") or [])[:max_checks]
+            if isinstance(item, Mapping)
+        ]
+        packet["summary"] = _utf8_truncate(str(packet.get("summary") or ""), str_budget)
+        packet["next_action"] = _utf8_truncate(str(packet.get("next_action") or ""), str_budget)
+        packet["blockers"] = [
+            _utf8_truncate(str(b), str_budget)
+            for b in list(packet.get("blockers") or [])[:5]
+        ]
+        serialized = json.dumps(packet, ensure_ascii=False)
+        if len((serialized + "\n").encode("utf-8")) <= MAX_WORKER_RESULT_BYTES:
+            return serialized
+    return serialized
+
+
 def build_worker_result_packet(
     handoff_state: Mapping[str, object],
     *,
@@ -336,74 +517,64 @@ def build_worker_result_packet(
 ) -> dict[str, object]:
     """Build and persist a bounded ``worker_result_v1`` packet (<= 4096 bytes)."""
 
-    paths = worker_output_paths(handoff_state)
+    paths = prepare_worker_output_dir(handoff_state)
     last_message_path = Path(paths["last_message_path"])
     stream_log_path = Path(paths["stream_log_path"])
     details_path = Path(paths["details_path"])
     result_path = Path(paths["result_path"])
-    result_path.parent.mkdir(parents=True, exist_ok=True)
 
     text = raw_output.strip()
+    from_stream_log = False
     if not text and last_message_path.is_file():
+        _check_no_symlink(last_message_path)
         text = last_message_path.read_text(encoding="utf-8", errors="replace").strip()
     if not text and stream_log_path.is_file():
-        text = stream_log_path.read_text(encoding="utf-8", errors="replace").strip()
+        text = _read_bounded_tail(stream_log_path)
+        from_stream_log = True
 
-    parsed: Mapping[str, object] = {}
-    if text.startswith("{") and text.endswith("}"):
-        try:
-            candidate = json.loads(text)
-            if isinstance(candidate, Mapping):
-                parsed = candidate
-        except json.JSONDecodeError:
-            parsed = {}
-
+    parsed = _parse_worker_json(text)
     raw_status = str(parsed.get("status") or "")
-    status = (
-        raw_status
-        if raw_status in {"ok", "findings", "blocked", "needs_inspection"}
-        else ("ok" if returncode == 0 else "blocked")
-    )
+    if returncode != 0:
+        status = "blocked"
+    elif raw_status in {"ok", "findings", "blocked", "needs_inspection"}:
+        status = raw_status
+    else:
+        status = "ok"
+
     raw_summary = str(parsed.get("summary") or text or f"worker exited with code {returncode}").strip()
-    spilled = len(text.encode("utf-8")) > MAX_WORKER_SUMMARY_CHARS or len(raw_summary) > MAX_WORKER_SUMMARY_CHARS
-    if spilled and text:
+    spilled = len(text.encode("utf-8")) > MAX_WORKER_SUMMARY_BYTES or len(raw_summary.encode("utf-8")) > MAX_WORKER_SUMMARY_BYTES
+    if spilled and text and not from_stream_log:
+        _check_no_symlink(details_path)
         details_path.write_text(text + "\n", encoding="utf-8")
 
     blockers_raw = parsed.get("blockers")
     blockers = (
-        [str(item) for item in blockers_raw if str(item).strip()]
+        [_utf8_truncate(str(item).strip(), 240) for item in blockers_raw if str(item).strip()][:10]
         if isinstance(blockers_raw, list)
-        else ([f"worker exited with code {returncode}"] if returncode != 0 else [])
+        else []
     )
+    if returncode != 0 and not blockers:
+        blockers = [f"worker exited with code {returncode}"]
     changed_raw = parsed.get("changed_paths")
     changed_paths = (
-        [str(item) for item in changed_raw[:25]]
+        [_utf8_truncate(str(item), 160) for item in changed_raw[:25]]
         if isinstance(changed_raw, list)
         else []
-    )
-    findings_raw = parsed.get("findings")
-    findings = (
-        list(findings_raw[:MAX_WORKER_FINDINGS])
-        if isinstance(findings_raw, list)
-        else []
-    )
-    checks_raw = parsed.get("checks")
-    checks = (
-        list(checks_raw[:10])
-        if isinstance(checks_raw, list)
-        else [{"cmd": "codex exec", "exit_code": int(returncode), "outcome": "pass" if returncode == 0 else "fail"}]
     )
     packet: dict[str, object] = {
         "schema_version": WORKER_RESULT_SCHEMA,
         "status": status,
-        "summary": raw_summary[:MAX_WORKER_SUMMARY_CHARS],
+        "summary": _utf8_truncate(raw_summary, MAX_WORKER_SUMMARY_BYTES),
         "changed_paths": changed_paths,
-        "findings": findings,
-        "checks": checks,
+        "findings": _normalize_findings(parsed.get("findings")),
+        "checks": _normalize_checks(parsed.get("checks"), returncode=returncode),
         "blockers": blockers,
-        "next_action": str(
-            parsed.get("next_action")
-            or ("integrate worker result" if returncode == 0 else "inspect worker stream log and blockers")
+        "next_action": _utf8_truncate(
+            str(
+                parsed.get("next_action")
+                or ("integrate worker result" if returncode == 0 else "inspect worker stream log and blockers")
+            ),
+            300,
         ),
         "artifacts": {
             "result_path": str(result_path),
@@ -412,17 +583,16 @@ def build_worker_result_packet(
         },
     }
     serialized = json.dumps(packet, ensure_ascii=False)
-    if len(serialized.encode("utf-8")) > MAX_WORKER_RESULT_BYTES:
-        if text and not details_path.is_file():
+    if len((serialized + "\n").encode("utf-8")) > MAX_WORKER_RESULT_BYTES:
+        if text and not from_stream_log and not details_path.is_file():
+            _check_no_symlink(details_path)
             details_path.write_text(text + "\n", encoding="utf-8")
             packet["artifacts"] = {
                 "result_path": str(result_path),
                 "log_path": str(stream_log_path),
                 "details_path": str(details_path),
             }
-        packet["findings"] = findings[:3]
-        packet["changed_paths"] = changed_paths[:10]
-        packet["summary"] = raw_summary[:240]
-        serialized = json.dumps(packet, ensure_ascii=False)
+        serialized = _compact_packet_to_budget(packet)
+    _check_no_symlink(result_path)
     result_path.write_text(serialized + "\n", encoding="utf-8")
     return packet
