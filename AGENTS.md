@@ -328,6 +328,13 @@ reviewing the store is useful. Permanent rules belong here or in
 shared guidance, task state in checkpoints, and user preferences in runtime
 memory.
 
+For costly repeated source analysis, an agent may explicitly capture a verified
+conclusion with `--analysis-question`, `--analysis-context` and tracked source
+paths. If that captured analysis is missing from current context, explicit recall
+with the same question, context and scope can return bounded candidates. Recheck
+external assumptions and current instructions; never query merely at task start.
+See the analysis-candidate contract in `docs/project-memory.md`.
+
 Start also lists up to three other open work cards as reference context. When
 one names work already finished elsewhere, run `<MORU_LAUNCHER> work-cards close
 <work id>`. Keep prompts, transcripts and logs out of `--target-summary`.

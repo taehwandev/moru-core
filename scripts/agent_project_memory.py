@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_execution_capsule_state import atomic_write_json
+from agent_evidence_inputs import EvidenceInputs
 from support.global_state import global_state_dir, user_store_write_error
 
 
@@ -57,12 +58,33 @@ def _timestamp() -> str:
 
 def _digest(record: dict[str, Any]) -> str:
     content = {key: record[key] for key in ("body", "source", "scope", "review_on")}
-    for key in ("source_files", *APPLICABILITY_FIELDS):
+    for key in ("source_files", "analysis", *APPLICABILITY_FIELDS):
         if key in record:
             content[key] = record[key]
     return hashlib.sha256(
         json.dumps(content, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()
+
+
+def _analysis_binding(question: str, context: str) -> dict[str, str] | None:
+    if not question and not context:
+        return None
+    values = {"question": question, "context": context}
+    if any(not isinstance(value, str) or not value.strip() or len(value) > 300
+           or not value.isprintable() for value in values.values()):
+        raise ValueError("analysis question and context must both be one line of 1–300 characters")
+    # Preserve case, identifiers and negation. Semantic similarity is not identity.
+    return {key: value.strip() for key, value in values.items()}
+
+
+def _valid_analysis(record: dict[str, Any]) -> bool:
+    binding = record.get("analysis")
+    return (isinstance(binding, dict) and set(binding) == {"question", "context", "inputs"}
+            and _analysis_binding(binding["question"], binding["context"]) ==
+            {key: binding[key] for key in ("question", "context")}
+            and isinstance(binding["inputs"], str)
+            and re.fullmatch(r"[0-9a-f]{64}", binding["inputs"]) is not None
+            and bool(record.get("source_files")))
 
 
 def _valid_source_path(value: Any) -> bool:
@@ -238,6 +260,7 @@ def read_record(path: Path) -> dict[str, Any] | None:
             and record["digest"] == _digest(record)
             and ID_RE.fullmatch(record.get("replaces") or "0" * 16) is not None
             and ("source_files" not in record or _valid_source_files(record["source_files"]))
+            and ("analysis" not in record or _valid_analysis(record))
             and all(key not in record or (isinstance(record[key], str)
                     and 1 <= len(record[key]) <= MAX_CONDITION_CHARS
                     and record[key].isprintable()) for key in APPLICABILITY_FIELDS)
@@ -270,7 +293,8 @@ def _retire(project: Path, record_id: str, *, replaced_by: str = "") -> dict[str
 
 def _capture(project: Path, *, body: str, source: str, scope: str, review_on: str,
              replaces: str = "", source_paths: tuple[str, ...] = (),
-             applies_when: str = "", not_when: str = "") -> dict[str, Any]:
+             applies_when: str = "", not_when: str = "",
+             analysis_question: str = "", analysis_context: str = "") -> dict[str, Any]:
     body, source = body.strip(), source.strip()
     if not (1 <= len(body) <= 500 and body.isprintable()):
         raise ValueError("memory body must be one line of 1–500 characters")
@@ -295,6 +319,11 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
         if not blob:
             raise ValueError("source path must name a readable tracked repository-relative file without symlinks")
         source_files.append({"path": path, "blob": blob})
+    analysis = _analysis_binding(analysis_question, analysis_context)
+    if analysis is not None:
+        if not source_files:
+            raise ValueError("analysis capture requires tracked source evidence")
+        analysis["inputs"] = EvidenceInputs.capture(project.resolve(), [])
     _writable_store(project).mkdir(parents=True, exist_ok=True, mode=0o700)
     record_id = secrets.token_hex(8)
     record = {
@@ -312,6 +341,8 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
         record["replaces"] = replaces
     if source_files:
         record["source_files"] = source_files
+    if analysis is not None:
+        record["analysis"] = analysis
     record["digest"] = _digest(record)
     # The new record is the commit point: recall already hides the record it
     # replaces, so an interrupted retire below never shows both.
@@ -365,6 +396,36 @@ def _recall(project: Path, scope: str, *, today: date | None = None,
     eligible.sort(key=lambda item: (-scores[item["id"]], item["scope"] != scope,
                                     item["review_on"], item["id"]))
     return eligible
+
+
+def _analysis_recall(project: Path, scope: str, question: str, context: str) -> list[dict[str, Any]]:
+    binding = _analysis_binding(question, context)
+    if binding is None:
+        raise ValueError("analysis recall requires a question and context")
+    candidates = [record for record in _recall(project, scope)
+                  if record["scope"] == scope and "analysis" in record
+                  and all(record["analysis"].get(key) == value for key, value in binding.items())]
+    if not candidates:
+        return []
+    try:
+        inputs = EvidenceInputs.capture(project.resolve(), [])
+    except (OSError, ValueError, RuntimeError):
+        return []  # Unavailable inputs never mean unchanged inputs.
+    result, used, blobs = [], 2, {}
+    for record in candidates:
+        if record["analysis"]["inputs"] != inputs or _source_status(project, record, blobs).get("source_status") != "unchanged":
+            continue
+        item = {key: record[key] for key in ("id", "digest", "body", "source", *APPLICABILITY_FIELDS)
+                if key in record}
+        item["analysis_status"] = "candidate_only"
+        size = len(json.dumps(item, ensure_ascii=False)) + (2 if result else 0)
+        if used + size > MAX_RECALL_CHARS:
+            continue
+        result.append(item)
+        used += size
+        if len(result) == MAX_RECALL_ITEMS:
+            break
+    return result
 
 
 def _previously(record: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> dict[str, str]:
@@ -458,6 +519,8 @@ def _main(argv: list[str] | None = None) -> int:
     capture_parser.add_argument("--not-when", default="", help="known exception, at most 160 characters; not used for ranking")
     capture_parser.add_argument("--source-path", action="append", default=[],
                                 help="tracked repository-relative evidence file; repeat up to four times")
+    capture_parser.add_argument("--analysis-question", default="")
+    capture_parser.add_argument("--analysis-context", default="", help="explicit assumptions and external/toolchain inputs")
     # Former review step, kept so older instructions still run; it changes nothing.
     approve_parser = commands.add_parser("approve")
     approve_parser.add_argument("id")
@@ -469,6 +532,8 @@ def _main(argv: list[str] | None = None) -> int:
     recall_parser.add_argument("--request", default="")
     recall_parser.add_argument("--target-summary", default="")
     recall_parser.add_argument("--target-path", action="append", default=[])
+    recall_parser.add_argument("--analysis-question", default="")
+    recall_parser.add_argument("--analysis-context", default="")
     # Read-only replacement chain through one record, newest first.
     history_parser = commands.add_parser("history")
     history_parser.add_argument("id")
@@ -482,7 +547,8 @@ def _main(argv: list[str] | None = None) -> int:
             result = _capture(project, body=sys.stdin.read(), source=args.source,
                               scope=args.scope, review_on=args.review_on,
                               replaces=args.replaces, source_paths=tuple(args.source_path),
-                              applies_when=args.applies_when, not_when=args.not_when)
+                              applies_when=args.applies_when, not_when=args.not_when,
+                              analysis_question=args.analysis_question, analysis_context=args.analysis_context)
         elif args.command == "approve":
             result = _existing(project, args.id)[1]
         elif args.command == "retire":
@@ -494,6 +560,10 @@ def _main(argv: list[str] | None = None) -> int:
             from agent_project_memory_consolidate import consolidate
 
             result = consolidate(project, within_days=args.within_days)
+        elif args.analysis_question or args.analysis_context:
+            if args.request or args.target_summary or args.target_path:
+                raise ValueError("analysis lookup cannot be mixed with lexical recall options")
+            result = _analysis_recall(project, args.scope, args.analysis_question, args.analysis_context)
         else:
             blobs: dict[str, str] = {}
             records = scan_records(project)[0]

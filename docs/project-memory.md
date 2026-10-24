@@ -108,9 +108,9 @@ new contradictory evidence, a different scope, stale external facts or missing
 context require a targeted refresh. Reuse is not a claim that a model permanently
 learned the material or that different providers share a session.
 
-Existing same-session document and verification reuse remains in place. No new
-analysis cache, transcript store, vector database or automatic memory promotion
-is introduced. Work cards still expose unfinished work. Required instructions
+Existing same-session document and verification reuse remains in place. No
+separate analysis cache, transcript store, vector database or automatic memory
+promotion is introduced. Work cards still expose unfinished work. Required instructions
 and current verification obligations remain authoritative.
 
 For a missing project fact, query `project-memory recall` explicitly and check
@@ -120,6 +120,48 @@ history and closeout contracts remain unchanged; stored records are not deleted.
 The explicit consolidation report can still be quadratic. Removing startup
 recall removes that reference scan and injected text; it does not establish
 end-to-end token savings or improved judgment.
+
+### Explicit analysis candidates
+
+An agent may retain a checked analysis in the existing record store by adding
+both `--analysis-question` and `--analysis-context` to `project-memory capture`.
+At least one tracked `--source-path` is required; declare the target and checked
+dependencies, including evidence files, within the existing four-file limit.
+The normal source, scope, expiry and 500-character conclusion limits still apply.
+Do not capture raw transcripts, secrets or an unverified conclusion as a fact.
+
+Use the same two options and exact scope with `project-memory recall` to request
+analysis candidates. Question/context comparison preserves case and negation and
+trims surrounding whitespace only, retaining whitespace inside literals. Do not
+mix these options with lexical recall flags.
+Results contain the original conclusion, source, digest and applicability limits,
+with `analysis_status: candidate_only`. They never authorize skipping a required
+check, applying a patch or treating an agent-written conclusion as proven true.
+
+In addition to declared source hashes, capture binds the whole non-ignored project
+input identity using the existing bounded `EvidenceInputs` implementation. An
+undeclared tracked configuration change, new source file or deleted dependency
+therefore invalidates the candidate. Any project-file change can cause a miss,
+even if unrelated: this first version favors conservative invalidation. Capture
+and matching lookup hash project bytes locally; they do not send files to a model.
+Absent, expired, retired, superseded, corrupt or unreadable records do not qualify.
+Output retains the existing three-item/1,200-character ceiling. Ordinary records
+stay compatible, and no analysis lookup or capture runs automatically at startup.
+
+This is not automatic dependency discovery. Ignored files, symlink-target contents,
+external services, toolchains and current policy outside the project are not fully
+covered by that fingerprint. The caller must recheck those inputs and supply an
+accurate context (including their changed identities) or decline reuse. A matching
+context is an assertion, not machine proof of those external conditions. Refresh
+context and conclusions after an unsupported or contradictory observation.
+
+Vector search could find paraphrases and cross-file analogies missed by exact or
+lexical matching; it cannot prove that assumptions or dependencies still hold.
+No embedding model, service, index or extra model call is added here. A later
+retrieval experiment must compare useful candidates, false matches and full costs
+against the existing lookup before introducing those maintenance costs. Mechanism
+tests of this explicit contract do not establish improved native-agent judgment,
+automatic avoidance of repeated reasoning or billed-token savings.
 
 Historical startup-upkeep measurements can be reproduced with
 `python3 -B tests/benchmarks/project_memory_startup.py --sizes 100 1000 3000 --samples 5`.
