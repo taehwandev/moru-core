@@ -72,7 +72,24 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
     "error": ("common/skills/error-modeling/SKILL.md",),
     "errors": ("common/skills/error-modeling/SKILL.md",),
     "ui": ("common/skills/design-system/SKILL.md", "common/skills/component-api-design/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"),
-    "design": ("common/skills/design-system/SKILL.md", "common/skills/component-api-design/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"),
+    "design": (
+        "common/skills/design-system/SKILL.md",
+        "common/skills/minimal-visual-design/SKILL.md",
+        "common/skills/component-api-design/SKILL.md",
+        "common/skills/ui-visual-verification/SKILL.md",
+    ),
+    "visual-polish": (
+        "common/skills/minimal-visual-design/SKILL.md",
+        "common/skills/ui-visual-verification/SKILL.md",
+    ),
+    "visual-craft": (
+        "common/skills/minimal-visual-design/SKILL.md",
+        "common/skills/ui-visual-verification/SKILL.md",
+    ),
+    "polish": (
+        "common/skills/minimal-visual-design/SKILL.md",
+        "common/skills/ui-visual-verification/SKILL.md",
+    ),
     "design-system": ("common/skills/design-system/SKILL.md", "common/skills/component-api-design/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"),
     "tokens": ("common/skills/design-system/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"),
     "accessibility": ("common/skills/accessibility-i18n/SKILL.md",),
@@ -265,6 +282,11 @@ RISK_CONCERNS_REQUIRED_WHEN_INFERRED: frozenset[str] = frozenset(
 CONCERN_REFERENCE_DOCS: Dict[str, Tuple[str, ...]] = {
     "testing": ("common/skills/scenario-driven-testing/SKILL.md", "common/skills/verification-policy/SKILL.md"),
     "test": ("common/skills/scenario-driven-testing/SKILL.md", "common/skills/verification-policy/SKILL.md"),
+    "ui": ("common/skills/minimal-visual-design/SKILL.md",),
+    "design": ("common/skills/minimal-visual-design/references/platform-craft-matrix.md",),
+    "visual-polish": ("common/skills/minimal-visual-design/references/platform-craft-matrix.md",),
+    "visual-craft": ("common/skills/minimal-visual-design/references/platform-craft-matrix.md",),
+    "polish": ("common/skills/minimal-visual-design/references/platform-craft-matrix.md",),
 }
 
 

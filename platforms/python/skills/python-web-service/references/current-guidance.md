@@ -31,7 +31,7 @@ Use this when a Python service change touches:
 
 | Branch | Rules | Verification |
 | --- | --- | --- |
-| Route and DTO | Keep transport parsing, request/response models, status codes, headers, and OpenAPI-visible shape at the route boundary. Use explicit response models, return annotations, or serializers for public contracts. | Endpoint or contract test for status and response shape. |
+| Route and DTO | Keep transport parsing, request/response models, status codes, headers, and OpenAPI-visible shape at the route boundary. Use explicit response models, return annotations, or serializers for public contracts. Return `200 OK` with `[]` for empty collections vs. `404` for a missing target resource, and shape failures as RFC 9457 Problem Details or the repo's typed error envelope (`code`, `field_errors`, `request_id`, `retryable`). | Endpoint or contract test for status, empty-vs-404 semantics, and error response shape. |
 | Validation and dependency | Use typed models, dependencies, and allowlists for query/body/path/header input. Keep server-owned fields out of client-controlled writes. | Validation test for accepted, rejected, default, and malformed inputs. |
 | Service/use case | Move authz, tenant, idempotency, transaction, and side-effect rules behind a named service/use-case when more than transport mapping is involved. | Unit or endpoint test for permission, tenant, idempotency, and side effects. |
 | Repository/client | Keep database sessions, transactions, external calls, timeouts, retries, and provider DTO mapping behind repository/client boundaries. | Repository/client test or mocked external-call test for success and failure. |

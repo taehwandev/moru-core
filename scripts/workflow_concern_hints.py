@@ -72,6 +72,17 @@ REQUEST_CONCERN_HINTS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
         ),
     ),
     (
+        "visual-polish",
+        (
+            r"\b(?:visual|ui|interface|layout|screen|component|frontend|front-end)\s+(?:polish(?:ing)?|craft|quality|refinement|details?)\b",
+            r"\b(?:polish|refine|elevate)\b.{0,28}\b(?:ui|screen|layout|component|interface|visuals?|frontend|front-end)\b",
+            r"\b(?:micro[- ]?interactions?|visual[- ]?polish|ui[- ]?polish|ui[- ]?craft|concentric\s+radi(?:us|i)|tabular[- ]?nums|layout\s+jitter)\b",
+            r"(?:(?<![A-Za-z0-9_])ui(?![A-Za-z0-9_])|화면|(?<![가-힣])뷰(?![가-힣])|레이아웃|컴포넌트|인터페이스|프론트엔드|비주얼|시각\s*디자인|화면\s*디자인|ui\s*디자인).{0,20}(?:퀄리티|디테일|완성도|폴리싱|다듬|만듦새)",
+            r"(?:퀄리티|디테일|완성도|폴리싱|만듦새).{0,20}(?:(?<![A-Za-z0-9_])ui(?![A-Za-z0-9_])|화면|(?<![가-힣])뷰(?![가-힣])|레이아웃|컴포넌트|인터페이스|프론트엔드|비주얼|시각\s*디자인|화면\s*디자인|ui\s*디자인)",
+            r"비주얼\s*(?:퀄리티|디테일|폴리싱|완성도)",
+        ),
+    ),
+    (
         "accessibility",
         (
             r"\baccessib(?:le|ility)\b",

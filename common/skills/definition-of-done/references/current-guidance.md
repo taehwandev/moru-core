@@ -55,6 +55,7 @@ completion. A missing or vague gate is `🐱🔴 FAIL`, not a warning.
 | Architecture | New or changed boundaries have owners, allowed imports, forbidden imports, callers, and nearest verification when relevant. |
 | Proportionality | The change matches the size of the task. A simple request is a small diff to existing files, not a spread of new files, interfaces, layers, or indirection. Every new file or abstraction names the concrete present risk it protects; otherwise it is collapsed. |
 | Code | Implementation follows local style, avoids speculative abstractions and boilerplate, and keeps responsibilities reviewable. |
+| Detail & Craft | User-facing UI surfaces satisfy the Detail & Craft Gate in `common/skills/ui-visual-verification/SKILL.md` (zero layout jitter, single-owner insets, unclipped text scaling, forgiving hit targets, locale-formatted values, and actionable empty/error recovery); CLI and API surfaces satisfy their platform contract checks (`platforms/application/skills/application-command-ui/SKILL.md`, `platforms/server/skills/server-api-implementation/SKILL.md`). |
 | Docs | Durable behavior, workflow policy, public contract, operator action, or acceptance-criteria changes are reflected in the relevant docs, or the unchanged/not-applicable decision names the checked doc path/class and reason. |
 | Tests | The nearest useful automated or manual check ran, or the skip reason and residual risk are explicit. |
 | Security | Secrets, private data, permissions, tenant, billing, and external-state risks were checked when touched. |

@@ -1627,6 +1627,69 @@ class KoreanParticleRequestMatchingTests(unittest.TestCase):
 
         self.assertIn(required_doc("platforms/android/skills/android-compose-ui/references/compose-performance.md"), route["required_docs"])
 
+    def test_ui_visual_craft_polish_request_selects_minimal_visual_design_and_matrix(self) -> None:
+        for platform, request_text in (
+            ("web", "대시보드 화면 UI 디테일과 완성도를 다듬어줘"),
+            ("ios", "Polish the SwiftUI settings screen visual quality and micro-interactions"),
+            ("android", "컴포즈 카드 레이아웃 퀄리티랑 디테일 올려줘"),
+        ):
+            with self.subTest(platform=platform, request=request_text):
+                inferred = infer_concerns_from_request(request_text)
+                self.assertIn("visual-polish", inferred)
+                route = resolve_docs(
+                    "feature",
+                    platform,
+                    inferred,
+                    request_classified=True,
+                    request_text=request_text,
+                    inferred_concerns=inferred,
+                )
+                self.assertIn(
+                    "common/skills/minimal-visual-design/SKILL.md",
+                    route["required_docs"],
+                )
+                self.assertIn(
+                    "common/skills/minimal-visual-design/references/platform-craft-matrix.md",
+                    route["required_docs"],
+                )
+
+    def test_backend_only_quality_or_detail_request_does_not_select_visual_polish(self) -> None:
+        for request_text in (
+            "Improve database query quality and add API pagination",
+            "OrderDTO 파싱 에러 상세(detail) 필드 추가해줘",
+            "결제 로그 코드 퀄리티 리팩토링해줘",
+            "서버 코드 퀄리티 개선해줘",
+            "API 응답 디테일 강화해줘",
+            "서버 로그 디테일 강화",
+            "database schema design details",
+            "refine the API design for orders",
+            "CLI 출력 완성도 개선",
+            "build 스크립트 퀄리티 개선",
+            "코드 리뷰 퀄리티 개선해줘",
+            "PR 리뷰 디테일 강화해줘",
+            "인터뷰 질문 완성도 다듬어줘",
+            "refine the Django view for orders",
+        ):
+            with self.subTest(request=request_text):
+                inferred = infer_concerns_from_request(request_text)
+                self.assertNotIn("visual-polish", inferred)
+                route = resolve_docs(
+                    "feature",
+                    "server",
+                    inferred,
+                    request_classified=True,
+                    request_text=request_text,
+                    inferred_concerns=inferred,
+                )
+                self.assertNotIn(
+                    "common/skills/minimal-visual-design/SKILL.md",
+                    route["required_docs"],
+                )
+                self.assertNotIn(
+                    "common/skills/minimal-visual-design/SKILL.md",
+                    route["reference_docs"],
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

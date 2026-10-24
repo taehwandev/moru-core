@@ -98,10 +98,19 @@ Avoid use cases that only forward to one repository method without enforcing a r
 
 ## Response And Error Shape
 
-- Map domain errors to stable response codes and payloads.
+- Map domain errors to stable response codes and payloads. Prefer RFC 9457
+  Problem Details (or the repo's typed error envelope) with a deterministic
+  machine `code`, `field_errors` (`field` path + reason),
+  `request_id`/`correlation_id`, `retryable` boolean, and a safe user-facing
+  summary so clients never have to fall back to generic error strings.
+- Distinguish an empty collection (`200 OK` with `items: []` and pagination
+  metadata) from a missing target or parent resource (`404 Not Found`), and use
+  deterministic cursor pagination (stable sort tie-breaker) on list endpoints so
+  client UIs render empty and paginated states accurately.
 - Avoid leaking whether private users, tenants, resources, invites, tokens, or billing accounts exist unless product policy allows it.
 - Include correlation id or request id where the repo standard supports it.
-- Keep retryability explicit for clients when useful.
+- Keep retryability explicit for clients when useful, and pair mutating retryable
+  endpoints with `Idempotency-Key` handling.
 - Never return stack traces, provider credentials, SQL, secrets, or internal provider payloads to callers.
 - When clients need shared failure UX, the API may return presentation hints such as inline, toast/banner, alert/dialog, full-page, retry metadata, action label key, and deep link or route intent. Keep these as stable enum fields and allowlisted actions, not server-provided UI components, raw HTML, executable commands, or client-specific class names.
 - Document the fallback when a client does not support a presentation hint. Clients still own platform rendering, localization, accessibility behavior, and whether a deep-link action is valid in the current screen.

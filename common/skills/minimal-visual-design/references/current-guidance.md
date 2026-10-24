@@ -98,6 +98,43 @@ map them to the platform's units (pt, dp) and token holders.
 - Delay a loading indicator by about 150-300ms and keep it visible for at
   least 300-500ms so fast responses do not flash.
 
+## Micro-Detail & Interaction Craft
+
+Apply these universal execution rules across every platform, and open the
+matching platform section in
+[platform-craft-matrix.md](platform-craft-matrix.md) (`Web & React`,
+`iOS SwiftUI & UIKit`, `Android Jetpack Compose`,
+`Flutter & KMP Compose Multiplatform`, `Desktop Application & CLI`, or
+`Server, Python & API Contracts`) for native APIs and falsifying checks:
+
+- **Zero layout jitter on value, hover, or async transitions**: Enable tabular
+  numerals (`tabular-nums`, `.monospacedDigit()`, or `FontFeature.tabularFigures()`)
+  on counters, timers, prices, percentages, and table columns. Never change font
+  weight on `:hover`/`:active` without reserving width, reserve `scrollbar-gutter: stable`
+  on scrollable containers, and match skeleton/loading placeholder geometry to
+  the final loaded component.
+- **Concentric corner geometry & optical alignment**: Compute nested radii as
+  `r_inner = max(0, r_outer - padding)` so inner buttons, inputs, or media
+  thumbnails share the outer card's curvature center. Align icon + text and
+  metric + unit pairs to the first text baseline (`FirstBaseline` /
+  `.firstTextBaseline`) and match icon stroke weight to the adjacent font weight.
+- **Single-owner insets & unclipped text scaling**: Consume safe-area, system-bar,
+  and software-keyboard/IME insets exactly once at the screen or scaffold
+  boundary—never double-pad child containers. Never put a fixed height on
+  text-bearing views; allow text to scale to `200%` / `AX5` / `textScaler 2.0`
+  and reflow horizontal rows into vertical stacks when space is tight.
+- **Forgiving hit targets & input ergonomics**: Expand interactive touch regions
+  to at least `44x44pt` (iOS) / `48x48dp` (Android) / `24x24px` (desktop pointer)
+  even when the visible glyph is smaller. Clicking any prefix, suffix, icon, or
+  padding inside a text input container must focus the input, and interactive
+  controls (`button`, tabs, chips, toggles) must disable accidental text
+  selection (`user-select: none`).
+- **Actionable state completeness**: Empty, loading, partial, offline,
+  permission-denied, and error states must preserve user draft input, state what
+  happened in plain language, and offer a concrete recovery action (retry, clear
+  filter, or copyable remediation command)—never a dead-end generic string or
+  raw unformatted float/enum.
+
 ## Product & Scrollytelling Stages
 
 - **Stage vs. reading-column separation**: When a sticky 3D/WebGL or canvas

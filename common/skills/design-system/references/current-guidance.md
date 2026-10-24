@@ -13,7 +13,11 @@ For general reusable-code extraction rules, also use
 `common/skills/reusable-code-design/SKILL.md`. For Android Compose UI, also use
 `platforms/android/skills/android-compose-ui/SKILL.md`.
 For reusable component API shape, controlled/uncontrolled state, slots, and
-caller-owned product policy, also use `component-api-design.md`.
+caller-owned product policy, also use `component-api-design.md`. For visual
+craft, micro-detail defaults (type scale, spacing, concentric radii, tabular
+numerals, motion), and per-platform execution rules when no brand system
+overrides them, also use `common/skills/minimal-visual-design/SKILL.md` and
+`common/skills/minimal-visual-design/references/platform-craft-matrix.md`.
 
 ## Direction
 

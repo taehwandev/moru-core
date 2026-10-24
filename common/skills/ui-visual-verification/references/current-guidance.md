@@ -39,6 +39,33 @@ affects navigation, commands, permissions, persistence, or cross-surface state.
 - Whether multiple entry points for the same command produce the same result.
 - Whether visual state updates after actions, retries, refreshes, or navigation.
 
+## Detail & Craft Gate
+
+When building, restyling, or polishing user-facing surfaces, verify these five
+craft invariants against the rendered target runtime (see
+`common/skills/minimal-visual-design/references/platform-craft-matrix.md` for
+platform-specific recipes):
+
+- **Zero layout jitter**: Numeric updates use tabular figures (`tabular-nums`,
+  `.monospacedDigit()`), hover/focus states do not shift sibling widths,
+  scrollbars reserve stable gutter space, and skeleton/loading placeholders
+  match loaded geometry without jumping adjacent content.
+- **Single-owner insets & keyboard avoidance**: Status bar, navigation bar,
+  safe-area, and software-keyboard/IME insets are consumed exactly once. Verify
+  with keyboard open and closed that bottom actions are neither clipped nor
+  double-padded.
+- **Unclipped text scaling & optical alignment**: No fixed height on text
+  containers; verify at `AX3`-`AX5` (iOS), `fontScale = 2.0f` (Android), or
+  `textScaler = 2.0` (Flutter) that text wraps or reflows cleanly, and that
+  leading icons and unit labels align to the first text baseline.
+- **Forgiving hit targets & input parity**: Touch targets measure at least
+  `44x44pt` (iOS) / `48x48dp` (Android), input affixes/padding focus the field on
+  click, interactive controls prevent accidental text selection, and desktop/web
+  controls expose visible `:focus-visible` rings and keyboard shortcuts.
+- **Actionable state & formatted values**: Empty, loading, partial, and error
+  states preserve user input and provide a concrete next action; numbers, dates,
+  and units are locale-formatted (never raw floats or internal enum strings).
+
 ## Tools By Platform
 
 Use repo-local tooling first. Common evidence sources include:
