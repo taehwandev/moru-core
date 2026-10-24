@@ -508,9 +508,9 @@ def _review_verdict(
                 on_invocation_error()
         except (RuntimeError, TypeError, ValueError) as error:
             failures.append(f"review attestation failed: {error}")
-            record_review_failure(args, failures)
+            record_review_failure(args, failures, checks)
     elif not invocation_failure:
-        record_review_failure(args, failures)
+        record_review_failure(args, failures, checks)
 
     invocation_failure = invocation_failure or attestation_invocation_failure
     details = (
@@ -959,17 +959,30 @@ def record_review_worktree_stability(
         failures.append("review hook changed files outside the review pathspec; review hooks must stay read-only")
 
 
-def record_review_failure(args: Any, failures: list[str]) -> None:
+def record_review_failure(args: Any, failures: list[str], checks: dict[str, Any] | None = None) -> None:
     evidence_path = args.evidence if args.evidence else project_state_dir_target(args.project) / "preflight.json"
     try:
         preflight = json.loads(evidence_path.read_text(encoding="utf-8"))
         signature = failure_signature(failures)
+        fields = {"failure_signature": signature}
+        stability = (checks or {}).get("review_snapshot_stability")
+        if isinstance(stability, dict):
+            available = stability.get("snapshot_available")
+            if isinstance(available, bool):
+                fields["review_snapshot_available"] = str(available).lower()
+            changed = stability.get("changed_fields")
+            if isinstance(changed, list):
+                # Keep only producer-owned field names, never snapshot paths, hashes or contents.
+                known = {"scope", "paths", "files", "rules_sha256", "checker_sha256", "python", "limits"}
+                fields["review_snapshot_changed_fields"] = ", ".join(
+                    name for name in changed if isinstance(name, str) and name in known
+                )
         record_gate_evidence(
             evidence_path=evidence_path,
             preflight=preflight,
             gate="review hook",
             evidence="review hook failed; repair is required before review evidence can be reused",
-            fields={"failure_signature": signature},
+            fields=fields,
             status="FAIL",
             source="review",
         )

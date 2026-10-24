@@ -861,6 +861,33 @@ class ReviewHookTests(unittest.TestCase):
                 )
             )
 
+    def test_review_failure_keeps_content_free_snapshot_drift_in_existing_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            evidence_path = project / ".moru" / "preflight.json"
+            evidence_path.parent.mkdir(parents=True)
+            preflight = {"route": {"command": "review", "gates": ["review hook"]}}
+            evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
+            args = SimpleNamespace(project=project, evidence=evidence_path, output=None, repair_cycle=0)
+            checks = {"review_snapshot_stability": {
+                "status": "FAIL", "snapshot_available": True,
+                "changed_fields": ["checker_sha256", "rules_sha256", "/private/never-store"],
+                "files": {"/private/never-store": "private source text"},
+            }}
+
+            _review_verdict(args, checks, ["reviewed bytes changed"],
+                            {"scope": "pathspec", "checked_paths": []}, "pathspec",
+                            lambda *args, **kwargs: 1, None)
+
+            ledger_text = gate_evidence_path_for_preflight(evidence_path).read_text()
+            entry = json.loads(ledger_text)["entries"][-1]
+            self.assertEqual("FAIL", entry["status"])
+            self.assertEqual("checker_sha256, rules_sha256", entry["fields"]["review_snapshot_changed_fields"])
+            self.assertEqual("true", entry["fields"]["review_snapshot_available"])
+            self.assertNotIn("never-store", ledger_text)
+            self.assertNotIn("private source text", ledger_text)
+            self.assertTrue(entry["fields"]["failure_signature"])
+
     def test_review_success_cannot_skip_an_unreadable_attestation_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir)
