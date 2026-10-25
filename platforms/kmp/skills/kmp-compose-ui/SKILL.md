@@ -13,6 +13,8 @@ or non-Compose UI.
 
 ## Read
 
+- `common/skills/foldable-adaptive-layout/SKILL.md` when changing adaptive,
+  large-screen or foldable layouts and state continuity across fold/unfold.
 - `references/current-guidance.md`; `references/design-system.md` for tokens
   and shared components.
 - `references/mobile-platform-native-ui.md` when the app ships to Android and

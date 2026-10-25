@@ -12,6 +12,9 @@ skeleton, modifier, effect, lazy list, animation or preview.
 
 ## Read
 
+- `common/skills/foldable-adaptive-layout/SKILL.md` for adaptive/large-screen
+  layouts, hinge avoidance and book/tabletop transitions.
+
 The core below is the required contract. Open `references/current-guidance.md`
 only for an unresolved in-scope question: `## Compose Layers` for View/Compose
 mixing; `## Design-System Consumption Gate` when no component fits;

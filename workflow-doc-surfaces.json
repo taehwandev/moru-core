@@ -2,6 +2,9 @@
   "schema_version": 1,
   "description": "Document promotion rules used by the workflow router when request intent or touched paths show which guidance must be read before work. These rules also seed the local document graph used by route and query expansion.",
   "doc_sets": {
+    "foldable_adaptive_layout": [
+      "common/skills/foldable-adaptive-layout/SKILL.md"
+    ],
     "common_ui_quality": [
       "common/skills/ui-visual-verification/SKILL.md",
       "common/skills/performance-verification/SKILL.md"
@@ -304,6 +307,23 @@
     ]
   },
   "request_intents": [
+    {
+      "name": "foldable_adaptive_layout_change",
+      "platforms": ["android", "ios", "kmp", "swift"],
+      "commands": ["feature", "bugfix", "build", "task", "refactor", "code-simplify", "review", "test", "plan", "prd", "ard"],
+      "request_any": [
+        "\\b(foldables?|fold[ /-]unfold|dual[ -](screen|posture)|tabletop|book[ -]posture|iPhone\\s+Duo|Galaxy\\s+Z\\s+Fold|Pixel\\s+Fold)\\b",
+        "\\b(adaptive|large[ -]screen|window[ -]size[ -]class|size[ -]class)\\b.{0,40}\\b(layouts?|panes?|navigation|ui)\\b",
+        "\\b(layouts?|panes?|navigation|ui)\\b.{0,40}\\b(adaptive|large[ -]screen|window[ -]size[ -]class|size[ -]class)\\b",
+        "(폴더블|폴드|듀오|테이블탑|북\\s*자세|접기.{0,8}펴기|접힘.{0,8}펼침)",
+        "(적응형|대화면|창\\s*크기\\s*클래스).{0,30}(레이아웃|화면|패널|내비게이션|UI)",
+        "(레이아웃|화면|패널|내비게이션|UI).{0,30}(적응형|대화면|창\\s*크기\\s*클래스)"
+      ],
+      "subject_exclusion": true,
+      "doc_sets": ["foldable_adaptive_layout"],
+      "required_priority": 40,
+      "reason": "Mobile adaptive layout and fold transitions require the shared window, region and state-continuity contract; platform details are read on demand."
+    },
     {
       "name": "code_cleanup",
       "commands": [
@@ -1739,6 +1759,17 @@
     }
   ],
   "path_surfaces": [
+    {
+      "name": "foldable_adaptive_layout_paths",
+      "platforms": ["android", "ios", "kmp", "swift"],
+      "patterns": [
+        "**/*Foldable*.kt", "**/*Foldable*.swift",
+        "**/*AdaptiveLayout*.kt", "**/*AdaptiveLayout*.swift",
+        "**/*WindowSizeClass*.kt", "**/*Hinge*.kt", "**/*Hinge*.swift"
+      ],
+      "doc_sets": ["foldable_adaptive_layout"],
+      "reason": "Verified mobile foldable/window-layout owners require region and continuity guidance even when the request only names a local adjustment."
+    },
     {
       "name": "runtime_setup",
       "patterns": [

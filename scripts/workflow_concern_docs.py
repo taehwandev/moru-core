@@ -6,6 +6,7 @@ from typing import Dict, Tuple
 
 
 PUBLIC_DISCOVERY_DOCS = ("common/skills/public-discovery/SKILL.md",)
+FOLDABLE_LAYOUT_DOCS = ("common/skills/foldable-adaptive-layout/SKILL.md",)
 WEB_SERVICE_STACK_DOCS = (
     "common/skills/web-service-rn-python/SKILL.md",
     "platforms/web/skills/web-architecture/SKILL.md",
@@ -69,6 +70,10 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
     "component": ("common/skills/component-api-design/SKILL.md",),
     "component-api": ("common/skills/component-api-design/SKILL.md",),
     "state": ("common/skills/state-modeling/SKILL.md",),
+    "foldable": FOLDABLE_LAYOUT_DOCS,
+    "dual-posture": FOLDABLE_LAYOUT_DOCS,
+    "adaptive": FOLDABLE_LAYOUT_DOCS,
+    "large-screen": FOLDABLE_LAYOUT_DOCS,
     "error": ("common/skills/error-modeling/SKILL.md",),
     "errors": ("common/skills/error-modeling/SKILL.md",),
     "ui": ("common/skills/design-system/SKILL.md", "common/skills/component-api-design/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"),

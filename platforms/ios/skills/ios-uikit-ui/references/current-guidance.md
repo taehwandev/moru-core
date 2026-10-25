@@ -10,6 +10,9 @@ Use when creating, changing, moving, or reviewing UIKit screens, view
 controllers, coordinators, view models, table/collection views, diffable data
 sources, forms, navigation, or UI tests.
 
+For adaptive/large-screen layouts or iPhone Duo fold transitions, also read
+`common/skills/foldable-adaptive-layout/SKILL.md`.
+
 For shared state and async rules, also read `ios-state-concurrency.md`. For
 SwiftUI-specific screens, read `ios-swiftui-ui.md` instead.
 For targets, local Swift packages, feature contracts, and access-control

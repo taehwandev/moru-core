@@ -9,6 +9,9 @@ type: human-reviewed-needed
 Use when creating, changing, moving, or reviewing SwiftUI screens, view models,
 state models, reusable views, previews, navigation, or UI tests.
 
+For adaptive/large-screen layouts or iPhone Duo fold transitions, also read
+`common/skills/foldable-adaptive-layout/SKILL.md`.
+
 For architecture choice, also read `../../common/skills/architecture-design/SKILL.md` and
 `../swift/swift-architecture.md`. For Swift design-system tokens, styles,
 primitives, and reusable component contracts, also read

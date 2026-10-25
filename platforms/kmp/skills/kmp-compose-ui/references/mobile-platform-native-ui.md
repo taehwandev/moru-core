@@ -109,11 +109,10 @@ docs. A product brand can stay shared while system chrome follows the OS.
 
 ## Adaptive Layout
 
-- Use window width classes, not device names. Treat width at or above the
-  Material medium breakpoint (600dp) as "wide" for foldables and tablets and
-  choose the reading/layout mode from the width at first open.
-- Keep the choice in state so unfolding or rotating mid-session does not reset
-  what the user picked.
+Read `common/skills/foldable-adaptive-layout/SKILL.md` for window-driven pane
+selection, native region handling and fold/unfold state continuity. Re-evaluate
+available layout space as it changes while preserving the user's content and
+explicit reading-mode choice.
 
 ## Verification
 

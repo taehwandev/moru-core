@@ -29,6 +29,7 @@ catalog itself only when that is the task.
 - Code structure, file/module ownership, api/impl split: `common/skills/code-structure-ownership/SKILL.md`
 - Reusable code design, extraction, shared module/package contracts: `common/skills/reusable-code-design/SKILL.md`
 - Component API design, reusable view/hook/widget contracts: `common/skills/component-api-design/SKILL.md`
+- Mobile adaptive/large-screen layouts, foldables, book/tabletop and iPhone Duo (Compose/KMP/SwiftUI/UIKit): `common/skills/foldable-adaptive-layout/SKILL.md`
 - Stack, package manager, framework, runtime, and command discovery: `common/skills/stack-discovery/SKILL.md`
 - Project, app, repo, package, module, CLI, and service naming: `common/skills/project-naming/SKILL.md`
 - Change size and reviewable diff scope: `common/skills/change-size-policy/SKILL.md`
