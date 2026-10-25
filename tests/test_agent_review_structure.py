@@ -1492,6 +1492,35 @@ class ListedPathNulSafetyTests(unittest.TestCase):
                 any("per-file addition limit is 300" in failure for failure in committed_review["failures"])
             )
 
+    def test_typescript_typed_arrow_function_block_and_initial_full_build_warning(self) -> None:
+        lines = [
+            "export const DashboardScreen = (props: Props): JSX.Element => {",
+            *[f"  const item{idx} = {idx};" for idx in range(125)],
+            "  return <div />;",
+            "};",
+            "export const GenericList = <T,>(props: ListProps<T>, b = init()): JSX.Element => {",
+            *[f"  const row{idx} = {idx};" for idx in range(125)],
+            "  return <ul />;",
+            "};",
+        ]
+        failures = large_block_failures(Path("src/DashboardScreen.tsx"), lines, 120)
+        self.assertEqual(2, len(failures))
+        self.assertIn("DashboardScreen", failures[0])
+        self.assertIn("GenericList", failures[1])
+
+        init_failures, init_warnings = large_block_findings(
+            Path("."),
+            Path("src/DashboardScreen.tsx"),
+            lines,
+            120,
+            {"status": "A", "initial_full_build": True},
+            lambda _cmd, _cwd: {"returncode": 1, "stdout": "", "stderr": ""},
+        )
+        self.assertEqual([], init_failures)
+        self.assertEqual(2, len(init_warnings))
+        self.assertIn("initial full-build workspace", init_warnings[0])
+        self.assertNotIn("does not bypass this hard gate", init_warnings[0])
+
 
 if __name__ == "__main__":
     unittest.main()

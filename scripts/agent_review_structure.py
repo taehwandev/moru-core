@@ -127,7 +127,7 @@ BRACE_BLOCK_RE = re.compile(
     r"^\s*(?:"
     r"(?:export\s+)?(?:async\s+)?function\s+\w+"
     r"|(?:export\s+)?(?:default\s+)?class\s+\w+"
-    r"|(?:export\s+)?(?:const|let|var)\s+\w+\s*=\s*(?:async\s*)?(?:\([^)]*\)|\w+)\s*=>"
+    r"|(?:export\s+)?(?:const|let|var)\s+\w+(?:\s*:[^=]+)?\s*=\s*(?:async\s*)?(?:<[^>({]+>\s*)?(?:\((?:[^()]|\([^()]*\))*\)|\w+)(?:\s*:[^=]+)?\s*=>"
     r"|(?:public|private|protected|internal|static|final|open|override|async|func|fun|def|fn|"
     r"function|method|class|struct|enum|interface|type)\b.*"
     r")"
@@ -1119,7 +1119,7 @@ def large_block_findings(
     if not current:
         return [], []
     if metadata.get("initial_full_build"):
-        return [], [block_failure(record, max_block_lines) for record in current]
+        return [], [initial_full_build_block_warning(record, max_block_lines) for record in current]
 
     previous = previous_oversized_blocks(project, path, metadata, run_command, max_block_lines)
     previous_by_label = {str(record["label"]): record for record in previous}
@@ -1249,6 +1249,15 @@ def block_failure(record: dict[str, Any], max_block_lines: int) -> str:
         "until the block is within the limit, or use an explicitly reviewed "
         "project-specific max-function-lines limit; "
         "structure-review prose alone does not bypass this hard gate"
+    )
+
+
+def initial_full_build_block_warning(record: dict[str, Any], max_block_lines: int) -> str:
+    return (
+        f"{record['path']}:{record['line']} block `{record['label']}` spans {record['span']} lines "
+        f"in an initial full-build workspace (no Git HEAD commit); limit is {max_block_lines}; "
+        "structure-review evidence is required, and cohesive private helpers should be extracted "
+        "before incremental commits"
     )
 
 

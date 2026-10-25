@@ -11,6 +11,10 @@ existing owner, a clear requested outcome, at most four changed files, within
 the existing structural review limits. Count tests and documentation too. This is for
 local fixes, small refactors and corrections, not an assertion that every terse
 request is small. Uncertain scope uses triage; broad work uses its full route.
+Before calling `review`, keep new or expanded function and component blocks
+within the structural block limit by extracting private sub-components or
+helpers (pre-existing oversized blocks that do not grow require structure-review
+evidence rather than unrelated refactoring).
 
 The compact manifest after start is tests, review hook, and a short retrospective
 check. Resolve the owner and

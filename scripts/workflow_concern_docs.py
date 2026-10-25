@@ -86,14 +86,17 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
     ),
     "visual-polish": (
         "common/skills/minimal-visual-design/SKILL.md",
+        "common/skills/minimal-visual-design/references/platform-craft-matrix.md",
         "common/skills/ui-visual-verification/SKILL.md",
     ),
     "visual-craft": (
         "common/skills/minimal-visual-design/SKILL.md",
+        "common/skills/minimal-visual-design/references/platform-craft-matrix.md",
         "common/skills/ui-visual-verification/SKILL.md",
     ),
     "polish": (
         "common/skills/minimal-visual-design/SKILL.md",
+        "common/skills/minimal-visual-design/references/platform-craft-matrix.md",
         "common/skills/ui-visual-verification/SKILL.md",
     ),
     "design-system": ("common/skills/design-system/SKILL.md", "common/skills/component-api-design/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"),
@@ -294,11 +297,11 @@ CONCERN_REFERENCE_DOCS: Dict[str, Tuple[str, ...]] = {
     "auth": SOCIAL_SIGN_IN_DOCS,
     "testing": ("common/skills/scenario-driven-testing/SKILL.md", "common/skills/verification-policy/SKILL.md"),
     "test": ("common/skills/scenario-driven-testing/SKILL.md", "common/skills/verification-policy/SKILL.md"),
-    "ui": ("common/skills/minimal-visual-design/SKILL.md",),
+    "ui": (
+        "common/skills/minimal-visual-design/SKILL.md",
+        "common/skills/minimal-visual-design/references/platform-craft-matrix.md",
+    ),
     "design": ("common/skills/minimal-visual-design/references/platform-craft-matrix.md",),
-    "visual-polish": ("common/skills/minimal-visual-design/references/platform-craft-matrix.md",),
-    "visual-craft": ("common/skills/minimal-visual-design/references/platform-craft-matrix.md",),
-    "polish": ("common/skills/minimal-visual-design/references/platform-craft-matrix.md",),
 }
 
 

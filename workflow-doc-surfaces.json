@@ -10,7 +10,8 @@
     ],
     "common_ui_quality": [
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "android_compose_ui": [
       "platforms/android/skills/android-compose-ui/SKILL.md",
@@ -23,7 +24,8 @@
       "platforms/android/skills/android-external-skill-source-coverage/SKILL.md",
       "platforms/android/skills/source-coverage/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "application_ui": [
       "platforms/application/skills/application-command-ui/SKILL.md",
@@ -31,7 +33,8 @@
       "platforms/application/skills/application-review/SKILL.md",
       "platforms/application/skills/application-system-integration/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "application_react_desktop": [
       "platforms/application/skills/application-react-desktop/SKILL.md",
@@ -42,7 +45,8 @@
       "platforms/web/skills/web-react-ui/SKILL.md",
       "platforms/web/skills/web-state-data/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "flutter_ui": [
       "platforms/flutter/skills/flutter-widget-ui/SKILL.md",
@@ -50,7 +54,8 @@
       "platforms/flutter/skills/flutter-state-data/SKILL.md",
       "platforms/flutter/skills/flutter-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "ios_ui": [
       "platforms/ios/skills/ios-swiftui-ui/SKILL.md",
@@ -61,7 +66,8 @@
       "platforms/swift/skills/swift-design-system/SKILL.md",
       "platforms/swift/skills/swift-code-structure/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "ios_swiftui": [
       "platforms/ios/skills/ios-swiftui-ui/SKILL.md",
@@ -71,7 +77,8 @@
       "platforms/swift/skills/swift-design-system/SKILL.md",
       "platforms/swift/skills/swift-code-structure/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "ios_uikit": [
       "platforms/ios/skills/ios-uikit-ui/SKILL.md",
@@ -81,7 +88,8 @@
       "platforms/swift/skills/swift-design-system/SKILL.md",
       "platforms/swift/skills/swift-code-structure/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "kmp_compose_ui": [
       "platforms/kmp/skills/kmp-compose-ui/SKILL.md",
@@ -89,14 +97,16 @@
       "platforms/kmp/skills/kmp-state-data/SKILL.md",
       "platforms/kmp/skills/kmp-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "swift_ui_design": [
       "platforms/swift/skills/swift-design-system/SKILL.md",
       "platforms/swift/skills/swift-code-structure/SKILL.md",
       "platforms/swift/skills/swift-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "web_ui": [
       "platforms/web/skills/web-code-structure/SKILL.md",
@@ -105,7 +115,8 @@
       "platforms/web/skills/web-accessibility-i18n/SKILL.md",
       "platforms/web/skills/web-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "web_react_ui": [
       "platforms/web/skills/web-react-ui/SKILL.md"
@@ -115,7 +126,8 @@
       "platforms/web/skills/web-react-ui/SKILL.md",
       "platforms/web/skills/web-state-data/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md",
-      "common/skills/performance-verification/SKILL.md"
+      "common/skills/performance-verification/SKILL.md",
+      "common/skills/minimal-visual-design/SKILL.md"
     ],
     "react_rn_external_skill_source_coverage": [
       "common/skills/react-rn-external-skill-source-coverage/SKILL.md",
@@ -302,11 +314,6 @@
     ],
     "kmp_architecture_enforcement": [
       "platforms/kmp/nodes/architecture-enforcement.md"
-    ],
-    "ui_visual_craft_polish": [
-      "common/skills/minimal-visual-design/SKILL.md",
-      "common/skills/minimal-visual-design/references/platform-craft-matrix.md",
-      "common/skills/ui-visual-verification/SKILL.md"
     ]
   },
   "request_intents": [
@@ -1740,41 +1747,6 @@
         "kmp_architecture_enforcement"
       ],
       "reason": "Enforcing KMP architecture rules needs the enforcement node."
-    },
-    {
-      "name": "ui_visual_craft_polish_request",
-      "commands": [
-        "feature",
-        "task",
-        "build",
-        "bugfix",
-        "refactor",
-        "review"
-      ],
-      "platforms": [
-        "web",
-        "ios",
-        "android",
-        "flutter",
-        "kmp",
-        "swift",
-        "react-native",
-        "application"
-      ],
-      "request_any": [
-        "\\b(?:visual|ui|interface|layout|screen|component|frontend|front-end)\\s+(?:polish(?:ing)?|craft|quality|refinement|details?)\\b",
-        "\\b(?:polish|refine|elevate)\\b.{0,28}\\b(?:ui|screen|layout|component|interface|visuals?|frontend|front-end)\\b",
-        "\\b(?:micro[- ]?interactions?|visual[- ]?polish|ui[- ]?polish|ui[- ]?craft|concentric\\s+radi(?:us|i)|tabular[- ]?nums|layout\\s+jitter)\\b",
-        "(?:(?<![A-Za-z0-9_])ui(?![A-Za-z0-9_])|화면|(?<![가-힣])뷰(?![가-힣])|레이아웃|컴포넌트|인터페이스|프론트엔드|비주얼|시각\\s*디자인|화면\\s*디자인|ui\\s*디자인).{0,20}(?:퀄리티|디테일|완성도|폴리싱|다듬|만듦새)",
-        "(?:퀄리티|디테일|완성도|폴리싱|만듦새).{0,20}(?:(?<![A-Za-z0-9_])ui(?![A-Za-z0-9_])|화면|(?<![가-힣])뷰(?![가-힣])|레이아웃|컴포넌트|인터페이스|프론트엔드|비주얼|시각\\s*디자인|화면\\s*디자인|ui\\s*디자인)",
-        "비주얼\\s*(?:퀄리티|디테일|폴리싱|완성도)"
-      ],
-      "doc_sets": [
-        "ui_visual_craft_polish"
-      ],
-      "required_priority": 50,
-      "subject_exclusion": true,
-      "reason": "Explicit UI/visual polish, craft, and detail refinement requests need the minimal-visual-design contract, platform craft matrix, and visual verification gate."
     }
   ],
   "path_surfaces": [

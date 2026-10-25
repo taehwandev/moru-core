@@ -18,11 +18,13 @@ The core below is the required contract. Open `references/current-guidance.md` o
 - `## Tools By Platform` for evidence tooling per platform and companion cards.
 - `## Comparison Oracle And Evidence Budget` for before/after, regression or motion claims.
 - `## Figma parity gate` for the parity measurement list when a design frame is the requirement.
-- `## Existing Surface Detail Audit` when asked to raise the quality of, polish, or QA an existing app or screen rather than verify one change.
+- `## Existing Surface Detail Audit` for the per-screen audit checklist when raising the quality of, polishing, or QAing an existing app or screen.
+- `common/skills/minimal-visual-design/SKILL.md` (and the active target platform section of `common/skills/minimal-visual-design/references/platform-craft-matrix.md`) when building, restyling, or raising visual craft on a UI surface without a conflicting repo design system.
 
 ## Must
 
 - Treat build, typecheck and unit tests as proof of compilation only. Verify the user path, not only the component, when the change affects navigation, commands, permissions, persistence or cross-surface state.
+- When raising quality, polishing, or auditing an existing app or screen (rather than verifying a single diff), execute the **Existing Surface Detail Audit** loop (`references/current-guidance.md` `## Existing Surface Detail Audit`): (1) inventory every screen, sheet, and entry point including nested/platform hosts; (2) walk each surface against the reference checklist (value meaning, platform adaptation, control placement, dead/fake state, system navigation, and non-happy states), recording `file:line`, user-visible symptom, fix, severity, and observed vs. inferred status; (3) fix the highest-impact findings in small reviewed slices without unapproved redesign; and (4) verify gestures, typography, and density on a real device or simulator.
 - Check the success path plus empty, loading, disabled, error, unavailable, offline and permission-denied states; long/localized text, missing images/icons, slow data; numeric, unit and value+unit text; relevant viewports; light/dark, font size, reduced motion, high contrast when supported.
 - Every visible value says what it is: a bare number, date, fraction, count or badge needs a label, unit or format that cannot be read as another quantity (a month/day `10/20` reads as page 10 of 20).
 - Values ported from another platform are re-derived for the target, not copied: web px/rem text sizes, line heights, hit targets, density and hover/toolbar controls get the target platform's reading, touch and settings conventions.
