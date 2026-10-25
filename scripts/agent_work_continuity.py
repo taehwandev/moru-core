@@ -7,7 +7,11 @@ request classification. Callers/tests: agent-hook, test_agent_work_continuity.
 
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
+import os
+import stat
 import re
 from pathlib import Path
 from typing import Any
@@ -161,3 +165,83 @@ def _nearest_record(project: Path, source_id: str, work_id: str, gate: str) -> s
             return source_id  # GateEvidenceReuse validates this exact latest record.
         source_id = work.get("previous_action", "")
     raise ValueError("no recorded evidence for this work")
+
+
+def retained_work_summary(project: Path, binding_path: Path) -> dict | None:
+    """Carry only registered predecessor requirements, never action authority.
+
+    The explicit work link selects exactly one predecessor. Missing or stale
+    bindings refuse inheritance; raw request text is never a summary source.
+    """
+    from agent_continuation_checkpoint import binding_record
+    from agent_continuation_store import continuation_path, read_continuation_packet
+
+    try:
+        project = project.resolve()
+        state = project_state_dir_target(project)
+        run_id = binding_path.parent.name
+        if (not re.fullmatch(r"[0-9a-f]{32}", run_id)
+                or binding_path != state / "runs" / run_id / "preflight.json"):
+            return None
+        current = read_work_record(binding_path)[0]
+        work = current.get("work") or {}
+        source_id, work_id = work.get("previous_action"), work.get("id")
+        if (not isinstance(source_id, str) or not re.fullmatch(r"[0-9a-f]{32}", source_id)
+                or not isinstance(work_id, str) or not re.fullmatch(r"[0-9a-f]{32}", work_id)
+                or source_id == run_id or current.get("project") != str(project)
+                or current.get("agent_run_id") != run_id):
+            return None
+        registry = read_work_record(state / "run-registry.json")[0]
+        runs = registry.get("runs")
+        if registry.get("schema_version") != 1 or not isinstance(runs, list):
+            return None
+        records = [record for record in runs
+                   if isinstance(record, dict) and record.get("run_id") == source_id]
+        if (len(records) != 1
+                or records[0].get("state") not in {"completed", "running", "blocked", "interrupted"}
+                or records[0].get("evidence_name", "preflight.json") != "preflight.json"):
+            return None
+        source_path = state / "runs" / source_id / "preflight.json"
+        prior = read_work_record(source_path)[0]
+        prior_work = prior.get("work") or {"id": source_id}
+        if (prior.get("project") != str(project) or prior.get("agent_run_id") != source_id
+                or prior_work.get("id") != work_id):
+            return None
+        selected = read_continuation_packet(project, continuation_path(project, source_id))
+        if selected["status"] != "ok":
+            return None
+        packet = selected["packet"]
+        source_binding = source_path.parent / packet["binding"]["filename"]
+        payload, digest = read_work_record(source_binding)
+        if (binding_record(source_binding, payload, content_sha256=digest) != packet["binding"]
+                or read_work_record(source_path)[0] != prior
+                or read_work_record(binding_path)[0] != current):
+            return None
+        return copy.deepcopy({key: packet["work"][key] for key in (
+            "objective", "non_goals", "decisions", "acceptance_criteria", "evidence_refs"
+        ) if key in packet["work"]})
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        return None
+
+
+def read_work_record(path: Path) -> tuple[dict, str]:
+    """Read one bounded regular JSON record, refusing redirected local paths."""
+    if path.resolve() != path or not hasattr(os, "O_NOFOLLOW"):
+        raise ValueError("unsafe retained record")
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 8 * 1024 * 1024:
+            raise ValueError("unsafe retained record")
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            encoded = stream.read(8 * 1024 * 1024 + 1)
+        if len(encoded) > 8 * 1024 * 1024:
+            raise ValueError("oversized retained record")
+        result = json.loads(encoded)
+        if not isinstance(result, dict):
+            raise ValueError("invalid retained record")
+        return result, hashlib.sha256(encoded).hexdigest()
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)

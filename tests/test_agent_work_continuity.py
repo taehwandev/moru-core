@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
+import tempfile
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
 import test_agent_gate_reuse as fixture
 from agent_gate_evidence import gate_evidence_path_for_preflight, merge_gate_evidence_from_ledger
 from agent_hook_gate_records import _normalize_gate_record, record_hook_gate_batch
-from agent_work_continuity import WorkContinuity
+from agent_work_continuity import WorkContinuity, retained_work_summary
+from test_agent_continuation_checkpoint import Fixture as PacketFixture
+from agent_continuation_store import continuation_path
+from agent_hook_continuation import start_checkpoint
 
 
 class WorkContinuityTests(unittest.TestCase):
@@ -277,6 +283,188 @@ class WorkContinuityTests(unittest.TestCase):
         self.assertIn("tests", self.passed())
         (self.project / "README.md").write_text("changed after carry")
         self.assertNotIn("tests", self.passed())
+
+
+class RetainedWorkSummaryTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name).resolve()
+        self.source = PacketFixture(str(self.root))
+        self.source.preflight.update(agent_run_id=self.source.run_id, work={
+            "schema_version": 1, "id": self.source.run_id, "previous_action": "",
+        })
+        self.write_preflight(self.source)
+        self.original_work = {
+            "objective": "Keep original requirements across action continuations.",
+            "non_goals": ["No remote writes."],
+            "decisions": [{"id": "local", "status": "accepted", "text": "Use registered local packets."}],
+            "acceptance_criteria": ["The original objective survives two action boundaries."],
+            "evidence_refs": [{"id": "check", "path": "/external/result.json", "sha256": "a" * 64,
+                               "status": "unverified", "summary": "A retained evidence pointer."}],
+            "remaining_work": [{"checkpoint": "verify", "action": "Do not inherit pending action."}],
+            "verification": [{"id": "test", "kind": "unit", "result": "success",
+                              "evidence_sha256": "b" * 64, "completed_at": "2026-10-25T00:00:00Z"}],
+            "blockers": ["Prior action blocker."],
+            "changed_scope": [{"path": "src/module.py", "role": "modified"}],
+            "inspected_scope": [{"path": "src/module.py", "role": "inspected"}],
+        }
+        self.source.checkpoint("initial", work=self.original_work)
+        self.target = self.new_action(self.source)
+
+    @staticmethod
+    def write_preflight(fixture):
+        fixture.binding_path.write_text(json.dumps(fixture.preflight))
+
+    def new_action(self, predecessor):
+        target = PacketFixture(str(self.root), project=self.source.project, rules=self.source.rules)
+        target.preflight.update(agent_run_id=target.run_id, work={
+            "schema_version": 1, "id": self.source.run_id, "previous_action": predecessor.run_id,
+        })
+        self.write_preflight(target)
+        return target
+
+    def summary(self, target=None):
+        target = target or self.target
+        return retained_work_summary(target.project, target.binding_path)
+
+    def test_only_requirements_and_pointers_are_retained_without_writes(self):
+        paths = [self.source.binding_path, self.target.binding_path,
+                 continuation_path(self.source.project, self.source.run_id),
+                 self.source.project / ".moru" / "run-registry.json"]
+        before = {path: path.read_bytes() for path in paths}
+        result = self.summary()
+        self.assertEqual({key: self.original_work[key] for key in (
+            "objective", "non_goals", "decisions", "acceptance_criteria", "evidence_refs"
+        )}, result)
+        self.assertEqual(before, {path: path.read_bytes() for path in paths})
+        self.assertNotIn("verification", result)
+        self.assertNotIn("changed_scope", result)
+        self.assertNotIn("inspected_scope", result)
+        self.assertNotIn("remaining_work", result)
+        self.assertNotIn("blockers", result)
+        self.assertNotIn("request_intake", result)
+        result["non_goals"].clear()
+        self.assertEqual(["No remote writes."], self.summary()["non_goals"])
+
+    def test_two_hop_continuation_keeps_original_requirements(self):
+        summary = self.summary()
+        self.target.checkpoint("initial", work=summary)
+        third = self.new_action(self.target)
+        args = SimpleNamespace(project=third.project, command="implement")
+        with patch("agent_hook_continuation.run_binding_path", return_value=third.binding_path):
+            kind, inherited = start_checkpoint(args)
+        self.assertEqual("initial", kind)
+        self.assertEqual(summary, inherited)
+        self.assertEqual([], third.checkpoint(kind, work=inherited)["work"]["verification"])
+
+    def test_refresh_keeps_the_current_contract_instead_of_restoring_predecessor(self):
+        self.target.checkpoint("initial", work={"objective": "Explicitly revised outcome",
+                                               "acceptance_criteria": ["Current acceptance"]})
+        args = SimpleNamespace(project=self.target.project, command="implement")
+        with patch("agent_hook_continuation.run_binding_path", return_value=self.target.binding_path):
+            self.assertEqual(("lifecycle", None), start_checkpoint(args))
+        self.assertEqual(["Current acceptance"], self.target.packet()["work"]["acceptance_criteria"])
+
+    def test_legacy_packet_without_optional_fields_is_supported(self):
+        packet_path = continuation_path(self.source.project, self.source.run_id)
+        packet = json.loads(packet_path.read_text())
+        for key in ("acceptance_criteria", "evidence_refs"):
+            packet["work"].pop(key)
+        packet_path.write_text(json.dumps(packet))
+        result = self.summary()
+        self.assertEqual({"objective", "non_goals", "decisions"}, set(result))
+
+    def test_changed_binding_invalid_packet_and_missing_packet_fail_closed(self):
+        packet_path = continuation_path(self.source.project, self.source.run_id)
+        original = packet_path.read_bytes()
+        packet_path.write_text('{"invalid":true}')
+        self.assertIsNone(self.summary())
+        packet_path.unlink()
+        self.assertIsNone(self.summary())
+        packet_path.write_bytes(original)
+        self.source.preflight["changed"] = True
+        self.write_preflight(self.source)
+        self.assertIsNone(self.summary())
+
+    def test_foreign_project_work_identity_and_malformed_predecessor_fail_closed(self):
+        original = self.target.binding_path.read_bytes()
+        cases = [("project", "/foreign/project"), ("agent_run_id", "f" * 32),
+                 ("work", {"id": "f" * 32, "previous_action": self.source.run_id}),
+                 ("work", {"id": self.source.run_id, "previous_action": "../source"}),
+                 ("work", {"id": self.source.run_id, "previous_action": self.target.run_id}),
+                 ("work", {})]
+        for field, value in cases:
+            with self.subTest(field=field, value=value):
+                payload = json.loads(original)
+                payload[field] = value
+                self.target.binding_path.write_text(json.dumps(payload))
+                self.assertIsNone(self.summary())
+        self.target.binding_path.write_bytes(original)
+        self.source.preflight["work"]["id"] = "f" * 32
+        self.write_preflight(self.source)
+        self.assertIsNone(self.summary())
+
+    def test_registry_membership_and_retained_state_required(self):
+        registry = self.source.project / ".moru" / "run-registry.json"
+        payload = json.loads(registry.read_text())
+        original = registry.read_bytes()
+        source = next(record for record in payload["runs"] if record["run_id"] == self.source.run_id)
+        source["state"] = "cancelled"
+        registry.write_text(json.dumps(payload))
+        self.assertIsNone(self.summary())
+        payload = json.loads(original)
+        payload["runs"] = [record for record in payload["runs"] if record["run_id"] != self.source.run_id]
+        registry.write_text(json.dumps(payload))
+        self.assertIsNone(self.summary())
+        registry.write_text("not json")
+        self.assertIsNone(self.summary())
+
+    def test_symlinked_source_and_current_binding_refused(self):
+        for binding in (self.source.binding_path, self.target.binding_path):
+            with self.subTest(binding=binding.parent.name):
+                original = binding.read_bytes()
+                external = self.root / "external.json"
+                external.write_bytes(original)
+                binding.unlink()
+                binding.symlink_to(external)
+                self.assertIsNone(self.summary())
+                binding.unlink()
+                binding.write_bytes(original)
+
+    def test_missing_corrupt_or_foreign_predecessor_preflight_refused(self):
+        binding = self.source.binding_path
+        original = binding.read_bytes()
+        binding.unlink()
+        self.assertIsNone(self.summary())
+        binding.write_text("not json")
+        self.assertIsNone(self.summary())
+        payload = json.loads(original)
+        payload["project"] = "/foreign/project"
+        binding.write_text(json.dumps(payload))
+        self.assertIsNone(self.summary())
+        binding.write_bytes(original)
+        directory = binding.parent
+        moved = directory.with_name("retained-source")
+        directory.rename(moved)
+        directory.symlink_to(moved, target_is_directory=True)
+        try:
+            self.assertIsNone(self.summary())
+        finally:
+            directory.unlink()
+            moved.rename(directory)
+
+    def test_predecessor_binding_changed_during_read_fails_closed(self):
+        from agent_continuation_checkpoint import binding_record as original
+
+        def change_binding(path, payload):
+            result = original(path, payload)
+            self.source.preflight["changed_during_read"] = True
+            self.write_preflight(self.source)
+            return result
+
+        with patch("agent_continuation_checkpoint.binding_record", side_effect=change_binding):
+            self.assertIsNone(self.summary())
 
 
 if __name__ == "__main__":

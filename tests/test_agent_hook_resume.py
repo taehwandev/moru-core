@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import io
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -32,6 +35,9 @@ def _load_script(name: str, filename: str):
 agent_hook = _load_script("agent_hook_resume_test", "agent-hook.py")
 
 from agent_continuation_store import continuation_path
+from agent_continuation_resume import resume_references
+from agent_continuation_packet import validate_continuation_packet
+from agent_continuation_outbound import assert_no_continuation_outbound
 from agent_run_registry import evidence_binding_key, registry_path
 from agent_runtime_session import resolve_runtime_evidence
 from test_agent_continuation_checkpoint import Fixture
@@ -443,6 +449,183 @@ class ModeTests(unittest.TestCase):
                     with self.assertRaises(SystemExit) as raised:
                         agent_hook.main()
                 self.assertEqual(2, raised.exception.code)
+
+
+class EvidenceReferenceTests(unittest.TestCase):
+    def _fixture(self, directory):
+        fixture = Fixture(directory)
+        fixture.preflight["request_intake"] = {
+            **fixture.preflight["request_intake"], "request": "ORIGINAL_INTAKE_NOT_FOR_AUTOMATIC_INJECTION",
+        }
+        fixture.binding_path.write_text(json.dumps(fixture.preflight))
+        report = (Path(directory) / "external-report.json").resolve()
+        report.write_text('{"result": "do not inject this report body"}')
+        reference = {
+            "id": "experiment", "path": str(report),
+            "sha256": hashlib.sha256(report.read_bytes()).hexdigest(),
+            "status": "contradicted", "summary": "Measured results require reconciliation",
+        }
+        fixture.checkpoint("initial", work={
+            "objective": "compare prior evidence", "non_goals": ["Do not change the report"],
+            "decisions": [{"id": "scope", "status": "accepted", "text": "Keep native compaction"}],
+            "acceptance_criteria": ["Find the original experiment without injecting its body"],
+            "evidence_refs": [reference],
+        })
+        return fixture, report, reference
+
+    def test_cli_recovers_external_pointer_without_claim_or_content_injection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, report, _ref = self._fixture(directory)
+            before = project_bytes(fixture.project)
+            code, output = run_resume(fixture.project, fixture.rules, "--references",
+                                      "--run-id", fixture.run_id)
+            self.assertEqual(0, code, output)
+            self.assertIn(str(report), output)
+            self.assertIn("unchecked", output)
+            self.assertIn("contradicted", output)
+            self.assertNotIn("do not inject this report body", output)
+            self.assertEqual(before, project_bytes(fixture.project))
+
+    def test_cli_explicitly_reports_changed_and_missing_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, report, _ref = self._fixture(directory)
+            for content, expected in (("changed", "changed"), (None, "missing")):
+                if content is None:
+                    report.unlink()
+                else:
+                    report.write_text(content)
+                code, output = run_resume(fixture.project, fixture.rules, "--references",
+                                          "--run-id", fixture.run_id, "--check-files")
+                self.assertEqual(0, code, output)
+                self.assertIn(expected, output)
+
+    def test_completed_drifted_work_is_discoverable_but_never_current_verification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, _report, _ref = self._fixture(directory)
+            registry = registry_path(fixture.project)
+            data = json.loads(registry.read_text())
+            data["runs"][0]["state"] = "completed"
+            registry.write_text(json.dumps(data))
+            (fixture.project / "src/module.py").write_text("value = 2\n")
+            before = project_bytes(fixture.project)
+            result = resume_references(fixture.project, fixture.run_id, check_files=True)
+            self.assertEqual("ok", result["result"])
+            self.assertEqual("match", result["references"][0]["freshness"])
+            self.assertEqual("unchecked", result["context_validity"])
+            self.assertFalse(result["verification_reuse"])
+            self.assertNotIn("work", result)
+            with self.assertRaises(ValueError):
+                assert_no_continuation_outbound(result, boundary="export")
+            self.assertEqual(before, project_bytes(fixture.project))
+
+    def test_checkpoint_updates_preserve_pointers_and_legacy_packets_still_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, _report, reference = self._fixture(directory)
+            fixture.checkpoint("decision", work={"blockers": ["check current applicability"]})
+            packet = fixture.packet()
+            self.assertEqual([reference], packet["work"]["evidence_refs"])
+            self.assertEqual([], validate_continuation_packet(packet))
+            del packet["work"]["evidence_refs"]
+            self.assertEqual([], validate_continuation_packet(packet))
+            packet["work"]["evidence_refs"] = 42
+            self.assertTrue(validate_continuation_packet(packet))
+
+    def test_discovery_does_not_weaken_drift_refusal_or_claim_ownership(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, _report, _ref = self._fixture(directory)
+            age(fixture, minutes=90, owner_pid=dead_pid())
+            (fixture.project / "src/module.py").write_text("value = 3\n")
+            before = project_bytes(fixture.project)
+            self.assertEqual("ok", resume_references(fixture.project, fixture.run_id)["result"])
+            self.assertEqual(before, project_bytes(fixture.project))
+            code, output = run_resume(fixture.project, fixture.rules, "--last",
+                                      "--run-id", fixture.run_id)
+            self.assertNotEqual(0, code)
+            self.assertIn("drift_refused", output)
+            self.assertEqual("ok", resume_references(fixture.project, fixture.run_id)["result"])
+
+    def test_invalid_binding_and_unknown_run_do_not_expose_pointer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, _report, _ref = self._fixture(directory)
+            fixture.binding_path.write_text("{}")
+            self.assertEqual([], resume_references(fixture.project, fixture.run_id)["references"])
+            self.assertEqual("invalid_binding", resume_references(fixture.project, fixture.run_id)["result"])
+            self.assertEqual("not_found", resume_references(fixture.project, "0" * 32)["result"])
+            self.assertEqual("invalid_run_id", resume_references(fixture.project, "../other")["result"])
+
+    def test_normal_resume_names_retained_references_without_reading_their_contents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, _report, _ref = self._fixture(directory)
+            age(fixture, minutes=90, owner_pid=dead_pid())
+            code, output = run_resume(fixture.project, fixture.rules, "--last",
+                                      "--run-id", fixture.run_id)
+            self.assertEqual(0, code, output)
+            self.assertIn("retained evidence references: 1", output)
+            self.assertIn("resume --context --run-id", output)
+            self.assertNotIn("do not inject this report body", output)
+
+    def test_reference_mode_rejects_claim_flags_and_requires_exact_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, _report, _ref = self._fixture(directory)
+            cases = ((), ("--last",), ("--list",), ("--runtime", "codex"))
+            for extra in cases:
+                flags = [] if not extra else ["--run-id", fixture.run_id, *extra]
+                with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+                    run_resume(fixture.project, fixture.rules, "--references", *flags)
+                self.assertEqual(2, raised.exception.code)
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                run_resume(fixture.project, fixture.rules, "--list", "--check-files")
+
+    def test_fresh_process_recovers_requirements_and_intake_pointer_after_context_loss(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, report, _ref = self._fixture(directory)
+            before = project_bytes(fixture.project)
+            completed = subprocess.run([
+                sys.executable, str(SCRIPTS / "agent-hook.py"), "resume", "--context",
+                "--project", str(fixture.project), "--rules", str(fixture.rules),
+                "--run-id", fixture.run_id,
+            ], capture_output=True, text=True, check=False)
+            self.assertEqual(0, completed.returncode, completed.stderr + completed.stdout)
+            self.assertIn("Do not change the report", completed.stdout)
+            self.assertIn("Keep native compaction", completed.stdout)
+            self.assertIn("Find the original experiment", completed.stdout)
+            self.assertIn(str(fixture.binding_path), completed.stdout)
+            self.assertIn(str(report), completed.stdout)
+            self.assertNotIn("ORIGINAL_INTAKE_NOT_FOR_AUTOMATIC_INJECTION", completed.stdout)
+            self.assertEqual(before, project_bytes(fixture.project))
+
+    def test_requirement_limits_fail_closed_and_explicit_revisions_replace_prior_criteria(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture, _report, _ref = self._fixture(directory)
+            packet = fixture.packet()
+            for invalid in (42, ["x" * 161], ["criterion"] * 9):
+                packet["work"]["acceptance_criteria"] = invalid
+                self.assertTrue(validate_continuation_packet(packet))
+            fixture.checkpoint("decision", work={"acceptance_criteria": ["Revised by current request"]})
+            result = resume_references(fixture.project, fixture.run_id)
+            self.assertEqual(["Revised by current request"], result["work_contract"]["acceptance_criteria"])
+            self.assertEqual("recorded", result["requirements_status"])
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "POSIX FIFO required")
+    def test_corrupt_special_and_oversized_bindings_refuse_without_hanging(self):
+        for corrupt in ("binding_fifo", "packet_fifo", "oversized_binding"):
+            with self.subTest(corrupt=corrupt), tempfile.TemporaryDirectory() as directory:
+                fixture, _report, _ref = self._fixture(directory)
+                target = (continuation_path(fixture.project, fixture.run_id)
+                          if corrupt == "packet_fifo" else fixture.binding_path)
+                target.unlink()
+                if corrupt == "oversized_binding":
+                    target.write_bytes(b" " * (8 * 1024 * 1024 + 1))
+                else:
+                    os.mkfifo(target, 0o600)
+                completed = subprocess.run([
+                    sys.executable, str(SCRIPTS / "agent-hook.py"), "resume", "--context",
+                    "--project", str(fixture.project), "--rules", str(fixture.rules),
+                    "--run-id", fixture.run_id,
+                ], capture_output=True, text=True, timeout=3, check=False)
+                self.assertNotEqual(0, completed.returncode)
+                self.assertIn("lookup refused", completed.stdout)
+                self.assertNotIn("compare prior evidence", completed.stdout)
 
 
 if __name__ == "__main__":

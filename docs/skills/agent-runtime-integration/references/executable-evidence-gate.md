@@ -90,6 +90,25 @@ directory yourself with anything else -- a date, a branch, a description --
 costs the run every checkpoint and makes `moru-hook resume` unable to continue
 it, so start refuses that name rather than losing the packets quietly.
 
+Essential local report locations can be retained as at most four optional
+`work.evidence_refs` in the same checkpoint. Retain completion criteria in
+optional `work.acceptance_criteria`; objective, exclusions and accepted decisions
+remain the other parts of the semantic contract. A validated `--continue-from`
+can carry this contract into a new action without carrying checks or authority.
+Use `checkpoint --work-shape` for the closed record shape.
+The selected-run `resume --context --run-id <RUN_ID>` mode recovers that bounded
+contract and these pointers, even if the run completed or source drift
+prevents a normal resume. It grants no ownership, verification reuse, or action
+authority. Report contents are not loaded; optional `--check-files` compares
+bounded local file hashes only. Historical declared status and matching bytes
+do not establish current truth. Before claiming after compaction that prior
+experiments, evaluations, or reports are absent, check retained `evidence_refs`
+via `resume --context`, project memory, and local artifact directories; never
+substitute hardcoded summary numbers for raw execution logs or grader receipts,
+and always disclose repair-turn cost accounting and protocol differences between
+compared arms. The full contract is in
+`common/skills/agent-operating-skill/references/runtime-lifecycle.md`.
+
 Keep `--output`, `--evidence`, and every custom evidence path inside
 `<TARGET_REPO>/.moru/`. For temporary worktrees, use a project-local path
 such as `<TARGET_REPO>/.moru/runs/<32-hex-run-id>/preflight.json`; a sibling

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from agent_evidence_references import validate_evidence_refs
 from agent_continuation_fields import (
     MAX_DEPTH,
     MAX_PROSE_BYTES,
@@ -166,7 +167,15 @@ def _work(value: Any, failures: list) -> None:
     if not isinstance(value, dict):
         failures.append(failure("invalid_type", "/work"))
         return
-    closed_object(value, WORK_FIELDS, "/work", failures)
+    # Legacy packets omit references; older readers reject this optional field
+    # rather than silently granting new meaning to it.
+    fields = WORK_FIELDS + tuple(key for key in ("evidence_refs", "acceptance_criteria") if key in value)
+    closed_object(value, fields, "/work", failures)
+    if "evidence_refs" in value:
+        validate_evidence_refs(value["evidence_refs"], "/work/evidence_refs", failures)
+    if "acceptance_criteria" in value:
+        items(value["acceptance_criteria"], "/work/acceptance_criteria", failures, 8,
+              lambda item, pointer: prose(item, pointer, failures, MAX_SHORT_TEXT))
     prose(value.get("objective"), "/work/objective", failures, MAX_TEXT)
     items(value.get("non_goals"), "/work/non_goals", failures,
           WORK_ITEM_LIMITS["non_goals"],
@@ -271,11 +280,15 @@ def _budgets(payload: dict[str, Any], failures: list) -> None:
         failures.append(failure("depth_exceeded", ""))
     work = payload.get("work") if isinstance(payload.get("work"), dict) else {}
     text: list[str] = [str(work.get("objective") or "")]
-    for key in ("non_goals", "blockers"):
-        text.extend(item for item in work.get(key) or [] if isinstance(item, str))
-    for key, field in (("decisions", "text"), ("remaining_work", "action")):
+    for key in ("non_goals", "blockers", "acceptance_criteria"):
+        records = work.get(key)
+        text.extend(item for item in (records if isinstance(records, list) else []) if isinstance(item, str))
+    for key, field in (("decisions", "text"), ("remaining_work", "action"),
+                       ("evidence_refs", "summary")):
+        records = work.get(key)
         text.extend(
-            str(item.get(field) or "") for item in work.get(key) or [] if isinstance(item, dict)
+            str(item.get(field) or "") for item in (records if isinstance(records, list) else [])
+            if isinstance(item, dict)
         )
     if sum(len(item.encode("utf-8")) for item in text) > MAX_PROSE_BYTES:
         failures.append(failure("prose_budget_exceeded", "/work"))

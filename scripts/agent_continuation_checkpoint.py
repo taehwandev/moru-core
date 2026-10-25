@@ -367,7 +367,9 @@ def _binding_payload(project: Path, run_id: str, binding_path: Path) -> dict[str
     return payload
 
 
-def binding_record(binding_path: Path, payload: dict[str, Any]) -> dict[str, Any]:
+def binding_record(
+    binding_path: Path, payload: dict[str, Any], *, content_sha256: str | None = None,
+) -> dict[str, Any]:
     """Reference the content-free trust state one way, and only one way.
 
     The packet may point at the capsule or preflight snapshot so a moved
@@ -386,7 +388,7 @@ def binding_record(binding_path: Path, payload: dict[str, Any]) -> dict[str, Any
     return {
         "kind": kind,
         "filename": binding_path.name,
-        "file_sha256": sha256_file(binding_path),
+        "file_sha256": content_sha256 if content_sha256 is not None else sha256_file(binding_path),
         "binding_sha256": fingerprint,
     }
 

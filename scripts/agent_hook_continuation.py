@@ -49,7 +49,8 @@ UNBINDABLE_RUN_DIRECTORY = (
 WORK_CHECKPOINT_LEAD = (
     "continuation work state: checkpoint only when interruption, a material scope or "
     "decision change, or worker handoff makes resume useful. Routine phase transitions "
-    "need none. Record accepted decisions, passed verification and remaining work:"
+    "need none. Record accepted decisions, passed verification, remaining work "
+    "and essential evidence pointers:"
 )
 WORK_CHECKPOINT_COMMAND_LEAD = "copyable checkpoint command:"
 WORK_CHECKPOINT_CLOSING = (
@@ -69,6 +70,7 @@ def _work_shape_lines() -> list[str]:
     an entry looks like -- is read from the validator that enforces it.
     """
 
+    from agent_evidence_references import EVIDENCE_REF_STATUSES, MAX_EVIDENCE_REFS
     from agent_continuation_packet import (
         DECISION_STATUSES,
         SCOPE_ROLES,
@@ -92,6 +94,10 @@ def _work_shape_lines() -> list[str]:
         + "|".join(VERIFICATION_KINDS) + ", result: "
         + "|".join(VERIFICATION_RESULTS) + ", evidence_sha256, completed_at}",
         f"    {cap('remaining_work')}: " + "{checkpoint, action}",
+        "    optional acceptance_criteria[8]: text strings, at most 160 characters each",
+        f"    optional evidence_refs[{MAX_EVIDENCE_REFS}]: "
+        + "{id, path: absolute local file, sha256, status: "
+        + "|".join(EVIDENCE_REF_STATUSES) + ", summary}; reference only, no authority",
     ]
 
 
@@ -223,7 +229,10 @@ def start_checkpoint(args: argparse.Namespace) -> tuple[str, dict[str, Any] | No
     )
     if existing["status"] == "ok":
         return "lifecycle", None
-    return "initial", {"objective": start_objective(args)}
+    from agent_work_continuity import retained_work_summary
+
+    retained = retained_work_summary(args.project, binding_path)
+    return "initial", retained if retained is not None else {"objective": start_objective(args)}
 
 
 def gate_checkpoint_name(args: argparse.Namespace) -> str | None:

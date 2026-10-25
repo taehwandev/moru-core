@@ -17,7 +17,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from agent_continuation_checkpoint import binding_required_docs, first_unfinished_checkpoint
+from agent_continuation_fields import RUN_ID_RE
+from agent_evidence_references import inspect_evidence_refs
+from agent_continuation_checkpoint import binding_record, binding_required_docs, first_unfinished_checkpoint
 from agent_continuation_claim import (
     FREE_HOLDER_STATES,
     TERMINAL_RUN_STATES,
@@ -25,6 +27,7 @@ from agent_continuation_claim import (
     stopped_session_matches,
 )
 from agent_continuation_drift import verify_drift
+from agent_continuation_packet import STORAGE_CLASS, ContinuationPacketError
 from agent_continuation_store import (
     continuation_path,
     list_continuation_run_ids,
@@ -51,6 +54,61 @@ RERUN_CONDITIONS = (
     "external_freshness_required",
     "different_acceptance_boundary",
 )
+
+
+def resume_references(project: Path, run_id: str, *, check_files: bool = False) -> dict[str, Any]:
+    """Discover one run's evidence without claiming work or reusing checks.
+
+    Completed or drifted runs can still explain where an artifact lives. This
+    separate read never changes the ordinary resume refusal contract.
+    """
+    result: dict[str, Any] = {
+        "result": "not_found", "run_id": run_id, "authority": "reference_only",
+        "storage_class": STORAGE_CLASS, "trust": "untrusted_reference_metadata",
+        "verification_reuse": False, "context_validity": "unchecked", "references": [],
+        "work_contract": None, "intake_source": None, "original_intake_locator": None,
+    }
+    if not isinstance(run_id, str) or not RUN_ID_RE.fullmatch(run_id):
+        return {**result, "run_id": "", "result": "invalid_run_id"}
+    runs = read_registry_state(registry_path(project)).get("runs") or []
+    record = next((run for run in runs if run.get("run_id") == run_id), None)
+    if record is None:
+        return result
+    path = continuation_path(project, run_id)
+    selected = read_continuation_packet(project, path)
+    if selected["status"] != "ok":
+        return {**result, "result": selected["status"]}
+    packet = selected["packet"]
+    binding = path.parent / packet["binding"]["filename"]
+    try:
+        from agent_work_continuity import read_work_record
+
+        payload, digest = read_work_record(binding)
+        if binding_record(binding, payload, content_sha256=digest) != packet["binding"]:
+            return {**result, "result": "invalid_binding"}
+    except (ContinuationPacketError, OSError, ValueError):
+        return {**result, "result": "invalid_binding"}
+    # Canonical intake remains in its existing preflight, never copied into
+    # checkpoint prose. A locator is not proof the original file still exists.
+    origin = (payload.get("work") or {}).get("id")
+    original = None
+    if isinstance(origin, str) and RUN_ID_RE.fullmatch(origin):
+        original = {"run_id": origin, "path": str(continuation_path(project, origin).parent / "preflight.json"),
+                    "json_pointer": "/request_intake", "availability": "unchecked"}
+    contract_keys = ("objective", "non_goals", "decisions", "acceptance_criteria", "remaining_work", "blockers")
+    return {
+        **result, "result": "ok", "run_state": record.get("state", "unknown"),
+        "work_contract": {key: packet["work"][key] for key in contract_keys if key in packet["work"]},
+        "requirements_status": "recorded" if packet["work"].get("acceptance_criteria") else "not_recorded",
+        "intake_source": {
+            "path": str(path.parent / "preflight.json"), "json_pointer": "/request_intake",
+            "sha256": packet["binding"]["file_sha256"] if binding.name == "preflight.json" else None,
+        },
+        "original_intake_locator": original,
+        "references": inspect_evidence_refs(
+            packet["work"].get("evidence_refs", []), check_files=check_files,
+        ),
+    }
 
 
 def resume_list(

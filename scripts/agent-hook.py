@@ -2740,6 +2740,14 @@ def _dispatch_hook(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
 
     if args.hook == "resume":
         _validate_hook_arguments_before_repair(parser, args)
+        if args.references_mode:
+            if args.list_mode or args.last_mode or not args.resume_run_id:
+                parser.error("resume --references requires --run-id and cannot claim or list runs")
+            if args.runtime or args.runtime_session_id:
+                parser.error("resume --references cannot bind a runtime session")
+            return resume_hook(args)
+        if args.check_files:
+            parser.error("--check-files requires resume --references")
         if args.resume_run_id and not args.list_mode:
             # Naming the run is the claim: --run-id only ever selects what
             # --last claims, so refusing it for a missing --last cost a retry.
