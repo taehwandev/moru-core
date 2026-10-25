@@ -13,6 +13,9 @@ or non-Compose UI.
 
 ## Read
 
+- `common/skills/social-sign-in-buttons/SKILL.md` for auth UI, provider buttons
+  and native sign-in control boundaries.
+
 - `common/skills/foldable-adaptive-layout/SKILL.md` when changing adaptive,
   large-screen or foldable layouts and state continuity across fold/unfold.
 - `references/current-guidance.md`; `references/design-system.md` for tokens

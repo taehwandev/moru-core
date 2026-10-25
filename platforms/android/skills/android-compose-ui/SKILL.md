@@ -12,6 +12,9 @@ skeleton, modifier, effect, lazy list, animation or preview.
 
 ## Read
 
+- `common/skills/social-sign-in-buttons/SKILL.md` for auth UI, provider buttons
+  and sign-in brand assets.
+
 - `common/skills/foldable-adaptive-layout/SKILL.md` for adaptive/large-screen
   layouts, hinge avoidance and book/tabletop transitions.
 

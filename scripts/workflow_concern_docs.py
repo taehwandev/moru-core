@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 
 PUBLIC_DISCOVERY_DOCS = ("common/skills/public-discovery/SKILL.md",)
 FOLDABLE_LAYOUT_DOCS = ("common/skills/foldable-adaptive-layout/SKILL.md",)
+SOCIAL_SIGN_IN_DOCS = ("common/skills/social-sign-in-buttons/SKILL.md",)
 WEB_SERVICE_STACK_DOCS = (
     "common/skills/web-service-rn-python/SKILL.md",
     "platforms/web/skills/web-architecture/SKILL.md",
@@ -233,6 +234,10 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
     "structured-data": PUBLIC_DISCOVERY_DOCS,
     "wiki": ("workflows/skills/documentation-update/SKILL.md", "common/skills/llm-wiki-documentation/SKILL.md"),
     "auth": ("product-patterns/skills/auth-rbac-permissions/SKILL.md", "product-patterns/skills/auth-rbac-implementation/SKILL.md"),
+    "sign-in": SOCIAL_SIGN_IN_DOCS,
+    "login": SOCIAL_SIGN_IN_DOCS,
+    "social-login": SOCIAL_SIGN_IN_DOCS,
+    "brand-assets": SOCIAL_SIGN_IN_DOCS,
     "invite": ("product-patterns/skills/invitation-workflows/SKILL.md", "product-patterns/skills/invitation-implementation/SKILL.md"),
     "billing": (
         "product-patterns/skills/billing-entitlements/SKILL.md",
@@ -285,6 +290,8 @@ RISK_CONCERNS_REQUIRED_WHEN_INFERRED: frozenset[str] = frozenset(
 # verification-policy references (25 KB together) stay one link away, and a
 # route whose tests gate needs them still selects them through the gate tier.
 CONCERN_REFERENCE_DOCS: Dict[str, Tuple[str, ...]] = {
+    # Auth alone includes backend enforcement; UI intent/owner rules promote it.
+    "auth": SOCIAL_SIGN_IN_DOCS,
     "testing": ("common/skills/scenario-driven-testing/SKILL.md", "common/skills/verification-policy/SKILL.md"),
     "test": ("common/skills/scenario-driven-testing/SKILL.md", "common/skills/verification-policy/SKILL.md"),
     "ui": ("common/skills/minimal-visual-design/SKILL.md",),

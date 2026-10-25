@@ -6,6 +6,9 @@ type: human-reviewed-needed
 
 # iOS SwiftUI UI
 
+For auth UI, provider sign-in buttons or brand assets, also read
+`common/skills/social-sign-in-buttons/SKILL.md`.
+
 Use when creating, changing, moving, or reviewing SwiftUI screens, view models,
 state models, reusable views, previews, navigation, or UI tests.
 

@@ -6,6 +6,9 @@ type: ai-generated
 
 # Auth RBAC Implementation
 
+For auth UI, third-party sign-in buttons or provider artwork, also read
+`common/skills/social-sign-in-buttons/SKILL.md`.
+
 Use when the active route selects this skill or its topic applies.
 
 Read `references/current-guidance.md` for applicable decision rules, stop

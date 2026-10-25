@@ -6,6 +6,9 @@ type: human-reviewed-needed
 
 # iOS UIKit UI
 
+For auth UI, provider sign-in buttons or brand assets, also read
+`common/skills/social-sign-in-buttons/SKILL.md`.
+
 Use when creating, changing, moving, or reviewing UIKit screens, view
 controllers, coordinators, view models, table/collection views, diffable data
 sources, forms, navigation, or UI tests.

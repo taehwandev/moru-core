@@ -2,6 +2,9 @@
   "schema_version": 1,
   "description": "Document promotion rules used by the workflow router when request intent or touched paths show which guidance must be read before work. These rules also seed the local document graph used by route and query expansion.",
   "doc_sets": {
+    "social_sign_in_buttons": [
+      "common/skills/social-sign-in-buttons/SKILL.md"
+    ],
     "foldable_adaptive_layout": [
       "common/skills/foldable-adaptive-layout/SKILL.md"
     ],
@@ -307,6 +310,22 @@
     ]
   },
   "request_intents": [
+    {
+      "name": "social_sign_in_button_change",
+      "commands": ["feature", "bugfix", "build", "task", "refactor", "code-simplify", "review", "test", "plan", "prd", "ard"],
+      "request_any": [
+        "\\b(sign[ -]?in|log[ -]?in|auth(?:entication)?|oauth|social[ -]login)\\b.{0,60}\\b(buttons?|ui|screens?|forms?|brand(?:ing)?|logos?|assets?)\\b",
+        "\\b(buttons?|ui|screens?|forms?|brand(?:ing)?|logos?|assets?)\\b.{0,60}\\b(sign[ -]?in|log[ -]?in|auth(?:entication)?|oauth|social[ -]login)\\b",
+        "\\b(SignInWithAppleButton|ASAuthorizationAppleIDButton|GoogleSignInButton|GIDSignInButton)\\b",
+        "\\b(sign[ -]in|sign[ -]up|continue) with (Apple|Google)\\b",
+        "(로그인|인증).{0,30}(버튼|화면|폼|브랜딩|로고|에셋|UI)",
+        "(버튼|화면|폼|브랜딩|로고|에셋|UI).{0,30}(로그인|인증)"
+      ],
+      "subject_exclusion": true,
+      "doc_sets": ["social_sign_in_buttons"],
+      "required_priority": 40,
+      "reason": "Auth UI and provider sign-in controls require current brand, prominence and asset-permission guidance; provider/platform details remain conditional reads."
+    },
     {
       "name": "foldable_adaptive_layout_change",
       "platforms": ["android", "ios", "kmp", "swift"],
@@ -1759,6 +1778,24 @@
     }
   ],
   "path_surfaces": [
+    {
+      "name": "social_sign_in_button_paths",
+      "patterns": [
+        "**/*SignIn*Button*.swift", "**/*SignIn*Button*.kt",
+        "**/*SignIn*Button*.tsx", "**/*SignIn*Button*.jsx",
+        "**/*SignIn*Button*.vue", "**/*SignIn*Button*.svelte",
+        "**/*Login*Button*.swift", "**/*Login*Button*.kt",
+        "**/*Login*Button*.tsx", "**/*Login*Button*.jsx",
+        "**/*AppleContinueButton*.swift", "**/*AppleContinueButton*.kt",
+        "**/*GoogleContinueButton*.swift", "**/*GoogleContinueButton*.kt",
+        "**/*LoginScreen.*", "**/*SignInScreen.*",
+        "**/ui/auth/**", "**/auth/ui/**",
+        "**/login/page.tsx", "**/signin/page.tsx", "**/sign-in/page.tsx",
+        "**/*GoogleG*.svg", "**/*SignInWithApple*.svg"
+      ],
+      "doc_sets": ["social_sign_in_buttons"],
+      "reason": "Verified sign-in button, auth screen and provider artwork owners need the shared branding contract even for a local style adjustment."
+    },
     {
       "name": "foldable_adaptive_layout_paths",
       "platforms": ["android", "ios", "kmp", "swift"],

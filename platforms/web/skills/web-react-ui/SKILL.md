@@ -12,6 +12,9 @@ interaction, or tests.
 
 ## Read
 
+- `common/skills/social-sign-in-buttons/SKILL.md` for auth UI, provider buttons
+  and sign-in brand assets (also applies to non-React web controls).
+
 - `references/current-guidance.md` for the detailed guidance for this skill.
 - Related `SKILL.md` entrypoints named by the reference before loading their detailed references.
 - `../../../../common/skills/react-rn-external-skill-source-coverage/SKILL.md`
