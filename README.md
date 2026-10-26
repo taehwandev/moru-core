@@ -269,15 +269,21 @@ self-run static inspection on 26 October 2026; it is an audit tool used for this
 inspection, not an installed Moru runtime dependency or NVIDIA certification.
 
 - Pinned scanner: `2.12.0`, revision `d7338f58200a9ae2a24810cee08911ab68b107a7`.
-- Scope: 165 Core skill bundles, with no scanner LLM calls or finding suppression.
-- Final snapshot: 593 warnings remain; 114 analyses are complete and 51 partial.
-  Scanner recommendations are 100 SAFE, 60 CAUTION and 5 DO_NOT_INSTALL. These
-  recommendations are retained, not replaced with a whole-product pass badge.
-- We clarified one operating instruction and separately reproduced and patched
+- Current scope: 168 Core skill bundles, with no scanner LLM calls or suppression.
+  Independent Claude review was a separate step.
+- Repairs: 85 obsolete document references and a literal-path validation blind
+  spot were fixed. The reference checker passes 31 tests; all 177 focused tests pass.
+- The raw scanner log contains 652 pattern records, including normal references
+  and prohibited examples; this is not an unresolved-vulnerability count.
+  Coverage is 112 complete / 56 partial analyses. Original recommendations
+  remain 97 SAFE / 66 CAUTION / 5 DO_NOT_INSTALL, with limitations recorded.
+- Four document surfaces still hit scanner limits, and the mandated latest-package
+  fallback remains unpinned. These are disclosed separately from repaired defects.
+- Earlier work clarified operating guidance and separately reproduced and patched
   credential-forwarding on redirects in two optional OpenRouter adapters.
   Synthetic behavior tests verify the patch; this does not assert a past breach.
 
-Read the [scope, remaining findings, file hashes and verification record](docs/security/skillspector-2026-10-26/README.md).
+Read the [scope, raw findings, contextual review, hashes and verification](docs/security/skillspector-2026-10-26/README.md).
 The report identifies the baseline and audited patch snapshot; it does not
 claim every later revision, the deployed web app or native AI runtimes were
 scanned. No automatic continuous scanning is implied.
