@@ -35,6 +35,22 @@ reassessment; do not silently present older evidence as current. Preserve prior
 versions and check results. Unrelated artifacts need no regeneration solely
 because one input changed.
 
+Keep the old snapshot intact and put the decision, changed meaning and exact
+source versions in a new revision or clearly versioned addendum. Compare the
+old text with the source rather than reconstructing what it "implicitly" meant.
+Changing one accepted policy does not accept the remaining proposed scope.
+
+When the request includes revised requirements, TC or copy, produce that content
+within the authorized scope. For a TC candidate name its requirement/version,
+preconditions, role/input, action, expected observable result and execution state.
+Cover the changed allowed and denied paths; leave unrelated policies unresolved.
+"Rewrite the TC" is a next action, not the requested revised TC. Identify code
+changes and verification still needed without pretending to have executed them.
+
+Read affected marketing and sales text as well as technical dependencies. Update
+permission-sensitive claims in their new versions, retaining evidence and text
+that remain valid; a table of technical files alone misses business claims.
+
 This is a document convention, not an implemented dependency engine or a public
 Core API. Company task state, budgets, customer records and policy stay in the
 owning product; do not export local agent continuation packets or transcripts.
@@ -44,6 +60,30 @@ owning product; do not export local agent continuation packets or transcripts.
 Check that the next owner can identify the exact input, accepted scope, evidence
 gaps and required checks without reconstructing a chat. Report what was drafted,
 reviewed, accepted or actually executed; name unresolved items and impacted outputs.
+
+For a consequential handoff, inspect the actual output against the source before
+calling it ready. Keep a compact check record with the relevant source/version,
+the exact claim or changed policy, the comparison and any correction. For a
+bundle, a small shared table suffices; do not force it on a short answer.
+
+- Check outward-facing wording for supported capabilities, performance and access.
+  The headline/body must respect the evidence even if a proof section is careful.
+- Compare changed role/action/resource scope explicitly. For example, "reviewers
+  may view" supports reviewers viewing, not all authenticated roles viewing.
+  Preserve unknown fields; do not infer accepted policy from an older draft.
+- Compare original and revised versions, concrete TC content and all affected
+  technical and business claims. Preserve unrelated outputs and historical checks.
+- Assess each review finding against the actual text and source. A reviewer model
+  reporting "pass", or the presence of headings, is not the comparison itself.
+
+If that comparison exposes an in-scope error, correct it and recheck the changed
+content before handoff. Do not stop at a failure report or an offer to repair it.
+Unresolved evidence/authority can block a conclusion or external action while a
+useful internal draft still proceeds. Mark the exact remaining block; do not
+claim unrestricted readiness or accept the artifact on the user's behalf.
+
+This content check records the agent's document review, not proof of runtime
+enforcement, customer validation or an implemented acceptance engine.
 
 Concrete evidence boundaries to check:
 

@@ -27,10 +27,18 @@ policy in the target project. Separate user needs from assumed segments.
 2. Draft a positioning/message brief: audience, value, reason to believe,
    scope limits, message options and call to action. Link factual claims to the
    supplied evidence; distinguish targets, estimates and observations.
+   Check the actual headline, CTA and body, not only the plan's proof section.
+   Speed, availability and who may use a feature are claims too: a capability
+   name does not prove "in seconds", "anytime" or access for every role.
+   Remove or narrow unsupported wording; caveats elsewhere do not repair it.
 3. Select one small experiment suited to the requested learning. Define its
    cohort/time window, denominator, primary outcome, guardrail, observation
    limit or stop/review date, and decision rule. Proposed sample or budget limits
    are not approvals. Statistical claims need an appropriate design and evidence.
+   State collection/eligibility rules or mark execution blocked until they are
+   fixed. Use an observable decision rule; "materially better" with no defined
+   comparison is not executable. A descriptive learning experiment can report
+   counts and gaps without choosing a causal winner or inventing a threshold.
 4. For supplied counts, state the exact numerator/denominator and collection
    limits. Do not infer unique people, human traffic, channel attribution,
    causality or uplift from unqualified event counts or one small cohort.
@@ -75,6 +83,10 @@ lacks authority. Flag that part; still deliver useful draft content where possib
 Check every proof point, any rate calculation and its population/time window.
 Verify an executable experiment definition without implying it was executed.
 Ensure writing/design receives the same brief version, claim limits and gaps.
+When product policy changes, update affected copy in a new version now, including
+permission-sensitive invitations to act. Do not review only the unchanged feature
+or defer correcting a known contradiction until publication. Apply the shared
+artifact-handoff checks before passing the revised brief to its next owner.
 
 ## Report
 

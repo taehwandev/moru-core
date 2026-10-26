@@ -33,6 +33,10 @@ not proof of broad customer demand. Keep company strategy and budgets local.
 3. Give requirements stable local IDs when later work needs traceability. Define
    observable acceptance candidates and name unknown policies without choosing
    permissions, billing, retention or other consequential defaults silently.
+   For permissions, preserve the stated subject, action and resource: allowing
+   one role to view does not authorize every signed-in user to view. Leave
+   unstated roles/actions unknown. A later decision resolves only its stated
+   scope; do not rewrite an earlier unknown as an implicitly accepted policy.
 4. Propose the smallest useful validation: evidence to collect, outcome to observe
    and the decision it would inform. Label forecasts and targets as such.
 5. Hand off the proposal, evidence and unresolved decisions to the existing PRD
@@ -75,6 +79,8 @@ Trace each factual claim to its source and each requirement to the request or
 an explicit proposal. Check that acceptance candidates describe observable
 outcomes, open decisions are visible and the PRD owner receives the same version.
 For a material revision, check only the affected downstream scope for staleness.
+Apply the shared artifact-handoff verification to the actual revised content
+before handing it on; a list of future fixes is not a corrected deliverable.
 
 ## Report
 
