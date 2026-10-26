@@ -191,17 +191,22 @@ def live_context_kind(script: str, arguments: list[str]) -> str | None:
     """Exact CLI grammar, called only after the canonical script is verified.
 
     Claims touch only Moru's local coordination store, including expiry cleanup
-    during status. Live/save checks only read logs. Neither admits app installs
-    or project source writes; record/from-hook is outside this contract.
+    during status. Live/save checks only read logs. Device controls remain
+    ordinary mutations: their target still needs workflow entry and isolation.
+    Record/from-hook is outside this contract.
     """
     if not arguments:
         return None
     operation = arguments[0]
     if script == "live_device.py":
-        if operation not in {"status", "check"}:
+        if operation not in {"status", "check", "start", "open", "stop"}:
             return None
         valued, switches, lists = {"--project"}, {"--json"}, set()
-        kind = "read_only"
+        kind = "read_only" if operation in {"status", "check"} else "mutating"
+        if operation == "start":
+            valued.update({"--platform", "--wait", "--link"})
+        elif operation == "open":
+            valued.add("--link")
     elif script == "path_claims.py":
         if operation not in {"status", "check", "claim", "release"}:
             return None
@@ -235,6 +240,13 @@ def live_context_kind(script: str, arguments: list[str]) -> str | None:
                 value = arguments[index]
             if not value or value.startswith("-"):
                 return None
+            if script == "live_device.py" and kind == "mutating":
+                if flag == "--project" and not Path(value).is_absolute():
+                    return None
+                if flag == "--platform" and value not in {"android", "ios"}:
+                    return None
+                if flag == "--wait" and not re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", value):
+                    return None
             if flag in lists and not equal:
                 while index + 1 < len(arguments) and not arguments[index + 1].startswith("-"):
                     index += 1
@@ -242,6 +254,9 @@ def live_context_kind(script: str, arguments: list[str]) -> str | None:
             return None
         seen.add(flag)
         index += 1
+    if script == "live_device.py" and kind == "mutating":
+        if "--project" not in seen or (operation == "open" and "--link" not in seen):
+            return None
     if script == "path_claims.py":
         if "--project" not in seen:
             return None

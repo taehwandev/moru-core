@@ -1175,6 +1175,9 @@ def _declared_read_indices(tokens: list[str], offset: int, cwd: Path | None = No
     # safe environment prefix as simple_command_kind. Never unwrap executor vars.
     offset += len(tokens) - len(command)
     tokens = command
+    live_control_reads = _live_device_control_read_indices(tokens, offset)
+    if live_control_reads is not None:
+        return live_control_reads
     figma_effect = figma_command_effect(tokens, cwd)
     if figma_effect is not None:
         return [offset + index for index in figma_effect[1]]
@@ -1223,6 +1226,29 @@ def _declared_read_indices(tokens: list[str], offset: int, cwd: Path | None = No
                 MESSAGE_VALUE_OPTIONS[subcommand],
             )
     return []
+
+
+def _live_device_control_read_indices(tokens: list[str], offset: int) -> list[int] | None:
+    """A trusted Live control reads its program; only --project names its target.
+
+    This does not classify the command as read-only or waive its target's
+    lifecycle. Invalid grammar and unrelated programs keep all paths governed.
+    """
+    if not _python_interpreter(tokens[0]):
+        return None
+    script_index = 2 if tokens[1:2] == ["-B"] else 1
+    if len(tokens) <= script_index:
+        return None
+    script = Path(tokens[script_index]).expanduser()
+    try:
+        if not script.is_absolute() or script.resolve() != Path(__file__).with_name("live_device.py").resolve():
+            return None
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if live_context_kind("live_device.py", tokens[script_index + 1:]) != "mutating":
+        return None
+    targets = set(_option_value_indices(tokens, offset, frozenset({"--project"})))
+    return [offset + index for index in range(len(tokens)) if offset + index not in targets]
 
 
 def _message_value_indices(
