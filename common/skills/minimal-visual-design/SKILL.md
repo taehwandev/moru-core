@@ -21,6 +21,8 @@ Open `references/current-guidance.md` for the cross-platform visual baseline and
 micro-detail rules:
 
 - `## Direction` before the first visual decision.
+- `## Padding And Insets` before styling any surface (card, button, badge,
+  input, row, dialog, page): it holds the padding defaults and the owner rules.
 - `## Typography`, `## Space And Layout`, `## Color`, `## Depth And Edges`,
   `## Motion`, and `## Micro-Detail & Interaction Craft` for the matching
   decision.
@@ -42,10 +44,13 @@ recipes and falsifying checks.
    direction that follows from them, not from habit.
 2. Before writing UI code, draft a compact system: one or two typefaces with
    type roles, a 4/8-based spacing scale, a tinted neutral ramp plus one
-   accent, two shadow levels, and one concentric radius family. Reuse the
-   repository's tokens when they exist.
+   accent, two shadow levels, one concentric radius family, and padding for
+   each surface type from `## Padding And Insets`. Reuse the repository's
+   tokens when they exist.
 3. Lay out in grayscale. Build hierarchy with weight, color, and space before
-   size; one primary element and one filled primary action per view.
+   size; one primary element and one filled primary action per view. Give
+   every surface its padding in the same edit that gives it a fill, border or
+   shadow, and set the page gutter at the screen owner.
 4. Apply the platform's micro-detail rules from
    `references/platform-craft-matrix.md`: tabular digits (`tabular-nums` /
    `.monospacedDigit()`) on changing numbers, concentric nested radii
@@ -58,7 +63,8 @@ recipes and falsifying checks.
    and show system topology (`01 -> 02 -> 03`) before uniform spec cards.
 6. Add the accent last, only on actions, selection, and status.
 7. Remove every border, divider, badge, icon, and animation that carries no
-   meaning. Then check the result rendered.
+   meaning, but keep the padding that frames content. Then check the result
+   rendered, including the content-to-edge measurement.
 
 ## Do Not
 
@@ -66,6 +72,9 @@ recipes and falsifying checks.
   radius and shadow, a gradient hero, and bold text everywhere.
 - Do not use pure black text, pure gray, or more than one saturated hue.
 - Do not separate every group with a border; use space or a background step.
+- Do not paint a fill, border or shadow without inner padding, leave mobile
+  content flush to the screen edge, or drop existing padding in a polish or
+  refactor pass without saying so.
 - Do not allow layout jitter on hover, async load, scrollbar appearance, or
   numeric updates, and do not put fixed heights on text containers that clip
   under Dynamic Type / `fontScale = 2.0` / `textScaler`.
@@ -94,6 +103,10 @@ recipes and falsifying checks.
   and under large text scaling (`AX3`-`AX5`, `fontScale 2.0`, or `textScaler 2.0`)
   with long text. A code diff alone is not visual evidence; use
   `common/skills/ui-visual-verification/SKILL.md` for capture.
+- Measure content-to-edge padding at narrow and wide widths with the check in
+  `common/skills/ui-visual-verification/references/current-guidance.md`
+  (`## Content-To-Edge Padding Check`); a stylesheet or modifier read is not
+  proof.
 - Run the target platform's falsifying checks from
   `references/platform-craft-matrix.md` (tabular numeral stability, single-owner
   inset/IME check, hit-target minimum, and empty/error recovery).
@@ -104,7 +117,8 @@ recipes and falsifying checks.
 
 ## Report
 
-State the direction chosen, the compact system (type, spacing, color,
-depth), how stage choreography or interactive showcases were verified, which
-platform craft checks from `references/platform-craft-matrix.md` were verified,
-which generic tells were removed, and what was or was not rendered.
+State the direction chosen, the compact system (type, spacing, padding,
+color, depth), the content-to-edge check result, how stage choreography or
+interactive showcases were verified, which platform craft checks from
+`references/platform-craft-matrix.md` were verified, which generic tells were
+removed, and what was or was not rendered.
