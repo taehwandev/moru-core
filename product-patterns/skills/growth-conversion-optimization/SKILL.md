@@ -6,6 +6,10 @@ type: ai-generated
 
 # Growth And Conversion Optimization
 
+For an audience, positioning or campaign brief before funnel implementation,
+use `product-patterns/skills/marketing-planning/SKILL.md`. This skill remains
+the owner of conversion telemetry, traffic allocation and CRO implementation.
+
 Use when the active route selects this skill or when work touches marketing
 strategy, keyword acquisition, conversion rate optimization (CRO), first-party
 funnel telemetry, multi-armed bandit / A/B traffic allocation, or LLM-assisted

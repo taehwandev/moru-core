@@ -6,6 +6,10 @@ type: ai-generated
 
 # PRD Creation Workflow
 
+For an early problem/opportunity proposal before requirements are ready, use
+`product-patterns/skills/product-planning/SKILL.md`. Reuse its brief; this workflow
+remains the PRD owner and does not repeat accepted discovery.
+
 Use when the active route selects this skill or its topic applies.
 
 Read `references/current-guidance.md` for applicable decision rules, stop

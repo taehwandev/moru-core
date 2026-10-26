@@ -2,6 +2,18 @@
   "schema_version": 1,
   "description": "Document promotion rules used by the workflow router when request intent or touched paths show which guidance must be read before work. These rules also seed the local document graph used by route and query expansion.",
   "doc_sets": {
+    "product_planning": [
+      "product-patterns/skills/product-planning/SKILL.md"
+    ],
+    "marketing_planning": [
+      "product-patterns/skills/marketing-planning/SKILL.md"
+    ],
+    "sales_proposal": [
+      "product-patterns/skills/sales-proposal/SKILL.md"
+    ],
+    "business_artifact_handoff": [
+      "common/skills/product-spec-to-implementation/references/artifact-handoff.md"
+    ],
     "social_sign_in_buttons": [
       "common/skills/social-sign-in-buttons/SKILL.md"
     ],
@@ -317,6 +329,45 @@
     ]
   },
   "request_intents": [
+    {
+      "name": "product_planning_artifact",
+      "commands": ["docs", "planning", "plan", "prd", "spec", "product", "task"],
+      "request_any": [
+        "\\b(product proposal|product planning brief|opportunity brief)\\b",
+        "(제품|서비스|사업)\\s*(기획서|기획안|제안서)",
+        "아이디어.{0,40}(기획서|제안서)"
+      ],
+      "request_all": [["\\b(draft|write|prepare|create|revise)\\b", "작성|만들|정리|준비|보완"]],
+      "doc_sets": ["product_planning", "business_artifact_handoff"],
+      "required_priority": 50,
+      "reason": "An active product-proposal drafting stage needs problem/evidence boundaries before writing and a versioned handoff to the existing PRD owner; this selects reading, not execution authority."
+    },
+    {
+      "name": "marketing_planning_artifact",
+      "commands": ["docs", "planning", "plan", "prd", "spec", "product", "task"],
+      "request_any": [
+        "\\b(marketing (plan|brief|strategy)|campaign (plan|brief)|positioning brief)\\b",
+        "(마케팅|캠페인)\\s*(기획서|기획안|계획|전략|브리프)"
+      ],
+      "request_all": [["\\b(draft|write|prepare|create|revise)\\b", "작성|만들|정리|준비|보완"]],
+      "doc_sets": ["marketing_planning", "business_artifact_handoff"],
+      "required_priority": 50,
+      "reason": "A campaign or positioning brief needs audience, claim and experiment evidence before writing; CRO implementation remains with its existing owner."
+    },
+    {
+      "name": "sales_proposal_artifact",
+      "commands": ["docs", "planning", "plan", "prd", "spec", "product", "task"],
+      "request_any": [
+        "\\b(sales proposal|commercial proposal|sales discovery brief)\\b",
+        "\\bproposal\\b.{0,60}\\bprospect\\b",
+        "\\bprospect\\b.{0,60}\\bproposal\\b",
+        "(영업|고객별)\\s*제안서"
+      ],
+      "request_all": [["\\b(draft|write|prepare|create|revise)\\b", "작성|만들|정리|준비|보완"]],
+      "doc_sets": ["sales_proposal", "business_artifact_handoff"],
+      "required_priority": 50,
+      "reason": "A prospect proposal needs qualification, capability and commercial-authority boundaries before writing; customer quotations do not grant permission to send or commit terms."
+    },
     {
       "name": "social_sign_in_button_change",
       "commands": ["feature", "bugfix", "build", "task", "refactor", "code-simplify", "review", "test", "plan", "prd", "ard"],
