@@ -86,6 +86,23 @@ findings instead of deleting useful cross-links or automatically clearing all
 of them. Remaining finding records are marked `review_required`; this report
 does not claim that all 593 have received individual security clearance.
 
+### Follow-up review of HIGH findings
+
+[high-findings-review.json](high-findings-review.json) records a bounded manual
+context review of all 38 remaining HIGH findings, with source locations, file
+hashes, excerpts and reasons. In 33 cases the cited text is a security
+prohibition, secure-storage guidance, authorized setup documentation or another
+domain-specific instruction; the cited context does not confirm the alleged
+vulnerability. Five AE1 findings remain open coverage gaps. Manual reading
+does not make the scanner's partial analyses complete.
+
+The original scanner scores, recommendations and 593 finding records are
+unchanged. Lower-severity findings have not all been individually reviewed.
+The two RP1 unpinned package fallbacks remain open: current managed runtime
+instructions mandate a latest-package fallback when the installed tool is
+absent. Changing that operating policy requires its own explicit maintenance
+scope; this review does not silently replace it with a different policy.
+
 ## Corrections and behavior-backed verification
 
 1. The operating skill's ambiguous `never refuse` phrase was replaced with
@@ -142,7 +159,8 @@ Suitable claim: “We ran pinned SkillSpector static checks on 165 Core skill
 bundles, published the remaining warnings and coverage gaps, and repaired a
 separately reproduced credential-redirect risk.” Do not claim NVIDIA
 certification, a clean whole-product scan, no possible personal-data transfer,
-or deployed remediation. These patches are uncommitted and not installed or
-published by this audit.
+or deployed remediation. The initial corrections and report were committed as
+`813a67fe7c9b2211608d11766af54c20728e44c5` and integrated into local main.
+That local integration is not evidence of installation or deployment.
 
 Upstream: [NVIDIA/SkillSpector](https://github.com/NVIDIA/SkillSpector).
