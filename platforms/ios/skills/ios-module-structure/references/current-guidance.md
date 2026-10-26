@@ -11,9 +11,9 @@ layout, access control, public contracts, or where new SwiftUI/UIKit code should
 live.
 
 For Swift-wide package, file ownership, access control, public API, and target
-split rules, also use `../swift/swift-code-structure.md`.
+split rules, also use `platforms/swift/skills/swift-code-structure/SKILL.md`.
 For Swift app architecture and design-system ownership, also use
-`../swift/swift-architecture.md` and `../swift/swift-design-system.md`.
+`platforms/swift/skills/swift-architecture/SKILL.md` and `platforms/swift/skills/swift-design-system/SKILL.md`.
 
 This card follows current Apple guidance: local Swift packages and targets can
 improve modularity, reuse, and maintenance, but they are useful only when they
@@ -134,7 +134,7 @@ the owner boundary.
 
 ## Feature Layout
 
-Use `../swift/swift-code-structure.md` for cross-platform Swift file and type
+Use `platforms/swift/skills/swift-code-structure/SKILL.md` for cross-platform Swift file and type
 ownership. These iOS examples show common target-local shapes.
 
 Apply the Swift file baseline strictly in iOS features: one primary screen,

@@ -9,13 +9,13 @@ type: ai-generated
 Use when touching SwiftUI/UIKit state, navigation, async work, or platform permissions.
 
 For SwiftUI `UiState`, ViewModel, screen composition, and preview rules, also use
-`ios-swiftui-ui.md`.
+`platforms/ios/skills/ios-swiftui-ui/SKILL.md`.
 
 For repository/client contracts, adapter packages, local Swift packages, and
-target ownership, also use `ios-module-structure.md`.
+target ownership, also use `platforms/ios/skills/ios-module-structure/SKILL.md`.
 
 For shared persistence, cache, sync, migration, and source-of-truth rules, also
-use `../../common/skills/data-persistence-sync/SKILL.md`.
+use `common/skills/data-persistence-sync/SKILL.md`.
 
 References:
 

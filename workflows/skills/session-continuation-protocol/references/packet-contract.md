@@ -154,8 +154,10 @@ skip in a sentence that named the wrong cause. A caller who creates
 `.moru/runs/<name>/` has asked for a per-run directory, so `start` now refuses a
 name that is not a 32-hex run id and says how to get one. The refusal is
 narrowed to that shape: the default `.moru/preflight.json` and worker paths under
-`.moru/workers/` still have no packet by design, and later hooks never refuse, so
-a run already begun under an unbindable name can still review and finish. An id already present in the registry
+`.moru/workers/` still have no packet by design. Review and finish retain
+compatibility with those legacy evidence paths; the missing packet alone does
+not reject an already-started run. Their authority, safety, evidence and gate
+checks still apply. An id already present in the registry
 is never adopted a second time, since two records sharing one opaque id would
 make "the run" ambiguous for every later lookup.
 

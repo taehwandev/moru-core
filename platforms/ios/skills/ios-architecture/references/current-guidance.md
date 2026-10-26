@@ -11,23 +11,23 @@ permissions, and app target behavior.
 
 For Swift-wide app architecture, package, state owner, domain/data/platform
 boundary, and design-system rules, also use
-`../swift/swift-architecture.md`, `../swift/swift-code-structure.md`, and
-`../swift/swift-design-system.md`.
+`platforms/swift/skills/swift-architecture/SKILL.md`, `platforms/swift/skills/swift-code-structure/SKILL.md`, and
+`platforms/swift/skills/swift-design-system/SKILL.md`.
 
 For SwiftUI screen/component structure, ViewModel contracts, `UiState`, previews,
-or clean-architecture implementation details, also use `ios-swiftui-ui.md`.
+or clean-architecture implementation details, also use `platforms/ios/skills/ios-swiftui-ui/SKILL.md`.
 
 For UIKit screens, coordinators, view controllers, presenters, table/collection
 views, diffable data sources, forms, or UIKit navigation, also use
-`ios-uikit-ui.md`.
+`platforms/ios/skills/ios-uikit-ui/SKILL.md`.
 
 For targets, local Swift packages, feature folders, access control, and
-contract/module splits, also use `ios-module-structure.md`.
+contract/module splits, also use `platforms/ios/skills/ios-module-structure/SKILL.md`.
 
-For navigation, async work, persistence, permissions, or actor boundaries, also use `ios-state-concurrency.md`.
+For navigation, async work, persistence, permissions, or actor boundaries, also use `platforms/ios/skills/ios-state-concurrency/SKILL.md`.
 
 For credentials, Keychain, local storage, Universal Links, URL schemes,
-entitlements, WebViews, or release builds, also use `ios-security.md`.
+entitlements, WebViews, or release builds, also use `platforms/ios/skills/ios-security/SKILL.md`.
 
 For iOS SwiftUI features, the default state architecture is unidirectional data
 flow. Prefer The Composable Architecture (TCA) for non-trivial SwiftUI features
@@ -37,7 +37,7 @@ legacy-constrained, or already owns a repo-approved ViewModel track, and keep it
 UDF-constrained through a single state/action entry point.
 
 There is no separate Moru Core TCA skill card. Route TCA work through this
-iOS architecture card, `ios-state-concurrency.md`, `ios-swiftui-ui.md`, and the
+iOS architecture card, `platforms/ios/skills/ios-state-concurrency/SKILL.md`, `platforms/ios/skills/ios-swiftui-ui/SKILL.md`, and the
 Swift cards. If a target repo has its own TCA skill, keep it as a thin
 repo-local pointer to these rules plus repo-specific commands and examples.
 

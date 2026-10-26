@@ -42,7 +42,7 @@ dependency leakage creates real pressure.
 
 ## File And Class Split
 
-Apply `../../common/skills/code-structure-ownership/SKILL.md` in every source set. KMP source
+Apply `common/skills/code-structure-ownership/SKILL.md` in every source set. KMP source
 files should default to one primary public or internal top-level class,
 interface, object, state holder, use case, repository, adapter, mapper, fixture,
 or assertion owner per file.
@@ -84,7 +84,7 @@ Use repo-local names first. KMP projects commonly separate these families:
 | Shared core/domain module | Pure models, policies, result/error types, clocks/dispatchers contracts, reusable use cases. | Compose UI, Android/iOS framework types, database rows, network DTOs. |
 | Shared data module | Repository contracts, repository implementations, cache/network coordination, DTO/entity mapping. | Target UI state or platform permission prompts. |
 | Platform adapter module/source set | Android/iOS/desktop/web implementations, file/permission/secure storage/native interop adapters. | Silent no-op behavior or shared product policy. |
-| Design-system module (`core:designsystem`) | Theme, semantic tokens, domain-free components, icons, previews; target source sets for pointer, popup, and font differences. | Feature, data, domain, or platform capability dependencies; product composites, copy, language settings. See [`design-system.md`](../../kmp-compose-ui/references/design-system.md). |
+| Design-system module (`core:designsystem`) | Theme, semantic tokens, domain-free components, icons, previews; target source sets for pointer, popup, and font differences. | Feature, data, domain, or platform capability dependencies; product composites, copy, language settings. See [`common/skills/design-system/SKILL.md`](../../kmp-compose-ui/references/design-system.md). |
 | Shared product UI module (`core:ui`, optional) | Domain-aware UI patterns reused by several features, built on the design system. | Repository calls, routes, feature state; dependency from the design system back to it. |
 | Platform capability module (`core:<capability>`) | One platform service such as process/terminal host, device bridge, file watcher, browser engine, with its contract, lifecycle, and parsers. | Feature UI state, product copy; living under `feature/` because one feature calls it. |
 | Build logic/testing | Convention plugins, target setup, fixtures, fake adapters, test utilities. | Runtime behavior hidden from production owners. |

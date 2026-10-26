@@ -24,20 +24,20 @@ Use for iOS SwiftUI/UIKit, navigation, concurrency, permission, and UI flow revi
 ## Review
 
 - Check Swift package, architecture, design-system, and target boundaries
-  against `../swift/swift-review.md` when Swift-wide concerns changed.
+  against `platforms/swift/skills/swift-review/SKILL.md` when Swift-wide concerns changed.
 - Check View/ViewModel ownership, navigation state, async task lifetime, and cancellation.
 - Check SwiftUI route/screen/section boundaries against
-  `ios-swiftui-ui.md` when SwiftUI screens changed.
+  `platforms/ios/skills/ios-swiftui-ui/SKILL.md` when SwiftUI screens changed.
 - For SwiftUI changes, check whether simple Model-View is enough for trivial
   local state; otherwise prefer TCA before approving ad hoc MVVM for async,
   navigation, shared state, or reducer-testable workflows.
 - Check UIKit coordinator/view-controller/ViewModel/list/form boundaries
-  against `ios-uikit-ui.md` when UIKit screens changed.
-- Check target/package boundaries against `ios-module-structure.md` when new
+  against `platforms/ios/skills/ios-uikit-ui/SKILL.md` when UIKit screens changed.
+- Check target/package boundaries against `platforms/ios/skills/ios-module-structure/SKILL.md` when new
   targets, local Swift packages, access-control changes, package exports, or
   feature contracts are touched.
 - Check design-system tokens, styles, primitives, variants, previews, and
-  reusable control contracts against `../swift/swift-design-system.md` when
+  reusable control contracts against `platforms/swift/skills/swift-design-system/SKILL.md` when
   shared UI or styling changed.
 - Confirm `UiState` represents loading, content, empty, error, permission
   denied, offline, disabled, and submitted states when applicable.
@@ -95,7 +95,7 @@ Use for iOS SwiftUI/UIKit, navigation, concurrency, permission, and UI flow revi
 - Static: Swift compiler, `swift-format` or SwiftFormat for formatting, and
   SwiftLint for naming, line length, complexity, file/type size, force unwraps,
   and maintainability when configured. If no Swift lint config exists, review
-  against `common/skills/code-conventions/SKILL.md` plus `../swift/swift-review.md`.
+  against `common/skills/code-conventions/SKILL.md` plus `platforms/swift/skills/swift-review/SKILL.md`.
 - Unit: XCTest or Swift Testing for mapper, policy, service, ViewModel state.
 - UI: XCUITest for navigation, forms, permissions, and critical flows.
 - Snapshot: use only when visual regression matters and repo already supports it.

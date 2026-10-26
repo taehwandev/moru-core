@@ -16,7 +16,7 @@ Use `common/skills/runtime-url-configuration/SKILL.md` for environment-specific 
 Universal Link domains, URL scheme callback hosts, redirect/callback URLs,
 asset hosts, and release-channel config.
 
-Also use `../../common/skills/observability-error-handling/SKILL.md` when adding or changing
+Also use `common/skills/observability-error-handling/SKILL.md` when adding or changing
 crash reporting, error telemetry, logging, diagnostics, or analytics.
 
 References:

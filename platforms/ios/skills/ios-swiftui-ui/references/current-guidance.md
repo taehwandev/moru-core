@@ -15,16 +15,16 @@ state models, reusable views, previews, navigation, or UI tests.
 For adaptive/large-screen layouts or iPhone Duo fold transitions, also read
 `common/skills/foldable-adaptive-layout/SKILL.md`.
 
-For architecture choice, also read `../../common/skills/architecture-design/SKILL.md` and
-`../swift/swift-architecture.md`. For Swift design-system tokens, styles,
+For architecture choice, also read `common/skills/architecture-design/SKILL.md` and
+`platforms/swift/skills/swift-architecture/SKILL.md`. For Swift design-system tokens, styles,
 primitives, and reusable component contracts, also read
-`../swift/swift-design-system.md`. For
+`platforms/swift/skills/swift-design-system/SKILL.md`. For
 state lifetimes, async work, cancellation, persistence, and actor boundaries,
-also read `ios-state-concurrency.md`. For reusable UI extraction, also read
-`../../common/skills/reusable-code-design/SKILL.md` and `../../common/skills/design-system/SKILL.md`.
+also read `platforms/ios/skills/ios-state-concurrency/SKILL.md`. For reusable UI extraction, also read
+`common/skills/reusable-code-design/SKILL.md` and `common/skills/design-system/SKILL.md`.
 For targets, local Swift packages, feature contracts, and access-control
-boundaries, also read `ios-module-structure.md` and
-`../swift/swift-code-structure.md`.
+boundaries, also read `platforms/ios/skills/ios-module-structure/SKILL.md` and
+`platforms/swift/skills/swift-code-structure/SKILL.md`.
 
 ## SwiftUI Layers
 

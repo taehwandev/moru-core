@@ -598,15 +598,15 @@
     "files": [
       {
         "path": "common/skills/minimal-visual-design/SKILL.md",
-        "sha256": "f60a4a776d042d47b2c0e970ef3d7213f0c458b2ea641fd705f950e1bf8f80c8"
+        "sha256": "91711aaa9c0fb9f5c6e0c7f2668c79cc6d2fc50079afd025c05f9d09b6dec670"
       },
       {
         "path": "common/skills/minimal-visual-design/references/current-guidance.md",
-        "sha256": "5da5b7ed5f0a306e8359ffe28e9f194dbb7c39f74f76dec9cce83f640151a1f1"
+        "sha256": "c71bfc55a9a685aee71e6bd2129b41bc53df819d8ac069904b495ceeee557401"
       },
       {
         "path": "common/skills/minimal-visual-design/references/platform-craft-matrix.md",
-        "sha256": "2c420bde8826ba33e7e9a6a97a142be8b3e767674e77ceec98cc4e5db4a6b41d"
+        "sha256": "53400bba8562a5abcfd2fa5cc92388fe112dfe7e631804fa11e876db37f610be"
       }
     ]
   },
@@ -641,7 +641,11 @@
     "files": [
       {
         "path": "common/skills/product-spec-to-implementation/SKILL.md",
-        "sha256": "6e8036885c4559a93359cf3f1616f25dddfe15e5df6ebc86a7d49f37850ee95b"
+        "sha256": "8648abd9db91c6880e658bfb58cbbfcaebb66a681a7e07ade6f9c2ec2938cb55"
+      },
+      {
+        "path": "common/skills/product-spec-to-implementation/references/artifact-handoff.md",
+        "sha256": "a040aa4620ee069172e99de2d85440b25c5f3a0092a071bdbf91d6bf70b67a6a"
       },
       {
         "path": "common/skills/product-spec-to-implementation/references/current-guidance.md",
@@ -950,11 +954,11 @@
     "files": [
       {
         "path": "common/skills/ui-visual-verification/SKILL.md",
-        "sha256": "c67c8413bed9ae783b4278bd82814780e3652cc3a25adc26e9e405ea1926e660"
+        "sha256": "13695df02063f5e0ca519cc2abf047ec36a82aa580e4eef44385b8dd12e5587a"
       },
       {
         "path": "common/skills/ui-visual-verification/references/current-guidance.md",
-        "sha256": "573072ffadda196368527e52f5d5699bf92bf7d130d76c2ee643d6c7c515fc57"
+        "sha256": "7d78d36c3503450eeb9d75fafd126b828acdfaeda4ce0f6fcbef2140ba74f74a"
       }
     ]
   },
@@ -1049,7 +1053,7 @@
       },
       {
         "path": "docs/skills/agent-bootstrap/references/current-guidance.md",
-        "sha256": "9a31adb4047f442d51dc56e6a95e2137a94d3ce50f6cb3cd907cb3c6ff2ca742"
+        "sha256": "c6e0806811880bc91d681c7a425a841563969de080892c273b0a98fe1a974f97"
       }
     ]
   },
@@ -1546,7 +1550,7 @@
       },
       {
         "path": "platforms/ios/skills/ios-architecture/references/current-guidance.md",
-        "sha256": "00d124a010d476eb9b51dd6d7e7692264a90f74e743320fefd24e0e42b6516c0"
+        "sha256": "67f826854dafbe32cb33c7a0d686b580c590fe307d5a428c1f3d6f53a45b8ebb"
       }
     ]
   },
@@ -1559,7 +1563,7 @@
       },
       {
         "path": "platforms/ios/skills/ios-module-structure/references/current-guidance.md",
-        "sha256": "2839c098dbe39cf0aaa97d758f4a380eb50036d447584608491b9f43d8cc47c5"
+        "sha256": "b653a2ad31ff989343302eab5b2c7a1adb035d5dcb6d1616417db840013c93eb"
       }
     ]
   },
@@ -1572,7 +1576,7 @@
       },
       {
         "path": "platforms/ios/skills/ios-review/references/current-guidance.md",
-        "sha256": "1f3ca18404f5fe73fa8cfb8f210968838e8a071fb47c3193c3c0ef2152467670"
+        "sha256": "701422f46c3050b6d6703897166e7711ce1e174c9ee85466a577dd161b8869ae"
       }
     ]
   },
@@ -1585,7 +1589,7 @@
       },
       {
         "path": "platforms/ios/skills/ios-security/references/current-guidance.md",
-        "sha256": "5179183b02eec76c6da4edb414fc247739541b6a24f098f91a227503edb53135"
+        "sha256": "76f56ed34cb8e05757caae02a23d950be804ecbce0300f75c912ddbc6fbd7972"
       }
     ]
   },
@@ -1598,7 +1602,7 @@
       },
       {
         "path": "platforms/ios/skills/ios-state-concurrency/references/current-guidance.md",
-        "sha256": "c382663a410ea7781edbb9d51a74ab98a12c2d6a2651d2ee34f94f4eb86881a7"
+        "sha256": "dbe288997f04c0a81ac41544a9ab70cd05143d076ccf656e4c9a7debd7f3ebd3"
       }
     ]
   },
@@ -1611,7 +1615,7 @@
       },
       {
         "path": "platforms/ios/skills/ios-swiftui-ui/references/current-guidance.md",
-        "sha256": "c86f3fe4d37d77c3d1b5ddfcd61a8ff29b1579550eaf01644f21594a762b6458"
+        "sha256": "3ad3bb95ccce833a9db12d6654cbde56bcf0e2879a0b4a430c48e7ccac016408"
       }
     ]
   },
@@ -1624,7 +1628,7 @@
       },
       {
         "path": "platforms/ios/skills/ios-uikit-ui/references/current-guidance.md",
-        "sha256": "653e6bf92db5d6adc0b063d597332497650c59090500de4dad985be9cf56e45d"
+        "sha256": "eca5e8c04d5dd2db6a3a19bc8e9846db2b8fab42dad0b0c1a9decf2cf4110c29"
       }
     ]
   },
@@ -1675,7 +1679,7 @@
       },
       {
         "path": "platforms/kmp/skills/kmp-module-structure/references/current-guidance.md",
-        "sha256": "c2251964541ae10c92a9f997fe12007ba88ee0f64419d6de62f3af6016d2863a"
+        "sha256": "46bfd00e3bf5a097f0174cb4cdcdcb958a5180e60f4eaef6ff5164dedebb4a0f"
       },
       {
         "path": "platforms/kmp/skills/kmp-module-structure/references/package-layout.md",
@@ -1774,7 +1778,7 @@
       },
       {
         "path": "platforms/server/skills/server-api-implementation/references/current-guidance.md",
-        "sha256": "dd43738e1201d17723b0ae604a8248b873a70d3527d59bbe9921d3f7b3be5d8a"
+        "sha256": "1730bf54d95122beb18a2d7b1a7da27ab1724d754771a4f69a89556186de2fd2"
       }
     ]
   },
@@ -1839,7 +1843,7 @@
       },
       {
         "path": "platforms/swift/skills/swift-architecture/references/current-guidance.md",
-        "sha256": "5d32aa74f1add44e0ade3fb2540076d12394c7a9283c21c869f5932f391e8eb8"
+        "sha256": "b9b84f7cc1eac2ec5c9469a28d95032096022ef93130e762bb10431fb57688e0"
       }
     ]
   },
@@ -1852,7 +1856,7 @@
       },
       {
         "path": "platforms/swift/skills/swift-code-structure/references/current-guidance.md",
-        "sha256": "27eaa37825dabf76f695c6c01936085d2fa600f775a702d83a27020c79cef00d"
+        "sha256": "26a259c0770986013619582497fd2c7d5f12c5ac6679625c83e81253cc8802e8"
       }
     ]
   },
@@ -1865,7 +1869,7 @@
       },
       {
         "path": "platforms/swift/skills/swift-design-system/references/current-guidance.md",
-        "sha256": "850e712e7b9b289bbc9e7658acb5acc36604f8eebfc1269dbf9d012e48ba57d8"
+        "sha256": "8f24387cb1acba76f08dc1332654d3b8a02ae8802143551261c438f0d3e856b8"
       }
     ]
   },
@@ -1935,7 +1939,7 @@
       },
       {
         "path": "platforms/web/skills/web-code-structure/references/current-guidance.md",
-        "sha256": "1e411a594bd81caaa7415a791ab8283a10cb9030fe95450b7b9451e33533355d"
+        "sha256": "801e9dd8f31c37447cb99af913f91e067e13ee9a1bf0ef6e58678479a1638ccb"
       }
     ]
   },
@@ -1948,7 +1952,7 @@
       },
       {
         "path": "platforms/web/skills/web-design-system/references/current-guidance.md",
-        "sha256": "a3b110358f28a420097fecfa3a922ac67aefb5abe15532afdc5b9f3e6fdd964e"
+        "sha256": "f9a2cbd0be3f9d88c7180ff98e2ba6542197c32bcc0ee580e8095e59798f32b3"
       }
     ]
   },
@@ -1961,7 +1965,7 @@
       },
       {
         "path": "platforms/web/skills/web-react-ui/references/current-guidance.md",
-        "sha256": "beb4c0e7001e0ad2f5646a1a37ebcf535b186e9f4b16944122779207538fc65c"
+        "sha256": "9e65e9db9cbd18047eefb2ab934cb75e98739de5c0aa0d4dea898587266104fb"
       }
     ]
   },
@@ -2013,7 +2017,7 @@
       },
       {
         "path": "product-patterns/skills/agent-credential-broker-ideation/references/current-guidance.md",
-        "sha256": "155283389918bb7848564715e002679fa8bb18527fe57d1b2b749d26d457e45a"
+        "sha256": "4f7cc116ff8f67dcdf785c249ed95a58d568d8d7baf505f6c212aa0a292b7a1f"
       }
     ]
   },
@@ -2026,7 +2030,7 @@
       },
       {
         "path": "product-patterns/skills/auth-rbac-implementation/references/current-guidance.md",
-        "sha256": "fb127a7012a88b34c02a347309f1ebd58f79bd170425358e29cce6b1daa98cbc"
+        "sha256": "b0384c44d20e9d29bdab72c5dad4ef9cfccd11a0c00c3215ffcbdfadfeceda67"
       }
     ]
   },
@@ -2052,7 +2056,7 @@
       },
       {
         "path": "product-patterns/skills/billing-entitlements-implementation/references/current-guidance.md",
-        "sha256": "dc2944ba937ebf310a22d60895b47aa15907112408885cc2e16a13a2b02f6000"
+        "sha256": "742dd9bc6051243db73d3dfb91d720dbc5eec537529f64402d2a66b2f35d2b82"
       }
     ]
   },
@@ -2074,7 +2078,7 @@
     "files": [
       {
         "path": "product-patterns/skills/growth-conversion-optimization/SKILL.md",
-        "sha256": "3cb3024aef99db2f81e70cefe527629321d00866c14d44cb022508c2602f64c0"
+        "sha256": "05a4222debdd9ce0c5e576be5eddc59ee1e8106e4ee8bb0f5f8f739643cb8bec"
       },
       {
         "path": "product-patterns/skills/growth-conversion-optimization/references/current-guidance.md",
@@ -2105,6 +2109,45 @@
       {
         "path": "product-patterns/skills/invitation-workflows/references/current-guidance.md",
         "sha256": "143fe86016f4c2f1f09720496b489414488f8f041e3aace146869832f89d7c17"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/marketing-planning/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/marketing-planning/SKILL.md",
+        "sha256": "46f9552a28486b9f06c51bde2d759ccb58060afa94bf0503134db6e05068b07d"
+      },
+      {
+        "path": "product-patterns/skills/marketing-planning/references/current-guidance.md",
+        "sha256": "10e6993cbf6f6f59e17d0dc3d3b73c85f20f5ece9066c1a17c39c7ab2ab40da5"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/product-planning/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/product-planning/SKILL.md",
+        "sha256": "a091b9948d4d5615cd82712c1ae759ae76d5fcde40568abd61f16102b9606b4c"
+      },
+      {
+        "path": "product-patterns/skills/product-planning/references/current-guidance.md",
+        "sha256": "d74e2f24cdf57cdd6c789d2aabea8bfb579d9f9402c6ce421ed52aac5f9b6446"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/sales-proposal/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/sales-proposal/SKILL.md",
+        "sha256": "fda5f2a6adca3b0150856ea429cd5820fc88745c519f6b0d405927e858318b33"
+      },
+      {
+        "path": "product-patterns/skills/sales-proposal/references/current-guidance.md",
+        "sha256": "44529202aecd05d7d7bc51fa452a902ae125ac4298fb4e9130c04ce1e9add6ea"
       }
     ]
   },
@@ -2143,7 +2186,7 @@
       },
       {
         "path": "workflows/skills/ambiguity-gate/references/current-guidance.md",
-        "sha256": "fdf81671c103926774cd70da59d51d93c76b7f9b7cddf9a9de6be441b95e367c"
+        "sha256": "b717511e5b16eced35b631a59679f20df868e6f17387fdb3b4e0213d979f4f92"
       }
     ]
   },
@@ -2264,7 +2307,7 @@
     "files": [
       {
         "path": "workflows/skills/prd-creation/SKILL.md",
-        "sha256": "b8a75d04f5d92d6db8a44b02e55654b3877b86b90457969ff2e037a39639ff80"
+        "sha256": "54a0a26bf383591bb42167a836df64e0198951dae982ecf172e1fcf5ca76b49e"
       },
       {
         "path": "workflows/skills/prd-creation/references/current-guidance.md",
@@ -2392,7 +2435,7 @@
       },
       {
         "path": "workflows/skills/session-continuation-protocol/references/packet-contract.md",
-        "sha256": "30cb54414739aaf613c9f2caa63ff27017f30fac66ed662173ff8c1016d65469"
+        "sha256": "db44270ee82640e3b2b63e4be35737af9bd447478539b1c74c7cfd7c2b91d58d"
       }
     ]
   }

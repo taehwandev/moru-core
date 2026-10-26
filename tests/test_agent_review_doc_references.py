@@ -58,6 +58,43 @@ class DocReferenceCheckTests(unittest.TestCase):
         self.assertEqual(1, len(failures))
         self.assertIn("gone.md", failures[0])
 
+    def test_a_missing_product_pattern_reference_fails(self) -> None:
+        changed = self.write(
+            "workflows/skills/b.md", "See `product-patterns/skills/gone/SKILL.md`.\n"
+        )
+        failures = doc_reference_failures(self.project, [changed], [])
+        self.assertEqual(1, len(failures))
+        self.assertIn("product-patterns/skills/gone/SKILL.md", failures[0])
+
+    def test_a_resolving_backtick_relative_path_passes(self) -> None:
+        self.write("common/skills/a/SKILL.md", "# A\n")
+        changed = self.write(
+            "common/skills/b/references/guide.md", "See `../../a/SKILL.md`.\n"
+        )
+
+        self.assertEqual([], doc_reference_failures(self.project, [changed], []))
+
+    def test_a_stale_backtick_relative_path_fails_although_its_tail_exists(
+        self,
+    ) -> None:
+        """The legacy flat-layout spelling the old rules never looked at.
+
+        From a bundle's `references/` directory `../../common/skills/a/SKILL.md`
+        names `common/skills/common/skills/a/SKILL.md`. The real card exists, so
+        matching the path's tail against repository files would pass it; only
+        resolving it from the referring file shows that it names nothing.
+        """
+        self.write("common/skills/a/SKILL.md", "# A\n")
+        changed = self.write(
+            "common/skills/b/references/guide.md",
+            "See `../../common/skills/a/SKILL.md`.\n",
+        )
+
+        failures = doc_reference_failures(self.project, [changed], [])
+
+        self.assertEqual(1, len(failures))
+        self.assertIn("guide.md -> ../../common/skills/a/SKILL.md", failures[0])
+
     def test_a_vendored_skill_is_not_held_to_this_repositorys_paths(self) -> None:
         """Its example paths name the repository the skill is pointed at."""
         changed = self.write(
@@ -134,6 +171,18 @@ class DocReferenceCheckTests(unittest.TestCase):
         """
         keeper = self.write(
             "common/skills/beta/keeper.md", "See [old](../alpha/old.md).\n"
+        )
+        target = "common/skills/alpha/old.md"
+        self.assertNotIn(target, (self.project / keeper).read_text(encoding="utf-8"))
+
+        failures = doc_reference_failures(self.project, [], [target])
+
+        self.assertEqual(1, len(failures))
+        self.assertIn("keeper.md still references", failures[0])
+
+    def test_a_backtick_relative_path_to_a_removed_document_fails(self) -> None:
+        keeper = self.write(
+            "common/skills/beta/keeper.md", "Follow `../alpha/old.md`.\n"
         )
         target = "common/skills/alpha/old.md"
         self.assertNotIn(target, (self.project / keeper).read_text(encoding="utf-8"))

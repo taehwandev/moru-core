@@ -174,9 +174,12 @@ vibeguard audit . --rules <MORU_ROOT>
 ```
 
 If `vibeguard` is not installed, use the same command shapes with
-`npx --yes @taehwandev/vibeguard` in place of `vibeguard`. Do not choose `npx`
-first in repeated hooks or routine local maintenance; npm may contact the
-registry and wait through network retry timeouts before VibeGuard itself starts.
+`npx --yes @taehwandev/vibeguard@latest` in place of `vibeguard`. `@latest` is
+not a version pin: the fallback runs whatever the registry currently publishes,
+so prefer an installed binary and say in the evidence when the fallback ran.
+Do not choose `npx` first in repeated hooks or routine local maintenance; npm
+may contact the registry and wait through network retry timeouts before
+VibeGuard itself starts.
 
 Full VibeGuard setup, audit, fix, package, and evidence flow lives in VibeGuard
 docs for humans:
@@ -188,8 +191,8 @@ https://vibeguard.thdev.app/
 Do not block only because an agent browsing/fetch tool cannot read the
 VibeGuard site. Continue with the VibeGuard command shape above, and use
 `vibeguard --help` when an installed binary is available. Use
-`npx --yes @taehwandev/vibeguard --help` only as the missing-binary or
-latest-package fallback. If the VibeGuard command itself cannot run, stop and
+`npx --yes @taehwandev/vibeguard@latest --help` only when the binary is
+missing. If the VibeGuard command itself cannot run, stop and
 report the blocker. Do not continue as if the safety gate were optional.
 
 ## Install If Missing

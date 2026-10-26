@@ -10,13 +10,13 @@ Use when brainstorming, comparing, or reviewing credential-broker, vault,
 proxy, scoped-token, egress-control, or approval-loop patterns for AI agents.
 This card is for ideation and architecture framing. It is not an implementation
 runbook and must not replace the always-on secret-handling rules in
-`../common/skills/secure-development-baseline/SKILL.md`.
+`common/skills/secure-development-baseline/SKILL.md`.
 
 ## Source Boundary
 
 Keep the split clear:
 
-- Common guardrails belong in `../common/skills/secure-development-baseline/SKILL.md` and
+- Common guardrails belong in `common/skills/secure-development-baseline/SKILL.md` and
   repo-local security instructions: do not expose secrets, do not log
   credential values, keep server-only secrets out of clients, use least
   privilege, and follow the trusted enforcement boundary.
@@ -149,7 +149,7 @@ For design review, verify:
 - the recommended pilot does not require production credentials
 
 For implementation work, also load the relevant platform security card, server
-or application architecture card, and `../common/skills/security-privacy-review/SKILL.md`.
+or application architecture card, and `common/skills/security-privacy-review/SKILL.md`.
 
 ## Report
 

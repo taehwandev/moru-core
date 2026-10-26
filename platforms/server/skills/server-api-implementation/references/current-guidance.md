@@ -8,7 +8,7 @@ type: human-reviewed-needed
 
 Use when creating, changing, moving, or reviewing HTTP handlers, GraphQL resolvers, RPC methods, webhooks, service methods, repositories, API validation, tenant boundaries, or response contracts.
 
-For database transactions, migrations, queues, schedules, and webhooks, also read `server-data-jobs.md`. For auth, tenant isolation, input, SSRF, rate limits, and secrets, also read `server-security.md`.
+For database transactions, migrations, queues, schedules, and webhooks, also read `platforms/server/skills/server-data-jobs/SKILL.md`. For auth, tenant isolation, input, SSRF, rate limits, and secrets, also read `platforms/server/skills/server-security/SKILL.md`.
 
 ## API Layers
 
@@ -29,7 +29,7 @@ Do not put validation, permission checks, database queries, external calls, and 
 
 ## File And Handler Split
 
-Apply `../../common/skills/code-structure-ownership/SKILL.md` before growing server runtime
+Apply `common/skills/code-structure-ownership/SKILL.md` before growing server runtime
 files. Default to one primary route/resolver handler, validator,
 request/response DTO family, use case, service, repository, client, mapper, job,
 fixture, or assertion owner per file.

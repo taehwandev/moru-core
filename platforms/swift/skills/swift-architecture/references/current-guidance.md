@@ -12,16 +12,16 @@ packages.
 
 Also use:
 
-- `swift-code-structure.md` for Swift Package Manager layout, Xcode targets,
+- `platforms/swift/skills/swift-code-structure/SKILL.md` for Swift Package Manager layout, Xcode targets,
   access control, package boundaries, and file ownership.
-- `swift-design-system.md` for SwiftUI/UIKit/AppKit tokens, styles,
+- `platforms/swift/skills/swift-design-system/SKILL.md` for SwiftUI/UIKit/AppKit tokens, styles,
   primitives, previews, and reusable component contracts.
-- `../ios/ios-architecture.md` for iOS-specific navigation, SwiftUI/UIKit app
+- `platforms/ios/skills/ios-architecture/SKILL.md` for iOS-specific navigation, SwiftUI/UIKit app
   structure, permissions, and security follow-up cards.
-- `../application/application-architecture.md` for macOS desktop shells, menu
+- `platforms/application/skills/application-architecture/SKILL.md` for macOS desktop shells, menu
   bar/tray apps, windows, commands, IPC, files, shell, clipboard, and native
   packaging.
-- `../../common/skills/architecture-design/SKILL.md` for architecture track selection.
+- `common/skills/architecture-design/SKILL.md` for architecture track selection.
 
 ## Boundary Model
 

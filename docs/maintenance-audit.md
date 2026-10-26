@@ -63,6 +63,20 @@ Stop dependent work on a failed required gate, missing authority, unresolved
 owner, or missing required source. Follow the existing repair contract. Passing
 selected tests does not establish whole-system health or measured efficiency.
 
+## Security inspection refresh: 2026-10-26
+
+Baseline `7df738a5` plus the recorded reference, validator and guidance repairs.
+The [dated inspection report](security/skillspector-2026-10-26/README.md) owns
+the raw scanner results, source hashes, contextual dispositions and tests.
+
+| ID | Priority | Finding and disposition | Verification / next check |
+| --- | --- | --- | --- |
+| S01 | Medium | Ambiguous claim that later hooks never refuse could obscure safety checks; clarified as legacy path compatibility only. | Targeted rescan removed AR1 and changed DO_NOT_INSTALL to CAUTION; authority and gate requirements remain explicit. |
+| S02 | Medium | Two missing-binary fallback references permit unpinned package execution; open under current managed runtime policy. | Resolve explicit package-pinning policy before claiming remediation. |
+| S03 | Medium | Four document surfaces generate seven parser/reconstruction warnings; 56 bundle analyses remain partial. | Two design bundles changed concurrently in main and were rescanned; retain partial results and require compatible coverage or justified independent checks. |
+| S04 | Medium | 51 relative references and 34 obsolete bare skill names were stale after the bundle migration. Intermediate suffix-only triage falsely accepted 32 records. | Canonical paths now resolve literally; all internal-reference dispositions record source spellings and hashes. A suffix-only record is rejected by the independent verifier. |
+| S05 | Medium | The review checker ignored backtick relative paths and the product-pattern root. | Two relative-path tests and one product-root negative control fail before repair; all 31 reference tests pass after repair. |
+
 ## Audit: 2026-10-02
 
 Source baseline: `d074b64f9934587bd0593a2e153cc186e5be5556`. Environment:

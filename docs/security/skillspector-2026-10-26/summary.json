@@ -1,33 +1,33 @@
 {
-  "status": "draft_not_security_clearance",
+  "status": "rescanned_with_open_items",
   "date": "2026-10-26",
+  "recorded_at": "2026-10-26T13:11:09.678587+00:00",
   "tool": {
-    "name": "SkillSpector",
+    "name": "NVIDIA SkillSpector",
     "version": "2.12.0",
-    "commit": "d7338f58200a9ae2a24810cee08911ab68b107a7",
-    "lock_sha256": "86da392895db777270d9f1e2390c6956df2beaae31578235389d584fafe10adc"
+    "commit": "d7338f58200a9ae2a24810cee08911ab68b107a7"
   },
   "core": {
-    "base_commit": "9ea31ed3ed85b9ef13b99d51d8312c457a506f67",
-    "snapshot": "base plus documented uncommitted patch; per-file hashes in inventory.json",
-    "skills": 165,
-    "findings": 593,
+    "base_commit": "7df738a511777f6449a89da8b140f9be4538feda",
+    "snapshot": "base plus the recorded guidance-reference, review-validator, bootstrap and packet-contract repairs; inventory hashes bind final skill bytes",
+    "skills": 168,
+    "findings": 652,
     "recommendations": {
-      "SAFE": 100,
-      "CAUTION": 60,
+      "SAFE": 97,
+      "CAUTION": 66,
       "DO_NOT_INSTALL": 5
     },
     "completeness": {
-      "complete": 114,
-      "partial": 51
+      "complete": 112,
+      "partial": 56
     },
     "severity": {
-      "MEDIUM": 550,
-      "HIGH": 38,
+      "MEDIUM": 608,
+      "HIGH": 39,
       "LOW": 5
     },
     "rules": {
-      "AS3": 496,
+      "AS3": 554,
       "EA2": 31,
       "AR2": 4,
       "TM1": 1,
@@ -35,10 +35,10 @@
       "MP3": 3,
       "RA2": 20,
       "EA3": 5,
-      "AE1": 5,
+      "AE1": 7,
       "AS1": 9,
       "RP1": 2,
-      "AR1": 2,
+      "AR1": 1,
       "YR4": 1,
       "P1": 1,
       "P7": 1
@@ -14651,8 +14651,8 @@
               "reason_code": "reference_missing",
               "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
               "path": "SKILL.md",
-              "start_line": 74,
-              "end_line": 74,
+              "start_line": 83,
+              "end_line": 83,
               "fatal": false
             },
             {
@@ -14661,8 +14661,18 @@
               "reason_code": "reference_missing",
               "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
               "path": "SKILL.md",
-              "start_line": 96,
-              "end_line": 96,
+              "start_line": 105,
+              "end_line": 105,
+              "fatal": false
+            },
+            {
+              "outcome": "partial",
+              "phase": "reference_resolution",
+              "reason_code": "reference_missing",
+              "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
+              "path": "SKILL.md",
+              "start_line": 107,
+              "end_line": 107,
               "fatal": false
             }
           ],
@@ -14978,7 +14988,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 33,
+              "line": 35,
               "column": 7,
               "evidence": "Open `references/platform-craft-matrix.md` on demand and read **only the section",
               "target_path": "references/platform-craft-matrix.md",
@@ -14988,7 +14998,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 50,
+              "line": 55,
               "column": 5,
               "evidence": "`references/platform-craft-matrix.md`: tabular digits (`tabular-nums` /",
               "target_path": "references/platform-craft-matrix.md",
@@ -14998,7 +15008,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 74,
+              "line": 83,
               "column": 48,
               "evidence": "- Do not shrink a desktop UI recreation below `0.5x` scale or lock an",
               "target_path": null,
@@ -15008,7 +15018,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 96,
+              "line": 105,
               "column": 4,
               "evidence": "`common/skills/ui-visual-verification/SKILL.md` for capture.",
               "target_path": null,
@@ -15018,7 +15028,17 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 98,
+              "line": 107,
+              "column": 4,
+              "evidence": "`common/skills/ui-visual-verification/references/current-guidance.md`",
+              "target_path": null,
+              "status": "missing",
+              "disposition": "partial",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 111,
               "column": 4,
               "evidence": "`references/platform-craft-matrix.md` (tabular numeral stability, single-owner",
               "target_path": "references/platform-craft-matrix.md",
@@ -15028,9 +15048,9 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 109,
-              "column": 29,
-              "evidence": "platform craft checks from `references/platform-craft-matrix.md` were verified,",
+              "line": 123,
+              "column": 2,
+              "evidence": "`references/platform-craft-matrix.md` were verified, which generic tells were",
               "target_path": "references/platform-craft-matrix.md",
               "status": "resolved",
               "disposition": "analyzed",
@@ -15724,13 +15744,13 @@
           "max_issue_severity": "MEDIUM"
         },
         "completeness": {
-          "total_components": 2,
-          "scanned_components": 2,
+          "total_components": 3,
+          "scanned_components": 3,
           "coverage_percent": 100.0,
           "is_complete": true,
           "status": "complete",
           "execution_successful": true,
-          "fully_inspected_files": 2,
+          "fully_inspected_files": 3,
           "partially_inspected_files": 0,
           "entirely_uninspected_files": 0,
           "ledger_exceptions": [],
@@ -15739,8 +15759,8 @@
             {
               "analyzer_id": "artifact_integrity",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15797,8 +15817,8 @@
             {
               "analyzer_id": "mcp_rug_pull",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15865,8 +15885,8 @@
             {
               "analyzer_id": "static_patterns_agent_snooping",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15875,8 +15895,8 @@
             {
               "analyzer_id": "static_patterns_anti_refusal",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15885,8 +15905,8 @@
             {
               "analyzer_id": "static_patterns_data_exfiltration",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15895,8 +15915,8 @@
             {
               "analyzer_id": "static_patterns_deserialization",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15905,8 +15925,8 @@
             {
               "analyzer_id": "static_patterns_excessive_agency",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15915,8 +15935,8 @@
             {
               "analyzer_id": "static_patterns_harmful_content",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15925,8 +15945,8 @@
             {
               "analyzer_id": "static_patterns_memory_poisoning",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15935,8 +15955,8 @@
             {
               "analyzer_id": "static_patterns_output_handling",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15945,8 +15965,8 @@
             {
               "analyzer_id": "static_patterns_privilege_escalation",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15955,8 +15975,8 @@
             {
               "analyzer_id": "static_patterns_prompt_injection",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15965,8 +15985,8 @@
             {
               "analyzer_id": "static_patterns_rogue_agent",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15975,8 +15995,8 @@
             {
               "analyzer_id": "static_patterns_ssrf",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15985,8 +16005,8 @@
             {
               "analyzer_id": "static_patterns_supply_chain",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -15995,8 +16015,8 @@
             {
               "analyzer_id": "static_patterns_system_prompt_leakage",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -16005,8 +16025,8 @@
             {
               "analyzer_id": "static_patterns_tool_misuse",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -16015,8 +16035,8 @@
             {
               "analyzer_id": "static_yara",
               "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
+              "planned_work": 3,
+              "completed": 3,
               "partial": 0,
               "skipped": 0,
               "failed": 0,
@@ -16040,6 +16060,16 @@
               "column": 37,
               "evidence": "in-scope work, starting with their `SKILL.md`. Use this canonical bundle,",
               "target_path": "SKILL.md",
+              "status": "resolved",
+              "disposition": "analyzed",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 17,
+              "column": 2,
+              "evidence": "`references/artifact-handoff.md` for source versions, evidence and change impact.",
+              "target_path": "references/artifact-handoff.md",
               "status": "resolved",
               "disposition": "analyzed",
               "reference_kind": "quoted_or_code"
@@ -23018,20 +23048,20 @@
       {
         "manifest": "common/skills/ui-visual-verification/SKILL.md",
         "risk": {
-          "score": 14,
-          "severity": "LOW",
-          "recommendation": "CAUTION",
-          "max_issue_severity": "MEDIUM"
+          "score": 51,
+          "severity": "HIGH",
+          "recommendation": "DO_NOT_INSTALL",
+          "max_issue_severity": "HIGH"
         },
         "completeness": {
           "total_components": 2,
-          "scanned_components": 2,
-          "coverage_percent": 100.0,
+          "scanned_components": 1,
+          "coverage_percent": 50.0,
           "is_complete": false,
           "status": "partial",
           "execution_successful": true,
-          "fully_inspected_files": 2,
-          "partially_inspected_files": 0,
+          "fully_inspected_files": 1,
+          "partially_inspected_files": 1,
           "entirely_uninspected_files": 0,
           "ledger_exceptions": [
             {
@@ -23040,8 +23070,8 @@
               "reason_code": "reference_missing",
               "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
               "path": "SKILL.md",
-              "start_line": 22,
-              "end_line": 22,
+              "start_line": 23,
+              "end_line": 23,
               "fatal": false
             },
             {
@@ -23050,9 +23080,22 @@
               "reason_code": "reference_missing",
               "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
               "path": "SKILL.md",
-              "start_line": 36,
-              "end_line": 36,
+              "start_line": 37,
+              "end_line": 37,
               "fatal": false
+            },
+            {
+              "outcome": "partial",
+              "phase": "static",
+              "reason_code": "static_parse_limit",
+              "message": "A security-relevant expression exceeded a bounded static parser's span limit.",
+              "path": "references/current-guidance.md",
+              "start_line": null,
+              "end_line": null,
+              "fatal": false,
+              "analyzers": [
+                "static_patterns_tool_misuse"
+              ]
             }
           ],
           "scope_exclusions": [],
@@ -23146,6 +23189,16 @@
               "unaccounted": 0,
               "reason_code": "disabled_by_configuration",
               "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "reference_coverage",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
             },
             {
               "analyzer_id": "semantic_developer_intent",
@@ -23325,10 +23378,10 @@
             },
             {
               "analyzer_id": "static_patterns_tool_misuse",
-              "status": "completed",
+              "status": "degraded",
               "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
+              "completed": 1,
+              "partial": 1,
               "skipped": 0,
               "failed": 0,
               "unaccounted": 0
@@ -23357,7 +23410,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 22,
+              "line": 23,
               "column": 4,
               "evidence": "- `common/skills/minimal-visual-design/SKILL.md` (and the active target platform section of `common/skills/minimal-visual-design/references/platform-craft-matri",
               "target_path": null,
@@ -23367,7 +23420,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 22,
+              "line": 23,
               "column": 94,
               "evidence": "lls/minimal-visual-design/SKILL.md` (and the active target platform section of `common/skills/minimal-visual-design/references/platform-craft-matrix.md`) when b",
               "target_path": null,
@@ -23377,7 +23430,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 27,
+              "line": 28,
               "column": 166,
               "evidence": " verifying a single diff), execute the **Existing Surface Detail Audit** loop (`references/current-guidance.md` `## Existing Surface Detail Audit`): (1) invento",
               "target_path": "references/current-guidance.md",
@@ -23387,7 +23440,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 36,
+              "line": 37,
               "column": 197,
               "evidence": "hot/geometry checks, manual smoke only when automation cannot observe it. Load `common/skills/accessibility-i18n/SKILL.md` for text, forms, numbers, units, loca",
               "target_path": null,
@@ -23396,9 +23449,11 @@
               "reference_kind": "quoted_or_code"
             }
           ],
-          "limitations": [],
-          "findings_before_filtering": 3,
-          "findings_after_filtering": 3
+          "limitations": [
+            "Analyzer static_patterns_tool_misuse status: degraded."
+          ],
+          "findings_before_filtering": 5,
+          "findings_after_filtering": 5
         },
         "exit_code": 1
       },
@@ -37137,679 +37192,7 @@
       {
         "manifest": "platforms/ios/skills/ios-architecture/SKILL.md",
         "risk": {
-          "score": 0,
-          "severity": "LOW",
-          "recommendation": "SAFE",
-          "max_issue_severity": "NONE"
-        },
-        "completeness": {
-          "total_components": 2,
-          "scanned_components": 2,
-          "coverage_percent": 100.0,
-          "is_complete": true,
-          "status": "complete",
-          "execution_successful": true,
-          "fully_inspected_files": 2,
-          "partially_inspected_files": 0,
-          "entirely_uninspected_files": 0,
-          "ledger_exceptions": [],
-          "scope_exclusions": [],
-          "analyzer_statuses": [
-            {
-              "analyzer_id": "artifact_integrity",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "behavioral_ast",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "behavioral_taint_tracking",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "bundled_execution_surface",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "mcp_least_privilege",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "mcp_rug_pull",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "mcp_tool_poisoning",
-              "status": "completed",
-              "planned_work": 1,
-              "completed": 1,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "meta_analyzer",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "semantic_developer_intent",
-              "status": "disabled",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "disabled_by_configuration",
-              "message": "Analyzer was disabled by the requested configuration."
-            },
-            {
-              "analyzer_id": "semantic_quality_policy",
-              "status": "disabled",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "disabled_by_configuration",
-              "message": "Analyzer was disabled by the requested configuration."
-            },
-            {
-              "analyzer_id": "semantic_security_discovery",
-              "status": "disabled",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "disabled_by_configuration",
-              "message": "Analyzer was disabled by the requested configuration."
-            },
-            {
-              "analyzer_id": "static_patterns_agent_snooping",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_anti_refusal",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_data_exfiltration",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_deserialization",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_excessive_agency",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_harmful_content",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_memory_poisoning",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_output_handling",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_privilege_escalation",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_prompt_injection",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_rogue_agent",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_ssrf",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_supply_chain",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_system_prompt_leakage",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_tool_misuse",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_yara",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            }
-          ],
-          "references": [
-            {
-              "source_path": "SKILL.md",
-              "line": 11,
-              "column": 7,
-              "evidence": "Read `references/current-guidance.md` for applicable decision rules, stop",
-              "target_path": "references/current-guidance.md",
-              "status": "resolved",
-              "disposition": "analyzed",
-              "reference_kind": "quoted_or_code"
-            },
-            {
-              "source_path": "SKILL.md",
-              "line": 13,
-              "column": 37,
-              "evidence": "in-scope work, starting with their `SKILL.md`. Use this canonical bundle,",
-              "target_path": "SKILL.md",
-              "status": "resolved",
-              "disposition": "analyzed",
-              "reference_kind": "quoted_or_code"
-            }
-          ],
-          "limitations": [],
-          "findings_before_filtering": 0,
-          "findings_after_filtering": 0
-        },
-        "exit_code": 0
-      },
-      {
-        "manifest": "platforms/ios/skills/ios-module-structure/SKILL.md",
-        "risk": {
-          "score": 17,
-          "severity": "LOW",
-          "recommendation": "SAFE",
-          "max_issue_severity": "HIGH"
-        },
-        "completeness": {
-          "total_components": 2,
-          "scanned_components": 2,
-          "coverage_percent": 100.0,
-          "is_complete": true,
-          "status": "complete",
-          "execution_successful": true,
-          "fully_inspected_files": 2,
-          "partially_inspected_files": 0,
-          "entirely_uninspected_files": 0,
-          "ledger_exceptions": [],
-          "scope_exclusions": [],
-          "analyzer_statuses": [
-            {
-              "analyzer_id": "artifact_integrity",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "behavioral_ast",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "behavioral_taint_tracking",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "bundled_execution_surface",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "mcp_least_privilege",
-              "status": "not_applicable",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "no_applicable_files",
-              "message": "No files matched this analyzer's applicability contract."
-            },
-            {
-              "analyzer_id": "mcp_rug_pull",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "mcp_tool_poisoning",
-              "status": "completed",
-              "planned_work": 1,
-              "completed": 1,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "meta_analyzer",
-              "status": "disabled",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "disabled_by_configuration",
-              "message": "Analyzer was disabled by the requested configuration."
-            },
-            {
-              "analyzer_id": "semantic_developer_intent",
-              "status": "disabled",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "disabled_by_configuration",
-              "message": "Analyzer was disabled by the requested configuration."
-            },
-            {
-              "analyzer_id": "semantic_quality_policy",
-              "status": "disabled",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "disabled_by_configuration",
-              "message": "Analyzer was disabled by the requested configuration."
-            },
-            {
-              "analyzer_id": "semantic_security_discovery",
-              "status": "disabled",
-              "planned_work": 0,
-              "completed": 0,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0,
-              "reason_code": "disabled_by_configuration",
-              "message": "Analyzer was disabled by the requested configuration."
-            },
-            {
-              "analyzer_id": "static_patterns_agent_snooping",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_anti_refusal",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_data_exfiltration",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_deserialization",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_excessive_agency",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_harmful_content",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_memory_poisoning",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_output_handling",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_privilege_escalation",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_prompt_injection",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_rogue_agent",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_ssrf",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_supply_chain",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_system_prompt_leakage",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_patterns_tool_misuse",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            },
-            {
-              "analyzer_id": "static_yara",
-              "status": "completed",
-              "planned_work": 2,
-              "completed": 2,
-              "partial": 0,
-              "skipped": 0,
-              "failed": 0,
-              "unaccounted": 0
-            }
-          ],
-          "references": [
-            {
-              "source_path": "SKILL.md",
-              "line": 11,
-              "column": 7,
-              "evidence": "Read `references/current-guidance.md` for applicable decision rules, stop",
-              "target_path": "references/current-guidance.md",
-              "status": "resolved",
-              "disposition": "analyzed",
-              "reference_kind": "quoted_or_code"
-            },
-            {
-              "source_path": "SKILL.md",
-              "line": 13,
-              "column": 37,
-              "evidence": "in-scope work, starting with their `SKILL.md`. Use this canonical bundle,",
-              "target_path": "SKILL.md",
-              "status": "resolved",
-              "disposition": "analyzed",
-              "reference_kind": "quoted_or_code"
-            }
-          ],
-          "limitations": [],
-          "findings_before_filtering": 1,
-          "findings_after_filtering": 1
-        },
-        "exit_code": 1
-      },
-      {
-        "manifest": "platforms/ios/skills/ios-review/SKILL.md",
-        "risk": {
-          "score": 15,
+          "score": 14,
           "severity": "LOW",
           "recommendation": "SAFE",
           "max_issue_severity": "MEDIUM"
@@ -38137,8 +37520,680 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 2,
-          "findings_after_filtering": 2
+          "findings_before_filtering": 10,
+          "findings_after_filtering": 10
+        },
+        "exit_code": 1
+      },
+      {
+        "manifest": "platforms/ios/skills/ios-module-structure/SKILL.md",
+        "risk": {
+          "score": 31,
+          "severity": "MEDIUM",
+          "recommendation": "CAUTION",
+          "max_issue_severity": "HIGH"
+        },
+        "completeness": {
+          "total_components": 2,
+          "scanned_components": 2,
+          "coverage_percent": 100.0,
+          "is_complete": true,
+          "status": "complete",
+          "execution_successful": true,
+          "fully_inspected_files": 2,
+          "partially_inspected_files": 0,
+          "entirely_uninspected_files": 0,
+          "ledger_exceptions": [],
+          "scope_exclusions": [],
+          "analyzer_statuses": [
+            {
+              "analyzer_id": "artifact_integrity",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "behavioral_ast",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "behavioral_taint_tracking",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "bundled_execution_surface",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_least_privilege",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_rug_pull",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "mcp_tool_poisoning",
+              "status": "completed",
+              "planned_work": 1,
+              "completed": 1,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "meta_analyzer",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_developer_intent",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_quality_policy",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_security_discovery",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "static_patterns_agent_snooping",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_anti_refusal",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_data_exfiltration",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_deserialization",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_excessive_agency",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_harmful_content",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_memory_poisoning",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_output_handling",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_privilege_escalation",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_prompt_injection",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_rogue_agent",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_ssrf",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_supply_chain",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_system_prompt_leakage",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_tool_misuse",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_yara",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            }
+          ],
+          "references": [
+            {
+              "source_path": "SKILL.md",
+              "line": 11,
+              "column": 7,
+              "evidence": "Read `references/current-guidance.md` for applicable decision rules, stop",
+              "target_path": "references/current-guidance.md",
+              "status": "resolved",
+              "disposition": "analyzed",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 13,
+              "column": 37,
+              "evidence": "in-scope work, starting with their `SKILL.md`. Use this canonical bundle,",
+              "target_path": "SKILL.md",
+              "status": "resolved",
+              "disposition": "analyzed",
+              "reference_kind": "quoted_or_code"
+            }
+          ],
+          "limitations": [],
+          "findings_before_filtering": 5,
+          "findings_after_filtering": 5
+        },
+        "exit_code": 1
+      },
+      {
+        "manifest": "platforms/ios/skills/ios-review/SKILL.md",
+        "risk": {
+          "score": 21,
+          "severity": "MEDIUM",
+          "recommendation": "CAUTION",
+          "max_issue_severity": "MEDIUM"
+        },
+        "completeness": {
+          "total_components": 2,
+          "scanned_components": 2,
+          "coverage_percent": 100.0,
+          "is_complete": true,
+          "status": "complete",
+          "execution_successful": true,
+          "fully_inspected_files": 2,
+          "partially_inspected_files": 0,
+          "entirely_uninspected_files": 0,
+          "ledger_exceptions": [],
+          "scope_exclusions": [],
+          "analyzer_statuses": [
+            {
+              "analyzer_id": "artifact_integrity",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "behavioral_ast",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "behavioral_taint_tracking",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "bundled_execution_surface",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_least_privilege",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_rug_pull",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "mcp_tool_poisoning",
+              "status": "completed",
+              "planned_work": 1,
+              "completed": 1,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "meta_analyzer",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_developer_intent",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_quality_policy",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_security_discovery",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "static_patterns_agent_snooping",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_anti_refusal",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_data_exfiltration",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_deserialization",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_excessive_agency",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_harmful_content",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_memory_poisoning",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_output_handling",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_privilege_escalation",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_prompt_injection",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_rogue_agent",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_ssrf",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_supply_chain",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_system_prompt_leakage",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_tool_misuse",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_yara",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            }
+          ],
+          "references": [
+            {
+              "source_path": "SKILL.md",
+              "line": 11,
+              "column": 7,
+              "evidence": "Read `references/current-guidance.md` for applicable decision rules, stop",
+              "target_path": "references/current-guidance.md",
+              "status": "resolved",
+              "disposition": "analyzed",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 13,
+              "column": 37,
+              "evidence": "in-scope work, starting with their `SKILL.md`. Use this canonical bundle,",
+              "target_path": "SKILL.md",
+              "status": "resolved",
+              "disposition": "analyzed",
+              "reference_kind": "quoted_or_code"
+            }
+          ],
+          "limitations": [],
+          "findings_before_filtering": 8,
+          "findings_after_filtering": 8
         },
         "exit_code": 1
       },
@@ -38481,7 +38536,7 @@
       {
         "manifest": "platforms/ios/skills/ios-state-concurrency/SKILL.md",
         "risk": {
-          "score": 25,
+          "score": 31,
           "severity": "MEDIUM",
           "recommendation": "CAUTION",
           "max_issue_severity": "HIGH"
@@ -38809,8 +38864,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 2,
-          "findings_after_filtering": 2
+          "findings_before_filtering": 4,
+          "findings_after_filtering": 4
         },
         "exit_code": 1
       },
@@ -39145,15 +39200,15 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 5,
-          "findings_after_filtering": 5
+          "findings_before_filtering": 10,
+          "findings_after_filtering": 10
         },
         "exit_code": 1
       },
       {
         "manifest": "platforms/ios/skills/ios-uikit-ui/SKILL.md",
         "risk": {
-          "score": 12,
+          "score": 14,
           "severity": "LOW",
           "recommendation": "SAFE",
           "max_issue_severity": "MEDIUM"
@@ -39481,8 +39536,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 2,
-          "findings_after_filtering": 2
+          "findings_before_filtering": 7,
+          "findings_after_filtering": 7
         },
         "exit_code": 1
       },
@@ -40293,7 +40348,7 @@
       {
         "manifest": "platforms/kmp/skills/kmp-module-structure/SKILL.md",
         "risk": {
-          "score": 15,
+          "score": 19,
           "severity": "LOW",
           "recommendation": "SAFE",
           "max_issue_severity": "MEDIUM"
@@ -40621,8 +40676,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 2,
-          "findings_after_filtering": 2
+          "findings_before_filtering": 3,
+          "findings_after_filtering": 3
         },
         "exit_code": 1
       },
@@ -42890,7 +42945,7 @@
       {
         "manifest": "platforms/server/skills/server-api-implementation/SKILL.md",
         "risk": {
-          "score": 8,
+          "score": 14,
           "severity": "LOW",
           "recommendation": "SAFE",
           "max_issue_severity": "MEDIUM"
@@ -43218,8 +43273,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 1,
-          "findings_after_filtering": 1
+          "findings_before_filtering": 3,
+          "findings_after_filtering": 3
         },
         "exit_code": 1
       },
@@ -44570,7 +44625,7 @@
       {
         "manifest": "platforms/swift/skills/swift-architecture/SKILL.md",
         "risk": {
-          "score": 8,
+          "score": 14,
           "severity": "LOW",
           "recommendation": "SAFE",
           "max_issue_severity": "MEDIUM"
@@ -44898,8 +44953,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 1,
-          "findings_after_filtering": 1
+          "findings_before_filtering": 5,
+          "findings_after_filtering": 5
         },
         "exit_code": 1
       },
@@ -45234,8 +45289,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 3,
-          "findings_after_filtering": 3
+          "findings_before_filtering": 5,
+          "findings_after_filtering": 5
         },
         "exit_code": 1
       },
@@ -45596,8 +45651,8 @@
           "limitations": [
             "Analyzer static_patterns_tool_misuse status: degraded."
           ],
-          "findings_before_filtering": 5,
-          "findings_after_filtering": 5
+          "findings_before_filtering": 8,
+          "findings_after_filtering": 8
         },
         "exit_code": 1
       },
@@ -47713,8 +47768,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 4,
-          "findings_after_filtering": 4
+          "findings_before_filtering": 6,
+          "findings_after_filtering": 6
         },
         "exit_code": 1
       },
@@ -48049,8 +48104,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 3,
-          "findings_after_filtering": 3
+          "findings_before_filtering": 4,
+          "findings_after_filtering": 4
         },
         "exit_code": 1
       },
@@ -48446,8 +48501,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 5,
-          "findings_after_filtering": 5
+          "findings_before_filtering": 8,
+          "findings_after_filtering": 8
         },
         "exit_code": 1
       },
@@ -49798,7 +49853,7 @@
       {
         "manifest": "product-patterns/skills/auth-rbac-implementation/SKILL.md",
         "risk": {
-          "score": 12,
+          "score": 14,
           "severity": "LOW",
           "recommendation": "CAUTION",
           "max_issue_severity": "MEDIUM"
@@ -50147,8 +50202,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 2,
-          "findings_after_filtering": 2
+          "findings_before_filtering": 3,
+          "findings_after_filtering": 3
         },
         "exit_code": 1
       },
@@ -50512,7 +50567,7 @@
       {
         "manifest": "product-patterns/skills/billing-entitlements-implementation/SKILL.md",
         "risk": {
-          "score": 12,
+          "score": 14,
           "severity": "LOW",
           "recommendation": "SAFE",
           "max_issue_severity": "MEDIUM"
@@ -50840,8 +50895,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 2,
-          "findings_after_filtering": 2
+          "findings_before_filtering": 4,
+          "findings_after_filtering": 4
         },
         "exit_code": 1
       },
@@ -51193,13 +51248,24 @@
           "total_components": 2,
           "scanned_components": 2,
           "coverage_percent": 100.0,
-          "is_complete": true,
-          "status": "complete",
+          "is_complete": false,
+          "status": "partial",
           "execution_successful": true,
           "fully_inspected_files": 2,
           "partially_inspected_files": 0,
           "entirely_uninspected_files": 0,
-          "ledger_exceptions": [],
+          "ledger_exceptions": [
+            {
+              "outcome": "partial",
+              "phase": "reference_resolution",
+              "reason_code": "reference_missing",
+              "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
+              "path": "SKILL.md",
+              "start_line": 10,
+              "end_line": 10,
+              "fatal": false
+            }
+          ],
           "scope_exclusions": [],
           "analyzer_statuses": [
             {
@@ -51492,7 +51558,17 @@
           "references": [
             {
               "source_path": "SKILL.md",
-              "line": 15,
+              "line": 10,
+              "column": 6,
+              "evidence": "use `product-patterns/skills/marketing-planning/SKILL.md`. This skill remains",
+              "target_path": null,
+              "status": "missing",
+              "disposition": "partial",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 19,
               "column": 7,
               "evidence": "Read `references/current-guidance.md` for applicable decision rules, stop",
               "target_path": "references/current-guidance.md",
@@ -51502,7 +51578,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 17,
+              "line": 21,
               "column": 37,
               "evidence": "in-scope work, starting with their `SKILL.md`. Use this canonical bundle,",
               "target_path": "SKILL.md",
@@ -51512,8 +51588,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 6,
-          "findings_after_filtering": 6
+          "findings_before_filtering": 7,
+          "findings_after_filtering": 7
         },
         "exit_code": 1
       },
@@ -52188,6 +52264,1067 @@
           "findings_after_filtering": 0
         },
         "exit_code": 0
+      },
+      {
+        "manifest": "product-patterns/skills/marketing-planning/SKILL.md",
+        "risk": {
+          "score": 12,
+          "severity": "LOW",
+          "recommendation": "CAUTION",
+          "max_issue_severity": "MEDIUM"
+        },
+        "completeness": {
+          "total_components": 2,
+          "scanned_components": 2,
+          "coverage_percent": 100.0,
+          "is_complete": false,
+          "status": "partial",
+          "execution_successful": true,
+          "fully_inspected_files": 2,
+          "partially_inspected_files": 0,
+          "entirely_uninspected_files": 0,
+          "ledger_exceptions": [
+            {
+              "outcome": "partial",
+              "phase": "reference_resolution",
+              "reason_code": "reference_missing",
+              "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
+              "path": "SKILL.md",
+              "start_line": 12,
+              "end_line": 12,
+              "fatal": false
+            },
+            {
+              "outcome": "partial",
+              "phase": "reference_resolution",
+              "reason_code": "reference_missing",
+              "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
+              "path": "SKILL.md",
+              "start_line": 15,
+              "end_line": 15,
+              "fatal": false
+            }
+          ],
+          "scope_exclusions": [],
+          "analyzer_statuses": [
+            {
+              "analyzer_id": "artifact_integrity",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "behavioral_ast",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "behavioral_taint_tracking",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "bundled_execution_surface",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_least_privilege",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_rug_pull",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "mcp_tool_poisoning",
+              "status": "completed",
+              "planned_work": 1,
+              "completed": 1,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "meta_analyzer",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_developer_intent",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_quality_policy",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_security_discovery",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "static_patterns_agent_snooping",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_anti_refusal",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_data_exfiltration",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_deserialization",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_excessive_agency",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_harmful_content",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_memory_poisoning",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_output_handling",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_privilege_escalation",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_prompt_injection",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_rogue_agent",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_ssrf",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_supply_chain",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_system_prompt_leakage",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_tool_misuse",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_yara",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            }
+          ],
+          "references": [
+            {
+              "source_path": "SKILL.md",
+              "line": 12,
+              "column": 2,
+              "evidence": "`product-patterns/skills/growth-conversion-optimization/SKILL.md`.",
+              "target_path": null,
+              "status": "missing",
+              "disposition": "partial",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 14,
+              "column": 7,
+              "evidence": "Read `references/current-guidance.md`. For a brief consumed by later work, also",
+              "target_path": "references/current-guidance.md",
+              "status": "resolved",
+              "disposition": "analyzed",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 15,
+              "column": 7,
+              "evidence": "read `common/skills/product-spec-to-implementation/references/artifact-handoff.md`.",
+              "target_path": null,
+              "status": "missing",
+              "disposition": "partial",
+              "reference_kind": "quoted_or_code"
+            }
+          ],
+          "limitations": [],
+          "findings_before_filtering": 2,
+          "findings_after_filtering": 2
+        },
+        "exit_code": 1
+      },
+      {
+        "manifest": "product-patterns/skills/product-planning/SKILL.md",
+        "risk": {
+          "score": 8,
+          "severity": "LOW",
+          "recommendation": "CAUTION",
+          "max_issue_severity": "MEDIUM"
+        },
+        "completeness": {
+          "total_components": 2,
+          "scanned_components": 2,
+          "coverage_percent": 100.0,
+          "is_complete": false,
+          "status": "partial",
+          "execution_successful": true,
+          "fully_inspected_files": 2,
+          "partially_inspected_files": 0,
+          "entirely_uninspected_files": 0,
+          "ledger_exceptions": [
+            {
+              "outcome": "partial",
+              "phase": "reference_resolution",
+              "reason_code": "reference_missing",
+              "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
+              "path": "SKILL.md",
+              "start_line": 16,
+              "end_line": 16,
+              "fatal": false
+            }
+          ],
+          "scope_exclusions": [],
+          "analyzer_statuses": [
+            {
+              "analyzer_id": "artifact_integrity",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "behavioral_ast",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "behavioral_taint_tracking",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "bundled_execution_surface",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_least_privilege",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_rug_pull",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "mcp_tool_poisoning",
+              "status": "completed",
+              "planned_work": 1,
+              "completed": 1,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "meta_analyzer",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_developer_intent",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_quality_policy",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_security_discovery",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "static_patterns_agent_snooping",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_anti_refusal",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_data_exfiltration",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_deserialization",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_excessive_agency",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_harmful_content",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_memory_poisoning",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_output_handling",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_privilege_escalation",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_prompt_injection",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_rogue_agent",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_ssrf",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_supply_chain",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_system_prompt_leakage",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_tool_misuse",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_yara",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            }
+          ],
+          "references": [
+            {
+              "source_path": "SKILL.md",
+              "line": 14,
+              "column": 7,
+              "evidence": "Read `references/current-guidance.md` before drafting. For an artifact used by",
+              "target_path": "references/current-guidance.md",
+              "status": "resolved",
+              "disposition": "analyzed",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 16,
+              "column": 2,
+              "evidence": "`common/skills/product-spec-to-implementation/references/artifact-handoff.md`.",
+              "target_path": null,
+              "status": "missing",
+              "disposition": "partial",
+              "reference_kind": "quoted_or_code"
+            }
+          ],
+          "limitations": [],
+          "findings_before_filtering": 1,
+          "findings_after_filtering": 1
+        },
+        "exit_code": 1
+      },
+      {
+        "manifest": "product-patterns/skills/sales-proposal/SKILL.md",
+        "risk": {
+          "score": 0,
+          "severity": "LOW",
+          "recommendation": "CAUTION",
+          "max_issue_severity": "NONE"
+        },
+        "completeness": {
+          "total_components": 2,
+          "scanned_components": 2,
+          "coverage_percent": 100.0,
+          "is_complete": false,
+          "status": "partial",
+          "execution_successful": true,
+          "fully_inspected_files": 2,
+          "partially_inspected_files": 0,
+          "entirely_uninspected_files": 0,
+          "ledger_exceptions": [
+            {
+              "outcome": "partial",
+              "phase": "reference_resolution",
+              "reason_code": "reference_missing",
+              "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
+              "path": "SKILL.md",
+              "start_line": 14,
+              "end_line": 14,
+              "fatal": false
+            }
+          ],
+          "scope_exclusions": [],
+          "analyzer_statuses": [
+            {
+              "analyzer_id": "artifact_integrity",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "behavioral_ast",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "behavioral_taint_tracking",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "bundled_execution_surface",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_least_privilege",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "mcp_rug_pull",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "mcp_tool_poisoning",
+              "status": "completed",
+              "planned_work": 1,
+              "completed": 1,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "meta_analyzer",
+              "status": "not_applicable",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "no_applicable_files",
+              "message": "No files matched this analyzer's applicability contract."
+            },
+            {
+              "analyzer_id": "semantic_developer_intent",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_quality_policy",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "semantic_security_discovery",
+              "status": "disabled",
+              "planned_work": 0,
+              "completed": 0,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0,
+              "reason_code": "disabled_by_configuration",
+              "message": "Analyzer was disabled by the requested configuration."
+            },
+            {
+              "analyzer_id": "static_patterns_agent_snooping",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_anti_refusal",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_data_exfiltration",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_deserialization",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_excessive_agency",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_harmful_content",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_memory_poisoning",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_output_handling",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_privilege_escalation",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_prompt_injection",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_rogue_agent",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_ssrf",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_supply_chain",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_system_prompt_leakage",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_patterns_tool_misuse",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            },
+            {
+              "analyzer_id": "static_yara",
+              "status": "completed",
+              "planned_work": 2,
+              "completed": 2,
+              "partial": 0,
+              "skipped": 0,
+              "failed": 0,
+              "unaccounted": 0
+            }
+          ],
+          "references": [
+            {
+              "source_path": "SKILL.md",
+              "line": 13,
+              "column": 7,
+              "evidence": "Read `references/current-guidance.md`. For a proposal used by later work, also",
+              "target_path": "references/current-guidance.md",
+              "status": "resolved",
+              "disposition": "analyzed",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 14,
+              "column": 7,
+              "evidence": "read `common/skills/product-spec-to-implementation/references/artifact-handoff.md`.",
+              "target_path": null,
+              "status": "missing",
+              "disposition": "partial",
+              "reference_kind": "quoted_or_code"
+            }
+          ],
+          "limitations": [],
+          "findings_before_filtering": 0,
+          "findings_after_filtering": 0
+        },
+        "exit_code": 1
       },
       {
         "manifest": "workflows/skills/agent-handoff-continuation/SKILL.md",
@@ -55982,20 +57119,31 @@
         "risk": {
           "score": 14,
           "severity": "LOW",
-          "recommendation": "SAFE",
+          "recommendation": "CAUTION",
           "max_issue_severity": "MEDIUM"
         },
         "completeness": {
           "total_components": 2,
           "scanned_components": 2,
           "coverage_percent": 100.0,
-          "is_complete": true,
-          "status": "complete",
+          "is_complete": false,
+          "status": "partial",
           "execution_successful": true,
           "fully_inspected_files": 2,
           "partially_inspected_files": 0,
           "entirely_uninspected_files": 0,
-          "ledger_exceptions": [],
+          "ledger_exceptions": [
+            {
+              "outcome": "partial",
+              "phase": "reference_resolution",
+              "reason_code": "reference_missing",
+              "message": "A local path-like reference does not match any bundled artifact, such as a file the skill writes at runtime.",
+              "path": "SKILL.md",
+              "start_line": 10,
+              "end_line": 10,
+              "fatal": false
+            }
+          ],
           "scope_exclusions": [],
           "analyzer_statuses": [
             {
@@ -56288,7 +57436,17 @@
           "references": [
             {
               "source_path": "SKILL.md",
-              "line": 11,
+              "line": 10,
+              "column": 2,
+              "evidence": "`product-patterns/skills/product-planning/SKILL.md`. Reuse its brief; this workflow",
+              "target_path": null,
+              "status": "missing",
+              "disposition": "partial",
+              "reference_kind": "quoted_or_code"
+            },
+            {
+              "source_path": "SKILL.md",
+              "line": 15,
               "column": 7,
               "evidence": "Read `references/current-guidance.md` for applicable decision rules, stop",
               "target_path": "references/current-guidance.md",
@@ -56298,7 +57456,7 @@
             },
             {
               "source_path": "SKILL.md",
-              "line": 13,
+              "line": 17,
               "column": 37,
               "evidence": "in-scope work, starting with their `SKILL.md`. Use this canonical bundle,",
               "target_path": "SKILL.md",
@@ -56308,8 +57466,8 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 3,
-          "findings_after_filtering": 3
+          "findings_before_filtering": 4,
+          "findings_after_filtering": 4
         },
         "exit_code": 1
       },
@@ -58820,9 +59978,9 @@
       {
         "manifest": "workflows/skills/session-continuation-protocol/SKILL.md",
         "risk": {
-          "score": 65,
-          "severity": "HIGH",
-          "recommendation": "DO_NOT_INSTALL",
+          "score": 44,
+          "severity": "MEDIUM",
+          "recommendation": "CAUTION",
           "max_issue_severity": "HIGH"
         },
         "completeness": {
@@ -59299,984 +60457,64 @@
             }
           ],
           "limitations": [],
-          "findings_before_filtering": 8,
-          "findings_after_filtering": 8
+          "findings_before_filtering": 7,
+          "findings_after_filtering": 7
         },
         "exit_code": 1
       }
     ]
   },
-  "targeted_scripts": {
-    "provider-http": {
-      "risk": {
-        "score": 0,
-        "severity": "LOW",
-        "recommendation": "SAFE",
-        "max_issue_severity": "NONE"
-      },
-      "completeness": {
-        "total_components": 1,
-        "scanned_components": 1,
-        "coverage_percent": 100.0,
-        "is_complete": true,
-        "status": "complete",
-        "execution_successful": true,
-        "fully_inspected_files": 1,
-        "partially_inspected_files": 0,
-        "entirely_uninspected_files": 0,
-        "ledger_exceptions": [],
-        "scope_exclusions": [],
-        "analyzer_statuses": [
-          {
-            "analyzer_id": "artifact_integrity",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "behavioral_ast",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "behavioral_taint_tracking",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "bundled_execution_surface",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "no_applicable_files",
-            "message": "No files matched this analyzer's applicability contract."
-          },
-          {
-            "analyzer_id": "mcp_least_privilege",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "manifest_absent",
-            "message": "No compatible manifest was present for this analyzer."
-          },
-          {
-            "analyzer_id": "mcp_rug_pull",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "mcp_tool_poisoning",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "manifest_absent",
-            "message": "No compatible manifest was present for this analyzer."
-          },
-          {
-            "analyzer_id": "meta_analyzer",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "no_applicable_files",
-            "message": "No files matched this analyzer's applicability contract."
-          },
-          {
-            "analyzer_id": "semantic_developer_intent",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "semantic_quality_policy",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "semantic_security_discovery",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "static_patterns_agent_snooping",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_anti_refusal",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_data_exfiltration",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_deserialization",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_excessive_agency",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_harmful_content",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_memory_poisoning",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_output_handling",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_privilege_escalation",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_prompt_injection",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_rogue_agent",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_ssrf",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_supply_chain",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_system_prompt_leakage",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_tool_misuse",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_yara",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          }
-        ],
-        "references": [],
-        "limitations": [],
-        "findings_before_filtering": 0,
-        "findings_after_filtering": 0
-      },
-      "issues": []
-    },
-    "marketing": {
-      "risk": {
-        "score": 0,
-        "severity": "LOW",
-        "recommendation": "SAFE",
-        "max_issue_severity": "NONE"
-      },
-      "completeness": {
-        "total_components": 1,
-        "scanned_components": 1,
-        "coverage_percent": 100.0,
-        "is_complete": true,
-        "status": "complete",
-        "execution_successful": true,
-        "fully_inspected_files": 1,
-        "partially_inspected_files": 0,
-        "entirely_uninspected_files": 0,
-        "ledger_exceptions": [],
-        "scope_exclusions": [],
-        "analyzer_statuses": [
-          {
-            "analyzer_id": "artifact_integrity",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "behavioral_ast",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "behavioral_taint_tracking",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "bundled_execution_surface",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "no_applicable_files",
-            "message": "No files matched this analyzer's applicability contract."
-          },
-          {
-            "analyzer_id": "mcp_least_privilege",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "manifest_absent",
-            "message": "No compatible manifest was present for this analyzer."
-          },
-          {
-            "analyzer_id": "mcp_rug_pull",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "mcp_tool_poisoning",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "manifest_absent",
-            "message": "No compatible manifest was present for this analyzer."
-          },
-          {
-            "analyzer_id": "meta_analyzer",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "no_applicable_files",
-            "message": "No files matched this analyzer's applicability contract."
-          },
-          {
-            "analyzer_id": "semantic_developer_intent",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "semantic_quality_policy",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "semantic_security_discovery",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "static_patterns_agent_snooping",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_anti_refusal",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_data_exfiltration",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_deserialization",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_excessive_agency",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_harmful_content",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_memory_poisoning",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_output_handling",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_privilege_escalation",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_prompt_injection",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_rogue_agent",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_ssrf",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_supply_chain",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_system_prompt_leakage",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_tool_misuse",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_yara",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          }
-        ],
-        "references": [],
-        "limitations": [],
-        "findings_before_filtering": 0,
-        "findings_after_filtering": 0
-      },
-      "issues": []
-    },
-    "research": {
-      "risk": {
-        "score": 0,
-        "severity": "LOW",
-        "recommendation": "SAFE",
-        "max_issue_severity": "NONE"
-      },
-      "completeness": {
-        "total_components": 1,
-        "scanned_components": 1,
-        "coverage_percent": 100.0,
-        "is_complete": true,
-        "status": "complete",
-        "execution_successful": true,
-        "fully_inspected_files": 1,
-        "partially_inspected_files": 0,
-        "entirely_uninspected_files": 0,
-        "ledger_exceptions": [],
-        "scope_exclusions": [],
-        "analyzer_statuses": [
-          {
-            "analyzer_id": "artifact_integrity",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "behavioral_ast",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "behavioral_taint_tracking",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "bundled_execution_surface",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "no_applicable_files",
-            "message": "No files matched this analyzer's applicability contract."
-          },
-          {
-            "analyzer_id": "mcp_least_privilege",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "manifest_absent",
-            "message": "No compatible manifest was present for this analyzer."
-          },
-          {
-            "analyzer_id": "mcp_rug_pull",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "mcp_tool_poisoning",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "manifest_absent",
-            "message": "No compatible manifest was present for this analyzer."
-          },
-          {
-            "analyzer_id": "meta_analyzer",
-            "status": "not_applicable",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "no_applicable_files",
-            "message": "No files matched this analyzer's applicability contract."
-          },
-          {
-            "analyzer_id": "semantic_developer_intent",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "semantic_quality_policy",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "semantic_security_discovery",
-            "status": "disabled",
-            "planned_work": 0,
-            "completed": 0,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0,
-            "reason_code": "disabled_by_configuration",
-            "message": "Analyzer was disabled by the requested configuration."
-          },
-          {
-            "analyzer_id": "static_patterns_agent_snooping",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_anti_refusal",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_data_exfiltration",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_deserialization",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_excessive_agency",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_harmful_content",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_memory_poisoning",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_output_handling",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_privilege_escalation",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_prompt_injection",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_rogue_agent",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_ssrf",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_supply_chain",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_system_prompt_leakage",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_patterns_tool_misuse",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          },
-          {
-            "analyzer_id": "static_yara",
-            "status": "completed",
-            "planned_work": 1,
-            "completed": 1,
-            "partial": 0,
-            "skipped": 0,
-            "failed": 0,
-            "unaccounted": 0
-          }
-        ],
-        "references": [],
-        "limitations": [],
-        "findings_before_filtering": 0,
-        "findings_after_filtering": 0
-      },
-      "issues": []
-    }
+  "triage": {
+    "expected_internal_reference": 506,
+    "context_reviewed_not_confirmed_vulnerability": 89,
+    "coverage_gap_open": 7,
+    "external_source_citation": 48,
+    "supply_chain_risk_open": 2
   },
-  "web": {
-    "commit": "c677d02c7fbace947e864f4e85763619f1906ee3",
-    "skillspector": "not_applicable_no_tracked_skill_manifests",
-    "npm_audit": {
-      "vulnerabilities": {
-        "info": 0,
-        "low": 0,
-        "moderate": 0,
-        "high": 0,
-        "critical": 0,
-        "total": 0
-      },
-      "dependencies": {
-        "prod": 76,
-        "dev": 43,
-        "optional": 27,
-        "peer": 0,
-        "peerOptional": 0,
-        "total": 118
-      }
-    },
-    "scope": "immutable main lockfile only, not AGY working tree or web application penetration testing"
+  "additional_review_findings": 9,
+  "baseline_comparison": {
+    "previous_skills": 165,
+    "previous_findings": 593,
+    "current_pre_repair_findings": 598,
+    "after_wording_repair_findings": 597,
+    "current_after_repair_findings": 652,
+    "removed_pattern": "AR1 in packet-contract.md",
+    "broken_relative_references_fixed": 51,
+    "obsolete_bare_references_fixed": 34,
+    "triage_suffix_false_dispositions_corrected": 32,
+    "explanation": "Three new bundles and normalized skill paths increase raw reference-pattern detections. Raw match totals are not unresolved-defect counts. Literal path resolution and a before-failing regression test now replace suffix-only evidence.",
+    "after_reference_repair_findings": 650
   },
   "privacy": {
     "llm_calls": 0,
     "suppressions": 0,
-    "no_transitive_remote_skill_fetch": true,
-    "note": "Static SC4 may submit dependency coordinates to OSV. No live OpenRouter or Figma call was made for verification."
+    "note": "No live provider calls; static dependency checks may query OSV with package coordinates."
   },
   "raw_sha256": {
-    "results.json": "de35a837670d8f4eec6e3d881f4dd69eedf363dbcc42a843bc4d4dc8119b8c62",
-    "inventory.json": "0d9e41d6a6461d874e7f863fd0e2125d70c574d508fe4620cddc5e8854da74b0",
-    "operating-after.json": "309b4a71e9d7cfa79f1495d055b9048f5db5841a541d3178ca384cfdd95785b5",
-    "web-npm-audit.json": "a6e2cc18e1c1c9b1fff08e979b28866798da7dbc21ff0a8d7ae95b6d3f512d52"
+    "results.json": "96088fa0a6d4245b6697a0692a60d05c78c68f463e843ab9618d4e6cbbbcb3f7",
+    "inventory.json": "f174ceea763fbbb264611dc308eabce94bf7288e3432352bd51591920a689951",
+    "results-after-main-sync.json": "19e369c226b269f486389b19c5a1583432975aa5f3d1c0613b3e7e669f38a8b9",
+    "inventory-after-main-sync.json": "b5786f68d3ba0c63653d205b171d1298d18f55a78deb53392ad73271821416e5",
+    "results-final-main.json": "0ba439a0f0ae7251327ba0906c74d5474211190d1aa08ae492d39116a0142338",
+    "inventory-final-main.json": "4e9dac91d8a588e9a1fe8a8ea500571449c486d0df16f88eb495a13c6ad6c8d1"
+  },
+  "main_sync": {
+    "commit": "7df738a511777f6449a89da8b140f9be4538feda",
+    "rescanned_bundles": [
+      "common/skills/minimal-visual-design/SKILL.md",
+      "common/skills/ui-visual-verification/SKILL.md",
+      "common/skills/product-spec-to-implementation/SKILL.md",
+      "product-patterns/skills/marketing-planning/SKILL.md",
+      "product-patterns/skills/product-planning/SKILL.md",
+      "product-patterns/skills/sales-proposal/SKILL.md"
+    ],
+    "unchanged_reports_retained": 162,
+    "extra_coverage_gap_records": 2
+  },
+  "verification": {
+    "behavior_and_doc_tests_passed": 121,
+    "reference_checker_tests_passed": 31,
+    "packet_tests_passed": 25,
+    "negative_control": "Old checker failed two new literal-path tests; product-pattern root check also failed before its repair."
   }
 }

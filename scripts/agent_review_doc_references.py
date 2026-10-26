@@ -21,6 +21,14 @@ from pathlib import Path
 # so a broken target wearing a title passed silently.
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(\s*<?([^)>\s]+)>?(?:\s+[\"'(][^)]*)?\)")
 BACKTICK_PATH = re.compile(r"`([A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:md|json|py))`")
+# A backtick path that climbs with `../` is relative to the file holding it, like
+# a Markdown link. BACKTICK_PATH cannot see it -- its first character is `.` --
+# and comparing only its tail with a repository path would pass a stale
+# flat-layout spelling such as `../../common/skills/x/SKILL.md` written from
+# `platforms/<p>/skills/<n>/references/`, which names no file at all.
+RELATIVE_BACKTICK_PATH = re.compile(
+    r"`((?:\.\./)+[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:md|json|py))`"
+)
 FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 FRONTMATTER_ENTRY = re.compile(r"^([A-Za-z0-9_]+)\s*:\s*(.*)$")
 REQUIRED_FRONTMATTER_KEYS = ("keyflow_id", "status", "type")
@@ -41,7 +49,9 @@ VENDORED_TREES = (".moru/skills/",)
 # A backtick path is a reference only when it is rooted in this repository. A
 # bare `SKILL.md` names a sibling by filename, and `README.md` in a list of what
 # a target repository holds is not about this tree at all.
-REPOSITORY_ROOTS = ("common/", "workflows/", "platforms/", "docs/", "scripts/", "tests/")
+REPOSITORY_ROOTS = (
+    "common/", "workflows/", "platforms/", "product-patterns/", "docs/", "scripts/", "tests/"
+)
 EXTERNAL_LINK = ("http://", "https://", "mailto:", "#")
 MAX_REPORTED = 8
 
@@ -98,6 +108,11 @@ def _broken_link_failures(project: Path, changed: list[str]) -> list[str]:
                 broken.append(f"{relative} -> {target}")
         if relative.startswith(VENDORED_TREES):
             continue
+        for target in RELATIVE_BACKTICK_PATH.findall(text):
+            if "/..." in target:
+                continue
+            if not (path.parent / target).resolve().exists():
+                broken.append(f"{relative} -> {target}")
         for target in BACKTICK_PATH.findall(text):
             if "..." in target or not target.startswith(REPOSITORY_ROOTS):
                 continue
@@ -219,6 +234,9 @@ def _references(text: str, source: Path, project: Path, target: str) -> bool:
         if link.startswith(EXTERNAL_LINK):
             continue
         if (source.parent / link.split("#", 1)[0]).resolve() == absolute:
+            return True
+    for link in RELATIVE_BACKTICK_PATH.findall(text):
+        if (source.parent / link).resolve() == absolute:
             return True
     return False
 

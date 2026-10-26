@@ -9,7 +9,7 @@ type: human-reviewed-needed
 Use before PRD, ARD, task breakdown, implementation plan, or code work when the request has unknowns that could change behavior, scope, risk, or verification.
 
 For initial request clarity, effort level, token budget, and Grill-Me protocol
-decisions, also use `../common/skills/task-intake-effort-routing/SKILL.md`.
+decisions, also use `common/skills/task-intake-effort-routing/SKILL.md`.
 
 When this route is executed through `scripts/workflow.py`, read its
 `required_docs` directly before classifying unknowns or asking blockers.

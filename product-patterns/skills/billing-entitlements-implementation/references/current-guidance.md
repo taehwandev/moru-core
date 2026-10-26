@@ -10,9 +10,9 @@ Use when implementing plans, subscriptions, seats, quota, trial, downgrade,
 payment failure, invoices, provider webhooks, billing permissions, or feature
 gates.
 
-Also read `billing-entitlements.md`, `auth-rbac-implementation.md`,
-`../platforms/server/skills/server-api-implementation/SKILL.md`, and
-`../common/skills/server-side-caching/SKILL.md`.
+Also read `product-patterns/skills/billing-entitlements/SKILL.md`, `product-patterns/skills/auth-rbac-implementation/SKILL.md`,
+`platforms/server/skills/server-api-implementation/SKILL.md`, and
+`common/skills/server-side-caching/SKILL.md`.
 
 ## Model Separation
 

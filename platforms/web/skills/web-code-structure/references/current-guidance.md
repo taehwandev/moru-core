@@ -11,15 +11,15 @@ how route files compose data and UI, or how imports should flow across a web
 application.
 
 Also use:
-- `../../common/skills/code-structure-ownership/SKILL.md` for ownership level and `api`/`impl`
+- `common/skills/code-structure-ownership/SKILL.md` for ownership level and `api`/`impl`
   decisions.
-- `../../common/skills/reusable-code-design/SKILL.md` before promoting feature code into a
+- `common/skills/reusable-code-design/SKILL.md` before promoting feature code into a
   shared package or reusable module.
-- `../../common/skills/component-api-design/SKILL.md` before extracting reusable components
+- `common/skills/component-api-design/SKILL.md` before extracting reusable components
   or hooks.
-- `web-react-ui.md` for container/screen, hook, `UiState`, and React
+- `platforms/web/skills/web-react-ui/SKILL.md` for container/screen, hook, `UiState`, and React
   implementation details.
-- `web-state-data.md` for query/cache, API clients, forms, mocks, and browser
+- `platforms/web/skills/web-state-data/SKILL.md` for query/cache, API clients, forms, mocks, and browser
   persistence.
 
 ## Default Boundary
@@ -84,7 +84,7 @@ Keep those files thin. They should compose the feature, not become the feature.
 
 ## File And Component Split
 
-Apply `../../common/skills/code-structure-ownership/SKILL.md` before growing React/web
+Apply `common/skills/code-structure-ownership/SKILL.md` before growing React/web
 runtime files. Default to one primary exported component, hook, loader/action,
 route handler, store, reducer, client, mapper, policy, fixture, or assertion
 owner per file. Co-located private props/types and tiny local subcomponents are

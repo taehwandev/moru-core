@@ -16,13 +16,13 @@ sources, forms, navigation, or UI tests.
 For adaptive/large-screen layouts or iPhone Duo fold transitions, also read
 `common/skills/foldable-adaptive-layout/SKILL.md`.
 
-For shared state and async rules, also read `ios-state-concurrency.md`. For
-SwiftUI-specific screens, read `ios-swiftui-ui.md` instead.
+For shared state and async rules, also read `platforms/ios/skills/ios-state-concurrency/SKILL.md`. For
+SwiftUI-specific screens, read `platforms/ios/skills/ios-swiftui-ui/SKILL.md` instead.
 For targets, local Swift packages, feature contracts, and access-control
-boundaries, also read `ios-module-structure.md` and
-`../swift/swift-code-structure.md`. For shared tokens, styles, reusable
+boundaries, also read `platforms/ios/skills/ios-module-structure/SKILL.md` and
+`platforms/swift/skills/swift-code-structure/SKILL.md`. For shared tokens, styles, reusable
 controls, and visual-state contracts, also read
-`../swift/swift-design-system.md`.
+`platforms/swift/skills/swift-design-system/SKILL.md`.
 
 ## UIKit Layers
 

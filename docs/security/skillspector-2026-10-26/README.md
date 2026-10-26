@@ -4,163 +4,147 @@ status: draft
 type: ai-generated
 ---
 
-# Moru skill security inspection — 26 October 2026
+# Moru skill security inspection — refreshed 26 October 2026
 
-Status: **draft; findings remain open; not a security certification**.
+Status: **rescanned; open items remain; not a security certification**.
 
-This report records an actual local SkillSpector run and a bounded follow-up
-review of outbound HTTP paths. It does not establish that Moru Core, Moru Web,
-the user's AI runtime, or a deployed service is free of vulnerabilities.
+We reran pinned NVIDIA SkillSpector against current local main after the earlier
+credential-redirect and preview-mode fixes. This report preserves the scanner's
+results and separates them from a source-bound contextual review. A warning is
+an investigation input, not automatically a confirmed vulnerability or a pass.
 
-## Scope and reproducibility
+## Current source and method
 
-| Item | Pinned input |
+| Input | Recorded value |
 | --- | --- |
-| Scanner | NVIDIA SkillSpector 2.12.0, commit `d7338f58200a9ae2a24810cee08911ab68b107a7` |
-| Core baseline | `9ea31ed3ed85b9ef13b99d51d8312c457a506f67` plus the patches described below |
-| Core skill scope | All 165 tracked `SKILL.md` bundles and their directory contents; 393 component records |
-| Mode | `--no-llm --fail-on-findings --fail-on-incomplete`; no baseline or suppression |
-| Web dependency input | Main commit `c677d02c7fbace947e864f4e85763619f1906ee3`, immutable package manifests |
+| Scanner | SkillSpector 2.12.0, commit `d7338f58200a9ae2a24810cee08911ab68b107a7` |
+| Core baseline | `7df738a5` plus the reference, validation, bootstrap and packet-contract repairs below; full commit in summary.json |
+| Scope | All 168 tracked skill bundles, scanned individually with four local processes |
+| Mode | `--no-llm --fail-on-findings --fail-on-incomplete`; no suppressions or baseline exclusions |
+| Coverage | 112 complete analyses; 56 partial analyses |
+| Final scanner results | 652 raw finding records; SAFE 97 / CAUTION 66 / DO_NOT_INSTALL 5 |
 
-The scanner and its lockfile were pinned before installation. Python 3.14 failed
-to build YARA against the local OpenSSL; the successful run used an isolated
-Python 3.12 environment and the unchanged upstream lockfile. No project
-dependency was added. The scanner's own 32-skill recursive limit was avoided by
-running a separate process for each tracked skill, with four concurrent processes.
-All 165 processes produced reports successfully. Failure-policy exits were
-retained: initially 133 exited 1 and 32 exited 0. Exit 1 here includes findings
-and incomplete analysis, not just a crashed process.
+All 168 full-scan processes produced reports after the reference repair. A
+concurrent main update then strengthened two design-guidance and four business
+bundles; those six were rescanned and the 162 unchanged reports retained. Final inventory hashes
+bind every scanned bundle to current source bytes. Exit 1 is the
+configured outcome for findings or incomplete analysis; it
+is not silently treated as a crash or a clean pass.
 
-For reproduction, check out the scanner revision and use its frozen lockfile
-with `uv sync --frozen --no-dev --python 3.12`. Enumerate tracked manifests with
-`git ls-files '*SKILL.md' '*skill.md'` and run the following for each parent
-directory. Record the exit code even when a report was produced:
+The original scanner installation and frozen lockfile were reused. Reproduce
+the per-bundle scan using the pinned scanner's Python 3.12 environment:
 
 ```sh
 skillspector scan <SKILL_DIRECTORY> --no-llm --fail-on-findings \
   --fail-on-incomplete --format json --output <REPORT_JSON>
 ```
 
-[inventory.json](inventory.json) binds every bundled file to its final SHA-256.
-[summary.json](summary.json) preserves per-skill coverage and recommendations,
-scanner-lock identity, initial raw artifact hashes and the targeted reruns.
-[findings.json](findings.json) retains every final warning without suppression.
-Machine-local source paths in these derived artifacts are replaced with
-placeholders; raw scanner artifacts are retained outside the repository. The
-final skill result set reuses 164 unchanged scans and the one changed skill's
-rerun. Root scripts are outside those 165 bundles; three reviewed outbound
-scripts were scanned separately after their patch, not silently counted as
-part of the bundle coverage.
+[inventory.json](inventory.json) binds final bundle bytes to SHA-256 values.
+[summary.json](summary.json) records the baseline, every bundle's coverage and
+recommendation, raw artifact hashes and the before/after comparison.
+[findings.json](findings.json) retains all 652 unsuppressed scanner findings.
+[triage.json](triage.json) binds each contextual disposition to its finding ID,
+source location, source hash, excerpt and reason. Local paths in published
+artifacts are redacted; original outputs remain in the local evidence folder.
 
-## Actual result, without reclassifying warnings as passes
+## Why 593 did not mean 593 confirmed bugs
 
-| Final skill result | Count |
-| --- | ---: |
-| Scanner recommendation SAFE | 100 |
-| Scanner recommendation CAUTION | 60 |
-| Scanner recommendation DO_NOT_INSTALL | 5 |
-| Complete analyses | 114 |
-| Partial analyses | 51 |
-| Unsuppressed finding records | 593 |
+The previous snapshot covered 165 skills with 593 findings. Current main adds
+three skill bundles and five cross-skill-reference detections, producing 598
+findings before the wording repair. That repair removed one AR1 finding,
+leaving 597 raw records at that stage. Independent Claude review then found
+broken references and a checker blind spot. Repairing obsolete spellings to
+explicit current skill paths added 53 reference-pattern detections, yielding
+650 raw records in the full scan. The concurrent design-guidance update then
+added two scanner-coverage warnings, giving **652 final raw records**. This is a pattern-match count,
+not an unresolved-defect count or evidence that remediation added vulnerabilities.
 
-393 component records were inventoried: 390 fully inspected and three partially
-inspected. File coverage and analysis completeness differ: unresolved references
-can leave an analysis partial even when all bundled bytes were inspected.
-The scanner retained 108 missing-reference exceptions, two parser-span limits
-and one obfuscated-text limitation. Repository-root references and runtime
-output paths can be outside an individual skill bundle; these are not evidence
-of a confirmed attack, and are also not grounds to claim complete coverage.
+| Contextual disposition | Finding records | Evidence and boundary |
+| --- | ---: | --- |
+| Expected internal skill references | 506 | Each literal written path resolves from its referring file or documented repository root; source and target hashes and literal spellings are recorded. Filename-suffix matching is rejected. Resolution is not whole-skill security clearance. |
+| External source citations | 48 | Reviewed provenance maps identify repositories and pinned snapshots. No remote skill was fetched, installed or cleared by this review. |
+| Other reviewed context | 89 | Secure-storage guidance, prohibitions, quoted attack examples and scoped task rules do not confirm the alleged vulnerability in the cited context. Original scanner severities remain. |
+| Unpinned fallback execution | 2 | Open supply-chain risk: missing-binary `npx` fallback is not version-pinned. |
+| Scanner coverage-gap findings | 7 | Open deterministic parser/reconstruction limitations across four document surfaces; manual reading does not repair scanner coverage. |
 
-The five DO_NOT_INSTALL results are agent-bootstrap, agent-runtime-integration,
-ios-security, growth-conversion-optimization, and session-continuation-protocol.
-They remain in the report. Their scores are scanner outputs, not proof of
-malicious intent. For example, the growth guide explicitly prohibits the prompt
-injection sentence that static pattern P1 flags; iOS security guidance mentions
-Keychain and access tokens as secure-storage guidance. Other patterns need full
-context rather than a bulk allowlist. In particular, the two unpinned `npx`
-fallback warnings and the analysis gaps remain review items.
+The first three categories total **643 context-reviewed records**. The last
+two total **9 warning records about policy or coverage**. These are
+review dispositions, not suppressed warnings, 643 fixed bugs or safety
+certification. Scanner coverage also remains partial for **56 skills**; those
+bundle-level gaps are separate from the seven emitted coverage-gap findings.
+The nine records are not nine unique vulnerabilities: two concern one
+unpinned-fallback policy at two instruction locations, and seven describe
+analysis limits across four documents.
 
-496 findings are AS3 cross-skill references. Moru intentionally composes reviewed
-guidance; a link alone does not prove unauthorized snooping. We preserved these
-findings instead of deleting useful cross-links or automatically clearing all
-of them. Remaining finding records are marked `review_required`; this report
-does not claim that all 593 have received individual security clearance.
+## Additional repair and verification
 
-### Follow-up review of HIGH findings
+Independent Claude review found 51 broken relative references in 19 guidance
+files, and a validation gap: the checker ignored backtick paths beginning
+with `../`. The intermediate triage also incorrectly marked 32 of those
+records as resolved because only the filename suffix matched an existing
+skill. That classification was invalid and is replaced in the current report.
 
-[high-findings-review.json](high-findings-review.json) records a bounded manual
-context review of all 38 remaining HIGH findings, with source locations, file
-hashes, excerpts and reasons. In 33 cases the cited text is a security
-prohibition, secure-storage guidance, authorized setup documentation or another
-domain-specific instruction; the cited context does not confirm the alleged
-vulnerability. Five AE1 findings remain open coverage gaps. Manual reading
-does not make the scanner's partial analyses complete.
+Claude supplied a concrete patch, which the parent applied and verified. The
+51 relative references and another 34 obsolete bare skill names in the owned
+files now point to current documents. The checker validates relative paths,
+removed-document references and the product-pattern root. Two new tests failed
+against the old checker, then passed after repair; the additional product-root
+negative control also failed before its repair. **31 reference-checker tests
+pass**. An independent literal resolver finds zero unresolved `../` code
+references in its scanned scope. Every current internal-reference disposition
+also includes the literal source spelling; suffix-only records fail validation.
 
-The original scanner scores, recommendations and 593 finding records are
-unchanged. Lower-severity findings have not all been individually reviewed.
-The two RP1 unpinned package fallbacks remain open: current managed runtime
-instructions mandate a latest-package fallback when the installed tool is
-absent. Changing that operating policy requires its own explicit maintenance
-scope; this review does not silently replace it with a different policy.
+Bootstrap fallback guidance now uses the mandated `@latest` form only when
+the installed binary is missing. The broader "or latest-package fallback"
+wording is removed. This aligns the existing policy and narrows invocation;
+it does not pin the package, so both RP1 risk records remain.
 
-## Corrections and behavior-backed verification
+The continuation contract said later hooks “never refuse,” while describing
+legacy evidence-path compatibility. That wording could be mistaken for
+disabling authority or safety checks. It now states precisely that a missing
+legacy packet alone does not reject an already-started run, while authority,
+safety, evidence and gate checks still apply.
 
-1. The operating skill's ambiguous `never refuse` phrase was replaced with
-   execution of safe, authorized, in-scope work while preserving safety refusals,
-   permission boundaries and stop conditions. The targeted scan changed from
-   score 42 / HIGH maximum issue to 21 / MEDIUM maximum issue; AR1 disappeared.
-   Its overall recommendation remains CAUTION.
-2. Manual code review found that two optional OpenRouter adapters used urllib's
-   default redirect handling. A synthetic request reproduced forwarding of the
-   Authorization header to a different HTTPS origin after a 302. No real key,
-   provider request or historical breach was involved. Both adapters now share
-   a transport restricted to the intended HTTPS origin that rejects redirects,
-   including same-origin redirects. Normal HTTPS verification remains enabled.
-3. Research preview mode no longer reads API-key files. Explicit live-mode help
-   and integration documentation identify what data is sent. Arbitrary free
-   text is not represented as automatically anonymized.
+The targeted rescan removed AR1. The bundle's recommendation changed from
+DO_NOT_INSTALL to CAUTION, retaining its other findings and partial coverage.
+No useful cross-skill links or security prohibitions were deleted for a score.
 
-The real urllib response-processing chain was tested with synthetic responses
-for 301/302/303/307/308, cross-origin, downgrade and same-origin redirects: no
-second transport request occurred. Tests also cover rejecting other origins
-before transport, normal POST/body/auth handling and no credential reads in
-preview mode. Three transport tests, 24 research tests and ten marketing
-tests passed without any live LLM calls. All three changed executable outbound
-files separately received score 0, SAFE and complete static results.
+The earlier authenticated-request redirect rejection and research preview
+credential-read fixes remain in the scanned baseline. Their relevant suites
+were rerun: transport 3, research 24, marketing 10, Figma API 8, Figma secret
+boundary 4 and document-surface checks 72: **121 tests passed**. No live model
+or Figma calls were made for these tests. The prior HIGH-only review in
+[high-findings-review.json](high-findings-review.json) is historical evidence
+for the preceding snapshot; the current all-finding review is triage.json.
 
-## Data flow: what stays local, and what can leave
+## What remains open
 
-| Surface | Activation | Destination and data |
-| --- | --- | --- |
-| Wikimap index/search | Local commands | Local document index; update lookup is off by default. Optional update check requests public PyPI package metadata with a version User-Agent. |
-| Project memory/mailbox | Local workflows | Local files; reviewed memory code invokes local Git for identity. No HTTP sender was identified in the inspected memory/mailbox owners. |
-| Research source triage | Key plus explicit execute mode | OpenRouter and selected inference provider receive query and selected URL/title/text/date. Cache stores digest and validated judgment, not source bodies or credentials. |
-| Marketing copy optimization | Key plus explicit live mode | OpenRouter receives selected product-profile fields, bottleneck and numeric claims. A profile may include text derived from the chosen project's README; review it before sending. |
-| Figma handoff | Token and explicit integration invocation | Authenticated Figma requests retrieve selected design data; separate public asset downloads use existing URL and redirect checks. |
-| Native AI runtime | User's chosen tool and configuration | Claude/Codex/AGY process their supplied context under their own service settings. Local indexing is not a guarantee that the whole AI session is offline. |
+- Two unpinned fallback findings remain. Current managed runtime instructions
+  require a latest-package fallback when the installed tool is absent. This
+  review does not silently rewrite that operating policy or claim pinning.
+- Four document surfaces produce seven scanner-gap warnings: verification
+  policy, Swift design-system and UI-visual-verification parser limits, plus
+  runtime-write-isolation reconstruction limits. They require compatible coverage or an
+  independently justified alternative check before being called complete.
+  Local diagnostics traced the triggers to a shell-log example, Swift prose
+  containing an apostrophe, and the deletion-command explanation. The source
+  is not encoded text; diagnosing the heuristic does not make coverage complete.
+- Most other partial analyses concern references outside an individual skill
+  bundle or runtime-generated paths. Their coverage status is retained.
 
-This audit did not send source contents to a scanner LLM. Static supply-chain
-analysis can query OSV with dependency names and versions even in no-LLM mode.
-Package installation and the supplemental npm audit also contact package
-registries. Those are distinct from sending prompts or repository contents.
+## Data flow and publication limits
 
-## Moru Web
+No external scanner LLM was used. Static dependency checks can query OSV using
+package coordinates. Existing local Wikimap/CodeGraph lookup is distinct from
+optional OpenRouter/Figma adapters and the user's native AI provider: those
+providers can receive explicitly supplied task data under their own settings.
+The earlier report's disclosure and authenticated HTTP fixes remain relevant.
 
-No tracked skill manifests exist in the pinned Web commit, so SkillSpector skill
-coverage is **not applicable**, not a zero-warning web security result. A separate
-`npm audit --package-lock-only --ignore-scripts --json` against the immutable
-lockfile reported zero known advisories across 118 dependencies. It does not
-test auth, access control, SQL policies, PII flows, deployed environment settings,
-or the active AGY working tree. That working tree was left untouched.
-
-## Publication boundary
-
-Suitable claim: “We ran pinned SkillSpector static checks on 165 Core skill
-bundles, published the remaining warnings and coverage gaps, and repaired a
-separately reproduced credential-redirect risk.” Do not claim NVIDIA
-certification, a clean whole-product scan, no possible personal-data transfer,
-or deployed remediation. The initial corrections and report were committed as
-`813a67fe7c9b2211608d11766af54c20728e44c5` and integrated into local main.
-That local integration is not evidence of installation or deployment.
+This is a dated Core source inspection, not NVIDIA certification, endorsement,
+a continuously running scanner, deployed remediation or a Web penetration
+test. The earlier Web lockfile check was against historical `c677d02`; it is
+not repeated here or presented as current application security evidence.
+Claude used the existing local CLI for independent review and patch authoring;
+the scanner itself still made no LLM calls.
 
 Upstream: [NVIDIA/SkillSpector](https://github.com/NVIDIA/SkillSpector).
