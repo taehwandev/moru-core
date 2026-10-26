@@ -53,6 +53,39 @@ only the bounded `worker_result_v1` summary (`<= 4096` bytes, preserving
 `blockers` and spilling long details to a local artifact). The lead integrates
 bounded findings.
 
+## Multi-Perspective Deliberation
+
+Use when helpers are asked for ideas, framings, or judgments rather than one
+verifiable answer. The goal is a map of distinct options, not the most
+confident voice's conclusion.
+
+1. **Blind first round.** Give every helper the same neutral brief: confirmed
+   facts, available evidence with its limits, constraints, and open questions.
+   Leave out the lead's draft, other helpers' output, and any role or wording
+   that presupposes a conclusion. The lead records its own position before
+   reading theirs.
+2. **Ask for divergence.** Request a premise challenge and two or three
+   directions that differ in framing or mental model, not variants of one idea.
+   Each direction states its audience, evidence status (present, partial,
+   missing and which check would supply it), misuse risk, and the strongest
+   argument against it.
+3. **Anonymous cross round.** Give each helper the other directions without
+   names. Ask it to steelman the strongest opposing direction, say what it
+   would adopt or reject and on what evidence, and name the disagreement that
+   remains. Do not ask helpers to converge.
+4. **Weigh evidence, not force.** Do not rank directions by confidence,
+   length, repetition, or how many helpers echoed them. Keep a direction backed
+   by one helper when its evidence holds; drop a popular one when its evidence
+   does not. Note where a helper only restated the brief.
+5. **Report an option map.** Shared ground, real disagreements with the
+   evidence or decision that would settle each, and the choices left to the
+   user. Give a single recommendation only when asked, labeled as the lead's
+   view and separate from the map.
+
+Helpers from the same model family, or shown the same draft, are not
+independent; say so when reporting. Stop when the options and the remaining
+disagreements are mapped.
+
 ## Existing Access And Failures
 
 Check a provider only when its help is needed; do not inventory every product
