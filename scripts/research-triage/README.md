@@ -15,7 +15,8 @@ Every input source remains in the output, including failures and low scores.
 ## Ownership And Acceptance
 
 Owner: `scripts/research-triage/microsoft_decision.py`, one optional CLI adapter.
-Allowed imports: Python standard library. Forbidden imports: Moru lifecycle,
+Allowed imports: Python standard library and `support.provider_http` for the
+credential-bearing HTTPS boundary. Forbidden imports: Moru lifecycle,
 permission, routing, other model providers, and external SDK dependencies.
 Callers: agents selecting the optional planning-research step, or an operator.
 Tests: `tests/research-triage/test_microsoft_decision.py`.
@@ -61,6 +62,15 @@ and then the checkout's `.moru/research.env`. It never creates credentials or
 prints the key. The free model has provider rate limits; an OpenRouter account
 and credits are needed for paid requests. There is no automatic paid fallback.
 The operator can manage a capped key in the provider console.
+
+Without `--execute`, the adapter does not read credential files or make new
+network calls. With it, the selected query and source URL, title, text and date
+are sent to OpenRouter and its selected inference provider. Review and minimize
+that input before execution; this adapter does not automatically detect or
+redact personal data in arbitrary text. It sends no repository files unless
+their contents were explicitly put into those input fields. Authenticated
+requests accept only the intended HTTPS OpenRouter origin and reject redirects,
+so a redirect cannot forward credentials or research input to a new destination.
 
 Keep the key in the user-level file `~/.moru/research.env` with file permissions
 `600`. It lives outside every repository, so all checkouts, worktrees, other

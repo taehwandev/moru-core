@@ -28,6 +28,7 @@ from support.marketing_catalog import (  # noqa: E402
     build_utm_url,
     resolve_profile,
 )
+from support.provider_http import open_provider_request  # noqa: E402
 
 
 def generate_keywords_for_profile(
@@ -178,7 +179,7 @@ def generate_candidate_variants(
             req["url"], data=json.dumps(req["payload"]).encode("utf-8"),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, method="POST",
         )
-        with urllib.request.urlopen(http_req, timeout=20) as resp:
+        with open_provider_request(http_req, timeout=20) as resp:
             body = json.loads(resp.read().decode("utf-8"))
             raw_variants = list(json.loads(body["choices"][0]["message"]["content"]).get("variants", []))
             source = f"openrouter_live:{model}"
@@ -226,7 +227,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         elif name == "optimize":
             p.add_argument("--bottleneck", default="headline_intent_mismatch")
             p.add_argument("--model", default="openai/gpt-4o-mini")
-            p.add_argument("--live", action="store_true")
+            p.add_argument("--live", action="store_true", help="Send selected product profile fields to OpenRouter; review them for private data first")
     args = parser.parse_args(argv)
     arch = "saas" if (args.archetype == "auto" and not args.project) else args.archetype
     prof = resolve_profile(args.project, arch, args.name, args.category, args.pain, args.benefit, args.competitor, args.url)

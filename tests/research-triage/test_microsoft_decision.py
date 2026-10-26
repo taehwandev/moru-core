@@ -56,7 +56,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
         key_files = patch.object(adapter, "KEY_FILES", (self.key_file,))
         key_files.start()
         self.addCleanup(key_files.stop)
-        network = patch.object(adapter.urllib.request, "urlopen", side_effect=AssertionError("unmocked network"))
+        network = patch.object(adapter, "open_provider_request", side_effect=AssertionError("unmocked network"))
         network.start()
         self.addCleanup(network.stop)
 
@@ -70,7 +70,8 @@ class OpenRouterDecisionTests(unittest.TestCase):
         return status, json.loads(output.getvalue()) if output.getvalue() else None, errors.getvalue()
 
     def test_default_has_no_network_or_writes_even_with_a_key(self):
-        with patch.object(adapter, "send_request", side_effect=AssertionError("paid call")):
+        with patch.object(adapter, "send_request", side_effect=AssertionError("paid call")), \
+                patch.object(adapter, "openrouter_api_key", side_effect=AssertionError("unneeded credential read")):
             status, result, _ = self.run_cli()
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
@@ -105,7 +106,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
             self.assertEqual("", adapter.openrouter_api_key())
 
     def test_http_contract_and_persistent_reuse_via_cli(self):
-        with patch.object(adapter.urllib.request, "urlopen", return_value=io.BytesIO(
+        with patch.object(adapter, "open_provider_request", return_value=io.BytesIO(
             json.dumps(response()).encode(),
         )) as http:
             status, first, _ = self.run_cli("--execute")

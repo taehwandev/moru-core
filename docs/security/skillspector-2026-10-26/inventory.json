@@ -1,0 +1,2399 @@
+[
+  {
+    "manifest": "common/skills/accessibility-i18n/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/accessibility-i18n/SKILL.md",
+        "sha256": "cb1aa3a38ebc699d201e9037443cde5dbecf242d8d49968af7d977aa0f98b7b3"
+      },
+      {
+        "path": "common/skills/accessibility-i18n/references/current-guidance.md",
+        "sha256": "dcefd7816fc57ad2c6d38b77b1706128fc75d972e56138b4227f987a113fc5a2"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/agent-editing-safety/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/agent-editing-safety/SKILL.md",
+        "sha256": "ce5bf221f0a0bb91f0fe21d831c12acc13e6c7bbadb1b62805d7d7955fbed84b"
+      },
+      {
+        "path": "common/skills/agent-editing-safety/references/current-guidance.md",
+        "sha256": "855c44db63d2b91966372d1bcee5def04c8fa1aaee475a7a4839346235b34bac"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/agent-interaction/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/agent-interaction/SKILL.md",
+        "sha256": "37add7f163037248f5dd71a564b2c6f88be1389f45ebaafdeda42041cdf0df94"
+      },
+      {
+        "path": "common/skills/agent-interaction/references/current-guidance.md",
+        "sha256": "e6196db8f58e3f48e2d55b528e403e382cce8baf1f2a13057fe210f49c44e408"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/agent-operating-skill/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/agent-operating-skill/SKILL.md",
+        "sha256": "e3924a2051f1a2e365f670399b3a053f26c83339dcda7d1af6a9ba002206d840"
+      },
+      {
+        "path": "common/skills/agent-operating-skill/references/current-guidance.md",
+        "sha256": "4a756d30a446e1e3533c2a4d166ed31bda2a76623778e7bc695e68d43468dd59"
+      },
+      {
+        "path": "common/skills/agent-operating-skill/references/runtime-collaboration.md",
+        "sha256": "9ae515674eb0ee0def36bcac7ed8240da1095205f16f7090b9b246a56f405431"
+      },
+      {
+        "path": "common/skills/agent-operating-skill/references/runtime-lifecycle.md",
+        "sha256": "458e0c81eb7fbf2b9d6c0400ab98ecc7bdf047d364080fe01ca1e4ae7fc0f3fa"
+      },
+      {
+        "path": "common/skills/agent-operating-skill/references/runtime-recovery.md",
+        "sha256": "f093a20e86dcb94683285296ddce6ab343869d17fe458465f699f28c03ae54ae"
+      },
+      {
+        "path": "common/skills/agent-operating-skill/references/small-change.md",
+        "sha256": "0ee5632c5377beb679a25bf07b4b69d8afa708c6e8485e6828d79e4673c83a26"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/agent-skill-card-anatomy/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/agent-skill-card-anatomy/SKILL.md",
+        "sha256": "282422c343c6420dac081aeff9be889809530917ea49fc435deb20ce93735b89"
+      },
+      {
+        "path": "common/skills/agent-skill-card-anatomy/references/current-guidance.md",
+        "sha256": "3191fb29f2cd7c153fdad566403ee440a55b9bed9d83719128cf1d180e134a91"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/api-contract-compatibility/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/api-contract-compatibility/SKILL.md",
+        "sha256": "cb91b5215551a2ba5af6b563f9c4b824b5d3e0bc8357bac57c6d5f0be13f8a29"
+      },
+      {
+        "path": "common/skills/api-contract-compatibility/references/current-guidance.md",
+        "sha256": "7aa620c1a8c24a9939e506cad32f0b0a246e3c256bd6f0e4dda6f0c5140ed79d"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/app-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/app-architecture/SKILL.md",
+        "sha256": "ba897c0eec37740f69f6b97cb9f459bfa857480c8dcb9eb2a4e49e9d65ceb879"
+      },
+      {
+        "path": "common/skills/app-architecture/references/current-guidance.md",
+        "sha256": "9dc1b0d5631ffbd2d80ba8b33f47766b653aa20333e16b327bcc313688f9d9ec"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/architecture-design/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/architecture-design/SKILL.md",
+        "sha256": "d639df8579e64ed9530bbdde1fc2a8e368c7edd6b2ff024a6db04df6913394fa"
+      },
+      {
+        "path": "common/skills/architecture-design/references/current-guidance.md",
+        "sha256": "4941c415a7bdd6320aaf36fd45da26adb4fa7a58de36007cd97f2af278ee88ba"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/architecture-selection/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/architecture-selection/SKILL.md",
+        "sha256": "abb780e44c6913d3970b1f5fa07a7662a92f3dc2050d70d22851e3c356352aa6"
+      },
+      {
+        "path": "common/skills/architecture-selection/references/cross-platform-mobile-selection.md",
+        "sha256": "d3681485ac716076d8868b3eed865ff888a549399ed4578921d0420e20c779ae"
+      },
+      {
+        "path": "common/skills/architecture-selection/references/current-guidance.md",
+        "sha256": "6e96d8802e4e1fe9282569c3027a67184170a99b7d8a5f0f82d0de5fe8a47ae7"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/asset-lifecycle/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/asset-lifecycle/SKILL.md",
+        "sha256": "bda5a1f90b7a7b6c4bc930eba73cbda71eb2a37106e92264c69eb10ca67bfd89"
+      },
+      {
+        "path": "common/skills/asset-lifecycle/references/current-guidance.md",
+        "sha256": "e98637aea76a8fa6f8b991cd3bf67e12a94839136b5b67513d718534b0334bad"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/bounded-loop/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/bounded-loop/SKILL.md",
+        "sha256": "e09741c098635f545c094a9c93b59f6dabdc7549fdea6e0c404642e73fb45140"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/branch-cleanup/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/branch-cleanup/SKILL.md",
+        "sha256": "c58259835e6fa9778268ca28d656bf96b2c33bb767c889578ae193e9385404de"
+      },
+      {
+        "path": "common/skills/branch-cleanup/references/current-guidance.md",
+        "sha256": "3b9c441f1ec6346f75df3af22903566332f7d66caf3018eb2c5f2a92a09101e5"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/branch-strategy/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/branch-strategy/SKILL.md",
+        "sha256": "a2713269837f013449e05b933aaf60bf93f76c0da6d0f1c52fe23a99db78e2f0"
+      },
+      {
+        "path": "common/skills/branch-strategy/references/current-guidance.md",
+        "sha256": "bf0dbccc23d3570862d608c293407f8f6cc705abd8c06237f19ee35fde34a0cc"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/browser-runtime-testing/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/browser-runtime-testing/SKILL.md",
+        "sha256": "b6076d5d1d068f4bdfee975e6de416feefa5307a6e173afdf040229db44d0a50"
+      },
+      {
+        "path": "common/skills/browser-runtime-testing/references/current-guidance.md",
+        "sha256": "1d4fca3f67ca021c517b938f30f5df7f65cee2040a6025b5d3fae968b1a32652"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/bulk-change-verification/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/bulk-change-verification/SKILL.md",
+        "sha256": "6d9b4d845d56deadfed8bff0088759e6ff0979112775b053e67ae99a13d60dce"
+      },
+      {
+        "path": "common/skills/bulk-change-verification/references/current-guidance.md",
+        "sha256": "85dd242f6fb6ce75875e62b6e3f6c8bd123974464be1d5e74895b49cfe476051"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/change-size-policy/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/change-size-policy/SKILL.md",
+        "sha256": "f129a485b203b28e170d825c9b4df0d77b80fd4a53c4a3183121638844b20d62"
+      },
+      {
+        "path": "common/skills/change-size-policy/references/current-guidance.md",
+        "sha256": "9369ffcece82ff112f16e0e6f6c62e7fdd352ec9ef67805b8fffb353eaa16727"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/ci-cd-automation/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/ci-cd-automation/SKILL.md",
+        "sha256": "044d682c05c76966f2997fef8f4a2894ebd601fca1f84aa919e27d54fca3146b"
+      },
+      {
+        "path": "common/skills/ci-cd-automation/references/current-guidance.md",
+        "sha256": "f5139145ed29d987a8675bcbe24d34a682a38dacbbacbb364940d3463dd2a519"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/code-conventions/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/code-conventions/SKILL.md",
+        "sha256": "b61f832fa5472b77214c59228a7aa517287c294149ee808a0c32d7cc57635b7f"
+      },
+      {
+        "path": "common/skills/code-conventions/references/current-guidance.md",
+        "sha256": "d1a82d96fc3fb89074deb0787170054844eff25a6297bf24760f82b7ac08ba4a"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/code-review/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/code-review/SKILL.md",
+        "sha256": "5aca7417770acf1172cd0f7c0fa0e2b93e5e029a2b79c01a0d3fb14ea7a10c24"
+      },
+      {
+        "path": "common/skills/code-review/references/current-guidance.md",
+        "sha256": "95549075244caf4e3ebb5cdb4e79456e8d3784c59a20933d0bf256bfaf3d1ac3"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/code-structure-ownership/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/code-structure-ownership/SKILL.md",
+        "sha256": "ecf1b23239fd6993ec0b8bcc0112c3f251ef5bcb8e7b92b4c23957ac5301de8c"
+      },
+      {
+        "path": "common/skills/code-structure-ownership/references/current-guidance.md",
+        "sha256": "dd7107a251c78520013c240b17dde4761eddd380f35e380d2daa9588f26f764e"
+      },
+      {
+        "path": "common/skills/code-structure-ownership/references/structure-stops.md",
+        "sha256": "16793f8d420a9fe7c1dc84760f846e705e3fdd3840e88318afd6582facaf0d97"
+      },
+      {
+        "path": "common/skills/code-structure-ownership/references/unit-size.md",
+        "sha256": "d0224d36038e97ae2067baeb31e51bcd5d1766842d459ef90875d47eca45c2be"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/commit-review/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/commit-review/SKILL.md",
+        "sha256": "bef225a8391d6549f36fb7d8320eb159ba0fa1df5d14829c5b5785ad4dda4a33"
+      },
+      {
+        "path": "common/skills/commit-review/references/current-guidance.md",
+        "sha256": "70d5b5135e4efb9e305c1d219499c4254cbf01c4786b4e139ea85e1c907d1a36"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/commit-workflow/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/commit-workflow/SKILL.md",
+        "sha256": "3d9495853431215c5ee548703a23924a6f2f6cba19e0c685d83965e3e2347af6"
+      },
+      {
+        "path": "common/skills/commit-workflow/references/current-guidance.md",
+        "sha256": "74bdff77f2facbea70813d27176ee2bb509fbad4ae3ac1add2ebe6d712034f9c"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/component-api-design/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/component-api-design/SKILL.md",
+        "sha256": "5924ac8936cbcc5864c2374935d08a837111e3e672f5d65f41b19868dfacdfae"
+      },
+      {
+        "path": "common/skills/component-api-design/references/current-guidance.md",
+        "sha256": "14cb5caa1bc837cf0ef0e4981dfcf82d33c11315790c7c47ca8a993b3e61789a"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/data-persistence-sync/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/data-persistence-sync/SKILL.md",
+        "sha256": "99dad94c198b5b356cf706461bdfa0ee09d20d717946551ded1bf213b35707ef"
+      },
+      {
+        "path": "common/skills/data-persistence-sync/references/current-guidance.md",
+        "sha256": "50d146740b5a67f35416380d8a28b4313c597dad1c967886723866d1af83116c"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/defensive-boundaries/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/defensive-boundaries/SKILL.md",
+        "sha256": "10b21f498a7442574814e6cad14318ff4efcc7f88404db79cb94672aaa720602"
+      },
+      {
+        "path": "common/skills/defensive-boundaries/references/current-guidance.md",
+        "sha256": "1834b7177bc3711742d6a4c68c2197173d94f6824004d5fac2e8a7391a9dedd1"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/definition-of-done/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/definition-of-done/SKILL.md",
+        "sha256": "d4108d3b8531080e212c375cdc305eb63b07498890fa733e8557c47ae44f39fc"
+      },
+      {
+        "path": "common/skills/definition-of-done/references/current-guidance.md",
+        "sha256": "a41c161f5d00390de4e903565341f8cb14978ce235fc633238cd66f7023b2e59"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/dependency-policy/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/dependency-policy/SKILL.md",
+        "sha256": "a01f1e407b68a8f854910c0f45bb1a488b3d96879af245dd7e6a0d4909007be2"
+      },
+      {
+        "path": "common/skills/dependency-policy/references/current-guidance.md",
+        "sha256": "dc5c1e1cabe623188fc449c4c11d04b97239a91d5dd969e67a3e7d390bc5ac2f"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/deprecation-migration/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/deprecation-migration/SKILL.md",
+        "sha256": "dfc9d6e56b14571edcb9d7f8970cea74656e2b3add8157a40092c7a484d9c2b0"
+      },
+      {
+        "path": "common/skills/deprecation-migration/references/current-guidance.md",
+        "sha256": "229fa9349a8282dc44a6367f082a1d9157f9cbf54c6544d1b8cb52dc206d8fe3"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/design-system/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/design-system/SKILL.md",
+        "sha256": "c39ee2fd63921fa91ae666dead88e0910386d55fd236b5eebb8938b343669d88"
+      },
+      {
+        "path": "common/skills/design-system/references/current-guidance.md",
+        "sha256": "b084005e5994459281d1b2b30d3f67b8814ecb95691eb6f5003ffca12317a620"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/doc-conventions/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/doc-conventions/SKILL.md",
+        "sha256": "1931632d38fe56046880beb9a70cdfd3e2736dbf2f240a6fc10adacd49fcb741"
+      },
+      {
+        "path": "common/skills/doc-conventions/references/current-guidance.md",
+        "sha256": "2950ff6fb76713bc6fc74f9b7a89d2e5492c9553ec507c8a9172c5613c1c474f"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/doubt-driven-development/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/doubt-driven-development/SKILL.md",
+        "sha256": "1aa4e68a5c3c6039fd818d548294dcbd4144fc9f6a843cb50fdd41c11c1aade2"
+      },
+      {
+        "path": "common/skills/doubt-driven-development/references/current-guidance.md",
+        "sha256": "216b7c14f33629f556a254f0cb823ae6ff670e08c09ff976026ababbff1a52ac"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/error-modeling/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/error-modeling/SKILL.md",
+        "sha256": "a0d9d865f05770bb8d1433ce4c35b375f476de74b8918adb251bbc3561180806"
+      },
+      {
+        "path": "common/skills/error-modeling/references/current-guidance.md",
+        "sha256": "9ea4683cf147a42066e5f2dcf9c6a3e8002008637b3a94f0d0824634f61458df"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/figma-handoff/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/figma-handoff/SKILL.md",
+        "sha256": "eecc000f7571617d343fdb0590ac78033688fd8ca76d9c95ab429e01fe07609d"
+      },
+      {
+        "path": "common/skills/figma-handoff/references/ai-execution-modes.md",
+        "sha256": "3ba5e93c53c04691e8f7b3c14d0c7edf70e6b8701170820a8dacec6879fa9f52"
+      },
+      {
+        "path": "common/skills/figma-handoff/references/current-guidance.md",
+        "sha256": "4e8b2a0430464b3e79fff6c2f526791f6c0e9d38d8430896d0aed967e607f664"
+      },
+      {
+        "path": "common/skills/figma-handoff/references/implementation-guide.md",
+        "sha256": "a5e049137abcfa6319d787002f3b46c5a8ea25508f32cba05db57a56ddf01777"
+      },
+      {
+        "path": "common/skills/figma-handoff/references/platform-mapping.md",
+        "sha256": "1fb601ecb7a30edfe2af04bbf7a1921d784f09cb294dd61a453b0fd3648701ff"
+      },
+      {
+        "path": "common/skills/figma-handoff/references/team-adoption.md",
+        "sha256": "647d069b705e29b194981d0615226e382a63963ace2c81f03051cd4f4f7420db"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/foldable-adaptive-layout/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/foldable-adaptive-layout/SKILL.md",
+        "sha256": "2fb2b2f7001f7fbaff7dd17070d4577a065fbef510f2cef1a08d06faa99db80a"
+      },
+      {
+        "path": "common/skills/foldable-adaptive-layout/references/android-compose.md",
+        "sha256": "1de8a56fb58159916eb95e3b7a934256dac4c5f5a21809b933ff0af30dadb359"
+      },
+      {
+        "path": "common/skills/foldable-adaptive-layout/references/device-verification.md",
+        "sha256": "883f7b9a315649bd0b8a536afa6204cbb4610f12587e21870ac2c474552f8f3b"
+      },
+      {
+        "path": "common/skills/foldable-adaptive-layout/references/ios-layout.md",
+        "sha256": "417ad83d402485557649f305751b5f681fa81d81e2e5c19175d1dd46b688ac44"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/generated-files-policy/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/generated-files-policy/SKILL.md",
+        "sha256": "b000b298cf5c9562cf607e69e3ef771b6669d8bbfa4ccbd239de028f5bb847a1"
+      },
+      {
+        "path": "common/skills/generated-files-policy/references/current-guidance.md",
+        "sha256": "a76213e02898e2b9aab56a3b1ff9e59ca1e5db8cad8d7ae4f11252ee16cdc133"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/git-history-investigation/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/git-history-investigation/SKILL.md",
+        "sha256": "380b439d76d9781a1dd34f26273c760b938ddcff8f068b9c5285c1a9737b5014"
+      },
+      {
+        "path": "common/skills/git-history-investigation/references/current-guidance.md",
+        "sha256": "bb4cda01624c9d6102dc98ffdf0dca7e10a3a3f649ff395f8f3838c067b87049"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/human-authored-writing/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/human-authored-writing/SKILL.md",
+        "sha256": "a3909da5b2141e67429495f39a1745b28efc9d5e3ba21457c4ea309155af2ff7"
+      },
+      {
+        "path": "common/skills/human-authored-writing/references/current-guidance.md",
+        "sha256": "f0f91fd852750809f68d853e0c0f613c3337602499b1e18b2d13a820c0d4ad47"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/incremental-implementation/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/incremental-implementation/SKILL.md",
+        "sha256": "978f775fca75c1c825092449cd501885f54e0c83f65d2bd65ed43e72fd9c316d"
+      },
+      {
+        "path": "common/skills/incremental-implementation/references/current-guidance.md",
+        "sha256": "f7b4d69c290baf77425f117d6dc4eb2278b405425d1308f67a5a2ce68fc6f5d6"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/live-device/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/live-device/SKILL.md",
+        "sha256": "d6d4f107d6b13c2fac3e010651c1335a4b33f32c8e0422bce3214b9a35a99b33"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/llm-coding-discipline/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/llm-coding-discipline/SKILL.md",
+        "sha256": "871c9c59496489a55c1192174ec9287f4662246b076905d2e6f3b221d483f1e8"
+      },
+      {
+        "path": "common/skills/llm-coding-discipline/references/current-guidance.md",
+        "sha256": "644856f4a1706d1096607f6ea226fd41e1e59fd2346867a88320fcbed1d2c46d"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/llm-wiki-documentation/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/llm-wiki-documentation/SKILL.md",
+        "sha256": "c01d5b1de73d4bb2e980e92fd3ac420a5d9afcd8027f5f76051d79eca3a5627d"
+      },
+      {
+        "path": "common/skills/llm-wiki-documentation/references/current-guidance.md",
+        "sha256": "b1f859b8e4a6fc8ed586a32aed0221408ccc72478dfaee4c897696949f2bd0ad"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/local-tools/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/local-tools/SKILL.md",
+        "sha256": "ebda897201e8ba9a4d0db6b65290138b77a52f6de35b36bf352eeb42ee67284f"
+      },
+      {
+        "path": "common/skills/local-tools/references/current-guidance.md",
+        "sha256": "b32ef8ff7f6ac71cfea55731120db781182439bdcd4cd87086810cdcced440e2"
+      },
+      {
+        "path": "common/skills/local-tools/references/device-mcp.md",
+        "sha256": "f95403d881d1199808dd4ce57d30716b6bf7b1397858832ce310d6def5f4a722"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/minimal-visual-design/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/minimal-visual-design/SKILL.md",
+        "sha256": "f60a4a776d042d47b2c0e970ef3d7213f0c458b2ea641fd705f950e1bf8f80c8"
+      },
+      {
+        "path": "common/skills/minimal-visual-design/references/current-guidance.md",
+        "sha256": "5da5b7ed5f0a306e8359ffe28e9f194dbb7c39f74f76dec9cce83f640151a1f1"
+      },
+      {
+        "path": "common/skills/minimal-visual-design/references/platform-craft-matrix.md",
+        "sha256": "2c420bde8826ba33e7e9a6a97a142be8b3e767674e77ceec98cc4e5db4a6b41d"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/observability-error-handling/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/observability-error-handling/SKILL.md",
+        "sha256": "e07fe7a4fed11f849b46f978ed50bd5e46c2242a3fbeeee26074c044c777aa1e"
+      },
+      {
+        "path": "common/skills/observability-error-handling/references/current-guidance.md",
+        "sha256": "1ca8a3321acc2a2fb29dc3e7eb70bf5dbe6d8627089243593b6d58c9402113ed"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/performance-verification/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/performance-verification/SKILL.md",
+        "sha256": "ade6bbb438851de967a279f3d9e9ff7dc21913f836f31c334b1aef58c0fbc98c"
+      },
+      {
+        "path": "common/skills/performance-verification/references/current-guidance.md",
+        "sha256": "ff3f8c14c1452169869b00f84c876126fc83fddd4f25a5662db2c73a550bbeb8"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/product-spec-to-implementation/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/product-spec-to-implementation/SKILL.md",
+        "sha256": "6e8036885c4559a93359cf3f1616f25dddfe15e5df6ebc86a7d49f37850ee95b"
+      },
+      {
+        "path": "common/skills/product-spec-to-implementation/references/current-guidance.md",
+        "sha256": "3aa6c2775a5fb38394b77b6d665c3d8355415408bdda4dec3de421c5e6982842"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/project-naming/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/project-naming/SKILL.md",
+        "sha256": "7e0e88f300a11978ff9cc42f8302721a7c4be2301b810fec24680e80d74ff1a1"
+      },
+      {
+        "path": "common/skills/project-naming/references/current-guidance.md",
+        "sha256": "d7ddb415c85102cae23ae32a221458698ecaa746babefdd05017b2277dc46d3b"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/public-discovery/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/public-discovery/SKILL.md",
+        "sha256": "b8bc21c8c323770c0480ae06d4d7c98e309e336b92a64adeca1d8da6c17d317a"
+      },
+      {
+        "path": "common/skills/public-discovery/references/current-guidance.md",
+        "sha256": "ae1cccc28c70795de29e236e60b762998647f6f6167b6b4030cb56165ea85fcc"
+      },
+      {
+        "path": "common/skills/public-discovery/references/og-social-preview-debugging.md",
+        "sha256": "fcaf9445e44c25a533c754c0698c0dfd3adf3744bddec78614d38bb7110adfd8"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/react-rn-external-skill-source-coverage/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/react-rn-external-skill-source-coverage/SKILL.md",
+        "sha256": "11121c8296af3b169436545551ed83f997e79f28d748a50ae435aecf344d3ce9"
+      },
+      {
+        "path": "common/skills/react-rn-external-skill-source-coverage/references/current-guidance.md",
+        "sha256": "1b4050f7760f34113b74858fe34822df84b0061b5581944a584dfee0a1ab77bb"
+      },
+      {
+        "path": "common/skills/react-rn-external-skill-source-coverage/references/source-manifest.json",
+        "sha256": "fc5d996972caa9b7d305f7fa1bb4dce4e0c6ec04aec82010390f1f6b1a0041ff"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/refactoring/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/refactoring/SKILL.md",
+        "sha256": "2a1627c499a1f475dca2ff38c629a66d7c8c8bfc7550712cf724368f3e26bc85"
+      },
+      {
+        "path": "common/skills/refactoring/references/current-guidance.md",
+        "sha256": "329aa25a3b72bc77e96fe7030025d6662d64cef84f3ef438f891c7f62040e726"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/release-deployment/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/release-deployment/SKILL.md",
+        "sha256": "616cbac866d7c70395e0cbcd69756c82b9d8169f524b8ed3879e9764f3d5040c"
+      },
+      {
+        "path": "common/skills/release-deployment/references/current-guidance.md",
+        "sha256": "d008c906e0a4dd6bb43dafc42e5768fe58cd49b1641bba647202e9c0f8c8ca4e"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/release-versioning/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/release-versioning/SKILL.md",
+        "sha256": "7703b37bb638a0df6cd708362ad03c39cabdae6024af7e13b8788cd8f5f38c9b"
+      },
+      {
+        "path": "common/skills/release-versioning/references/current-guidance.md",
+        "sha256": "ad8934096800e1159ccc4b38fd6ee8876e02573f7f932439000da6e3820cc6f7"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/reusable-code-design/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/reusable-code-design/SKILL.md",
+        "sha256": "c603a10c0b3224b5ddcc432bb1e9e2c882e466beb6ea464822078e32b9f997cb"
+      },
+      {
+        "path": "common/skills/reusable-code-design/references/current-guidance.md",
+        "sha256": "ec408cb8b625fe5300e3a20330dd9e82e4858a4f2c56684a3854986bbbf891d5"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/runtime-url-configuration/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/runtime-url-configuration/SKILL.md",
+        "sha256": "6ce5008d9995b1441c27e4a0b8a9e689a862425d6d92988059c2409662a14b9d"
+      },
+      {
+        "path": "common/skills/runtime-url-configuration/references/current-guidance.md",
+        "sha256": "96c4fadc69c2241f1714e2b171e1566ad94a8b4c6ceba2c4bb21f5719577a6d6"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/scenario-driven-testing/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/scenario-driven-testing/SKILL.md",
+        "sha256": "61c1d69850cefadb7729a4c0a1eb9ac30f1b4b055db2889443e92924c3cc0c33"
+      },
+      {
+        "path": "common/skills/scenario-driven-testing/references/current-guidance.md",
+        "sha256": "b78584d803e87123bcb48237330287c95554ea8168546cf7a7d696e257c06e9d"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/secure-development-baseline/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/secure-development-baseline/SKILL.md",
+        "sha256": "ee256943587958766408f5152278c563412c6a4a82e166f3ad1134a4a9836eab"
+      },
+      {
+        "path": "common/skills/secure-development-baseline/references/current-guidance.md",
+        "sha256": "61870ffcc5565c9b713efdcb2a3af3ec0880904bcc2da449138870d6175481ef"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/security-privacy-review/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/security-privacy-review/SKILL.md",
+        "sha256": "e0cb1aa4b8f62d2191e1cd6c309d36ca8c676f6c8c5cfddbe4012955725073ad"
+      },
+      {
+        "path": "common/skills/security-privacy-review/references/current-guidance.md",
+        "sha256": "3d674a59672e0ab41903738aa5c911efa4d8a612867679f6d1e807ca7e17ba92"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/server-side-caching/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/server-side-caching/SKILL.md",
+        "sha256": "1ce9d492ce8a5f63f17079ef648cfbb014f766a9965a31e997dff1e952fc2083"
+      },
+      {
+        "path": "common/skills/server-side-caching/references/current-guidance.md",
+        "sha256": "134c7a920df509bd81f9d30bb49d3df4177ddbf22fc1ec9d23b2e9d36ed1c64d"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/social-sign-in-buttons/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/social-sign-in-buttons/SKILL.md",
+        "sha256": "270d2898b034ee374579e14cef99bc27f1927a88638722e6d3143fd1a251a7f1"
+      },
+      {
+        "path": "common/skills/social-sign-in-buttons/references/apple.md",
+        "sha256": "82ee90b97ef282e25fc8a38f54a3512e493b677d90c92134cbda08f1f7518787"
+      },
+      {
+        "path": "common/skills/social-sign-in-buttons/references/google.md",
+        "sha256": "a3be16c52193ab13b85541e1bfbc3744f4d52e0564a2aad182aea45d24a6b8e3"
+      },
+      {
+        "path": "common/skills/social-sign-in-buttons/references/platform-integration.md",
+        "sha256": "b26f92fd05bb0f7dcc7934ee1c1659bbe51bbd09f77e00c1cd871884742356f2"
+      },
+      {
+        "path": "common/skills/social-sign-in-buttons/references/review-checklist.md",
+        "sha256": "b6887b691d80af42495c2127cfdd3c6053b738bf47f8a15e169e09cb379c19fa"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/solid-design-principles/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/solid-design-principles/SKILL.md",
+        "sha256": "d862a205932b83684183975384d69b73c8cd9d1bb1d4cfd6a85b04246ca27156"
+      },
+      {
+        "path": "common/skills/solid-design-principles/references/current-guidance.md",
+        "sha256": "e045f50c589824e22327033b3b22ca237288330c821a755f1b476ec765f0d244"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/source-driven-development/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/source-driven-development/SKILL.md",
+        "sha256": "be0b8e440696cb363dfe2cec4c083a7acfaa3d18a48daa4939936f772ba8bae2"
+      },
+      {
+        "path": "common/skills/source-driven-development/references/current-guidance.md",
+        "sha256": "3f5b89c342bd2a388a0b4901523ad981ae5c85dad5c9d0bc919999aeb10daf87"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/stack-discovery/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/stack-discovery/SKILL.md",
+        "sha256": "7f17d39f1dc05978b11b5010833ad603db844d8d2f3a4818638d4dbe685c440d"
+      },
+      {
+        "path": "common/skills/stack-discovery/references/current-guidance.md",
+        "sha256": "ff1551b8be081f8a7c88c04115c6613f0ae918d93084e7fdc047272c969d758e"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/state-modeling/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/state-modeling/SKILL.md",
+        "sha256": "3deb5e0556d76dfd367441d885f0edc3d1704cc4ceed59a9f94cb1643b872c5a"
+      },
+      {
+        "path": "common/skills/state-modeling/references/current-guidance.md",
+        "sha256": "b72841d93bbf2bed51d2257bf869d46bd22ecac84aae30b9f65bbb7d74492213"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/task-intake-effort-routing/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/task-intake-effort-routing/SKILL.md",
+        "sha256": "03c07dd4a80371886b369385f38d378e9c33b1d39ef2a16822b23b2dcd456132"
+      },
+      {
+        "path": "common/skills/task-intake-effort-routing/references/current-guidance.md",
+        "sha256": "88deded8a6d7cf4cf253df592b7c69a6af88d894edcc240bca8c5773215388de"
+      },
+      {
+        "path": "common/skills/task-intake-effort-routing/references/grill-me-protocol.md",
+        "sha256": "ee1f6433dac62b1552354bee8786262d85cc94bbe9c453dc621a1f0dee9b802e"
+      },
+      {
+        "path": "common/skills/task-intake-effort-routing/references/model-tier-selection.md",
+        "sha256": "09c7cc90751711e78f4e0bd01fba8ccf09fd2543a233e4ca3c6644447565d050"
+      },
+      {
+        "path": "common/skills/task-intake-effort-routing/references/prd-creation-boundary.md",
+        "sha256": "3a07aea09ec6d0e27e3d2fd4a1c247c80049f5442b35d8d6854ceed80af68f4b"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/testing/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/testing/SKILL.md",
+        "sha256": "71c077888401588692bbcde81af874ffe5cb9aaa3c5117a104e319d5ed24907e"
+      },
+      {
+        "path": "common/skills/testing/references/current-guidance.md",
+        "sha256": "d7c14587efba8edebca21c9c09fb18103fe7660a7483d4a907222cb95f0ce978"
+      },
+      {
+        "path": "common/skills/testing/references/final-check.md",
+        "sha256": "39890ec6feb88e17c0a4c220013c98960bbfed02ad436a9f7ae8df6a75dda2f0"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/tool-failure-recovery/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/tool-failure-recovery/SKILL.md",
+        "sha256": "d0f4ae5f0aeb5ef8287ec145083845dd25d1d002fd4af0c9bdb796620e32ef35"
+      },
+      {
+        "path": "common/skills/tool-failure-recovery/references/current-guidance.md",
+        "sha256": "e19620a1b19538a6174dbb2ff69fa55bbe6c4ea44c38545a971898489ce25667"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/ui-visual-verification/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/ui-visual-verification/SKILL.md",
+        "sha256": "c67c8413bed9ae783b4278bd82814780e3652cc3a25adc26e9e405ea1926e660"
+      },
+      {
+        "path": "common/skills/ui-visual-verification/references/current-guidance.md",
+        "sha256": "573072ffadda196368527e52f5d5699bf92bf7d130d76c2ee643d6c7c515fc57"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/verification-policy/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/verification-policy/SKILL.md",
+        "sha256": "b60db3a29487e2c973077ec9a8faa5d5828547ce7e266150250cac7eb24102ad"
+      },
+      {
+        "path": "common/skills/verification-policy/references/current-guidance.md",
+        "sha256": "014adc722a8758be805416ee14b1b7479c3782be5dd834360eaebed408b16db8"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/web-deployment-versioning/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/web-deployment-versioning/SKILL.md",
+        "sha256": "f6bdf0ef922b171b0fd4c29ee08ab71ae47591f0da55581049aad481c14854ab"
+      },
+      {
+        "path": "common/skills/web-deployment-versioning/references/current-guidance.md",
+        "sha256": "1b3f8ff8e00e958341b7c3358d20f4276846e2100aec4e456a9d4c7a30bb93d7"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/web-performance-verification/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/web-performance-verification/SKILL.md",
+        "sha256": "110d75e2171c08c1371b786eff96962db00254c945972dea7fcbcd9e3779f032"
+      },
+      {
+        "path": "common/skills/web-performance-verification/references/current-guidance.md",
+        "sha256": "1f3e9223dc61546048fae2c25da928c9a9c6ff41ee278aad189e9cdb1e2f4774"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/web-service-rn-python/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/web-service-rn-python/SKILL.md",
+        "sha256": "0a64e54cf46ddc712f92ba47fc18682be4ef01d7ff58620b86ab8e5f3cdd4321"
+      },
+      {
+        "path": "common/skills/web-service-rn-python/references/current-guidance.md",
+        "sha256": "1b53b5c934aee761d90ff0bd29c2cd580f6bf0bdc749be215d1d7c7a8b9c91e6"
+      },
+      {
+        "path": "common/skills/web-service-rn-python/references/source-map.md",
+        "sha256": "2791c2deeb366d04adcbe1c733f7b84f764d801dd520a6c766fc2ad528ed8604"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/worktree-hygiene/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/worktree-hygiene/SKILL.md",
+        "sha256": "1751d3fd89373119d0cf451169ae66cd791d0441bdaee2800503f78e42f004ae"
+      },
+      {
+        "path": "common/skills/worktree-hygiene/references/current-guidance.md",
+        "sha256": "e0417e77e82f9e082b6423632952c3115467f38effa94fb7b5e10ac9f05527bb"
+      }
+    ]
+  },
+  {
+    "manifest": "common/skills/writing-workspace/SKILL.md",
+    "files": [
+      {
+        "path": "common/skills/writing-workspace/SKILL.md",
+        "sha256": "75fe9f85eecbb2f7ee83713e194506e2e86564e490e3e397c7d47cb378caafd1"
+      },
+      {
+        "path": "common/skills/writing-workspace/references/current-guidance.md",
+        "sha256": "283650ddbb082432f34aba74bde8d2409811212c17ef56e34069d7f49473c7d0"
+      }
+    ]
+  },
+  {
+    "manifest": "docs/skills/agent-bootstrap/SKILL.md",
+    "files": [
+      {
+        "path": "docs/skills/agent-bootstrap/SKILL.md",
+        "sha256": "2af5821e88423db7549ae2eef2410706720a136eb640674ceeeba1a78fd90ddf"
+      },
+      {
+        "path": "docs/skills/agent-bootstrap/references/current-guidance.md",
+        "sha256": "9a31adb4047f442d51dc56e6a95e2137a94d3ce50f6cb3cd907cb3c6ff2ca742"
+      }
+    ]
+  },
+  {
+    "manifest": "docs/skills/agent-runtime-integration/SKILL.md",
+    "files": [
+      {
+        "path": "docs/skills/agent-runtime-integration/SKILL.md",
+        "sha256": "2e163a07a5161bf977851b73c16f4bc4355bd1ebe5d292c71340e4bf29edd4e0"
+      },
+      {
+        "path": "docs/skills/agent-runtime-integration/references/current-guidance.md",
+        "sha256": "2b64eec35ef6ba731d9a26f31a2667f83d134c4b6effee2d745ae5094163fb15"
+      },
+      {
+        "path": "docs/skills/agent-runtime-integration/references/document-routing-changes.md",
+        "sha256": "7be3334c2a69bbeee003f7e9bf0028f8f5bfb704d967dc1350b1b54265c3957b"
+      },
+      {
+        "path": "docs/skills/agent-runtime-integration/references/executable-evidence-gate.md",
+        "sha256": "0a38973c9975277fd6f76ee029ad6044630321ca39dc3a4e902efb29d01641f8"
+      },
+      {
+        "path": "docs/skills/agent-runtime-integration/references/runtime-hook-install.md",
+        "sha256": "4733df8d414842b506221215ee14302673d2a80c26b120cf4bb058f251b00a51"
+      },
+      {
+        "path": "docs/skills/agent-runtime-integration/references/runtime-setup.md",
+        "sha256": "7d968184250c4ffe993e685452f5dd35515cf92958747573ef870afc2c429ee9"
+      },
+      {
+        "path": "docs/skills/agent-runtime-integration/references/runtime-write-isolation.md",
+        "sha256": "e046dc7fb180c285d39a9b8ff6221b164c75157c6c372ffc78a148a5dc73fcf6"
+      }
+    ]
+  },
+  {
+    "manifest": "docs/skills/moru-skill-bundle-migration/SKILL.md",
+    "files": [
+      {
+        "path": "docs/skills/moru-skill-bundle-migration/SKILL.md",
+        "sha256": "339a71fb540ae4637bf9b1fe66b78e187b09b86a182e81c935555402baf68d69"
+      },
+      {
+        "path": "docs/skills/moru-skill-bundle-migration/references/current-guidance.md",
+        "sha256": "44bc1df24ff201e742a2276097cd9da8505eccb1a65a92d024790910c0e85583"
+      },
+      {
+        "path": "docs/skills/moru-skill-bundle-migration/references/source-of-truth-ownership.md",
+        "sha256": "912c2ccfe9bcd7e62496f96c2d89e5d2ef79c4192e7ee2dc2fb5a8d4ffb40f3a"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-architecture/SKILL.md",
+        "sha256": "7baffc550bece07fc1bf75ec26083ff9855e3a66604c8873505933cb0b2d9b51"
+      },
+      {
+        "path": "platforms/android/skills/android-architecture/references/current-guidance.md",
+        "sha256": "b209392c042f43c92f6d0ac3cccd8f5778ac29d9c14d763228a436693fc832c6"
+      },
+      {
+        "path": "platforms/android/skills/android-architecture/references/navigation-deep-links.md",
+        "sha256": "6956a1bf3eaf78fe25269d60f5062cdddf25c2ab0154852fba352ed7a9477b94"
+      },
+      {
+        "path": "platforms/android/skills/android-architecture/references/runtime-composition.md",
+        "sha256": "51f65935d5099b49de12074fa3f61de17e47e26f1726c927e3aa0cdcdb34e0c9"
+      },
+      {
+        "path": "platforms/android/skills/android-architecture/references/structure-baseline.md",
+        "sha256": "cdb1cee8a2f26893bbf791fbcf87b2d992c5f2183641f2d88f48c5277363f706"
+      },
+      {
+        "path": "platforms/android/skills/android-architecture/references/webview-surface.md",
+        "sha256": "3140b7eabd989005982f3abdb22c6178fe892d4585b51757e991e46ff9189f27"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-background-work/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-background-work/SKILL.md",
+        "sha256": "dd68ff8165588b041444fcce7a2d3a42f0e8e0cd3490470c438b08dd673c0573"
+      },
+      {
+        "path": "platforms/android/skills/android-background-work/references/current-guidance.md",
+        "sha256": "a399d76ca2fa152d73b012d213ed2773e26805852e6856ff6b59e3645389f8dc"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-compose-ui/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-compose-ui/SKILL.md",
+        "sha256": "3985ea589b1f1164ee2a19c979e3abc727634b33bb78a85d63ee1689fe3bfbfb"
+      },
+      {
+        "path": "platforms/android/skills/android-compose-ui/references/compose-performance.md",
+        "sha256": "5e7b856b40e33a08f8f699d510a84851009c7f535b24a5384a3acb815c4da262"
+      },
+      {
+        "path": "platforms/android/skills/android-compose-ui/references/compose-previews.md",
+        "sha256": "0c75e22391d522b204942f4e3fea8e2b4d22d0ec2a1064353554c38ca77d1c40"
+      },
+      {
+        "path": "platforms/android/skills/android-compose-ui/references/current-guidance.md",
+        "sha256": "a4e4b17f45672f1b515d4531de4c92baf76f575da6c5512ed1247a4af24c45dd"
+      },
+      {
+        "path": "platforms/android/skills/android-compose-ui/references/edge-to-edge-insets.md",
+        "sha256": "3337c9723e053604feaf53f8176e0b6fc75f699fad0845114130a84402298c8c"
+      },
+      {
+        "path": "platforms/android/skills/android-compose-ui/references/official-source-surfaces.md",
+        "sha256": "521cf6b14bfcf2a80eb28e87f43c6d166e0edc3899a18f25eda0e5cf5c9f6a90"
+      },
+      {
+        "path": "platforms/android/skills/android-compose-ui/references/screen-structure.md",
+        "sha256": "d606da1a65e2ad6dca8310a8f6a95e67eda95a16d644f26a3395c02ad4fb4983"
+      },
+      {
+        "path": "platforms/android/skills/android-compose-ui/references/wear-compose.md",
+        "sha256": "3b9f355c5220f226196e1077b3b09edd9e4affe89ee762f121a030be4fb6208b"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-external-skill-source-coverage/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-external-skill-source-coverage/SKILL.md",
+        "sha256": "81ba2edcde24256a2e5b8e5aa8f4fdab62e22274f1bfef0c55217b4d76a224f7"
+      },
+      {
+        "path": "platforms/android/skills/android-external-skill-source-coverage/references/current-guidance.md",
+        "sha256": "b880a46eec8d09e175de0bdabd78acaedaa158cdca264f96c487d2c5ea3dd8ed"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-memory-lifecycle/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-memory-lifecycle/SKILL.md",
+        "sha256": "3f7bbf1863f40dc8f931fce8d4ee5d976bf7e65104820c8317f39a3779947e83"
+      },
+      {
+        "path": "platforms/android/skills/android-memory-lifecycle/references/current-guidance.md",
+        "sha256": "94fbeb4e6a0dbb5ce9013e7cfd7b9098855e737ec7df38bfbbb803f302849aa3"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-module-structure/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-module-structure/SKILL.md",
+        "sha256": "28a5e26236dbf65db58ef98a18fa202c5263bd28dc8c359525e3441a0eaef053"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/compose-entry-contracts.md",
+        "sha256": "ff9388644b2fae93abb6f21ecfdf7c0ca4041c62b163224e6d5f8d6c79a7e0e1"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/current-guidance.md",
+        "sha256": "54760a1c587e90bd9752593a2484f011a9207a2401d93a32ec8b17c50cf32f5f"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/di-build-logic.md",
+        "sha256": "c707d169b408de1570dd8b5dd7edda91fa39405eee8ac6adf7aad53060b64458"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/feature-package-structure.md",
+        "sha256": "53a08c9ea1c96baaa29992935a0eb23ae51159510434d7959e34a616e2000c40"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/module-boundaries.md",
+        "sha256": "66ae0dd8c509cbf97c0ddbaaa1b216d864cfec4cf9f17651a52e3527dea101a8"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/module-layout.md",
+        "sha256": "8d8531f9f8cc490811a48406c86b0797c74fb701bb72aae3c14e15a4da367242"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/review-checklist.md",
+        "sha256": "9a78af77f9c6017c1f03e3012827c3648cce7304477b9ff3f93eae8c6a6b0389"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/skill-source-coverage.md",
+        "sha256": "bc72312a0d76108961ad6ddba0b8450ea9cfd95f4e06cd2c4de6050efb67b5bf"
+      },
+      {
+        "path": "platforms/android/skills/android-module-structure/references/split-and-migration.md",
+        "sha256": "6a9eb0dd083711f3fe3d12b6be299a373f4f71bc4dc8d58090960bfc2888cbd0"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-review/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-review/SKILL.md",
+        "sha256": "e5ea6c42064538d7589e64cb71d1f8ff731a64f8372794945fa88800674cb356"
+      },
+      {
+        "path": "platforms/android/skills/android-review/references/current-guidance.md",
+        "sha256": "f4bbaf73c6c0e5075b378c690b455c31b6d43194d899a426e34feae9eeb684e2"
+      },
+      {
+        "path": "platforms/android/skills/android-review/references/runtime-performance.md",
+        "sha256": "300b2b5da77ab55a3475da51c7b6594983656982f563cd07628ffbb81c58b324"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-security/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-security/SKILL.md",
+        "sha256": "60afee88107035de62cbda2df4aa4daecb2dc895ecaaf0cb19bf9998cea0f73b"
+      },
+      {
+        "path": "platforms/android/skills/android-security/references/current-guidance.md",
+        "sha256": "780c698f540ddeca5de5c2d94b0bca4f95e4482250ff752685f15ed9a715e281"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-state-data/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-state-data/SKILL.md",
+        "sha256": "05b615ad873861a4908f1027eaa100fcc87971d6e7fb9faba6294f24c442d01c"
+      },
+      {
+        "path": "platforms/android/skills/android-state-data/references/android-datastore.md",
+        "sha256": "110d9d3d327a4c92519e3537e5adcce1020609a94d1d60b76737f36517c1016f"
+      },
+      {
+        "path": "platforms/android/skills/android-state-data/references/current-guidance.md",
+        "sha256": "a829176a126fdc8563696e705e00294afb7fc6c4e58b79d50fec27d4b0381e36"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/android-viewmodel-state/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/android-viewmodel-state/SKILL.md",
+        "sha256": "94507b3e721b77e93da4b18c6e089726ad43c67fa4368cdef0a47c642e0e670f"
+      },
+      {
+        "path": "platforms/android/skills/android-viewmodel-state/references/current-guidance.md",
+        "sha256": "baeb4e4b8bda6a8abf939b41fcd96ea8cccc9912bfff6286aa23b6e30f8500f3"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/figma-to-android/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/figma-to-android/SKILL.md",
+        "sha256": "fb3ebfc35dcc702dad58b65719c204bdf8c07a4e83013683a09c6dfecb37d678"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/android/skills/source-coverage/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/android/skills/source-coverage/SKILL.md",
+        "sha256": "8c9ac230faa7cd9d8ac36d77810b20f31640381e4c0c88fa81c42e7a00e2dcd1"
+      },
+      {
+        "path": "platforms/android/skills/source-coverage/references/chrisbanes-source-map.md",
+        "sha256": "4d41cba2b7ea84aa79118d3f0596622de3fbfbb28e1df57468b7665d08f22f55"
+      },
+      {
+        "path": "platforms/android/skills/source-coverage/references/compose-performance-source-map.md",
+        "sha256": "0d0061be0de8cfe27baa4deea6b46f34e5a90c053daf5ff9963f7425e62fb92b"
+      },
+      {
+        "path": "platforms/android/skills/source-coverage/references/external-source-distillation.md",
+        "sha256": "c7d024bb682c12ff44ff02fe39c7d733dbc110d4093e9edac7e7a914ae4bdf73"
+      },
+      {
+        "path": "platforms/android/skills/source-coverage/references/official-android-source-map.md",
+        "sha256": "88d39c5b4fc311002842e04d30ef783a72cc16f5fdea74faea49d5d81d1893de"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/application/skills/application-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/application/skills/application-architecture/SKILL.md",
+        "sha256": "e26a81e64594dd41cda5ea3c1c834d8c75074c11653c437fcea705e8f41b5650"
+      },
+      {
+        "path": "platforms/application/skills/application-architecture/references/current-guidance.md",
+        "sha256": "ea102a4c136bad7932ea6e358319f52d866df719fb0c35e6564cd10ea39c1e98"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/application/skills/application-command-ui/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/application/skills/application-command-ui/SKILL.md",
+        "sha256": "183df60e23384a0855c50e2317f190f5c812edeb9fed7f998edad408f69efb0f"
+      },
+      {
+        "path": "platforms/application/skills/application-command-ui/references/current-guidance.md",
+        "sha256": "51b1f0ddc9b1c0dcfe3842919377d957598598e5e5d56be6d2f7439b049202d9"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/application/skills/application-react-desktop/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/application/skills/application-react-desktop/SKILL.md",
+        "sha256": "8d4c2c6708fa3ea7c2fa7cadd3a133eb17ebd927bb4e10336f3931eabecb7204"
+      },
+      {
+        "path": "platforms/application/skills/application-react-desktop/references/current-guidance.md",
+        "sha256": "864910e489c41d5714c2891d35e03e60c4b88b4bc7b3fb8d5f5e6516b85aa415"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/application/skills/application-review/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/application/skills/application-review/SKILL.md",
+        "sha256": "85c9bae08685e56377b994ebed63c2df564f4c355226939a4c2f7f215fbce3a2"
+      },
+      {
+        "path": "platforms/application/skills/application-review/references/current-guidance.md",
+        "sha256": "1ca8a7071d913a665b8473b6747d764a5ece5926797893b5158473bd128bcd13"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/application/skills/application-security/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/application/skills/application-security/SKILL.md",
+        "sha256": "5ba2e1b220f9dacaf1e9202d206c1222effd69214cc675a8c3d3c8f2ffbe4d8d"
+      },
+      {
+        "path": "platforms/application/skills/application-security/references/current-guidance.md",
+        "sha256": "30b4804297c01f49318a3e088a9bf33d55008e74c5db2f4fd9e4f7d2dbf8dc0d"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/application/skills/application-system-integration/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/application/skills/application-system-integration/SKILL.md",
+        "sha256": "8d2300610d5fe445c9921ba3c7318b25b87f9dc41ada445a3d9e65f95a35a9bf"
+      },
+      {
+        "path": "platforms/application/skills/application-system-integration/references/current-guidance.md",
+        "sha256": "e39fd78ab7277a1f64108782fef1daa10cc6ca25e6f039fb27154c0009f9e86c"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/flutter/skills/flutter-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/flutter/skills/flutter-architecture/SKILL.md",
+        "sha256": "598443706f594da868bd73ddd49472781d0181d0174731770189eb395bf7f037"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-architecture/references/current-guidance.md",
+        "sha256": "2ae0aaa008db25d0ea08182a3b46493d375585a3a8309b02bae718530e75e464"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-architecture/references/reusable-layers.md",
+        "sha256": "1e86ef7042819f813abe511da6f3de866ec4fcc294264046060094728fed7072"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/flutter/skills/flutter-platform-integration/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/flutter/skills/flutter-platform-integration/SKILL.md",
+        "sha256": "f4f17263404ddadb77e3b4d8d83ffb14eb903def4b1a6f3023f90737d17bff06"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-platform-integration/references/current-guidance.md",
+        "sha256": "48cd5cb6c62314e4693b46c90abf8eaaebcb267db07a51b9469d6340de59ea3f"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-platform-integration/references/mobile-native-bridges.md",
+        "sha256": "4c28259b4d1d461c79a05d0c03a6470cde829ce80b3143b582af587ef2d513d4"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/flutter/skills/flutter-project-structure/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/flutter/skills/flutter-project-structure/SKILL.md",
+        "sha256": "1dbd7333cb29258dc21f13f0860e300a8d7b368aeeec9805f3d31a48591242cd"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-project-structure/references/current-guidance.md",
+        "sha256": "d25e739fc20d07451c39680b58f0331c832eea6d74152ed9025c5e5560888a41"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/flutter/skills/flutter-review/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/flutter/skills/flutter-review/SKILL.md",
+        "sha256": "dfdc24796341af7001f194dbcb9fd9977959bd6144073607ca66a958e998c571"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-review/references/current-guidance.md",
+        "sha256": "8d53dca664c1b0217b6725a11f100e88bfb1f5c894e00df37920bec85b15818c"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-review/references/mobile-release-checks.md",
+        "sha256": "908fb4a49e2eb7c660fb1d61e2685137cd3bf27c001931067858bf85ade36dc6"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/flutter/skills/flutter-security/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/flutter/skills/flutter-security/SKILL.md",
+        "sha256": "e68de37786248dd2a2172212da12589878eb320c9c31cd965ef20632347a3ca7"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-security/references/current-guidance.md",
+        "sha256": "8093facbf2b98c76a288e1b33c2d33e71ad948b522ad6fdefce72661c838b71f"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/flutter/skills/flutter-state-data/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/flutter/skills/flutter-state-data/SKILL.md",
+        "sha256": "a088ed4d216ac7900f66a553d254b01077d49d892efbe61b9fab0b1049e8f5f3"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-state-data/references/current-guidance.md",
+        "sha256": "5197cc7b2f07e71c0c2944f85dfdd57f5baa7a35dc65a317d38edff93d517182"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/flutter/skills/flutter-widget-ui/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/flutter/skills/flutter-widget-ui/SKILL.md",
+        "sha256": "80ecc373f37320e65ad0f8a31fd440725b2b61a8587d8a8c14b7f0e9939de6e6"
+      },
+      {
+        "path": "platforms/flutter/skills/flutter-widget-ui/references/current-guidance.md",
+        "sha256": "974f60e8a979741a53a71d87f53f2cf2e3e6d13cb8b0df9f5ff68b825d29cb1b"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/ios/skills/figma-to-ios/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/ios/skills/figma-to-ios/SKILL.md",
+        "sha256": "d89ca52f680cb3ad3e86bc415c419ec7071f4ecca4c59f5f5bcf8e5addc430db"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/ios/skills/ios-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/ios/skills/ios-architecture/SKILL.md",
+        "sha256": "ecc81671c089bc7bdfdf809b9740e7f3d42049a62934178848918243f0424847"
+      },
+      {
+        "path": "platforms/ios/skills/ios-architecture/references/current-guidance.md",
+        "sha256": "00d124a010d476eb9b51dd6d7e7692264a90f74e743320fefd24e0e42b6516c0"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/ios/skills/ios-module-structure/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/ios/skills/ios-module-structure/SKILL.md",
+        "sha256": "bc33a85c33a0f5fc21ea9e1abf54ce6cd446c586857fb27ab66cddc4b02682f8"
+      },
+      {
+        "path": "platforms/ios/skills/ios-module-structure/references/current-guidance.md",
+        "sha256": "2839c098dbe39cf0aaa97d758f4a380eb50036d447584608491b9f43d8cc47c5"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/ios/skills/ios-review/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/ios/skills/ios-review/SKILL.md",
+        "sha256": "fc697f535719dd3b65406fbd232dbe97db01ab2e8e7e6fbe9f9a995e419ddfe2"
+      },
+      {
+        "path": "platforms/ios/skills/ios-review/references/current-guidance.md",
+        "sha256": "1f3ca18404f5fe73fa8cfb8f210968838e8a071fb47c3193c3c0ef2152467670"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/ios/skills/ios-security/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/ios/skills/ios-security/SKILL.md",
+        "sha256": "dafb490949cf7d32288dc5792ecd53dfbda877f3a054ced1c8265c546b4c7fd6"
+      },
+      {
+        "path": "platforms/ios/skills/ios-security/references/current-guidance.md",
+        "sha256": "5179183b02eec76c6da4edb414fc247739541b6a24f098f91a227503edb53135"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/ios/skills/ios-state-concurrency/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/ios/skills/ios-state-concurrency/SKILL.md",
+        "sha256": "3f1363cecca5d074b4a65f3daf2aa26cd4342e264b334aafca8c31608e3060f1"
+      },
+      {
+        "path": "platforms/ios/skills/ios-state-concurrency/references/current-guidance.md",
+        "sha256": "c382663a410ea7781edbb9d51a74ab98a12c2d6a2651d2ee34f94f4eb86881a7"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/ios/skills/ios-swiftui-ui/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/ios/skills/ios-swiftui-ui/SKILL.md",
+        "sha256": "9fdee53a5e5c952245dd8ce7be7a9b9b17f5a776b0ce69f65eb2ba92b672ed2c"
+      },
+      {
+        "path": "platforms/ios/skills/ios-swiftui-ui/references/current-guidance.md",
+        "sha256": "c86f3fe4d37d77c3d1b5ddfcd61a8ff29b1579550eaf01644f21594a762b6458"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/ios/skills/ios-uikit-ui/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/ios/skills/ios-uikit-ui/SKILL.md",
+        "sha256": "b650557d548b9e0c28dc7b79c7994eb63c9f34a9b28855933d66413c0c4e493c"
+      },
+      {
+        "path": "platforms/ios/skills/ios-uikit-ui/references/current-guidance.md",
+        "sha256": "653e6bf92db5d6adc0b063d597332497650c59090500de4dad985be9cf56e45d"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/kmp/skills/kmp-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/kmp/skills/kmp-architecture/SKILL.md",
+        "sha256": "23af95b1594ebd728465761b61b9dae3ca5e188c42a7cdc1e4eda09cd7a69d26"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-architecture/references/current-guidance.md",
+        "sha256": "5cbbe1e8b554d635093026538978d765a8408e79d74c2245bd9f673e2c97579c"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-architecture/references/layering.md",
+        "sha256": "3e4d6412bd70b57413c9e95b5d2f608900c07f936631e1f3fe9793d9fcfb80b5"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/kmp/skills/kmp-compose-ui/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/kmp/skills/kmp-compose-ui/SKILL.md",
+        "sha256": "d69e33c747a3a1709445cf0440b71c9eeafdcfa6785008368c168d575eae1c34"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-compose-ui/references/current-guidance.md",
+        "sha256": "3caeb18b5daa5cb5206d78489918f65ff56097091f2b4495d7cef7ddc395d3e9"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-compose-ui/references/design-system.md",
+        "sha256": "3f060f8aaf86ac450f0ec955faaa322546fcb32bb0f5e6a8f5164cf0020544b5"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-compose-ui/references/mobile-platform-native-ui.md",
+        "sha256": "f6c5479b76088b9e8f5e950ddbb9df8c7b6a6c95eae21caffb930cd13eb3b455"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/kmp/skills/kmp-module-structure/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/kmp/skills/kmp-module-structure/SKILL.md",
+        "sha256": "a40641e401cb4ea00d04cec6edfe3dd8fd6dbb7c4ff662199ec89a72ac0d0864"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-module-structure/references/current-guidance.md",
+        "sha256": "c2251964541ae10c92a9f997fe12007ba88ee0f64419d6de62f3af6016d2863a"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-module-structure/references/package-layout.md",
+        "sha256": "8c281310bd58d9c22180fe3a28db6bb6eb24e44e11b661dfa992d436e93af469"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/kmp/skills/kmp-platform-integration/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/kmp/skills/kmp-platform-integration/SKILL.md",
+        "sha256": "c52bdcd21ebf90535a218c6fc9e5b6c979d69b1bd18302aa9c23fc77f3663f58"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-platform-integration/references/current-guidance.md",
+        "sha256": "a0d46bdf8f095c847a15a4814fba80edae5c64f8eb43c7e9591f70eff967525b"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-platform-integration/references/mobile-targets.md",
+        "sha256": "a395a1942d75c3b5945102d49add490c596f82eeaee86e8c0b99a1dfdf5fc5fb"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/kmp/skills/kmp-review/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/kmp/skills/kmp-review/SKILL.md",
+        "sha256": "f2ce69df2af6214af56e9ac38076ffbc55f95c4d3b2f7a9dd18deb0747387283"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-review/references/current-guidance.md",
+        "sha256": "5ac92e725979e4c0989319ccb3498132c769f604d9bc9b271f49dc84aa7bf81b"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/kmp/skills/kmp-security/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/kmp/skills/kmp-security/SKILL.md",
+        "sha256": "801a6f7ad390f1c1f3f8c7a20f83f155f769e00aeb07fe265bc5904ec6889152"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-security/references/current-guidance.md",
+        "sha256": "55e88786779c76f7814b9031bb3ed23fd1611f861b8d1014b2c9807f9d79dc6c"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/kmp/skills/kmp-state-data/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/kmp/skills/kmp-state-data/SKILL.md",
+        "sha256": "23a4f7cb55fe702e4ae01b5d7e9e6dcae81af942b1fa26f329fed4b665582957"
+      },
+      {
+        "path": "platforms/kmp/skills/kmp-state-data/references/current-guidance.md",
+        "sha256": "3942bf150e239488e3811e6034199d1a08dc45c50ad71c330ac806405bb6c7fe"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/python/skills/python-web-service/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/python/skills/python-web-service/SKILL.md",
+        "sha256": "f8a14330d0a3c4cc73dc72ad01248ae9ad455518f8c12da5430b1b8306d4220e"
+      },
+      {
+        "path": "platforms/python/skills/python-web-service/references/current-guidance.md",
+        "sha256": "febb9b62182b4733e55a1e49bbaa0cde5e2555defc7c18203a5ddbf7b87e64be"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/react-native/skills/react-native-app/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/react-native/skills/react-native-app/SKILL.md",
+        "sha256": "22deeade45865f2d83bc3e89a4e38790599e1790c17a58f1decce41483b24659"
+      },
+      {
+        "path": "platforms/react-native/skills/react-native-app/references/current-guidance.md",
+        "sha256": "a1b2979773332e20dd5196842af4e88c236b7bc978da7666ae42ea2eec2e89d7"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/server/skills/server-api-implementation/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/server/skills/server-api-implementation/SKILL.md",
+        "sha256": "37c6464b6d3778f98d316d2466143073f691d3eb7d382fc02d1f29d6a9d5865c"
+      },
+      {
+        "path": "platforms/server/skills/server-api-implementation/references/current-guidance.md",
+        "sha256": "dd43738e1201d17723b0ae604a8248b873a70d3527d59bbe9921d3f7b3be5d8a"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/server/skills/server-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/server/skills/server-architecture/SKILL.md",
+        "sha256": "5031217929214a6332a4ddeab6d5482f4adaf8e79473ddf08d4030c9f048559f"
+      },
+      {
+        "path": "platforms/server/skills/server-architecture/references/current-guidance.md",
+        "sha256": "2b3210e1392fd12342fa44c3f56c9aefa11052655e37831860c27d3c822b61cb"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/server/skills/server-data-jobs/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/server/skills/server-data-jobs/SKILL.md",
+        "sha256": "2c848ff988b3715c596c294444f19079b67ae509ffd97443f674561a4dc411a1"
+      },
+      {
+        "path": "platforms/server/skills/server-data-jobs/references/current-guidance.md",
+        "sha256": "2deaec8c918c747faf15206acbe5713024b923689556984da4f629164eff86a0"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/server/skills/server-review/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/server/skills/server-review/SKILL.md",
+        "sha256": "ec258c7f4963296f945425c45ccd26d012bc342f4165564a5b96b2f649a9ff23"
+      },
+      {
+        "path": "platforms/server/skills/server-review/references/current-guidance.md",
+        "sha256": "6f7cfc4dbab22e17e5808bd98fc71f0d19fddd06da7c00cafd5524120a8b2d39"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/server/skills/server-security/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/server/skills/server-security/SKILL.md",
+        "sha256": "2bd5a8405a4cbce548c0238c76e2b86d1535c78a03242e6b5775aeb65e4b2882"
+      },
+      {
+        "path": "platforms/server/skills/server-security/references/current-guidance.md",
+        "sha256": "51c29312ea29f10a64ab1d0593ac2103e52216fb50718ede3b8efcb740172b1c"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/swift/skills/swift-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/swift/skills/swift-architecture/SKILL.md",
+        "sha256": "1197d834b87a69d99ac5a634db655c16bb0f08af9d9bbcb10dbc50cd2c51b206"
+      },
+      {
+        "path": "platforms/swift/skills/swift-architecture/references/current-guidance.md",
+        "sha256": "5d32aa74f1add44e0ade3fb2540076d12394c7a9283c21c869f5932f391e8eb8"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/swift/skills/swift-code-structure/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/swift/skills/swift-code-structure/SKILL.md",
+        "sha256": "806799a0dfc02ed81f6c5265680b16fbb429f565a04316e9e77365b978b837fb"
+      },
+      {
+        "path": "platforms/swift/skills/swift-code-structure/references/current-guidance.md",
+        "sha256": "27eaa37825dabf76f695c6c01936085d2fa600f775a702d83a27020c79cef00d"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/swift/skills/swift-design-system/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/swift/skills/swift-design-system/SKILL.md",
+        "sha256": "38710aa6de2a95d3175042f139e9b1642fe550973942822757db560a6be6f109"
+      },
+      {
+        "path": "platforms/swift/skills/swift-design-system/references/current-guidance.md",
+        "sha256": "850e712e7b9b289bbc9e7658acb5acc36604f8eebfc1269dbf9d012e48ba57d8"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/swift/skills/swift-review/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/swift/skills/swift-review/SKILL.md",
+        "sha256": "9c52aa514e8120f1c1bd360d5087ae2e2bc41930b03b6d3b3e376d31e2a19145"
+      },
+      {
+        "path": "platforms/swift/skills/swift-review/references/current-guidance.md",
+        "sha256": "d3f28641e602c18ef0af43a274b74bc974da88313979953193b143029a9f7b06"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/figma-to-web/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/figma-to-web/SKILL.md",
+        "sha256": "73ec250c9fa17b5dd88b30186548006fb3f63b6893758c6e9444883f38f5332b"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/live-web/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/live-web/SKILL.md",
+        "sha256": "04aedb108035e134a6d520cf5ae61e9770104abbe8f3fa01eccb1d3a169fe225"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/web-accessibility-i18n/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/web-accessibility-i18n/SKILL.md",
+        "sha256": "9c3505434b6b84e809328b27540fb99fd3ec16a908aaefe6c0556644d1685b33"
+      },
+      {
+        "path": "platforms/web/skills/web-accessibility-i18n/references/current-guidance.md",
+        "sha256": "e2134a3b6c4ee6adbfad54894420eaaa280e8a172847f3726dda07b27e480334"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/web-architecture/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/web-architecture/SKILL.md",
+        "sha256": "1aea7d0f08a194720ab8d781adf3e52b98594f65a404b04104b928e523e9aaac"
+      },
+      {
+        "path": "platforms/web/skills/web-architecture/references/current-guidance.md",
+        "sha256": "b5d0540a717eee8d5dd56967a978d4ddd517994685023819ca7a95174916ac3c"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/web-code-structure/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/web-code-structure/SKILL.md",
+        "sha256": "e74220d91539eb2ef35b91e7934dda064f99a593cc8299a4cfbb9bc50d40bd4b"
+      },
+      {
+        "path": "platforms/web/skills/web-code-structure/references/current-guidance.md",
+        "sha256": "1e411a594bd81caaa7415a791ab8283a10cb9030fe95450b7b9451e33533355d"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/web-design-system/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/web-design-system/SKILL.md",
+        "sha256": "c3408e0d8fa199becd876e3aa73449a5d008a321358e7c7a48531628f97969a5"
+      },
+      {
+        "path": "platforms/web/skills/web-design-system/references/current-guidance.md",
+        "sha256": "a3b110358f28a420097fecfa3a922ac67aefb5abe15532afdc5b9f3e6fdd964e"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/web-react-ui/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/web-react-ui/SKILL.md",
+        "sha256": "283349c8ef0b33c656d23cf26e415e1f4d79191f1a8da7db2c2c6092bd33a2fd"
+      },
+      {
+        "path": "platforms/web/skills/web-react-ui/references/current-guidance.md",
+        "sha256": "beb4c0e7001e0ad2f5646a1a37ebcf535b186e9f4b16944122779207538fc65c"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/web-review/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/web-review/SKILL.md",
+        "sha256": "5199d1e2aebaaafa1195bc0077f04dec02087c79280620c1ffc14916600ffe71"
+      },
+      {
+        "path": "platforms/web/skills/web-review/references/current-guidance.md",
+        "sha256": "354ed2fd72225019981862b178a8e96c04dca57c920014a631ea43b02fbb9f61"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/web-security/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/web-security/SKILL.md",
+        "sha256": "19c83de040e1c9bd77fd98fc86ac08baccef8428e3cf8f36ad450b80c3eeaccb"
+      },
+      {
+        "path": "platforms/web/skills/web-security/references/current-guidance.md",
+        "sha256": "36774c4d888d8401d2a01307c9ff7e5b182519a300ca0f8ad675a00a18b3581f"
+      }
+    ]
+  },
+  {
+    "manifest": "platforms/web/skills/web-state-data/SKILL.md",
+    "files": [
+      {
+        "path": "platforms/web/skills/web-state-data/SKILL.md",
+        "sha256": "b3d1dd8fee4909e9fa6765b05324f614fb26fa778a24307fa72ca5ac3d68e875"
+      },
+      {
+        "path": "platforms/web/skills/web-state-data/references/current-guidance.md",
+        "sha256": "cedafa25e008d90f10485354da22cd3d1b42369d1dcbbaeae900d712298cab3c"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/agent-credential-broker-ideation/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/agent-credential-broker-ideation/SKILL.md",
+        "sha256": "dc60b5180317e1e6969316cc6a9dce8ab473e002382ab6d3078b6bc7fdc53cf0"
+      },
+      {
+        "path": "product-patterns/skills/agent-credential-broker-ideation/references/current-guidance.md",
+        "sha256": "155283389918bb7848564715e002679fa8bb18527fe57d1b2b749d26d457e45a"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/auth-rbac-implementation/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/auth-rbac-implementation/SKILL.md",
+        "sha256": "8125e4317229325b9984a7aefccf2b1271b579c3f865137316e92c9ef454729d"
+      },
+      {
+        "path": "product-patterns/skills/auth-rbac-implementation/references/current-guidance.md",
+        "sha256": "fb127a7012a88b34c02a347309f1ebd58f79bd170425358e29cce6b1daa98cbc"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/auth-rbac-permissions/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/auth-rbac-permissions/SKILL.md",
+        "sha256": "e1db99299ce28494fe79e57fc9588c7fd7ab16774f21dd2985600abcae20c94e"
+      },
+      {
+        "path": "product-patterns/skills/auth-rbac-permissions/references/current-guidance.md",
+        "sha256": "401b25b3b82c38f5da92a187e069306499533b26c6ed35040e01ff56af72b4f2"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/billing-entitlements-implementation/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/billing-entitlements-implementation/SKILL.md",
+        "sha256": "1be172650418ca853fdc40946faedf39b6bca27b4abedaf7a0a9cce68ffe0b7d"
+      },
+      {
+        "path": "product-patterns/skills/billing-entitlements-implementation/references/current-guidance.md",
+        "sha256": "dc2944ba937ebf310a22d60895b47aa15907112408885cc2e16a13a2b02f6000"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/billing-entitlements/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/billing-entitlements/SKILL.md",
+        "sha256": "c88e1f4dafafd9d71f848c3fd5c5ecfe50c95116fbdd99ce8abeb333431365d0"
+      },
+      {
+        "path": "product-patterns/skills/billing-entitlements/references/current-guidance.md",
+        "sha256": "80c4e225a6ee0b299b6b46898dfe9f616534873a60acc8fc3308388e5b189281"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/growth-conversion-optimization/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/growth-conversion-optimization/SKILL.md",
+        "sha256": "3cb3024aef99db2f81e70cefe527629321d00866c14d44cb022508c2602f64c0"
+      },
+      {
+        "path": "product-patterns/skills/growth-conversion-optimization/references/current-guidance.md",
+        "sha256": "5ad7837fd65f92dbfd1145417fc55e9a806c4574e308bad2fbc1f84afc0d5b00"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/invitation-implementation/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/invitation-implementation/SKILL.md",
+        "sha256": "63b3d82532be674ef3646e3918c043f3d14da70c72694219165ee6ec38c58691"
+      },
+      {
+        "path": "product-patterns/skills/invitation-implementation/references/current-guidance.md",
+        "sha256": "f7b5d5ca47bfe6c1e91dcc8141145f35c43cdd9ff755e93fd028a8e378b4105e"
+      }
+    ]
+  },
+  {
+    "manifest": "product-patterns/skills/invitation-workflows/SKILL.md",
+    "files": [
+      {
+        "path": "product-patterns/skills/invitation-workflows/SKILL.md",
+        "sha256": "57321daf078daca9fdfec1fdd2353f76f0c04de9888cef7ec0f2515a8d5f86d0"
+      },
+      {
+        "path": "product-patterns/skills/invitation-workflows/references/current-guidance.md",
+        "sha256": "143fe86016f4c2f1f09720496b489414488f8f041e3aace146869832f89d7c17"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/agent-handoff-continuation/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/agent-handoff-continuation/SKILL.md",
+        "sha256": "033ad47caac38bbd789cf84610b1d1020316d592a9ff0c0d84ee4653d8cfdb1a"
+      },
+      {
+        "path": "workflows/skills/agent-handoff-continuation/references/current-guidance.md",
+        "sha256": "7a58e27492e2f6418e61ddb31cb84dd168c14a02664be46a254f306f60771221"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/agent-task-lifecycle/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/agent-task-lifecycle/SKILL.md",
+        "sha256": "e17d64a84f22d99e6b3edbba3aceed1fa28d4e936fc6625043d894e69158ce98"
+      },
+      {
+        "path": "workflows/skills/agent-task-lifecycle/references/current-guidance.md",
+        "sha256": "bac8fb0ffe3d1698de0e9709a62bfcc98e68769eaea6cb4e51327e74602f0215"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/ambiguity-gate/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/ambiguity-gate/SKILL.md",
+        "sha256": "d4557f95bb68218255a7deea7d136450228be290296d3d73ca4a84561d4bea5d"
+      },
+      {
+        "path": "workflows/skills/ambiguity-gate/references/current-guidance.md",
+        "sha256": "fdf81671c103926774cd70da59d51d93c76b7f9b7cddf9a9de6be441b95e367c"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/bugfix-debugging/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/bugfix-debugging/SKILL.md",
+        "sha256": "eefb6757b4c0d4391bda2a9b62150776156bbbc8567cb45840b1cc67b12609ea"
+      },
+      {
+        "path": "workflows/skills/bugfix-debugging/references/current-guidance.md",
+        "sha256": "9a49d44295a4867508176ed902fa1686f93772531a62f6380722e8306ff5dd7f"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/cycle-contract/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/cycle-contract/SKILL.md",
+        "sha256": "d10b513e29f1724aa8e8e8af40d98989874631e68d16e3bf99b9fffa712c3f45"
+      },
+      {
+        "path": "workflows/skills/cycle-contract/references/current-guidance.md",
+        "sha256": "a2140ced2f9e144fdd91ba5ddf416a4e4c36f42e9557ae548c9e5f0c0b5fda62"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/development-cycle/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/development-cycle/SKILL.md",
+        "sha256": "80d92b60fc9ec6ac20cc87ab2f4867beab7f32a18eb5a60dd040dcabeb5d42f8"
+      },
+      {
+        "path": "workflows/skills/development-cycle/references/current-guidance.md",
+        "sha256": "8f594538c3c3084b21e416f1d13ccd69f50e8724cfda93195566f2d1594fb05c"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/documentation-update/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/documentation-update/SKILL.md",
+        "sha256": "a2da3bd948aa279e68df3c51b510016f8b7d7f71820670a6d56adef01b02c8eb"
+      },
+      {
+        "path": "workflows/skills/documentation-update/references/current-guidance.md",
+        "sha256": "6f09acdaf6b67d939c2e7d0f88caf2f8025d5fa7755d8437bb2681a65054cd90"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/feature-implementation/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/feature-implementation/SKILL.md",
+        "sha256": "cfb7cac94e7737143c5478709a66412d342882275f2cfefdc68ae2f5ad63b1af"
+      },
+      {
+        "path": "workflows/skills/feature-implementation/references/current-guidance.md",
+        "sha256": "d4c9cef38d74b8cdbd2ab4d1ad8e0b1fda1956ff64c822578eae3337be979775"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/multi-agent-collaboration/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/multi-agent-collaboration/SKILL.md",
+        "sha256": "20fe08c721a6eabbae14cb84d2d1548162dfd3e8d0e8cfb20986cd3d2359ef12"
+      },
+      {
+        "path": "workflows/skills/multi-agent-collaboration/references/current-guidance.md",
+        "sha256": "6b3755e8d331815351a0b4a5ebbecacaf8bfa8f621a9015b890d25d6f3323656"
+      },
+      {
+        "path": "workflows/skills/multi-agent-collaboration/references/on-demand-orchestration.md",
+        "sha256": "9478030d3203f3e51c87029eee8eb6428f81355574def41c0c7075f19b81cf9b"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/multi-perspective-review/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/multi-perspective-review/SKILL.md",
+        "sha256": "945e77b64c157c8bdc8c1a581621bd5ae0329ad9647174fbf9157823319f3b05"
+      },
+      {
+        "path": "workflows/skills/multi-perspective-review/references/current-guidance.md",
+        "sha256": "83872feac7f76ec2583efbfcc52cdaec15d4f5649d787bc45d0b9d2b1db4e3b8"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/planning-research/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/planning-research/SKILL.md",
+        "sha256": "12e3fdf5f861e788e8494d432458d641879c4744d28ed0df2754c1f5f36e2f35"
+      },
+      {
+        "path": "workflows/skills/planning-research/references/current-guidance.md",
+        "sha256": "77e95f2f9c9e6b0bd4960a59ce4d3572a427e1e78c22886910af05fbaf2db773"
+      },
+      {
+        "path": "workflows/skills/planning-research/references/source-triage.md",
+        "sha256": "1fac55a98aeea41dbf2b0d492371b5fecd71087656e90f9df26b8d4a35aad410"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/prd-creation/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/prd-creation/SKILL.md",
+        "sha256": "b8a75d04f5d92d6db8a44b02e55654b3877b86b90457969ff2e037a39639ff80"
+      },
+      {
+        "path": "workflows/skills/prd-creation/references/current-guidance.md",
+        "sha256": "9dda5912a244ef0de0c58c91d32573eb7e1f764fdd28ff33279458c97a57f249"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/product-architecture-delivery/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/product-architecture-delivery/SKILL.md",
+        "sha256": "65ba748c17788a6e40b0e8ca75b3e4a2e6e49ea0f1545e63315b6ff42c842097"
+      },
+      {
+        "path": "workflows/skills/product-architecture-delivery/references/current-guidance.md",
+        "sha256": "1a2d8f3b388bc2b2803316d93272f1c643bfcade00a04dd65209df182d200e2c"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/refactor-cleanup/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/refactor-cleanup/SKILL.md",
+        "sha256": "9828431ef2a49a045321ae17a2668bf348b26a56ba39f9ec7adb006f91c8ee77"
+      },
+      {
+        "path": "workflows/skills/refactor-cleanup/references/current-guidance.md",
+        "sha256": "a6dc943d47b3afcd29d02f08291d57328d59ffba6894baa31191ce745c1aed53"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/release-readiness/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/release-readiness/SKILL.md",
+        "sha256": "2d9a2d0f7d7d0579a3edcc2f114c8dc61dd64c53ef2f9b67fb2212d924841461"
+      },
+      {
+        "path": "workflows/skills/release-readiness/references/current-guidance.md",
+        "sha256": "2e0ddb8767dad5997cffb6f122bf911114855a70bc23ce4d6904722685ccd18d"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/request-triage/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/request-triage/SKILL.md",
+        "sha256": "a31faf630fb84b23e7a22bd58989aa777b845926a6f864ee9be20e512814b2f7"
+      },
+      {
+        "path": "workflows/skills/request-triage/references/current-guidance.md",
+        "sha256": "162c2faa884eaf45ce2559306705b5695eabf26631a99e90fd37fb6a3ead484d"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/retrospective-learning/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/retrospective-learning/SKILL.md",
+        "sha256": "5a9b295b51c04f73e421c0ebbe8bb7bbffdbac83672c1c8a20eb99d101024b59"
+      },
+      {
+        "path": "workflows/skills/retrospective-learning/references/current-guidance.md",
+        "sha256": "cbb739ec57612d435a5bc22efd17a32ab9f64800d78fcd86d8806afc924a28a9"
+      },
+      {
+        "path": "workflows/skills/retrospective-learning/references/failure-repair.md",
+        "sha256": "0e09ed84cda62548b3b734d2cc5af39c583c6950e45fe64352718780294b13b4"
+      },
+      {
+        "path": "workflows/skills/retrospective-learning/references/skill-feedback.md",
+        "sha256": "ea02466a720d0a1b994e23bea6a114c6d60fc7ea8e740abd95f65a8e135008fe"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/review-and-commit/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/review-and-commit/SKILL.md",
+        "sha256": "6557a3e8ec5fe7392da862b26a2da6cb491d4f446d21ff5001655f3d0b19f8cc"
+      },
+      {
+        "path": "workflows/skills/review-and-commit/references/current-guidance.md",
+        "sha256": "8afdecabd6f38931ead013e8ac7c02fa4fc43caa37b4692009ee51fc86031151"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/scripted-agent-workflow/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/scripted-agent-workflow/SKILL.md",
+        "sha256": "bd15a6566e22e2579794c39f494298289ee9e7c4ff1cd3252754b7fcfda646ed"
+      },
+      {
+        "path": "workflows/skills/scripted-agent-workflow/references/current-guidance.md",
+        "sha256": "ca23d46bbc534d0b90151fecc37cbc5a122319dc17164d6f0ab9fef8e2e4fe55"
+      },
+      {
+        "path": "workflows/skills/scripted-agent-workflow/references/evidence-wrappers.md",
+        "sha256": "7ef77eb7f31dd511f940c6ae393b6d4d2bc4a78306b5961c7a955318c9184771"
+      }
+    ]
+  },
+  {
+    "manifest": "workflows/skills/session-continuation-protocol/SKILL.md",
+    "files": [
+      {
+        "path": "workflows/skills/session-continuation-protocol/SKILL.md",
+        "sha256": "b5bb3b745a029b6e6920d268611476bd150cff67a7edb6d562d43c2412a53315"
+      },
+      {
+        "path": "workflows/skills/session-continuation-protocol/references/current-guidance.md",
+        "sha256": "b51fa6b161d9c15d5f8267c53e4e732a6bd1a7c7c87eda916e52685bda34fbb8"
+      },
+      {
+        "path": "workflows/skills/session-continuation-protocol/references/decisions.md",
+        "sha256": "ff831599c472ba1dc26391fa04c0427cb22fb9c40fc0db151f511584ef24d12d"
+      },
+      {
+        "path": "workflows/skills/session-continuation-protocol/references/packet-contract.md",
+        "sha256": "30cb54414739aaf613c9f2caa63ff27017f30fac66ed662173ff8c1016d65469"
+      }
+    ]
+  }
+]
