@@ -15,6 +15,7 @@ The core below is the required contract. Open `references/current-guidance.md` o
 
 - `## Check` for the full state, text, numeric, viewport and input checklist.
 - `## Detail & Craft Gate` for micro-detail, inset, scaling, and layout-stability verification.
+- `## Content-To-Edge Padding Check` whenever a surface (card, button, badge, input, row, dialog, page) was built, restyled, polished or refactored.
 - `## Tools By Platform` for evidence tooling per platform and companion cards.
 - `## Comparison Oracle And Evidence Budget` for before/after, regression or motion claims.
 - `## Figma parity gate` for the parity measurement list when a design frame is the requirement.
@@ -30,7 +31,7 @@ The core below is the required contract. Open `references/current-guidance.md` o
 - Values ported from another platform are re-derived for the target, not copied: web px/rem text sizes, line heights, hit targets, density and hover/toolbar controls get the target platform's reading, touch and settings conventions.
 - Every control, setting and state field has a visible effect and the persistence users expect; wire or remove state that is stored but never rendered, or reset when the screen closes.
 - Hiding or replacing system chrome must keep system navigation working on every stacked screen (edge swipe back, predictive back, sheet dismiss); only a real device or simulator gesture proves it.
-- Check micro-detail craft: zero layout shift on hover/async/numeric changes (`tabular-nums` / `.monospacedDigit()`), single-owner safe-area/IME inset consumption without double padding, unclipped text at `AX5` / `fontScale 2.0` / `textScaler 2.0`, concentric nested radii, and actionable recovery in empty/error states.
+- Check micro-detail craft: zero layout shift on hover/async/numeric changes (`tabular-nums` / `.monospacedDigit()`), single-owner safe-area/IME inset consumption without double padding, unclipped text at `AX5` / `fontScale 2.0` / `textScaler 2.0`, concentric nested radii, actionable recovery in empty/error states, and measured content-to-edge padding and page gutter (text or icons touching a painted edge or the mobile screen edge fail).
 - Check keyboard focus, screen-reader labels, hit targets, visible focus; overlap or unexpected resize; same result from every entry point; state updating after actions, retries, refreshes, navigation.
 - Hover-only reveal (`:hover`/`group-hover`/`focus-within`) is never the sole way to open an actionable menu or control: require a tap/click toggle with outside-tap/escape close, verified at a touch/mobile viewport.
 - Use repo-local tooling first and the strongest practical evidence: interaction tests, semantic assertions, screenshot/geometry checks, manual smoke only when automation cannot observe it. Load `common/skills/accessibility-i18n/SKILL.md` for text, forms, numbers, units, localization, focus or screen readers.

@@ -55,6 +55,70 @@ map them to the platform's units (pt, dp) and token holders.
 - Hit targets are at least 24px with a pointer and 44px on touch, even when the
   visible control is smaller.
 
+## Padding And Insets
+
+Agents most often drop padding, not spacing between items: a surface gets its
+color, radius and shadow, and its text still touches the edge. Padding is a
+relationship between a container and its content, so set it whenever you set a
+surface, and measure it on the rendered result.
+
+Keep three kinds of space apart, and give each one owner:
+
+- **Padding**: the inset between a painted edge and the content inside it.
+- **Gap**: the space between siblings, set on the parent layout (`gap`,
+  `spacing`, `Arrangement.spacedBy`), never as margins on every child.
+- **System inset**: safe area, status/navigation bar, keyboard and fixed
+  header/footer clearance, consumed once at the screen owner. It is added to the
+  page gutter, not used in place of it.
+
+Rules:
+
+- **Painted-surface inset**: any element with a fill, border, outline, tonal
+  step or shadow has non-zero padding on every side that holds text or icons.
+  Only full-bleed media, dividers and an intentional edge-to-edge row (whose
+  content then carries its own inset) are exempt.
+- **Padding lives on the element that paints**: a full-width child with its own
+  background (`width: 100%`, `fillMaxWidth`, `double.infinity`) carries its own
+  padding; the parent's padding does not reach inside it.
+- **Scrolling content pads inside the viewport**: put the inset on the scrolled
+  content (`contentPadding`, inner padding, `.contentMargins`, `scroll-padding`)
+  so the first and last items clear the edge and any fixed bar by at least 16px,
+  instead of padding an outer wrapper that clips.
+- **Nothing else stands in for padding**: a sibling gap, an outer margin, a
+  minimum height or an enlarged hit region does not create clearance inside a
+  painted edge.
+- **Rows align to the container**: list rows and the first and last table
+  columns use the same horizontal inset as their card or page, so text lines up
+  on one edge.
+- **Polish and refactor keep padding**: a cleanup that removes wrappers,
+  borders or decoration keeps the padding that framed the content, or says in
+  the report why it changed. "Remove what carries no meaning" never applies to
+  padding.
+
+Defaults, on the 4px scale (CSS px; map to pt/dp):
+
+| Surface | Default padding |
+| --- | --- |
+| Page side gutter | 16 below 600 wide, 24 from 600, 32 from 1024 with a max-width column |
+| Card or panel | 16 (12 dense, 24 roomy) |
+| Dialog or sheet | 24 (16 on narrow screens); actions row keeps the bottom inset plus safe area |
+| Button | 8-12 vertical, 16 horizontal (12 compact); horizontal is at least 1.5x vertical |
+| Chip | 4-6 vertical, 12 horizontal |
+| Badge or pill | 2-4 vertical, 8 horizontal; never 0 against a rounded end |
+| Input or select | 8-12 vertical, 12 horizontal; same clearance around prefix and suffix icons |
+| List row | 12 vertical, 16 horizontal (matching the gutter) |
+| Table cell | 8-12 vertical, 12-16 horizontal |
+| Toolbar or app bar | 8 vertical, 16 horizontal (matching the gutter) |
+| Section rhythm | 48-64 between sections, 16-24 inside a group |
+
+Measure, do not trust the stylesheet: on the rendered screen the nearest text
+or icon box sits at least 8px from the painted edge of a control and at least
+12px from a card, panel, dialog or row, and mobile body text sits at least 16px
+from the viewport edge. Padding can come from the element, a child's margin or
+a layout gap, so the check is rendered geometry, not the computed `padding`
+value. Use the content-to-edge check in
+`common/skills/ui-visual-verification/references/current-guidance.md`.
+
 ## Color
 
 - Build a neutral ramp of 9-10 steps, tinted slightly warm or cool, instead of
@@ -195,6 +259,8 @@ replace each one found:
   micro-copy, or interactive-looking mockups locked behind `role="img"`
 - multi-chapter scrollytelling pages with no chapter wayfinding rail or with
   the 3D focal subject centered directly behind unbacked body copy
+- text or icons touching the edge of a card, button, badge, input, row or
+  dialog, or mobile content flush against the screen edge
 - every heading bold, every section boxed, every list item with a divider
 - emoji or decorative icons in front of every label
 - an eyebrow label above every heading, or one accented word in a headline

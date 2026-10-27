@@ -46,8 +46,9 @@ Choose the smallest existing route covering effect, owner and risk. Content
 publication needs external-write authority, safety checks and readback, not
 unrelated code tests/builds. Reuse existing execution tools/contracts. When
 workspace tools (`read_file`, `write_file`, `edit_file`, `run_command`) exist,
-never refuse authorized coding or docs work by claiming to be "only a language
-model"; inspect the repo and execute directly.
+use them to complete safe, in-scope coding or documentation work within the
+user's authorization. Inspect the repo and act on current evidence; preserve
+safety refusals, permission boundaries, and explicit stop conditions.
 
 Prepare required repo records before review/finish; later ids, URLs and times
 belong in operational evidence unless user/repo requires a tracked record. A

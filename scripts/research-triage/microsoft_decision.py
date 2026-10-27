@@ -15,6 +15,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+_SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+from support.provider_http import open_provider_request
+
 ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 MODEL = "inception/mercury-decide:free"
 PAID_MODEL = "microsoft/microsoft-decision-1"
@@ -171,7 +176,7 @@ def send_request(request: dict, api_key: str) -> dict:
     call = urllib.request.Request(ENDPOINT, data=body, headers={
         "Authorization": "Bearer " + api_key, "Content-Type": "application/json",
     })
-    with urllib.request.urlopen(call, timeout=30) as response:
+    with open_provider_request(call, timeout=30) as response:
         return json.load(response)
 
 
@@ -201,7 +206,7 @@ def openrouter_api_key(files: tuple[Path, ...] | None = None) -> str:
 
 def evaluate(payload: dict, options: argparse.Namespace) -> dict:
     now = time.time()
-    api_key = openrouter_api_key()
+    api_key = openrouter_api_key() if options.execute else ""
     results, evaluated, warnings = [], {}, []
     calls, hits, cost, known_costs = 0, 0, 0.0, 0
     can_call = options.execute and bool(api_key)
@@ -265,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--cache-dir", type=Path, default=Path(".moru/research-cache/ms"))
-    parser.add_argument("--execute", action="store_true", help="Allow new API calls")
+    parser.add_argument("--execute", action="store_true", help="Send query and source URL/title/text/date to OpenRouter; review input for private data first")
     parser.add_argument("--model", choices=(MODEL, PAID_MODEL), default=MODEL,
                         help="Decisions model; the default is free, the Microsoft option is paid")
     parser.add_argument("--max-calls", type=int, default=10)

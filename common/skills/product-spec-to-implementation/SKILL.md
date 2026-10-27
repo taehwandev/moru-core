@@ -13,5 +13,9 @@ conditions and verification before acting. Open related cards only for
 in-scope work, starting with their `SKILL.md`. Use this canonical bundle,
 not legacy flat paths.
 
+For a product, marketing or sales artifact consumed by later work, also read
+`references/artifact-handoff.md` for source versions, evidence and change impact.
+Do not introduce a registry or metadata form for a simple answer.
+
 When changing routing, confirm it selects this entrypoint. When changing
 guidance, validate the reference's links and frontmatter.

@@ -8,6 +8,9 @@ from typing import Dict, Tuple
 PUBLIC_DISCOVERY_DOCS = ("common/skills/public-discovery/SKILL.md",)
 FOLDABLE_LAYOUT_DOCS = ("common/skills/foldable-adaptive-layout/SKILL.md",)
 SOCIAL_SIGN_IN_DOCS = ("common/skills/social-sign-in-buttons/SKILL.md",)
+BUSINESS_ARTIFACT_HANDOFF = (
+    "common/skills/product-spec-to-implementation/references/artifact-handoff.md"
+)
 WEB_SERVICE_STACK_DOCS = (
     "common/skills/web-service-rn-python/SKILL.md",
     "platforms/web/skills/web-architecture/SKILL.md",
@@ -246,6 +249,9 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
         "product-patterns/skills/billing-entitlements/SKILL.md",
         "product-patterns/skills/billing-entitlements-implementation/SKILL.md",
     ),
+    "product-planning": ("product-patterns/skills/product-planning/SKILL.md", BUSINESS_ARTIFACT_HANDOFF),
+    "marketing-planning": ("product-patterns/skills/marketing-planning/SKILL.md", BUSINESS_ARTIFACT_HANDOFF),
+    "sales-proposal": ("product-patterns/skills/sales-proposal/SKILL.md", BUSINESS_ARTIFACT_HANDOFF),
     "marketing": ("product-patterns/skills/growth-conversion-optimization/SKILL.md", "common/skills/public-discovery/SKILL.md"),
     "growth": ("product-patterns/skills/growth-conversion-optimization/SKILL.md", "common/skills/public-discovery/SKILL.md"),
     "conversion": ("product-patterns/skills/growth-conversion-optimization/SKILL.md",),

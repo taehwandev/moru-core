@@ -3,6 +3,7 @@ import io
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -20,6 +21,30 @@ class UniversalMarketingOptimizerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.mod = _load_marketing_optimizer()
+
+    def test_preview_with_key_never_calls_provider(self):
+        prof = self.mod.resolve_profile(archetype="devtool")
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "synthetic-key"}), \
+                patch.object(self.mod, "open_provider_request", side_effect=AssertionError("network")):
+            result = self.mod.generate_candidate_variants(prof, "headline", "example-model")
+        self.assertEqual(result["source"], "offline_verified_playbook")
+
+    def test_live_request_excludes_private_profile_fields_and_key_from_output(self):
+        prof = self.mod.resolve_profile(archetype="devtool")
+        prof["project_path"] = "/private/synthetic-project"
+        prof["private_notes"] = "synthetic-do-not-transmit"
+        response = io.BytesIO(json.dumps({"choices": [{"message": {
+            "content": json.dumps({"variants": []}),
+        }}]}).encode())
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "synthetic-key"}), \
+                patch.object(self.mod, "open_provider_request", return_value=response) as call:
+            result = self.mod.generate_candidate_variants(prof, "headline", "example-model", live=True)
+        request = call.call_args.args[0]
+        self.assertEqual(request.full_url, "https://openrouter.ai/api/v1/chat/completions")
+        self.assertEqual(request.get_header("Authorization"), "Bearer synthetic-key")
+        self.assertNotIn("synthetic-do-not-transmit", request.data.decode())
+        self.assertNotIn("/private/synthetic-project", request.data.decode())
+        self.assertNotIn("synthetic-key", json.dumps(result))
 
     def test_supports_all_five_business_archetypes(self):
         for arch in ("saas", "mobile_app", "ecommerce", "game", "devtool"):

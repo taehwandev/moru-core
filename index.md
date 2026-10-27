@@ -161,6 +161,20 @@ catalog itself only when that is the task.
 - Billing/entitlements/quota: `product-patterns/skills/billing-entitlements/SKILL.md`
 - Billing/entitlements implementation: `product-patterns/skills/billing-entitlements-implementation/SKILL.md`
 - Growth, marketing keywords, conversion funnel, and OpenRouter CRO: `product-patterns/skills/growth-conversion-optimization/SKILL.md`
+- Early product problem, opportunity proposal and PRD handoff: `product-patterns/skills/product-planning/SKILL.md`
+- Audience, positioning, message and campaign briefs before CRO: `product-patterns/skills/marketing-planning/SKILL.md`
+- Sales discovery, fit and internal proposal drafts: `product-patterns/skills/sales-proposal/SKILL.md`
+
+Business skills load at the artifact stage, before drafting. A resolved work
+route for a product proposal, campaign/positioning brief or prospect proposal
+selects the matching skill and its detailed guidance, plus the shared artifact
+handoff contract. Staged callers may name `product-planning`,
+`marketing-planning` or `sales-proposal` explicitly as a concern. The natural
+language matches select reading only; they do not authorize work, spend or
+outreach. Code fixes, lookups and commits do not gain all three skills merely
+because they mention a business term. If required guidance is still unread at
+the first file edit, the existing Claude/Codex delivery hook supplies it once;
+agents must still follow the required-doc reading contract in every runtime.
 - Agent credential broker ideation: `product-patterns/skills/agent-credential-broker-ideation/SKILL.md`
 
 ## Workflow

@@ -262,6 +262,26 @@ docs/             Reference guides and runtime setup docs
 Start most coding work from
 [`common/skills/agent-operating-skill/SKILL.md`](common/skills/agent-operating-skill/SKILL.md).
 
+## Recorded SkillSpector Inspection
+
+We used [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) for a
+self-run static inspection on 26 October 2026; it is an audit tool used for this
+inspection, not an installed Moru runtime dependency or NVIDIA certification.
+
+- Pinned scanner: `2.12.0`, revision `d7338f58200a9ae2a24810cee08911ab68b107a7`.
+- Scope: 165 Core skill bundles, with no scanner LLM calls or finding suppression.
+- Final snapshot: 593 warnings remain; 114 analyses are complete and 51 partial.
+  Scanner recommendations are 100 SAFE, 60 CAUTION and 5 DO_NOT_INSTALL. These
+  recommendations are retained, not replaced with a whole-product pass badge.
+- We clarified one operating instruction and separately reproduced and patched
+  credential-forwarding on redirects in two optional OpenRouter adapters.
+  Synthetic behavior tests verify the patch; this does not assert a past breach.
+
+Read the [scope, remaining findings, file hashes and verification record](docs/security/skillspector-2026-10-26/README.md).
+The report identifies the baseline and audited patch snapshot; it does not
+claim every later revision, the deployed web app or native AI runtimes were
+scanned. No automatic continuous scanning is implied.
+
 ## Contributing
 
 - Shared rules are written in clear, concise English. Translated guides (such as

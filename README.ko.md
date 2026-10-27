@@ -144,6 +144,24 @@ AGENTS.md에 짧은 연결 블록을 추가하고 우리 프로젝트 고유 규
 - **[Spill](https://getmoru.com/spill)**: 내 맥(Mac)에서 코딩 에이전트의 토큰 사용량과 작업 흐름을 집계하며, 모루 코어 설치 시 작업 라벨이 자동으로 연결됩니다.
 - **[Moru Artemis (`moru-artemis`)](https://github.com/taehwandev/moru-artemis)**: Claude Code·Codex·Antigravity가 연결된 안드로이드 실기기와 에뮬레이터를 MCP로 직접 조작하게 해 주는 오픈소스 어댑터(`google/artemis` 기반 Apache-2.0 포크)입니다. 별도 유료 LLM API 키 없이 호스트 에이전트가 직접 화면을 판단하며, 원본 XML 대비 **-96.4% 가벼운 컴팩트 UI 트리(`~0.19초`)**, 애니메이션 종료 대기(`wait_for_stable`), 스크롤 끝·이동량(`scroll_end_reached`/`moved`) 자동 감지를 지원합니다.
 
+## SkillSpector로 점검한 기록
+
+2026년 10월 26일 [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector)
+2.12.0의 고정된 소스 버전으로 스킬 165개를 직접 정적 검사했습니다.
+이번 검사에 사용한 도구이며, 모루의 필수 실행 의존성이나 NVIDIA 인증은 아닙니다.
+
+- 검사 LLM 호출과 경고 숨김 없이 실행했습니다.
+- 최종 기록에는 경고 593개가 남아 있으며, 완전 검사 114개·부분 검사 51개입니다.
+  도구의 SAFE 100개·CAUTION 60개·DO_NOT_INSTALL 5개 판정을 그대로 남겼습니다.
+- 운영 지침 한 곳을 명확히 했고, 별도 코드 검토에서 재현한 OpenRouter
+  인증 헤더의 리다이렉트 전달 경로를 차단했습니다. 가짜 키를 사용한 동작
+  테스트로 확인했으며, 과거에 실제 유출이 있었다는 뜻은 아닙니다.
+
+[검사 범위·남은 경고·파일 해시·검증 기록](docs/security/skillspector-2026-10-26/README.md)을
+함께 공개할 수 있도록 보관합니다. 이 기록은 보고서에 명시한 기준 커밋과 수정 작업본에
+대한 것이며, 이후 모든 버전·운영 웹사이트·AI 도구 전체의 안전을 보증하거나
+지속적인 자동 검사가 실행 중이라는 뜻은 아닙니다.
+
 ## 폴더 구성
 
 - `AGENTS.md`: 에이전트가 가장 먼저 읽는 공통 시작 문서

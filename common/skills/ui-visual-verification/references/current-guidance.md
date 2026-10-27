@@ -41,7 +41,7 @@ affects navigation, commands, permissions, persistence, or cross-surface state.
 
 ## Detail & Craft Gate
 
-When building, restyling, or polishing user-facing surfaces, verify these five
+When building, restyling, or polishing user-facing surfaces, verify these six
 craft invariants against the rendered target runtime (see
 `common/skills/minimal-visual-design/references/platform-craft-matrix.md` for
 platform-specific recipes):
@@ -65,6 +65,83 @@ platform-specific recipes):
 - **Actionable state & formatted values**: Empty, loading, partial, and error
   states preserve user input and provide a concrete next action; numbers, dates,
   and units are locale-formatted (never raw floats or internal enum strings).
+- **Content-to-edge padding**: Text and icons clear every painted edge (fill,
+  border, shadow) by at least 8px inside a control and 12px inside a card,
+  panel, row or dialog, and mobile text clears the viewport edge by 16px. Run
+  `## Content-To-Edge Padding Check`; reading the stylesheet or modifier chain
+  is not proof.
+
+## Content-To-Edge Padding Check
+
+Run after building, restyling or polishing any surface, and again after a
+refactor that touches its markup or modifiers. Padding is the most often
+dropped detail, and a code read misses it because the inset can come from the
+element, a child margin, a layout gap or nothing at all.
+
+- Measure rendered geometry: the distance from the nearest text or icon box to
+  the inner edge of each painted surface, on all four sides. Computed `padding`
+  alone misses escaping children and padding supplied elsewhere.
+- Check at a narrow (about 375) and a wide (about 1280) width, with large text,
+  and at the start and end of each scroll area, including nested ones and
+  under fixed headers or footers.
+- Inspect screenshots at native scale or zoomed in. A downscaled capture
+  cannot tell 0px from 12px.
+- Every reported surface is a failure unless it is intentional full-bleed
+  media, a divider, or an edge-to-edge row whose content carries its own inset;
+  say which exception applies.
+
+Web (DevTools console or Playwright `page.evaluate`; thresholds are control,
+surface and mobile gutter):
+
+```js
+((control = 8, surface = 12, gutter = 16) => {
+  const sides = ["Top", "Right", "Bottom", "Left"];
+  const painted = (el, s) => !/^(rgba\(0, 0, 0, 0\)|transparent)$/.test(s.backgroundColor)
+    || sides.some((side) => parseFloat(s[`border${side}Width`]) > 0 && s[`border${side}Style`] !== "none")
+    || s.boxShadow !== "none";
+  const content = (root) => {
+    const rects = [], walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node; (node = walk.nextNode());) {
+      if (!node.textContent.trim()) continue;
+      const range = document.createRange(); range.selectNodeContents(node);
+      rects.push(...[...range.getClientRects()].filter((r) => r.width && r.height));
+    }
+    for (const el of root.querySelectorAll("svg, img, video, input, select, textarea")) {
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height) rects.push(Object.assign(r, { media: el.matches("img, video") }));
+    }
+    return rects;
+  };
+  const tight = [];
+  for (const el of document.querySelectorAll("body *")) {
+    const s = getComputedStyle(el), box = el.getBoundingClientRect();
+    if (box.width < 24 || box.height < 16 || el.matches("img, svg, video, canvas, hr, input, select, textarea") || !painted(el, s)) continue;
+    const inner = { left: box.left + parseFloat(s.borderLeftWidth), right: box.right - parseFloat(s.borderRightWidth),
+      top: box.top + parseFloat(s.borderTopWidth), bottom: box.bottom - parseFloat(s.borderBottomWidth) };
+    // Full-bleed media spanning the surface is intentional; everything else needs clearance.
+    const rects = content(el).filter((r) => !(r.media && r.width >= (inner.right - inner.left) - 1)
+      && r.bottom > inner.top && r.top < inner.bottom && r.right > inner.left && r.left < inner.right);
+    if (!rects.length) continue;
+    const min = el.matches("button, a, [role=button], label, span, li, td, th") && box.height < 56 ? control : surface;
+    const gaps = { left: (r) => r.left - inner.left, right: (r) => inner.right - r.right, top: (r) => r.top - inner.top, bottom: (r) => inner.bottom - r.bottom };
+    const short = Object.entries(gaps).map(([side, gap]) => [side, Math.round(Math.min(...rects.map(gap)))]).filter(([, gap]) => gap < min);
+    if (short.length) tight.push(`${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}.${[...el.classList].join(".")} needs ${min}: ${short.map((e) => e.join("=")).join(" ")}`);
+  }
+  const width = document.documentElement.clientWidth;
+  const edge = width < 600 ? content(document.body).filter((r) => r.left < gutter || r.right > width - gutter).length : 0;
+  return { width, tight, textInsideGutter: edge };
+})();
+```
+
+Native equivalents compare the content node's bounds with its surface's inner
+bounds in the same units:
+
+- Compose: tag surface and content, read `getBoundsInRoot()` from the unmerged
+  tree (`useUnmergedTree = true`); merged touch bounds are not layout bounds.
+- SwiftUI: `.padding()` must come before `.background()`/`.overlay()` to inset
+  content inside the fill; verify with the view debugger or a snapshot test.
+- Flutter: compare `tester.getRect(find.text(...))` with the surface's
+  `tester.getRect(...)` in a widget test.
 
 ## Tools By Platform
 
