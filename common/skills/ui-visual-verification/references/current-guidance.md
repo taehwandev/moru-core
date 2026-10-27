@@ -41,7 +41,7 @@ affects navigation, commands, permissions, persistence, or cross-surface state.
 
 ## Detail & Craft Gate
 
-When building, restyling, or polishing user-facing surfaces, verify these six
+When building, restyling, or polishing user-facing surfaces, verify these seven
 craft invariants against the rendered target runtime (see
 `common/skills/minimal-visual-design/references/platform-craft-matrix.md` for
 platform-specific recipes):
@@ -70,6 +70,10 @@ platform-specific recipes):
   panel, row or dialog, and mobile text clears the viewport edge by 16px. Run
   `## Content-To-Edge Padding Check`; reading the stylesheet or modifier chain
   is not proof.
+- **No overlapping text**: No label, chip, caption or button covers another
+  piece of text or control, including floating labels positioned by script,
+  canvas or 3D scenes. Run `## Text Overlap Check`; the padding check measures
+  each surface on its own and cannot see one element landing on another.
 
 ## Content-To-Edge Padding Check
 
@@ -163,6 +167,92 @@ bounds in the same units:
   content inside the fill; verify with the view debugger or a snapshot test.
 - Flutter: compare `tester.getRect(find.text(...))` with the surface's
   `tester.getRect(...)` in a widget test.
+
+## Text Overlap Check
+
+Run with the padding check, and on any page with absolutely positioned,
+floating or animated labels: script-placed captions, tooltips, map or chart
+labels, and HTML overlaid on a canvas or 3D scene. These pass every per-surface
+check and still land on body text or buttons, most often on a narrow phone
+where the text column fills the screen.
+
+- Scroll through the page one viewport at a time and run the check at each
+  stop, at about 375 and 1280. Labels that move or cycle need several samples
+  per stop, a second or so apart; one clean sample proves nothing.
+- Every reported pair is blocking unless the overlap is the design (a badge on
+  an avatar corner, a stacked-card preview). Name each kept exception.
+- Fix the placement, not the symptom: move or stagger the label, hide it while
+  it would cover text, or drop it where the same information is already on the
+  page. Do not lower a z-index so the label slides behind the text.
+- The script skips pinned chrome (fixed or sticky headers, footers and floating
+  buttons) over scrolled content, text clipped by line clamps or scrollers,
+  faded decoration under 25% opacity, and scaled previews.
+
+Web (DevTools console or Playwright `page.evaluate`; `min` is the overlap in
+px on both axes that counts):
+
+```js
+((min = 2) => {
+  const width = document.documentElement.clientWidth, height = innerHeight;
+  const painted = (s) => !/^(rgba\(0, 0, 0, 0\)|transparent)$/.test(s.backgroundColor)
+    || (s.borderTopStyle !== "none" && parseFloat(s.borderTopWidth) > 0);
+  // Pinned chrome (a fixed or sticky header, footer or floating button) is meant to cover scrolled content.
+  const chrome = (el) => {
+    for (let e = el; e && e !== document.body; e = e.parentElement) {
+      if (!/^(fixed|sticky)$/.test(getComputedStyle(e).position)) continue;
+      const r = e.getBoundingClientRect();
+      if (r.width * r.height < (width * height) / 3) return e;
+    }
+    return null;
+  };
+  // Keep only the part of a box its scrolling or clipping ancestors leave visible (line clamps, scrollers).
+  const visible = (from, r) => {
+    let { left, top, right, bottom } = r;
+    for (let e = from; e && e !== document.body; e = e.parentElement) {
+      if (getComputedStyle(e).overflow === "visible") continue;
+      const c = e.getBoundingClientRect();
+      left = Math.max(left, c.left); top = Math.max(top, c.top); right = Math.min(right, c.right); bottom = Math.min(bottom, c.bottom);
+    }
+    return right - left > 0 && bottom - top > 0 ? { left, top, right, bottom } : null;
+  };
+  // Faded decoration and scaled previews (transform: scale) are not readable UI.
+  const faint = (el) => { let o = 1; for (let e = el; e; e = e.parentElement) o *= +getComputedStyle(e).opacity; return o < 0.25; };
+  const scaled = (el) => el.offsetWidth > 0 && Math.abs(el.getBoundingClientRect().width / el.offsetWidth - 1) > 0.02;
+  const units = [], walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node; (node = walk.nextNode());) {
+    const el = node.parentElement;
+    if (!node.textContent.trim() || !el.checkVisibility({ visibilityProperty: true }) || faint(el) || scaled(el)) continue;
+    // A short painted chip, pill or label covers its whole box, not only its glyphs.
+    let owner = el;
+    while (owner !== document.body && !(painted(getComputedStyle(owner)) && owner.getBoundingClientRect().height < 48)) owner = owner.parentElement;
+    const range = document.createRange(); range.selectNodeContents(node);
+    const own = owner !== document.body;
+    const rects = own ? [owner.getBoundingClientRect()] : [...range.getClientRects()];
+    if (!own) owner = el;
+    for (const rect of rects) {
+      const r = rect.width && rect.height ? visible(own ? owner.parentElement : el, rect) : null;
+      if (r && r.bottom > 0 && r.top < height && r.right > 0 && r.left < width)
+        units.push({ el, owner, chrome: chrome(el), r, text: node.textContent.trim().slice(0, 30) });
+    }
+  }
+  // Scrolled content that sits under pinned chrome is hidden there, not overlapping.
+  const covers = units.filter((u) => u.chrome).map((u) => u.chrome.getBoundingClientRect());
+  const hidden = (u) => !u.chrome && covers.some((c) => u.r.top >= c.top && u.r.bottom <= c.bottom && u.r.left < c.right && u.r.right > c.left);
+  const overlaps = new Set();
+  for (let i = 0; i < units.length; i++) for (let j = i + 1; j < units.length; j++) {
+    const a = units[i], b = units[j];
+    if (hidden(a) || hidden(b) || a.owner === b.owner || a.owner.contains(b.el) || b.owner.contains(a.el) || a.chrome !== b.chrome) continue;
+    const x = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+    const y = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+    if (x > min && y > min) overlaps.add(`"${a.text}" x "${b.text}"`);
+  }
+  return { width, overlaps: [...overlaps] };
+})();
+```
+
+Native: compare the bounds of sibling text nodes in the same coordinate space
+(Compose `getBoundsInRoot()` on the unmerged tree, Flutter `tester.getRect`,
+the SwiftUI view debugger) for every overlay or `ZStack`/`Box` layer.
 
 ## Tools By Platform
 
