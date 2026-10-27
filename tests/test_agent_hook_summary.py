@@ -978,6 +978,27 @@ class AgentHookSummaryTests(unittest.TestCase):
             self.assertIn("expected a directory", result.stderr)
             self.assertNotIn("recovery request:", result.stdout + result.stderr)
 
+    def test_loop_efficiency_notice_appears_when_session_accumulates_many_commit_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            runs = project / ".moru" / "runs"
+            for idx in range(3):
+                run_file = runs / f"{idx:032x}" / "preflight.json"
+                run_file.parent.mkdir(parents=True)
+                run_file.write_text(
+                    json.dumps({
+                        "project": str(project),
+                        "rules": str(project),
+                        "runtime_session": {"runtime": "claude", "session_id": "loop-session-1"},
+                        "route": {"command": "commit", "gates": ["review hook", "retrospective check"]},
+                    }),
+                    encoding="utf-8",
+                )
+            summary = "\n".join(agent_hook._hook_summary_from_preflight(runs / f"{2:032x}" / "preflight.json"))
+            self.assertIn("Loop efficiency notice: this session has opened 3 Moru runs (3 commit runs).", summary)
+            self.assertIn("Same-run local commit", summary)
+            self.assertIn("cap handoffs at <=4 per run", summary)
+
 
 if __name__ == "__main__":
     unittest.main()

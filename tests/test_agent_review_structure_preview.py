@@ -46,6 +46,15 @@ class StructureReviewPreviewTests(unittest.TestCase):
         lines = structure_review_preview(self.root)
         self.assertTrue(any("will fail on" in line and "small.py" in line for line in lines), lines)
 
+    def test_changed_path_count_over_default_limit_is_previewed(self) -> None:
+        for index in range(27):
+            (self.root / f"mod_{index}.py").write_text(f"X = {index}\n", encoding="utf-8")
+        lines = structure_review_preview(self.root)
+        self.assertTrue(
+            any("working tree has 27 changed paths" in line and "--max-changed-paths 27" in line for line in lines),
+            lines,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

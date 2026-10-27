@@ -239,6 +239,76 @@ class HandoffHookTests(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("invalid choice", result.stderr)
 
+    def test_handoff_hook_reuses_valid_capsule_and_warns_past_per_run_budget(self) -> None:
+        route = {
+            "command": "workflow-setup",
+            "docs": ["AGENTS.md"],
+            "required_docs": ["AGENTS.md"],
+            "reference_docs": [],
+            "gates": ["verify"],
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir).resolve()
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+            (project / ".gitignore").write_text(".moru/\n", encoding="utf-8")
+            subprocess.run(["git", "add", ".gitignore"], cwd=project, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=Moru Core Tests",
+                    "-c",
+                    "user.email=tests@example.invalid",
+                    "commit",
+                    "-qm",
+                    "test baseline",
+                ],
+                cwd=project,
+                check=True,
+            )
+            evidence_path = project / ".moru" / "runs" / ("1" * 32) / "preflight.json"
+            evidence_path.parent.mkdir(parents=True)
+            preflight = {
+                "project": str(project),
+                "rules": str(ROOT.resolve()),
+                "route": route,
+            }
+            evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
+            reset_gate_evidence_ledger(evidence_path, preflight)
+            record_gate_evidence(
+                evidence_path=evidence_path,
+                preflight=preflight,
+                gate="request intake",
+                evidence="preflight request intake completed: test scope is clear",
+                fields={"classification_evidence": "test scope is clear"},
+                source="start",
+            )
+            cmd = [
+                sys.executable,
+                str(ROOT / "scripts" / "agent-hook.py"),
+                "handoff",
+                "--project",
+                str(project),
+                "--rules",
+                str(ROOT),
+                "--evidence",
+                str(evidence_path),
+            ]
+            first = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=False)
+            self.assertEqual(0, first.returncode, first.stderr)
+            second = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=False)
+            self.assertEqual(0, second.returncode, second.stderr)
+            self.assertIn("reused existing valid execution capsule", second.stdout)
+
+            timings = evidence_path.parent / "timings.jsonl"
+            timings.write_text(
+                "\n".join(json.dumps({"hook": "handoff", "ok": True}) for _ in range(4)) + "\n",
+                encoding="utf-8",
+            )
+            fifth = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=False)
+            self.assertEqual(0, fifth.returncode, fifth.stderr)
+            self.assertIn("handoff budget warning: run has executed 5 handoffs", fifth.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

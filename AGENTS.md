@@ -364,6 +364,15 @@ Before any worker boundary, run the handoff hook. Only a ready, valid execution
 capsule permits reuse of the parent's route, preflight, required-doc brief, and
 gate context. The parent alone owns the gate ledger, integration review, and
 finish. A worker handoff does not satisfy the user-facing `handoff` gate.
+Reuse a valid execution capsule across same-wave workers instead of calling
+`handoff` per worker, cap `handoff` calls at `<= 4` per run, and treat workers
+as bounded one-shot tasks rather than persistent worker threads polled across
+slices. In multi-slice or goal loops where commits are already authorized by the
+user, pass `--approved-effect git_write` on the writable implementation run,
+batch related slices, and use `Same-run local commit` after `finish` instead of
+starting a separate `commit` lifecycle per micro-slice. When a loop session's
+context exceeds `~250K` tokens (or `~6` Moru runs), compact context or rotate
+to a fresh session with `start --continue-from <run_id>`.
 
 ## Review Boundaries
 

@@ -47,8 +47,21 @@ LEGACY_FEEDBACK_SIGNAL_MAP = {
 }
 
 
+SKILL_ID_ALIASES = {
+    "small_change": "agent_operating_skill",
+}
+
+
 def normalize_skill_id(value: str) -> str:
-    normalized = value.strip().lower().replace("-", "_")
+    raw = value.strip()
+    if "/" in raw or "\\" in raw:
+        parts = [part for part in raw.replace("\\", "/").split("/") if part]
+        for index, part in enumerate(parts[:-1]):
+            if part in SKILL_CONTAINER_DIRS:
+                raw = parts[index + 1]
+                break
+    normalized = raw.strip().lower().replace("-", "_")
+    normalized = SKILL_ID_ALIASES.get(normalized, normalized)
     return normalized if SKILL_ID_RE.fullmatch(normalized) else ""
 
 

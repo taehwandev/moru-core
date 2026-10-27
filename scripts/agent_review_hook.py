@@ -21,7 +21,7 @@ from agent_review_boundary import (
     structure_evidence_template,
 )
 from agent_review_attestation import ReviewAttestation
-from agent_review_reuse import ReviewReuse
+from agent_review_reuse import ReviewReuse, inherit_publication_defaults
 from agent_review_commit_range import create_commit_snapshot, resolve_commit_range_subject
 from agent_review_doc_references import doc_reference_failures
 from agent_review_removals import removal_notice
@@ -128,6 +128,7 @@ def _review_working_tree(
         status_before_lines = []
     checks["git_status_before"] = status_before
     local_config_scope = review_subject["kind"] == "local-config"
+    inherit_publication_defaults(args)
     checks["changed_path_count"] = (
         len(review_paths) if local_config_scope else len(status_before_lines)
     )

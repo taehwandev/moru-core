@@ -457,6 +457,22 @@ class ReviewReuseTests(unittest.TestCase):
         self.assertIn('git diff --cached --check failed', failures)
         self.assertEqual(2, len(commands))
 
+    def test_inherit_publication_defaults_carries_attested_path_limit_and_structure_evidence(self):
+        from agent_review_reuse import inherit_publication_defaults
+
+        self.source.max_changed_paths = 48
+        self.checks['structure_review_evidence'] = (
+            'owner: cli; allowed imports: stdlib; forbidden imports: none; '
+            'callers/tests: test_cli; verification: unittest'
+        )
+        self.publish()
+        commit_args = self.staged_commit()
+        self.assertEqual(25, commit_args.max_changed_paths)
+        self.assertEqual('', commit_args.structure_review_evidence)
+        inherit_publication_defaults(commit_args)
+        self.assertEqual(48, commit_args.max_changed_paths)
+        self.assertIn('owner: cli;', commit_args.structure_review_evidence)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -115,6 +115,14 @@ or hard-code a cheaper model into reusable roles. Return changed paths or
 findings with file references, checks and outcomes, blockers, and the next
 integration action; keep raw intermediate logs in the worker thread. Workers
 must not recursively delegate, publish, or settle the parent's gate ledger.
+Reuse a ready, valid execution capsule across same-wave workers without calling
+`handoff` per worker, keep `handoff` calls within `<= 4` per run, and treat
+workers as bounded one-shot tasks: close finished worker threads immediately and
+never keep a persistent pool of subagents alive across slices with repeated
+`followup_task`, `send_message`, or `wait` ping-pong. Inside `/goal` or
+autonomous loops, do not launch external cross-runtime CLI consultation loops
+(`claude`, `codex`, `agy`, `openrouter`) unless the current user request
+explicitly asks for multi-provider review on that step.
 
 ## Compact Worker Transport And Return Contract
 

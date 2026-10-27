@@ -181,9 +181,37 @@ def _publication_candidate(
         return {
             'scope': reuse.before['scope'],
             'changed_paths': sorted(reuse.before['files']),
+            'limits': dict(limits),
+            'review_input': dict((cached.get('checks') or {}).get('review_input') or {}),
         }
     except (OSError, RuntimeError, ValueError, TypeError, KeyError, AttributeError):
         return None
+
+
+def inherit_publication_defaults(args: Any) -> None:
+    """Carry attested changed-path limit and structure evidence into a reuse-eligible review."""
+    evidence = getattr(args, 'evidence', None)
+    if not isinstance(evidence, Path):
+        return
+    candidate = ReviewReuse.publication_candidate(evidence)
+    if not isinstance(candidate, dict):
+        return
+    limits = candidate.get('limits') or {}
+    cached_max_paths = limits.get('max_changed_paths')
+    if (
+        getattr(args, 'max_changed_paths', 25) == 25
+        and isinstance(cached_max_paths, int)
+        and cached_max_paths > 25
+        and getattr(args, 'max_source_file_lines', 500) == limits.get('max_source_file_lines', 500)
+        and getattr(args, 'max_function_lines', 120) == limits.get('max_function_lines', 120)
+        and getattr(args, 'max_added_lines', 300) == limits.get('max_added_lines', 300)
+    ):
+        args.max_changed_paths = cached_max_paths
+    review_input = candidate.get('review_input') or {}
+    if not str(getattr(args, 'structure_review_evidence', '') or '').strip():
+        cached_structure = str(review_input.get('structure_review_evidence') or '').strip()
+        if cached_structure:
+            args.structure_review_evidence = cached_structure
 
 
 def _file_records(

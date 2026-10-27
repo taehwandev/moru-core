@@ -26,6 +26,7 @@ from agent_review_structure import (
 )
 
 PREVIEW_ITEM_LIMIT = 3
+DEFAULT_CHANGED_PATH_LIMIT = 25
 
 
 def structure_review_preview(project: Path) -> list[str]:
@@ -38,6 +39,13 @@ def structure_review_preview(project: Path) -> list[str]:
     except (OSError, RuntimeError, ValueError):
         return []
     lines: list[str] = []
+    changed_count = len((structure.get("discovery") or {}).get("path_metadata") or {})
+    if changed_count > DEFAULT_CHANGED_PATH_LIMIT:
+        lines.append(
+            f"Review preview: working tree has {changed_count} changed paths "
+            f"(default limit {DEFAULT_CHANGED_PATH_LIMIT}); pass --max-changed-paths {changed_count} "
+            "(or narrow scope with --review-scope pathspec --review-path <owned-path>) on review."
+        )
     failures = structure.get("failures") or []
     if failures:
         lines.append(f"Review preview: structure review will fail on {_summary(failures)}; fix before review.")

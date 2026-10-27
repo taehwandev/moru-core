@@ -584,7 +584,7 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
             "verdict instead of also running a standalone identical audit. Otherwise audit "
             "the exact publication inputs with --strict before push; never disable the hook."
         )
-    lines.extend(_same_run_commit_lines(route))
+    lines.extend(_same_run_commit_lines(route, path, payload))
     lines.extend(_continuation_summary_lines(route.get("command", "")))
     if required:
         lines.append(f"Required hooks: {required}")
@@ -635,18 +635,68 @@ def _publication_scope_lines(route: dict[str, Any]) -> list[str]:
     return lines
 
 
-def _same_run_commit_lines(route: dict) -> list[str]:
+def _same_run_commit_lines(
+    route: dict,
+    path: Path | None = None,
+    payload: dict[str, Any] | None = None,
+) -> list[str]:
+    loop_lines = _loop_efficiency_lines(path, payload)
     if route.get("command") in {"commit", "git_commit"} or "review hook" not in (route.get("gates") or []):
-        return []
+        return loop_lines
     envelope = (route.get("request_classification") or {}).get("intent_envelope") or {}
     if envelope.get("effective_effect") not in {"git_write", "external_write"}:
-        return []
+        return loop_lines
     return [
         "Same-run local commit: when this exact commit is already authorized, stage "
         "before final review and include repository/remote/visibility and safety readiness. "
         "After finish, verify the same session, target, HEAD and staged bytes, then commit; "
         "no second commit start/review/finish. Changed scope or missing readiness uses "
-        "the commit route. Push and PR still require their matching route and authority."
+        "the commit route. Push and PR still require their matching route and authority.",
+        *loop_lines,
+    ]
+
+
+def _loop_efficiency_lines(
+    path: Path | None,
+    payload: dict[str, Any] | None,
+) -> list[str]:
+    if path is None or not isinstance(payload, dict) or not _isolated_run_preflight(path, payload):
+        return []
+    session_id = str((payload.get("runtime_session") or {}).get("session_id") or "").strip()
+    if not session_id:
+        return []
+    runs_dir = path.parent.parent
+    total_runs = 0
+    commit_runs = 0
+    try:
+        candidates = sorted(
+            (child / "preflight.json" for child in runs_dir.iterdir() if child.is_dir()),
+            key=lambda item: item.stat().st_mtime if item.is_file() else 0.0,
+            reverse=True,
+        )[:60]
+        for candidate in candidates:
+            if not candidate.is_file():
+                continue
+            data = json.loads(candidate.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                continue
+            if str((data.get("runtime_session") or {}).get("session_id") or "").strip() != session_id:
+                continue
+            total_runs += 1
+            if str((data.get("route") or {}).get("command") or "") in {"commit", "git_commit"}:
+                commit_runs += 1
+    except (OSError, ValueError, TypeError, json.JSONDecodeError, AttributeError):
+        return []
+    if total_runs < 6 and commit_runs < 3:
+        return []
+    return [
+        f"Loop efficiency notice: this session has opened {total_runs} Moru runs "
+        f"({commit_runs} commit runs). In multi-slice or goal loops, when git_write is "
+        "already authorized by the user, pass --approved-effect git_write on the writable "
+        "implementation route and use Same-run local commit after finish instead of starting "
+        "a separate commit route per slice; cap handoffs at <=4 per run (no persistent worker "
+        "polling), and compact context or start a fresh session (--continue-from <run_id>) "
+        "when context exceeds ~250K tokens."
     ]
 
 

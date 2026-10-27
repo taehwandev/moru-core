@@ -77,6 +77,20 @@ class SkillIdsFromDocPathsTests(unittest.TestCase):
             skill_ids_from_doc_paths([r"workflows\skills\agent-task-lifecycle\SKILL.md"]),
         )
 
+    def test_small_change_alias_and_skill_doc_paths_normalize_to_canonical_slug(self) -> None:
+        from agent_skill_catalog import normalize_skill_id
+
+        self.assertEqual("agent_operating_skill", normalize_skill_id("small_change"))
+        self.assertEqual("agent_operating_skill", normalize_skill_id("small-change"))
+        self.assertEqual(
+            "agent_operating_skill",
+            normalize_skill_id("common/skills/agent-operating-skill/SKILL.md"),
+        )
+        self.assertEqual(
+            "agent_operating_skill",
+            normalize_skill_id("common/skills/agent-operating-skill/references/small-change.md"),
+        )
+
 
 class RetrospectiveNamesALoadedSkillTests(unittest.TestCase):
     def test_a_skill_this_run_never_loaded_is_refused_and_the_loaded_set_is_named(self) -> None:

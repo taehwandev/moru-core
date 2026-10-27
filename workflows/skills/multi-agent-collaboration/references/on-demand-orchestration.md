@@ -40,6 +40,10 @@ is needed merely to name a persona.
    product does not by itself prove a different model or independent evidence.
 4. Start with at most two helpers. Add a third only for a distinct benefit.
    Do not launch helpers merely because a phase, role, or provider exists.
+5. Keep helpers one-shot and bounded: reuse one valid `handoff` capsule across
+   same-wave workers, stay within `<= 4` handoffs per run, close helper threads
+   once their slice returns, and avoid persistent message/wait polling loops or
+   unrequested external runtime consultations inside multi-slice goal runs.
 
 The brief names the question or risk, the decision its answer may change,
 owned/read-only and forbidden scope, relevant evidence, acceptance checks,
