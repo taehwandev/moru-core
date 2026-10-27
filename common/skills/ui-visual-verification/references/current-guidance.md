@@ -86,19 +86,30 @@ element, a child margin, a layout gap or nothing at all.
   under fixed headers or footers.
 - Inspect screenshots at native scale or zoomed in. A downscaled capture
   cannot tell 0px from 12px.
-- Every reported surface is a failure unless it is intentional full-bleed
-  media, a divider, or an edge-to-edge row whose content carries its own inset;
-  say which exception applies.
+- `failures` are blocking: under 8px beside the content (7 after a 1px glyph
+  tolerance), or under 2px above and below the glyphs of a single-line control
+  such as a button, badge or pill. Fix each one or name its exception:
+  intentional full-bleed media, a divider, or an edge-to-edge row whose content
+  carries its own inset.
+- `warnings` are multi-line surfaces at 8-11px, below the 12px default. Open
+  each at native scale and keep it only when it reads as deliberate density.
+- The script skips what it cannot judge: one-sided borders (dividers), text
+  clipped by truncation or scrolled out of view, horizontal scrollers, and
+  scaled previews (`transform: scale`), whose pixels do not map to real UI.
+  Check scaled previews against their source screens instead.
 
-Web (DevTools console or Playwright `page.evaluate`; thresholds are control,
-surface and mobile gutter):
+Web (DevTools console or Playwright `page.evaluate`; thresholds are blocking
+floor, surface default and mobile gutter):
 
 ```js
-((control = 8, surface = 12, gutter = 16) => {
+((fail = 8, surface = 12, gutter = 16) => {
   const sides = ["Top", "Right", "Bottom", "Left"];
-  const painted = (el, s) => !/^(rgba\(0, 0, 0, 0\)|transparent)$/.test(s.backgroundColor)
-    || sides.some((side) => parseFloat(s[`border${side}Width`]) > 0 && s[`border${side}Style`] !== "none")
-    || s.boxShadow !== "none";
+  const width = document.documentElement.clientWidth;
+  // A surface has a fill, a shadow, or borders on two or more sides; one rule is a divider.
+  const painted = (s) => !/^(rgba\(0, 0, 0, 0\)|transparent)$/.test(s.backgroundColor) || s.boxShadow !== "none"
+    || sides.filter((side) => parseFloat(s[`border${side}Width`]) > 0 && s[`border${side}Style`] !== "none").length >= 2;
+  // Scaled previews (transform: scale) are miniatures; their px do not map to real UI.
+  const scaled = (el) => el.offsetWidth > 0 && Math.abs(el.getBoundingClientRect().width / el.offsetWidth - 1) > 0.02;
   const content = (root) => {
     const rects = [], walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let node; (node = walk.nextNode());) {
@@ -112,24 +123,34 @@ surface and mobile gutter):
     }
     return rects;
   };
-  const tight = [];
+  const failures = [], warnings = [];
   for (const el of document.querySelectorAll("body *")) {
     const s = getComputedStyle(el), box = el.getBoundingClientRect();
-    if (box.width < 24 || box.height < 16 || el.matches("img, svg, video, canvas, hr, input, select, textarea") || !painted(el, s)) continue;
+    if (box.width < 24 || box.height < 16 || box.right <= 0 || box.left >= width
+      || el.matches("img, svg, video, canvas, hr, input, select, textarea") || !painted(s) || scaled(el)) continue;
     const inner = { left: box.left + parseFloat(s.borderLeftWidth), right: box.right - parseFloat(s.borderRightWidth),
       top: box.top + parseFloat(s.borderTopWidth), bottom: box.bottom - parseFloat(s.borderBottomWidth) };
-    // Full-bleed media spanning the surface is intentional; everything else needs clearance.
-    const rects = content(el).filter((r) => !(r.media && r.width >= (inner.right - inner.left) - 1)
-      && r.bottom > inner.top && r.top < inner.bottom && r.right > inner.left && r.left < inner.right);
+    // Ignore full-bleed media and content clipped outside the box (truncated or scrolled).
+    const rects = content(el).filter((r) => !(r.media && r.width >= inner.right - inner.left - 1)
+      && r.top >= inner.top - 1 && r.bottom <= inner.bottom + 1 && r.left >= inner.left - 1 && r.right <= inner.right + 1);
     if (!rects.length) continue;
-    const min = el.matches("button, a, [role=button], label, span, li, td, th") && box.height < 56 ? control : surface;
+    // Single-line controls (button, badge, pill: under 48px tall) need side clearance and 2px above and below the glyphs.
+    const small = box.height < 48;
     const gaps = { left: (r) => r.left - inner.left, right: (r) => inner.right - r.right, top: (r) => r.top - inner.top, bottom: (r) => inner.bottom - r.bottom };
-    const short = Object.entries(gaps).map(([side, gap]) => [side, Math.round(Math.min(...rects.map(gap)))]).filter(([, gap]) => gap < min);
-    if (short.length) tight.push(`${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}.${[...el.classList].join(".")} needs ${min}: ${short.map((e) => e.join("=")).join(" ")}`);
+    const found = Object.entries(gaps).map(([side, gap]) => [side, Math.round(Math.min(...rects.map(gap)))]);
+    const vertical = (side) => side === "top" || side === "bottom";
+    // Glyph boxes run about 1px past the padding edge, and line height shifts them vertically; allow for both.
+    const floor = (side) => (vertical(side) ? (small ? 2 : fail - 2) : fail) - 1;
+    const name = `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}.${[...el.classList].join(".")}`;
+    const bad = found.filter(([side, gap]) => gap < floor(side));
+    const thin = found.filter(([side, gap]) => !small && gap >= fail && gap < surface);
+    if (bad.length) failures.push(`${name}: ${bad.map((e) => e.join("=")).join(" ")}`);
+    else if (thin.length) warnings.push(`${name}: ${thin.map((e) => e.join("=")).join(" ")}`);
   }
-  const width = document.documentElement.clientWidth;
-  const edge = width < 600 ? content(document.body).filter((r) => r.left < gutter || r.right > width - gutter).length : 0;
-  return { width, tight, textInsideGutter: edge };
+  // Mobile gutter: visible text only; content scrolled out of a horizontal scroller is not at the edge.
+  const edge = width < 600 ? content(document.body).filter((r) => r.right > 0 && r.left < width
+    && (r.left < gutter || r.right > width - gutter)).length : 0;
+  return { width, failures, warnings, textInsideGutter: edge };
 })();
 ```
 
