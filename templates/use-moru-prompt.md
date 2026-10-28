@@ -82,6 +82,7 @@ Rules:
    use bounded direct evidence without start, fingerprint, mailbox, checkpoint,
    gate, review, or finish. Applicable project instructions still apply.
    Explicit change/PR reviews and release acceptance retain their workflow;
+   A no-edit review delegated by another runtime's lead stays read-only; that lead owns its review workflow;
    enter the writable lifecycle before an authorized edit. The route and gate
    requirements below apply only to tracked work, not these read-only answers.
    For tracked multi-step tasks, run this once before selecting task documents,

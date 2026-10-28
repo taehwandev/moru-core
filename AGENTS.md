@@ -66,7 +66,7 @@ edit must enter the writable lifecycle before that edit.
 
 Checking an existing explanation against source or measurements is not a diff
 review merely because the user says "verify". Explicit change/PR reviews and
-release acceptance retain their review workflow. Keep repo-installed routing
+release acceptance retain their review workflow. A no-edit review delegated by another runtime's lead stays read-only; that lead owns its review workflow. Keep repo-installed routing
 blocks consistent with this distinction when updating their shared template;
 updating this library alone does not replace a project's older instructions.
 

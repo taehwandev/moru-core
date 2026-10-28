@@ -162,6 +162,7 @@ Read-only lookup, explanation, status, and checks of a supplied diagnosis use
 bounded direct evidence without start, fingerprint, mailbox, checkpoint, gate,
 review, or finish. Applicable project instructions still apply.
 Explicit change/PR reviews and release acceptance retain their workflow;
+A no-edit review delegated by another runtime's lead stays read-only; that lead owns its review workflow;
 enter the writable lifecycle before an authorized edit. Replace older blanket
 multi-step requirements rather than appending a contradictory alternative.
 The lifecycle requirements below apply only to tracked work.

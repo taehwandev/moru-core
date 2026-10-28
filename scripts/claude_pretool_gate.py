@@ -47,7 +47,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 from types import ModuleType
 
 try:  # The gate must never fail to load; the import is only used for a message.
@@ -76,6 +76,7 @@ try:  # The gate must never fail to load; the import is only used for a message.
     from claude_command_effect import INTERPRETER_REASON, command_effect, unknown_recovery
     from claude_scratch_checkout import scratch_command, scratch_script_command, throwaway_checkout
     from claude_pretool_checkout_removal import checkout_removal_denial
+    from claude_pretool_cli_worker import foreground_cli_worker_denial
     from claude_bash_syntax import command_segments, resolve_target, scratch_write_target, shell_keyword_command
     from claude_bash_readonly import simple_command_kind
     from claude_worktree_gate import (
@@ -2920,6 +2921,24 @@ def _bootstrap_verdict(
     return allow()
 
 
+def _foreground_cli_worker_verdict(
+    tool: str, payload: dict, otherwise: Callable[[], int] | None = None
+) -> int | None:
+    """Hold a Claude foreground `codex exec`/`claude -p`; the Bash timeout would cut it off.
+
+    Without a hold this returns ``otherwise()``, or None when no fallback verdict is given.
+    """
+
+    reason = (
+        foreground_cli_worker_denial(payload)
+        if tool in BASH_TOOLS and runtime_name() == "claude"
+        else ""
+    )
+    if reason:
+        return deny(reason, code="foreground_cli_worker")
+    return otherwise() if otherwise else None
+
+
 def _decide(payload: dict) -> int:
     if not gate_enabled():
         return allow()
@@ -2950,14 +2969,16 @@ def _decide(payload: dict) -> int:
         if removal:
             return deny(removal, code="checkout_removal_loses_work")
     if root is None:
-        return _ungoverned_project_verdict(cwd, tokens)
+        return _foreground_cli_worker_verdict(tool, payload, lambda: _ungoverned_project_verdict(cwd, tokens))
     if tool in BASH_TOOLS and bash_kind == "read_only":
-        return allow()
+        return _foreground_cli_worker_verdict(tool, payload, allow)
     read_denial = _read_run_mutation_denial(
         roots, str(payload.get("session_id") or ""), bash_kind
     )
     if read_denial:
         return _read_only_verdict(read_denial, scope.unknown_reason)
+    if (held := _foreground_cli_worker_verdict(tool, payload)) is not None:
+        return held
     if tool in BASH_TOOLS and _user_approved_main_checkout_write(payload, tokens):
         return ask(
             "The command carries the documented main-checkout exception "

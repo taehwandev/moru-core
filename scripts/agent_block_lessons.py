@@ -49,6 +49,7 @@ NEXT_ACTIONS: dict[str, dict[str, str]] = {
         "workflow_start_worktree": "start_in_a_linked_worktree",
         "read_only_run_mutation": "start_a_writable_route_first",
         "checkout_removal_loses_work": "settle_the_checkout_before_removing_it",
+        "foreground_cli_worker": "run_cli_workers_in_the_background",
         # Not a block: the gate failed open on its own bug. Recorded so the
         # crash is repaired rather than silently repeated.
         "gate_internal_error": "report_gate_internal_error",

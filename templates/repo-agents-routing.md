@@ -76,7 +76,7 @@ bounded direct evidence without start, fingerprint, mailbox, checkpoint, gate,
 review, or finish calls. Applicable project instructions and source contracts
 still apply. Checking a diagnosis is not a diff review merely because the user
 says "verify". Explicit change/PR reviews and release acceptance retain their
-review workflow. Enter the writable lifecycle before any authorized edit.
+review workflow. A no-edit review delegated by another runtime's lead stays read-only; that lead owns its review workflow. Enter the writable lifecycle before any authorized edit.
 The lifecycle and gate requirements below apply only to tracked work, not these
 read-only answers. When updating an installed routing block, replace its older
 blanket multi-step requirements and check local adapters for contradictions;
@@ -109,6 +109,8 @@ execution capsule and validates it once. A ready and valid handoff lets the
 worker reuse the parent's route, preflight, and required-doc manifest and skip
 duplicate startup. An invalid handoff is a successful fallback decision that
 requires the worker's normal lifecycle; never reuse mismatched capsule state.
+A no-edit review delegated by another runtime's lead is not such a worker: it
+needs no handoff or fallback lifecycle and writes no project state.
 The parent is the sole gate-ledger owner. Workers use worker-specific evidence
 paths, return scoped evidence, and never overwrite the parent ledger, including
 after an invalid handoff fallback. For a Codex leaf, use `dispatch --execute`

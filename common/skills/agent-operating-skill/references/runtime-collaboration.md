@@ -14,6 +14,8 @@ Only a ready and valid handoff lets a worker reuse the parent's route, preflight
 
 An invalid handoff is a successful fallback decision that requires the worker's normal lifecycle; never reuse mismatched capsule state.
 
+A no-edit review delegated by another runtime's lead is not such a worker: it needs no handoff or fallback lifecycle, writes no project state, and returns findings for the lead's own review.
+
 When handoff issues a fallback worker evidence path and opaque reservation token, pass both to dispatch or the native worker's start hook; the token is single-use, binds that pre-reserved path, and must never be replaced by an unverified existing directory.
 
 The parent is the sole gate-ledger owner; workers use worker-specific evidence paths, return scoped evidence, and never overwrite the parent ledger, including after an invalid handoff fallback.
@@ -143,6 +145,9 @@ these is `needs_inspection`, and `ok` with blockers is `blocked`. Past ten
 blockers, the last entry names how many more remain in the local details. The worker
 command has no timeout because a comparison may run long; its scheduler lease
 is renewed while the parent process waits.
+A Claude lead starts a CLI worker through its Bash tool with
+`run_in_background: true` and no `timeout`; the pretool gate holds a
+foreground `codex exec` or `claude -p` call.
 
 ## Mechanical Execution In Codex
 
