@@ -1780,5 +1780,121 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
             self.assertEqual("do not overwrite", outside.read_text(encoding="utf-8"))
 
 
+
+class WorkerResultStatusTests(unittest.TestCase):
+    def _handoff(self, root: Path) -> dict[str, str]:
+        return {"preflight_evidence": str(root / ".moru" / "preflight.json")}
+
+    def test_zero_exit_without_a_contract_status_needs_inspection(self) -> None:
+        from workflow_dispatch_handoff import build_worker_result_packet
+
+        for raw_output in ("작업 불가: 권한 없음", json.dumps({"status": "failed"}), json.dumps({"status": "error"})):
+            with self.subTest(raw_output=raw_output), tempfile.TemporaryDirectory() as temp_dir:
+                packet = build_worker_result_packet(self._handoff(Path(temp_dir)), returncode=0, raw_output=raw_output)
+                self.assertEqual("needs_inspection", packet["status"])
+                self.assertTrue(packet["blockers"])
+                self.assertEqual("inspect worker stream log and blockers", packet["next_action"])
+
+    def test_zero_exit_ok_with_blockers_is_blocked(self) -> None:
+        from workflow_dispatch_handoff import build_worker_result_packet
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = build_worker_result_packet(
+                self._handoff(Path(temp_dir)),
+                returncode=0,
+                raw_output=json.dumps({"status": "ok", "blockers": ["fixture missing"]}),
+            )
+        self.assertEqual("blocked", packet["status"])
+        self.assertEqual(["fixture missing"], packet["blockers"])
+
+    def test_contract_status_and_default_success_are_kept(self) -> None:
+        from workflow_dispatch_handoff import build_worker_result_packet
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = build_worker_result_packet(
+                self._handoff(Path(temp_dir)), returncode=0, raw_output=json.dumps({"status": "findings"})
+            )
+        self.assertEqual("findings", packet["status"])
+        self.assertEqual([], packet["blockers"])
+        self.assertEqual("integrate worker result", packet["next_action"])
+
+    def test_compaction_keeps_every_blocker_within_budget(self) -> None:
+        from workflow_dispatch_handoff import MAX_WORKER_RESULT_BYTES, build_worker_result_packet
+
+        blockers = [f"블로커{index}: 마이그레이션 픽스처가 없어서 테스트를 실행할 수 없음" for index in range(10)]
+        raw_output = json.dumps(
+            {
+                "status": "blocked",
+                "changed_paths": [f"feature/module{index}/src/main/kotlin/deep/package/LongFileName{index}Implementation.kt" for index in range(25)],
+                "blockers": blockers,
+            },
+            ensure_ascii=False,
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            build_worker_result_packet(self._handoff(root), returncode=0, raw_output=raw_output)
+            raw_packet = (root / ".moru" / "worker-outputs" / "default" / "worker-result.json").read_bytes()
+        self.assertLessEqual(len(raw_packet), MAX_WORKER_RESULT_BYTES)
+        self.assertEqual(blockers, json.loads(raw_packet.decode("utf-8"))["blockers"])
+
+    def test_escaped_blockers_stay_within_budget(self) -> None:
+        from workflow_dispatch_handoff import MAX_WORKER_RESULT_BYTES, build_worker_result_packet
+
+        raw_output = json.dumps({"status": "blocked", "blockers": ["\x01" * 240 for _ in range(10)]})
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            build_worker_result_packet(self._handoff(root), returncode=0, raw_output=raw_output)
+            raw_packet = (root / ".moru" / "worker-outputs" / "default" / "worker-result.json").read_bytes()
+        self.assertLessEqual(len(raw_packet), MAX_WORKER_RESULT_BYTES)
+        self.assertEqual(10, len(json.loads(raw_packet.decode("utf-8"))["blockers"]))
+
+    def test_blockers_over_the_cap_are_named_and_kept_in_details(self) -> None:
+        from workflow_dispatch_handoff import build_worker_result_packet
+
+        raw_output = json.dumps({"status": "blocked", "blockers": [f"blocker {index}" for index in range(12)]})
+        with tempfile.TemporaryDirectory() as temp_dir:
+            packet = build_worker_result_packet(self._handoff(Path(temp_dir)), returncode=0, raw_output=raw_output)
+            details = Path(packet["artifacts"]["details_path"]).read_text(encoding="utf-8")
+        self.assertEqual([f"blocker {index}" for index in range(9)] + ["3 more blockers in worker-details.md"], packet["blockers"])
+        self.assertIn("blocker 11", details)
+
+    def test_handoff_prompt_names_the_contract_statuses(self) -> None:
+        from workflow_dispatch_handoff import WORKER_RESULT_STATUSES
+
+        with patch(
+            "workflow_dispatch._execution_capsule_state",
+            return_value={"path": "/tmp/test-capsule.json", "reusable": True},
+        ):
+            manifest = build_dispatch_manifest(
+                "workflow-setup", "Run the resolved installer.", ROOT,
+                execution_phase="mechanical", parent_model="gpt-6.1-sol",
+                parent_reasoning_effort="high", parent_sandbox_mode="workspace-write",
+            )
+        self.assertIn(f"status (one of {', '.join(WORKER_RESULT_STATUSES)})", manifest["native_worker"]["message"])
+
+
+class NativeWorkerSandboxTests(unittest.TestCase):
+    def _dispatch(self, sandbox_mode: str, parent_sandbox_mode: str):
+        from workflow_dispatch_handoff import native_worker_dispatch
+
+        return native_worker_dispatch(
+            "native", {"codex_model": "gpt-6.1-sol"}, "prompt", {"execution_capsule": {"reusable": True}},
+            sandbox_mode=sandbox_mode, parent_sandbox_mode=parent_sandbox_mode,
+        )
+
+    def test_read_only_worker_under_writable_parent_uses_read_only_role(self) -> None:
+        mode, worker = self._dispatch("read-only", "workspace-write")
+        self.assertEqual("native", mode)
+        self.assertEqual("moru_explorer", worker["agent_type"])
+        self.assertEqual({"fork_turns", "model", "reasoning_effort", "message", "agent_type"}, set(worker))
+
+    def test_writing_worker_is_not_spawned_under_read_only_parent(self) -> None:
+        self.assertEqual(("inline", None), self._dispatch("workspace-write", "read-only"))
+
+    def test_matching_sandbox_keeps_the_inherited_role(self) -> None:
+        mode, worker = self._dispatch("workspace-write", "workspace-write")
+        self.assertEqual("native", mode)
+        self.assertEqual({"fork_turns", "model", "reasoning_effort", "message"}, set(worker))
+
 if __name__ == "__main__":
     unittest.main()

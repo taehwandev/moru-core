@@ -17,7 +17,11 @@ from agent_execution_capsule_state import (
     preflight_snapshot_binding_fingerprint,
     read_json_object,
 )
-from agent_delegation_plan import SEQUENTIAL_MULTI_AGENT_MARKER
+from agent_delegation_plan import (
+    PARALLEL_SPLIT_RENDER_PREFIX,
+    SEQUENTIAL_MULTI_AGENT_MARKER,
+    SERIAL_DECISION_RENDER_PREFIX,
+)
 from agent_execution_capsule_docs import bind_required_doc_update_receipt
 from agent_route_state import (
     preflight_evidence_sha256,
@@ -684,7 +688,7 @@ def _render_multi_agent_split_decision(
     mode = fields["mode"].lower()
     if mode in {"serial", "single-agent", "single agent"}:
         return (
-            "serial/single-agent decision; concrete reason: "
+            f"{SERIAL_DECISION_RENDER_PREFIX} concrete reason: "
             f"{fields['reason']}; verification: {fields['verification']}",
             [],
         )
@@ -701,7 +705,7 @@ def _render_multi_agent_split_decision(
             [],
         )
     return (
-        "multi-agent/subagent split; owned scope: "
+        f"{PARALLEL_SPLIT_RENDER_PREFIX} owned scope: "
         f"{fields['owned_scope']}; forbidden scope: {fields['forbidden_scope']}; "
         f"contract/brief: {fields['contract']}; acceptance checks: {fields['acceptance']}; "
         f"integration owner: {fields['integration_owner']}; verification: {fields['verification']}",

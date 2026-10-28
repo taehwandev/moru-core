@@ -38,6 +38,7 @@ def enqueue_task(
     *,
     priority: int = 0,
     independent_slices: int = 1,
+    requested_workers: int = 1,
     max_retries: int = 0,
     partial_result_id: str | None = None,
 ) -> dict[str, Any]:
@@ -50,6 +51,7 @@ def enqueue_task(
         "project_id": _opaque_project_id(project),
         "priority": int(priority),
         "independent_slices": max(0, int(independent_slices)),
+        "requested_workers": max(1, int(requested_workers)),
         "attempt": 1,
         "max_attempts": max(1, int(max_retries) + 1),
         "state": "queued",
@@ -114,25 +116,39 @@ def claim_task(project: Path, task_id: str, *, capacity: int = 1) -> dict[str, A
     return task
 
 
-def transition_task(project: Path, task_id: str, state: str) -> dict[str, Any] | None:
+def transition_task(
+    project: Path,
+    task_id: str,
+    state: str,
+    *,
+    expected_state: str | None = None,
+    expected_attempt: int | None = None,
+) -> dict[str, Any] | None:
+    """Transition a task; with expectations, skip a task another owner has since moved."""
+
     if state not in TASK_STATES:
         raise ValueError(f"unsupported task state: {state}")
     path = scheduler_path(project)
     with project_state_lock(project), state_lock(path):
         payload = _read_scheduler(path)
         for task in payload["tasks"]:
-            if task.get("task_id") == task_id:
-                task["state"] = state
-                task["updated_at"] = datetime.now(timezone.utc).isoformat()
-                _write_scheduler(path, payload)
-                break
+            if task.get("task_id") != task_id:
+                continue
+            if expected_state is not None and task.get("state") != expected_state:
+                return None
+            if expected_attempt is not None and int(task.get("attempt", 1)) != expected_attempt:
+                return None
+            task["state"] = state
+            task["updated_at"] = datetime.now(timezone.utc).isoformat()
+            _write_scheduler(path, payload)
+            break
         else:
             return None
     _safe_event(project, "task.transitioned", run_id=str(task["run_id"]), task_id=task_id, state=state)
     return task
 
 
-def heartbeat_task(project: Path, task_id: str) -> dict[str, Any] | None:
+def heartbeat_task(project: Path, task_id: str, *, expected_attempt: int | None = None) -> dict[str, Any] | None:
     """Refresh a running task lease without changing its lifecycle state."""
 
     path = scheduler_path(project)
@@ -141,6 +157,8 @@ def heartbeat_task(project: Path, task_id: str) -> dict[str, Any] | None:
         for task in payload["tasks"]:
             if task.get("task_id") != task_id or task.get("state") != "running":
                 continue
+            if expected_attempt is not None and int(task.get("attempt", 1)) != expected_attempt:
+                return None
             task["updated_at"] = datetime.now(timezone.utc).isoformat()
             _write_scheduler(path, payload)
             break

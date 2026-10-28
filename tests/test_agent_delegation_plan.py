@@ -11,7 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from agent_delegation_plan import (
+    PARALLEL_SPLIT_RENDER_PREFIX,
+    SEQUENTIAL_MULTI_AGENT_MARKER,
+    SERIAL_DECISION_RENDER_PREFIX,
     delegation_plan_path,
+    evidence_requires_delegation_plan,
     read_delegation_plan,
     validate_delegation_plan_structure,
     worker_declares_worktree_isolation,
@@ -317,6 +321,24 @@ class ReadDelegationPlanTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             self.assertEqual({}, read_delegation_plan(Path(temp_dir)))
 
+
+
+class EvidenceRequiresDelegationPlanTests(unittest.TestCase):
+    def test_parallel_record_requires_plan_even_with_serial_words_in_free_text(self) -> None:
+        text = (
+            f"{PARALLEL_SPLIT_RENDER_PREFIX} owned scope: a, b; forbidden scope: c; "
+            "contract/brief: serialize migration changes first; acceptance checks: no workers share files; "
+            "integration owner: lead; verification: unittest"
+        )
+        self.assertTrue(evidence_requires_delegation_plan([], {"multi-agent split decision": text}))
+
+    def test_serial_record_does_not_require_plan_even_with_parallel_words(self) -> None:
+        text = f"{SERIAL_DECISION_RENDER_PREFIX} concrete reason: parallel split costs more; verification: unittest"
+        self.assertFalse(evidence_requires_delegation_plan([], {"multi-agent split decision": text}))
+
+    def test_sequential_marker_still_skips_plan(self) -> None:
+        text = f"sequential multi-agent/subagent delegation; {SEQUENTIAL_MULTI_AGENT_MARKER}; concrete reason: x"
+        self.assertFalse(evidence_requires_delegation_plan([], {"multi-agent split decision": text}))
 
 if __name__ == "__main__":
     unittest.main()

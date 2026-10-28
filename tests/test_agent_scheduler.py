@@ -107,5 +107,27 @@ class AgentSchedulerTests(unittest.TestCase):
             self.assertEqual("external-1", task["partial_result_id"])
 
 
+
+class GuardedTransitionTests(unittest.TestCase):
+    def test_expected_state_and_attempt_guard_terminal_transition(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            task = enqueue_task(project, "run-1", max_retries=1)
+            claim_task(project, task["task_id"])
+            transition_task(project, task["task_id"], "failed")
+            retry_task(project, task["task_id"])
+
+            self.assertIsNone(transition_task(project, task["task_id"], "completed", expected_state="running"))
+            claim_task(project, task["task_id"])
+            self.assertIsNone(
+                transition_task(project, task["task_id"], "completed", expected_state="running", expected_attempt=1)
+            )
+            completed = transition_task(project, task["task_id"], "completed", expected_state="running", expected_attempt=2)
+            self.assertEqual("completed", completed["state"])
+
+    def test_enqueue_records_requested_workers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(3, enqueue_task(Path(directory), "run-1", requested_workers=3)["requested_workers"])
+
 if __name__ == "__main__":
     unittest.main()

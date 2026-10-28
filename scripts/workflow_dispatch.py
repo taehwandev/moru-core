@@ -205,7 +205,14 @@ def build_dispatch_manifest(
         profile=profile,
         sandbox_mode=sandbox_mode,
     )
-    execution_mode, native_worker = _native_worker_dispatch(execution_mode, profile, argv[-1], handoff_state)
+    execution_mode, native_worker = _native_worker_dispatch(
+        execution_mode,
+        profile,
+        argv[-1],
+        handoff_state,
+        sandbox_mode=sandbox_mode,
+        parent_sandbox_mode=parent_sandbox_mode,
+    )
     return {
         "schema_version": 1,
         "project": str(project),

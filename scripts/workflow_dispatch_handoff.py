@@ -15,6 +15,10 @@ MAX_WORKER_RESULT_BYTES = 4096
 MAX_WORKER_SUMMARY_BYTES = 600
 MAX_WORKER_FINDINGS = 10
 MAX_STREAM_TAIL_BYTES = 8192
+MIN_COMPACT_BLOCKER_BYTES = 120
+MAX_WORKER_BLOCKERS = 10
+WORKER_RESULT_STATUSES = ("ok", "findings", "blocked", "needs_inspection")
+READ_ONLY_NATIVE_AGENT_TYPE = "moru_explorer"
 
 
 def _check_no_symlink(path: Path) -> None:
@@ -27,6 +31,15 @@ def _utf8_truncate(value: str, max_bytes: int) -> str:
     if len(encoded) <= max_bytes:
         return value
     return encoded[: max(0, max_bytes)].decode("utf-8", errors="ignore")
+
+
+def _json_string_truncate(value: str, max_bytes: int) -> str:
+    """Truncate so the JSON-escaped string body, not only the raw text, fits ``max_bytes``."""
+
+    truncated = _utf8_truncate(value, max_bytes)
+    while truncated and len(json.dumps(truncated, ensure_ascii=False).encode("utf-8")) - 2 > max_bytes:
+        truncated = truncated[:-1]
+    return truncated
 
 
 def worker_output_paths(handoff_state: Mapping[str, object]) -> dict[str, str]:
@@ -126,13 +139,23 @@ def codex_argv(
 
 
 def native_worker_dispatch(
-    mode: str, profile: Mapping[str, object], prompt: str, handoff: Mapping[str, object],
+    mode: str,
+    profile: Mapping[str, object],
+    prompt: str,
+    handoff: Mapping[str, object],
+    *,
+    sandbox_mode: str,
+    parent_sandbox_mode: str,
 ) -> tuple[str, dict[str, str] | None]:
     if mode != "native":
         return mode, None
     if not _has_reusable_capsule(handoff):
         return "inline", None
-    return "native", {
+    # A native spawn inherits the parent sandbox: narrow it through the read-only
+    # role, and never widen it from a read-only parent.
+    if parent_sandbox_mode == "read-only" and sandbox_mode != "read-only":
+        return "inline", None
+    worker = {
         "fork_turns": "none",
         "model": str(profile["codex_model"]),
         "reasoning_effort": "low",
@@ -141,6 +164,9 @@ def native_worker_dispatch(
             "do not redesign, retry with broader effects, or change parent settings."
         ),
     }
+    if sandbox_mode == "read-only" and parent_sandbox_mode != "read-only":
+        worker["agent_type"] = READ_ONLY_NATIVE_AGENT_TYPE
+    return "native", worker
 
 
 def execution_policy(execution_mode: str) -> str:
@@ -299,7 +325,7 @@ def build_handoff_prompt(
             f"Parent gate ledger: {handoff_state['gate_ledger']}",
             f"Verification plan: {handoff_state['verification_plan']}",
             evidence_instruction,
-            f"Return contract: emit {WORKER_RESULT_SCHEMA} (<= {MAX_WORKER_RESULT_BYTES} bytes) with status, summary, changed_paths, findings, checks, blockers, next_action, and artifacts; keep raw diffs and command logs in run-local files.",
+            f"Return contract: emit {WORKER_RESULT_SCHEMA} (<= {MAX_WORKER_RESULT_BYTES} bytes) with status (one of {', '.join(WORKER_RESULT_STATUSES)}), summary, changed_paths, findings, checks, blockers, next_action, and artifacts; keep raw diffs and command logs in run-local files.",
             "User request:",
             request,
         ]
@@ -500,8 +526,8 @@ def _compact_packet_to_budget(packet: dict[str, object]) -> str:
         packet["summary"] = _utf8_truncate(str(packet.get("summary") or ""), str_budget)
         packet["next_action"] = _utf8_truncate(str(packet.get("next_action") or ""), str_budget)
         packet["blockers"] = [
-            _utf8_truncate(str(b), str_budget)
-            for b in list(packet.get("blockers") or [])[:5]
+            _json_string_truncate(str(b), max(str_budget, MIN_COMPACT_BLOCKER_BYTES))
+            for b in list(packet.get("blockers") or [])
         ]
         serialized = json.dumps(packet, ensure_ascii=False)
         if len((serialized + "\n").encode("utf-8")) <= MAX_WORKER_RESULT_BYTES:
@@ -536,10 +562,10 @@ def build_worker_result_packet(
     raw_status = str(parsed.get("status") or "")
     if returncode != 0:
         status = "blocked"
-    elif raw_status in {"ok", "findings", "blocked", "needs_inspection"}:
+    elif raw_status in WORKER_RESULT_STATUSES:
         status = raw_status
     else:
-        status = "ok"
+        status = "needs_inspection"
 
     raw_summary = str(parsed.get("summary") or text or f"worker exited with code {returncode}").strip()
     spilled = len(text.encode("utf-8")) > MAX_WORKER_SUMMARY_BYTES or len(raw_summary.encode("utf-8")) > MAX_WORKER_SUMMARY_BYTES
@@ -549,12 +575,29 @@ def build_worker_result_packet(
 
     blockers_raw = parsed.get("blockers")
     blockers = (
-        [_utf8_truncate(str(item).strip(), 240) for item in blockers_raw if str(item).strip()][:10]
+        [_json_string_truncate(str(item).strip(), 240) for item in blockers_raw if str(item).strip()]
         if isinstance(blockers_raw, list)
         else []
     )
+    if len(blockers) > MAX_WORKER_BLOCKERS:
+        # Never drop a blocker silently: name the remainder and keep the full text locally.
+        hidden = len(blockers) - (MAX_WORKER_BLOCKERS - 1)
+        blockers = blockers[: MAX_WORKER_BLOCKERS - 1] + [
+            f"{hidden} more blockers in {'the worker stream log' if from_stream_log else details_path.name}"
+        ]
+        if text and not from_stream_log and not details_path.is_file():
+            _check_no_symlink(details_path)
+            details_path.write_text(text + "\n", encoding="utf-8")
     if returncode != 0 and not blockers:
         blockers = [f"worker exited with code {returncode}"]
+    if status == "needs_inspection" and not blockers:
+        blockers = [
+            f"worker status {raw_status!r} is not a {WORKER_RESULT_SCHEMA} status"
+            if raw_status
+            else f"worker returned no {WORKER_RESULT_SCHEMA} status"
+        ]
+    if status == "ok" and blockers:
+        status = "blocked"
     changed_raw = parsed.get("changed_paths")
     changed_paths = (
         [_utf8_truncate(str(item), 160) for item in changed_raw[:25]]
@@ -572,7 +615,7 @@ def build_worker_result_packet(
         "next_action": _utf8_truncate(
             str(
                 parsed.get("next_action")
-                or ("integrate worker result" if returncode == 0 else "inspect worker stream log and blockers")
+                or ("integrate worker result" if status in {"ok", "findings"} else "inspect worker stream log and blockers")
             ),
             300,
         ),

@@ -137,7 +137,12 @@ and hook payloads never flood the parent context. Return only the bounded
 `worker_result_v1` packet (`<= 4096` bytes: `status`, `summary`,
 `changed_paths`, `findings`, `checks`, `blockers`, `next_action`, and
 `artifacts`), spilling oversized text or diffs to `worker-details.md` while
-always preserving `blockers` in the parent-visible packet.
+always preserving `blockers` in the parent-visible packet. Status is one of
+`ok`, `findings`, `blocked`, or `needs_inspection`; a zero exit without one of
+these is `needs_inspection`, and `ok` with blockers is `blocked`. Past ten
+blockers, the last entry names how many more remain in the local details. The worker
+command has no timeout because a comparison may run long; its scheduler lease
+is renewed while the parent process waits.
 
 ## Mechanical Execution In Codex
 
@@ -155,7 +160,10 @@ After the required ready handoff, use `workflow.py dispatch` with
 `--parent-reasoning-effort` and `--parent-sandbox-mode`. Keep dispatch intake
 bound to the parent's current request. Add only the resolved steps, targets
 and checks to the native worker message. Use its `native_worker` arguments
-with the native spawn tool and a task name; do not use `--execute`
+with the native spawn tool and a task name, including `agent_type` when present:
+a native spawn inherits the parent sandbox, so a read-only worker under a
+writable parent uses the read-only role, and a writing worker under a read-only
+parent stays in the parent; do not use `--execute`
 to imitate native spawning. `fork_turns=none` avoids copying unrelated history.
 If the capsule or native overrides are unavailable, continue in the unchanged
 parent. A failure or new decision returns to the parent without broader retries.

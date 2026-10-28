@@ -31,6 +31,8 @@ PARALLEL_SIGNALS = (
     "분할",
 )
 SEQUENTIAL_MULTI_AGENT_MARKER = "workers ran one at a time (no concurrent writers)"
+PARALLEL_SPLIT_RENDER_PREFIX = "multi-agent/subagent split;"
+SERIAL_DECISION_RENDER_PREFIX = "serial/single-agent decision;"
 SERIAL_SIGNALS = (
     "serial",
     "sequential",
@@ -92,6 +94,12 @@ def evidence_requires_delegation_plan(
     if MULTI_AGENT_ROUTE_GATES.intersection(required_gates):
         return True
     text = gate_evidence.get("multi-agent split decision", "").lower()
+    # Rendered records lead with their structured mode; trust it over signal
+    # words that free-text fields such as the contract may contain.
+    if text.startswith(PARALLEL_SPLIT_RENDER_PREFIX):
+        return True
+    if text.startswith(SERIAL_DECISION_RENDER_PREFIX):
+        return False
     if SEQUENTIAL_MULTI_AGENT_MARKER in text:
         return False
     parallel = any(signal in text for signal in PARALLEL_SIGNALS)

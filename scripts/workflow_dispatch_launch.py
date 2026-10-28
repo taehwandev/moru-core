@@ -13,7 +13,7 @@ from typing import Callable, Mapping
 from agent_gate_evidence import gate_evidence_path_for_preflight
 from agent_run_registry import latest_run_id
 from agent_ipc import emit_heartbeat, emit_worker_failure, emit_worker_result
-from agent_scheduler import claim_task, claim_next, choose_capacity, enqueue_task, heartbeat_task, retry_task, resume_task, transition_task
+from agent_scheduler import claim_task, choose_capacity, enqueue_task, heartbeat_task, retry_task, resume_task, transition_task
 from agent_worker_evidence import create_worker_reservation, worker_reservation_matches
 from agent_worktree_identity import (
     new_worktree_path,
@@ -27,6 +27,8 @@ from workflow_dispatch_handoff import (
     prepare_worker_output_dir,
     worker_output_paths,
 )
+
+LEASE_RENEWAL_SECONDS = 600
 
 
 def execute_dispatch_manifest(
@@ -176,18 +178,22 @@ def _claim_scheduler_task(
     run_id = latest_run_id(project, parent_evidence) or uuid.uuid4().hex
     independent_slices = int(manifest.get("independent_slices") or 1)
     max_retries = int(manifest.get("max_retries") or 0)
-    capacity = choose_capacity(independent_slices, int(manifest.get("requested_workers") or 1))
+    requested_workers = int(manifest.get("requested_workers") or 1)
+    capacity = choose_capacity(independent_slices, requested_workers)
     task = enqueue_task(
         project,
         run_id,
         priority=int(manifest.get("priority") or 0),
         independent_slices=independent_slices,
+        requested_workers=requested_workers,
         max_retries=max_retries,
         partial_result_id=str(manifest.get("partial_result_id") or "") or None,
     )
-    claimed = claim_next(project, capacity=capacity)
-    if not claimed or claimed.get("task_id") != task.get("task_id"):
-        raise RuntimeError("scheduler capacity is exhausted; worker remains queued")
+    task_id = str(task["task_id"])
+    # Claim only this dispatch's task; nothing else will run a task left queued here.
+    if claim_task(project, task_id, capacity=capacity) is None:
+        transition_task(project, task_id, "cancelled", expected_state="queued")
+        raise RuntimeError("scheduler capacity is exhausted; worker was not started")
     return task
 
 
@@ -206,63 +212,71 @@ def _run_scheduled_worker(
     while True:
         task_id = str(current_task["task_id"])
         worker_id = f"worker-{task_id}"
+        attempt = int(current_task.get("attempt") or 1)
         stop_heartbeat = threading.Event()
-        heartbeat_thread: threading.Thread | None = None
         events_enabled = heartbeat_interval_seconds > 0
+        # The worker has no timeout because comparisons may legitimately run
+        # long, so the lease tracks this process instead: it is renewed while
+        # the worker runs, even without opt-in heartbeat events, and expires
+        # for stale recovery only once this process is gone.
+        lease_interval = heartbeat_interval_seconds if events_enabled else LEASE_RENEWAL_SECONDS
         if events_enabled:
-            heartbeat_task(project, task_id)
+            heartbeat_task(project, task_id, expected_attempt=attempt)
             emit_heartbeat(
                 project,
                 run_id=str(current_task["run_id"]),
                 task_id=task_id,
                 worker_id=worker_id,
-                attempt=int(current_task.get("attempt") or 1),
+                attempt=attempt,
             )
 
-            def heartbeat_loop() -> None:
-                while not stop_heartbeat.wait(heartbeat_interval_seconds):
-                    if heartbeat_task(project, task_id) is None:
-                        return
+        def heartbeat_loop() -> None:
+            while not stop_heartbeat.wait(lease_interval):
+                if heartbeat_task(project, task_id, expected_attempt=attempt) is None:
+                    return
+                if events_enabled:
                     emit_heartbeat(
                         project,
                         run_id=str(current_task["run_id"]),
                         task_id=task_id,
                         worker_id=worker_id,
-                        attempt=int(current_task.get("attempt") or 1),
+                        attempt=attempt,
                     )
 
-            heartbeat_thread = threading.Thread(target=heartbeat_loop, name=f"agent-heartbeat-{task_id}", daemon=True)
-            heartbeat_thread.start()
+        heartbeat_thread = threading.Thread(target=heartbeat_loop, name=f"agent-heartbeat-{task_id}", daemon=True)
+        heartbeat_thread.start()
         try:
             result = runner(argv)
         except BaseException:
             stop_heartbeat.set()
-            if heartbeat_thread:
-                heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
-            if events_enabled:
+            heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
+            owned = transition_task(project, task_id, "failed", expected_state="running", expected_attempt=attempt)
+            if events_enabled and owned is not None:
                 emit_worker_failure(
                     project,
                     run_id=str(current_task["run_id"]),
                     task_id=task_id,
                     worker_id=worker_id,
-                    attempt=int(current_task.get("attempt") or 1),
+                    attempt=attempt,
                 )
-            transition_task(project, task_id, "failed")
             raise
         stop_heartbeat.set()
-        if heartbeat_thread:
-            heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
+        heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
+        # Events follow the guarded transition: an attempt that stale recovery
+        # already moved reports nothing over its newer owner.
         if result == 0:
-            if events_enabled:
+            completed = transition_task(project, task_id, "completed", expected_state="running", expected_attempt=attempt)
+            if events_enabled and completed is not None:
                 emit_worker_result(
                     project,
                     run_id=str(current_task["run_id"]),
                     task_id=task_id,
                     worker_id=worker_id,
                     result_id=f"result-{uuid.uuid4().hex}",
-                    attempt=int(current_task.get("attempt") or 1),
+                    attempt=attempt,
                 )
-            transition_task(project, task_id, "completed")
+            return result
+        if transition_task(project, task_id, "failed", expected_state="running", expected_attempt=attempt) is None:
             return result
         if events_enabled:
             emit_worker_failure(
@@ -270,9 +284,8 @@ def _run_scheduled_worker(
                 run_id=str(current_task["run_id"]),
                 task_id=task_id,
                 worker_id=worker_id,
-                attempt=int(current_task.get("attempt") or 1),
+                attempt=attempt,
             )
-        transition_task(project, task_id, "failed")
         retried = resume_task(project, task_id) if current_task.get("partial_result_id") else retry_task(project, task_id)
         if retried is None:
             return result
@@ -285,6 +298,13 @@ def _run_scheduled_worker(
             ),
         )
         if not claimed or claimed.get("task_id") != task_id:
+            transition_task(
+                project,
+                task_id,
+                "failed",
+                expected_state="queued",
+                expected_attempt=int(retried.get("attempt") or 1),
+            )
             return result
         current_task = claimed
         if task_context is not None:
