@@ -7,10 +7,13 @@ type: ai-generated
 # Bounded Local Changes
 
 Choose `small-change` automatically after bounded source inspection proves one
-existing owner, a clear requested outcome, at most four changed files, within
+existing owner, a clear requested outcome (with settled UX flow, prose
+voice/thesis, and no unapproved sibling-page scope expansion after checking
+adjacent sections and coupled pages), at most four changed files, within
 the existing structural review limits. Count tests and documentation too. This is for
 local fixes, small refactors and corrections, not an assertion that every terse
-request is small. Uncertain scope uses triage; broad work uses its full route.
+request or single-file headline/copy request is small. Uncertain scope uses triage
+or pre-`start` alignment; broad work uses its full route.
 Before calling `review`, keep new or expanded function and component blocks
 within the structural block limit by extracting private sub-components or
 helpers (pre-existing oversized blocks that do not grow require structure-review

@@ -57,11 +57,14 @@ authority: apply and verify them in the same closeout without asking the user.
 For implementation, review, refactoring, debugging, documentation, and planning,
 read `common/skills/agent-operating-skill/SKILL.md` first. For multi-step
 work requiring a tracked lifecycle, use the installed absolute Moru launcher.
-Read-only lookup, explanation, status, and checks of a supplied diagnosis instead inspect bounded direct evidence
-and answer without start, fingerprint, mailbox, checkpoint, gate, review, or
-finish calls. Applicable project instructions and source contracts still apply;
-this exception does not waive a target project's explicit workflow. Do not create
-task state or refresh indexes merely to answer. A lookup that expands into an
+Read-only lookup, explanation, status, checks of a supplied diagnosis, and
+pre-`start` design or copy alignment when bounded inspection shows the target
+outcome, thesis, or cross-surface coherence is still open instead inspect
+bounded direct evidence and answer or align without start, fingerprint,
+mailbox, checkpoint, gate, review, or finish calls. Applicable project
+instructions and source contracts still apply; this exception does not waive a
+target project's explicit workflow. Do not create task state or refresh indexes
+merely to answer or align. A lookup or alignment exchange that expands into an
 edit must enter the writable lifecycle before that edit.
 
 Checking an existing explanation against source or measurements is not a diff
@@ -199,11 +202,38 @@ same authorized action again. Current scope changes override prior context.
 
 The runtime owns contextual intent, sequence, scope and authority judgment;
 Moru checks its bound declaration and the proposed action's safety, not whether
-the user's wording matches a phrase recognizer. A clear execution request is
-actionable when first made, including ordered work: perform the authorized
-steps in order rather than treating an acknowledgement or plan as completion.
-Do not require another confirmation merely because the agent announced its
-plan. Planning-only requests remain planning-only. Never infer approval from
+the user's wording matches a phrase recognizer. Separate authority to act from
+how fully the intended result is shaped, judging from epistemic state after
+bounded inspection rather than prompt keywords or grammatical mood:
+
+- **Settled target and outcome**: When the request and repository context
+  already define the target behavior, acceptance criteria, and affected
+  surfaces (for example, user-supplied exact wording, a typo or fact fix, an
+  already-approved sample, or a specified thesis update where directly coupled
+  in-scope passages on the same page can be reconciled in the same pass), an
+  authorized execution request is actionable when first made, including ordered
+  work: perform the authorized steps in order rather than treating an
+  acknowledgement or plan as completion. Do not require another confirmation
+  merely because the agent announced its plan.
+- **Unshaped design, UX flow, or authorial prose/thesis**: Even when the user
+  authorizes edits or uses imperative phrasing, do not rush into writable
+  `start`, file edits, or gate completion if bounded inspection (covering the
+  named target, adjacent sections on the same page/screen, and sibling pages or
+  coupled flows that repeat the same premise) leaves a material decision about
+  the intended outcome, UX flow, or voice/thesis unresolved—or shows that
+  reconciling a contradiction would require expanding edits to a separate
+  sibling page or surface outside the authorized target. When no tracked run is
+  active yet, respond statelessly before `start` with: (1) what bounded
+  inspection found, including coupled adjacent sections or sibling pages, (2) a
+  concrete design sketch or 2–3-line copy sample with the full coherent edit
+  scope, and (3) the specific decision questions that materially change the
+  result. Once aligned, pass the agreed scope in `start --target-summary` and
+  reuse that visible exchange as `alignment brief` evidence without re-asking
+  settled questions. If an open decision surfaces inside an already-active
+  tracked run (`triage`, `ambiguity`, or a work route), retain that run and use
+  its `alignment brief` or blocker-question checkpoint.
+
+Planning-only requests remain planning-only. Never infer approval from
 silence or extend permission to a deferred, prohibited or unrelated action.
 Before ending an execution turn, continue the next authorized step unless the
 outcome is complete or a concrete blocker, required user decision, approval
@@ -227,10 +257,11 @@ must cover both plus classification flags exactly. Continuation scope never
 opens a work route or authorizes mutation. `--request-classified` is only for
 a delegated worker holding a ready, valid capsule bound to the same intake.
 
-Evidence that still says the request is vague, direct-question-first,
-ambiguous, unresolved, or blocker-open stays on `triage` or `ambiguity`.
-Weak markers such as “classified”, “done”, or generic “clarified” do not prove
-scope resolution.
+When a tracked run is already active, evidence that still says the request is
+vague, direct-question-first, ambiguous, unresolved, or blocker-open stays on
+`triage` or `ambiguity` rather than opening a writable work route. Weak markers
+such as “classified”, “done”, or generic “clarified” do not prove scope
+resolution.
 
 Every route whose minimum effect is `read` is intrinsically non-mutating.
 Before a writing action, start a matching writable route with current scope

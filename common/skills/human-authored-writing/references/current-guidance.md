@@ -23,7 +23,7 @@ Do not wait until after writing to load this card. For writing tasks, this card 
 - The user's actual request, including audience, channel, language, and purpose.
 - Any supplied draft, outline, examples, quotes, claims, citations, product names, numbers, dates, legal or policy text, and SEO keywords that must survive unchanged.
 - The requested writing mode: explanatory guide, personal stance, build log, announcement, tutorial, reference note, retrospective, or another genre. If the mode is not explicit and changing it would reshape the draft, ask before rewriting.
-- Two or three nearby voice samples when available, such as existing docs, posts, release notes, emails, or the user's own draft fragments.
+- Two or three nearby voice samples when available, such as existing docs, posts, release notes, emails, or the user's own draft fragments, plus adjacent sections on the same page and sibling pages that repeat the same product reason or thesis.
 - When a draft continues a series, inspect the actually published predecessor or use the author's confirmed publication history before stating what the earlier piece introduced. A local draft may contain later additions that were never published.
 - For Korean author voice work, inspect phrase-level habits as well as endings: connective frames, concrete maintenance wording, preferred technical nouns, translation-like metaphors, and phrases the user explicitly rejected.
 - Treat negative voice evidence as first-class evidence. When the author says they do not use a word, metaphor, or explanatory frame, record that rejection for the current writing task and scan the whole artifact for the same phrase and semantic pattern before finalizing.
@@ -47,7 +47,8 @@ When in doubt, preserve meaning over style. If a more natural sentence would cha
 - Prefer the user's voice over a generic "human" voice. Use supplied writing samples, nearby repo docs, or the draft's strongest natural passages as the style source.
 - For Korean prose, once the author's samples or the draft's own passages establish plain declarative endings (`다`, `했다`, `이다`), keep that register through the whole piece. Do not drift into honorific explanatory endings (`합니다`, `됩니다`, `보입니다`) partway through; an unrequested honorific shift is a register change, not a fidelity edit.
 - Spoken/talk register is the opposite case: a presentation or talk script the author delivers aloud keeps its spoken honorific register (`합니다`) through the whole script. Do not convert a talk into plain-ending article prose — the medium sets the register here, not the plain-ending default.
-- Do not re-edit wording the author has already set deliberately. Swapping a chosen verb or noun for a synonym is a change, not an edit; change only the spans the author flags and preserve their hand-edits. Repeatedly "improving" settled wording erodes trust.
+- Do not re-edit wording the author has already set deliberately. Swapping a chosen verb or noun for a synonym is a change, not an edit; preserve the author's settled hand-edits. However, when the author flags one headline, sentence, or section for a thesis, tone, or terminology problem, do not patch only that literal line while leaving adjacent paragraphs or a sibling page (for example, a product page's "why we built this" section) contradicting the updated thesis. Inspect the surrounding page and related surfaces that repeat the same claim: update directly coupled passages within the authorized scope in the same pass and reread them together for coherence, and surface any separate sibling pages or unsettled thesis choices for confirmation before expanding scope.
+- Never sacrifice natural phrasing or exact meaning for compression. When tightening Korean or localized copy, prefer words and phrasing that match nearby repo copy and the author's samples and sound natural when read aloud by a developer; do not cram context into abrupt shorthand or contextually mismatched idioms (such as compressing "context from earlier in the conversation" into “앞말”, over-dramatizing developer fatigue as “내 진을 빼놓는”, or condensing "measuring token overhead and trimming what isn't needed" into “재 보고 덜어내는”) just to fit a shorter line. Keep the full natural phrasing that preserves the exact original meaning.
 - Record author vocabulary corrections in the project or author voice file, not from memory, and honor them everywhere once set. Examples from practice: `분석` over `조사` for understanding code or a problem; `나눠서 작업(하다)`, not `나눠서 맡기다`, when a team divides and does the work itself; the reusable unit is a skill (`스킬`), not a prompt.
 - Keep edits conservative. If a rewrite would change more than roughly one third of the text, report the risk and offer a focused pass instead of silently replacing the piece.
 - Do not trade comprehension for brevity. Remove repetition and filler, but keep the first-use definition and whichever actor, action, location, reason, or example the intended reader needs to understand the claim without hidden project context.
@@ -157,7 +158,13 @@ visible instead of inventing a plausible implementation. Stop as soon as the
 reader can reconstruct the interaction; do not decorate a simple claim with
 unnecessary diagrams or sample code.
 
-## Author Paraphrase And Thesis Reset
+## Author Paraphrase, Co-Design Ping-Pong, And Thesis Reset
+
+When the product thesis, audience framing, or author voice is not yet settled
+by either the user or the draft, do not rush to rewrite the entire page and
+call the task finished. First share a 2–3-line sample in natural everyday
+language, list the adjacent sections or sibling pages that share the same
+thesis, and align on the direction before broad edits.
 
 When the author asks what a sentence means, says the wording is not something
 they would use, or has to supply a clearer paraphrase, treat that as a failed
@@ -190,10 +197,10 @@ the subject, action, and result without first translating the abstraction.
  5. Establish the reader's path through the draft. Define an unfamiliar or project-specific term at first use. For each material claim, keep whichever subject, actor, action, location, reason, example, and result the intended reader needs instead of making them reconstruct omitted links.
  6. Audit the draft for specific signals. Note the span, category, severity, and intended edit before rewriting broad sections.
  7. For Korean prose, run a phrase-level voice pass. Check not only honorific endings, but also plausible phrases that the author would not naturally use, such as abstract metaphors, stock AI transitions, or wording the user already flagged as unnatural.
- 8. When the author or a reader flags one unclear phrase, scan the whole artifact for analogous shorthand, unexplained terms, omitted actors, and missing causal links before rewriting. Do not repair only the quoted sentence.
+ 8. When the author or a reader flags one unclear phrase or thesis change, scan the whole artifact and coupled sibling pages for analogous shorthand, unexplained terms, omitted actors, missing causal links, and adjacent passages that still state the old premise before rewriting. Do not repair only the quoted sentence.
  9. For a technical section that remains unclear after a direct rewrite, apply the evidence ladder. Use a labeled diagram, sequence, or table for multi-part interactions and an exact example only when syntax, visibility, configuration, or runtime behavior carries the claim.
 10. If the author questions the article's core or supplies a clearer statement of intent, run the thesis-reset process before continuing span-level edits.
-11. Rewrite only the flagged spans or the smallest paragraph needed for flow. Prefer complete meaning over compression: keep the actors, referents, conditions, and causal links that the reader needs, even when the shorter phrasing sounds smoother.
+11. Rewrite only the flagged spans (plus directly coupled in-scope passages that share an updated thesis; surface out-of-scope sibling pages for confirmation) or the smallest paragraph needed for flow. Prefer complete meaning and natural authorial phrasing over compression: keep the actors, referents, conditions, and causal links that the reader needs, even when an abrupt shorthand looks shorter.
 12. Run a fidelity check against the original: facts, claims, numbers, names, quotes, citations, ordering, tone, and required format.
 13. Read the result aloud or scan for rhythm: sentence lengths should vary, but the prose should not become choppy, cute, or performatively casual.
 14. Run an "obviously generated" second pass for residual tells: formulaic framing, repetitive transitions, fake balance, unsupported grand claims, chatbot closers, and tidy-but-empty summaries.
@@ -247,7 +254,7 @@ Use these passes when the writing task is more than a one-line copy edit.
 | "The term is accurate, so readers will understand it." | Define unfamiliar or project-specific terms at first use and add the smallest concrete explanation the intended audience needs. Accuracy does not replace context. |
 | "Internal contract, gate, or telemetry names are precise, so they belong in the README or product report headings." | Translate internal mechanics into reader-visible actions and outcomes in headings, chart labels, and comparison tables; keep CLI flags and internal identifiers in parentheses or code blocks only where the reader runs them. |
 | "Literal translation of the English technical phrase preserves accuracy in Korean, Japanese, or Chinese." | Replace stiff word-for-word calques of internal compound nouns with natural native phrasing that states who does what and what changes, while keeping numbers and commands exact. |
-| "The user flagged only this sentence, so only this sentence needs review." | Repair the sentence, then scan the whole artifact for analogous shorthand and omitted context. Treat the report as evidence of a pattern until the scan shows otherwise. |
+| "The user flagged only this sentence, so only this sentence needs review." | Repair the sentence, then scan the whole artifact and coupled sibling pages for analogous shorthand, omitted context, and adjacent sections that still state the old thesis. Reconcile coupled in-scope passages together and surface any separate sibling pages for confirmation. |
 | "The author supplied a clearer paraphrase, so I only need to replace that sentence." | Treat the paraphrase as thesis and voice evidence. Check the title, opening, headings, and conclusion before returning to local edits. |
 | "The architecture rule is technically correct, so another paragraph of prose is enough." | If the intended reader still cannot reconstruct the caller, relationship direction, implementation location, and consequence, stop rephrasing. Add the smallest labeled diagram, table, code, or configuration example that proves the interaction. |
 | "Detector score is the goal." | Refuse detector-bypass promises; improve clarity, fidelity, voice, and responsible use. |

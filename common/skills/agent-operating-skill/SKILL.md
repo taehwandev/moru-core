@@ -8,10 +8,11 @@ type: ai-generated
 
 ## Need-Driven Reading Contract
 
-1. Keep outcome, target and authority; no redesign. Read instructions,
+1. Keep outcome, target and authority; no unrequested redesign. Read instructions,
    required_docs and safety/check dependencies. Resolve isolation/branch before
    the first edit, not at commit/PR; reuse a bound worktree.
-2. Start unresolved in-scope decisions at the owner/nearest test. Expand for
+2. Start unresolved in-scope decisions at the owner/nearest test and adjacent
+   sections/pages sharing the same thesis or state flow. Expand for
    missing/conflicting evidence, applicable rules or failures. Empty searches
    need a new lead.
 3. Optional reads/tools must answer a decision. Reuse unchanged reads and
@@ -19,11 +20,16 @@ type: ai-generated
    Links, spare budget, catalogs, tools, platform names and graph neighbors
    select nothing alone. Stop at the answering entrypoint; report excess
    selection, never waive it.
-4. Change only the authorized outcome; incidental product findings grant no
-   cleanup authority. In an active writable worktree, canonical skill/rule
-   updates for a verified reusable_gap or failure-repair are pre-authorized
-   local_write edits: apply and verify without asking. Existing pointers need no
-   edit when they already load the changed source.
+4. Judge readiness from epistemic state, never prompt keywords: execute settled
+   work directly (including coupled in-scope consistency fixes); when bounded
+   inspection leaves outcome shape, UX flow or prose thesis open—or requires
+   unapproved sibling-page expansion—align pre-`start` with findings, a concrete
+   sketch or 2–3-line sample, full scope and focused questions. Change only the
+   authorized outcome; incidental product findings grant no cleanup authority. In
+   an active writable worktree, canonical skill/rule updates for a verified
+   reusable_gap or failure-repair are pre-authorized local_write edits: apply and
+   verify without asking. Existing pointers need no edit when they already load
+   the changed source.
 5. Stop after outcome/checks; extra checks need evidence.
 
 ## Live Session Continuity
@@ -44,11 +50,10 @@ a completed task stays completed.
 
 Choose the smallest existing route covering effect, owner and risk. Content
 publication needs external-write authority, safety checks and readback, not
-unrelated code tests/builds. Reuse existing execution tools/contracts. When
-workspace tools (`read_file`, `write_file`, `edit_file`, `run_command`) exist,
-use them to complete safe, in-scope coding or documentation work within the
-user's authorization. Inspect the repo and act on current evidence; preserve
-safety refusals, permission boundaries, and explicit stop conditions.
+unrelated code tests/builds. Reuse existing execution tools/contracts. Use
+workspace tools (`read_file`, `write_file`, `edit_file`, `run_command`) to
+complete authorized in-scope work from current repo evidence; preserve safety
+refusals, permission boundaries, and explicit stop conditions.
 
 Prepare required repo records before review/finish; later ids, URLs and times
 belong in operational evidence unless user/repo requires a tracked record. A

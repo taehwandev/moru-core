@@ -29,16 +29,20 @@ condition is true for the current request:
 ## Intake Decision
 
 Classify the request before loading many documents or doing deep reasoning.
-Do not rely only on a fixed phrase such as "Grill-Me", "feature", or "PRD".
-Classify the request from the missing decision surface: target, intended
-behavior, acceptance criteria, data/security/cost/external-state risk,
-verification, and whether existing docs or code can answer the unknown.
+Do not rely on fixed phrases, keyword lists, or grammatical mood (imperative
+versus question). Classify from the missing decision surface after bounded
+inspection: target location, outcome shape, user-visible flow, authorial thesis
+and voice, cross-surface coherence across adjacent sections or sibling pages,
+acceptance criteria, data/security/cost/external-state risk, verification, and
+whether existing docs or code already settle the unknown. Naming a file, page,
+or component identifies the *inspection target*, not necessarily a settled
+*outcome shape*.
 
 | Class | Signal | Default Action |
 | --- | --- | --- |
 | `direct-question` | Asks for an explanation, timing, policy, status, or meaning without asking the agent to change files or run work. | Answer first. Do not start workflow routing, editing, or project-specific commands unless a separate action remains. If the question asks how to start app, product, or feature work, the answer must include the PRD -> ARD -> implementation path before lower-level coding steps. |
-| `clear-exact` | Names a file, symbol, command, error, stack trace, failing test, or precise behavior. | Use quick or standard effort; inspect the named target first. |
-| `clear-scoped` | Names a screen/component/feature and intended change, but local context is needed. | Use standard effort; inspect local code and route to the matching platform card. |
+| `clear-exact` | Names a file, symbol, command, error, stack trace, failing test, or precise behavior. | Use quick or standard effort; inspect the named target and coupled local context first. |
+| `clear-scoped` | Names a screen/component/feature and intended change, but local context is needed. | Use standard effort; inspect local code and adjacent/coupled surfaces first. Align before writable `start` if outcome shape, UX flow, or prose thesis remains open; otherwise route to the matching card. |
 | `vague-action` | Asks the agent to act but lacks a precise target, intended behavior, inspection target, or acceptance criteria. This includes, but is not limited to, wording like "fix", "improve", "clean up", or "make better". | Use ambiguity gate or the Grill-Me protocol before implementation. |
 | `broad-product` | Asks for a new feature, architecture, PRD, multi-screen flow, data model, billing/auth, or release behavior. | Use product/PRD route and deeper effort. |
 | `risky-unclear` | Could affect data, security, money, permissions, destructive changes, migrations, deploys, or external state. | Stop for blocker questions or approval. |
@@ -86,17 +90,28 @@ composition point, public contract, migration, release config, app shell, or
 security boundary, inspect the owner boundary and escalate.
 
 Do not skip questions only because the request resembles a previously handled
-phrase. If local context cannot determine user-visible behavior, acceptance
-criteria, data ownership, permission/security handling, cost impact, or
-verification, stop at triage or ambiguity and ask the smallest blocker
-question.
+phrase or uses imperative wording. Separate permission to act from epistemic
+closure: when bounded inspection shows a settled target and outcome (such as
+user-supplied wording, a typo/fact fix, an approved sample, or a specified
+thesis update whose coupled passages on the same page can be updated in the
+same pass), execute directly without ceremonial questions. When bounded
+inspection leaves a material decision open about user-visible behavior, UX
+flow, authorial voice/thesis, acceptance criteria, data ownership,
+permission/security handling, cost impact, or verification—or shows that fixing
+a contradiction requires expanding to a separate sibling page outside the
+authorized target—do not rush into writable `start` or file edits. See the
+pre-`start` alignment contract in `AGENTS.md`; once aligned, pass the agreed
+scope in `start --target-summary` and reuse that visible exchange as `alignment
+brief` evidence without re-asking settled questions.
 
 Choose the lightest work route the evidence supports. Use `small-change` when
-bounded inspection proves one existing owner, a clear requested outcome, at most
-four changed files, and no risk-sensitive concern, as defined in
+bounded inspection proves one existing owner, a clear requested outcome (with
+settled UX flow, prose voice/thesis, and no unapproved sibling-page expansion),
+at most four changed files, and no risk-sensitive concern, as defined in
 `common/skills/agent-operating-skill/references/small-change.md`. Use `task` or
 the specific work route when scope is uncertain, crosses owners, or touches a
-risk surface; do not send every terse request to `small-change`.
+risk surface; do not send every terse request or unshaped copy change to
+`small-change`.
 
 ## Alignment Brief
 
@@ -110,10 +125,17 @@ verification; otherwise state the default assumption. Do not satisfy this only
 with private notes or finish-check evidence after the fact; the checkpoint must
 be visible in the conversation before the work starts.
 
-For prose work, the alignment brief must distinguish style evidence from genre
-selection. Examples such as plain Korean endings, "not honorific", or "my
-style" are not enough to choose retrospective, announcement, technical guide,
-or opinion-piece structure unless the user says so or selects that option.
+For prose or product-copy work, distinguish style cues from genre, thesis, and
+cross-surface coherence. Examples such as plain Korean endings, "not
+honorific", or "my style" are not enough to choose retrospective, announcement,
+technical guide, or opinion-piece structure unless the user says so or selects
+that option. When a request flags one headline or paragraph, inspect adjacent
+sections on the same page and sibling pages carrying the same thesis: if the
+user already supplied the exact replacement or settled thesis, update the
+flagged span and directly coupled in-scope passages in the same pass; if the
+thesis/voice is still open or requires expanding to separate sibling pages,
+align first per `AGENTS.md` (and when a tracked `triage`/`ambiguity` or work run
+is already active, record that converged scope in its `alignment brief` gate).
 
 ## Effort Profiles
 

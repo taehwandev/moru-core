@@ -23,10 +23,18 @@ technical explanation from the text.
 - **Calibrate against nearby repo copy before drafting.** Before adding a new
   page, report, or README section, read 2–3 existing user-facing pages in the
   same repository and match their vocabulary level, sentence length, and tone.
-- **Translate meaning, not literal jargon calques, in localized docs.** In
+- **Translate meaning, not literal jargon calques, and never sacrifice natural phrasing for brevity.** In
   Korean, Japanese, and Chinese guides, replace word-for-word calques of
   internal English nouns with natural native developer phrasing while keeping
-  every measured number and fact intact.
+  every measured number and fact intact. Never cram context into abrupt
+  shorthand or contextually mismatched idioms merely to compress a heading or
+  sentence; check against nearby repo copy and the author's samples.
+- **Reconcile coupled passages and check sibling pages that share the same thesis.**
+  Before editing a flagged headline or paragraph, inspect the rest of that page
+  and related pages carrying the same product reason or claim: update directly
+  coupled in-scope passages on the same page in the same pass and reread them
+  together, and surface any separate sibling pages or unsettled thesis choices
+  with a 2–3-line sample for confirmation before expanding scope.
 - **Place the subject product first and preserve its structural differentiator in comparisons.**
   In comparison tables and cards, always put the subject product in the first
   comparison column (or top hero box in a zero-horizontal-scroll card layout),

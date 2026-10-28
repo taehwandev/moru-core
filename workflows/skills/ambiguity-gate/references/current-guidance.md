@@ -30,9 +30,9 @@ editing. Do not proceed because the agent can imagine a plausible default.
 
 Classify each unknown as exactly one of these:
 
-- `blocker`: The answer can change user-facing behavior, scope, architecture, permissions, privacy, data safety, release risk, or acceptance criteria.
-- `researchable`: The answer should be found in repo docs, code, tests, platform docs, current artifacts, or local context before asking.
-- `assumable`: The answer is a reversible implementation detail, follows local patterns, and does not change product meaning or risk.
+- `blocker`: The answer can change user-facing behavior, scope, architecture, permissions, privacy, data safety, release risk, acceptance criteria, an unsettled authorial thesis/voice, or whether edits expand to a separate sibling page outside the authorized target.
+- `researchable`: The answer should be found in repo docs, code, tests, platform docs, current artifacts, adjacent sections, or sibling pages before asking.
+- `assumable`: The answer is a reversible implementation detail, follows local patterns (including updating directly coupled in-scope passages on the same page to match an already-specified thesis), and does not change product meaning, user-visible flow, authorial voice/thesis, or risk. Never treat an unshaped UX flow, an unsettled product/writing thesis, or an unapproved sibling-page scope expansion as `assumable`.
 - `out-of-scope`: The request conflicts with current product direction or should be deferred or rejected.
 
 Ask the maintainer only for `blocker` unknowns.
@@ -87,7 +87,10 @@ Stop and ask when any of these are unclear:
 - Each question should name the decision being made and why it matters.
 - Prefer concrete choices when the ambiguity is about direction, taste, voice,
   genre, scope, or architecture. Name the consequence of each option instead of
-  asking the maintainer to invent the frame.
+  asking the maintainer to invent the frame. When product shape or prose voice
+  is still open, pair the questions with a compact design sketch or a 2–3-line
+  natural copy sample and the full list of affected sections/pages so both
+  sides can react to a concrete artifact rather than abstract labels.
 - When several blockers are open, map the dependencies among them and ask in
   dependency order so upstream decisions are settled before the questions that
   depend on them.
