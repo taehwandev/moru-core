@@ -13,8 +13,8 @@ commands, naming, architecture, and product policy.
 ## Priority And Scope
 
 Follow, in order: runtime system/developer instructions, the current user
-request, target-repo instructions, specific Moru guidance, common Moru guidance,
-then general README material. Call out conflicts that affect behavior,
+request, target-repo instructions, a bound organization guide, specific Moru
+guidance, common Moru guidance, then general README material. Call out conflicts that affect behavior,
 verification, security, or data handling.
 
 Keep this library provider-neutral and reusable. Product-, service-, vendor-,

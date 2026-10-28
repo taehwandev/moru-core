@@ -14,6 +14,7 @@ from typing import Any
 from agent_delegation_plan import read_delegation_plan
 from agent_execution_capsule_docs import required_doc_baseline_sha256
 from agent_execution_capsule_state import contained_doc_path, doc_hash_record
+from org_layer import organization_drift_failures
 from agent_block_lessons import resolve_fixed_lesson
 from agent_global_lessons import state_home, write_retrospective_candidate
 from agent_runtime_session import (
@@ -552,6 +553,7 @@ def main() -> int:
         read_only=read_only,
         intrinsically_read_only=route.get("command") == "analysis",
     )
+    failures.extend(organization_drift_failures(route.get("organization")))
     validate, diff_check, vibeguard, overall = run_final_checks(
         moru_root,
         project,

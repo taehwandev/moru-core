@@ -65,6 +65,7 @@ from agent_work_cards import start_lines as work_card_start_lines
 from agent_review_hook import required_review_evidence_flags, review_hook
 from agent_review_reuse import ReviewReuse
 from agent_required_doc_reuse import project_route_doc_reuse, required_doc_reuse
+from org_layer import summary_lines as organization_summary_lines
 from agent_repair_verification import create_repair_receipt
 from agent_repair_ledger import (
     CONFLICT as REPAIR_REBIND_CONFLICT,
@@ -461,8 +462,11 @@ def _doc_takeaway_prompt_lines(route: dict) -> list[str]:
 
 
 def _project_route_doc_lines(path: Path, payload: dict, shown: list[str]) -> list[str]:
+    # Documents outside the rules root: the project's own, then a bound
+    # organization guide's, which ranks below the project.
+    organization = organization_summary_lines((payload.get("route") or {}).get("organization"))
     if not payload.get("project_route_docs"):
-        return []
+        return organization
     reuse = {"reused": [], "unread": [str(item.get("path")) for item in payload["project_route_docs"]]}
     if _isolated_run_preflight(path, payload):
         reuse = project_route_doc_reuse(path)
@@ -476,7 +480,7 @@ def _project_route_doc_lines(path: Path, payload: dict, shown: list[str]) -> lis
         lines.append(f"Project route docs ({len(reuse['unread'])} declared by the project for "
                      "this route; read these instead of following project pointer chains):")
         lines.extend(f"  {doc}" for doc in reuse["unread"])
-    return lines
+    return [*lines, *organization]
 
 
 def _publication_review_invocation_hint() -> str:

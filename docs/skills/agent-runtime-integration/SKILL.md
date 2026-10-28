@@ -16,6 +16,8 @@ Use when routed to `docs/skills/agent-runtime-integration/SKILL.md` or when work
   hooks, agent roles, permission profile, launcher, mailbox, status lines, and bridge blocks.
 - `references/runtime-write-isolation.md` for the installed PreToolUse enforcement,
   run evidence binding, worktree write isolation, and Git/Bash permission boundaries.
+- `references/organization-guides.md` when a company or team shares rules across
+  several target repositories.
 - Related `SKILL.md` entrypoints named by the reference before loading their detailed references.
 
 ## Process
@@ -37,7 +39,8 @@ Use when routed to `docs/skills/agent-runtime-integration/SKILL.md` or when work
 - If route wiring changes, confirm the route loads this `SKILL.md` entrypoint.
 - If detailed guidance changes, validate links and frontmatter for
   `references/current-guidance.md`, `references/runtime-setup.md`,
-  `references/runtime-hook-install.md`, and `references/runtime-write-isolation.md`.
+  `references/runtime-hook-install.md`, `references/runtime-write-isolation.md`,
+  and `references/organization-guides.md`.
 
 ## Required-document drift recovery
 

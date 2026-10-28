@@ -50,6 +50,8 @@ from workflow_advisory_echo import already_delivered, hook_session_id, record_de
 from workflow_output import print_markdown, render_advisory_markdown
 from workflow_route import resolve_docs
 from workflow_search import print_query_results, search_docs_outcome
+from org_layer import query_organization
+from org_cli import add_org_parser, run_org
 from workflow_spill import spill_label_for_args, write_spill_label
 from workflow_validate import validate
 
@@ -103,6 +105,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum results to return (default: 8).",
     )
     query.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    query.add_argument(
+        "--project",
+        type=Path,
+        help="Also search the organization guide bound to this project.",
+    )
+    add_org_parser(subparsers)
 
     subparsers.add_parser("list", help="List available commands, platforms, and concerns.")
     subparsers.add_parser("validate", help="Validate route references, markdown frontmatter, and links.")
@@ -306,6 +314,10 @@ def print_supported_values() -> None:
 def print_query(args: argparse.Namespace) -> int:
     query_str = " ".join(args.terms)
     outcome = search_docs_outcome(ROOT, query_str, max_results=args.max_results)
+    organization, organization_errors = (
+        query_organization(args.project.resolve(), query_str, args.max_results)
+        if args.project else ([], [])
+    )
     if args.format == "json":
         print(
             json.dumps(
@@ -318,12 +330,20 @@ def print_query(args: argparse.Namespace) -> int:
                     "partial": outcome.partial,
                     "fused": outcome.fused,
                     "results": outcome.results,
+                    **({"organization_results": organization} if args.project else {}),
+                    **({"organization_errors": organization_errors} if organization_errors else {}),
                 },
                 indent=2,
             )
         )
     else:
         print_query_results(query_str, outcome.results)
+        if organization:
+            print(f"Organization guide result(s), candidates only ({len(organization)}):")
+            for item in organization:
+                print(f"- {item['path']}:{item['line']} {item['heading']}")
+        for error in organization_errors:
+            print(f"Organization guide unavailable: {error}")
     return 0
 
 
@@ -771,7 +791,7 @@ def main(argv: list[str]) -> int:
             task_type, stage = spill_label_for_args(args)
             write_spill_label(
                 task_type, stage,
-                if_absent=args.action in {"classify", "list", "query", "validate"},
+                if_absent=args.action in {"classify", "list", "query", "validate", "org"},
             )
         return result
     except ValueError as error:
@@ -787,6 +807,8 @@ def _dispatch_action(args: argparse.Namespace) -> int:
         return validate()
     if args.action == "query":
         return print_query(args)
+    if args.action == "org":
+        return run_org(args)
     if args.action == "classify":
         return print_request_classification(args)
     if args.action == "dispatch":

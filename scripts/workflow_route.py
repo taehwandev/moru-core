@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from pathlib import Path
 from typing import NamedTuple, Optional
 
@@ -44,6 +45,7 @@ from workflow_gate_policy import (
 )
 from workflow_doc_resolution import doc_size, is_pointer_entrypoint, resolve_guidance_docs
 from workflow_doc_surfaces import infer_surface_docs, required_surface_docs
+from org_layer import organization_route, prespent as organization_prespent
 from workflow_parallel import parallel_execution_plan
 from workflow_search import SearchOutcome, search_docs_outcome
 from workflow_skill_paths import canonical_doc_path
@@ -685,21 +687,36 @@ def resolve_docs(
         if concern not in inferred
         or concern in RISK_CONCERNS_REQUIRED_WHEN_INFERRED
     ]
-    documents = _resolve_documents(
-        command=command,
-        platform=platform,
-        concerns=concerns,
-        profile=profile,
-        request_text=request_text,
-        surface_paths=surface_paths or [],
-        advisory=advisory,
-        required_concerns=required_concerns,
-        project_root=project_root,
+    organization, organization_missing = (
+        organization_route(
+            project_root,
+            command=command,
+            platform=platform,
+            request_text=request_text,
+            surface_paths=surface_paths or [],
+        )
+        if project_root is not None and not advisory
+        else (None, [])
     )
+    budget_token = _ORGANIZATION_PRESPENT.set(organization_prespent(organization))
+    try:
+        documents = _resolve_documents(
+            command=command,
+            platform=platform,
+            concerns=concerns,
+            profile=profile,
+            request_text=request_text,
+            surface_paths=surface_paths or [],
+            advisory=advisory,
+            required_concerns=required_concerns,
+            project_root=project_root,
+        )
+    finally:
+        _ORGANIZATION_PRESPENT.reset(budget_token)
     routed_docs = documents.routed
     required_docs = documents.required
     reference_docs = documents.reference
-    missing = documents.missing
+    missing = [*documents.missing, *organization_missing]
     surface_matches = documents.surface_matches
     search_outcome = documents.search_outcome
     search_seed_docs = documents.search_seed_docs
@@ -804,6 +821,8 @@ def resolve_docs(
     )
     if command == "analysis":
         route["reading_scope"] = {"mode": "lookup", "guidance": LOOKUP_READING_GUIDANCE}
+    if organization:
+        route["organization"] = organization
     if surface_paths:
         route["surface_paths"] = surface_paths
     if surface_matches:
@@ -954,6 +973,13 @@ REQUIRED_DOC_BUDGET_BYTES = 30_000
 # code routes. Eight preserves the previous four request-specific slots after
 # replacing the three always-loaded detailed documents with lazy references.
 MAX_REQUIRED_DOCS = 8
+# Bytes and slots a bound organization guide already took from this budget
+# (`org_layer.py`). It ranks above Moru guidance, so it is paid before Moru's
+# optional tiers; Moru's core, command and owner contracts stay outside the
+# budget either way. Set only while one route is being resolved.
+_ORGANIZATION_PRESPENT: ContextVar[tuple[int, int]] = ContextVar(
+    "organization_prespent", default=(0, 0)
+)
 # Evidence-backed requirements are not truncated: independent change domains
 # may need more than one rule's documents. Budgets constrain optional tiers.
 
@@ -1385,7 +1411,8 @@ def _select_within_budget(
     moved out of the walk.
     """
 
-    used = prespent_bytes
+    organization_bytes, organization_slots = _ORGANIZATION_PRESPENT.get()
+    used = prespent_bytes + organization_bytes
     generic_gate_docs = set(resolve_guidance_docs(ROOT, automatic_docs(command)))
 
     # Selection is a strict prefix of the priority order.  The budget *stops*
@@ -1429,7 +1456,8 @@ def _select_within_budget(
                 and command not in DETAIL_REQUIRED_COMMANDS[doc]
             ):
                 continue
-            if len(selected) >= MAX_REQUIRED_DOCS or used >= REQUIRED_DOC_BUDGET_BYTES:
+            if (len(selected) + organization_slots >= MAX_REQUIRED_DOCS
+                    or used >= REQUIRED_DOC_BUDGET_BYTES):
                 return selected
             size = doc_size(ROOT, doc)
             selected.append(doc)

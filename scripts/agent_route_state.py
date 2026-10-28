@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from org_layer import route_fingerprint_part
+
 
 def route_fingerprint(route: dict[str, Any]) -> str:
     """Return a stable hash for the route fields that affect execution."""
@@ -24,6 +26,9 @@ def route_fingerprint(route: dict[str, Any]) -> str:
         stable["lifecycle_version"] = route["lifecycle_version"]
     if "project_memory_contract" in route:
         stable["project_memory_contract"] = route["project_memory_contract"]
+    if route.get("organization"):
+        # Absent for unbound projects, so their fingerprint is unchanged.
+        stable["organization"] = route_fingerprint_part(route["organization"])
     payload = json.dumps(stable, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 

@@ -74,8 +74,14 @@ class WikimapSearchResult:
         return not self.error
 
 
-def search_wikimap(root: Path, queries: Sequence[str], max_results: int) -> WikimapSearchResult:
-    """Refresh the local index once per process and search it as JSON."""
+def search_wikimap(
+    root: Path, queries: Sequence[str], max_results: int, *, receipt: Path | None = None,
+) -> WikimapSearchResult:
+    """Refresh the local index once per process and search it as JSON.
+
+    `receipt` places the refresh receipt for a corpus that has no run state of
+    its own, such as an organization guide checkout, in the caller's state.
+    """
     normalized_queries = [query.strip() for query in queries if query.strip()]
     if not normalized_queries or max_results <= 0:
         return WikimapSearchResult(results=[])
@@ -88,11 +94,11 @@ def search_wikimap(root: Path, queries: Sequence[str], max_results: int) -> Wiki
     if READ_ONLY_LOOKUP.get():
         signature = _corpus_signature(root)
         error = (
-            "" if signature and _index_receipt(root) == signature else
+            "" if signature and _index_receipt(root, receipt) == signature else
             "read-only lookup requires an existing current index; using local fallback"
         )
     else:
-        error = _ensure_index(str(root))
+        error = _ensure_index(str(root), str(receipt or ""))
     if error:
         return WikimapSearchResult(results=[], error=error)
 
@@ -136,7 +142,7 @@ def clear_wikimap_cache() -> None:
 
 
 @lru_cache(maxsize=8)
-def _ensure_index(root_text: str) -> str:
+def _ensure_index(root_text: str, receipt_text: str = "") -> str:
     """Refresh the index unless nothing it reads has changed.
 
     Wikimap's own update is incremental, but reaching that conclusion costs a
@@ -156,13 +162,14 @@ def _ensure_index(root_text: str) -> str:
     """
 
     root = Path(root_text)
+    receipt = Path(receipt_text) if receipt_text else None
     # The stage covers the decision as well as the refresh, and is recorded
     # even when nothing runs. A skipped refresh that reported no stage at all
     # would read as one that was never attempted, and the point of these
     # numbers is to say which half of a search to look at.
     with stage("wikimap_index"):
         signature = _corpus_signature(root)
-        if signature and _index_receipt(root) == signature:
+        if signature and _index_receipt(root, receipt) == signature:
             return ""
         command = [
             sys.executable,
@@ -176,17 +183,19 @@ def _ensure_index(root_text: str) -> str:
             command.extend(("--ignore", ignored))
         _completed, error = _run(command, root)
         if not error and signature:
-            _record_index_receipt(root, signature)
+            _record_index_receipt(root, signature, receipt)
         return error
 
 
-def _receipt_path(root: Path) -> Path | None:
+def _receipt_path(root: Path, override: Path | None = None) -> Path | None:
     """The run-state cache, only where run state already exists.
 
     The selected state directory carries its own ignore file. A project that
     has never run a hook has no state directory to write into.
     """
 
+    if override is not None:
+        return override
     state = project_state_dir_target(root)
     return state / "cache" / "wikimap-index.json" if state.is_dir() else None
 
@@ -228,8 +237,8 @@ def _corpus_signature(root: Path) -> str:
     return digest.hexdigest()
 
 
-def _index_receipt(root: Path) -> str:
-    path = _receipt_path(root)
+def _index_receipt(root: Path, override: Path | None = None) -> str:
+    path = _receipt_path(root, override)
     if path is None:
         return ""
     try:
@@ -242,8 +251,8 @@ def _index_receipt(root: Path) -> str:
     return recorded if isinstance(recorded, str) else ""
 
 
-def _record_index_receipt(root: Path, signature: str) -> None:
-    path = _receipt_path(root)
+def _record_index_receipt(root: Path, signature: str, override: Path | None = None) -> None:
+    path = _receipt_path(root, override)
     if path is None:
         return
     try:
