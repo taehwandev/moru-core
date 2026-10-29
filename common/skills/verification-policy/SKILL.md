@@ -4,6 +4,8 @@ description: "Verification Policy: Work is not done just because files changed. 
 keyflow_id: sys_common_verification_policy_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Verification Policy

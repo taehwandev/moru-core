@@ -4,6 +4,8 @@ description: "Branch Strategy: Use this as the shared naming rule for new Git wo
 keyflow_id: sys_common_branch_strategy_md_skill
 status: stable
 type: human-reviewed-needed
+metadata:
+  internal: true
 ---
 
 # Branch Strategy

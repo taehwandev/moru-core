@@ -4,6 +4,8 @@ description: "Server API Implementation: Use when creating, changing, moving, or
 keyflow_id: sys_platforms_server_server_api_implementation_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Server API Implementation

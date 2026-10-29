@@ -4,6 +4,8 @@ description: "Local Tools Policy: Use installed local tools when they provide be
 keyflow_id: sys_common_local_tools_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Local Tools Policy

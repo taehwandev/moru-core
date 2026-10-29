@@ -4,6 +4,8 @@ description: "Flutter Security: Use when Flutter work touches credentials, secur
 keyflow_id: sys_platforms_flutter_flutter_security_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Flutter Security

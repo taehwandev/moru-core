@@ -4,6 +4,8 @@ description: "iOS Review: Use for iOS SwiftUI/UIKit, navigation, concurrency, pe
 keyflow_id: sys_platforms_ios_ios_review_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # iOS Review

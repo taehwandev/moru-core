@@ -4,6 +4,8 @@ description: "Auth, RBAC, Permissions: Use for login, membership, role, permissi
 keyflow_id: sys_product_patterns_auth_rbac_permissions_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Auth, RBAC, Permissions

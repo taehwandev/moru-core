@@ -4,6 +4,8 @@ description: "Data Persistence Sync: Use for local persistence, cloud sync, offl
 keyflow_id: sys_common_data_persistence_sync_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Data Persistence Sync

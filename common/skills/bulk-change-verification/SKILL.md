@@ -4,6 +4,8 @@ description: "Bulk Change Verification: Use when applying one rule across many f
 keyflow_id: sys_common_bulk_change_verification_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Bulk Change Verification

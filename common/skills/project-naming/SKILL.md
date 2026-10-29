@@ -4,6 +4,8 @@ description: "Project Naming: Use when naming apps, repos, packages, modules, se
 keyflow_id: sys_common_project_naming_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Project Naming

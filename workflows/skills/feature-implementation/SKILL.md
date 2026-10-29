@@ -4,6 +4,8 @@ description: "Feature Implementation Workflow: Use when implementing a scoped fe
 keyflow_id: sys_workflows_feature_implementation_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Feature Implementation Workflow

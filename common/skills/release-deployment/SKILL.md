@@ -4,6 +4,8 @@ description: "Release Deployment: Use when packaging, deploying, publishing, mig
 keyflow_id: sys_common_release_deployment_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Release Deployment

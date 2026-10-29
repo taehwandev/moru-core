@@ -4,6 +4,8 @@ description: "Application Security: Use for desktop/native app security on any s
 keyflow_id: sys_platforms_application_application_security_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Application Security

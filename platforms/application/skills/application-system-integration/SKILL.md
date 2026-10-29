@@ -4,6 +4,8 @@ description: "Application System Integration: Use when touching windows, command
 keyflow_id: sys_platforms_application_application_system_integration_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Application System Integration

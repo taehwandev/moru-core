@@ -4,6 +4,8 @@ description: "KMP Review: Use when reviewing Kotlin Multiplatform, Compose Multi
 keyflow_id: sys_platforms_kmp_kmp_review_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # KMP Review

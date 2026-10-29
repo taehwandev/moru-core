@@ -4,6 +4,8 @@ description: "Secure Development Baseline: Use this for any work that touches se
 keyflow_id: sys_common_secure_development_baseline_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Secure Development Baseline

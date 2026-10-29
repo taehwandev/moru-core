@@ -4,6 +4,8 @@ description: "Web Code Structure: Use when deciding where React/web files live, 
 keyflow_id: sys_platforms_web_web_code_structure_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Web Code Structure

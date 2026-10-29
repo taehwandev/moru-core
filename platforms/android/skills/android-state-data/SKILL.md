@@ -4,6 +4,8 @@ description: "Android State And Data: Rules for the data side of an Android feat
 keyflow_id: sys_platforms_android_android_state_data_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Android State And Data

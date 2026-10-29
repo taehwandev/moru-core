@@ -4,6 +4,8 @@ description: "Agent Credential Broker Ideation: Use when brainstorming, comparin
 keyflow_id: sys_product_patterns_agent_credential_broker_ideation_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Agent Credential Broker Ideation

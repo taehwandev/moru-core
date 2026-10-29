@@ -4,6 +4,8 @@ description: "Tool Failure Recovery: Use when a build, test, lint, typecheck, fo
 keyflow_id: sys_common_tool_failure_recovery_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Tool Failure Recovery

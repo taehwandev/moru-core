@@ -4,6 +4,8 @@ description: "Dependency Policy: Use before adding, replacing, upgrading, or rem
 keyflow_id: sys_common_dependency_policy_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Dependency Policy

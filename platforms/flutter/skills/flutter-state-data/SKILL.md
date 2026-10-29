@@ -4,6 +4,8 @@ description: "Flutter State And Data: Use when touching Flutter state owners, Ri
 keyflow_id: sys_platforms_flutter_flutter_state_data_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Flutter State And Data

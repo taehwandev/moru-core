@@ -4,6 +4,8 @@ description: "iOS Architecture: Use for iOS SwiftUI/UIKit app structure, state, 
 keyflow_id: sys_platforms_ios_ios_architecture_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # iOS Architecture

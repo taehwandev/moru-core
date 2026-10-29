@@ -4,6 +4,8 @@ description: "Defensive Boundaries: Use when code consumes values from outside t
 keyflow_id: sys_common_defensive_boundaries_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Defensive Boundaries

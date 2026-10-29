@@ -4,6 +4,8 @@ description: "Scripted Agent Workflow: Use when an agent task should be resolved
 keyflow_id: sys_workflows_scripted_agent_workflow_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Scripted Agent Workflow

@@ -4,6 +4,8 @@ description: "Swift Review: Use for reviewing Swift app, package, architecture, 
 keyflow_id: sys_platforms_swift_swift_review_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Swift Review

@@ -4,6 +4,8 @@ description: "Android Skill Source Coverage: Use when Android work cites, import
 keyflow_id: sys_android_skill_source_coverage_skill
 status: review
 type: human-reviewed-needed
+metadata:
+  internal: true
 ---
 
 # Android Skill Source Coverage

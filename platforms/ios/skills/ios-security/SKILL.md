@@ -4,6 +4,8 @@ description: "iOS Security: Use when iOS work touches credentials, Keychain, loc
 keyflow_id: sys_platforms_ios_ios_security_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # iOS Security

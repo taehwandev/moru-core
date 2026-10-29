@@ -4,6 +4,8 @@ description: "Task Intake And Effort Routing: Use at the start of an agent conve
 keyflow_id: sys_common_task_intake_effort_routing_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Task Intake And Effort Routing

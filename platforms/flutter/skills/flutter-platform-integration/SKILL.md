@@ -4,6 +4,8 @@ description: "Flutter Platform Integration: Use when Flutter work touches Method
 keyflow_id: sys_platforms_flutter_flutter_platform_integration_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Flutter Platform Integration

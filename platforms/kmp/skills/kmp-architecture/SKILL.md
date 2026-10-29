@@ -4,6 +4,8 @@ description: "KMP Architecture: Use for Kotlin Multiplatform, Compose Multiplatf
 keyflow_id: sys_platforms_kmp_kmp_architecture_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # KMP Architecture

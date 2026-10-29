@@ -4,6 +4,8 @@ description: "Server Security: Use when server work touches auth, permissions, t
 keyflow_id: sys_platforms_server_server_security_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Server Security

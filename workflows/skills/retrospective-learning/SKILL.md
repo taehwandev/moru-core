@@ -4,6 +4,8 @@ description: "Retrospective Learning Workflow: Use at task closeout or after fai
 keyflow_id: sys_workflows_retrospective_learning_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Retrospective Learning Workflow

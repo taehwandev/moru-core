@@ -4,6 +4,8 @@ description: "Agent Interaction: Use when an agent needs clarification, approval
 keyflow_id: sys_common_agent_interaction_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Agent Interaction

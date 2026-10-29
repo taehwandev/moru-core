@@ -4,6 +4,8 @@ description: "Cycle Contract Workflow: Use when a routed task produces durable w
 keyflow_id: sys_workflows_cycle_contract_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Cycle Contract Workflow

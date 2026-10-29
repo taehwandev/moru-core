@@ -4,6 +4,8 @@ description: "Deprecation And Migration: Use when removing, renaming, replacing,
 keyflow_id: sys_common_deprecation_migration_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Deprecation And Migration

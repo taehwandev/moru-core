@@ -4,6 +4,8 @@ description: "Web State And Data: Use when touching React client state, server s
 keyflow_id: sys_platforms_web_web_state_data_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Web State And Data

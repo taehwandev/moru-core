@@ -4,6 +4,8 @@ description: "Release Versioning: Use when choosing, changing, reviewing, taggin
 keyflow_id: sys_common_release_versioning_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Release Versioning

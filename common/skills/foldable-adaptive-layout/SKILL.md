@@ -4,6 +4,8 @@ description: "Foldable And Adaptive Layout: Use for adaptive or large-screen mob
 keyflow_id: sys_common_foldable_adaptive_layout_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Foldable And Adaptive Layout

@@ -4,6 +4,8 @@ description: "Android Memory And Lifecycle: Detect the repo's existing conventio
 keyflow_id: sys_platforms_android_android_memory_lifecycle_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Android Memory And Lifecycle

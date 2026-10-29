@@ -4,6 +4,8 @@ description: "Web React UI: Use when creating, changing, moving, or reviewing Re
 keyflow_id: sys_platforms_web_web_react_ui_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Web React UI

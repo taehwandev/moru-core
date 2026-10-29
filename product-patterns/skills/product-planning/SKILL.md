@@ -4,6 +4,8 @@ description: "Product Planning: Turn a rough idea or customer problem into a pro
 keyflow_id: sys_product_patterns_product_planning_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Product Planning

@@ -4,6 +4,8 @@ description: "Bounded Loop: Read only for an explicitly requested sustained task
 keyflow_id: sys_bounded_loop
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Bounded Loop

@@ -4,6 +4,8 @@ description: "Web Design System: Use when creating, changing, reviewing, or adop
 keyflow_id: sys_platforms_web_web_design_system_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Web Design System

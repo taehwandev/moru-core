@@ -4,6 +4,8 @@ description: "Agent Handoff Continuation Workflow: Use when work may continue ac
 keyflow_id: sys_workflows_agent_handoff_continuation_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Agent Handoff Continuation Workflow

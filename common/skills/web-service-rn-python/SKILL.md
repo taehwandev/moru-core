@@ -4,6 +4,8 @@ description: "Web Service RN Python: Use this as a tight branch router for a red
 keyflow_id: sys_common_web_service_rn_python_md_skill
 status: review
 type: human-reviewed-needed
+metadata:
+  internal: true
 ---
 
 # Web Service RN Python

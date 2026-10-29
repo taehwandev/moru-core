@@ -4,6 +4,8 @@ description: "Server Architecture: Use for API, worker, database, auth, tenancy,
 keyflow_id: sys_platforms_server_server_architecture_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Server Architecture

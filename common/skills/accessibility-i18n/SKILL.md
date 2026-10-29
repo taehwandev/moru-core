@@ -4,6 +4,8 @@ description: "Accessibility I18n: Use when changing UI text, forms, controls, na
 keyflow_id: sys_common_accessibility_i18n_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Accessibility I18n

@@ -4,6 +4,8 @@ description: "KMP Security: Use when Kotlin Multiplatform work touches credentia
 keyflow_id: sys_platforms_kmp_kmp_security_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # KMP Security

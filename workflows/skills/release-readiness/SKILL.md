@@ -4,6 +4,8 @@ description: "Release Readiness Workflow: Use before packaging, deploying, publi
 keyflow_id: sys_workflows_release_readiness_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Release Readiness Workflow

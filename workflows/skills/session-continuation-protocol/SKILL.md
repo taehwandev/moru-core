@@ -8,6 +8,8 @@ moru_card_contract: strict
 requires_docs:
   - workflows/skills/agent-handoff-continuation/SKILL.md
   - workflows/skills/scripted-agent-workflow/SKILL.md
+metadata:
+  internal: true
 ---
 
 # Session Continuation Protocol

@@ -4,6 +4,8 @@ description: "Marketing Planning: Prepare an audience/positioning brief or a cam
 keyflow_id: sys_product_patterns_marketing_planning_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Marketing Planning

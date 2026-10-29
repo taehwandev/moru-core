@@ -4,6 +4,8 @@ description: "Application Boundary Principles: Use for new features, boundary cl
 keyflow_id: sys_common_app_architecture_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Application Boundary Principles

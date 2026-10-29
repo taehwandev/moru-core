@@ -4,6 +4,8 @@ description: "Android Security: Use when Android work touches credentials, local
 keyflow_id: sys_platforms_android_android_security_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Android Security

@@ -4,6 +4,8 @@ description: "Agent Task Lifecycle Workflow: Use for any agent task, including i
 keyflow_id: sys_workflows_agent_task_lifecycle_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Agent Task Lifecycle Workflow

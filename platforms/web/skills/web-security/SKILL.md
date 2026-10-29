@@ -4,6 +4,8 @@ description: "Web Security: Use when web work touches auth, session state, brows
 keyflow_id: sys_platforms_web_web_security_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Web Security

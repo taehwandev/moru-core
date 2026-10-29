@@ -4,6 +4,8 @@ description: "Branch Cleanup: Use for requested cleanup of merged branches or st
 keyflow_id: sys_common_branch_cleanup_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Branch Cleanup

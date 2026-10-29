@@ -4,6 +4,8 @@ description: "Request Triage Workflow: Use when the agent needs to decide whethe
 keyflow_id: sys_workflows_request_triage_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Request Triage Workflow

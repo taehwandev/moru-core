@@ -4,6 +4,8 @@ description: "Web Deployment Versioning: Use when choosing, documenting, reviewi
 keyflow_id: sys_common_web_deployment_versioning_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Web Deployment Versioning

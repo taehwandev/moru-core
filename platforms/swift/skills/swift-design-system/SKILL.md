@@ -4,6 +4,8 @@ description: "Swift Design System: Use when creating, changing, reviewing, or ad
 keyflow_id: sys_platforms_swift_swift_design_system_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Swift Design System

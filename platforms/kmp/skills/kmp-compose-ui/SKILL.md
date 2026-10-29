@@ -4,6 +4,8 @@ description: "KMP Compose UI: Use when creating, changing, moving, or reviewing 
 keyflow_id: sys_platforms_kmp_kmp_compose_ui_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # KMP Compose UI

@@ -4,6 +4,8 @@ description: "KMP State And Data: Use when touching shared Kotlin state, corouti
 keyflow_id: sys_platforms_kmp_kmp_state_data_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # KMP State And Data

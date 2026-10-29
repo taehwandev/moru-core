@@ -4,6 +4,8 @@ description: "Performance Verification: Use when changing or reviewing performan
 keyflow_id: sys_common_performance_verification_md_skill
 status: stable
 type: human-reviewed-needed
+metadata:
+  internal: true
 ---
 
 # Performance Verification

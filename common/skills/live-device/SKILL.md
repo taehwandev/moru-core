@@ -4,6 +4,8 @@ description: "Live Device: Use when an Android or iOS app project may be running
 keyflow_id: sys_common_live_device_md_skill
 status: draft
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Live Device

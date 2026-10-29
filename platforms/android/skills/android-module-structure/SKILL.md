@@ -4,6 +4,8 @@ description: "Android Module Structure: Use when deciding Android Gradle modules
 keyflow_id: sys_platforms_android_android_module_structure_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Android Module Structure

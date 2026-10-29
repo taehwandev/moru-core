@@ -4,6 +4,8 @@ description: "Multi-Perspective Review: Use for non-trivial reviews where a sing
 keyflow_id: sys_workflows_multi_perspective_review_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Multi-Perspective Review

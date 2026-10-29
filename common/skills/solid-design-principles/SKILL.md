@@ -4,6 +4,8 @@ description: "SOLID Design Principles: Use when writing, refactoring, or reviewi
 keyflow_id: sys_common_solid_design_principles_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # SOLID Design Principles

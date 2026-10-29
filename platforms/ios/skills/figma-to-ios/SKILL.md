@@ -4,6 +4,8 @@ description: "Figma To iOS: Use when reading measurements, individual assets, an
 keyflow_id: sys_ios_figma_to_ios
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Figma To iOS

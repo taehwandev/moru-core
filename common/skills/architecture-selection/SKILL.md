@@ -4,6 +4,8 @@ description: "Architecture Selection: Use when choosing or changing architecture
 keyflow_id: sys_common_architecture_selection_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Architecture Selection

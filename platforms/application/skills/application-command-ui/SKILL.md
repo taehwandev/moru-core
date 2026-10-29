@@ -4,6 +4,8 @@ description: "Application Command And UI: Use when creating, changing, moving, o
 keyflow_id: sys_platforms_application_application_command_ui_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Application Command And UI

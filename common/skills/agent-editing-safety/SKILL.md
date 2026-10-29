@@ -4,6 +4,8 @@ description: "Agent Editing Safety: Use this when an agent may edit files, run c
 keyflow_id: sys_common_agent_editing_safety_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Agent Editing Safety

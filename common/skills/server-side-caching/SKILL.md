@@ -4,6 +4,8 @@ description: "Server Side Caching: Use when touching server-rendered data, API r
 keyflow_id: sys_common_server_side_caching_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Server Side Caching

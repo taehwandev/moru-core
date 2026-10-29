@@ -1,6 +1,6 @@
 ---
-name: agent-bootstrap
-description: "Moru Core Agent Bootstrap: Use when an AI coding agent receives the Moru Core repository link or a request to apply Moru Core to a target project."
+name: moru-core
+description: "Moru Core: Connect any project and AI coding agent (Claude Code, Codex, Cursor, Antigravity) to Moru Core's evidence-gated workflow router, VibeGuard safety audit, and engineering skill library."
 keyflow_id: sys_docs_agent_bootstrap_md_skill
 status: review
 type: ai-generated

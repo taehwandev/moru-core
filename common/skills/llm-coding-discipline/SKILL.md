@@ -4,6 +4,8 @@ description: "LLM Coding Discipline: Use before coding. These rules reduce commo
 keyflow_id: sys_common_llm_coding_discipline_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # LLM Coding Discipline

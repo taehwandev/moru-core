@@ -4,6 +4,8 @@ description: "Multi-Agent Collaboration: Use when work is split across subagents
 keyflow_id: sys_workflows_multi_agent_collaboration_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Multi-Agent Collaboration

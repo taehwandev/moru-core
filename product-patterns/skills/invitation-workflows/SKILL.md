@@ -4,6 +4,8 @@ description: "Invitation Workflows: Use for team, tenant, workspace, or organiza
 keyflow_id: sys_product_patterns_invitation_workflows_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Invitation Workflows

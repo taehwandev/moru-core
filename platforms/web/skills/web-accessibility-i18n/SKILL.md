@@ -4,6 +4,8 @@ description: "Web Accessibility I18n: Use for web-specific UI text, forms, menus
 keyflow_id: sys_platforms_web_web_accessibility_i18n_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Web Accessibility I18n

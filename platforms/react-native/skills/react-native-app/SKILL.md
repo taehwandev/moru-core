@@ -4,6 +4,8 @@ description: "React Native App: Use for React Native and Expo app work: screens,
 keyflow_id: sys_platforms_react_native_app_md_skill
 status: review
 type: human-reviewed-needed
+metadata:
+  internal: true
 ---
 
 # React Native App

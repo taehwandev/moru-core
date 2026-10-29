@@ -4,6 +4,8 @@ description: "Scenario-Driven Testing: Use this before writing or reviewing test
 keyflow_id: sys_common_scenario_driven_testing_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Scenario-Driven Testing

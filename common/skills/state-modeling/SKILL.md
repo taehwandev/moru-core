@@ -4,6 +4,8 @@ description: "State Modeling: Use when designing or reviewing UI state, applicat
 keyflow_id: sys_common_state_modeling_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # State Modeling

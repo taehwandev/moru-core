@@ -4,6 +4,8 @@ description: "iOS UIKit UI: For auth UI, provider sign-in buttons or brand asset
 keyflow_id: sys_platforms_ios_ios_uikit_ui_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # iOS UIKit UI

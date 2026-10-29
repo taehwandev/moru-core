@@ -5,6 +5,8 @@ keyflow_id: sys_platforms_android_android_external_skill_source_coverage_md_skil
 status: review
 type: ai-generated
 required_contract: core
+metadata:
+  internal: true
 ---
 
 # Android External Skill Source Coverage

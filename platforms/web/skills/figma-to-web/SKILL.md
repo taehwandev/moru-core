@@ -4,6 +4,8 @@ description: "Figma To Web: Use when producing a handoff bundle from a node-id F
 keyflow_id: sys_web_figma_to_web
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Figma To Web

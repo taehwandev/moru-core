@@ -4,6 +4,8 @@ description: "Commit Workflow: Use before creating commits, regardless of git cl
 keyflow_id: sys_common_commit_workflow_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Commit Workflow

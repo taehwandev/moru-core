@@ -4,6 +4,8 @@ description: "iOS SwiftUI UI: For auth UI, provider sign-in buttons or brand ass
 keyflow_id: sys_platforms_ios_ios_swiftui_ui_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # iOS SwiftUI UI

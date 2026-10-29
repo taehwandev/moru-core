@@ -4,6 +4,8 @@ description: "iOS Module Structure: Use when deciding iOS targets, local Swift p
 keyflow_id: sys_platforms_ios_ios_module_structure_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # iOS Module Structure

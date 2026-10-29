@@ -5,6 +5,8 @@ keyflow_id: sys_platforms_android_android_review_md_skill
 status: review
 type: ai-generated
 required_contract: core
+metadata:
+  internal: true
 ---
 
 # Android Review

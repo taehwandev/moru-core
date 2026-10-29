@@ -4,6 +4,8 @@ description: "Definition Of Done: Use before final report, handoff, commit, rele
 keyflow_id: sys_common_definition_of_done_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Definition Of Done

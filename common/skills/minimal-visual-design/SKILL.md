@@ -5,6 +5,8 @@ keyflow_id: sys_common_minimal_visual_design_md_skill
 status: review
 type: ai-generated
 required_contract: core
+metadata:
+  internal: true
 ---
 
 # Minimal Visual Design

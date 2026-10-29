@@ -4,6 +4,8 @@ description: "KMP Module Structure: Use when deciding Kotlin Multiplatform share
 keyflow_id: sys_platforms_kmp_kmp_module_structure_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # KMP Module Structure

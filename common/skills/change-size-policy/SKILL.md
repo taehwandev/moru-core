@@ -4,6 +4,8 @@ description: "Change Size Policy: Use when deciding how much code to change, whe
 keyflow_id: sys_common_change_size_policy_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Change Size Policy

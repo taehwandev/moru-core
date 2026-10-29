@@ -4,6 +4,8 @@ description: "Observability Error Handling: Use when adding or reviewing errors,
 keyflow_id: sys_common_observability_error_handling_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Observability Error Handling

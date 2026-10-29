@@ -4,6 +4,8 @@ description: "Flutter Widget UI: Use when creating, changing, moving, or reviewi
 keyflow_id: sys_platforms_flutter_flutter_widget_ui_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Flutter Widget UI

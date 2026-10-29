@@ -4,6 +4,8 @@ description: "Doubt-Driven Development: Use for high-risk or non-obvious decisio
 keyflow_id: sys_common_doubt_driven_development_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Doubt-Driven Development

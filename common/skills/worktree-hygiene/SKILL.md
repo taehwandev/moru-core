@@ -4,6 +4,8 @@ description: "Worktree Hygiene: Use when working in an existing checkout, especi
 keyflow_id: sys_common_worktree_hygiene_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Worktree Hygiene

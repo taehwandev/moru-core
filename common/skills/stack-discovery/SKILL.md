@@ -4,6 +4,8 @@ description: "Stack Discovery: Use before running project commands, adding depen
 keyflow_id: sys_common_stack_discovery_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Stack Discovery

@@ -4,6 +4,8 @@ description: "iOS State And Concurrency: Use when touching SwiftUI/UIKit state, 
 keyflow_id: sys_platforms_ios_ios_state_concurrency_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # iOS State And Concurrency

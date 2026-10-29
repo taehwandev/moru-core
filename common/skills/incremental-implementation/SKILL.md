@@ -4,6 +4,8 @@ description: "Incremental Implementation: Use when building, refactoring, or rep
 keyflow_id: sys_common_incremental_implementation_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Incremental Implementation

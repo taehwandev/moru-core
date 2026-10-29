@@ -4,6 +4,8 @@ description: "Figma To Android: Use when reading measurements, assets, and compo
 keyflow_id: sys_android_figma_to_android
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Figma To Android

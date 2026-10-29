@@ -4,6 +4,8 @@ description: "Asset Lifecycle: Use when touching uploads, downloads, generated f
 keyflow_id: sys_common_asset_lifecycle_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Asset Lifecycle

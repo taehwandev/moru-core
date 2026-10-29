@@ -4,6 +4,8 @@ description: "Agent Skill Card Anatomy: Use when creating, updating, or reviewin
 keyflow_id: sys_common_agent_skill_card_anatomy_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Agent Skill Card Anatomy

@@ -4,6 +4,8 @@ description: "Refactor Cleanup Workflow: Use when behavior should stay the same 
 keyflow_id: sys_workflows_refactor_cleanup_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Refactor Cleanup Workflow

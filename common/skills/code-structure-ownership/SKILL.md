@@ -4,6 +4,8 @@ description: "Code Structure And Ownership: Use when deciding file layout, packa
 keyflow_id: sys_common_code_structure_ownership_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Code Structure And Ownership

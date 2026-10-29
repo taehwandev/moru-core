@@ -4,6 +4,8 @@ description: "Application Architecture: Use for desktop/native app shells on any
 keyflow_id: sys_platforms_application_application_architecture_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Application Architecture

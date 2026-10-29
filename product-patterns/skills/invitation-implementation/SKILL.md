@@ -4,6 +4,8 @@ description: "Invitation Implementation: Use when implementing team, workspace, 
 keyflow_id: sys_product_patterns_invitation_implementation_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Invitation Implementation

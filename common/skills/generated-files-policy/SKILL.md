@@ -4,6 +4,8 @@ description: "Generated Files Policy: Use when codegen, lockfiles, snapshots, bu
 keyflow_id: sys_common_generated_files_policy_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Generated Files Policy

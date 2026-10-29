@@ -4,6 +4,8 @@ description: "Swift Code Structure: Use when deciding Swift Package Manager layo
 keyflow_id: sys_platforms_swift_swift_code_structure_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Swift Code Structure

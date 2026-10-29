@@ -4,6 +4,8 @@ description: "Social Sign-In Buttons: Use when implementing or reviewing third-p
 keyflow_id: sys_common_social_sign_in_buttons_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Social Sign-In Buttons

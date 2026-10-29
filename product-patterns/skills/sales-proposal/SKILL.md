@@ -4,6 +4,8 @@ description: "Sales Discovery And Proposal: Structure discovery notes, assess a 
 keyflow_id: sys_product_patterns_sales_proposal_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Sales Discovery And Proposal

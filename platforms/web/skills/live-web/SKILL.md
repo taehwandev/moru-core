@@ -4,6 +4,8 @@ description: "Live Web: Use when a user points at a running web page through an 
 keyflow_id: sys_platforms_web_live_web_md_skill
 status: draft
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Live Web

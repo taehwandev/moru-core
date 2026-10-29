@@ -5,6 +5,8 @@ keyflow_id: sys_platforms_android_android_viewmodel_state_md_skill
 status: review
 type: ai-generated
 required_contract: core
+metadata:
+  internal: true
 ---
 
 # Android ViewModel And State

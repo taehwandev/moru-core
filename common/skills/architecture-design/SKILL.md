@@ -4,6 +4,8 @@ description: "Architecture Design: Use when planning architecture for a feature,
 keyflow_id: sys_common_architecture_design_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Architecture Design

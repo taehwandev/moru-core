@@ -4,6 +4,8 @@ description: "Product Architecture Delivery Workflow: Use when moving a task fro
 keyflow_id: sys_workflows_product_architecture_delivery_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Product Architecture Delivery Workflow

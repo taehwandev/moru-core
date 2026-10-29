@@ -4,6 +4,8 @@ description: "Error Modeling: Use when designing, handling, mapping, logging, re
 keyflow_id: sys_common_error_modeling_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Error Modeling

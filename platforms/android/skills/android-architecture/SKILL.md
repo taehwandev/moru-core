@@ -4,6 +4,8 @@ description: "Android Architecture: Use for Compose/ViewModel/Flow, data, and An
 keyflow_id: sys_platforms_android_android_architecture_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Android Architecture

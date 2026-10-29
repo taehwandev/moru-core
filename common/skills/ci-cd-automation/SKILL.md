@@ -4,6 +4,8 @@ description: "CI/CD And Automation: Use when creating, changing, reviewing, or d
 keyflow_id: sys_common_ci_cd_automation_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # CI/CD And Automation

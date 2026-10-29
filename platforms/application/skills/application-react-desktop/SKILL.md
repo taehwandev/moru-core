@@ -4,6 +4,8 @@ description: "Application React Desktop: Use when building, refactoring, or revi
 keyflow_id: sys_platforms_application_application_react_desktop_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Application React Desktop

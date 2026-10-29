@@ -4,6 +4,8 @@ description: "KMP Platform Integration: Use when Kotlin Multiplatform work touch
 keyflow_id: sys_platforms_kmp_kmp_platform_integration_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # KMP Platform Integration

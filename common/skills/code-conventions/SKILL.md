@@ -4,6 +4,8 @@ description: "Code Conventions: Use when writing, changing, or reviewing code st
 keyflow_id: sys_common_code_conventions_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Code Conventions

@@ -4,6 +4,8 @@ description: "Commit Review: Use when reviewing one or more commits instead of t
 keyflow_id: sys_common_commit_review_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Commit Review

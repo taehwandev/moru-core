@@ -4,6 +4,8 @@ description: "Billing Entitlements Implementation: Use when implementing plans, 
 keyflow_id: sys_product_patterns_billing_entitlements_implementation_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Billing Entitlements Implementation

@@ -4,6 +4,8 @@ description: "Server Review: Use for API, worker, database, auth, tenancy, migra
 keyflow_id: sys_platforms_server_server_review_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Server Review

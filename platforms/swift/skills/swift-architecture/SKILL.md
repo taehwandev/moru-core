@@ -4,6 +4,8 @@ description: "Swift Architecture: Use for Swift app or library architecture acro
 keyflow_id: sys_platforms_swift_swift_architecture_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Swift Architecture

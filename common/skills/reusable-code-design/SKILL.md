@@ -4,6 +4,8 @@ description: "Reusable Code Design: Use when creating, moving, extracting, or re
 keyflow_id: sys_common_reusable_code_design_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Reusable Code Design

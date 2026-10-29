@@ -4,6 +4,8 @@ description: "Flutter Review: Use when reviewing Flutter widgets, state owners, 
 keyflow_id: sys_platforms_flutter_flutter_review_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Flutter Review

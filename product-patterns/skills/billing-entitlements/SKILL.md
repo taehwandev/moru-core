@@ -4,6 +4,8 @@ description: "Billing Entitlements: Use for plans, seats, quota, feature access,
 keyflow_id: sys_product_patterns_billing_entitlements_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Billing Entitlements

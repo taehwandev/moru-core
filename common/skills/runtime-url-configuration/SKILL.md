@@ -4,6 +4,8 @@ description: "Runtime URL Configuration: Use when implementing or reviewing app,
 keyflow_id: sys_common_runtime_url_configuration_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Runtime URL Configuration

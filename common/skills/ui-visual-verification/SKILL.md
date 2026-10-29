@@ -5,6 +5,8 @@ keyflow_id: sys_common_ui_visual_verification_md_skill
 status: stable
 type: ai-generated
 required_contract: core
+metadata:
+  internal: true
 ---
 
 # UI Visual Verification

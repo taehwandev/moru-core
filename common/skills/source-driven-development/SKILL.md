@@ -4,6 +4,8 @@ description: "Source-Driven Development: Use when implementation depends on a fr
 keyflow_id: sys_common_source_driven_development_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Source-Driven Development

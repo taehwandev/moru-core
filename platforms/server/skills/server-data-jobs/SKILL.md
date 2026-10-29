@@ -4,6 +4,8 @@ description: "Server Data And Jobs: Use when touching database, migrations, tran
 keyflow_id: sys_platforms_server_server_data_jobs_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Server Data And Jobs

@@ -4,6 +4,8 @@ description: "API Contract Compatibility: Use when changing HTTP APIs, DTOs, sch
 keyflow_id: sys_common_api_contract_compatibility_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # API Contract Compatibility

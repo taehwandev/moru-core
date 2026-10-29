@@ -4,6 +4,8 @@ description: "Writing Workspace: Use when an agent is asked to draft, revise, re
 keyflow_id: sys_common_writing_workspace_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Writing Workspace

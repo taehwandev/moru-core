@@ -4,6 +4,8 @@ description: "Android Background Work: Detail for the background-work card. Read
 keyflow_id: sys_platforms_android_android_background_work_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Android Background Work

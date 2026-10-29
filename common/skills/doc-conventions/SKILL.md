@@ -4,6 +4,8 @@ description: "Document Conventions: Output path and naming rules for generated d
 keyflow_id: sys_common_doc_conventions_skill
 status: stable
 type: human-reviewed
+metadata:
+  internal: true
 ---
 
 # Document Conventions

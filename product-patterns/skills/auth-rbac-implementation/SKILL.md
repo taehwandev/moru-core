@@ -4,6 +4,8 @@ description: "Auth RBAC Implementation: Use when implementing login, session ref
 keyflow_id: sys_product_patterns_auth_rbac_implementation_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Auth RBAC Implementation

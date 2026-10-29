@@ -4,6 +4,8 @@ description: "Python Web Service: Use for Python HTTP services: FastAPI, Starlet
 keyflow_id: sys_platforms_python_web_service_md_skill
 status: review
 type: human-reviewed-needed
+metadata:
+  internal: true
 ---
 
 # Python Web Service

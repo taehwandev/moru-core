@@ -4,6 +4,8 @@ description: "Agent Runtime Integration: Use this when connecting Moru Core to C
 keyflow_id: sys_docs_agent_runtime_integration_md_skill
 status: review
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Agent Runtime Integration

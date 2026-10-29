@@ -4,6 +4,8 @@ description: "Planning Research Workflow: Use when the task is to investigate, c
 keyflow_id: sys_workflows_planning_research_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Planning Research Workflow

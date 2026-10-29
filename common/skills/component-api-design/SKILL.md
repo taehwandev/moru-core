@@ -5,6 +5,8 @@ keyflow_id: sys_common_component_api_design_md_skill
 status: stable
 type: ai-generated
 required_contract: core
+metadata:
+  internal: true
 ---
 
 # Component API Design

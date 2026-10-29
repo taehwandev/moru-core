@@ -4,6 +4,8 @@ description: "LLM Wiki Documentation: Use when creating or reviewing wiki, knowl
 keyflow_id: sys_common_llm_wiki_documentation_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # LLM Wiki Documentation

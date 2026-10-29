@@ -4,6 +4,8 @@ description: "Development Cycle Workflow: Use for multi-step implementation work
 keyflow_id: sys_workflows_development_cycle_md_skill
 status: stable
 type: ai-generated
+metadata:
+  internal: true
 ---
 
 # Development Cycle Workflow
