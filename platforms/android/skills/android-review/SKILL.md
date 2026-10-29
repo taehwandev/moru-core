@@ -1,4 +1,6 @@
 ---
+name: android-review
+description: "Android Review: Read for every Android app, Compose/ViewModel, permission, background, and UI flow review. The review card owns the order; this file holds the checklist, the finding format, the completion gate, and the tools."
 keyflow_id: sys_platforms_android_android_review_md_skill
 status: review
 type: ai-generated

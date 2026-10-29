@@ -1,4 +1,6 @@
 ---
+name: cycle-contract
+description: "Cycle Contract Workflow: Use when a routed task produces durable work: code, docs, tests, workflow policy, release artifacts, or product requirements."
 keyflow_id: sys_workflows_cycle_contract_md_skill
 status: stable
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: growth-conversion-optimization
+description: "Growth And Conversion Optimization: Use when designing or implementing keyword acquisition strategy, landing-page or app-store conversion funnels, first-party conversion telemetry, dual-lane human/bot traffic separation, bot/agent recommendation optimization, multi-armed bandit / A/B experiments, or LLM-assisted (OpenRouter) copy optimization for any product archetype (saas, mobile_app, ecommerce, game, or devtool)."
 keyflow_id: sys_product_patterns_growth_conversion_optimization_md_skill
 status: review
 type: ai-generated

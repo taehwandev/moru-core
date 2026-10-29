@@ -1,4 +1,6 @@
 ---
+name: scripted-agent-workflow
+description: "Scripted Agent Workflow: Use when an agent task should be resolved by an executable workflow route instead of only by reading prose."
 keyflow_id: sys_workflows_scripted_agent_workflow_md_skill
 status: stable
 type: ai-generated

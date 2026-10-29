@@ -1,4 +1,6 @@
 ---
+name: ios-module-structure
+description: "iOS Module Structure: Use when deciding iOS targets, local Swift packages, feature folders, package layout, access control, public contracts, or where new SwiftUI/UIKit code should live."
 keyflow_id: sys_platforms_ios_ios_module_structure_md_skill
 status: review
 type: ai-generated

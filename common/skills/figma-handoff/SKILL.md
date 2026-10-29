@@ -1,4 +1,6 @@
 ---
+name: figma-handoff
+description: "Figma Handoff: Use when creating screen images, individual assets, component structure, and implementation measurements from a Figma URL, or when implementing or auditing UI from an already-produced handoff bundle."
 keyflow_id: sys_common_figma_handoff_md_skill
 status: review
 type: ai-generated

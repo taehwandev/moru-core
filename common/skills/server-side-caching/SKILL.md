@@ -1,4 +1,6 @@
 ---
+name: server-side-caching
+description: "Server Side Caching: Use when touching server-rendered data, API response caching, framework data cache, request memoization, edge/CDN cache, database query cache, materialized read models, or cache invalidation."
 keyflow_id: sys_common_server_side_caching_md_skill
 status: stable
 type: ai-generated

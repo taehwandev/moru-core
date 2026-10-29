@@ -1,4 +1,6 @@
 ---
+name: android-background-work
+description: "Android Background Work: Detail for the background-work card. Read it at the steps that link here: WorkManager, foreground services, alarms, push notifications, sync, uploads, downloads, and long-running jobs."
 keyflow_id: sys_platforms_android_android_background_work_md_skill
 status: review
 type: ai-generated

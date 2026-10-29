@@ -1,4 +1,6 @@
 ---
+name: android-security
+description: "Android Security: Use when Android work touches credentials, local storage, IPC, deep links, WebView, permissions, exported components, or release builds."
 keyflow_id: sys_platforms_android_android_security_md_skill
 status: review
 type: ai-generated

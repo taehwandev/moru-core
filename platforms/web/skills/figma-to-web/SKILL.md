@@ -1,4 +1,6 @@
 ---
+name: figma-to-web
+description: "Figma To Web: Use when producing a handoff bundle from a node-id Figma link and converting it into Web components, tokens, assets, and responsive/accessibility implementation criteria."
 keyflow_id: sys_web_figma_to_web
 status: review
 type: ai-generated

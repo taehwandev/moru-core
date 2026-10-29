@@ -1,4 +1,6 @@
 ---
+name: multi-perspective-review
+description: "Multi-Perspective Review: Use for non-trivial reviews where a single correctness pass may miss product, UX, architecture, reliability, security, release, or QA risk."
 keyflow_id: sys_workflows_multi_perspective_review_md_skill
 status: stable
 type: ai-generated

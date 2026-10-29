@@ -1,4 +1,6 @@
 ---
+name: agent-handoff-continuation
+description: "Agent Handoff Continuation Workflow: Use when work may continue across turns, interruptions, context compaction, another agent, or a handoff back to the user."
 keyflow_id: sys_workflows_agent_handoff_continuation_md_skill
 status: stable
 type: ai-generated

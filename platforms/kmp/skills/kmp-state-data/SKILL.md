@@ -1,4 +1,6 @@
 ---
+name: kmp-state-data
+description: "KMP State And Data: Use when touching shared Kotlin state, coroutines, Flow, repositories, persistence, sync, settings, caching, or one-off effects in a Kotlin Multiplatform project."
 keyflow_id: sys_platforms_kmp_kmp_state_data_md_skill
 status: review
 type: ai-generated

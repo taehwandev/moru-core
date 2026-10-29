@@ -1,4 +1,6 @@
 ---
+name: agent-skill-card-anatomy
+description: "Agent Skill Card Anatomy: Use when creating, updating, or reviewing a Moru Core common card, workflow, platform card, product-pattern card, or agent-facing template."
 keyflow_id: sys_common_agent_skill_card_anatomy_md_skill
 status: stable
 type: ai-generated

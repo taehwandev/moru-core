@@ -1,4 +1,6 @@
 ---
+name: change-size-policy
+description: "Change Size Policy: Use when deciding how much code to change, whether to split work, or whether a diff is reviewable."
 keyflow_id: sys_common_change_size_policy_md_skill
 status: stable
 type: ai-generated

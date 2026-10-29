@@ -1,4 +1,6 @@
 ---
+name: security-privacy-review
+description: "Security Privacy Review: Use for auth, permissions, secrets, personal data, logs, storage, browser bundles, mobile storage, and external integrations."
 keyflow_id: sys_common_security_privacy_review_md_skill
 status: stable
 type: ai-generated

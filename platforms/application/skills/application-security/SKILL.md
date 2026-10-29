@@ -1,4 +1,6 @@
 ---
+name: application-security
+description: "Application Security: Use for desktop/native app security on any stack (Swift/macOS, Electron, Tauri, Compose Multiplatform desktop on the JVM, or another native toolkit): menu bar tools, local files, shell access, update flows, IPC, and privileged OS APIs."
 keyflow_id: sys_platforms_application_application_security_md_skill
 status: review
 type: ai-generated

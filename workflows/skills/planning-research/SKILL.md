@@ -1,4 +1,6 @@
 ---
+name: planning-research
+description: "Planning Research Workflow: Use when the task is to investigate, compare options, write an implementation plan, assess risk, or prepare a recommendation before editing code."
 keyflow_id: sys_workflows_planning_research_md_skill
 status: stable
 type: ai-generated

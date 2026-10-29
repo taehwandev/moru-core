@@ -1,4 +1,6 @@
 ---
+name: llm-wiki-documentation
+description: "LLM Wiki Documentation: Use when creating or reviewing wiki, knowledge-base, runbook, onboarding, architecture, decision, or operational docs that humans and AI agents will read."
 keyflow_id: sys_common_llm_wiki_documentation_md_skill
 status: stable
 type: ai-generated

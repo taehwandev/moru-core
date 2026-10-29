@@ -1,4 +1,6 @@
 ---
+name: performance-verification
+description: "Performance Verification: Use when changing or reviewing performance, loading behavior, rendering cost, startup, frame time, memory, bundle size, binary size, query latency, cache behavior, background work, animation smoothness, or runtime resource use."
 keyflow_id: sys_common_performance_verification_md_skill
 status: stable
 type: human-reviewed-needed

@@ -1,4 +1,6 @@
 ---
+name: swift-architecture
+description: "Swift Architecture: Use for Swift app or library architecture across Apple platforms: iOS, macOS, watchOS, tvOS, widgets, extensions, command-line tools, and local Swift packages."
 keyflow_id: sys_platforms_swift_swift_architecture_md_skill
 status: review
 type: ai-generated

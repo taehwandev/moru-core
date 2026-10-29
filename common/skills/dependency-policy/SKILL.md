@@ -1,4 +1,6 @@
 ---
+name: dependency-policy
+description: "Dependency Policy: Use before adding, replacing, upgrading, or removing libraries, SDKs, build plugins, packages, services, or runtime tools."
 keyflow_id: sys_common_dependency_policy_md_skill
 status: stable
 type: ai-generated

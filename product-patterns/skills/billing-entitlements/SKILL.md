@@ -1,4 +1,6 @@
 ---
+name: billing-entitlements
+description: "Billing Entitlements: Use for plans, seats, quota, feature access, invoices, subscription status, payment failures, and downgrade behavior."
 keyflow_id: sys_product_patterns_billing_entitlements_md_skill
 status: review
 type: ai-generated

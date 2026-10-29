@@ -1,4 +1,6 @@
 ---
+name: development-cycle
+description: "Development Cycle Workflow: Use for multi-step implementation work from request intake through handoff. This is the default workflow when the task is larger than a one-line edit."
 keyflow_id: sys_workflows_development_cycle_md_skill
 status: stable
 type: ai-generated

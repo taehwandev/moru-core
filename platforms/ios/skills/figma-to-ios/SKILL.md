@@ -1,4 +1,6 @@
 ---
+name: figma-to-ios
+description: "Figma To iOS: Use when reading measurements, individual assets, and component structure from a Figma handoff bundle and implementing or auditing iOS UI. This card supports SwiftUI, UIKit, and repositories that intentionally use both."
 keyflow_id: sys_ios_figma_to_ios
 status: review
 type: ai-generated

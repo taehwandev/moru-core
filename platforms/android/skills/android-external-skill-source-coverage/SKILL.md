@@ -1,4 +1,6 @@
 ---
+name: android-external-skill-source-coverage
+description: "Android External Skill Source Coverage: Use this when Android work cites or imports lessons from external skill repositories. This card is a source coverage manifest, not a vendored copy of those repositories."
 keyflow_id: sys_platforms_android_android_external_skill_source_coverage_md_skill
 status: review
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: ci-cd-automation
+description: "CI/CD And Automation: Use when creating, changing, reviewing, or debugging CI pipelines, release automation, scheduled jobs, build matrices, checks, deployment automation, package publishing, or repository workflow files."
 keyflow_id: sys_common_ci_cd_automation_md_skill
 status: stable
 type: ai-generated

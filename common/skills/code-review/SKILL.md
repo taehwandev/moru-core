@@ -1,4 +1,6 @@
 ---
+name: code-review
+description: "Code Review: Use to review the current work product: working tree, diff, PR, or implementation result. Review against the user's request, repo-local instructions, and any project or product guidance."
 keyflow_id: sys_common_code_review_md_skill
 status: stable
 type: ai-generated

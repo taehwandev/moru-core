@@ -1,4 +1,6 @@
 ---
+name: web-react-ui
+description: "Web React UI: Use when creating, changing, moving, or reviewing React routes, pages, feature components, hooks, forms, UI state, server-state wiring, reusable components, or frontend tests."
 keyflow_id: sys_platforms_web_web_react_ui_md_skill
 status: review
 type: ai-generated

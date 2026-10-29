@@ -1,4 +1,6 @@
 ---
+name: flutter-platform-integration
+description: "Flutter Platform Integration: Use when Flutter work touches MethodChannel, EventChannel, plugins, native callbacks, permissions, app lifecycle, background execution, isolates, secure storage, files, share sheets, notifications, WebViews, desktop APIs, or web platform behavior."
 keyflow_id: sys_platforms_flutter_flutter_platform_integration_md_skill
 status: review
 type: ai-generated

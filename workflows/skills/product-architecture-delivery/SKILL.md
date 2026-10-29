@@ -1,4 +1,6 @@
 ---
+name: product-architecture-delivery
+description: "Product Architecture Delivery Workflow: Use when moving a task from product intent through PRD, architecture design, task breakdown, implementation, and verification."
 keyflow_id: sys_workflows_product_architecture_delivery_md_skill
 status: stable
 type: ai-generated

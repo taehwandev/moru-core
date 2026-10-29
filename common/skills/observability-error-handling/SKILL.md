@@ -1,4 +1,6 @@
 ---
+name: observability-error-handling
+description: "Observability Error Handling: Use when adding or reviewing errors, logging, diagnostics, monitoring, audit events, support traces, or user-facing failure states."
 keyflow_id: sys_common_observability_error_handling_md_skill
 status: stable
 type: ai-generated

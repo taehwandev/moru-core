@@ -1,4 +1,6 @@
 ---
+name: kmp-review
+description: "KMP Review: Use when reviewing Kotlin Multiplatform, Compose Multiplatform, shared Kotlin modules, source-set changes, platform actuals, or target app integration."
 keyflow_id: sys_platforms_kmp_kmp_review_md_skill
 status: review
 type: ai-generated

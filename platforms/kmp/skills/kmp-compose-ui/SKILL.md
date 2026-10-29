@@ -1,4 +1,6 @@
 ---
+name: kmp-compose-ui
+description: "KMP Compose UI: Use when creating, changing, moving, or reviewing Compose Multiplatform screens, state holders, reusable UI components, previews, resources, or UI tests."
 keyflow_id: sys_platforms_kmp_kmp_compose_ui_md_skill
 status: review
 type: ai-generated

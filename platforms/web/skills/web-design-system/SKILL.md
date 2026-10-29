@@ -1,4 +1,6 @@
 ---
+name: web-design-system
+description: "Web Design System: Use when creating, changing, reviewing, or adopting web UI tokens, primitives, component variants, layout patterns, themes, interaction states, or visual QA rules."
 keyflow_id: sys_platforms_web_web_design_system_md_skill
 status: review
 type: ai-generated

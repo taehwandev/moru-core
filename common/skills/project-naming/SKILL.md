@@ -1,4 +1,6 @@
 ---
+name: project-naming
+description: "Project Naming: Use when naming apps, repos, packages, modules, services, CLIs, slugs, directories, bundle ids, or generated project scaffolds."
 keyflow_id: sys_common_project_naming_md_skill
 status: stable
 type: ai-generated

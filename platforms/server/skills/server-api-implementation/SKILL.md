@@ -1,4 +1,6 @@
 ---
+name: server-api-implementation
+description: "Server API Implementation: Use when creating, changing, moving, or reviewing HTTP handlers, GraphQL resolvers, RPC methods, webhooks, service methods, repositories, API validation, tenant boundaries, or response contracts."
 keyflow_id: sys_platforms_server_server_api_implementation_md_skill
 status: review
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: release-versioning
+description: "Release Versioning: Use when choosing, changing, reviewing, tagging, or documenting a release, deployment, package, app, build, or artifact version."
 keyflow_id: sys_common_release_versioning_md_skill
 status: stable
 type: ai-generated

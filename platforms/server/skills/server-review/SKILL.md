@@ -1,4 +1,6 @@
 ---
+name: server-review
+description: "Server Review: Use for API, worker, database, auth, tenancy, migration, and integration review."
 keyflow_id: sys_platforms_server_server_review_md_skill
 status: review
 type: ai-generated

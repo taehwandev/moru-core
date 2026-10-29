@@ -1,4 +1,6 @@
 ---
+name: doubt-driven-development
+description: "Doubt-Driven Development: Use for high-risk or non-obvious decisions where a confident first answer can hide product, architecture, security, data, reliability, cost, or release risk."
 keyflow_id: sys_common_doubt_driven_development_md_skill
 status: stable
 type: ai-generated

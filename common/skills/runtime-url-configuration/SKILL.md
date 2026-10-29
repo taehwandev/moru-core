@@ -1,4 +1,6 @@
 ---
+name: runtime-url-configuration
+description: "Runtime URL Configuration: Use when implementing or reviewing app, server, mobile, desktop, webhook, auth, or asset code that references URLs whose value changes by environment."
 keyflow_id: sys_common_runtime_url_configuration_md_skill
 status: stable
 type: ai-generated

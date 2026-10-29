@@ -1,4 +1,6 @@
 ---
+name: design-system
+description: "Design System: Use when creating or changing shared UI primitives, tokens, patterns, component defaults, or reusable interaction rules."
 keyflow_id: sys_common_design_system_md_skill
 status: stable
 type: ai-generated

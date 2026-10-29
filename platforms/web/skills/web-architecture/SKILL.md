@@ -1,4 +1,6 @@
 ---
+name: web-architecture
+description: "Web Architecture: Use for React web UI work: routing, pages, components, hooks, forms, data fetching, browser storage, and browser UX."
 keyflow_id: sys_platforms_web_web_architecture_md_skill
 status: review
 type: ai-generated

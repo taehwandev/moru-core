@@ -1,4 +1,6 @@
 ---
+name: agent-credential-broker-ideation
+description: "Agent Credential Broker Ideation: Use when brainstorming, comparing, or reviewing credential-broker, vault, proxy, scoped-token, egress-control, or approval-loop patterns for AI agents."
 keyflow_id: sys_product_patterns_agent_credential_broker_ideation_md_skill
 status: review
 type: ai-generated

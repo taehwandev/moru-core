@@ -1,4 +1,6 @@
 ---
+name: code-conventions
+description: "Code Conventions: Use when writing, changing, or reviewing code style, naming, structure, comments, errors, and formatting."
 keyflow_id: sys_common_code_conventions_md_skill
 status: stable
 type: ai-generated

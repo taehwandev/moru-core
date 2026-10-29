@@ -1,4 +1,6 @@
 ---
+name: documentation-update
+description: "Documentation Update Workflow: Use when creating, reviewing, or restructuring docs, guides, specs, READMEs, agent instructions, release notes, or knowledge-base pages."
 keyflow_id: sys_workflows_documentation_update_md_skill
 status: stable
 type: ai-generated

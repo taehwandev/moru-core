@@ -1,4 +1,6 @@
 ---
+name: python-web-service
+description: "Python Web Service: Use for Python HTTP services: FastAPI, Starlette, ASGI apps, Pydantic models, dependency injection, middleware, settings, async routes, database/session boundaries, and endpoint tests."
 keyflow_id: sys_platforms_python_web_service_md_skill
 status: review
 type: human-reviewed-needed

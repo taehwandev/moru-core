@@ -1,4 +1,6 @@
 ---
+name: architecture-design
+description: "Architecture Design: Use when planning architecture for a feature, module, service, or app surface."
 keyflow_id: sys_common_architecture_design_md_skill
 status: stable
 type: ai-generated

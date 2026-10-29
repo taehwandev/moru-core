@@ -1,4 +1,6 @@
 ---
+name: review-and-commit
+description: "Review And Commit Workflow: Use after implementation, before handing off or committing."
 keyflow_id: sys_workflows_review_and_commit_md_skill
 status: stable
 type: ai-generated

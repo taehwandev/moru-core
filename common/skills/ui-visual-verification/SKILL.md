@@ -1,4 +1,6 @@
 ---
+name: ui-visual-verification
+description: "UI Visual Verification: Use when changing UI layout, interaction, visible text, controls, navigation, responsive behavior, accessibility labels, or state presentation."
 keyflow_id: sys_common_ui_visual_verification_md_skill
 status: stable
 type: ai-generated

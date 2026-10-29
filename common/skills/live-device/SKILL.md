@@ -1,4 +1,6 @@
 ---
+name: live-device
+description: "Live Device: Use when an Android or iOS app project may be running under Moru's Devices Live (Android Live or iOS Live): every save of a Kotlin, Java or Swift file is sent into the app already running on the emulator, device or simulator, in about a second, without a reinstall or restart."
 keyflow_id: sys_common_live_device_md_skill
 status: draft
 type: ai-generated

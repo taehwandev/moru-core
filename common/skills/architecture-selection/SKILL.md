@@ -1,4 +1,6 @@
 ---
+name: architecture-selection
+description: "Architecture Selection: Use when choosing or changing architecture for an app, service, or major feature."
 keyflow_id: sys_common_architecture_selection_md_skill
 status: stable
 type: ai-generated

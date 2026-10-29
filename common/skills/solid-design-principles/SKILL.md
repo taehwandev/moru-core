@@ -1,4 +1,6 @@
 ---
+name: solid-design-principles
+description: "SOLID Design Principles: Use when writing, refactoring, or reviewing production code that creates or changes functions, classes, components, hooks, services, repositories, adapters, interfaces, protocols, public contracts, or module boundaries."
 keyflow_id: sys_common_solid_design_principles_md_skill
 status: stable
 type: ai-generated

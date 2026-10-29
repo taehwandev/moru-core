@@ -1,4 +1,6 @@
 ---
+name: auth-rbac-implementation
+description: "Auth RBAC Implementation: Use when implementing login, session refresh, organization/workspace membership, role assignment, permissions, entitlement checks, tenant scoping, protected actions, or authorization tests."
 keyflow_id: sys_product_patterns_auth_rbac_implementation_md_skill
 status: review
 type: ai-generated

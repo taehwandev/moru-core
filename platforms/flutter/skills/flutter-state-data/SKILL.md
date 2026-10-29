@@ -1,4 +1,6 @@
 ---
+name: flutter-state-data
+description: "Flutter State And Data: Use when touching Flutter state owners, Riverpod, BLoC, Provider, ChangeNotifier, ValueNotifier, streams, repositories, storage, sync, isolates, or async effects."
 keyflow_id: sys_platforms_flutter_flutter_state_data_md_skill
 status: review
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: flutter-review
+description: "Flutter Review: Use when reviewing Flutter widgets, state owners, Dart packages, repositories, platform channels, plugins, target setup, or mobile/desktop/web behavior."
 keyflow_id: sys_platforms_flutter_flutter_review_md_skill
 status: review
 type: ai-generated

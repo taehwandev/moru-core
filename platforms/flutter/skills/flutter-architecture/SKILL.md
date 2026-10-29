@@ -1,4 +1,6 @@
 ---
+name: flutter-architecture
+description: "Flutter Architecture: Use for Flutter apps, Dart packages, widgets, navigation, state management, repositories, platform channels, plugins, mobile/desktop/web targets, and shared UI/data architecture."
 keyflow_id: sys_platforms_flutter_flutter_architecture_md_skill
 status: review
 type: ai-generated

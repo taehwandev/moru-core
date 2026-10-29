@@ -1,4 +1,6 @@
 ---
+name: data-persistence-sync
+description: "Data Persistence Sync: Use for local persistence, cloud sync, offline mode, migrations, import/export, cache invalidation, and conflict handling."
 keyflow_id: sys_common_data_persistence_sync_md_skill
 status: stable
 type: ai-generated

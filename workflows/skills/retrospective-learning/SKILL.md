@@ -1,4 +1,6 @@
 ---
+name: retrospective-learning
+description: "Retrospective Learning Workflow: Use at task closeout or after failure recovery to evaluate reusable skill lessons vs. local repairs without unverified rule drift."
 keyflow_id: sys_workflows_retrospective_learning_md_skill
 status: stable
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: definition-of-done
+description: "Definition Of Done: Use before final report, handoff, commit, release, or PR creation to decide whether an agent task is actually complete."
 keyflow_id: sys_common_definition_of_done_md_skill
 status: stable
 type: ai-generated

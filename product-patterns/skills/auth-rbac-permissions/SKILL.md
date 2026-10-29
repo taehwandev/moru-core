@@ -1,4 +1,6 @@
 ---
+name: auth-rbac-permissions
+description: "Auth, RBAC, Permissions: Use for login, membership, role, permission, entitlement, and tenant-boundary work."
 keyflow_id: sys_product_patterns_auth_rbac_permissions_md_skill
 status: review
 type: ai-generated

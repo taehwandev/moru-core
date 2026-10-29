@@ -1,4 +1,6 @@
 ---
+name: ios-review
+description: "iOS Review: Use for iOS SwiftUI/UIKit, navigation, concurrency, permission, and UI flow review."
 keyflow_id: sys_platforms_ios_ios_review_md_skill
 status: review
 type: ai-generated

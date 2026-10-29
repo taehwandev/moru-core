@@ -1,4 +1,6 @@
 ---
+name: application-system-integration
+description: "Application System Integration: Use when touching windows, commands, files, file watchers, shell, clipboard, notifications, background work, power assertions, menu bar/tray items, or app updates on any desktop stack (Swift/macOS, Electron, Tauri, Compose Multiplatform desktop on the JVM, or another native toolkit)."
 keyflow_id: sys_platforms_application_application_system_integration_md_skill
 status: review
 type: ai-generated

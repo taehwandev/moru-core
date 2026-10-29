@@ -1,4 +1,6 @@
 ---
+name: browser-runtime-testing
+description: "Browser Runtime Testing: Use when verifying browser UI behavior, runtime wiring, network calls, console errors, DOM state, accessibility tree, storage, routing, forms, or performance signals."
 keyflow_id: sys_common_browser_runtime_testing_md_skill
 status: stable
 type: ai-generated

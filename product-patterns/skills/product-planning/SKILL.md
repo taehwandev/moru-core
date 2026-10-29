@@ -1,4 +1,6 @@
 ---
+name: product-planning
+description: "Product Planning: Turn a rough idea or customer problem into a product proposal and requirements handoff. Do not redo discovery for an accepted specification or replace workflows/skills/prd-creation/SKILL.md with a second PRD owner."
 keyflow_id: sys_product_patterns_product_planning_skill
 status: review
 type: ai-generated

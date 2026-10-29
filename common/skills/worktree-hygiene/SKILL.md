@@ -1,4 +1,6 @@
 ---
+name: worktree-hygiene
+description: "Worktree Hygiene: Use when working in an existing checkout, especially when the agent did not start from a clean tree."
 keyflow_id: sys_common_worktree_hygiene_md_skill
 status: stable
 type: ai-generated

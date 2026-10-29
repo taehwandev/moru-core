@@ -1,4 +1,6 @@
 ---
+name: kmp-security
+description: "KMP Security: Use when Kotlin Multiplatform work touches credentials, local files, shell or process execution, network clients, secure storage, platform permissions, native interop, logging, release builds, signing, or open-source-safe setup."
 keyflow_id: sys_platforms_kmp_kmp_security_md_skill
 status: review
 type: ai-generated

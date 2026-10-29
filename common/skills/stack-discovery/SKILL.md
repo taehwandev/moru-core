@@ -1,4 +1,6 @@
 ---
+name: stack-discovery
+description: "Stack Discovery: Use before running project commands, adding dependencies, editing build config, or writing framework-specific code in an unfamiliar repo."
 keyflow_id: sys_common_stack_discovery_md_skill
 status: stable
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: scenario-driven-testing
+description: "Scenario-Driven Testing: Use this before writing or reviewing test code. Tests should prove the workflow a user, operator, API caller, or downstream component depends on, not only that a single data shape was accepted."
 keyflow_id: sys_common_scenario_driven_testing_md_skill
 status: stable
 type: ai-generated

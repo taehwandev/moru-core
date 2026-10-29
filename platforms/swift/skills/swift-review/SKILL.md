@@ -1,4 +1,6 @@
 ---
+name: swift-review
+description: "Swift Review: Use for reviewing Swift app, package, architecture, module, SwiftUI/UIKit/AppKit UI, state, concurrency, design-system, platform adapter, or Apple target changes."
 keyflow_id: sys_platforms_swift_swift_review_md_skill
 status: review
 type: ai-generated

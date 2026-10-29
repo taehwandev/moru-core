@@ -1,4 +1,6 @@
 ---
+name: reusable-code-design
+description: "Reusable Code Design: Use when creating, moving, extracting, or reviewing code that should be reused across screens, features, modules, packages, services, or apps."
 keyflow_id: sys_common_reusable_code_design_md_skill
 status: stable
 type: ai-generated

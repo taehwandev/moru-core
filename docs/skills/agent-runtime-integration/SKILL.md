@@ -1,4 +1,6 @@
 ---
+name: agent-runtime-integration
+description: "Agent Runtime Integration: Use this when connecting Moru Core to Codex, Claude, Gemini/Antigravity/AGY, or another AI coding agent runtime."
 keyflow_id: sys_docs_agent_runtime_integration_md_skill
 status: review
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: bugfix-debugging
+description: "Bugfix Debugging Workflow: Use when investigating a bug, regression, failing test, flaky behavior, or production-like failure."
 keyflow_id: sys_workflows_bugfix_debugging_md_skill
 status: stable
 type: ai-generated

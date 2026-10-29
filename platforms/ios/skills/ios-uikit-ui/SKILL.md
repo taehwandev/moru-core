@@ -1,4 +1,6 @@
 ---
+name: ios-uikit-ui
+description: "iOS UIKit UI: For auth UI, provider sign-in buttons or brand assets, also read common/skills/social-sign-in-buttons/SKILL.md."
 keyflow_id: sys_platforms_ios_ios_uikit_ui_md_skill
 status: review
 type: ai-generated

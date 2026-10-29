@@ -1,4 +1,6 @@
 ---
+name: agent-operating-skill
+description: "Core operating contract: need-driven reading, ownership, and verification."
 keyflow_id: sys_common_agent_operating_skill_md_skill
 status: stable
 type: ai-generated
@@ -34,32 +36,32 @@ type: ai-generated
 
 ## Live Session Continuity
 
-Status questions, impatience and procedure complaints retain the active outcome
-and passed evidence. Answer briefly and continue the next missing authorized
-action; do not reopen intake, start an audit/retrospective or repair the
-workflow unless requested or a concrete failure requires it. Remaining gates are
-work to close, not a reason to repeat passed tests or review. Automatic hook
-checkpoints need no manual checkpoint; write semantic resume state only for
-interruption, changed scope or handoff.
+Status questions, impatience and procedure complaints retain active outcome and
+passed evidence. Answer briefly and continue the next missing authorized action;
+do not reopen intake, start an audit/retrospective or repair the workflow unless
+requested or a concrete failure requires it. Remaining gates are work to close,
+not a reason to repeat passed tests or review. Automatic hook checkpoints need
+no manual checkpoint; write semantic resume state only for interruption, changed
+scope or handoff.
 
-The prompt hook delivers this section once per session and again only when it
-changes. It starts no task, invalidates no passed check and grants no authority;
-a completed task stays completed.
+The prompt hook delivers this section once per session and when changed. It
+starts no task, invalidates no passed check and grants no authority; completed
+tasks stay completed.
 
 ## Proportionate Execution
 
-Choose the smallest existing route covering effect, owner and risk. Content
-publication needs external-write authority, safety checks and readback, not
-unrelated code tests/builds. Reuse existing execution tools/contracts. Use
-workspace tools (`read_file`, `write_file`, `edit_file`, `run_command`) to
-complete authorized in-scope work from current repo evidence; preserve safety
-refusals, permission boundaries, and explicit stop conditions.
+Choose the smallest route covering effect, owner and risk. Content publication
+needs external-write authority, safety checks and readback, not unrelated code
+tests/builds. Reuse execution tools/contracts. Use workspace tools (`read_file`,
+`write_file`, `edit_file`, `run_command`) to complete authorized in-scope work
+from repo evidence; preserve safety refusals, permission boundaries, and stop
+conditions.
 
-Prepare required repo records before review/finish; later ids, URLs and times
-belong in operational evidence unless user/repo requires a tracked record. A
-receipt alone does not justify another start/review/finish. Never create a
-journal, dummy diff, test, worktree move or second task just to feed a gate.
-Report a manifest conflict; do not fake a pass.
+Prepare repo records before review/finish; later ids, URLs and times belong in
+operational evidence unless user/repo requires a tracked record. A receipt alone
+does not justify another start/review/finish. Never create a journal, dummy
+diff, test, worktree move or second task just to feed a gate. Report a manifest
+conflict; do not fake a pass.
 
 ## Execution Round Trips
 
@@ -69,12 +71,11 @@ surprises, failures or pending handles; never hide failed prerequisites.
 Wait on handles; no relaunch, short-polling or idle sleeps. Silence is no answer.
 
 Resolved installation/procedural work may use a same-model `low` native worker
-when the benefit exceeds coordination cost per `references/runtime-collaboration.md`;
+when benefit exceeds coordination cost per `references/runtime-collaboration.md`;
 short commands stay inline.
 
-Hooks own mechanical admission/checks and print their fields; agents own scope,
-truthful evidence and next action. Do not duplicate checks or read validators
-preemptively.
+Hooks own mechanical admission/checks and print fields; agents own scope,
+truthful evidence and next action. Do not duplicate checks or read validators.
 
 ## Read
 

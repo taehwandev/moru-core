@@ -1,4 +1,6 @@
 ---
+name: bounded-loop
+description: "Bounded Loop: Read only for an explicitly requested sustained task with a checkable finish condition."
 keyflow_id: sys_bounded_loop
 status: review
 type: ai-generated

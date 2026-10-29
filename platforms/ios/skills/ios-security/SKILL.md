@@ -1,4 +1,6 @@
 ---
+name: ios-security
+description: "iOS Security: Use when iOS work touches credentials, Keychain, local storage, permissions, Universal Links, URL schemes, app groups, extensions, WebViews, networking, signing, entitlements, or release builds."
 keyflow_id: sys_platforms_ios_ios_security_md_skill
 status: review
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: api-contract-compatibility
+description: "API Contract Compatibility: Use when changing HTTP APIs, DTOs, schemas, SDK clients, route contracts, deep links, events, webhooks, queues, import/export formats, or shared fixtures."
 keyflow_id: sys_common_api_contract_compatibility_md_skill
 status: stable
 type: ai-generated

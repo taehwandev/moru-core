@@ -1,4 +1,6 @@
 ---
+name: multi-agent-collaboration
+description: "Multi-Agent Collaboration: Use when work is split across subagents, multiple agents, delegated roles, parallel tasks, or a builder/verifier pair."
 keyflow_id: sys_workflows_multi_agent_collaboration_md_skill
 status: stable
 type: ai-generated

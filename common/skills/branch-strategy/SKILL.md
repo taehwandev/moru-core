@@ -1,4 +1,6 @@
 ---
+name: branch-strategy
+description: "Branch Strategy: Use this as the shared naming rule for new Git work branches in all Moru-managed repositories, including personal, shared, and company repositories, with or without a tracking ticket."
 keyflow_id: sys_common_branch_strategy_md_skill
 status: stable
 type: human-reviewed-needed

@@ -1,4 +1,6 @@
 ---
+name: ios-state-concurrency
+description: "iOS State And Concurrency: Use when touching SwiftUI/UIKit state, navigation, async work, or platform permissions."
 keyflow_id: sys_platforms_ios_ios_state_concurrency_md_skill
 status: review
 type: ai-generated

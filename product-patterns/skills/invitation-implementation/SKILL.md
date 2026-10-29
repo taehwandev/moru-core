@@ -1,4 +1,6 @@
 ---
+name: invitation-implementation
+description: "Invitation Implementation: Use when implementing team, workspace, organization, tenant, project, or billing invite creation, resend, revoke, accept, email delivery, role assignment, or invite tests."
 keyflow_id: sys_product_patterns_invitation_implementation_md_skill
 status: review
 type: ai-generated

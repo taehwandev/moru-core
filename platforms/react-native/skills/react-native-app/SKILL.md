@@ -1,4 +1,6 @@
 ---
+name: react-native-app
+description: "React Native App: Use for React Native and Expo app work: screens, components, navigation, lists, animations, networking, native modules, app startup, memory, and bundle size."
 keyflow_id: sys_platforms_react_native_app_md_skill
 status: review
 type: human-reviewed-needed

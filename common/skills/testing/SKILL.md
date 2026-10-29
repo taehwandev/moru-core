@@ -1,4 +1,6 @@
 ---
+name: testing
+description: "Testing Principles: Use when choosing, adding, reviewing, or reporting tests, fixtures, snapshots, manual smoke checks, or verification evidence."
 keyflow_id: sys_common_testing_md_skill
 status: stable
 type: ai-generated

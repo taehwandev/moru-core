@@ -1,4 +1,6 @@
 ---
+name: source-coverage
+description: "Android Skill Source Coverage: Use when Android work cites, imports, compares, or refreshes guidance from the external Android and Compose skill repositories."
 keyflow_id: sys_android_skill_source_coverage_skill
 status: review
 type: human-reviewed-needed

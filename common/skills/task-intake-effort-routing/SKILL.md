@@ -1,4 +1,6 @@
 ---
+name: task-intake-effort-routing
+description: "Task Intake And Effort Routing: Use at the start of an agent conversation or task when deciding whether the request is clear enough, whether Grill-Me protocol clarification is required, and how much model effort, context loading, and workflow depth the task deserves."
 keyflow_id: sys_common_task_intake_effort_routing_md_skill
 status: stable
 type: ai-generated

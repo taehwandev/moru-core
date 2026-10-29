@@ -1,4 +1,6 @@
 ---
+name: moru-skill-bundle-migration
+description: "Moru Core Skill Bundle Migration: Use this as the source of truth for maintaining Moru Core's skill-bundle layout."
 keyflow_id: sys_docs_moru_skill_bundle_migration_md_skill
 status: review
 type: ai-generated

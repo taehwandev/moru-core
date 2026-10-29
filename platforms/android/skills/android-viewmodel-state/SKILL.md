@@ -1,4 +1,6 @@
 ---
+name: android-viewmodel-state
+description: "Android ViewModel And State: Use when creating, changing, moving, or reviewing Android ViewModels, typed UI actions, UiState, one-off effects, Flow, use cases, repositories, network presentation hints, persistence, permission state, or navigation events."
 keyflow_id: sys_platforms_android_android_viewmodel_state_md_skill
 status: review
 type: ai-generated

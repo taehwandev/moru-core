@@ -1,4 +1,6 @@
 ---
+name: component-api-design
+description: "Component API Design: Use when designing reusable UI components, view components, hooks, widgets, controls, SDK helpers, or any caller-facing component-like API."
 keyflow_id: sys_common_component_api_design_md_skill
 status: stable
 type: ai-generated

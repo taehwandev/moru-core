@@ -1,4 +1,6 @@
 ---
+name: server-architecture
+description: "Server Architecture: Use for API, worker, database, auth, tenancy, and integration-service work."
 keyflow_id: sys_platforms_server_server_architecture_md_skill
 status: review
 type: ai-generated

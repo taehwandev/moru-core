@@ -1,4 +1,6 @@
 ---
+name: web-review
+description: "Web Review: Use for React/web UI, browser behavior, and frontend PR review."
 keyflow_id: sys_platforms_web_web_review_md_skill
 status: review
 type: ai-generated

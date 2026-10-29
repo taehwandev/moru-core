@@ -1,4 +1,6 @@
 ---
+name: local-tools
+description: "Local Tools Policy: Use installed local tools when they provide better evidence, faster inspection, or safer execution than guessing."
 keyflow_id: sys_common_local_tools_md_skill
 status: stable
 type: ai-generated

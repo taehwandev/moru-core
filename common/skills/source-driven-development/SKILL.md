@@ -1,4 +1,6 @@
 ---
+name: source-driven-development
+description: "Source-Driven Development: Use when implementation depends on a framework, SDK, API, platform behavior, standard, release note, or external documentation that can change over time."
 keyflow_id: sys_common_source_driven_development_md_skill
 status: stable
 type: ai-generated

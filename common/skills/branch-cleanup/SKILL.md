@@ -1,4 +1,6 @@
 ---
+name: branch-cleanup
+description: "Branch Cleanup: Use for requested cleanup of merged branches or stale worktrees. Deletion is destructive Git work: every target must pass the gates below; otherwise preserve and report it. Remote deletion requires an explicit request."
 keyflow_id: sys_common_branch_cleanup_md_skill
 status: review
 type: ai-generated

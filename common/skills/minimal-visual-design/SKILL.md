@@ -1,4 +1,6 @@
 ---
+name: minimal-visual-design
+description: "Minimal Visual Design: Concrete defaults for a quiet, refined interface."
 keyflow_id: sys_common_minimal_visual_design_md_skill
 status: review
 type: ai-generated

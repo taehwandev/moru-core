@@ -1,4 +1,6 @@
 ---
+name: agent-task-lifecycle
+description: "Agent Task Lifecycle Workflow: Use for any agent task, including implementation, review, documentation, debugging, planning, local tool inspection, and operational handoff."
 keyflow_id: sys_workflows_agent_task_lifecycle_md_skill
 status: stable
 type: ai-generated

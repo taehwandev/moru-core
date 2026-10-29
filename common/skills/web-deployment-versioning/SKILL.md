@@ -1,4 +1,6 @@
 ---
+name: web-deployment-versioning
+description: "Web Deployment Versioning: Use when choosing, documenting, reviewing, or automating version, release, build, deployment, rollback, or changelog policy for a web app, website, frontend, server-rendered web surface, or static site."
 keyflow_id: sys_common_web_deployment_versioning_md_skill
 status: stable
 type: ai-generated

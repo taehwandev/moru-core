@@ -1,4 +1,6 @@
 ---
+name: react-rn-external-skill-source-coverage
+description: "React And React Native External Skill Source Coverage: This reference owns complete coverage for the reviewed React and React Native agent-skill snapshot. It is a provenance and no-omission artifact, not a vendored replacement for the provider repositories."
 keyflow_id: sys_common_react_rn_external_skill_source_coverage
 status: review
 type: human-reviewed-needed

@@ -1,4 +1,6 @@
 ---
+name: defensive-boundaries
+description: "Defensive Boundaries: Use when code consumes values from outside the current trusted boundary: user input, environment, configuration, files, network responses, databases, clocks, platform APIs, third-party SDKs, generated artifacts, or cached state."
 keyflow_id: sys_common_defensive_boundaries_md_skill
 status: stable
 type: ai-generated

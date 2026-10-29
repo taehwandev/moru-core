@@ -1,4 +1,6 @@
 ---
+name: invitation-workflows
+description: "Invitation Workflows: Use for team, tenant, workspace, or organization invite flows."
 keyflow_id: sys_product_patterns_invitation_workflows_md_skill
 status: review
 type: ai-generated

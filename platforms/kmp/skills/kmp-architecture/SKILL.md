@@ -1,4 +1,6 @@
 ---
+name: kmp-architecture
+description: "KMP Architecture: Use for Kotlin Multiplatform, Compose Multiplatform, shared Kotlin modules, Gradle source sets, expect/actual boundaries, and shared mobile/desktop application logic."
 keyflow_id: sys_platforms_kmp_kmp_architecture_md_skill
 status: review
 type: ai-generated

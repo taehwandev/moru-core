@@ -1,4 +1,6 @@
 ---
+name: application-react-desktop
+description: "Application React Desktop: Use when building, refactoring, or reviewing a desktop app that uses a React renderer inside a native shell, such as Tauri, Electron, WebView, or a Mac/Win app with embedded web UI."
 keyflow_id: sys_platforms_application_application_react_desktop_md_skill
 status: review
 type: ai-generated

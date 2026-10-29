@@ -1,4 +1,6 @@
 ---
+name: release-deployment
+description: "Release Deployment: Use when packaging, deploying, publishing, migrating, signing, tagging, creating release notes, changing environment config, or preparing rollback-sensitive work."
 keyflow_id: sys_common_release_deployment_md_skill
 status: stable
 type: ai-generated

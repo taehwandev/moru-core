@@ -1,4 +1,6 @@
 ---
+name: accessibility-i18n
+description: "Accessibility I18n: Use when changing UI text, forms, controls, navigation, media, keyboard/focus behavior, dates, numbers, units, measurements, currency, localization, display values, or user-facing error states."
 keyflow_id: sys_common_accessibility_i18n_md_skill
 status: stable
 type: ai-generated

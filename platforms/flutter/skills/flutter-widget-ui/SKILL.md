@@ -1,4 +1,6 @@
 ---
+name: flutter-widget-ui
+description: "Flutter Widget UI: Use when creating, changing, moving, or reviewing Flutter routes, pages, widgets, design-system components, forms, gestures, navigation UI, golden tests, or widget tests."
 keyflow_id: sys_platforms_flutter_flutter_widget_ui_md_skill
 status: review
 type: ai-generated

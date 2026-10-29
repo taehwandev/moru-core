@@ -1,4 +1,6 @@
 ---
+name: prd-creation
+description: "PRD Creation Workflow: Use when the deliverable is a PRD or product requirements note before ARD, implementation, tests, or release planning."
 keyflow_id: sys_workflows_prd_creation_md_skill
 status: stable
 type: ai-generated

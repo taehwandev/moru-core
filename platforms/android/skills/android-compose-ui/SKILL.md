@@ -1,4 +1,6 @@
 ---
+name: android-compose-ui
+description: "Android Compose UI: The Compose authoring contract on Android: which design-system API a screen or component consumes, how holder and stateless content are named and split, how the screen skeleton owns bars, insets and the keyboard, which modifier, effect, lazy-list and animation APIs it uses, and which previews it ships with."
 keyflow_id: sys_platforms_android_android_compose_ui_md_skill
 status: review
 type: ai-generated

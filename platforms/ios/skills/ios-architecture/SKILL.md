@@ -1,4 +1,6 @@
 ---
+name: ios-architecture
+description: "iOS Architecture: Use for iOS SwiftUI/UIKit app structure, state, navigation, async work, permissions, and app target behavior."
 keyflow_id: sys_platforms_ios_ios_architecture_md_skill
 status: review
 type: ai-generated

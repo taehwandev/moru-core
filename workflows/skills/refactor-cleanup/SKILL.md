@@ -1,4 +1,6 @@
 ---
+name: refactor-cleanup
+description: "Refactor Cleanup Workflow: Use when behavior should stay the same and the goal is structure, naming, ownership, deletion, or maintainability."
 keyflow_id: sys_workflows_refactor_cleanup_md_skill
 status: stable
 type: ai-generated

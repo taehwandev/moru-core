@@ -1,4 +1,6 @@
 ---
+name: android-state-data
+description: "Android State And Data: Rules for the data side of an Android feature: layer direction, model roles, request/response DTOs, field nullability, mappers, repository contracts, persistence choice, and server presentation hints."
 keyflow_id: sys_platforms_android_android_state_data_md_skill
 status: review
 type: ai-generated

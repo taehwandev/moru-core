@@ -1,4 +1,6 @@
 ---
+name: agent-editing-safety
+description: "Agent Editing Safety: Use this when an agent may edit files, run commands, inspect local state, or touch data outside the current repository."
 keyflow_id: sys_common_agent_editing_safety_md_skill
 status: stable
 type: ai-generated

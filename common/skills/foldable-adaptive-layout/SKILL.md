@@ -1,4 +1,6 @@
 ---
+name: foldable-adaptive-layout
+description: "Foldable And Adaptive Layout: Use for adaptive or large-screen mobile layouts, fold/unfold transitions, book/tabletop postures, hinges and dual-screen regions: Android foldables (including Galaxy Z Fold and Pixel Fold), iPhone Duo, Jetpack Compose, Compose Multiplatform, SwiftUI and UIKit."
 keyflow_id: sys_common_foldable_adaptive_layout_skill
 status: review
 type: ai-generated

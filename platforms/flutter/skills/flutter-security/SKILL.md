@@ -1,4 +1,6 @@
 ---
+name: flutter-security
+description: "Flutter Security: Use when Flutter work touches credentials, secure storage, platform channels, plugins, WebViews, deep links, local files, clipboard, notifications, network clients, logs, analytics, crash reports, release builds, signing, or open-source-safe setup."
 keyflow_id: sys_platforms_flutter_flutter_security_md_skill
 status: review
 type: ai-generated

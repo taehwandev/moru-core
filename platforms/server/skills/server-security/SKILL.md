@@ -1,4 +1,6 @@
 ---
+name: server-security
+description: "Server Security: Use when server work touches auth, permissions, tenant isolation, API input, database queries, webhooks, jobs, uploads, external calls, rate limits, secrets, or public endpoints."
 keyflow_id: sys_platforms_server_server_security_md_skill
 status: review
 type: ai-generated

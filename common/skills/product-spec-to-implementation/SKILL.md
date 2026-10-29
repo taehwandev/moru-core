@@ -1,4 +1,6 @@
 ---
+name: product-spec-to-implementation
+description: "Product Spec To Implementation: Use when turning a product request, PRD, design note, or vague feature idea into implementation work."
 keyflow_id: sys_common_product_spec_to_implementation_md_skill
 status: stable
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: release-readiness
+description: "Release Readiness Workflow: Use before packaging, deploying, publishing, tagging, migration rollout, signing, or handing off release-sensitive work."
 keyflow_id: sys_workflows_release_readiness_md_skill
 status: stable
 type: ai-generated

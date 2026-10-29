@@ -1,4 +1,6 @@
 ---
+name: live-web
+description: "Live Web: Use when a user points at a running web page through an inspect reference line and asks an agent to change it, or when several agents edit one web project at the same time and each owns an area the user assigned."
 keyflow_id: sys_platforms_web_live_web_md_skill
 status: draft
 type: ai-generated

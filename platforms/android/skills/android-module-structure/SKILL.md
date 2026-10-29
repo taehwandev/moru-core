@@ -1,4 +1,6 @@
 ---
+name: android-module-structure
+description: "Android Module Structure: Use when deciding Android Gradle modules, package layout, api/implementation splits, feature ownership, build convention plugins, or where new code should live."
 keyflow_id: sys_platforms_android_android_module_structure_md_skill
 status: review
 type: ai-generated

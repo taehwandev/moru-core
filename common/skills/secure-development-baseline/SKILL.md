@@ -1,4 +1,6 @@
 ---
+name: secure-development-baseline
+description: "Secure Development Baseline: Use this for any work that touches secrets, auth, permissions, user data, external integrations, local storage, logs, analytics, crash reporting, release configuration, or open-source-safe setup."
 keyflow_id: sys_common_secure_development_baseline_md_skill
 status: stable
 type: ai-generated

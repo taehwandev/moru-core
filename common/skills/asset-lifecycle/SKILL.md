@@ -1,4 +1,6 @@
 ---
+name: asset-lifecycle
+description: "Asset Lifecycle: Use when touching uploads, downloads, generated files, media, attachments, signed or temporary URLs, public/private asset movement, asset cleanup, or asset references embedded in persisted content."
 keyflow_id: sys_common_asset_lifecycle_md_skill
 status: stable
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: application-command-ui
+description: "Application Command And UI: Use when creating, changing, moving, or reviewing desktop/native app windows, panels, menu bar/tray items, shortcuts, commands, local state, background tasks, trust boundary bridges, or UI tests on any desktop stack (Swift/macOS, Electron, Tauri, Compose Multiplatform desktop on the JVM, or another native toolkit)."
 keyflow_id: sys_platforms_application_application_command_ui_md_skill
 status: review
 type: ai-generated

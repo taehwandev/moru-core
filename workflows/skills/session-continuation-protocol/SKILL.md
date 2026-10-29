@@ -1,4 +1,6 @@
 ---
+name: session-continuation-protocol
+description: "Session Continuation Protocol: Use when persisting, validating, or resuming bounded continuation checkpoints and drift state across interrupted agent turns."
 keyflow_id: sys_workflows_session_continuation_protocol_skill
 status: review
 type: human-reviewed-needed

@@ -1,4 +1,6 @@
 ---
+name: refactoring
+description: "Refactoring Guidance: Use when behavior should stay the same and structure should improve."
 keyflow_id: sys_common_refactoring_md_skill
 status: stable
 type: ai-generated

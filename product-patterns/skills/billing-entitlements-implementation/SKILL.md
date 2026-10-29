@@ -1,4 +1,6 @@
 ---
+name: billing-entitlements-implementation
+description: "Billing Entitlements Implementation: Use when implementing plans, subscriptions, seats, quota, trial, downgrade, payment failure, invoices, provider webhooks, billing permissions, or feature gates."
 keyflow_id: sys_product_patterns_billing_entitlements_implementation_md_skill
 status: review
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: android-memory-lifecycle
+description: "Android Memory And Lifecycle: Detect the repo's existing convention first."
 keyflow_id: sys_platforms_android_android_memory_lifecycle_md_skill
 status: review
 type: ai-generated

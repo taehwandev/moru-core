@@ -1,4 +1,6 @@
 ---
+name: swift-design-system
+description: "Swift Design System: Use when creating, changing, reviewing, or adopting SwiftUI, UIKit, or AppKit design-system tokens, primitives, component variants, layout patterns, themes, interaction states, previews, or visual QA rules."
 keyflow_id: sys_platforms_swift_swift_design_system_md_skill
 status: review
 type: ai-generated

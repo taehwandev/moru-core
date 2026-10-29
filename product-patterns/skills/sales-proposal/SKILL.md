@@ -1,4 +1,6 @@
 ---
+name: sales-proposal
+description: "Sales Discovery And Proposal: Structure discovery notes, assess a prospect's fit or draft a sales proposal."
 keyflow_id: sys_product_patterns_sales_proposal_skill
 status: review
 type: ai-generated

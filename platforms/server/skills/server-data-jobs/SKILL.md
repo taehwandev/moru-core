@@ -1,4 +1,6 @@
 ---
+name: server-data-jobs
+description: "Server Data And Jobs: Use when touching database, migrations, transactions, queues, webhooks, or background jobs."
 keyflow_id: sys_platforms_server_server_data_jobs_md_skill
 status: review
 type: ai-generated

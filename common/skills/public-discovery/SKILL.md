@@ -1,4 +1,6 @@
 ---
+name: public-discovery
+description: "Public Discovery: Use when touching SEO, generative AI search visibility, AEO/GEO claims, sitemap, robots, metadata, Open Graph previews, short links, public indexes, search/discovery feeds, share previews, canonical URLs, localized alternates, or structured data."
 keyflow_id: sys_common_public_discovery_md_skill
 status: stable
 type: ai-generated

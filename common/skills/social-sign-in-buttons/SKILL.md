@@ -1,4 +1,6 @@
 ---
+name: social-sign-in-buttons
+description: "Social Sign-In Buttons: Use when implementing or reviewing third-party sign-in buttons, authentication screens or their brand assets on iOS (SwiftUI/UIKit), Android, Compose/KMP or web."
 keyflow_id: sys_common_social_sign_in_buttons_skill
 status: review
 type: ai-generated

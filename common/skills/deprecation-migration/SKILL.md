@@ -1,4 +1,6 @@
 ---
+name: deprecation-migration
+description: "Deprecation And Migration: Use when removing, renaming, replacing, migrating, or sunsetting code, APIs, configuration, data shapes, routes, workflows, commands, features, or docs."
 keyflow_id: sys_common_deprecation_migration_md_skill
 status: stable
 type: ai-generated

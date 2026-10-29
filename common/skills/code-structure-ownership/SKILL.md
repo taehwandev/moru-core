@@ -1,4 +1,6 @@
 ---
+name: code-structure-ownership
+description: "Code Structure And Ownership: Use when deciding file layout, package layout, module boundaries, public contracts, api/impl splits, or where new code should live."
 keyflow_id: sys_common_code_structure_ownership_md_skill
 status: stable
 type: ai-generated

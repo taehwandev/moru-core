@@ -1,4 +1,6 @@
 ---
+name: android-architecture
+description: "Android Architecture: Use for Compose/ViewModel/Flow, data, and Android platform boundary work."
 keyflow_id: sys_platforms_android_android_architecture_md_skill
 status: review
 type: ai-generated

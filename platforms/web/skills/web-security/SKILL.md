@@ -1,4 +1,6 @@
 ---
+name: web-security
+description: "Web Security: Use when web work touches auth, session state, browser storage, cookies, tokens, forms, uploads, embeds, third-party scripts, client-visible config, redirects, or protected UI actions."
 keyflow_id: sys_platforms_web_web_security_md_skill
 status: review
 type: ai-generated

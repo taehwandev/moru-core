@@ -1,4 +1,6 @@
 ---
+name: kmp-module-structure
+description: "KMP Module Structure: Use when deciding Kotlin Multiplatform shared modules, source sets, Gradle module boundaries, umbrella frameworks, expect/actual placement, or package layout."
 keyflow_id: sys_platforms_kmp_kmp_module_structure_md_skill
 status: review
 type: ai-generated

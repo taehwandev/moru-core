@@ -1,4 +1,6 @@
 ---
+name: kmp-platform-integration
+description: "KMP Platform Integration: Use when Kotlin Multiplatform work touches source sets, expect/actual, native interop, platform services, files, shell/process execution, clipboard, notifications, permissions, secure storage, background work, or app lifecycle."
 keyflow_id: sys_platforms_kmp_kmp_platform_integration_md_skill
 status: review
 type: ai-generated

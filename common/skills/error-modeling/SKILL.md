@@ -1,4 +1,6 @@
 ---
+name: error-modeling
+description: "Error Modeling: Use when designing, handling, mapping, logging, retrying, or displaying errors."
 keyflow_id: sys_common_error_modeling_md_skill
 status: stable
 type: ai-generated

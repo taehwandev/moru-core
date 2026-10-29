@@ -1,4 +1,6 @@
 ---
+name: state-modeling
+description: "State Modeling: Use when designing or reviewing UI state, application state, domain state, async state, one-off effects, reducers, stores, ViewModels, hooks, or state machines."
 keyflow_id: sys_common_state_modeling_md_skill
 status: stable
 type: ai-generated

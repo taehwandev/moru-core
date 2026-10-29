@@ -1,4 +1,6 @@
 ---
+name: incremental-implementation
+description: "Incremental Implementation: Use when building, refactoring, or repairing non-trivial behavior. The goal is to deliver one thin, verified slice at a time instead of creating broad speculative scaffolding."
 keyflow_id: sys_common_incremental_implementation_md_skill
 status: stable
 type: ai-generated

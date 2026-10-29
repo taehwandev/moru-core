@@ -1,4 +1,6 @@
 ---
+name: flutter-project-structure
+description: "Flutter Project Structure: Use when deciding Flutter feature folders, Dart package boundaries, monorepo packages, plugin/federated plugin splits, package exports, or where new Dart and native platform code should live."
 keyflow_id: sys_platforms_flutter_flutter_project_structure_md_skill
 status: review
 type: ai-generated

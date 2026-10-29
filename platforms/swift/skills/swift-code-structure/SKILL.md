@@ -1,4 +1,6 @@
 ---
+name: swift-code-structure
+description: "Swift Code Structure: Use when deciding Swift Package Manager layout, Xcode targets, feature folders, file ownership, target membership, access control, public contracts, or where new Swift code should live."
 keyflow_id: sys_platforms_swift_swift_code_structure_md_skill
 status: review
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: application-review
+description: "Application Review: Use for desktop/native app review on any stack (Swift/macOS, Electron, Tauri, Compose Multiplatform desktop on the JVM, or another native toolkit): menu bar, window, command, trust boundary, and system integration review."
 keyflow_id: sys_platforms_application_application_review_md_skill
 status: review
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: app-architecture
+description: "Application Boundary Principles: Use for new features, boundary cleanup, or structure decisions."
 keyflow_id: sys_common_app_architecture_md_skill
 status: stable
 type: ai-generated

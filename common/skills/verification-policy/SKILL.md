@@ -1,4 +1,6 @@
 ---
+name: verification-policy
+description: "Verification Policy: Work is not done just because files changed. Completion requires evidence or a clear explanation of why evidence could not be collected."
 keyflow_id: sys_common_verification_policy_md_skill
 status: stable
 type: ai-generated

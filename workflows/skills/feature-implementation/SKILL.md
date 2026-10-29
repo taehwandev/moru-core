@@ -1,4 +1,6 @@
 ---
+name: feature-implementation
+description: "Feature Implementation Workflow: Use when implementing a scoped feature slice or meaningful behavior change after the product front matter is known."
 keyflow_id: sys_workflows_feature_implementation_md_skill
 status: stable
 type: ai-generated

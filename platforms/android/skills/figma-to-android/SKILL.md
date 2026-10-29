@@ -1,4 +1,6 @@
 ---
+name: figma-to-android
+description: "Figma To Android: Use when reading measurements, assets, and component structure from a Figma handoff bundle and implementing or auditing Android UI. This card supports Compose, Views/XML, and repositories that intentionally use both."
 keyflow_id: sys_android_figma_to_android
 status: review
 type: ai-generated

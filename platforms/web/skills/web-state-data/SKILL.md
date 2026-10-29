@@ -1,4 +1,6 @@
 ---
+name: web-state-data
+description: "Web State And Data: Use when touching React client state, server state, forms, API clients, cache, mocks, or browser persistence."
 keyflow_id: sys_platforms_web_web_state_data_md_skill
 status: review
 type: ai-generated

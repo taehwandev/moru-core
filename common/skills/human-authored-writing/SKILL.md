@@ -1,4 +1,6 @@
 ---
+name: human-authored-writing
+description: "Human-Authored Writing: Use when drafting or editing user-facing prose, documentation, release notes, marketing copy, emails, essays, or other text where the goal is to preserve the author's meaning and voice while reducing generic AI-writing signals."
 keyflow_id: sys_common_human_authored_writing_md_skill
 status: stable
 type: ai-generated

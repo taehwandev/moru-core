@@ -1,4 +1,6 @@
 ---
+name: ambiguity-gate
+description: "Ambiguity Gate: Use before PRD, ARD, task breakdown, implementation plan, or code work when the request has unknowns that could change behavior, scope, risk, or verification."
 keyflow_id: sys_workflows_ambiguity_gate_md_skill
 status: stable
 type: ai-generated

@@ -1,4 +1,6 @@
 ---
+name: web-service-rn-python
+description: "Web Service RN Python: Use this as a tight branch router for a reduced skill set centered on React web, React Native, and Python web services."
 keyflow_id: sys_common_web_service_rn_python_md_skill
 status: review
 type: human-reviewed-needed

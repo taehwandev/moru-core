@@ -1,4 +1,6 @@
 ---
+name: web-performance-verification
+description: "Web Performance Verification: Use when changing or reviewing web performance, loading behavior, bundle size, rendering cost, Core Web Vitals, caching, image/media loading, streaming, hydration, animation performance, or browser resource use."
 keyflow_id: sys_common_web_performance_verification_md_skill
 status: stable
 type: ai-generated

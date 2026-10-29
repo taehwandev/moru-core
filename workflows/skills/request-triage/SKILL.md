@@ -1,4 +1,6 @@
 ---
+name: request-triage
+description: "Request Triage Workflow: Use when the agent needs to decide whether a user request is clear, whether a Grill-Me /grilling session is needed, and what effort level or route should be used before planning or implementation."
 keyflow_id: sys_workflows_request_triage_md_skill
 status: stable
 type: ai-generated

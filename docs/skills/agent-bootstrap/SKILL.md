@@ -1,4 +1,6 @@
 ---
+name: agent-bootstrap
+description: "Moru Core Agent Bootstrap: Use when an AI coding agent receives the Moru Core repository link or a request to apply Moru Core to a target project."
 keyflow_id: sys_docs_agent_bootstrap_md_skill
 status: review
 type: ai-generated

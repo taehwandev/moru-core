@@ -1,4 +1,6 @@
 ---
+name: doc-conventions
+description: "Document Conventions: Output path and naming rules for generated documents (PRD, spec, ARD). An agent must follow these rules when creating documents, unless the target repo's own instructions override them. Repo-local rules always win."
 keyflow_id: sys_common_doc_conventions_skill
 status: stable
 type: human-reviewed
