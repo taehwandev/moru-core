@@ -141,6 +141,9 @@ def route_payload(
         approval=read_approval_record(getattr(args, "approval_record", "")),
         request_fingerprint=request_fingerprint(request_intake(args)),
         runtime_session_id=str(getattr(args, "runtime_session_id", "") or ""),
+        project=project_root,
+        request_text=str(getattr(args, "request", "") or ""),
+        continuation_scope=str(getattr(args, "continuation_scope", "") or ""),
     )
     if failures:
         return None, "\n".join(failures), 2

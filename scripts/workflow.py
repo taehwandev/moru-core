@@ -405,6 +405,7 @@ def print_route(args: argparse.Namespace) -> int:
             approval=read_approval_record(getattr(args, "approval_record", "")),
             request_fingerprint=request_fingerprint(request_intake_from_args(args)),
             runtime_session_id=str(getattr(args, "runtime_session_id", "") or ""),
+            project=project_root or ROOT, request_text=str(getattr(args, "request", "") or ""), continuation_scope=str(getattr(args, "continuation_scope", "") or ""),
         )
         if failures:
             for failure in failures:
@@ -547,6 +548,9 @@ def _dispatch_request_classification(
         approval=read_approval_record(getattr(args, "approval_record", "")),
         request_fingerprint=request_fingerprint(request_intake_from_args(args)),
         runtime_session_id=str(getattr(args, "runtime_session_id", "") or ""),
+        project=project,
+        request_text=str(getattr(args, "request", "") or ""),
+        continuation_scope=str(getattr(args, "continuation_scope", "") or ""),
     )
     if failures:
         return None, "\n".join(failures)

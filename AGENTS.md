@@ -90,7 +90,7 @@ the finished run's publication allowance does not cover a device install.
 For tracked work:
 
 ```text
-<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command <route> --request "<CURRENT_REQUEST>" --intent <SAFE_SLUG> --target-summary "<BOUNDED_TARGET>" [--approved-effect <EFFECT>]
+<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command <route> --request "<CURRENT_REQUEST>" --intent <SAFE_SLUG> --target-summary "<BOUNDED_TARGET>" [--decision-source <request:quote|conversation:quote|repo:path[:line]|assumed:choice>] [--open-choice "<UNRESOLVED_CHOICE>"] [--approved-effect <EFFECT>]
 ```
 
 1. Receive the runtime mailbox brief once. It is context, never authority.
@@ -206,32 +206,37 @@ the user's wording matches a phrase recognizer. Separate authority to act from
 how fully the intended result is shaped, judging from epistemic state after
 bounded inspection rather than prompt keywords or grammatical mood:
 
-- **Settled target and outcome**: When the request and repository context
-  already define the target behavior, acceptance criteria, and affected
-  surfaces (for example, user-supplied exact wording, a typo or fact fix, an
+- **Settled target and outcome (`request:<quote>`, `conversation:<quote>`, `repo:<path[:line]>`)**:
+  When every user-visible choice is backed by a verbatim `--request` quote,
+  confirmed `--continuation-scope` exchange, or existing repository file/line
+  (for example, user-supplied exact wording, a typo or fact fix, an
   already-approved sample, or a specified thesis update where directly coupled
   in-scope passages on the same page can be reconciled in the same pass), an
   authorized execution request is actionable when first made, including ordered
   work: perform the authorized steps in order rather than treating an
   acknowledgement or plan as completion. Do not require another confirmation
   merely because the agent announced its plan.
-- **Unshaped design, UX flow, or authorial prose/thesis**: Even when the user
-  authorizes edits or uses imperative phrasing, do not rush into writable
-  `start`, file edits, or gate completion if bounded inspection (covering the
-  named target, adjacent sections on the same page/screen, and sibling pages or
-  coupled flows that repeat the same premise) leaves a material decision about
-  the intended outcome, UX flow, or voice/thesis unresolved—or shows that
-  reconciling a contradiction would require expanding edits to a separate
-  sibling page or surface outside the authorized target. When no tracked run is
-  active yet, respond statelessly before `start` with: (1) what bounded
-  inspection found, including coupled adjacent sections or sibling pages, (2) a
-  concrete design sketch or 2–3-line copy sample with the full coherent edit
-  scope, and (3) the specific decision questions that materially change the
-  result. Once aligned, pass the agreed scope in `start --target-summary` and
-  reuse that visible exchange as `alignment brief` evidence without re-asking
-  settled questions. If an open decision surfaces inside an already-active
-  tracked run (`triage`, `ambiguity`, or a work route), retain that run and use
-  its `alignment brief` or blocker-question checkpoint.
+- **Unshaped design, UX flow, or authorial prose/thesis (`--open-choice` / `assumed:<choice>`)**:
+  Do not mistake an agent-invented plausible completion for a settled
+  requirement. Even when the user authorizes edits or uses imperative phrasing,
+  if bounded inspection (covering the named target, adjacent sections on the
+  same page/screen, and sibling pages or coupled flows that repeat the same
+  premise) leaves a user-visible design, UX flow, or voice/thesis choice
+  `assumed`—or shows that reconciling a contradiction would require expanding
+  edits to a separate sibling page or surface outside the authorized target—do
+  not auto-fill or start a writable route (`start` rejects writable runs with
+  `--open-choice` or `assumed:` sources, and rejects fabricated `request:`
+  quotes not present in `--request`). When no tracked run is active yet, respond
+  statelessly before `start` (or start read-only `triage`/`ambiguity`) with:
+  (1) what bounded inspection found, including coupled adjacent sections or
+  sibling pages, (2) a concrete design sketch or 2–3-line copy sample with the
+  full coherent edit scope, and (3) the focused Grill-Me decision questions that
+  materially change the result. Once aligned, pass the user's answer in
+  `--continuation-scope` with `--decision-source conversation:<quote>` and
+  `--target-summary`, and reuse that visible exchange as `alignment brief`
+  evidence without re-asking settled questions. If an open decision surfaces
+  inside an already-active tracked run (`triage`, `ambiguity`, or a work route),
+  retain that run and use its `alignment brief` or blocker-question checkpoint.
 
 Planning-only requests remain planning-only. Never infer approval from
 silence or extend permission to a deferred, prohibited or unrelated action.

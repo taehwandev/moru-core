@@ -13,10 +13,17 @@ from workflow_common import (
 )
 
 WORK_SCOPE_GUIDANCE = (
-    "Stay within the confirmed request. Expand reading, samples or edits only for "
-    "an unresolved in-scope decision or an applicable requirement; incidental findings "
-    "do not authorize extra work. Stop when the requested outcome and required checks "
-    "are satisfied. Preserve mandatory instructions; add no planning or approval ritual."
+    "Distinguish settled facts (`request:`, `conversation:`, `repo:`) from "
+    "agent-assumed choices (`--open-choice` / `assumed:`). If bounded inspection "
+    "leaves a user-visible design, UX flow, or prose/thesis choice assumed or "
+    "requires unapproved sibling-surface expansion, do not auto-fill: align "
+    "pre-start (or via an active run's alignment/blocker checkpoint) with repo "
+    "findings, a 2-3 line sample or sketch, and focused Grill-Me questions. "
+    "Expand reading, samples or edits only for an unresolved in-scope decision "
+    "or an applicable requirement; incidental findings do not authorize extra "
+    "work. Stop when the requested outcome and required checks are satisfied. "
+    "Preserve mandatory instructions; add no planning or approval ritual once "
+    "choices are settled."
 )
 
 

@@ -22,8 +22,16 @@ Use when routed to `common/skills/task-intake-effort-routing/SKILL.md` or when w
 
 1. Read this entrypoint first to confirm this guidance area applies.
 2. Open `references/current-guidance.md` when the task touches request clarity, effort, route selection, the alignment brief, or token controls; open a sibling reference only under its condition above.
-3. Select the abstract effort/model tier before applying runtime-specific model ids.
-4. Follow the reference's decision rules, stop conditions, and verification requirements before editing, reviewing, or reporting completion.
+3. Separate decision source attribution (`--decision-source request:<quote>`,
+   `conversation:<quote>`, `repo:<path[:line]>`) from agent-assumed choices
+   (`--open-choice "<choice>"` or `--decision-source assumed:<choice>`). Never
+   claim `ambiguity: resolved` by auto-filling an open design, UX flow, or
+   prose/thesis choice; if any user-visible choice is `assumed` or requires
+   unapproved sibling-surface expansion outside the authorized target, align
+   first with bounded repo findings, a 2–3-line sample or sketch, and focused
+   Grill-Me questions (`references/grill-me-protocol.md`).
+4. Select the abstract effort/model tier before applying runtime-specific model ids.
+5. Follow the reference's decision rules, stop conditions, and verification requirements before editing, reviewing, or reporting completion.
 
 ## Do Not
 

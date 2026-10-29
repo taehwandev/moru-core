@@ -120,6 +120,12 @@ from agent_transfer_cancel import (
     cancellation_receipt_failure,
     cancellation_worktree_drift,
 )
+from workflow_decision_attribution import (
+    add_decision_attribution_arguments,
+    build_compact_envelope_and_approval,
+    evaluate_decision_attribution,
+    format_open_choice_grill_me_refusal,
+)
 from workflow_effect_policy import (
     APPROVAL_REQUIRED_FROM,
     canonical_route_command,
@@ -1821,6 +1827,7 @@ def _add_start_arguments(parser: argparse.ArgumentParser) -> None:
         default=[],
         help="effect prohibited by the current request; repeat when needed",
     )
+    add_decision_attribution_arguments(start)
     parser.add_argument(
         "--continuation-scope",
         default="",
@@ -2455,6 +2462,47 @@ START_ROUTE_NAME_ALIASES = {
 }
 
 
+def _evaluate_compact_start_attribution(
+    args: argparse.Namespace,
+    intent: str,
+    target: str,
+) -> tuple[dict[str, Any], bool, str, str, list[str]]:
+    raw_sources = list(getattr(args, "decision_source", []) or [])
+    raw_open_choices = list(getattr(args, "open_choice", []) or [])
+    declared_ambiguity = str(getattr(args, "ambiguity", "") or "").strip()
+    has_attribution = bool(raw_sources or raw_open_choices or declared_ambiguity)
+    attribution = evaluate_decision_attribution(
+        project=getattr(args, "project", None) or ROOT,
+        request_text=str(getattr(args, "request", "") or ""),
+        continuation_scope=str(getattr(args, "continuation_scope", "") or ""),
+        raw_sources=raw_sources,
+        raw_open_choices=raw_open_choices,
+        declared_ambiguity=declared_ambiguity,
+    )
+    problems = list(attribution["problems"])
+    if attribution["ambiguity"] == "blocking":
+        if args.command not in ("triage", "ambiguity"):
+            problems.append(
+                format_open_choice_grill_me_refusal(args.command, attribution["open_choices"])
+            )
+        else:
+            note_items = attribution["open_choices"] or ["blocking ambiguity declared"]
+            args.start_notes = [
+                *getattr(args, "start_notes", []),
+                f"open choices recorded for Grill-Me alignment: {'; '.join(note_items)}",
+            ]
+    if args.command in ("triage", "ambiguity") and has_attribution and not (intent and target):
+        intent = intent or f"resolve_{args.command}_choices"
+        fallback_target = (
+            attribution["open_choices"][0]
+            if attribution["open_choices"]
+            else f"{args.command} request alignment"
+        )
+        args.target_summary = target or fallback_target
+        target = _bounded_target_summary(args)
+    return attribution, has_attribution, intent, target, problems
+
+
 def _materialize_compact_start_authority(
     parser: argparse.ArgumentParser,
     args: argparse.Namespace,
@@ -2485,7 +2533,10 @@ def _materialize_compact_start_authority(
         approved = ""
         args.approved_effect = None
     prohibited = list(getattr(args, "prohibited_effect", []) or [])
-    compact = bool(intent or target or requested or approved or prohibited)
+    attribution, has_attribution, intent, target, problems = (
+        _evaluate_compact_start_attribution(args, intent, target)
+    )
+    compact = bool(intent or target or requested or approved or prohibited or has_attribution)
     if not compact:
         _canonicalize_publication_start(parser, args)
         return
@@ -2502,9 +2553,9 @@ def _materialize_compact_start_authority(
             f"unknown route `{args.command}`; no approval changes this. "
             f"Choose one of: {', '.join(sorted(COMMANDS))}"
         )
-    problems: list[str] = []
     if not intent or not target:
-        problems.append("compact start authority requires --intent and --target-summary")
+        if not (attribution["ambiguity"] == "blocking" and args.command not in ("triage", "ambiguity")):
+            problems.append("compact start authority requires --intent and --target-summary")
     elif intent_slug_failure(intent):
         problems.append(f"--intent `{intent}` {intent_slug_failure(intent)}")
     args.intent = intent
@@ -2532,10 +2583,7 @@ def _materialize_compact_start_authority(
     # records requested and approved as the same effect.
     if not requested and approved and EFFECT_RANK[approved] > EFFECT_RANK[requested_effect]:
         requested_effect = approved
-    effective_effect = max(
-        (requested_effect, route_effect),
-        key=EFFECT_RANK.__getitem__,
-    )
+    effective_effect = max((requested_effect, route_effect), key=EFFECT_RANK.__getitem__)
     if EFFECT_RANK[effective_effect] >= EFFECT_RANK[APPROVAL_REQUIRED_FROM]:
         if not approved:
             problems.append(
@@ -2543,10 +2591,7 @@ def _materialize_compact_start_authority(
                 "--approved-effect only when the current request authorizes that ceiling"
             )
         elif EFFECT_RANK[approved] < EFFECT_RANK[effective_effect]:
-            problems.append(
-                f"--approved-effect {approved} is below the effective "
-                f"{effective_effect} ceiling"
-            )
+            problems.append(f"--approved-effect {approved} is below the effective {effective_effect} ceiling")
     elif approved:
         # Only reachable below the approval threshold now, which is what the
         # sentence has always claimed: an approval record is what `git_write`
@@ -2560,35 +2605,22 @@ def _materialize_compact_start_authority(
         parser.error("; ".join(problems))
 
     fingerprint = request_fingerprint(request_intake_from_args(args))
-    envelope: dict[str, Any] = {
-        "schema_version": ENVELOPE_SCHEMA_VERSION,
-        "request_fingerprint": fingerprint,
-        "runtime_session_id": session_id,
-        "mode": "work",
-        "intent": intent,
-        "target_summary": target,
-        "requested_effects": [requested_effect],
-        "ambiguity": "resolved",
-    }
-    if prohibited:
-        envelope["prohibited_effects"] = prohibited
-    args.intent_envelope = json.dumps(
-        envelope,
-        ensure_ascii=False,
-        separators=(",", ":"),
+    envelope_json, approval_json = build_compact_envelope_and_approval(
+        command=args.command,
+        fingerprint=fingerprint,
+        session_id=session_id,
+        intent=intent,
+        target=target,
+        requested_effect=requested_effect,
+        approved=approved,
+        prohibited=prohibited,
+        attribution=attribution,
+        schema_version=ENVELOPE_SCHEMA_VERSION,
     )
+    args.intent_envelope = envelope_json
     args.runtime_session_id = session_id
-    if approved:
-        args.approval_record = json.dumps(
-            {
-                "request_fingerprint": fingerprint,
-                "target_summary": target,
-                "effect": approved,
-                "command": args.command,
-            },
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
+    if approval_json:
+        args.approval_record = approval_json
     _canonicalize_publication_start(parser, args)
 
 
@@ -2619,6 +2651,10 @@ def _bounded_target_summary(args: argparse.Namespace) -> str:
 
 def _start_problem_code(problem: str) -> str:
     """Map a compact-start refusal to its fixed lesson slug, never its text."""
+    if "unresolved open choice" in problem:
+        return "start_open_choice_grill_me_required"
+    if problem.startswith(("--decision-source", "--open-choice", "--ambiguity")):
+        return "start_decision_source_invalid"
     if problem.startswith("--intent"):
         return "start_intent_slug_invalid"
     if "effect" in problem:

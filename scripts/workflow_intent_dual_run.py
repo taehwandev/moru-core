@@ -10,9 +10,11 @@ counts and enum labels with no request text in it.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from workflow_common import QUESTION_ROUTE_COMMANDS
+from workflow_decision_attribution import verify_envelope_decision_sources
 from workflow_effect_policy import effect_decision, effective_effect
 from workflow_intent_envelope import validate_envelope
 
@@ -44,6 +46,9 @@ def dual_run_decision(
     approval: dict[str, Any] | None = None,
     request_fingerprint: str = "",
     runtime_session_id: str = "",
+    project: Path | None = None,
+    request_text: str = "",
+    continuation_scope: str = "",
 ) -> dict[str, Any]:
     """Return the authoritative decision plus a content-free comparison.
 
@@ -76,6 +81,14 @@ def dual_run_decision(
             binding_failures.append(
                 "the current runtime session id is required to bind the intent envelope"
             )
+        binding_failures.extend(
+            verify_envelope_decision_sources(
+                envelope,
+                project=project,
+                request_text=request_text,
+                continuation_scope=continuation_scope,
+            )
+        )
     failures = schema_failures or binding_failures or effect_decision(
         command,
         envelope,
@@ -105,6 +118,9 @@ def route_intake_decision(
     approval: dict[str, Any] | None = None,
     request_fingerprint: str,
     runtime_session_id: str,
+    project: Path | None = None,
+    request_text: str = "",
+    continuation_scope: str = "",
 ) -> tuple[dict[str, Any] | None, list[str]]:
     """Return envelope-backed work classification or a fail-closed reason."""
 
@@ -119,6 +135,9 @@ def route_intake_decision(
         approval=approval,
         request_fingerprint=request_fingerprint,
         runtime_session_id=runtime_session_id,
+        project=project,
+        request_text=request_text,
+        continuation_scope=continuation_scope,
     )
     if decision["failures"]:
         return None, list(decision["failures"])
@@ -130,17 +149,23 @@ def classification_from_envelope(
 ) -> dict[str, Any]:
     """Translate an accepted envelope into the shape route consumers read."""
 
+    is_blocking = envelope.get("ambiguity") == "blocking"
     return {
-        "clarity": "clear-scoped",
+        "clarity": "ambiguous" if is_blocking else "clear-scoped",
         "effort": "standard",
-        "grill_me": False,
-        "question_drill": False,
-        "response_mode": envelope["mode"],
-        "recommended_route": "",
+        "grill_me": is_blocking,
+        "question_drill": is_blocking,
+        "response_mode": "clarify_first" if is_blocking else envelope["mode"],
+        "recommended_route": "ambiguity" if is_blocking else "",
         "continuation_scope_used": False,
         "reason": (
-            "The runtime supplied an intent envelope; Moru verified its effects "
-            f"against the route floor and reached `{decision['effective_effect']}`."
+            "The runtime supplied an intent envelope with blocking ambiguity or open "
+            "choices; align with the user through Grill-Me before starting a work route."
+            if is_blocking
+            else (
+                "The runtime supplied an intent envelope; Moru verified its effects "
+                f"against the route floor and reached `{decision['effective_effect']}`."
+            )
         ),
         "intent_envelope": decision,
     }

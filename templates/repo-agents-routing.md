@@ -160,7 +160,14 @@ a ready and valid parent execution capsule; every other caller passes
 resolved-scope evidence such
 as `clear-scoped`, `answered ... separate actionable`, or `blockers resolved`,
 not weak markers such as `classified`, `done`, `clarified`, or `no blockers`.
-If a request asks for Grill-Me or classification returns `grill_me: true`,
+Attribute user-visible choices with `--decision-source request:<quote>`,
+`conversation:<quote>`, or `repo:<path[:line]>`; when bounded inspection leaves a
+user-visible design, UX flow, or prose/thesis choice `assumed` (`--open-choice`
+or `--decision-source assumed:<choice>`), do not auto-fill or start a writable
+route—align first with repo findings, a 2–3-line sample or sketch, and focused
+Grill-Me questions, then pass the user's answer in `--continuation-scope`.
+If a request asks for Grill-Me, has open choices, or classification returns
+`grill_me: true`,
 missing Grill-Me protocol or `/grilling` session evidence is 🐱🔴 FAIL and
 requires missed-gate recovery.
 Do not load every shared document by default.

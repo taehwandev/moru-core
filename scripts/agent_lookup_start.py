@@ -68,6 +68,9 @@ def lookup_start(args: argparse.Namespace) -> int | None:
         approval=read_approval_record(args.approval_record),
         request_fingerprint=request_fingerprint(intake),
         runtime_session_id=args.runtime_session_id,
+        project=args.project.resolve(),
+        request_text=str(args.request or ""),
+        continuation_scope=str(args.continuation_scope or ""),
     )
     failures.extend(authorization_failures)
     if classification and classification["intent_envelope"]["effective_effect"] != "read":

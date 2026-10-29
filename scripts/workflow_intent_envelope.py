@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Any
 
 
+from workflow_decision_attribution import validate_envelope_decision_fields
+
+
 SCHEMA_VERSION = 1
 MAX_TARGET_SUMMARY_CHARS = 200
 
@@ -35,7 +38,12 @@ REQUIRED_FIELDS = (
     "requested_effects",
     "ambiguity",
 )
-OPTIONAL_FIELDS = ("prohibited_effects", "approval_ref")
+OPTIONAL_FIELDS = (
+    "prohibited_effects",
+    "approval_ref",
+    "decision_sources",
+    "open_choices",
+)
 _ALLOWED_FIELDS = frozenset(REQUIRED_FIELDS + OPTIONAL_FIELDS)
 
 _SAFE_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
@@ -155,6 +163,7 @@ def validate_envelope(envelope: Any) -> list[str]:
             approval_ref
         ):
             failures.append("intent envelope `approval_ref` must be an opaque id string")
+    failures.extend(validate_envelope_decision_fields(envelope))
     failures.extend(_contradiction_failures(envelope))
     return failures
 

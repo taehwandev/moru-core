@@ -150,7 +150,7 @@ def effect_decision(
             f"the effective effect `{effect}` is at or above the prohibited "
             f"`{prohibited}`; the selected route or the invoked tool requires it"
         )
-    if envelope.get("ambiguity") == "blocking":
+    if envelope.get("ambiguity") == "blocking" and command not in ("triage", "ambiguity"):
         failures.append(
             "the runtime reported the request as ambiguous; resolve it before work"
         )

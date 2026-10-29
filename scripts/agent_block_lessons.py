@@ -60,6 +60,8 @@ NEXT_ACTIONS: dict[str, dict[str, str]] = {
         "start_effect_approval_mismatch": "match_approved_effect_to_route",
         "start_session_unbound": "start_from_the_runtime_session",
         "start_continuity_invalid": "check_the_continue_from_run",
+        "start_open_choice_grill_me_required": "align_open_choices_with_user_first",
+        "start_decision_source_invalid": "cite_verified_request_conversation_or_repo_source",
         "publication_already_finished": "continue_the_pending_publication",
         "task_affinity_conflict": "finish_or_transfer_the_active_task",
         "run_claim_conflict": "resume_or_cancel_the_claimed_run",
