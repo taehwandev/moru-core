@@ -44,9 +44,9 @@ not a reason to repeat passed tests or review. Automatic hook checkpoints need
 no manual checkpoint; write semantic resume state only for interruption, changed
 scope or handoff.
 
-The prompt hook delivers this section once per session and when changed. It
-starts no task, invalidates no passed check and grants no authority; completed
-tasks stay completed.
+The prompt hook delivers this section once per session and on change. It starts
+no task, invalidates no passed check and grants no authority; a completed task
+stays completed.
 
 ## Proportionate Execution
 
