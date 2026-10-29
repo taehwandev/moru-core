@@ -19,21 +19,31 @@ and report it. Remote deletion requires an explicit request.
    owner. Apply the same identity rule in personal, shared, and company repos.
 2. `git fetch --prune`, then `git worktree list` and `git branch -vv` for the
    current state.
+3. For a multi-item request, inventory every in-scope branch, worktree and
+   stash before declaring the investigation complete. Classify each as
+   integrated and safe, active or dirty, protected, unmerged, uncertain, or
+   outside the approved scope, with the evidence and next action. Continue
+   independent checks and approved deletions when one item is blocked. Do not
+   turn an unexamined item into a claim that it is unmerged or unsafe.
 
 ## Deletion Gates
 
 ### Ownership
 
 Delete only branches whose owner segment matches the verified hosting account
-ID for the target host, using Branch Strategy's identity sources.
-Branches owned by someone else are never deleted, regardless of merge state or
-how abandoned they look. Branches with no owner prefix have an unknown owner
-and are never deleted. Report both kinds when noticed.
+ID for the target host, using Branch Strategy's identity sources, unless the
+user directly authorizes an exception. Branches owned by someone else are
+preserved, regardless of merge state or how abandoned they look. Branches with
+no owner prefix have an unknown owner and are preserved by default. Report both
+kinds when noticed.
 
 Commit author names/emails, a shared tip, local-only status, and the absence of
 an upstream do not establish branch ownership or override this gate. A generic
 cleanup request does not waive it. Preserve legacy branches with an unknown
 owner and report them for a separately scoped ownership/migration decision.
+Honor a user's explicit instruction covering named ownerless items or overriding
+this restriction; a question or approval about one subset does not narrow the
+rest of an existing request. Keep other people's work and active work protected.
 
 ### Protected Branches
 
@@ -60,6 +70,14 @@ Do not rely on `git branch -d`'s own merge judgment. A squash or rebase merge is
 handled by the authoritative PR result above; without that result, preserve it
 unless the ancestry fallback passes or the user explicitly approves a separate
 manual recovery decision.
+When the user requests investigation of locally integrated work without a PR,
+inspect all branch-only commits with patch equivalence and, when patches differ,
+compare the candidate integration commits and affected paths. Treat matches as
+evidence, not proof of safe removal: distinguish identical patches, reviewed
+integration changes, and unresolved differences, and separately check active
+work. An explicit user instruction may authorize a reviewed manual decision;
+retain the exact branch tips for recovery. Never override an authoritative
+unmerged PR with these checks.
 
 ### Worktree State
 
@@ -111,11 +129,14 @@ Log the tip SHA of every branch before deleting it.
 
 ## Stop If
 
-- The integration branch, owner segment, or hosting account ID cannot be
-  determined, or repo-local naming policy conflicts with the shared format.
-- The authoritative PR result or ancestry fallback says the branch is not
-  merged, or the leased deletion reports that its tip moved.
-- A deletion target is checked out, dirty, protected, or not owned.
+- The integration branch cannot be determined, or repo-local naming policy
+  conflicts with the shared format.
+- Ownership cannot be determined and the user has not authorized an exception.
+- An authoritative PR is not merged, the available integration evidence does
+  not establish the approved manual decision, or a leased deletion reports a
+  moved tip.
+- A branch is still checked out, or the target is dirty, active, protected, or
+  not covered by the user's ownership authorization.
 
 ## Report
 
@@ -127,3 +148,6 @@ After cleanup, report:
 - the logged SHAs of deleted branches
 - any incident during cleanup (timeout interruption, concurrent tip movement);
   never hide one
+- coverage of all requested item types, including which items were not yet
+  investigated, and the concrete reason for every preserved item. A successful
+  cleanup gate or a partial deletion is not proof the entire request is done.

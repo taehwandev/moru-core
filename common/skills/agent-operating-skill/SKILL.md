@@ -44,6 +44,14 @@ not a reason to repeat passed tests or review. Automatic hook checkpoints need
 no manual checkpoint; write semantic resume state only for interruption, changed
 scope or handoff.
 
+Before a final response or declaring the outcome complete, reconcile the full
+user-requested scope against the actual result. Continue any authorized,
+independent work that remains; a passing hook, completed subset, user question,
+or pending decision on one item does not complete the rest. Distinguish work
+not yet investigated from a verified blocker, and report partial results as
+partial. Retain earlier authorization unless the user changes or revokes it;
+do not narrow the original scope to the last approved subset.
+
 The prompt hook delivers this section once per session and on change. It starts
 no task, invalidates no passed check and grants no authority; a completed task
 stays completed.

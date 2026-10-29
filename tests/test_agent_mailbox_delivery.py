@@ -167,7 +167,20 @@ class SessionDeliveryTests(unittest.TestCase):
         self.assertIn("Status questions, impatience", output)
         self.assertIn("Automatic hook checkpoints need no manual checkpoint", output)
         self.assertIn("a completed task stays completed", output)
+        self.assertIn("reconcile the full user-requested scope", output)
+        self.assertIn("Continue any authorized, independent work that remains", output)
+        self.assertIn("do not narrow the original scope to the last approved subset", output)
         self.assertNotIn("## Proportionate Execution", output)
+
+    def test_codex_receives_the_real_scope_continuation_guidance(self):
+        source = ROOT / "common/skills/agent-operating-skill/SKILL.md"
+        output = io.StringIO()
+        payload = {"session_id": "codex-scope", "cwd": str(self.project)}
+        with patch.object(hook, "_CONTINUITY_SOURCE", source), redirect_stdout(output):
+            hook.deliver(payload, "codex")
+        text = " ".join(json.loads(output.getvalue())["hookSpecificOutput"]["additionalContext"].split())
+        self.assertIn("reconcile the full user-requested scope", text)
+        self.assertIn("do not narrow the original scope to the last approved subset", text)
 
     def test_the_prompt_hook_shows_each_message_with_its_id_once(self):
         packet = self.send(body="Please review the gate change.")
