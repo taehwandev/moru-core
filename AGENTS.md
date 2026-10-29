@@ -23,428 +23,124 @@ repo. Project LLM wikis are navigation unless the target repo marks a page as a
 reviewed source of truth; they never override instructions, design decisions,
 workflow gates, or source documents.
 
-Shared library documents are written in English. Public docs may be localized
-but do not become the guidance source of truth. Frontmatter `status` is the
-readiness signal: `draft` is provisional, `review` is active, and `stable`
-is broad-use. `type` records provenance.
+Shared library documents are written in English; localized public docs never
+become the source of truth. Frontmatter `status`: `draft` provisional, `review`
+active, `stable` broad-use; `type` records provenance.
 
 ## Project Entry
 
-Identify the target project from the request and current directory before
-project work. When it is not explicit or the runtime starts elsewhere, use the
-installed Moru project-discovery entrypoints. An explicitly named new project
-path may be created and edited even when discovery reports `not_found`: there
-is no existing project to select yet. Once created, read its instructions if
-present and apply its Git/worktree policy when initialized. Ask the user for a
-target only when it remains ambiguous or unidentified.
-
-Read a target project's runtime instruction file when present before shared
-guidance. For Codex that is the project-root `AGENTS.md`. A new directory need
-not contain instructions before its first files are authored; the current
-request and shared guidance apply until the project provides its own. An
-absent instruction file is not a reason to stop; an existing file that cannot
-be read, or an unconfirmed runtime bridge, is.
-
-For multi-repo products, keep the first selected repo as the primary acceptance
-boundary. Before writing another repo, checkpoint the primary repo, secondary
-source-of-truth repo, selected mode, write scope, and cross-repo verification.
-Canonical Moru Core skill and rule updates during a verified `reusable_gap`
-(`skill-maintenance`) or blocking `failure-repair` carry standing self-evolution
-authority: apply and verify them in the same closeout without asking the user.
+Identify the target from request/cwd; use installed discovery only if unresolved.
+Read target runtime instructions before shared guidance; a missing file/new
+project is allowed, an unreadable existing file or unconfirmed bridge is not.
+Repo policy governs paths and Git isolation. Keep the primary repo as acceptance
+boundary; checkpoint before cross-repo writes. For bootstrap/discovery/multi-repo
+details, read [project entry details](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md#project-entry).
 
 ## Required Work Lifecycle
 
-For implementation, review, refactoring, debugging, documentation, and planning,
-read `common/skills/agent-operating-skill/SKILL.md` first. For multi-step
-work requiring a tracked lifecycle, use the installed absolute Moru launcher.
-Read-only lookup, explanation, status, checks of a supplied diagnosis, and
-pre-`start` design or copy alignment when bounded inspection shows the target
-outcome, thesis, or cross-surface coherence is still open instead inspect
-bounded direct evidence and answer or align without start, fingerprint,
-mailbox, checkpoint, gate, review, or finish calls. Applicable project
-instructions and source contracts still apply; this exception does not waive a
-target project's explicit workflow. Do not create task state or refresh indexes
-merely to answer or align. A lookup or alignment exchange that expands into an
-edit must enter the writable lifecycle before that edit.
+Read `common/skills/agent-operating-skill/SKILL.md` before project work.
+Read-only lookup, explanation, status, checks of a supplied diagnosis and open
+pre-start alignment use bounded evidence without lifecycle state/index refresh.
+Explicit change/PR reviews and release acceptance keep workflows; a delegated no-edit
+reviewer leaves lifecycle ownership with the lead. Honor target-repo workflows.
 
-Checking an existing explanation against source or measurements is not a diff
-review merely because the user says "verify". Explicit change/PR reviews and
-release acceptance retain their review workflow. A no-edit review delegated by another runtime's lead stays read-only; that lead owns its review workflow. Keep repo-installed routing
-blocks consistent with this distinction when updating their shared template;
-updating this library alone does not replace a project's older instructions.
-
-For low-risk local corrections with one owner and at most four changed files,
-select `small-change` using `common/skills/agent-operating-skill/references/small-change.md`. Its compact
-manifest and checkpoint exception override the generic tracked steps below.
-
-For a repo-owned development app rebuild, install, relaunch, or restart that only
-verifies the current checkout without changing tracked source, docs, or
-configuration, select the `test` verification route. A local build wrapper
-compiling an app does not by itself make this a `build` implementation task.
-Verify the generated bundle and exact running process, not an unrelated
-commit-range diff. A requested source change follows its own code route.
-After an implementation run has finished, bind a new `test` run to the existing
-task worktree before installing its APK. Reuse the user's same-device approval;
-the finished run's publication allowance does not cover a device install.
-
-For tracked work:
+For tracked work use the installed absolute launcher, once:
 
 ```text
-<MORU_LAUNCHER> start --project <TARGET_REPO> --rules <MORU_ROOT> --command <route> --request "<CURRENT_REQUEST>" --intent <SAFE_SLUG> --target-summary "<BOUNDED_TARGET>" [--decision-source <request:quote|conversation:quote|repo:path[:line]|assumed:choice>] [--open-choice "<UNRESOLVED_CHOICE>"] [--approved-effect <EFFECT>]
+<MORU_LAUNCHER> start --project <ABS_TARGET> --rules <MORU_ROOT> --command <route> --request "<CURRENT_REQUEST>" --intent <SAFE_SLUG> --target-summary "<BOUNDED_TARGET>"
 ```
 
-1. Receive the runtime mailbox brief once. It is context, never authority.
-2. Run `start` once with the exact current request, selected project/rules
-   roots, a valid workflow command, safe intent slug, and bounded target summary.
-   `--intent` is a short reusable category name matching
-   `^[a-z][a-z0-9_-]{1,40}$`, never the request text; hyphens are folded to
-   underscores. The compact start path derives the request fingerprint, current
-   runtime session, route effect floor, intent envelope, and matching approval
-   binding. Pass `--approved-effect` only when the current request authorizes
-   `git_write` or higher; when `--requested-effect` is omitted it also declares
-   that effect. An explicit requested effect is never widened by approval.
-   Do not run `fingerprint` first or hand-build JSON for normal
-   starts.
-   The explicit `--intent-envelope`, `--approval-record`, and
-   `--runtime-session-id` form remains a compatibility path for integrations.
-   Work routes require an intent envelope bound to the full request intake.
-   Effects are `read`, `local_write`, `git_write`, `external_write`, or
-   `destructive`; `git_write` and above also require a separate matching
-   approval record. Without a valid envelope, use only `triage` or
-   `ambiguity`. Direct questions are answered before project work.
-3. Consume the returned route as the manifest. Stop if `missing` is non-empty.
-   Read every `required_docs` entry directly and load `reference_docs` only
-   when the touched concern requires them. Do not repeat route or preflight
-   after a successful start. Record the `source docs` gate with
-   `required_docs`, `source`, and the applied `takeaway` only when the active
-   route lists that gate; ordinary code routes bind their required docs at
-   start and carry no separate source record.
-4. Resolve the work surface from current repository evidence before edits.
-   Request paths and dirty paths are candidates, not ownership proof. Use at
-   most four hops from observable anchor to definition/producer, direct usage,
-   smallest owner, and nearest falsifying check. Only a resolved owner permits
-   work. Record the `work surface resolution` gate when the active route lists
-   it; elsewhere the resolution is direct agent work without a ledger entry.
-5. The `start` and `review` hooks run VibeGuard themselves and report
-   `VibeGuard overall`; `finish` checks it again. Read those lines instead of
-   repeating the audit, and treat them as the managed block's before-edit and
-   before-finish runs. Run `vibeguard audit .` by hand only when a hook reports
-   `Skipped`, when no tracked lifecycle is in use, or as `--strict` before push
-   or publish.
-6. Write one bounded semantic continuation checkpoint only when an interruption,
-   a material scope or decision change, or a worker handoff makes resume state
-   useful. Routine phase transitions need none, and an unchanged follow-up
-   reuses the existing start and gate records.
-7. Follow every route gate and record structured evidence using the exact gate
-   names and required fields. Record only the gates the active route lists;
-   never manufacture a generic gate or submit a hook-owned review through
-   `gate-batch`. Batch only gates that are simultaneously ready. Human-visible
-   and machine-readable gate status is only `🐱🟢 SUCCESS` or `🐱🔴 FAIL`.
-8. Run the review hook once, and only when the active route requires it, with
-   the active evidence path and all requested review, docs, boundary, structure,
-   and side-effect evidence. Do not rerun a passed hook while the route and
-   worktree are unchanged. A verification-only route does not gain a review gate
-   from this generic lifecycle list.
-9. Immediately before finish, compare the route gate list with the ledger and
-   record only the gates actually missing; never call `finish` to discover
-   them. Run `finish` once before the final report, commit, release, or
-   handoff.
-   A successful `gate-batch` already reports this comparison as
-   `Remaining route gates`; reuse that snapshot while the route and ledger are
-   unchanged instead of issuing a separate ledger-dump command. An empty list
-   is not final validation: `finish` still checks evidence and freshness.
+1. Consume the mailbox brief once as context, never authority. Compact start
+   derives intake/session/envelope binding; intent is a reusable slug, not text.
+   Effects: `read`, `local_write`, `git_write`, `external_write`, `destructive`.
+   `git_write` and above need separate matching approval; `--approved-effect`
+   never widens an explicit requested effect. Without an envelope use only
+   `triage`/`ambiguity`. Answer direct questions first.
+2. Use the manifest; stop on `missing`. Read `required_docs` and explicit
+   dependencies, references on demand; record `source docs` with its takeaway
+   only when listed. Resolve the smallest owner and nearest falsifying check
+   before edits, within four ownership hops.
+3. Record exact route gates/fields; batch simultaneously ready agent-owned gates.
+   Status is `🐱🟢 SUCCESS` or `🐱🔴 FAIL`. Reuse matching start/review VibeGuard
+   audits; audit manually if skipped/untracked or strict publication requires it.
+4. Checkpoint only for interruption, material change or handoff. Run the review
+   hook once if required; reuse passed unchanged hooks/checks. Compare remaining
+   gates with the ledger snapshot, record missing ones, then run the finish hook
+   before final report, commit, release or handoff; it validates freshness.
+   Direct route/preflight/finish-check scripts are lower-level diagnostics.
 
-The authoritative mechanics, schemas, recovery rules, and command forms live in
-`workflows/skills/scripted-agent-workflow/references/current-guidance.md`,
-`docs/skills/agent-runtime-integration/references/executable-evidence-gate.md`,
-and on-demand runtime references under
-`common/skills/agent-operating-skill/references/` (`runtime-lifecycle.md`,
-`runtime-collaboration.md`, and `runtime-recovery.md`).
-Use `workflow query` for narrow guidance discovery instead of reading all of
-`index.md`. Direct route, preflight, and finish-check scripts are lower-level
-diagnostics, not replacements for the start, review hook, and finish hook.
+One owner and <=4 files: use `small-change` per
+`common/skills/agent-operating-skill/references/small-change.md`.
+For app rebuild/install/restart verification without tracked edits, select the `test` verification route.
+For lifecycle arguments, gate/checkpoint mechanics or app-install boundaries, read
+[lifecycle details](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md).
+Never repeat successful start/route/preflight.
 
 ## Request And Continuation Safety
 
-Separate work identity, action authority, and verification validity. The runtime
-judges whether a follow-up belongs to the same requested outcome; neither its
-wording nor a route name decides this. Keep an unchanged active action. When a
-new action requires admission, use `start --continue-from <previous run id>`:
-the action retains the original work id and immutable predecessor evidence,
-while its current scope and authority are independently checked. Omit this
-option for unrelated work. Cancelled or foreign-session work is not inherited.
+Keep confirmed outcomes/constraints across follow-ups; runtime judgment owns
+intent/scope/authority. Execute settled requests and verify observable results;
+align unshaped design/UX/thesis before writable start, which rejects
+`--open-choice` and `assumed:` decision sources. Ask only for unresolved
+decisions or authority. Planning, silence, preparation and continuation scope
+grant no mutation authority. Continue until complete or concretely blocked;
+report unmet requirements. Unresolved intake stays `triage`/`ambiguity`.
 
-For matching verification scope, toolchain, retained artifacts and external
-inputs, supply one bounded `--reuse-inputs` attestation with that start. Valid
-local gates carry automatically; act on the returned remaining gates rather
-than reconstructing passed records. Unknown or changed inputs omit the
-attestation and retain history without passing gates. This never transfers
-approval, current external results, review, or completion. Do not invent new
-phrase-specific continuation exceptions.
+Every route with minimum effect `read` is non-mutating. A higher declared/tool
+effect never upgrades its frozen manifest; start a matching writable route
+before writing. `--read-only` applies to the whole run; finish rejects drift,
+including legacy read-floor evidence. Never bypass VibeGuard. `retrospective`
+has a `local_write` floor for canonical maintenance; use `analysis` for no-edit
+reflection. Explicit read-only still prevents retrospective writes.
 
-Local gate records may declare `input_paths` only when the check is independent
-of commit metadata and the complete file dependency set is known. An empty
-list covers all non-ignored project files; explicit paths cover exactly those
-files. Rules are always covered. Content changes invalidate the dependent
-record; committing identical contents does not. Omit this optional field for
-revision-sensitive or uncertain checks. Ignored artifacts and environment
-remain part of the runtime's input attestation, never inferred from Git bytes.
-
-Keep the user's requested outcome across follow-ups. Before asking a question,
-reuse confirmed targets, constraints and acceptance criteria from the current
-conversation, then inspect bounded evidence for facts the agent can determine.
-Missing agent-generated intake evidence is not a missing user requirement.
-`prepare_intent` and `resolve_context` are advisory preparation states, never
-work authorization; they do not waive an envelope, risk checks or fresh approval.
-Ask only for a remaining material ambiguity, conflicting instruction or missing
-authority. Do not ask the user to repeat a settled requirement or approve the
-same authorized action again. Current scope changes override prior context.
-
-The runtime owns contextual intent, sequence, scope and authority judgment;
-Moru checks its bound declaration and the proposed action's safety, not whether
-the user's wording matches a phrase recognizer. Separate authority to act from
-how fully the intended result is shaped, judging from epistemic state after
-bounded inspection rather than prompt keywords or grammatical mood:
-
-- **Settled target and outcome (`request:<quote>`, `conversation:<quote>`, `repo:<path[:line]>`)**:
-  When every user-visible choice is backed by a verbatim `--request` quote,
-  confirmed `--continuation-scope` exchange, or existing repository file/line
-  (for example, user-supplied exact wording, a typo or fact fix, an
-  already-approved sample, or a specified thesis update where directly coupled
-  in-scope passages on the same page can be reconciled in the same pass), an
-  authorized execution request is actionable when first made, including ordered
-  work: perform the authorized steps in order rather than treating an
-  acknowledgement or plan as completion. Do not require another confirmation
-  merely because the agent announced its plan.
-- **Unshaped design, UX flow, or authorial prose/thesis (`--open-choice` / `assumed:<choice>`)**:
-  Do not mistake an agent-invented plausible completion for a settled
-  requirement. Even when the user authorizes edits or uses imperative phrasing,
-  if bounded inspection (covering the named target, adjacent sections on the
-  same page/screen, and sibling pages or coupled flows that repeat the same
-  premise) leaves a user-visible design, UX flow, or voice/thesis choice
-  `assumed`—or shows that reconciling a contradiction would require expanding
-  edits to a separate sibling page or surface outside the authorized target—do
-  not auto-fill or start a writable route (`start` rejects writable runs with
-  `--open-choice` or `assumed:` sources, and rejects fabricated `request:`
-  quotes not present in `--request`). When no tracked run is active yet, respond
-  statelessly before `start` (or start read-only `triage`/`ambiguity`) with:
-  (1) what bounded inspection found, including coupled adjacent sections or
-  sibling pages, (2) a concrete design sketch or 2–3-line copy sample with the
-  full coherent edit scope, and (3) the focused Grill-Me decision questions that
-  materially change the result. Once aligned, pass the user's answer in
-  `--continuation-scope` with `--decision-source conversation:<quote>` and
-  `--target-summary`, and reuse that visible exchange as `alignment brief`
-  evidence without re-asking settled questions. If an open decision surfaces
-  inside an already-active tracked run (`triage`, `ambiguity`, or a work route),
-  retain that run and use its `alignment brief` or blocker-question checkpoint.
-
-Planning-only requests remain planning-only. Never infer approval from
-silence or extend permission to a deferred, prohibited or unrelated action.
-Before ending an execution turn, continue the next authorized step unless the
-outcome is complete or a concrete blocker, required user decision, approval
-boundary or interruption prevents it. In that case report actual partial work
-and what remains; do not end with only a promise. This is an agent execution
-responsibility, not a new classifier, gate, receipt or Stop auto-resume rule.
-
-For an authorized correction, continue into the correction rather than ending
-with an apology, explanation of what should have happened, or another offer to
-do the same work. Check the requested observable outcome, not just test totals:
-reproduce the reported case before a fix and verify it afterward. When intake
-or routing changes, include the actual follow-up wording and prior scope in
-tests, not only a preselected route. Preserve negative authority and ambiguity
-controls. Report any unmet requirement explicitly; passing unrelated tests or
-completing gates is not proof the requested result works. This adds no new gate
-or mandatory document read.
-
-For terse follow-ups, keep `--request` equal to the user's current words and
-put bounded prior target context in `--continuation-scope`. The fingerprint
-must cover both plus classification flags exactly. Continuation scope never
-opens a work route or authorizes mutation. `--request-classified` is only for
-a delegated worker holding a ready, valid capsule bound to the same intake.
-
-When a tracked run is already active, evidence that still says the request is
-vague, direct-question-first, ambiguous, unresolved, or blocker-open stays on
-`triage` or `ambiguity` rather than opening a writable work route. Weak markers
-such as “classified”, “done”, or generic “clarified” do not prove scope
-resolution.
-
-Every route whose minimum effect is `read` is intrinsically non-mutating.
-Before a writing action, start a matching writable route with current scope
-and authority; a higher declared or tool effect does not upgrade a read route's
-frozen gate manifest. Finish rejects workspace drift on all read-floor routes,
-including legacy evidence without an explicit read-only flag. `start --read-only`
-on another route makes the same whole-run claim. Do not bypass VibeGuard.
-`retrospective` has a `local_write` floor because its existing repair and
-same-closeout maintenance contract includes canonical document edits. Use
-`analysis` for reflection without edits; an explicit `--read-only` claim still
-prevents writes even on `retrospective`.
-
-For merged-branch and worktree removal, select `cleanup`, not `task` or
-`code-simplify`. For a terse follow-up such as "정리도해줘", resolve the exact
-Git targets from the current conversation before selecting `cleanup`; the bare
-phrase or continuation scope alone grants no deletion authority. Mixed code
-changes and cleanup are separate action scopes, not a shortcut into cleanup.
-The Claude PreToolUse adapter rejects mutating tools for an active read-only
-run before worktree-entry waivers; read-only commands retain their fast path
-and workflow start remains available for a legitimate route transition. This
-adapter does not imply native pre-tool enforcement in other runtimes.
-
-Compatibility `start --command analysis` without existing evidence validates its
-read-only intake and returns stateless guidance. Explicit legacy evidence retains
-its original lifecycle. Newly routed work carries lifecycle version 2: the Stop
-boundary retains unfinished work as `blocked` or `interrupted` without demanding
-another model turn. A run that records no action is not evidence the work was
-skipped: the agent may be waiting on a question or declined approval, or may have
-acted without recording it, so Stop never forces a resume on that basis. These
-outcomes are resumable, never completion, verification, or commit readiness.
-Preserve partial changes and unresolved effects; revalidate ownership, scope, and
-authority before resuming. Never reinterpret an unknown lifecycle version as a
-legacy run.
+For continuation/reuse-inputs, alignment/closure, cleanup authority, adapter
+limits or blocked/interrupted Stop semantics, read
+[request/continuation details](common/skills/agent-operating-skill/references/request-continuation.md).
+Work identity never carries approval/verification by itself.
 
 ## Documents And Search
 
-Apply the Need-Driven Reading Contract in
-`common/skills/agent-operating-skill/SKILL.md`. Read the route's
-`required_docs` and explicit `requires_docs` dependencies; load
-`reference_docs` only for an unresolved in-scope decision. Ordinary links,
-graph neighbors, the route's provenance-only `docs` field, and spare selection
-budget never form another reading queue. Generated pointer entrypoints resolve
-to their reference; retain substantive entrypoint rules alongside it.
+Apply the Need-Driven Reading Contract; links, graph neighbors, provenance-only
+`docs` and spare budget create no reading queue. Required docs and explicit
+dependencies remain mandatory; a missing required document stops work.
+Use bounded direct source search first. `index.md` is a fallback catalog, not an
+additional startup requirement. Use `workflow query` for unresolved guidance.
 
-Normal implementation selection is deterministic: the command workflow,
-guaranteed gate/risk contracts, and verified owner/action guidance. Preserve
-required dependencies regardless of optional budget. `docs`, `prd`, and
-`task` do not fill spare slots with generic intake or discipline references.
-A prompt advisory suggests a route, not an actionable task; its platform cards
-remain references until the request or verified owner requires them. For
-`analysis`, preserve `reading_scope`: read the answering definition and only
-the callers needed to resolve the question, not implementation procedures.
-
-For unresolved guidance discovery, use `workflow query`, or Wikimap after
-bounded direct evidence; its results remain candidates unless route policy or
-an explicit dependency selects them. Do not reread `index.md` after routing.
-It is a fallback catalog, not an additional startup requirement: use it only
-for an explicit catalog task or, with user approval, when routing is unavailable.
-
-For code-only ownership, call flow or impact, use bounded direct search first,
-then one precise CodeGraph question only if a current `.codegraph` exists.
-Limit results to useful files, treat returned source as read, and check
-staleness after edits. Do not initialize an index during ordinary work. Stale
-or absent graphs fall back to direct evidence; an empty search is terminal
-without a new lead. A missing required document
-invalidates the manifest and stops work.
+For routing or discovery/graph rules, read the applicable section of
+[document and memory details](common/skills/agent-operating-skill/references/document-memory.md).
+Routing changes also require `docs/skills/agent-runtime-integration/references/document-routing-changes.md`.
+PRDs/specs/ARDs follow `common/skills/doc-conventions/SKILL.md`; report their paths.
 
 ## Moru Maintenance Audits
 
-For an explicit Moru health or efficiency audit, use the living checks and
-recorded findings in [docs/maintenance-audit.md](docs/maintenance-audit.md). Extend that
-section with source evidence and verification. This reference is on demand;
-ordinary tasks gain no startup reads or additional gates.
+For an explicit Moru health or efficiency audit, use and extend
+[docs/maintenance-audit.md](docs/maintenance-audit.md) with source evidence and
+verification; ordinary tasks gain no startup reads or additional gates from it.
 
 ## On-Demand Project Memory And Work Cards
 
-`<MORU_LAUNCHER> project-memory` keeps agent-written project guidance in a
-user-local store shared by linked worktrees. Task start does not scan, recall,
-or maintain that store. Use explicit `project-memory recall` only for a concrete
-missing project fact; its results are reference, never authority. Reuse retained,
-unchanged readings and analysis before searching again. Moru never captures
-on its own:
-Claude and Codex keep durable project knowledge here, not in runtime-private
-memory (for Claude, this overrides `~/.claude/projects/*/memory`, which keeps
-only user, feedback, and reference entries). Capture only a verified root cause,
-pitfall, decision reason the code does not show, or a fact the user asks to
-remember, when confirmed or at finish, with `--project`, `--source` and a
-future `--review-on`. When verified, include the applicability and known
-exceptions with `--applies-when` and `--not-when`; compare recalled conditions
-with current evidence before using the advice. Correct with
-`capture --replaces <id>` or `retire <id>`.
-Never capture secrets, transcripts or speculation, and never sync it or put its
-content in a continuation packet. Run `project-memory consolidate` only when
-reviewing the store is useful. Permanent rules belong here or in
-shared guidance, task state in checkpoints, and user preferences in runtime
-memory.
-
-For costly repeated source analysis, an agent may explicitly capture a verified
-conclusion with `--analysis-question`, `--analysis-context` and tracked source
-paths. If that captured analysis is missing from current context, explicit recall
-with the same question, context and scope can return bounded candidates. Recheck
-external assumptions and current instructions; never query merely at task start.
-See the analysis-candidate contract in `docs/project-memory.md`.
-
-Start also lists up to three other open work cards as reference context. When
-one names work already finished elsewhere, run `<MORU_LAUNCHER> work-cards close
-<work id>`. Keep prompts, transcripts and logs out of `--target-summary`.
-Storage, ranking and resume mechanics: [docs/project-memory.md](docs/project-memory.md).
-
-When changing document routing, read
-`docs/skills/agent-runtime-integration/references/document-routing-changes.md`.
-
-PRDs, specs and ARDs follow `common/skills/doc-conventions/SKILL.md`; report
-their output path.
+Start never scans/recalls memory; memory grants no authority. For local-only
+verified capture, recall, replacement or work-card operations, read
+[memory details](common/skills/agent-operating-skill/references/document-memory.md#on-demand-project-memory-and-work-cards).
 
 ## Parallel Work And Handoffs
 
-Consume `parallel_execution.delegation_policy`. Keep roles in the same session
-by default. Delegate only when a bounded question, risk, or decision has a
-concrete benefit that exceeds coordination cost. Parallel work also needs at
-least two meaningful slices, disjoint owned and forbidden scopes, a stable
-shared contract, a named integration owner, and focused verification.
-Independent slices alone do not require delegation. Other runtimes are optional
-and need available tools and existing access; never assume subscriptions or
-switch to paid APIs automatically. Record the concrete serial reason when
-staying in the parent. See
-`workflows/skills/multi-agent-collaboration/references/on-demand-orchestration.md`
-for role selection, unavailable-provider handling, and closeout evidence.
-
-Before any worker boundary, run the handoff hook. Only a ready, valid execution
-capsule permits reuse of the parent's route, preflight, required-doc brief, and
-gate context. The parent alone owns the gate ledger, integration review, and
-finish. A worker handoff does not satisfy the user-facing `handoff` gate.
-Reuse a valid execution capsule across same-wave workers instead of calling
-`handoff` per worker, cap `handoff` calls at `<= 4` per run, and treat workers
-as bounded one-shot tasks rather than persistent worker threads polled across
-slices. In multi-slice or goal loops where commits are already authorized by the
-user, pass `--approved-effect git_write` on the writable implementation run,
-batch related slices, and use `Same-run local commit` after `finish` instead of
-starting a separate `commit` lifecycle per micro-slice.
-
-At any task boundary, when session context exceeds `~250K` tokens (or `~6`
-Moru runs), use a new session or `/compact` for unrelated work. For a related
-follow-up, keep needed context or rotate with `start --continue-from <run_id>`.
-This is advisory; runtimes that already auto-compact need no extra action.
-When finish emits a context nudge, relay one short reminder in the final reply
-in the user's language; omit internal run IDs and workflow commands.
+Consume `parallel_execution.delegation_policy`; delegate only for concrete benefit
+with explicit ownership. The parent owns ledger, integration review and finish.
+Before handoff or for loop/goal/session-context guidance, read
+[collaboration details](common/skills/agent-operating-skill/references/collaboration-review.md#parallel-work-and-handoffs).
 
 ## Review Boundaries
 
-Line-count review budgets apply to **Git-tracked incremental commits** (`HEAD`
-present) where atomic diff history matters: plan new or substantially expanded
-development files within a commit to stay within at most 300 added lines, four
-top-level owners, and one public/exported top-level owner unless a stricter
-repo rule applies. In **unbound or initial full-build workspaces without Git
-commit history** (`!has_git_head` or non-Git directories), do not enforce
-per-file line-addition caps; instead, organize code into single-responsibility
-modules and enforce executable functional/visual verification gates so full
-builds are never throttled or stubbed to fit a diff budget. Even in Git-tracked
-repositories, never downgrade, simplify, or omit requested features or visual
-fidelity to stay under 300 lines—split cohesive responsibilities into sibling
-modules or sequential atomic commits instead. An owner is a type or class, a
-declaration marked `export`/`public`/`pub`/`internal`, a capitalized component
-or `use*` hook, or any non-private Kotlin top-level declaration; plain
-lowercase functions in languages such as Python are not counted. Split
-independently nameable sections before review. Tests keep their separate wider
-budget.
-
-Count task-owned changed paths before review; the default maximum is 25. Raise
-it only for one cohesive mechanical migration, using the exact observed count
-and a narrow owned pathspec. An added runtime file in an existing multi-role
-package, or a new runtime package boundary, requires:
-`owner: ...; allowed imports: ...; forbidden imports: ...; callers/tests: ...;
-verification: ...`.
-
-Subject unit tests mirror the production owner's logical package/folder and use
-the subject name. Broad feature test locations are reserved for genuine
-cross-owner contracts or integration flows.
+Tracked incremental development: 300 added lines, four owners, one public owner
+unless stricter; split responsibilities, never omit features/fidelity. Initial
+full builds use functional/visual checks without diff caps. Tests have wider
+budgets. Count owned paths before review (default max 25).
+An added runtime file in an existing multi-role package or a new runtime package
+boundary needs `owner: ...; allowed imports: ...; forbidden imports: ...;
+callers/tests: ...; verification: ...`. For owner definitions, test placement,
+budgets and migration exceptions, read
+[review details](common/skills/agent-operating-skill/references/collaboration-review.md#review-boundaries).
 
 ## Failure And Recovery
 
@@ -454,41 +150,24 @@ repair the canonical rule, hook, validator, or test; verify it; then resume the
 original task. Stop when the same failure recurs, repair is unsafe or ambiguous,
 ownership is uncertain, or verification fails.
 
-In an active writable task worktree, canonical skill and rule updates for a
-verified `reusable_gap` or failure-repair carry standing `local_write`
-self-evolution authority: apply, verify, and record them in the same closeout
-without pausing to ask the user. This standing authority never overrides
-`--read-only`/`analysis` runs, protected-checkout isolation, or explicit user
-prohibitions, and does not grant `git_write` or `external_write` publication
-authority.
+In an active writable task worktree, canonical skill/rule updates for a verified
+`reusable_gap` or failure-repair carry standing `local_write` self-evolution
+authority: apply, verify and record them in the same closeout without asking.
+It never overrides `--read-only`/`analysis` runs, protected-checkout isolation
+or explicit user prohibitions, and grants no `git_write`/`external_write`.
 
 ## Release And Source Control
 
-All new Moru work branches, including this repository's, follow
-`common/skills/branch-strategy/SKILL.md` for the hosting account ID and shared
-three-segment naming format. Apply it in personal, shared, and company repos,
-with or without tickets. Resolve conflicting repo-local naming rules before
-branch creation. `common/skills/branch-cleanup/SKILL.md` uses the same account
-identity for cleanup ownership; adopting the rule does not migrate existing
-branches.
-
-This repository uses weekly CalVer `vYY.WW.N`: two-digit week-year, two-digit
-week number, and a deployment count starting at `0` each week. `N` counts
-published release tags; a tag is a deployment even without GitHub release notes.
-Use the release owner's explicitly configured country calendar, week rules and
-timezone consistently in local tools and CI, as defined by
-`common/skills/release-versioning/SKILL.md`. Resolve those settings before
-calculating a release version. Release ranges start at the previous tag.
-Existing monthly tags keep their meaning; new tags must sort above them and
-are never renumbered or overwritten.
-
-An already authorized local commit of the exact staged unit reviewed and
-finished in the same session continues directly after finish; do not open a
-second lifecycle solely to commit it. Apply the eligibility and fallback rules
-in `common/skills/commit-workflow/references/current-guidance.md`. New commit
-requests or changed scope use the lightweight `commit`/`git_commit` route.
-Push, PR creation, tags, releases, deployment, migration, and publishing require
-their own matching user authority and checks.
+New work branches follow `common/skills/branch-strategy/SKILL.md`: verified hosting
+account and three-segment names; cleanup uses the same ownership. Resolve repo
+conflicts first. Weekly CalVer is `vYY.WW.N`, deployment count from 0; resolve
+owner calendar/week rules/timezone via `common/skills/release-versioning/SKILL.md`.
+Tags count as deployments; preserve old tags and start ranges at the previous tag.
+An authorized exact staged, reviewed, finished same-session unit may commit per
+`common/skills/commit-workflow/references/current-guidance.md`. New/changed scope
+uses `commit`/`git_commit`. Push, PR, tags, releases, deployment, migration and
+publishing need matching authority/checks. For ordering and eligibility, read
+[source-control details](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md#release-and-source-control).
 
 ## Runtime And Ownership Rules
 
@@ -501,10 +180,10 @@ Keep reusable knowledge single-owned. Runtime files are thin adapters or
 pointers unless behavior is truly runtime-specific. Preserve existing Spill
 metering and label handoff integration when changing runtime bridges, prompts,
 hooks, workflows, installers, docs publishing, or release paths. OpenRouter key:
-`~/.moru/research.env` (source it if unset); never print or request it. Do not
-mention Moru Core setup, hook, permission, helper, or label commands in normal
-conversation, and do not report whether background labels, hooks, or metering
-ran unless the user explicitly asks about that subsystem.
+`~/.moru/research.env` (source it if unset); never print or request it. Unless
+the user asks about that subsystem, do not mention Moru setup, hook, permission,
+helper or label commands, or whether labels, hooks or metering ran. Exception:
+relay a finish `For the user:` context nudge as one line in the final reply.
 
 <!-- vibeguard:start version=1 -->
 ## VibeGuard

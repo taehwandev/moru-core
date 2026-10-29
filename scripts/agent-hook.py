@@ -543,10 +543,10 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
             lines.extend(f"  {doc}" for doc in reuse["unread"])
         lines.append(
             "Reading boundary: reference docs are on demand, not a recursive reading queue; "
-            "expand only for an unresolved in-scope question. Reuse a complete reading while "
-            "unchanged and available in context, else read it; missing history proof does not "
-            "require another read. Size reads to output limits, recover only truncated ranges, "
-            "and find uncertain paths with rg --files."
+            "reuse complete readings while unchanged and available in context; "
+            "missing history proof does not require another read. "
+            "Expand only for an unresolved in-scope question; bound output, recover truncated "
+            "ranges, locate uncertain paths with rg --files."
         )
         lines.append(f"Checkpoint input: objective max {MAX_TEXT} Unicode characters; "
                      "checkpoint --work-template prints minimal JSON.")
@@ -899,10 +899,9 @@ def _structured_gate_field_lines(gates: list[str]) -> list[str]:
             )
             lines.append(
                 f"    capture: {stable_launcher_path()} project-memory --project <TARGET_REPO> "
-                "capture --source <checked-evidence> --review-on <YYYY-MM-DD> "
-                "[--applies-when <verified-condition>] [--not-when <known-exception>] "
-                "[--source-path <tracked-file>]; verified one-line lesson on stdin. "
-                "Keep the returned id and digest for memory_record. Capture requires write authority."
+                "capture --source <checked-evidence> --review-on <YYYY-MM-DD>"
+                "; verified lesson on stdin; retain id:digest for memory_record. Write authority "
+                "required; applicability/source-path options: docs/project-memory.md."
             )
             lines.append(
                 "    skills_checked: use canonical skill slugs such as agent_operating_skill, "
@@ -1010,8 +1009,8 @@ def finish_hook(args: argparse.Namespace) -> int:
                        + "; this finish does not admit post-finish publication"
                        # Named here because the next step is usually a commit
                        # or merge, and without it that step was simply denied.
-                       + ". When the user authorizes commit, merge or push of this work, "
-                       f"first run start --continue-from {preflight_evidence_path(args).parent.name} "
+                       + ". With user authority for commit/merge/push: "
+                       f"start --continue-from {preflight_evidence_path(args).parent.name} "
                        "--command commit --approved-effect git_write (external_write to push)")
         # Complete the registry first. If the process dies between these two
         # writes, the run is already terminal and cannot be resumed from a
@@ -1114,15 +1113,12 @@ def _closed_run_lines(project: Path) -> list[str]:
     """
 
     return [
-        "This run is closed; finish attests verification, not execution of pending "
-        "actions. Continue already-authorized steps within the same verified scope "
-        "without reopening this lifecycle. Once the requested outcome is confirmed, "
-        "report it; do not repeat review or finish merely to close publication. "
-        "New effects, targets or changed evidence still require matching admission. "
+        "This run is closed; finish attests verification, not pending actions. Continue "
+        "authorized steps in the verified scope; report the confirmed outcome without "
+        "repeating review/finish. New effects, targets or changed evidence need admission. "
         + _fast_forward_line(project),
-        "Project memory: keep the retrospective's verified stored record or grounded not_needed decision. "
-        "Capture belongs before that gate and finish, not as an optional post-completion action. "
-        "Historical runs without decision_v1 retain their original contract.",
+        "Project memory: retain the verified stored record or grounded not_needed decision; "
+        "capture before that gate and finish. Historical runs keep their original contract.",
     ]
 
 

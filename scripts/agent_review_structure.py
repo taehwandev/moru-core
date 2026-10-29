@@ -80,11 +80,9 @@ REVIEW_SOURCE_EXTENSIONS = {
 }
 REVIEW_STYLE_EXTENSIONS = {".css", ".scss", ".sass"}
 STRUCTURE_REVIEW_SCOPE_NOTE = (
-    "checks only changed files in the development-file extension allowlist; tests, "
-    "fixtures, mocks, and specs use a wider file-size budget instead of the source limit "
-    "(see REVIEW_TEST_FILE_LINE_LIMIT) but are not exempt from it; generated or pinned "
-    "third-party files, config/build files, Markdown, MDX, and prose docs are excluded "
-    "from runtime hard gates; test files are exempt only from the oversized-block check"
+    "changed development source/style only; tests/fixtures/mocks/specs use wider file "
+    "limits (REVIEW_TEST_FILE_LINE_LIMIT), not exemption; tests alone skip oversized-block "
+    "checks. Generated/pinned third-party, config/build, Markdown/MDX/prose excluded"
 )
 REVIEW_SKIP_PARTS = {
     ".git",

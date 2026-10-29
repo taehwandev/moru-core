@@ -36,6 +36,24 @@ agent_hook = _load_agent_hook()
 
 class AgentHookSummaryTests(unittest.TestCase):
 
+    def test_compact_start_keeps_reading_and_capture_decisions_actionable(self):
+        payload = {"route": {"command": "build", "required_docs": ["required.md"],
+                             "gates": ["tests", "review hook", "retrospective check"]}}
+        with patch.object(Path, "read_text", return_value=json.dumps(payload)):
+            summary = "\n".join(agent_hook._hook_summary_from_preflight(Path("manifest.json")))
+        for field in ("required.md", "not a recursive reading queue", "missing history proof",
+                      "unresolved in-scope question", "memory_record", "Write authority required",
+                      "docs/project-memory.md", "--source <checked-evidence>", "--review-on"):
+            self.assertIn(field, summary)
+
+    def test_compact_finish_keeps_action_and_memory_authority_separate(self):
+        closed, memory = agent_hook._closed_run_lines(Path("/nonexistent-fixture"))
+        self.assertIn("verification, not pending actions", closed)
+        self.assertIn("authorized steps in the verified scope", closed)
+        self.assertIn("New effects, targets or changed evidence need admission", closed)
+        self.assertIn("before that gate and finish", memory)
+        self.assertIn("Historical runs keep their original contract", memory)
+
     def test_publication_without_reuse_proof_does_not_invite_evidence_inventory(self):
         payload = {"route": {"command": "commit"}}
         with patch.object(Path, "read_text", return_value=json.dumps(payload)) as read:

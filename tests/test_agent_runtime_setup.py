@@ -509,7 +509,10 @@ class RuntimeSetupTests(unittest.TestCase):
                          "--review-on", "~/.claude/projects/*/memory",
                          "user, feedback and reference"):
             self.assertIn(required, claude_phrase)
-        self.assertIn("~/.claude/projects/*/memory", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        entry = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        memory_detail = "common/skills/agent-operating-skill/references/document-memory.md"
+        self.assertIn(memory_detail + "#on-demand-project-memory-and-work-cards", entry)
+        self.assertIn("~/.claude/projects/*/memory", (ROOT / memory_detail).read_text(encoding="utf-8"))
 
     def test_every_runtime_bridge_names_the_shared_research_key_file(self) -> None:
         for surface in (

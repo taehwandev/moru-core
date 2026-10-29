@@ -126,6 +126,12 @@ autonomous loops, do not launch external cross-runtime CLI consultation loops
 (`claude`, `codex`, `agy`, `openrouter`) unless the current user request
 explicitly asks for multi-provider review on that step.
 
+If a goal's remaining condition depends on work outside this runtime's control
+(another runtime or a user action), state the dependency once, recommend clearing
+the goal, and stop. Do not repeat an unchanged waiting reply in response to Stop
+feedback or claim the goal succeeded. A runtime-owned goal evaluator may keep
+blocking; Moru cannot clear or override it on the user's behalf.
+
 ## Compact Worker Transport And Return Contract
 
 When a ready and valid handoff capsule is provided, the worker must use the

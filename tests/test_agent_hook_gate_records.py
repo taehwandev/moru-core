@@ -68,7 +68,7 @@ class GateRecordInvocationTests(unittest.TestCase):
             evidence.write_text(json.dumps(preflight), encoding="utf-8")
             reset_gate_evidence_ledger(evidence, preflight)
             args = SimpleNamespace(project=project, rules=ROOT, evidence=evidence,
-                                   output=None, repair_cycle=0, gate_json=None, hook="gate-batch")
+                                   output=project / "result.json", repair_cycle=0, gate_json=None, hook="gate-batch")
             for gate, remaining in (("investigate", "['report']"), ("report", "[]")):
                 args.gate_record = [json.dumps({"gate": gate, "evidence": "Observed scoped result."})]
                 output = io.StringIO()
@@ -76,6 +76,10 @@ class GateRecordInvocationTests(unittest.TestCase):
                     self.assertEqual(0, gate_batch_hook(args))
                 self.assertIn(f"Remaining route gates: {remaining}", output.getvalue())
                 self.assertIn("finish still validates", output.getvalue())
+                result = json.loads(args.output.read_text())
+                self.assertEqual("SUCCESS", result["status"])
+                self.assertEqual(gate, result["gate_evidence"][0]["gate"])
+                self.assertEqual(gate == "report", result["gate_progress"]["ledger_complete"])
 
     def test_progress_does_not_treat_failure_or_unreadable_state_as_complete(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

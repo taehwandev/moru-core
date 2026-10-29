@@ -16,6 +16,7 @@ from agent_review_structure import (
     REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
     REVIEW_TEST_ADDED_LINE_LIMIT,
     REVIEW_TEST_FILE_LINE_LIMIT,
+    STRUCTURE_REVIEW_SCOPE_NOTE,
     changed_source_paths,
     check_file_size,
     large_block_failures,
@@ -28,6 +29,12 @@ from agent_structure_rules import structure_rule_review
 
 
 class AgentReviewStructureTests(unittest.TestCase):
+    def test_compact_scope_note_keeps_limits_and_exclusions(self) -> None:
+        for rule in ("changed development source/style only", "tests/fixtures/mocks/specs",
+                     "REVIEW_TEST_FILE_LINE_LIMIT", "not exemption", "tests alone skip",
+                     "Generated/pinned third-party", "config/build", "Markdown/MDX/prose excluded"):
+            self.assertIn(rule, STRUCTURE_REVIEW_SCOPE_NOTE)
+
     def test_repair_ledger_declares_its_runtime_boundary(self) -> None:
         source = (ROOT / "scripts" / "agent_repair_ledger.py").read_text(encoding="utf-8")
 

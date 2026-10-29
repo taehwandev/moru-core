@@ -229,7 +229,7 @@ def gate_batch_hook(args: argparse.Namespace) -> int:
         details.append("Remaining route gates: unavailable; inspect the ledger before finish.")
     else:
         details.append(f"Remaining route gates: {progress['remaining_gates']}")
-        details.append("Ledger snapshot only; finish still validates evidence and freshness.")
+        details.append("Snapshot; finish still validates evidence/freshness.")
         if "review hook" in progress["remaining_gates"]:
             details.extend(structure_review_preview(args.project))
     return finish_with_result(

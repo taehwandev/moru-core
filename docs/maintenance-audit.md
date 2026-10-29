@@ -31,6 +31,82 @@ the required lifecycle before edits; reuse the living task and existing authorit
 
 ## Verification And Maintenance
 
+### Fixed startup context and external goal repetition (H06, H09, H10)
+
+The startup-context diet is based on local `ed1452e8`, not main. `AGENTS.md`
+was 35,444 bytes at that revision (including the task-boundary context advice)
+and is now 14,988 bytes, a 20,456-byte reduction (57.7%).
+Detailed lifecycle/project-entry/source-control, request/continuation,
+document/memory, and collaboration/review sections now live under the
+[operating references](../common/skills/agent-operating-skill/references/entrypoint-lifecycle.md),
+with condition-specific pointers from the entrypoint. The eight moved sections
+retain their original rules; the project-memory Markdown link changes only to
+resolve from its new directory. The VibeGuard managed block is byte-identical.
+These references are not added to ordinary routes' required document lists.
+Selected bytes are not measured model tokens or end-to-end savings.
+
+For the reported 2026-10-28 Claude loop, bounded JSONL matches from session
+`4e834e36-e83a-49fa-8700-71df38519071` show 20 goal-feedback messages and 20
+`goal_status` attachments with `met=false` between 13:10:51 and 13:12:35 UTC
+(Claude Code 2.1.309). The Stop summary lists the goal prompt separately from
+`claude-stop-gate`, with no hook errors or additional context. The runtime then
+reports its own consecutive-block cap and goal pause. This attributes these
+blocks to Claude's session-goal evaluator, not Moru's lifecycle Stop gate.
+Moru's gate already allows `stop_hook_active` and blocks at most once per edit
+batch; `6478eca6` changed loop efficiency guidance and lifecycle/handoff output,
+not this evaluator. Keep those guards and their negative tests. No change to a
+Moru repetition counter can clear a runtime-owned goal.
+
+The [shared loop guidance](../common/skills/agent-operating-skill/references/runtime-collaboration.md)
+now requires a single dependency explanation, a recommendation to clear the
+goal, and stopping when the condition needs another runtime or user action.
+It forbids repeated waiting replies and false success. This is guidance, not
+proof that Claude's evaluator will honor the stop; its native behavior was not
+changed or live-retested.
+
+Lifecycle output is measured with an ignored scratch Git fixture: one sample
+constant changes, its readback assertion passes, `tests` and causal/memory
+retrospective records are submitted, then review and finish succeed. Before
+and after use the same absolute project/rules paths, session ID, local state
+root, route, arguments and checks; the fixture is reset between runs. Counts
+include stdout status, bullets and newlines, exclude stderr/JSON result files,
+and are characters rather than tokens. Successful prose is shortened; gate
+names/fields, required documents, review/audit results, failure reasons, run
+binding and remaining gates are retained. No lifecycle admission or validation
+conditions change. Focused regression and routing tests cover the retained
+contracts; full runtime token savings require a matched new-session experiment.
+
+| Hook | Before stdout characters | After stdout characters |
+| --- | ---: | ---: |
+| start | 8,605 | 8,495 |
+| gate-batch | 272 | 256 |
+| review | 1,023 | 861 |
+| finish | 1,206 | 960 |
+| Total | 11,106 | 10,572 |
+
+Verification: 565 tests in the first selected suite and 165 in the second,
+all passing. These selectors ran with `PYTHONPATH=scripts:tests python3 -m unittest`:
+
+```text
+test_agent_entrypoint_diet test_agent_hook_summary test_agent_hook_gate_records
+test_agent_review_structure test_agent_start_guidance test_removed_entrypoint_migration
+test_workflow_required_doc_selection test_workflow_doc_surfaces test_agent_runtime_setup
+test_workflow_catalog test_agent_finish_gate_policy test_agent_review_hook
+test_claude_stop_gate test_codex_stop_gate
+
+test_agent_finish_context test_agent_work_checkpoint_advice test_agent_hook_continuation
+test_agent_review_structure_preview test_agent_review_doc_references
+test_agent_required_doc_delivery test_agent_required_doc_reuse test_read_only_lifecycle
+```
+
+The three changed production files differ only in string literals under AST
+comparison. A direct relocation check found all eight original sections intact
+in their pointed references (apart from the relative-link adjustment), four
+retained sections unchanged, and an identical managed-block byte sequence.
+The structural preview and `git diff --check` passed; `vibeguard audit .`
+reported Ready with no findings. This is focused local verification, not a full
+suite, installed-runtime update, or fresh model context benchmark.
+
 ### Per-call carried-context measurement (H10)
 
 Use local transcripts only; record runtime/version, source revision, date
