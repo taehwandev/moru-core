@@ -775,7 +775,9 @@ class DispatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run = HookRun(directory)
 
-            self.assertEqual("failed", self._finish_state(run, 1))
+            with patch.object(agent_hook, "context_nudge") as nudge:
+                self.assertEqual("failed", self._finish_state(run, 1))
+            nudge.assert_not_called()
 
     def test_failed_finish_never_rewrites_a_settled_run(self) -> None:
         """A stale finish request cannot reopen terminal lifecycle evidence."""
@@ -807,17 +809,20 @@ class DispatchTests(unittest.TestCase):
                 )
 
             with (
+                patch.object(agent_hook, "context_nudge", return_value="For the user: fixture advice") as nudge,
                 patch.object(
                     agent_hook,
                     "run_script_main",
                     return_value={"returncode": 0, "stdout": "", "stderr": ""},
                 ),
-                redirect_stdout(io.StringIO()),
+                redirect_stdout(io.StringIO()) as output,
             ):
                 code = agent_hook.finish_hook(
                     run.args("finish", allow_vibeguard_review=None)
                 )
 
+            nudge.assert_called_once_with(agent_hook.runtime_session(), run.run_id)
+            self.assertEqual(1, output.getvalue().count("For the user: fixture advice"))
             registry = json.loads(
                 registry_path(run.project).read_text(encoding="utf-8")
             )

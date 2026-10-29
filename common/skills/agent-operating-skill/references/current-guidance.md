@@ -98,6 +98,11 @@ them only when the active requirement is unresolved.
 These expand the Need-Driven Reading Contract in `../SKILL.md`; they are the
 detail behind its steps, not a second contract.
 
+For long test, build, log or diff output, save the full text to a local file
+and bring only the summary and failing parts into context. For example, use
+`pytest -q > test-output.log 2>&1`, retain its exit status, then read the summary
+and failures. Keep sensitive logs local and untracked; do not paste tens of KB.
+
 - For a new isolated task, when the installed setup contract permits worktree
   creation before start, prepare the worktree and start the implementation there.
   Do not open a source-checkout implementation run merely to repeat it in the

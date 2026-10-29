@@ -26,6 +26,7 @@ from agent_execution_capsule_state import git_states_for_paths
 from agent_continuation_fields import MAX_TEXT
 from support.runtime_bridge import CODEX_PERMISSION_EVIDENCE_BRIDGE_PHRASE
 from agent_finish_gate_validators import gate_wording_hints
+from agent_finish_context import context_nudge
 from agent_handoff_hook import handoff_hook
 from agent_hook_continuation import (
     checkpoint_after_hook,
@@ -1032,6 +1033,8 @@ def finish_hook(args: argparse.Namespace) -> int:
                 finalize_completed=True,
             )
         )
+        if nudge := context_nudge(runtime_session(), preflight_evidence_path(args).parent.name):
+            details.append(nudge)
     elif result["returncode"] == 3:
         # Pending closeout is owed work, not a failed run. Retiring it here
         # dropped the run out of ACTIVE_RUN_STATES, so runtime evidence no

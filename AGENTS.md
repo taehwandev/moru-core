@@ -406,9 +406,14 @@ as bounded one-shot tasks rather than persistent worker threads polled across
 slices. In multi-slice or goal loops where commits are already authorized by the
 user, pass `--approved-effect git_write` on the writable implementation run,
 batch related slices, and use `Same-run local commit` after `finish` instead of
-starting a separate `commit` lifecycle per micro-slice. When a loop session's
-context exceeds `~250K` tokens (or `~6` Moru runs), compact context or rotate
-to a fresh session with `start --continue-from <run_id>`.
+starting a separate `commit` lifecycle per micro-slice.
+
+At any task boundary, when session context exceeds `~250K` tokens (or `~6`
+Moru runs), use a new session or `/compact` for unrelated work. For a related
+follow-up, keep needed context or rotate with `start --continue-from <run_id>`.
+This is advisory; runtimes that already auto-compact need no extra action.
+When finish emits a context nudge, relay one short reminder in the final reply
+in the user's language; omit internal run IDs and workflow commands.
 
 ## Review Boundaries
 

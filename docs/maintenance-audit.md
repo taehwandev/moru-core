@@ -31,6 +31,42 @@ the required lifecycle before edits; reuse the living task and existing authorit
 
 ## Verification And Maintenance
 
+### Per-call carried-context measurement (H10)
+
+Use local transcripts only; record runtime/version, source revision, date
+window, included session/call counts and exclusions. Keep raw data and paths
+untracked, and print numeric aggregates only. Do not send transcripts to APIs.
+
+For Claude JSONL, skip `isSidechain` entries and deduplicate assistant messages
+by `message.id` within each session (streamed blocks repeat the same call).
+For each call with valid numeric usage, context is `input_tokens` +
+`cache_creation_input_tokens` + `cache_read_input_tokens`; output tokens are
+excluded. Missing usage is unknown, not zero. Do not add cache creation's
+duration breakdown again. Retain chronological call values and compaction
+boundaries. The [existing overhead parser](../scripts/claude_transcript_overhead.py)
+illustrates message deduplication; its session totals alone are not a per-call
+distribution. Codex adapters must use per-call input usage (already including
+cached reads), not cumulative session totals, and report a separate cohort.
+
+Report mean, median and p90 context, plus both call share and input-token share
+above fixed thresholds such as 200K, 300K and 500K: `count(c > t) / count(c)`
+and `sum(c for c > t) / sum(c)`. State missing-usage coverage and sampling
+filters. For output hygiene, measure tool-result character lengths separately;
+characters are not tokens. Report the count share, character share and excess
+characters above a cap such as 4,000, without printing result bodies.
+
+A cap/reset simulation must state its assumed post-compaction size and handle
+observed compactions as new segments. It models potential input reads only;
+it does not measure summary quality, elapsed time, billed cost or actual savings.
+Use matched before/after tasks with quality checks before claiming improvement.
+
+The [finish nudge](../scripts/agent_finish_context.py) uses the latest assistant
+usage at a successful task boundary, with a default 200K threshold, not summed
+session usage. It reads at most the final 1 MiB of the exact Claude session's
+transcript under `CLAUDE_CONFIG_DIR` (default `~/.claude`); unknown, ambiguous,
+pre-compaction-only or other-runtime context stays silent. This is an optional
+early reminder for the shared ~250K rule, not a gate or automatic compaction.
+
 Run from the exact target checkout. The following selected suite was used for
 the initial audit; later changes use the affected owner's checks rather than
 automatically rerunning everything:
