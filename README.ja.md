@@ -93,6 +93,19 @@ python3 ~/.moru/core/scripts/setup-agent-hooks.py                     # エー�
 <MORU_LAUNCHER> doctor --project <対象リポジトリ>                      # 状態チェック（読み取り専用）
 ```
 
+### `skills.sh`（`npx skills`）からのインストール
+
+[skills.sh](https://www.skills.sh/taehwandev/moru-core) を使って、Moru Core 全体のブートストラップスクリプトや、単体でも使える代表的な14個の汎用スキル（`human-authored-writing`、`figma-handoff`、`ambiguity-gate`、`code-review` など）を直接インストールすることもできます：
+
+```bash
+# Moru Core 全体のブートストラップ＆ルーティングスキルを接続
+npx skills add taehwandev/moru-core --skill moru-core
+
+# 公開されている15個の代表スキル一覧を確認・個別インストール
+npx skills add taehwandev/moru-core --list
+npx skills add taehwandev/moru-core --skill human-authored-writing
+```
+
 チームで同じバージョンを固定したい場合は、リポジトリ管理者の承認を得てサブモジュールとして追加できます：
 
 ```bash

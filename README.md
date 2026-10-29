@@ -17,6 +17,7 @@ stay short and always have the final say.
 
 - Repository: <https://github.com/taehwandev/moru-core>
 - Website: <https://getmoru.com/core> · [Why Moru Core & 5-Month Report](https://getmoru.com/report)
+- Skills Directory (`skills.sh`): <https://www.skills.sh/taehwandev/moru-core>
 - Releases: <https://github.com/taehwandev/moru-core/releases> · release notes in [`.github/release-notes/`](.github/release-notes/)
 
 ## What It Does
@@ -134,6 +135,19 @@ and AGY. You can check or repair the setup anytime with
 ```bash
 <MORU_LAUNCHER> workflow validate
 <MORU_LAUNCHER> doctor --project <TARGET_REPO>   # read-only health check
+```
+
+### Install via `skills.sh` (`npx skills`)
+
+You can also install Moru Core's full-engine bootstrap skill (`moru-core`) or any of its **14 curated standalone skills** (`human-authored-writing`, `figma-handoff`, `ambiguity-gate`, `code-review`, `bugfix-debugging`, `public-discovery`, `git-history-investigation`, and more) directly via [`skills.sh`](https://www.skills.sh/taehwandev/moru-core):
+
+```bash
+# Connect Moru Core's full workflow router & VibeGuard bootstrap skill
+npx skills add taehwandev/moru-core --skill moru-core
+
+# List all 15 curated public skills or install a standalone skill
+npx skills add taehwandev/moru-core --list
+npx skills add taehwandev/moru-core --skill human-authored-writing
 ```
 
 **Updating:** Pull updates between tasks (never in the middle of one) so rules

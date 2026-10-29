@@ -12,6 +12,7 @@ type: human-reviewed-needed
 
 - 저장소: <https://github.com/taehwandev/moru-core>
 - 사이트: <https://getmoru.com/core> · [왜 모루 코어인가 · 5개월 실측 리포트](https://getmoru.com/report)
+- 스킬 디렉터리 (`skills.sh`): <https://www.skills.sh/taehwandev/moru-core>
 - 릴리스: <https://github.com/taehwandev/moru-core/releases> · 릴리스 노트는 [`.github/release-notes/`](.github/release-notes/)
 
 에이전트가 읽는 기준 문서는 [AGENTS.md](AGENTS.md)와 영문 공통 지침이며, 이 문서는 사람을 위한 한국어 안내입니다.
@@ -97,6 +98,19 @@ python3 ~/.moru/core/scripts/setup-agent-hooks.py                     # 에이�
 
 ```bash
 git submodule add https://github.com/taehwandev/moru-core.git .agents/moru-core
+```
+
+### `skills.sh` (`npx skills`)로 설치하기
+
+[`skills.sh`](https://www.skills.sh/taehwandev/moru-core)를 통해 **모루 코어 전체 엔진 연결 스킬(`moru-core`)**을 설치하거나, 모루 코어 없이 단독으로도 바로 쓸 수 있는 **엄선된 14개 간판 범용 스킬**(`human-authored-writing`, `figma-handoff`, `ambiguity-gate`, `code-review`, `bugfix-debugging`, `public-discovery`, `git-history-investigation` 등)만 골라서 설치할 수도 있습니다. (나머지 153개 플랫폼·내부 카드는 모루 코어 라우터가 필요할 때만 불러오도록 기본 목록에서 숨겨져 있습니다.)
+
+```bash
+# 모루 코어 전체 엔진(라우터 + VibeGuard) 연결 스킬 설치
+npx skills add taehwandev/moru-core --skill moru-core
+
+# 공개된 15개 간판 스킬 목록 확인 및 개별 스킬 골라 설치하기
+npx skills add taehwandev/moru-core --list
+npx skills add taehwandev/moru-core --skill human-authored-writing
 ```
 
 모루 코어 업데이트는 작업 중이 아닐 때 `git pull --ff-only`와 `workflow validate`로 실행합니다. 자세한 방법은 [기존 설치 최신화 안내](docs/ko/update-moru.md)를 참고하세요.

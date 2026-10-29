@@ -93,6 +93,19 @@ python3 ~/.moru/core/scripts/setup-agent-hooks.py                     # 配置�
 <MORU_LAUNCHER> doctor --project <目标仓库>                            # 检查连接状态（只读）
 ```
 
+### 通过 `skills.sh`（`npx skills`）安装
+
+你也可以通过 [skills.sh](https://www.skills.sh/taehwandev/moru-core) 直接安装 Moru Core 完整引擎引导技能（`moru-core`），或按需挑选 14 个可独立使用的精选通用技能（如 `human-authored-writing`、`figma-handoff`、`ambiguity-gate`、`code-review` 等）：
+
+```bash
+# 安装 Moru Core 完整引擎引导与路由技能
+npx skills add taehwandev/moru-core --skill moru-core
+
+# 查看全部 15 个精选公开技能或按需单独安装
+npx skills add taehwandev/moru-core --list
+npx skills add taehwandev/moru-core --skill human-authored-writing
+```
+
 如果团队希望固定使用同一个审核过的版本，经仓库管理员同意后可以添加为 Git 子模块：
 
 ```bash
