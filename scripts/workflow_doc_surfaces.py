@@ -56,7 +56,9 @@ def infer_surface_docs(
     matches: list[dict[str, object]] = []
     # Keep independent requests separate: a narrow data edit must not erase a
     # UI edit in another clause. Retain clause indexes, not another prompt copy.
-    clauses = re.split(r"[;\n.!?]|\b(?:and|but|then)\b|(?<=하고)|(?<=말고)",
+    # Preserve dotted identifiers such as Three.js when deciding whether one
+    # clause names the actual change or only a prohibited subject.
+    clauses = re.split(r"[;\n!?]|(?<![A-Za-z0-9_])\.|\.(?![A-Za-z0-9_])|\b(?:and|but|then)\b|(?<=하고)|(?<=말고)",
                        request_text, flags=re.IGNORECASE)
 
     request_rules = list(enumerate(rule_list(rules, "request_intents")))
@@ -159,7 +161,7 @@ def _matches_swift_framework(framework: object, evidence: tuple[set[str], bool, 
 # request can forbid are not, which is why the subject itself is never
 # enumerated here -- it is whatever the rule's own patterns match.
 _CLAUSE_JOINT = (
-    r"(?=\s*(?:[,.;!?]|$)|\s+(?:while|whilst|and|but|then|so|before|after|"
+    r"(?=\s*(?:[,;!?]|(?<![A-Za-z0-9_])\.|\.(?![A-Za-z0-9_])|$)|\s+(?:while|whilst|and|but|then|so|before|after|"
     r"when|unless|though|although|instead|yet)\b)"
 )
 
@@ -176,16 +178,16 @@ _KOREAN_NEGATED_CHANGE = (
 # every exclusion written as a modifier was invisible.
 _PROHIBITION_SPANS = (
     r"\bwithout\s+(?:touching|changing|modifying|editing|altering|"
-    r"breaking|affecting)\s+(?P<subject>[^,.;]+?)" + _CLAUSE_JOINT,
+    r"breaking|affecting)\s+(?P<subject>[^,;]+?)" + _CLAUSE_JOINT,
     r"\b(?:do\s+not|don't|must\s+not|never)\s+"
-    r"(?:change|modify|edit|fix|touch|alter)\s+(?P<subject>[^,.;]+?)"
+    r"(?:change|modify|edit|fix|touch|alter)\s+(?P<subject>[^,;]+?)"
     + _CLAUSE_JOINT,
     # An affirmative action before a Korean prohibition is not part of the
     # prohibited subject.  Start after a connective when one exists.  The
     # start-of-clause fallback refuses to cross such a connective, so it cannot
     # swallow the requested action while searching for a later negation.
     r"(?:(?<=하되)|(?<=되)|(?<=면서)|(?<=하고)|(?<=고))\s*"
-    r"(?P<subject>[^,.;]+?)" + _KOREAN_NEGATED_CHANGE,
+    r"(?P<subject>[^,;]+?)" + _KOREAN_NEGATED_CHANGE,
     r"^(?P<subject>(?:(?!" + _KOREAN_ACTION_JOINT + r"\s).)+?)"
     + _KOREAN_NEGATED_CHANGE,
 )

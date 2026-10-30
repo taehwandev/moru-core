@@ -988,6 +988,37 @@
       "required_priority": 50
     },
     {
+      "name": "web_3d_interaction_change",
+      "commands": ["feature", "build", "task", "bugfix", "refactor", "review", "test"],
+      "subject_exclusion": true,
+      "required_priority": 50,
+      "request_any": [
+        "\\b(?:three\\.?js|webgl|react[- ]three[- ]fiber|r3f|babylon\\.js)\\b",
+        "\\b3d\\s+(?:web\\s*page|web\\s*site)\\b",
+        "(?:웹|브라우저).{0,45}(?:3d|3\\s*차원)",
+        "(?:3d|3\\s*차원).{0,45}(?:웹|브라우저)"
+      ],
+      "request_all": [[
+        "\\b(?:scene|model|viewer|configurator|camera|orbit|zoom|shader|render|rendering|animation|animate|assemble|assembly|webpage|website)\\b",
+        "장면|모델|뷰어|조립|카메라|조명|애니메이션|렌더링|선택|만들"
+      ]],
+      "docs": ["platforms/web/skills/web-3d-interaction/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"],
+      "reason": "Concrete browser 3D work needs focused scene, motion and option-control guidance before implementation; prose and lookup do not require this skill."
+    },
+    {
+      "name": "web_3d_scoped_change",
+      "platforms": ["web"],
+      "commands": ["feature", "build", "task", "bugfix", "refactor", "review", "test"],
+      "subject_exclusion": true,
+      "required_priority": 50,
+      "request_any": [
+        "\\b3d\\s+(?:scene|model|viewer|configurator|animation|simulation|experience|game)\\b",
+        "(?:3d|3\\s*차원)\\s*(?:장면|모델|뷰어|조립|시뮬레이션|게임)"
+      ],
+      "docs": ["platforms/web/skills/web-3d-interaction/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"],
+      "reason": "A verified web platform can resolve a 3D scene request without an engine choice; unrelated platforms and ordinary CSS transforms remain outside this rule."
+    },
+    {
       "name": "web_ui_layout_change",
       "platforms": [
         "web"
