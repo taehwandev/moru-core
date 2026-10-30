@@ -57,6 +57,31 @@ def checkout_removal_denial(tokens: list[str], cwd: Path) -> str:
     return ""
 
 
+def worktree_removal_targets(tokens: list[str], cwd: Path) -> list[Path]:
+    """The checkouts `git worktree remove` deletes in this command.
+
+    `checkout_removal_denial` has already judged whether deleting them loses
+    work, and Git removes only worktrees of the repository it runs in, so a
+    removed checkout is not a project the command writes into. Governing it as
+    one demanded a run there, and that open run then made the removal refuse.
+    """
+
+    here = cwd
+    removed: list[Path] = []
+    for segment in _segments(tokens):
+        if segment[0] == "cd" and len(segment) == 2:
+            here = _absolute(segment[1], here)
+            continue
+        # Only the real Git: a disguised `./git` may do anything, so it keeps its verdict.
+        if segment[0] != "git":
+            continue
+        removed.extend(
+            target for target in _removed_paths(segment, here)
+            if _is_real_directory(target) and _has_git_marker(target)
+        )
+    return removed
+
+
 def _segments(tokens: list[str]) -> list[list[str]]:
     segments: list[list[str]] = [[]]
     for token in tokens:

@@ -2915,6 +2915,26 @@ class EveryGovernedProjectNeedsItsOwnEntryTests(unittest.TestCase):
         self.assertIn("is not where the command runs", reason)
         self.assertIn("the path does", reason)
 
+    def test_removing_a_settled_sibling_checkout_needs_no_entry_of_its_own(self):
+        # Deadlock this replaces: the removed checkout was governed as a write
+        # target, so it demanded its own `start`; a run started there then made
+        # the removal guard refuse it. The removal guard already decides whether
+        # deleting the checkout loses work, so the target is not a write project.
+        (self.other / ".git").write_text("gitdir: ../common/worktrees/b\n", encoding="utf-8")
+        verdict = self._verdict(f"git worktree remove {self.other} && git branch -D topic", self.started)
+
+        self.assertNotEqual("deny", verdict.get("permissionDecision"))
+        self.assertNotIn(str(self.other), verdict.get("additionalContext", ""))
+
+    def test_a_removal_target_holding_an_open_run_is_still_refused(self):
+        (self.other / ".git").write_text("gitdir: ../common/worktrees/b\n", encoding="utf-8")
+        (self.other / ".moru" / "run-registry.json").write_text(
+            json.dumps({"runs": [{"run_id": "r", "state": "running"}]}), encoding="utf-8")
+        verdict = self._verdict(f"git worktree remove --force {self.other}", self.started)
+
+        self.assertEqual("deny", verdict["permissionDecision"])
+        self.assertIn("unsettled Moru run", verdict["permissionDecisionReason"])
+
     def test_a_write_inside_the_started_project_is_still_allowed(self):
         verdict = self._verdict("git commit -m subject", self.started)
 

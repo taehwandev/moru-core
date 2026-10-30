@@ -75,7 +75,7 @@ try:  # The gate must never fail to load; the import is only used for a message.
     )
     from claude_command_effect import INTERPRETER_REASON, command_effect, unknown_recovery
     from claude_scratch_checkout import scratch_command, scratch_script_command, throwaway_checkout
-    from claude_pretool_checkout_removal import checkout_removal_denial
+    from claude_pretool_checkout_removal import checkout_removal_denial, worktree_removal_targets
     from claude_pretool_cli_worker import foreground_cli_worker_denial
     from claude_bash_syntax import command_segments, resolve_target, scratch_write_target, shell_keyword_command
     from claude_bash_readonly import simple_command_kind
@@ -281,6 +281,9 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
 
     def checkout_removal_denial(tokens: list[str], cwd: Path) -> str:
         return ""
+
+    def worktree_removal_targets(tokens: list[str], cwd: Path) -> list[Path]:
+        return []
 
 
 def __getattr__(name: str):
@@ -2557,6 +2560,11 @@ def _call_scope(payload: dict, tool: str, cwd: Path) -> _CallScope:
     roots = _governed_only(
         bash_governed_roots(tokens, command_cwd, command=command), command, cwd
     )
+    # A checkout `git worktree remove` deletes was judged by the removal guard
+    # before any verdict; it needs no run of its own, which would block it.
+    removed = {target.resolve() for target in worktree_removal_targets(tokens, effective_cwd)}
+    if removed:
+        roots = [root for root in roots if root.resolve() not in removed]
     return _CallScope(
         kind,
         tokens,
