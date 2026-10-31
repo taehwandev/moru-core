@@ -7,6 +7,7 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod callback_replay;
+mod callback_state;
 mod launcher_backend;
 mod mailbox_process;
 mod mailbox_state;
@@ -18,6 +19,8 @@ mod pretool_transcript;
 mod statusline;
 mod statusline_chain;
 mod statusline_process;
+mod stop_process;
+mod stop_state;
 use launcher_backend::Backend;
 
 const USAGE: &str = "usage: moru-native-launcher PYTHON_LAUNCHER [ARGS...]\n       moru-native-launcher PYTHON_LAUNCHER checkout-identity [--help]\n";
@@ -79,6 +82,13 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args
+        .first()
+        .is_some_and(|a| a == "claude-stop-gate" || a == "codex-stop-gate")
+    {
+        finish(stop_process::StopProcess::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "mailbox-hook") {
         finish(mailbox_process::MailboxProcess::run(&launcher, &args));

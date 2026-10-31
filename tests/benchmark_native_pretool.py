@@ -35,7 +35,8 @@ def measure(output, count, budget, workloads="plain"):
               "utility_sha256": {p: digest(PROJECT / p) for p in (
                   "tests/benchmark_native_pretool.py", "tests/native_pretool_support.py",
                   "tests/discovery_process_measure.py", "tests/benchmark_project_discovery.py",
-                  "tests/native_mailbox_support.py") if (PROJECT / p).exists()},
+                  "tests/native_mailbox_support.py", "tests/native_stop_support.py",
+                  "tests/test_agent_run_interruption.py", "tests/test_agent_continuation_checkpoint.py") if (PROJECT / p).exists()},
               "cases": {}}
     deadline = time.monotonic() + budget
     rng = random.Random(61034)
@@ -75,7 +76,23 @@ def measure(output, count, budget, workloads="plain"):
                          for runtime in ("claude", "codex") for action in ("deliver", "ack")]
                 cases.append(("mailbox_reordered_fallback",
                               ["mailbox-hook", "--runtime", "claude", "deliver"], payload))
+            if workloads == "stop":
+                from native_stop_support import seed_stop, active_work
+                seed_stop(launcher, base, project)
+                payload = {"cwd": str(project), "session_id": "synthetic-stop"}
+                cases = [("claude_no_work", "claude-stop-gate", payload),
+                         ("codex_no_work", "codex-stop-gate", payload),
+                         ("claude_settled", "claude-stop-gate", payload),
+                         ("claude_indexed_settled", "claude-stop-gate", payload),
+                         ("active_work_fallback", "codex-stop-gate", active_work(base))]
             for name, alias, payload in cases:
+                if workloads == "stop" and name == "claude_settled":
+                    from native_stop_support import markers
+                    markers(project)
+                if workloads == "stop" and name == "claude_indexed_settled":
+                    index = base / "state/claude-session-projects/synthetic-stop"
+                    index.parent.mkdir(parents=True)
+                    index.write_text(str(project) + "\n")
                 values = {v: {k: [] for k in ("wall_ms", "cpu_ms", "user_ms", "system_ms", "peak_rss_bytes")}
                           for v in ("python", "auto")}
                 row = {"samples": values, "complete": False,
@@ -100,7 +117,10 @@ def measure(output, count, budget, workloads="plain"):
                             env=env, cwd=project, input_bytes=encode(payload), timeout=min(10, left))
                         result = done.returncode, done.stdout, done.stderr
                         expected = result if expected is None else expected
-                        if result != expected or result != (0, b"", b""):
+                        valid = (done.returncode == 0 and done.stderr == b"" and
+                                 (json.loads(done.stdout).get("decision") == "block"
+                                  if name == "active_work_fallback" else done.stdout == b""))
+                        if result != expected or not valid:
                             raise RuntimeError(f"callback result mismatch: {name}/{variant}: {done.stderr[:300]!r}")
                         matches = re.findall(r"(?m)^\s*(\d+)\s+maximum resident set size\s*$", rss_file.read_text())
                         if len(matches) != 1:
@@ -135,7 +155,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=24)
     parser.add_argument("--budget-seconds", type=float, default=90)
-    parser.add_argument("--workloads", choices=("plain", "files", "mailbox"), default="plain")
+    parser.add_argument("--workloads", choices=("plain", "files", "mailbox", "stop"), default="plain")
     parser.add_argument("--output", type=Path, default=PROJECT / ".moru/performance/native-pretool.json")
     args = parser.parse_args()
     if args.samples < 24 or args.samples % 2:

@@ -46,11 +46,11 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
-partially native pretool callbacks and quiet mailbox delivery. Twelve primary boundaries now have measured
-changes: seven involving native work (including the partial launcher, pretool
-and mailbox callbacks) and five Python optimizations (entry, discovery, status, next and mailbox
-CLI). That is 12/53 inventory coverage, or 12/30 primary
-coverage, not effort-weighted completion. The remaining 41 are candidates. The earlier
+partially native pretool, quiet mailbox and quiet/settled Stop callbacks. Fourteen primary boundaries now have measured
+changes: nine involving native work (including the partial launcher, pretool,
+mailbox and Stop callbacks) and five Python optimizations (entry, discovery, status, next and mailbox
+CLI). That is 14/53 inventory coverage, or 14/30 primary
+coverage, not effort-weighted completion. The remaining 39 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
 target for quiet prompt delivery only. Main integration and local installation
@@ -67,6 +67,8 @@ The [file-query extension](runtime-performance/native-pretool-files.md) expands
 those same two boundaries; it does not increase the inventory count.
 The [native quiet-mailbox extension](runtime-performance/native-mailbox.md)
 upgrades the existing prompt boundary; delivery and task effects remain Python-owned.
+The [quiet/settled Stop increment](runtime-performance/native-stop.md) adds two
+partial boundaries, preserving active work continuity and interruption in Python.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
@@ -91,10 +93,10 @@ upgrades the existing prompt boundary; delivery and task effects remain Python-o
 | 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |
 | 21 | `scripts/claude_statusline.py` | claude-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
-| 22 | `scripts/claude_stop_gate.py` | claude-stop-gate | Python candidate | Repeated-call latency with context/state/delivery correctness |
+| 22 | `scripts/claude_stop_gate.py` | claude-stop-gate | Partial native quiet/settled Stop | Preserve active continuation, interruption, legacy edits, indexed projects and mailbox ack |
 | 23 | `scripts/codex_operator_review.py` | operator-review | Python candidate | Permission and negative-authority regressions before latency |
 | 24 | `scripts/codex_pretool_gate.py` | codex-pretool-gate | Partial native plain-query callback | Codex metadata boundary and no-Python query execution; other branches retain Python |
-| 25 | `scripts/codex_stop_gate.py` | codex-stop-gate | Python candidate | Repeated-call latency with context/state/delivery correctness |
+| 25 | `scripts/codex_stop_gate.py` | codex-stop-gate | Partial native quiet Stop | Exact active evidence/authority handling and mailbox ack through Python |
 | 26 | `scripts/project-discover.py` | project-discover | Python enumeration optimized on performance branch | Same selection/order/bounds; measured file-heavy benefit |
 | 27 | `scripts/setup-agent-hooks.py` | setup-agent-hooks | Python candidate | Low-frequency operator work; justify a port before changing Python |
 | 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery, measured benefit and rollback |

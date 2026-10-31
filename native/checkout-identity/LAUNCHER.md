@@ -25,6 +25,13 @@ selection. Only proven quiet state returns natively; all message, guidance and
 task effects replay the original request once to Python. Existing locks are
 acquired without creating files; a missing or busy lock selects compatibility.
 
+The [quiet/settled Stop increment](../../docs/runtime-performance/native-stop.md)
+adds both runtime Stop aliases to auto selection. Rust only proves a silent
+no-op under existing locks. Every unfinished/unknown run, continuation,
+interruption, legacy closeout and message acknowledgement effect remains owned
+by the current Python handlers. An early nonterminal-history check only rejects;
+native admission repeats its checks under locks after source validation.
+
 The exact trusted launcher alias is classified as read-only for no arguments
 or --help. Unknown arguments and impostor executable paths do not inherit that
 classification. Shell output targets remain visible to existing raw-path
