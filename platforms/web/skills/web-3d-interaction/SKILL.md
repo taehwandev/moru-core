@@ -41,6 +41,12 @@ static illustrations, native/Blender modeling or a mention of 3D in prose.
   parts attached under transforms; do not accidentally scale, detach or hide
   them when changing scene modes. Use elapsed time for animation rather than a
   fixed amount per frame, and handle interrupted transitions deliberately.
+- A moving model must face its direction of travel, and its resting state must
+  match its pre-action state (an engine, effect or sound that belongs to flight
+  stays off until the action starts). Choose the model's forward axis once and
+  check it against velocity; see `references/engine-pitfalls.md` for Three.js
+  conventions (for example `Object3D.lookAt` and `Matrix4.lookAt` disagree) and
+  open it only for an unresolved engine question.
 - Place option controls where the subject remains inspectable. Labels, values,
   selection/focus/disabled feedback and hit targets must survive long options,
   touch, keyboard and narrow screens. Use a deliberate scroll/reflow layout;
