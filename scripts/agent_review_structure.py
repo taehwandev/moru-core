@@ -429,10 +429,17 @@ EMPTY_TREE_IDS = frozenset({
 
 
 def _head_tree_is_empty(project: Path, run_command: CommandRunner) -> bool:
-    """Whether HEAD's tree is exactly git's empty tree (compared by id, never inferred from empty output)."""
+    """Whether HEAD is a root commit with git's empty tree (compared by id, never inferred from empty output).
+
+    A later commit that deleted everything also has an empty tree, but it is not a fresh start: only a
+    parentless HEAD gives an initial full build.
+    """
 
     tree = run_command(["git", "rev-parse", "--verify", "HEAD^{tree}"], project)
-    return tree["returncode"] == 0 and tree["stdout"].strip() in EMPTY_TREE_IDS
+    if tree["returncode"] != 0 or tree["stdout"].strip() not in EMPTY_TREE_IDS:
+        return False
+    parent = run_command(["git", "rev-parse", "--verify", "--quiet", "HEAD^"], project)
+    return parent["returncode"] != 0
 
 
 def changed_source_paths(

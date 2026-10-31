@@ -10,7 +10,7 @@
 // judges; verify.py does that from this evidence.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -51,7 +51,10 @@ const chrome = spawn(CHROME, [
 // The browser runs in its own process group so that every helper dies with it, whatever happens here.
 const killBrowser = () => {
   try { process.kill(-chrome.pid, 'SIGKILL'); } catch { /* already gone */ }
+  try { rmSync(profile, { recursive: true, force: true }); } catch { /* best effort */ }
 };
+// The parent also needs the group id: it ends this process with SIGKILL on a timeout, which skips every handler here.
+writeFileSync(join(outDir, 'chrome.pid'), String(chrome.pid));
 process.on('exit', killBrowser);
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { killBrowser(); process.exit(130); });
 setTimeout(() => { killBrowser(); console.error('observer watchdog expired'); process.exit(4); },
@@ -129,6 +132,11 @@ const SNAPSHOT = `(() => ({
   canvases: [...document.querySelectorAll('canvas')].map((c) => ({ w: c.width, h: c.height })),
 }))()`;
 
+async function pictureHash(cdp) {
+  const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 20 });
+  return createHash('sha1').update(shot.result.data).digest('hex');
+}
+
 let shotIndex = 0;
 async function capture(cdp, label, seconds) {
   const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 45 });
@@ -174,12 +182,14 @@ try {
   };
   if (primary) {
     const before = (await evaluate(cdp, SNAPSHOT)).text;
+    const pictureBefore = await pictureHash(cdp);
     await press(primary);
     const started = Date.now();
     await sleep(2000);
     // A click can be swallowed while a page is still starting up; try once more before calling it unresponsive.
+    // Text alone is not enough: a start/stop toggle that only moves the picture would be pressed twice and undone.
     evidence.primaryAttempts = 1;
-    if ((await evaluate(cdp, SNAPSHOT)).text === before) {
+    if ((await evaluate(cdp, SNAPSHOT)).text === before && (await pictureHash(cdp)) === pictureBefore) {
       const again = (await evaluate(cdp, FIND_PRIMARY)) || primary;
       await press(again);
       evidence.primaryAttempts = 2;

@@ -156,6 +156,21 @@ class CodeEvidenceTests(unittest.TestCase):
         for skipped in ("node_modules", "dist/", "c.test", "d.test", "notes.txt"):
             self.assertNotIn(skipped, source)
 
+    def test_collect_source_leaves_out_ignored_files_secrets_and_links_out_of_the_project(self):
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            (root / ".gitignore").write_text("local.js\n")
+            for rel in ("src/a.js", "local.js", "src/api-secret.js", ".env.js"):
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                (root / rel).write_text("keep me\n")
+            (Path(outside) / "out.js").write_text("outside\n")
+            (root / "src" / "link.js").symlink_to(Path(outside) / "out.js")
+            source = verify.collect_source(root)
+        self.assertIn("=== src/a.js", source)
+        for leaked in ("local.js", "api-secret", ".env", "link.js", "outside"):
+            self.assertNotIn(leaked, source)
+
     def test_a_code_fail_must_cite_file_and_line(self):
         cited = json.dumps([{"id": "faces", "verdict": "fail", "reason": "reversed", "evidence": "flight.js:244 matrix.lookAt(o, t)"}])
         bare = json.dumps([{"id": "faces", "verdict": "fail", "reason": "looks wrong", "evidence": ""}])
@@ -328,6 +343,27 @@ class RemoteJudgeTests(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError) as caught:
                 verify.derive_any("x")
         self.assertEqual(401, caught.exception.code)
+
+    def test_plain_http_to_a_remote_host_is_refused_before_anything_is_sent(self):
+        for url in ("http://judge.example.com:8765", "ftp://127.0.0.1/x"):
+            with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": url}, clear=False):
+                with self.assertRaises(RuntimeError):
+                    verify.remote_call("/derive", {"request": "x"})
+
+    def test_the_service_keeps_hook_state_and_the_token_is_never_an_argument(self):
+        url = self.serve(lambda request: [], lambda *a: [])
+        env = {"MORU_VERIFY_JUDGE_URL": url, "MORU_VERIFY_JUDGE_TOKEN": "tok"}
+        with unittest.mock.patch.dict("os.environ", env, clear=False):
+            self.assertIsNone(verify.remote_call("/state", {"op": "get", "key": "c.verify"})["value"])
+            verify.remote_call("/state", {"op": "put", "key": "c.verify", "value": {"rounds": 1}})
+            self.assertEqual({"rounds": 1}, verify.remote_call("/state", {"op": "get", "key": "c.verify"})["value"])
+            verify.remote_call("/state", {"op": "put", "key": "c.verify", "value": None})
+            self.assertIsNone(verify.remote_call("/state", {"op": "get", "key": "c.verify"})["value"])
+        import judge_service
+
+        source = Path(judge_service.__file__).read_text()
+        self.assertNotIn('"--token"', source)
+        self.assertIn("--token-file", source)
 
     def test_without_a_service_or_a_key_nothing_can_judge(self):
         env = {"MORU_VERIFY_JUDGE_URL": "", "OPENROUTER_API_KEY": ""}

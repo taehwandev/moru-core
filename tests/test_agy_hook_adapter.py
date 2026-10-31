@@ -312,6 +312,51 @@ class PreInvocationTests(unittest.TestCase):
         self.assertIn("status: not_found", text)
         self.assertEqual({}, second)
 
+    def test_state_lives_on_the_judge_service_when_one_is_configured(self):
+        store: dict = {}
+
+        class FakeVerify:
+            @staticmethod
+            def remote_call(path, body):
+                self.assertEqual("/state", path)
+                if body["op"] == "put":
+                    store[body["key"]] = body["value"]
+                    return {"ok": True}
+                return {"value": store.get(body["key"])}
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "_verifier", return_value=FakeVerify), \
+                patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": "http://127.0.0.1:1"}, clear=False):
+            path = Path(tmp) / "conv1.stop.json"
+            adapter.save_state(path, "stop", {"input": "x", "continuations": 1})
+            loaded = adapter.load_state(path, "stop")
+            on_disk = list(Path(tmp).iterdir())
+        self.assertEqual(1, loaded["continuations"])
+        self.assertEqual([], on_disk, "nothing is written where the checked session could rewrite it")
+        self.assertIn("conv1.stop", store)
+
+    def test_state_untouched_for_an_hour_is_forgotten(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)):
+            path = Path(tmp) / "conv2.stop.json"
+            adapter.save_state(path, "stop", {"input": "x", "continuations": 1})
+            self.assertEqual(1, adapter.load_state(path, "stop")["continuations"])
+            with patch.object(adapter.time, "time", return_value=__import__("time").time() + 3601):
+                self.assertEqual({}, adapter.load_state(path, "stop"))
+
+    def test_a_new_request_after_an_unchanged_route_still_gets_project_entry_once(self):
+        def fake(name, args, stdin, cwd, env=None):
+            return "unchanged since this session already received it" if name == "workflow.py" else "status: guided\n"
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", fake):
+            base = {"conversationId": "c10", "workspacePaths": [tmp]}
+            first = adapter.pre_invocation({**base, "lastUserInput": "Now build a 3D scene"})
+            again = adapter.pre_invocation({**base, "lastUserInput": "Now build a 3D scene"})
+        text = first["injectSteps"][0]["systemMessage"]["systemMessage"]
+        self.assertIn("status: guided", text)
+        self.assertNotIn("unchanged since", text)
+        self.assertEqual({}, again)
+
     def test_the_shared_unchanged_note_injects_nothing(self):
         with patch.object(adapter, "run_script", return_value="unchanged since this session already received it"):
             self.assertEqual({}, adapter.pre_invocation({"conversationId": "c1", "workspacePaths": ["/w"]}))

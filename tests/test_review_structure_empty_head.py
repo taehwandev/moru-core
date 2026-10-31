@@ -51,6 +51,20 @@ class EmptyHeadIsNoBaselineTests(unittest.TestCase):
             records = self.metadata(root)
         self.assertFalse(any(r.get("initial_full_build") for r in records.values()), records)
 
+    def test_a_commit_that_deleted_everything_keeps_the_incremental_caps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            git(root, "init", "-q")
+            write_module(root, "old.js", 3)
+            git(root, "add", ".")
+            git(root, "commit", "-q", "-m", "first")
+            git(root, "rm", "-q", "-r", "src")
+            git(root, "commit", "-q", "-m", "delete all")
+            write_module(root, "big.js", 416)
+            git(root, "add", ".")
+            records = self.metadata(root)
+        self.assertFalse(any(r.get("initial_full_build") for r in records.values()), records)
+
     def test_an_unborn_head_is_still_an_initial_full_build(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

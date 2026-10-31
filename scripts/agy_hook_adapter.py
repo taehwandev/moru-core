@@ -123,11 +123,19 @@ def pre_invocation(payload: dict) -> dict:
               "hook_event_name": "UserPromptSubmit"}
     route = run_script("workflow.py", ["route", "triage", "--advisory", "--hook-stdin"], claude, cwd,
                        {"SPILL_AI_TOOL": RUNTIME}).strip()
-    if not route or UNCHANGED_NOTE in route:
+    if not route:
+        return {}
+    unchanged = UNCHANGED_NOTE in route
+    # An unchanged route says nothing about a new request: a conversation can move to a different kind of
+    # work, so project entry is recomputed once per distinct user input and still deduplicated below.
+    if unchanged and (not prompt.strip() or already_delivered(session_id(payload), prompt, "input")):
         return {}
     entry = run_script("agent-entry.py", ["--runtime", RUNTIME, "--cwd", cwd, "--no-default-search-roots",
                                           "--request", prompt], "", cwd).strip()
-    text = route if not entry else f"{route}\n\n## Project entry\n{entry}"
+    base = "" if unchanged else route
+    text = base if not entry else f"{base}\n\n## Project entry\n{entry}".strip()
+    if not text:
+        return {}
     if "web-3d-interaction" in entry and independent_check_available():
         text += "\n\n" + INDEPENDENT_CHECK_NOTICE
     if already_delivered(session_id(payload), text):
@@ -205,6 +213,64 @@ def unverified_reminder(payload: dict, execution: int) -> dict:
     return {"decision": "continue", "reason": UNVERIFIED_REMINDER}
 
 
+def _verifier():
+    sys.path.insert(0, str(SCRIPTS / "page_verify"))
+    import verify
+
+    return verify
+
+
+STATE_TTL_SECONDS = 3600
+
+
+def load_state(path: Path, kind: str) -> dict:
+    """Hook state. With a judge service it lives there, out of reach of the session being checked.
+
+    State untouched for STATE_TTL_SECONDS is dropped, so repeating an identical request much later
+    starts clean instead of inheriting the earlier request's rounds.
+    """
+
+    state = _load_state(path, kind)
+    if time.time() - float(state.get("at", 0) or 0) > STATE_TTL_SECONDS:
+        return {}
+    return state
+
+
+def _load_state(path: Path, kind: str) -> dict:
+    if os.environ.get("MORU_VERIFY_JUDGE_URL"):
+        try:
+            value = _verifier().remote_call("/state", {"op": "get", "key": f"{path.stem.split('.')[0]}.{kind}"}).get("value")
+            return value if isinstance(value, dict) else {}
+        except Exception:  # noqa: BLE001 - an unreachable service means no state, not a trapped stop
+            return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(path: Path, kind: str, state: dict | None) -> None:
+    """Persist ``state`` stamped with the time; None forgets it."""
+
+    if state is not None:
+        state = {**state, "at": time.time()}
+
+    if os.environ.get("MORU_VERIFY_JUDGE_URL"):
+        try:
+            _verifier().remote_call("/state", {"op": "put", "key": f"{path.stem.split('.')[0]}.{kind}", "value": state})
+        except Exception:  # noqa: BLE001
+            pass
+        return
+    try:
+        if state is None:
+            path.unlink(missing_ok=True)
+        else:
+            MARKER_DIR.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(state), encoding="utf-8")
+    except OSError:
+        pass
+
+
 VERIFY_MAX_ROUNDS = 1
 
 
@@ -232,10 +298,7 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
         project = Path(workspace(payload))
         if verify.find_dist(project) is None or not verify.can_judge():
             return False, {}
-        try:
-            state = json.loads(state_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            state = {}
+        state = load_state(state_path, "verify")
         digest = hashlib.sha256(str(payload.get("lastUserInput") or "").encode("utf-8")).hexdigest()
         if state.get("input") != digest:
             state = {"input": digest}  # a new request must not inherit the last one's checklist or rounds
@@ -249,22 +312,20 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
             held = verify.remaining_text(state.get("results") or [])
             if held and not state.get("reported"):
                 state["reported"] = True
-                state_path.write_text(json.dumps(state), encoding="utf-8")
+                save_state(state_path, "verify", state)
                 return True, {"decision": "continue", "reason": held}
             return True, {}
         request = str(state.get("request") or payload.get("lastUserInput") or "")
         out = MARKER_DIR / "verify" / (state_path.stem.split(".")[0]) / f"round{rounds}"
         items, results = verify.verify_project(project, request, out, checklist=state.get("checklist"))
-        MARKER_DIR.mkdir(parents=True, exist_ok=True)
         # Before the last allowed check the failures go back for a fix; after it they are reported, once.
         last_check = rounds >= VERIFY_MAX_ROUNDS
         feedback = verify.remaining_text(results) if last_check else verify.feedback_text(results)
         kept = [{k: r.get(k) for k in ("id", "claim", "verdict", "reason")} for r in results]
-        state_path.write_text(json.dumps({"input": digest, "rounds": rounds + 1, "request": request, "checklist": items,
+        save_state(state_path, "verify", {"input": digest, "rounds": rounds + 1, "request": request, "checklist": items,
                                           "fingerprint": fingerprint, "results": kept,
                                           "reported": bool(feedback and last_check),
-                                          "last": [{"id": r["id"], "verdict": r["verdict"]} for r in results]}),
-                              encoding="utf-8")
+                                          "last": [{"id": r["id"], "verdict": r["verdict"]} for r in results]})
         return True, ({"decision": "continue", "reason": feedback} if feedback else {})
     except Exception as error:  # noqa: BLE001 - verification is advisory and must never trap a stop
         try:  # a silent fail-open hides why a fix loop ended, so leave the reason beside the state
@@ -287,10 +348,7 @@ def continuations_for(payload: dict) -> tuple[Path | None, dict]:
         return None, {}
     path = MARKER_DIR / f"{safe}.stop.json"
     digest = hashlib.sha256(str(payload.get("lastUserInput") or "").encode("utf-8")).hexdigest()
-    try:
-        state = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        state = {}
+    state = load_state(path, "stop")
     if state.get("input") != digest:
         state = {"input": digest, "continuations": 0}
     return path, state
@@ -300,11 +358,7 @@ def count_continuation(path: Path | None, state: dict) -> None:
     if path is None:
         return
     state["continuations"] = int(state.get("continuations", 0)) + 1
-    try:
-        MARKER_DIR.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(state), encoding="utf-8")
-    except OSError:
-        pass
+    save_state(path, "stop", state)
 
 
 def stop(payload: dict) -> dict:
@@ -321,11 +375,11 @@ def stop(payload: dict) -> dict:
         count_continuation(counter_path, counter)
         return {"decision": "continue", "reason": str(out.get("reason") or "")}
     ran, verdict = verify_in_session(payload)
-    if ran:
-        if verdict.get("decision") == "continue":
-            count_continuation(counter_path, counter)
-        return verdict
-    return unverified_reminder(payload, execution)
+    if not ran:
+        verdict = unverified_reminder(payload, execution)
+    if verdict.get("decision") == "continue":
+        count_continuation(counter_path, counter)
+    return verdict
 
 
 HANDLERS = {"pre-invocation": pre_invocation, "pre-tool": pre_tool, "stop": stop}

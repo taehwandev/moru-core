@@ -21,6 +21,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -247,15 +248,32 @@ SOURCE_SUFFIXES = {".js", ".jsx", ".mjs", ".ts", ".tsx", ".html", ".css"}
 SOURCE_LIMIT = 150_000
 
 
+SECRET_NAME = re.compile(r"(^\.env|secret|credential|password|token|\.pem$|\.key$)", re.IGNORECASE)
+
+
+def source_candidates(project: Path) -> list[Path]:
+    """Files git would track or could add (ignored files excluded); every file when not a git repo."""
+
+    try:
+        listed = subprocess.run(
+            ["git", "-C", str(project), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+            capture_output=True, check=True, timeout=20).stdout
+        return sorted(project / name for name in listed.decode(errors="ignore").split("\0") if name)
+    except (OSError, subprocess.SubprocessError):
+        return sorted(project.rglob("*"))
+
+
 def collect_source(project: Path) -> str:
-    """The project's own source, line numbered, without dependencies, builds or tests."""
+    """The project's own source, line numbered, without dependencies, builds, tests, secrets or links out of the project."""
 
     skip = {"node_modules", "dist", "build", "out", ".git", ".moru", "tests", "test", "coverage"}
+    root = project.resolve()
     chunks, total = [], 0
-    for path in sorted(project.rglob("*")):
+    for path in source_candidates(project):
         relative = path.relative_to(project)
-        if (path.suffix not in SOURCE_SUFFIXES or not path.is_file() or skip & set(relative.parts)
-                or ".test." in path.name or ".spec." in path.name):
+        if (path.suffix not in SOURCE_SUFFIXES or path.is_symlink() or not path.is_file() or skip & set(relative.parts)
+                or ".test." in path.name or ".spec." in path.name or SECRET_NAME.search(path.name)
+                or not path.resolve().is_relative_to(root)):
             continue
         body = "\n".join(f"{n + 1}: {line}" for n, line in enumerate(path.read_text(errors="ignore").splitlines()))
         if total + len(body) > SOURCE_LIMIT:
@@ -308,10 +326,16 @@ def combine(results: list[dict], code: dict[str, dict]) -> list[dict]:
     return merged
 
 
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
 def remote_call(path: str, payload: dict) -> dict:
     """Ask a judge service instead of calling a model here, so the key never enters this process."""
 
     base = os.environ["MORU_VERIFY_JUDGE_URL"].rstrip("/")
+    parts = urllib.parse.urlsplit(base)
+    if parts.scheme != "https" and not (parts.scheme == "http" and parts.hostname in LOOPBACK_HOSTS):
+        raise RuntimeError("MORU_VERIFY_JUDGE_URL must be https, or http on a loopback host")
     request = urllib.request.Request(
         base + path, data=json.dumps(payload).encode(), method="POST",
         headers={"Content-Type": "application/json",
@@ -399,6 +423,10 @@ def observe(url: str, out: Path, viewport: str, seconds: int) -> None:
     except subprocess.TimeoutExpired:
         os.killpg(process.pid, signal.SIGKILL)
         _, stderr = process.communicate()
+        try:  # the browser has its own process group, which the kill above does not reach
+            os.killpg(int((out / "chrome.pid").read_text().strip()), signal.SIGKILL)
+        except (OSError, ValueError):
+            pass
     if not (out / "observations.json").is_file():
         raise RuntimeError(f"observer produced no evidence: {stderr.strip()[:300]}")
 
