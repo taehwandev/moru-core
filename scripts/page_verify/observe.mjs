@@ -25,6 +25,8 @@ const option = (name, fallback) => {
 };
 const viewportName = option('--viewport', 'desktop');
 const totalSeconds = Number(option('--seconds', '75'));
+// The touch viewport is a short second look: layout, reach of the controls and one frame after the action.
+const brief = option('--viewport', 'desktop') === 'mobile';
 const CHROME = process.env.CHROME_PATH
   || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome',
     '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
@@ -265,6 +267,22 @@ try {
       await sleep(1500);
     }
     const at = () => (Date.now() - started) / 1000;
+    if (brief) {
+      await sleep(2000);
+      await capture(cdp, 'after-action', at());
+      evidence.inputProbes.canvasRunning = await probeCanvas(cdp);
+    } else {
+    // The page's own numbers (altitude, speed, phase) every half second: they show jumps and smoothness
+    // that a handful of pictures cannot.
+    evidence.timeline = [];
+    const sampler = setInterval(async () => {
+      if (evidence.timeline.length >= 160) return;
+      try {
+        const text = (await evaluate(cdp, SNAPSHOT)).text;
+        evidence.timeline.push({ t: Number(at().toFixed(1)), text: text.slice(0, 200) });
+      } catch { /* the page may be navigating */ }
+    }, 500);
+    process.on('exit', () => clearInterval(sampler));
     // The default camera comes first: the subject must be in view before any view is changed.
     for (const mark of [3, 6, 10]) {
       const wait = mark * 1000 - (Date.now() - started);
@@ -299,6 +317,8 @@ try {
         evidence.endedAtRest = true;
         break;
       }
+    }
+    clearInterval(sampler);
     }
   }
   cdp.close();

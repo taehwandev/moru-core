@@ -153,6 +153,43 @@ class JudgeTests(unittest.TestCase):
         self.assertIn("| a | fail | r |", table)
 
 
+class MobileAndTimelineTests(unittest.TestCase):
+    def test_the_touch_viewport_look_is_merged_as_mobile_steps_with_its_probes(self):
+        def fake_observe(url, out, viewport, seconds):
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "00-initial.jpg").write_bytes(b"\xff\xd8\xff\xd9")
+            (out / "observations.json").write_text(json.dumps({
+                "steps": [{"label": "initial", "seconds": 0, "screenshot": "00-initial.jpg", "text": "READY", "overflowX": 0}],
+                "inputProbes": {"primary": {"x": 1, "y": 2, "reaches": False, "by": "div.sheet", "text": "", "invisible": True}},
+                "consoleErrors": ["boom"]}))
+
+        with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch.object(verify, "observe", fake_observe):
+            out = Path(tmp)
+            evidence = {"steps": [{"label": "initial"}], "consoleErrors": []}
+            verify.observe_mobile("http://x", out, evidence)
+            self.assertTrue((out / "m-00-initial.jpg").is_file())
+        self.assertEqual(["initial", "mobile-initial"], [s["label"] for s in evidence["steps"]])
+        self.assertEqual(["boom"], evidence["consoleErrors"])
+        self.assertIn("mobile primary", verify.invisible_blockers(evidence)[0])
+
+    def test_a_failed_touch_look_is_recorded_not_raised(self):
+        def broken(*args, **kwargs):
+            raise RuntimeError("no chrome")
+
+        with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch.object(verify, "observe", broken):
+            evidence = {"steps": [], "consoleErrors": []}
+            verify.observe_mobile("http://x", Path(tmp), evidence)
+        self.assertIn("no chrome", evidence["mobileError"])
+
+    def test_the_timeline_keeps_only_changes_and_the_observer_samples_it(self):
+        evidence = {"timeline": [{"t": 1, "text": "ALT 1"}, {"t": 1.5, "text": "ALT 1"}, {"t": 2, "text": "ALT 5"}]}
+        self.assertEqual("- 1s: ALT 1\n- 2s: ALT 5", verify.timeline_text(evidence))
+        self.assertEqual("(none)", verify.timeline_text({}))
+        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        for needle in ("evidence.timeline", "setInterval", "const brief", "after-action"):
+            self.assertIn(needle, source)
+
+
 class InputReachTests(unittest.TestCase):
     ITEMS = [{"id": "input-reaches-controls", "claim": "c", "phase": "any", "evidence": ["input"], "source": "generic"}]
     BLOCKED = {"inputProbes": {"canvasRunning": [{"x": 420, "y": 520, "reaches": False, "by": "div.shortcut-row",
@@ -384,6 +421,16 @@ class RemoteJudgeTests(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError) as caught:
                 verify.derive_any("x")
         self.assertEqual(401, caught.exception.code)
+
+    def test_the_service_can_keep_what_it_judged_outside_the_agent_session(self):
+        import base64
+        import judge_service
+
+        with tempfile.TemporaryDirectory() as tmp:
+            body = {"items": [{"id": "x"}], "evidence": {"steps": []}, "images": {"00-initial.jpg": base64.b64encode(b"jpg").decode()}}
+            judge_service.keep_round(Path(tmp), body, [{"id": "x", "verdict": "pass"}])
+            kept = sorted(p.name for p in next(Path(tmp).iterdir()).iterdir())
+        self.assertEqual(["00-initial.jpg", "evidence.json", "items.json", "results.json"], kept)
 
     def test_the_url_a_container_uses_to_reach_its_host_is_allowed(self):
         with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": "http://host.docker.internal:1"}, clear=False):

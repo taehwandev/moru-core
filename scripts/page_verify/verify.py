@@ -21,6 +21,7 @@ import base64
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
@@ -61,7 +62,7 @@ Rules:
   actually change what they claim to change; (7) a vehicle that rises or descends vertically keeps its body level
   (pitch near zero) and does not stand on its tail, dive nose-first or fall like a rocket unless the request asks
   for that, and its pitch and roll stay plausible through every phase.
-- Add nothing the request does not imply. No visual taste judgements such as "beautiful".
+- Phrase each item so the available evidence can settle it. Pictures show only a few moments (the start, about 3, 6\n  and 10 seconds after the action, after each control, a touch-sized view after the action and near the end), so write\n  'at the sampled moments' for whole-sequence claims; a numeric text timeline every half second shows continuity;\n  code shows what a picture cannot. An item that no evidence can ever settle only produces a permanent failure.\n- Add nothing the request does not imply. No visual taste judgements such as "beautiful".
 - At most 10 items. Each item: id (short kebab-case), claim, phase (initial | during_action | after_action | any),
   evidence (a non-empty subset of: screenshots, text, console, code). Use code for anything a screenshot cannot
   show: which way a subject's front points versus its travel direction, coordinate conventions, and whether
@@ -81,6 +82,8 @@ console errors. For each item answer one verdict:
   show the thing (for example a first-person view cannot show the subject itself) is never a fail.
 - unobserved: the evidence cannot show it. Do not guess; say what is missing.
 Steps named pointer-* are a real mouse drag over the scene and then a wheel scroll, each with a picture before and after.
+Steps named mobile-* come from a 390x844 touch viewport after the main action; overflowX above 0 there means the page scrolls sideways.
+The TIMELINE lists the page's own text every half second while it ran (only when it changed): use its numbers for continuity, jumps and smoothness.
 Give a one-sentence reason that cites a step label. Answer with a JSON array of
 {{"id": ..., "verdict": ..., "reason": ..., "contradicting_step": "<label or empty>"}} only, covering every item.
 
@@ -206,6 +209,17 @@ def select_steps(steps: list[dict], limit: int = MAX_IMAGES) -> list[dict]:
     return chosen[:limit] if len(chosen) > limit else chosen
 
 
+def timeline_text(evidence: dict) -> str:
+    """The page's text samples, keeping only the ones where it changed (digits included), capped."""
+
+    lines, last = [], None
+    for sample in evidence.get("timeline") or []:
+        if sample.get("text") != last:
+            lines.append(f"- {sample['t']}s: {sample['text'][:160]}")
+            last = sample.get("text")
+    return "\n".join(lines[:70]) or "(none)"
+
+
 def judge_loaded(items: list[dict], evidence: dict, images: dict[str, str], *, ask=chat) -> list[dict]:
     steps = evidence.get("steps", [])
     text = JUDGE_PROMPT.format(
@@ -213,7 +227,9 @@ def judge_loaded(items: list[dict], evidence: dict, images: dict[str, str], *, a
         console=json.dumps(evidence.get("consoleErrors", [])),
         failed=json.dumps([r for r in evidence.get("failedRequests", []) if "favicon" not in r.get("url", "")]),
         primary=json.dumps(evidence.get("primaryAction")),
-        steps="\n".join(f"- {s['label']} ({s['seconds']}s): {s.get('text', '')[:400]}" for s in steps))
+        steps="\n".join(f"- {s['label']} ({s['seconds']}s): {s.get('text', '')[:400]}"
+                        + (f" [overflowX={s['overflowX']}]" if s['label'].startswith('mobile-') else "") for s in steps)
+        + "\nTIMELINE:\n" + timeline_text(evidence))
     content: list[dict] = [{"type": "text", "text": text}]
     if any("screenshots" in i.get("evidence", []) for i in items):
         for step in select_steps(steps):
@@ -459,6 +475,37 @@ def observe(url: str, out: Path, viewport: str, seconds: int) -> None:
         raise RuntimeError(f"observer produced no evidence: {stderr.strip()[:300]}")
 
 
+def observe_mobile(url: str, out: Path, evidence: dict) -> None:
+    """A short touch-viewport look, merged into the desktop evidence as mobile-* steps."""
+
+    mobile_dir = out / "mobile"
+    try:
+        observe(url, mobile_dir, "mobile", 12)
+        mobile = json.loads((mobile_dir / "observations.json").read_text(encoding="utf-8"))
+    except Exception as error:  # noqa: BLE001 - a missing mobile look is reported as unverified, not a crash
+        evidence["mobileError"] = f"{type(error).__name__}: {str(error)[:200]}"
+        return
+    for step in mobile.get("steps", []):
+        name = f"m-{step['screenshot']}"
+        shutil.copyfile(mobile_dir / step["screenshot"], out / name)
+        evidence["steps"].append({**step, "label": f"mobile-{step['label']}", "screenshot": name})
+    evidence["mobileInputProbes"] = mobile.get("inputProbes") or {}
+    evidence["consoleErrors"] = [*evidence.get("consoleErrors", []), *mobile.get("consoleErrors", [])][:20]
+    if mobile.get("observerError"):
+        evidence["mobileError"] = str(mobile["observerError"])[:200]
+
+
+def observe_with_mobile(url: str, out: Path, viewport: str, seconds: int) -> dict:
+    """The requested observation, plus the short touch-viewport look after a desktop run; returns the evidence."""
+
+    observe(url, out, viewport, seconds)
+    evidence = json.loads((out / "observations.json").read_text(encoding="utf-8"))
+    if viewport == "desktop":
+        observe_mobile(url, out, evidence)
+        (out / "observations.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+    return evidence
+
+
 def project_fingerprint(project: Path) -> str:
     """A hash of the built page and the source it came from, to tell whether anything changed."""
 
@@ -511,15 +558,16 @@ def floor_results(items: list[dict], evidence: dict) -> list[dict]:
 def invisible_blockers(evidence: dict) -> list[str]:
     """Where pointer input lands on something invisible (transparent or hidden) instead of the control or scene."""
 
-    probes = evidence.get("inputProbes") or {}
     found = []
-    for name in ("primary", "canvasInitial", "canvasRunning"):
-        entries = probes.get(name) or []
-        for point in [entries] if isinstance(entries, dict) else entries:
-            if not point.get("reaches", True) and point.get("invisible"):
-                target = "the main action" if name == "primary" else "the scene"
-                found.append(f"{name}: input at ({point['x']},{point['y']}) for {target} lands on invisible "
-                             f"<{point.get('by')}> {point.get('text', '')!r}")
+    for viewport, probes in (("desktop", evidence.get("inputProbes") or {}),
+                             ("mobile", evidence.get("mobileInputProbes") or {})):
+        for name in ("primary", "canvasInitial", "canvasRunning"):
+            entries = probes.get(name) or []
+            for point in [entries] if isinstance(entries, dict) else entries:
+                if not point.get("reaches", True) and point.get("invisible"):
+                    target = "the main action" if name == "primary" else "the scene"
+                    found.append(f"{viewport} {name}: input at ({point['x']},{point['y']}) for {target} lands on "
+                                 f"invisible <{point.get('by')}> {point.get('text', '')!r}")
     return found
 
 
@@ -568,10 +616,9 @@ def verify_project(project: Path, request: str, out: Path, *, viewport: str = "d
                                "--directory", str(dist)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         time.sleep(1)
-        observe(f"http://127.0.0.1:{port}/", out / "evidence", viewport, seconds)
+        evidence = observe_with_mobile(f"http://127.0.0.1:{port}/", out / "evidence", viewport, seconds)
     finally:
         server.terminate()
-    evidence = json.loads((out / "evidence" / "observations.json").read_text(encoding="utf-8"))
     failing = floor_results(items, evidence)
     if failing:
         by_id = {r["id"]: r for r in failing}
@@ -617,7 +664,7 @@ def main(argv: list[str]) -> int:
     items = (json.loads(args.checklist.read_text(encoding="utf-8")) if args.checklist
              else derive_any(args.request))
     (args.out / "checklist.json").write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
-    observe(args.url, args.out / "evidence", args.viewport, args.seconds)
+    observe_with_mobile(args.url, args.out / "evidence", args.viewport, args.seconds)
     results = finalize(judge_any(items, args.out / "evidence"),
                        json.loads((args.out / "evidence" / "observations.json").read_text(encoding="utf-8")))
     (args.out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")

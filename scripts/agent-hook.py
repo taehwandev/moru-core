@@ -500,6 +500,19 @@ def _publication_review_invocation_hint() -> str:
     )
 
 
+def _required_hooks_lines(required: object) -> list[str]:
+    """The required hooks and the reason they are required, so skipping them is a decision and not an accident."""
+
+    if not required:
+        return []
+    return [
+        f"Required hooks: {required}",
+        "Why these hooks: start admitted this work and its route, review checks the exact diff against the "
+        "route's gates, and finish attests that the tests and the review ran on the final bytes. Skipping "
+        "them leaves the work unverified, and the final answer must then say so.",
+    ]
+
+
 def _hook_summary_from_preflight(path: Path) -> list[str]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -597,8 +610,7 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
         )
     lines.extend(_same_run_commit_lines(route, path, payload))
     lines.extend(_continuation_summary_lines(route.get("command", "")))
-    if required:
-        lines.append(f"Required hooks: {required}")
+    lines.extend(_required_hooks_lines(required))
     if conditional:
         lines.append(f"Conditional hooks: {conditional}")
     gates = [gate for gate in (route.get("gates") or []) if isinstance(gate, str)]

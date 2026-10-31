@@ -340,6 +340,19 @@ class ClaudeStopGateTests(unittest.TestCase):
         self.assertIn(str(gate.stable_launcher_path()), reason)
         self.assertNotIn("~/.moru", reason)
 
+    def test_block_reason_says_why_finish_matters_and_does_not_offer_a_silent_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = _opt_in_project(Path(tmp))
+            _record_edit(project, "s1")
+
+            _, out = _decide(_payload(project, "s1"))
+
+        reason = json.loads(out)["reason"]
+        self.assertIn("Why it matters", reason)
+        self.assertIn("confirms the tests and the review really ran", reason)
+        self.assertIn("begin your final answer with `NOT FINISHED:`", reason)
+        self.assertNotIn("does not block the same edits twice", reason)
+
     def test_setup_installs_stop_gate_without_removing_user_hooks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "settings.json"

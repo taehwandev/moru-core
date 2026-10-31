@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import time
 import subprocess
 import sys
@@ -318,7 +319,13 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
             return True, {}
         request = str(state.get("request") or payload.get("lastUserInput") or "")
         out = MARKER_DIR / "verify" / (state_path.stem.split(".")[0]) / f"round{rounds}"
-        items, results = verify.verify_project(project, request, out, checklist=state.get("checklist"))
+        try:
+            items, results = verify.verify_project(project, request, out, checklist=state.get("checklist"))
+        finally:
+            if os.environ.get("MORU_VERIFY_JUDGE_URL"):
+                # With a judge service the checklist and the evidence live there. Leaving them in this home would
+                # let the checked session read what it is checked against (one run did, right after a failure).
+                shutil.rmtree(out, ignore_errors=True)
         # Before the last allowed check the failures go back for a fix; after it they are reported, once.
         last_check = rounds >= VERIFY_MAX_ROUNDS
         feedback = verify.remaining_text(results) if last_check else verify.feedback_text(results)

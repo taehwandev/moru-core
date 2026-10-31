@@ -17,9 +17,11 @@ the key; it is not the key.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -32,7 +34,19 @@ MAX_STATE_KEYS = 256
 STATE: dict[str, dict] = {}  # hook state kept here so the checked session cannot rewrite its own rounds
 
 
-def make_handler(token: str, *, derive=None, judge=None):
+def keep_round(keep_dir: Path, body: dict, results: list) -> None:
+    """A copy of what one judgement saw and answered, on the service side, for the people running the check."""
+
+    folder = keep_dir / time.strftime("%Y%m%dT%H%M%S")
+    folder.mkdir(parents=True, exist_ok=True)
+    for name, data in (body.get("images") or {}).items():
+        (folder / Path(name).name).write_bytes(base64.b64decode(data))
+    (folder / "evidence.json").write_text(json.dumps(body.get("evidence"), indent=2), encoding="utf-8")
+    (folder / "items.json").write_text(json.dumps(body.get("items"), indent=2), encoding="utf-8")
+    (folder / "results.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def make_handler(token: str, *, derive=None, judge=None, keep_dir: Path | None = None):
     derive = derive or verify.derive_checklist
     judge = judge or verify.judge_loaded
 
@@ -61,6 +75,8 @@ def make_handler(token: str, *, derive=None, judge=None):
                 if self.path == "/judge":
                     results = judge(body["items"], body["evidence"], body["images"])
                     results = verify.combine(results, verify.judge_code(body["items"], str(body.get("source") or "")))
+                    if keep_dir is not None:
+                        keep_round(keep_dir, body, results)
                     return self.reply(200, {"results": results})
                 if self.path == "/state":
                     key = str(body["key"])[:200]
@@ -83,13 +99,14 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--token-file", help="file holding the bearer token (default: MORU_VERIFY_JUDGE_TOKEN); never pass the token as an argument")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--keep-dir", help="keep a copy of every judged round here (service side, outside the agent's reach)")
     parser.add_argument("--bind", default="127.0.0.1")
     args = parser.parse_args(argv)
     token = (Path(args.token_file).read_text().strip() if args.token_file else os.environ.get("MORU_VERIFY_JUDGE_TOKEN", ""))
     if not token:
         parser.error("set --token-file or MORU_VERIFY_JUDGE_TOKEN")
     verify.api_key()  # fail now, not on the first request
-    server = ThreadingHTTPServer((args.bind, args.port), make_handler(token))
+    server = ThreadingHTTPServer((args.bind, args.port), make_handler(token, keep_dir=Path(args.keep_dir) if args.keep_dir else None))
     print(f"judge service on {args.bind}:{args.port}", flush=True)
     server.serve_forever()
     return 0

@@ -194,6 +194,33 @@ class InSessionVerificationTests(unittest.TestCase):
                 adapter.stop(self.PAYLOAD)
             return adapter.stop(self.PAYLOAD), calls, Path(tmp)
 
+    def test_with_a_judge_service_the_local_evidence_is_removed_after_the_round(self):
+        import types
+
+        made = []
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: Path("/w/dist")
+        fake.can_judge = lambda: True
+        fake.project_fingerprint = lambda project: "x"
+        fake.feedback_text = lambda r: ""
+        fake.remaining_text = lambda r: ""
+
+        def verify_project(project, request, out, checklist=None, **kw):
+            out.mkdir(parents=True)
+            (out / "checklist.json").write_text("[]")
+            made.append(out)
+            return [{"id": "a"}], [{"id": "a", "verdict": "pass"}]
+
+        fake.verify_project = verify_project
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), \
+                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": "http://127.0.0.1:9"}, clear=False), \
+                patch.dict(sys.modules, {"verify": fake}):
+            adapter.stop(self.PAYLOAD)
+            leftovers = [p.exists() for p in made]
+        self.assertEqual([False], leftovers, "the checked session must not find its checklist or pictures at home")
+
     def test_a_check_that_crashes_is_reported_once_and_never_ends_the_run_unseen(self):
         import types
 
