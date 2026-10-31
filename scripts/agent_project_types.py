@@ -116,6 +116,12 @@ def format_entry_text(manifest: dict[str, object]) -> str:
                 if isinstance(candidate, dict):
                     lines.append(f"- {candidate['path']} ({candidate['confidence']})")
 
+    guidance = manifest.get("guidance")
+    if isinstance(guidance, dict):
+        lines.append("guidance (navigation only; read before implementation):")
+        lines.extend(f"- {item}" for item in guidance.get("required_docs", []))
+        if guidance.get("missing"):
+            lines.append(f"missing guidance: {guidance['missing']}")
     next_steps = manifest.get("next_steps", [])
     if isinstance(next_steps, list) and next_steps:
         lines.append("next_steps:")

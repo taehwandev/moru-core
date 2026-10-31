@@ -988,6 +988,21 @@
       "required_priority": 50
     },
     {
+      "name": "visible_ui_work",
+      "platform_unresolved_only": true,
+      "commands": ["feature", "build", "task", "bugfix"],
+      "subject_exclusion": true,
+      "required_priority": 50,
+      "request_any": [
+        "\\b(?:ui|ux|landing\\s*page|web\\s*page|web\\s*site|dashboard|front-?end|responsive|mobile[- ]friendly)\\b",
+        "\\b(?:create|build|make|design|polish|style|restyle)\\b.{0,40}\\b(?:page|screen|layout|form|button|modal|menu|card)s?\\b",
+        "\\b(?:fix|adjust|tweak|align)\\b.{0,40}\\b(?:padding|layout|button|modal|menu|card)s?\\b",
+        "화면|랜딩|대시보드|반응형|레이아웃|디자인|버튼|UI"
+      ],
+      "docs": ["common/skills/ui-visual-verification/SKILL.md"],
+      "reason": "Visible interface work needs rendered-state verification whatever the platform is or whether a project exists yet; selection follows the request, not a detected platform."
+    },
+    {
       "name": "web_3d_interaction_change",
       "commands": ["feature", "build", "task", "bugfix", "refactor", "review", "test"],
       "subject_exclusion": true,

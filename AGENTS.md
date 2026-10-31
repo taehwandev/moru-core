@@ -25,7 +25,7 @@ Frontmatter `status`: `draft`, `review`, `stable`; `type` records provenance.
 
 ## Project Entry
 
-Identify the target from request/cwd; use installed discovery only if unresolved.
+Identify the target from request/cwd; use installed discovery if unresolved or new (returns task skills).
 Read target runtime instructions before shared guidance; a missing file/new
 project is allowed, an unreadable existing file or unconfirmed bridge is not.
 Repo policy governs paths and Git isolation. Keep the primary repo as acceptance

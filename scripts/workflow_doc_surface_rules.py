@@ -99,6 +99,10 @@ def rule_matches_command(rule: dict[str, Any], command: str) -> bool:
 
 
 def rule_matches_platform(rule: dict[str, Any], platform: str | None) -> bool:
+    # Fills only the gap where no platform is known yet (a new workspace);
+    # a resolved platform keeps its own routing.
+    if rule.get("platform_unresolved_only"):
+        return platform is None
     platforms = string_list(rule.get("platforms"))
     return not platforms or bool(platform and platform in set(platforms))
 
