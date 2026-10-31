@@ -3,8 +3,9 @@
 
 The agent session that builds a page must not be able to read the provider key, so
 the session sends its request and its observation evidence here and gets items and
-verdicts back. The key stays in this process. Every request spends money, so the service refuses to start
-unless MORU_VERIFY_ALLOW_PAID=1 is set by whoever starts it.
+verdicts back. The judge is the local Codex CLI by default (no provider key involved). With
+MORU_VERIFY_BACKEND=openrouter the key stays in this process, every request spends money, and the
+service refuses to start unless MORU_VERIFY_ALLOW_PAID=1 is also set by whoever starts it.
 
 POST /derive  {"request": str}                       -> {"items": [...]}
 POST /state   {"op": "get"|"put", "key": str, "value": dict|null}  -> {"value": ...}
@@ -103,11 +104,10 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--keep-dir", help="keep a copy of every judged round here (service side, outside the agent's reach)")
     parser.add_argument("--bind", default="127.0.0.1")
     args = parser.parse_args(argv)
-    verify.require_paid_calls()  # this service exists to make paid calls: refuse to start unless that was allowed
+    verify.require_backend()  # fail now: no codex CLI, or a paid backend that was not allowed on purpose
     token = (Path(args.token_file).read_text().strip() if args.token_file else os.environ.get("MORU_VERIFY_JUDGE_TOKEN", ""))
     if not token:
         parser.error("set --token-file or MORU_VERIFY_JUDGE_TOKEN")
-    verify.api_key()  # fail now, not on the first request
     server = ThreadingHTTPServer((args.bind, args.port), make_handler(token, keep_dir=Path(args.keep_dir) if args.keep_dir else None))
     print(f"judge service on {args.bind}:{args.port}", flush=True)
     server.serve_forever()

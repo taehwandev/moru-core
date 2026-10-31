@@ -77,7 +77,7 @@ JUDGE_PROMPT = """You are an independent verifier. You did not build this page. 
 only the evidence below: the screenshots (in order, labelled), the visible page text captured at each step, and the
 console errors. For each item answer one verdict:
 - pass: the evidence shows it is true.
-- fail: a specific step's screenshot or text shows it is false. Name that step in "contradicting_step". Missing
+- fail: a specific step's screenshot or text shows it is false. Name that step in "contradicting_step"; for a number in the TIMELINE write timeline@<seconds>s. Missing
   evidence, a control that was never operated, a viewport that was never tried, or a view that legitimately cannot
   show the thing (for example a first-person view cannot show the subject itself) is never a fail.
 - unobserved: the evidence cannot show it. Do not guess; say what is missing.
@@ -126,7 +126,73 @@ def api_key() -> str:
     return key
 
 
+# The judge runs on the local Codex CLI by default: it is a different model from the one that built the page,
+# it uses the person's own Codex plan, and nothing is billed per call. OpenRouter is opt-in on top of that.
+CODEX_MODEL = os.environ.get("MORU_VERIFY_CODEX_MODEL", "gpt-6.1-terra")
+CODEX_EFFORT = os.environ.get("MORU_VERIFY_CODEX_EFFORT", "medium")
+CODEX_TIMEOUT_SECONDS = 600
+CODEX_ANSWER_RULE = ("\n\nAnswer from this prompt and the attached images only. Do not run commands, read files or use "
+                     "any tool. Reply with the requested JSON only.")
+
+
+def backend() -> str:
+    return "openrouter" if os.environ.get("MORU_VERIFY_BACKEND", "").strip() == "openrouter" else "codex"
+
+
+def codex_available() -> bool:
+    return shutil.which("codex") is not None
+
+
+def split_content(content: object) -> tuple[str, list[bytes]]:
+    """Chat-style content as one prompt text plus the images in order, each marked in the text as [image N]."""
+
+    parts = [{"type": "text", "text": content}] if isinstance(content, str) else list(content)
+    texts, images = [], []
+    for part in parts:
+        if part.get("type") == "image_url":
+            images.append(base64.b64decode(part["image_url"]["url"].split(",", 1)[1]))
+            texts.append(f"[image {len(images)}]")
+        else:
+            texts.append(str(part.get("text", "")))
+    return "\n".join(texts), images
+
+
+def chat_codex(content: object) -> str:
+    """One judgement from the local Codex CLI: no tools, no user config, no session kept, images attached."""
+
+    import tempfile
+
+    prompt, images = split_content(content)
+    with tempfile.TemporaryDirectory(prefix="moru-codex-judge-") as tmp:
+        work = Path(tmp)
+        command = ["codex", "exec", "--sandbox", "read-only", "--ignore-user-config", "--ignore-rules", "--ephemeral",
+                   "--skip-git-repo-check", "-C", str(work), "-m", CODEX_MODEL,
+                   "-c", f'model_reasoning_effort="{CODEX_EFFORT}"', "-o", str(work / "answer.txt")]
+        for number, data in enumerate(images, 1):
+            path = work / f"image-{number}.jpg"
+            path.write_bytes(data)
+            command += ["-i", str(path)]
+        done = subprocess.run([*command, "-"], input=prompt + CODEX_ANSWER_RULE, capture_output=True, text=True,
+                              timeout=CODEX_TIMEOUT_SECONDS, check=False)
+        answer = (work / "answer.txt").read_text(encoding="utf-8") if (work / "answer.txt").is_file() else ""
+    if done.returncode != 0 or not answer.strip():
+        raise RuntimeError(f"codex judge failed (exit {done.returncode}): {done.stderr.strip()[-200:]}")
+    return answer
+
+
+def require_backend() -> None:
+    """Refuse early when the chosen judge cannot run here; paid use must have been allowed on purpose."""
+
+    if backend() == "openrouter":
+        require_paid_calls()
+        api_key()
+    elif not codex_available():
+        raise RuntimeError("the local codex CLI is not installed or not on PATH")
+
+
 def chat(model: str, content: object, *, max_tokens: int = 3000) -> str:
+    if backend() == "codex":
+        return chat_codex(content)
     require_paid_calls()
     body = json.dumps({"model": model, "temperature": 0, "max_tokens": max_tokens,
                        "messages": [{"role": "user", "content": content}]}).encode()
@@ -205,7 +271,7 @@ def load_images(evidence_dir: Path, evidence: dict) -> dict[str, str]:
             for step in evidence.get("steps", [])}
 
 
-MAX_IMAGES = 10
+MAX_IMAGES = 12
 
 
 def select_steps(steps: list[dict], limit: int = MAX_IMAGES) -> list[dict]:
@@ -216,7 +282,8 @@ def select_steps(steps: list[dict], limit: int = MAX_IMAGES) -> list[dict]:
 
     if len(steps) <= limit:
         return steps
-    keep = [s for s in steps if s["label"] == "initial" or s["label"].startswith(("default-view", "pointer-"))]
+    keep = [s for s in steps
+            if s["label"] == "initial" or s["label"].startswith(("default-view", "pointer-", "mobile-"))]
     controls = [s for s in steps if s["label"].startswith("control-")]
     late = [s for s in steps if s["label"].startswith("late-")]
     chosen = keep + controls[: max(0, limit - len(keep) - 2)] + late[-2:]
@@ -252,12 +319,14 @@ def judge_loaded(items: list[dict], evidence: dict, images: dict[str, str], *, a
             content.append(image_part(images[step["screenshot"]]))
     answers = {a.get("id"): a for a in parse_array(ask(JUDGE_MODEL, content, max_tokens=4000)) if isinstance(a, dict)}
     known = {step["label"] for step in steps}
+    has_timeline = bool(evidence.get("timeline"))
     results = []
     for item in items:
         answer = answers.get(item["id"], {})
         verdict = answer.get("verdict") if answer.get("verdict") in VERDICTS else "unobserved"
         reason = str(answer.get("reason") or "the judge gave no answer for this item")[:400]
-        if verdict == "fail" and answer.get("contradicting_step") not in known:
+        cited = str(answer.get("contradicting_step") or "")
+        if verdict == "fail" and not (cited in known or (has_timeline and cited.startswith("timeline"))):
             verdict = "unobserved"
             reason = f"downgraded: a fail needs a contradicting step; judge said: {reason}"[:400]
         if evidence.get("observerError"):
@@ -417,6 +486,8 @@ def can_judge() -> bool:
 
     if os.environ.get("MORU_VERIFY_JUDGE_URL"):
         return True
+    if backend() == "codex":
+        return codex_available()
     if not paid_calls_allowed():
         return False
     try:

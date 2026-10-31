@@ -153,9 +153,82 @@ class JudgeTests(unittest.TestCase):
         self.assertIn("| a | fail | r |", table)
 
 
+class TimelineCitationTests(unittest.TestCase):
+    ITEM = {"id": "smooth", "claim": "Speed changes smoothly.", "phase": "during_action", "evidence": ["text"], "source": "derived"}
+
+    def judged(self, evidence, cited):
+        answer = json.dumps([{"id": "smooth", "verdict": "fail", "reason": "speed fell from 130 to 0 in half a second",
+                              "contradicting_step": cited}])
+        return verify.judge_loaded([self.ITEM], evidence, {}, ask=lambda *a, **k: answer)[0]
+
+    def test_a_timeline_time_counts_as_a_contradicting_citation_when_a_timeline_exists(self):
+        evidence = {"steps": [{"label": "initial", "seconds": 0, "screenshot": "x"}], "timeline": [{"t": 26.6, "text": "SPEED 0"}]}
+        self.assertEqual("fail", self.judged(evidence, "timeline@26.6s")["verdict"])
+
+    def test_without_a_timeline_or_a_real_step_the_fail_is_not_accepted(self):
+        evidence = {"steps": [{"label": "initial", "seconds": 0, "screenshot": "x"}]}
+        self.assertEqual("unobserved", self.judged(evidence, "timeline@26.6s")["verdict"])
+        self.assertEqual("unobserved", self.judged(evidence, "made-up-step")["verdict"])
+
+
+class LocalCodexJudgeTests(unittest.TestCase):
+    def run_chat(self, content, returncode=0, answer="[]"):
+        calls = {}
+
+        def fake_run(command, **kwargs):
+            calls["command"], calls["input"] = command, kwargs["input"]
+            out = Path(command[command.index("-o") + 1])
+            if answer is not None:
+                out.write_text(answer)
+            calls["images"] = [Path(command[i + 1]).read_bytes() for i, a in enumerate(command) if a == "-i"]
+            return subprocess.CompletedProcess(command, returncode, "", "boom" if returncode else "")
+
+        with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_BACKEND": ""}, clear=False), \
+                unittest.mock.patch.object(verify.subprocess, "run", fake_run):
+            result = verify.chat("ignored/model", content)
+        return result, calls
+
+    def test_the_default_judge_is_the_local_codex_with_no_tools_config_or_session(self):
+        result, calls = self.run_chat("judge this")
+        command = calls["command"]
+        self.assertEqual("[]", result)
+        for flag in ("--sandbox", "read-only", "--ignore-user-config", "--ignore-rules", "--ephemeral", "-m", "gpt-6.1-terra"):
+            self.assertIn(flag, command)
+        self.assertEqual("-", command[-1], "the prompt goes through stdin, never the command line")
+        self.assertIn("judge this", calls["input"])
+        self.assertIn("Do not run commands", calls["input"])
+
+    def test_images_are_attached_in_order_and_marked_in_the_prompt(self):
+        import base64
+
+        jpeg = lambda raw: {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(raw).decode()}}
+        content = [{"type": "text", "text": "Screenshot: initial"}, jpeg(b"one"), {"type": "text", "text": "Screenshot: t3s"}, jpeg(b"two")]
+        _, calls = self.run_chat(content)
+        self.assertEqual([b"one", b"two"], calls["images"])
+        self.assertLess(calls["input"].index("[image 1]"), calls["input"].index("[image 2]"))
+        self.assertLess(calls["input"].index("Screenshot: initial"), calls["input"].index("[image 1]"))
+
+    def test_a_failed_or_empty_judgement_raises_instead_of_passing_anything(self):
+        with self.assertRaises(RuntimeError):
+            self.run_chat("x", returncode=1)
+        with self.assertRaises(RuntimeError):
+            self.run_chat("x", answer="  ")
+
+    def test_codex_needs_no_key_and_no_paid_permission_but_must_be_installed(self):
+        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_BACKEND": "", "MORU_VERIFY_ALLOW_PAID": "", "OPENROUTER_API_KEY": ""}
+        with unittest.mock.patch.dict("os.environ", env, clear=False):
+            with unittest.mock.patch.object(verify, "codex_available", return_value=True):
+                self.assertTrue(verify.can_judge())
+            with unittest.mock.patch.object(verify, "codex_available", return_value=False):
+                self.assertFalse(verify.can_judge())
+                with self.assertRaises(RuntimeError):
+                    verify.require_backend()
+
+
 class PaidCallsAreOffByDefaultTests(unittest.TestCase):
     def test_a_key_alone_never_turns_paid_calls_on(self):
-        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_ALLOW_PAID": "", "OPENROUTER_API_KEY": "present"}
+        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_BACKEND": "openrouter", "MORU_VERIFY_ALLOW_PAID": "",
+               "OPENROUTER_API_KEY": "present"}
         with unittest.mock.patch.dict("os.environ", env, clear=False):
             self.assertFalse(verify.can_judge())
             with unittest.mock.patch.object(verify, "open_provider_request", side_effect=AssertionError("network used")):
@@ -164,14 +237,15 @@ class PaidCallsAreOffByDefaultTests(unittest.TestCase):
         self.assertIn("MORU_VERIFY_ALLOW_PAID=1", str(caught.exception))
 
     def test_explicit_permission_and_a_key_allow_it(self):
-        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_ALLOW_PAID": "1", "OPENROUTER_API_KEY": "present"}
+        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_BACKEND": "openrouter", "MORU_VERIFY_ALLOW_PAID": "1",
+               "OPENROUTER_API_KEY": "present"}
         with unittest.mock.patch.dict("os.environ", env, clear=False):
             self.assertTrue(verify.can_judge())
 
     def test_the_judge_service_refuses_to_start_without_permission(self):
         import judge_service
 
-        env = {"MORU_VERIFY_ALLOW_PAID": "", "OPENROUTER_API_KEY": "present"}
+        env = {"MORU_VERIFY_BACKEND": "openrouter", "MORU_VERIFY_ALLOW_PAID": "", "OPENROUTER_API_KEY": "present"}
         with unittest.mock.patch.dict("os.environ", env, clear=False):
             with self.assertRaises(RuntimeError):
                 judge_service.main(["--token-file", "/nonexistent", "--port", "0"])
@@ -242,6 +316,10 @@ class InputReachTests(unittest.TestCase):
         self.assertIn("scene-follows-drag-and-wheel", [i["id"] for i in items])
         kept = verify.select_steps([{"label": f"late-t{i}s"} for i in range(8)] + [{"label": "pointer-drag-after"}] * 4)
         self.assertTrue(any(s["label"].startswith("pointer-") for s in kept))
+        many = [{"label": "initial"}] + [{"label": f"late-t{i}s"} for i in range(9)] + [{"label": "mobile-initial"}, {"label": "mobile-after-action"}]
+        self.assertEqual(["mobile-initial", "mobile-after-action"],
+                         [s["label"] for s in verify.select_steps(many) if s["label"].startswith("mobile-")],
+                         "the touch-viewport pictures must reach the judge, or a mobile claim can never be judged")
 
 
 class CodeEvidenceTests(unittest.TestCase):
@@ -483,7 +561,7 @@ class RemoteJudgeTests(unittest.TestCase):
         self.assertIn("--token-file", source)
 
     def test_without_a_service_or_a_key_nothing_can_judge(self):
-        env = {"MORU_VERIFY_JUDGE_URL": "", "OPENROUTER_API_KEY": ""}
+        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_BACKEND": "openrouter", "OPENROUTER_API_KEY": ""}
         with unittest.mock.patch.dict("os.environ", env, clear=False), \
                 unittest.mock.patch.object(verify, "api_key", side_effect=RuntimeError("no key")):
             self.assertFalse(verify.can_judge())
