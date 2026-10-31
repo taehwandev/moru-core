@@ -86,6 +86,37 @@ def github_repo_rename(tokens: list[str]) -> bool:
     )
 
 
+def _github_release_publish(tokens: list[str]) -> bool:
+    """Model explicit draft publication, never arbitrary editing or approval."""
+    if (len(tokens) < 5 or tokens[1:3] != ["release", "edit"]
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", tokens[3])):
+        return False
+    repository = None
+    publish = latest = False
+    index = 4
+    while index < len(tokens):
+        word = tokens[index]
+        flag, equal, value = word.partition("=")
+        if flag in {"--repo", "-R"}:
+            if not equal:
+                index += 1
+                if index >= len(tokens):
+                    return False
+                value = tokens[index]
+            if (repository is not None or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", value)
+                    or any(part in {".", ".."} for part in value.split("/"))):
+                return False
+            repository = value
+        elif word == "--draft=false" and not publish:
+            publish = True
+        elif word in {"--latest", "--latest=true"} and not latest:
+            latest = True
+        else:
+            return False
+        index += 1
+    return repository is not None and publish
+
+
 def github_publication(tokens: list[str]) -> bool:
     """One action contract for pre-finish holds and post-finish admission.
 
@@ -97,6 +128,8 @@ def github_publication(tokens: list[str]) -> bool:
         return False
     if tuple(tokens[1:3]) in {("pr", "create"), ("release", "create"),
                               ("release", "upload")}:
+        return True
+    if _github_release_publish(tokens):
         return True
     if tokens[1:3] == ["pr", "merge"]:
         return github_pr_merge(tokens) == "admitted"

@@ -8,6 +8,39 @@ from claude_command_effect import INTERPRETER_REASON, command_effect, github_pub
 
 
 class CommandEffectTests(unittest.TestCase):
+    def test_explicit_draft_publication_has_an_effect_contract(self):
+        import shlex
+        commands = (
+            'gh release edit v26.44.0 --repo owner/repo --draft=false --latest',
+            'gh release edit v1.2.3 -R owner/repo --draft=false',
+            'gh release edit v1 --draft=false --repo=owner/repo --latest=true',
+        )
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertTrue(github_publication(shlex.split(command)))
+                self.assertEqual(('mutating', 'GitHub publication command'), self.effect(command))
+
+    def test_draft_publication_does_not_admit_other_edits_or_implicit_targets(self):
+        import shlex
+        for command in (
+            'gh release edit v1 --draft=false',
+            'gh release edit v1 --repo owner/repo --draft=true',
+            'gh release edit v1 --repo owner/repo --latest',
+            'gh release edit v1 --repo owner/repo --draft=false --latest=false',
+            'gh release edit v1 --repo owner/repo --draft=false --tag changed',
+            'gh release edit v1 --repo owner/repo --draft=false --notes-file notes.md',
+            'gh release edit v1 --repo owner/repo --draft=false --unknown',
+            'gh release edit v1 --repo owner/repo --draft=false extra',
+            'gh release edit v1 --repo owner/repo --repo other/repo --draft=false',
+            'gh release edit v1 --repo owner/repo --draft=false --draft=false',
+            'gh release edit v1 --repo owner/repo --draft=false --latest --latest',
+            'gh release edit v1 --repo ../repo --draft=false',
+            'gh release edit --tag --repo owner/repo --draft=false',
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(github_publication(shlex.split(command)))
+                self.assertEqual('unknown', self.effect(command)[0])
+
     def test_unknown_project_script_recovery_names_the_publication_declaration(self):
         """A publishing project script is fixed by declaring it, which the denial must say."""
         tokens = ['python3', 'tools/bitbucket_pr/create_pr.py', '--source', 'feature', '--dest', 'develop']

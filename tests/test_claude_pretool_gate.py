@@ -4692,6 +4692,23 @@ class FinishAuthorizesItsOwnPublicationTests(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertEqual("", out)
 
+    def test_finish_covers_explicit_draft_publication_without_other_release_edits(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = self._finished_project(Path(tmp))
+            command = "gh release edit v26.44.0 --repo owner/repo --draft=false --latest"
+            code, out = self._decide(project, command)
+            self.assertEqual(0, code)
+            self.assertIn("a successful finish", _reason(out))
+            for changed in (
+                command.replace("--draft=false", "--draft=true"),
+                command + " --tag other",
+                command.replace(" --repo owner/repo", ""),
+            ):
+                with self.subTest(command=changed):
+                    code, out = self._decide(project, changed)
+                    self.assertEqual(0, code)
+                    self.assertIn("unknown", _reason(out))
+
     def test_finish_opens_the_pull_request_for_the_branch_it_attested(self) -> None:
         """Only `git` counted, so the PR needed a whole second `start`.
 

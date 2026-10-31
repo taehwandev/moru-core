@@ -70,7 +70,8 @@ class OpenRunPublicationHoldTests(unittest.TestCase):
                 self.assertTrue(open_run_publication_hold(command))
 
     def test_a_readable_publication_is_unchanged(self) -> None:
-        for command in ("git push origin main", "cd x && git push", "gh release create v1"):
+        for command in ("git push origin main", "cd x && git push", "gh release create v1",
+                        "gh release edit v26.44.0 --repo owner/repo --draft=false --latest"):
             with self.subTest(command=command):
                 self.assertEqual("publishes", open_run_publication_hold(command))
 
