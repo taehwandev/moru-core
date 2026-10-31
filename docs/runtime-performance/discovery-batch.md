@@ -146,3 +146,8 @@ freshness. Existing discovery and scan tests remain in the focused group.
 This remains a performance-branch candidate. Actual global activation, call
 frequency, whole-agent/token improvement, cold-cache and network-filesystem
 behavior remain unmeasured. No main integration or release is included.
+
+The [path-resolution follow-up](discovery-repair.md) removes proven duplicate
+work and compares CPU/wall against both baselines. Its local median controls
+do not reproduce a material small/file-heavy regression; tail variability and
+the earlier observations remain part of the adoption decision.

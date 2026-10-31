@@ -8,7 +8,7 @@ import os
 import re
 import shlex
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from agent_project_types import INSTRUCTION_FILES, PROJECT_MARKERS, ProjectCandidate
 from workflow_common import unique
@@ -98,7 +98,21 @@ def build_candidate(path: Path, base_score: int, reason: str, source: str,
 
 
 def add_candidate(candidates: dict[Path, ProjectCandidate], candidate: ProjectCandidate) -> None:
-    key = safe_resolve(candidate.path)
+    _merge_candidate(candidates, safe_resolve(candidate.path), candidate)
+
+
+def build_and_add_candidate(candidates: dict[Path, ProjectCandidate], path: Path,
+                            base_score: int, reason: str, source: str, *,
+                            facts: ProjectFacts | None = None,
+                            aliases: Sequence[str] = ()) -> None:
+    """Resolve once in the builder and merge immediately; retain no path cache."""
+    candidate = build_candidate(path, base_score, reason, source, facts=facts)
+    candidate.aliases = list(aliases)
+    _merge_candidate(candidates, candidate.path, candidate)
+
+
+def _merge_candidate(candidates: dict[Path, ProjectCandidate], key: Path,
+                     candidate: ProjectCandidate) -> None:
     candidate.path = key
     if key in candidates:
         candidates[key].merge(candidate)

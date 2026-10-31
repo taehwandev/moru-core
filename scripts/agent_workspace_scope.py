@@ -6,8 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_project_search import (
-    add_candidate,
-    build_candidate,
+    build_and_add_candidate,
     find_project_root,
     instruction_files,
     project_markers,
@@ -56,9 +55,8 @@ def add_workspace_group_candidates(
                 if member_matched
                 else "workspace group alias matched request"
             )
-            candidate = build_candidate(root, score, reason, "workspace_group")
-            candidate.aliases = unique([*group_aliases(group), *aliases])
-            add_candidate(candidates, candidate)
+            build_and_add_candidate(candidates, root, score, reason, "workspace_group",
+                                    aliases=unique([*group_aliases(group), *aliases]))
 
 
 def workspace_scope_manifest(

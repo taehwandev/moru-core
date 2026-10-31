@@ -7,8 +7,7 @@ from shlex import quote
 from typing import Sequence
 
 from agent_project_search import (
-    add_candidate,
-    build_candidate,
+    build_and_add_candidate,
     default_search_roots,
     env_search_roots,
     explicit_request_paths,
@@ -58,7 +57,7 @@ def _discover_projects(
     for path in explicit_request_paths(request, cwd):
         root = find_project_root(path) or usable_directory(path)
         if root:
-            add_candidate(candidates, build_candidate(root, 130, "explicit path in request", "request_path"))
+            build_and_add_candidate(candidates, root, 130, "explicit path in request", "request_path")
 
     request_lc = request.lower()
     cwd_root = find_project_root(cwd)
@@ -73,12 +72,11 @@ def _discover_projects(
         aliases = [alias for alias in entry.get("aliases", []) if isinstance(alias, str)]
         matched_aliases = [alias for alias in aliases if request_name_matches(alias, request_lc, allow_generic=True)]
         if matched_aliases or request_name_matches(root.name, request_lc):
-            candidate = build_candidate(root, 120, "registry alias or project name matched request", "registry")
-            candidate.aliases = aliases
-            add_candidate(candidates, candidate)
+            build_and_add_candidate(candidates, root, 120, "registry alias or project name matched request",
+                                    "registry", aliases=aliases)
 
     if cwd_root and (not has_explicit_project_slug or request_name_matches(cwd_root.name, request_lc)):
-        add_candidate(candidates, build_candidate(cwd_root, 65, "current working directory is inside a project", "cwd"))
+        build_and_add_candidate(candidates, cwd_root, 65, "current working directory is inside a project", "cwd")
 
     add_workspace_group_candidates(candidates, registry, request_lc)
 
@@ -92,7 +90,7 @@ def _discover_projects(
             if request_name_matches(root.name, request_lc):
                 score += 65
                 reason = "project name matched request under configured search root"
-            add_candidate(candidates, build_candidate(root, score, reason, "search_root", facts=facts))
+            build_and_add_candidate(candidates, root, score, reason, "search_root", facts=facts)
 
     ranked = sorted(
         (_rescore_for_request(candidate, request_lc) for candidate in candidates.values()),
@@ -117,9 +115,10 @@ def build_entry_manifest(
     include_default_search_roots: bool = False,
 ) -> dict[str, object]:
     registry = load_registry(registry_path)
+    resolved_cwd = safe_resolve(cwd.expanduser())
     result = _discover_projects(
         request,
-        safe_resolve(cwd.expanduser()),
+        resolved_cwd,
         registry,
         search_roots=search_roots,
         max_depth=max_depth,
@@ -128,7 +127,7 @@ def build_entry_manifest(
     manifest: dict[str, object] = {
         **result.to_dict(),
         "runtime": runtime,
-        "cwd": str(safe_resolve(cwd.expanduser())),
+        "cwd": str(resolved_cwd),
         "moru": {
             "root": str(ROOT),
             "agent_instructions": str(ROOT / "AGENTS.md"),

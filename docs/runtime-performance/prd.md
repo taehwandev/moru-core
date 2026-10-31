@@ -112,6 +112,11 @@ Claude and AGY own separate helpers; the lead owns adapters and combined
 verification. Component timings do not substitute for real entrypoint results
 or prove additive gains. Small-workload costs remain visible.
 
+The [follow-up repair](discovery-repair.md) reuses each producer's path and each
+entry cwd observation once, preserves the generic raw-input API, and rejects
+an existence shortcut that hides later errors. A single bounded three-way
+CPU/wall run checks earlier controls; no repeated loop is used to seek a pass.
+
 ## Reproduction and decision records
 
 Each result records baseline, changed owner, method, passed/failing conditions,
