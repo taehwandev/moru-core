@@ -10,7 +10,10 @@ Events:
   guidance once per user input, as a system message.
 - ``pre-tool``: run the shared pre-mutation gate for run_command/write_file/
   edit_file. A deny or ask becomes advisory context unless MORU_AGY_GATE=strict.
-- ``stop``: run the shared Stop gate; its block becomes ``continue`` once.
+- ``stop``: run the shared Stop gate; its block becomes ``continue`` once. For a session routed
+  through the web 3D skill it then runs the independent page verifier and sends failures back
+  for a fix (at most twice); when the verifier cannot run it reminds once to mark unobserved
+  properties as unverified.
 
 Every failure allows: a gate that traps a session is worse than one that misses.
 """
@@ -181,6 +184,53 @@ def unverified_reminder(payload: dict, execution: int) -> dict:
     return {"decision": "continue", "reason": UNVERIFIED_REMINDER}
 
 
+VERIFY_MAX_ROUNDS = 2
+
+
+def verification_state_path(conversation: str) -> Path | None:
+    safe = "".join(ch for ch in conversation if ch.isalnum() or ch in "-_")
+    return MARKER_DIR / f"{safe}.verify.json" if safe else None
+
+
+def verify_in_session(payload: dict) -> tuple[bool, dict]:
+    """Run the independent page verifier from the stop hook and send failures back.
+
+    Returns (ran, verdict). ``ran`` is False when verification could not run here
+    (no built page, no browser, no judge), so the caller can fall back to the
+    unverified-properties reminder. The checklist is derived once from the request
+    and reused for the re-check, and at most VERIFY_MAX_ROUNDS fixes are requested.
+    """
+
+    state_path = verification_state_path(session_id(payload))
+    if state_path is None or not routed_through_3d(payload):
+        return False, {}
+    try:
+        sys.path.insert(0, str(SCRIPTS / "page_verify"))
+        import verify
+
+        project = Path(workspace(payload))
+        if verify.find_dist(project) is None or not verify.can_judge():
+            return False, {}
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            state = {}
+        rounds = int(state.get("rounds", 0))
+        if rounds >= VERIFY_MAX_ROUNDS + 1:
+            return True, {}
+        request = str(state.get("request") or payload.get("lastUserInput") or "")
+        out = MARKER_DIR / "verify" / (state_path.stem.split(".")[0]) / f"round{rounds}"
+        items, results = verify.verify_project(project, request, out, checklist=state.get("checklist"))
+        MARKER_DIR.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({"rounds": rounds + 1, "request": request, "checklist": items,
+                                          "last": [{"id": r["id"], "verdict": r["verdict"]} for r in results]}),
+                              encoding="utf-8")
+        feedback = verify.feedback_text(results) if rounds < VERIFY_MAX_ROUNDS else ""
+        return True, ({"decision": "continue", "reason": feedback} if feedback else {})
+    except Exception:  # noqa: BLE001 - verification is advisory and must never trap a stop
+        return False, {}
+
+
 def stop(payload: dict) -> dict:
     cwd = workspace(payload)
     try:
@@ -192,6 +242,9 @@ def stop(payload: dict) -> dict:
     out = parse_json(run_script("claude_stop_gate.py", [], claude, cwd))
     if out.get("decision") == "block":
         return {"decision": "continue", "reason": str(out.get("reason") or "")}
+    ran, verdict = verify_in_session(payload)
+    if ran:
+        return verdict
     return unverified_reminder(payload, execution)
 
 

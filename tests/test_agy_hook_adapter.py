@@ -111,6 +111,62 @@ class UnverifiedReminderTests(unittest.TestCase):
             self.assertTrue(adapter.already_delivered("c1", "reminder", "stop"))
 
 
+class InSessionVerificationTests(unittest.TestCase):
+    PAYLOAD = {"conversationId": "cv", "workspacePaths": ["/w"], "lastUserInput": "Build a thing", "executionNum": 0}
+
+    def run_stop(self, results, rounds_before=0, can_judge=True, dist=True):
+        import types
+
+        calls = []
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: Path("/w/dist") if dist else None
+        fake.can_judge = lambda: can_judge
+
+        def verify_project(project, request, out, checklist=None, **kw):
+            calls.append((request, checklist))
+            return [{"id": "a"}], results
+
+        fake.verify_project = verify_project
+        fake.feedback_text = lambda r: ("FIX: " + ",".join(x["id"] for x in r if x["verdict"] == "fail")
+                                        if any(x["verdict"] == "fail" for x in r) else "")
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), \
+                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.dict(sys.modules, {"verify": fake}):
+            for _ in range(rounds_before):
+                adapter.stop(self.PAYLOAD)
+            return adapter.stop(self.PAYLOAD), calls, Path(tmp)
+
+    def test_a_failure_is_sent_back_as_continue_and_the_checklist_is_kept(self):
+        fail = [{"id": "a", "verdict": "fail"}]
+        verdict, calls, tmp = self.run_stop(fail)
+        self.assertEqual({"decision": "continue", "reason": "FIX: a"}, verdict)
+        self.assertEqual([("Build a thing", None)], calls)
+
+    def test_the_second_round_reuses_the_first_checklist_and_the_rounds_are_capped(self):
+        fail = [{"id": "a", "verdict": "fail"}]
+        verdict, calls, _ = self.run_stop(fail, rounds_before=1)
+        self.assertEqual("continue", verdict["decision"])
+        self.assertEqual([("Build a thing", None), ("Build a thing", [{"id": "a"}])], calls)
+        verdict, calls, _ = self.run_stop(fail, rounds_before=2)
+        self.assertEqual({}, verdict, "the last allowed round ends with no further request")
+        verdict, calls, _ = self.run_stop(fail, rounds_before=3)
+        self.assertEqual({}, verdict)
+        self.assertEqual(3, len(calls), "no verification beyond the cap")
+
+    def test_all_pass_lets_the_agent_stop_without_the_reminder(self):
+        verdict, calls, _ = self.run_stop([{"id": "a", "verdict": "pass"}])
+        self.assertEqual({}, verdict)
+
+    def test_when_verification_cannot_run_the_reminder_is_the_fallback(self):
+        for kwargs in ({"can_judge": False}, {"dist": False}):
+            with self.subTest(kwargs=kwargs):
+                verdict, calls, _ = self.run_stop([], **kwargs)
+                self.assertEqual("continue", verdict["decision"])
+                self.assertIn("unverified", verdict["reason"])
+                self.assertEqual([], calls)
+
+
 class PreInvocationTests(unittest.TestCase):
     def test_guidance_is_injected_once_per_conversation(self):
         def fake(name, args, stdin, cwd, env=None):

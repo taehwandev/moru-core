@@ -138,13 +138,16 @@ def derive_checklist(request: str, *, ask=chat) -> list[dict]:
     return [*(item for item in GENERIC_ITEMS if item["id"] not in seen), *derived]
 
 
-def image_part(path: Path) -> dict:
-    data = base64.b64encode(path.read_bytes()).decode()
-    return {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}}
+def image_part(b64: str) -> dict:
+    return {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
 
 
-def judge(items: list[dict], evidence_dir: Path, *, ask=chat) -> list[dict]:
-    evidence = json.loads((evidence_dir / "observations.json").read_text(encoding="utf-8"))
+def load_images(evidence_dir: Path, evidence: dict) -> dict[str, str]:
+    return {step["screenshot"]: base64.b64encode((evidence_dir / step["screenshot"]).read_bytes()).decode()
+            for step in evidence.get("steps", [])}
+
+
+def judge_loaded(items: list[dict], evidence: dict, images: dict[str, str], *, ask=chat) -> list[dict]:
     steps = evidence.get("steps", [])
     text = JUDGE_PROMPT.format(
         items=json.dumps([{k: i[k] for k in ("id", "claim", "phase", "evidence")} for i in items], indent=1),
@@ -155,14 +158,14 @@ def judge(items: list[dict], evidence_dir: Path, *, ask=chat) -> list[dict]:
     content: list[dict] = [{"type": "text", "text": text}]
     for step in steps:
         content.append({"type": "text", "text": f"Screenshot: {step['label']}"})
-        content.append(image_part(evidence_dir / step["screenshot"]))
+        content.append(image_part(images[step["screenshot"]]))
     answers = {a.get("id"): a for a in parse_array(ask(JUDGE_MODEL, content, max_tokens=4000)) if isinstance(a, dict)}
+    known = {step["label"] for step in steps}
     results = []
     for item in items:
         answer = answers.get(item["id"], {})
         verdict = answer.get("verdict") if answer.get("verdict") in VERDICTS else "unobserved"
         reason = str(answer.get("reason") or "the judge gave no answer for this item")[:400]
-        known = {step["label"] for step in steps}
         if verdict == "fail" and answer.get("contradicting_step") not in known:
             verdict = "unobserved"
             reason = f"downgraded: a fail needs a contradicting step; judge said: {reason}"[:400]
@@ -170,6 +173,49 @@ def judge(items: list[dict], evidence_dir: Path, *, ask=chat) -> list[dict]:
             verdict, reason = "unobserved", f"observer failed: {evidence['observerError']}"
         results.append({**item, "verdict": verdict, "reason": reason})
     return results
+
+
+def judge(items: list[dict], evidence_dir: Path, *, ask=chat) -> list[dict]:
+    evidence = json.loads((evidence_dir / "observations.json").read_text(encoding="utf-8"))
+    return judge_loaded(items, evidence, load_images(evidence_dir, evidence), ask=ask)
+
+
+def remote_call(path: str, payload: dict) -> dict:
+    """Ask a judge service instead of calling a model here, so the key never enters this process."""
+
+    base = os.environ["MORU_VERIFY_JUDGE_URL"].rstrip("/")
+    request = urllib.request.Request(
+        base + path, data=json.dumps(payload).encode(), method="POST",
+        headers={"Content-Type": "application/json",
+                 "Authorization": "Bearer " + os.environ.get("MORU_VERIFY_JUDGE_TOKEN", "")})
+    with urllib.request.urlopen(request, timeout=600) as response:  # noqa: S310 - operator-configured URL
+        return json.load(response)
+
+
+def derive_any(request: str) -> list[dict]:
+    if os.environ.get("MORU_VERIFY_JUDGE_URL"):
+        return remote_call("/derive", {"request": request})["items"]
+    return derive_checklist(request)
+
+
+def judge_any(items: list[dict], evidence_dir: Path) -> list[dict]:
+    if not os.environ.get("MORU_VERIFY_JUDGE_URL"):
+        return judge(items, evidence_dir)
+    evidence = json.loads((evidence_dir / "observations.json").read_text(encoding="utf-8"))
+    return remote_call("/judge", {"items": items, "evidence": evidence,
+                                  "images": load_images(evidence_dir, evidence)})["results"]
+
+
+def can_judge() -> bool:
+    """Whether a derive-and-judge backend is reachable from this process."""
+
+    if os.environ.get("MORU_VERIFY_JUDGE_URL"):
+        return True
+    try:
+        api_key()
+    except RuntimeError:
+        return False
+    return True
 
 
 def feedback_text(results: list[dict]) -> str:
@@ -194,6 +240,42 @@ def observe(url: str, out: Path, viewport: str, seconds: int) -> None:
         raise RuntimeError(f"observer produced no evidence: {result.stderr.strip()[:300]}")
 
 
+def find_dist(project: Path) -> Path | None:
+    for candidate in (project / "dist", project / "build", project / "out", project):
+        if (candidate / "index.html").is_file():
+            return candidate
+    return None
+
+
+def verify_project(project: Path, request: str, out: Path, *, viewport: str = "desktop", seconds: int = 40,
+                   checklist: list[dict] | None = None) -> tuple[list[dict], list[dict]]:
+    """Serve the built page, observe it, and judge it. Returns (items, results)."""
+
+    import socket
+    import time
+
+    dist = find_dist(project)
+    if dist is None:
+        raise RuntimeError("no built page (index.html) found in the project")
+    out.mkdir(parents=True, exist_ok=True)
+    items = checklist if checklist is not None else derive_any(request)
+    (out / "checklist.json").write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    server = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1",
+                               "--directory", str(dist)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(1)
+        observe(f"http://127.0.0.1:{port}/", out / "evidence", viewport, seconds)
+    finally:
+        server.terminate()
+    results = judge_any(items, out / "evidence")
+    (out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+    (out / "report.md").write_text(render(results), encoding="utf-8")
+    return items, results
+
+
 def render(results: list[dict]) -> str:
     lines = ["| item | verdict | reason |", "| --- | --- | --- |"]
     lines += [f"| {r['id']} | {r['verdict']} | {r['reason']} |" for r in results]
@@ -211,10 +293,10 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
     items = (json.loads(args.checklist.read_text(encoding="utf-8")) if args.checklist
-             else derive_checklist(args.request))
+             else derive_any(args.request))
     (args.out / "checklist.json").write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
     observe(args.url, args.out / "evidence", args.viewport, args.seconds)
-    results = judge(items, args.out / "evidence")
+    results = judge_any(items, args.out / "evidence")
     (args.out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (args.out / "report.md").write_text(render(results), encoding="utf-8")
     print(render(results))

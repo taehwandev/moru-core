@@ -40,7 +40,8 @@ mkdirSync(outDir, { recursive: true });
 const profile = mkdtempSync(join(tmpdir(), 'moru-page-verify-'));
 const chrome = spawn(CHROME, [
   '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run',
-  '--no-default-browser-check', '--mute-audio', 'about:blank',
+  '--no-default-browser-check', '--mute-audio',
+  ...(process.env.MORU_VERIFY_CHROME_ARGS || '').split(/\s+/).filter(Boolean), 'about:blank',
 ], { stdio: 'ignore' });
 
 async function connect() {

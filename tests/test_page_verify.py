@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,6 +110,46 @@ class JudgeTests(unittest.TestCase):
     def test_report_table_lists_each_verdict(self):
         table = verify.render([{"id": "a", "verdict": "fail", "reason": "r"}])
         self.assertIn("| a | fail | r |", table)
+
+
+class RemoteJudgeTests(unittest.TestCase):
+    def serve(self, derive, judge):
+        import threading
+        from http.server import ThreadingHTTPServer
+
+        import judge_service
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), judge_service.make_handler("tok", derive=derive, judge=judge))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        return f"http://127.0.0.1:{server.server_address[1]}"
+
+    def test_derive_and_judge_round_trip_without_a_local_key(self):
+        url = self.serve(lambda request: [{"id": "x", "claim": request, "phase": "any", "evidence": ["text"], "source": "derived"}],
+                         lambda items, evidence, images: [{**items[0], "verdict": "pass", "reason": "ok"}])
+        with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": url, "MORU_VERIFY_JUDGE_TOKEN": "tok"}, clear=False):
+            items = verify.derive_any("make a page")
+            with tempfile.TemporaryDirectory() as tmp:
+                write_evidence(Path(tmp))
+                results = verify.judge_any(items, Path(tmp))
+            self.assertTrue(verify.can_judge())
+        self.assertEqual("make a page", items[0]["claim"])
+        self.assertEqual("pass", results[0]["verdict"])
+
+    def test_a_wrong_token_is_refused(self):
+        import urllib.error
+
+        url = self.serve(lambda request: [], lambda *a: [])
+        with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": url, "MORU_VERIFY_JUDGE_TOKEN": "nope"}, clear=False):
+            with self.assertRaises(urllib.error.HTTPError) as caught:
+                verify.derive_any("x")
+        self.assertEqual(401, caught.exception.code)
+
+    def test_without_a_service_or_a_key_nothing_can_judge(self):
+        env = {"MORU_VERIFY_JUDGE_URL": "", "OPENROUTER_API_KEY": ""}
+        with unittest.mock.patch.dict("os.environ", env, clear=False), \
+                unittest.mock.patch.object(verify, "api_key", side_effect=RuntimeError("no key")):
+            self.assertFalse(verify.can_judge())
 
 
 @unittest.skipUnless(shutil.which("node"), "node is not installed")

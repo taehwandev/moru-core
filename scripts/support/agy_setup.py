@@ -129,7 +129,8 @@ def _agy_hooks_spec(launcher_path: Path) -> dict:
             "matcher": "run_command|write_file|edit_file",
             "hooks": [{"type": "command", "command": command("pre-tool"), "timeout": 25}],
         }],
-        "Stop": [{"type": "command", "command": command("stop"), "timeout": 25}],
+        # The stop hook may run the page verifier (a browser pass and a judge call), so it needs minutes.
+        "Stop": [{"type": "command", "command": command("stop"), "timeout": 600}],
     }
 
 
