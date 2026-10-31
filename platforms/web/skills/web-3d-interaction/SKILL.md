@@ -42,11 +42,11 @@ static illustrations, native/Blender modeling or a mention of 3D in prose.
   them when changing scene modes. Use elapsed time for animation rather than a
   fixed amount per frame, and handle interrupted transitions deliberately.
 - A moving model must face its direction of travel, and its resting state must
-  match its pre-action state (an engine, effect or sound that belongs to flight
-  stays off until the action starts). Choose the model's forward axis once and
-  check it against velocity; see `references/engine-pitfalls.md` for Three.js
-  conventions (for example `Object3D.lookAt` and `Matrix4.lookAt` disagree) and
-  open it only for an unresolved engine question.
+  match its pre-action state (engine, effects and sound stay off until the
+  action starts). `Object3D.lookAt` aims a mesh's +Z at the target, but
+  `Matrix4.lookAt(eye, target, up)` builds the camera basis (-Z toward the
+  target): for a +Z nose, swap eye and target or use `Object3D.lookAt`. Other
+  engine conventions: `references/engine-pitfalls.md`.
 - Place option controls where the subject remains inspectable. Labels, values,
   selection/focus/disabled feedback and hit targets must survive long options,
   touch, keyboard and narrow screens. Use a deliberate scroll/reflow layout;
@@ -75,6 +75,12 @@ polished result from source code. Do not require a separately billed model.
    alignment, truncation, overlays, focus and reachable controls. Separately
    inspect composition, lighting and animation quality; successful logic cannot
    substitute for a polished visible result.
+4. Verify motion and state numerically; this needs no browser. In the project's
+   tests, apply the orientation code to the model's forward axis and assert
+   `forward · velocity > 0` at several points of every moving phase, assert the
+   resting state has no flight effects active, and run each module's update path
+   once so a missing import fails. Unrequested reversed, mirrored or sideways
+   motion is a defect, not a style choice.
 The routed UI quality companion is
 `common/skills/ui-visual-verification/SKILL.md`; read its core before styling
 controls and use its padding/overlap checks before delivery. A quiet/minimal
