@@ -81,3 +81,15 @@ and its counterexamples together. Isolated component checks and frozen-source
 CLI comparisons preserve visibility of each responsibility. Long repetitive
 requests retain regex after a measured regression; registry state is scoped to
 one entry call, never cached across calls. See the [batch evidence](discovery-batch.md).
+
+## Account for registered evidence before recursive discovery
+
+The general runtime-session resolver first verifies canonical paths for every
+registered binding. Only a fully accounted set skips enumeration; unresolved
+custom, worker or moved-state claims retain legacy discovery and completeness
+checks. Exact session/generation/ownership decisions remain downstream, and
+directory readability, symlink and nested-checkout exclusions remain enforced.
+No cross-call authorization cache or Rust adapter is added. The
+[evidence lookup result](evidence-lookup.md) measures both initialized lookup
+and an actual generated next-action entrypoint, including fallback overhead
+and compact-state tails rather than claiming universal improvement.

@@ -266,13 +266,8 @@ def resolve_runtime_evidence(
         out_of_scope: tuple[Path, ...] = ()
         complete = True
     else:
-        evidence_names = {
-            str(run.get("evidence_name") or "")
-            for run in bindings.values()
-            if _safe_evidence_name(run)
-        }
-        candidates, out_of_scope, complete = _runtime_evidence_candidates(
-            project, evidence_names
+        candidates, out_of_scope, complete = _parent_evidence_candidates(
+            project, bindings
         )
     matches: list[Path] = []
     resolved_keys: set[str] = set()
@@ -781,6 +776,62 @@ def _worker_evidence_scope(project: Path) -> tuple[bool, Path | None]:
 def _safe_evidence_name(run: dict[str, Any]) -> bool:
     name = str(run.get("evidence_name") or "")
     return bool(name) and Path(name).name == name
+
+
+def _parent_evidence_candidates(
+    project: Path, bindings: dict[str, dict[str, Any]]
+) -> tuple[tuple[Path, ...], tuple[Path, ...], bool]:
+    candidates = _registered_evidence_candidates(project, bindings)
+    if candidates is not None:
+        return candidates, (), True
+    evidence_names = {
+        str(run.get("evidence_name") or "")
+        for run in bindings.values()
+        if _safe_evidence_name(run)
+    }
+    return _runtime_evidence_candidates(project, evidence_names)
+
+
+def _registered_evidence_candidates(
+    project: Path, bindings: dict[str, dict[str, Any]]
+) -> tuple[Path, ...] | None:
+    """Skip discovery only when every claim has its exact canonical file.
+
+    Unknown files cannot add a match once every registry key is accounted for.
+    Preserve the walk's exclusions and directory-read requirement; a readable
+    known file inside an execute-only directory was not a discoverable claim.
+    Custom, worker, migrated, missing or otherwise unresolved claims use the
+    original complete-enumeration rules instead. No authorization is cached.
+    """
+    state = project_state_dir_target(project)
+    runs = state / "runs"
+    candidates: list[Path] = []
+    try:
+        if runs.is_symlink() or _is_nested_checkout(runs):
+            return None
+        for directory in (state, runs):
+            with os.scandir(directory):
+                pass
+        for key, run in bindings.items():
+            run_id = str(run.get("run_id") or "")
+            if len(run_id) != RUN_ID_LENGTH or any(c not in "0123456789abcdef" for c in run_id):
+                return None
+            directory = runs / run_id
+            if directory.is_symlink() or _is_nested_checkout(directory):
+                return None
+            with os.scandir(directory):
+                pass
+            candidate = _run_evidence_candidate(project, run)
+            if candidate is None or candidate.is_symlink():
+                return None
+            if evidence_binding_key(project, candidate) != key:
+                return None
+            candidates.append(candidate.resolve())
+    except OSError:
+        return None
+    # Recursive discovery sorts directories; settled timestamp ties keep that
+    # same order rather than inheriting registry insertion order.
+    return tuple(sorted(candidates))
 
 
 def _within_worker_root(filename: object, worker_root: Path) -> bool:

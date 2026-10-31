@@ -54,6 +54,11 @@ target for quiet prompt delivery only. Main integration and local installation
 are now authorized; per-host execution and actual installed state still need
 their own readbacks.
 
+The [registered evidence lookup](runtime-performance/evidence-lookup.md) further
+optimizes the existing `next` boundary and its shared resolver. It adds no
+inventory unit or Rust conversion: generated active-next improves on large
+history/cache fixtures, while compact and custom fallback show no benefit.
+
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
 | 1 | `scripts/checkout_identity.py` | checkout-identity | Native lookup accepted in stage one | Metadata parity, timeout, recovery, Python rollback |
@@ -70,7 +75,7 @@ their own readbacks.
 | 12 | `scripts/agent_execution_capsule.py` | execution-capsule | Python candidate | Admission, state/evidence freshness and completion safety |
 | 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Python task imports and per-prompt identity reuse | Quiet delivery gains 26.9%; preserve all authorization/delivery checks |
-| 15 | `scripts/agent_next_action.py` | next | Python imports deferred on performance branch | No-run/help parity; active control unchanged; gain below 20% target |
+| 15 | `scripts/agent_next_action.py` | next | Python imports deferred; shared evidence lookup optimized | Startup gain below target; active-next meets target on large history/cache fixtures; compact/custom limits retained |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 17 | `scripts/agent_work_cards.py` | work-cards | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
