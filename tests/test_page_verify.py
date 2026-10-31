@@ -153,6 +153,30 @@ class JudgeTests(unittest.TestCase):
         self.assertIn("| a | fail | r |", table)
 
 
+class PaidCallsAreOffByDefaultTests(unittest.TestCase):
+    def test_a_key_alone_never_turns_paid_calls_on(self):
+        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_ALLOW_PAID": "", "OPENROUTER_API_KEY": "present"}
+        with unittest.mock.patch.dict("os.environ", env, clear=False):
+            self.assertFalse(verify.can_judge())
+            with unittest.mock.patch.object(verify, "open_provider_request", side_effect=AssertionError("network used")):
+                with self.assertRaises(RuntimeError) as caught:
+                    verify.chat("any/model", "hi")
+        self.assertIn("MORU_VERIFY_ALLOW_PAID=1", str(caught.exception))
+
+    def test_explicit_permission_and_a_key_allow_it(self):
+        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_ALLOW_PAID": "1", "OPENROUTER_API_KEY": "present"}
+        with unittest.mock.patch.dict("os.environ", env, clear=False):
+            self.assertTrue(verify.can_judge())
+
+    def test_the_judge_service_refuses_to_start_without_permission(self):
+        import judge_service
+
+        env = {"MORU_VERIFY_ALLOW_PAID": "", "OPENROUTER_API_KEY": "present"}
+        with unittest.mock.patch.dict("os.environ", env, clear=False):
+            with self.assertRaises(RuntimeError):
+                judge_service.main(["--token-file", "/nonexistent", "--port", "0"])
+
+
 class MobileAndTimelineTests(unittest.TestCase):
     def test_the_touch_viewport_look_is_merged_as_mobile_steps_with_its_probes(self):
         def fake_observe(url, out, viewport, seconds):

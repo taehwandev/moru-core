@@ -3,7 +3,8 @@
 
 The agent session that builds a page must not be able to read the provider key, so
 the session sends its request and its observation evidence here and gets items and
-verdicts back. The key stays in this process.
+verdicts back. The key stays in this process. Every request spends money, so the service refuses to start
+unless MORU_VERIFY_ALLOW_PAID=1 is set by whoever starts it.
 
 POST /derive  {"request": str}                       -> {"items": [...]}
 POST /state   {"op": "get"|"put", "key": str, "value": dict|null}  -> {"value": ...}
@@ -102,6 +103,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--keep-dir", help="keep a copy of every judged round here (service side, outside the agent's reach)")
     parser.add_argument("--bind", default="127.0.0.1")
     args = parser.parse_args(argv)
+    verify.require_paid_calls()  # this service exists to make paid calls: refuse to start unless that was allowed
     token = (Path(args.token_file).read_text().strip() if args.token_file else os.environ.get("MORU_VERIFY_JUDGE_TOKEN", ""))
     if not token:
         parser.error("set --token-file or MORU_VERIFY_JUDGE_TOKEN")

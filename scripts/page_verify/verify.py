@@ -98,6 +98,20 @@ STEPS (label, seconds after the action, visible text):
 """
 
 
+ALLOW_PAID_ENV = "MORU_VERIFY_ALLOW_PAID"
+
+
+def paid_calls_allowed() -> bool:
+    """Paid model calls happen only when the person running the check turned them on, never because a key exists."""
+
+    return os.environ.get(ALLOW_PAID_ENV, "").strip() == "1"
+
+
+def require_paid_calls() -> None:
+    if not paid_calls_allowed():
+        raise RuntimeError(f"paid model calls are off; set {ALLOW_PAID_ENV}=1 to allow them for this run")
+
+
 def api_key() -> str:
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
@@ -113,6 +127,7 @@ def api_key() -> str:
 
 
 def chat(model: str, content: object, *, max_tokens: int = 3000) -> str:
+    require_paid_calls()
     body = json.dumps({"model": model, "temperature": 0, "max_tokens": max_tokens,
                        "messages": [{"role": "user", "content": content}]}).encode()
     request = urllib.request.Request(
@@ -402,6 +417,8 @@ def can_judge() -> bool:
 
     if os.environ.get("MORU_VERIFY_JUDGE_URL"):
         return True
+    if not paid_calls_allowed():
+        return False
     try:
         api_key()
     except RuntimeError:
