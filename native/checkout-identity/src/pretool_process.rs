@@ -55,8 +55,17 @@ impl PretoolProcess {
             || env::var("MORU_PRETOOL_RUNTIME").is_ok_and(|s| {
                 crate::statusline::Renderer::strip(&s).eq_ignore_ascii_case("codex")
             });
+        let file_command = (!matches!(executable, "git" | "pwd")).then_some(command);
+        if file_command.is_some()
+            && !crate::pretool_files::FileQuery::parse(
+                &command.split_ascii_whitespace().collect::<Vec<_>>(),
+            )
+            .is_some_and(|query| query.ready(Path::new(cwd)))
+        {
+            return false;
+        }
         crate::pretool_guard::ready(launcher, executable)
-            && (!codex || crate::pretool_transcript::safe(&payload))
+            && (!codex || crate::pretool_transcript::safe(&payload, file_command))
     }
 
     fn python(launcher: &OsString, args: &[OsString], raw: &[u8]) -> i32 {

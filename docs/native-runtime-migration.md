@@ -63,6 +63,8 @@ inventory unit or Rust conversion: generated active-next improves on large
 history/cache fixtures, while compact and custom fallback show no benefit.
 The [native pretool batch](runtime-performance/native-pretool.md) adds two partial
 Rust boundaries with CPU/wall/RSS evidence and no-Python plain-query execution.
+The [file-query extension](runtime-performance/native-pretool-files.md) expands
+those same two boundaries; it does not increase the inventory count.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |

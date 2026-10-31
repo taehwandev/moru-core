@@ -7,6 +7,7 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod launcher_backend;
+mod pretool_files;
 mod pretool_guard;
 mod pretool_process;
 mod pretool_query;

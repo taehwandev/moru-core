@@ -9,6 +9,8 @@ type: ai-generated
 The initial experiment below is retained for its exact artifact. The
 [cache compatibility correction](native-pretool-cache-compat.md) records the
 subsequent installed-source failure, regression repair and matching new timing.
+The later [file-query extension](native-pretool-files.md) adds bounded file
+inspection forms while retaining this original Git/pwd experiment.
 
 ## Decision and scope
 

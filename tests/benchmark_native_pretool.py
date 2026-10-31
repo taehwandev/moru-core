@@ -20,7 +20,7 @@ from native_pretool_support import PROJECT, environment, prepare, request, encod
 from support.native_source_inputs import pretool_contract
 
 
-def measure(output, count, budget):
+def measure(output, count, budget, workloads="plain"):
     if platform.system() != "Darwin":
         raise RuntimeError("this RSS probe requires macOS /usr/bin/time -l; no cross-host claim")
     receipt = json.loads((PROJECT / ".moru/native/build.json").read_text())
@@ -28,6 +28,7 @@ def measure(output, count, budget):
     report = {"status": "running", "platform": platform.platform(),
               "python": platform.python_version(), "rustc": receipt["rustc"],
               "samples_per_variant": count, "budget_seconds": budget, "seed": 61034,
+              "workloads": workloads,
               "method": "same generated callback and source, auto native versus forced Python; balanced AB/BA, isolated prepared bytecode, warm filesystem, unreserved host; serial child CPU/wall; BSD time per-process maximum RSS bytes",
               "source_sha256": receipt["source_sha256"], "binary": receipt["launcher"],
               "contract_sources": len(sources), "contract_directories": len(directories),
@@ -51,6 +52,18 @@ def measure(output, count, budget):
                 ("codex_pwd", "codex-pretool-gate", request(project, "pwd")),
                 ("quoted_fallback", "claude-pretool-gate", request(project, "git status '--short'")),
             ]
+            if workloads == "files":
+                (project / "src").mkdir()
+                (project / "notes.txt").write_text("TODO synthetic\n")
+                transcript.write_text(json.dumps({"payload": {"type": "custom_tool_call", "input":
+                    'await tools.exec_command({cmd:"rg -n TODO notes.txt",workdir:"' + str(project) + '"})'}}) + "\n")
+                cases = [
+                    ("claude_rg_files", "claude-pretool-gate", request(project, "rg --files src")),
+                    ("codex_rg_transcript", "codex-pretool-gate", request(project, "rg -n TODO notes.txt", transcript_path=str(transcript))),
+                    ("claude_head", "claude-pretool-gate", request(project, "head -n 20 notes.txt")),
+                    ("codex_cat", "codex-pretool-gate", request(project, "cat notes.txt")),
+                    ("quoted_fallback", "claude-pretool-gate", request(project, "cat 'notes.txt'")),
+                ]
             for name, alias, payload in cases:
                 values = {v: {k: [] for k in ("wall_ms", "cpu_ms", "user_ms", "system_ms", "peak_rss_bytes")}
                           for v in ("python", "auto")}
@@ -110,12 +123,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=24)
     parser.add_argument("--budget-seconds", type=float, default=90)
+    parser.add_argument("--workloads", choices=("plain", "files"), default="plain")
     parser.add_argument("--output", type=Path, default=PROJECT / ".moru/performance/native-pretool.json")
     args = parser.parse_args()
     if args.samples < 24 or args.samples % 2:
         parser.error("samples must be even and at least 24")
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    raise SystemExit(0 if measure(args.output, args.samples, args.budget_seconds) else 3)
+    raise SystemExit(0 if measure(args.output, args.samples, args.budget_seconds, args.workloads) else 3)
 
 
 if __name__ == "__main__":

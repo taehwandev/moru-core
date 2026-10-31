@@ -7,7 +7,15 @@ use std::{
     path::Path,
 };
 
-pub(crate) fn safe(payload: &Value) -> bool {
+pub(crate) fn safe(payload: &Value, file_command: Option<&str>) -> bool {
+    let valid_directory = |path: &str| {
+        file_command.is_none_or(|command| {
+            crate::pretool_files::FileQuery::parse(
+                &command.split_ascii_whitespace().collect::<Vec<_>>(),
+            )
+            .is_some_and(|query| query.ready(Path::new(path)))
+        })
+    };
     let Some(path) = payload.get("transcript_path").and_then(Value::as_str) else {
         return true;
     };
@@ -74,6 +82,7 @@ pub(crate) fn safe(payload: &Value) -> bool {
                 .is_none_or(|path| {
                     !path.contains('\0')
                         && (!Path::new(path).is_absolute() || Path::new(path).is_dir())
+                        && (!Path::new(path).is_absolute() || valid_directory(path))
                 });
         }
         let Some(code) = record.get("input").and_then(Value::as_str) else {
@@ -81,7 +90,19 @@ pub(crate) fn safe(payload: &Value) -> bool {
         };
         // Without escapes, every string the legacy regex can extract is valid
         // UTF-8 and cannot decode to a NUL or lone surrogate in a workdir.
-        return !code.contains('\\') && !code.contains('\0');
+        if code.contains('\\') || code.contains('\0') {
+            return false;
+        }
+        // Comments and single-quoted/template strings can change quote parity.
+        // Check every fragment, and never discard stat failures: Python may
+        // surface them as a normalization diagnostic even for Git/pwd queries.
+        if code.len() > 16 * 1024 || code.matches('"').count() > 128 {
+            return false;
+        }
+        return code
+            .split('"')
+            .filter(|p| Path::new(p).is_absolute())
+            .all(|p| Path::new(p).is_dir() && valid_directory(p));
     }
     true
 }
