@@ -154,6 +154,27 @@ class InSessionVerificationTests(unittest.TestCase):
         self.assertEqual({}, verdict)
         self.assertEqual(3, len(calls), "no verification beyond the cap")
 
+    def test_a_verification_error_is_recorded_beside_the_state_and_still_fails_open(self):
+        import types
+
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: Path("/w/dist")
+        fake.can_judge = lambda: True
+
+        def boom(*a, **k):
+            raise RuntimeError("judge service unreachable")
+
+        fake.verify_project = boom
+        fake.feedback_text = lambda r: ""
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), \
+                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.dict(sys.modules, {"verify": fake}):
+            verdict = adapter.stop(self.PAYLOAD)
+            note = (Path(tmp) / "cv.verify.error").read_text()
+        self.assertIn("RuntimeError: judge service unreachable", note)
+        self.assertEqual("continue", verdict["decision"], "falls back to the unverified reminder, never traps the stop")
+
     def test_all_pass_lets_the_agent_stop_without_the_reminder(self):
         verdict, calls, _ = self.run_stop([{"id": "a", "verdict": "pass"}])
         self.assertEqual({}, verdict)

@@ -53,6 +53,21 @@ class DeriveTests(unittest.TestCase):
         self.assertIn("stand on its tail, dive nose-first", verify.DERIVE_PROMPT)
         self.assertIn("pitch and roll applied during vertical rises and descents", verify.CODE_JUDGE_PROMPT)
 
+    def test_a_vehicle_request_always_gets_the_attitude_item_even_if_the_model_omits_it(self):
+        omitted = json.dumps([{"id": "ship-on-pad", "claim": "A ship rests on a pad.", "evidence": ["screenshots"]}])
+        request = "A spaceship takes off, flies a circuit and lands"
+        items = verify.derive_checklist(request, ask=lambda *a, **k: omitted)
+        menu = [i for i in items if i["source"] == "menu"]
+        self.assertEqual(["body-level-in-vertical-phases"], [i["id"] for i in menu])
+        self.assertIn("code", menu[0]["evidence"])
+
+    def test_the_attitude_item_is_not_added_twice_or_to_unrelated_requests(self):
+        covered = json.dumps([{"id": "level-body", "claim": "The pitch stays near zero.", "evidence": ["code"]}])
+        items = verify.derive_checklist("A spaceship takes off", ask=lambda *a, **k: covered)
+        self.assertEqual([], [i for i in items if i["source"] == "menu"])
+        plain = verify.derive_checklist("A pricing page with three plans", ask=lambda *a, **k: "[]")
+        self.assertEqual([], [i for i in plain if i["source"] == "menu"])
+
     def test_an_answer_without_json_is_an_error(self):
         with self.assertRaises(ValueError):
             verify.derive_checklist("request", ask=lambda *a, **k: "no list here")

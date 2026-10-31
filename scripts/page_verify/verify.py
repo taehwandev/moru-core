@@ -136,10 +136,33 @@ def clean_items(raw: list) -> list[dict]:
     return items[:10]
 
 
+MENU_ITEMS = [{
+    "id": "body-level-in-vertical-phases",
+    "claim": ("When the vehicle rises or descends vertically (takeoff, landing, hover), its body stays level (pitch near "
+              "zero); it does not stand on its tail, dive nose-first or fall like a rocket unless the request asks for that."),
+    "phase": "during_action", "evidence": ["code", "screenshots"], "source": "menu",
+    "applies": r"take.?off|landing|\bland\b|lift.?off|hover|ascen|descen|vtol|rocket|\bfl(?:y|ies|ight)\b|aircraft|spaceship|drone",
+    "covered": r"level|pitch|nose|attitude|tail",
+}]
+
+
+def ensure_menu_items(request: str, items: list[dict]) -> list[dict]:
+    """Add a standard item when the request calls for it and the derivation left it out.
+
+    The derivation prompt lists generic implied conditions but the model decides which to
+    include, and it omitted vehicle attitude on a request about takeoff and landing.
+    """
+
+    have = " ".join(f"{i['id']} {i['claim']}" for i in items).lower()
+    extra = [{k: m[k] for k in ("id", "claim", "phase", "evidence", "source")} for m in MENU_ITEMS
+             if re.search(m["applies"], request, re.I) and not re.search(m["covered"], have)]
+    return [*items, *extra]
+
+
 def derive_checklist(request: str, *, ask=chat) -> list[dict]:
     derived = clean_items(parse_array(ask(DERIVE_MODEL, DERIVE_PROMPT.format(request=request))))
     seen = {item["id"] for item in derived}
-    return [*(item for item in GENERIC_ITEMS if item["id"] not in seen), *derived]
+    return ensure_menu_items(request, [*(item for item in GENERIC_ITEMS if item["id"] not in seen), *derived])
 
 
 def image_part(b64: str) -> dict:

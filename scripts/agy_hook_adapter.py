@@ -227,7 +227,12 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
                               encoding="utf-8")
         feedback = verify.feedback_text(results) if rounds < VERIFY_MAX_ROUNDS else ""
         return True, ({"decision": "continue", "reason": feedback} if feedback else {})
-    except Exception:  # noqa: BLE001 - verification is advisory and must never trap a stop
+    except Exception as error:  # noqa: BLE001 - verification is advisory and must never trap a stop
+        try:  # a silent fail-open hides why a fix loop ended, so leave the reason beside the state
+            MARKER_DIR.mkdir(parents=True, exist_ok=True)
+            state_path.with_suffix(".error").write_text(f"{type(error).__name__}: {str(error)[:400]}", encoding="utf-8")
+        except OSError:
+            pass
         return False, {}
 
 
