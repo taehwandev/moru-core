@@ -128,15 +128,44 @@ def api_key() -> str:
 
 # The judge runs on the local Codex CLI by default: it is a different model from the one that built the page,
 # it uses the person's own Codex plan, and nothing is billed per call. OpenRouter is opt-in on top of that.
-CODEX_MODEL = os.environ.get("MORU_VERIFY_CODEX_MODEL", "gpt-6.1-terra")
-CODEX_EFFORT = os.environ.get("MORU_VERIFY_CODEX_EFFORT", "medium")
+CODEX_DEFAULT_MODEL = "gpt-6.1-terra"
 CODEX_TIMEOUT_SECONDS = 600
 CODEX_ANSWER_RULE = ("\n\nAnswer from this prompt and the attached images only. Do not run commands, read files or use "
                      "any tool. Reply with the requested JSON only.")
+BACKENDS = ("none", "codex", "openrouter")
+
+
+def judge_settings() -> dict:
+    """Which judge to use, chosen by the person running the check and never by a key or a CLI merely being present.
+
+    Order: environment (this run only), then ``~/.moru/verify.json`` (set once, e.g. {"backend": "codex",
+    "model": "<cheap model>", "effort": "low"}), then no judge at all. Without a judge only the checks that
+    need no model run, and the builder is asked to look at its own page.
+    """
+
+    path = Path(os.environ.get("MORU_VERIFY_CONFIG") or Path.home() / ".moru" / "verify.json")
+    try:
+        saved = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        saved = {}
+    saved = saved if isinstance(saved, dict) else {}
+
+    def pick(env: str, key: str, default: str = "") -> str:
+        return os.environ.get(env, "").strip() or str(saved.get(key) or default)
+
+    name = pick("MORU_VERIFY_BACKEND", "backend", "none")
+    return {"backend": name if name in BACKENDS else "none", "model": pick("MORU_VERIFY_MODEL", "model"),
+            "effort": pick("MORU_VERIFY_EFFORT", "effort", "medium")}
 
 
 def backend() -> str:
-    return "openrouter" if os.environ.get("MORU_VERIFY_BACKEND", "").strip() == "openrouter" else "codex"
+    return judge_settings()["backend"]
+
+
+def judge_configured() -> bool:
+    """Whether a model will judge the acceptance items: a judge service, or a backend chosen by the person."""
+
+    return bool(os.environ.get("MORU_VERIFY_JUDGE_URL")) or backend() != "none"
 
 
 def codex_available() -> bool:
@@ -163,11 +192,12 @@ def chat_codex(content: object) -> str:
     import tempfile
 
     prompt, images = split_content(content)
+    settings = judge_settings()
     with tempfile.TemporaryDirectory(prefix="moru-codex-judge-") as tmp:
         work = Path(tmp)
         command = ["codex", "exec", "--sandbox", "read-only", "--ignore-user-config", "--ignore-rules", "--ephemeral",
-                   "--skip-git-repo-check", "-C", str(work), "-m", CODEX_MODEL,
-                   "-c", f'model_reasoning_effort="{CODEX_EFFORT}"', "-o", str(work / "answer.txt")]
+                   "--skip-git-repo-check", "-C", str(work), "-m", settings["model"] or CODEX_DEFAULT_MODEL,
+                   "-c", f'model_reasoning_effort="{settings["effort"]}"', "-o", str(work / "answer.txt")]
         for number, data in enumerate(images, 1):
             path = work / f"image-{number}.jpg"
             path.write_bytes(data)
@@ -183,7 +213,10 @@ def chat_codex(content: object) -> str:
 def require_backend() -> None:
     """Refuse early when the chosen judge cannot run here; paid use must have been allowed on purpose."""
 
-    if backend() == "openrouter":
+    chosen = backend()
+    if chosen == "none":
+        raise RuntimeError("no judge is configured: set MORU_VERIFY_BACKEND or ~/.moru/verify.json")
+    if chosen == "openrouter":
         require_paid_calls()
         api_key()
     elif not codex_available():
@@ -191,9 +224,13 @@ def require_backend() -> None:
 
 
 def chat(model: str, content: object, *, max_tokens: int = 3000) -> str:
-    if backend() == "codex":
+    chosen = backend()
+    if chosen == "none":
+        raise RuntimeError("no judge is configured: set MORU_VERIFY_BACKEND or ~/.moru/verify.json")
+    if chosen == "codex":
         return chat_codex(content)
     require_paid_calls()
+    model = judge_settings()["model"] or model
     body = json.dumps({"model": model, "temperature": 0, "max_tokens": max_tokens,
                        "messages": [{"role": "user", "content": content}]}).encode()
     request = urllib.request.Request(
@@ -486,6 +523,8 @@ def can_judge() -> bool:
 
     if os.environ.get("MORU_VERIFY_JUDGE_URL"):
         return True
+    if backend() == "none":
+        return False
     if backend() == "codex":
         return codex_available()
     if not paid_calls_allowed():
@@ -695,7 +734,10 @@ def verify_project(project: Path, request: str, out: Path, *, viewport: str = "d
     if dist is None:
         raise RuntimeError("no built page (index.html) found in the project")
     out.mkdir(parents=True, exist_ok=True)
-    items = checklist if checklist is not None else derive_any(request)
+    started = time.time()
+    judged = judge_configured()
+    # Without a judge there is nothing to derive a request-specific checklist with: the basic checks still run.
+    items = checklist if checklist is not None else (derive_any(request) if judged else [dict(i) for i in GENERIC_ITEMS])
     (out / "checklist.json").write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
@@ -708,16 +750,55 @@ def verify_project(project: Path, request: str, out: Path, *, viewport: str = "d
     finally:
         server.terminate()
     failing = floor_results(items, evidence)
-    if failing:
+    if not judged:
+        results = finalize(basic_results(items, evidence, failing), evidence)
+    elif failing:
         by_id = {r["id"]: r for r in failing}
         results = finalize([by_id.get(i["id"]) or {**i, "verdict": "fail", "basis": "unchecked",
                                                    "reason": "not checked yet: a basic check failed, fix that first"}
                             for i in items], evidence)
     else:
         results = finalize(judge_any(items, out / "evidence", collect_source(project)), evidence)
+    log_round(items, results, judged, time.time() - started)
     (out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "report.md").write_text(render(results), encoding="utf-8")
     return items, results
+
+
+def basic_results(items: list[dict], evidence: dict, failing: list[dict]) -> list[dict]:
+    """Verdicts for the checks that need no model, used when no judge is configured."""
+
+    by_id = {r["id"]: r for r in failing}
+    results = []
+    for item in items:
+        if item["id"] in by_id:
+            results.append(by_id[item["id"]])
+        elif item["id"] == "action-responds" and not evidence.get("primaryAction"):
+            results.append({**item, "verdict": "unobserved", "reason": "no main action was found to use"})
+        else:
+            results.append({**item, "verdict": "pass", "reason": "no basic problem observed"})
+    return results
+
+
+def log_round(items: list[dict], results: list[dict], judged: bool, seconds: float) -> None:
+    """One local line per check, so the person can see what a judge found and what it cost, and decide to keep it."""
+
+    import time
+
+    settings = judge_settings()
+    counts = {"pass": 0, "contradicted": 0, "unverified": 0, "unchecked": 0}
+    for r in results:
+        counts["pass" if r["verdict"] == "pass" else r.get("basis", "contradicted")] += 1
+    line = {"at": time.strftime("%Y-%m-%dT%H:%M:%S"), "judged": judged, "backend": settings["backend"] if judged else "none",
+            "model": settings["model"], "seconds": round(seconds), "counts": counts,
+            "failing": [r["id"] for r in results if r["verdict"] == "fail"]}
+    path = Path(os.environ.get("MORU_VERIFY_EFFECT_LOG") or Path.home() / ".moru" / "verify-effect.jsonl")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(line) + "\n")
+    except OSError:
+        pass
 
 
 def finalize(results: list[dict], evidence: dict) -> list[dict]:

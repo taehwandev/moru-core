@@ -164,7 +164,7 @@ class StopGateContinuationCapTests(unittest.TestCase):
 class InSessionVerificationTests(unittest.TestCase):
     PAYLOAD = {"conversationId": "cv", "workspacePaths": ["/w"], "lastUserInput": "Build a thing", "executionNum": 0}
 
-    def run_stop(self, results, rounds_before=0, can_judge=True, dist=True, fingerprint=None):
+    def run_stop(self, results, rounds_before=0, can_judge=True, dist=True, fingerprint=None, judge_configured=True):
         import types
 
         import itertools
@@ -174,7 +174,8 @@ class InSessionVerificationTests(unittest.TestCase):
         calls = []
         fake = types.ModuleType("verify")
         fake.find_dist = lambda project: Path("/w/dist") if dist else None
-        fake.can_judge = lambda: can_judge
+        fake.can_observe = lambda: can_judge
+        fake.judge_configured = lambda: judge_configured
         fake.project_fingerprint = lambda project: next(sequence)
 
         def verify_project(project, request, out, checklist=None, **kw):
@@ -200,7 +201,8 @@ class InSessionVerificationTests(unittest.TestCase):
         made = []
         fake = types.ModuleType("verify")
         fake.find_dist = lambda project: Path("/w/dist")
-        fake.can_judge = lambda: True
+        fake.can_observe = lambda: True
+        fake.judge_configured = lambda: True
         fake.project_fingerprint = lambda project: "x"
         fake.feedback_text = lambda r: ""
         fake.remaining_text = lambda r: ""
@@ -221,12 +223,26 @@ class InSessionVerificationTests(unittest.TestCase):
             leftovers = [p.exists() for p in made]
         self.assertEqual([False], leftovers, "the checked session must not find its checklist or pictures at home")
 
+    def test_without_a_judge_a_passing_basic_check_still_says_the_rest_is_unverified_once(self):
+        ok = [{"id": "loads-clean", "verdict": "pass"}]
+        first, calls, tmp = self.run_stop(ok, judge_configured=False)
+        self.assertEqual("continue", first["decision"])
+        self.assertIn("No model judgement", first["reason"])
+        self.assertIn("unverified by this check", first["reason"])
+
+    def test_without_a_judge_basic_failures_are_sent_back_with_the_same_note(self):
+        verdict, calls, tmp = self.run_stop([{"id": "input-reaches-controls", "verdict": "fail"}], judge_configured=False)
+        self.assertEqual("continue", verdict["decision"])
+        self.assertIn("FIX: input-reaches-controls", verdict["reason"])
+        self.assertIn("No model judgement", verdict["reason"])
+
     def test_a_check_that_crashes_is_reported_once_and_never_ends_the_run_unseen(self):
         import types
 
         fake = types.ModuleType("verify")
         fake.find_dist = lambda project: Path("/w/dist")
-        fake.can_judge = lambda: True
+        fake.can_observe = lambda: True
+        fake.judge_configured = lambda: True
         fake.project_fingerprint = lambda project: "x"
 
         def boom(*args, **kwargs):
@@ -313,10 +329,10 @@ class IndependentCheckNoticeTests(unittest.TestCase):
                          "a prohibition collides with the UI skill that asks the agent to see its own page")
         self.assertIn("what you could not verify", adapter.INDEPENDENT_CHECK_NOTICE)
 
-    def test_the_check_is_promised_only_when_judge_and_observer_are_both_present(self):
+    def test_the_check_is_promised_whenever_a_browser_can_run_it_judge_or_not(self):
         import types
 
-        for judge, observe, expected in ((True, True, True), (True, False, False), (False, True, False)):
+        for judge, observe, expected in ((True, True, True), (True, False, False), (False, True, True)):
             fake = types.ModuleType("verify")
             fake.can_judge = lambda j=judge: j
             fake.can_observe = lambda o=observe: o
@@ -331,7 +347,8 @@ class VerificationStateResetTests(unittest.TestCase):
         calls = []
         fake = types.ModuleType("verify")
         fake.find_dist = lambda project: Path("/w/dist")
-        fake.can_judge = lambda: True
+        fake.can_observe = lambda: True
+        fake.judge_configured = lambda: True
         prints = iter(["one", "two", "three"])
         fake.project_fingerprint = lambda project: next(prints)
 

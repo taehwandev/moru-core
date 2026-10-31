@@ -3,9 +3,10 @@
 
 The agent session that builds a page must not be able to read the provider key, so
 the session sends its request and its observation evidence here and gets items and
-verdicts back. The judge is the local Codex CLI by default (no provider key involved). With
-MORU_VERIFY_BACKEND=openrouter the key stays in this process, every request spends money, and the
-service refuses to start unless MORU_VERIFY_ALLOW_PAID=1 is also set by whoever starts it.
+verdicts back. The judge is whatever the person starting the service chose (MORU_VERIFY_BACKEND or
+~/.moru/verify.json); there is no default and the service refuses to start without a choice. With
+the openrouter backend the key stays in this process, every request spends money, and
+MORU_VERIFY_ALLOW_PAID=1 must also be set.
 
 POST /derive  {"request": str}                       -> {"items": [...]}
 POST /state   {"op": "get"|"put", "key": str, "value": dict|null}  -> {"value": ...}

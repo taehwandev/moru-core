@@ -98,6 +98,12 @@ def already_delivered(conversation: str, text: str, kind: str = "route") -> bool
     return False
 
 
+NOT_JUDGED_NOTE = (
+    "No model judgement of the request's acceptance items is configured, so only the basic checks ran: the page loads, "
+    "the main action responds, and pointer input reaches the controls and the scene. Everything else the request asks "
+    "for is unverified by this check: look at the running page yourself and say plainly in your final report what "
+    "you could not verify."
+)
 INDEPENDENT_CHECK_NOTICE = (
     "When you stop, an independent check opens the finished page in a real browser, uses its main action, drags and "
     "scrolls over the scene, and sends failures back. Before you finish, look at the running page yourself once, in its "
@@ -113,7 +119,7 @@ def independent_check_available() -> bool:
         sys.path.insert(0, str(SCRIPTS / "page_verify"))
         import verify
 
-        return verify.can_judge() and verify.can_observe()
+        return verify.can_observe()
     except Exception:  # noqa: BLE001 - a missing check just means no notice
         return False
 
@@ -298,7 +304,7 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
         import verify
 
         project = Path(workspace(payload))
-        if verify.find_dist(project) is None or not verify.can_judge():
+        if verify.find_dist(project) is None or not verify.can_observe():
             return False, {}
         state = load_state(state_path, "verify")
         digest = hashlib.sha256(str(payload.get("lastUserInput") or "").encode("utf-8")).hexdigest()
@@ -329,6 +335,9 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
         # Before the last allowed check the failures go back for a fix; after it they are reported, once.
         last_check = rounds >= VERIFY_MAX_ROUNDS
         feedback = verify.remaining_text(results) if last_check else verify.feedback_text(results)
+        if not verify.judge_configured():
+            feedback = (feedback + "\n\n" if feedback else "") + NOT_JUDGED_NOTE if (
+                feedback or not already_delivered(session_id(payload), NOT_JUDGED_NOTE, "not-judged")) else ""
         kept = [{k: r.get(k) for k in ("id", "claim", "verdict", "reason")} for r in results]
         save_state(state_path, "verify", {"input": digest, "rounds": rounds + 1, "request": request, "checklist": items,
                                           "fingerprint": fingerprint, "results": kept,

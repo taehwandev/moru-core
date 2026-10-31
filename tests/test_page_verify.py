@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -14,6 +15,8 @@ sys.path.insert(0, str(ROOT / "scripts" / "page_verify"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import verify  # noqa: E402
+
+os.environ.setdefault("MORU_VERIFY_EFFECT_LOG", str(Path(tempfile.gettempdir()) / "moru-verify-effect-test.jsonl"))
 
 
 def write_evidence(directory: Path, **extra) -> None:
@@ -183,12 +186,13 @@ class LocalCodexJudgeTests(unittest.TestCase):
             calls["images"] = [Path(command[i + 1]).read_bytes() for i, a in enumerate(command) if a == "-i"]
             return subprocess.CompletedProcess(command, returncode, "", "boom" if returncode else "")
 
-        with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_BACKEND": ""}, clear=False), \
+        with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_BACKEND": "codex", "MORU_VERIFY_MODEL": "",
+                                                     "MORU_VERIFY_CONFIG": "/nonexistent"}, clear=False), \
                 unittest.mock.patch.object(verify.subprocess, "run", fake_run):
             result = verify.chat("ignored/model", content)
         return result, calls
 
-    def test_the_default_judge_is_the_local_codex_with_no_tools_config_or_session(self):
+    def test_the_codex_judge_runs_with_no_tools_config_or_session(self):
         result, calls = self.run_chat("judge this")
         command = calls["command"]
         self.assertEqual("[]", result)
@@ -215,7 +219,8 @@ class LocalCodexJudgeTests(unittest.TestCase):
             self.run_chat("x", answer="  ")
 
     def test_codex_needs_no_key_and_no_paid_permission_but_must_be_installed(self):
-        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_BACKEND": "", "MORU_VERIFY_ALLOW_PAID": "", "OPENROUTER_API_KEY": ""}
+        env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_BACKEND": "codex", "MORU_VERIFY_ALLOW_PAID": "",
+               "OPENROUTER_API_KEY": "", "MORU_VERIFY_CONFIG": "/nonexistent"}
         with unittest.mock.patch.dict("os.environ", env, clear=False):
             with unittest.mock.patch.object(verify, "codex_available", return_value=True):
                 self.assertTrue(verify.can_judge())
@@ -223,6 +228,85 @@ class LocalCodexJudgeTests(unittest.TestCase):
                 self.assertFalse(verify.can_judge())
                 with self.assertRaises(RuntimeError):
                     verify.require_backend()
+
+
+class JudgeSelectionTests(unittest.TestCase):
+    def settings(self, env=None, saved=None):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "verify.json"
+            if saved is not None:
+                path.write_text(json.dumps(saved))
+            base = {"MORU_VERIFY_BACKEND": "", "MORU_VERIFY_MODEL": "", "MORU_VERIFY_EFFORT": "", "MORU_VERIFY_JUDGE_URL": "",
+                    "MORU_VERIFY_CONFIG": str(path)}
+            with unittest.mock.patch.dict("os.environ", {**base, **(env or {})}, clear=False):
+                return verify.judge_settings(), verify.judge_configured(), verify.can_judge()
+
+    def test_nothing_is_chosen_by_default_even_if_codex_and_a_key_exist(self):
+        with unittest.mock.patch.object(verify, "codex_available", return_value=True):
+            settings, configured, can = self.settings({"OPENROUTER_API_KEY": "present"})
+        self.assertEqual("none", settings["backend"])
+        self.assertFalse(configured)
+        self.assertFalse(can)
+
+    def test_a_saved_choice_applies_and_the_environment_overrides_it_for_one_run(self):
+        saved = {"backend": "codex", "model": "cheap-model", "effort": "low"}
+        with unittest.mock.patch.object(verify, "codex_available", return_value=True):
+            settings, configured, _ = self.settings(saved=saved)
+            self.assertEqual({"backend": "codex", "model": "cheap-model", "effort": "low"}, settings)
+            self.assertTrue(configured)
+            settings, configured, _ = self.settings({"MORU_VERIFY_BACKEND": "none", "MORU_VERIFY_MODEL": "other"}, saved=saved)
+            self.assertEqual("none", settings["backend"])
+            self.assertEqual("other", settings["model"])
+            self.assertFalse(configured)
+
+    def test_an_unknown_backend_or_a_broken_file_means_no_judge(self):
+        self.assertEqual("none", self.settings({"MORU_VERIFY_BACKEND": "something"})[0]["backend"])
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "verify.json"
+            bad.write_text("{not json")
+            with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_CONFIG": str(bad), "MORU_VERIFY_BACKEND": ""}, clear=False):
+                self.assertEqual("none", verify.judge_settings()["backend"])
+
+    def test_the_chosen_model_reaches_the_codex_command(self):
+        seen = {}
+
+        def fake_run(command, **kwargs):
+            seen["model"] = command[command.index("-m") + 1]
+            Path(command[command.index("-o") + 1]).write_text("[]")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        env = {"MORU_VERIFY_BACKEND": "codex", "MORU_VERIFY_MODEL": "cheap-model", "MORU_VERIFY_CONFIG": "/nonexistent"}
+        with unittest.mock.patch.dict("os.environ", env, clear=False), unittest.mock.patch.object(verify.subprocess, "run", fake_run):
+            verify.chat("ignored", "hi")
+        self.assertEqual("cheap-model", seen["model"])
+
+
+class NoJudgeModeTests(unittest.TestCase):
+    def test_basic_checks_run_without_any_model_and_pass_or_fail_on_their_own_evidence(self):
+        items = [dict(i) for i in verify.GENERIC_ITEMS]
+        clean = {"primaryAction": {"text": "GO"}, "consoleErrors": [], "steps": [{"label": "a"}, {"label": "b"}],
+                 "inputProbes": {"primary": {"x": 1, "y": 2, "reaches": True, "by": None, "text": "", "invisible": False}}}
+        results = verify.finalize(verify.basic_results(items, clean, []), clean)
+        self.assertEqual({"pass"}, {r["verdict"] for r in results})
+        broken = {**clean, "consoleErrors": ["boom"], "steps": [{"label": "a"}, {"label": "b"}]}
+        failing = verify.floor_results(items, broken)
+        results = verify.finalize(verify.basic_results(items, broken, failing), broken)
+        self.assertEqual("fail", next(r for r in results if r["id"] == "loads-clean")["verdict"])
+        none = {**clean, "primaryAction": None}
+        results = verify.finalize(verify.basic_results(items, none, []), none)
+        self.assertEqual("unverified", next(r for r in results if r["id"] == "action-responds")["basis"])
+
+    def test_each_check_leaves_one_local_line_with_backend_counts_and_cost(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "effect.jsonl"
+            results = [{"id": "a", "verdict": "pass"}, {"id": "b", "verdict": "fail", "basis": "unverified"}]
+            with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_EFFECT_LOG": str(log), "MORU_VERIFY_BACKEND": "codex",
+                                                         "MORU_VERIFY_CONFIG": "/nonexistent"}, clear=False):
+                verify.log_round([], results, True, 12.4)
+            line = json.loads(log.read_text().strip())
+        self.assertEqual({"backend": "codex", "judged": True, "seconds": 12, "failing": ["b"],
+                          "counts": {"pass": 1, "contradicted": 0, "unverified": 1, "unchecked": 0}},
+                         {k: line[k] for k in ("backend", "judged", "seconds", "failing", "counts")})
 
 
 class PaidCallsAreOffByDefaultTests(unittest.TestCase):
