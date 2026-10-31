@@ -198,6 +198,19 @@ class RemoteJudgeTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class ObserverTests(unittest.TestCase):
+    def test_the_observer_shows_the_default_view_first_retries_a_swallowed_click_and_runs_long(self):
+        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        self.assertLess(source.index("default-view-t"), source.index("FIND_SECONDARY)) || []"))
+        self.assertLess(source.index("FIND_SECONDARY)) || []"), source.index("late-t"))
+        for needle in ("primaryAttempts = 2", "option('--seconds', '75')"):
+            self.assertIn(needle, source)
+        self.assertIn("default=75", (ROOT / "scripts" / "page_verify" / "verify.py").read_text())
+
+    def test_secondary_controls_do_not_match_ordinary_words_like_in_progress(self):
+        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        self.assertNotIn("|in\\\\b|out\\\\b", source)
+        self.assertIn("drone", source)
+
     def test_the_observer_cannot_leave_browser_processes_behind(self):
         source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
         for needle in ("detached: true", "process.kill(-chrome.pid", "watchdog expired", "--in-process-gpu"):

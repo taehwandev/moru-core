@@ -23,7 +23,7 @@ const option = (name, fallback) => {
   return at >= 0 && rest[at + 1] ? rest[at + 1] : fallback;
 };
 const viewportName = option('--viewport', 'desktop');
-const totalSeconds = Number(option('--seconds', '40'));
+const totalSeconds = Number(option('--seconds', '75'));
 const CHROME = process.env.CHROME_PATH
   || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome',
     '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync);
@@ -107,7 +107,7 @@ const FIND_PRIMARY = `(() => {
 })()`;
 
 const FIND_SECONDARY = `(() => {
-  const allow = /(orbit|chase|follow|tower|cockpit|cam|view|zoom|pan|\\+|\u2212|-|in\\b|out\\b)/i;
+  const allow = /(orbit|chase|follow|tower|cockpit|drone|cam|view|zoom|pan|^\\s*[+\u2212-]\\s*$)/i;
   const deny = /(reset|land|return|abort|restart|stop|pause|again|reload|clear|exit|close|mute|sound|audio|speed|help|guide|\\?)/i;
   const visible = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
     return r.width > 4 && r.height > 4 && r.bottom > 0 && r.top < innerHeight && s.visibility !== 'hidden' && s.display !== 'none'; };
@@ -162,39 +162,45 @@ try {
 
   const primary = await evaluate(cdp, FIND_PRIMARY);
   evidence.primaryAction = primary;
-  if (primary) {
-    const pointer = { x: primary.x, y: primary.y, button: 'left', clickCount: 1 };
+  const press = async (spot) => {
+    const pointer = { x: spot.x, y: spot.y, button: 'left', clickCount: 1 };
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...pointer });
     await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...pointer });
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...pointer });
+  };
+  if (primary) {
+    const before = (await evaluate(cdp, SNAPSHOT)).text;
+    await press(primary);
     const started = Date.now();
-    // Secondary controls (camera, view, zoom) are exercised once, while the action is running,
-    // so the evidence shows each camera mode with the subject in motion.
-    await sleep(2500);
-    evidence.secondaryControls = [];
-    for (const control of (await evaluate(cdp, FIND_SECONDARY)) || []) {
-      const spot = { x: control.x, y: control.y, button: 'left', clickCount: 1 };
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...spot });
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...spot });
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...spot });
-      await sleep(900);
-      evidence.secondaryControls.push(control.text);
-      await capture(cdp, `control-${control.text.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 14)}`, (Date.now() - started) / 1000);
+    await sleep(2000);
+    // A click can be swallowed while a page is still starting up; try once more before calling it unresponsive.
+    evidence.primaryAttempts = 1;
+    if ((await evaluate(cdp, SNAPSHOT)).text === before) {
+      const again = (await evaluate(cdp, FIND_PRIMARY)) || primary;
+      await press(again);
+      evidence.primaryAttempts = 2;
+      await sleep(1500);
     }
-    // Put the view back to the first mode so the timeline shows the default camera, not the last one tried.
-    const first = ((await evaluate(cdp, FIND_SECONDARY)) || []).find((c) => c.text === evidence.secondaryControls[0]);
-    if (first) {
-      const home = { x: first.x, y: first.y, button: 'left', clickCount: 1 };
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...home });
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...home });
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...home });
-      await sleep(600);
-    }
-    const marks = [2, 6, 12, 20, 30, totalSeconds].filter((s) => s <= totalSeconds);
-    for (const mark of [...new Set(marks)]) {
+    const at = () => (Date.now() - started) / 1000;
+    // The default camera comes first: the subject must be in view before any view is changed.
+    for (const mark of [3, 6, 10]) {
       const wait = mark * 1000 - (Date.now() - started);
       if (wait > 0) await sleep(wait);
-      await capture(cdp, `t${mark}s`, mark);
+      await capture(cdp, `default-view-t${mark}s`, mark);
+    }
+    // Secondary controls (camera, view, zoom) are then exercised once, while the action is still running.
+    evidence.secondaryControls = [];
+    for (const control of (await evaluate(cdp, FIND_SECONDARY)) || []) {
+      await press(control);
+      await sleep(900);
+      evidence.secondaryControls.push(control.text);
+      await capture(cdp, `control-${control.text.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 14)}`, at());
+    }
+    // Then the rest of the timeline, long enough to reach the end state, in whatever view is active.
+    for (const mark of [18, 26, 36, 48, 60, totalSeconds].filter((s) => s <= totalSeconds)) {
+      const wait = mark * 1000 - (Date.now() - started);
+      if (wait > 0) await sleep(wait);
+      await capture(cdp, `late-t${mark}s`, mark);
     }
   }
   cdp.close();

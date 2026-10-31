@@ -339,7 +339,7 @@ def find_dist(project: Path) -> Path | None:
     return None
 
 
-def verify_project(project: Path, request: str, out: Path, *, viewport: str = "desktop", seconds: int = 40,
+def verify_project(project: Path, request: str, out: Path, *, viewport: str = "desktop", seconds: int = 75,
                    checklist: list[dict] | None = None) -> tuple[list[dict], list[dict]]:
     """Serve the built page, observe it, and judge it. Returns (items, results)."""
 
@@ -380,7 +380,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--request", required=True, help="The user's request text.")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--viewport", choices=("desktop", "mobile"), default="desktop")
-    parser.add_argument("--seconds", type=int, default=40)
+    parser.add_argument("--seconds", type=int, default=75)
     parser.add_argument("--checklist", type=Path, help="Reuse a saved checklist instead of deriving one.")
     args = parser.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
