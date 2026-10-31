@@ -264,6 +264,8 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
             return discovery_kind
         if writes_output:
             return "mutating"
+        if tokens[1] == "checkout-identity" and tokens[2:] in ([], ["--help"]):
+            return "read_only"
         if tokens[1] == "operator-review":
             return RUNTIME_CONTROL_KIND
         if tokens[1] == "agent-mailbox":

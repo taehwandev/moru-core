@@ -55,6 +55,7 @@ class BuildNativeRuntimeTests(unittest.TestCase):
         artifact = self.state / "cargo-target/release" / builder.NAME
         artifact.parent.mkdir(parents=True)
         artifact.write_bytes(b"new executable")
+        (artifact.parent / builder.LAUNCHER_NAME).write_bytes(b"native launcher executable")
         with patch.object(builder.shutil, "which", return_value="/tool"), \
                 patch.object(builder.subprocess, "run") as run, \
                 patch.object(builder.subprocess, "check_output", return_value="rustc fixture\n"):
@@ -66,7 +67,15 @@ class BuildNativeRuntimeTests(unittest.TestCase):
         self.assertEqual(0o755, self.binary.stat().st_mode & 0o777)
         self.assertEqual(receipt, json.loads((self.state / "build.json").read_text()))
         self.assertEqual(3, len(receipt["source_sha256"]))
+        self.assertEqual(b"native launcher executable", (self.state / "bin" / builder.LAUNCHER_NAME).read_bytes())
         self.assertEqual([], list(self.binary.parent.glob(".checkout-*")))
+
+    def test_launcher_probe_failure_retains_previous_checkout_binary(self):
+        with patch.object(builder.shutil, "which", return_value="/tool"), \
+                patch.object(builder.subprocess, "run", side_effect=[None, None, subprocess.CalledProcessError(2, "launcher")]):
+            with self.assertRaises(subprocess.CalledProcessError):
+                builder.build()
+        self.assertEqual(b"last working executable", self.binary.read_bytes())
 
 
 if __name__ == "__main__":

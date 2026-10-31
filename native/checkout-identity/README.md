@@ -52,6 +52,10 @@ No toolchain is needed to run a compiled artifact on its compatible platform.
 
 ## Staged acceptance
 
+The [stage-two launcher bridge](LAUNCHER.md) connects this handler to the stable
+entrypoint without Python initialization. The [migration inventory](../../docs/native-runtime-migration.md)
+tracks the complete candidate entry-owner scope and retains Python policy paths.
+
 1. This unit: reusable Rust implementation, direct invocation, explicit Python
    rollback, offline build, real-process parity and no-Python-PATH smoke check.
 2. Next: route a bounded existing execution path through native startup; verify
@@ -89,7 +93,8 @@ Fresh-process median milliseconds through the actual shell entrypoint:
 
 Thirty samples per backend/layout, randomized sequential order, warm filesystem
 and prepared Python bytecode; setup/build excluded. These times include the
-shell entrypoint, process execution, lookup and parent decoding. Host exclusivity
+shell entrypoint, process execution and lookup; parent decoding is outside the
+timing window. Host exclusivity
 was not guaranteed, and this is a separate run from the earlier experiment.
 Raw samples and p95 values are in ignored `.moru/native/stage-one-benchmark.json`.
 The stripped executable is 494,000 bytes on this host.

@@ -1,7 +1,7 @@
 """Measure the actual stage-one entrypoint against its Python rollback path.
 
 Build and pass runtime parity tests first. Setup and warmups are excluded;
-timings include process startup, stdio, operation and common parent decoding.
+timings include process startup, stdio and operation; parent decoding is excluded.
 This does not measure installed hooks or overall agent/token performance.
 """
 

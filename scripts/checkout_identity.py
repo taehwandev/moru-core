@@ -44,6 +44,12 @@ def answer(raw: bytes) -> dict:
 
 
 def main() -> int:
+    if os.environ.get("MORU_CHECKOUT_IDENTITY_BACKEND", "") not in {"", "auto", "rust", "python"}:
+        print("invalid MORU_CHECKOUT_IDENTITY_BACKEND", file=sys.stderr)
+        return 2
+    if sys.argv[1:] == ["--help"]:
+        print("usage: moru-hook checkout-identity < requests.ndjson")
+        return 0
     if len(sys.argv) != 1:
         print("checkout_identity.py accepts NDJSON on stdin, no arguments", file=sys.stderr)
         return 2
