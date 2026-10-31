@@ -38,11 +38,23 @@ const viewport = viewportName === 'mobile'
 
 mkdirSync(outDir, { recursive: true });
 const profile = mkdtempSync(join(tmpdir(), 'moru-page-verify-'));
+// Few helper processes on purpose: a container's process limit is shared with the agent's own builds.
 const chrome = spawn(CHROME, [
   '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run',
-  '--no-default-browser-check', '--mute-audio',
+  '--no-default-browser-check', '--mute-audio', '--in-process-gpu', '--no-zygote', '--renderer-process-limit=1',
+  '--disable-dev-shm-usage', '--disable-extensions', '--disable-sync', '--disable-background-networking',
+  '--disable-component-update', '--metrics-recording-only',
   ...(process.env.MORU_VERIFY_CHROME_ARGS || '').split(/\s+/).filter(Boolean), 'about:blank',
-], { stdio: 'ignore' });
+], { stdio: 'ignore', detached: true });
+
+// The browser runs in its own process group so that every helper dies with it, whatever happens here.
+const killBrowser = () => {
+  try { process.kill(-chrome.pid, 'SIGKILL'); } catch { /* already gone */ }
+};
+process.on('exit', killBrowser);
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { killBrowser(); process.exit(130); });
+setTimeout(() => { killBrowser(); console.error('observer watchdog expired'); process.exit(4); },
+  (totalSeconds + 120) * 1000).unref();
 
 async function connect() {
   const portFile = join(profile, 'DevToolsActivePort');
@@ -191,7 +203,7 @@ try {
 } finally {
   evidence.consoleErrors = [...new Set(evidence.consoleErrors)].slice(0, 20);
   writeFileSync(join(outDir, 'observations.json'), JSON.stringify(evidence, null, 2));
-  chrome.kill();
+  killBrowser();
 }
 console.log(JSON.stringify({ out: outDir, steps: evidence.steps.length, errors: evidence.consoleErrors.length,
   primary: evidence.primaryAction?.text || null, observerError: evidence.observerError || null }));

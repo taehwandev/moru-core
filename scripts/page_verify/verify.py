@@ -56,7 +56,9 @@ Rules:
   actually change what they claim to change.
 - Add nothing the request does not imply. No visual taste judgements such as "beautiful".
 - At most 10 items. Each item: id (short kebab-case), claim, phase (initial | during_action | after_action | any),
-  evidence (a non-empty subset of: screenshots, text, console).
+  evidence (a non-empty subset of: screenshots, text, console, code). Use code for anything a screenshot cannot
+  show: which way a subject's front points versus its travel direction, coordinate conventions, and whether
+  things that belong to the active state are already running in the resting state.
 Answer with a JSON array only.
 
 REQUEST:
@@ -125,7 +127,7 @@ def clean_items(raw: list) -> list[dict]:
     for entry in raw:
         if not isinstance(entry, dict) or not entry.get("id") or not entry.get("claim"):
             continue
-        evidence = [e for e in entry.get("evidence", []) if e in {"screenshots", "text", "console"}]
+        evidence = [e for e in entry.get("evidence", []) if e in {"screenshots", "text", "console", "code"}]
         items.append({"id": re.sub(r"[^a-z0-9-]+", "-", str(entry["id"]).lower()).strip("-")[:48],
                       "claim": str(entry["claim"])[:300], "phase": str(entry.get("phase") or "any"),
                       "evidence": evidence or ["screenshots"], "source": "derived"})
@@ -180,6 +182,87 @@ def judge(items: list[dict], evidence_dir: Path, *, ask=chat) -> list[dict]:
     return judge_loaded(items, evidence, load_images(evidence_dir, evidence), ask=ask)
 
 
+CODE_JUDGE_PROMPT = """You are an independent code reviewer. Judge each item from the source code below ONLY.
+For facing, find which local axis the model's front points along (geometry or comments), find how the per-frame
+orientation is computed from the path direction, and work out whether the front ends up along the direction of
+travel. Remember the engine's own conventions, for example in Three.js Object3D.lookAt aims a mesh's +Z at the
+target (cameras and lights aim -Z) while Matrix4.lookAt(eye, target, up) builds the camera basis, whose Z axis
+points from the target to the eye. For resting state, find what runs before the action starts.
+Verdicts: pass (the code shows it holds), fail (the code shows it is false; cite file:line and quote the code),
+unobserved (the code cannot decide it).
+Answer with a JSON array of {{"id": ..., "verdict": ..., "reason": ..., "evidence": "file:line and quoted code"}} only.
+
+ITEMS:
+{items}
+
+SOURCE (line numbered):
+{source}
+"""
+SOURCE_SUFFIXES = {".js", ".jsx", ".mjs", ".ts", ".tsx", ".html", ".css"}
+SOURCE_LIMIT = 150_000
+
+
+def collect_source(project: Path) -> str:
+    """The project's own source, line numbered, without dependencies, builds or tests."""
+
+    skip = {"node_modules", "dist", "build", "out", ".git", ".moru", "tests", "test", "coverage"}
+    chunks, total = [], 0
+    for path in sorted(project.rglob("*")):
+        relative = path.relative_to(project)
+        if (path.suffix not in SOURCE_SUFFIXES or not path.is_file() or skip & set(relative.parts)
+                or ".test." in path.name or ".spec." in path.name):
+            continue
+        body = "\n".join(f"{n + 1}: {line}" for n, line in enumerate(path.read_text(errors="ignore").splitlines()))
+        if total + len(body) > SOURCE_LIMIT:
+            continue
+        total += len(body)
+        chunks.append(f"=== {relative}\n{body}")
+    return "\n".join(chunks)
+
+
+def judge_code(items: list[dict], source: str, *, ask=chat) -> dict[str, dict]:
+    """Verdicts for the items that name code as evidence, keyed by id."""
+
+    chosen = [i for i in items if "code" in i.get("evidence", [])]
+    if not chosen or not source.strip():
+        return {}
+    text = CODE_JUDGE_PROMPT.format(
+        items=json.dumps([{"id": i["id"], "claim": i["claim"]} for i in chosen], indent=1), source=source)
+    answers = {a.get("id"): a for a in parse_array(ask(JUDGE_MODEL, text, max_tokens=3000)) if isinstance(a, dict)}
+    results = {}
+    for item in chosen:
+        answer = answers.get(item["id"], {})
+        verdict = answer.get("verdict") if answer.get("verdict") in VERDICTS else "unobserved"
+        cited = str(answer.get("evidence") or "")
+        if verdict == "fail" and not re.search(r"\w[\w./-]*\.\w+:\d+", cited):
+            verdict = "unobserved"
+        results[item["id"]] = {"verdict": verdict, "reason": str(answer.get("reason") or "")[:300], "evidence": cited[:300]}
+    return results
+
+
+def combine(results: list[dict], code: dict[str, dict]) -> list[dict]:
+    """Merge screenshot-based and code-based verdicts: a cited fail from either wins."""
+
+    merged = []
+    for result in results:
+        verdict_code = code.get(result["id"])
+        if verdict_code is None:
+            merged.append(result)
+            continue
+        visual, by_code = result["verdict"], verdict_code["verdict"]
+        if "fail" in (visual, by_code):
+            final = "fail"
+        elif "pass" in (visual, by_code):
+            final = "pass"
+        else:
+            final = "unobserved"
+        reasons = {"fail": [], "pass": [], "unobserved": []}
+        reasons[visual].append(f"screens: {result['reason']}")
+        reasons[by_code].append(f"code: {verdict_code['reason']} [{verdict_code['evidence']}]")
+        merged.append({**result, "verdict": final, "reason": " | ".join(reasons[final] or reasons[visual])[:600]})
+    return merged
+
+
 def remote_call(path: str, payload: dict) -> dict:
     """Ask a judge service instead of calling a model here, so the key never enters this process."""
 
@@ -198,11 +281,11 @@ def derive_any(request: str) -> list[dict]:
     return derive_checklist(request)
 
 
-def judge_any(items: list[dict], evidence_dir: Path) -> list[dict]:
+def judge_any(items: list[dict], evidence_dir: Path, source: str = "") -> list[dict]:
     if not os.environ.get("MORU_VERIFY_JUDGE_URL"):
-        return judge(items, evidence_dir)
+        return combine(judge(items, evidence_dir), judge_code(items, source))
     evidence = json.loads((evidence_dir / "observations.json").read_text(encoding="utf-8"))
-    return remote_call("/judge", {"items": items, "evidence": evidence,
+    return remote_call("/judge", {"items": items, "evidence": evidence, "source": source,
                                   "images": load_images(evidence_dir, evidence)})["results"]
 
 
@@ -234,10 +317,19 @@ def feedback_text(results: list[dict]) -> str:
 
 
 def observe(url: str, out: Path, viewport: str, seconds: int) -> None:
-    result = subprocess.run(["node", str(HERE / "observe.mjs"), url, str(out), "--viewport", viewport,
-                             "--seconds", str(seconds)], capture_output=True, text=True, timeout=seconds + 120, check=False)
+    import signal
+
+    # Own session, so a timeout can end the observer and every browser process it started.
+    process = subprocess.Popen(["node", str(HERE / "observe.mjs"), url, str(out), "--viewport", viewport,
+                                "--seconds", str(seconds)], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True, start_new_session=True)
+    try:
+        _, stderr = process.communicate(timeout=seconds + 150)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        _, stderr = process.communicate()
     if not (out / "observations.json").is_file():
-        raise RuntimeError(f"observer produced no evidence: {result.stderr.strip()[:300]}")
+        raise RuntimeError(f"observer produced no evidence: {stderr.strip()[:300]}")
 
 
 def find_dist(project: Path) -> Path | None:
@@ -270,7 +362,7 @@ def verify_project(project: Path, request: str, out: Path, *, viewport: str = "d
         observe(f"http://127.0.0.1:{port}/", out / "evidence", viewport, seconds)
     finally:
         server.terminate()
-    results = judge_any(items, out / "evidence")
+    results = judge_any(items, out / "evidence", collect_source(project))
     (out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "report.md").write_text(render(results), encoding="utf-8")
     return items, results

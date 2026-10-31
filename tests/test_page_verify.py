@@ -112,6 +112,50 @@ class JudgeTests(unittest.TestCase):
         self.assertIn("| a | fail | r |", table)
 
 
+class CodeEvidenceTests(unittest.TestCase):
+    ITEM = {"id": "faces", "claim": "front faces travel", "phase": "any", "evidence": ["code"], "source": "derived"}
+
+    def test_collect_source_skips_dependencies_builds_and_tests(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for rel in ("src/a.js", "node_modules/x/i.js", "dist/b.js", "tests/c.test.js", "src/d.test.js", "src/notes.txt"):
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                (root / rel).write_text("line one\nline two\n")
+            source = verify.collect_source(root)
+        self.assertIn("=== src/a.js\n1: line one\n2: line two", source)
+        for skipped in ("node_modules", "dist/", "c.test", "d.test", "notes.txt"):
+            self.assertNotIn(skipped, source)
+
+    def test_a_code_fail_must_cite_file_and_line(self):
+        cited = json.dumps([{"id": "faces", "verdict": "fail", "reason": "reversed", "evidence": "flight.js:244 matrix.lookAt(o, t)"}])
+        bare = json.dumps([{"id": "faces", "verdict": "fail", "reason": "looks wrong", "evidence": ""}])
+        self.assertEqual("fail", verify.judge_code([self.ITEM], "x", ask=lambda *a, **k: cited)["faces"]["verdict"])
+        self.assertEqual("unobserved", verify.judge_code([self.ITEM], "x", ask=lambda *a, **k: bare)["faces"]["verdict"])
+
+    def test_only_items_that_name_code_are_sent_and_empty_source_judges_nothing(self):
+        screens = {**self.ITEM, "id": "pic", "evidence": ["screenshots"]}
+        self.assertEqual({}, verify.judge_code([screens], "src", ask=lambda *a, **k: "[]"))
+        self.assertEqual({}, verify.judge_code([self.ITEM], "   ", ask=lambda *a, **k: "[]"))
+
+    def test_combine_lets_a_cited_fail_win_and_either_pass_beat_unobserved(self):
+        base = [{"id": "faces", "verdict": "unobserved", "reason": "sparse screens"},
+                {"id": "rest", "verdict": "pass", "reason": "initial looks idle"},
+                {"id": "plain", "verdict": "pass", "reason": "ok"}]
+        code = {"faces": {"verdict": "fail", "reason": "reversed", "evidence": "f.js:1"},
+                "rest": {"verdict": "unobserved", "reason": "n/a", "evidence": ""}}
+        merged = {r["id"]: r for r in verify.combine(base, code)}
+        self.assertEqual("fail", merged["faces"]["verdict"])
+        self.assertIn("code: reversed [f.js:1]", merged["faces"]["reason"])
+        self.assertEqual("pass", merged["rest"]["verdict"])
+        self.assertEqual(base[2], merged["plain"])
+
+    def test_derivation_may_name_code_evidence(self):
+        answer = json.dumps([{"id": "faces", "claim": "c", "evidence": ["code", "screenshots"]}])
+        items = verify.derive_checklist("r", ask=lambda *a, **k: answer)
+        self.assertEqual(["code", "screenshots"], items[-1]["evidence"])
+        self.assertIn("code", verify.DERIVE_PROMPT)
+
+
 class RemoteJudgeTests(unittest.TestCase):
     def serve(self, derive, judge):
         import threading
@@ -154,6 +198,13 @@ class RemoteJudgeTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class ObserverTests(unittest.TestCase):
+    def test_the_observer_cannot_leave_browser_processes_behind(self):
+        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        for needle in ("detached: true", "process.kill(-chrome.pid", "watchdog expired", "--in-process-gpu"):
+            self.assertIn(needle, source)
+        self.assertIn("start_new_session=True", (ROOT / "scripts" / "page_verify" / "verify.py").read_text())
+        self.assertIn("os.killpg", (ROOT / "scripts" / "page_verify" / "verify.py").read_text())
+
     def test_the_observer_is_valid_javascript_and_explains_its_usage(self):
         script = str(ROOT / "scripts" / "page_verify" / "observe.mjs")
         self.assertEqual(0, subprocess.run(["node", "--check", script], check=False).returncode)

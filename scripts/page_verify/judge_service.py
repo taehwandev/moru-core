@@ -6,7 +6,7 @@ the session sends its request and its observation evidence here and gets items a
 verdicts back. The key stays in this process.
 
 POST /derive  {"request": str}                       -> {"items": [...]}
-POST /judge   {"items": [...], "evidence": {...},
+POST /judge   {"items": [...], "evidence": {...}, "source": "<line-numbered code>",
                "images": {"<file>": "<base64 jpeg>"}} -> {"results": [...]}
 
 Requests need ``Authorization: Bearer <token>``. The token only limits who may spend
@@ -55,7 +55,9 @@ def make_handler(token: str, *, derive=None, judge=None):
                 if self.path == "/derive":
                     return self.reply(200, {"items": derive(str(body["request"]))})
                 if self.path == "/judge":
-                    return self.reply(200, {"results": judge(body["items"], body["evidence"], body["images"])})
+                    results = judge(body["items"], body["evidence"], body["images"])
+                    results = verify.combine(results, verify.judge_code(body["items"], str(body.get("source") or "")))
+                    return self.reply(200, {"results": results})
                 return self.reply(404, {"error": "unknown path"})
             except Exception as error:  # noqa: BLE001 - report, never crash the service
                 return self.reply(500, {"error": f"{type(error).__name__}: {str(error)[:200]}"})
