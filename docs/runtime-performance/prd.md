@@ -117,6 +117,21 @@ entry cwd observation once, preserves the generic raw-input API, and rejects
 an existence shortcut that hides later errors. A single bounded three-way
 CPU/wall run checks earlier controls; no repeated loop is used to seek a pass.
 
+## Status and next-action startup increment
+
+The [startup result](startup-paths.md) expands coverage into inventory units 8
+and 15. Defer trend/validation libraries and active-run contracts until needed;
+retain Python, existing gate decisions and worker reservation checks. Claude
+contributes an import tripwire, AGY a strict volatile-field comparator, and the
+lead integrates runtime changes, fixtures, tests and one bounded CPU/wall run.
+
+Eight inventory boundaries now have measured changes (8/52, or 8/30 primary).
+Four involve native code, including the partial launcher, and four optimize
+Python. This measures touched scope, not total effort or accepted migrations.
+No-run next and basic status improve about 14% and 9% in this run, below the
+frequent-path 20% target; active next has no measured gain. Keep these limits
+visible and leave main/global adoption pending.
+
 ## Reproduction and decision records
 
 Each result records baseline, changed owner, method, passed/failing conditions,

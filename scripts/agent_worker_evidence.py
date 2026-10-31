@@ -7,7 +7,6 @@ import os
 import uuid
 from pathlib import Path
 
-from agent_gate_evidence import gate_evidence_path_for_preflight
 from support.global_state import project_state_dir_target
 
 
@@ -117,6 +116,8 @@ def isolated_worker_evidence(
 ) -> Path:
     """Select or exclusively reserve a safe worker preflight path."""
 
+    from agent_gate_evidence import gate_evidence_path_for_preflight
+
     lexical_project = (lexical_project or project).expanduser().absolute()
     project = project.resolve()
     worker_root = project_state_dir_target(project) / "workers"
@@ -179,6 +180,8 @@ def reserve_isolated_worker_evidence(
     lexical_project: Path | None = None,
 ) -> tuple[Path, Path, str]:
     """Reserve one worker directory and mint its matching single-use token."""
+
+    from agent_gate_evidence import gate_evidence_path_for_preflight
 
     preflight = isolated_worker_evidence(
         project,

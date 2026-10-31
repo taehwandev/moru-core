@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timezone
-import hashlib
 from pathlib import Path
 import re
-import sqlite3
-import statistics
 from typing import Any, Iterable
 import uuid
 
@@ -118,6 +115,8 @@ def efficiency_trend_snapshot(
 
 
 def _collect_runs(projects: list[Path]) -> list[dict[str, Any]]:
+    import hashlib
+
     collected: list[dict[str, Any]] = []
     for project in projects:
         state_dir = project_state_dir_target(project)
@@ -203,6 +202,8 @@ def _count_reused_gates(gate_evidence_path: Path) -> int:
 def _load_codex_threads(codex_db: Path) -> dict[str, tuple[str, str]]:
     if not codex_db.is_file():
         return {}
+    import sqlite3
+
     try:
         with sqlite3.connect(f"file:{codex_db}?mode=ro", uri=True) as conn:
             rows = conn.execute("SELECT id, COALESCE(model, ''), COALESCE(reasoning_effort, '') FROM threads").fetchall()
@@ -214,6 +215,8 @@ def _load_codex_threads(codex_db: Path) -> dict[str, tuple[str, str]]:
 def _load_spill_events(spill_db: Path, spill_run_ids: set[str]) -> dict[str, list[tuple[str, str, float, int, int]]]:
     if not spill_db.is_file() or not spill_run_ids:
         return {}
+    import sqlite3
+
     by_run: dict[str, list[tuple[str, str, float, int, int]]] = defaultdict(list)
     try:
         with sqlite3.connect(f"file:{spill_db}?mode=ro", uri=True) as conn:
@@ -282,6 +285,8 @@ def _percentile(sorted_values: list[float], ratio: float) -> float:
 
 
 def _summarize_runs(items: list[dict[str, Any]]) -> dict[str, Any]:
+    import statistics
+
     turns = sorted(float(item["turns"]) for item in items)
     weighted_m = sorted(float(item["weighted_tokens"]) / 1_000_000.0 for item in items)
     total_turns, total_reasoning = sum(int(item["turns"]) for item in items), sum(int(item["reasoning_tokens"]) for item in items)

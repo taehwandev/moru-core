@@ -42,8 +42,14 @@ launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. The performance branch adds the two statusline
 entrypoints through one shared native renderer; the other 26 processors retain
 Python. This branch result is not a claim of main integration or global activation.
-The other rows remain assessed candidates. Installed user-global hooks are a
-separate rollout boundary from source integration.
+Eight boundaries now have measured changes on or before this branch: four
+native boundaries (including the partial launcher) and four Python optimizations
+(entry, discovery, status and next). That is 8/52 inventory coverage, or 8/30
+primary coverage, not effort-weighted completion or eight accepted migrations.
+The remaining 44 are retained candidates, not mandatory ports. The new
+[startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
+20% target. Installed user-global hooks are a separate rollout boundary from
+source integration.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
@@ -54,14 +60,14 @@ separate rollout boundary from source integration.
 | 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Python candidate | Admission, state/evidence freshness and completion safety |
 | 6 | `scripts/agent-mailbox.py` | agent-mailbox | Python candidate | Repeated-call latency with context/state/delivery correctness |
 | 7 | `scripts/agent-os-maintenance.py` | agent-os-maintenance | Python candidate | Low-frequency operator work; justify a port before changing Python |
-| 8 | `scripts/agent-os-status.py` | agent-os-status | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 8 | `scripts/agent-os-status.py` | agent-os-status | Python imports deferred on performance branch | Basic/help parity; frequent-path gain below 20% target |
 | 9 | `scripts/agent-os-watchdog.py` | agent-os-watchdog | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 10 | `scripts/agent-preflight.py` | agent-preflight | Python candidate | Admission, state/evidence freshness and completion safety |
 | 11 | `scripts/agent_doctor.py` | doctor | Python candidate | Low-frequency operator work; justify a port before changing Python |
 | 12 | `scripts/agent_execution_capsule.py` | execution-capsule | Python candidate | Admission, state/evidence freshness and completion safety |
 | 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Python candidate | Repeated-call latency with context/state/delivery correctness |
-| 15 | `scripts/agent_next_action.py` | next | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 15 | `scripts/agent_next_action.py` | next | Python imports deferred on performance branch | No-run/help parity; active control unchanged; gain below 20% target |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 17 | `scripts/agent_work_cards.py` | work-cards | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |

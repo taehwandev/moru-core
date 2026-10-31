@@ -17,13 +17,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from agent_gate_evidence import FIELD_REQUIREMENTS, gate_field_enums, merge_gate_evidence_from_ledger
-from agent_gate_record_template import _placeholder, remaining_gate_template_lines
-from agent_review_hook import required_review_evidence_flags
-from agent_route_state import required_docs_for_route
 from agent_runtime_session import resolve_runtime_evidence, runtime_session
-from agent_skill_catalog import skill_ids_from_doc_paths
-from agent_start_guidance import review_shape_line
 from support.bounded_git import run_git
 from support.stable_launcher import stable_launcher_path
 
@@ -124,6 +118,8 @@ def _build_gate_batch_command(
     loaded_skills: list[str],
 ) -> str:
     from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS
+    from agent_gate_evidence import FIELD_REQUIREMENTS, gate_field_enums
+    from agent_gate_record_template import _placeholder
 
     records: list[dict[str, Any]] = []
     for gate in gates:
@@ -171,6 +167,14 @@ def inspect_next_action(project: Path, *, evidence: Path | None = None) -> dict[
             "evidence": str(preflight_path),
             "error": str(error),
         }
+
+    # Active-run contracts are not needed for help, no-run or unreadable input.
+    from agent_gate_evidence import merge_gate_evidence_from_ledger
+    from agent_gate_record_template import remaining_gate_template_lines
+    from agent_review_hook import required_review_evidence_flags
+    from agent_route_state import required_docs_for_route
+    from agent_skill_catalog import skill_ids_from_doc_paths
+    from agent_start_guidance import review_shape_line
 
     route = preflight.get("route") or {}
     gates = [g for g in (route.get("gates") or []) if isinstance(g, str)]

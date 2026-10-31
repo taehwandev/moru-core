@@ -7,9 +7,6 @@ import argparse
 import json
 from pathlib import Path
 
-from agent_observability import discover_governed_projects, efficiency_trend_snapshot, status_snapshot
-from agent_os_api import validate_status_snapshot
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Show Moru Core runtime status")
@@ -22,6 +19,8 @@ def main() -> int:
     parser.add_argument("--spill-db", type=Path, default=None, help="override Spill events.sqlite3 path")
     parser.add_argument("--codex-db", type=Path, default=None, help="override Codex state_5.sqlite path")
     args = parser.parse_args()
+    from agent_observability import discover_governed_projects, efficiency_trend_snapshot, status_snapshot
+
     if args.efficiency_trends:
         projects = discover_governed_projects(args.workspace_root) if args.all_projects else [args.project]
         trends = efficiency_trend_snapshot(
@@ -34,6 +33,8 @@ def main() -> int:
         return 0
     snapshot = status_snapshot(args.project)
     if args.validate:
+        from agent_os_api import validate_status_snapshot
+
         failures = validate_status_snapshot(snapshot)
         print(json.dumps({"valid": not failures, "failures": failures, "snapshot": snapshot}, ensure_ascii=False, sort_keys=True))
         return 0 if not failures else 1
