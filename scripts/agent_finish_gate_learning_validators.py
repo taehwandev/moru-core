@@ -243,8 +243,9 @@ def _causal_assessment_failures(text: str, contract: str, outcome: str = "") -> 
             ]
         return [
             "retrospective learning decision must name the specific existing check, rule, or owner "
-            "kept (e.g. 'Keep existing <check/rule>; ...') or use reusable_gap with a skill update, "
-            "not an ungrounded 'No skill change needed' dismissal"
+            "kept (e.g. 'Keep existing <check/rule>; ...') or the owner repaired and its test (e.g. "
+            "'Repaired <owner> with <test>; no reusable skill gap'), or use reusable_gap when a skill "
+            "document must change, not an ungrounded 'No skill change needed' dismissal"
         ]
     return []
 
