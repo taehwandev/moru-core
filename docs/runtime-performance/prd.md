@@ -20,6 +20,12 @@ remote publication and actual user-global installation are separate later
 decisions; this programme does not continue the earlier automatic-main pattern.
 Existing baseline commits are preserved.
 
+For subsequent work, batch two or three related, disjoint slices when the
+contract is stable. Share provider dispatch, fixtures, focused verification and
+one integration review instead of closing a lifecycle for each tiny edit. Keep
+the parent as integration owner; do not batch unrelated scope or publication
+effects. Each change still needs its own falsifying check and measured limits.
+
 The [52-unit inventory](../native-runtime-migration.md) defines coverage: 30
 primary units and 22 ancillary CLIs. Inventory coverage is not a commitment to
 rewrite all 52. Keep infrequent tooling in Python when conversion has no proven
@@ -99,6 +105,12 @@ stay with their existing owners. See the [discovery scan result](discovery-scan.
 for the measured file-heavy benefit, retained small/directory-heavy observations
 and reproducible frozen-source comparison. This does not add a native unit or
 change the 52-candidate inventory.
+
+The [discovery/entry batch](discovery-batch.md) follows with literal name
+matching, scan-to-candidate metadata reuse and one registry snapshot per entry.
+Claude and AGY own separate helpers; the lead owns adapters and combined
+verification. Component timings do not substitute for real entrypoint results
+or prove additive gains. Small-workload costs remain visible.
 
 ## Reproduction and decision records
 

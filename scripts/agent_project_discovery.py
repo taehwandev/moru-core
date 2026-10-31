@@ -19,7 +19,7 @@ from agent_project_search import (
     request_has_explicit_project_slug,
     request_name_matches,
     safe_resolve,
-    scan_project_roots,
+    scan_project_records,
     usable_directory,
 )
 from agent_project_types import (
@@ -44,6 +44,15 @@ def discover_projects(
     """Find the target project for a runtime bridge without editing anything."""
     cwd = safe_resolve(cwd.expanduser())
     registry = load_registry(registry_path)
+    return _discover_projects(request, cwd, registry, search_roots=search_roots,
+                              max_depth=max_depth, include_default_search_roots=include_default_search_roots)
+
+
+def _discover_projects(
+    request: str, cwd: Path, registry: dict[str, object], *,
+    search_roots: Sequence[Path], max_depth: int, include_default_search_roots: bool,
+) -> DiscoveryResult:
+    """Use this invocation's normalized cwd and registry snapshot only."""
     candidates: dict[Path, ProjectCandidate] = {}
 
     for path in explicit_request_paths(request, cwd):
@@ -77,13 +86,13 @@ def discover_projects(
     for scan_root in scan_roots:
         if not scan_root.exists() or not scan_root.is_dir():
             continue
-        for root in scan_project_roots(scan_root, max_depth=max(0, max_depth)):
+        for root, facts in scan_project_records(scan_root, max_depth=max(0, max_depth)):
             score = 35
             reason = "project marker found under configured search root"
             if request_name_matches(root.name, request_lc):
                 score += 65
                 reason = "project name matched request under configured search root"
-            add_candidate(candidates, build_candidate(root, score, reason, "search_root"))
+            add_candidate(candidates, build_candidate(root, score, reason, "search_root", facts=facts))
 
     ranked = sorted(
         (_rescore_for_request(candidate, request_lc) for candidate in candidates.values()),
@@ -108,11 +117,11 @@ def build_entry_manifest(
     include_default_search_roots: bool = False,
 ) -> dict[str, object]:
     registry = load_registry(registry_path)
-    result = discover_projects(
+    result = _discover_projects(
         request,
-        cwd,
+        safe_resolve(cwd.expanduser()),
+        registry,
         search_roots=search_roots,
-        registry_path=registry_path,
         max_depth=max_depth,
         include_default_search_roots=include_default_search_roots,
     )

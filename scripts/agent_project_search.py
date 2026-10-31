@@ -14,6 +14,8 @@ from agent_project_types import INSTRUCTION_FILES, PROJECT_MARKERS, ProjectCandi
 from workflow_common import unique
 from support.global_state import global_state_dir
 from support.project_directory_scan import child_directories
+from support.project_facts import ProjectFacts
+from support.literal_boundary import contains_literal
 
 
 DEFAULT_SEARCH_ROOT_NAMES = ("Documents", "Developer", "GitHub", "git", "Projects", "Downloads")
@@ -33,6 +35,7 @@ SKIP_SEARCH_DIRS = {
     "build", "dist", "node_modules", "target", "DerivedData",
 }
 PROJECT_SLUG_PATTERN = re.compile(r"(?<![A-Za-z0-9])([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)+)(?![A-Za-z0-9])")
+LITERAL_REQUEST_LIMIT = 4096
 
 
 def find_project_root(start: Path) -> Path | None:
@@ -70,10 +73,13 @@ def load_registry(registry_path: Path | None = None) -> dict[str, object]:
     return {"projects": [], "search_roots": [], "workspace_groups": []}
 
 
-def build_candidate(path: Path, base_score: int, reason: str, source: str) -> ProjectCandidate:
+def build_candidate(path: Path, base_score: int, reason: str, source: str,
+                    *, facts: ProjectFacts | None = None) -> ProjectCandidate:
     path = safe_resolve(path)
-    files = instruction_files(path)
-    markers = project_markers(path)
+    if facts is None:
+        facts = ProjectFacts.probe(path, INSTRUCTION_FILES, PROJECT_MARKERS)
+    files = list(facts.instruction_files)
+    markers = list(facts.markers)
     score = base_score
     if files:
         score += 20
@@ -181,13 +187,27 @@ def default_search_roots() -> list[Path]:
 
 
 def scan_project_roots(root: Path, *, max_depth: int, max_visited: int = 1500) -> Iterable[Path]:
+    for current in _walk_project_dirs(root, max_depth=max_depth, max_visited=max_visited):
+        if instruction_files(current) or project_markers(current):
+            yield current
+
+
+def scan_project_records(root: Path, *, max_depth: int,
+                         max_visited: int = 1500) -> Iterable[tuple[Path, ProjectFacts]]:
+    """Collect candidate metadata once; do not retain it beyond this scan."""
+    for current in _walk_project_dirs(root, max_depth=max_depth, max_visited=max_visited):
+        facts = ProjectFacts.probe(current, INSTRUCTION_FILES, PROJECT_MARKERS)
+        if facts.present:
+            yield current, facts
+
+
+def _walk_project_dirs(root: Path, *, max_depth: int, max_visited: int) -> Iterable[Path]:
     queue: list[tuple[Path, int]] = [(safe_resolve(root), 0)]
     visited = 0
     while queue and visited < max_visited:
         current, depth = queue.pop(0)
         visited += 1
-        if instruction_files(current) or project_markers(current):
-            yield current
+        yield current
         if depth >= max_depth:
             continue
         for child in iter_child_dirs(current):
@@ -230,7 +250,10 @@ def iter_child_dirs(path: Path) -> list[Path]:
 
 
 def _contains_strict_name(request_lc: str, name_lc: str) -> bool:
-    return re.search(rf"(?<![a-z0-9_-]){re.escape(name_lc)}(?![a-z0-9_-])", request_lc) is not None
+    # Repeated matches in very long requests favor the original C regex loop.
+    if len(request_lc) > LITERAL_REQUEST_LIMIT:
+        return re.search(rf"(?<![a-z0-9_-]){re.escape(name_lc)}(?![a-z0-9_-])", request_lc) is not None
+    return contains_literal(request_lc, name_lc)
 
 
 def _normalized_parts(value: str) -> list[str]:

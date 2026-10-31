@@ -49,7 +49,7 @@ separate rollout boundary from source integration.
 | --- | --- | --- | --- | --- |
 | 1 | `scripts/checkout_identity.py` | checkout-identity | Native lookup accepted in stage one | Metadata parity, timeout, recovery, Python rollback |
 | 2 | `scripts/support/stable_launcher.py` | All entry aliases | Stage-two native ingress bridge | No Python for lookup; legacy stdio/PID/exit/soft-fail parity |
-| 3 | `scripts/agent-entry.py` | agent-entry | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 3 | `scripts/agent-entry.py` | agent-entry | Python registry snapshot optimized on performance branch | Entry selection/scope consistency; measured batch benefit |
 | 4 | `scripts/agent-finish-check.py` | agent-finish-check | Python candidate | Admission, state/evidence freshness and completion safety |
 | 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Python candidate | Admission, state/evidence freshness and completion safety |
 | 6 | `scripts/agent-mailbox.py` | agent-mailbox | Python candidate | Repeated-call latency with context/state/delivery correctness |

@@ -64,3 +64,13 @@ measured bottleneck. The [scan result](discovery-scan.md) meets the local target
 on file-heavy trees; directory-heavy and small CLI gains are not established.
 Do not use this result to justify rewriting the rest of discovery or relaxing
 its selection rules.
+
+## Batch related work while preserving the acceptance boundary
+
+The discovery/entry batch shares one output/selection contract across three
+reductions. Separate helpers allow disjoint implementation; the existing
+adapters remain lead-owned. A single reviewed commit keeps that pipeline change
+and its counterexamples together. Isolated component checks and frozen-source
+CLI comparisons preserve visibility of each responsibility. Long repetitive
+requests retain regex after a measured regression; registry state is scoped to
+one entry call, never cached across calls. See the [batch evidence](discovery-batch.md).
