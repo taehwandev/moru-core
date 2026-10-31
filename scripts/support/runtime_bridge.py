@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from support.stable_launcher import stable_launcher_path
+
 RUNTIME_BRIDGE_BEGIN = "<!-- moru-runtime-bridge:start -->"
 RUNTIME_BRIDGE_END = "<!-- moru-runtime-bridge:end -->"
 LEGACY_RUNTIME_BRIDGE_BEGIN = "<!-- BEGIN MANAGED RUNTIME BRIDGE -->"
@@ -290,6 +292,7 @@ def runtime_bridge_block(root: Path, runtime_name: str, instruction_file: str) -
             "`common/skills/agent-operating-skill/SKILL.md` before project work "
             "when present; reuse unchanged guidance in this session."
         ),
+        f"`<MORU_LAUNCHER>` is `{stable_launcher_path()}`; start tracked work with it.",
         f"{runtime_name} reads {instruction_file}. {RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE}",
         RUNTIME_BRIDGE_END,
         "",
