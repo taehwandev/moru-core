@@ -74,6 +74,43 @@ class StopTranslationTests(unittest.TestCase):
             self.assertEqual({}, adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"]}))
 
 
+class UnverifiedReminderTests(unittest.TestCase):
+    PAYLOAD = {"conversationId": "c7", "workspacePaths": ["/w"], "executionNum": 0}
+
+    def test_a_3d_routed_session_is_reminded_once_at_stop(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), \
+                patch.object(adapter, "routed_through_3d", return_value=True):
+            first = adapter.stop(self.PAYLOAD)
+            second = adapter.stop(self.PAYLOAD)
+        self.assertEqual("continue", first["decision"])
+        self.assertIn("unverified", first["reason"])
+        self.assertEqual({}, second)
+
+    def test_other_sessions_and_a_second_execution_are_not_reminded(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""):
+            with patch.object(adapter, "routed_through_3d", return_value=False):
+                self.assertEqual({}, adapter.stop(self.PAYLOAD))
+            with patch.object(adapter, "routed_through_3d", return_value=True):
+                self.assertEqual({}, adapter.stop({**self.PAYLOAD, "executionNum": 1}))
+
+    def test_the_gate_block_wins_and_no_run_means_no_reminder(self):
+        block = json.dumps({"decision": "block", "reason": "finish first"})
+        with patch.object(adapter, "run_script", return_value=block):
+            self.assertEqual("finish first", adapter.stop(self.PAYLOAD)["reason"])
+        with patch.object(adapter, "run_script", return_value=""), \
+                patch("agent_runtime_session.resolve_runtime_evidence", return_value=None):
+            self.assertFalse(adapter.routed_through_3d(self.PAYLOAD))
+
+    def test_route_and_stop_markers_do_not_collide(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)):
+            self.assertFalse(adapter.already_delivered("c1", "route text"))
+            self.assertFalse(adapter.already_delivered("c1", "reminder", "stop"))
+            self.assertTrue(adapter.already_delivered("c1", "route text"))
+            self.assertTrue(adapter.already_delivered("c1", "reminder", "stop"))
+
+
 class PreInvocationTests(unittest.TestCase):
     def test_guidance_is_injected_once_per_conversation(self):
         def fake(name, args, stdin, cwd, env=None):

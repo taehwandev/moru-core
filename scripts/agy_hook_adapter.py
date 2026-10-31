@@ -65,7 +65,7 @@ MARKER_DIR = Path.home() / ".moru" / "agy-hook"
 MARKER_MAX_AGE_SECONDS = 7 * 24 * 3600
 
 
-def already_delivered(conversation: str, text: str) -> bool:
+def already_delivered(conversation: str, text: str, kind: str = "route") -> bool:
     """Whether this conversation already holds exactly this text; record it if not.
 
     The shared route cache only exists once a project has run a hook, so a new
@@ -76,7 +76,7 @@ def already_delivered(conversation: str, text: str) -> bool:
     if not safe:
         return False
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    marker = MARKER_DIR / f"{safe}.digest"
+    marker = MARKER_DIR / f"{safe}.{kind}.digest"
     try:
         if marker.read_text(encoding="utf-8") == digest:
             return True
@@ -139,6 +139,48 @@ def pre_tool(payload: dict) -> dict:
     return verdict
 
 
+THREE_D_SKILL = "web-3d-interaction"
+UNVERIFIED_REMINDER = (
+    "Before you finish: say in your final report which user-visible properties (motion direction, "
+    "framing of every camera mode, lighting, controls) you observed in a running page, and mark "
+    "every one you did not observe as unverified. A build or unit tests do not cover them."
+)
+
+
+def routed_through_3d(payload: dict) -> bool:
+    """Whether this conversation's Moru run was routed through the web 3D skill.
+
+    Reads only the run's recorded route documents, never the transcript or the
+    model's messages.
+    """
+
+    try:
+        sys.path.insert(0, str(SCRIPTS))
+        from agent_run_registry import RUN_STATES
+        from agent_runtime_session import resolve_runtime_evidence
+
+        evidence = resolve_runtime_evidence(
+            Path(workspace(payload)), {"runtime": RUNTIME, "session_id": session_id(payload)},
+            frozenset(RUN_STATES), latest_of_several=True,
+        )
+        if evidence is None:
+            return False
+        docs = json.loads(Path(evidence).read_text(encoding="utf-8")).get("route", {}).get("required_docs", [])
+        return any(THREE_D_SKILL in str(doc) for doc in docs)
+    except Exception:  # noqa: BLE001 - a reminder is advisory and must never trap a stop
+        return False
+
+
+def unverified_reminder(payload: dict, execution: int) -> dict:
+    """Once per conversation, ask for an honest verification statement at stop."""
+
+    if execution >= 1 or not routed_through_3d(payload):
+        return {}
+    if already_delivered(session_id(payload), UNVERIFIED_REMINDER, "stop"):
+        return {}
+    return {"decision": "continue", "reason": UNVERIFIED_REMINDER}
+
+
 def stop(payload: dict) -> dict:
     cwd = workspace(payload)
     try:
@@ -150,7 +192,7 @@ def stop(payload: dict) -> dict:
     out = parse_json(run_script("claude_stop_gate.py", [], claude, cwd))
     if out.get("decision") == "block":
         return {"decision": "continue", "reason": str(out.get("reason") or "")}
-    return {}
+    return unverified_reminder(payload, execution)
 
 
 HANDLERS = {"pre-invocation": pre_invocation, "pre-tool": pre_tool, "stop": stop}
