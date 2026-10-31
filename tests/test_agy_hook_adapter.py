@@ -226,6 +226,67 @@ class InSessionVerificationTests(unittest.TestCase):
                 self.assertEqual([], calls)
 
 
+class IndependentCheckNoticeTests(unittest.TestCase):
+    PAYLOAD = {"conversationId": "cn", "workspacePaths": ["/w"], "lastUserInput": "Create a 3D page"}
+
+    def inject(self, entry, available):
+        def fake(name, args, stdin, cwd, env=None):
+            return "# Moru Core Workflow Route\n" if name == "workflow.py" else entry
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", fake), \
+                patch.object(adapter, "independent_check_available", return_value=available):
+            return adapter.pre_invocation(self.PAYLOAD)["injectSteps"][0]["systemMessage"]["systemMessage"]
+
+    def test_the_notice_is_added_only_for_3d_work_when_the_check_can_run(self):
+        entry = "guidance:\n- platforms/web/skills/web-3d-interaction/SKILL.md\n"
+        self.assertIn("Do not build your own browser or screenshot harness", self.inject(entry, True))
+        self.assertNotIn("independent check", self.inject(entry, False))
+        self.assertNotIn("independent check", self.inject("guidance:\n- common/skills/other/SKILL.md\n", True))
+
+    def test_the_notice_keeps_room_for_checks_the_verifier_misses_and_for_honest_reporting(self):
+        self.assertIn("you may still look into behavior the check does not cover", adapter.INDEPENDENT_CHECK_NOTICE)
+        self.assertIn("what you could not verify", adapter.INDEPENDENT_CHECK_NOTICE)
+
+    def test_the_check_is_promised_only_when_judge_and_observer_are_both_present(self):
+        import types
+
+        for judge, observe, expected in ((True, True, True), (True, False, False), (False, True, False)):
+            fake = types.ModuleType("verify")
+            fake.can_judge = lambda j=judge: j
+            fake.can_observe = lambda o=observe: o
+            with self.subTest(judge=judge, observe=observe), patch.dict(sys.modules, {"verify": fake}):
+                self.assertEqual(expected, adapter.independent_check_available())
+
+
+class VerificationStateResetTests(unittest.TestCase):
+    def test_a_new_user_input_does_not_inherit_the_last_checklist_or_rounds(self):
+        import types
+
+        calls = []
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: Path("/w/dist")
+        fake.can_judge = lambda: True
+        prints = iter(["one", "two", "three"])
+        fake.project_fingerprint = lambda project: next(prints)
+
+        def verify_project(project, request, out, checklist=None, **kw):
+            calls.append((request, checklist))
+            return [{"id": "a"}], [{"id": "a", "verdict": "fail"}]
+
+        fake.verify_project = verify_project
+        fake.feedback_text = lambda r: "FIX"
+        base = {"conversationId": "cr", "workspacePaths": ["/w"], "executionNum": 0}
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), \
+                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.dict(sys.modules, {"verify": fake}):
+            adapter.stop({**base, "lastUserInput": "first request"})
+            adapter.stop({**base, "lastUserInput": "first request"})
+            adapter.stop({**base, "lastUserInput": "second request"})
+        self.assertEqual([("first request", None), ("first request", [{"id": "a"}]), ("second request", None)], calls)
+
+
 class PreInvocationTests(unittest.TestCase):
     def test_guidance_is_injected_once_per_conversation(self):
         def fake(name, args, stdin, cwd, env=None):

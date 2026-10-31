@@ -9,6 +9,7 @@
 // screenshots and visible text over time. It never edits the page and never
 // judges; verify.py does that from this evidence.
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -33,8 +34,8 @@ if (!CHROME) {
 }
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const viewport = viewportName === 'mobile'
-  ? { width: 390, height: 844, deviceScaleFactor: 2, mobile: true }
-  : { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false };
+  ? { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }
+  : { width: 1024, height: 640, deviceScaleFactor: 1, mobile: false };
 
 mkdirSync(outDir, { recursive: true });
 const profile = mkdtempSync(join(tmpdir(), 'moru-page-verify-'));
@@ -130,11 +131,12 @@ const SNAPSHOT = `(() => ({
 
 let shotIndex = 0;
 async function capture(cdp, label, seconds) {
-  const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 60 });
+  const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 45 });
   const file = `${String(shotIndex).padStart(2, '0')}-${label}.jpg`;
   shotIndex += 1;
   writeFileSync(join(outDir, file), Buffer.from(shot.result.data, 'base64'));
-  evidence.steps.push({ label, seconds, screenshot: file, ...(await evaluate(cdp, SNAPSHOT)) });
+  evidence.steps.push({ label, seconds, screenshot: file, shotHash: createHash('sha1').update(shot.result.data).digest('hex'),
+    ...(await evaluate(cdp, SNAPSHOT)) });
 }
 
 try {
@@ -159,6 +161,8 @@ try {
   await cdp.send('Page.navigate', { url });
   await sleep(3500);
   await capture(cdp, 'initial', 0);
+  const restKey = (text) => String(text).replace(/[0-9.:%]+/g, '').replace(/\s+/g, ' ').trim();
+  const initialKey = restKey(evidence.steps[0].text);
 
   const primary = await evaluate(cdp, FIND_PRIMARY);
   evidence.primaryAction = primary;
@@ -190,17 +194,30 @@ try {
     }
     // Secondary controls (camera, view, zoom) are then exercised once, while the action is still running.
     evidence.secondaryControls = [];
-    for (const control of (await evaluate(cdp, FIND_SECONDARY)) || []) {
+    // At most five distinct controls, and one zoom direction: more screenshots show nothing new.
+    const seen = new Set();
+    const controls = ((await evaluate(cdp, FIND_SECONDARY)) || []).filter((control) => {
+      const key = /^\s*[+\u2212-]\s*$/.test(control.text) ? 'zoom' : control.text;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 5);
+    for (const control of controls) {
       await press(control);
       await sleep(900);
       evidence.secondaryControls.push(control.text);
       await capture(cdp, `control-${control.text.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 14)}`, at());
     }
-    // Then the rest of the timeline, long enough to reach the end state, in whatever view is active.
-    for (const mark of [18, 26, 36, 48, 60, totalSeconds].filter((s) => s <= totalSeconds)) {
+    // Then the rest of the timeline in whatever view is active, ending as soon as the page is back at
+    // rest (its text matches the initial text apart from numbers) instead of waiting out a fixed window.
+    for (const mark of [14, 20, 28, 38, 50, 62, totalSeconds].filter((s) => s <= totalSeconds)) {
       const wait = mark * 1000 - (Date.now() - started);
       if (wait > 0) await sleep(wait);
       await capture(cdp, `late-t${mark}s`, mark);
+      if (restKey(evidence.steps[evidence.steps.length - 1].text) === initialKey) {
+        evidence.endedAtRest = true;
+        break;
+      }
     }
   }
   cdp.close();

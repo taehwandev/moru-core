@@ -197,6 +197,23 @@ class FloorTests(unittest.TestCase):
         self.assertEqual(["action-responds"], [f["id"] for f in failing])
         self.assertIn("late-t75s", failing[0]["reason"])
 
+    def test_a_canvas_only_change_is_not_called_unresponsive(self):
+        steps = [{"label": "initial", "seconds": 0, "text": "READY", "shotHash": "a"},
+                 {"label": "t6s", "seconds": 6, "text": "READY", "shotHash": "b"}]
+        self.assertEqual([], verify.floor_results(self.ITEMS, self.evidence(steps=steps)))
+
+    def test_text_and_picture_both_unchanged_is_unresponsive(self):
+        steps = [{"label": "initial", "seconds": 0, "text": "READY", "shotHash": "a"},
+                 {"label": "t6s", "seconds": 6, "text": "READY", "shotHash": "a"}]
+        failing = verify.floor_results(self.ITEMS, self.evidence(steps=steps))
+        self.assertEqual(["action-responds"], [f["id"] for f in failing])
+        self.assertIn("picture", failing[0]["reason"])
+
+    def test_the_observer_hashes_each_screenshot_and_can_observe_checks_node_and_a_browser(self):
+        self.assertIn("shotHash", (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text())
+        with unittest.mock.patch("shutil.which", return_value=None):
+            self.assertFalse(verify.can_observe())
+
     def test_a_responsive_clean_page_has_no_floor_failure(self):
         steps = [{"label": "initial", "seconds": 0, "text": "READY"}, {"label": "t6s", "seconds": 6, "text": "TAKEOFF"}]
         self.assertEqual([], verify.floor_results(self.ITEMS, self.evidence(steps=steps)))
@@ -215,6 +232,58 @@ class FloorTests(unittest.TestCase):
             self.assertEqual(first, verify.project_fingerprint(root))
             (root / "src" / "a.js").write_text("two")
             self.assertNotEqual(first, verify.project_fingerprint(root))
+
+
+class CheaperEvidenceTests(unittest.TestCase):
+    def steps(self, controls=8, late=7):
+        out = [{"label": "initial", "seconds": 0}]
+        out += [{"label": f"default-view-t{n}s", "seconds": n} for n in (3, 6, 10)]
+        out += [{"label": f"control-c{n}", "seconds": 11 + n} for n in range(controls)]
+        out += [{"label": f"late-t{n}s", "seconds": n} for n in range(14, 14 + late)]
+        return out
+
+    def test_the_image_selection_is_capped_and_keeps_the_start_default_view_and_end(self):
+        steps = self.steps()
+        chosen = verify.select_steps(steps)
+        self.assertLessEqual(len(chosen), verify.MAX_IMAGES)
+        labels = [s["label"] for s in chosen]
+        for must in ("initial", "default-view-t3s", "default-view-t10s", steps[-1]["label"]):
+            self.assertIn(must, labels)
+
+    def test_a_short_timeline_is_sent_whole(self):
+        steps = self.steps(controls=2, late=2)
+        self.assertEqual(steps, verify.select_steps(steps))
+
+    def test_items_that_need_no_screenshot_send_no_image(self):
+        sent = {}
+
+        def ask(model, content, **kw):
+            sent["images"] = [p for p in content if p["type"] == "image_url"]
+            return "[]"
+
+        text_only = [{"id": "t", "claim": "c", "phase": "any", "evidence": ["text", "console"], "source": "derived"}]
+        with tempfile.TemporaryDirectory() as tmp:
+            write_evidence(Path(tmp))
+            verify.judge(text_only, Path(tmp), ask=ask)
+        self.assertEqual([], sent["images"])
+
+    def test_items_that_need_screenshots_send_a_bounded_set(self):
+        sent = {}
+
+        def ask(model, content, **kw):
+            sent["images"] = [p for p in content if p["type"] == "image_url"]
+            return "[]"
+
+        shots = [{"id": "s", "claim": "c", "phase": "any", "evidence": ["screenshots"], "source": "derived"}]
+        with tempfile.TemporaryDirectory() as tmp:
+            write_evidence(Path(tmp))
+            verify.judge(shots, Path(tmp), ask=ask)
+        self.assertEqual(2, len(sent["images"]))
+
+    def test_the_observer_ends_at_rest_and_keeps_few_small_screenshots(self):
+        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        for needle in ("endedAtRest = true", "restKey", "quality: 45", "width: 1024, height: 640", ".slice(0, 5)"):
+            self.assertIn(needle, source)
 
 
 class RemoteJudgeTests(unittest.TestCase):

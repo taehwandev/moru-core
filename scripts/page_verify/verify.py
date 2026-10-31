@@ -174,6 +174,25 @@ def load_images(evidence_dir: Path, evidence: dict) -> dict[str, str]:
             for step in evidence.get("steps", [])}
 
 
+MAX_IMAGES = 10
+
+
+def select_steps(steps: list[dict], limit: int = MAX_IMAGES) -> list[dict]:
+    """The screenshots worth sending: the start, the default-view run, a few controls, the end.
+
+    Each image costs tokens at the judge; later controls and middle marks add the least.
+    """
+
+    if len(steps) <= limit:
+        return steps
+    keep = [s for s in steps if s["label"] == "initial" or s["label"].startswith("default-view")]
+    controls = [s for s in steps if s["label"].startswith("control-")]
+    late = [s for s in steps if s["label"].startswith("late-")]
+    chosen = keep + controls[: max(0, limit - len(keep) - 2)] + late[-2:]
+    chosen = [s for s in steps if s in chosen]
+    return chosen[:limit] if len(chosen) > limit else chosen
+
+
 def judge_loaded(items: list[dict], evidence: dict, images: dict[str, str], *, ask=chat) -> list[dict]:
     steps = evidence.get("steps", [])
     text = JUDGE_PROMPT.format(
@@ -183,9 +202,10 @@ def judge_loaded(items: list[dict], evidence: dict, images: dict[str, str], *, a
         primary=json.dumps(evidence.get("primaryAction")),
         steps="\n".join(f"- {s['label']} ({s['seconds']}s): {s.get('text', '')[:400]}" for s in steps))
     content: list[dict] = [{"type": "text", "text": text}]
-    for step in steps:
-        content.append({"type": "text", "text": f"Screenshot: {step['label']}"})
-        content.append(image_part(images[step["screenshot"]]))
+    if any("screenshots" in i.get("evidence", []) for i in items):
+        for step in select_steps(steps):
+            content.append({"type": "text", "text": f"Screenshot: {step['label']}"})
+            content.append(image_part(images[step["screenshot"]]))
     answers = {a.get("id"): a for a in parse_array(ask(JUDGE_MODEL, content, max_tokens=4000)) if isinstance(a, dict)}
     known = {step["label"] for step in steps}
     results = []
@@ -314,6 +334,16 @@ def judge_any(items: list[dict], evidence_dir: Path, source: str = "") -> list[d
                                   "images": load_images(evidence_dir, evidence)})["results"]
 
 
+def can_observe() -> bool:
+    """Whether a browser and node are here for the observer, so a stop-time check can really run."""
+
+    import shutil
+
+    candidates = (os.environ.get("CHROME_PATH", ""), "/usr/bin/google-chrome", "/usr/bin/chromium",
+                  "/usr/bin/chromium-browser", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+    return bool(shutil.which("node")) and any(path and Path(path).exists() for path in candidates)
+
+
 def can_judge() -> bool:
     """Whether a derive-and-judge backend is reachable from this process."""
 
@@ -392,11 +422,13 @@ def floor_results(items: list[dict], evidence: dict) -> list[dict]:
                 failing.append({**item, "verdict": "fail", "reason": f"{steps[-1]['label']}: console error {errors[0][:160]}"})
     if evidence.get("primaryAction") and len(steps) > 1 and evidence.get("secondaryControls") is not None:
         first = steps[0].get("text")
-        if all(step.get("text") == first for step in steps[1:]):
+        first_shot = steps[0].get("shotHash")
+        # A canvas-only change leaves the text alone, so the picture must also be unchanged.
+        if all(step.get("text") == first and step.get("shotHash") == first_shot for step in steps[1:]):
             for item in items:
                 if item["id"] == "action-responds":
                     failing.append({**item, "verdict": "fail",
-                                    "reason": f"{steps[-1]['label']}: the page text never changed after the main action was used twice"})
+                                    "reason": f"{steps[-1]['label']}: neither the page text nor the picture changed after the main action was used twice"})
     return failing
 
 

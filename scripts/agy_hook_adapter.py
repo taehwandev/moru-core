@@ -97,6 +97,25 @@ def already_delivered(conversation: str, text: str, kind: str = "route") -> bool
     return False
 
 
+INDEPENDENT_CHECK_NOTICE = (
+    "An independent check of the finished page in a real browser runs when you stop and sends failures back. "
+    "Do not build your own browser or screenshot harness for it. Build, run unit tests, and you may still look "
+    "into behavior the check does not cover; say in your final report what you could not verify."
+)
+
+
+def independent_check_available() -> bool:
+    """Only promise the independent check when this session can actually run it."""
+
+    try:
+        sys.path.insert(0, str(SCRIPTS / "page_verify"))
+        import verify
+
+        return verify.can_judge() and verify.can_observe()
+    except Exception:  # noqa: BLE001 - a missing check just means no notice
+        return False
+
+
 def pre_invocation(payload: dict) -> dict:
     cwd = workspace(payload)
     prompt = str(payload.get("lastUserInput") or "")
@@ -109,6 +128,8 @@ def pre_invocation(payload: dict) -> dict:
     entry = run_script("agent-entry.py", ["--runtime", RUNTIME, "--cwd", cwd, "--no-default-search-roots",
                                           "--request", prompt], "", cwd).strip()
     text = route if not entry else f"{route}\n\n## Project entry\n{entry}"
+    if "web-3d-interaction" in entry and independent_check_available():
+        text += "\n\n" + INDEPENDENT_CHECK_NOTICE
     if already_delivered(session_id(payload), text):
         return {}
     return {"injectSteps": [{"systemMessage": {"systemMessage": text}}]}
@@ -215,6 +236,9 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
             state = json.loads(state_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             state = {}
+        digest = hashlib.sha256(str(payload.get("lastUserInput") or "").encode("utf-8")).hexdigest()
+        if state.get("input") != digest:
+            state = {"input": digest}  # a new request must not inherit the last one's checklist or rounds
         rounds = int(state.get("rounds", 0))
         if rounds >= VERIFY_MAX_ROUNDS + 1:
             return True, {}
@@ -225,7 +249,7 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
         out = MARKER_DIR / "verify" / (state_path.stem.split(".")[0]) / f"round{rounds}"
         items, results = verify.verify_project(project, request, out, checklist=state.get("checklist"))
         MARKER_DIR.mkdir(parents=True, exist_ok=True)
-        state_path.write_text(json.dumps({"rounds": rounds + 1, "request": request, "checklist": items,
+        state_path.write_text(json.dumps({"input": digest, "rounds": rounds + 1, "request": request, "checklist": items,
                                           "fingerprint": fingerprint,
                                           "last": [{"id": r["id"], "verdict": r["verdict"]} for r in results]}),
                               encoding="utf-8")
