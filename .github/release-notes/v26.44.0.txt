@@ -1,0 +1,61 @@
+# Moru Core v26.44.0
+
+This release provides the verified native runtime and the accumulated runtime
+performance changes at `31c97d07584b9e01fb5ae4c9ff6eb6ec1fa31aa9`.
+The tag identifies the original build source, not a later installation-guide update.
+
+## Download and install
+
+Download your platform's `moru-native-*.tar.gz` from the release assets.
+Release attachments do not use the seven-day Actions artifact retention policy;
+they remain downloadable unless explicitly deleted. GitHub login is not required
+for public release downloads. Do not unpack the `.tar.gz` yourself.
+
+Use Moru Core source at `v26.44.0`, preserving any existing local edits.
+For a new installation only:
+
+```sh
+git clone --branch v26.44.0 https://github.com/taehwandev/moru-core.git ~/.moru/core
+cd ~/.moru/core
+python3 scripts/native-runtime-bundle.py install --bundle /path/to/moru-native-macos-arm64.tar.gz
+python3 scripts/setup-agent-hooks.py --dry-run
+python3 scripts/setup-agent-hooks.py
+python3 scripts/setup-agent-hooks.py --check
+```
+
+Reuse your existing Core checkout when present instead of automatically cloning
+another copy. Select the bundle for your operating system and CPU. Python 3.9+
+and Git remain required; receiving computers do not need Rust or Cargo.
+
+The importer checks host, exact native source and executable hashes before
+installation. `SHA256SUMS` covers the four complete archives; `BUILD.json`
+records original CI source/run and archive hashes. These checks establish
+integrity and source matching, not publisher identity: use this trusted release.
+
+## Platforms and verification
+
+- macOS ARM64 and x86_64: target macOS 13+, tested on macOS 15.
+- Linux ARM64 and x86_64: built and tested on Ubuntu 24.04; older glibc is unverified.
+- Windows is not supported by this POSIX native runtime.
+
+All four jobs in [build 41181962617](https://github.com/taehwandev/moru-core/actions/runs/41181962617)
+passed behavior checks and fresh-consumer execution without Python/Rust/Cargo/Git
+on PATH before uploading these exact archives. The macOS ARM64 archive was also
+downloaded, transported and activated on the local receiving computer.
+Source verification covered 300 distinct focused tests. No native rebuild was
+performed merely to move the verified archives from CI storage to release storage.
+
+## Runtime changes and limits
+
+- Native checkout lookup and shared Claude/Antigravity status rendering, with Python fallback.
+- Python discovery enumeration, matching, metadata and registry reuse.
+- Deferred status/advisor/mailbox imports and repository identity reuse within a single prompt.
+- In one controlled local experiment, quiet prompt delivery fell from 150.023
+  to 109.626 ms median. Other paths had small or no gains and some mixed tails.
+  This is not a whole-agent, cross-host performance or token-saving claim.
+
+No state schema migration or credential change is required. Existing renderer
+chains and Spill connections are preserved. Set `MORU_LAUNCHER_BACKEND=python`
+and `MORU_CHECKOUT_IDENTITY_BACKEND=python` for explicit native rollback.
+
+Full source comparison: https://github.com/taehwandev/moru-core/compare/v26.42.0...v26.44.0

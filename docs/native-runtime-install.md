@@ -11,7 +11,36 @@ Claude/Antigravity status rendering can use two optional Rust executables.
 Receiving computers do not need Rust or Cargo when installing a matching bundle.
 Keep the Python fallback; unusual status inputs may require it.
 
-## Obtain the matching build
+## Download an installation bundle
+
+Use [GitHub Releases](https://github.com/taehwandev/moru-core/releases/latest)
+for installation. Release assets have no Actions retention timer and remain
+available unless the release or asset is deleted. Public release downloads do
+not require a GitHub login.
+
+[v26.44.0](https://github.com/taehwandev/moru-core/releases/tag/v26.44.0) provides:
+
+- `moru-native-macos-arm64.tar.gz`
+- `moru-native-macos-x86_64.tar.gz`
+- `moru-native-linux-arm64.tar.gz`
+- `moru-native-linux-x86_64.tar.gz`
+- `SHA256SUMS` and `BUILD.json` with archive checksums and original build provenance
+
+Download your platform's `.tar.gz` directly, without unpacking it. Use the Core
+source at the same release tag; the importer rejects mismatched native source.
+For a first installation only:
+
+```sh
+git clone --branch v26.44.0 https://github.com/taehwandev/moru-core.git ~/.moru/core
+```
+
+Reuse an existing checkout when present. Select the matching release through
+your normal Git workflow, preserving local edits; do not reset an active
+checkout or automatically create a second copy. `BUILD.json` identifies the exact
+CI source revision and run. For this release it is `31c97d07`, whose four host
+builds, behavior checks and transported-consumer smoke checks all passed.
+
+## CI artifacts are for development
 
 The [Native runtime bundles workflow](../.github/workflows/native-runtime.yml)
 builds macOS ARM64, macOS x86_64, Linux x86_64 and Linux ARM64 separately. It
@@ -20,12 +49,12 @@ builds pinned Rust 1.94.1 with locked crates, runs behavioral checks, packs the
 two binaries and verifies transport into a fresh source root and temporary home
 with an empty PATH. An artifact is uploaded only after those checks pass.
 
-Download the matching `moru-native-<platform>-<commit>` artifact from a successful
-trusted main workflow run and unzip it to obtain its `.tar.gz`. GitHub artifact
-downloads require sign-in/read access and expire after seven days; a new manual
-build restores availability. This is a development distribution path, not an
-anonymous permanent release URL or a claim that every matrix host has passed.
-The run records each host's actual result. No tag/release is created automatically.
+The matching `moru-native-<platform>-<commit>` workflow artifact is a temporary
+development copy. These require sign-in/read access and expire after seven days;
+that expiry does not remove files attached to a release. Maintainers promote the
+four successful build outputs to an explicitly authorized versioned release,
+preserving the original source revision, checksums and provenance. A documentation
+update does not move that release tag. No release is created automatically by CI.
 
 macOS bundles target macOS 13+ and are tested on the selected macOS 15 runners.
 Linux bundles are built/tested on Ubuntu 24.04; older glibc distributions are not
@@ -34,8 +63,8 @@ Do not infer performance on these hosts from the local Mac benchmark.
 
 ## Install after updating source
 
-Update your existing Moru Core checkout to the reviewed main revision using
-your normal Git workflow; preserve local edits. From that root:
+Use the matching release checkout, or a development checkout whose native source
+hashes still match the selected bundle. From that root:
 
 ```sh
 python3 scripts/native-runtime-bundle.py install --bundle /path/to/moru-native-macos-arm64.tar.gz

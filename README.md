@@ -132,7 +132,8 @@ and AGY. You can check or repair the setup anytime with
 
 For optional native checkout lookup and status rendering without installing
 Rust/Cargo on the receiving computer, use the [prebuilt bundle guide](docs/native-runtime-install.md).
-Python and Git remain required for the rest of Core.
+Installation bundles are available on [GitHub Releases](https://github.com/taehwandev/moru-core/releases/latest)
+without the seven-day CI artifact expiry. Python and Git remain required for the rest of Core.
 
 **3. Check that everything is ready.**
 
