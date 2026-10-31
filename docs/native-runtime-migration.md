@@ -72,7 +72,7 @@ separate rollout boundary from source integration.
 | 23 | `scripts/codex_operator_review.py` | operator-review | Python candidate | Permission and negative-authority regressions before latency |
 | 24 | `scripts/codex_pretool_gate.py` | codex-pretool-gate | Python candidate | Permission and negative-authority regressions before latency |
 | 25 | `scripts/codex_stop_gate.py` | codex-stop-gate | Python candidate | Repeated-call latency with context/state/delivery correctness |
-| 26 | `scripts/project-discover.py` | project-discover | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 26 | `scripts/project-discover.py` | project-discover | Python enumeration optimized on performance branch | Same selection/order/bounds; measured file-heavy benefit |
 | 27 | `scripts/setup-agent-hooks.py` | setup-agent-hooks | Python candidate | Low-frequency operator work; justify a port before changing Python |
 | 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery, measured benefit and rollback |

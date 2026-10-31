@@ -54,3 +54,13 @@ entrypoint tests and randomized measurements decide branch readiness.
 The [specification](spec.md) records observed results and costs; the
 [programme](prd.md) defines acceptance. Neither proves whole-agent speed,
 token reduction, installed activation or compatibility on an untested host.
+
+## Optimize enumeration before porting discovery
+
+For project discovery, first replace file-by-file directory probing and sorting
+with the stdlib directory-entry API. This keeps registry, marker, ranking and
+traversal policy in Python and avoids another language boundary for the same
+measured bottleneck. The [scan result](discovery-scan.md) meets the local target
+on file-heavy trees; directory-heavy and small CLI gains are not established.
+Do not use this result to justify rewriting the rest of discovery or relaxing
+its selection rules.

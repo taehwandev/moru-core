@@ -13,6 +13,7 @@ from typing import Iterable
 from agent_project_types import INSTRUCTION_FILES, PROJECT_MARKERS, ProjectCandidate
 from workflow_common import unique
 from support.global_state import global_state_dir
+from support.project_directory_scan import child_directories
 
 
 DEFAULT_SEARCH_ROOT_NAMES = ("Documents", "Developer", "GitHub", "git", "Projects", "Downloads")
@@ -225,20 +226,7 @@ def default_registry_path() -> Path:
 
 
 def iter_child_dirs(path: Path) -> list[Path]:
-    try:
-        children = sorted(path.iterdir(), key=lambda child: child.name.lower())
-    except OSError:
-        return []
-    result = []
-    for child in children:
-        if child.name.startswith(".") or child.name in SKIP_SEARCH_DIRS:
-            continue
-        try:
-            if child.is_dir():
-                result.append(child)
-        except OSError:
-            continue
-    return result
+    return child_directories(path, SKIP_SEARCH_DIRS)
 
 
 def _contains_strict_name(request_lc: str, name_lc: str) -> bool:

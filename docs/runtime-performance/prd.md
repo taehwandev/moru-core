@@ -37,8 +37,8 @@ benefit. Shared implementations can serve more than one entrypoint.
   fresh-process path. Treat regression or uncertain tails as a reason to keep
   investigating. State the exact path that improved; do not extrapolate an
   entire workflow or token savings without corresponding measurements.
-- Preserve fallback and operator control. Confirm real native execution without
-  Python on PATH, not only compilation or an apparently successful response.
+- Preserve fallback and operator control. For native changes, confirm execution
+  without Python on PATH, not only compilation or an apparently successful response.
 - Passing tests establish behavior. Controlled timing establishes bounded
   performance. Source integration, temporary installation, actual global
   activation and live workflow improvement are distinct evidence levels.
@@ -61,7 +61,7 @@ artifacts and temporary-home checks do not prove the installed global runtime
 has switched. No whole-agent speedup, call-frequency total or token saving is
 established by these measurements. See the [stage-two evidence](../../native/checkout-identity/LAUNCHER.md).
 
-## Current bounded experiment
+## Statusline increment
 
 Profile the shared Claude/AGY status line, which the existing source describes
 as a repeated redraw callback. It renders a model label, session path and
@@ -89,6 +89,16 @@ not four fully migrated subsystems. The [specification](spec.md) records the
 measured rendering gain, compatibility regression, tests and reproduction;
 the [decision record](ard.md) explains the alternatives. Actual global
 activation remains pending.
+
+## Project discovery increment
+
+The next bounded item optimizes directory enumeration while keeping Python.
+Claude owns the helper, AGY challenges semantics and timing, and the lead owns
+integration and focused verification. Marker/ranking and traversal policies
+stay with their existing owners. See the [discovery scan result](discovery-scan.md)
+for the measured file-heavy benefit, retained small/directory-heavy observations
+and reproducible frozen-source comparison. This does not add a native unit or
+change the 52-candidate inventory.
 
 ## Reproduction and decision records
 
