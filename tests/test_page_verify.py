@@ -48,6 +48,11 @@ class DeriveTests(unittest.TestCase):
         self.assertIn("faces its direction of travel", verify.DERIVE_PROMPT)
         self.assertIn("resting state before the action differs", verify.DERIVE_PROMPT)
 
+    def test_attitude_is_a_derivation_and_code_review_condition(self):
+        self.assertIn("rises or descends vertically keeps its body level", verify.DERIVE_PROMPT)
+        self.assertIn("stand on its tail, dive nose-first", verify.DERIVE_PROMPT)
+        self.assertIn("pitch and roll applied during vertical rises and descents", verify.CODE_JUDGE_PROMPT)
+
     def test_an_answer_without_json_is_an_error(self):
         with self.assertRaises(ValueError):
             verify.derive_checklist("request", ask=lambda *a, **k: "no list here")

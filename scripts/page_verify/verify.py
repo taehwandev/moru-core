@@ -53,7 +53,9 @@ Rules:
   never moves backwards, sideways or teleports unless asked; (3) the subject stays in frame in every camera or view
   mode the page offers, while it moves; (4) motion looks continuous, with plausible acceleration and deceleration
   rather than a constant-speed jump; (5) things said to return end where they began; (6) the offered controls
-  actually change what they claim to change.
+  actually change what they claim to change; (7) a vehicle that rises or descends vertically keeps its body level
+  (pitch near zero) and does not stand on its tail, dive nose-first or fall like a rocket unless the request asks
+  for that, and its pitch and roll stay plausible through every phase.
 - Add nothing the request does not imply. No visual taste judgements such as "beautiful".
 - At most 10 items. Each item: id (short kebab-case), claim, phase (initial | during_action | after_action | any),
   evidence (a non-empty subset of: screenshots, text, console, code). Use code for anything a screenshot cannot
@@ -187,7 +189,7 @@ For facing, find which local axis the model's front points along (geometry or co
 orientation is computed from the path direction, and work out whether the front ends up along the direction of
 travel. Remember the engine's own conventions, for example in Three.js Object3D.lookAt aims a mesh's +Z at the
 target (cameras and lights aim -Z) while Matrix4.lookAt(eye, target, up) builds the camera basis, whose Z axis
-points from the target to the eye. For resting state, find what runs before the action starts.
+points from the target to the eye. For resting state, find what runs before the action starts. For attitude, find the pitch and roll applied during vertical rises and descents and judge whether the body stays level; heading follows the horizontal direction of travel, not a vertical one.
 Verdicts: pass (the code shows it holds), fail (the code shows it is false; cite file:line and quote the code),
 unobserved (the code cannot decide it).
 Answer with a JSON array of {{"id": ..., "verdict": ..., "reason": ..., "evidence": "file:line and quoted code"}} only.
