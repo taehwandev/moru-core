@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+"""Independent page verification: derive a checklist from the request, observe, judge.
+
+The model that built a page is the worst witness that the page works: its tests
+repeat its own assumptions and a green build proves nothing about motion, state
+or framing. This module turns the user's request into observable acceptance
+items, has ``observe.mjs`` watch the built page in a real browser, and has a
+separate judge rule on each item from that evidence alone.
+
+Verdicts are ``pass``, ``fail`` or ``unobserved``. Evidence that cannot show a
+property yields ``unobserved``, never a guess. The exit status is 1 when any item
+failed, 0 otherwise, so a hook can gate on it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.request
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+
+from support.provider_http import open_provider_request  # noqa: E402
+
+DERIVE_MODEL = os.environ.get("MORU_VERIFY_DERIVE_MODEL", "openai/gpt-5.4")
+JUDGE_MODEL = os.environ.get("MORU_VERIFY_JUDGE_MODEL", "openai/gpt-5.4")
+VERDICTS = {"pass", "fail", "unobserved"}
+GENERIC_ITEMS = [
+    {"id": "loads-clean", "claim": "The page loads and runs without uncaught errors or failed script requests.",
+     "phase": "any", "evidence": ["console"], "source": "generic"},
+    {"id": "action-responds", "claim": "Using the page's main action visibly changes its state.",
+     "phase": "during_action", "evidence": ["text", "screenshots"], "source": "generic"},
+]
+
+DERIVE_PROMPT = """You turn a user's request for a web page into acceptance items that a third party can
+check by watching the running page: screenshots over time, the page's visible text, and console errors.
+
+Rules:
+- Every item states one observable fact that must be true for the request to be satisfied.
+- Include conditions the request implies even when unstated: a "ready" or "before" state must differ from the
+  running state; a subject said to stay visible must be in frame in every state; motion must look coherent with
+  the subject (no reversed, mirrored or teleporting movement); things said to return must end where they began.
+- Before answering, consider each of these generic implied conditions and include the ones that apply to this
+  request (skip those that do not): (1) resting state before the action differs from the active state, with
+  nothing that belongs to the active state already running; (2) a moving subject faces its direction of travel and
+  never moves backwards, sideways or teleports unless asked; (3) the subject stays in frame in every camera or view
+  mode the page offers, while it moves; (4) motion looks continuous, with plausible acceleration and deceleration
+  rather than a constant-speed jump; (5) things said to return end where they began; (6) the offered controls
+  actually change what they claim to change.
+- Add nothing the request does not imply. No visual taste judgements such as "beautiful".
+- At most 10 items. Each item: id (short kebab-case), claim, phase (initial | during_action | after_action | any),
+  evidence (a non-empty subset of: screenshots, text, console).
+Answer with a JSON array only.
+
+REQUEST:
+{request}
+"""
+
+JUDGE_PROMPT = """You are an independent verifier. You did not build this page. Judge each acceptance item using
+only the evidence below: the screenshots (in order, labelled), the visible page text captured at each step, and the
+console errors. For each item answer one verdict:
+- pass: the evidence shows it is true.
+- fail: a specific step's screenshot or text shows it is false. Name that step in "contradicting_step". Missing
+  evidence, a control that was never operated, a viewport that was never tried, or a view that legitimately cannot
+  show the thing (for example a first-person view cannot show the subject itself) is never a fail.
+- unobserved: the evidence cannot show it. Do not guess; say what is missing.
+Give a one-sentence reason that cites a step label. Answer with a JSON array of
+{{"id": ..., "verdict": ..., "reason": ..., "contradicting_step": "<label or empty>"}} only, covering every item.
+
+ITEMS:
+{items}
+
+CONSOLE ERRORS: {console}
+FAILED REQUESTS (favicon requests are irrelevant): {failed}
+PRIMARY ACTION FOUND: {primary}
+STEPS (label, seconds after the action, visible text):
+{steps}
+"""
+
+
+def api_key() -> str:
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not key:
+        env = Path.home() / ".moru" / "research.env"
+        if env.is_file():
+            for line in env.read_text(encoding="utf-8").splitlines():
+                match = re.match(r"\s*(?:export\s+)?OPENROUTER_API_KEY\s*=\s*(.+)", line)
+                if match:
+                    key = match.group(1).strip().strip("\"'")
+    if not key:
+        raise RuntimeError("OPENROUTER_API_KEY is not set and ~/.moru/research.env has none")
+    return key
+
+
+def chat(model: str, content: object, *, max_tokens: int = 3000) -> str:
+    body = json.dumps({"model": model, "temperature": 0, "max_tokens": max_tokens,
+                       "messages": [{"role": "user", "content": content}]}).encode()
+    request = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions", data=body,
+        headers={"Authorization": f"Bearer {api_key()}", "Content-Type": "application/json",
+                 "User-Agent": "moru-page-verify"})
+    with open_provider_request(request, timeout=240) as response:
+        return json.load(response)["choices"][0]["message"].get("content") or ""
+
+
+def parse_array(text: str) -> list:
+    match = re.search(r"\[.*\]", text, re.S)
+    if not match:
+        raise ValueError("no JSON array in the model answer")
+    value = json.loads(match.group(0))
+    if not isinstance(value, list):
+        raise ValueError("answer is not an array")
+    return value
+
+
+def clean_items(raw: list) -> list[dict]:
+    items = []
+    for entry in raw:
+        if not isinstance(entry, dict) or not entry.get("id") or not entry.get("claim"):
+            continue
+        evidence = [e for e in entry.get("evidence", []) if e in {"screenshots", "text", "console"}]
+        items.append({"id": re.sub(r"[^a-z0-9-]+", "-", str(entry["id"]).lower()).strip("-")[:48],
+                      "claim": str(entry["claim"])[:300], "phase": str(entry.get("phase") or "any"),
+                      "evidence": evidence or ["screenshots"], "source": "derived"})
+    return items[:10]
+
+
+def derive_checklist(request: str, *, ask=chat) -> list[dict]:
+    derived = clean_items(parse_array(ask(DERIVE_MODEL, DERIVE_PROMPT.format(request=request))))
+    seen = {item["id"] for item in derived}
+    return [*(item for item in GENERIC_ITEMS if item["id"] not in seen), *derived]
+
+
+def image_part(path: Path) -> dict:
+    data = base64.b64encode(path.read_bytes()).decode()
+    return {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}}
+
+
+def judge(items: list[dict], evidence_dir: Path, *, ask=chat) -> list[dict]:
+    evidence = json.loads((evidence_dir / "observations.json").read_text(encoding="utf-8"))
+    steps = evidence.get("steps", [])
+    text = JUDGE_PROMPT.format(
+        items=json.dumps([{k: i[k] for k in ("id", "claim", "phase", "evidence")} for i in items], indent=1),
+        console=json.dumps(evidence.get("consoleErrors", [])),
+        failed=json.dumps([r for r in evidence.get("failedRequests", []) if "favicon" not in r.get("url", "")]),
+        primary=json.dumps(evidence.get("primaryAction")),
+        steps="\n".join(f"- {s['label']} ({s['seconds']}s): {s.get('text', '')[:400]}" for s in steps))
+    content: list[dict] = [{"type": "text", "text": text}]
+    for step in steps:
+        content.append({"type": "text", "text": f"Screenshot: {step['label']}"})
+        content.append(image_part(evidence_dir / step["screenshot"]))
+    answers = {a.get("id"): a for a in parse_array(ask(JUDGE_MODEL, content, max_tokens=4000)) if isinstance(a, dict)}
+    results = []
+    for item in items:
+        answer = answers.get(item["id"], {})
+        verdict = answer.get("verdict") if answer.get("verdict") in VERDICTS else "unobserved"
+        reason = str(answer.get("reason") or "the judge gave no answer for this item")[:400]
+        known = {step["label"] for step in steps}
+        if verdict == "fail" and answer.get("contradicting_step") not in known:
+            verdict = "unobserved"
+            reason = f"downgraded: a fail needs a contradicting step; judge said: {reason}"[:400]
+        if evidence.get("observerError"):
+            verdict, reason = "unobserved", f"observer failed: {evidence['observerError']}"
+        results.append({**item, "verdict": verdict, "reason": reason})
+    return results
+
+
+def feedback_text(results: list[dict]) -> str:
+    """The message that sends failed items back to the model that built the page, or "" when none failed."""
+
+    failed = [r for r in results if r["verdict"] == "fail"]
+    if not failed:
+        return ""
+    lines = [f"- {r['id']}: {r['claim']} Observed: {r['reason']}" for r in failed]
+    unobserved = [r["id"] for r in results if r["verdict"] == "unobserved"]
+    tail = (f"\nNot observed, so unchecked: {', '.join(unobserved)}." if unobserved else "")
+    return ("An independent check of the finished page in a real browser, against criteria derived from the original "
+            "request, found these items failing:\n" + "\n".join(lines) + tail +
+            "\nFix the cause of each failing item in the project, rebuild so the built output reflects the fix, and "
+            "say in your final report what you changed and what you could not verify.")
+
+
+def observe(url: str, out: Path, viewport: str, seconds: int) -> None:
+    result = subprocess.run(["node", str(HERE / "observe.mjs"), url, str(out), "--viewport", viewport,
+                             "--seconds", str(seconds)], capture_output=True, text=True, timeout=seconds + 120, check=False)
+    if not (out / "observations.json").is_file():
+        raise RuntimeError(f"observer produced no evidence: {result.stderr.strip()[:300]}")
+
+
+def render(results: list[dict]) -> str:
+    lines = ["| item | verdict | reason |", "| --- | --- | --- |"]
+    lines += [f"| {r['id']} | {r['verdict']} | {r['reason']} |" for r in results]
+    return "\n".join(lines)
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--url", required=True)
+    parser.add_argument("--request", required=True, help="The user's request text.")
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--viewport", choices=("desktop", "mobile"), default="desktop")
+    parser.add_argument("--seconds", type=int, default=40)
+    parser.add_argument("--checklist", type=Path, help="Reuse a saved checklist instead of deriving one.")
+    args = parser.parse_args(argv)
+    args.out.mkdir(parents=True, exist_ok=True)
+    items = (json.loads(args.checklist.read_text(encoding="utf-8")) if args.checklist
+             else derive_checklist(args.request))
+    (args.out / "checklist.json").write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
+    observe(args.url, args.out / "evidence", args.viewport, args.seconds)
+    results = judge(items, args.out / "evidence")
+    (args.out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+    (args.out / "report.md").write_text(render(results), encoding="utf-8")
+    print(render(results))
+    return 1 if any(r["verdict"] == "fail" for r in results) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
