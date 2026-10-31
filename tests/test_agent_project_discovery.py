@@ -412,3 +412,14 @@ class RequestDrivenUiGuidanceTests(unittest.TestCase):
         ):
             with self.subTest(request=request):
                 self.assertNotIn(self.UI, self.docs(request))
+
+
+class EntryStartCommandTests(unittest.TestCase):
+    def test_new_workspace_entry_prints_the_start_command_and_routes(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = build_entry_manifest("Create a 3D webpage", Path(tmp), runtime="generic")
+        steps = "\n".join(manifest["next_steps"])
+        self.assertIn("moru-hook start --project <ABS_DIR>", steps)
+        self.assertIn("--command build", steps)

@@ -2474,6 +2474,8 @@ START_ROUTE_NAME_ALIASES = {
     "prose": "writing",
     "article": "writing",
     "blog": "writing",
+    "new": "build",
+    "create": "build",
 }
 
 

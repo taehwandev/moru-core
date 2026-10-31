@@ -183,6 +183,9 @@ def build_entry_manifest(
     else:
         manifest["next_steps"] = [
             "A request that creates a new project in the current or a named empty directory needs no discovered target; read the guidance above before implementing.",
+            f"Then start tracked work: {Path.home() / '.moru' / 'bin' / 'moru-hook'} start --project <ABS_DIR> --rules {ROOT} "
+            "--command build --request \"<REQUEST>\" --intent <SAFE_SLUG> --target-summary \"<SUMMARY>\" "
+            "(build creates or changes code; feature, bugfix, refactor, review, docs and test also exist).",
             "Otherwise ask the user for the target project path before project work.",
             "Optionally register known projects in ~/.moru/projects.json.",
         ]
