@@ -25,6 +25,7 @@ from typing import Any
 from agent_execution_capsule_state import atomic_write_json
 from agent_evidence_inputs import EvidenceInputs
 from support.global_state import global_state_dir, user_store_write_error
+from support.git_read_scope import stable_read
 
 
 SCHEMA_VERSION = 1
@@ -201,6 +202,10 @@ def _relevance(record: dict[str, Any], query: tuple[set[str], set[str], set[str]
 
 def repository_key(project: Path) -> str:
     """Name one repository the same way from every one of its worktrees."""
+    return stable_read(("repository-key", str(project.resolve())), lambda: _repository_key(project))
+
+
+def _repository_key(project: Path) -> str:
     try:
         result = subprocess.run(
             ["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],

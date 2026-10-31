@@ -48,6 +48,13 @@ operator's process group.
 
 ## Evidence and adoption
 
+The initial branch-only boundary was superseded by the user's 2026-10-31
+request for main integration, other-PC availability and local installation.
+Ship the reviewed accumulated batch while retaining qualified claims and
+Python rollback; no whole-agent or cross-host performance gain is inferred.
+Portable packaging validates host and exact native source/binary hashes, and
+the distribution build smoke-tests a fresh consumer without a toolchain on PATH.
+
 The lead integrates Claude's pure formatter and AGY's falsification questions.
 Provider output is a contribution, not proof that code ran. Parent-owned real
 entrypoint tests and randomized measurements decide branch readiness.

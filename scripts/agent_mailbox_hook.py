@@ -99,6 +99,15 @@ def _continuity_context(delivery) -> tuple[str, Path | None, str]:
 
 
 def deliver(payload: dict, runtime: str) -> int:
+    # Repository identity is stable within this synchronous prompt delivery.
+    # Open a new scope per invocation; never retain answers for the next turn.
+    from support.git_read_scope import git_read_scope
+
+    with git_read_scope():
+        return _deliver(payload, runtime)
+
+
+def _deliver(payload: dict, runtime: str) -> int:
     delivery = _delivery(payload, runtime)
     if delivery is None:
         return 0

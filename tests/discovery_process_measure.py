@@ -12,11 +12,12 @@ import subprocess
 import time
 
 
-def run_measured(argv, *, env, cwd, timeout=20):
+def run_measured(argv, *, env, cwd, timeout=20, input_bytes=None):
     """Run argv (no shell) and return (CompletedProcess, metrics).
 
     metrics holds wall_ms, user_ms, system_ms and cpu_ms (user + system) for
-    the child only. stdout/stderr are captured as bytes and stdin is DEVNULL.
+    the child only. stdout/stderr are captured as bytes; stdin is DEVNULL
+    unless explicit synthetic input_bytes are supplied.
     A nonzero exit code is returned, not raised. TimeoutExpired and spawn
     errors propagate unchanged; there are no retries.
     """
@@ -26,7 +27,8 @@ def run_measured(argv, *, env, cwd, timeout=20):
         list(argv),
         env=env,
         cwd=cwd,
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL if input_bytes is None else None,
+        input=input_bytes,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         timeout=timeout,

@@ -218,7 +218,7 @@ class NativeStableLauncherTests(unittest.TestCase):
         document = (PROJECT / "docs/native-runtime-migration.md").read_text()
         covered = [line.split("|")[2].strip().strip("`") for line in document.splitlines()
                    if line.startswith("| ") and line.split("|")[1].strip().isdigit()]
-        self.assertEqual(52, len(covered))
+        self.assertEqual(53, len(covered))
         self.assertEqual(len(covered), len(set(covered)))
         self.assertEqual(owners, set(covered))
 

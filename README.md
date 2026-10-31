@@ -130,6 +130,10 @@ and AGY. You can check or repair the setup anytime with
 `<MORU_LAUNCHER> setup-agent-hooks --check` and
 `<MORU_LAUNCHER> setup-agent-hooks`.
 
+For optional native checkout lookup and status rendering without installing
+Rust/Cargo on the receiving computer, use the [prebuilt bundle guide](docs/native-runtime-install.md).
+Python and Git remain required for the rest of Core.
+
 **3. Check that everything is ready.**
 
 ```bash

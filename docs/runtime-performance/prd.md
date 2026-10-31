@@ -14,11 +14,11 @@ rewrite count. Try simpler local import/process/algorithm improvements before
 adding infrastructure. No daemon, runtime model call, paid service or Locate
 dependency is introduced by this programme.
 
-Baseline is local-main revision `527097ec`. Keep subsequent work and reviewable
-commits on the dedicated performance integration branch. Main integration,
-remote publication and actual user-global installation are separate later
-decisions; this programme does not continue the earlier automatic-main pattern.
-Existing baseline commits are preserved.
+Baseline is local-main revision `527097ec`. Develop and review on the dedicated
+performance branch. On 2026-10-31 the user authorized the accumulated verified
+batch's main integration, remote availability and local installation. These
+remain separate observable delivery steps, with exact source/artifact readback.
+Existing baseline commits and negative timing evidence are preserved.
 
 For subsequent work, batch two or three related, disjoint slices when the
 contract is stable. Share provider dispatch, fixtures, focused verification and
@@ -26,9 +26,10 @@ one integration review instead of closing a lifecycle for each tiny edit. Keep
 the parent as integration owner; do not batch unrelated scope or publication
 effects. Each change still needs its own falsifying check and measured limits.
 
-The [52-unit inventory](../native-runtime-migration.md) defines coverage: 30
-primary units and 22 ancillary CLIs. Inventory coverage is not a commitment to
-rewrite all 52. Keep infrequent tooling in Python when conversion has no proven
+The [inventory](../native-runtime-migration.md) now defines 53 boundaries: 30
+primary units and 23 ancillary CLIs, including the new bundle tool. Its baseline
+had 52. Inventory coverage is not a commitment to rewrite them all.
+Keep infrequent tooling in Python when conversion has no proven
 benefit. Shared implementations can serve more than one entrypoint.
 
 ## Measurement and acceptance
@@ -133,6 +134,20 @@ frequent-path 20% target; active next has no measured gain. Keep these limits
 visible and leave main/global adoption pending.
 
 ## Reproduction and decision records
+
+The [mailbox result](mailbox-paths.md) adds ordinary mailbox imports, optional
+task-binding imports and per-prompt repository identity reuse. Four Git queries
+become one per delivery, freshly queried next prompt. One import-only screening
+and one subsequent three-way comparison retain their separate observations;
+quiet delivery improves 26.9% median in the latter, while status/receive and
+ack controls provide no material gain. Coverage is now 10/53 boundaries, with
+four native and six Python improvements, not a migration-completion percentage.
+
+The [portable installation guide](../native-runtime-install.md) addresses the
+missing distribution path. Build two binaries on each supported host, transport
+a bounded host/source/hash-checked archive, install without Rust/Cargo, then
+refresh the existing runtime connections. Python and Git remain required for
+the rest of Core. Other-host CI and this-PC activation are checked separately.
 
 Each result records baseline, changed owner, method, passed/failing conditions,
 measured delta, remaining cost and adoption state. Keep before/after samples

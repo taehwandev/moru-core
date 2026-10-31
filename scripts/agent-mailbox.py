@@ -8,9 +8,6 @@ import json
 import sys
 from pathlib import Path
 
-from agent_mailbox import AgentMailbox
-from agent_runtime_session import runtime_session
-
 
 _MAX_STDIN_BYTES = 32 * 1024
 _DEFAULT_RULES = Path(__file__).resolve().parents[1]
@@ -43,6 +40,9 @@ def main() -> int:
     status.add_argument("--runtime", choices=_RUNTIMES, default="")
     status.add_argument("--json", action="store_true")
     args = parser.parse_args()
+
+    from agent_mailbox import AgentMailbox
+    from agent_runtime_session import runtime_session
 
     try:
         project = _selected_project(args.project)

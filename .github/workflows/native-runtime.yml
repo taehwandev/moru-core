@@ -1,0 +1,62 @@
+name: Native runtime bundles
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - native/checkout-identity/**
+      - scripts/build_native_runtime.py
+      - scripts/native-runtime-bundle.py
+      - scripts/support/native_bundle.py
+      - tests/smoke_native_bundle.py
+      - .github/workflows/native-runtime.yml
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    if: github.event.repository.private == false && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            platform: macos-arm64
+          - runner: macos-15-intel
+            platform: macos-x86_64
+          - runner: ubuntu-24.04
+            platform: linux-x86_64
+          - runner: ubuntu-24.04-arm
+            platform: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare pinned developer toolchain and locked crates
+        run: |
+          rustup toolchain install 1.94.1 --profile minimal
+          rustup default 1.94.1
+          cargo fetch --locked --manifest-path native/checkout-identity/Cargo.toml
+      - name: Build and verify runtime behavior
+        run: |
+          python3 scripts/build_native_runtime.py
+          PYTHONPATH=scripts:tests python3 -B -m unittest test_native_bundle test_checkout_identity_runtime test_native_stable_launcher test_native_statusline
+      - name: Package and test a fresh consumer without a toolchain
+        env:
+          BUNDLE: moru-native-${{ matrix.platform }}.tar.gz
+        run: |
+          python3 scripts/native-runtime-bundle.py pack --bundle "$BUNDLE"
+          PYTHONPATH=scripts:tests python3 -B tests/smoke_native_bundle.py --bundle "$BUNDLE"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: moru-native-${{ matrix.platform }}-${{ github.sha }}
+          path: moru-native-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7

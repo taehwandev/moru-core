@@ -5,14 +5,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from agent_execution_capsule import (
-    capsule_path_for_evidence,
-    read_execution_capsule,
-    validate_execution_capsule,
-)
+from agent_execution_capsule_state import capsule_path_for_evidence, read_json_object as read_execution_capsule
 from agent_mailbox_store import MailboxStore, _preserve_delivery
 from agent_mailbox_reference import ReferenceMailboxStore
 from agent_runtime_session import runtime_session
+
+
+def validate_execution_capsule(capsule, project, rules, evidence_path, route):
+    """Keep the validation seam; ordinary reference exchanges need no policy stack."""
+    from agent_execution_capsule import validate_execution_capsule as validate
+
+    return validate(capsule, project, rules, evidence_path, route)
 
 
 def _held_elsewhere(store, runtime: str):

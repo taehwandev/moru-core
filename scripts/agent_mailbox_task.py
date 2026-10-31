@@ -14,8 +14,6 @@ from pathlib import Path
 
 from agent_execution_capsule_state import atomic_write_json, read_json_object
 from agent_mailbox_store import MailboxStore, _MESSAGE_ID, _require_local_path
-from agent_mailbox_task_binding import stop_ready, task_binding, validate_completion_binding, validate_task
-from agent_runtime_session import resolve_runtime_evidence
 from agent_state_lock import state_lock
 from support.global_state import project_state_dir_target
 
@@ -37,6 +35,8 @@ class TaskContinuation:
         return path
 
     def authorize(self, evidence: Path, message_id: str) -> None:
+        from agent_mailbox_task_binding import task_binding, validate_task
+
         binding = task_binding(self.project, self.identity, evidence)
         path = self.path(message_id)
         store = MailboxStore(self.project)
@@ -80,6 +80,8 @@ class TaskContinuation:
                 self.budget.unlink(missing_ok=True)
 
     def complete(self, message_id: str) -> None:
+        from agent_mailbox_task_binding import validate_completion_binding
+
         path = self.path(message_id)
         with state_lock(self.root / ".tasks"):
             record = read_json_object(path)
@@ -100,7 +102,12 @@ class TaskContinuation:
                 return None
             ready = [record for path in self.records() if (record := read_json_object(path)).get("identity")
                      == self.identity and record.get("status") == "armed"]
-            if not ready or not stop_ready(payload, self.identity, self.project):
+            if not ready:
+                return None
+            from agent_mailbox_task_binding import stop_ready, task_binding, validate_task
+            from agent_runtime_session import resolve_runtime_evidence
+
+            if not stop_ready(payload, self.identity, self.project):
                 return None
             evidence = resolve_runtime_evidence(self.project, self.identity)
             binding = task_binding(self.project, self.identity, evidence)
