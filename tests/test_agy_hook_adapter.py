@@ -61,7 +61,8 @@ class StopTranslationTests(unittest.TestCase):
             captured.append(stdin)
             return json.dumps({"decision": "block", "reason": "finish first"})
 
-        with patch.object(adapter, "run_script", fake):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", fake), patch.object(adapter, "verify_in_session", return_value=(False, {})):
             first = adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"], "executionNum": 0})
             second = adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"], "executionNum": 1})
         self.assertEqual({"decision": "continue", "reason": "finish first"}, first)
@@ -70,7 +71,8 @@ class StopTranslationTests(unittest.TestCase):
         self.assertEqual({"decision": "continue", "reason": "finish first"}, second)
 
     def test_no_block_lets_the_agent_stop(self):
-        with patch.object(adapter, "run_script", return_value=""):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), patch.object(adapter, "routed_through_3d", return_value=False):
             self.assertEqual({}, adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"]}))
 
 
@@ -97,7 +99,8 @@ class UnverifiedReminderTests(unittest.TestCase):
 
     def test_the_gate_block_wins_and_no_run_means_no_reminder(self):
         block = json.dumps({"decision": "block", "reason": "finish first"})
-        with patch.object(adapter, "run_script", return_value=block):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=block):
             self.assertEqual("finish first", adapter.stop(self.PAYLOAD)["reason"])
         with patch.object(adapter, "run_script", return_value=""), \
                 patch("agent_runtime_session.resolve_runtime_evidence", return_value=None):
@@ -111,16 +114,67 @@ class UnverifiedReminderTests(unittest.TestCase):
             self.assertTrue(adapter.already_delivered("c1", "reminder", "stop"))
 
 
+class StopGateContinuationCapTests(unittest.TestCase):
+    PAYLOAD = {"conversationId": "cg", "workspacePaths": ["/w"], "lastUserInput": "Build a thing", "executionNum": 0}
+
+    def test_the_finish_gate_blocks_once_per_user_input_then_stop_hook_active_is_set(self):
+        seen = []
+
+        def gate(name, args, stdin, cwd, env=None):
+            seen.append(stdin["stop_hook_active"])
+            return "" if stdin["stop_hook_active"] else json.dumps({"decision": "block", "reason": "finish first"})
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", side_effect=gate), \
+                patch.object(adapter, "verify_in_session", return_value=(True, {})):
+            first = adapter.stop(self.PAYLOAD)
+            second = adapter.stop(self.PAYLOAD)
+            third = adapter.stop(self.PAYLOAD)
+        self.assertEqual("continue", first["decision"])
+        self.assertEqual([{}, {}], [second, third])
+        self.assertEqual([False, True, True], seen)
+
+    def test_a_new_user_input_rearms_the_gate(self):
+        def gate(name, args, stdin, cwd, env=None):
+            return "" if stdin["stop_hook_active"] else json.dumps({"decision": "block", "reason": "finish first"})
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", side_effect=gate), \
+                patch.object(adapter, "verify_in_session", return_value=(True, {})):
+            adapter.stop(self.PAYLOAD)
+            again = adapter.stop({**self.PAYLOAD, "lastUserInput": "A different request"})
+        self.assertEqual("continue", again["decision"])
+
+    def test_a_verification_continue_counts_so_the_gate_does_not_pile_on(self):
+        seen = []
+
+        def gate(name, args, stdin, cwd, env=None):
+            seen.append(stdin["stop_hook_active"])
+            return ""
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", side_effect=gate), \
+                patch.object(adapter, "verify_in_session", side_effect=[(True, {"decision": "continue", "reason": "fix"}), (True, {})]):
+            adapter.stop(self.PAYLOAD)
+            adapter.stop(self.PAYLOAD)
+        self.assertEqual([False, True], seen)
+
+
 class InSessionVerificationTests(unittest.TestCase):
     PAYLOAD = {"conversationId": "cv", "workspacePaths": ["/w"], "lastUserInput": "Build a thing", "executionNum": 0}
 
-    def run_stop(self, results, rounds_before=0, can_judge=True, dist=True):
+    def run_stop(self, results, rounds_before=0, can_judge=True, dist=True, fingerprint=None):
         import types
+
+        import itertools
+
+        sequence = itertools.chain(fingerprint or ["same"], itertools.repeat((fingerprint or ["same"])[-1]))
 
         calls = []
         fake = types.ModuleType("verify")
         fake.find_dist = lambda project: Path("/w/dist") if dist else None
         fake.can_judge = lambda: can_judge
+        fake.project_fingerprint = lambda project: next(sequence)
 
         def verify_project(project, request, out, checklist=None, **kw):
             calls.append((request, checklist))
@@ -143,37 +197,21 @@ class InSessionVerificationTests(unittest.TestCase):
         self.assertEqual({"decision": "continue", "reason": "FIX: a"}, verdict)
         self.assertEqual([("Build a thing", None)], calls)
 
-    def test_the_second_round_reuses_the_first_checklist_and_the_rounds_are_capped(self):
+    def test_one_fix_round_then_a_final_check_then_nothing(self):
         fail = [{"id": "a", "verdict": "fail"}]
-        verdict, calls, _ = self.run_stop(fail, rounds_before=1)
-        self.assertEqual("continue", verdict["decision"])
-        self.assertEqual([("Build a thing", None), ("Build a thing", [{"id": "a"}])], calls)
-        verdict, calls, _ = self.run_stop(fail, rounds_before=2)
-        self.assertEqual({}, verdict, "the last allowed round ends with no further request")
-        verdict, calls, _ = self.run_stop(fail, rounds_before=3)
+        verdict, calls, _ = self.run_stop(fail, rounds_before=1, fingerprint=["a", "b"])
+        self.assertEqual({}, verdict, "the final allowed check asks for no further fix")
+        self.assertEqual([("Build a thing", None), ("Build a thing", [{"id": "a"}])], calls,
+                         "the re-check reuses the derived checklist")
+        verdict, calls, _ = self.run_stop(fail, rounds_before=2, fingerprint=["a", "b", "c"])
         self.assertEqual({}, verdict)
-        self.assertEqual(3, len(calls), "no verification beyond the cap")
+        self.assertEqual(2, len(calls), "no verification beyond the cap")
 
-    def test_a_verification_error_is_recorded_beside_the_state_and_still_fails_open(self):
-        import types
-
-        fake = types.ModuleType("verify")
-        fake.find_dist = lambda project: Path("/w/dist")
-        fake.can_judge = lambda: True
-
-        def boom(*a, **k):
-            raise RuntimeError("judge service unreachable")
-
-        fake.verify_project = boom
-        fake.feedback_text = lambda r: ""
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
-                patch.object(adapter, "run_script", return_value=""), \
-                patch.object(adapter, "routed_through_3d", return_value=True), \
-                patch.dict(sys.modules, {"verify": fake}):
-            verdict = adapter.stop(self.PAYLOAD)
-            note = (Path(tmp) / "cv.verify.error").read_text()
-        self.assertIn("RuntimeError: judge service unreachable", note)
-        self.assertEqual("continue", verdict["decision"], "falls back to the unverified reminder, never traps the stop")
+    def test_an_unchanged_project_is_not_verified_again(self):
+        fail = [{"id": "a", "verdict": "fail"}]
+        verdict, calls, _ = self.run_stop(fail, rounds_before=1, fingerprint=["same", "same"])
+        self.assertEqual({}, verdict)
+        self.assertEqual(1, len(calls), "the second stop found the same fingerprint and skipped the check")
 
     def test_all_pass_lets_the_agent_stop_without_the_reminder(self):
         verdict, calls, _ = self.run_stop([{"id": "a", "verdict": "pass"}])

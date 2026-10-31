@@ -357,6 +357,49 @@ def observe(url: str, out: Path, viewport: str, seconds: int) -> None:
         raise RuntimeError(f"observer produced no evidence: {stderr.strip()[:300]}")
 
 
+def project_fingerprint(project: Path) -> str:
+    """A hash of the built page and the source it came from, to tell whether anything changed."""
+
+    import hashlib
+
+    digest = hashlib.sha256()
+    dist = find_dist(project)
+    roots = [dist] if dist else []
+    roots.append(project / "src")
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob("*")):
+            if path.is_file() and path.stat().st_size < 4_000_000:
+                digest.update(str(path.relative_to(project)).encode())
+                digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def floor_results(items: list[dict], evidence: dict) -> list[dict]:
+    """Verdicts for the basic checks that need no model: errors on load and an unresponsive main action.
+
+    Returns the failing items only. When any basic check fails there is nothing for a judge to add yet,
+    so the model calls are skipped and the agent is sent back to fix those first.
+    """
+
+    steps = evidence.get("steps", [])
+    failing = []
+    errors = evidence.get("consoleErrors", [])
+    if errors and steps:
+        for item in items:
+            if item["id"] in {"loads-clean", "no-console-errors"}:
+                failing.append({**item, "verdict": "fail", "reason": f"{steps[-1]['label']}: console error {errors[0][:160]}"})
+    if evidence.get("primaryAction") and len(steps) > 1 and evidence.get("secondaryControls") is not None:
+        first = steps[0].get("text")
+        if all(step.get("text") == first for step in steps[1:]):
+            for item in items:
+                if item["id"] == "action-responds":
+                    failing.append({**item, "verdict": "fail",
+                                    "reason": f"{steps[-1]['label']}: the page text never changed after the main action was used twice"})
+    return failing
+
+
 def find_dist(project: Path) -> Path | None:
     for candidate in (project / "dist", project / "build", project / "out", project):
         if (candidate / "index.html").is_file():
@@ -387,7 +430,14 @@ def verify_project(project: Path, request: str, out: Path, *, viewport: str = "d
         observe(f"http://127.0.0.1:{port}/", out / "evidence", viewport, seconds)
     finally:
         server.terminate()
-    results = judge_any(items, out / "evidence", collect_source(project))
+    evidence = json.loads((out / "evidence" / "observations.json").read_text(encoding="utf-8"))
+    failing = floor_results(items, evidence)
+    if failing:
+        by_id = {r["id"]: r for r in failing}
+        results = [by_id.get(i["id"]) or {**i, "verdict": "unobserved", "reason": "skipped: a basic check failed, fix that first"}
+                   for i in items]
+    else:
+        results = judge_any(items, out / "evidence", collect_source(project))
     (out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "report.md").write_text(render(results), encoding="utf-8")
     return items, results

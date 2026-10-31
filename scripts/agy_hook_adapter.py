@@ -184,7 +184,7 @@ def unverified_reminder(payload: dict, execution: int) -> dict:
     return {"decision": "continue", "reason": UNVERIFIED_REMINDER}
 
 
-VERIFY_MAX_ROUNDS = 2
+VERIFY_MAX_ROUNDS = 1
 
 
 def verification_state_path(conversation: str) -> Path | None:
@@ -218,11 +218,15 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
         rounds = int(state.get("rounds", 0))
         if rounds >= VERIFY_MAX_ROUNDS + 1:
             return True, {}
+        fingerprint = verify.project_fingerprint(project)
+        if rounds and state.get("fingerprint") == fingerprint:
+            return True, {}  # nothing changed since the last check, so another one would only repeat it
         request = str(state.get("request") or payload.get("lastUserInput") or "")
         out = MARKER_DIR / "verify" / (state_path.stem.split(".")[0]) / f"round{rounds}"
         items, results = verify.verify_project(project, request, out, checklist=state.get("checklist"))
         MARKER_DIR.mkdir(parents=True, exist_ok=True)
         state_path.write_text(json.dumps({"rounds": rounds + 1, "request": request, "checklist": items,
+                                          "fingerprint": fingerprint,
                                           "last": [{"id": r["id"], "verdict": r["verdict"]} for r in results]}),
                               encoding="utf-8")
         feedback = verify.feedback_text(results) if rounds < VERIFY_MAX_ROUNDS else ""
@@ -236,19 +240,55 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
         return False, {}
 
 
+def continuations_for(payload: dict) -> tuple[Path | None, dict]:
+    """How many times a stop hook already continued this conversation for the current user input.
+
+    Claude tells its Stop hooks so through ``stop_hook_active``; Antigravity's ``executionNum`` does
+    not accumulate, which let the finish gate block again after every edit (ten blocks in one run).
+    """
+
+    safe = "".join(ch for ch in session_id(payload) if ch.isalnum() or ch in "-_")
+    if not safe:
+        return None, {}
+    path = MARKER_DIR / f"{safe}.stop.json"
+    digest = hashlib.sha256(str(payload.get("lastUserInput") or "").encode("utf-8")).hexdigest()
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state = {}
+    if state.get("input") != digest:
+        state = {"input": digest, "continuations": 0}
+    return path, state
+
+
+def count_continuation(path: Path | None, state: dict) -> None:
+    if path is None:
+        return
+    state["continuations"] = int(state.get("continuations", 0)) + 1
+    try:
+        MARKER_DIR.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(state), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def stop(payload: dict) -> dict:
     cwd = workspace(payload)
     try:
         execution = int(payload.get("executionNum") or 0)
     except (TypeError, ValueError):
         execution = 0
+    counter_path, counter = continuations_for(payload)
     claude = {"session_id": session_id(payload), "cwd": cwd, "hook_event_name": "Stop",
-              "stop_hook_active": execution >= 1}
+              "stop_hook_active": execution >= 1 or int(counter.get("continuations", 0)) >= 1}
     out = parse_json(run_script("claude_stop_gate.py", [], claude, cwd))
     if out.get("decision") == "block":
+        count_continuation(counter_path, counter)
         return {"decision": "continue", "reason": str(out.get("reason") or "")}
     ran, verdict = verify_in_session(payload)
     if ran:
+        if verdict.get("decision") == "continue":
+            count_continuation(counter_path, counter)
         return verdict
     return unverified_reminder(payload, execution)
 

@@ -176,6 +176,47 @@ class CodeEvidenceTests(unittest.TestCase):
         self.assertIn("code", verify.DERIVE_PROMPT)
 
 
+class FloorTests(unittest.TestCase):
+    ITEMS = [{"id": "loads-clean", "claim": "c", "phase": "any", "evidence": ["console"], "source": "generic"},
+             {"id": "action-responds", "claim": "a", "phase": "any", "evidence": ["text"], "source": "generic"},
+             {"id": "other", "claim": "o", "phase": "any", "evidence": ["screenshots"], "source": "derived"}]
+
+    def evidence(self, **extra):
+        steps = [{"label": "initial", "seconds": 0, "text": "READY"}, {"label": "late-t75s", "seconds": 75, "text": "READY"}]
+        return {"consoleErrors": [], "primaryAction": {"text": "GO"}, "secondaryControls": [], "steps": steps, **extra}
+
+    def test_a_console_error_fails_the_load_check_without_a_model(self):
+        failing = verify.floor_results(self.ITEMS, self.evidence(consoleErrors=["ReferenceError: THREE is not defined"],
+                                                                  steps=[{"label": "initial", "seconds": 0, "text": "READY"},
+                                                                         {"label": "t6s", "seconds": 6, "text": "RUNNING"}]))
+        self.assertEqual(["loads-clean"], [f["id"] for f in failing])
+        self.assertIn("THREE is not defined", failing[0]["reason"])
+
+    def test_text_that_never_changes_after_the_main_action_fails_the_action_check(self):
+        failing = verify.floor_results(self.ITEMS, self.evidence())
+        self.assertEqual(["action-responds"], [f["id"] for f in failing])
+        self.assertIn("late-t75s", failing[0]["reason"])
+
+    def test_a_responsive_clean_page_has_no_floor_failure(self):
+        steps = [{"label": "initial", "seconds": 0, "text": "READY"}, {"label": "t6s", "seconds": 6, "text": "TAKEOFF"}]
+        self.assertEqual([], verify.floor_results(self.ITEMS, self.evidence(steps=steps)))
+
+    def test_without_a_primary_action_nothing_is_called_unresponsive(self):
+        self.assertEqual([], verify.floor_results(self.ITEMS, self.evidence(primaryAction=None)))
+
+    def test_the_fingerprint_changes_only_when_the_built_page_or_source_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "dist").mkdir()
+            (root / "src").mkdir()
+            (root / "dist" / "index.html").write_text("<html>1</html>")
+            (root / "src" / "a.js").write_text("one")
+            first = verify.project_fingerprint(root)
+            self.assertEqual(first, verify.project_fingerprint(root))
+            (root / "src" / "a.js").write_text("two")
+            self.assertNotEqual(first, verify.project_fingerprint(root))
+
+
 class RemoteJudgeTests(unittest.TestCase):
     def serve(self, derive, judge):
         import threading
