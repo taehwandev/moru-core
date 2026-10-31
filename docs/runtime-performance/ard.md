@@ -93,3 +93,19 @@ No cross-call authorization cache or Rust adapter is added. The
 [evidence lookup result](evidence-lookup.md) measures both initialized lookup
 and an actual generated next-action entrypoint, including fallback overhead
 and compact-state tails rather than claiming universal improvement.
+
+## Converge installed runtime execution on Rust
+
+The user's next direction prioritizes frequent callbacks and removal of Python
+from ordinary installed execution. Retain Python for transition comparisons,
+fallback and developer tooling; a Python-only optimization does not complete a
+Rust migration. Order work by registered trigger frequency and measured cost,
+without inventing live call counts.
+
+The [native pretool increment](native-pretool.md) serves closed plain queries
+for both providers. A full bounded runtime source snapshot protects compatibility
+while the Python owner evolves. Its source-read cost is included in measurement;
+it avoids trusting an incomplete import graph. Streaming hashes and sorted
+membership checks bound memory and lookup work. Unsupported cases retain legacy
+dispatch. No shell parser, authorization cache or permanent two-language product
+architecture is introduced. Later policy migration can remove this guard.

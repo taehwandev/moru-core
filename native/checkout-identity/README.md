@@ -42,6 +42,12 @@ Run `python3 scripts/build_native_runtime.py` with an existing Rust toolchain
 and cached crates. The build is locked/offline and atomically publishes the
 local executable to ignored `.moru/native/bin/moru-checkout-identity`.
 
+The common launcher now also has native plain-query pretool callbacks. Cargo's
+build script uses Python to generate a static runtime-source snapshot; this is
+a developer/CI build requirement. Supported prebuilt native callbacks do not
+start Python. Source receipts include the build generator and runtime inputs;
+see the [pretool contract and measurements](../../docs/runtime-performance/native-pretool.md).
+
 Call `scripts/moru-checkout-identity` with requests on stdin. It directly execs
 the local native binary when present; Python initialization is absent on that
 path. When the binary is missing it execs `scripts/checkout_identity.py`, which

@@ -10,8 +10,11 @@ type: ai-generated
 
 Reduce observable latency and resource use at real Moru entrypoints while
 preserving their behavior. The goal is useful performance, not a language
-rewrite count. Try simpler local import/process/algorithm improvements before
-adding infrastructure. No daemon, runtime model call, paid service or Locate
+rewrite count. Installed runtime execution should converge on Rust, ordered by
+callback frequency and measured cost. Python remains a reference and temporary
+compatibility path during migration; developer tests and tooling may retain it.
+Algorithm improvements remain useful, but do not count as Rust conversions.
+No daemon, runtime model call, paid service or Locate
 dependency is introduced by this programme.
 
 Baseline is local-main revision `527097ec`. Develop and review on the dedicated
@@ -51,6 +54,9 @@ benefit. Shared implementations can serve more than one entrypoint.
   activation and live workflow improvement are distinct evidence levels.
 - Keep chained and unchained status lines in the workload. Preserve the
   existing renderer chain and its input; never overwrite another tool's slot.
+- Measure CPU and process maximum RSS alongside elapsed time for native batches.
+  Keep process-tree/concurrency limits explicit; do not multiply RSS into an
+  unmeasured product-wide saving. See the [pretool batch](native-pretool.md).
 
 ## Existing evidence
 

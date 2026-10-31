@@ -16,6 +16,8 @@ import shutil
 import subprocess
 import tempfile
 
+from support.native_source_inputs import source_inputs
+
 PROJECT = Path(__file__).resolve().parents[1]
 PACKAGE = PROJECT / "native" / "checkout-identity"
 STATE = PROJECT / ".moru" / "native"
@@ -47,7 +49,7 @@ def build() -> dict:
         _publish(source, state / "bin" / name)
     destination = state / "bin" / NAME
     version = subprocess.check_output(["rustc", "--version"], text=True).strip()
-    inputs = [PACKAGE / "Cargo.toml", PACKAGE / "Cargo.lock", *sorted((PACKAGE / "src").rglob("*.rs"))]
+    inputs = source_inputs(PROJECT)
     result = {**_artifact(destination), "rustc": version,
               "launcher": _artifact(state / "bin" / LAUNCHER_NAME),
               "source_sha256": {str(p.relative_to(PROJECT)): hashlib.sha256(p.read_bytes()).hexdigest()

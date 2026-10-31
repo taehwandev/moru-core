@@ -14,6 +14,8 @@ from pathlib import Path
 import shutil
 import tempfile
 
+from support.native_source_inputs import source_inputs
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -24,7 +26,7 @@ def artifact_plan(root: Path, launcher: Path) -> dict | None:
     state = root / ".moru" / "native"
     try:
         receipt = json.loads((state / "build.json").read_text())
-        files = [package / "Cargo.toml", package / "Cargo.lock", *sorted((package / "src").rglob("*.rs"))]
+        files = source_inputs(root)
         expected = {str(p.relative_to(root)) for p in files}
         hashes = receipt["source_sha256"]
         if set(hashes) != expected or any(_digest(root / p) != hashes[p] for p in expected):
@@ -34,7 +36,7 @@ def artifact_plan(root: Path, launcher: Path) -> dict | None:
         if not source.is_file() or not os.access(source, os.X_OK) or _digest(source) != digest:
             return None
         return {"source": source, "destination": launcher.parent / "moru-hook-native", "sha256": digest}
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError, ImportError, SyntaxError, AttributeError):
         return None
 
 
@@ -78,7 +80,7 @@ case "${MORU_LAUNCHER_BACKEND:-auto}" in
     auto|rust)
         if [ "${MORU_LAUNCHER_BACKEND:-auto}" = auto ]; then
             case "${1-}" in
-                checkout-identity|claude-statusline|agy-statusline) ;;
+                checkout-identity|claude-statusline|agy-statusline|claude-pretool-gate|codex-pretool-gate) ;;
                 *) exec python3 "$0" "$@" ;;
             esac
         fi

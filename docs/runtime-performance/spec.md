@@ -127,3 +127,20 @@ UTF-8 rendering meets the local target; fallback and wrapper costs remain
 visible. This does not authorize a main merge, global activation or release.
 Before rollout, assess actual call/fallback frequency and supported hosts;
 operators can retain the existing Python launcher or select Python rollback.
+
+## Native plain-query pretool protocol
+
+Both `claude-pretool-gate` and `codex-pretool-gate` use the shared native launcher
+for a closed ASCII Bash-query grammar. A JSON object with an explicit valid cwd,
+ordinary environment and matching source snapshot can silently defer without
+starting Python. The provider's permission decision remains authoritative.
+All other shapes replay received stdin to the unchanged Python decision owner.
+Codex metadata must pass its normalization failure-boundary validator.
+
+Build input receipts include the generator, build script and runtime source
+snapshot. Source/root/environment changes and opaque import shadows select
+compatibility. There is no cross-call authorization cache or new hook slot.
+The [result and reproduction](native-pretool.md) separate CPU/wall and process
+maximum RSS from whole-agent measurements, disclose fallback overhead, and
+record actual no-Python/Git generated-entrypoint verification. This protocol is
+a partial migration; complex and write decisions still require Python.

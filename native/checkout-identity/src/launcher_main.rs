@@ -7,6 +7,10 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod launcher_backend;
+mod pretool_guard;
+mod pretool_process;
+mod pretool_query;
+mod pretool_transcript;
 mod statusline;
 mod statusline_chain;
 mod statusline_process;
@@ -71,6 +75,13 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args
+        .first()
+        .is_some_and(|a| a == "claude-pretool-gate" || a == "codex-pretool-gate")
+    {
+        finish(pretool_process::PretoolProcess::run(&launcher, &args));
+    }
 
     if args
         .first()

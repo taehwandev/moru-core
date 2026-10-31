@@ -36,18 +36,21 @@ reach a count. A unit can require several small commits. Internal helper or
 policy splits do not silently increase this inventory; update its scope and
 acceptance explicitly. Tests check complete, unique entry-owner coverage.
 
+The product target is convergence of ordinary installed execution on Rust,
+starting with frequent callbacks. Python remains transitional compatibility and
+verification support; developer tools need not be rewritten to reach a quota.
+
 ## Coverage and state
 
 The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
-the remaining legacy commands. The performance branch adds the two statusline
-entrypoints through one shared native renderer; the other 26 processors retain
-Python. This branch result is not a claim of main integration or global activation.
-Ten primary boundaries now have measured changes: four native boundaries
-(including the partial launcher) and six Python optimizations (entry, discovery,
-status, next, mailbox CLI and prompt mailbox delivery). That is 10/53 current
-inventory coverage, or 10/30 primary coverage, not effort-weighted completion.
-The remaining 43 are retained candidates, not mandatory ports. The earlier
+the remaining legacy commands. Two statusline entrypoints share a native
+renderer. Twenty-six processors still have Python branches, including two
+partially native pretool callbacks. Twelve primary boundaries now have measured
+changes: six involving native work (including the partial launcher and pretool
+callbacks) and six Python optimizations (entry, discovery, status, next, mailbox
+CLI and prompt delivery). That is 12/53 inventory coverage, or 12/30 primary
+coverage, not effort-weighted completion. The remaining 41 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
 target for quiet prompt delivery only. Main integration and local installation
@@ -58,6 +61,8 @@ The [registered evidence lookup](runtime-performance/evidence-lookup.md) further
 optimizes the existing `next` boundary and its shared resolver. It adds no
 inventory unit or Rust conversion: generated active-next improves on large
 history/cache fixtures, while compact and custom fallback show no benefit.
+The [native pretool batch](runtime-performance/native-pretool.md) adds two partial
+Rust boundaries with CPU/wall/RSS evidence and no-Python plain-query execution.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
@@ -80,11 +85,11 @@ history/cache fixtures, while compact and custom fallback show no benefit.
 | 17 | `scripts/agent_work_cards.py` | work-cards | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
-| 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Python candidate | Permission and negative-authority regressions before latency |
+| 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |
 | 21 | `scripts/claude_statusline.py` | claude-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 22 | `scripts/claude_stop_gate.py` | claude-stop-gate | Python candidate | Repeated-call latency with context/state/delivery correctness |
 | 23 | `scripts/codex_operator_review.py` | operator-review | Python candidate | Permission and negative-authority regressions before latency |
-| 24 | `scripts/codex_pretool_gate.py` | codex-pretool-gate | Python candidate | Permission and negative-authority regressions before latency |
+| 24 | `scripts/codex_pretool_gate.py` | codex-pretool-gate | Partial native plain-query callback | Codex metadata boundary and no-Python query execution; other branches retain Python |
 | 25 | `scripts/codex_stop_gate.py` | codex-stop-gate | Python candidate | Repeated-call latency with context/state/delivery correctness |
 | 26 | `scripts/project-discover.py` | project-discover | Python enumeration optimized on performance branch | Same selection/order/bounds; measured file-heavy benefit |
 | 27 | `scripts/setup-agent-hooks.py` | setup-agent-hooks | Python candidate | Low-frequency operator work; justify a port before changing Python |

@@ -18,6 +18,7 @@ path = "src/launcher_main.rs"
 
 [dependencies]
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+sha2 = "0.10.9"
 
 [profile.release]
 strip = "symbols"

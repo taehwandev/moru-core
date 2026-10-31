@@ -36,12 +36,12 @@ def _digest(data: bytes) -> str:
 
 
 def _sources(root: Path) -> dict[str, str]:
+    from support.native_source_inputs import source_inputs
     package = root / "native/checkout-identity"
     rust = sorted((package / "src").rglob("*.rs"))
     if not rust:
         raise ValueError("native source tree is missing")
-    return {str(p.relative_to(root)): _digest(p.read_bytes())
-            for p in [package / "Cargo.toml", package / "Cargo.lock", *rust]}
+    return {str(p.relative_to(root)): _digest(p.read_bytes()) for p in source_inputs(root)}
 
 
 def _object(pairs):

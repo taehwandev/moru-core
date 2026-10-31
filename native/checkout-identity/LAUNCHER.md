@@ -10,7 +10,14 @@ The stable launcher selects an optional verified native ingress. The new
 `checkout-identity` command serves the existing NDJSON contract directly in
 Rust. Every other command, including lifecycle aliases and help, execs the
 same self-contained Python launcher body with unchanged arguments, stdin,
-working directory and environment. No policy decision moves in this stage.
+working directory and environment. No policy decision moves in that original stage.
+
+Later increments add native statusline rendering and the
+[plain-query pretool callbacks](../../docs/runtime-performance/native-pretool.md).
+Auto now selects those aliases too. Unsupported pretool inputs explicitly replay
+their buffered request to Python; this occurs before any native verdict or output.
+The stage-two measurements below remain historical, not measurements of those
+later handlers. Complex/write pretool decisions still require Python.
 
 The exact trusted launcher alias is classified as read-only for no arguments
 or --help. Unknown arguments and impostor executable paths do not inherit that
@@ -36,7 +43,7 @@ failures return nonzero. MORU_HOOK_SOFT_FAIL retains its existing exit-code
 behavior. Failure to launch the Python interpreter returns 127.
 
 The installed trampoline uses `MORU_LAUNCHER_BACKEND=auto|rust|python`.
-Auto sends only the native lookup alias through Rust, avoiding an additional
+Originally auto sent only the native lookup alias through Rust, avoiding an additional
 native exec for commands still owned by Python. Forced rust exercises the
 generic legacy forwarding path too. Unknown values fail with exit 2, missing
 forced native returns 127, and a
