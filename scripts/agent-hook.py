@@ -2061,7 +2061,10 @@ def _add_gate_arguments(parser: argparse.ArgumentParser) -> None:
     gate.add_argument("--test-directory", default="tests", help="verify: project-local unittest discovery directory")
     gate.add_argument("--test-pattern", default="test_*.py", help="verify: unittest discovery filename glob")
     gate.add_argument("--verify-timeout", type=int, default=600, help="verify: maximum test process seconds")
-    gate.add_argument("--gate-name", help="route gate name to record in the structured ledger")
+    # --name is what agents guess. --gate stays undefined on purpose (finish must not take gate
+    # evidence); `_parse_args` names the right option for it instead.
+    gate.add_argument("--gate-name", "--name", dest="gate_name",
+                      help="route gate name to record in the structured ledger")
     gate.add_argument("--status", choices=("SUCCESS", "FAIL"), default="SUCCESS")
     gate.add_argument("--source", default="manual")
     gate.add_argument("--gate-evidence", default="")
@@ -2118,6 +2121,13 @@ def _parse_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
         parser.error(
             "finish no longer accepts --gate; record gate evidence first with "
             "the gate or gate-batch hook, then run finish"
+        )
+    if argv and argv[0] == "gate" and any(
+        argument == "--gate" or argument.startswith("--gate=") for argument in argv
+    ):
+        parser.error(
+            "gate records one gate with --gate-name <gate>, for example: "
+            "gate --gate-name tests --status SUCCESS --gate-evidence \"<observed result>\""
         )
     return parser.parse_args(argv)
 
