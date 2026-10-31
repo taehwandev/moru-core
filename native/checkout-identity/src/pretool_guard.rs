@@ -1,12 +1,29 @@
 //! Same-root, exact source and ordinary environment checks for native deferral.
 use sha2::{Digest, Sha256};
-use std::{env, ffi::OsStr, fs, io::Read, path::Path};
+use std::{
+    env,
+    ffi::OsStr,
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 mod contract {
     include!(concat!(env!("OUT_DIR"), "/pretool_contract.rs"));
 }
 
-pub(crate) fn ready(launcher: &OsStr, executable: &str) -> bool {
+pub(crate) struct CallbackGuard;
+
+impl CallbackGuard {
+    pub(crate) fn root(launcher: &OsStr, executable: &str) -> Option<PathBuf> {
+        let mut selected = None;
+        validate(launcher, executable, &mut selected)
+            .then_some(selected)
+            .flatten()
+    }
+}
+
+fn validate(launcher: &OsStr, executable: &str, selected_root: &mut Option<PathBuf>) -> bool {
     if !environment_ready() {
         return false;
     }
@@ -63,9 +80,13 @@ pub(crate) fn ready(launcher: &OsStr, executable: &str) -> bool {
             return false;
         }
     }
-    contract::DIRECTORIES
+    let valid = contract::DIRECTORIES
         .iter()
-        .all(|relative| source_directory_matches(&root, relative))
+        .all(|relative| source_directory_matches(&root, relative));
+    if valid {
+        *selected_root = Some(root);
+    }
+    valid
 }
 
 fn source_directory_matches(root: &Path, relative: &str) -> bool {

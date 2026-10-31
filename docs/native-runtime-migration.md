@@ -46,10 +46,10 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
-partially native pretool callbacks. Twelve primary boundaries now have measured
-changes: six involving native work (including the partial launcher and pretool
-callbacks) and six Python optimizations (entry, discovery, status, next, mailbox
-CLI and prompt delivery). That is 12/53 inventory coverage, or 12/30 primary
+partially native pretool callbacks and quiet mailbox delivery. Twelve primary boundaries now have measured
+changes: seven involving native work (including the partial launcher, pretool
+and mailbox callbacks) and five Python optimizations (entry, discovery, status, next and mailbox
+CLI). That is 12/53 inventory coverage, or 12/30 primary
 coverage, not effort-weighted completion. The remaining 41 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -65,6 +65,8 @@ The [native pretool batch](runtime-performance/native-pretool.md) adds two parti
 Rust boundaries with CPU/wall/RSS evidence and no-Python plain-query execution.
 The [file-query extension](runtime-performance/native-pretool-files.md) expands
 those same two boundaries; it does not increase the inventory count.
+The [native quiet-mailbox extension](runtime-performance/native-mailbox.md)
+upgrades the existing prompt boundary; delivery and task effects remain Python-owned.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
@@ -81,7 +83,7 @@ those same two boundaries; it does not increase the inventory count.
 | 11 | `scripts/agent_doctor.py` | doctor | Python candidate | Low-frequency operator work; justify a port before changing Python |
 | 12 | `scripts/agent_execution_capsule.py` | execution-capsule | Python candidate | Admission, state/evidence freshness and completion safety |
 | 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
-| 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Python task imports and per-prompt identity reuse | Quiet delivery gains 26.9%; preserve all authorization/delivery checks |
+| 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Python imports deferred; shared evidence lookup optimized | Startup gain below target; active-next meets target on large history/cache fixtures; compact/custom limits retained |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 17 | `scripts/agent_work_cards.py` | work-cards | Python candidate | Behavior, failure/recovery, measured benefit and rollback |

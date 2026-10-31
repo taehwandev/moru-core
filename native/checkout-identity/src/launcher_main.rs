@@ -6,7 +6,10 @@ use std::process::{exit, Command};
 
 use moru_checkout_identity::CheckoutIdentity;
 
+mod callback_replay;
 mod launcher_backend;
+mod mailbox_process;
+mod mailbox_state;
 mod pretool_files;
 mod pretool_guard;
 mod pretool_process;
@@ -76,6 +79,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "mailbox-hook") {
+        finish(mailbox_process::MailboxProcess::run(&launcher, &args));
+    }
 
     if args
         .first()

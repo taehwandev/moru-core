@@ -34,7 +34,8 @@ def measure(output, count, budget, workloads="plain"):
               "contract_sources": len(sources), "contract_directories": len(directories),
               "utility_sha256": {p: digest(PROJECT / p) for p in (
                   "tests/benchmark_native_pretool.py", "tests/native_pretool_support.py",
-                  "tests/discovery_process_measure.py", "tests/benchmark_project_discovery.py")},
+                  "tests/discovery_process_measure.py", "tests/benchmark_project_discovery.py",
+                  "tests/native_mailbox_support.py") if (PROJECT / p).exists()},
               "cases": {}}
     deadline = time.monotonic() + budget
     rng = random.Random(61034)
@@ -64,11 +65,21 @@ def measure(output, count, budget, workloads="plain"):
                     ("codex_cat", "codex-pretool-gate", request(project, "cat notes.txt")),
                     ("quoted_fallback", "claude-pretool-gate", request(project, "cat 'notes.txt'")),
                 ]
+            if workloads == "mailbox":
+                from native_mailbox_support import warm
+                for runtime in ("claude", "codex"):
+                    warm(launcher, base, project, runtime)
+                payload = {"cwd": str(project), "session_id": "synthetic-mailbox"}
+                cases = [(runtime + "_" + action,
+                          ["mailbox-hook", action, "--runtime", runtime], payload)
+                         for runtime in ("claude", "codex") for action in ("deliver", "ack")]
+                cases.append(("mailbox_reordered_fallback",
+                              ["mailbox-hook", "--runtime", "claude", "deliver"], payload))
             for name, alias, payload in cases:
                 values = {v: {k: [] for k in ("wall_ms", "cpu_ms", "user_ms", "system_ms", "peak_rss_bytes")}
                           for v in ("python", "auto")}
                 row = {"samples": values, "complete": False,
-                       "rss_comparable": name != "quoted_fallback"}
+                       "rss_comparable": not name.endswith("fallback")}
                 report["cases"][name] = row
                 orders = [["python", "auto"], ["auto", "python"]] * (count // 2)
                 rng.shuffle(orders)
@@ -84,7 +95,8 @@ def measure(output, count, budget, workloads="plain"):
                             env.pop("PYTHONDONTWRITEBYTECODE")
                         rss_file = base / "time-metrics.txt"
                         done, metrics = run_measured(
-                            ["/usr/bin/time", "-l", "-o", str(rss_file), str(launcher), alias],
+                            ["/usr/bin/time", "-l", "-o", str(rss_file), str(launcher),
+                             *([alias] if isinstance(alias, str) else alias)],
                             env=env, cwd=project, input_bytes=encode(payload), timeout=min(10, left))
                         result = done.returncode, done.stdout, done.stderr
                         expected = result if expected is None else expected
@@ -123,7 +135,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=24)
     parser.add_argument("--budget-seconds", type=float, default=90)
-    parser.add_argument("--workloads", choices=("plain", "files"), default="plain")
+    parser.add_argument("--workloads", choices=("plain", "files", "mailbox"), default="plain")
     parser.add_argument("--output", type=Path, default=PROJECT / ".moru/performance/native-pretool.json")
     args = parser.parse_args()
     if args.samples < 24 or args.samples % 2:

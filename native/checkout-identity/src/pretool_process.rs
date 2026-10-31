@@ -1,12 +1,11 @@
 //! Native plain-query callback; all other decisions remain in the Python owner.
+use crate::callback_replay::CallbackReplay;
 use serde_json::Value;
 use std::{
     env,
     ffi::OsString,
-    io::{self, Read, Write},
-    os::unix::process::ExitStatusExt,
+    io::{self, Read},
     path::Path,
-    process::{Command, Stdio},
 };
 
 pub(crate) struct PretoolProcess;
@@ -18,12 +17,12 @@ impl PretoolProcess {
         }
         let mut raw = Vec::new();
         if io::stdin().read_to_end(&mut raw).is_err() {
-            return Self::python(launcher, args, &raw);
+            return CallbackReplay::python(launcher, args, &raw);
         }
         if Self::plain(launcher, args, &raw) {
             0
         } else {
-            Self::python(launcher, args, &raw)
+            CallbackReplay::python(launcher, args, &raw)
         }
     }
 
@@ -64,31 +63,7 @@ impl PretoolProcess {
         {
             return false;
         }
-        crate::pretool_guard::ready(launcher, executable)
+        crate::pretool_guard::CallbackGuard::root(launcher, executable).is_some()
             && (!codex || crate::pretool_transcript::safe(&payload, file_command))
-    }
-
-    fn python(launcher: &OsString, args: &[OsString], raw: &[u8]) -> i32 {
-        let child = Command::new("python3")
-            .arg(launcher)
-            .args(args)
-            .stdin(Stdio::piped())
-            .spawn();
-        let mut child = match child {
-            Ok(child) => child,
-            Err(error) => {
-                eprintln!("moru-native-launcher: Python compatibility path unavailable: {error}");
-                return 127;
-            }
-        };
-        if let Some(mut pipe) = child.stdin.take() {
-            let _ = pipe.write_all(raw);
-        }
-        match child.wait() {
-            Ok(status) => status
-                .code()
-                .unwrap_or_else(|| 128 + status.signal().unwrap_or(1)),
-            Err(_) => 1,
-        }
     }
 }

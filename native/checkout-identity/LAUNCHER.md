@@ -19,6 +19,12 @@ their buffered request to Python; this occurs before any native verdict or outpu
 The stage-two measurements below remain historical, not measurements of those
 later handlers. Complex/write pretool decisions still require Python.
 
+The [quiet mailbox increment](../../docs/runtime-performance/native-mailbox.md)
+adds repeated `mailbox-hook deliver|ack --runtime claude|codex` callbacks to auto
+selection. Only proven quiet state returns natively; all message, guidance and
+task effects replay the original request once to Python. Existing locks are
+acquired without creating files; a missing or busy lock selects compatibility.
+
 The exact trusted launcher alias is classified as read-only for no arguments
 or --help. Unknown arguments and impostor executable paths do not inherit that
 classification. Shell output targets remain visible to existing raw-path

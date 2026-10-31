@@ -17,6 +17,7 @@ name = "moru-native-launcher"
 path = "src/launcher_main.rs"
 
 [dependencies]
+libc = "=0.2.183"
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 sha2 = "0.10.9"
 

@@ -13,6 +13,18 @@ use std::io::{self, BufRead, Write};
 pub struct CheckoutIdentity;
 
 impl CheckoutIdentity {
+    /// Exact Python repository-key identity, without metadata shortcuts/cache.
+    pub fn repository_key(root: &str) -> Option<String> {
+        use sha2::{Digest, Sha256};
+        let output = gitrun::run(
+            root,
+            &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        )
+        .ok()?;
+        let identity = output.as_deref().map(text::Text::py_strip).unwrap_or(root);
+        Some(format!("{:x}", Sha256::digest(identity.as_bytes()))[..24].to_owned())
+    }
+
     /// Resolve `(common_dir, branch)` for the checkout at `root`.
     pub fn lookup(root: &str) -> Result<(Option<String>, String), ()> {
         identity::identity(root)
