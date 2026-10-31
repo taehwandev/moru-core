@@ -1177,6 +1177,11 @@ def _declared_read_indices(tokens: list[str], offset: int, cwd: Path | None = No
     # safe environment prefix as simple_command_kind. Never unwrap executor vars.
     offset += len(tokens) - len(command)
     tokens = command
+    from claude_archive_paths import archive_operands
+
+    archive = archive_operands(tokens)
+    if archive is not None:
+        return [offset + index for index in archive[0]]
     live_control_reads = _live_device_control_read_indices(tokens, offset)
     if live_control_reads is not None:
         return live_control_reads

@@ -946,7 +946,7 @@ def _derive_finish_gates(args: argparse.Namespace) -> list[str]:
     ) if line]
 
 
-def finish_hook(args: argparse.Namespace) -> int:
+def _finish_preconditions(args: argparse.Namespace) -> int | None:
     transferred_cancellation, cancellation_failure = _transferred_cancellation(args)
     if cancellation_failure is not None:
         return finish_with_result(
@@ -978,6 +978,18 @@ def finish_hook(args: argparse.Namespace) -> int:
 
     if (replaced := _replaced_run_finish(args)) is not None:
         return replaced
+    from agent_work_completion import work_completion_failures
+
+    if pending := work_completion_failures(args.project, preflight_evidence_path(args)):
+        print_status("finish", False, ["requested delivery is still pending", *pending,
+                                      "Keep this run active; resolve remaining work or report a blocked partial result."])
+        return 3
+    return None
+
+
+def finish_hook(args: argparse.Namespace) -> int:
+    if (pending := _finish_preconditions(args)) is not None:
+        return pending
     command = [
         "--project",
         str(args.project),

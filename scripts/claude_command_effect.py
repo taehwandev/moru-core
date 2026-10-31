@@ -233,6 +233,11 @@ def command_effect(tokens: list[str], simple: bool, legacy_kind: str) -> tuple[s
         return "unknown", GH_PR_MERGE_REASON
     if adb_install(tokens):
         return "mutating", "Android application installation"
+    if executable == "ditto":
+        from claude_archive_paths import archive_operands
+
+        if archive_operands(tokens) is not None:
+            return "mutating", "local backup destination write"
     if executable in {"rm", "mv", "cp", "touch", "mkdir", "rmdir", "tee", "install", "chmod", "chown",
                       "ln", "mktemp", "tar"}:
         return "mutating", "filesystem-changing command"

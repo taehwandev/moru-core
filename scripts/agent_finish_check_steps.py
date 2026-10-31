@@ -106,15 +106,20 @@ def resolve_paths(args: argparse.Namespace) -> tuple[Path, Path, Path, Path]:
     return project, rules, evidence_path, output_path
 
 
-def read_preflight(evidence_path: Path, failures: list[str]) -> dict[str, Any]:
+def read_preflight(evidence_path: Path, failures: list[str], *, project: Path | None = None) -> dict[str, Any]:
     if not evidence_path.exists():
         failures.append(f"missing preflight evidence at {evidence_path}")
         return {}
     try:
-        return json.loads(evidence_path.read_text(encoding="utf-8"))
+        preflight = json.loads(evidence_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
         failures.append(f"preflight evidence is not valid JSON: {error}")
         return {}
+    if project is not None:
+        from agent_work_completion import work_completion_failures
+
+        failures.extend(work_completion_failures(project, evidence_path))
+    return preflight
 
 
 def project_memory_closeout_failures(route: dict[str, Any], gate_evidence: dict[str, str], project: Path) -> list[str]:

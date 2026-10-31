@@ -89,7 +89,7 @@ def validate_completion_binding(project: Path, identity: dict, binding: dict) ->
         raise ValueError("task completion request binding has changed")
 
 
-def stop_ready(payload: dict, identity: dict, project: Path) -> bool:
+def stop_ready(payload: dict, identity: dict, project: Path, *, independent_work: bool = False) -> bool:
     if payload.get("stop_hook_active") or any(payload.get(key) for key in
             ("user_interrupted", "interrupted", "approval_pending", "waiting_for_approval")):
         return False
@@ -100,7 +100,9 @@ def stop_ready(payload: dict, identity: dict, project: Path) -> bool:
         return False
     from agent_continuation_store import continuation_path, read_continuation_packet
     packet = read_continuation_packet(project, continuation_path(project, evidence.parent.name)).get("packet") or {}
-    if (packet.get("phase") == "blocked" or (packet.get("work") or {}).get("blockers")
+    work = packet.get("work") or {}
+    partial = independent_work and packet.get("phase") in {"scoped", "acting", "verifying", "reviewing"} and work.get("remaining_work")
+    if (packet.get("phase") == "blocked" or (work.get("blockers") and not partial)
             or (packet.get("checkpoint") or {}).get("mutation_pending") is not None):
         return False
     directory = global_state_dir() / "codex-operator-review"

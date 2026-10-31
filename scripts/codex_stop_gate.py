@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Versioned Codex Stop handling for an exact Moru runtime session.
 
-Version 2 retains unfinished work without forcing another turn or claiming
-completion by default. Explicitly enrolled mailbox tasks have a separate,
-bounded continuation. Legacy runs keep their closeout request and bounded retry.
+Version 2 retains unknown/blocked work without claiming completion. Explicitly
+recorded executable work in an admitted scope gets one bounded continuation;
+absence of recorded activity alone is never evidence to continue. Enrolled
+mailbox tasks and legacy closeout retain their existing bounded behavior.
 
 The gate deliberately does not inspect prompts, transcripts, diffs, or the last
 assistant message. Retrospective and reusable-skill decisions remain owned by
@@ -109,6 +110,10 @@ def decide(payload: dict) -> int:
     from agent_mailbox_task import continuation_reason
     reason = continuation_reason(payload, "codex")
     if reason:
+        return continue_closeout(reason)
+    from agent_stop_continuation import continuation_reason as work_continuation
+
+    if reason := work_continuation(payload, "codex", root, evidence):
         return continue_closeout(reason)
     if record_turn_boundary is not None and record_turn_boundary(root, "codex", session_id, evidence):
         return allow()

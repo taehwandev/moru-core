@@ -524,7 +524,7 @@ def main() -> int:
         return 2
     project, rules, evidence_path, output_path = resolve_paths(args)
     failures: list[str] = []
-    preflight = read_preflight(evidence_path, failures)
+    preflight = read_preflight(evidence_path, failures, project=project)
     route = preflight.get("route") or {}
     delegation_plan = read_delegation_plan(project)
     (

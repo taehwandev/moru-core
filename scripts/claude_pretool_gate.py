@@ -2600,6 +2600,12 @@ def _single_write_target(tokens: list[str]) -> "Path | None":
     project file was touched; this lets the destination decide instead.
     """
 
+    from claude_archive_paths import archive_operands
+
+    archive = archive_operands(tokens)
+    if archive is not None:
+        target = Path(tokens[archive[1]]).expanduser()
+        return target if target.is_absolute() else None
     if len(tokens) == 2 and tokens[0] == "touch":
         operands = tokens[1:]
     elif tokens[:1] == ["mkdir"] and len([t for t in tokens[1:] if t != "-p"]) == 1:

@@ -139,8 +139,17 @@ adapter does not imply native pre-tool enforcement in other runtimes.
 Compatibility `start --command analysis` without existing evidence validates its
 read-only intake and returns stateless guidance. Explicit legacy evidence retains
 its original lifecycle. Newly routed work carries lifecycle version 2: the Stop
-boundary retains unfinished work as `blocked` or `interrupted` without demanding
-another model turn. A run that records no action is not evidence the work was
+boundary retains unknown or blocked work as `blocked` or `interrupted` without
+demanding another model turn. A bound writable run with explicitly recorded
+executable `remaining_work` may receive one continuation per turn. User stops,
+pending approvals, global waits and unresolved operations prevent it. A blocker
+on one item does not erase separately recorded executable work. Finish rejects
+recorded remaining outcomes or blockers even when every route gate passed.
+An admitted writable run carrying only the runtime's default workflow label
+also requires one scope-reconciliation pass; a pending finish keeps that run
+active rather than recording a failed check or a completion receipt.
+This checks declared scope, not the semantic truth of an unrecorded requirement.
+A run that records no action is not evidence the work was
 skipped: the agent may be waiting on a question or declined approval, or may have
 acted without recording it, so Stop never forces a resume on that basis. These
 outcomes are resumable, never completion, verification, or commit readiness.

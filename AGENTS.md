@@ -69,6 +69,13 @@ For tracked work use the installed absolute launcher, once:
    before final report, commit, release or handoff; it validates freshness.
    Direct route/preflight/finish-check scripts are lower-level diagnostics.
 
+For multi-outcome work, record the full bounded scope and executable
+`remaining_work` in the existing continuation checkpoint before mutations.
+Keep unresolved blocked outcomes in `blockers`; use phase `blocked` when a
+global wait prevents further work. Finish rejects recorded unfinished delivery.
+The runtime's default workflow label does not attest reconciliation of the
+requested scope; record the bounded objective or acceptance criteria explicitly.
+
 One owner and <=4 files: use `small-change` per
 `common/skills/agent-operating-skill/references/small-change.md`.
 For app rebuild/install/restart verification without tracked edits, select the `test` verification route.

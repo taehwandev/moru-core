@@ -30,7 +30,7 @@ from test_agent_continuation_checkpoint import initialize_git
 
 
 class Run:
-    def __init__(self, directory: str, runtime: str = 'codex', version=2, packet=False):
+    def __init__(self, directory: str, runtime: str = 'codex', version=2, packet=False, writable=False):
         self.project = Path(directory) / 'project'
         self.project.mkdir()
         (self.project / 'AGENTS.md').write_text('uses moru\n')
@@ -40,6 +40,10 @@ class Run:
         self.route = {'command': 'task', 'gates': ['scope', 'verify'], 'required_docs': []}
         if version is not None:
             self.route['lifecycle_version'] = version
+        if writable:
+            self.route['request_classification'] = {'intent_envelope': {
+                'schema_valid': True, 'envelope_present': True,
+                'effective_effect': 'local_write', 'failures': []}}
         self.intake = {'request': 'bounded local work', 'request_classified': False}
         self.evidence = self.project / '.moru' / 'runs' / uuid.uuid4().hex / 'preflight.json'
         self.evidence.parent.mkdir(parents=True)

@@ -141,11 +141,13 @@ def work_checkpoint_advice(args: argparse.Namespace) -> list[str]:
     if not getattr(args, "verbose", False):
         return [
             WORK_CHECKPOINT_LEAD,
+            "For multi-outcome work, record full scope and executable remaining_work before mutations; finish cannot close recorded unfinished delivery.",
             f"{WORK_CHECKPOINT_COMMAND_LEAD}\n{command}",
             "  work fields, limits and enums: `checkpoint --work-shape`",
         ]
     return [
         WORK_CHECKPOINT_LEAD,
+        "For multi-outcome work, record full scope and executable remaining_work before mutations; finish cannot close recorded unfinished delivery.",
         f"{WORK_CHECKPOINT_COMMAND_LEAD}\n{command}",
         *_work_shape_lines(),
         WORK_CHECKPOINT_CLOSING,

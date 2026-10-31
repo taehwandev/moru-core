@@ -112,10 +112,10 @@ def start(
     )
 
 
-def turn_boundary(project: Path, session: str = SESSION) -> subprocess.CompletedProcess:
+def turn_boundary(project: Path, session: str = SESSION, *, continued: bool = False) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(STOP_GATE)],
-        input=json.dumps({"cwd": str(project), "session_id": session}),
+        input=json.dumps({"cwd": str(project), "session_id": session, "stop_hook_active": continued}),
         capture_output=True,
         text=True,
         env=environment(session),
@@ -337,7 +337,10 @@ class NestedWorktreeContinuityTests(unittest.TestCase):
 
         (worktree / "src").mkdir(exist_ok=True)
         (worktree / "src" / "module.py").write_text("value = 2\n", encoding="utf-8")
-        self.assertEqual(0, turn_boundary(worktree).returncode)
+        first_stop = turn_boundary(worktree)
+        self.assertEqual("block", json.loads(first_stop.stdout)["decision"])
+        self.assertEqual(["running"], states(worktree))
+        self.assertEqual(0, turn_boundary(worktree, continued=True).returncode)
         self.assertEqual(["interrupted"], states(worktree))
         # Another session lands an unrelated commit on the rules checkout.
         (self.rules / "NOTES.md").write_text("landed elsewhere\n", encoding="utf-8")
@@ -403,7 +406,10 @@ class StrandedRunTests(unittest.TestCase):
             checkout = PlainCheckout(directory)
             started = start(checkout.project, ROOT, "아무 변경도 필요없었어")
             self.assertEqual(0, started.returncode, started.stdout)
-            self.assertEqual(0, turn_boundary(checkout.project).returncode)
+            first_stop = turn_boundary(checkout.project)
+            self.assertEqual("block", json.loads(first_stop.stdout)["decision"])
+            self.assertEqual(["running"], states(checkout.project))
+            self.assertEqual(0, turn_boundary(checkout.project, continued=True).returncode)
             self.assertEqual(["interrupted"], states(checkout.project))
 
             settled = hook(

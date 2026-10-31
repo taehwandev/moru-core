@@ -330,6 +330,10 @@ def decide(payload: dict) -> int:
     if reason:
         return block(reason)
     for root in session_projects(session_id, find_project_root(cwd)):
+        from agent_stop_continuation import continuation_reason as work_continuation
+
+        if reason := work_continuation(payload, "claude", root):
+            return block(reason)
         from agent_run_interruption import record_turn_boundary
         if record_turn_boundary(root, "claude", session_id):
             continue
