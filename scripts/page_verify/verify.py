@@ -371,6 +371,22 @@ def feedback_text(results: list[dict]) -> str:
             "say in your final report what you changed and what you could not verify.")
 
 
+def remaining_text(results: list[dict]) -> str:
+    """The message for the last check: failures that remain are to be reported, not hidden.
+
+    No further fix is asked for. The aim is an honest final report, so the reader is not told the
+    page is complete when the independent check still found it failing.
+    """
+
+    failed = [r for r in results if r["verdict"] == "fail"]
+    if not failed:
+        return ""
+    lines = [f"- {r['id']}: {r['claim']} Observed: {r['reason']}" for r in failed]
+    return ("The independent check run after your fix still reports these items failing:\n" + "\n".join(lines) +
+            "\nDo not call the page complete. State these plainly in your final report as not fixed, with what you "
+            "tried and what you could not verify.")
+
+
 def observe(url: str, out: Path, viewport: str, seconds: int) -> None:
     import signal
 

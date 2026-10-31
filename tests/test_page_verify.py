@@ -127,6 +127,16 @@ class JudgeTests(unittest.TestCase):
         self.assertNotIn("C holds", text)
         self.assertEqual("", verify.feedback_text([{**results[2]}, {**results[1]}]))
 
+    def test_remaining_text_asks_for_an_honest_report_not_another_fix(self):
+        results = [{"id": "a", "claim": "A holds.", "verdict": "fail", "reason": "t6s shows otherwise"},
+                   {"id": "b", "claim": "B holds.", "verdict": "pass", "reason": "ok"}]
+        text = verify.remaining_text(results)
+        self.assertIn("still reports these items failing", text)
+        self.assertIn("- a: A holds. Observed: t6s shows otherwise", text)
+        self.assertIn("Do not call the page complete", text)
+        self.assertNotIn("B holds", text)
+        self.assertEqual("", verify.remaining_text([results[1]]))
+
     def test_report_table_lists_each_verdict(self):
         table = verify.render([{"id": "a", "verdict": "fail", "reason": "r"}])
         self.assertIn("| a | fail | r |", table)

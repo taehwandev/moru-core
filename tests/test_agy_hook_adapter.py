@@ -183,6 +183,8 @@ class InSessionVerificationTests(unittest.TestCase):
         fake.verify_project = verify_project
         fake.feedback_text = lambda r: ("FIX: " + ",".join(x["id"] for x in r if x["verdict"] == "fail")
                                         if any(x["verdict"] == "fail" for x in r) else "")
+        fake.remaining_text = lambda r: ("STILL: " + ",".join(x["id"] for x in r if x["verdict"] == "fail")
+                                         if any(x["verdict"] == "fail" for x in r) else "")
         with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=""), \
                 patch.object(adapter, "routed_through_3d", return_value=True), \
@@ -197,21 +199,29 @@ class InSessionVerificationTests(unittest.TestCase):
         self.assertEqual({"decision": "continue", "reason": "FIX: a"}, verdict)
         self.assertEqual([("Build a thing", None)], calls)
 
-    def test_one_fix_round_then_a_final_check_then_nothing(self):
+    def test_one_fix_round_then_a_final_check_that_reports_what_remains_then_nothing(self):
         fail = [{"id": "a", "verdict": "fail"}]
         verdict, calls, _ = self.run_stop(fail, rounds_before=1, fingerprint=["a", "b"])
-        self.assertEqual({}, verdict, "the final allowed check asks for no further fix")
+        self.assertEqual({"decision": "continue", "reason": "STILL: a"}, verdict,
+                         "the last allowed check asks for a report of what remains, not another fix")
         self.assertEqual([("Build a thing", None), ("Build a thing", [{"id": "a"}])], calls,
                          "the re-check reuses the derived checklist")
         verdict, calls, _ = self.run_stop(fail, rounds_before=2, fingerprint=["a", "b", "c"])
-        self.assertEqual({}, verdict)
+        self.assertEqual({}, verdict, "the remaining failures were reported once; nothing more is asked")
         self.assertEqual(2, len(calls), "no verification beyond the cap")
 
-    def test_an_unchanged_project_is_not_verified_again(self):
+    def test_a_passing_final_check_says_nothing(self):
+        verdict, calls, _ = self.run_stop([{"id": "a", "verdict": "pass"}], rounds_before=1, fingerprint=["a", "b"])
+        self.assertEqual({}, verdict)
+
+    def test_an_unchanged_project_is_not_verified_again_but_its_failures_are_reported_once(self):
         fail = [{"id": "a", "verdict": "fail"}]
         verdict, calls, _ = self.run_stop(fail, rounds_before=1, fingerprint=["same", "same"])
-        self.assertEqual({}, verdict)
+        self.assertEqual({"decision": "continue", "reason": "STILL: a"}, verdict,
+                         "nothing was fixed, so the failures held from the last check are reported")
         self.assertEqual(1, len(calls), "the second stop found the same fingerprint and skipped the check")
+        verdict, calls, _ = self.run_stop(fail, rounds_before=2, fingerprint=["same", "same", "same"])
+        self.assertEqual({}, verdict, "reported once, then the agent may stop")
 
     def test_all_pass_lets_the_agent_stop_without_the_reminder(self):
         verdict, calls, _ = self.run_stop([{"id": "a", "verdict": "pass"}])

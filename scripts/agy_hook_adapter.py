@@ -244,16 +244,27 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
             return True, {}
         fingerprint = verify.project_fingerprint(project)
         if rounds and state.get("fingerprint") == fingerprint:
-            return True, {}  # nothing changed since the last check, so another one would only repeat it
+            # Nothing changed since the last check, so another one would only repeat it. Failures it found
+            # and nobody fixed are still reported, once.
+            held = verify.remaining_text(state.get("results") or [])
+            if held and not state.get("reported"):
+                state["reported"] = True
+                state_path.write_text(json.dumps(state), encoding="utf-8")
+                return True, {"decision": "continue", "reason": held}
+            return True, {}
         request = str(state.get("request") or payload.get("lastUserInput") or "")
         out = MARKER_DIR / "verify" / (state_path.stem.split(".")[0]) / f"round{rounds}"
         items, results = verify.verify_project(project, request, out, checklist=state.get("checklist"))
         MARKER_DIR.mkdir(parents=True, exist_ok=True)
+        # Before the last allowed check the failures go back for a fix; after it they are reported, once.
+        last_check = rounds >= VERIFY_MAX_ROUNDS
+        feedback = verify.remaining_text(results) if last_check else verify.feedback_text(results)
+        kept = [{k: r.get(k) for k in ("id", "claim", "verdict", "reason")} for r in results]
         state_path.write_text(json.dumps({"input": digest, "rounds": rounds + 1, "request": request, "checklist": items,
-                                          "fingerprint": fingerprint,
+                                          "fingerprint": fingerprint, "results": kept,
+                                          "reported": bool(feedback and last_check),
                                           "last": [{"id": r["id"], "verdict": r["verdict"]} for r in results]}),
                               encoding="utf-8")
-        feedback = verify.feedback_text(results) if rounds < VERIFY_MAX_ROUNDS else ""
         return True, ({"decision": "continue", "reason": feedback} if feedback else {})
     except Exception as error:  # noqa: BLE001 - verification is advisory and must never trap a stop
         try:  # a silent fail-open hides why a fix loop ended, so leave the reason beside the state

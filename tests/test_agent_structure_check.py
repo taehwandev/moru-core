@@ -17,8 +17,11 @@ class StructurePreviewTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.project = Path(self.temp.name)
         self.git("init")
+        # A baseline with real content: a commit with an empty tree is no baseline (initial full build).
+        (self.project / "README.md").write_text("baseline\n", encoding="utf-8")
+        self.git("add", "README.md")
         self.git("-c", "user.name=Test", "-c", "user.email=test@example.invalid",
-                 "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "baseline")
+                 "-c", "commit.gpgsign=false", "commit", "-m", "baseline")
         (self.project / "src").mkdir()
 
     def git(self, *args):
