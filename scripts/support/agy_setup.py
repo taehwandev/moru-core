@@ -104,7 +104,7 @@ def configure_agy(
         })
 
     hooks_path = Path.home() / ".gemini" / "config" / "hooks.json"
-    status = "ok" if hooks_path.exists() else "ok (no hooks file; permissions use config.json/settings.json)"
+    status = _merge_agy_hooks(hooks_path, _agy_hooks_spec(launcher_path), dry_run)
     results.append({
         "tool": "agy",
         "hook": "config.hooks",
@@ -112,6 +112,41 @@ def configure_agy(
         "path": str(hooks_path),
     })
     return results
+
+
+_HOOKS_NAME = "moru"
+
+
+def _agy_hooks_spec(launcher_path: Path) -> dict:
+    """The named Antigravity hook that routes its lifecycle events through Moru."""
+
+    def command(event: str) -> str:
+        return f"MORU_HOOK_SOFT_FAIL=1 {quote(str(launcher_path))} agy-hook {event}"
+
+    return {
+        "PreInvocation": [{"type": "command", "command": command("pre-invocation"), "timeout": 20}],
+        "PreToolUse": [{
+            "matcher": "run_command|write_file|edit_file",
+            "hooks": [{"type": "command", "command": command("pre-tool"), "timeout": 25}],
+        }],
+        "Stop": [{"type": "command", "command": command("stop"), "timeout": 25}],
+    }
+
+
+def _merge_agy_hooks(target: Path, spec: dict, dry_run: bool) -> str:
+    """Install the Moru hook by name and leave every other named hook untouched."""
+
+    config = read_json(target)
+    if not isinstance(config, dict):
+        config = {}
+    current = config.get(_HOOKS_NAME)
+    if current == spec:
+        return "ok"
+    if dry_run:
+        return "would_update" if current is not None else "missing"
+    config[_HOOKS_NAME] = spec
+    write_json(target, config)
+    return "installed" if current is None else "updated"
 
 
 def _merge_agy_statusline(target: Path, command: str, dry_run: bool) -> str:

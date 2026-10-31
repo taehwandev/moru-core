@@ -1,0 +1,126 @@
+from __future__ import annotations
+
+import json
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import agy_hook_adapter as adapter
+from support.agy_setup import _agy_hooks_spec, _merge_agy_hooks
+
+
+def gate_output(decision: str, reason: str) -> str:
+    return json.dumps({"hookSpecificOutput": {"permissionDecision": decision, "permissionDecisionReason": reason}})
+
+
+class PreToolTranslationTests(unittest.TestCase):
+    def call(self, name: str, args: dict) -> dict:
+        return {"conversationId": "c1", "workspacePaths": ["/w"], "toolCall": {"name": name, "args": args}}
+
+    def test_tools_the_gate_does_not_govern_are_allowed_without_running_it(self):
+        with patch.object(adapter, "run_script", side_effect=AssertionError("gate must not run")):
+            self.assertEqual({"decision": "allow"}, adapter.pre_tool(self.call("read_file", {"Path": "x"})))
+
+    def test_commands_and_edits_reach_the_gate_in_claude_shape(self):
+        seen = []
+
+        def fake(name, args, stdin, cwd, env=None):
+            seen.append((name, stdin, env))
+            return ""
+
+        with patch.object(adapter, "run_script", fake):
+            adapter.pre_tool(self.call("run_command", {"CommandLine": "ls"}))
+            adapter.pre_tool(self.call("write_file", {"Path": "/w/a.txt"}))
+        self.assertEqual(("Bash", {"command": "ls"}), (seen[0][1]["tool_name"], seen[0][1]["tool_input"]))
+        self.assertEqual(("Write", {"file_path": "/w/a.txt"}), (seen[1][1]["tool_name"], seen[1][1]["tool_input"]))
+        self.assertEqual("c1", seen[0][1]["session_id"])
+        self.assertEqual("antigravity", seen[0][2]["MORU_PRETOOL_RUNTIME"])
+
+    def test_a_deny_is_advisory_by_default_and_enforced_in_strict_mode(self):
+        with patch.object(adapter, "run_script", return_value=gate_output("deny", "start first")):
+            with patch.dict(os.environ, {"MORU_AGY_GATE": ""}):
+                verdict = adapter.pre_tool(self.call("write_file", {"Path": "/w/a.txt"}))
+            self.assertEqual("allow", verdict["decision"])
+            self.assertIn("start first", verdict["reason"])
+            with patch.dict(os.environ, {"MORU_AGY_GATE": "strict"}):
+                strict = adapter.pre_tool(self.call("write_file", {"Path": "/w/a.txt"}))
+            self.assertEqual({"decision": "deny", "reason": "start first"}, strict)
+
+
+class StopTranslationTests(unittest.TestCase):
+    def test_a_block_becomes_continue_once(self):
+        captured = []
+
+        def fake(name, args, stdin, cwd, env=None):
+            captured.append(stdin)
+            return json.dumps({"decision": "block", "reason": "finish first"})
+
+        with patch.object(adapter, "run_script", fake):
+            first = adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"], "executionNum": 0})
+            second = adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"], "executionNum": 1})
+        self.assertEqual({"decision": "continue", "reason": "finish first"}, first)
+        self.assertFalse(captured[0]["stop_hook_active"])
+        self.assertTrue(captured[1]["stop_hook_active"])
+        self.assertEqual({"decision": "continue", "reason": "finish first"}, second)
+
+    def test_no_block_lets_the_agent_stop(self):
+        with patch.object(adapter, "run_script", return_value=""):
+            self.assertEqual({}, adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"]}))
+
+
+class PreInvocationTests(unittest.TestCase):
+    def test_guidance_is_injected_once_per_conversation(self):
+        def fake(name, args, stdin, cwd, env=None):
+            return "# Moru Core Workflow Route\n" if name == "workflow.py" else "status: not_found\n"
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", fake):
+            payload = {"conversationId": "c9", "workspacePaths": [tmp], "lastUserInput": "Create a page"}
+            first = adapter.pre_invocation(payload)
+            second = adapter.pre_invocation(payload)
+        text = first["injectSteps"][0]["systemMessage"]["systemMessage"]
+        self.assertIn("Workflow Route", text)
+        self.assertIn("status: not_found", text)
+        self.assertEqual({}, second)
+
+    def test_the_shared_unchanged_note_injects_nothing(self):
+        with patch.object(adapter, "run_script", return_value="unchanged since this session already received it"):
+            self.assertEqual({}, adapter.pre_invocation({"conversationId": "c1", "workspacePaths": ["/w"]}))
+
+
+class FailOpenTests(unittest.TestCase):
+    def test_a_broken_payload_never_blocks(self):
+        import io
+
+        for event, expected in (("pre-tool", {"decision": "allow"}), ("stop", {}), ("pre-invocation", {})):
+            with self.subTest(event=event), patch("sys.stdin", io.StringIO("not json")), \
+                    patch("sys.stdout", new_callable=io.StringIO) as out:
+                self.assertEqual(0, adapter.main(["agy_hook_adapter.py", event]))
+                self.assertEqual(expected, json.loads(out.getvalue()))
+
+
+class HooksFileMergeTests(unittest.TestCase):
+    def test_installs_by_name_and_keeps_other_hooks(self):
+        spec = _agy_hooks_spec(Path("/home/u/.moru/bin/moru-hook"))
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "hooks.json"
+            target.write_text(json.dumps({"mine": {"Stop": []}}))
+            self.assertEqual("missing", _merge_agy_hooks(target, spec, True))
+            self.assertEqual("installed", _merge_agy_hooks(target, spec, False))
+            self.assertEqual("ok", _merge_agy_hooks(target, spec, False))
+            written = json.loads(target.read_text())
+        self.assertEqual({"mine": {"Stop": []}, "moru": spec}, written)
+        commands = json.dumps(spec)
+        for event in ("pre-invocation", "pre-tool", "stop"):
+            self.assertIn(f"agy-hook {event}", commands)
+        self.assertEqual("run_command|write_file|edit_file", spec["PreToolUse"][0]["matcher"])
+
+
+if __name__ == "__main__":
+    unittest.main()
