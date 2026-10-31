@@ -85,6 +85,7 @@ class UnverifiedReminderTests(unittest.TestCase):
                 patch.object(adapter, "routed_through_3d", return_value=True):
             first = adapter.stop(self.PAYLOAD)
             second = adapter.stop(self.PAYLOAD)
+            third = adapter.stop(self.PAYLOAD)
         self.assertEqual("continue", first["decision"])
         self.assertIn("unverified", first["reason"])
         self.assertEqual({}, second)
@@ -192,6 +193,31 @@ class InSessionVerificationTests(unittest.TestCase):
             for _ in range(rounds_before):
                 adapter.stop(self.PAYLOAD)
             return adapter.stop(self.PAYLOAD), calls, Path(tmp)
+
+    def test_a_check_that_crashes_is_reported_once_and_never_ends_the_run_unseen(self):
+        import types
+
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: Path("/w/dist")
+        fake.can_judge = lambda: True
+        fake.project_fingerprint = lambda project: "x"
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("judge url refused")
+
+        fake.verify_project = boom
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), \
+                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.dict(sys.modules, {"verify": fake}):
+            first = adapter.stop(self.PAYLOAD)
+            second = adapter.stop(self.PAYLOAD)
+            third = adapter.stop(self.PAYLOAD)
+        self.assertEqual("continue", first["decision"])
+        self.assertIn("could not run (RuntimeError: judge url refused)", first["reason"])
+        self.assertIn("Nothing was independently verified", first["reason"])
+        self.assertNotIn("could not run", second.get("reason", ""), "the crash notice is given once")
+        self.assertEqual({}, third, "and the stop is never trapped")
 
     def test_a_failure_is_sent_back_as_continue_and_the_checklist_is_kept(self):
         fail = [{"id": "a", "verdict": "fail"}]

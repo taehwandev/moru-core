@@ -338,7 +338,8 @@ def combine(results: list[dict], code: dict[str, dict]) -> list[dict]:
     return merged
 
 
-LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+# host.docker.internal is how a container reaches a service its host keeps on loopback.
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "host.docker.internal"}
 
 
 def remote_call(path: str, payload: dict) -> dict:
@@ -347,7 +348,7 @@ def remote_call(path: str, payload: dict) -> dict:
     base = os.environ["MORU_VERIFY_JUDGE_URL"].rstrip("/")
     parts = urllib.parse.urlsplit(base)
     if parts.scheme != "https" and not (parts.scheme == "http" and parts.hostname in LOOPBACK_HOSTS):
-        raise RuntimeError("MORU_VERIFY_JUDGE_URL must be https, or http on a loopback host")
+        raise RuntimeError("MORU_VERIFY_JUDGE_URL must be https, or http on a loopback or container-host name")
     request = urllib.request.Request(
         base + path, data=json.dumps(payload).encode(), method="POST",
         headers={"Content-Type": "application/json",

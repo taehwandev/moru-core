@@ -385,6 +385,11 @@ class RemoteJudgeTests(unittest.TestCase):
                 verify.derive_any("x")
         self.assertEqual(401, caught.exception.code)
 
+    def test_the_url_a_container_uses_to_reach_its_host_is_allowed(self):
+        with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": "http://host.docker.internal:1"}, clear=False):
+            with self.assertRaises(OSError):  # refused by the network, not by the guard
+                verify.remote_call("/derive", {"request": "x"})
+
     def test_plain_http_to_a_remote_host_is_refused_before_anything_is_sent(self):
         for url in ("http://judge.example.com:8765", "ftp://127.0.0.1/x"):
             with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": url}, clear=False):

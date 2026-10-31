@@ -334,6 +334,12 @@ def verify_in_session(payload: dict) -> tuple[bool, dict]:
             state_path.with_suffix(".error").write_text(f"{type(error).__name__}: {str(error)[:400]}", encoding="utf-8")
         except OSError:
             pass
+        # An independent check that could not run is not a pass: say so once, so it cannot end the run unseen.
+        crash = f"{type(error).__name__}: {str(error)[:200]}"
+        if not already_delivered(session_id(payload), crash, "verify-crash"):
+            return True, {"decision": "continue", "reason": (
+                f"The independent check of the page could not run ({crash}). Nothing was independently verified: "
+                "do not call the page verified, and say so plainly in your final report.")}
         return False, {}
 
 
