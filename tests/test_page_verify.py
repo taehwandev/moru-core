@@ -117,15 +117,26 @@ class JudgeTests(unittest.TestCase):
         self.assertEqual(2, len(images))
         self.assertIn("THREE is not defined", captured["content"][0]["text"])
 
-    def test_feedback_names_only_failures_and_lists_what_stayed_unobserved(self):
-        results = [{"id": "a", "claim": "A holds.", "verdict": "fail", "reason": "t2s shows otherwise"},
-                   {"id": "b", "claim": "B holds.", "verdict": "unobserved", "reason": "n/a"},
-                   {"id": "c", "claim": "C holds.", "verdict": "pass", "reason": "ok"}]
+    def test_a_check_that_could_not_be_confirmed_is_a_failure_with_its_reason_and_there_is_no_third_outcome(self):
+        raw = [{"id": "a", "claim": "A holds.", "verdict": "fail", "reason": "t2s shows otherwise"},
+               {"id": "b", "claim": "B holds.", "verdict": "unobserved", "reason": "no step shows the action used"},
+               {"id": "c", "claim": "C holds.", "verdict": "pass", "reason": "ok"}]
+        results = verify.finalize(raw, {"inputProbes": {}})
+        self.assertEqual({"pass", "fail"}, {r["verdict"] for r in results})
+        self.assertEqual(["contradicted", "unverified"], [r["basis"] for r in results if r["verdict"] == "fail"])
         text = verify.feedback_text(results)
         self.assertIn("- a: A holds. Observed: t2s shows otherwise", text)
-        self.assertIn("Not observed, so unchecked: b.", text)
+        self.assertIn("- b: B holds. Could not be confirmed (unverified: no step shows the action used)", text)
         self.assertNotIn("C holds", text)
-        self.assertEqual("", verify.feedback_text([{**results[2]}, {**results[1]}]))
+        self.assertEqual("", verify.feedback_text([results[2]]))
+
+    def test_items_skipped_because_a_basic_check_failed_fail_but_are_not_asked_to_be_fixed(self):
+        results = [{"id": "x", "claim": "X.", "verdict": "fail", "basis": "contradicted", "reason": "console error"},
+                   {"id": "y", "claim": "Y.", "verdict": "fail", "basis": "unchecked", "reason": "not checked yet"}]
+        text = verify.feedback_text(results)
+        self.assertIn("- x: X. Observed: console error", text)
+        self.assertNotIn("- y:", text)
+        self.assertIn("Not checked yet because a basic check failed: y.", text)
 
     def test_remaining_text_asks_for_an_honest_report_not_another_fix(self):
         results = [{"id": "a", "claim": "A holds.", "verdict": "fail", "reason": "t6s shows otherwise"},

@@ -7,9 +7,11 @@ or framing. This module turns the user's request into observable acceptance
 items, has ``observe.mjs`` watch the built page in a real browser, and has a
 separate judge rule on each item from that evidence alone.
 
-Verdicts are ``pass``, ``fail`` or ``unobserved``. Evidence that cannot show a
-property yields ``unobserved``, never a guess. The exit status is 1 when any item
-failed, 0 otherwise, so a hook can gate on it.
+Verdicts are ``pass`` or ``fail``. An item that could not be confirmed is a ``fail``
+with ``basis`` ``unverified``, so that someone looks for the cause; a ``fail`` that a
+step or a line of code contradicts has ``basis`` ``contradicted``. (The judges
+themselves may still answer ``unobserved``; ``finalize`` turns that into a fail.)
+The exit status is 1 when any item failed, 0 otherwise, so a hook can gate on it.
 """
 
 from __future__ import annotations
@@ -390,15 +392,30 @@ def can_judge() -> bool:
     return True
 
 
+def failing_lines(results: list[dict]) -> tuple[list[str], list[str]]:
+    """Failing items as fix lines, and the ids that were never checked because a basic check failed."""
+
+    lines, unchecked = [], []
+    for r in results:
+        if r["verdict"] != "fail":
+            continue
+        if r.get("basis") == "unchecked":
+            unchecked.append(r["id"])
+        elif r.get("basis") == "unverified":
+            lines.append(f"- {r['id']}: {r['claim']} Could not be confirmed ({r['reason']}); an item that cannot be "
+                         "confirmed counts as failing, so fix the cause or make the behavior observable.")
+        else:
+            lines.append(f"- {r['id']}: {r['claim']} Observed: {r['reason']}")
+    return lines, unchecked
+
+
 def feedback_text(results: list[dict]) -> str:
     """The message that sends failed items back to the model that built the page, or "" when none failed."""
 
-    failed = [r for r in results if r["verdict"] == "fail"]
-    if not failed:
+    lines, unchecked = failing_lines(results)
+    if not lines and not unchecked:
         return ""
-    lines = [f"- {r['id']}: {r['claim']} Observed: {r['reason']}" for r in failed]
-    unobserved = [r["id"] for r in results if r["verdict"] == "unobserved"]
-    tail = (f"\nNot observed, so unchecked: {', '.join(unobserved)}." if unobserved else "")
+    tail = f"\nNot checked yet because a basic check failed: {', '.join(unchecked)}." if unchecked else ""
     return ("An independent check of the finished page in a real browser, against criteria derived from the original "
             "request, found these items failing:\n" + "\n".join(lines) + tail +
             "\nFix the cause of each failing item in the project, rebuild so the built output reflects the fix, and "
@@ -412,11 +429,11 @@ def remaining_text(results: list[dict]) -> str:
     page is complete when the independent check still found it failing.
     """
 
-    failed = [r for r in results if r["verdict"] == "fail"]
-    if not failed:
+    lines, unchecked = failing_lines(results)
+    if not lines and not unchecked:
         return ""
-    lines = [f"- {r['id']}: {r['claim']} Observed: {r['reason']}" for r in failed]
-    return ("The independent check run after your fix still reports these items failing:\n" + "\n".join(lines) +
+    tail = f"\nNot checked because a basic check was still failing: {', '.join(unchecked)}." if unchecked else ""
+    return ("The independent check run after your fix still reports these items failing:\n" + "\n".join(lines) + tail +
             "\nDo not call the page complete. State these plainly in your final report as not fixed, with what you "
             "tried and what you could not verify.")
 
@@ -557,13 +574,27 @@ def verify_project(project: Path, request: str, out: Path, *, viewport: str = "d
     failing = floor_results(items, evidence)
     if failing:
         by_id = {r["id"]: r for r in failing}
-        results = [by_id.get(i["id"]) or {**i, "verdict": "unobserved", "reason": "skipped: a basic check failed, fix that first"}
-                   for i in items]
+        results = finalize([by_id.get(i["id"]) or {**i, "verdict": "fail", "basis": "unchecked",
+                                                   "reason": "not checked yet: a basic check failed, fix that first"}
+                            for i in items], evidence)
     else:
-        results = settle_input_items(judge_any(items, out / "evidence", collect_source(project)), evidence)
+        results = finalize(judge_any(items, out / "evidence", collect_source(project)), evidence)
     (out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "report.md").write_text(render(results), encoding="utf-8")
     return items, results
+
+
+def finalize(results: list[dict], evidence: dict) -> list[dict]:
+    """The only two outcomes a caller sees: pass, or fail with the reason it could not be passed."""
+
+    final = []
+    for result in settle_input_items(results, evidence):
+        if result["verdict"] == "unobserved":
+            result = {**result, "verdict": "fail", "basis": "unverified", "reason": f"unverified: {result['reason']}"[:400]}
+        elif result["verdict"] == "fail":
+            result = {"basis": "contradicted", **result}
+        final.append(result)
+    return final
 
 
 def render(results: list[dict]) -> str:
@@ -586,8 +617,8 @@ def main(argv: list[str]) -> int:
              else derive_any(args.request))
     (args.out / "checklist.json").write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
     observe(args.url, args.out / "evidence", args.viewport, args.seconds)
-    results = settle_input_items(judge_any(items, args.out / "evidence"),
-                                 json.loads((args.out / "evidence" / "observations.json").read_text(encoding="utf-8")))
+    results = finalize(judge_any(items, args.out / "evidence"),
+                       json.loads((args.out / "evidence" / "observations.json").read_text(encoding="utf-8")))
     (args.out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (args.out / "report.md").write_text(render(results), encoding="utf-8")
     print(render(results))
