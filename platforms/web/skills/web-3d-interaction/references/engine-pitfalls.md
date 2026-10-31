@@ -34,6 +34,10 @@ documented; claims that could not be confirmed were dropped.
 - **Culling.** `Points`, instanced and custom geometry whose vertices move keep a
   stale `boundingSphere` and are culled while visible. Recompute it after
   changes, or set `frustumCulled = false` for such objects.
+- **Point sprites.** A `PointsMaterial` without a `map` draws square dots. Give
+  particles a radial-gradient canvas or image texture, `sizeAttenuation`, and
+  additive blending, and tune size and opacity so the effect reads as soft light
+  or smoke.
 - **Glow and transparency.** Transparent objects sort per object, not per
   triangle. For glow and particles use `transparent`, `depthWrite = false` and an
   explicit `renderOrder`.

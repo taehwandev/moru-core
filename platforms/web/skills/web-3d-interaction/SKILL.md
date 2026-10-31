@@ -31,8 +31,16 @@ static illustrations, native/Blender modeling or a mention of 3D in prose.
   and safe areas. The subject must remain inspectable in that visible area at
   the requested start, intermediate and final states, including the narrow
   aspect ratio. Use intentional close-ups when the experience calls for them;
-  do not mistake accidental clipping or a missing subject for cinematic framing. Plan a clear
-  focal subject and background depth; effects must support that reading.
+  do not mistake accidental clipping or a missing subject for cinematic framing. The
+  default view is what people judge first: the subject reads at a useful size
+  there, with its parts visible, not as a speck inside an overview. Offer a wider
+  overview as a named camera mode. Plan a clear focal subject and background
+  depth; effects must support that reading.
+- Effects that show energy or contact (thrust, glow, dust, sparks, trails) need a
+  deliberate look: soft round or emissive sprites or meshes with colour and
+  falloff that suit the subject. A default square point sprite or an untextured
+  placeholder shape is a defect, not a style. Effects follow the subject's state
+  and fade out with it.
 - Give each camera mode one active owner. Coordinate manual orbit, tracking and
   transitions; a moving target needs a coherent camera offset and look target.
   Reset restores a useful framing, not only a preset label. Check clipping,
@@ -75,8 +83,11 @@ polished result from source code. Do not require a separately billed model.
    alignment, truncation, overlays, focus and reachable controls. Separately
    inspect composition, lighting and animation quality; successful logic cannot
    substitute for a polished visible result.
-4. Verify motion and state numerically; this needs no browser. In the project's
-   tests, apply the orientation code to the model's forward axis and assert
+4. Verify motion and state numerically, and also look at the running page: numbers
+   do not show framing, effects or a wrong value on screen. In the project's
+   tests, assert what the user reads where the UI binds a number (the formatted
+   text with its unit and a plausible range), because the conversion lives in glue
+   code that tests of pure math skip. Apply the orientation code to the model's forward axis and assert
    `forward · velocity > 0` at several points of every moving phase, assert the
    resting state has no flight effects active, and run each module's update path
    once so a missing import fails. Unrequested reversed, mirrored or sideways
