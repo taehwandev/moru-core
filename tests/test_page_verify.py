@@ -35,7 +35,7 @@ class DeriveTests(unittest.TestCase):
         ])
         items = verify.derive_checklist("request", ask=lambda model, prompt, **kw: f"here:\n{answer}")
         ids = [item["id"] for item in items]
-        self.assertEqual(["loads-clean", "action-responds", "ship-on-pad", "x"], ids)
+        self.assertEqual(["loads-clean", "action-responds", "input-reaches-controls", "ship-on-pad", "x"], ids)
         self.assertEqual(["screenshots"], items[-1]["evidence"])
         self.assertEqual("derived", items[-1]["source"])
 
@@ -140,6 +140,36 @@ class JudgeTests(unittest.TestCase):
     def test_report_table_lists_each_verdict(self):
         table = verify.render([{"id": "a", "verdict": "fail", "reason": "r"}])
         self.assertIn("| a | fail | r |", table)
+
+
+class InputReachTests(unittest.TestCase):
+    ITEMS = [{"id": "input-reaches-controls", "claim": "c", "phase": "any", "evidence": ["input"], "source": "generic"}]
+    BLOCKED = {"inputProbes": {"canvasRunning": [{"x": 420, "y": 520, "reaches": False, "by": "div.shortcut-row",
+                                                  "text": "Pause / Resume", "invisible": True}]}}
+    CLEAR = {"inputProbes": {"primary": {"x": 1, "y": 2, "reaches": True, "by": None, "text": "", "invisible": False},
+                             "canvasInitial": [{"x": 5, "y": 5, "reaches": True, "by": None, "text": "", "invisible": False}]}}
+
+    def test_an_invisible_element_over_the_scene_or_the_main_action_fails_without_a_model(self):
+        failing = verify.floor_results(self.ITEMS, {"steps": [], **self.BLOCKED})
+        self.assertEqual(["fail"], [r["verdict"] for r in failing])
+        self.assertIn("invisible <div.shortcut-row>", failing[0]["reason"])
+
+    def test_a_visible_overlay_is_left_to_the_judge_and_clear_probes_pass(self):
+        visible = {"inputProbes": {"primary": {"x": 1, "y": 2, "reaches": False, "by": "div.splash", "text": "Start", "invisible": False}}}
+        self.assertEqual([], verify.floor_results(self.ITEMS, {"steps": [], **visible}))
+        pending = [{**self.ITEMS[0], "verdict": "unobserved", "reason": "judge"}]
+        self.assertEqual("pass", verify.settle_input_items(pending, self.CLEAR)[0]["verdict"])
+        self.assertEqual("fail", verify.settle_input_items(pending, self.BLOCKED)[0]["verdict"])
+        self.assertEqual("unobserved", verify.settle_input_items(pending, {})[0]["verdict"])
+
+    def test_the_observer_probes_hits_and_does_a_real_drag_and_wheel_and_the_menu_asks_for_it(self):
+        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        for needle in ("elementFromPoint", "pointer-drag-before", "pointer-drag-after", "mouseWheel", "inputProbes.primary"):
+            self.assertIn(needle, source)
+        items = verify.ensure_menu_items("A page with orbit and zoom camera controls", [])
+        self.assertIn("scene-follows-drag-and-wheel", [i["id"] for i in items])
+        kept = verify.select_steps([{"label": f"late-t{i}s"} for i in range(8)] + [{"label": "pointer-drag-after"}] * 4)
+        self.assertTrue(any(s["label"].startswith("pointer-") for s in kept))
 
 
 class CodeEvidenceTests(unittest.TestCase):

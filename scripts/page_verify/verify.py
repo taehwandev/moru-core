@@ -38,6 +38,8 @@ GENERIC_ITEMS = [
      "phase": "any", "evidence": ["console"], "source": "generic"},
     {"id": "action-responds", "claim": "Using the page's main action visibly changes its state.",
      "phase": "during_action", "evidence": ["text", "screenshots"], "source": "generic"},
+    {"id": "input-reaches-controls", "claim": "Pointer input reaches the visible controls and the scene: nothing invisible sits over them.",
+     "phase": "any", "evidence": ["input"], "source": "generic"},
 ]
 
 DERIVE_PROMPT = """You turn a user's request for a web page into acceptance items that a third party can
@@ -76,6 +78,7 @@ console errors. For each item answer one verdict:
   evidence, a control that was never operated, a viewport that was never tried, or a view that legitimately cannot
   show the thing (for example a first-person view cannot show the subject itself) is never a fail.
 - unobserved: the evidence cannot show it. Do not guess; say what is missing.
+Steps named pointer-* are a real mouse drag over the scene and then a wheel scroll, each with a picture before and after.
 Give a one-sentence reason that cites a step label. Answer with a JSON array of
 {{"id": ..., "verdict": ..., "reason": ..., "contradicting_step": "<label or empty>"}} only, covering every item.
 
@@ -144,6 +147,13 @@ MENU_ITEMS = [{
     "phase": "during_action", "evidence": ["code", "screenshots"], "source": "menu",
     "applies": r"take.?off|landing|\bland\b|lift.?off|hover|ascen|descen|vtol|rocket|\bfl(?:y|ies|ight)\b|aircraft|spaceship|drone",
     "covered": r"level|pitch|nose|attitude|tail",
+}, {
+    "id": "scene-follows-drag-and-wheel",
+    "claim": ("In the default view, dragging over the scene and scrolling the wheel move or zoom the camera as the page's "
+              "orbit and zoom controls promise (compare pointer-drag-before, pointer-drag-after and pointer-wheel-after)."),
+    "phase": "during_action", "evidence": ["screenshots"], "source": "menu",
+    "applies": r"orbit|zoom|\bdrag|rotate|\bpan\b|camera control|touch|swipe|mouse",
+    "covered": r"drag|wheel|pointer|swipe",
 }]
 
 
@@ -186,7 +196,7 @@ def select_steps(steps: list[dict], limit: int = MAX_IMAGES) -> list[dict]:
 
     if len(steps) <= limit:
         return steps
-    keep = [s for s in steps if s["label"] == "initial" or s["label"].startswith("default-view")]
+    keep = [s for s in steps if s["label"] == "initial" or s["label"].startswith(("default-view", "pointer-"))]
     controls = [s for s in steps if s["label"].startswith("control-")]
     late = [s for s in steps if s["label"].startswith("late-")]
     chosen = keep + controls[: max(0, limit - len(keep) - 2)] + late[-2:]
@@ -464,6 +474,10 @@ def floor_results(items: list[dict], evidence: dict) -> list[dict]:
         for item in items:
             if item["id"] in {"loads-clean", "no-console-errors"}:
                 failing.append({**item, "verdict": "fail", "reason": f"{steps[-1]['label']}: console error {errors[0][:160]}"})
+    blockers = invisible_blockers(evidence)
+    if blockers:
+        failing.extend({**item, "verdict": "fail", "reason": "; ".join(blockers)[:400]}
+                       for item in items if item["id"] == "input-reaches-controls")
     if evidence.get("primaryAction") and len(steps) > 1 and evidence.get("secondaryControls") is not None:
         first = steps[0].get("text")
         first_shot = steps[0].get("shotHash")
@@ -474,6 +488,39 @@ def floor_results(items: list[dict], evidence: dict) -> list[dict]:
                     failing.append({**item, "verdict": "fail",
                                     "reason": f"{steps[-1]['label']}: neither the page text nor the picture changed after the main action was used twice"})
     return failing
+
+
+def invisible_blockers(evidence: dict) -> list[str]:
+    """Where pointer input lands on something invisible (transparent or hidden) instead of the control or scene."""
+
+    probes = evidence.get("inputProbes") or {}
+    found = []
+    for name in ("primary", "canvasInitial", "canvasRunning"):
+        entries = probes.get(name) or []
+        for point in [entries] if isinstance(entries, dict) else entries:
+            if not point.get("reaches", True) and point.get("invisible"):
+                target = "the main action" if name == "primary" else "the scene"
+                found.append(f"{name}: input at ({point['x']},{point['y']}) for {target} lands on invisible "
+                             f"<{point.get('by')}> {point.get('text', '')!r}")
+    return found
+
+
+def settle_input_items(results: list[dict], evidence: dict) -> list[dict]:
+    """The input-reach item is decided from the probes alone; no model reads it."""
+
+    blockers = invisible_blockers(evidence)
+    probed = bool(evidence.get("inputProbes"))
+    settled = []
+    for result in results:
+        if result["id"] == "input-reaches-controls":
+            if blockers:
+                result = {**result, "verdict": "fail", "reason": "; ".join(blockers)[:400]}
+            elif probed:
+                result = {**result, "verdict": "pass", "reason": "no invisible element sat over the probed controls or scene"}
+            else:
+                result = {**result, "verdict": "unobserved", "reason": "input was not probed"}
+        settled.append(result)
+    return settled
 
 
 def find_dist(project: Path) -> Path | None:
@@ -513,7 +560,7 @@ def verify_project(project: Path, request: str, out: Path, *, viewport: str = "d
         results = [by_id.get(i["id"]) or {**i, "verdict": "unobserved", "reason": "skipped: a basic check failed, fix that first"}
                    for i in items]
     else:
-        results = judge_any(items, out / "evidence", collect_source(project))
+        results = settle_input_items(judge_any(items, out / "evidence", collect_source(project)), evidence)
     (out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "report.md").write_text(render(results), encoding="utf-8")
     return items, results
@@ -539,7 +586,8 @@ def main(argv: list[str]) -> int:
              else derive_any(args.request))
     (args.out / "checklist.json").write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
     observe(args.url, args.out / "evidence", args.viewport, args.seconds)
-    results = judge_any(items, args.out / "evidence")
+    results = settle_input_items(judge_any(items, args.out / "evidence"),
+                                 json.loads((args.out / "evidence" / "observations.json").read_text(encoding="utf-8")))
     (args.out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (args.out / "report.md").write_text(render(results), encoding="utf-8")
     print(render(results))

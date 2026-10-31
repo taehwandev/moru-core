@@ -98,9 +98,10 @@ def already_delivered(conversation: str, text: str, kind: str = "route") -> bool
 
 
 INDEPENDENT_CHECK_NOTICE = (
-    "An independent check of the finished page in a real browser runs when you stop and sends failures back. "
-    "Do not build your own browser or screenshot harness for it. Build, run unit tests, and you may still look "
-    "into behavior the check does not cover; say in your final report what you could not verify."
+    "When you stop, an independent check opens the finished page in a real browser, uses its main action, drags and "
+    "scrolls over the scene, and sends failures back. Before you finish, look at the running page yourself once, in its "
+    "default view and while the main action runs, as the UI visual verification skill asks; a single pass is enough. "
+    "Say in your final report what you could not verify."
 )
 
 

@@ -250,12 +250,14 @@ class IndependentCheckNoticeTests(unittest.TestCase):
 
     def test_the_notice_is_added_only_for_3d_work_when_the_check_can_run(self):
         entry = "guidance:\n- platforms/web/skills/web-3d-interaction/SKILL.md\n"
-        self.assertIn("Do not build your own browser or screenshot harness", self.inject(entry, True))
+        self.assertIn("independent check opens the finished page", self.inject(entry, True))
         self.assertNotIn("independent check", self.inject(entry, False))
         self.assertNotIn("independent check", self.inject("guidance:\n- common/skills/other/SKILL.md\n", True))
 
     def test_the_notice_keeps_room_for_checks_the_verifier_misses_and_for_honest_reporting(self):
-        self.assertIn("you may still look into behavior the check does not cover", adapter.INDEPENDENT_CHECK_NOTICE)
+        self.assertIn("look at the running page yourself once", adapter.INDEPENDENT_CHECK_NOTICE)
+        self.assertNotIn("Do not build", adapter.INDEPENDENT_CHECK_NOTICE,
+                         "a prohibition collides with the UI skill that asks the agent to see its own page")
         self.assertIn("what you could not verify", adapter.INDEPENDENT_CHECK_NOTICE)
 
     def test_the_check_is_promised_only_when_judge_and_observer_are_both_present(self):

@@ -137,6 +137,73 @@ async function pictureHash(cdp) {
   return createHash('sha1').update(shot.result.data).digest('hex');
 }
 
+// What sits under a point: the control or scene it should reach, or something else, and whether that
+// something is invisible (fully transparent or hidden) yet still swallowing the pointer.
+const hitScript = (points, label) => `(() => {
+  const want = ${JSON.stringify(label || '')}.replace(/\\s+/g, ' ').trim().toLowerCase();
+  const canvas = [...document.querySelectorAll('canvas')].sort((a, b) => b.width * b.height - a.width * a.height)[0] || null;
+  const describe = (e) => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') +
+    (typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\\s+/)[0] : '');
+  const invisible = (e) => {
+    let opacity = 1;
+    for (let n = e; n && n.nodeType === 1; n = n.parentElement) {
+      const style = getComputedStyle(n);
+      opacity *= parseFloat(style.opacity);
+      if (style.visibility === 'hidden' || n.getAttribute('aria-hidden') === 'true') return true;
+    }
+    return opacity < 0.05;
+  };
+  return ${JSON.stringify(points)}.map(([x, y]) => {
+    const top = document.elementFromPoint(x, y);
+    const control = top && top.closest('button,a,[role=button],input,select,label,summary');
+    const reaches = want
+      ? !!control && ((control.textContent || '') + ' ' + (control.getAttribute('aria-label') || '')).replace(/\\s+/g, ' ')
+          .toLowerCase().includes(want.slice(0, 12))
+      : !!(top && canvas && (top === canvas || canvas.contains(top)));
+    return { x: Math.round(x), y: Math.round(y), reaches, by: reaches || !top ? null : describe(top),
+      text: reaches || !top ? '' : (top.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 40),
+      invisible: reaches || !top ? false : invisible(top) };
+  });
+})()`;
+
+const CANVAS_AREA = `(() => {
+  const c = [...document.querySelectorAll('canvas')].sort((a, b) => b.width * b.height - a.width * a.height)[0];
+  if (!c) return null;
+  const r = c.getBoundingClientRect();
+  return { x0: Math.max(0, r.x), y0: Math.max(0, r.y), x1: Math.min(innerWidth, r.right), y1: Math.min(innerHeight, r.bottom) };
+})()`;
+
+async function probeCanvas(cdp) {
+  const area = await evaluate(cdp, CANVAS_AREA);
+  if (!area) return null;
+  const at = ([fx, fy]) => [area.x0 + (area.x1 - area.x0) * fx, area.y0 + (area.y1 - area.y0) * fy];
+  return evaluate(cdp, hitScript([[0.5, 0.5], [0.3, 0.5], [0.7, 0.5], [0.5, 0.3], [0.5, 0.7]].map(at), ''));
+}
+
+// A real drag and a real wheel over the scene, with a picture before and after each: the on-screen buttons are
+// not the only way people move a camera.
+async function probePointer(cdp, secondsNow) {
+  const area = await evaluate(cdp, CANVAS_AREA);
+  if (!area) return;
+  const reach = evidence.inputProbes.canvasRunning || [];
+  const spot = reach.find((point) => point.reaches) || reach[0] || { x: (area.x0 + area.x1) / 2, y: (area.y0 + area.y1) / 2 };
+  const dx = Math.min(220, (area.x1 - area.x0) * 0.25);
+  evidence.inputProbes.pointer = { at: [spot.x, spot.y], dragDx: dx };
+  await capture(cdp, 'pointer-drag-before', secondsNow());
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: spot.x, y: spot.y });
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: spot.x, y: spot.y, button: 'left', buttons: 1, clickCount: 1 });
+  for (let i = 1; i <= 8; i += 1) {
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: spot.x + (dx * i) / 8, y: spot.y, button: 'left', buttons: 1 });
+    await sleep(40);
+  }
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: spot.x + dx, y: spot.y, button: 'left', buttons: 0, clickCount: 1 });
+  await sleep(700);
+  await capture(cdp, 'pointer-drag-after', secondsNow());
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: spot.x, y: spot.y, deltaX: 0, deltaY: -400 });
+  await sleep(700);
+  await capture(cdp, 'pointer-wheel-after', secondsNow());
+}
+
 let shotIndex = 0;
 async function capture(cdp, label, seconds) {
   const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 45 });
@@ -180,7 +247,9 @@ try {
     await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...pointer });
     await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...pointer });
   };
+  evidence.inputProbes = { canvasInitial: await probeCanvas(cdp) };
   if (primary) {
+    evidence.inputProbes.primary = (await evaluate(cdp, hitScript([[primary.x, primary.y]], primary.text)))[0];
     const before = (await evaluate(cdp, SNAPSHOT)).text;
     const pictureBefore = await pictureHash(cdp);
     await press(primary);
@@ -202,6 +271,8 @@ try {
       if (wait > 0) await sleep(wait);
       await capture(cdp, `default-view-t${mark}s`, mark);
     }
+    evidence.inputProbes.canvasRunning = await probeCanvas(cdp);
+    await probePointer(cdp, at);
     // Secondary controls (camera, view, zoom) are then exercised once, while the action is still running.
     evidence.secondaryControls = [];
     // At most five distinct controls, and one zoom direction: more screenshots show nothing new.
