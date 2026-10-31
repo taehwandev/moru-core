@@ -201,7 +201,7 @@ RUNTIME_BRIDGE_GRAPH_PHRASES = [
 
 RUNTIME_BRIDGE_COMMON_REQUIRED_PHRASES = [
     "Start every task by identifying the current project root.",
-    "If the runtime starts outside the target repo or the target repo is not explicit, run Moru Core agent-entry.py or project-discover.py before project work.",
+    "If the target repo is outside the cwd, not explicit, or new/empty, run Moru Core agent-entry.py with the request before project work.",
     "If discovery leaves the target ambiguous or unidentified, ask the user. An explicitly named new project path may be created and edited on not_found; read its instructions once present.",
     "Before project work, read the project-root instruction file for the active runtime when present; its absence does not block a newly created project.",
     RUNTIME_READING_BRIDGE_PHRASE,
