@@ -141,7 +141,7 @@ RUNTIME_NATIVE_MEMORY_PHRASES = {
 }
 # One home for the research key so other projects and runtimes stop reporting none.
 RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE = (
-    'OpenRouter key: ~/.moru/research.env (source it if unset); never print or request it.'
+    'OpenRouter key: ~/.moru/research.env, only on user request; never load, print or ask.'
 )
 RUNTIME_LOOKUP_BRIDGE_PHRASE = (
     'For read-only lookup or checks of a supplied diagnosis, use bounded evidence without '
