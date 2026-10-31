@@ -1,0 +1,42 @@
+#!/bin/sh
+# Owner: direct metadata entrypoint. No Python starts on the native branch.
+set -eu
+
+usage() {
+    printf '%s\n' 'usage: moru-checkout-identity < requests.ndjson' \
+        'MORU_CHECKOUT_IDENTITY_BACKEND=auto|rust|python (default: auto)'
+}
+
+if [ "$#" -ne 0 ]; then
+    if [ "$#" -eq 1 ] && [ "$1" = '--help' ]; then
+        usage
+        exit 0
+    fi
+    usage >&2
+    exit 2
+fi
+
+# Use shell builtins so the native path works without SDK or helper utilities.
+case "$0" in
+    */*) script_dir=${0%/*} ;;
+    *) printf '%s\n' 'invoke the entrypoint by its script path' >&2; exit 2 ;;
+esac
+root=$(CDPATH= cd -P "$script_dir/.." && pwd -P) || exit 1
+binary="$root/.moru/native/bin/moru-checkout-identity"
+backend=${MORU_CHECKOUT_IDENTITY_BACKEND:-auto}
+
+case "$backend" in
+    auto|rust)
+        if [ -f "$binary" ] && [ -x "$binary" ]; then
+            exec "$binary"
+        fi
+        if [ "$backend" = rust ]; then
+            printf '%s\n' 'native checkout runtime missing; build it or select python' >&2
+            exit 127
+        fi
+        ;;
+    python) ;;
+    *) printf '%s\n' 'invalid MORU_CHECKOUT_IDENTITY_BACKEND' >&2; exit 2 ;;
+esac
+
+exec python3 "$root/scripts/checkout_identity.py"
