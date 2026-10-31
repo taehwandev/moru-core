@@ -79,13 +79,13 @@ fn source_directory_matches(root: &Path, relative: &str) -> bool {
         let Some(name) = name.to_str() else {
             return false;
         };
-        if name == "__pycache__" {
-            continue;
-        }
         let path = format!("{relative}/{name}");
         let Ok(kind) = entry.file_type() else {
             return false;
         };
+        if kind.is_dir() && contract::CACHES.binary_search(&name).is_ok() {
+            continue;
+        }
         if kind.is_dir() && contract::DIRECTORIES.binary_search(&path.as_str()).is_err() {
             return false;
         }

@@ -6,6 +6,10 @@ type: ai-generated
 
 # Native plain-query pretool callbacks
 
+The initial experiment below is retained for its exact artifact. The
+[cache compatibility correction](native-pretool-cache-compat.md) records the
+subsequent installed-source failure, regression repair and matching new timing.
+
 ## Decision and scope
 
 Serve repeated plain queries for both Claude and Codex pretool callbacks in
@@ -38,6 +42,8 @@ of all **329 runtime Python sources and seven source directories**. Hashing
 streams through a 16 KiB buffer; sorted membership checks detect new sources.
 Sourceless bytecode, extension shadows, changed/missing files and unsupported
 state/project override paths select Python. No decision is cached across calls.
+Known developer cache directories are excluded by one shared build-time list;
+unknown directories and cache-named directory symlinks still select compatibility.
 
 A full bounded code snapshot replaces an initially considered eager-import
 graph: static imports alone do not account for lazy imports called during

@@ -4,6 +4,8 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+CACHE_DIRECTORIES = frozenset({"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"})
+
 
 def source_inputs(root: Path) -> list[Path]:
     package = root / "native/checkout-identity"
@@ -28,7 +30,7 @@ def pretool_contract(root):
     sources, directories = {}, {"scripts"}
     for path in scripts.rglob("*"):
         relative = path.relative_to(root).as_posix()
-        if "__pycache__" in path.relative_to(scripts).parts:
+        if CACHE_DIRECTORIES.intersection(path.relative_to(scripts).parts):
             continue
         if path.is_dir():
             directories.add(relative)

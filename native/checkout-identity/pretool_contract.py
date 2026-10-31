@@ -10,13 +10,16 @@ import sys
 def emit(output):
     root = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(root / "scripts"))
-    from support.native_source_inputs import pretool_contract
+    from support.native_source_inputs import CACHE_DIRECTORIES, pretool_contract
     sources, directories = pretool_contract(root)
     rows = ["pub(super) const SOURCES: &[(&str, &[u8], u64)] = &["]
     rows.extend(f"({json.dumps(path, ensure_ascii=False)}, &{list(digest)}, {size})," for path, (digest, size) in sources.items())
     rows.append("];")
     rows.append("pub(super) const DIRECTORIES: &[&str] = &[")
     rows.extend(json.dumps(path, ensure_ascii=False) + "," for path in directories)
+    rows.append("];")
+    rows.append("pub(super) const CACHES: &[&str] = &[")
+    rows.extend(json.dumps(name) + "," for name in sorted(CACHE_DIRECTORIES))
     rows.append("];")
     output.write_text("\n".join(rows) + "\n")
     print("cargo:rerun-if-changed=" + str(root / "scripts/support/native_source_inputs.py"))

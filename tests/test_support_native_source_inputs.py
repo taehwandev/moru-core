@@ -45,3 +45,14 @@ class NativeSourceInputsTests(unittest.TestCase):
             (scripts / "json.py").write_text("value = 2\n")
             sources, directories = pretool_contract(root)
             self.assertIn("scripts/json.py", sources)
+
+    def test_developer_caches_are_not_runtime_source_inputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scripts = self.fixture(root)
+            expected = pretool_contract(root)
+            for name in ("__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"):
+                cache = scripts / "support" / name / "nested"
+                cache.mkdir(parents=True)
+                (cache / "generated.py").write_text("not_runtime = True\n")
+            self.assertEqual(expected, pretool_contract(root))

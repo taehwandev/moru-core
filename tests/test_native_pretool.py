@@ -139,6 +139,7 @@ class NativePretoolTests(unittest.TestCase):
         reference = invoke(launcher, isolated, project, ALIASES[0], payload, source=source, backend="python")
         native = invoke(launcher, isolated, project, ALIASES[0], payload, source=source)
         self.assertEqual(result(reference), result(native))
+
         bytecode = source / "scripts/typing.pyc"
         py_compile.compile(str(shadow), cfile=str(bytecode), doraise=True)
         shadow.unlink()
@@ -152,6 +153,37 @@ class NativePretoolTests(unittest.TestCase):
         reference = invoke(launcher, isolated, project, ALIASES[0], payload, source=source, backend="python")
         native = invoke(launcher, isolated, project, ALIASES[0], payload, source=source)
         self.assertEqual(result(reference), result(native))
+
+    def test_developer_caches_do_not_disable_native_queries(self):
+        source = copied_build_root(self.base / "cache-source")
+        shutil.copytree(PROJECT / "scripts", source / "scripts", dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        for name in ("AGENTS.md", "index.md"):
+            shutil.copy2(PROJECT / name, source / name)
+        for name in (".pytest_cache", ".mypy_cache", ".ruff_cache"):
+            directory = source / "scripts" / name / "v/cache"
+            directory.mkdir(parents=True)
+            (directory / "nodeids.json").write_text('["synthetic"]')
+        isolated = self.base / "cache-home"
+        isolated.mkdir()
+        launcher, project = prepare(isolated, source)
+        for alias in ALIASES:
+            done = invoke(launcher, isolated, project, alias, request(project),
+                          source=source, PATH=str(self.empty_path))
+            self.assertEqual((0, b"", b""), result(done))
+        cache = source / "scripts/.pytest_cache"
+        shutil.rmtree(cache)
+        cache.symlink_to(self.base, target_is_directory=True)
+        for alias in ALIASES:
+            done = invoke(launcher, isolated, project, alias, request(project),
+                          source=source, PATH=str(self.empty_path))
+            self.assertNotEqual(0, done.returncode)
+        cache.unlink()
+        (source / "scripts/unrecognized-cache").mkdir()
+        for alias in ALIASES:
+            done = invoke(launcher, isolated, project, alias, request(project),
+                          source=source, PATH=str(self.empty_path))
+            self.assertNotEqual(0, done.returncode)
 
 
 if __name__ == "__main__":
