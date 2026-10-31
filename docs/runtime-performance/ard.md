@@ -1,0 +1,56 @@
+---
+keyflow_id: sys_runtime_performance_decisions
+status: review
+type: ai-generated
+---
+
+# Performance decisions
+
+## Dedicated integration branch
+
+Keep this programme on `taehwandev/perf/runtime-performance`, based on
+`527097ec`. Preserve earlier main commits. A verified local branch commit is
+the delivery boundary; main integration and actual global activation require
+a later decision. This makes performance evidence reviewable together with
+the implementation before changing the user's installed runtime.
+
+## Select frequent, data-only work first
+
+The two provider statusline entrypoints share one renderer. Moving this pure
+formatting work avoids migrating admission, authority, workflow state and
+failure-recovery policy. Keep Python as the reference and compatibility path.
+The 52-unit inventory remains a candidate set, not a conversion quota.
+
+## Compare a cheaper Python option
+
+Measure Python `-S` as well as the native path at the same generated entrypoint.
+Skipping site initialization needs less code, but a statusline optimization
+does not justify applying that option to other commands with different import
+requirements. Isolated `-I` also changes environment/import semantics and is
+not adopted as a transparent replacement. Unprepared startup screening is not
+used as evidence for the final decision.
+
+## Reuse the existing optional native artifact
+
+Add formatting to the already-optional native launcher rather than creating a
+new service or runtime dependency. Ordered serde_json maps preserve quota
+entry precedence. Cached indexmap dependencies and float-roundtrip parsing
+support compatibility; builds remain locked and offline. The tradeoff is a
+larger binary and a slower compatibility path when both native selection and
+Python startup are required. Record both rather than hiding them in a mean.
+
+Do not introduce a daemon, FIFO, shell/jq schema parser or direct execution of
+guessed simple chain commands. These add lifetime, installation or shell
+semantics costs without evidence that they are necessary. Preserve the exact
+configured `/bin/sh -c` contract and execute it once. A private process group
+allows a timed-out chain's descendants to be terminated without targeting the
+operator's process group.
+
+## Evidence and adoption
+
+The lead integrates Claude's pure formatter and AGY's falsification questions.
+Provider output is a contribution, not proof that code ran. Parent-owned real
+entrypoint tests and randomized measurements decide branch readiness.
+The [specification](spec.md) records observed results and costs; the
+[programme](prd.md) defines acceptance. Neither proves whole-agent speed,
+token reduction, installed activation or compatibility on an untested host.

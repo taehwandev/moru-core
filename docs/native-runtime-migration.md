@@ -29,7 +29,7 @@ The other 270 baseline files have no discovered standalone entry boundary;
 resolve their supporting ownership with callers when a unit is selected.
 
 This is a candidate inventory. Each later unit needs measured benefit,
-behavioral parity, a rollback path and its own verified local-main delivery.
+behavioral parity, a rollback path and its own verified performance-branch commit.
 Low-frequency setup/maintenance may remain Python; do not port them solely to
 reach a count. A unit can require several small commits. Internal helper or
 policy splits do not silently increase this inventory; update its scope and
@@ -39,7 +39,9 @@ acceptance explicitly. Tests check complete, unique entry-owner coverage.
 
 The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
-all legacy commands; it is not a claim that those 28 processors are now Rust.
+the remaining legacy commands. The performance branch adds the two statusline
+entrypoints through one shared native renderer; the other 26 processors retain
+Python. This branch result is not a claim of main integration or global activation.
 The other rows remain assessed candidates. Installed user-global hooks are a
 separate rollout boundary from source integration.
 
@@ -62,10 +64,10 @@ separate rollout boundary from source integration.
 | 15 | `scripts/agent_next_action.py` | next | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 17 | `scripts/agent_work_cards.py` | work-cards | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
-| 18 | `scripts/agy_statusline.py` | agy-statusline | Python candidate | Repeated-call latency with context/state/delivery correctness |
+| 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Python candidate | Permission and negative-authority regressions before latency |
-| 21 | `scripts/claude_statusline.py` | claude-statusline | Python candidate | Repeated-call latency with context/state/delivery correctness |
+| 21 | `scripts/claude_statusline.py` | claude-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 22 | `scripts/claude_stop_gate.py` | claude-stop-gate | Python candidate | Repeated-call latency with context/state/delivery correctness |
 | 23 | `scripts/codex_operator_review.py` | operator-review | Python candidate | Permission and negative-authority regressions before latency |
 | 24 | `scripts/codex_pretool_gate.py` | codex-pretool-gate | Python candidate | Permission and negative-authority regressions before latency |
@@ -118,10 +120,12 @@ until a measured bottleneck and a safe owner boundary justify another choice.
 4. Treat installers/maintenance and larger state machines separately, based on
    actual call frequency and compatibility cost.
 
-For each accepted unit: isolated change, focused verification, final staged
-review, one local commit, exact-SHA fast-forward into clean main, then branch
-the next unit from that updated main. Push, global installation and releases
-retain their separate authorization and verification boundaries.
+Performance work now follows the [dedicated performance programme](runtime-performance/prd.md):
+isolated change, focused verification, final staged review and a local commit
+on its integration branch. Subsequent units accumulate there. Main integration
+is a separate later decision based on measured usefulness, not an automatic
+step after each unit. Push, global installation and releases retain their
+separate authorization and verification boundaries.
 
 The alias catalog is single-owned in
 [launcher_python.py](../scripts/support/launcher_python.py). The installer and

@@ -7,6 +7,9 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod launcher_backend;
+mod statusline;
+mod statusline_chain;
+mod statusline_process;
 use launcher_backend::Backend;
 
 const USAGE: &str = "usage: moru-native-launcher PYTHON_LAUNCHER [ARGS...]\n       moru-native-launcher PYTHON_LAUNCHER checkout-identity [--help]\n";
@@ -68,6 +71,13 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args
+        .first()
+        .map_or(false, |a| a == "claude-statusline" || a == "agy-statusline")
+    {
+        finish(statusline_process::StatuslineProcess::run(&launcher, &args));
+    }
 
     if args.first().map_or(false, |a| a == "checkout-identity") {
         match Backend::from_env() {

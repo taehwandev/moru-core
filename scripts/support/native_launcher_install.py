@@ -76,8 +76,11 @@ esac
 native="$launcher_dir/moru-hook-native"
 case "${MORU_LAUNCHER_BACKEND:-auto}" in
     auto|rust)
-        if [ "${MORU_LAUNCHER_BACKEND:-auto}" = auto ] && [ "${1-}" != checkout-identity ]; then
-            exec python3 "$0" "$@"
+        if [ "${MORU_LAUNCHER_BACKEND:-auto}" = auto ]; then
+            case "${1-}" in
+                checkout-identity|claude-statusline|agy-statusline) ;;
+                *) exec python3 "$0" "$@" ;;
+            esac
         fi
         if [ -f "$native" ] && [ -x "$native" ]; then
             exec "$native" "$0" "$@"
