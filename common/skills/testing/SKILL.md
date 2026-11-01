@@ -36,6 +36,7 @@ The core below is the required contract. When writing or meaningfully reviewing 
 - Mock at external boundaries (network, database, filesystem, clock, random, payment, email, analytics, platform APIs). Test permission, tenant, billing, migration, generated-client contracts where they can fail. Use deterministic fixtures near what they prove; never copy private production data.
 - Discover and reuse the repo's existing test stack and fake patterns before new libraries or broad mocks.
 - A value or control the user sees is tested where it appears: assert the formatted text with its unit and a plausible range, and that the control or scene is the topmost element at its own centre point. Passing tests of the pure math beside it do not cover the glue that formats or places it.
+- Every test run, browser session and wait has a time limit; a run that gives no result by then is a failure to report and fix, never something to keep waiting on.
 - UI changes: cover affected states and form factors; screenshots/previews only when they prove the visual contract, paired with focused assertions.
 - Place tests in the mirrored module file (create it if missing, not the nearest large file); split scenario/type into classes inside it; name cross-module flows `test_<flow>_end_to_end`. Tests and fakes move with the class in the same change; drop test-only public delegations; check scenario-count parity.
 - Keep test files within ~3x the production file limit (review hook); split into classes first.

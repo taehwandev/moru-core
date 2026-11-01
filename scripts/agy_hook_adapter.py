@@ -151,10 +151,36 @@ def pre_invocation(payload: dict) -> dict:
     return {"injectSteps": [{"systemMessage": {"systemMessage": text}}]}
 
 
+def partial_read_note(args: dict, conversation: str) -> str:
+    """Tell the agent once when it asks for only part of a skill document.
+
+    A skill is guidance to be read to its end; a model that picks a round line
+    range silently skips whatever follows it. Only the request and the file's
+    line count are compared, never the file's meaning.
+    """
+
+    path = Path(str(args.get("Path") or args.get("AbsolutePath") or ""))
+    if path.name != "SKILL.md":
+        return ""
+    try:
+        total = len(path.read_text(encoding="utf-8").splitlines())
+        first, last = int(args.get("StartLine") or 1), int(args.get("EndLine") or total)
+    except (OSError, ValueError):
+        return ""
+    if first <= 1 and last >= total:
+        return ""
+    note = (f"{path.name} in {path.parent.name} has {total} lines and you asked for {first}-{last}. A skill is "
+            f"guidance to read to its end: read lines {last + 1}-{total} (or the whole file) before relying on it.")
+    return "" if already_delivered(conversation, note, "partial-read") else note
+
+
 def pre_tool(payload: dict) -> dict:
     call = payload.get("toolCall") if isinstance(payload.get("toolCall"), dict) else {}
     name = str(call.get("name") or "")
     args = call.get("args") if isinstance(call.get("args"), dict) else {}
+    if name == "read_file":
+        note = partial_read_note(args, session_id(payload))
+        return {"decision": "allow", "reason": note} if note else {"decision": "allow"}
     if name == "run_command":
         tool, tool_input = "Bash", {"command": str(args.get("CommandLine") or "")}
     elif name in EDIT_TOOLS:

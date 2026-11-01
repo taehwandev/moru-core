@@ -27,6 +27,22 @@ class PreToolTranslationTests(unittest.TestCase):
         with patch.object(adapter, "run_script", side_effect=AssertionError("gate must not run")):
             self.assertEqual({"decision": "allow"}, adapter.pre_tool(self.call("read_file", {"Path": "x"})))
 
+    def test_a_partial_read_of_a_skill_is_flagged_once_and_a_full_read_is_not(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)):
+            skill = Path(tmp) / "demo" / "SKILL.md"
+            skill.parent.mkdir()
+            skill.write_text("\n".join(f"line {n}" for n in range(1, 151)), encoding="utf-8")
+            partial = self.call("read_file", {"Path": str(skill), "StartLine": 1, "EndLine": 100})
+            first = adapter.pre_tool(partial)
+            self.assertIn("150 lines", first["reason"])
+            self.assertIn("101-150", first["reason"])
+            self.assertEqual({"decision": "allow"}, adapter.pre_tool(partial))
+            whole = self.call("read_file", {"Path": str(skill), "StartLine": 1, "EndLine": 150})
+            self.assertEqual({"decision": "allow"}, adapter.pre_tool(whole))
+            other = skill.with_name("notes.md")
+            other.write_text("x\n" * 300, encoding="utf-8")
+            self.assertEqual({"decision": "allow"}, adapter.pre_tool(self.call("read_file", {"Path": str(other), "EndLine": 5})))
+
     def test_commands_and_edits_reach_the_gate_in_claude_shape(self):
         seen = []
 
@@ -459,7 +475,7 @@ class HooksFileMergeTests(unittest.TestCase):
         commands = json.dumps(spec)
         for event in ("pre-invocation", "pre-tool", "stop"):
             self.assertIn(f"agy-hook {event}", commands)
-        self.assertEqual("run_command|write_file|edit_file", spec["PreToolUse"][0]["matcher"])
+        self.assertEqual("run_command|read_file|write_file|edit_file", spec["PreToolUse"][0]["matcher"])
 
 
 if __name__ == "__main__":
