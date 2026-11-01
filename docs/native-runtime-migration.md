@@ -46,11 +46,11 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
-partially native pretool, quiet mailbox, quiet/settled Stop and inactive-next paths. Fourteen primary boundaries now have measured
+partially native pretool, quiet mailbox, quiet/settled Stop and inactive-next paths. Fifteen primary boundaries now have measured
 changes: ten involving native work (including the partial launcher, pretool,
-mailbox, Stop and next paths) and four Python optimizations (entry, discovery, status and mailbox
-CLI). That is 14/53 inventory coverage, or 14/30 primary
-coverage, not effort-weighted completion. The remaining 39 are candidates. The earlier
+mailbox, Stop and next paths) and five Python optimizations (entry, discovery, status, mailbox
+CLI and work-card listing). That is 15/53 inventory coverage, or 15/30 primary
+coverage, not effort-weighted completion. The remaining 38 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
 target for quiet prompt delivery only. Main integration and local installation
@@ -77,6 +77,9 @@ The [inactive-next increment](runtime-performance/native-next.md) moves bounded
 read-only advice and safe verification-target discovery to Rust, retaining active-run decisions in Python.
 The [shared ARM64 SHA increment](runtime-performance/native-sha.md) accelerates
 the existing exact source guard through CPU detection, without caching or new inventory units.
+The [read-only inspection batch](runtime-performance/read-inspection.md) extends
+native tail/wc/bounded-sed queries and removes mutation/capture imports from
+basic status and work-card listing. The latter two remain Python paths.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
@@ -87,7 +90,7 @@ the existing exact source guard through CPU detection, without caching or new in
 | 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Python candidate | Admission, state/evidence freshness and completion safety |
 | 6 | `scripts/agent-mailbox.py` | agent-mailbox | Python imports deferred | Help improves; ordinary status/receive have no material median gain |
 | 7 | `scripts/agent-os-maintenance.py` | agent-os-maintenance | Python candidate | Low-frequency operator work; justify a port before changing Python |
-| 8 | `scripts/agent-os-status.py` | agent-os-status | Python imports deferred on performance branch | Basic/help parity; frequent-path gain below 20% target |
+| 8 | `scripts/agent-os-status.py` | agent-os-status | Python read-owner imports isolated on performance branch | Exact API/lock parity; warm basic/validated status gains about 21% |
 | 9 | `scripts/agent-os-watchdog.py` | agent-os-watchdog | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 10 | `scripts/agent-preflight.py` | agent-preflight | Python candidate | Admission, state/evidence freshness and completion safety |
 | 11 | `scripts/agent_doctor.py` | doctor | Python candidate | Low-frequency operator work; justify a port before changing Python |
@@ -96,7 +99,7 @@ the existing exact source guard through CPU detection, without caching or new in
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
-| 17 | `scripts/agent_work_cards.py` | work-cards | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 17 | `scripts/agent_work_cards.py` | work-cards | Python read-owner imports isolated on performance branch | SQLite/schema/liveness unchanged; warm empty-list gain 22.5%, 100-card gain 17.3% |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |

@@ -22,9 +22,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from agent_project_memory import repository_key
+from agent_repository_key import repository_key
 from support.global_state import project_state_dir_target
-from agent_run_registry import REGISTRY_FILENAME, SETTLED_RUN_STATES
+from agent_state_read import REGISTRY_FILENAME
 from support.global_state import global_state_dir, user_store_write_error
 
 
@@ -221,6 +221,8 @@ def _stale_state(card: dict[str, Any], cache: dict[Path, dict[str, str]]) -> str
     it any more; a run the registry already settled means its card missed the
     closeout that would have settled it.
     """
+    from agent_run_registry import SETTLED_RUN_STATES
+
     project = Path(card["project"])
     if not project.is_dir():
         return "cancelled"

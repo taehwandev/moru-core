@@ -18,6 +18,7 @@ from agent_worktree_fingerprint import (
 )
 from agent_workspace_policy import is_non_git_workspace
 from support.git_read_scope import stable_read, worktree_entry
+from agent_state_read import read_json_object
 
 
 SCHEMA_VERSION = 4
@@ -37,16 +38,6 @@ def capsule_path_for_evidence(evidence_path: Path) -> Path:
     if evidence_path.name == "preflight.json":
         return evidence_path.parent / CAPSULE_FILENAME
     return evidence_path.parent / f"{evidence_path.stem}-{CAPSULE_FILENAME}"
-
-
-def read_json_object(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return {}
-    except (OSError, json.JSONDecodeError):
-        return {"invalid_json": True}
-    return payload if isinstance(payload, dict) else {"invalid_json": True}
 
 
 def file_hash_record(path: Path) -> dict[str, str]:

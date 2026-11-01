@@ -31,14 +31,17 @@ impl<'a> FileQuery<'a> {
             }
             ["cat", "-n", _, ..] => 2,
             ["cat", _, ..] => 1,
-            ["head", "-n", count, _, ..]
+            ["head" | "tail", "-n", count, _, ..]
                 if !count.is_empty()
                     && count.bytes().all(|c| c.is_ascii_digit())
                     && count.parse::<u32>().is_ok_and(|n| n <= 1_000_000) =>
             {
                 3
             }
-            ["head", _, ..] => 1,
+            ["head" | "tail", _, ..] => 1,
+            ["wc", "-l" | "-w" | "-c" | "-m", _, ..] => 2,
+            ["wc", _, ..] => 1,
+            ["sed", "-n", script, _, ..] if print_range(script) => 3,
             _ => return None,
         };
         if !tokens[operands..].iter().all(|word| literal_path(word)) {
@@ -99,7 +102,8 @@ fn literal_words(command: &str) -> Option<Vec<&str>> {
             // Whole literal words only: no concatenation, escapes or expansion.
             let end = rest[1..].find(rest.as_bytes()[0] as char)? + 1;
             let word = &rest[1..end];
-            if words.is_empty() || !literal_path(word) {
+            let print_script = words.as_slice() == ["sed", "-n"] && print_range(word);
+            if words.is_empty() || !(literal_path(word) || print_script) {
                 return None;
             }
             (word, &rest[end + 1..])
@@ -117,6 +121,24 @@ fn literal_words(command: &str) -> Option<Vec<&str>> {
         rest = tail.trim_start_matches([' ', '\t']);
     }
     Some(words)
+}
+
+fn print_range(script: &str) -> bool {
+    let Some(address) = script.strip_suffix('p') else {
+        return false;
+    };
+    let number = |word: &str| {
+        (!word.is_empty() && word.bytes().all(|c| c.is_ascii_digit()))
+            .then(|| word.parse::<u32>().ok())
+            .flatten()
+            .filter(|n| (1..=1_000_000).contains(n))
+    };
+    match address.split_once(',') {
+        Some((first, last)) => {
+            matches!((number(first), number(last)), (Some(a), Some(b)) if a <= b)
+        }
+        None => number(address).is_some(),
+    }
 }
 
 fn resolvable_prefix(path: &Path) -> bool {

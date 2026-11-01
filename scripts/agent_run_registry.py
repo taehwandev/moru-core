@@ -22,10 +22,10 @@ from agent_run_owner import (
 )
 from agent_state_lock import project_state_lock, state_lock
 from support.global_state import project_state_dir_target
+from agent_state_read import REGISTRY_FILENAME, registry_path
 
 
 SCHEMA_VERSION = 1
-REGISTRY_FILENAME = "run-registry.json"
 RUNS_DIR = "runs"
 RUN_DIRECTORY_RE = re.compile(r"^[0-9a-f]{32}$")
 ACTIVE_RUN_STATES = frozenset({"running", "paused", "resuming"})
@@ -78,10 +78,6 @@ DEFAULT_STALE_AFTER_SECONDS = 3600
 # per lifecycle hook.
 HEARTBEAT_MIN_INTERVAL_SECONDS = 60
 MAX_RUNS = 100
-
-
-def registry_path(project: Path) -> Path:
-    return project_state_dir_target(project.resolve()) / REGISTRY_FILENAME
 
 
 def register_run(

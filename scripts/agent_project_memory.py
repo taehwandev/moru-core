@@ -25,7 +25,7 @@ from typing import Any
 from agent_execution_capsule_state import atomic_write_json
 from agent_evidence_inputs import EvidenceInputs
 from support.global_state import global_state_dir, user_store_write_error
-from support.git_read_scope import stable_read
+from agent_repository_key import repository_key, _repository_key
 
 
 SCHEMA_VERSION = 1
@@ -198,23 +198,6 @@ def _relevance(record: dict[str, Any], query: tuple[set[str], set[str], set[str]
     matches = sum(any(other == path or other.endswith("/" + path) for other in query_paths) for path in paths)
     module_matches = (modules & (query_words | query_modules)) | (query_modules & words)
     return len(words & query_words) + 12 * matches + 8 * len(module_matches)
-
-
-def repository_key(project: Path) -> str:
-    """Name one repository the same way from every one of its worktrees."""
-    return stable_read(("repository-key", str(project.resolve())), lambda: _repository_key(project))
-
-
-def _repository_key(project: Path) -> str:
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
-            capture_output=True, text=True, check=False, timeout=2,
-        )
-        identity = result.stdout.strip() if result.returncode == 0 else str(project.resolve())
-    except (OSError, subprocess.TimeoutExpired):
-        identity = str(project.resolve())
-    return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
 
 
 def store_dir(project: Path) -> Path:

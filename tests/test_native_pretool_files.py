@@ -63,6 +63,39 @@ class NativePretoolFileTests(unittest.TestCase):
                 self.assertEqual(result(baseline), result(self.run_query(alias, command)))
         self.assertFalse((self.project / "written").exists())
 
+    def test_tail_wc_and_bounded_sed_match_python_without_it(self):
+        (self.project / "한글 메모.txt").write_text("synthetic\n")
+        commands = ["tail notes.txt", "tail -n 0 notes.txt", "tail -n 1000000 notes.txt",
+                    "tail -n 20 '한글 메모.txt'", "wc notes.txt", "wc -l notes.txt src/code.py",
+                    "wc -w notes.txt", "wc -c notes.txt", "wc -m '한글 메모.txt'",
+                    "sed -n '1,120p' notes.txt", 'sed -n "42p" notes.txt',
+                    "sed -n 1,10p notes.txt", "sed -n '1,20p' '한글 메모.txt'"]
+        for alias in ("claude-pretool-gate", "codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias, command=command):
+                    baseline = invoke(self.launcher, self.base, self.project, alias,
+                                      request(self.project, command), backend="python")
+                    self.assertEqual((0, b"", b""), result(baseline))
+                    self.assertEqual(result(baseline), result(self.run_query(alias, command, native_only=True)))
+
+    def test_printing_query_unsafe_neighbors_keep_python_authority(self):
+        commands = ["tail -f notes.txt", "tail -n +1 notes.txt", "tail -n 1000001 notes.txt",
+                    "wc --files0-from=list", "wc -l -w notes.txt", "sed -i '1p' notes.txt",
+                    "sed -n '1,5p;w written' notes.txt", "sed -n '1,5w written' notes.txt",
+                    "sed -n '1,5e' notes.txt", "sed -n '$p' notes.txt", "sed -n '0p' notes.txt",
+                    "sed -n '5,1p' notes.txt", "sed -n '1,1000001p' notes.txt",
+                    "sed -n '1,5p' -i notes.txt", "sed -n '1,5p' missing"]
+        commands += [base + suffix for base in ("tail notes.txt", "wc -l notes.txt", "sed -n '1,5p' notes.txt")
+                     for suffix in ("; touch written", " > written", " | cat", "$(touch written)")]
+        for alias in ("claude-pretool-gate", "codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias, command=command):
+                    baseline = invoke(self.launcher, self.base, self.project, alias,
+                                      request(self.project, command), backend="python")
+                    self.assertEqual(result(baseline), result(self.run_query(alias, command)))
+                    self.assertEqual(127, self.run_query(alias, command, native_only=True).returncode)
+        self.assertFalse((self.project / "written").exists())
+
     def test_literal_quotes_unicode_and_spaces_match_python_without_it(self):
         (self.project / "한글.txt").write_text("TODO synthetic\n")
         folder = self.project / "소스 폴더"

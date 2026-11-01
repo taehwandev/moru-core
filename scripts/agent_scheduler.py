@@ -12,16 +12,12 @@ from agent_execution_capsule_state import atomic_write_json, read_json_object
 from agent_ipc import emit_event
 from agent_state_lock import project_state_lock, state_lock
 from support.global_state import project_state_dir_target
+from agent_state_read import SCHEDULER_FILENAME, scheduler_path
 
 
 SCHEMA_VERSION = 1
-SCHEDULER_FILENAME = "scheduler.json"
 TASK_STATES = frozenset({"queued", "running", "completed", "failed", "cancelled"})
 MAX_TASKS = 200
-
-
-def scheduler_path(project: Path) -> Path:
-    return project_state_dir_target(project.resolve()) / SCHEDULER_FILENAME
 
 
 def choose_capacity(independent_slices: int, requested_workers: int = 1) -> int:
