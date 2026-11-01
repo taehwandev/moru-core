@@ -16,7 +16,7 @@ impl CheckoutIdentity {
     /// Exact Python repository-key identity, without metadata shortcuts/cache.
     pub fn repository_key(root: &str) -> Option<String> {
         use sha2::{Digest, Sha256};
-        let output = gitrun::run(
+        let output = gitrun::GitRead::run(
             root,
             &["rev-parse", "--path-format=absolute", "--git-common-dir"],
         )

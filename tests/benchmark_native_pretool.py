@@ -36,7 +36,8 @@ def measure(output, count, budget, workloads="plain"):
                   "tests/benchmark_native_pretool.py", "tests/native_pretool_support.py",
                   "tests/discovery_process_measure.py", "tests/benchmark_project_discovery.py",
                   "tests/native_mailbox_support.py", "tests/native_stop_support.py",
-                  "tests/test_agent_run_interruption.py", "tests/test_agent_continuation_checkpoint.py") if (PROJECT / p).exists()},
+                  "tests/test_agent_run_interruption.py", "tests/test_agent_continuation_checkpoint.py",
+                  "tests/native_next_support.py") if (PROJECT / p).exists()},
               "cases": {}}
     deadline = time.monotonic() + budget
     rng = random.Random(61034)
@@ -106,7 +107,26 @@ def measure(output, count, budget, workloads="plain"):
                          ("claude_settled", "claude-stop-gate", payload),
                          ("claude_indexed_settled", "claude-stop-gate", payload),
                          ("active_work_fallback", "codex-stop-gate", active_work(base))]
+            if workloads == "next":
+                from native_next_support import quiet_project, seed
+                quiet_project(project)
+                seed(project)
+                cases = [(name, ["next", "--project", str(project), "--format", format], b"")
+                         for name, format in [("next_json", "json"), ("next_markdown", "markdown"),
+                             ("next_settled", "json"), ("active_next_fallback", "json"),
+                             ("dirty_next_json", "json"), ("unicode_next_json", "json"),
+                             ("symlink_next_fallback", "json")]]
             for name, alias, payload in cases:
+                if workloads == "next" and name in ("active_next_fallback", "dirty_next_json",
+                                                    "unicode_next_json", "symlink_next_fallback"):
+                    seed(project, "running" if name == "active_next_fallback" else "completed")
+                    if name == "dirty_next_json":
+                        (project / "dirty.py").write_text("synthetic = 1\n")
+                    if name == "unicode_next_json":
+                        (project / "한글 dirty.py").write_text("synthetic = 1\n")
+                    if name == "symlink_next_fallback":
+                        (base / "external.py").write_text("synthetic = 1\n")
+                        (project / "linked.py").symlink_to(base / "external.py")
                 if workloads == "stop" and name == "claude_settled":
                     from native_stop_support import markers
                     markers(project)
@@ -129,6 +149,8 @@ def measure(output, count, budget, workloads="plain"):
                             raise TimeoutError("native pretool timing budget exhausted")
                         env = environment(base)
                         env.update(MORU_LAUNCHER_BACKEND=variant, PYTHONPYCACHEPREFIX=str(base / "bytecode"))
+                        if workloads == "next" and name in ("next_settled", "active_next_fallback"):
+                            env["CODEX_THREAD_ID"] = "synthetic-next"
                         if warm:
                             env.pop("PYTHONDONTWRITEBYTECODE")
                         rss_file = base / "time-metrics.txt"
@@ -141,6 +163,11 @@ def measure(output, count, budget, workloads="plain"):
                         valid = (done.returncode == 0 and done.stderr == b"" and
                                  (json.loads(done.stdout).get("decision") == "block"
                                   if name == "active_work_fallback" else done.stdout == b""))
+                        if workloads == "next":
+                            expected_status = "active_run" if name == "active_next_fallback" else "no_active_run"
+                            valid = (done.returncode == 0 and done.stderr == b"" and
+                                     (done.stdout.startswith(b"SUCCESS next (no_active_run)")
+                                      if name == "next_markdown" else json.loads(done.stdout)["status"] == expected_status))
                         if result != expected or not valid:
                             raise RuntimeError(f"callback result mismatch: {name}/{variant}: {done.stderr[:300]!r}")
                         matches = re.findall(r"(?m)^\s*(\d+)\s+maximum resident set size\s*$", rss_file.read_text())
@@ -176,7 +203,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=24)
     parser.add_argument("--budget-seconds", type=float, default=90)
-    parser.add_argument("--workloads", choices=("plain", "files", "literal-files", "git", "mailbox", "stop"), default="plain")
+    parser.add_argument("--workloads", choices=("plain", "files", "literal-files", "git", "mailbox", "stop", "next"), default="plain")
     parser.add_argument("--output", type=Path, default=PROJECT / ".moru/performance/native-pretool.json")
     args = parser.parse_args()
     if args.samples < 24 or args.samples % 2:

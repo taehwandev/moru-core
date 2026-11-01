@@ -51,7 +51,10 @@ jobs:
       - name: Build and verify runtime behavior
         run: |
           python3 scripts/build_native_runtime.py
-          PYTHONPATH=scripts:tests python3 -B -m unittest test_native_bundle test_checkout_identity_runtime test_native_stable_launcher test_native_statusline test_native_pretool test_native_pretool_files test_native_pretool_git test_native_mailbox test_native_stop
+          PYTHONPATH=scripts:tests python3 -B -m unittest \
+            test_native_bundle test_checkout_identity_runtime test_native_stable_launcher \
+            test_native_statusline test_native_pretool test_native_pretool_files \
+            test_native_pretool_git test_native_mailbox test_native_stop test_native_next
       - name: Package and test a fresh consumer without a toolchain
         env:
           BUNDLE: moru-native-${{ matrix.platform }}.tar.gz

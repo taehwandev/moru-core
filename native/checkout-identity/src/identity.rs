@@ -57,7 +57,7 @@ fn git_common_dir(root: &str) -> Result<Option<String>, ()> {
     if let Some(common) = common_dir_from_disk(root)? {
         return Ok(Some(common));
     }
-    let out = match gitrun::run(root, &["rev-parse", "--git-common-dir"])? {
+    let out = match gitrun::GitRead::run(root, &["rev-parse", "--git-common-dir"])? {
         Some(out) => out,
         None => return Ok(None),
     };
@@ -80,10 +80,12 @@ fn current_branch(root: &str) -> Result<String, ()> {
             }
         }
     }
-    Ok(match gitrun::run(root, &["branch", "--show-current"])? {
-        Some(out) => Text::py_strip(&out).to_string(),
-        None => String::new(),
-    })
+    Ok(
+        match gitrun::GitRead::run(root, &["branch", "--show-current"])? {
+            Some(out) => Text::py_strip(&out).to_string(),
+            None => String::new(),
+        },
+    )
 }
 
 /// Common dir, then branch, each computed independently with no caching.

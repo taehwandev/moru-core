@@ -46,9 +46,9 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
-partially native pretool, quiet mailbox and quiet/settled Stop callbacks. Fourteen primary boundaries now have measured
-changes: nine involving native work (including the partial launcher, pretool,
-mailbox and Stop callbacks) and five Python optimizations (entry, discovery, status, next and mailbox
+partially native pretool, quiet mailbox, quiet/settled Stop and inactive-next paths. Fourteen primary boundaries now have measured
+changes: ten involving native work (including the partial launcher, pretool,
+mailbox, Stop and next paths) and four Python optimizations (entry, discovery, status and mailbox
 CLI). That is 14/53 inventory coverage, or 14/30 primary
 coverage, not effort-weighted completion. The remaining 39 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
@@ -73,6 +73,8 @@ The [Git-inspection and release-consumer batch](runtime-performance/native-preto
 expands the existing pretool boundaries and verifies the complete transported runtime.
 The [literal-path and guard-profile increment](runtime-performance/native-literal-paths.md)
 extends those same queries to quoted/Unicode/space paths without caching validation.
+The [inactive-next increment](runtime-performance/native-next.md) moves bounded
+read-only advice and safe verification-target discovery to Rust, retaining active-run decisions in Python.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
@@ -90,7 +92,7 @@ extends those same queries to quoted/Unicode/space paths without caching validat
 | 12 | `scripts/agent_execution_capsule.py` | execution-capsule | Python candidate | Admission, state/evidence freshness and completion safety |
 | 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
-| 15 | `scripts/agent_next_action.py` | next | Python imports deferred; shared evidence lookup optimized | Startup gain below target; active-next meets target on large history/cache fixtures; compact/custom limits retained |
+| 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 17 | `scripts/agent_work_cards.py` | work-cards | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |

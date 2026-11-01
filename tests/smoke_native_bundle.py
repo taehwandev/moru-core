@@ -90,7 +90,30 @@ def smoke(archive):
                     capture_output=True, env=no_python, cwd=project, timeout=8)
                 assert (done.returncode, done.stdout, done.stderr) == (0, b"", b""), done
                 checks += 1
-        print(f"PASS: {checks} transported callback checks; lookup/status/pretool with empty PATH, mailbox/Stop with Git-only PATH")
+        advisor = base / "next-project 한글"
+        advisor.mkdir()
+        subprocess.run(["git", "init", "-q", str(advisor)], env=normal, check=True, capture_output=True)
+        for format in ("json", "markdown"):
+            args = [str(entry), "next", "--project", str(advisor), "--format", format]
+            reference = subprocess.run(args, capture_output=True,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=advisor, timeout=8)
+            done = subprocess.run(args, capture_output=True, env=no_python, cwd=advisor, timeout=8)
+            assert reference.returncode == 0 and not reference.stderr, reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
+        assert not (advisor / ".moru").exists()
+        (advisor / "한글 note.py").write_text("synthetic = 1\n")
+        for format in ("json", "markdown"):
+            args = [str(entry), "next", "--project", str(advisor), "--format", format]
+            reference = subprocess.run(args, capture_output=True,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=advisor, timeout=8)
+            done = subprocess.run(args, capture_output=True, env=no_python, cwd=advisor, timeout=8)
+            assert reference.returncode == 0 and not reference.stderr, reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
+        print(f"PASS: {checks} transported checks; lookup/status/pretool with empty PATH, mailbox/Stop/next with Git-only PATH")
 
 
 if __name__ == "__main__":

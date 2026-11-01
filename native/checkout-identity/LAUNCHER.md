@@ -32,6 +32,12 @@ interruption, legacy closeout and message acknowledgement effect remains owned
 by the current Python handlers. An early nonterminal-history check only rejects;
 native admission repeats its checks under locks after source validation.
 
+The [inactive-next increment](../../docs/runtime-performance/native-next.md)
+adds native `next` advice and safe verification-target discovery only when no
+active session claim is proven. Registry locks are released before Git status,
+matching the Python reader. Active/unknown state, explicit evidence and
+uncertain paths retain Python; no lifecycle transition or suggested test runs.
+
 The exact trusted launcher alias is classified as read-only for no arguments
 or --help. Unknown arguments and impostor executable paths do not inherit that
 classification. Shell output targets remain visible to existing raw-path

@@ -10,13 +10,29 @@ use std::time::{Duration, Instant};
 const TIMEOUT: Duration = Duration::from_secs(2);
 const MAX_NAP: Duration = Duration::from_millis(2);
 
-/// Ok(None) covers a missing executable, timeout or nonzero exit, the cases
-/// where the production code yields None or an empty string.
-pub fn run(root: &str, args: &[&str]) -> Result<Option<String>, ()> {
-    let mut child = match Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(args)
+pub(crate) struct GitRead;
+
+impl GitRead {
+    pub(crate) fn run(root: &str, args: &[&str]) -> Result<Option<String>, ()> {
+        capture(Command::new("git").arg("-C").arg(root).args(args))
+    }
+
+    #[allow(dead_code)] // Used by the launcher crate, not the identity library.
+    pub(crate) fn status(root: &str) -> Option<String> {
+        capture(
+            Command::new("git")
+                .args(["status", "--porcelain", "--untracked-files=all"])
+                .current_dir(root),
+        )
+        .ok()
+        .flatten()
+    }
+}
+
+// None covers missing Git, timeout or nonzero exit; callers retain their
+// original compatibility handling. Both entrypoints share this exact bound.
+fn capture(command: &mut Command) -> Result<Option<String>, ()> {
+    let mut child = match command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

@@ -8,9 +8,13 @@ use moru_checkout_identity::CheckoutIdentity;
 
 mod callback_replay;
 mod callback_state;
+#[allow(dead_code)] // Shared source; this crate only uses the status adapter.
+mod gitrun;
 mod launcher_backend;
 mod mailbox_process;
 mod mailbox_state;
+mod next_process;
+mod next_verification;
 mod pretool_files;
 mod pretool_guard;
 mod pretool_process;
@@ -21,6 +25,8 @@ mod statusline_chain;
 mod statusline_process;
 mod stop_process;
 mod stop_state;
+#[allow(dead_code)] // Git text decoding shares the library's text contract.
+mod text;
 use launcher_backend::Backend;
 
 const USAGE: &str = "usage: moru-native-launcher PYTHON_LAUNCHER [ARGS...]\n       moru-native-launcher PYTHON_LAUNCHER checkout-identity [--help]\n";
@@ -82,6 +88,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "next") {
+        finish(next_process::NextProcess::run(&launcher, &args));
+    }
 
     if args
         .first()

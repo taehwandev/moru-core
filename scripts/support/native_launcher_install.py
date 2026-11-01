@@ -80,7 +80,8 @@ case "${MORU_LAUNCHER_BACKEND:-auto}" in
     auto|rust)
         if [ "${MORU_LAUNCHER_BACKEND:-auto}" = auto ]; then
             case "${1-}" in
-                checkout-identity|claude-statusline|agy-statusline|claude-pretool-gate|codex-pretool-gate|mailbox-hook|claude-stop-gate|codex-stop-gate) ;;
+                checkout-identity|claude-statusline|agy-statusline|next) ;;
+                claude-pretool-gate|codex-pretool-gate|mailbox-hook|claude-stop-gate|codex-stop-gate) ;;
                 *) exec python3 "$0" "$@" ;;
             esac
         fi
