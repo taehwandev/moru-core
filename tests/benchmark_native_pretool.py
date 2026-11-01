@@ -115,18 +115,24 @@ def measure(output, count, budget, workloads="plain"):
                          for name, format in [("next_json", "json"), ("next_markdown", "markdown"),
                              ("next_settled", "json"), ("active_next_fallback", "json"),
                              ("dirty_next_json", "json"), ("unicode_next_json", "json"),
-                             ("symlink_next_fallback", "json")]]
+                             ("symlink_next_json", "json"), ("broken_link_next_json", "json"),
+                             ("loop_link_next_json", "json")]]
             for name, alias, payload in cases:
                 if workloads == "next" and name in ("active_next_fallback", "dirty_next_json",
-                                                    "unicode_next_json", "symlink_next_fallback"):
+                                                    "unicode_next_json", "symlink_next_json",
+                                                    "broken_link_next_json", "loop_link_next_json"):
                     seed(project, "running" if name == "active_next_fallback" else "completed")
                     if name == "dirty_next_json":
                         (project / "dirty.py").write_text("synthetic = 1\n")
                     if name == "unicode_next_json":
                         (project / "한글 dirty.py").write_text("synthetic = 1\n")
-                    if name == "symlink_next_fallback":
+                    if name == "symlink_next_json":
                         (base / "external.py").write_text("synthetic = 1\n")
                         (project / "linked.py").symlink_to(base / "external.py")
+                    if name == "broken_link_next_json":
+                        (project / "broken.py").symlink_to("absent.py")
+                    if name == "loop_link_next_json":
+                        (project / "loop.py").symlink_to("loop.py")
                 if workloads == "stop" and name == "claude_settled":
                     from native_stop_support import markers
                     markers(project)

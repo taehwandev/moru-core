@@ -1,5 +1,5 @@
 //! Pure changed-file verification suggestions. Never runs suggested commands.
-use crate::{callback_state::LocalState as State, gitrun::GitRead, text::Text};
+use crate::{gitrun::GitRead, text::Text};
 use std::{
     collections::BTreeSet,
     path::{Component, Path},
@@ -19,11 +19,10 @@ impl Verification {
         let mut compile = Vec::new();
         for raw in &paths {
             let path = Path::new(raw);
-            State::safe_path(project, &project.join(path))?;
             if path.extension().and_then(|v| v.to_str()) != Some("py") {
                 continue;
             }
-            if project.join(path).is_file() {
+            if reference_is_file(&project.join(path))? {
                 compile.push(Text::norm_path(raw));
             }
             let stem = path.file_stem()?.to_str()?;
@@ -38,8 +37,7 @@ impl Verification {
                 format!("test_support_{}.py", stem.replace('-', "_")),
             ] {
                 let candidate = project.join("tests").join(name);
-                State::safe_path(project, &candidate)?;
-                if candidate.is_file() {
+                if reference_is_file(&candidate)? {
                     modules.insert(format!("tests.{}", candidate.file_stem()?.to_str()?));
                 }
             }
@@ -65,8 +63,7 @@ impl Verification {
                 ("Package.swift", "swift test"),
                 ("gradlew", "./gradlew test"),
             ] {
-                State::safe_path(project, &project.join(marker))?;
-                if project.join(marker).is_file() {
+                if reference_is_file(&project.join(marker))? {
                     commands.push(command.to_owned());
                     break;
                 }
@@ -86,6 +83,23 @@ impl Verification {
             array(&self.modules),
             array(&self.commands)
         )
+    }
+}
+
+fn reference_is_file(path: &Path) -> Option<bool> {
+    // Path.is_file follows links; ordinary absence, non-directory prefixes,
+    // bad descriptors and link loops are false. Other OS errors stay Python's.
+    match std::fs::metadata(path) {
+        Ok(metadata) => Some(metadata.is_file()),
+        Err(error)
+            if matches!(
+                error.raw_os_error(),
+                Some(libc::ENOENT) | Some(libc::ENOTDIR) | Some(libc::EBADF) | Some(libc::ELOOP)
+            ) =>
+        {
+            Some(false)
+        }
+        Err(_) => None,
     }
 }
 
@@ -171,5 +185,50 @@ mod tests {
                 "한글.py".to_owned()
             ])
         );
+    }
+
+    #[test]
+    fn metadata_follows_links_and_preserves_false_file_predicates() {
+        use std::{
+            fs,
+            os::unix::fs::symlink,
+            time::{SystemTime, UNIX_EPOCH},
+        };
+        let root = std::env::temp_dir().join(format!(
+            "moru-next-stat-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("file.py"), b"synthetic\n").unwrap();
+        fs::create_dir(root.join("directory")).unwrap();
+        symlink("file.py", root.join("linked.py")).unwrap();
+        symlink("linked.py", root.join("chain.py")).unwrap();
+        symlink("missing.py", root.join("broken.py")).unwrap();
+        symlink("loop.py", root.join("loop.py")).unwrap();
+        symlink("directory", root.join("directory.py")).unwrap();
+        for name in ["file.py", "linked.py", "chain.py"] {
+            assert_eq!(reference_is_file(&root.join(name)), Some(true), "{name}");
+        }
+        for name in [
+            "missing.py",
+            "broken.py",
+            "loop.py",
+            "directory",
+            "directory.py",
+            "file.py/child",
+        ] {
+            assert_eq!(reference_is_file(&root.join(name)), Some(false), "{name}");
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn uncertain_metadata_error_does_not_become_false() {
+        let path = std::env::temp_dir().join("x".repeat(5000));
+        assert_eq!(reference_is_file(&path), None);
     }
 }

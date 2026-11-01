@@ -188,9 +188,66 @@ class NativeNextTests(unittest.TestCase):
         external = self.base / "external.py"
         external.write_text("synthetic = 1\n")
         (self.project / "linked.py").symlink_to(external)
+        (self.project / "chain.py").symlink_to("linked.py")
+        (self.project / "broken.py").symlink_to("absent.py")
+        (self.project / "loop.py").symlink_to("loop.py")
+        directory = self.base / "external-directory"
+        directory.mkdir()
+        (self.project / "directory.py").symlink_to(directory, target_is_directory=True)
         baseline = self.call(backend="python")
         self.assertEqual(result(baseline), result(self.call()))
-        self.assertEqual(127, self.call(PATH=str(self.git_only)).returncode)
+        self.assertEqual(result(baseline), result(self.call(PATH=str(self.git_only))))
+
+    def test_symlinked_test_directories_and_framework_markers_match(self):
+        external = self.base / "external-tests"
+        external.mkdir()
+        (external / "test_code.py").write_text("synthetic = 1\n")
+        (self.project / "tests").symlink_to(external, target_is_directory=True)
+        (self.project / "code.py").write_text("synthetic = 1\n")
+        baseline = self.call(backend="python")
+        self.assertIn("tests.test_code", json.loads(baseline.stdout)["verification"]["matched_test_modules"])
+        self.assertEqual(result(baseline), result(self.call(PATH=str(self.git_only))))
+        (self.project / "code.py").unlink()
+        (self.project / "tests").unlink()
+        for marker in ("Cargo.toml", "package.json"):
+            (external / marker).write_text("synthetic\n")
+            (self.project / marker).symlink_to(external / marker)
+            baseline = self.call(backend="python")
+            self.assertEqual(result(baseline), result(self.call(PATH=str(self.git_only))))
+
+    def test_uncertain_metadata_errors_keep_exact_python_result(self):
+        spy_dir = self.base / "long-path-spy"
+        spy_dir.mkdir()
+        spy = spy_dir / "git"
+        spy.write_text("#!" + sys.executable + "\nimport sys\nsys.stdout.write('?? ' + 'x' * 5000 + '.py\\n')\n")
+        spy.chmod(0o755)
+        path = str(spy_dir) + os.pathsep + os.environ["PATH"]
+        baseline = self.call(backend="python", PATH=path)
+        self.assertEqual(result(baseline), result(self.call(PATH=path)))
+        self.assertEqual(127, self.call(PATH=str(spy_dir)).returncode)
+
+    def test_transported_bundle_resolves_linked_verification_targets(self):
+        from support.native_bundle import install_bundle, pack_bundle
+        archive = self.base / "native-links.tar.gz"
+        pack_bundle(PROJECT, archive)
+        source = copied_build_root(self.base / "transported source")
+        shutil.copytree(PROJECT / "scripts", source / "scripts", dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        for name in ("AGENTS.md", "index.md"):
+            shutil.copy2(PROJECT / name, source / name)
+        install_bundle(source, archive)
+        isolated = self.base / "transported-consumer"
+        isolated.mkdir()
+        launcher, project = prepare_next(isolated, source)
+        external = self.base / "transported-target.py"
+        external.write_text("synthetic = 1\n")
+        (project / "linked.py").symlink_to(external)
+        for format in ("json", "markdown"):
+            args = ["--project", str(project), "--format", format]
+            baseline = invoke_next(launcher, isolated, project, args, backend="python", source=source)
+            self.assertEqual(0, baseline.returncode, baseline.stderr)
+            self.assertEqual(result(baseline), result(invoke_next(launcher, isolated, project, args,
+                PATH=str(self.git_only), source=source)))
 
     def test_unicode_and_space_paths_match_with_both_git_quote_modes(self):
         from native_pretool_support import environment
