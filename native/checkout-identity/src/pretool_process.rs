@@ -59,10 +59,8 @@ impl PretoolProcess {
             return false;
         }
         if file_command.is_some()
-            && !crate::pretool_files::FileQuery::parse(
-                &command.split_ascii_whitespace().collect::<Vec<_>>(),
-            )
-            .is_some_and(|query| query.ready(Path::new(cwd)))
+            && !crate::pretool_files::FileQuery::command(command)
+                .is_some_and(|query| query.ready(Path::new(cwd)))
         {
             return false;
         }

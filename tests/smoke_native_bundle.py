@@ -59,12 +59,14 @@ def smoke(archive):
         project.mkdir()
         (project / ".moru").mkdir()
         (project / "notes.txt").write_text("TODO synthetic\n")
+        (project / "한글 메모.txt").write_text("TODO synthetic\n")
         normal = environment(base, root)
         subprocess.run(["git", "init", "-q", str(project)], env=normal, check=True, capture_output=True)
         payload = {"cwd": str(project), "session_id": "transported-smoke", "tool_name": "Bash"}
         checks = 3
         for runtime in ("claude", "codex"):
-            for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt", "head -n 20 notes.txt"):
+            for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt",
+                            "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"'):
                 data = {**payload, "tool_input": {"command": command}}
                 done = subprocess.run([str(entry), runtime + "-pretool-gate"], input=json.dumps(data).encode(),
                     capture_output=True, env=env, cwd=project, timeout=8)

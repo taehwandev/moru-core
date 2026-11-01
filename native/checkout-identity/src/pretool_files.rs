@@ -10,7 +10,12 @@ pub(crate) struct FileQuery<'a> {
 }
 
 impl<'a> FileQuery<'a> {
-    pub(crate) fn parse(tokens: &[&'a str]) -> Option<Self> {
+    pub(crate) fn command(command: &'a str) -> Option<Self> {
+        let tokens = literal_words(command)?;
+        Self::parse(&tokens)
+    }
+
+    fn parse(tokens: &[&'a str]) -> Option<Self> {
         if tokens.len() > 20 {
             return None;
         }
@@ -76,11 +81,42 @@ fn literal_path(word: &str) -> bool {
     !word.is_empty()
         && !word.starts_with('-')
         && word
-            .bytes()
-            .all(|c| c.is_ascii_alphanumeric() || b"_./-".contains(&c))
+            .chars()
+            .all(|c| c.is_alphanumeric() || "_./- ".contains(c))
         && !Path::new(word)
             .components()
             .any(|c| c == Component::ParentDir)
+}
+
+fn literal_words(command: &str) -> Option<Vec<&str>> {
+    if command.len() > 16 * 1024 || command.chars().any(|c| c.is_control() && c != '\t') {
+        return None;
+    }
+    let mut rest = command.trim_matches([' ', '\t']);
+    let mut words = Vec::new();
+    while !rest.is_empty() {
+        let (word, tail) = if rest.starts_with(['\'', '"']) {
+            // Whole literal words only: no concatenation, escapes or expansion.
+            let end = rest[1..].find(rest.as_bytes()[0] as char)? + 1;
+            let word = &rest[1..end];
+            if words.is_empty() || !literal_path(word) {
+                return None;
+            }
+            (word, &rest[end + 1..])
+        } else {
+            let end = rest.find([' ', '\t']).unwrap_or(rest.len());
+            (&rest[..end], &rest[end..])
+        };
+        if !tail.is_empty() && !tail.starts_with([' ', '\t']) {
+            return None;
+        }
+        words.push(word);
+        if words.len() > 20 {
+            return None;
+        }
+        rest = tail.trim_start_matches([' ', '\t']);
+    }
+    Some(words)
 }
 
 fn resolvable_prefix(path: &Path) -> bool {

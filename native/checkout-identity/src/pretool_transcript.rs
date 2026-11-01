@@ -10,10 +10,8 @@ use std::{
 pub(crate) fn safe(payload: &Value, file_command: Option<&str>) -> bool {
     let valid_directory = |path: &str| {
         file_command.is_none_or(|command| {
-            crate::pretool_files::FileQuery::parse(
-                &command.split_ascii_whitespace().collect::<Vec<_>>(),
-            )
-            .is_some_and(|query| query.ready(Path::new(path)))
+            crate::pretool_files::FileQuery::command(command)
+                .is_some_and(|query| query.ready(Path::new(path)))
         })
     };
     let Some(path) = payload.get("transcript_path").and_then(Value::as_str) else {

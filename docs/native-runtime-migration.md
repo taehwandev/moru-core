@@ -71,6 +71,8 @@ The [quiet/settled Stop increment](runtime-performance/native-stop.md) adds two
 partial boundaries, preserving active work continuity and interruption in Python.
 The [Git-inspection and release-consumer batch](runtime-performance/native-pretool-git.md)
 expands the existing pretool boundaries and verifies the complete transported runtime.
+The [literal-path and guard-profile increment](runtime-performance/native-literal-paths.md)
+extends those same queries to quoted/Unicode/space paths without caching validation.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |

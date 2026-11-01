@@ -2,6 +2,9 @@
 use std::path::Path;
 
 pub(crate) fn executable(command: &str) -> Option<&str> {
+    if let Some(query) = crate::pretool_files::FileQuery::command(command) {
+        return Some(query.executable());
+    }
     if !command.is_ascii()
         || command.bytes().any(|b| b < 32 && b != b'\t')
         || command
@@ -13,9 +16,6 @@ pub(crate) fn executable(command: &str) -> Option<&str> {
     let tokens: Vec<_> = command.split_ascii_whitespace().collect();
     if tokens.as_slice() == ["pwd"] {
         return Some("pwd");
-    }
-    if let Some(query) = crate::pretool_files::FileQuery::parse(&tokens) {
-        return Some(query.executable());
     }
     if tokens.first() != Some(&"git") {
         return None;
@@ -106,6 +106,11 @@ mod tests {
             "cat -n notes.txt src/code.py",
             "head notes.txt",
             "head -n 0 notes.txt",
+            "cat 한글.txt",
+            "cat '한글 메모.txt'",
+            "head -n 20 \"한글 메모.txt\"",
+            "rg --files '소스 폴더'",
+            "rg -n TODO \"소스 폴더/한글 메모.txt\"",
         ];
         for command in accepted {
             assert!(executable(command).is_some(), "{command}");
@@ -121,7 +126,7 @@ mod tests {
                 " --pre=evil",
                 " --output=x",
                 " -i",
-                " \"x\"",
+                " \"$x\"",
             ] {
                 assert!(
                     executable(&format!("{command}{tail}")).is_none(),
@@ -150,7 +155,10 @@ mod tests {
             "head",
             "rg -n",
             "rg",
-            "cat 한글.txt",
+            "cat 'notes'.txt",
+            "cat '-n' notes.txt",
+            "'cat' notes.txt",
+            "cat \"$HOME/notes.txt\"",
             "cat -n",
             "head -n 20",
             "cat -",

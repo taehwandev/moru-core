@@ -47,7 +47,7 @@ class NativePretoolFileTests(unittest.TestCase):
                      "rg -n TODO --pre evil", "rg --files --pre=evil", "rg --files --hidden",
                      "cat", "cat -u notes.txt", "head -n -1 notes.txt", "head -c 10 notes.txt",
                      "rg -n -foo notes.txt", "rg -n TODO --output=written", "sed -i x notes.txt",
-                     "cat missing", "cat src/../notes.txt", "cat 'notes.txt'", "cat 한글.txt",
+                     "cat missing", "cat src/../notes.txt", "cat 한글.txt",
                      "CAT notes.txt", "/bin/cat notes.txt", "env cat notes.txt"]
         for base in ("rg --files", "rg -n TODO notes.txt", "cat notes.txt", "head -n 20 notes.txt"):
             neighbors.extend(base + tail for tail in ("; touch written", " && touch written", " | cat",
@@ -62,6 +62,64 @@ class NativePretoolFileTests(unittest.TestCase):
                                   request(self.project, command), backend="python")
                 self.assertEqual(result(baseline), result(self.run_query(alias, command)))
         self.assertFalse((self.project / "written").exists())
+
+    def test_literal_quotes_unicode_and_spaces_match_python_without_it(self):
+        (self.project / "한글.txt").write_text("TODO synthetic\n")
+        folder = self.project / "소스 폴더"
+        folder.mkdir()
+        (folder / "한글 메모.txt").write_text("TODO synthetic\n")
+        commands = ["cat 'notes.txt'", 'cat "notes.txt"', "cat 한글.txt", "cat '한글.txt'",
+                    "cat '소스 폴더/한글 메모.txt'", 'cat "소스 폴더/한글 메모.txt"',
+                    "cat -n 'notes.txt' 한글.txt", "head -n 20 '소스 폴더/한글 메모.txt'",
+                    'head "소스 폴더/한글 메모.txt"', "rg --files '소스 폴더'",
+                    'rg -n TODO "소스 폴더/한글 메모.txt"', "cat '" + str(folder / "한글 메모.txt") + "'",
+                    "\tcat\t'소스 폴더/한글 메모.txt'\t"]
+        for alias in ("claude-pretool-gate", "codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias, command=command):
+                    baseline = invoke(self.launcher, self.base, self.project, alias,
+                                      request(self.project, command), backend="python")
+                    self.assertEqual((0, b"", b""), result(baseline))
+                    self.assertEqual(result(baseline), result(self.run_query(alias, command)))
+                    self.assertEqual(result(baseline), result(self.run_query(alias, command, native_only=True)))
+
+    def test_uncertain_quoting_expansions_and_unicode_controls_fall_back(self):
+        commands = ["cat 'notes.txt", 'cat "notes.txt', "cat no'tes.txt'", "cat 'notes'.txt",
+                    "'cat' notes.txt", "cat ''", "cat '../notes.txt'", "cat '-n' notes.txt",
+                    'cat "$HOME/notes.txt"', "cat '$(touch written)'", "cat `touch written`",
+                    "cat notes\\ file.txt", 'cat "notes\\\".txt"', "cat 'notes\n.txt'",
+                    "cat 'notes\t.txt'", "cat 한글\u2028.txt", "cat 'notes.txt'\r",
+                    "cat 'notes.txt'; touch written", "cat 'notes.txt' > written",
+                    "cat 'notes.txt' | cat", "cat 'notes.txt' # comment", "rg '-n' TODO notes.txt"]
+        for alias in ("claude-pretool-gate", "codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias, command=command):
+                    baseline = invoke(self.launcher, self.base, self.project, alias,
+                                      request(self.project, command), backend="python")
+                    self.assertEqual(result(baseline), result(self.run_query(alias, command)))
+                    self.assertEqual(127, self.run_query(alias, command, native_only=True).returncode)
+        self.assertFalse((self.project / "written").exists())
+
+    def test_quoted_paths_keep_transcript_workdir_and_filesystem_checks(self):
+        command = "cat 'notes.txt'"
+        other = self.base / "other quoted 한글"
+        other.mkdir()
+        (other / "notes.txt").write_text("synthetic\n")
+        transcript = self.base / "literal-transcript.jsonl"
+        arguments = json.dumps({"cmd": command, "workdir": str(other)})
+        transcript.write_text(json.dumps({"payload": {"type": "function_call", "arguments": arguments}}) + "\n")
+        fields = {"transcript_path": str(transcript)}
+        baseline = invoke(self.launcher, self.base, self.project, "codex-pretool-gate",
+                          request(self.project, command, **fields), backend="python")
+        self.assertEqual((0, b"", b""), result(baseline))
+        self.assertEqual(result(baseline), result(self.run_query("codex-pretool-gate", command,
+                                                               native_only=True, **fields)))
+        (other / "notes.txt").unlink()
+        (other / "notes.txt").symlink_to("notes.txt")
+        baseline = invoke(self.launcher, self.base, self.project, "codex-pretool-gate",
+                          request(self.project, command, **fields), backend="python")
+        self.assertEqual(result(baseline), result(self.run_query("codex-pretool-gate", command, **fields)))
+        self.assertEqual(127, self.run_query("codex-pretool-gate", command, native_only=True, **fields).returncode)
 
     def test_operand_and_executable_symlink_loops_require_python(self):
         for name, command in (("loop", "cat loop"), ("cat", "cat notes.txt"),
@@ -98,17 +156,17 @@ class NativePretoolFileTests(unittest.TestCase):
             (other / "notes.txt").unlink()
             (other / "notes.txt").write_text("synthetic\n")
 
-    def test_unicode_quotes_and_environment_overrides_preserve_fallback(self):
+    def test_literal_paths_keep_environment_override_fallback(self):
         (self.project / "한글 notes.txt").write_text("synthetic\n")
         for alias in ("claude-pretool-gate", "codex-pretool-gate"):
             command = "cat '한글 notes.txt'"
             baseline = invoke(self.launcher, self.base, self.project, alias,
                               request(self.project, command), backend="python")
             self.assertEqual(result(baseline), result(self.run_query(alias, command)))
-            self.assertEqual(127, self.run_query(alias, command, native_only=True).returncode)
+            self.assertEqual(result(baseline), result(self.run_query(alias, command, native_only=True)))
             for override in ({"PYTHONPATH": "synthetic"}, {"MORU_STATE_HOME": "~__missing_user_9a315__/state"}):
                 done = invoke(self.launcher, self.base, self.project, alias,
-                              request(self.project, "cat notes.txt"), PATH=str(self.empty), **override)
+                              request(self.project, command), PATH=str(self.empty), **override)
                 self.assertEqual(127, done.returncode)
 
     def test_local_query_executables_preserve_launcher_policy(self):

@@ -11,11 +11,14 @@ type: ai-generated
 The next ordered increment expands the shared Claude/Codex pretool classifier.
 It never executes ripgrep or reads user file contents. It supports closed forms
 of `rg --files [paths]`, `rg -n WORD [paths]`, `cat [-n] paths` and
-`head [-n COUNT] paths`. Paths use ASCII letters, digits, `_./-`, with no parent
-components or leading option marker. Explicit file/directory operands must
-resolve. Missing paths, Unicode/quoted operands, other options and shell syntax
+`head [-n COUNT] paths`. The later [literal-path increment](native-literal-paths.md)
+extends paths to Unicode alphanumerics and `_./-`, with spaces inside whole
+single- or double-quoted operands. Parent components and leading option markers
+remain excluded. Explicit file/directory operands must resolve. Missing paths,
+escapes, quote concatenation, substitutions, other options and shell syntax
 remain on Python. `WORD` is ASCII letters/digits/underscore; counts are unsigned
-decimal through 1,000,000. At most 20 tokens are eligible.
+decimal through 1,000,000. At most 20 tokens and 16 KiB of command text are eligible.
+Historical verification and measurements below describe the original ASCII-only increment.
 
 `pretool_files.rs` owns this grammar and filesystem eligibility behind one
 `FileQuery` type. The existing source/environment guard and fallback retain
