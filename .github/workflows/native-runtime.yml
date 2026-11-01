@@ -50,6 +50,10 @@ jobs:
           cargo fetch --locked --manifest-path native/checkout-identity/Cargo.toml
       - name: Build and verify runtime behavior
         run: |
+          cargo test --locked --offline --manifest-path native/checkout-identity/Cargo.toml \
+            --target-dir .moru/native/cargo-target
+          cargo test --locked --offline --manifest-path native/checkout-identity/Cargo.toml \
+            --target-dir .moru/native/cargo-target --features sha2/force-soft
           python3 scripts/build_native_runtime.py
           PYTHONPATH=scripts:tests python3 -B -m unittest \
             test_native_bundle test_checkout_identity_runtime test_native_stable_launcher \

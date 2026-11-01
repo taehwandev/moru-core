@@ -180,3 +180,41 @@ fn resolvable(path: &Path) -> bool {
         Err(error) => error.kind() == std::io::ErrorKind::NotFound,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sha256_backend_matches_standard_vectors() {
+        for (input, expected) in [
+            (
+                "",
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            ),
+            (
+                "abc",
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            ),
+            (
+                "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+                "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+            ),
+        ] {
+            assert_eq!(format!("{:x}", Sha256::digest(input.as_bytes())), expected);
+        }
+    }
+
+    #[test]
+    fn sha256_streaming_backend_matches_multiblock_vector() {
+        let input = vec![b'a'; 1_000_000];
+        let mut hash = Sha256::new();
+        for chunk in input.chunks(17) {
+            hash.update(chunk);
+        }
+        assert_eq!(
+            format!("{:x}", hash.finalize()),
+            "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0"
+        );
+    }
+}

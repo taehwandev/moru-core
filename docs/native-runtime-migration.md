@@ -75,6 +75,8 @@ The [literal-path and guard-profile increment](runtime-performance/native-litera
 extends those same queries to quoted/Unicode/space paths without caching validation.
 The [inactive-next increment](runtime-performance/native-next.md) moves bounded
 read-only advice and safe verification-target discovery to Rust, retaining active-run decisions in Python.
+The [shared ARM64 SHA increment](runtime-performance/native-sha.md) accelerates
+the existing exact source guard through CPU detection, without caching or new inventory units.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |

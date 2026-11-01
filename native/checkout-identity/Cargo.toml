@@ -21,5 +21,10 @@ libc = "=0.2.183"
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 sha2 = "0.10.9"
 
+# Runtime CPU detection keeps the software backend on ARM64 without SHA support.
+# This feature adds developer build crates, not consumer runtime installations.
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+sha2 = { version = "0.10.9", features = ["asm-aarch64"] }
+
 [profile.release]
 strip = "symbols"
