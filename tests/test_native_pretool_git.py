@@ -21,6 +21,7 @@ class NativeGitQueryTests(unittest.TestCase):
 
     def test_supported_inspection_forms_are_native_and_match_python(self):
         commands = ["git ls-files", "git ls-files --cached", "git ls-files --stage",
+                    "git status --short --branch", "git status --branch --porcelain=v1", "git remote -v",
                     "git ls-files --others --exclude-standard", "git log --oneline",
                     "git log -1 --oneline", "git log --oneline -1000", "git show --stat",
                     "git show --name-only", "git show --stat abcdef0", "git show --name-only " + "a" * 64,
@@ -40,6 +41,8 @@ class NativeGitQueryTests(unittest.TestCase):
 
     def test_unsafe_and_unsupported_neighbors_replay_the_real_policy(self):
         commands = ["git log -0 --oneline", "git log -1001 --oneline", "git log -4294967296 --oneline",
+                    "git remote -v add origin nowhere", "git remote update",
+                    "git status --short --branch --ignored",
                     "git show --stat main", "git show --stat " + "a" * 65,
                     "git tag", "git tag --list --delete main", "git ls-files --error-unmatch missing"]
         for base in ("git log -5 --oneline", "git show --stat", "git ls-files", "git tag --list"):

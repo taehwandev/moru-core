@@ -57,7 +57,9 @@ the distribution build smoke-tests a fresh consumer without a toolchain on PATH.
 
 The lead integrates Claude's pure formatter and AGY's falsification questions.
 Provider output is a contribution, not proof that code ran. Parent-owned real
-entrypoint tests and randomized measurements decide branch readiness.
+entrypoint behavior and portability tests decide migration readiness. Existing
+measurements establish the migration direction; repeat randomized timing only
+under the programme's selective measurement policy, not for each remaining file.
 The [specification](spec.md) records observed results and costs; the
 [programme](prd.md) defines acceptance. Neither proves whole-agent speed,
 token reduction, installed activation or compatibility on an untested host.

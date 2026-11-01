@@ -29,8 +29,11 @@ workflow_dispatch_cli.py has no execution dispatch and is not a separate CLI.
 The other 270 baseline files have no discovered standalone entry boundary;
 resolve their supporting ownership with callers when a unit is selected.
 
-This is a candidate inventory. Each later unit needs measured benefit,
-behavioral parity, a rollback path and its own verified performance-branch commit.
+This is a candidate inventory. Later units need behavioral parity, a rollback
+path and a verified performance-branch commit, with related units batched.
+Existing comparisons establish the migration direction; follow the
+[programme's selective measurement policy](runtime-performance/prd.md#behavior-acceptance-and-selective-measurement)
+rather than benchmarking or calculating cost for every remaining script.
 Low-frequency setup/maintenance may remain Python; do not port them solely to
 reach a count. A unit can require several small commits. Internal helper or
 policy splits do not silently increase this inventory; update its scope and
@@ -39,6 +42,10 @@ acceptance explicitly. Tests check complete, unique entry-owner coverage.
 The product target is convergence of ordinary installed execution on Rust,
 starting with frequent callbacks. Python remains transitional compatibility and
 verification support; developer tools need not be rewritten to reach a quota.
+
+The [ls/Git inspection extension](runtime-performance/native-ls-git.md) expands
+the two existing pretool boundaries without adding another inventory unit or
+claiming a new numerical speedup.
 
 ## Coverage and state
 

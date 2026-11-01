@@ -78,6 +78,34 @@ class NativePretoolFileTests(unittest.TestCase):
                     self.assertEqual((0, b"", b""), result(baseline))
                     self.assertEqual(result(baseline), result(self.run_query(alias, command, native_only=True)))
 
+    def test_literal_ls_forms_match_python_without_it(self):
+        folder = self.project / "소스 폴더"
+        folder.mkdir()
+        commands = ["ls", "ls -la", "ls -al", "ls -lh notes.txt", "ls -lah '소스 폴더'",
+                    "ls -a . src", "ls -l notes.txt src/code.py"]
+        for alias in ("claude-pretool-gate", "codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias, command=command):
+                    baseline = invoke(self.launcher, self.base, self.project, alias,
+                                      request(self.project, command), backend="python")
+                    self.assertEqual((0, b"", b""), result(baseline))
+                    self.assertEqual(result(baseline), result(self.run_query(alias, command, native_only=True)))
+
+    def test_ls_uncertainty_keeps_python_and_local_alias_checks(self):
+        commands = ["ls -R", "ls -l -a", "ls --color=always", "ls missing", "ls ../",
+                    "ls -la > written", "ls -la; touch written", "ls $(touch written)"]
+        for alias in ("claude-pretool-gate", "codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias, command=command):
+                    baseline = invoke(self.launcher, self.base, self.project, alias,
+                                      request(self.project, command), backend="python")
+                    self.assertEqual(result(baseline), result(self.run_query(alias, command)))
+                    self.assertEqual(127, self.run_query(alias, command, native_only=True).returncode)
+            (self.project / "ls").write_text("synthetic local alias")
+            self.assertEqual(127, self.run_query(alias, "ls -la", native_only=True).returncode)
+            (self.project / "ls").unlink()
+        self.assertFalse((self.project / "written").exists())
+
     def test_printing_query_unsafe_neighbors_keep_python_authority(self):
         commands = ["tail -f notes.txt", "tail -n +1 notes.txt", "tail -n 1000001 notes.txt",
                     "wc --files0-from=list", "wc -l -w notes.txt", "sed -i '1p' notes.txt",

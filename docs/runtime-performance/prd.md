@@ -27,7 +27,16 @@ For subsequent work, batch two or three related, disjoint slices when the
 contract is stable. Share provider dispatch, fixtures, focused verification and
 one integration review instead of closing a lifecycle for each tiny edit. Keep
 the parent as integration owner; do not batch unrelated scope or publication
-effects. Each change still needs its own falsifying check and measured limits.
+effects. Each change still needs its own falsifying behavior check.
+
+On 2026-11-01 the user confirmed that the existing comparisons establish the
+Rust migration direction. Do not repeat wall/CPU/RSS or cost calculations for
+every remaining script or grammar extension. Batch related migrations and
+verify behavior, compatibility, fallback and portable execution. Reuse prior
+verification when its inputs remain unchanged. Repeat performance measurement
+only for a materially different execution architecture, an observed regression,
+or an explicit measurement request. New extensions without a new measurement
+make no additional numerical speed or savings claim.
 
 The [inventory](../native-runtime-migration.md) now defines 53 boundaries: 30
 primary units and 23 ancillary CLIs, including the new bundle tool. Its baseline
@@ -35,15 +44,15 @@ had 52. Inventory coverage is not a commitment to rewrite them all.
 Keep infrequent tooling in Python when conversion has no proven
 benefit. Shared implementations can serve more than one entrypoint.
 
-## Measurement and acceptance
+## Behavior acceptance and selective measurement
 
 - Compare identical input, output, error handling and external work. Build and
   setup are excluded. A stub or a changed requirement cannot beat a baseline.
-- Measure the actual generated entrypoint in a temporary installation. Report
+- When measurement is warranted, use the actual generated entrypoint in a temporary installation. Report
   fresh-process latency separately from initialized computation and from any
   chained command. Record median, p95, samples, toolchains, cache preparation,
   artifact/source hashes and host limitations.
-- Target at least 20% and 5 ms median improvement for a selected frequent
+- For selected performance experiments, target at least 20% and 5 ms median improvement for a frequent
   fresh-process path. Treat regression or uncertain tails as a reason to keep
   investigating. State the exact path that improved; do not extrapolate an
   entire workflow or token savings without corresponding measurements.
@@ -54,7 +63,7 @@ benefit. Shared implementations can serve more than one entrypoint.
   activation and live workflow improvement are distinct evidence levels.
 - Keep chained and unchained status lines in the workload. Preserve the
   existing renderer chain and its input; never overwrite another tool's slot.
-- Measure CPU and process maximum RSS alongside elapsed time for native batches.
+- When taking performance measurements, include CPU and process maximum RSS alongside elapsed time.
   Keep process-tree/concurrency limits explicit; do not multiply RSS into an
   unmeasured product-wide saving. See the [pretool batch](native-pretool.md).
 
@@ -155,9 +164,13 @@ a bounded host/source/hash-checked archive, install without Rust/Cargo, then
 refresh the existing runtime connections. Python and Git remain required for
 the rest of Core. Other-host CI and this-PC activation are checked separately.
 
-Each result records baseline, changed owner, method, passed/failing conditions,
-measured delta, remaining cost and adoption state. Keep before/after samples
-separate and preserve counterexamples. Reject or defer a port that fails
-semantic parity or measured usefulness; correctness can be repaired without
-declaring a performance win. This file is the programme contract; per-unit
-contracts and sample artifacts retain the technical evidence.
+Each migration batch records changed owners, passed/failing behavior checks
+and adoption state. A performance experiment additionally records its baseline,
+method, delta and remaining cost; preserve its samples and counterexamples.
+Reject or repair a port that fails semantic parity. A new benchmark is not a
+per-file acceptance gate; disclose regressions and avoid numerical claims for
+unmeasured extensions. This file is the programme contract; per-unit contracts
+and sample artifacts retain the technical evidence.
+
+The [ls/Git extension](native-ls-git.md) applies this policy to the existing
+pretool boundaries and records the accumulated batch's integration scope.

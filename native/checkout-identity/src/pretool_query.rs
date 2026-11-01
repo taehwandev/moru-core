@@ -31,6 +31,9 @@ pub(crate) fn executable(command: &str) -> Option<&str> {
     };
     match rest {
         ["status", "--short" | "--porcelain" | "--porcelain=v1"]
+        | ["status", "--short" | "--porcelain" | "--porcelain=v1", "--branch"]
+        | ["status", "--branch", "--short" | "--porcelain" | "--porcelain=v1"]
+        | ["remote", "-v"]
         | ["diff", "--stat" | "--check" | "--name-only" | "--name-status" | "--numstat" | "--exit-code"]
         | ["diff", "--cached", "--stat" | "--check" | "--name-only" | "--name-status" | "--numstat"]
         | ["rev-parse", "HEAD" | "--show-toplevel"]
@@ -72,6 +75,9 @@ mod tests {
         for command in [
             "pwd",
             "git status --short",
+            "git status --short --branch",
+            "git status --branch --porcelain=v1",
+            "git remote -v",
             "git diff --cached --check",
             "git rev-parse HEAD",
         ] {
@@ -89,6 +95,9 @@ mod tests {
             "git status '--short'",
             "/usr/bin/git status --short",
             "git worktree remove x",
+            "git remote -v add origin nowhere",
+            "git remote update",
+            "git status --short --branch --ignored",
             "pwd$(touch x)",
         ] {
             assert!(executable(command).is_none(), "{command}");
@@ -110,6 +119,10 @@ mod tests {
             "cat '한글 메모.txt'",
             "head -n 20 \"한글 메모.txt\"",
             "tail notes.txt",
+            "ls",
+            "ls -la",
+            "ls -lh notes.txt",
+            "ls -lah '소스 폴더'",
             "tail -n 0 notes.txt",
             "tail -n 1000000 '한글 메모.txt'",
             "wc notes.txt",
@@ -165,6 +178,9 @@ mod tests {
             "tail -n 1000001 notes.txt",
             "wc -l -w notes.txt",
             "wc --files0-from=list",
+            "ls -R",
+            "ls -l -a",
+            "ls --color=always",
             "sed -i '1p' notes.txt",
             "sed -n '1,5p;w written' notes.txt",
             "sed -n '1,5w written' notes.txt",

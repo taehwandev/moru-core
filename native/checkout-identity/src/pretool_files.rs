@@ -42,6 +42,8 @@ impl<'a> FileQuery<'a> {
             ["wc", "-l" | "-w" | "-c" | "-m", _, ..] => 2,
             ["wc", _, ..] => 1,
             ["sed", "-n", script, _, ..] if print_range(script) => 3,
+            ["ls", "-l" | "-a" | "-la" | "-al" | "-lh" | "-lah" | "-alh", ..] => 2,
+            ["ls", ..] => 1,
             _ => return None,
         };
         if !tokens[operands..].iter().all(|word| literal_path(word)) {
