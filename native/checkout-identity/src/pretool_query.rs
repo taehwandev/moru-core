@@ -31,12 +31,36 @@ pub(crate) fn executable(command: &str) -> Option<&str> {
     };
     match rest {
         ["status", "--short" | "--porcelain" | "--porcelain=v1"]
-        | ["diff", "--stat" | "--check" | "--name-only" | "--numstat" | "--exit-code"]
-        | ["diff", "--cached", "--stat" | "--check" | "--name-only" | "--numstat"]
+        | ["diff", "--stat" | "--check" | "--name-only" | "--name-status" | "--numstat" | "--exit-code"]
+        | ["diff", "--cached", "--stat" | "--check" | "--name-only" | "--name-status" | "--numstat"]
         | ["rev-parse", "HEAD" | "--show-toplevel"]
-        | ["branch", "--show-current"] => Some("git"),
+        | ["branch", "--show-current"]
+        | ["ls-files"]
+        | ["ls-files", "--cached" | "--stage"]
+        | ["ls-files", "--others", "--exclude-standard"]
+        | ["log", "--oneline"]
+        | ["show", "--stat" | "--name-only"]
+        | ["tag", "--list"]
+        | ["tag", "--list", "--sort=-version:refname"] => Some("git"),
+        ["log", count, "--oneline"] | ["log", "--oneline", count] if log_count(count) => {
+            Some("git")
+        }
+        ["show", "--stat" | "--name-only", revision]
+            if (7..=64).contains(&revision.len())
+                && revision.bytes().all(|b| b.is_ascii_hexdigit()) =>
+        {
+            Some("git")
+        }
         _ => None,
     }
+}
+
+fn log_count(word: &str) -> bool {
+    word.strip_prefix('-').is_some_and(|n| {
+        !n.is_empty()
+            && n.bytes().all(|b| b.is_ascii_digit())
+            && n.parse::<u32>().is_ok_and(|n| (1..=1000).contains(&n))
+    })
 }
 
 #[cfg(test)]

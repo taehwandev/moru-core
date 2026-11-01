@@ -1,0 +1,52 @@
+# Moru Core v26.44.1
+
+This release extends the optional Rust runtime to repeated file/Git inspection,
+quiet prompt mailboxes and quiet/settled Claude/Codex Stop callbacks. It also
+includes the registered-evidence lookup optimization, developer-cache
+compatibility, unfinished-work continuity and archive operand safety changes
+since v26.44.0.
+
+## Download and install
+
+Use a `moru-native-*.tar.gz` asset matching your OS/CPU and Core source at
+`v26.44.1`. Preserve existing local changes when selecting the release. For a
+new checkout only:
+
+```sh
+git clone --branch v26.44.1 https://github.com/taehwandev/moru-core.git ~/.moru/core
+cd ~/.moru/core
+python3 scripts/native-runtime-bundle.py install --bundle /path/to/moru-native-macos-arm64.tar.gz
+python3 scripts/setup-agent-hooks.py --dry-run
+python3 scripts/setup-agent-hooks.py
+python3 scripts/setup-agent-hooks.py --check
+```
+
+Reuse an existing checkout when present. Python 3.9+ and Git remain required;
+receivers do not need Rust or Cargo. Release assets are durable public downloads
+and have no seven-day Actions retention timer.
+
+## Verification and limits
+
+The existing CI matrix builds macOS ARM64/x86_64 and Linux ARM64/x86_64 with
+pinned Rust and locked crates. Release promotion requires every platform's
+behavior tests and 19 transported-consumer callback checks to pass. `BUILD.json`
+records the exact original source/run and archive hashes; `SHA256SUMS` covers
+the four archives. The release tag identifies that build source.
+
+The consumer smoke copies the complete guarded runtime source and directory
+shape into a fresh root. Lookup/statusline/pretool checks run with empty PATH;
+quiet mailbox/Stop checks retain only Git after isolated fixture preparation.
+It does not use live sessions or messages.
+
+Selected callback paths have substantial local wall/CPU/RSS improvements.
+These are Mac fixture measurements, not whole-agent, cross-host or token-saving
+claims. Python compatibility paths retain authority and effects; measured
+active Stop replay adds about 6.8 ms in the retained local experiment.
+
+No state schema migration or credential change is required. Existing renderer
+chains and Spill connections are preserved. Set `MORU_LAUNCHER_BACKEND=python`
+and `MORU_CHECKOUT_IDENTITY_BACKEND=python` for explicit native rollback.
+macOS targets 13+; Linux is built/tested on Ubuntu 24.04. Older glibc and Windows
+are not established compatible.
+
+Full source comparison: https://github.com/taehwandev/moru-core/compare/v26.44.0...v26.44.1

@@ -66,6 +66,14 @@ def measure(output, count, budget, workloads="plain"):
                     ("codex_cat", "codex-pretool-gate", request(project, "cat notes.txt")),
                     ("quoted_fallback", "claude-pretool-gate", request(project, "cat 'notes.txt'")),
                 ]
+            if workloads == "git":
+                cases = [
+                    ("claude_log", "claude-pretool-gate", request(project, "git log -5 --oneline")),
+                    ("codex_ls_files", "codex-pretool-gate", request(project, "git ls-files")),
+                    ("claude_show", "claude-pretool-gate", request(project, "git show --stat abcdef0")),
+                    ("codex_tags", "codex-pretool-gate", request(project, "git tag --list")),
+                    ("quoted_fallback", "claude-pretool-gate", request(project, "git log '--oneline'")),
+                ]
             if workloads == "mailbox":
                 from native_mailbox_support import warm
                 for runtime in ("claude", "codex"):
@@ -155,7 +163,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=24)
     parser.add_argument("--budget-seconds", type=float, default=90)
-    parser.add_argument("--workloads", choices=("plain", "files", "mailbox", "stop"), default="plain")
+    parser.add_argument("--workloads", choices=("plain", "files", "git", "mailbox", "stop"), default="plain")
     parser.add_argument("--output", type=Path, default=PROJECT / ".moru/performance/native-pretool.json")
     args = parser.parse_args()
     if args.samples < 24 or args.samples % 2:

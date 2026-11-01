@@ -6,8 +6,9 @@ type: ai-generated
 
 # Install a prebuilt native runtime
 
-Moru Core still requires Python 3.9+ and Git. Its checkout lookup and normal
-Claude/Antigravity status rendering can use two optional Rust executables.
+Moru Core still requires Python 3.9+ and Git. Its checkout lookup, normal
+Claude/Antigravity status rendering, bounded pretool queries and quiet
+mailbox/Stop callbacks can use two optional Rust executables.
 Receiving computers do not need Rust or Cargo when installing a matching bundle.
 Keep the Python fallback; unusual status inputs may require it.
 
@@ -18,7 +19,7 @@ for installation. Release assets have no Actions retention timer and remain
 available unless the release or asset is deleted. Public release downloads do
 not require a GitHub login.
 
-[v26.44.0](https://github.com/taehwandev/moru-core/releases/tag/v26.44.0) provides:
+[v26.44.1](https://github.com/taehwandev/moru-core/releases/tag/v26.44.1) provides:
 
 - `moru-native-macos-arm64.tar.gz`
 - `moru-native-macos-x86_64.tar.gz`
@@ -31,14 +32,16 @@ source at the same release tag; the importer rejects mismatched native source.
 For a first installation only:
 
 ```sh
-git clone --branch v26.44.0 https://github.com/taehwandev/moru-core.git ~/.moru/core
+git clone --branch v26.44.1 https://github.com/taehwandev/moru-core.git ~/.moru/core
 ```
 
 Reuse an existing checkout when present. Select the matching release through
 your normal Git workflow, preserving local edits; do not reset an active
 checkout or automatically create a second copy. `BUILD.json` identifies the exact
-CI source revision and run. For this release it is `31c97d07`, whose four host
-builds, behavior checks and transported-consumer smoke checks all passed.
+CI source revision and run. Release promotion requires all four host builds,
+behavior checks and transported-consumer smoke checks to pass against that exact
+tagged revision. The preceding v26.44.0 release retains its original `31c97d07`
+build provenance; its tag and assets are not replaced.
 
 ## CI artifacts are for development
 
@@ -46,8 +49,10 @@ The [Native runtime bundles workflow](../.github/workflows/native-runtime.yml)
 builds macOS ARM64, macOS x86_64, Linux x86_64 and Linux ARM64 separately. It
 runs on main when native/build inputs change, or manually on main. Each job
 builds pinned Rust 1.94.1 with locked crates, runs behavioral checks, packs the
-two binaries and verifies transport into a fresh source root and temporary home
-with an empty PATH. An artifact is uploaded only after those checks pass.
+two binaries and verifies transport into a fresh source root and temporary home.
+The 19 consumer checks use empty PATH for lookup/status/pretool and Git-only PATH
+for quiet mailbox/Stop after preparing isolated state. An artifact is uploaded
+only after those checks pass.
 
 The matching `moru-native-<platform>-<commit>` workflow artifact is a temporary
 development copy. These require sign-in/read access and expire after seven days;
@@ -101,7 +106,8 @@ python3 scripts/native-runtime-bundle.py pack --bundle /path/to/moru-native-bund
 PYTHONPATH=scripts:tests python3 -B tests/smoke_native_bundle.py --bundle /path/to/moru-native-bundle.tar.gz
 ```
 
-The transport smoke verifies checkout identity and both statuslines through the
-generated launcher with no Python, Rust, Cargo or Git on PATH. It does not alter
+The transport smoke verifies checkout identity, both statuslines and bounded
+pretool queries through the generated launcher with no Python, Rust, Cargo or Git
+on PATH. Quiet mailbox and Stop checks retain Git alone. It does not alter
 your actual home. A successful temporary-home check is distinct from installing
 and checking the actual user-level runtime on the receiving computer.

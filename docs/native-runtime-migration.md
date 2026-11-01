@@ -69,6 +69,8 @@ The [native quiet-mailbox extension](runtime-performance/native-mailbox.md)
 upgrades the existing prompt boundary; delivery and task effects remain Python-owned.
 The [quiet/settled Stop increment](runtime-performance/native-stop.md) adds two
 partial boundaries, preserving active work continuity and interruption in Python.
+The [Git-inspection and release-consumer batch](runtime-performance/native-pretool-git.md)
+expands the existing pretool boundaries and verifies the complete transported runtime.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |

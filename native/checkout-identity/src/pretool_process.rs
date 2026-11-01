@@ -55,6 +55,9 @@ impl PretoolProcess {
                 crate::statusline::Renderer::strip(&s).eq_ignore_ascii_case("codex")
             });
         let file_command = (!matches!(executable, "git" | "pwd")).then_some(command);
+        if executable == "git" && !git_context_ready(Path::new(cwd)) {
+            return false;
+        }
         if file_command.is_some()
             && !crate::pretool_files::FileQuery::parse(
                 &command.split_ascii_whitespace().collect::<Vec<_>>(),
@@ -66,4 +69,14 @@ impl PretoolProcess {
         crate::pretool_guard::CallbackGuard::root(launcher, executable).is_some()
             && (!codex || crate::pretool_transcript::safe(&payload, file_command))
     }
+}
+
+fn git_context_ready(cwd: &Path) -> bool {
+    let Ok(actual) = env::current_dir() else {
+        return false;
+    };
+    [cwd, actual.as_path()].iter().all(|path| {
+        std::fs::symlink_metadata(path.join("git"))
+            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+    })
 }

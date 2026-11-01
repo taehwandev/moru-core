@@ -10,20 +10,26 @@ import subprocess
 import tempfile
 from unittest.mock import patch
 
-from startup_path_support import PROJECT, environment
+from native_pretool_support import PROJECT, environment
 from support.native_bundle import install_bundle
 from support.stable_launcher import ensure_stable_launcher
+from support.native_source_inputs import pretool_contract
 
 
 def smoke(archive):
     with tempfile.TemporaryDirectory(prefix="native-consumer-") as tmp:
         base = Path(tmp).resolve()
         root = base / "transported root"
-        shutil.copytree(PROJECT / "native/checkout-identity", root / "native/checkout-identity",
-                        ignore=shutil.ignore_patterns("target"))
-        (root / "scripts").mkdir()
-        for marker in ("AGENTS.md", "index.md", "scripts/workflow.py"):
-            (root / marker).write_text("# Source root marker\n")
+        receipt = json.loads((PROJECT / ".moru/native/build.json").read_text())
+        for relative in pretool_contract(PROJECT)[1]:
+            (root / relative).mkdir(parents=True, exist_ok=True)
+        sources = set(receipt["source_sha256"]) | {
+            "AGENTS.md", "index.md", "common/skills/agent-operating-skill/SKILL.md"}
+        for relative in sources:
+            assert not Path(relative).is_absolute() and ".." not in Path(relative).parts
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(PROJECT / relative, target)
         install_bundle(root, archive)
         home = base / "home"
         with patch("support.stable_launcher.Path.home", return_value=home):
@@ -49,7 +55,40 @@ def smoke(archive):
             assert done.returncode == 0 and not done.stderr and done.stdout, done
             outputs.append(done.stdout)
         assert outputs[0] == outputs[1]
-        print("PASS: transported checkout and both statuslines; empty PATH has no Python, Rust or Cargo")
+        project = base / "callback-project"
+        project.mkdir()
+        (project / ".moru").mkdir()
+        (project / "notes.txt").write_text("TODO synthetic\n")
+        normal = environment(base, root)
+        subprocess.run(["git", "init", "-q", str(project)], env=normal, check=True, capture_output=True)
+        payload = {"cwd": str(project), "session_id": "transported-smoke", "tool_name": "Bash"}
+        checks = 3
+        for runtime in ("claude", "codex"):
+            for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt", "head -n 20 notes.txt"):
+                data = {**payload, "tool_input": {"command": command}}
+                done = subprocess.run([str(entry), runtime + "-pretool-gate"], input=json.dumps(data).encode(),
+                    capture_output=True, env=env, cwd=project, timeout=8)
+                assert (done.returncode, done.stdout, done.stderr) == (0, b"", b""), done
+                checks += 1
+            for _ in range(2):
+                done = subprocess.run([str(entry), "mailbox-hook", "deliver", "--runtime", runtime],
+                    input=json.dumps(payload).encode(), capture_output=True, env=normal, cwd=project, timeout=8)
+                assert done.returncode == 0 and not done.stderr, done
+            done = subprocess.run([str(entry), runtime + "-stop-gate"], input=json.dumps(payload).encode(),
+                capture_output=True, env=normal, cwd=project, timeout=8)
+            assert (done.returncode, done.stdout, done.stderr) == (0, b"", b""), done
+        git_only = base / "git-only"
+        git_only.mkdir()
+        (git_only / "git").symlink_to(shutil.which("git"))
+        no_python = {**normal, "PATH": str(git_only)}
+        for runtime in ("claude", "codex"):
+            for args in (["mailbox-hook", "deliver", "--runtime", runtime],
+                         ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):
+                done = subprocess.run([str(entry), *args], input=json.dumps(payload).encode(),
+                    capture_output=True, env=no_python, cwd=project, timeout=8)
+                assert (done.returncode, done.stdout, done.stderr) == (0, b"", b""), done
+                checks += 1
+        print(f"PASS: {checks} transported callback checks; lookup/status/pretool with empty PATH, mailbox/Stop with Git-only PATH")
 
 
 if __name__ == "__main__":
