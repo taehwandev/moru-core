@@ -65,6 +65,29 @@ def smoke(archive):
         subprocess.run(["git", "init", "-q", str(project)], env=normal, check=True, capture_output=True)
         payload = {"cwd": str(project), "session_id": "transported-smoke", "tool_name": "Bash"}
         checks = 3
+        workspace = base / "discovery-workspace"
+        for name in ("first 한글", "second"):
+            folder = workspace / name
+            folder.mkdir(parents=True)
+            (folder / "AGENTS.md").touch()
+        nested = workspace / "first 한글/nested"
+        nested.mkdir()
+        for format in ("text", "json"):
+            done = subprocess.run([str(entry), "project-discover", "--request", "진행", "--cwd", str(nested),
+                "--format", format], capture_output=True, env=env, cwd=project, timeout=8)
+            assert done.returncode == 0 and not done.stderr, done
+            if format == "json":
+                assert json.loads(done.stdout)["selected_project"]["path"] == str(nested.parent)
+            else:
+                assert done.stdout.decode() == f"status: selected\nproject: {nested.parent}\ninstruction_files:\n- AGENTS.md\n"
+            checks += 1
+        for depth, status, code in ((1, "ambiguous", 2), (0, "not_found", 3)):
+            done = subprocess.run([str(entry), "project-discover", "--request", "진행", "--cwd", str(workspace),
+                "--search-root", str(workspace), "--max-depth", str(depth), "--format", "json"],
+                capture_output=True, env=env, cwd=project, timeout=8)
+            assert done.returncode == code and not done.stderr, done
+            assert json.loads(done.stdout)["status"] == status
+            checks += 1
         for runtime in ("claude", "codex"):
             for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',

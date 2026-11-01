@@ -174,3 +174,8 @@ and sample artifacts retain the technical evidence.
 
 The [ls/Git extension](native-ls-git.md) applies this policy to the existing
 pretool boundaries and records the accumulated batch's integration scope.
+
+The [project-discovery batch](native-project-discovery.md) then moves directory
+traversal, marker facts and parent-root lookup into a shared Rust engine for
+the discovery CLI and entry builder. It follows selective measurement: behavior,
+fallback and fresh-consumer verification, with no new timing/cost calculation.

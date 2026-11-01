@@ -53,10 +53,12 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
-partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and prepared-status paths. Fifteen primary boundaries now have measured
-changes: eleven involving native work (including the partial launcher, pretool,
-mailbox, Stop, next and status paths) and four Python optimizations (entry,
-discovery, mailbox CLI and work-card listing). That is 15/53 inventory coverage, or 15/30 primary
+partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and prepared-status paths. Fifteen primary boundaries now have implementation
+coverage: thirteen involving native work (including partial entry/discovery,
+launcher, pretool, mailbox, Stop, next and status paths) and two Python
+optimizations (mailbox CLI and work-card listing). The latest entry/discovery
+extension adds no new timing claim; earlier measurements remain historical.
+That is 15/53 inventory coverage, or 15/30 primary
 coverage, not effort-weighted completion. The remaining 38 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -91,11 +93,17 @@ The subsequent [prepared-status increment](runtime-performance/native-runtime-st
 adds real native basic/validated snapshots with existing locks and generated API
 snippets. Initialization, contention, trends and unusual inputs remain Python.
 
+The [native project-discovery batch](runtime-performance/native-project-discovery.md)
+moves traversal, marker facts and nearest-root lookup into one Rust engine.
+The generated discovery CLI and Python entry builder share that engine for
+supported inputs. Registered targets, workspace groups and uncertain path/input
+forms retain Python. These are two existing boundaries, not three new units.
+
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
 | 1 | `scripts/checkout_identity.py` | checkout-identity | Native lookup accepted in stage one | Metadata parity, timeout, recovery, Python rollback |
 | 2 | `scripts/support/stable_launcher.py` | All entry aliases | Stage-two native ingress bridge | No Python for lookup; legacy stdio/PID/exit/soft-fail parity |
-| 3 | `scripts/agent-entry.py` | agent-entry | Python registry snapshot optimized on performance branch | Entry selection/scope consistency; measured batch benefit |
+| 3 | `scripts/agent-entry.py` | agent-entry | Partial native shared discovery; Python scope/launch policy retained | One registry snapshot, target/scope and launch-manifest parity |
 | 4 | `scripts/agent-finish-check.py` | agent-finish-check | Python candidate | Admission, state/evidence freshness and completion safety |
 | 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Python candidate | Admission, state/evidence freshness and completion safety |
 | 6 | `scripts/agent-mailbox.py` | agent-mailbox | Python imports deferred | Help improves; ordinary status/receive have no material median gain |
@@ -118,7 +126,7 @@ snippets. Initialization, contention, trends and unusual inputs remain Python.
 | 23 | `scripts/codex_operator_review.py` | operator-review | Python candidate | Permission and negative-authority regressions before latency |
 | 24 | `scripts/codex_pretool_gate.py` | codex-pretool-gate | Partial native plain-query callback | Codex metadata boundary and no-Python query execution; other branches retain Python |
 | 25 | `scripts/codex_stop_gate.py` | codex-stop-gate | Partial native quiet Stop | Exact active evidence/authority handling and mailbox ack through Python |
-| 26 | `scripts/project-discover.py` | project-discover | Python enumeration optimized on performance branch | Same selection/order/bounds; measured file-heavy benefit |
+| 26 | `scripts/project-discover.py` | project-discover | Partial native traversal/facts/root lookup; Python compatibility retained | Same formats/ranking/bounds/symlinks; native-only supported CLI |
 | 27 | `scripts/setup-agent-hooks.py` | setup-agent-hooks | Python candidate | Low-frequency operator work; justify a port before changing Python |
 | 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery, measured benefit and rollback |

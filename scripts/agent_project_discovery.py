@@ -28,6 +28,7 @@ from agent_project_types import (
     format_entry_text,
 )
 from agent_workspace_scope import add_workspace_group_candidates, workspace_scope_manifest
+from support.project_discovery_native import native_discovery
 from workflow_common import ROOT, unique
 
 
@@ -52,6 +53,11 @@ def _discover_projects(
     search_roots: Sequence[Path], max_depth: int, include_default_search_roots: bool,
 ) -> DiscoveryResult:
     """Use this invocation's normalized cwd and registry snapshot only."""
+    native = native_discovery(request, cwd, search_roots=search_roots,
+                              registry_snapshot=registry, max_depth=max_depth,
+                              include_default_search_roots=include_default_search_roots)
+    if native is not None:
+        return native
     candidates: dict[Path, ProjectCandidate] = {}
 
     for path in explicit_request_paths(request, cwd):

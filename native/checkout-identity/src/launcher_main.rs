@@ -8,6 +8,9 @@ use moru_checkout_identity::CheckoutIdentity;
 
 mod callback_replay;
 mod callback_state;
+mod discovery_fs;
+mod discovery_process;
+mod discovery_search;
 #[allow(dead_code)] // Shared source; this crate only uses the status adapter.
 mod gitrun;
 mod launcher_backend;
@@ -91,6 +94,14 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "project-discover") {
+        let code = discovery_process::DiscoveryProcess::run(&launcher, &args);
+        if args.get(1).is_some_and(|a| a == "--native-probe") {
+            exit(code);
+        }
+        finish(code);
+    }
 
     if args.first().is_some_and(|a| a == "agent-os-status") {
         finish(status_process::StatusProcess::run(&launcher, &args));
