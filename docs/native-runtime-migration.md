@@ -46,10 +46,10 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
-partially native pretool, quiet mailbox, quiet/settled Stop and inactive-next paths. Fifteen primary boundaries now have measured
-changes: ten involving native work (including the partial launcher, pretool,
-mailbox, Stop and next paths) and five Python optimizations (entry, discovery, status, mailbox
-CLI and work-card listing). That is 15/53 inventory coverage, or 15/30 primary
+partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and prepared-status paths. Fifteen primary boundaries now have measured
+changes: eleven involving native work (including the partial launcher, pretool,
+mailbox, Stop, next and status paths) and four Python optimizations (entry,
+discovery, mailbox CLI and work-card listing). That is 15/53 inventory coverage, or 15/30 primary
 coverage, not effort-weighted completion. The remaining 38 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -80,6 +80,9 @@ the existing exact source guard through CPU detection, without caching or new in
 The [read-only inspection batch](runtime-performance/read-inspection.md) extends
 native tail/wc/bounded-sed queries and removes mutation/capture imports from
 basic status and work-card listing. The latter two remain Python paths.
+The subsequent [prepared-status increment](runtime-performance/native-runtime-status.md)
+adds real native basic/validated snapshots with existing locks and generated API
+snippets. Initialization, contention, trends and unusual inputs remain Python.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
@@ -90,7 +93,7 @@ basic status and work-card listing. The latter two remain Python paths.
 | 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Python candidate | Admission, state/evidence freshness and completion safety |
 | 6 | `scripts/agent-mailbox.py` | agent-mailbox | Python imports deferred | Help improves; ordinary status/receive have no material median gain |
 | 7 | `scripts/agent-os-maintenance.py` | agent-os-maintenance | Python candidate | Low-frequency operator work; justify a port before changing Python |
-| 8 | `scripts/agent-os-status.py` | agent-os-status | Python read-owner imports isolated on performance branch | Exact API/lock parity; warm basic/validated status gains about 21% |
+| 8 | `scripts/agent-os-status.py` | agent-os-status | Partial native prepared basic/validated snapshots; Python initialization/trends/fallback | Exact API/metadata/lock parity; warm native status gains about 65-67% |
 | 9 | `scripts/agent-os-watchdog.py` | agent-os-watchdog | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 10 | `scripts/agent-preflight.py` | agent-preflight | Python candidate | Admission, state/evidence freshness and completion safety |
 | 11 | `scripts/agent_doctor.py` | doctor | Python candidate | Low-frequency operator work; justify a port before changing Python |

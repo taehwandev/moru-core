@@ -20,6 +20,9 @@ mod pretool_guard;
 mod pretool_process;
 mod pretool_query;
 mod pretool_transcript;
+mod status_process;
+mod status_snapshot;
+mod status_state;
 mod statusline;
 mod statusline_chain;
 mod statusline_process;
@@ -88,6 +91,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "agent-os-status") {
+        finish(status_process::StatusProcess::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "next") {
         finish(next_process::NextProcess::run(&launcher, &args));

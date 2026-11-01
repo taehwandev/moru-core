@@ -14,6 +14,7 @@ from native_pretool_support import PROJECT, environment
 from support.native_bundle import install_bundle
 from support.stable_launcher import ensure_stable_launcher
 from support.native_source_inputs import pretool_contract
+from runtime_snapshot_normalize import normalize_output
 
 
 def smoke(archive):
@@ -113,6 +114,26 @@ def smoke(archive):
             assert reference.returncode == 0 and not reference.stderr, reference
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
+        status_project = base / "status-project"
+        state = status_project / ".moru"
+        state.mkdir(parents=True)
+        for name, value in {"run-registry.json": {"runs": [{"state": "running"}]},
+                            "scheduler.json": {"tasks": [{"state": "queued"}]},
+                            "events.json": {"events": [{"event_type": "run.started"}]}}.items():
+            (state / name).write_text(json.dumps(value))
+        args = [str(entry), "agent-os-status", "--project", str(status_project)]
+        missing = subprocess.run(args, capture_output=True, env=env, cwd=status_project, timeout=8)
+        assert missing.returncode == 127 and not (state / ".state.lock.lock").exists(), missing
+        checks += 1
+        for validated in (False, True):
+            argv = [*args, *(["--validate"] if validated else [])]
+            reference = subprocess.run(argv, capture_output=True,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=status_project, timeout=8)
+            done = subprocess.run(argv, capture_output=True, env=env, cwd=status_project, timeout=8)
+            assert reference.returncode == done.returncode == 0 and not reference.stderr and not done.stderr
+            kind = "validated_status" if validated else "status"
+            assert normalize_output(reference.stdout, kind) == normalize_output(done.stdout, kind)
             checks += 1
         print(f"PASS: {checks} transported checks; lookup/status/pretool with empty PATH, mailbox/Stop/next with Git-only PATH")
 
