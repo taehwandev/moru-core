@@ -6,26 +6,22 @@ type: human-reviewed
 
 # Moru Core Shared Agent Instructions
 
-This file is the compact entrypoint for agents using the shared Moru Core
-library. Repo-local instructions remain authoritative for project paths,
-commands, naming, architecture, and product policy.
+Compact entrypoint for the shared Moru Core library. Repo-local instructions
+remain authoritative for project paths, commands, naming, architecture, and
+product policy.
 
 ## Priority And Scope
 
 Follow, in order: runtime system/developer instructions, the current user
 request, target-repo instructions, a bound organization guide, specific Moru
-guidance, common Moru guidance, then general README material. Call out conflicts that affect behavior,
-verification, security, or data handling.
+guidance, common Moru guidance, then general README material. Call out conflicts
+affecting behavior, verification, security, or data handling.
 
-Keep this library provider-neutral and reusable. Product-, service-, vendor-,
-account-, environment-, and repository-specific rules belong in the target
-repo. Project LLM wikis are navigation unless the target repo marks a page as a
-reviewed source of truth; they never override instructions, design decisions,
-workflow gates, or source documents.
-
-Shared library documents are written in English; localized public docs never
-become the source of truth. Frontmatter `status`: `draft` provisional, `review`
-active, `stable` broad-use; `type` records provenance.
+Keep this library provider-neutral and reusable; repo-specific rules belong in
+the target repo. Project LLM wikis are navigation unless marked as a reviewed
+source of truth and never override instructions, decisions, gates, or sources.
+Shared docs use English; localized public docs never become the source of truth.
+Frontmatter `status`: `draft`, `review`, `stable`; `type` records provenance.
 
 ## Project Entry
 
@@ -69,15 +65,16 @@ For tracked work use the installed absolute launcher, once:
    before final report, commit, release or handoff; it validates freshness.
    Direct route/preflight/finish-check scripts are lower-level diagnostics.
 
-For multi-outcome work, record the full bounded scope and executable
-`remaining_work` in the existing continuation checkpoint before mutations.
-Keep unresolved blocked outcomes in `blockers`; use phase `blocked` when a
-global wait prevents further work. Finish rejects recorded unfinished delivery.
-The runtime's default workflow label does not attest reconciliation of the
-requested scope; record the bounded objective or acceptance criteria explicitly.
+For multi-outcome work, record bounded scope (`objective` or `acceptance_criteria`)
+and executable `remaining_work` in the continuation checkpoint before mutations
+(default workflow labels do not attest scope reconciliation). Keep unresolved
+blocked items in `blockers` (phase `blocked` on global wait); finish rejects
+unfinished delivery.
 
 One owner and <=4 files: use `small-change` per
 `common/skills/agent-operating-skill/references/small-change.md`.
+Human prose, articles, essays, or editorial rewriting: use `writing` (`editorial`)
+(`common/skills/human-authored-writing/SKILL.md`).
 For app rebuild/install/restart verification without tracked edits, select the `test` verification route.
 For lifecycle arguments, gate/checkpoint mechanics or app-install boundaries, read
 [lifecycle details](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md).
@@ -154,43 +151,40 @@ budgets and migration exceptions, read
 Required gate failure is `🐱🔴 FAIL`, never completion. Use one
 `retrospective_repair_verify_resume` cycle from the first failed checkpoint:
 repair the canonical rule, hook, validator, or test; verify it; then resume the
-original task. Stop when the same failure recurs, repair is unsafe or ambiguous,
-ownership is uncertain, or verification fails.
+original task. Stop if the failure recurs, repair is unsafe/ambiguous, ownership
+is uncertain, or verification fails.
 
-In an active writable task worktree, canonical skill/rule updates for a verified
-`reusable_gap` or failure-repair carry standing `local_write` self-evolution
-authority: apply, verify and record them in the same closeout without asking.
-It never overrides `--read-only`/`analysis` runs, protected-checkout isolation
-or explicit user prohibitions, and grants no `git_write`/`external_write`.
+In an active writable worktree, canonical skill/rule updates for a verified
+`reusable_gap` or failure-repair carry standing `local_write` authority: apply,
+verify and record them in the same closeout without asking (never overriding
+`--read-only`/`analysis`, protected checkouts, or user prohibitions, nor
+granting `git_write`/`external_write`).
 
 ## Release And Source Control
 
-New work branches follow `common/skills/branch-strategy/SKILL.md`: verified hosting
-account and three-segment names; cleanup uses the same ownership. Resolve repo
-conflicts first. Weekly CalVer is `vYY.WW.N`, deployment count from 0; resolve
-owner calendar/week rules/timezone via `common/skills/release-versioning/SKILL.md`.
-Tags count as deployments; preserve old tags and start ranges at the previous tag.
-An authorized exact staged, reviewed, finished same-session unit may commit per
+New work branches follow `common/skills/branch-strategy/SKILL.md` (verified
+account and three-segment names); cleanup uses the same ownership. Resolve repo
+conflicts first. Weekly CalVer is `vYY.WW.N`, deployment count from 0
+(`common/skills/release-versioning/SKILL.md`). Tags count as deployments;
+preserve old tags and start ranges at the previous tag. An authorized exact
+staged, reviewed, finished same-session unit may commit per
 `common/skills/commit-workflow/references/current-guidance.md`. New/changed scope
 uses `commit`/`git_commit`. Push, PR, tags, releases, deployment, migration and
-publishing need matching authority/checks. For ordering and eligibility, read
+publishing need matching authority/checks. Read
 [source-control details](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md#release-and-source-control).
 
 ## Runtime And Ownership Rules
 
 Use the installed launcher by resolved absolute path. Keep `<MORU_ROOT>` and
-`<MORU_LAUNCHER>` placeholders in committed documentation; never commit a
-personal absolute path. Permission rules bind only the parameter-free absolute
-launcher/script path.
-
-Keep reusable knowledge single-owned. Runtime files are thin adapters or
-pointers unless behavior is truly runtime-specific. Preserve existing Spill
-metering and label handoff integration when changing runtime bridges, prompts,
-hooks, workflows, installers, docs publishing, or release paths. OpenRouter key:
-`~/.moru/research.env` (source it if unset); never print or request it. Unless
-the user asks about that subsystem, do not mention Moru setup, hook, permission,
-helper or label commands, or whether labels, hooks or metering ran. Exception:
-relay a finish `For the user:` context nudge as one line in the final reply.
+`<MORU_LAUNCHER>` placeholders in committed docs; never commit personal paths.
+Permission rules bind only the parameter-free absolute launcher/script path.
+Keep reusable knowledge single-owned; runtime files are thin pointers/adapters.
+Preserve Spill metering and label handoff across runtime bridges, hooks,
+workflows, installers, docs publishing, and release paths. OpenRouter key:
+`~/.moru/research.env` (source if unset; never print/request). Unless asked, do
+not mention Moru setup, hook, permission, helper or label commands, or whether
+labels, hooks or metering ran. Exception: relay a finish `For the user:` context
+nudge as one line in the final reply.
 
 <!-- vibeguard:start version=1 -->
 ## VibeGuard

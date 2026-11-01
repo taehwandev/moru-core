@@ -64,7 +64,7 @@ def work_completion_failures(project: Path, evidence: Path) -> list[str]:
 def scope_unreconciled(preflight: dict, packet: dict) -> bool:
     """Recognize the runtime's own placeholder, never classify user language."""
     route = preflight.get("route") or {}
-    if route.get("command") == "small-change":
+    if route.get("command") in {"small-change", "writing", "editorial"}:
         return False
     envelope = (route.get("request_classification") or {}).get("intent_envelope") or {}
     if not envelope.get("schema_valid") or not envelope.get("envelope_present") or envelope.get("failures"):

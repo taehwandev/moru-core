@@ -36,6 +36,12 @@ For low-risk local corrections with one owner and at most four changed files,
 select `small-change` using `common/skills/agent-operating-skill/references/small-change.md`. Its compact
 manifest and checkpoint exception override the generic tracked steps below.
 
+For human-authored prose, articles, essays, blog posts, or editorial voice/copy
+rewriting, select `writing` (`editorial`) using
+`common/skills/human-authored-writing/SKILL.md`. It runs Draft-First with a
+single closing `retrospective check` (no code tests, review hook, or manual
+scope checkpoint) so the author can read and iterate quickly.
+
 For a repo-owned development app rebuild, install, relaunch, or restart that only
 verifies the current checkout without changing tracked source, docs, or
 configuration, select the `test` verification route. A local build wrapper

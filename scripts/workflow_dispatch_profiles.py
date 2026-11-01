@@ -51,9 +51,11 @@ IMPLEMENTATION_COMMANDS = {
     "bugfix",
     "code-simplify",
     "docs",
+    "editorial",
     "feature",
     "refactor",
     "workflow-setup",
+    "writing",
 }
 
 NON_AUTHORING_REPETITIVE_COMMANDS = {"test"}

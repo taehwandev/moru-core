@@ -2470,6 +2470,10 @@ START_ROUTE_NAME_ALIASES = {
     "debug": "bugfix",
     "fix": "bugfix",
     "git commit": "commit",
+    "write": "writing",
+    "prose": "writing",
+    "article": "writing",
+    "blog": "writing",
 }
 
 

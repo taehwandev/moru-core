@@ -14,6 +14,7 @@ from workflow_gate_policy import (
     DOCUMENTATION_IMPACT_GATE,
     DOCUMENTATION_GATE,
     MULTI_AGENT_GATE,
+    RETROSPECTIVE_CHECK_GATE,
     SIDE_EFFECT_AUDIT_GATE,
     SOURCE_DOCS_GATE,
     TEST_GATE,
@@ -104,6 +105,7 @@ def parallel_execution_plan(command: str, gates: list[str]) -> dict[str, Any]:
                 "report",
                 "recommendation",
                 "open decisions",
+                RETROSPECTIVE_CHECK_GATE,
             ),
         ),
         tasks=(

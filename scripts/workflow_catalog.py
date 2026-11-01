@@ -219,6 +219,16 @@ COMMANDS: Dict[str, Profile] = {
         docs=("workflows/skills/documentation-update/SKILL.md",),
         gates=(),
     ),
+    "writing": Profile(
+        docs=("common/skills/human-authored-writing/SKILL.md",),
+        gates=(),
+        notes=(
+            "Use for drafting or rewriting human-authored prose, articles, essays, blog posts, "
+            "release notes, READMEs, and localized or product copy. Runs Draft-First without "
+            "code tests, review-hook ceremony, or span-only/one-third rewrite caps so the "
+            "author can read and revise quickly.",
+        ),
+    ),
     "docs-review": Profile(
         docs=(
             "workflows/skills/review-and-commit/SKILL.md",
@@ -323,6 +333,7 @@ COMMANDS: Dict[str, Profile] = {
     ),
 }
 COMMANDS["git_commit"] = COMMANDS["commit"]
+COMMANDS["editorial"] = COMMANDS["writing"]
 
 
 SPILL_ACTION_LABELS: Dict[str, Tuple[str, str]] = {
@@ -341,6 +352,8 @@ SPILL_ROUTE_LABELS: Dict[str, Tuple[str, str]] = {
     "ambiguity": ("analysis", "classify"),
     "bugfix": ("debugging", "implement"),
     "docs": ("documentation", "draft"),
+    "writing": ("documentation", "draft"),
+    "editorial": ("documentation", "draft"),
     "docs-review": ("code_review", "verify"),
     "feature": ("code_generation", "implement"),
     "build": ("code_generation", "implement"),

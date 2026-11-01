@@ -31,6 +31,8 @@ ROUTE_MINIMUM_EFFECT = {
     "build": "local_write",
     "code-simplify": "local_write",
     "docs": "local_write",
+    "writing": "local_write",
+    "editorial": "local_write",
     "feature": "local_write",
     "multi-agent": "local_write",
     "prd": "local_write",

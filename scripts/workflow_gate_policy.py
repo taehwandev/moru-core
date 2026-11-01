@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextvars import ContextVar
 
 from agent_skill_state import CURRENT_TASK_REVIEW_THRESHOLD
-from workflow_common import SCOPE_CHANGE_LIFECYCLE_COMMANDS
+from workflow_common import LIGHTWEIGHT_WRITING_COMMANDS, SCOPE_CHANGE_LIFECYCLE_COMMANDS
 
 READ_ONLY_LOOKUP: ContextVar[bool] = ContextVar("read_only_lookup", default=False)
 
@@ -122,7 +122,8 @@ SOURCE_DOCS_COMMANDS = WORK_PRODUCING_COMMANDS | {
 # skill maintenance; stateless lookup and commit reuse add no new ceremony.
 RETROSPECTIVE_CHECK_COMMANDS = (
     SOURCE_DOCS_COMMANDS | LIGHTWEIGHT_ANALYSIS_COMMANDS
-    | SCOPE_CHANGE_LIFECYCLE_COMMANDS | {"small-change"}
+    | SCOPE_CHANGE_LIFECYCLE_COMMANDS | LIGHTWEIGHT_WRITING_COMMANDS
+    | {"small-change"}
 )
 
 

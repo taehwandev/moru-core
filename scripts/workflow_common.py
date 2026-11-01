@@ -22,11 +22,17 @@ SCOPE_CHANGE_LIFECYCLE_COMMANDS = {
     "test",
     "workflow-setup",
 }
+# Human prose and editorial rewriting run Draft-First without code-route test
+# or review ceremony; start already binds the request and writing guidance.
+LIGHTWEIGHT_WRITING_COMMANDS = {"writing", "editorial"}
 # Question routes do not claim work authority, while compact start already
 # binds the exact request for bounded and ordinary code work. None needs a
 # second human-authored request-intake ledger entry.
 REQUEST_INTAKE_EXEMPT_COMMANDS = (
-    QUESTION_ROUTE_COMMANDS | SCOPE_CHANGE_LIFECYCLE_COMMANDS | {"small-change"}
+    QUESTION_ROUTE_COMMANDS
+    | SCOPE_CHANGE_LIFECYCLE_COMMANDS
+    | LIGHTWEIGHT_WRITING_COMMANDS
+    | {"small-change"}
 )
 ANSWER_ONLY_CLARITY = "direct-question"
 REPAIR_CYCLE_LIMIT = 1

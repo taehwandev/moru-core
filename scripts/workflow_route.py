@@ -17,6 +17,7 @@ from workflow_catalog import (
 )
 from agent_skill_catalog import FEEDBACK_SIGNALS
 from workflow_common import (
+    LIGHTWEIGHT_WRITING_COMMANDS,
     REPAIR_CYCLE_LIMIT,
     REPAIR_POLICY,
     REPAIR_STOP_CONDITION,
@@ -96,6 +97,8 @@ COMMAND_REQUIRED_DOCS = {
     "commit": ("workflows/skills/review-and-commit/SKILL.md", "common/skills/commit-workflow/SKILL.md"),
     "git_commit": ("workflows/skills/review-and-commit/SKILL.md", "common/skills/commit-workflow/SKILL.md"),
     "docs": ("workflows/skills/documentation-update/SKILL.md",),
+    "writing": ("common/skills/human-authored-writing/SKILL.md",),
+    "editorial": ("common/skills/human-authored-writing/SKILL.md",),
     "docs-review": ("workflows/skills/review-and-commit/SKILL.md", "common/skills/code-review/SKILL.md"),
     "feature": ("workflows/skills/feature-implementation/SKILL.md",),
     "multi-agent": ("workflows/skills/multi-agent-collaboration/SKILL.md",),
@@ -1256,6 +1259,20 @@ def _compact_required_docs(
         return unique([
             OPERATING_SKILL,
             "common/skills/agent-operating-skill/references/small-change.md",
+            *owner_docs,
+        ])
+    if command in LIGHTWEIGHT_WRITING_COMMANDS:
+        writing_docs = resolve_guidance_docs(
+            ROOT, ["common/skills/human-authored-writing/SKILL.md"]
+        )
+        owner_docs = resolve_guidance_docs(
+            ROOT,
+            [canonical_doc_path(doc) for doc in (owner_surface_docs or [])],
+        )
+        return unique([
+            OPERATING_SKILL,
+            *writing_docs,
+            *_named_concern_docs(platform, concerns),
             *owner_docs,
         ])
     if command in LIGHTWEIGHT_SURFACE_REFERENCE_COMMANDS:

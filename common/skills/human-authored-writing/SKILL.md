@@ -1,6 +1,6 @@
 ---
 name: human-authored-writing
-description: "Human-Authored Writing: Use when drafting or editing user-facing prose, documentation, release notes, marketing copy, emails, essays, or other text where the goal is to preserve the author's meaning and voice while reducing generic AI-writing signals."
+description: "Human-Authored Writing: Use when drafting or editing user-facing prose, articles, essays, blog posts, release notes, READMEs, product/report copy, emails, or localized guides so the text reads like a thoughtful human author rather than generic AI output."
 keyflow_id: sys_common_human_authored_writing_md_skill
 status: stable
 type: ai-generated
@@ -8,61 +8,38 @@ type: ai-generated
 
 # Human-Authored Writing
 
-Use when routed to `common/skills/human-authored-writing/SKILL.md`, when
-drafting or editing user-facing READMEs, product/report pages, comparison
-tables, chart labels, or localized guides, when prose needs voice or
-AI-writing-signal cleanup, or when an intended reader cannot reconstruct a
-technical explanation from the text.
+Use when routed to `writing` (`editorial`) or `common/skills/human-authored-writing/SKILL.md`,
+when drafting or rewriting articles, essays, blog posts, build logs, READMEs,
+product/report pages, comparison tables, chart labels, or localized guides, or
+when prose needs natural human voice, rhythm, and clarity.
 
-## Core Rules
+## Draft-First Human Writing Flow
 
-- **Lead with reader-visible actions and outcomes, not internal jargon.** Never
-  expose raw internal gate names, CLI flags, validator slugs, schema keys, or
-  stiff compound nouns as user-facing headings, chart labels, or table headers.
-  Say what the user or system actually does in plain words first; place exact
-  CLI flags or commands in parentheses or code blocks only where the reader
-  needs to run them.
-- **Calibrate against nearby repo copy before drafting.** Before adding a new
-  page, report, or README section, read 2–3 existing user-facing pages in the
-  same repository and match their vocabulary level, sentence length, and tone.
-- **Translate meaning, not literal jargon calques, and never sacrifice natural phrasing for brevity.** In
-  Korean, Japanese, and Chinese guides, replace word-for-word calques of
-  internal English nouns with natural native developer phrasing while keeping
-  every measured number and fact intact. Never cram context into abrupt
-  shorthand or contextually mismatched idioms merely to compress a heading or
-  sentence; check against nearby repo copy and the author's samples.
-- **Reconcile coupled passages and check sibling pages that share the same thesis.**
-  Before editing a flagged headline or paragraph, inspect the rest of that page
-  and related pages carrying the same product reason or claim: update directly
-  coupled in-scope passages on the same page in the same pass and reread them
-  together, and surface any separate sibling pages or unsettled thesis choices
-  with a 2–3-line sample for confirmation before expanding scope.
-- **Place the subject product first and preserve its structural differentiator in comparisons.**
-  In comparison tables and cards, always put the subject product in the first
-  comparison column (or top hero box in a zero-horizontal-scroll card layout),
-  never hidden at the far right of a scrolling table. When simplifying wording,
-  never strip out *why* our mechanism beats a competitor's trade-off (for
-  example, zero-LLM section indexing vs spending extra LLM turns searching raw
-  chats, or test-verified rule promotion + expiry dates vs unverified
-  self-edits that accumulate stale rules).
+1. **Lock voice, audience, and a one-sentence thesis first.**
+   - Read 2–3 nearby pages or author samples to match vocabulary level, sentence cadence, and register (for Korean articles/essays, keep plain declarative endings `~다/했다/이다` consistently once established; for talks or polite guides, keep `~합니다` consistently).
+   - State the piece's core point in one concrete sentence: **who does what, why it matters, and what changes for the reader**.
+2. **Write a complete, scene-led draft right away (Draft-First).**
+   - Deliver a full, readable draft or rewritten section immediately so the author can read and react to real prose. Do **not** stop after a 2–3-line sample unless the genre, stance, or core thesis is genuinely undecided across incompatible directions.
+   - Open long-form articles, essays, and experiment posts with a narrative title and a concrete work scene, lived observation, or testable expectation (`expectation → turn/surprise → concrete cause → decision`)—never with a dictionary definition ("X means...") or a defensive meta-disclaimer ("This is only a personal test...").
+   - Lead with visible actors and concrete actions, not abstract nouns or internal runtime/CLI/validator/schema jargon. Put exact CLI flags or commands in parentheses or code blocks only where the reader runs them.
+3. **Reshape paragraphs holistically—never patch prose like a code diff.**
+   - Good writing lives in rhythm and transitions between sentences. Freely restructure paragraphs, collapse mechanical bullet lists into flowing prose, vary sentence length, and rewrite more than one-third of a draft whenever natural flow requires it.
+   - Update directly coupled passages on the same page in the same pass so headings, body paragraphs, and conclusions tell the same story. Surface separate out-of-scope sibling pages for confirmation.
+4. **Read aloud for native phrasing, reader comprehension, and factual fidelity.**
+   - In Korean, Japanese, and Chinese prose, translate concrete meaning into natural native developer phrasing—never word-for-word calques of internal English compound nouns.
+   - Never sacrifice natural phrasing or reader comprehension for abrupt shorthand compression. Keep the actors, conditions, and causal links a reader needs without private project context.
+   - Preserve every factual commitment, number, quote, citation, and structural differentiator (placing the subject product first in comparisons and explaining *why* its mechanism solves the alternative's trade-off).
 
 ## Read
 
-- `references/current-guidance.md` for the detailed guidance for this skill.
-- Related `SKILL.md` entrypoints named by the reference before loading their detailed references.
-
-## Process
-
-1. Read this entrypoint first to confirm this guidance area applies.
-2. Open `references/current-guidance.md` only when the task actually touches this area.
-3. Follow the reference's decision rules, stop conditions, and verification requirements before editing, reviewing, or reporting completion.
+- `references/current-guidance.md` for Before/After examples, Korean/English voice calibration, comparison layout rules, and the technical evidence ladder.
+- `common/skills/writing-workspace/SKILL.md` when creating or publishing long-form blog posts, essays, or articles across draft and publish directories.
 
 ## Do Not
 
-- Do not look for legacy flat compatibility paths; load this skill bundle as the canonical context-loading target.
-- Do not load broad references for unrelated work just because this skill was nearby in the route.
+- Do not apply code-diff restrictions ("touch only the flagged line" or "never rewrite more than 1/3 of the text") when the user asks for natural human writing or a full rewrite.
+- Do not invent personal anecdotes, unverified measurements, citations, or product claims to fake "human texture."
 
 ## Verification
 
-- If route wiring changes, confirm the route loads this `SKILL.md` entrypoint.
-- If detailed guidance changes, validate links and frontmatter for `references/current-guidance.md`.
+- Read the finished draft aloud from the intended reader's perspective: confirm the one-sentence thesis holds from title to conclusion, register and voice stay consistent, and every fact, number, and command remains accurate.

@@ -110,10 +110,12 @@ class WorkCompletionTests(unittest.TestCase):
     def test_small_change_default_label_allows_finish_when_no_remaining_work_exists(self):
         import json
 
-        small_route = {**self.run.route, "command": "small-change"}
-        self.run.evidence.write_text(json.dumps({**self.run.binding, "route": small_route}))
-        write_continuation_checkpoint(
-            project=self.run.project, rules=self.run.project, run_id=self.run.run["run_id"],
-            binding_path=self.run.evidence, kind="decision",
-            work={"objective": "small-change workflow", "remaining_work": []})
-        self.assertEqual([], self.finish_failures())
+        for command in ("small-change", "writing", "editorial"):
+            with self.subTest(command=command):
+                light_route = {**self.run.route, "command": command}
+                self.run.evidence.write_text(json.dumps({**self.run.binding, "route": light_route}))
+                write_continuation_checkpoint(
+                    project=self.run.project, rules=self.run.project, run_id=self.run.run["run_id"],
+                    binding_path=self.run.evidence, kind="decision",
+                    work={"objective": f"{command} workflow", "remaining_work": []})
+                self.assertEqual([], self.finish_failures())

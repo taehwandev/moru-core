@@ -43,7 +43,13 @@ def review_shape_line(required_flags: Iterable[str]) -> str:
 
 
 def compact_action_brief(command: str) -> list[str]:
-    """Return an inline fast-track brief for small-change runs."""
+    """Return an inline fast-track brief for small-change and writing runs."""
+    if command in {"writing", "editorial"}:
+        return [
+            "Writing fast-track brief: Draft-First human-voice prose (audience/voice + 1-sentence thesis -> "
+            "concrete scene & active actors -> holistic paragraph flow & read-aloud check); no code tests "
+            "or review hook required; record `retrospective check` via `gate-batch` and run `finish`."
+        ]
     if command != "small-change":
         return []
     return [

@@ -886,6 +886,41 @@ class CleanupRouteStaysLightTests(unittest.TestCase):
         self.assertIn("one gate-batch", notes)
 
 
+class WritingRouteStaysLightTests(unittest.TestCase):
+    """Human prose and editorial rewriting use a short Draft-First lifecycle."""
+
+    def test_writing_and_editorial_routes_carry_only_retrospective_check(self) -> None:
+        for command in ("writing", "editorial"):
+            with self.subTest(command=command):
+                route = resolve_docs(command, None, [], request_classified=True)
+                self.assertEqual(["retrospective check"], route["gates"])
+                self.assertEqual("local_write", route_minimum_effect(command))
+                self.assertFalse(
+                    next(h for h in route["hooks"] if h["hook"] == "review")["required"]
+                )
+                self.assertEqual(
+                    [
+                        "common/skills/agent-operating-skill/SKILL.md",
+                        "common/skills/human-authored-writing/SKILL.md",
+                        "common/skills/human-authored-writing/references/current-guidance.md",
+                    ],
+                    route["required_docs"],
+                )
+                for absent in (
+                    "request intake",
+                    "source docs",
+                    "ambiguity check",
+                    "documentation impact",
+                    "alignment brief",
+                    "agentic run state",
+                    "cycle contract",
+                    "documentation",
+                    "tests",
+                    "review hook",
+                ):
+                    self.assertNotIn(absent, route["gates"])
+
+
 class AutoRouteSentinelTests(unittest.TestCase):
     """The prompt hook cannot know the task, so it must be able to defer.
 

@@ -6,7 +6,7 @@ type: human-reviewed-needed
 
 # Documentation Update Workflow
 
-Use when creating, reviewing, or restructuring docs, guides, specs, READMEs, agent instructions, release notes, or knowledge-base pages.
+Use when creating, reviewing, or restructuring technical/repository docs, guides, specs, READMEs, agent instructions, release notes, or knowledge-base pages. For human-authored articles, essays, blog posts, narrative copy, or voice/editorial rewriting without repository-contract ceremony, use the lightweight `writing` (`editorial`) route (`common/skills/human-authored-writing/SKILL.md`).
 
 ## Read
 
