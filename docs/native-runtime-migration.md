@@ -54,9 +54,9 @@ launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
 partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and prepared-status paths. Fifteen primary boundaries now have implementation
-coverage: thirteen involving native work (including partial entry/discovery,
-launcher, pretool, mailbox, Stop, next and status paths) and two Python
-optimizations (mailbox CLI and work-card listing). The latest entry/discovery
+coverage: fourteen involving native work (including partial entry/discovery,
+launcher, pretool, mailbox, Stop, next, status and work-card listing) and one
+Python-only optimization (mailbox CLI). The latest native extensions
 extension adds no new timing claim; earlier measurements remain historical.
 That is 15/53 inventory coverage, or 15/30 primary
 coverage, not effort-weighted completion. The remaining 38 are candidates. The earlier
@@ -101,6 +101,10 @@ adds registered roots, aliases and ordered candidate merging. Workspace groups
 and uncertain path/input forms retain Python. These are two existing boundaries,
 not additional inventory units.
 
+The [native work-card query](runtime-performance/native-work-cards.md) adds
+read-only list/list-all execution with bundled SQLite. Internal Python readers,
+write/close/resume operations and canonical recovery remain with Python.
+
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
 | 1 | `scripts/checkout_identity.py` | checkout-identity | Native lookup accepted in stage one | Metadata parity, timeout, recovery, Python rollback |
@@ -119,7 +123,7 @@ not additional inventory units.
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
-| 17 | `scripts/agent_work_cards.py` | work-cards | Python read-owner imports isolated on performance branch | SQLite/schema/liveness unchanged; warm empty-list gain 22.5%, 100-card gain 17.3% |
+| 17 | `scripts/agent_work_cards.py` | work-cards | Partial native read-only CLI; Python internal reads/writes/recovery retained | Exact JSON, repository/schema/WAL/lock behavior; bundled consumer without Python |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |

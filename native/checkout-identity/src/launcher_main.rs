@@ -8,6 +8,9 @@ use moru_checkout_identity::CheckoutIdentity;
 
 mod callback_replay;
 mod callback_state;
+mod cards_identity;
+mod cards_process;
+mod cards_store;
 mod discovery_candidates;
 mod discovery_fs;
 mod discovery_process;
@@ -96,6 +99,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "work-cards") {
+        finish(cards_process::CardsProcess::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "project-discover") {
         let code = discovery_process::DiscoveryProcess::run(&launcher, &args);

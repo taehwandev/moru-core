@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import shutil
+import sqlite3
 import subprocess
 import tempfile
 from unittest.mock import patch
@@ -136,6 +138,31 @@ def smoke(archive):
         git_only.mkdir()
         (git_only / "git").symlink_to(shutil.which("git"))
         no_python = {**normal, "PATH": str(git_only)}
+        missing_cards = subprocess.run([str(entry), "work-cards", "--project", str(project), "list"],
+            capture_output=True, env=env, cwd=project, timeout=8)
+        assert (missing_cards.returncode, missing_cards.stdout, missing_cards.stderr) == (0, b"[]\n", b"")
+        checks += 1
+        from agent_work_cards import _SCHEMA, SCHEMA_VERSION
+        common = subprocess.run(["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True, text=True, env=normal, check=True).stdout.strip()
+        repo_key = hashlib.sha256(common.encode()).hexdigest()[:24]
+        card_db = Path(normal["MORU_STATE_HOME"]) / "work-cards/cards.sqlite3"
+        card_db.parent.mkdir(parents=True)
+        with sqlite3.connect(card_db) as connection:
+            connection.execute(_SCHEMA)
+            connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+            connection.executemany("INSERT INTO cards(repo,work_id,summary,command,project,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+                [(repo_key, key * 32, "한글 card", "implement", str(project), state, "created", stamp)
+                 for key, state, stamp in (("a", "active", "new"), ("b", "done", "old"))])
+        before_cards = card_db.read_bytes()
+        for flags in ([], ["--all"]):
+            args = [str(entry), "work-cards", "--project", str(project), "list", *flags]
+            reference = subprocess.run(args, capture_output=True, env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=project, timeout=8)
+            done = subprocess.run(args, capture_output=True, env=no_python, cwd=project, timeout=8)
+            assert (reference.returncode, reference.stderr) == (0, b""), reference
+            assert (done.returncode, done.stdout, done.stderr) == (reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
+        assert before_cards == card_db.read_bytes()
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

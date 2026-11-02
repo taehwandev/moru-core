@@ -14,7 +14,7 @@ def source_inputs(root: Path) -> list[Path]:
     if not generator.is_file():
         return files  # Older artifacts retain their original receipt schema.
     sources, _directories = pretool_contract(root)
-    return sorted({*files, *package.glob("*_contract.py"), package / "build.rs",
+    return sorted({*files, *package.glob("*_contract.py"), *package.glob("*-NOTICES.txt"), package / "build.rs",
                    root / "scripts/support/native_source_inputs.py",
                    *(root / relative for relative in sources)})
 

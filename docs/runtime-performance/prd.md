@@ -184,3 +184,8 @@ The [registered-project extension](native-project-registry.md) then adds
 registered root/path and disabled handling, environment/home expansion, alias
 matching and ordered merging. Reuse the established Rust direction; verify
 behavior and no-Python consumer execution without another timing/cost experiment.
+
+The [work-card query increment](native-work-cards.md) adds read-only native CLI
+listing through bundled SQLite. Preserve canonical Python writes and recovery,
+verify repository/schema/WAL/output compatibility and portable execution, and
+continue the selective-measurement policy.
