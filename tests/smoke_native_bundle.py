@@ -88,6 +88,33 @@ def smoke(archive):
             assert done.returncode == code and not done.stderr, done
             assert json.loads(done.stdout)["status"] == status
             checks += 1
+        registry = base / "discovery-registry.json"
+        target = workspace / "second"
+        registry.write_text(json.dumps({"projects": [{"root": "$SMOKE_REGISTRY_TARGET", "aliases": ["launch", "launch"]}]}))
+        registered_env = {**env, "SMOKE_REGISTRY_TARGET": str(target)}
+        for format in ("text", "json"):
+            done = subprocess.run([str(entry), "project-discover", "--request", "launch", "--cwd", str(project),
+                "--registry", str(registry), "--format", format], capture_output=True,
+                env=registered_env, cwd=project, timeout=8)
+            assert done.returncode == 0 and not done.stderr, done
+            if format == "json":
+                assert json.loads(done.stdout)["selected_project"]["path"] == str(target)
+            else:
+                assert done.stdout.decode() == f"status: selected\nproject: {target}\ninstruction_files:\n- AGENTS.md\n"
+            checks += 1
+        done = subprocess.run([str(entry), "project-discover", "--request", "launch", "--cwd", str(target),
+            "--registry", str(registry), "--search-root", str(workspace), "--format", "json"],
+            capture_output=True, env=registered_env, cwd=project, timeout=8)
+        assert done.returncode == 0 and not done.stderr, done
+        chosen = json.loads(done.stdout)["selected_project"]
+        assert chosen["aliases"] == ["launch"] and chosen["sources"] == ["registry", "cwd", "search_root"]
+        checks += 1
+        registry.write_text(json.dumps({"projects": [{"root": str(workspace / name), "aliases": ["launch"]}
+                                                       for name in ("first 한글", "second")]}))
+        done = subprocess.run([str(entry), "project-discover", "--request", "launch", "--cwd", str(project),
+            "--registry", str(registry), "--format", "json"], capture_output=True, env=env, cwd=project, timeout=8)
+        assert done.returncode == 2 and not done.stderr and json.loads(done.stdout)["status"] == "ambiguous", done
+        checks += 1
         for runtime in ("claude", "codex"):
             for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',

@@ -179,3 +179,8 @@ The [project-discovery batch](native-project-discovery.md) then moves directory
 traversal, marker facts and parent-root lookup into a shared Rust engine for
 the discovery CLI and entry builder. It follows selective measurement: behavior,
 fallback and fresh-consumer verification, with no new timing/cost calculation.
+
+The [registered-project extension](native-project-registry.md) then adds
+registered root/path and disabled handling, environment/home expansion, alias
+matching and ordered merging. Reuse the established Rust direction; verify
+behavior and no-Python consumer execution without another timing/cost experiment.

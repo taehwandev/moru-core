@@ -8,8 +8,10 @@ use moru_checkout_identity::CheckoutIdentity;
 
 mod callback_replay;
 mod callback_state;
+mod discovery_candidates;
 mod discovery_fs;
 mod discovery_process;
+mod discovery_registry;
 mod discovery_search;
 #[allow(dead_code)] // Shared source; this crate only uses the status adapter.
 mod gitrun;

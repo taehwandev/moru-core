@@ -96,8 +96,10 @@ snippets. Initialization, contention, trends and unusual inputs remain Python.
 The [native project-discovery batch](runtime-performance/native-project-discovery.md)
 moves traversal, marker facts and nearest-root lookup into one Rust engine.
 The generated discovery CLI and Python entry builder share that engine for
-supported inputs. Registered targets, workspace groups and uncertain path/input
-forms retain Python. These are two existing boundaries, not three new units.
+supported inputs. The [registered-project extension](runtime-performance/native-project-registry.md)
+adds registered roots, aliases and ordered candidate merging. Workspace groups
+and uncertain path/input forms retain Python. These are two existing boundaries,
+not additional inventory units.
 
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |

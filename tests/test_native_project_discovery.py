@@ -114,7 +114,6 @@ class NativeProjectDiscoveryTests(unittest.TestCase):
         registry.write_text(json.dumps({"projects": [{"path": str(self.project), "aliases": ["target"]}]}))
         cases = [["--request", str(self.project)], ["--request", "'경로'"],
                  ["--request", "진행", "--cwd", str(self.base / "missing")],
-                 ["--request", "target", "--registry", str(registry)],
                  ["--help"], ["--request", "진행", "--format", "unknown"],
                  ["--request", "진행", "--max-depth", "2147483648"]]
         self.project_at("ΟΣ")

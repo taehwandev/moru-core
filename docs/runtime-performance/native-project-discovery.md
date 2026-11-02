@@ -6,6 +6,10 @@ type: ai-generated
 
 # Native project filesystem discovery
 
+This report retains the scope and checks of commit `d6ca3422`. The subsequent
+[registered-project extension](native-project-registry.md) supersedes its
+registered-entry deferral; its original evidence below remains unchanged.
+
 ## Three related changes
 
 Move directory traversal, project-marker facts and nearest-parent project-root

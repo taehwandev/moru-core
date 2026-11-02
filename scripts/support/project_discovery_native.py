@@ -17,7 +17,7 @@ def native_discovery(request, cwd, *, search_roots, registry_snapshot, max_depth
     if (os.environ.get("MORU_LAUNCHER_BACKEND") == "python"
             or os.environ.get("MORU_DISCOVERY_NATIVE_DECLINED") == "1"):
         return None
-    if registry_snapshot.get("projects") or registry_snapshot.get("workspace_groups"):
+    if registry_snapshot.get("workspace_groups"):
         return None
     entry = Path.home() / ".moru/bin/moru-hook"
     binary = entry.with_name("moru-hook-native")
