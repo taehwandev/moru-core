@@ -1,6 +1,6 @@
 //! Owner: read-only project registry paths and registered candidate projection.
 //! Allowed: std, serde_json, discovery_fs/candidates, existing whitespace renderer.
-//! Forbidden: state writes, workspace-group/launch authority, services or caches.
+//! Forbidden: state writes, launch authority, services or caches.
 //! Callers/tests: discovery_search; test_native_project_registry and bundle smoke.
 use crate::{discovery_candidates::Candidates, discovery_fs::DiscoveryFs as Fs};
 use serde_json::{json, Value};
@@ -40,13 +40,6 @@ impl Registry {
     pub(crate) fn roots(registered: &Value) -> Option<Vec<PathBuf>> {
         let mut roots = Vec::new();
         if let Some(map) = registered.as_object() {
-            if map
-                .get("workspace_groups")
-                .and_then(Value::as_array)
-                .is_some_and(|v| !v.is_empty())
-            {
-                return None;
-            }
             if let Some(paths) = map.get("search_roots").and_then(Value::as_array) {
                 for path in paths.iter().filter_map(Value::as_str) {
                     roots.push(Self::path(path)?);
@@ -71,14 +64,9 @@ impl Registry {
             if map.get("disabled") == Some(&Value::Bool(true)) {
                 continue;
             }
-            let raw = map
-                .get("root")
-                .filter(|v| truthy(v))
-                .or_else(|| map.get("path"));
-            let Some(raw) = raw.and_then(Value::as_str).filter(|s| !s.is_empty()) else {
+            let Some(path) = Self::entry_path(map)? else {
                 continue;
             };
-            let path = Self::path(raw)?;
             if !Fs::exists(&path)? {
                 continue;
             }
@@ -120,6 +108,28 @@ impl Registry {
         Some(())
     }
 
+    pub(crate) fn entry_path(map: &serde_json::Map<String, Value>) -> Option<Option<PathBuf>> {
+        let raw = map
+            .get("root")
+            .filter(|v| Self::truthy(v))
+            .or_else(|| map.get("path"));
+        match raw.and_then(Value::as_str).filter(|s| !s.is_empty()) {
+            Some(raw) => Some(Some(Self::path(raw)?)),
+            None => Some(None),
+        }
+    }
+
+    pub(crate) fn truthy(value: &Value) -> bool {
+        match value {
+            Value::Null => false,
+            Value::Bool(v) => *v,
+            Value::Number(v) => v.as_f64() != Some(0.0),
+            Value::String(v) => !v.is_empty(),
+            Value::Array(v) => !v.is_empty(),
+            Value::Object(v) => !v.is_empty(),
+        }
+    }
+
     pub(crate) fn path(raw: &str) -> Option<PathBuf> {
         let expanded = expand_vars(raw)?;
         if expanded == "~" || expanded.starts_with("~/") {
@@ -141,17 +151,6 @@ fn python_path(path: &Path) -> PathBuf {
         PathBuf::from(".")
     } else {
         normalized
-    }
-}
-
-fn truthy(value: &Value) -> bool {
-    match value {
-        Value::Null => false,
-        Value::Bool(v) => *v,
-        Value::Number(v) => v.as_f64() != Some(0.0),
-        Value::String(v) => !v.is_empty(),
-        Value::Array(v) => !v.is_empty(),
-        Value::Object(v) => !v.is_empty(),
     }
 }
 

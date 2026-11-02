@@ -38,6 +38,8 @@ Workspace groups, explicit request-path grammar, named-user homes, non-ASCII
 case transformations and uncommon alias/error shapes retain Python. Source or
 environment drift still replays Python; forced Python remains available. No new
 crate, service, database dependency, daemon or permission decision is introduced.
+The later [workspace-group extension](native-workspace-discovery.md) supersedes
+this increment's group deferral while retaining Python scope/checkpoint policy.
 
 The final default build passes 26 Rust tests. The focused registry/discovery
 command passes all 51 Python tests, covering real text/JSON and exit parity,

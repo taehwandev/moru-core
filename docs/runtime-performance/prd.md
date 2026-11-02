@@ -189,3 +189,8 @@ The [work-card query increment](native-work-cards.md) adds read-only native CLI
 listing through bundled SQLite. Preserve canonical Python writes and recovery,
 verify repository/schema/WAL/output compatibility and portable execution, and
 continue the selective-measurement policy.
+
+The [workspace-group increment](native-workspace-discovery.md) extends the same
+native discovery engine to group and member aliases. Preserve candidate order,
+ambiguity and Python-owned scope/checkpoint guidance; verify real entry manifests
+and a transported consumer without another performance or cost experiment.

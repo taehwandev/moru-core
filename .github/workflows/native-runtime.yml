@@ -66,7 +66,7 @@ jobs:
             test_native_bundle test_checkout_identity_runtime test_native_stable_launcher \
             test_native_statusline test_native_runtime_status test_native_pretool test_native_pretool_files \
             test_native_pretool_git test_native_mailbox test_native_stop test_native_next \
-            test_native_project_discovery test_native_project_registry test_native_work_cards \
+            test_native_project_discovery test_native_project_registry test_native_workspace_discovery test_native_work_cards \
             test_agent_state_read test_agent_repository_key test_agent_observability \
             test_agent_work_cards test_agent_work_cards_lifecycle test_benchmark_read_inspection
       - name: Package and test a fresh consumer without a toolchain

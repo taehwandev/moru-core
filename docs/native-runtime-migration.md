@@ -97,9 +97,11 @@ The [native project-discovery batch](runtime-performance/native-project-discover
 moves traversal, marker facts and nearest-root lookup into one Rust engine.
 The generated discovery CLI and Python entry builder share that engine for
 supported inputs. The [registered-project extension](runtime-performance/native-project-registry.md)
-adds registered roots, aliases and ordered candidate merging. Workspace groups
-and uncertain path/input forms retain Python. These are two existing boundaries,
-not additional inventory units.
+adds registered roots, aliases and ordered candidate merging. The subsequent
+[workspace-group extension](runtime-performance/native-workspace-discovery.md)
+adds group/member candidate lookup; scope/checkpoint guidance and uncertain
+path/input forms retain Python. These extend two existing boundaries, without
+additional inventory units.
 
 The [native work-card query](runtime-performance/native-work-cards.md) adds
 read-only list/list-all execution with bundled SQLite. Internal Python readers,

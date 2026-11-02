@@ -150,7 +150,7 @@ class NativeProjectRegistryTests(unittest.TestCase):
             self.assertEqual(expected, discovery.build_entry_manifest(**args))
             load.assert_called_once()
 
-    def test_unusual_aliases_named_homes_and_groups_preserve_python_fallback(self):
+    def test_unusual_aliases_and_named_homes_preserve_python_fallback(self):
         entries = [{"root": str(self.target), "aliases": "launch"},
                    {"root": str(self.target), "aliases": None},
                    {"root": "~definitely_missing_moru_native_registry_user", "aliases": ["launch"]},
@@ -161,5 +161,4 @@ class NativeProjectRegistryTests(unittest.TestCase):
                 self.assertEqual(result(self.call(backend="python")), result(self.call()))
                 self.assertEqual(127, self.call(PATH=str(self.empty)).returncode)
         self.write({"projects": [{"root": str(self.target), "aliases": ["launch"]}], "workspace_groups": [{"name": "group"}]})
-        self.assertEqual(result(self.call(backend="python")), result(self.call()))
-        self.assertEqual(127, self.call(PATH=str(self.empty)).returncode)
+        self.parity()

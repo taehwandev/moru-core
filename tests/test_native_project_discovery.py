@@ -124,8 +124,7 @@ class NativeProjectDiscoveryTests(unittest.TestCase):
                 self.assertEqual(127, self.call(*args, PATH=str(self.empty)).returncode)
         registry.write_text('{"workspace_groups": [{"name": "group"}]}')
         args = ["--request", "진행", "--registry", str(registry)]
-        self.assertEqual(result(self.call(*args, backend="python")), result(self.call(*args)))
-        self.assertEqual(127, self.call(*args, PATH=str(self.empty)).returncode)
+        self.parity(args)
 
     def test_entry_manifest_reuses_native_with_one_registry_snapshot(self):
         from agent_project_discovery import build_entry_manifest
