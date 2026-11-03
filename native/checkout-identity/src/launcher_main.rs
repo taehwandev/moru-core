@@ -23,6 +23,8 @@ mod gitrun;
 mod launcher_backend;
 mod mailbox_process;
 mod mailbox_state;
+mod mailbox_status_process;
+mod mailbox_status_state;
 mod next_process;
 mod next_verification;
 mod pretool_files;
@@ -101,6 +103,12 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "agent-mailbox") {
+        finish(mailbox_status_process::MailboxStatusProcess::run(
+            &launcher, &args,
+        ));
+    }
 
     if args.first().is_some_and(|a| a == "work-cards") {
         finish(cards_process::CardsProcess::run(&launcher, &args));

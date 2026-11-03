@@ -199,3 +199,8 @@ The [explicit request-path increment](native-request-paths.md) handles ordinary
 absolute/current-home paths in the same native engine, preserving the Python
 word/embedded-path union, trim rules and candidate order. Complex grammar retains
 Python; validate exact output, complete entry scope and a fresh consumer.
+
+The [mailbox status increment](native-mailbox-status.md) upgrades the existing
+mailbox CLI to native empty-inbox status and acknowledgement counting. Preserve
+repository/runtime isolation, both storage layouts, bounded scan/error behavior
+and Python-owned packets/delivery; prove read-only and fresh-consumer parity.

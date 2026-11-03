@@ -165,14 +165,29 @@ def smoke(archive):
         git_only.mkdir()
         (git_only / "git").symlink_to(shutil.which("git"))
         no_python = {**normal, "PATH": str(git_only)}
+        common = subprocess.run(["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True, text=True, env=normal, check=True).stdout.strip()
+        repo_key = hashlib.sha256(common.encode()).hexdigest()[:24]
+        for runtime in ("claude", "antigravity"):
+            acked = Path(normal["MORU_STATE_HOME"]) / "agent-mailbox" / repo_key / "acked" / runtime
+            acked.mkdir(parents=True, exist_ok=True)
+            for index in range(2): (acked / f"{index:032x}.json").write_text("counted without parsing")
+        for runtime in ("claude", "agy"):
+            for flags in ([], ["--json"]):
+                args = [str(entry), "agent-mailbox", "status", "--project", str(project), "--runtime", runtime, *flags]
+                reference = subprocess.run(args, capture_output=True,
+                    env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=project, timeout=8)
+                done = subprocess.run(args, capture_output=True, env=no_python, cwd=project, timeout=8)
+                assert (reference.returncode, reference.stderr) == (0, b""), reference
+                assert (done.returncode, done.stdout, done.stderr) == (reference.returncode, reference.stdout, reference.stderr), done
+                if flags: assert json.loads(done.stdout)["acked"] == 2, done
+                else: assert b"acked=2" in done.stdout, done
+                checks += 1
         missing_cards = subprocess.run([str(entry), "work-cards", "--project", str(project), "list"],
             capture_output=True, env=env, cwd=project, timeout=8)
         assert (missing_cards.returncode, missing_cards.stdout, missing_cards.stderr) == (0, b"[]\n", b"")
         checks += 1
         from agent_work_cards import _SCHEMA, SCHEMA_VERSION
-        common = subprocess.run(["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
-            capture_output=True, text=True, env=normal, check=True).stdout.strip()
-        repo_key = hashlib.sha256(common.encode()).hexdigest()[:24]
         card_db = Path(normal["MORU_STATE_HOME"]) / "work-cards/cards.sqlite3"
         card_db.parent.mkdir(parents=True)
         with sqlite3.connect(card_db) as connection:

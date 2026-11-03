@@ -1,7 +1,7 @@
-//! Owner: canonical work-card repository identity for one CLI invocation.
+//! Owner: shared canonical repository identity for one CLI invocation.
 //! Allowed: std, sha2 and existing bounded Git/whitespace readers.
 //! Forbidden: database access, writes, cross-call memoization or authority.
-//! Callers/tests: cards_process; linked/non-Git identity tests and bundle smoke.
+//! Callers/tests: cards_process/mailbox_status_process; identity and bundle tests.
 use crate::{gitrun::GitRead, statusline::Renderer};
 use sha2::{Digest, Sha256};
 use std::path::Path;

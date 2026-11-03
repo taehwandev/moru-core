@@ -54,10 +54,9 @@ launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
 partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and prepared-status paths. Fifteen primary boundaries now have implementation
-coverage: fourteen involving native work (including partial entry/discovery,
-launcher, pretool, mailbox, Stop, next, status and work-card listing) and one
-Python-only optimization (mailbox CLI). The latest native extensions
-extension adds no new timing claim; earlier measurements remain historical.
+coverage, all involving native work (including partial entry/discovery,
+launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
+The latest native extensions add no new timing claim; earlier measurements remain historical.
 That is 15/53 inventory coverage, or 15/30 primary
 coverage, not effort-weighted completion. The remaining 38 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
@@ -112,6 +111,10 @@ The [native work-card query](runtime-performance/native-work-cards.md) adds
 read-only list/list-all execution with bundled SQLite. Internal Python readers,
 write/close/resume operations and canonical recovery remain with Python.
 
+The [native mailbox status increment](runtime-performance/native-mailbox-status.md)
+upgrades the already-covered mailbox CLI: empty inboxes and acknowledgement
+counts run natively; packets, delivery and uncertain state retain Python.
+
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
 | 1 | `scripts/checkout_identity.py` | checkout-identity | Native lookup accepted in stage one | Metadata parity, timeout, recovery, Python rollback |
@@ -119,7 +122,7 @@ write/close/resume operations and canonical recovery remain with Python.
 | 3 | `scripts/agent-entry.py` | agent-entry | Partial native shared discovery; Python scope/launch policy retained | One registry snapshot, target/scope and launch-manifest parity |
 | 4 | `scripts/agent-finish-check.py` | agent-finish-check | Python candidate | Admission, state/evidence freshness and completion safety |
 | 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Python candidate | Admission, state/evidence freshness and completion safety |
-| 6 | `scripts/agent-mailbox.py` | agent-mailbox | Python imports deferred | Help improves; ordinary status/receive have no material median gain |
+| 6 | `scripts/agent-mailbox.py` | agent-mailbox | Partial native empty-inbox status; Python packets/send/receive retained | Exact counts/output, repository and scan limits; read-only state parity and portable execution |
 | 7 | `scripts/agent-os-maintenance.py` | agent-os-maintenance | Python candidate | Low-frequency operator work; justify a port before changing Python |
 | 8 | `scripts/agent-os-status.py` | agent-os-status | Partial native prepared basic/validated snapshots; Python initialization/trends/fallback | Exact API/metadata/lock parity; warm native status gains about 65-67% |
 | 9 | `scripts/agent-os-watchdog.py` | agent-os-watchdog | Python candidate | Behavior, failure/recovery, measured benefit and rollback |

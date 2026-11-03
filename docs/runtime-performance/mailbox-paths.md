@@ -94,3 +94,7 @@ retains partial data; there is no retry-to-pass loop. Native code is unchanged.
 Parent owns runtime, measurement, integration and qualified delivery. A native
 worker separately supplied portable bundle validation/tests; AGY reviewed only
 the local article, not source correctness or execution evidence.
+
+The later [native mailbox status extension](native-mailbox-status.md) supersedes
+this increment's Python-only empty-status path. The measurements above remain
+historical; the extension does not repeat them or claim a new speedup.

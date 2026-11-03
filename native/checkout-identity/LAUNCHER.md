@@ -70,6 +70,11 @@ missing optional native executable uses Python. A native execution failure
 propagates; consumed input is never replayed. Explicit Python invocation of
 the trampoline remains valid through its shell/Python polyglot header.
 
+Later increments admit selected read-only paths through auto ingress. The
+[mailbox status contract](../../docs/runtime-performance/native-mailbox-status.md)
+adds `agent-mailbox status` for explicit runtimes and empty inboxes; unsupported
+forms and packet processing still exec the canonical Python launcher.
+
 Only a locally built native artifact whose receipt matches its bytes and
 current Cargo/runtime sources can be selected during setup. Without it the
 original Python launcher is generated. Dry runs mutate nothing, stale builds
