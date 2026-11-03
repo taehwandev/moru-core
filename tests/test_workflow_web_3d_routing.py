@@ -49,6 +49,12 @@ class Web3DReadingTests(unittest.TestCase):
             with self.subTest(request=request):
                 self.assertIn(SKILL, self.route(request)["required_docs"])
 
+    def test_paraphrased_request_with_words_between_3d_and_webpage_requires_card(self):
+        for command in ("small-change", "build"):
+            with self.subTest(command=command):
+                route = self.route("Create a polished interactive 3D landing-pad departure webpage", command=command)
+                self.assertIn(SKILL, route["required_docs"])
+
     def test_verified_web_scope_does_not_require_engine_name(self):
         self.assertIn(SKILL, self.route("Create a 3D model configurator", platform="web")["required_docs"])
 
@@ -67,6 +73,7 @@ class Web3DReadingTests(unittest.TestCase):
             ("Explain how the Three.js camera works", "analysis", "web"),
             ("Write a blog post about Three.js model viewers", "docs", None),
             ("Create a 3D model in Blender", "build", None),
+            ("Build a 3D printing shop website", "build", "web"),
             ("Do not change the Three.js scene; fix the account form", "build", "web"),
         )
         for request, command, platform in cases:

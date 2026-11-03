@@ -1009,7 +1009,7 @@
       "required_priority": 50,
       "request_any": [
         "\\b(?:three\\.?js|webgl|react[- ]three[- ]fiber|r3f|babylon\\.js)\\b",
-        "\\b3d\\s+(?:web\\s*page|web\\s*site)\\b",
+        "\\b3d\\b(?!\\s+print)(?:\\W+\\w+){0,4}?\\W+(?:web\\s*page|web\\s*site)\\b",
         "(?:웹|브라우저).{0,45}(?:3d|3\\s*차원)",
         "(?:3d|3\\s*차원).{0,45}(?:웹|브라우저)"
       ],
