@@ -86,6 +86,12 @@ properties unverified rather than inferring polish from source code.
    visible results. A click receipt, counter or successful build is insufficient.
 2. Observe start, intermediate and final motion states. Keep the subject visible
    and parts coherent. Inspect orbit/zoom/reset as well as mode transitions.
+   Interrupt each automatic sequence once with reset, pause, follow off and on,
+   and manual orbit/zoom; the camera must then track or release as the control
+   shows, and the follow state and its UI must agree. At an end state (arrived,
+   finished) the subject stays framed at a readable size, motion and status text
+   agree, and a place the subject travels to gets closer instead of being
+   positioned relative to the moving subject.
 3. Inspect the option panel itself on desktop and a narrow touch viewport:
    selected-state clarity, actual option effect, label wrapping, padding,
    alignment, truncation, overlays, focus and reachable controls. Separately

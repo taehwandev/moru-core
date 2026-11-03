@@ -106,8 +106,9 @@ Structure check before reporting a new build done: list each responsibility
 (configuration, state/logic, scene or view builders, UI controls, bootstrap)
 with the file and function that owns it. If two or more share one function or one
 unsplit script block, or a repeated visual unit is written inline, or a variant
-needs edits in several places, split it now and rerun the build. Report the list
-with the result; a build that was never checked against it is unverified.
+needs edits in several places, split it now and rerun the build. Remove
+settings, styles and state that nothing reads. Report the list with the result;
+a build that was never checked against it is unverified.
 
 ## File And Component Split
 
