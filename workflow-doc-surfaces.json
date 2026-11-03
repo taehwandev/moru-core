@@ -1017,7 +1017,7 @@
         "\\b(?:scene|model|viewer|configurator|camera|orbit|zoom|shader|render|rendering|animation|animate|assemble|assembly|webpage|website)\\b",
         "장면|모델|뷰어|조립|카메라|조명|애니메이션|렌더링|선택|만들"
       ]],
-      "docs": ["platforms/web/skills/web-3d-interaction/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"],
+      "docs": ["platforms/web/skills/web-3d-interaction/SKILL.md", "platforms/web/skills/web-code-structure/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"],
       "reason": "Concrete browser 3D work needs focused scene, motion and option-control guidance before implementation; prose and lookup do not require this skill."
     },
     {
@@ -1030,7 +1030,7 @@
         "\\b3d\\s+(?:scene|model|viewer|configurator|animation|simulation|experience|game)\\b",
         "(?:3d|3\\s*차원)\\s*(?:장면|모델|뷰어|조립|시뮬레이션|게임)"
       ],
-      "docs": ["platforms/web/skills/web-3d-interaction/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"],
+      "docs": ["platforms/web/skills/web-3d-interaction/SKILL.md", "platforms/web/skills/web-code-structure/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"],
       "reason": "A verified web platform can resolve a 3D scene request without an engine choice; unrelated platforms and ordinary CSS transforms remain outside this rule."
     },
     {
