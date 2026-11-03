@@ -133,6 +133,17 @@ def smoke(archive):
             assert value["status"] == status and (value["selected_project"]["path"] == str(target)
                 if code == 0 else value["selected_project"] is None), value
             checks += 1
+        for request, code in ((str(target), 0), (f"({target}):line", 0)):
+            args = [str(entry), "project-discover", "--request", request, "--cwd", str(workspace),
+                "--registry", str(registry), "--format", "json"]
+            reference = subprocess.run(args, capture_output=True,
+                env={**normal, "SMOKE_REGISTRY_TARGET": str(target), "MORU_LAUNCHER_BACKEND": "python"},
+                cwd=project, timeout=8)
+            done = subprocess.run(args, capture_output=True, env=registered_env, cwd=project, timeout=8)
+            assert (reference.returncode, reference.stderr) == (code, b""), reference
+            assert (done.returncode, done.stdout, done.stderr) == (reference.returncode, reference.stdout, reference.stderr), done
+            assert json.loads(done.stdout)["selected_project"]["path"] == str(target), done
+            checks += 1
         for runtime in ("claude", "codex"):
             for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',

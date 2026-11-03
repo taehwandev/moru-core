@@ -14,6 +14,7 @@ mod cards_store;
 mod discovery_candidates;
 mod discovery_fs;
 mod discovery_groups;
+mod discovery_paths;
 mod discovery_process;
 mod discovery_registry;
 mod discovery_search;

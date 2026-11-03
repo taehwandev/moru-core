@@ -194,3 +194,8 @@ The [workspace-group increment](native-workspace-discovery.md) extends the same
 native discovery engine to group and member aliases. Preserve candidate order,
 ambiguity and Python-owned scope/checkpoint guidance; verify real entry manifests
 and a transported consumer without another performance or cost experiment.
+
+The [explicit request-path increment](native-request-paths.md) handles ordinary
+absolute/current-home paths in the same native engine, preserving the Python
+word/embedded-path union, trim rules and candidate order. Complex grammar retains
+Python; validate exact output, complete entry scope and a fresh consumer.

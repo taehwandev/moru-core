@@ -103,6 +103,11 @@ adds group/member candidate lookup; scope/checkpoint guidance and uncertain
 path/input forms retain Python. These extend two existing boundaries, without
 additional inventory units.
 
+The [explicit request-path extension](runtime-performance/native-request-paths.md)
+adds ordinary absolute/current-home path lookup before registered candidates.
+Quotes, escapes, unusual whitespace and uncertain inputs retain Python. This
+also extends units 3 and 26 without changing inventory coverage counts.
+
 The [native work-card query](runtime-performance/native-work-cards.md) adds
 read-only list/list-all execution with bundled SQLite. Internal Python readers,
 write/close/resume operations and canonical recovery remain with Python.

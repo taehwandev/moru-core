@@ -43,6 +43,8 @@ Python. Do not approximate Python `str()` for arbitrary group-name values.
 Unsupported public input replays Python before output; a private probe declines
 without output and lets its existing Python caller continue. Source/environment
 drift and forced-Python rollback keep their existing guards.
+The subsequent [request-path extension](native-request-paths.md) supersedes
+ordinary explicit-path deferral; complex quoted/escaped grammar retains Python.
 
 No dependency, installer schema, service, database, daemon, paid call or mutable
 runtime state is added. The generated ingress already admits discovery; fresh

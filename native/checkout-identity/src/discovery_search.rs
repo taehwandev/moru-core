@@ -1,10 +1,10 @@
 //! Owner: read-only discovery orchestration over registry and filesystem owners.
-//! Allowed: std, serde_json, discovery_fs/candidates/registry/groups.
+//! Allowed: std, serde_json, discovery_fs/candidates/registry/groups/paths.
 //! Forbidden: writes, launch/effect policy and cross-call caches.
 //! Callers/tests: discovery_process; native discovery/registry tests.
 use crate::{
     discovery_candidates::Candidates, discovery_fs::DiscoveryFs as Fs,
-    discovery_groups::WorkspaceGroups, discovery_registry::Registry,
+    discovery_groups::WorkspaceGroups, discovery_paths::RequestPaths, discovery_registry::Registry,
 };
 use serde_json::Value;
 use std::{
@@ -24,10 +24,10 @@ impl DiscoverySearch {
         defaults: bool,
         snapshot: Option<&Value>,
     ) -> Option<Value> {
-        // Explicit request-path grammar remains Python-owned.
-        if request.len() > 16384 || request.contains(['/', '\\', '~', '$', '.', '\'', '"', '`']) {
+        if request.len() > 16384 {
             return None;
         }
+        let original_request = request;
         let request = Fs::lower(request)?;
         let registered = Registry::load(registry, snapshot)?;
         let mut scans = Registry::roots(&registered)?;
@@ -53,6 +53,7 @@ impl DiscoverySearch {
         }
         let cwd = Fs::resolve(&Fs::expand(cwd)?)?;
         let mut candidates = Candidates::new();
+        RequestPaths::add(original_request, &cwd, &mut candidates)?;
         Registry::add_projects(&registered, &request, &mut candidates)?;
         collect(&request, &cwd, &registered, scans, depth, &mut candidates)?;
         candidates.finish(&request)

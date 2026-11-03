@@ -112,7 +112,8 @@ class NativeProjectDiscoveryTests(unittest.TestCase):
     def test_unsupported_request_registry_case_and_cli_preserve_python(self):
         registry = self.base / "registry.json"
         registry.write_text(json.dumps({"projects": [{"path": str(self.project), "aliases": ["target"]}]}))
-        cases = [["--request", str(self.project)], ["--request", "'경로'"],
+        self.parity(["--request", str(self.project)])
+        cases = [["--request", "'경로'"],
                  ["--request", "진행", "--cwd", str(self.base / "missing")],
                  ["--help"], ["--request", "진행", "--format", "unknown"],
                  ["--request", "진행", "--max-depth", "2147483648"]]

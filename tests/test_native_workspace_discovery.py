@@ -178,7 +178,8 @@ class NativeWorkspaceDiscoveryTests(unittest.TestCase):
         self.write([self.group(aliases=["ΟΣ"])])
         self.parity()
         self.write([self.group()])
-        for request in (str(self.web), "'suite'", "ΟΣ"):
+        self.parity(str(self.web))
+        for request in ("'suite'", "ΟΣ"):
             self.assertEqual(result(self.call(request, backend="python")), result(self.call(request)))
             self.assertEqual(127, self.call(request, PATH=str(self.empty)).returncode)
 
