@@ -32,6 +32,13 @@ class Web3DReadingTests(unittest.TestCase):
         self.assertEqual(1, route["required_docs"].count(SKILL))
         self.assertIn("common/skills/ui-visual-verification/SKILL.md", route["required_docs"])
 
+    def test_small_change_route_still_requires_3d_and_structure_cards(self):
+        for platform in (None, "web"):
+            with self.subTest(platform=platform):
+                route = self.route(FIRST_REQUEST, command="small-change", platform=platform)
+                self.assertIn(SKILL, route["required_docs"])
+                self.assertIn("platforms/web/skills/web-code-structure/references/current-guidance.md", route["required_docs"])
+
     def test_engine_and_korean_requests_require_card(self):
         for request in (
             "Create a Three.js model viewer with material selection and orbit camera",

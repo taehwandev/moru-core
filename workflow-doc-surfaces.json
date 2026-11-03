@@ -1004,7 +1004,7 @@
     },
     {
       "name": "web_3d_interaction_change",
-      "commands": ["feature", "build", "task", "bugfix", "refactor", "review", "test"],
+      "commands": ["feature", "build", "task", "small-change", "bugfix", "refactor", "review", "test"],
       "subject_exclusion": true,
       "required_priority": 50,
       "request_any": [
@@ -1023,7 +1023,7 @@
     {
       "name": "web_3d_scoped_change",
       "platforms": ["web"],
-      "commands": ["feature", "build", "task", "bugfix", "refactor", "review", "test"],
+      "commands": ["feature", "build", "task", "small-change", "bugfix", "refactor", "review", "test"],
       "subject_exclusion": true,
       "required_priority": 50,
       "request_any": [
