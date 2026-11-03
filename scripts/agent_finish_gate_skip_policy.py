@@ -123,7 +123,8 @@ def _evidence_names_unresolved_issue(text: str) -> bool:
             "수정 필요",
             "미해결",
             "남겨",
-            "후속",
+            "후속 수정 필요",
+            "후속 조치 필요",
             "문제 있음",
         )
     )
