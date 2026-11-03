@@ -97,6 +97,9 @@ properties unverified rather than inferring polish from source code.
    range), `forward · velocity > 0` at several points of every moving phase, and
    no active flight effects at rest; run each module's update path once so a
    missing import fails. Reversed, mirrored or sideways motion is a defect.
+5. Run the structure check in `platforms/web/skills/web-code-structure/references/current-guidance.md`
+   (New Browser Builds Without A Framework) on the finished code, and split what it
+   flags before reporting done.
 
 The routed UI quality companion is `common/skills/ui-visual-verification/SKILL.md`;
 read its core before styling controls and use its padding/overlap checks before
