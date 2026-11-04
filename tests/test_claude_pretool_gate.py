@@ -2751,6 +2751,41 @@ class ClaudePreToolGateTests(unittest.TestCase):
         self.assertEqual(STOP_DECISION, decision["permissionDecision"])
         self.assertIn("proportionality gate", decision["permissionDecisionReason"])
 
+    def _fill_budget_then_write_one_more(self, project: Path) -> tuple[int, str]:
+        _write_preflight(project)
+        for index in range(gate.DEFAULT_NEW_FILE_BUDGET):
+            self._write_new_source(project, "sp", f"src/file{index}.py")
+        return self._write_new_source(project, "sp", "src/one_too_many.py")
+
+    def test_unborn_git_repo_is_an_initial_build_and_is_not_budgeted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = _opt_in_project(Path(tmp))
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=project, check=True, capture_output=True)
+            (project / ".gitignore").write_text(".moru\n", encoding="utf-8")
+            code, out = self._fill_budget_then_write_one_more(project)
+        self.assertEqual(0, code)
+        self.assertEqual("", out)
+
+    def test_git_repo_with_a_commit_keeps_the_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = _opt_in_project(Path(tmp))
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=project, check=True, capture_output=True)
+            (project / ".gitignore").write_text(".moru\n", encoding="utf-8")
+            subprocess.run(["git", "add", "AGENTS.md", ".gitignore"], cwd=project, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "init"],
+                cwd=project,
+                check=True,
+                capture_output=True,
+            )
+            code, out = self._fill_budget_then_write_one_more(project)
+        self.assertEqual(0, code)
+        self.assertIn("proportionality gate", json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_non_git_directory_is_not_an_initial_build(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertFalse(gate.is_initial_full_build(Path(tmp)))
+
     def test_ack_file_unlocks_further_new_source_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = _opt_in_project(Path(tmp))

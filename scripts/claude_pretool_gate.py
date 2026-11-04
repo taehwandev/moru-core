@@ -356,7 +356,8 @@ DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 # Matches the review-time signal in
 # agent_review_structure.REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT. Only code source
 # files count, so doc/content work (e.g. a writing workspace full of .md drafts)
-# is never blocked.
+# is never blocked. A git work tree with no commit yet is an initial full build
+# and is not budgeted either (see is_initial_full_build).
 DEFAULT_NEW_FILE_BUDGET = 20
 # A session's own runs that are unfinished but not active: paused by a turn
 # boundary, or left by a failed finish. Each is resumed, not restarted.
@@ -1504,6 +1505,30 @@ def sprawl_deny_reason(count: int, budget: int, ack: Path, target: Path, root: P
     )
 
 
+def is_initial_full_build(root: Path) -> bool:
+    """True for a git work tree with no commit yet.
+
+    Building a project from nothing creates many files by design, so the
+    new-file budget stays out of the way until the first commit exists. This is
+    the same signal the review-time structure check uses (no Git HEAD). A
+    directory that is not a git work tree is not an initial build.
+    """
+    import subprocess  # lazy: only an over-budget Write ever reaches this
+
+    def git(*args: str) -> "subprocess.CompletedProcess[str]":
+        return subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=5, check=False
+        )
+
+    try:
+        inside = git("rev-parse", "--is-inside-work-tree")
+        if inside.returncode != 0 or inside.stdout.strip() != "true":
+            return False
+        return git("rev-parse", "--verify", "--quiet", "HEAD").returncode != 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def sprawl_deny(tool: str, payload: dict, root: Path, cwd: Path, session_id: str) -> str | None:
     """Gate 2: deny the new source file that pushes a task past its budget."""
     if tool not in NEW_FILE_TOOLS:
@@ -1533,6 +1558,9 @@ def sprawl_deny(tool: str, payload: dict, root: Path, cwd: Path, session_id: str
         if key in recorded:
             return None  # idempotent retry of an already-counted file
         if len(recorded) + 1 > budget:
+            if is_initial_full_build(root):
+                record_new_file(state, key)
+                return None  # no commit yet: a from-scratch build is not sprawl
             return sprawl_deny_reason(len(recorded), budget, sprawl_ack_file(root, session_id), target, root)
         record_new_file(state, key)
         return None
