@@ -11,6 +11,10 @@ mod callback_state;
 mod cards_identity;
 mod cards_process;
 mod cards_store;
+mod completion_process;
+mod completion_progress;
+mod completion_quality;
+mod completion_requirements;
 mod discovery_candidates;
 mod discovery_fs;
 mod discovery_groups;
@@ -103,6 +107,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "--completion-probe") {
+        exit(completion_process::CompletionProcess::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "agent-mailbox") {
         finish(mailbox_status_process::MailboxStatusProcess::run(

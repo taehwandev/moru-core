@@ -182,6 +182,8 @@ def gate_hook(args: argparse.Namespace) -> int:
     details = [f"gate evidence recorded: {entry['gate']}" if entry else _IGNORED_HOOK_OWNED]
     if entry:
         details.extend(_auto_bridge_retrospective_if_needed(args, [entry]))
+        from agent_completion_checks import quality_notes
+        details.extend(quality_notes([entry]))
     return finish_with_result(
         "gate",
         True,
@@ -224,6 +226,8 @@ def gate_batch_hook(args: argparse.Namespace) -> int:
     if len(entries) > 8:
         details.append(f"recorded gates truncated: {len(entries) - 8} more")
     details.extend(_auto_bridge_retrospective_if_needed(args, entries))
+    from agent_completion_checks import quality_notes
+    details.extend(quality_notes(entries))
     progress = _gate_progress(args)
     if progress["remaining_gates"] is None:
         details.append("Remaining route gates: unavailable; inspect the ledger before finish.")

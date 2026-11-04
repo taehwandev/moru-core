@@ -169,13 +169,15 @@ def _work(value: Any, failures: list) -> None:
         return
     # Legacy packets omit references; older readers reject this optional field
     # rather than silently granting new meaning to it.
-    fields = WORK_FIELDS + tuple(key for key in ("evidence_refs", "acceptance_criteria") if key in value)
+    fields = WORK_FIELDS + tuple(key for key in ("evidence_refs", "acceptance_criteria", "requirements") if key in value)
     closed_object(value, fields, "/work", failures)
     if "evidence_refs" in value:
         validate_evidence_refs(value["evidence_refs"], "/work/evidence_refs", failures)
     if "acceptance_criteria" in value:
         items(value["acceptance_criteria"], "/work/acceptance_criteria", failures, 8,
               lambda item, pointer: prose(item, pointer, failures, MAX_SHORT_TEXT))
+    if "requirements" in value:
+        _requirements(value["requirements"], failures)
     prose(value.get("objective"), "/work/objective", failures, MAX_TEXT)
     items(value.get("non_goals"), "/work/non_goals", failures,
           WORK_ITEM_LIMITS["non_goals"],
@@ -198,6 +200,26 @@ def _work(value: Any, failures: list) -> None:
     items(value.get("remaining_work"), "/work/remaining_work", failures,
           WORK_ITEM_LIMITS["remaining_work"],
           lambda item, pointer: _remaining(item, pointer, failures))
+
+
+def _requirements(value: Any, failures: list) -> None:
+    pointer = "/work/requirements"
+    if not isinstance(value, dict):
+        failures.append(failure("invalid_type", pointer))
+        return
+    closed_object(value, ("revision", "items"), pointer, failures)
+    count(value.get("revision"), pointer + "/revision", failures)
+    def row(item, here):
+        if not isinstance(item, dict):
+            failures.append(failure("invalid_type", here))
+            return
+        closed_object(item, ("id", "outcome", "owner", "gate", "artifacts"), here, failures)
+        slug(item.get("id"), here + "/id", failures, 40)
+        for key in ("outcome", "owner", "gate"):
+            prose(item.get(key), here + "/" + key, failures, MAX_TEXT)
+        items(item.get("artifacts"), here + "/artifacts", failures, 8,
+              lambda path, at: relative_path(path, at, failures))
+    items(value.get("items"), pointer + "/items", failures, 32, row)
 
 
 def _decision(value: Any, pointer: str, failures: list) -> None:
@@ -276,9 +298,14 @@ def _checkpoint(value: Any, failures: list) -> None:
 def _budgets(payload: dict[str, Any], failures: list) -> None:
     if len(canonical_packet_bytes(payload)) > MAX_PACKET_BYTES:
         failures.append(failure("packet_too_large", ""))
-    if depth(payload) > MAX_DEPTH:
-        failures.append(failure("depth_exceeded", ""))
     work = payload.get("work") if isinstance(payload.get("work"), dict) else {}
+    # The optional closed contract adds two containers. Keep the legacy packet
+    # limit unchanged and bound that separately validated subtree on its own.
+    depth_work = {key: value for key, value in work.items() if key != "requirements"}
+    if depth({**payload, "work": depth_work}) > MAX_DEPTH or (
+        "requirements" in work and depth(work["requirements"]) > MAX_DEPTH
+    ):
+        failures.append(failure("depth_exceeded", ""))
     text: list[str] = [str(work.get("objective") or "")]
     for key in ("non_goals", "blockers", "acceptance_criteria"):
         records = work.get(key)
@@ -290,5 +317,9 @@ def _budgets(payload: dict[str, Any], failures: list) -> None:
             str(item.get(field) or "") for item in (records if isinstance(records, list) else [])
             if isinstance(item, dict)
         )
+    contract = work.get("requirements")
+    rows = contract.get("items") if isinstance(contract, dict) else None
+    text.extend(str(row.get(key) or "") for row in (rows if isinstance(rows, list) else [])
+                if isinstance(row, dict) for key in ("outcome", "owner", "gate"))
     if sum(len(item.encode("utf-8")) for item in text) > MAX_PROSE_BYTES:
         failures.append(failure("prose_budget_exceeded", "/work"))

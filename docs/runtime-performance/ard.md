@@ -111,3 +111,12 @@ it avoids trusting an incomplete import graph. Streaming hashes and sorted
 membership checks bound memory and lookup work. Unsupported cases retain legacy
 dispatch. No shell parser, authorization cache or permanent two-language product
 architecture is introduced. Later policy migration can remove this guard.
+
+## Native completion policy
+
+Use private bounded JSON ingress for quality, coverage and progress. Reuse
+portable binaries/source guards instead of adding Node, a daemon, FFI packaging
+or duplicate Python algorithms. Python retains admission and state transitions.
+Opt-in requirements fail closed when native evaluation is unavailable; quality
+and progress remain advisory. The [contract](native-completion-evidence.md)
+records schema, budgets, nonblocking progress storage and rollback boundaries.

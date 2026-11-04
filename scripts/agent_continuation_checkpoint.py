@@ -98,6 +98,9 @@ def write_continuation_checkpoint(
     base = _base_packet(project, run_id, kind)
     binding_payload = _binding_payload(project, run_id, binding_path)
     work_update = dict(work or {})
+    if "requirements" in work_update:
+        from agent_completion_checks import requirement_update
+        requirement_update(work_update["requirements"], (base.get("work") or {}).get("requirements"))
     if kind == "reconcile":
         _validate_reconciliation(project, rules, record, binding_payload, base, work_update, phase)
     if kind == "post_mutation":

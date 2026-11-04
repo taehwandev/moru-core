@@ -1014,7 +1014,7 @@ class GateEvidenceLedgerTests(unittest.TestCase):
                 "gate": "retrospective check",
                 "fields": {
                     "skills_checked": "workflows/skills/retrospective-learning",
-                    "outcome": "no_reusable_gap",
+                    "outcome": "not_an_allowed_outcome",
                     "observation": "not_needed",
                 },
             }

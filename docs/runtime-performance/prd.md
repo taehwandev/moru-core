@@ -204,3 +204,12 @@ The [mailbox status increment](native-mailbox-status.md) upgrades the existing
 mailbox CLI to native empty-inbox status and acknowledgement counting. Preserve
 repository/runtime isolation, both storage layouts, bounded scan/error behavior
 and Python-owned packets/delivery; prove read-only and fresh-consumer parity.
+
+## Completion evidence increment
+
+Implement all three approved [native completion checks](native-completion-evidence.md)
+in order: quality warnings on verification records, versioned requirement coverage
+against artifacts/observing gates, and semantic progress diagnosis. Rust owns new
+decisions; Python retains thin lifecycle/transport bindings. Preserve old packets,
+authority and Stop budgets. Reject missing declared outputs or observing gates
+before finish, and verify a fresh consumer without another measurement loop.

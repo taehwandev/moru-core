@@ -43,6 +43,8 @@ def continuation_reason(payload: dict, runtime: str, project: Path, evidence: Pa
                 or not ((packet.get("work") or {}).get("remaining_work") or scope_unreconciled(preflight, packet))
                 or not stop_ready(payload, identity, project, independent_work=True)):
             return None
+        from agent_completion_checks import progress_note
+        note = progress_note(project, evidence, packet.get("work") or {}, identity)
         return (
             "This existing user-approved task has remaining work or has not reconciled its "
             "full requested scope. Reconcile the bounded scope first, then continue remaining "
@@ -51,7 +53,7 @@ def continuation_reason(payload: dict, runtime: str, project: Path, evidence: Pa
             "new authority. Keep permission and safety checks. If a user decision, permission, "
             "stop, or unresolved operation prevents progress, record that blocker and end the "
             "turn honestly. Update remaining_work from observed results before finish. "
-            "This automatic continuation is limited to one per turn."
+            "This automatic continuation is limited to one per turn." + note
         )
     except (OSError, ValueError, RuntimeError, TypeError, KeyError):
         return None  # Untrusted/missing state never traps a session or supplies authority.

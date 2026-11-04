@@ -67,6 +67,30 @@ def smoke(archive):
         subprocess.run(["git", "init", "-q", str(project)], env=normal, check=True, capture_output=True)
         payload = {"cwd": str(project), "session_id": "transported-smoke", "tool_name": "Bash"}
         checks = 3
+        native = entry.with_name("moru-hook-native")
+        def completion(operation, payload):
+            done = subprocess.run([str(native), str(entry), "--completion-probe", operation],
+                input=json.dumps(payload).encode(), capture_output=True, env=env, cwd=project, timeout=8)
+            assert (done.returncode, done.stderr) == (0, b""), done
+            envelope = json.loads(done.stdout)
+            assert envelope["schema_version"] == 1
+            return envelope["result"]
+        warnings = completion("quality", {"records": [{"gate": "tests", "status": "SUCCESS",
+            "fields": {"check": "echo done", "result": "1 test passed"}}]})
+        assert warnings["warnings"] == [{"gate": "tests", "rule": "fixed_output_check"}], warnings
+        checks += 1
+        requirement = {"revision": 1, "items": [{"id": "r1", "outcome": "Deliver notes", "owner": "lead",
+            "gate": "tests", "artifacts": ["notes.txt"]}]}
+        assert not completion("requirements", {"current": requirement})["failures"]
+        checks += 1
+        covered = completion("coverage", {"current": requirement, "project": str(project), "allowed_gates": ["tests"],
+            "gates": [{"gate": "tests", "status": "SUCCESS"}]})
+        assert not covered["failures"] and len(covered["observations"][0]["artifacts"]["notes.txt"]) == 64, covered
+        checks += 1
+        progress = {"work": {"remaining_work": [{"checkpoint": "tests", "action": "Verify notes"}], "blockers": []}, "gates": []}
+        for _ in range(3): progress["previous"] = completion("progress", progress)
+        assert progress["previous"]["stalled"]
+        checks += 1
         workspace = base / "discovery-workspace"
         for name in ("first 한글", "second"):
             folder = workspace / name

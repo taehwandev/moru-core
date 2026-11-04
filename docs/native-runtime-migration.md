@@ -53,12 +53,12 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Twenty-six processors still have Python branches, including two
-partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and prepared-status paths. Fifteen primary boundaries now have implementation
+partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and prepared-status paths. Seventeen primary boundaries now have implementation
 coverage, all involving native work (including partial entry/discovery,
 launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
 The latest native extensions add no new timing claim; earlier measurements remain historical.
-That is 15/53 inventory coverage, or 15/30 primary
-coverage, not effort-weighted completion. The remaining 38 are candidates. The earlier
+That is 17/53 inventory coverage, or 17/30 primary
+coverage, not effort-weighted completion. The remaining 36 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
 target for quiet prompt delivery only. Main integration and local installation
@@ -115,13 +115,18 @@ The [native mailbox status increment](runtime-performance/native-mailbox-status.
 upgrades the already-covered mailbox CLI: empty inboxes and acknowledgement
 counts run natively; packets, delivery and uncertain state retain Python.
 
+The [native completion increment](runtime-performance/native-completion-evidence.md)
+adds private Rust policy in gate/checkpoint and finish (units 5 and 4) and extends
+Stop. Python retains lifecycle/authority and transport; these remain partial
+boundaries rather than complete migrations.
+
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
 | 1 | `scripts/checkout_identity.py` | checkout-identity | Native lookup accepted in stage one | Metadata parity, timeout, recovery, Python rollback |
 | 2 | `scripts/support/stable_launcher.py` | All entry aliases | Stage-two native ingress bridge | No Python for lookup; legacy stdio/PID/exit/soft-fail parity |
 | 3 | `scripts/agent-entry.py` | agent-entry | Partial native shared discovery; Python scope/launch policy retained | One registry snapshot, target/scope and launch-manifest parity |
-| 4 | `scripts/agent-finish-check.py` | agent-finish-check | Python candidate | Admission, state/evidence freshness and completion safety |
-| 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Python candidate | Admission, state/evidence freshness and completion safety |
+| 4 | `scripts/agent-finish-check.py` | agent-finish-check | Partial native opt-in requirement coverage; Python lifecycle retained | Admission, freshness, artifact/gate coverage and completion safety |
+| 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Partial native quality/requirement checks; Python lifecycle retained | Authority/recording, warning-only lint, stable requirement IDs/revisions and compatibility |
 | 6 | `scripts/agent-mailbox.py` | agent-mailbox | Partial native empty-inbox status; Python packets/send/receive retained | Exact counts/output, repository and scan limits; read-only state parity and portable execution |
 | 7 | `scripts/agent-os-maintenance.py` | agent-os-maintenance | Python candidate | Low-frequency operator work; justify a port before changing Python |
 | 8 | `scripts/agent-os-status.py` | agent-os-status | Partial native prepared basic/validated snapshots; Python initialization/trends/fallback | Exact API/metadata/lock parity; warm native status gains about 65-67% |

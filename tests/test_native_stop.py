@@ -2,6 +2,7 @@
 import fcntl
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import stat
@@ -46,7 +47,12 @@ class NativeStopTests(unittest.TestCase):
             os.utime(self.base / path, ns=(stamp, stamp))
         actual = self.hook(runtime, project, **kwargs)
         self.assertEqual(result(expected), result(actual))
-        self.assertEqual(after, stable_state(snapshot(self.base, project)))
+        # The native progress advisor has its own explicitly tested metadata;
+        # compare all delivery/authority state while retaining that boundary.
+        def delivery_state(data):
+            return {path: value for path, value in data.items()
+                    if not re.fullmatch(r"\.?completion-progress-[0-9a-f]{24}\.json(?:\.lock)?", Path(path).name)}
+        self.assertEqual(delivery_state(after), delivery_state(stable_state(snapshot(self.base, project))))
         return actual
 
     def fallback(self, runtime="claude", project=None, **kwargs):

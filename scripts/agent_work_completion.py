@@ -58,6 +58,8 @@ def work_completion_failures(project: Path, evidence: Path) -> list[str]:
         failures.append("requested work has unresolved blockers; report partial progress without a completion receipt")
     if packet.get("phase") == "reconcile_required" or (packet.get("checkpoint") or {}).get("mutation_pending"):
         failures.append("requested work has an unresolved operation; reconcile its actual outcome before finish")
+    from agent_completion_checks import coverage_failures
+    failures.extend(coverage_failures(project, evidence, work, route))
     return failures
 
 
