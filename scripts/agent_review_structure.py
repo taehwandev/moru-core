@@ -12,6 +12,7 @@ from agent_review_boundary import boundary_note_requirements
 from agent_android_action_boundary import AndroidActionBoundary
 from agent_review_purpose import purpose_failures
 from agent_review_removals import classify_net_deletions
+from agent_review_merge_baseline import inherited_merge_paths
 from agent_structure_rules import structure_rule_review
 from agent_workspace_policy import is_non_git_workspace, is_writing_workspace
 
@@ -203,7 +204,16 @@ def structure_review(
         path_metadata=discovery["path_metadata"],
     )
 
-    for relative in paths:
+    inherited = inherited_merge_paths(project, paths, run_command) if review_commits is None else {}
+    result["inherited_merge_paths"] = inherited
+    active_paths = [path for path in paths if str(path) not in inherited]
+    if inherited:
+        result["warnings"].append(
+            f"{len(inherited)} merge paths retain exact parent/index content and mode; "
+            "structural baseline only, with full review/publication scope unchanged"
+        )
+
+    for relative in active_paths:
         is_test_path = test_exempt_path(relative)
         if is_test_path:
             result["test_exempt_paths"].append(str(relative))
@@ -260,8 +270,11 @@ def structure_review(
     _add_cross_path_findings(
         result,
         source_root=source_root,
-        paths=paths,
-        discovery=discovery,
+        paths=active_paths,
+        discovery={**discovery, "path_metadata": {
+            path: metadata for path, metadata in discovery["path_metadata"].items()
+            if path not in inherited
+        }},
         subject_run_command=subject_run_command,
     )
     return result
