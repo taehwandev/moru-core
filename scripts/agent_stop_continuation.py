@@ -18,31 +18,53 @@ from agent_work_completion import bound_work_packet, scope_unreconciled
 from workflow_effect_policy import route_minimum_effect
 
 
+def _safe_doc(rules_root: Path, raw_doc: str, normalize_path) -> str:
+    """Return normalized doc path only when it is a regular non-symlink file inside rules_root."""
+    import stat
+
+    doc = normalize_path(raw_doc)
+    if not doc or ".." in Path(raw_doc).parts:
+        return ""
+    candidate = rules_root / doc
+    try:
+        for part in (candidate, *candidate.parents):
+            if part == rules_root:
+                break
+            if part.is_symlink():
+                return ""
+        if not stat.S_ISREG(candidate.lstat().st_mode) or not candidate.resolve().is_relative_to(rules_root):
+            return ""
+    except OSError:
+        return ""
+    return doc
+
+
 def _surface_graph_note(project: Path, preflight: dict, work: dict) -> str:
     """Route delta surface and verification docs for active remaining_work and changed_scope."""
     try:
         from workflow_common import ROOT, unique
-        from workflow_doc_graph import expand_doc_matches, graph_required_docs
+        from workflow_doc_graph_refs import PROMOTING_RELATIONS, VERIFICATION_RELATION, frontmatter_relation_raw_refs
         from workflow_doc_surfaces import (
             RULES_FILE,
             extract_request_surface_paths,
             infer_surface_docs,
             normalize_path,
+            required_surface_docs,
         )
 
         route = preflight.get("route")
         if not isinstance(route, dict) or not isinstance(work, dict):
             return ""
         raw_rules = str(preflight.get("rules") or preflight.get("moru_root") or "").strip()
-        candidate_root = Path(raw_rules) if raw_rules else ROOT
-        if candidate_root.is_symlink():
+        candidate_root = (Path(raw_rules).expanduser().absolute() if raw_rules else ROOT)
+        if any(
+            part.is_symlink() and part.as_posix() not in {"/var", "/tmp", "/etc"}
+            for part in (candidate_root, *candidate_root.parents)
+        ):
             return ""
         rules_root = candidate_root.resolve()
-        rules_file = rules_root / RULES_FILE
-        if rules_file.is_symlink() or not rules_file.is_file():
-            rules_root = ROOT
-            if (rules_root / RULES_FILE).is_symlink() or not (rules_root / RULES_FILE).is_file():
-                return ""
+        if not _safe_doc(rules_root, RULES_FILE, normalize_path):
+            return ""
 
         actions: list[str] = []
         paths: list[str] = []
@@ -69,7 +91,7 @@ def _surface_graph_note(project: Path, preflight: dict, work: dict) -> str:
 
         if not actions and not paths:
             return ""
-        seeds, _ = infer_surface_docs(
+        _, matches = infer_surface_docs(
             command=str(route.get("command") or ""),
             platform=route.get("platform") if isinstance(route.get("platform"), str) else None,
             request_text="; ".join(actions),
@@ -77,25 +99,44 @@ def _surface_graph_note(project: Path, preflight: dict, work: dict) -> str:
             root=rules_root,
             project_root=project,
         )
+        safe_seeds = unique(
+            safe
+            for doc in required_surface_docs(matches)
+            if (safe := _safe_doc(rules_root, doc, normalize_path))
+        )
+        if not safe_seeds:
+            return ""
         raw_req_docs = route.get("required_docs")
         already_required = {
             normalize_path(doc)
             for doc in (raw_req_docs if isinstance(raw_req_docs, list) else [])
             if isinstance(doc, str) and normalize_path(doc)
         }
-        new_seeds = [doc for doc in seeds if normalize_path(doc) not in already_required]
-        if not new_seeds:
-            return ""
-        promoted = graph_required_docs(expand_doc_matches(rules_root, new_seeds, max_depth=1))
-        delta = [
-            normalize_path(doc)
-            for doc in unique([*new_seeds, *promoted])
-            if normalize_path(doc) and normalize_path(doc) not in already_required
-        ][:3]
+        delta_seeds = [doc for doc in safe_seeds if doc not in already_required]
+        ordered_seeds = [*delta_seeds, *(doc for doc in safe_seeds if doc in already_required)]
+        allowed_relations = (*PROMOTING_RELATIONS, VERIFICATION_RELATION)
+        promoted: list[str] = []
+        for seed in ordered_seeds:
+            text = (rules_root / seed).read_text(encoding="utf-8", errors="ignore")
+            for relation, raw_target in frontmatter_relation_raw_refs(text):
+                if not relation.startswith(allowed_relations):
+                    continue
+                for rel in (raw_target, f"{Path(seed).parent.as_posix()}/{raw_target}"):
+                    if safe_target := _safe_doc(rules_root, rel, normalize_path):
+                        promoted.append(safe_target)
+                        break
+        delta_promoted = unique(
+            doc for doc in promoted if doc not in already_required and doc not in delta_seeds
+        )
+        delta = (
+            [*delta_seeds[:2], delta_promoted[0]]
+            if delta_promoted and len(delta_seeds) >= 3
+            else unique([*delta_seeds, *delta_promoted])[:3]
+        )
         if not delta:
             return ""
         return " Active graph surface guidance for remaining work: " + ", ".join(delta) + "."
-    except (AttributeError, ImportError, OSError, ValueError, RuntimeError, TypeError, KeyError):
+    except Exception:
         return ""
 
 

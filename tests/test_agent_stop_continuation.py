@@ -146,13 +146,32 @@ class StopContinuationTests(unittest.TestCase):
 
     def test_stop_continuation_routes_delta_graph_guidance_for_remaining_work_surfaces(self):
         run = self.run_fixture("codex")
+        docs_dir = run.project / "docs"
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        (docs_dir / "already.md").write_text("---\nrequires: docs/already-dep.md\n---\n# Already loaded\n")
+        (docs_dir / "already-dep.md").write_text("# Already Dependency\n")
+        (docs_dir / "ui-skill.md").write_text("---\nverified_by: docs/ui-verify.md\n---\n# UI Skill\n")
+        (docs_dir / "ui-layout.md").write_text("# UI Layout\n")
+        (docs_dir / "ui-extra.md").write_text("# UI Extra\n")
+        (docs_dir / "ui-verify.md").write_text("# UI Verification\n")
+        (docs_dir / "ref-only.md").write_text("# Reference Only\n")
         (run.project / "workflow-doc-surfaces.json").write_text(json.dumps({
             "schema_version": 1,
             "doc_sets": {},
             "request_intents": [],
             "path_surfaces": [
                 {"name": "already_loaded", "patterns": ["src/already/*.py"], "docs": ["docs/already.md"]},
-                {"name": "ui_surface", "patterns": ["src/pages/*.tsx"], "docs": ["docs/ui-skill.md"]},
+                {
+                    "name": "ui_surface",
+                    "patterns": ["src/pages/*.tsx"],
+                    "docs": ["docs/ui-skill.md", "docs/ui-layout.md", "docs/ui-extra.md"],
+                },
+                {
+                    "name": "ref_surface",
+                    "patterns": ["src/pages/*.tsx"],
+                    "docs": ["docs/ref-only.md"],
+                    "reference_only": True,
+                },
             ],
         }))
         preflight = json.loads(run.evidence.read_text())
@@ -172,22 +191,73 @@ class StopContinuationTests(unittest.TestCase):
         result = self.stop(run)
         self.assertIsNotNone(result)
         self.assertEqual("block", result["decision"])
-        self.assertIn("Active graph surface guidance for remaining work: docs/ui-skill.md.", result["reason"])
+        self.assertIn(
+            "Active graph surface guidance for remaining work: "
+            "docs/ui-skill.md, docs/ui-layout.md, docs/ui-verify.md.",
+            result["reason"],
+        )
         self.assertNotIn("docs/already.md", result["reason"])
+        self.assertNotIn("docs/ref-only.md", result["reason"])
+        from agent_stop_continuation import _surface_graph_note
+
+        self.assertIn("docs/already-dep.md", _surface_graph_note(
+            run.project,
+            {
+                "rules": str(run.project),
+                "route": {
+                    "command": "feature",
+                    "required_docs": ["docs/already.md", "docs/ui-skill.md", "docs/ui-layout.md", "docs/ui-extra.md"],
+                },
+            },
+            {
+                "changed_scope": [{"path": "src/already/mod.py", "role": "modified"}],
+                "remaining_work": [{"checkpoint": "ui_step", "action": "Update `src/pages/App.tsx` layout"}],
+            },
+        ))
 
     def test_stop_continuation_ignores_malformed_surface_fields_and_symlinked_rules(self):
         from agent_stop_continuation import _surface_graph_note
 
         run = self.run_fixture("codex")
-        self.assertEqual("", _surface_graph_note(
+        docs_dir = run.project / "docs"
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        (docs_dir / "real-verify.md").write_text("# Real Verify\n")
+        (docs_dir / "link-verify.md").symlink_to(docs_dir / "real-verify.md")
+        (docs_dir / "ui-skill.md").write_text("---\nverified_by: docs/link-verify.md\n---\n# UI Skill\n")
+        (run.project / "workflow-doc-surfaces.json").write_text(json.dumps({
+            "schema_version": 1,
+            "doc_sets": {},
+            "request_intents": [],
+            "path_surfaces": [
+                {"name": "ui_surface", "patterns": ["src/pages/*.tsx"], "docs": ["docs/ui-skill.md"]},
+            ],
+        }))
+        note = _surface_graph_note(
             run.project,
-            {"route": {"command": "feature", "required_docs": "not-a-list"}},
-            {"requirements": ["not-a-dict"], "remaining_work": [{"checkpoint": "c1", "action": "Edit `src/a.py`"}]},
-        ))
+            {"rules": str(run.project), "route": {"command": "feature", "required_docs": "not-a-list"}},
+            {
+                "requirements": {"items": ["not-a-dict", {"outcome": 123, "artifacts": "not-a-list"}]},
+                "remaining_work": ["not-a-dict", {"checkpoint": "c1", "action": "Edit `src/pages/App.tsx`"}],
+            },
+        )
+        self.assertIn("docs/ui-skill.md", note)
+        self.assertNotIn("real-verify.md", note)
+        self.assertNotIn("link-verify.md", note)
         link = Path(self.tmp.name) / "symlink-rules"
         link.symlink_to(run.project)
         self.assertEqual("", _surface_graph_note(
             run.project,
             {"rules": str(link), "route": {"command": "feature", "required_docs": []}},
+            {"remaining_work": [{"checkpoint": "c1", "action": "Edit `src/pages/App.tsx`"}]},
+        ))
+        (run.project / "workflow-doc-surfaces.json").write_text(json.dumps({
+            "schema_version": 1,
+            "doc_sets": {},
+            "request_intents": [{"name": "bad_regex", "request_any": ["[unclosed"], "docs": ["docs/ui-skill.md"]}],
+            "path_surfaces": [],
+        }))
+        self.assertEqual("", _surface_graph_note(
+            run.project,
+            {"rules": str(run.project), "route": {"command": "feature", "required_docs": []}},
             {"remaining_work": [{"checkpoint": "c1", "action": "Edit `src/pages/App.tsx`"}]},
         ))
