@@ -25,7 +25,7 @@ nearest falsifying check once in bounded repository inspection, then edit,
 verify and review. Compact start already binds the request and selects required
 docs, so do not restate intake, work-surface, or source-doc facts as manual
 ledger gates. Read applicable source contracts. Include documentation impact
-and side effects in the final review, not separate ceremony gates.
+and side effects in the final review (`--review-outcome pass`, `--code-review-evidence`, and `--docs-freshness-evidence`), not separate ceremony gates.
 Broad concern labels stay optional on this route. Labels such as `ui`, `state`,
 `testing`, or `verification` describe where attention may be needed, but do not
 by themselves make every linked procedure a required pre-edit read. Promote
