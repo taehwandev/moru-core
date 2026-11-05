@@ -1,19 +1,12 @@
 //! Closed plain-query grammar. No shell parsing, execution, or policy mutation.
 use std::path::Path;
 
-pub(crate) fn executable(command: &str) -> Option<&str> {
+pub(crate) fn executable(command: &str) -> Option<&'static str> {
     if let Some(query) = crate::pretool_files::FileQuery::command(command) {
         return Some(query.executable());
     }
-    if !command.is_ascii()
-        || command.bytes().any(|b| b < 32 && b != b'\t')
-        || command
-            .bytes()
-            .any(|b| b"'\"\\$`;&|<>#(){}*?!~".contains(&b))
-    {
-        return None;
-    }
-    let tokens: Vec<_> = command.split_ascii_whitespace().collect();
+    let parsed = crate::literal_args::LiteralArgs::parse(command)?;
+    let tokens: Vec<_> = parsed.iter().map(String::as_str).collect();
     if tokens.as_slice() == ["pwd"] {
         return Some("pwd");
     }
@@ -45,7 +38,10 @@ pub(crate) fn executable(command: &str) -> Option<&str> {
         | ["show", "--stat" | "--name-only"]
         | ["tag", "--list"]
         | ["tag", "--list", "--sort=-version:refname"] => Some("git"),
-        ["log", count, "--oneline"] | ["log", "--oneline", count] if log_count(count) => {
+        ["log", args @ ..] if log_args(args) => Some("git"),
+        ["diff", before, after, "--stat" | "--check" | "--name-only" | "--name-status" | "--numstat"]
+            if revision(before) && revision(after) =>
+        {
             Some("git")
         }
         ["show", "--stat" | "--name-only", revision]
@@ -56,6 +52,42 @@ pub(crate) fn executable(command: &str) -> Option<&str> {
         }
         _ => None,
     }
+}
+
+fn log_args(args: &[&str]) -> bool {
+    let mut format = false;
+    let mut count = false;
+    for word in args {
+        if log_count(word) && !count {
+            count = true;
+        } else if !format
+            && (*word == "--oneline"
+                || ["--format=", "--pretty="].iter().any(|prefix| {
+                    word.strip_prefix(prefix)
+                        .is_some_and(|v| !v.is_empty() && v.len() <= 512)
+                }))
+        {
+            format = true;
+        } else {
+            return false;
+        }
+    }
+    format
+}
+
+fn revision(word: &str) -> bool {
+    if word == "HEAD"
+        || ((7..=64).contains(&word.len()) && word.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
+        return true;
+    }
+    ["HEAD~", "HEAD^"].iter().any(|prefix| {
+        word.strip_prefix(prefix).is_some_and(|n| {
+            !n.is_empty()
+                && n.bytes().all(|b| b.is_ascii_digit())
+                && n.parse::<u32>().is_ok_and(|v| (1..=1000).contains(&v))
+        })
+    })
 }
 
 fn log_count(word: &str) -> bool {
@@ -207,5 +239,34 @@ mod tests {
         let twenty = format!("cat {}", vec!["notes.txt"; 19].join(" "));
         assert!(executable(&twenty).is_some());
         assert!(executable(&format!("{twenty} notes.txt")).is_none());
+    }
+
+    #[test]
+    fn rg_regex_globs_keep_shell_and_preprocessors_out() {
+        for command in [
+            "rg -n 'foo|bar' notes.txt",
+            "rg -n '^def [a-z_]+' notes.txt",
+            "rg --files -g '*.py' src",
+            "rg --files --glob='*.rs' src",
+            "rg -n -g '*.py' 'def |class ' src",
+            "rg -n 'foo|bar' src --glob '*.rs'",
+            "rg -n 'foo|bar' -- src",
+        ] {
+            assert_eq!(executable(command), Some("rg"), "{command}");
+        }
+        for command in [
+            "rg -n foo|touch marker",
+            "rg -n 'foo'bar notes.txt",
+            "rg -n \"$PATTERN\" notes.txt",
+            "rg -n 'foo' --pre=evil notes.txt",
+            "rg --files -g --pre=evil",
+            "rg --files --glob='--pre=evil'",
+            "rg -n '`touch marker`' notes.txt",
+            "rg -n foo notes.txt > marker",
+            "rg -n foo notes.txt --pre evil",
+            "rg --files -g '*.py' && touch marker",
+        ] {
+            assert!(executable(command).is_none(), "{command}");
+        }
     }
 }

@@ -120,3 +120,15 @@ or duplicate Python algorithms. Python retains admission and state transitions.
 Opt-in requirements fail closed when native evaluation is unavailable; quality
 and progress remain advisory. The [contract](native-completion-evidence.md)
 records schema, budgets, nonblocking progress storage and rollback boundaries.
+
+## Share literal ingress and prepared read transport
+
+Use one bounded literal-word recognizer for file and Git queries, with separate
+closed command vocabularies. Do not evaluate shell syntax or broaden policy from
+an argument that merely resembles a query. Native registry reads reuse existing
+source guards, nonblocking Python-compatible locks and private JSON transport.
+Keep all state transitions and ownership decisions with their canonical Python
+owners; defer their imports on prepared read paths. Unsupported state retains
+the exact compatibility path. The [contract](native-query-registry.md) records
+the representation limits and checks; this is an incremental migration, not a
+cross-call authorization cache or complete removal of Python.

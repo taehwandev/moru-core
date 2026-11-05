@@ -213,3 +213,12 @@ against artifacts/observing gates, and semantic progress diagnosis. Rust owns ne
 decisions; Python retains thin lifecycle/transport bindings. Preserve old packets,
 authority and Stop budgets. Reject missing declared outputs or observing gates
 before finish, and verify a fresh consumer without another measurement loop.
+
+## Query and prepared-registry increment
+
+The [ordered query/registry extension](native-query-registry.md) adds literal
+regex/glob search, bounded Git read-query forms and native prepared-registry
+reads in that order. Preserve exact callback parity, source/shell boundaries,
+latest-binding ordering and Python-owned transactions. Verify fresh-process
+runtime-session import isolation and a transported consumer; do not count shared
+helpers as new inventory units or infer new numerical performance gains.

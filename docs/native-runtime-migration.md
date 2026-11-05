@@ -120,6 +120,11 @@ adds private Rust policy in gate/checkpoint and finish (units 5 and 4) and exten
 Stop. Python retains lifecycle/authority and transport; these remain partial
 boundaries rather than complete migrations.
 
+The [ordered query/registry extension](runtime-performance/native-query-registry.md)
+adds safe regex/glob and Git query forms to the existing pretool units and
+prepared registry reads to the shared session resolver. Transaction ownership
+and compatibility remain Python; these helpers add no inventory unit.
+
 | ID | Source owner | Entry aliases | State | Acceptance focus |
 | --- | --- | --- | --- | --- |
 | 1 | `scripts/checkout_identity.py` | checkout-identity | Native lookup accepted in stage one | Metadata parity, timeout, recovery, Python rollback |

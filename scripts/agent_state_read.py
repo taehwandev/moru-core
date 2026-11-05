@@ -7,6 +7,7 @@ Verification: path/re-export identity, JSON edge cases and status parity.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,15 @@ from support.global_state import project_state_dir_target
 REGISTRY_FILENAME = "run-registry.json"
 SCHEDULER_FILENAME = "scheduler.json"
 EVENTS_FILENAME = "events.json"
+
+
+def evidence_binding_key(project: Path, evidence_path: Path) -> str:
+    """Canonical content-free key, independent of registry policy imports."""
+    try:
+        value = evidence_path.resolve().relative_to(project.resolve()).as_posix()
+    except ValueError:
+        value = str(evidence_path.resolve())
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def registry_path(project: Path) -> Path:

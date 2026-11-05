@@ -4,31 +4,27 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-pub(crate) struct FileQuery<'a> {
-    tokens: Vec<&'a str>,
-    operands: usize,
+pub(crate) struct FileQuery {
+    tokens: Vec<String>,
+    paths: Vec<usize>,
 }
 
-impl<'a> FileQuery<'a> {
-    pub(crate) fn command(command: &'a str) -> Option<Self> {
-        let tokens = literal_words(command)?;
-        Self::parse(&tokens)
+impl FileQuery {
+    pub(crate) fn command(command: &str) -> Option<Self> {
+        let tokens = crate::literal_args::LiteralArgs::parse(command)?;
+        Self::parse(tokens)
     }
 
-    fn parse(tokens: &[&'a str]) -> Option<Self> {
+    fn parse(tokens: Vec<String>) -> Option<Self> {
         if tokens.len() > 20 {
             return None;
         }
-        let operands = match tokens {
-            ["rg", "--files", ..] => 2,
-            ["rg", "-n", pattern, ..]
-                if !pattern.is_empty()
-                    && pattern
-                        .bytes()
-                        .all(|c| c.is_ascii_alphanumeric() || c == b'_') =>
-            {
-                3
-            }
+        let values: Vec<_> = tokens.iter().map(String::as_str).collect();
+        if values.first() == Some(&"rg") {
+            let paths = rg_paths(&values)?;
+            return Some(Self { tokens, paths });
+        }
+        let operands = match values.as_slice() {
             ["cat", "-n", _, ..] => 2,
             ["cat", _, ..] => 1,
             ["head" | "tail", "-n", count, _, ..]
@@ -46,17 +42,26 @@ impl<'a> FileQuery<'a> {
             ["ls", ..] => 1,
             _ => return None,
         };
-        if !tokens[operands..].iter().all(|word| literal_path(word)) {
+        if !values[operands..].iter().all(|word| literal_path(word)) {
             return None;
         }
         Some(Self {
-            tokens: tokens.to_vec(),
-            operands,
+            paths: (operands..tokens.len()).collect(),
+            tokens,
         })
     }
 
-    pub(crate) fn executable(&self) -> &'a str {
-        self.tokens[0]
+    pub(crate) fn executable(&self) -> &'static str {
+        match self.tokens[0].as_str() {
+            "rg" => "rg",
+            "cat" => "cat",
+            "head" => "head",
+            "tail" => "tail",
+            "wc" => "wc",
+            "sed" => "sed",
+            "ls" => "ls",
+            _ => unreachable!(),
+        }
     }
 
     pub(crate) fn ready(&self, cwd: &Path) -> bool {
@@ -66,7 +71,7 @@ impl<'a> FileQuery<'a> {
             return false;
         };
         let absent = |directory: &Path| {
-            fs::symlink_metadata(directory.join(self.tokens[0]))
+            fs::symlink_metadata(directory.join(&self.tokens[0]))
                 .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
         };
         if !absent(cwd) || !absent(&process_cwd) {
@@ -76,9 +81,10 @@ impl<'a> FileQuery<'a> {
             .iter()
             .filter(|p| !p.starts_with('-'))
             .all(|p| resolvable_prefix(&cwd.join(p)))
-            && self.tokens[self.operands..]
+            && self
+                .paths
                 .iter()
-                .all(|p| cwd.join(p).canonicalize().is_ok())
+                .all(|index| cwd.join(&self.tokens[*index]).canonicalize().is_ok())
     }
 }
 
@@ -93,36 +99,43 @@ fn literal_path(word: &str) -> bool {
             .any(|c| c == Component::ParentDir)
 }
 
-fn literal_words(command: &str) -> Option<Vec<&str>> {
-    if command.len() > 16 * 1024 || command.chars().any(|c| c.is_control() && c != '\t') {
-        return None;
-    }
-    let mut rest = command.trim_matches([' ', '\t']);
-    let mut words = Vec::new();
-    while !rest.is_empty() {
-        let (word, tail) = if rest.starts_with(['\'', '"']) {
-            // Whole literal words only: no concatenation, escapes or expansion.
-            let end = rest[1..].find(rest.as_bytes()[0] as char)? + 1;
-            let word = &rest[1..end];
-            let print_script = words.as_slice() == ["sed", "-n"] && print_range(word);
-            if words.is_empty() || !(literal_path(word) || print_script) {
+fn rg_paths(tokens: &[&str]) -> Option<Vec<usize>> {
+    let files = match tokens.get(1)? {
+        &"--files" => true,
+        &"-n" => false,
+        _ => return None,
+    };
+    let (mut index, mut pattern, mut literal) = (2, files, false);
+    let mut paths = Vec::new();
+    while index < tokens.len() {
+        let word = tokens[index];
+        if !literal && matches!(word, "-g" | "--glob") {
+            index += 1;
+            let glob = tokens.get(index)?;
+            if glob.is_empty() || glob.starts_with('-') {
                 return None;
             }
-            (word, &rest[end + 1..])
+        } else if !literal && word.starts_with("--glob=") {
+            let glob = word.strip_prefix("--glob=")?;
+            if glob.is_empty() || glob.starts_with('-') {
+                return None;
+            }
+        } else if !literal && word == "--" {
+            literal = true;
+        } else if !pattern {
+            if word.is_empty() || word.starts_with('-') {
+                return None;
+            }
+            pattern = true;
         } else {
-            let end = rest.find([' ', '\t']).unwrap_or(rest.len());
-            (&rest[..end], &rest[end..])
-        };
-        if !tail.is_empty() && !tail.starts_with([' ', '\t']) {
-            return None;
+            if !literal_path(word) {
+                return None;
+            }
+            paths.push(index);
         }
-        words.push(word);
-        if words.len() > 20 {
-            return None;
-        }
-        rest = tail.trim_start_matches([' ', '\t']);
+        index += 1;
     }
-    Some(words)
+    pattern.then_some(paths)
 }
 
 fn print_range(script: &str) -> bool {

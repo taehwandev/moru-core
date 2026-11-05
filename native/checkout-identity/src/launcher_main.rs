@@ -25,6 +25,7 @@ mod discovery_search;
 #[allow(dead_code)] // Shared source; this crate only uses the status adapter.
 mod gitrun;
 mod launcher_backend;
+mod literal_args;
 mod mailbox_process;
 mod mailbox_state;
 mod mailbox_status_process;
@@ -36,6 +37,7 @@ mod pretool_guard;
 mod pretool_process;
 mod pretool_query;
 mod pretool_transcript;
+mod registry_read;
 mod status_process;
 mod status_snapshot;
 mod status_state;
@@ -107,6 +109,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "--registry-read-probe") {
+        exit(registry_read::RegistryRead::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "--completion-probe") {
         exit(completion_process::CompletionProcess::run(&launcher, &args));

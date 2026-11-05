@@ -27,16 +27,13 @@ from agent_repository_checkouts import (
     checkout_keeps_unfinished_work,
     checkouts_with_run_state,
 )
-from agent_run_registry import (
+from agent_run_states import (
     ACTIVE_RUN_STATES,
     SUPERSEDABLE_RUN_STATES,
     TRANSFER_CANCELLABLE_RUN_STATES,
-    active_run_bindings,
-    active_runs,
-    cancel_active_run_if_current,
-    evidence_binding_key,
-    latest_run_id,
 )
+from agent_registry_read import active_run_bindings, active_runs, latest_run_id
+from agent_state_read import evidence_binding_key
 from agent_worker_evidence import is_isolated_worker_evidence
 from support.global_state import project_state_dir_target
 
@@ -60,6 +57,12 @@ FINISHED_SUFFIX = ".finished"
 SETTLED_SUFFIX = ".settled"
 
 _CLI_SESSION_OVERRIDE: dict[str, str] | None = None
+
+
+def cancel_active_run_if_current(*args, **kwargs):
+    """Defer the transaction owner import until a session actually settles work."""
+    from agent_run_registry import cancel_active_run_if_current as cancel
+    return cancel(*args, **kwargs)
 
 
 def _normalize_runtime_name(value: object) -> str:

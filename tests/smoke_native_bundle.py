@@ -68,6 +68,23 @@ def smoke(archive):
         payload = {"cwd": str(project), "session_id": "transported-smoke", "tool_name": "Bash"}
         checks = 3
         native = entry.with_name("moru-hook-native")
+        state = base / "prepared-registry"
+        state.mkdir()
+        for name in (".state.lock.lock", ".run-registry.json.lock"):
+            (state / name).touch()
+        row = {"run_id": "synthetic", "state": "running", "evidence_key": "key"}
+        (state / "run-registry.json").write_text(json.dumps({"schema_version": 1, "runs": [row]}))
+        before = {p.name: p.read_bytes() for p in state.iterdir()}
+        for operation, expected in (("active", [{**row, "resume_generation": 0}]),
+                ("bindings", [["key", {**row, "resume_generation": 0}]]), ("latest", "synthetic")):
+            payload_read = {"state_dir": str(state), "states": ["running"], "legacy_key": "legacy",
+                            "evidence_key": "key", "legacy_default": False, "evidence_name": "preflight.json"}
+            done = subprocess.run([str(native), str(entry), "--registry-read-probe", operation],
+                input=json.dumps(payload_read).encode(), capture_output=True, env=env, cwd=project, timeout=8)
+            assert (done.returncode, done.stderr) == (0, b""), done
+            assert json.loads(done.stdout)["result"]["value"] == expected, done
+            checks += 1
+        assert before == {p.name: p.read_bytes() for p in state.iterdir()}
         def completion(operation, payload):
             done = subprocess.run([str(native), str(entry), "--completion-probe", operation],
                 input=json.dumps(payload).encode(), capture_output=True, env=env, cwd=project, timeout=8)
@@ -172,7 +189,10 @@ def smoke(archive):
             for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',
                             "tail -n 20 notes.txt", "wc -l notes.txt", "sed -n '1,20p' '한글 메모.txt'",
-                            "ls -la", "git status --short --branch", "git remote -v"):
+                            "ls -la", "git status --short --branch", "git remote -v",
+                            "rg -n 'TODO|FIXME' notes.txt", "rg --files --glob='*.py'",
+                            "git log -3 --format='%h %s'", "git diff HEAD~1 HEAD --stat",
+                            f"git -C '{project}' status --short"):
                 data = {**payload, "tool_input": {"command": command}}
                 done = subprocess.run([str(entry), runtime + "-pretool-gate"], input=json.dumps(data).encode(),
                     capture_output=True, env=env, cwd=project, timeout=8)

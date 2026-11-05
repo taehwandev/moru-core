@@ -22,54 +22,17 @@ from agent_run_owner import (
 )
 from agent_state_lock import project_state_lock, state_lock
 from support.global_state import project_state_dir_target
-from agent_state_read import REGISTRY_FILENAME, registry_path
+from agent_state_read import REGISTRY_FILENAME, registry_path, evidence_binding_key as _binding_key
+from agent_run_states import (
+    ACTIVE_RUN_STATES, CLAIMING_RUN_STATE, CLAIM_HOLDING_RUN_STATES,
+    RUN_STATES, TRANSFER_CANCELLABLE_RUN_STATES, SUPERSEDABLE_RUN_STATES,
+    LEDGER_WRITABLE_RUN_STATES, SETTLED_RUN_STATES,
+)
 
 
 SCHEMA_VERSION = 1
 RUNS_DIR = "runs"
 RUN_DIRECTORY_RE = re.compile(r"^[0-9a-f]{32}$")
-ACTIVE_RUN_STATES = frozenset({"running", "paused", "resuming"})
-CLAIMING_RUN_STATE = "claiming"
-CLAIM_HOLDING_RUN_STATES = frozenset({*ACTIVE_RUN_STATES, CLAIMING_RUN_STATE})
-RUN_STATES = frozenset(
-    {
-        *CLAIM_HOLDING_RUN_STATES,
-        "failed",
-        "completed",
-        "cancelled",
-        "reconcile_required",
-        "blocked",
-        "interrupted",
-    }
-)
-# A run may be settled from every state that is unfinished. `blocked` and
-# `interrupted` are the states a turn boundary leaves behind, and they are the
-# ones a stranded run is actually found in: excluding them meant the run whose
-# honest outcome was "nothing needed changing" could be cancelled only while it
-# happened to be active, and the refusal was reported as an unclean checkout.
-TRANSFER_CANCELLABLE_RUN_STATES = frozenset(
-    {*ACTIVE_RUN_STATES, "failed", "reconcile_required", "blocked", "interrupted"}
-)
-# What a new request from the same runtime session settles: the claims it holds,
-# the ones a turn boundary paused, and a run whose finish failed. A new request
-# abandons the old request's recovery as surely as its claim; left open, the
-# pre-tool gate re-binds the failed run in its checkout and refuses publication
-# there with no close path. The settle records `superseded_from_state` and start
-# names the failed run, so the failure is reported rather than hidden.
-# `reconcile_required` stays out: it owes reconciliation of effects already made.
-SUPERSEDABLE_RUN_STATES = frozenset({*ACTIVE_RUN_STATES, "blocked", "interrupted", "failed"})
-# States whose owner may still append gate evidence. Recovery happens after a
-# run stops being active: a failed finish must be answered by recording the
-# gates it named, and a repair cycle parks the run at reconcile_required for
-# the same reason. A settled run must not gain new evidence, so completed and
-# cancelled are excluded.
-LEDGER_WRITABLE_RUN_STATES = frozenset(
-    {*ACTIVE_RUN_STATES, CLAIMING_RUN_STATE, "failed", "reconcile_required"}
-)
-# The complement: records that owe nothing further, so the bounded history
-# below drops them first. `failed` and `reconcile_required` are not settled --
-# both are states a run is recovered from, and a recovery needs its record.
-SETTLED_RUN_STATES = frozenset({"completed", "cancelled"})
 # The registry's shared stale window, repeated here as a name so the owner-less
 # compatibility path is bounded by the same number the sweep uses.
 DEFAULT_STALE_AFTER_SECONDS = 3600
@@ -1403,11 +1366,7 @@ def _opaque_project_id(project: Path) -> str:
 
 
 def _evidence_key(project: Path, evidence_path: Path) -> str:
-    try:
-        value = evidence_path.resolve().relative_to(project.resolve()).as_posix()
-    except ValueError:
-        value = str(evidence_path.resolve())
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+    return _binding_key(project, evidence_path)
 
 
 def _matches_evidence(run: dict[str, Any], project: Path, evidence_path: Path) -> bool:
