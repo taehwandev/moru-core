@@ -1,6 +1,7 @@
 """Require the 3D card for real work without widening unrelated startup reads."""
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -89,6 +90,66 @@ class Web3DReadingTests(unittest.TestCase):
         route = self.route(FIRST_REQUEST)
         self.assertFalse(route["missing"])
         self.assertNotIn("common/skills/minimal-visual-design/SKILL.md", route["required_docs"])
+
+
+STRUCTURE = "platforms/web/skills/web-code-structure/references/current-guidance.md"
+FOLLOW_UPS = (
+    "Add a pause/resume control and a way to replay the launch from the beginning. Keep everything that already works.",
+    "On a short landscape phone screen the bottom controls are cut off. Fix this without breaking anything.",
+    "After zooming in and then rotating the view, the rocket is no longer in the center of the screen.",
+)
+
+
+class Web3DProjectSignalTests(unittest.TestCase):
+    def project(self, files):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        for name, text in files.items():
+            path = root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        return root
+
+    def route(self, request, root, command="small-change", platform=None):
+        return resolve_docs(command, platform, [], request_classified=True,
+                            request_text=request, project_root=root)
+
+    def test_follow_up_without_3d_words_requires_cards_for_three_module_project(self):
+        root = self.project({"index.html": "<canvas></canvas>",
+                             "src/main.js": "import * as THREE from 'three';\nnew THREE.Scene();"})
+        for request in FOLLOW_UPS:
+            for command in ("small-change", "feature", "bugfix"):
+                with self.subTest(request=request[:30], command=command):
+                    route = self.route(request, root, command)
+                    self.assertIn(SKILL, route["required_docs"])
+                    self.assertIn(STRUCTURE, route["required_docs"])
+
+    def test_importmap_and_cdn_project_is_detected(self):
+        root = self.project({"index.html": '<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>'})
+        self.assertIn(SKILL, self.route(FOLLOW_UPS[0], root)["required_docs"])
+
+    def test_package_json_dependency_is_detected(self):
+        root = self.project({"package.json": '{"dependencies": {"three": "^0.170.0"}}'})
+        self.assertIn(SKILL, self.route(FOLLOW_UPS[1], root)["required_docs"])
+
+    def test_plain_project_and_dependency_directories_do_not_trigger(self):
+        root = self.project({"index.html": "<h1>Hello</h1>", "src/main.js": "const three = 3;",
+                             "node_modules/three/index.js": "import * as THREE from 'three';"})
+        for request in FOLLOW_UPS:
+            with self.subTest(request=request[:30]):
+                self.assertNotIn(SKILL, self.route(request, root)["required_docs"])
+
+    def test_dependency_only_request_in_three_project_does_not_trigger(self):
+        root = self.project({"src/main.js": "import * as THREE from 'three';"})
+        route = self.route("Bump the dependency version in package.json", root)
+        self.assertNotIn(SKILL, route["required_docs"])
+
+    def test_read_only_commands_and_missing_project_do_not_trigger(self):
+        root = self.project({"src/main.js": "import * as THREE from 'three';"})
+        self.assertNotIn(SKILL, self.route("What does this camera code do?", root, "analysis")["required_docs"])
+        self.assertNotIn(SKILL, resolve_docs("small-change", None, [], request_classified=True,
+                                             request_text=FOLLOW_UPS[0])["required_docs"])
 
 
 if __name__ == "__main__":

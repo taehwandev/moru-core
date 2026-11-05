@@ -95,5 +95,17 @@ class StartOutputEndToEnd(unittest.TestCase):
         self.check_route("commit", ["Commit reuse:", "Publication continuity:"])
 
 
+class RulesRootHintTests(unittest.TestCase):
+    def test_start_names_a_rules_dir_that_is_not_a_core_root(self) -> None:
+        with tempfile.TemporaryDirectory() as project, tempfile.TemporaryDirectory() as rules:
+            subprocess.run(["git", "init", "-q", project], check=True)
+            result = subprocess.run(
+                [sys.executable, str(HOOK), "start", "--project", project, "--rules", rules,
+                 "--command", "triage", "--request", "look", "--intent", "look", "--target-summary", "x"],
+                capture_output=True, text=True,
+            )
+        self.assertIn("is not a Moru Core root", result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

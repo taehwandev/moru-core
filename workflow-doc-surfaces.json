@@ -2485,5 +2485,46 @@
       ],
       "reason": "Touched architecture tests need the enforcement node."
     }
+  ],
+  "project_signals": [
+    {
+      "name": "web_3d_project_signal",
+      "commands": [
+        "feature",
+        "build",
+        "task",
+        "small-change",
+        "bugfix",
+        "refactor",
+        "review",
+        "test"
+      ],
+      "files": [
+        "*.html",
+        "*.js",
+        "*.mjs",
+        "*.ts",
+        "*.jsx",
+        "*.tsx",
+        "package.json"
+      ],
+      "content_any": [
+        "\\bfrom\\s+['\"](?:three|three/[^'\"]+|@react-three/[^'\"]+|@babylonjs/[^'\"]+|babylonjs)['\"]",
+        "\\bimport\\s+['\"]three['\"]",
+        "[\"']three[\"']\\s*:\\s*[\"']",
+        "\\bthree(?:@[\\w.^~-]+)?/(?:build|examples)/",
+        "\\bnew\\s+(?:THREE\\.)?WebGLRenderer\\b"
+      ],
+      "request_not": [
+        "\\b(?:dependency|dependencies|upgrade|bump|lockfile)\\b"
+      ],
+      "docs": [
+        "platforms/web/skills/web-3d-interaction/SKILL.md",
+        "platforms/web/skills/web-code-structure/SKILL.md",
+        "common/skills/ui-visual-verification/SKILL.md"
+      ],
+      "required_priority": 50,
+      "reason": "A follow-up change in a project that already renders a Three.js or WebGL scene needs the same scene, interruption and structure guidance as the first build, even when the request never says 3D."
+    }
   ]
 }

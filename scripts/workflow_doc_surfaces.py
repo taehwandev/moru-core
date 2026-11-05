@@ -14,6 +14,8 @@ from workflow_doc_surface_rules import (
     git_status_surface_paths,
     normalize_path,
     path_matches,
+    project_signal_files,
+    request_pattern_matches,
     rule_docs,
     rule_list,
     rule_matches_command,
@@ -110,6 +112,16 @@ def infer_surface_docs(
         if not matched_paths:
             continue
         docs.extend(_append_path_match(rules, rule, matched_paths, matches))
+
+    # The project itself is evidence when the request only names the change.
+    for rule in rule_list(rules, "project_signals"):
+        if not rule_matches_command(rule, command) or not rule_matches_platform(rule, platform):
+            continue
+        if any(request_pattern_matches(pattern, request_text) for pattern in string_list(rule.get("request_not"))):
+            continue
+        signal_files = project_signal_files(project_root, rule)
+        if signal_files:
+            docs.extend(_append_signal_match(rules, rule, signal_files, matches))
 
     return unique(docs), matches
 
@@ -323,6 +335,28 @@ def required_surface_docs(matches: list[dict[str, object]]) -> list[str]:
 def _required_priority(rule: dict[str, Any]) -> int:
     value = rule.get("required_priority", 0)
     return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _append_signal_match(
+    rules: dict[str, Any],
+    rule: dict[str, Any],
+    signal_files: list[str],
+    matches: list[dict[str, object]],
+) -> list[str]:
+    docs = rule_docs(rules, rule)
+    matches.append(
+        {
+            "type": "project_signal",
+            "name": str(rule.get("name") or ""),
+            "paths": signal_files[:5],
+            "docs": docs,
+            "reason": str(rule.get("reason") or ""),
+            "required_priority": _required_priority(rule),
+            "narrows": string_list(rule.get("narrows")),
+            "reference_only": bool(rule.get("reference_only")),
+        }
+    )
+    return docs
 
 
 def _append_path_match(

@@ -1669,8 +1669,10 @@ def _refresh_started_context(
             details.append("repair checkpoints: rebound after required-doc drift")
         details.append("context snapshot: refreshed")
         return True
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        details.append("context snapshot: validation failed")
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+        details.append(f"context snapshot: validation failed ({error})")
+        if not any((args.rules / marker).is_file() for marker in ("AGENTS.md", "workflow-doc-surfaces.json")):
+            details.append(f"--rules {args.rules} is not a Moru Core root; use --rules {ROOT}")
         return False
 
 

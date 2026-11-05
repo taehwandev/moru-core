@@ -106,6 +106,21 @@ properties unverified rather than inferring polish from source code.
 5. Run the structure check in `platforms/web/skills/web-code-structure/references/current-guidance.md`
    (New Browser Builds Without A Framework) on the finished code, and split what it
    flags before reporting done.
+6. Get a second opinion before reporting a build or a multi-phase change done:
+   ask an independent read-only reviewer (another model, a fresh subagent or a
+   fresh session that did not write the code) to read the finished project and
+   report, with file:line evidence, the defects a user would hit, each stated
+   requirement as implemented, partly or missing, and what it did not check.
+   Name the requirements and ask for the user-visible defects first (camera
+   follow after reset, pause or phase change; a displayed value that changes
+   unit, scale or reference between phases; an end state that disagrees with its
+   status text). Fix the findings you can reproduce or that the code plainly
+   shows, rerun the affected check, and report the rest as open. Start the
+   reviewer before claiming it is unavailable: a subagent, or a separate CLI
+   run in read-only mode (for example `codex exec --sandbox read-only` or
+   `claude -p` with edit tools denied). Only a failed attempt counts; report
+   the command tried and its error. The author's own review does not replace
+   this step.
 
 The routed UI quality companion is `common/skills/ui-visual-verification/SKILL.md`;
 read its core before styling controls and use its padding/overlap checks before
