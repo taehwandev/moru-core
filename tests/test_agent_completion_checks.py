@@ -60,6 +60,34 @@ class CompletionIntegrationTests(unittest.TestCase):
         self.checkpoint({"requirements": contract(2, owner="changed", gate="verify")})
         self.assertEqual(2, json.loads(path.read_text())["work"]["requirements"]["revision"])
 
+    def test_long_history_projects_metadata_without_hiding_latest_failures(self):
+        self.checkpoint({"requirements": contract(gate="verify")})
+        (self.run.project / "plan.md").write_text("Delivered\n")
+        for _ in range(129):
+            record_gate_evidence(evidence_path=self.run.evidence, preflight=self.run.binding,
+                gate="verify", status="SUCCESS", evidence="Observed valid artifact verification")
+        self.assertEqual([], work_completion_failures(self.run.project, self.run.evidence))
+        rows = [{"gate": "verify", "status": "SUCCESS", "evidence": "x" * 16384} for _ in range(129)]
+        self.assertGreater(len(json.dumps(rows)), 1024 * 1024)
+        with patch("agent_gate_evidence.read_gate_evidence_ledger", return_value={"entries": rows}):
+            self.assertEqual([], work_completion_failures(self.run.project, self.run.evidence))
+            rows.append({"gate": "verify", "status": "FAIL"})
+            self.assertIn("observing gate", work_completion_failures(self.run.project, self.run.evidence)[0])
+            rows[-1] = None
+            self.assertIn("unavailable", work_completion_failures(self.run.project, self.run.evidence)[0])
+
+    def test_empty_artifact_outcome_and_oversized_diagnostic_end_to_end(self):
+        self.checkpoint({"requirements": contract(gate="verify", artifacts=[])})
+        record_gate_evidence(evidence_path=self.run.evidence, preflight=self.run.binding,
+            gate="verify", status="SUCCESS", evidence="Observed non-file outcome verification")
+        self.assertEqual([], work_completion_failures(self.run.project, self.run.evidence))
+        paths = ["one.bin", "two.bin", "three.bin"]
+        for name in paths:
+            with (self.run.project / name).open("wb") as stream:
+                stream.truncate(11 * 1024 * 1024)
+        self.checkpoint({"requirements": contract(2, gate="verify", artifacts=paths)})
+        self.assertIn("32 MiB total limit", work_completion_failures(self.run.project, self.run.evidence)[0])
+
     def test_real_finish_cli_cannot_close_a_missing_requirement_artifact(self):
         self.checkpoint({"requirements": contract(gate="verify")})
         result = subprocess.run([sys.executable, "-B", str(PROJECT / "scripts/agent-hook.py"), "finish",
@@ -141,6 +169,30 @@ class CompletionIntegrationTests(unittest.TestCase):
         self.assertEqual("", progress_note(self.run.project, self.run.evidence, work, identity))
         self.assertEqual("unchanged", target.read_text())
         self.assertEqual(original, path.read_bytes())
+
+    def test_progress_state_special_files_and_invalid_bytes_never_hold_stop(self):
+        work = {"remaining_work": [{"checkpoint": "verify", "action": "Check"}], "blockers": []}
+        identity = {"runtime": "codex", "session_id": "bound-session"}
+        progress_note(self.run.project, self.run.evidence, work, identity)
+        path = next(self.run.evidence.parent.glob("completion-progress-*.json"))
+        path.unlink()
+        target = self.base / "outside-state"
+        target.write_text("unchanged")
+        code = ("import json,sys; from pathlib import Path; from agent_completion_checks import progress_note; "
+                "v=json.load(sys.stdin); print(progress_note(Path(v['project']),Path(v['evidence']),v['work'],v['identity']))")
+        payload = {"project": str(self.run.project), "evidence": str(self.run.evidence), "work": work, "identity": identity}
+        for kind in ("fifo", "directory", "symlink", "oversized", "invalid_json"):
+            with self.subTest(kind=kind):
+                if kind == "fifo": os.mkfifo(path)
+                elif kind == "directory": path.mkdir()
+                elif kind == "symlink": path.symlink_to(target)
+                else: path.write_bytes(b"x" * 4097 if kind == "oversized" else b"{broken")
+                result = subprocess.run([sys.executable, "-B", "-c", code], input=json.dumps(payload).encode(),
+                    cwd=PROJECT, env={**os.environ, "PYTHONPATH": "scripts"}, capture_output=True, timeout=3)
+                self.assertEqual((0, b"\n", b""), (result.returncode, result.stdout, result.stderr))
+                self.assertEqual("unchanged", target.read_text())
+                if kind == "directory": path.rmdir()
+                else: path.unlink()
 
 
 if __name__ == "__main__":

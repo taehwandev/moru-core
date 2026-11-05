@@ -110,6 +110,33 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(0, final["repeats"])
         self.assertFalse(final["stalled"])
 
+    def test_long_gate_history_preserves_latest_failure(self):
+        (self.project / "plan.md").write_text("Delivered\n")
+        value = {"current": contract(), "project": str(self.project), "allowed_gates": ["tests"],
+                 "gates": [{"gate": "tests", "status": "SUCCESS"}] * 1024}
+        self.assertEqual([], self.check("coverage", value)["failures"])
+        value["gates"].append({"gate": "tests", "status": "FAIL"})
+        self.assertIn("observing gate", self.check("coverage", value)["failures"][0])
+        value["gates"].append({"gate": "tests", "status": "SUCCESS"})
+        self.assertEqual([], self.check("coverage", value)["failures"])
+
+    def test_artifact_limits_return_specific_failures_at_exact_boundaries(self):
+        for name in ("one.bin", "two.bin"):
+            with (self.project / name).open("wb") as stream:
+                stream.truncate(16 * 1024 * 1024)
+        value = {"current": contract(artifacts=["one.bin", "two.bin"]), "project": str(self.project),
+                 "allowed_gates": ["tests"], "gates": [{"gate": "tests", "status": "SUCCESS"}]}
+        self.assertEqual([], self.check("coverage", value)["failures"])
+        (self.project / "three.bin").write_bytes(b"x")
+        value["current"]["items"][0]["artifacts"].append("three.bin")
+        self.assertIn("32 MiB total limit", self.check("coverage", value)["failures"][0])
+        with (self.project / "one.bin").open("ab") as stream:
+            stream.write(b"x")
+        self.assertTrue(any("16 MiB file limit" in failure for failure in self.check("coverage", value)["failures"]))
+        (self.project / "one.bin").unlink()
+        os.mkfifo(self.project / "one.bin")
+        self.assertIn("unsafe", self.check("coverage", value)["failures"][0])
+
     def test_protocol_source_environment_and_python_rollback_boundaries(self):
         for op, payload in (("unknown", {}), ("quality", b"{broken"), ("quality", b" " * (1024 * 1024 + 1))):
             result = self.raw(op, payload, MORU_HOOK_SOFT_FAIL="1")

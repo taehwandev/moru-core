@@ -375,6 +375,35 @@ class ReviewReuseTests(unittest.TestCase):
         self.assertNotIn('review_checks', self.checks)
         self.assertEqual(1, len(failures))
 
+    def test_git_snapshot_failure_names_operation_without_exposing_output(self):
+        cache = self.cache()
+        failures = []
+        result = subprocess.CompletedProcess(['git', 'rev-parse'], 124,
+                                             stdout=b'private stdout marker', stderr=b'private stderr marker')
+        with patch('agent_review_reuse.run_git', return_value=result):
+            cache.complete(self.checks, failures)
+        self.assertEqual({'kind': 'git_read_failed', 'operation': 'rev-parse', 'returncode': 124},
+                         self.checks['review_snapshot_stability']['cause'])
+        self.assertFalse(self.checks['review_snapshot_stability']['snapshot_available'])
+        self.assertIn('byte stability cannot be verified (local Git rev-parse exited 124)', failures[0])
+        self.assertNotIn('private stdout marker', json.dumps(self.checks))
+        self.assertNotIn('private stderr marker', json.dumps(self.checks))
+        self.assertNotIn('review_checks', self.checks)
+
+    def test_filesystem_snapshot_failure_keeps_errno_without_exposing_paths(self):
+        cache = self.cache()
+        failures = []
+        with patch('agent_review_reuse._file_records',
+                   side_effect=PermissionError(13, 'private detail marker', '/private/path-marker')):
+            cache.complete(self.checks, failures)
+        self.assertEqual({'kind': 'filesystem_read_failed', 'errno': 13},
+                         self.checks['review_snapshot_stability']['cause'])
+        self.assertFalse(self.checks['review_snapshot_stability']['snapshot_available'])
+        self.assertIn('byte stability cannot be verified (filesystem read failed with errno 13)', failures[0])
+        self.assertNotIn('private detail marker', json.dumps(self.checks))
+        self.assertNotIn('/private/path-marker', json.dumps(self.checks))
+        self.assertNotIn('review_checks', self.checks)
+
     def test_symlink_target_changes_cannot_reuse_review(self):
         self.publish()
         args = self.staged_commit()

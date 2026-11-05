@@ -31,6 +31,14 @@ from agent_review_scope_inputs import scoped_review_binding, scoped_review_diges
 RACY_WINDOW_NS = 2_000_000_000
 
 
+class _SnapshotGitReadFailure(ValueError):
+    def __init__(self, operation: str, returncode: int):
+        super().__init__('review snapshot unavailable')
+        allowed = {'rev-parse', 'rev-list', 'status', 'diff', 'ls-files'}
+        self.operation = operation if operation in allowed else 'local-read'
+        self.returncode = returncode
+
+
 class ReviewReuse:
     """Cache structure/workflow checks for identical reviewed bytes.
 
@@ -49,6 +57,7 @@ class ReviewReuse:
         # Rules and checker files are ~1100 unchanged reads the second time, so
         # it reuses their hashes while every stat field still matches.
         self.hash_memo: dict[tuple[Any, ...], dict[str, Any]] = {}
+        self.capture_failure: dict[str, Any] | None = None
         self.before = self.capture()
         self.reused: dict[str, Any] | None = None
 
@@ -69,11 +78,12 @@ class ReviewReuse:
     def git(project: Path, *args: str) -> bytes:
         result = run_git(['git', *args], cwd=project, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode:
-            raise ValueError('review snapshot unavailable')
+            raise _SnapshotGitReadFailure(args[0] if args else 'local-read', result.returncode)
         return result.stdout
 
     def capture(self) -> dict[str, Any] | None:
         with stage('review_snapshot'):
+            self.capture_failure = None
             return _capture(self)
 
     def load(self, *, require_fully_staged: bool = True, require_commit_route: bool = True) -> dict[str, Any] | None:
@@ -102,7 +112,10 @@ class ReviewReuse:
                 ),
             }
             if after is None:
-                failures.append('review snapshot unavailable after checks; byte stability cannot be verified')
+                if self.capture_failure:
+                    checks['review_snapshot_stability']['cause'] = dict(self.capture_failure)
+                failures.append('review snapshot unavailable after checks; byte stability cannot be verified'
+                                + _snapshot_failure_suffix(self.capture_failure))
             else:
                 fields = ', '.join(checks['review_snapshot_stability']['changed_fields'])
                 failures.append(f'reviewed bytes changed while the review hook was running (changed fields: {fields})')
@@ -309,6 +322,24 @@ def _symlinked_parent(root: Path, path: Path) -> bool:
     return False
 
 
+def _snapshot_failure_cause(error: BaseException) -> dict[str, Any]:
+    if isinstance(error, _SnapshotGitReadFailure):
+        return {'kind': 'git_read_failed', 'operation': error.operation, 'returncode': error.returncode}
+    if isinstance(error, OSError):
+        return {'kind': 'filesystem_read_failed', 'errno': error.errno or 0}
+    return {'kind': 'invalid_snapshot_state', 'exception_type': type(error).__name__}
+
+
+def _snapshot_failure_suffix(cause: dict[str, Any] | None) -> str:
+    if not cause:
+        return ''
+    if cause['kind'] == 'git_read_failed':
+        return f" (local Git {cause['operation']} exited {cause['returncode']})"
+    if cause['kind'] == 'filesystem_read_failed':
+        return f" (filesystem read failed with errno {cause['errno']})"
+    return f" (invalid snapshot state: {cause['exception_type']})"
+
+
 def _capture(reuse: ReviewReuse) -> dict[str, Any] | None:
     kind = reuse.subject.get('kind')
     if kind not in {'working-tree', 'commit-range'}:
@@ -370,7 +401,8 @@ def _capture(reuse: ReviewReuse) -> dict[str, Any] | None:
                 ('max_added_lines', 300), ('max_changed_paths', 25),
             )},
         }
-    except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError) as error:
+        reuse.capture_failure = _snapshot_failure_cause(error)
         return None
 
 

@@ -38,7 +38,10 @@ def _gates(evidence: Path) -> list[dict]:
     from agent_gate_evidence import gate_evidence_path_for_preflight, read_gate_evidence_ledger
 
     ledger = read_gate_evidence_ledger(gate_evidence_path_for_preflight(evidence))
-    return ledger.get("entries", [])
+    # Project transport fields only; Rust retains ordering/latest-status policy.
+    # Keep malformed rows so they fail closed instead of reviving an old success.
+    return [{"gate": row.get("gate"), "status": row.get("status")}
+            if isinstance(row, dict) else row for row in ledger.get("entries", [])]
 
 
 def coverage_failures(project: Path, evidence: Path, work: dict, route: dict) -> list[str]:
@@ -57,6 +60,7 @@ def progress_note(project: Path, evidence: Path, work: dict, identity: dict) -> 
         import fcntl
         if not completion_available():
             return ""
+        project = project.resolve()
         if evidence.parent.resolve() != evidence.parent or not evidence.parent.is_relative_to(project / ".moru/runs"):
             return ""
         key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()[:24]
@@ -69,9 +73,20 @@ def progress_note(project: Path, evidence: Path, work: dict, identity: dict) -> 
             if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                 return ""
             fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            if path.exists() and path.stat().st_size > 4096:
-                return ""
-            previous = json.loads(path.read_text()) if path.exists() else None
+            previous = None
+            try:
+                state_fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            except FileNotFoundError:
+                pass
+            else:
+                with os.fdopen(state_fd, "rb") as state:
+                    metadata = os.fstat(state.fileno())
+                    if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 4096:
+                        return ""
+                    raw = state.read(4097)
+                    if len(raw) > 4096:
+                        return ""
+                    previous = json.loads(raw)
             result = completion_native("progress", {"work": work, "gates": _gates(evidence), "previous": previous})
             if result is None:
                 return ""

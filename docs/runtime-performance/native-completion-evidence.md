@@ -57,6 +57,14 @@ every artifact must exist. Native observation hashes bounded bytes (16 MiB/file,
 32 MiB/call). Missing files/gates and invalid contracts remain failures even when
 `remaining_work` is empty. Existing finish checks still validate actual ledger
 ownership/freshness, pending work and authority; coverage never grants those.
+Hashes are returned observations, not persisted gate-to-artifact attestations.
+
+Transmit only gate names/statuses, preserving history order and malformed rows.
+Rust folds the complete history within the 1 MiB transport bound; there is no
+128-entry history limit, and a later failure invalidates earlier success.
+Artifact I/O errors and file/aggregate size limits return specific requirement
+failures instead of an unavailable-runtime repair instruction. Check descriptor
+size before reading, and bound the read again to handle file growth.
 
 ## 3. Semantic progress
 
@@ -69,7 +77,9 @@ User stops, approval waits and global blockers retain precedence.
 
 Store only this advisor's digest/count in a session/runtime/run-local file. A
 nonblocking no-follow private lock and atomic JSON replacement prevent the
-advisor from holding Stop. Contention, unavailable native support, unsupported
+advisor from holding Stop. Open state no-follow/nonblocking, require a regular
+descriptor, and read at most 4097 bytes to enforce the 4096-byte state limit.
+Contention, special/malformed state, unavailable native support, unsupported
 runtime or malformed state omits the diagnosis. Python rollback omits it too.
 Compare delivery/authority state independently of these explicitly tested files.
 
@@ -85,15 +95,16 @@ shell executor, new dependency/service, model call or consumer compiler.
 The independent implementation was informed by
 [unlazy completion ideas](https://github.com/Leonxlnx/unlazy/tree/16671491f6679ad9378f52604d3bc2415b4120c7).
 No upstream code, installer or hook is vendored. Follow selective measurement:
-no per-item timing/CPU/RSS/cost experiment or new speed claim. Source remains on
-the local performance branch; main integration, push, release and global
-activation are separate outcomes.
+no per-item timing/CPU/RSS/cost experiment or new speed claim. Main integration
+and push require explicit authority; release and global activation remain
+separate outcomes.
 
 ## Verification
 
-Observed locally on macOS arm64 with `PYTHONPATH=scripts:tests` for Python
-unittest runs. The affected twelve Python suites collect 205 unique tests;
-coverage below comes from focused runs, not one monolithic invocation.
+The original implementation was checked locally on macOS arm64 with
+`PYTHONPATH=scripts:tests` for Python unittest runs. Its twelve affected suites
+collected 205 unique tests before the follow-up cases below; that original
+coverage came from focused runs, not one monolithic invocation.
 
 | Check | Observed result |
 | --- | --- |
@@ -116,6 +127,31 @@ include nonblocking lock contention, symlink rejection, session isolation and an
 actual finish invocation that refuses a missing requirement artifact.
 
 The fresh consumer exercises all four private operations without a compiler or
-Python on PATH. The four-host CI selector includes the affected suites; remote CI
-and global installation were not executed in this local increment. No latency,
-CPU, memory or token-saving result is claimed.
+Python on PATH. The four-host CI selector includes the affected suites. Local
+checks do not attest remote CI or global installation. No latency, CPU, memory or
+token-saving result is claimed.
+
+### Peer-review corrections
+
+Claude and AGY reviews were reconciled against local reproductions. Correct the
+128-entry history cliff, FIFO state-read hang and misleading aggregate-limit
+diagnostic. Preserve Rust-owned latest-status policy, fail-closed malformed rows,
+legacy compatibility and the existing authority/Stop limits.
+
+Five added regression tests cover 129 actual ledger records, 1024 native records
+with later failure/success, metadata larger than the transport limit, empty-file
+outcomes, exact 16/32 MiB boundaries and subprocess-bounded special/malformed
+state handling. After integration with local/remote main changes, observed:
+
+- 316 native/runtime Python tests passed.
+- 460 adapter, ledger, pretool and upstream-review compatibility tests passed.
+- 30 Rust tests passed in both default and software-SHA modes.
+- 65 fresh-consumer checks passed.
+- After the latest upstream review change, 120 targeted regressions passed
+  (overlapping the earlier runs); rebuild and repeat fresh-consumer checks.
+
+An initial native run failed after existing checkout files disappeared, plus a
+sandbox-denied process inspection. Restore only missing indexed files, verify
+the five edited files and all 393 build inputs retain identical hashes, then
+rerun the affected native suite with process-inspection access. Initial failures
+and passing reruns remain in ignored run evidence; no failed result is reused.

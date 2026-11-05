@@ -127,6 +127,13 @@ as a read-only gate:
   workflow evidence checks, not optional review commentary.
 - If the diff is too broad to review confidently in one pass, fail the hook and
   split the work before the repaired task resumes.
+- An in-progress merge retains its whole staged review/publication boundary.
+  For structural checks only, a file is inherited baseline when Git proves its
+  index content and mode equal an actual parent, the working tree matches the
+  index, and no unresolved merge entries remain. Record the inherited paths;
+  keep combined files, new edits and uncertain Git states under ordinary checks.
+  Parent equality does not attest integration behavior or permit narrowing the
+  commit scope: review combined changes and verify the integrated result.
 - For changed development source/style files, apply the default size and
   ownership gates from
   `../../code-structure-ownership/references/current-guidance.md`. Test,

@@ -53,9 +53,7 @@ impl Requirements {
             return None;
         }
         let gates = value.get("gates")?.as_array()?;
-        if gates.len() > 128 {
-            return None;
-        }
+        // The transport bounds bytes. History length is not effective gate count.
         let mut statuses = BTreeMap::new();
         for record in gates {
             statuses.insert(
@@ -82,55 +80,66 @@ impl Requirements {
             let mut artifacts = BTreeMap::new();
             for raw in item["artifacts"].as_array()? {
                 let relative = raw.as_str()?;
-                let mut path = project.to_owned();
-                let mut safe = !fs::symlink_metadata(project).ok()?.file_type().is_symlink();
-                for part in relative.split('/') {
-                    path.push(part);
-                    match fs::symlink_metadata(&path) {
-                        Ok(meta) if !meta.file_type().is_symlink() => {}
-                        _ => {
-                            safe = false;
-                            break;
-                        }
-                    }
-                }
-                let bytes =
-                    if safe && path.is_file() && path.metadata().ok()?.len() <= 16 * 1024 * 1024 {
-                        let mut bytes = Vec::new();
-                        let file = fs::OpenOptions::new()
-                            .read(true)
-                            .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
-                            .open(path)
-                            .ok()?;
-                        if !file.metadata().ok()?.is_file() {
-                            return None;
-                        }
-                        file.take(16 * 1024 * 1024 + 1)
-                            .read_to_end(&mut bytes)
-                            .ok()?;
-                        if bytes.len() > 16 * 1024 * 1024 {
-                            return None;
-                        }
-                        Some(bytes)
-                    } else {
-                        None
-                    };
-                match bytes {
-                    Some(bytes) => {
-                        total = total.checked_add(bytes.len())?;
-                        if total > 32 * 1024 * 1024 {
-                            return None;
-                        }
+                match Self::artifact(project, relative, 32 * 1024 * 1024 - total) {
+                    Ok(bytes) => {
+                        total += bytes.len();
                         artifacts.insert(relative, format!("{:x}", Sha256::digest(&bytes)));
                     }
-                    None => failures.push(format!(
-                        "requirement {id}: artifact is missing, unsafe or oversized"
-                    )),
+                    Err(reason) => failures.push(format!("requirement {id}: {reason}")),
                 }
             }
             observations.push(json!({"id":id,"artifacts":artifacts}));
         }
         Some(json!({"failures":failures,"observations":observations}))
+    }
+
+    fn artifact(project: &Path, relative: &str, remaining: usize) -> Result<Vec<u8>, &'static str> {
+        let unsafe_path = "artifact is missing or unsafe";
+        let mut path = project.to_owned();
+        if fs::symlink_metadata(&path)
+            .map_err(|_| unsafe_path)?
+            .file_type()
+            .is_symlink()
+        {
+            return Err(unsafe_path);
+        }
+        for part in relative.split('/') {
+            path.push(part);
+            if fs::symlink_metadata(&path)
+                .map_err(|_| unsafe_path)?
+                .file_type()
+                .is_symlink()
+            {
+                return Err(unsafe_path);
+            }
+        }
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+            .open(path)
+            .map_err(|_| "artifact is unreadable or unsafe")?;
+        let metadata = file.metadata().map_err(|_| "artifact is unreadable")?;
+        if !metadata.is_file() {
+            return Err(unsafe_path);
+        }
+        let per_file = 16 * 1024 * 1024;
+        if metadata.len() > per_file as u64 {
+            return Err("artifact exceeds 16 MiB file limit");
+        }
+        if metadata.len() > remaining as u64 {
+            return Err("artifacts exceed 32 MiB total limit");
+        }
+        let mut bytes = Vec::new();
+        file.take(per_file.min(remaining) as u64 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| "artifact is unreadable")?;
+        if bytes.len() > per_file {
+            return Err("artifact exceeds 16 MiB file limit");
+        }
+        if bytes.len() > remaining {
+            return Err("artifacts exceed 32 MiB total limit");
+        }
+        Ok(bytes)
     }
 
     fn schema(value: &Value) -> Vec<String> {
