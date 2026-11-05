@@ -6,7 +6,7 @@ type: ai-generated
 
 # Native runtime migration inventory
 
-Track **53 execution units**: **30 primary runtime units plus 23 ancillary
+Track **56 execution units**: **31 primary runtime units plus 25 ancillary
 direct CLIs**. The original 52-unit baseline gains one portable-bundle CLI;
 this is delivery tooling, not another required Rust conversion.
 At baseline
@@ -57,8 +57,8 @@ partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and p
 coverage, all involving native work (including partial entry/discovery,
 launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
 The latest native extensions add no new timing claim; earlier measurements remain historical.
-That is 17/53 inventory coverage, or 17/30 primary
-coverage, not effort-weighted completion. The remaining 36 are candidates. The earlier
+That is 17/56 inventory coverage, or 17/31 primary
+coverage, not effort-weighted completion. The remaining 39 are candidates. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
 target for quiet prompt delivery only. Main integration and local installation
@@ -157,39 +157,42 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
 | 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 31 | `scripts/agy_hook_adapter.py` | agy-hook | Python retained | Antigravity lifecycle hook ingress; profile before considering a port |
 
 ## Ancillary direct CLI coverage
 
-These 23 entries sit outside the primary stable-launcher catalog. Inventorying
+These 25 entries sit outside the primary stable-launcher catalog. Inventorying
 them does not execute them, authorize migrations/deletion/device operations,
 or justify rewriting upstream dependencies. They retain Python by default
 until a measured bottleneck and a safe owner boundary justify another choice.
 
 | ID | Source owner | Entry | State | Disposition |
 | --- | --- | --- | --- | --- |
-| 31 | `scripts/agent-structure-check.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 32 | `scripts/agent_experience_eval.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 33 | `scripts/agent_unittest_result.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 34 | `scripts/build_native_runtime.py` | Direct CLI | Python retained | Keep Python build orchestration; Rust SDK is developer-only |
-| 35 | `scripts/check_android_external_skill_manifest.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 36 | `scripts/check_react_rn_external_skill_manifest.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 37 | `scripts/device-mcp.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
-| 38 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
-| 39 | `scripts/figma-handoff/figma_validate.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
-| 40 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
-| 41 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 42 | `scripts/live_device.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
-| 43 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
-| 44 | `scripts/migrate_skill_bundles.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 45 | `scripts/moru_overhead_report.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 46 | `scripts/mutation-check.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 47 | `scripts/path_claims.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 48 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
-| 49 | `scripts/run_smoke_checks.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 50 | `scripts/runs-prune.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 51 | `scripts/support/codex_statusline_setup.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 52 | `scripts/third_party/wikimap/wikimap.py` | Direct CLI | Python retained | Upstream dependency; retain ownership/license boundary and optimize adapters separately |
-| 53 | `scripts/native-runtime-bundle.py` | Direct CLI | Python delivery tooling | Explicit local pack/install, host/source/hash checks; no compiler on consumer |
+| 32 | `scripts/agent-structure-check.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 33 | `scripts/agent_experience_eval.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 34 | `scripts/agent_unittest_result.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 35 | `scripts/build_native_runtime.py` | Direct CLI | Python retained | Keep Python build orchestration; Rust SDK is developer-only |
+| 36 | `scripts/check_android_external_skill_manifest.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 37 | `scripts/check_react_rn_external_skill_manifest.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 38 | `scripts/device-mcp.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
+| 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
+| 40 | `scripts/figma-handoff/figma_validate.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
+| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
+| 42 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
+| 43 | `scripts/live_device.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
+| 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
+| 45 | `scripts/migrate_skill_bundles.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
+| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 47 | `scripts/mutation-check.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 48 | `scripts/path_claims.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 49 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
+| 50 | `scripts/run_smoke_checks.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 51 | `scripts/runs-prune.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
+| 52 | `scripts/support/codex_statusline_setup.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
+| 53 | `scripts/third_party/wikimap/wikimap.py` | Direct CLI | Python retained | Upstream dependency; retain ownership/license boundary and optimize adapters separately |
+| 54 | `scripts/native-runtime-bundle.py` | Direct CLI | Python delivery tooling | Explicit local pack/install, host/source/hash checks; no compiler on consumer |
+| 55 | `scripts/page_verify/judge_service.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 56 | `scripts/page_verify/verify.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
 
 ## Delivery order
 

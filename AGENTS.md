@@ -25,12 +25,12 @@ Frontmatter `status`: `draft`, `review`, `stable`; `type` records provenance.
 
 ## Project Entry
 
-Identify the target from request/cwd. If unresolved or new/empty, first run
+Identify the target from request/cwd. If unresolved or new/empty, run
 `python3 <MORU_ROOT>/scripts/agent-entry.py --request "<REQUEST>"` and read the
-task skills it lists. Read target runtime instructions first; a missing file/new
+skills it lists. Read target runtime instructions first; a missing file/new
 project is fine, an unreadable existing file or unconfirmed bridge is not.
 Repo policy governs paths and Git isolation; the primary repo is the acceptance
-boundary, checkpoint before cross-repo writes. Details: [project entry](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md#project-entry).
+boundary; checkpoint before cross-repo writes. [Details](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md#project-entry).
 
 ## Required Work Lifecycle
 
@@ -181,7 +181,7 @@ Permission rules bind only the parameter-free absolute launcher/script path.
 Keep reusable knowledge single-owned; runtime files are thin pointers/adapters.
 Preserve Spill metering and label handoff across runtime bridges, hooks,
 workflows, installers, docs publishing, and release paths. OpenRouter key:
-`~/.moru/research.env`, only on user request; never load, print or ask. Unless asked, do
+`~/.moru/research.env` only on user request; never load/print/ask. Unless asked, do
 not mention Moru setup, hook, permission, helper or label commands, or whether
 labels, hooks or metering ran. Exception: relay a finish `For the user:` context
 nudge as one line in the final reply.
