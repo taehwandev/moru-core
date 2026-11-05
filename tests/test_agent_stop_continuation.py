@@ -11,6 +11,11 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+ROOT = Path(__file__).resolve().parents[1]
+for _entry in (str(ROOT / "tests"), str(ROOT / "scripts")):
+    if _entry not in sys.path:
+        sys.path.insert(0, _entry)
+
 import claude_stop_gate
 import codex_stop_gate
 from agent_continuation_checkpoint import write_continuation_checkpoint
@@ -138,3 +143,51 @@ class StopContinuationTests(unittest.TestCase):
                 self.assertEqual(0, result.returncode, result.stderr)
                 self.assertEqual("block", json.loads(result.stdout)["decision"])
                 self.assertEqual("running", run.state())
+
+    def test_stop_continuation_routes_delta_graph_guidance_for_remaining_work_surfaces(self):
+        run = self.run_fixture("codex")
+        (run.project / "workflow-doc-surfaces.json").write_text(json.dumps({
+            "schema_version": 1,
+            "doc_sets": {},
+            "request_intents": [],
+            "path_surfaces": [
+                {"name": "already_loaded", "patterns": ["src/already/*.py"], "docs": ["docs/already.md"]},
+                {"name": "ui_surface", "patterns": ["src/pages/*.tsx"], "docs": ["docs/ui-skill.md"]},
+            ],
+        }))
+        preflight = json.loads(run.evidence.read_text())
+        preflight["rules"] = str(run.project)
+        preflight["route"]["required_docs"] = ["docs/already.md"]
+        run.evidence.write_text(json.dumps(preflight))
+        write_continuation_checkpoint(
+            project=run.project, rules=run.project, run_id=run.run["run_id"],
+            binding_path=run.evidence, kind="decision", phase="acting",
+            work={
+                "objective": "Update UI page and verify behavior",
+                "changed_scope": [{"path": "src/already/mod.py", "role": "modified"}],
+                "remaining_work": [{"checkpoint": "ui_step", "action": "Update `src/pages/App.tsx` layout"}],
+                "blockers": [],
+            },
+        )
+        result = self.stop(run)
+        self.assertIsNotNone(result)
+        self.assertEqual("block", result["decision"])
+        self.assertIn("Active graph surface guidance for remaining work: docs/ui-skill.md.", result["reason"])
+        self.assertNotIn("docs/already.md", result["reason"])
+
+    def test_stop_continuation_ignores_malformed_surface_fields_and_symlinked_rules(self):
+        from agent_stop_continuation import _surface_graph_note
+
+        run = self.run_fixture("codex")
+        self.assertEqual("", _surface_graph_note(
+            run.project,
+            {"route": {"command": "feature", "required_docs": "not-a-list"}},
+            {"requirements": ["not-a-dict"], "remaining_work": [{"checkpoint": "c1", "action": "Edit `src/a.py`"}]},
+        ))
+        link = Path(self.tmp.name) / "symlink-rules"
+        link.symlink_to(run.project)
+        self.assertEqual("", _surface_graph_note(
+            run.project,
+            {"rules": str(link), "route": {"command": "feature", "required_docs": []}},
+            {"remaining_work": [{"checkpoint": "c1", "action": "Edit `src/pages/App.tsx`"}]},
+        ))
