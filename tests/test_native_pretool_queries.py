@@ -1,4 +1,5 @@
 """Actual callback parity for literal search and Git read-query ingress."""
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,17 +18,17 @@ class NativeQueryTests(unittest.TestCase):
         self.empty = self.base / "empty"
         self.empty.mkdir()
 
-    def check_native(self, command):
+    def check_native(self, command, **fields):
         for alias in ("claude-pretool-gate", "codex-pretool-gate"):
-            payload = request(self.project, command)
+            payload = request(self.project, command, **fields)
             expected = invoke(self.launcher, self.base, self.project, alias, payload, backend="python")
             self.assertEqual((0, b"", b""), result(expected), command)
             actual = invoke(self.launcher, self.base, self.project, alias, payload, PATH=str(self.empty))
             self.assertEqual(result(expected), result(actual), command)
 
-    def check_fallback(self, command):
+    def check_fallback(self, command, **fields):
         for alias in ("claude-pretool-gate", "codex-pretool-gate"):
-            payload = request(self.project, command)
+            payload = request(self.project, command, **fields)
             expected = invoke(self.launcher, self.base, self.project, alias, payload, backend="python")
             actual = invoke(self.launcher, self.base, self.project, alias, payload)
             self.assertEqual(result(expected), result(actual), command)
@@ -78,6 +79,96 @@ class NativeQueryTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.check_fallback(command)
         self.assertFalse((self.project / "written").exists())
+
+    def test_absolute_cd_queries_resolve_files_at_the_named_directory(self):
+        target = self.project / "target && 한글"
+        target.mkdir()
+        (target / "only-there.txt").write_text("synthetic\n")
+        for query in ("cat only-there.txt", "rg -n 'one|two' only-there.txt", "pwd",
+                      "git status --short", "ls -la"):
+            with self.subTest(query=query):
+                self.check_native(f"cd '{target}' && {query}")
+        self.check_native(f"cd\t'{target}'&&cat only-there.txt")
+
+    def test_read_output_pipes_and_combined_scope_need_no_python(self):
+        for query in ("rg -n 'one|two' notes.txt", "git log -3 --format='%h %s'",
+                      "git diff HEAD~1 HEAD --stat", "cat notes.txt"):
+            for suffix in ("head -n 20", "tail -n 0", "wc -l"):
+                with self.subTest(query=query, suffix=suffix):
+                    self.check_native(f"{query} | {suffix}")
+        self.check_native(f"cd '{self.project}' && rg -n 'one && two|three' notes.txt | head -n 1000000")
+        self.check_native("cat notes.txt|wc")
+
+    def test_scope_and_pipe_unsafe_neighbors_keep_canonical_python(self):
+        prefix = f"cd '{self.project}'"
+        for command in ("cd src && cat notes.txt", "cd - && pwd", f"{prefix}; pwd",
+                        f"{prefix} && {prefix} && pwd", f"{prefix} && touch written",
+                        f"{prefix} && cat notes.txt > written", "cd /moru-missing-directory-8231 && pwd",
+                        f"CDPATH=/tmp {prefix} && pwd", f"cd -- '{self.project}' && pwd",
+                        "cat notes.txt || head -n 20", "cat notes.txt |& head -n 20",
+                        "cat notes.txt | head -n -1", "cat notes.txt | head -n 1000001",
+                        "cat notes.txt | tail -f", "cat notes.txt | wc --files0-from=notes.txt",
+                        "cat notes.txt | head -n 20 notes.txt", "cat notes.txt | head -n 20 > written",
+                        "cat notes.txt | head -n 20 | wc -l", "touch written | head -n 1",
+                        "cat notes.txt | head -n 20 && touch written", "cat notes.txt | awk '{print}'"):
+            with self.subTest(command=command):
+                self.check_fallback(command)
+        self.assertFalse((self.project / "written").exists())
+
+    def test_scoped_producer_and_pipe_consumer_shadows_keep_python(self):
+        target = self.project / "target"
+        target.mkdir()
+        (target / "note.txt").write_text("synthetic\n")
+        for directory, executable, command in (
+                (target, "cat", f"cd '{target}' && cat note.txt"),
+                (target, "head", f"cd '{target}' && cat note.txt | head -n 1"),
+                (self.project, "head", f"cd '{target}' && cat note.txt | head -n 1"),
+                (target, "git", f"cd '{target}' && git status --short")):
+            shadow = directory / executable
+            shadow.write_text("synthetic shadow\n")
+            try:
+                self.check_fallback(command)
+            finally:
+                shadow.unlink()
+
+    def test_absolute_scope_preserves_codex_transcript_failure_boundary(self):
+        target = self.project / "scope"
+        target.mkdir()
+        (target / "only-there.txt").write_text("synthetic\n")
+        command = f"cd '{target}' && cat only-there.txt | head -n 2"
+        transcript = self.base / "synthetic.jsonl"
+        record = {"type": "function_call", "arguments": json.dumps({"cmd": command, "workdir": str(self.project)})}
+        transcript.write_text(json.dumps({"payload": record}) + "\n")
+        self.check_native(command, transcript_path=str(transcript))
+        record["arguments"] = "not-json"
+        transcript.write_text(json.dumps({"payload": record}) + "\n")
+        payload = request(self.project, command, transcript_path=str(transcript))
+        alias = "codex-pretool-gate"
+        self.assertEqual(result(invoke(self.launcher, self.base, self.project, alias, payload, backend="python")),
+                         result(invoke(self.launcher, self.base, self.project, alias, payload)))
+        self.assertEqual(127, invoke(self.launcher, self.base, self.project, alias, payload,
+                                   PATH=str(self.empty)).returncode)
+
+    def test_codex_pipe_consumers_use_transcript_workdir_for_shadow_checks(self):
+        target = self.project / "transcript-target"
+        target.mkdir()
+        (target / "notes.txt").write_text("synthetic\n")
+        transcript = self.base / "synthetic.jsonl"
+        for command in ("cat notes.txt | head -n 2", "git status --short | head -n 2"):
+            record = {"type": "function_call", "arguments": json.dumps({"cmd": command, "workdir": str(target)})}
+            transcript.write_text(json.dumps({"payload": record}) + "\n")
+            self.check_native(command, transcript_path=str(transcript))
+            shadow = target / "head"
+            shadow.write_text("synthetic shadow\n")
+            try:
+                alias = "codex-pretool-gate"
+                payload = request(self.project, command, transcript_path=str(transcript))
+                self.assertEqual(result(invoke(self.launcher, self.base, self.project, alias, payload, backend="python")),
+                                 result(invoke(self.launcher, self.base, self.project, alias, payload)))
+                self.assertEqual(127, invoke(self.launcher, self.base, self.project, alias, payload,
+                                           PATH=str(self.empty)).returncode)
+            finally:
+                shadow.unlink()
 
 
 if __name__ == "__main__":

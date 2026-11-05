@@ -95,3 +95,28 @@ Main integration, remote availability and actual installed activation remain
 separate checks. Installation uses the verified host/source-matching bundle and
 the existing stable launcher; preserve runtime settings and the durable root
 pointer. No package release, tag, new service or installer dependency is added.
+
+## Frequent scoped-query extension
+
+The registered pretool callbacks run before matching Bash calls. Literal
+`cd /absolute/existing/directory && <closed read query>` and
+`<closed read query> | head -n N`, `tail -n N` or `wc` now use the same native
+ingress. `wc` may have one existing count flag; head/tail counts are 0–1,000,000.
+An absolute cd scope may precede the single output pipe. This covers ordinary
+worktree-targeted inspection and truncated search/Git output without starting
+Python for the gate. It does not execute or accelerate the requested command.
+The whole command remains limited to 16 KiB; the producer retains its 20-word
+limit, plus the exact two-word cd prefix and at most three-word output stage.
+
+Only one absolute, literal directory change and one closed output stage are
+recognized. Operators inside complete literal quotes stay argument text.
+Relative/missing directories, cd options, assignments, extra chains or pipes,
+redirection, substitution, mutating producers and other consumers retain Python.
+File existence and producer/consumer shadow checks use the effective directory
+and process context. Codex transcript diagnostics remain intact; an explicit
+absolute cd fixes file-query scope independently of transcript workdir.
+
+The existing actual-callback suite adds parity and no-Python checks for both
+providers, quoted paths/patterns, pipe limits, shadowed programs and malformed
+Codex metadata. Transported-consumer smoke includes scoped and piped queries.
+No hook registration, policy authority, inventory count or timing claim changes.

@@ -36,6 +36,7 @@ mod pretool_files;
 mod pretool_guard;
 mod pretool_process;
 mod pretool_query;
+mod pretool_scope;
 mod pretool_transcript;
 mod registry_read;
 mod status_process;

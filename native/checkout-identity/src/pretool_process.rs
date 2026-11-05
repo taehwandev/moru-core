@@ -1,5 +1,7 @@
-//! Native plain-query callback; all other decisions remain in the Python owner.
-use crate::callback_replay::CallbackReplay;
+//! Owner: native read-query ingress, including one literal cd and output pipe.
+//! Allowed: existing query/source/transcript guards, std/JSON. Forbidden: shell
+//! evaluation, writes or new policy. Tests: actual generated pretool callbacks.
+use crate::{callback_replay::CallbackReplay, pretool_scope::QueryScope};
 use serde_json::Value;
 use std::{
     env,
@@ -47,6 +49,11 @@ impl PretoolProcess {
         else {
             return false;
         };
+        let Some(scope) = QueryScope::parse(command, Path::new(cwd)) else {
+            return false;
+        };
+        let command = scope.command;
+        let cwd = scope.cwd.as_path();
         let Some(executable) = crate::pretool_query::executable(command) else {
             return false;
         };
@@ -55,26 +62,45 @@ impl PretoolProcess {
                 crate::statusline::Renderer::strip(&s).eq_ignore_ascii_case("codex")
             });
         let file_command = (!matches!(executable, "git" | "pwd")).then_some(command);
-        if executable == "git" && !git_context_ready(Path::new(cwd)) {
+        if executable == "git" && !unshadowed(cwd, "git") {
+            return false;
+        }
+        if scope
+            .output
+            .is_some_and(|program| !unshadowed(cwd, program))
+        {
             return false;
         }
         if file_command.is_some()
             && !crate::pretool_files::FileQuery::command(command)
-                .is_some_and(|query| query.ready(Path::new(cwd)))
+                .is_some_and(|query| query.ready(cwd))
         {
             return false;
         }
         crate::pretool_guard::CallbackGuard::root(launcher, executable).is_some()
-            && (!codex || crate::pretool_transcript::safe(&payload, file_command))
+            && (!codex
+                || crate::pretool_transcript::safe(
+                    &payload,
+                    if scope.absolute_cd {
+                        None
+                    } else {
+                        file_command
+                    },
+                    if scope.absolute_cd {
+                        None
+                    } else {
+                        scope.output
+                    },
+                ))
     }
 }
 
-fn git_context_ready(cwd: &Path) -> bool {
+fn unshadowed(cwd: &Path, executable: &str) -> bool {
     let Ok(actual) = env::current_dir() else {
         return false;
     };
     [cwd, actual.as_path()].iter().all(|path| {
-        std::fs::symlink_metadata(path.join("git"))
+        std::fs::symlink_metadata(path.join(executable))
             .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
     })
 }

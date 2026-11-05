@@ -192,7 +192,10 @@ def smoke(archive):
                             "ls -la", "git status --short --branch", "git remote -v",
                             "rg -n 'TODO|FIXME' notes.txt", "rg --files --glob='*.py'",
                             "git log -3 --format='%h %s'", "git diff HEAD~1 HEAD --stat",
-                            f"git -C '{project}' status --short"):
+                            f"git -C '{project}' status --short",
+                            f"cd '{project}' && cat notes.txt",
+                            "rg -n 'TODO|FIXME' notes.txt | head -n 20",
+                            f"cd '{project}' && git log -3 --format='%h %s' | wc -l"):
                 data = {**payload, "tool_input": {"command": command}}
                 done = subprocess.run([str(entry), runtime + "-pretool-gate"], input=json.dumps(data).encode(),
                     capture_output=True, env=env, cwd=project, timeout=8)
