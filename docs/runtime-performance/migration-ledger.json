@@ -77,34 +77,35 @@
       "id": "scripts/checkout_identity.py",
       "inventory_id": 1,
       "kind": "primary",
-      "status": "native_revalidation",
+      "status": "native_local_verified",
       "entry_aliases": "checkout-identity",
-      "remaining": "Git now uses a shared bounded ReadProcess owner also used by ps lookup. Revalidate checkout process behavior, installed artifact and all four hosts against the changed gitrun/lib inputs and new shared owner. Direct Python entry and shared callers remain open.",
+      "remaining": "Native checkout engine and shared bounded process capture have fresh four-host and installed acceptance. Direct Python entry and shared Python callers remain open; this is not full unit migration closure.",
       "verification": {
         "native_owner": "native/checkout-identity/src/lib.rs",
-        "platform_evidence": "Historical pre-extraction baseline: four-host8efbec7c CI42174120877 and installed receipt below. gitrun/lib now delegate bounded capture to a new owner; hashes and installed SHA here retain that prior baseline until fresh acceptance.",
+        "platform_evidence": "Four-host CI42189502554 at750f5e73 passed, including shared ReadProcess extraction from7e194aed; live GitHub job results and matching source hashes verified.",
         "behavior": "13 process-level checkout conformance tests passed; frozen UTF-8 NDJSON values, exit status and stderr contract.",
         "negative_authority": "Closed read-only two-key request schema, malformed input/recovery, backend failure and no-Python/Git/toolchain regressions passed.",
-        "portable": "115 fresh-consumer checks passed on macos-arm64, including native checkout lookup with empty PATH; four-host CI bundle acceptance passed at8efbec7c.",
-        "installed": "Two actual installed checkout NDJSON requests (root and nested path) matched forced Python with empty PATH for both; Python and Git absent. Source-scoped owner inputs match the installed8efbec7c receipt.",
-        "source_revision": "8efbec7c5c62e59022c9d8b4d87209d85d4a50a8",
+        "portable": "134 local fresh-consumer checks passed; CI42189502554 portable bundle acceptance passed on macOS ARM/Intel and Linux ARM/x86.",
+        "installed": "Four actual installed checkout NDJSON requests (root and nested path, Git-only and empty PATH) matched forced Python without Python. The nested Git-only case verified nonempty common_dir, exercising shared process capture.",
+        "source_revision": "750f5e734c476149c67fc363bfccfaebc41d991f",
         "source_hashes": {
           "native/checkout-identity/Cargo.toml": "586fcaecfe821fb084ca736aefb15d60f0df383f1a42fbc34e53bf9a71700108",
           "native/checkout-identity/Cargo.lock": "9d139ac9e50a9c2094dce8d0ddc4a96d289a792907095d50bba55c4db0142aaa",
-          "native/checkout-identity/src/lib.rs": "5bf2c5a159938b00aac6d121798007a52375d8ab98291e68bf4d0f142acf9d97",
+          "native/checkout-identity/src/lib.rs": "250267bf473573799bce56651329441a17ac87531f139fe73c271ad5b02bd66f",
           "native/checkout-identity/src/main.rs": "a4f894bd864541bb146f3efbd3f769ec35eed6a83ce5d8c29100fb988200b7f8",
           "native/checkout-identity/src/identity.rs": "069f52203056e8c27eea124f6c39825c354734225d093a437082fe2bf8d3662b",
           "native/checkout-identity/src/protocol.rs": "1eb03b1afb834214763dc89d7e4aa591e549595cd69b1aba038cae65ec2cc3aa",
           "native/checkout-identity/src/framing.rs": "615888c2b9f0372d2b70658422ab5d1b9ad50c694b1c467a1bf6cf8f1e6a417d",
-          "native/checkout-identity/src/gitrun.rs": "ad5654e8e47d2419ee041ff50df44d70b3cb7987947cbdbaabe0e9f69ec3eefd",
-          "native/checkout-identity/src/text.rs": "1bf0eb11ef88024c3f72f28360005133db2c6537b6457d1085e65cd731927ba5"
+          "native/checkout-identity/src/gitrun.rs": "0bc8a3c143394cc88af2814e2de92cb87752c7360b467094e8f21b1806fe0901",
+          "native/checkout-identity/src/text.rs": "1bf0eb11ef88024c3f72f28360005133db2c6537b6457d1085e65cd731927ba5",
+          "native/checkout-identity/src/read_process.rs": "49d7ab1e32b4955f7e868d39999b69fc7f301466c6268309ee08dd2fda364470"
         },
-        "installed_sha256": "fb8aa825fecdfcaa4d5d54d82719d2a1b42caa69690606410afcb43ff4c99d0c",
+        "installed_sha256": "fe3c48c5bc37d63282dc2c3b489724764937c9e8b81d20e6e56b228a3554c20f",
         "platforms": {
-          "macos-arm64": "PENDING",
-          "macos-x86_64": "PENDING",
-          "linux-arm64": "PENDING",
-          "linux-x86_64": "PENDING"
+          "macos-arm64": "PASS",
+          "macos-x86_64": "PASS",
+          "linux-arm64": "PASS",
+          "linux-x86_64": "PASS"
         }
       }
     },
@@ -231,7 +232,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "next",
-      "remaining": "Native next includes CLI parsing/help/errors with Unicode and arbitrary-size terminal-width integers and ps owner fallback plus state-root aliases, evidence discovery, ownership and schema2 freshness. Complete remaining terminal/color/locale/parser and malformed filesystem boundaries, source/caller migration and portable acceptance before full native closure.",
+      "remaining": "Native next includes CLI widths, home/user path expansion, case-preserving evidence/session resolution, builder stem profiles, changed-path verification and bounded Git reads. Unreplayable stdin (TTY/live or nonempty pipes), unproven locales, exceptional passwd/filesystem/parser/color cases, capture uncertainty and supporting Python callers remain open; portable acceptance is tracked per delivered batch, not full unit closure.",
       "verification": {}
     },
     {

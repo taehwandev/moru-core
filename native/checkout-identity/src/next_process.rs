@@ -6,9 +6,11 @@ mod advice;
 mod cli;
 #[path = "next_ledger.rs"]
 mod ledger;
+#[path = "next_paths.rs"]
+mod paths;
 #[path = "next_session.rs"]
 mod session;
-use crate::{next_verification::Verification, pretool_guard::CallbackGuard};
+use crate::{next_verification::{StdinGuard, Verification}, pretool_guard::CallbackGuard};
 use std::{env, ffi::OsString, io::Write, path::Path};
 pub(crate) struct NextProcess;
 impl NextProcess {
@@ -30,35 +32,20 @@ impl NextProcess {
 }
 fn execute(launcher: &OsString, args: &[OsString]) -> Option<(i32, String, bool)> {
     let core = CallbackGuard::root(launcher, "git")?;
-    let mut parsed = cli::NextCli::parse(args, &env::current_dir().ok()?)?;
+    let parsed = cli::NextCli::parse(args, &env::current_dir().ok()?)?;
     if let Some(exit) = parsed.exit {
         if !cli::NextCli::plain_exit(exit.2) {
             return None;
         }
         return Some(exit);
     }
-    let home = env::var_os("HOME")?;
-    let home = Path::new(&home);
-    if home.canonicalize().ok()?.as_os_str() != home.as_os_str() {
-        return None;
-    }
-    if parsed.project.as_os_str().is_empty() {
-        parsed.project = env::current_dir().ok()?;
-    }
-    if parsed.project == Path::new("~") {
-        parsed.project = home.to_owned();
-    } else if parsed.project.to_str()?.starts_with("~/") {
-        parsed.project = home.join(&parsed.project.to_str()?[2..]);
-    } else if parsed.project.to_str()?.starts_with('~') {
-        return None;
-    }
-    let project = parsed.project.canonicalize().ok()?;
-    if !project.is_dir() {
-        return None;
-    }
+    let mut input = StdinGuard::new()?;
+    let home = paths::NextPaths::home()?;
+    let home = home.as_path();
+    let project = paths::NextPaths::project(&parsed.project, home)?;
     let explicit = match parsed.evidence {
         Some(path) => match std::fs::metadata(&path) {
-            Ok(meta) if meta.is_file() => Some(path.canonicalize().ok()?),
+            Ok(meta) if meta.is_file() => Some(paths::NextPaths::existing(&path)?),
             Ok(_) => None,
             Err(e)
                 if matches!(
@@ -78,11 +65,9 @@ fn execute(launcher: &OsString, args: &[OsString]) -> Option<(i32, String, bool)
     };
     let verification = Verification::discover(&project)?;
     if let Some(evidence) = evidence {
-        return Some((
-            0,
-            selected(&project, &evidence, home, &parsed.format, &verification)?,
-            false,
-        ));
+        let text = selected(&project, &evidence, home, &parsed.format, &verification)?;
+        input.commit();
+        return Some((0, text, false));
     }
     let copyable = format!(
         "{} start --project {} --rules {} --command <route> --request \"<USER_REQUEST>\" \
@@ -91,11 +76,9 @@ fn execute(launcher: &OsString, args: &[OsString]) -> Option<(i32, String, bool)
         project.to_str()?,
         core.to_str()?
     );
-    Some((
-        0,
-        render(project.to_str()?, &copyable, &verification, &parsed.format),
-        false,
-    ))
+    let text = render(project.to_str()?, &copyable, &verification, &parsed.format);
+    input.commit();
+    Some((0, text, false))
 }
 fn selected(
     project: &Path,
@@ -104,19 +87,10 @@ fn selected(
     format: &str,
     verification: &Verification,
 ) -> Option<String> {
-    if evidence.file_name()?.to_str()?.ends_with('.') {
-        return None;
-    }
     let preflight_bytes = std::fs::read(&evidence).ok()?;
     let preflight =
         crate::python_json::PythonJson::parse(std::str::from_utf8(&preflight_bytes).ok()?)?;
-    let ledger = evidence
-        .parent()?
-        .join(if evidence.file_name()? == "preflight.json" {
-            "gate-evidence.json".to_string()
-        } else {
-            format!("{}-gate-evidence.json", evidence.file_stem()?.to_str()?)
-        });
+    let ledger = paths::NextPaths::ledger(evidence)?;
     let recorded = ledger::NextLedger::read(&evidence, &ledger, &preflight, &preflight_bytes)?;
     advice::NextAdvice::render(
         &project,

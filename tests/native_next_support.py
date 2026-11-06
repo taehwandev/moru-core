@@ -45,5 +45,5 @@ def invoke_next(launcher, base, project, args=None, *, backend="auto", source=PR
     env = environment(base, source)
     env.update(MORU_LAUNCHER_BACKEND=backend, **overrides)
     return subprocess.run([str(launcher), "next", *(args if args is not None else
-        ["--project", str(project), "--format", "json"])], input=b"", capture_output=True,
+        ["--project", str(project), "--format", "json"])], stdin=subprocess.DEVNULL, capture_output=True,
         cwd=project, env=env, timeout=15)

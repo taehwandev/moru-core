@@ -522,6 +522,37 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
+        path_project = base / "next-path-project"
+        path_project.mkdir()
+        subprocess.run(["git", "init", "-q", str(path_project)], env=normal, check=True)
+        path_evidence = seed(path_project, "running")
+        (path_project / ".moru/.gitignore").write_text("/*\n")
+        (path_project / "-odd;name.py").write_text("synthetic = 1\n")
+        dotted = path_evidence.with_name("review.")
+        dotted.write_bytes(path_evidence.read_bytes())
+        from agent_gate_evidence import gate_evidence_path_for_preflight
+        dotted_ledger = _new_ledger(dotted, json.loads(dotted.read_text()))
+        dotted_ledger["entries"] = [{"gate": "tests", "status": "SUCCESS", "evidence": "",
+            "fields": {"check": "portable", "result": "1 passed"}, "reuse_snapshot": {"schema_version": 1}}]
+        gate_evidence_path_for_preflight(dotted).write_text(json.dumps(dotted_ledger))
+        non_git = base / "next-non-git"
+        non_git.mkdir()
+        (non_git / "Cargo.toml").write_text("synthetic\n")
+        for target, evidence in ((path_project, None), (path_project, dotted), (non_git, None)):
+            for output in ("json", "markdown"):
+                args = [str(entry), "next", "--project", str(target), "--format", output]
+                if evidence:
+                    args += ["--evidence", str(evidence)]
+                home_alias = {"HOME": normal["HOME"] + "//."}
+                reference = subprocess.run(args, capture_output=True,
+                    env={**normal, **home_alias, "MORU_LAUNCHER_BACKEND": "python"}, cwd=target, timeout=15)
+                done = subprocess.run(args, capture_output=True,
+                    env={**no_python, **home_alias}, cwd=target, timeout=15)
+                assert reference.returncode == 0 and (done.returncode, done.stdout, done.stderr) == (
+                    reference.returncode, reference.stdout, reference.stderr), (reference, done)
+                if evidence and output == "json":
+                    assert json.loads(done.stdout)["remaining_gates"] == ["review hook", "retrospective check"]
+                checks += 1
         from native_next_ps_support import dead_session_next
         ps_project = base / "ps-project"
         ps_project.mkdir()

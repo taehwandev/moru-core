@@ -56,7 +56,7 @@ impl WorkerScope {
         let workers = project.join(".moru/workers");
         // A linked state root violates the lexical worker-root identity contract.
         let state = project.join(".moru");
-        if state.canonicalize().ok()? != state {
+        if crate::discovery_fs::DiscoveryFs::resolve(&state)? != state {
             return Some(Self::Invalid);
         }
         for checked in [&workers, path.parent()?, &path] {
@@ -71,7 +71,7 @@ impl WorkerScope {
         State::safe_path(Path::new("/"), &workers)?;
         State::safe_path(Path::new("/"), &path)?;
         let selected = match path.canonicalize() {
-            Ok(path) => path,
+            Ok(_) => crate::discovery_fs::DiscoveryFs::resolve(&path)?,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => path,
             Err(_) => return None,
         };

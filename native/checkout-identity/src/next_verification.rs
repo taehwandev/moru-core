@@ -1,5 +1,12 @@
-//! Pure changed-file verification suggestions. Never runs suggested commands.
-use crate::{gitrun::GitRead, text::Text};
+//! owner: Verification; allowed imports: next Git reader, Python text, std metadata;
+//! forbidden imports: executing suggestions, writes; callers/tests: NextProcess;
+//! verification: changed paths and suggested commands against canonical Python.
+#[path = "next_verification_git.rs"]
+mod git;
+#[path = "next_verification_stdin.rs"]
+mod input;
+use crate::{python_text::PythonText, text::Text};
+pub(crate) use input::StdinGuard;
 use std::{
     collections::BTreeSet,
     path::{Component, Path},
@@ -14,18 +21,18 @@ pub(crate) struct Verification {
 
 impl Verification {
     pub(crate) fn discover(project: &Path) -> Option<Self> {
-        let paths = changed_paths(&GitRead::status(project.to_str()?)?)?;
+        let paths = changed_paths(&git::VerificationGit::status(project)?);
         let mut modules = BTreeSet::new();
         let mut compile = Vec::new();
         for raw in &paths {
-            let path = Path::new(raw);
-            if path.extension().and_then(|v| v.to_str()) != Some("py") {
+            let normalized = Text::norm_path(raw);
+            let path = Path::new(&normalized);
+            let Some(stem) = python_stem(&normalized) else {
                 continue;
-            }
+            };
             if reference_is_file(&project.join(path))? {
-                compile.push(Text::norm_path(raw));
+                compile.push(normalized.clone());
             }
-            let stem = path.file_stem()?.to_str()?;
             if path.components().next() == Some(Component::Normal("tests".as_ref()))
                 && path.file_name()?.to_str()?.starts_with("test_")
             {
@@ -87,6 +94,9 @@ impl Verification {
 }
 
 fn reference_is_file(path: &Path) -> Option<bool> {
+    if path.to_str()?.contains('\0') {
+        return Some(false);
+    }
     // Path.is_file follows links; ordinary absence, non-directory prefixes,
     // bad descriptors and link loops are false. Other OS errors stay Python's.
     match std::fs::metadata(path) {
@@ -114,37 +124,48 @@ fn array(values: &[String]) -> String {
     )
 }
 
-fn changed_paths(output: &str) -> Option<Vec<String>> {
+fn python_stem(normalized: &str) -> Option<&str> {
+    let name = normalized.rsplit('/').next()?;
+    let stem = name.strip_suffix(".py")?;
+    if stem.is_empty()
+        || (env!("MORU_NEXT_DOT_PREFIX_PY_SUFFIX") != "true" && stem.chars().all(|c| c == '.'))
+    {
+        None
+    } else {
+        Some(stem)
+    }
+}
+
+fn changed_paths(output: &str) -> Vec<String> {
     let mut paths = BTreeSet::new();
-    for line in output.lines() {
-        if !line.chars().take(3).all(|c| c.is_ascii()) {
-            return None;
-        }
-        if line.len() < 4 {
+    for line in output.split(|c| {
+        matches!(
+            c,
+            '\n' | '\r'
+                | '\u{b}'
+                | '\u{c}'
+                | '\u{1c}'
+                | '\u{1d}'
+                | '\u{1e}'
+                | '\u{85}'
+                | '\u{2028}'
+                | '\u{2029}'
+        )
+    }) {
+        let Some((offset, _)) = line.char_indices().nth(3) else {
             continue;
-        }
-        let raw = Text::py_strip(&line[3..]);
+        };
+        let raw = line[offset..].trim_matches(PythonText::whitespace);
         let raw = raw
             .split_once(" -> ")
-            .map_or(raw, |(_, name)| Text::py_strip(name));
+            .map_or(raw, |(_, name)| name.trim_matches(PythonText::whitespace));
         let raw = raw.trim_matches('"');
         if raw.is_empty() || raw.starts_with(".moru/") {
             continue;
         }
-        if raw.starts_with('-')
-            || Path::new(raw).is_absolute()
-            || !raw
-                .chars()
-                .all(|c| c.is_alphanumeric() || "_./- \\".contains(c))
-            || Path::new(raw)
-                .components()
-                .any(|c| c == Component::ParentDir)
-        {
-            return None;
-        }
         paths.insert(raw.to_owned());
     }
-    Some(paths.into_iter().collect())
+    paths.into_iter().collect()
 }
 
 #[cfg(test)]
@@ -155,35 +176,47 @@ mod tests {
     fn porcelain_matches_legacy_sort_rename_and_local_state_filter() {
         assert_eq!(
             changed_paths("?? z.py\n M a.py\nR  old.py -> new.py\n?? .moru/state\n?? a.py\n"),
-            Some(vec![
-                "a.py".to_owned(),
-                "new.py".to_owned(),
-                "z.py".to_owned()
-            ])
+            vec!["a.py".to_owned(), "new.py".to_owned(), "z.py".to_owned()]
         );
     }
 
     #[test]
-    fn uncertain_paths_stay_with_python() {
-        for output in [
-            "?? ../a.py\n",
-            "?? -a.py\n",
-            "?? /a.py\n",
-            "?? a\u{1c}b.py\n",
-        ] {
-            assert!(changed_paths(output).is_none(), "{output}");
-        }
+    fn unrestricted_paths_and_python_line_breaks() {
+        assert_eq!(
+            changed_paths(
+                "?? ../a.py\n?? -a.py\n?? /a.py\n😀😀😀name.py\u{85}?? b.py\u{1c}?? c.py\u{2028}"
+            ),
+            vec!["-a.py", "../a.py", "/a.py", "b.py", "c.py", "name.py"]
+        );
+        assert_eq!(changed_paths("?? a\u{1f}b.py"), vec!["a\u{1f}b.py"]);
+    }
+
+    #[test]
+    fn pathlib_normalization_and_dot_suffix_follow_builder() {
+        assert_eq!(Text::norm_path("./tests//test-a.py/."), "tests/test-a.py");
+        assert_eq!(Text::norm_path("//a/../b.py/"), "//a/../b.py");
+        assert_eq!(python_stem(".py"), None);
+        assert_eq!(
+            python_stem("..py"),
+            if env!("MORU_NEXT_DOT_PREFIX_PY_SUFFIX") == "true" {
+                Some(".")
+            } else {
+                None
+            }
+        );
+        assert_eq!(python_stem("tests/test-a.py"), Some("test-a"));
+        assert_eq!(reference_is_file(Path::new("a\0.py")), Some(false));
     }
 
     #[test]
     fn literal_unicode_space_and_git_quoting_match_reference_strings() {
         assert_eq!(
             changed_paths("?? \"a b.py\"\n?? 한글.py\n?? \"\\354.py\"\n"),
-            Some(vec![
+            vec![
                 "\\354.py".to_owned(),
                 "a b.py".to_owned(),
                 "한글.py".to_owned()
-            ])
+            ]
         );
     }
 

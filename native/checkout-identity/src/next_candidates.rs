@@ -77,7 +77,7 @@ impl Candidates {
             if !fs::symlink_metadata(&path).ok()?.is_file() {
                 return None;
             }
-            let path = path.canonicalize().ok()?;
+            let path = crate::discovery_fs::DiscoveryFs::resolve(&path)?;
             if Self::key(project, &path)? != *key {
                 return None;
             }

@@ -95,7 +95,8 @@ impl NextWalk {
             Err(_) => return None,
         }
         match path.canonicalize() {
-            Ok(resolved) => {
+            Ok(_) => {
+                let resolved = crate::discovery_fs::DiscoveryFs::resolve(path)?;
                 // A concurrently inserted directory link needs the compatibility path.
                 if resolved != path {
                     return None;

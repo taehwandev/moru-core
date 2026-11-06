@@ -108,12 +108,17 @@ def _child(work, launcher, project):
                 binary = str(work / "bin")
                 env["PATH"] = binary + os.pathsep + str(work / "python") if backend == "python" else binary
                 env["MORU_LAUNCHER_BACKEND"] = backend
-                done = subprocess.run(
-                    [launcher, "next", "--project", project, "--format", output],
-                    env=env, cwd=project, capture_output=True, timeout=9,
-                    input=(work / "input").read_bytes() if (work / "input").exists() else None,
-                )
-                calls.append({"returncode": done.returncode,
+                # Seekable input lets native deferral restore the complete transaction.
+                # Non-replayable pipes have dedicated pre-decline coverage.
+                with ((work / "input").open("rb") if (work / "input").exists()
+                      else open(os.devnull, "rb")) as input_stream:
+                    done = subprocess.run(
+                        [launcher, "next", "--project", project, "--format", output],
+                        env=env, cwd=project, capture_output=True, timeout=9,
+                        stdin=input_stream,
+                    )
+                    input_offset = input_stream.tell()
+                calls.append({"returncode": done.returncode, "stdin_offset": input_offset,
                     "stdout": base64.b64encode(done.stdout).decode(),
                     "stderr": base64.b64encode(done.stderr).decode()})
         report = {"sid": sid, "leader_dead": dead, "calls": calls}

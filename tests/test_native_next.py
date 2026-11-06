@@ -86,7 +86,8 @@ class NativeNextTests(unittest.TestCase):
         self.assertEqual(result(baseline), result(self.call(PATH=str(self.git_only))))
         (self.project / "-uncertain.py").write_text("synthetic = 1\n")
         self.assertEqual(result(self.call(backend="python")), result(self.call()))
-        self.assertEqual(127, self.call(PATH=str(self.git_only)).returncode)
+        self.assertEqual(result(self.call(backend="python")),
+                         result(self.call(PATH=str(self.git_only))))
 
     def test_missing_busy_and_symlink_locks_do_not_skip_python_effects(self):
         self.assertEqual(127, self.call(CODEX_THREAD_ID="synthetic-next", PATH=str(self.git_only)).returncode)
@@ -103,8 +104,7 @@ class NativeNextTests(unittest.TestCase):
             path.touch()
 
     def test_environment_overrides_missing_git_and_noncanonical_home_select_python(self):
-        overrides = [{"PYTHONPATH": "synthetic"},
-                     {"HOME": str(self.base / "home") + "/."}]
+        overrides = [{"PYTHONPATH": "synthetic"}]
         for values in overrides:
             self.assertEqual(result(self.call(backend="python", **values)), result(self.call(**values)))
             self.assertEqual(127, self.call(PATH=str(self.git_only), **values).returncode)

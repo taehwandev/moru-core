@@ -104,7 +104,7 @@ class NativeNextActiveTests(unittest.TestCase):
         self.evidence = trailing
         self.evidence.with_name(self.evidence.stem + "-gate-evidence.json").write_text("{}")
         self.assertEqual(result(self.call(backend="python")), result(self.call()))
-        self.assertEqual(127, self.call(no_python=True).returncode)
+        self.assertEqual(result(self.call(backend="python")), result(self.call(no_python=True)))
 
 
 if __name__ == "__main__":

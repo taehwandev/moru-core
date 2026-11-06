@@ -1,11 +1,12 @@
 //! owner: LedgerBinding; allowed imports: PythonJson, sha2, std, serde_json quoting;
 //! forbidden imports: state mutation, subprocess; callers/tests: NextLedger;
 //! verification: canonical route/preflight identity fixtures.
+use super::super::paths::NextPaths;
 use crate::python_json::{Object, PythonJson as Py, Value};
 use sha2::{Digest, Sha256};
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::Path,
 };
 pub(super) struct LedgerBinding;
 impl LedgerBinding {
@@ -23,16 +24,9 @@ impl LedgerBinding {
             .get("preflight_evidence")
             .map(Py::string)
             .unwrap_or_else(|| "None".into());
-        let path = if recorded == "~" || recorded.starts_with("~/") {
-            let home = std::env::var_os("HOME")?;
-            PathBuf::from(home).join(recorded.strip_prefix("~/").unwrap_or(""))
-        } else if recorded.starts_with('~') {
-            return None;
-        } else {
-            PathBuf::from(recorded)
-        };
+        let path = NextPaths::expand(Path::new(&recorded), &NextPaths::home()?)?;
         match path.canonicalize() {
-            Ok(path) if path == evidence => {}
+            Ok(_) if NextPaths::existing(&path)?.as_path() == evidence => {}
             Ok(_) => return Some(false),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return None,
             Err(e) if e.kind() == std::io::ErrorKind::InvalidInput => return Some(false),

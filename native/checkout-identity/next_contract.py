@@ -11,6 +11,7 @@ import sys
 import string
 import os
 import shutil
+import subprocess
 from unittest.mock import patch
 
 
@@ -23,6 +24,14 @@ def emit(output):
     if zero_columns not in (0, 80):
         raise RuntimeError("unrecognized zero-column terminal policy")
     print("cargo:rustc-env=MORU_NEXT_ZERO_COLUMNS=" + str(zero_columns))
+    print("cargo:rustc-env=MORU_NEXT_DOT_PREFIX_PY_SUFFIX="
+          + str(Path("..py").suffix == ".py").lower())
+    print("cargo:rustc-env=MORU_NEXT_TRAILING_DOT_SUFFIX="
+          + str(Path("foo.").suffix == ".").lower())
+    probe = "import sys,locale; print(int(sys.flags.utf8_mode == 1 and locale.getpreferredencoding(False).lower().replace('-', '') == 'utf8'))"
+    c_utf8 = all(subprocess.check_output([sys.executable, "-S", "-c", probe],
+        env={"LC_ALL": name}, text=True, timeout=10).strip() == "1" for name in ("C", "POSIX"))
+    print("cargo:rustc-env=MORU_NEXT_C_LOCALE_UTF8=" + str(c_utf8).lower())
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
     from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS

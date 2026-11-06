@@ -159,7 +159,8 @@ impl InputCapture {
         let mut current = path.to_owned();
         loop {
             match current.canonicalize() {
-                Ok(mut resolved) => {
+                Ok(_) => {
+                    let mut resolved = crate::discovery_fs::DiscoveryFs::resolve(&current)?;
                     for name in missing.iter().rev() {
                         resolved.push(name);
                     }

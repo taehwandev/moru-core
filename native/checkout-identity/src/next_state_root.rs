@@ -15,7 +15,7 @@ impl NextStateRoot {
             Ok(_) => {}
         }
         // Dangling, looping and non-directory roots require the reference path.
-        let resolved = lexical.canonicalize().ok()?;
+        let resolved = crate::discovery_fs::DiscoveryFs::resolve(&lexical)?;
         if !resolved.is_dir() {
             return None;
         }
