@@ -689,5 +689,42 @@ class ObserverTests(unittest.TestCase):
         self.assertIn("usage", usage.stderr)
 
 
+class AccuracyFixTests(unittest.TestCase):
+    def test_a_rocket_request_does_not_get_the_level_body_item(self):
+        items = verify.ensure_menu_items("A rocket takes off, flies to the Moon and a booster lands", [])
+        self.assertEqual([], [i["id"] for i in items])
+        plane = verify.ensure_menu_items("A drone takes off and lands", [])
+        self.assertEqual(["body-level-in-vertical-phases"], [i["id"] for i in plane])
+
+    def test_the_prompts_let_rockets_stand_upright_and_reentry_go_heat_shield_first(self):
+        self.assertIn("rocket or launch vehicle rises upright", verify.DERIVE_PROMPT)
+        self.assertIn("rises upright by design", verify.CODE_JUDGE_PROMPT)
+        self.assertIn("heat-shield first", verify.CODE_JUDGE_PROMPT)
+
+    def test_the_primary_action_prefers_launch_over_a_play_mode_toggle(self):
+        folder = ROOT / "scripts" / "page_verify"
+        script = """
+import { FIND_PRIMARY } from %r;
+const button = (text, extra = {}) => ({ innerText: text, disabled: false, ...extra,
+  getAttribute: (name) => (name === 'aria-pressed' ? (extra.pressed ?? null) : null),
+  getBoundingClientRect: () => ({ width: 80, height: 30, left: extra.x ?? 0, top: 0 }) });
+const run = (buttons) => {
+  globalThis.document = { querySelectorAll: () => buttons };
+  globalThis.getComputedStyle = () => ({ visibility: 'visible', display: 'block' });
+  return eval(FIND_PRIMARY)?.text ?? null;
+};
+console.log(JSON.stringify([
+  run([button('Autopilot', { pressed: 'true' }), button('Play', { pressed: 'false' }), button('Launch')]),
+  run([button('Play'), button('Start mission')]),
+  run([button('Play', { pressed: 'false' })]),
+  run([button('Ignite', { disabled: true }), button('Launch')]),
+  run([button('Pause')]),
+]));
+""" % ("file://" + str(folder / "observe-scripts.mjs"))
+        done = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, check=False)
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertEqual(["Launch", "Start mission", "Play", "Launch", None], json.loads(done.stdout))
+
+
 if __name__ == "__main__":
     unittest.main()

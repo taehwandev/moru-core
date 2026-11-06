@@ -123,7 +123,8 @@ For facing, find which local axis the model's front points along (geometry or co
 orientation is computed from the path direction, and work out whether the front ends up along the direction of
 travel. Remember the engine's own conventions, for example in Three.js Object3D.lookAt aims a mesh's +Z at the
 target (cameras and lights aim -Z) while Matrix4.lookAt(eye, target, up) builds the camera basis, whose Z axis
-points from the target to the eye. For resting state, find what runs before the action starts. For attitude, find the pitch and roll applied during vertical rises and descents and judge whether the body stays level; heading follows the horizontal direction of travel, not a vertical one.
+points from the target to the eye. For resting state, find what runs before the action starts. For attitude, find the pitch and roll applied during vertical rises and descents and judge whether the body stays level, except for a rocket or launch vehicle, which rises upright by design; heading follows the horizontal direction of travel, not a vertical one.
+A direction that looks reversed may be intended: before failing it, find which end carries the heat shield, engine or landing legs. A capsule re-entering heat-shield first, or a booster landing tail-first, is correct; fail only when the code makes the wrong end lead against the stated intent.
 Verdicts: pass (the code shows it holds), fail (the code shows it is false; cite file:line and quote the code),
 unobserved (the code cannot decide it).
 Answer with a JSON array of {{"id": ..., "verdict": ..., "reason": ..., "evidence": "file:line and quoted code"}} only.
