@@ -1,28 +1,53 @@
 //! owner: ManifestParser; allowed imports: std, serde_json string decoder, manifest value modules;
 //! forbidden imports: process/network; callers/tests: ReactManifest; verification: Python JSON fixtures.
+use super::ParseOutcome;
 use super::{number::ManifestNumber, object::ManifestObject, value::ManifestValue as Value};
 pub(super) struct ManifestParser<'a> {
     text: &'a str,
     offset: usize,
     digit_limit: usize,
+    unsupported: bool,
 }
 impl<'a> ManifestParser<'a> {
     pub fn parse(text: &'a str) -> Option<Value> {
+        match Self::parse_outcome(text) {
+            ParseOutcome::Value(value) => Some(value),
+            _ => None,
+        }
+    }
+    pub fn parse_outcome(text: &'a str) -> ParseOutcome {
         let digit_limit = option_env!("MORU_PYTHON_INT_MAX_STR_DIGITS")
             .unwrap_or("0")
             .parse()
-            .ok()?;
-        Self::with_limit(text, digit_limit)
+            .ok();
+        match digit_limit {
+            Some(limit) => Self::outcome_with_limit(text, limit),
+            None => ParseOutcome::Unsupported,
+        }
     }
+    #[cfg(test)]
     fn with_limit(text: &'a str, digit_limit: usize) -> Option<Value> {
+        match Self::outcome_with_limit(text, digit_limit) {
+            ParseOutcome::Value(value) => Some(value),
+            _ => None,
+        }
+    }
+    fn outcome_with_limit(text: &'a str, digit_limit: usize) -> ParseOutcome {
         let mut parser = Self {
             text,
             offset: 0,
             digit_limit,
+            unsupported: false,
         };
-        let value = parser.value(0)?;
+        let value = parser.value(0);
+        if parser.unsupported {
+            return ParseOutcome::Unsupported;
+        }
         parser.space();
-        (parser.offset == text.len()).then_some(value)
+        match value {
+            Some(value) if parser.offset == text.len() => ParseOutcome::Value(value),
+            _ => ParseOutcome::Invalid,
+        }
     }
     fn space(&mut self) {
         while matches!(self.peek(), Some(b' ' | b'\n' | b'\r' | b'\t')) {
@@ -50,6 +75,7 @@ impl<'a> ManifestParser<'a> {
     }
     fn value(&mut self, depth: usize) -> Option<Value> {
         if depth > 128 {
+            self.unsupported = true;
             return None;
         }
         self.space();
@@ -116,16 +142,42 @@ impl<'a> ManifestParser<'a> {
             match self.peek()? {
                 b'"' => {
                     self.offset += 1;
-                    return serde_json::from_str(&self.text[start..self.offset]).ok();
+                    let value = serde_json::from_str(&self.text[start..self.offset]).ok();
+                    if value.is_none() {
+                        self.unsupported = true;
+                    }
+                    return value;
                 }
                 b'\\' => {
                     self.offset += 1;
-                    self.peek()?;
-                    self.offset += 1;
+                    match self.peek()? {
+                        b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't' => self.offset += 1,
+                        b'u' => {
+                            self.offset += 1;
+                            // Validate the complete string before decoding surrogate semantics.
+                            self.hex_unit()?;
+                        }
+                        _ => return None,
+                    }
                 }
+                0..=31 => return None,
                 _ => self.offset += 1,
             }
         }
+    }
+    fn hex_unit(&mut self) -> Option<u16> {
+        let mut unit = 0u16;
+        for _ in 0..4 {
+            let digit = match self.peek()? {
+                b'0'..=b'9' => self.peek()? - b'0',
+                b'a'..=b'f' => self.peek()? - b'a' + 10,
+                b'A'..=b'F' => self.peek()? - b'A' + 10,
+                _ => return None,
+            };
+            unit = unit * 16 + u16::from(digit);
+            self.offset += 1;
+        }
+        Some(unit)
     }
     fn number(&mut self) -> Option<ManifestNumber> {
         let start = self.offset;
@@ -169,7 +221,12 @@ impl<'a> ManifestParser<'a> {
                 return None;
             }
         }
-        ManifestNumber::from_token(&self.text[start..self.offset], self.digit_limit)
+        let token = &self.text[start..self.offset];
+        let value = ManifestNumber::from_token(token, self.digit_limit);
+        if value.is_none() && token.contains(['.', 'e', 'E']) {
+            self.unsupported = true;
+        }
+        value
     }
 }
 #[cfg(test)]

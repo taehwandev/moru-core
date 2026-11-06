@@ -7,7 +7,7 @@ mod quota;
 #[path = "renderer_tests.rs"]
 mod tests;
 
-use crate::python_json::{Object as Map, PythonJson, Value};
+use crate::python_json::{Object as Map, ParseOutcome, PythonJson, Value};
 
 use location::Location;
 use model::ModelName;
@@ -24,7 +24,11 @@ impl Renderer {
         let root = if text.is_empty() {
             Value::Object(Map::new())
         } else {
-            PythonJson::parse(text)?
+            match PythonJson::parse_outcome(text) {
+                ParseOutcome::Value(value) => value,
+                ParseOutcome::Invalid => Value::Object(Map::new()),
+                ParseOutcome::Unsupported => return None,
+            }
         };
         let Value::Object(root) = root else {
             return Some(String::new());

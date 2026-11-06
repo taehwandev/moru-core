@@ -5,6 +5,8 @@
 mod number;
 #[path = "manifest_object.rs"]
 mod object;
+#[path = "python_json_outcome.rs"]
+mod outcome;
 #[path = "manifest_parser.rs"]
 mod parser;
 #[path = "manifest_value.rs"]
@@ -13,14 +15,17 @@ use crate::python_text::PythonText;
 #[cfg(test)]
 pub(crate) use number::ManifestNumber as Number;
 pub(crate) use object::ManifestObject as Object;
+pub(crate) use outcome::ParseOutcome;
 pub(crate) use value::ManifestValue as Value;
 
 pub(crate) struct PythonJson;
 impl PythonJson {
-    /// Ambiguous parser failures (malformed input, unsupported depth/surrogates)
-    /// must decline before any chained effects; never substitute an empty object.
+    /// Manifests preserve the reference exception path for every parse failure.
     pub(crate) fn parse(text: &str) -> Option<Value> {
         parser::ManifestParser::parse(text)
+    }
+    pub(crate) fn parse_outcome(text: &str) -> ParseOutcome {
+        parser::ManifestParser::parse_outcome(text)
     }
     pub(crate) fn truthy(value: &Value) -> bool {
         match value {

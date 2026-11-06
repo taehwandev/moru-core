@@ -260,7 +260,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "agy-statusline",
-      "remaining": "Shared native JSON values preserve exact integers, nonfinite values, ordered container coercion and Unicode numeric strings. Close unsupported JSON/surrogate/depth boundaries, live numeric exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
+      "remaining": "Shared native JSON values preserve exact integers, nonfinite values, ordered container coercion and Unicode numeric strings; typed invalid-JSON outcomes preserve empty statusline and chain behavior natively. Close valid unsupported surrogate/depth boundaries, live numeric exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
       "verification": {}
     },
     {
@@ -287,7 +287,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "claude-statusline",
-      "remaining": "Shared native JSON values preserve exact integers, nonfinite values, ordered container coercion and Unicode numeric strings. Close unsupported JSON/surrogate/depth boundaries, live numeric exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
+      "remaining": "Shared native JSON values preserve exact integers, nonfinite values, ordered container coercion and Unicode numeric strings; typed invalid-JSON outcomes preserve empty statusline and chain behavior natively. Close valid unsupported surrogate/depth boundaries, live numeric exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
       "verification": {}
     },
     {

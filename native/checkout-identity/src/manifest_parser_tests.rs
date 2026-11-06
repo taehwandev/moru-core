@@ -1,4 +1,71 @@
 use super::*;
+#[test]
+fn syntax_errors_are_invalid_not_unsupported() {
+    for source in [
+        "",
+        "{",
+        "[",
+        "[1,]",
+        "{\"a\":}",
+        "{\"a\" 1}",
+        "[1 2]",
+        "true false",
+        "01",
+        ".1",
+        "1e+",
+        "nonsense",
+        "\"\\q\"",
+        "\"\\u12xz\"",
+        "\"\\u123\"",
+        "\"raw\ntext\"",
+        "\"unterminated",
+        "\u{feff}{}",
+        r#""\ud800\uZZZZ""#,
+        r#""\udfff\q""#,
+    ] {
+        assert!(
+            matches!(
+                ManifestParser::outcome_with_limit(source, 0),
+                ParseOutcome::Invalid
+            ),
+            "{source:?}"
+        );
+    }
+    for source in [r#""\ud800""#, r#""\udfff""#, r#""\ud800\u1234""#] {
+        assert!(
+            matches!(
+                ManifestParser::outcome_with_limit(source, 0),
+                ParseOutcome::Unsupported
+            ),
+            "{source:?}"
+        );
+    }
+}
+#[test]
+fn digit_limit_and_depth_failures_remain_distinct() {
+    assert!(matches!(
+        ManifestParser::outcome_with_limit("9999", 3),
+        ParseOutcome::Invalid
+    ));
+    let deep = format!("{}0{}", "[".repeat(129), "]".repeat(129));
+    assert!(matches!(
+        ManifestParser::outcome_with_limit(&deep, 0),
+        ParseOutcome::Unsupported
+    ));
+    for source in [
+        r#""\u0000\n\t\r\b\f\/\\\"""#,
+        r#""\ud83d\ude00""#,
+        r#"{"\u0061":1}"#,
+    ] {
+        assert!(
+            matches!(
+                ManifestParser::outcome_with_limit(source, 0),
+                ParseOutcome::Value(_)
+            ),
+            "{source:?}"
+        );
+    }
+}
 use crate::python_json::PythonJson;
 fn text(source: &str) -> String {
     PythonJson::string(&ManifestParser::with_limit(source, 0).unwrap())

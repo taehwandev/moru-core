@@ -184,6 +184,44 @@ class NativeStatuslineTests(unittest.TestCase):
             self.assertEqual(127, self.cli(text, "--chain", command, path=self.empty).returncode)
         self.assertEqual(b"", count.read_bytes())
 
+    def test_invalid_json_is_empty_and_chains_once_without_python(self):
+        cases = ["broken", "{", "[", "}", "[1,]", '{"a":1,}', '{"a" 1}',
+                 '{"a":}', "[1 2]", "true false", "01", "-01", "+1", ".1", "1.",
+                 "1e", "1e+", "--1", "nan", "inf", "-NaN", "Infinity0",
+                 "\ufeff{}", "\u00a0{}", "\x1c{}", '"raw\nline"', '"raw\x00"',
+                 r'"\q"', r'"\u"', r'"\u123"', r'"\uZZZZ"',
+                 r'{"model":"M","bad":"\x01"}', '{"model":"M"} trailing',
+                 r'"\ud800\uZZZZ"', r'"\udfff\q"']
+        count = self.base / "invalid-json-chain-count"
+        count.write_bytes(b"")
+        command = f"printf x >> {shlex.quote(str(count))}; printf chained"
+        for alias in ("claude-statusline", "agy-statusline"):
+            for text in cases:
+                with self.subTest(alias=alias, text=text):
+                    self.assertEqual(b"", self.expected(text))
+                    actual = self.cli(text.encode(), alias=alias, path=self.empty)
+                    self.assertEqual((0, b"", b""), (actual.returncode, actual.stdout, actual.stderr))
+                    actual = self.cli(text.encode(), "--chain", command, alias=alias, path=self.empty)
+                    self.assertEqual((0, b"chained", b""),
+                                     (actual.returncode, actual.stdout, actual.stderr))
+        self.assertEqual(b"x" * (len(cases) * 2), count.read_bytes())
+
+    def test_unsupported_valid_json_is_not_replaced_with_empty_output(self):
+        cases = [r'{"model":"M","unused":"\ud800"}',
+                 r'{"model":"M","unused":"\udfff"}',
+                 '{"model":"M","unused":' + '[' * 129 + '0' + ']' * 129 + '}']
+        count = self.base / "unsupported-json-chain-count"
+        count.write_bytes(b"")
+        command = f"printf x >> {shlex.quote(str(count))}; printf chained"
+        for text in cases:
+            expected = self.cli(text.encode(), "--chain", command, backend="python")
+            actual = self.cli(text.encode(), "--chain", command)
+            self.assertEqual((0, b"M  chained", b""),
+                             (actual.returncode, actual.stdout, actual.stderr))
+            self.assertEqual(expected.stdout, actual.stdout)
+            self.assertEqual(127, self.cli(text.encode(), "--chain", command, path=self.empty).returncode)
+        self.assertEqual(b"x" * (len(cases) * 2), count.read_bytes())
+
     def test_fallback_retains_raw_pipe_input_before_chain(self):
         counter = self.base / "fallback-count"
         counter.write_bytes(b"")

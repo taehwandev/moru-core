@@ -71,7 +71,11 @@ fn quota_kind_collections_and_nonfinite_json_values() {
     );
 }
 #[test]
-fn ambiguous_parse_failures_still_defer_before_effects() {
-    assert!(Renderer::render("{", "", false).is_none());
+fn syntax_errors_are_empty_but_unsupported_values_still_defer() {
+    assert_eq!(Renderer::render("{", "", false), Some(String::new()));
+    assert_eq!(
+        Renderer::render(r#"{"model":"\q"}"#, "", false),
+        Some(String::new())
+    );
     assert!(Renderer::render(r#"{"model":{"id":"\ud800"}}"#, "", false).is_none());
 }
