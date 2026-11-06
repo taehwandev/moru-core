@@ -48,8 +48,13 @@ def print_status(name: str, success: bool, details: list[str]) -> None:
         print(f"- {detail}")
 
 
+# Installed dependencies are never reviewable work. A new project without a .gitignore would
+# otherwise count thousands of node_modules files as changed paths and fail the review scope.
+DEPENDENCY_PATHSPEC = ":(exclude,glob)**/node_modules/**"
+
+
 def git_status(project: Path) -> tuple[dict[str, Any], list[str]]:
-    result = run_command(["git", "status", "--short", "--untracked-files=all"], project)
+    result = run_command(["git", "status", "--short", "--untracked-files=all", "--", ".", DEPENDENCY_PATHSPEC], project)
     lines = [line for line in result["stdout"].splitlines() if line.strip()]
     return result, lines
 

@@ -6,9 +6,9 @@ type: human-reviewed-needed
 
 # Web Code Structure
 
-Use when deciding where React/web files live, how feature folders are shaped,
-how route files compose data and UI, or how imports should flow across a web
-application.
+Use when deciding where web files live (React or plain HTML/JS/modules), how
+feature folders are shaped, how route files compose data and UI, how a new
+browser build is split by responsibility, or how imports should flow.
 
 Also use:
 - `common/skills/code-structure-ownership/SKILL.md` for ownership level and `api`/`impl`
@@ -81,6 +81,34 @@ app/account/billing/error.tsx
 ```
 
 Keep those files thin. They should compose the feature, not become the feature.
+
+## New Browser Builds Without A Framework
+
+The same structure rules apply when no React/Next.js app exists (plain HTML/JS,
+a canvas or 3D engine, a small widget). A first build is not exempt: do not ship
+one script that mixes configuration, state, rendering and controls.
+
+- Split by responsibility, not by file count: configuration/data, state and
+  simulation logic, rendering/scene builders, UI controls, bootstrap. Separate
+  HTML, CSS and script once any of them grows past a screen of code.
+- Build repeated visual units (scene objects, panels, controls) as parameterized
+  factories that return the unit and its update/dispose handles, not as
+  inline top-level code.
+- Drive variants (destinations, items, modes) from one data table plus a
+  builder, so adding one variant is one entry, not edits in several places.
+- Keep pure logic (timing, paths, state transitions) free of DOM and renderer
+  access so it can be checked without a browser, and give listeners and
+  renderer resources one cleanup path.
+- Keep the user's chosen engine, style and layout; this list asks for clear
+  ownership, not a mandatory framework or folder tree.
+
+Structure check before reporting a new build done: list each responsibility
+(configuration, state/logic, scene or view builders, UI controls, bootstrap)
+with the file and function that owns it. If two or more share one function or one
+unsplit script block, or a repeated visual unit is written inline, or a variant
+needs edits in several places, split it now and rerun the build. Remove
+settings, styles and state that nothing reads. Report the list with the result;
+a build that was never checked against it is unverified.
 
 ## File And Component Split
 

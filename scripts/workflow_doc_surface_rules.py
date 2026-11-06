@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import os
 import re
 from pathlib import Path
 from typing import Any, Iterable
@@ -73,7 +74,7 @@ def surface_rule_doc_refs(rules: dict[str, Any]) -> tuple[list[str], list[str]]:
     doc_sets = _doc_sets(rules)
     for items in doc_sets.values():
         docs.extend(items)
-    for key in ("request_intents", "path_surfaces"):
+    for key in ("request_intents", "path_surfaces", "project_signals"):
         for rule in rule_list(rules, key):
             docs.extend(string_list(rule.get("docs")))
             for name in string_list(rule.get("doc_sets")):
@@ -99,6 +100,10 @@ def rule_matches_command(rule: dict[str, Any], command: str) -> bool:
 
 
 def rule_matches_platform(rule: dict[str, Any], platform: str | None) -> bool:
+    # Fills only the gap where no platform is known yet (a new workspace);
+    # a resolved platform keeps its own routing.
+    if rule.get("platform_unresolved_only"):
+        return platform is None
     platforms = string_list(rule.get("platforms"))
     return not platforms or bool(platform and platform in set(platforms))
 
@@ -110,9 +115,9 @@ def rule_matches_request(rule: dict[str, Any], request_text: str) -> bool:
         return True
     if not request_text:
         return False
-    if any_patterns and not any(_request_pattern_matches(pattern, request_text) for pattern in any_patterns):
+    if any_patterns and not any(request_pattern_matches(pattern, request_text) for pattern in any_patterns):
         return False
-    return all(any(_request_pattern_matches(pattern, request_text) for pattern in group) for group in all_groups)
+    return all(any(request_pattern_matches(pattern, request_text) for pattern in group) for group in all_groups)
 
 
 def path_matches(path: str, patterns: Iterable[str]) -> bool:
@@ -121,6 +126,57 @@ def path_matches(path: str, patterns: Iterable[str]) -> bool:
         if fnmatch.fnmatch(normalized, pattern) or Path(normalized).match(pattern):
             return True
     return False
+
+
+PROJECT_SIGNAL_SKIP_DIRS = frozenset({
+    ".git", ".moru", "node_modules", "dist", "build", ".next", "vendor", "coverage",
+})
+PROJECT_SIGNAL_MAX_FILES = 80
+PROJECT_SIGNAL_MAX_DEPTH = 4
+PROJECT_SIGNAL_MAX_BYTES = 262144
+
+
+def project_signal_files(project_root: Path | None, rule: dict[str, Any]) -> list[str]:
+    """Return project files whose bytes carry this rule's signal.
+
+    A follow-up request names the change, not the technology: "the rocket is no
+    longer centered" never says 3D. The project already shows it. The scan stays
+    inside the target repo, skips build output and dependencies, and is bounded
+    in depth, file count and bytes, so a large tree costs a fixed amount.
+    """
+    patterns = string_list(rule.get("files"))
+    signals = string_list(rule.get("content_any"))
+    if project_root is None or not patterns or not signals:
+        return []
+    try:
+        root = project_root.resolve()
+    except (OSError, RuntimeError):
+        return []
+    found: list[str] = []
+    seen = 0
+    for current, dirs, names in os.walk(root):
+        depth = len(Path(current).relative_to(root).parts)
+        dirs[:] = sorted(d for d in dirs if d not in PROJECT_SIGNAL_SKIP_DIRS and not d.startswith("."))
+        if depth >= PROJECT_SIGNAL_MAX_DEPTH:
+            dirs[:] = []
+        for name in sorted(names):
+            if not any(fnmatch.fnmatch(name, pattern) for pattern in patterns):
+                continue
+            seen += 1
+            if seen > PROJECT_SIGNAL_MAX_FILES:
+                return found
+            path = Path(current) / name
+            try:
+                if path.is_symlink() or not path.resolve().is_relative_to(root):
+                    continue
+                with path.open("rb") as stream:
+                    raw = stream.read(PROJECT_SIGNAL_MAX_BYTES)
+                source = raw.decode("utf-8", errors="ignore")
+            except (OSError, RuntimeError):
+                continue
+            if any(re.search(signal, source) for signal in signals):
+                found.append(path.relative_to(root).as_posix())
+    return found
 
 
 def normalize_path(path: str) -> str:
@@ -160,6 +216,6 @@ def _pattern_groups(value: Any) -> list[list[str]]:
     return groups
 
 
-def _request_pattern_matches(pattern: str, text: str) -> bool:
+def request_pattern_matches(pattern: str, text: str) -> bool:
     normalized = _LATIN_HANGUL_JUNCTION.sub(" ", text)
     return re.search(pattern, normalized, re.IGNORECASE) is not None

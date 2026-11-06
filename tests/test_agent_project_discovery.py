@@ -368,3 +368,58 @@ class AgentProjectDiscoveryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EntryGuidanceTests(unittest.TestCase):
+    def test_new_workspace_request_still_gets_task_guidance(self):
+        import tempfile
+        from agent_project_discovery import build_entry_manifest
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = build_entry_manifest(
+                "Create an interactive 3D webpage with a spaceship, orbit, zoom and reset camera controls.",
+                Path(tmp), runtime="generic")
+        self.assertEqual("not_found", manifest["status"])
+        docs = manifest["guidance"]["required_docs"]
+        self.assertIn("platforms/web/skills/web-3d-interaction/SKILL.md", docs)
+        self.assertEqual([], manifest["guidance"]["missing"])
+
+
+class RequestDrivenUiGuidanceTests(unittest.TestCase):
+    UI = "common/skills/ui-visual-verification/SKILL.md"
+
+    def docs(self, request):
+        from workflow_route import resolve_docs
+
+        return resolve_docs("task", None, [], request_text=request,
+                            request_classified=True, advisory=True)["required_docs"]
+
+    def test_visible_ui_requests_get_ui_verification_without_a_platform(self):
+        for request in (
+            "Create a polished landing page for a coffee shop",
+            "Build a dashboard with tables and charts",
+            "Fix the padding and overlapping buttons on mobile",
+            "로그인 화면 디자인을 다듬어줘",
+        ):
+            with self.subTest(request=request):
+                self.assertEqual(1, self.docs(request).count(self.UI))
+
+    def test_non_ui_requests_do_not_get_ui_verification(self):
+        for request in (
+            "Add retry with backoff to the Python HTTP client",
+            "Fix the retry bug in the payment page API handler",
+            "Write a CLI that parses CSV files and prints totals",
+        ):
+            with self.subTest(request=request):
+                self.assertNotIn(self.UI, self.docs(request))
+
+
+class EntryStartCommandTests(unittest.TestCase):
+    def test_new_workspace_entry_prints_the_start_command_and_routes(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = build_entry_manifest("Create a 3D webpage", Path(tmp), runtime="generic")
+        steps = "\n".join(manifest["next_steps"])
+        self.assertIn("moru-hook start --project <ABS_DIR>", steps)
+        self.assertIn("--command build", steps)

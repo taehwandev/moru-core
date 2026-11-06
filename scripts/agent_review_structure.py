@@ -421,6 +421,27 @@ def flag_content_preserving_source_copies(
     )
 
 
+# The object ids of git's empty tree, SHA-1 and SHA-256 repositories.
+EMPTY_TREE_IDS = frozenset({
+    "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+    "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321",
+})
+
+
+def _head_tree_is_empty(project: Path, run_command: CommandRunner) -> bool:
+    """Whether HEAD is a root commit with git's empty tree (compared by id, never inferred from empty output).
+
+    A later commit that deleted everything also has an empty tree, but it is not a fresh start: only a
+    parentless HEAD gives an initial full build.
+    """
+
+    tree = run_command(["git", "rev-parse", "--verify", "HEAD^{tree}"], project)
+    if tree["returncode"] != 0 or tree["stdout"].strip() not in EMPTY_TREE_IDS:
+        return False
+    parent = run_command(["git", "rev-parse", "--verify", "--quiet", "HEAD^"], project)
+    return parent["returncode"] != 0
+
+
 def changed_source_paths(
     project: Path,
     run_command: CommandRunner,
@@ -459,6 +480,10 @@ def changed_source_paths(
 
     head = run_command(["git", "rev-parse", "--verify", "HEAD"], project)
     commands["rev_parse_head"] = head
+    if head["returncode"] == 0 and _head_tree_is_empty(project, run_command):
+        # A commit with an empty tree gives nothing to diff against, so it is no baseline: the work
+        # is still an initial full build, exactly as if HEAD did not exist yet.
+        head = {**head, "returncode": 1, "stderr": "HEAD has an empty tree"}
     if head["returncode"] != 0 and (
         is_writing_workspace(project) or is_non_git_workspace(project)
     ):

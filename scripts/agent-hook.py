@@ -500,6 +500,19 @@ def _publication_review_invocation_hint() -> str:
     )
 
 
+def _required_hooks_lines(required: object) -> list[str]:
+    """The required hooks and the reason they are required, so skipping them is a decision and not an accident."""
+
+    if not required:
+        return []
+    return [
+        f"Required hooks: {required}",
+        "Why these hooks: start admitted this work and its route, review checks the exact diff against the "
+        "route's gates, and finish attests that the tests and the review ran on the final bytes. Skipping "
+        "them leaves the work unverified, and the final answer must then say so.",
+    ]
+
+
 def _hook_summary_from_preflight(path: Path) -> list[str]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -597,8 +610,7 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
         )
     lines.extend(_same_run_commit_lines(route, path, payload))
     lines.extend(_continuation_summary_lines(route.get("command", "")))
-    if required:
-        lines.append(f"Required hooks: {required}")
+    lines.extend(_required_hooks_lines(required))
     if conditional:
         lines.append(f"Conditional hooks: {conditional}")
     gates = [gate for gate in (route.get("gates") or []) if isinstance(gate, str)]
@@ -1657,8 +1669,10 @@ def _refresh_started_context(
             details.append("repair checkpoints: rebound after required-doc drift")
         details.append("context snapshot: refreshed")
         return True
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        details.append("context snapshot: validation failed")
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+        details.append(f"context snapshot: validation failed ({error})")
+        if not any((args.rules / marker).is_file() for marker in ("AGENTS.md", "workflow-doc-surfaces.json")):
+            details.append(f"--rules {args.rules} is not a Moru Core root; use --rules {ROOT}")
         return False
 
 
@@ -2061,7 +2075,10 @@ def _add_gate_arguments(parser: argparse.ArgumentParser) -> None:
     gate.add_argument("--test-directory", default="tests", help="verify: project-local unittest discovery directory")
     gate.add_argument("--test-pattern", default="test_*.py", help="verify: unittest discovery filename glob")
     gate.add_argument("--verify-timeout", type=int, default=600, help="verify: maximum test process seconds")
-    gate.add_argument("--gate-name", help="route gate name to record in the structured ledger")
+    # --name is what agents guess. --gate stays undefined on purpose (finish must not take gate
+    # evidence); `_parse_args` names the right option for it instead.
+    gate.add_argument("--gate-name", "--name", dest="gate_name",
+                      help="route gate name to record in the structured ledger")
     gate.add_argument("--status", choices=("SUCCESS", "FAIL"), default="SUCCESS")
     gate.add_argument("--source", default="manual")
     gate.add_argument("--gate-evidence", default="")
@@ -2118,6 +2135,13 @@ def _parse_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
         parser.error(
             "finish no longer accepts --gate; record gate evidence first with "
             "the gate or gate-batch hook, then run finish"
+        )
+    if argv and argv[0] == "gate" and any(
+        argument == "--gate" or argument.startswith("--gate=") for argument in argv
+    ):
+        parser.error(
+            "gate records one gate with --gate-name <gate>, for example: "
+            "gate --gate-name tests --status SUCCESS --gate-evidence \"<observed result>\""
         )
     return parser.parse_args(argv)
 
@@ -2474,6 +2498,8 @@ START_ROUTE_NAME_ALIASES = {
     "prose": "writing",
     "article": "writing",
     "blog": "writing",
+    "new": "build",
+    "create": "build",
 }
 
 

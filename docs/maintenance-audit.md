@@ -740,3 +740,35 @@ startup and memory/closeout suites passed, and a read-only probe recalled the
 source-unchanged live diagnosis without changing any of the ten stored records.
 Record-file scanning and lexical ranking remain linear; a scalable index,
 weak-link learning and real judgment improvement are not delivered by this fix.
+
+### Antigravity runs and workflow friction (H06, H09, H10)
+
+Measured on 2026-10-31 from the event streams and native transcripts of eleven Gemini 3.8 Flash
+runs in a container (one prompt, one project, counts of tool calls, hook calls and elapsed time) plus
+this session's own hook calls. One runtime and one task: the numbers show where work went, not a
+general rate. Selected bytes are not tokens; the runs' reported usage is.
+
+Fixed context is not the lever. The documents a run reads at start total about 42 KB, against 0.3 to
+1.0 million tokens per run, and cache reads grow with the number of steps because each step rereads
+the context. Cost follows step count, so the findings below are about repeated steps.
+
+| ID | Finding | Evidence | Owner and check |
+| --- | --- | --- | --- |
+| F1 | The finish Stop gate re-armed after every edit on a runtime whose `executionNum` does not accumulate, so `stop_hook_active` never took effect: 11 stop blocks in one run, 10 from this gate. | One transcript, rows with the block text; 86% of elapsed time came after the first stop attempt. After the fix: 2 blocks in a comparable run. | [Adapter](../scripts/agy_hook_adapter.py), [its tests](../tests/test_agy_hook_adapter.py) |
+| F2 | A gap repaired in a hook, validator or test was recorded as `reusable_gap`, which forces a skill-maintenance cycle: one candidate reopened 17 times in 8 days. The contract already accepts `no_reusable_gap` with the repaired owner and its test named; only the hint was missing. | Skill-learning candidate record (distinct occurrences, merged gap types); a run recorded as `no_reusable_gap` finished without a maintenance step. | [Hint](../scripts/agent_gate_record_template.py), [validator message](../scripts/agent_finish_gate_learning_validators.py), [tests](../tests/test_retrospective_code_repair_hint.py) |
+| F3 | 22 of 89 Moru hook calls failed (14 of them `review`): guessed gate-name option spellings, structure evidence in the wrong shape, and a changed-path count of thousands because a new project had no `.gitignore` and `node_modules` was counted. | Failure outputs classified across the runs. After the fix `gate --name` is accepted, a wrong spelling is refused with the right option named, and `node_modules` is excluded; the finish hook still takes no gate option. | [Parser](../scripts/agent-hook.py), [status helper](../scripts/agent_hook_runtime.py), [tests](../tests/test_hook_gate_alias_and_dependency_status.py) |
+| F4 | The retrospective evidence check rejects honest wording by keyword (for example text naming an unresolved issue), contrary to judging from the epistemic state. | Two rejected records in this session. Not changed. | Gate evidence validators |
+| F5 | One commit route (start, review, finish) was opened per commit although git authority was already given: 15 commit routes of 31 runs in one session. | The start output's own loop-efficiency notice. Passing `--approved-effect git_write` on the implementation route and committing after finish removes it. | Process, not code |
+| F7 | No live timing data: `timings.jsonl` holds two lines from 2026-10-11, so H10 could not be measured from it. | File contents. Not changed. | Hook timing record |
+| F8 | A read-only static server started on a governed artifact folder is refused by path, forcing a copy. | Six or more refusals. Not changed; the boundary needs care. | [Pretool gate](../scripts/claude_pretool_gate.py) |
+
+Result of the interventions on two further runs (same prompt, same container, in-session page
+verification on): stop blocks 11 to 2 and hook-call failures 4 and 1 to 0 and 1 (small samples), but
+tool calls (129 and 157 against 70 to 154), time (921 and 1235 s against 808 to 1874 s) and tokens (0.77
+and 0.89 million against 0.49 to 0.98 million) did not fall. The remaining cost is the agent's own
+browser verification, about 35 screenshot or browser commands plus polling per run, repeating what the
+independent check at stop does. Not yet tried: telling the agent that an independent check runs at stop
+so it need not build its own harness; cheaper evidence (fewer and smaller screenshots, text-only items
+judged without images, a smaller judge for passes); observing until the resting state returns instead
+of a fixed window. Container note outside Moru: a PID 1 that does not reap children let defunct
+processes accumulate (227 observed) toward the process limit; `--init` is the remedy.

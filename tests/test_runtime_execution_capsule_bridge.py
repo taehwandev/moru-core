@@ -107,7 +107,8 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
     def test_compact_bridge_routes_details_without_a_blanket_read(self):
         for runtime, entry in (("Codex", "AGENTS.md"), ("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
             pointer_block = runtime_bridge_block(Path("/moru-core"), runtime, entry)
-            self.assertLess(len(pointer_block.encode()), 450)
+            # 450 plus the launcher path a hookless runtime needs to start the workflow.
+            self.assertLess(len(pointer_block.encode()), 500)
             self.assertIn("/moru-core/AGENTS.md", pointer_block)
             self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, pointer_block)
             self.assertIn(RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE, pointer_block)

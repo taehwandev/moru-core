@@ -1,6 +1,6 @@
 ---
 name: web-code-structure
-description: "Web Code Structure: Use when deciding where React/web files live, how feature folders are shaped, how route files compose data and UI, or how imports should flow across a web application."
+description: "Web Code Structure: Use when deciding where web files live (React or plain HTML/JS/modules), how feature folders are shaped, how route files compose data and UI, how a new browser build is split by responsibility, or how imports should flow."
 keyflow_id: sys_platforms_web_web_code_structure_md_skill
 status: review
 type: ai-generated

@@ -144,6 +144,17 @@ def build_entry_manifest(
         },
         "next_steps": [],
     }
+    # Task guidance follows the request, not the project: a new or empty
+    # workspace has no discoverable project yet but still needs its domain cards.
+    from workflow_route import resolve_docs
+
+    routed = resolve_docs(command, None, [], request_text=request, request_classified=True, advisory=True)
+    manifest["guidance"] = {
+        "advisory": True,
+        "required_docs": routed["required_docs"],
+        "missing": routed["missing"],
+        "authority": "navigation_only",
+    }
     if result.selected:
         workspace_scope = workspace_scope_manifest(registry, request.lower(), result.selected)
         if workspace_scope:
@@ -171,7 +182,11 @@ def build_entry_manifest(
         ]
     else:
         manifest["next_steps"] = [
-            "Ask the user for the target project path before project work.",
+            "A request that creates a new project in the current or a named empty directory needs no discovered target; read the guidance above before implementing.",
+            f"Then start tracked work: {Path.home() / '.moru' / 'bin' / 'moru-hook'} start --project <ABS_DIR> --rules {ROOT} "
+            "--command build --request \"<REQUEST>\" --intent <SAFE_SLUG> --target-summary \"<SUMMARY>\" "
+            "(build creates or changes code; feature, bugfix, refactor, review, docs and test also exist).",
+            "Otherwise ask the user for the target project path before project work.",
             "Optionally register known projects in ~/.moru/projects.json.",
         ]
     return manifest

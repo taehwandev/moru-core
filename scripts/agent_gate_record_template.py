@@ -113,8 +113,10 @@ def gate_value_hints(gate: str, failures: list[str], loaded_skills: Iterable[str
     if "learning decision" in text:
         hints.append(
             'retrospective check: fields.learning_decision must name the specific existing check/rule/owner '
-            'kept (e.g. "Keep existing <check/rule>; no reusable gap") or, when a gap was found, edit the '
-            'canonical skill and use "outcome":"reusable_gap", "observation":"recorded" with the repair summary'
+            'kept (e.g. "Keep existing <check/rule>; no reusable gap"). A gap repaired in a hook, validator, '
+            'test or code is "no_reusable_gap" + "not_needed" with the repaired owner and its test named '
+            '(e.g. "Repaired <owner> with <test>; no reusable skill gap"). Use "outcome":"reusable_gap", '
+            '"observation":"recorded" only when a skill document must change, with the repair summary'
         )
     if "efficiency" in text:
         hints.append(

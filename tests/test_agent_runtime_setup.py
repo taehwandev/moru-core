@@ -524,7 +524,10 @@ class RuntimeSetupTests(unittest.TestCase):
         ):
             self.assertIn("~/.moru/research.env", surface if isinstance(surface, str) else "\n".join(surface))
         self.assertIn("~/.moru/research.env", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
-        self.assertIn("never print", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
+        self.assertIn("only on user request", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
+        self.assertNotIn("source it", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
+                         "a key on disk is not permission to load it; paid use needs the user's request")
+        self.assertIn("never load, print or ask", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
 
     def test_every_runtime_bridge_exposes_the_project_local_agent_mailbox(self) -> None:
         surfaces = (

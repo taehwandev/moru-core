@@ -300,14 +300,18 @@ def block_reason(root: Path) -> str:
     launcher = stable_launcher_path()
     return (
         "Moru Core: this session edited files but has no passing finish check. "
+        "Why it matters: `finish` is the only step that confirms the tests and the review really ran on these exact "
+        "edits; without it the work cannot be called done, and a final answer that sounds complete would be "
+        "unverified. "
         "Record the remaining route gates with `gate` or `gate-batch`, then run "
         f"`{launcher} review --project {root} --rules <MORU_ROOT> "
         "--review-scope working-tree --review-outcome <pass|findings> ...` and "
         f"`{launcher} finish --project {root} --rules <MORU_ROOT>`. "
         "If finish reports failures, repair them instead of reporting completion. "
         "If review or finish cannot run (a permission was refused, or the work "
-        "is blocked on the user), stop and report the work as unfinished with "
-        "that reason; this gate does not block the same edits twice."
+        "is blocked on the user), do not end silently: begin your final answer with `NOT FINISHED:` and the "
+        "reason, and list what is unverified. This gate blocks each batch of edits once, so your final "
+        "answer is the last place this is caught."
     )
 
 

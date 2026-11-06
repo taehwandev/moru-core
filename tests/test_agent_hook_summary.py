@@ -544,6 +544,7 @@ class AgentHookSummaryTests(unittest.TestCase):
         self.assertNotIn("unrelated/three.md", summary)
         self.assertIn("not a recursive reading queue", summary)
         self.assertIn("Required hooks:", summary)
+        self.assertIn("Why these hooks:", summary)
         self.assertIn("Closeout gate reminder:", summary)
 
     def test_review_routes_advertise_monotonic_closeout_without_document_reads(self) -> None:

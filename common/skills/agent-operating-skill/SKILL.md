@@ -11,8 +11,8 @@ type: ai-generated
 ## Need-Driven Reading Contract
 
 1. Keep outcome, target and authority; no unrequested redesign. Read instructions,
-   required_docs and safety/check dependencies. Resolve isolation/branch before
-   the first edit, not at commit/PR; reuse a bound worktree.
+   required_docs (in full, not a range) and safety/check dependencies. Resolve
+   isolation/branch before the first edit, not at commit/PR; reuse a bound worktree.
 2. Start unresolved in-scope decisions at the owner/nearest test and adjacent
    sections/pages sharing the same thesis or state flow. Expand for
    missing/conflicting evidence, applicable rules or failures. Empty searches

@@ -21,6 +21,7 @@ from agent_gate_evidence import (
     record_many_gate_evidence,
 )
 from agent_hook_gate_records import record_hook_gate_batch
+from support.stable_launcher import stable_launcher_path
 from support.runtime_bridge import (
     AUTO_DELEGATION_BRIDGE_PHRASE,
     CODEX_DISPATCH_BRIDGE_PHRASE,
@@ -494,6 +495,7 @@ class OnDemandDelegationRoutingTests(unittest.TestCase):
             with self.subTest(runtime=runtime_name):
                 pointer = runtime_bridge_block(ROOT, runtime_name, instruction_file)
                 self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, pointer)
+                self.assertIn(str(stable_launcher_path()), pointer)
                 required = runtime_canonical_contract_phrases(runtime_name, instruction_file)
                 block = runtime_canonical_contract_block(ROOT, runtime_name, instruction_file)
                 self.assertIn(AUTO_DELEGATION_BRIDGE_PHRASE, required)

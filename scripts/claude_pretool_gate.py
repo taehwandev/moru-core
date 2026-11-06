@@ -402,7 +402,7 @@ SOURCE_SUFFIXES = {
 
 def runtime_name() -> str:
     runtime = os.environ.get("MORU_PRETOOL_RUNTIME", "claude").strip().lower()
-    return runtime if runtime in {"claude", "codex"} else "claude"
+    return runtime if runtime in {"claude", "codex", "antigravity"} else "claude"
 
 
 def runtime_setting(name: str) -> str:

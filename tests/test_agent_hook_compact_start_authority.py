@@ -180,7 +180,7 @@ class CompactStartAuthorityTests(unittest.TestCase):
 
     def test_common_route_words_map_to_their_routes(self) -> None:
         for word, route in (("implement", "build"), ("debug", "bugfix"), ("fix", "bugfix"),
-                            ("git commit", "commit")):
+                            ("git commit", "commit"), ("new", "build"), ("create", "build")):
             with self.subTest(word=word):
                 approved = "git_write" if route == "commit" else ""
                 args = self._materialize(command=word, approved_effect=approved)
