@@ -1,9 +1,10 @@
-//! owner: ReactManifestCli; allowed imports: std, libc; forbidden imports: process/network;
+//! owner: ReactManifestCli; allowed imports: std, libc, PythonText; forbidden imports: process/network;
 //! callers/tests: ReactManifest and subject tests; verification: argparse CLI parity.
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},
 };
+use crate::python_text::PythonText;
 pub struct ReactManifestCli {
     pub manifest: PathBuf,
     pub source: Option<PathBuf>,
@@ -135,44 +136,17 @@ impl ReactManifestCli {
             return Some(false);
         }
         let n = value[1..].strip_suffix('\n').unwrap_or(&value[1..]);
-        if !n.is_ascii() {
-            return None;
-        }
         let numeric = if let Some((a, b)) = n.split_once('.') {
             !b.is_empty()
-                && a.bytes().all(|b| b.is_ascii_digit())
-                && b.bytes().all(|b| b.is_ascii_digit())
+                && a.chars().all(PythonText::decimal)
+                && b.chars().all(PythonText::decimal)
         } else {
-            !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())
+            !n.is_empty() && n.chars().all(PythonText::decimal)
         };
         Some(!numeric)
     }
     fn repr(s: &str) -> Option<String> {
-        if !s.is_ascii() {
-            return None;
-        }
-        let quote = if s.contains('\'') && !s.contains('"') {
-            '"'
-        } else {
-            '\''
-        };
-        let mut out = quote.to_string();
-        for c in s.chars() {
-            match c {
-                '\\' => out.push_str("\\\\"),
-                '\n' => out.push_str("\\n"),
-                '\r' => out.push_str("\\r"),
-                '\t' => out.push_str("\\t"),
-                c if c == quote => {
-                    out.push('\\');
-                    out.push(c);
-                }
-                c if c.is_ascii_control() => out.push_str(&format!("\\x{:02x}", c as u32)),
-                c => out.push(c),
-            }
-        }
-        out.push(quote);
-        Some(out)
+        Some(PythonText::repr(s))
     }
     fn width() -> Option<usize> {
         let env = std::env::var("COLUMNS").ok();

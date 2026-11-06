@@ -10,6 +10,7 @@ mod callback_replay;
 mod android_manifest;
 mod manifest_process;
 mod react_manifest;
+mod python_text;
 mod callback_state;
 mod cards_identity;
 mod cards_process;

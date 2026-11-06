@@ -109,6 +109,30 @@ class NativeManifestChecks(unittest.TestCase):
             with self.subTest(args=args):
                 self.assertEqual(0, self.parity("check-react-rn-skill-manifest", args).returncode)
 
+    def test_unicode_cli_errors_and_numeric_values_match_without_python(self):
+        values = ("한글", "😀", "x'한글", "x\"한글'", "\u00a0", "\u200b", "\ue000", "\U000f0000",
+                  "\u2028", "\u0085", "\u0378", "\U0001fae0")
+        cases = [["--remote-check=" + value] for value in values]
+        cases += [["--manifest", value, "--help"] for value in
+                  ("-١", "-１２", "-.٢", "-𐒠", "-١\n", "-²", "-한글")]
+        for args in cases:
+            with self.subTest(args=args):
+                expected = self.call("check-react-rn-skill-manifest", args, backend="python")
+                self.assertIn(expected.returncode, (0, 2))
+                actual = self.call("check-react-rn-skill-manifest", args, PATH=str(self.path))
+                self.assertEqual(result(expected), result(actual))
+
+    def test_nested_unicode_manifest_values_match_without_python(self):
+        source = PROJECT / "common/skills/react-rn-external-skill-source-coverage/references/source-manifest.json"
+        original = json.loads(source.read_text())
+        for index, value in enumerate((["한글", "😀", "\u200b", "\ue000"],
+                                       {"이름'": ["\"값", "\u00a0", "\U000f0000"]})):
+            payload = copy.deepcopy(original)
+            payload["skills"][0]["path"] = value
+            path = self.base / f"unicode-{index}.json"
+            path.write_text(json.dumps(payload, ensure_ascii=False))
+            self.assertEqual(1, self.parity("check-react-rn-skill-manifest", ["--manifest", str(path)]).returncode)
+
     def test_explicit_remote_check_uses_only_a_fake_git(self):
         fake = self.path / "git"
         fake.unlink()

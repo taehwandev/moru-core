@@ -232,7 +232,8 @@ def smoke(archive):
             if alias == "check-react-rn-skill-manifest":
                 assert done.returncode == 0, done
             checks += 1
-        for flags in (["--help"], ["--manifest"]):
+        for flags in (["--help"], ["--manifest"], ["--remote-check=한글\u200b"],
+                      ["--manifest", "-١", "--help"]):
             args = [str(entry), "check-react-rn-skill-manifest", *flags]
             reference = subprocess.run(args, capture_output=True, cwd=project,
                 env={**normal, "MORU_LAUNCHER_BACKEND": "python", "COLUMNS": "80"}, timeout=8)

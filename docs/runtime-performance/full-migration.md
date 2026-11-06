@@ -142,3 +142,13 @@ title, emitted during existing static-contract generation: a consumer running
 a different Python generation may see a different title on explicit rollback.
 No runtime Python process is required for native help. Exotic/non-UTF-8 CLI
 inputs and engine exceptions remain in the ledger along with remote execution.
+
+The shared native `PythonText` owner removes Unicode string-representation and
+decimal-classification deferral from manifest validation and CLI errors. It
+uses contiguous character-property ranges generated during the existing static
+build-contract step, with no interpreter call during installed execution.
+An exhaustive Rust test compares representation and three character classes
+against the builder Python digest for every valid Unicode scalar, plus
+multi-character quote/escape tests. The contract follows the builder's Unicode
+database; a different consumer Python database can differ on newly assigned
+characters. Lone surrogates remain a separate JSON-input migration boundary.
