@@ -107,3 +107,9 @@ that the test is meant to observe; closing another descriptor for the same file
 can cancel POSIX locks. See the [SQLite locking explanation](https://www.sqlite.org/howtocorrupt.html#_posix_advisory_locks_canceled_by_a_separate_thread_doing_close_).
 These repairs retain the original parity and fallback assertions. Linux
 acceptance stays pending until the corrected CI actually passes.
+
+The Intel macOS job in run `42157432003` was cancelled by its 15-minute
+execution limit, as confirmed by job `127694808548`'s timeout annotation.
+Its ceiling is now 30 minutes; other hosts retain 15 minutes. The runner,
+test selectors, assertions and consumer packaging are unchanged. This removes
+an observed acceptance interruption and does not establish an Intel pass.
