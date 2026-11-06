@@ -18,6 +18,8 @@ on:
       - tests/test_agent_repository_key.py
       - tests/test_agent_observability.py
       - tests/test_agent_work_cards*.py
+      - tests/_moru_test_support.py
+      - tests/test_template_repository.py
       - tests/test_benchmark_read_inspection.py
       - tests/benchmark_read_inspection.py
       - tests/read_inspection_support.py
@@ -73,7 +75,8 @@ jobs:
             test_native_completion test_agent_completion_checks test_agent_work_completion \
             test_agent_stop_continuation test_agent_continuation_packet test_agent_continuation_checkpoint \
             test_agent_state_read test_agent_repository_key test_agent_observability \
-            test_agent_work_cards test_agent_work_cards_lifecycle test_benchmark_read_inspection
+            test_agent_work_cards test_agent_work_cards_lifecycle test_benchmark_read_inspection \
+            test_template_repository
       - name: Package and test a fresh consumer without a toolchain
         env:
           BUNDLE: moru-native-${{ matrix.platform }}.tar.gz

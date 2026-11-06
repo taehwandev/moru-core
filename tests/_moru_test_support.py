@@ -103,7 +103,25 @@ class TemplateRepository:
             self._directory = tempfile.TemporaryDirectory(prefix="moru-template-")
             self._template = Path(self._directory.name).resolve() / "template"
             self._template.mkdir()
-            self._build(self._template)
+            # A commit may start detached maintenance. Copying its transient
+            # lock/object files races that process even after commit returns.
+            # Bind suppression before the builder's first Git call, retaining
+            # inherited command-scope config, then persist it only in fixtures.
+            count = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
+            config = {"GIT_CONFIG_COUNT": str(count + 2)}
+            for index, (key, value) in enumerate(
+                (("maintenance.auto", "false"), ("gc.auto", "0")), count
+            ):
+                config[f"GIT_CONFIG_KEY_{index}"] = key
+                config[f"GIT_CONFIG_VALUE_{index}"] = value
+            with mock.patch.dict(os.environ, config):
+                self._build(self._template)
+                for relative in self._repositories:
+                    for key, value in (("maintenance.auto", "false"), ("gc.auto", "0")):
+                        subprocess.run(
+                            ["git", "-C", str(self._template / relative), "config", "--local", key, value],
+                            check=True, capture_output=True,
+                        )
         return self._template
 
     def copy_to(self, destination: Path) -> Path:
