@@ -512,6 +512,38 @@ def smoke(archive):
                 assert (done.returncode, done.stdout, done.stderr) == (
                     reference.returncode, reference.stdout, reference.stderr), done
                 checks += 1
+        for args in (["--help"], ["--format=bad"]):
+            reference = subprocess.run([str(entry), "next", *args], capture_output=True,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=advisor, timeout=8)
+            done = subprocess.run([str(entry), "next", *args], capture_output=True,
+                env={**env, "PATH": str(empty)}, cwd=advisor, timeout=8)
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
+        from native_next_ps_support import dead_session_next
+        ps_project = base / "ps-project"
+        ps_project.mkdir()
+        subprocess.run(["git", "init", "-q", str(ps_project)], env=normal, check=True)
+        ps_evidence = seed(ps_project, "running")
+        (ps_project / ".moru/.gitignore").write_text("/*\n")
+        ps_peer = ps_evidence.parent.parent / ("c" * 32) / "preflight.json"
+        ps_peer.parent.mkdir()
+        ps_peer.write_text(ps_evidence.read_text())
+        ps_registry = ps_project / ".moru/run-registry.json"
+        payload = json.loads(ps_registry.read_text())
+        payload["runs"].append({"run_id": "c" * 32, "state": "running", "evidence_name": ps_peer.name,
+            "evidence_key": hashlib.sha256(ps_peer.relative_to(ps_project).as_posix().encode()).hexdigest(),
+            "owner": {"pid": 123456789, "start_token": ""}})
+        ps_registry.write_text(json.dumps(payload))
+        report = dead_session_next(entry, ps_project, base, shutil.which("git"),
+            'read parent; printf "%s\\n" "$parent"; exit 7', env=normal, input_bytes=b"123456789\n")
+        for index in (0, 2):
+            reference, done = report["calls"][index:index + 2]
+            assert reference["returncode"] == 0 and reference == done, (reference, done)
+            if index == 0:
+                assert json.loads(reference["stdout"])["evidence"] == str(ps_peer)
+            checks += 1
+        assert report["argv"] == ["-o", "ppid=", "-p", str(report["sid"])] * 4
         status_project = base / "status-project"
         state = status_project / ".moru"
         state.mkdir(parents=True)

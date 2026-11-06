@@ -1,52 +1,88 @@
-//! Quiet next advice plus explicit-evidence advice with supported bound ledgers.
-//! Imports: std, existing guard/locks/terminal-state/Git readers. No state writes.
+//! Native next CLI and read-only advice with supported bound ledgers.
+//! Imports: std, existing source guard, CLI, session and verification owners. No state writes.
 #[path = "next_advice.rs"]
 mod advice;
+#[path = "next_cli.rs"]
+mod cli;
 #[path = "next_ledger.rs"]
 mod ledger;
 #[path = "next_session.rs"]
 mod session;
-use crate::next_verification::Verification;
-use crate::pretool_guard::CallbackGuard;
+use crate::{next_verification::Verification, pretool_guard::CallbackGuard};
 use std::{env, ffi::OsString, io::Write, path::Path};
-
 pub(crate) struct NextProcess;
-
 impl NextProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
-        let Some(text) = quiet(launcher, &args[1..]) else {
+        let Some((code, text, stderr)) = execute(launcher, &args[1..]) else {
             crate::exec_python(launcher, args);
         };
-        match std::io::stdout().write_all(text.as_bytes()) {
-            Ok(()) => 0,
-            Err(_) => 1,
+        let written = if stderr {
+            std::io::stderr().write_all(text.as_bytes())
+        } else {
+            std::io::stdout().write_all(text.as_bytes())
+        };
+        if written.is_ok() {
+            code
+        } else {
+            1
         }
     }
 }
-
-fn quiet(launcher: &OsString, args: &[OsString]) -> Option<String> {
-    if args.iter().any(|a| {
-        a.to_str()
-            .is_some_and(|s| s == "--evidence" || s.starts_with("--evidence="))
-    }) {
-        return explicit(launcher, args);
+fn execute(launcher: &OsString, args: &[OsString]) -> Option<(i32, String, bool)> {
+    let core = CallbackGuard::root(launcher, "git")?;
+    let mut parsed = cli::NextCli::parse(args, &env::current_dir().ok()?)?;
+    if let Some(exit) = parsed.exit {
+        if !cli::NextCli::plain_exit(exit.2) {
+            return None;
+        }
+        return Some(exit);
     }
-    let cwd = env::current_dir().ok()?;
-    let (project, format) = arguments(args, &cwd)?;
-    if !project.is_absolute() || !project.is_dir() {
-        return None;
-    }
-    let project = project.canonicalize().ok()?;
     let home = env::var_os("HOME")?;
     let home = Path::new(&home);
     if home.canonicalize().ok()?.as_os_str() != home.as_os_str() {
         return None;
     }
-    let core = CallbackGuard::root(launcher, "git")?;
-    let evidence = session::NextSession::discover(&project)?;
+    if parsed.project.as_os_str().is_empty() {
+        parsed.project = env::current_dir().ok()?;
+    }
+    if parsed.project == Path::new("~") {
+        parsed.project = home.to_owned();
+    } else if parsed.project.to_str()?.starts_with("~/") {
+        parsed.project = home.join(&parsed.project.to_str()?[2..]);
+    } else if parsed.project.to_str()?.starts_with('~') {
+        return None;
+    }
+    let project = parsed.project.canonicalize().ok()?;
+    if !project.is_dir() {
+        return None;
+    }
+    let explicit = match parsed.evidence {
+        Some(path) => match std::fs::metadata(&path) {
+            Ok(meta) if meta.is_file() => Some(path.canonicalize().ok()?),
+            Ok(_) => None,
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+                ) =>
+            {
+                None
+            }
+            Err(_) => return None,
+        },
+        None => None,
+    };
+    let evidence = match explicit {
+        Some(path) => Some(path),
+        None => session::NextSession::discover(&project)?,
+    };
     let verification = Verification::discover(&project)?;
     if let Some(evidence) = evidence {
-        return selected(&project, &evidence, home, format, &verification);
+        return Some((
+            0,
+            selected(&project, &evidence, home, &parsed.format, &verification)?,
+            false,
+        ));
     }
     let copyable = format!(
         "{} start --project {} --rules {} --command <route> --request \"<USER_REQUEST>\" \
@@ -55,71 +91,12 @@ fn quiet(launcher: &OsString, args: &[OsString]) -> Option<String> {
         project.to_str()?,
         core.to_str()?
     );
-    Some(render(project.to_str()?, &copyable, &verification, format))
+    Some((
+        0,
+        render(project.to_str()?, &copyable, &verification, &parsed.format),
+        false,
+    ))
 }
-
-fn explicit(launcher: &OsString, args: &[OsString]) -> Option<String> {
-    let mut project = env::current_dir().ok()?;
-    let mut evidence = None;
-    let mut format = "markdown";
-    let mut i = 0;
-    while i < args.len() {
-        let word = args[i].to_str()?;
-        let (key, inline) = word
-            .split_once('=')
-            .map_or((word, None), |(k, v)| (k, Some(v)));
-        if !matches!(key, "--project" | "--evidence" | "--format") {
-            return None;
-        }
-        let value = if let Some(v) = inline {
-            v
-        } else {
-            i += 1;
-            let value = args.get(i)?.to_str()?;
-            if value.starts_with('-') {
-                return None;
-            }
-            value
-        };
-        match key {
-            "--project" => project = Path::new(value).to_owned(),
-            "--evidence" => evidence = Some(Path::new(value).to_owned()),
-            "--format" if matches!(value, "json" | "markdown") => format = value,
-            _ => return None,
-        }
-        i += 1;
-    }
-    let home = env::var_os("HOME")?;
-    let home = Path::new(&home);
-    if home.canonicalize().ok()?.as_os_str() != home.as_os_str() {
-        return None;
-    }
-    if project == Path::new("~") {
-        project = home.to_owned();
-    } else if project.to_str()?.starts_with("~/") {
-        project = home.join(&project.to_str()?[2..]);
-    } else if project.to_str()?.starts_with('~') {
-        return None;
-    }
-    let project = project.canonicalize().ok()?;
-    if !project.is_dir() {
-        return None;
-    }
-    let evidence = evidence?;
-    if !evidence.is_file() {
-        return None;
-    }
-    let evidence = evidence.canonicalize().ok()?;
-    // pathlib's trailing-dot stem semantics changed between builder Python versions.
-    if evidence.file_name()?.to_str()?.ends_with('.') {
-        return None;
-    }
-    CallbackGuard::root(launcher, "git")?;
-    // Reference explicit evidence bypasses registry/session selection and its locks.
-    let verification = Verification::discover(&project)?;
-    selected(&project, &evidence, home, format, &verification)
-}
-
 fn selected(
     project: &Path,
     evidence: &Path,
@@ -152,19 +129,6 @@ fn selected(
     )
 }
 
-fn arguments<'a>(args: &'a [OsString], cwd: &Path) -> Option<(std::path::PathBuf, &'a str)> {
-    let words: Vec<&str> = args.iter().map(|v| v.to_str()).collect::<Option<_>>()?;
-    match words.as_slice() {
-        [] => Some((cwd.to_owned(), "markdown")),
-        ["--format", format @ ("json" | "markdown")] => Some((cwd.to_owned(), *format)),
-        ["--project", project] => Some((Path::new(project).to_owned(), "markdown")),
-        ["--project", project, "--format", format @ ("json" | "markdown")] => {
-            Some((Path::new(project).to_owned(), *format))
-        }
-        _ => None,
-    }
-}
-
 fn render(project: &str, copyable: &str, verification: &Verification, format: &str) -> String {
     if format == "json" {
         let quote = |text: &str| serde_json::to_string(text).unwrap();
@@ -193,32 +157,6 @@ fn render(project: &str, copyable: &str, verification: &Verification, format: &s
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn closed_cli_keeps_evidence_and_unknown_flags_with_python() {
-        let cwd = Path::new("/synthetic");
-        for words in [
-            vec![],
-            vec!["--format", "json"],
-            vec!["--project", "/other"],
-            vec!["--project", "/other", "--format", "markdown"],
-        ] {
-            let args: Vec<OsString> = words.iter().map(OsString::from).collect();
-            assert!(arguments(&args, cwd).is_some());
-        }
-        for words in [
-            vec!["--evidence", "/preflight.json"],
-            vec!["--help"],
-            vec!["--format", "json", "--project", "/other"],
-            vec!["--format", "yaml"],
-            vec!["--project"],
-            vec!["--project", "/other", "--unknown"],
-        ] {
-            let args: Vec<OsString> = words.iter().map(OsString::from).collect();
-            assert!(arguments(&args, cwd).is_none());
-        }
-    }
-
     #[test]
     fn json_preserves_python_spacing_unicode_and_empty_verification() {
         assert_eq!(

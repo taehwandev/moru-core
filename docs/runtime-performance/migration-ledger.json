@@ -77,12 +77,12 @@
       "id": "scripts/checkout_identity.py",
       "inventory_id": 1,
       "kind": "primary",
-      "status": "native_local_verified",
+      "status": "native_revalidation",
       "entry_aliases": "checkout-identity",
-      "remaining": "Checkout engine revalidated after the shared Git reader change. Direct Python entry and shared caller migration remain open before full native closure.",
+      "remaining": "Git now uses a shared bounded ReadProcess owner also used by ps lookup. Revalidate checkout process behavior, installed artifact and all four hosts against the changed gitrun/lib inputs and new shared owner. Direct Python entry and shared callers remain open.",
       "verification": {
         "native_owner": "native/checkout-identity/src/lib.rs",
-        "platform_evidence": "All four jobs passed in https://github.com/taehwandev/moru-core/actions/runs/42174120877 at 8efbec7c. Scoped checkout engine owner inputs below are unchanged by subsequent next-session work.",
+        "platform_evidence": "Historical pre-extraction baseline: four-host8efbec7c CI42174120877 and installed receipt below. gitrun/lib now delegate bounded capture to a new owner; hashes and installed SHA here retain that prior baseline until fresh acceptance.",
         "behavior": "13 process-level checkout conformance tests passed; frozen UTF-8 NDJSON values, exit status and stderr contract.",
         "negative_authority": "Closed read-only two-key request schema, malformed input/recovery, backend failure and no-Python/Git/toolchain regressions passed.",
         "portable": "115 fresh-consumer checks passed on macos-arm64, including native checkout lookup with empty PATH; four-host CI bundle acceptance passed at8efbec7c.",
@@ -101,10 +101,10 @@
         },
         "installed_sha256": "fb8aa825fecdfcaa4d5d54d82719d2a1b42caa69690606410afcb43ff4c99d0c",
         "platforms": {
-          "macos-arm64": "PASS",
-          "macos-x86_64": "PASS",
-          "linux-arm64": "PASS",
-          "linux-x86_64": "PASS"
+          "macos-arm64": "PENDING",
+          "macos-x86_64": "PENDING",
+          "linux-arm64": "PENDING",
+          "linux-x86_64": "PENDING"
         }
       }
     },
@@ -231,7 +231,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "next",
-      "remaining": "Native next advice handles canonical/recursive evidence, state-root symlink and global-marker read layouts, parent/worker isolation, exact process ownership and schema2 ledger freshness. Current state target is project/.moru, not a separate remapping API. Complete ps-required process-owner lookup, remaining malformed input/CLI/filesystem boundaries, and shared Python caller migration before full native closure.",
+      "remaining": "Native next includes CLI parsing/help/errors and ps owner fallback plus state-root aliases, evidence discovery, ownership and schema2 freshness. Complete remaining terminal/color/locale/parser and malformed filesystem boundaries, source/caller migration and portable acceptance before full native closure.",
       "verification": {}
     },
     {

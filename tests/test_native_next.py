@@ -77,8 +77,9 @@ class NativeNextTests(unittest.TestCase):
                  ["--project", ".", "--format", "json"],
                  ["--format", "json", "--project", str(self.project)]]
         for args in forms:
-            self.assertEqual(result(self.call(args, backend="python")), result(self.call(args)))
-            self.assertEqual(127, self.call(args, PATH=str(self.git_only)).returncode)
+            baseline = self.call(args, backend="python")
+            self.assertEqual(result(baseline), result(self.call(args)))
+            self.assertEqual(result(baseline), result(self.call(args, PATH=str(self.git_only))))
         (self.project / "한글 dirty.py").write_text("synthetic = 1\n")
         baseline = self.call(backend="python")
         self.assertTrue(json.loads(baseline.stdout)["verification"]["changed_paths"])

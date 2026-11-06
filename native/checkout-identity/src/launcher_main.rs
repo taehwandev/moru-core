@@ -30,6 +30,7 @@ mod discovery_registry;
 mod discovery_search;
 #[allow(dead_code)] // Shared source; this crate only uses the status adapter.
 mod gitrun;
+mod read_process;
 mod launcher_backend;
 mod literal_args;
 mod mailbox_process;

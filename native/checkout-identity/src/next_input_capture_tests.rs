@@ -1,16 +1,20 @@
 use super::*;
 use std::os::unix::fs::{symlink, PermissionsExt};
 fn root() -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "moru-input-capture-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    fs::create_dir(&path).unwrap();
-    path.canonicalize().unwrap()
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    loop {
+        let path = std::env::temp_dir().join(format!(
+            "moru-input-capture-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        match fs::create_dir(&path) {
+            Ok(()) => return path.canonicalize().unwrap(),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => panic!("create input-capture fixture: {error}"),
+        }
+    }
 }
 #[test]
 fn python_default_json_golden_preserves_mode_missing_unicode_and_target() {

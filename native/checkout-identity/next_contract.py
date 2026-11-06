@@ -12,6 +12,8 @@ import string
 
 
 def emit(output):
+    print("cargo:rustc-env=MORU_NEXT_ARGPARSE_COLOR="
+          + str(bool(getattr(argparse.ArgumentParser(), "color", False))).lower())
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
     from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS

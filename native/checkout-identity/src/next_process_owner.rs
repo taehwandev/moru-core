@@ -1,9 +1,11 @@
 //! owner: ProcessOwner; allowed imports: std, libc, Python text/JSON and Darwin ABI;
-//! forbidden imports: writes, liveness signals, process spawning; callers/tests:
+//! forbidden imports: writes, liveness signals, unbounded process spawning; callers/tests:
 //! NextSession ambiguity selection; verification: owner/proc fixtures and live parity.
 #[cfg(target_os = "macos")]
 #[path = "next_owner_darwin.rs"]
 mod darwin;
+#[path = "next_owner_ps.rs"]
+mod ps;
 use crate::{python_json::Value, python_text::PythonText};
 use std::fs;
 
@@ -13,7 +15,7 @@ pub(super) struct ProcessOwner {
 }
 
 impl ProcessOwner {
-    /// Outer None requires Python's ps compatibility path; inner None means no owner.
+    /// Outer None preserves unsupported numeric cases; inner None means no owner.
     pub(super) fn current() -> Option<Option<Self>> {
         let leader = unsafe { libc::getsid(0) };
         if leader < 1 {
@@ -63,8 +65,7 @@ impl ProcessOwner {
                 return Some(i64::from(parent));
             }
         }
-        // Python next tries ps. Do not invent an empty owner when that may succeed.
-        None
+        ps::PsParent::read(leader)
     }
 
     fn anchor(leader: i64, parent: i64) -> Option<u64> {
@@ -84,7 +85,10 @@ impl ProcessOwner {
     }
 
     fn parent_field(stat: &str) -> Option<String> {
-        let text = Self::fields(stat).nth(1)?;
+        Self::integer(Self::fields(stat).nth(1)?)
+    }
+
+    fn integer(text: &str) -> Option<String> {
         let mut normalized = String::new();
         let mut previous_digit = false;
         let chars: Vec<char> = text.chars().collect();

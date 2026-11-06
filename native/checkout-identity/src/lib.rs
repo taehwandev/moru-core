@@ -2,6 +2,7 @@
 
 mod framing;
 mod gitrun;
+mod read_process;
 mod identity;
 mod metadata_text;
 mod protocol;

@@ -95,8 +95,8 @@ class NativeNextActiveTests(unittest.TestCase):
         reference = invoke_next(self.launcher, self.base, self.project, args, backend="python")
         self.assertEqual(2, reference.returncode)
         self.assertEqual(result(reference), result(invoke_next(self.launcher, self.base, self.project, args)))
-        self.assertEqual(127, invoke_next(self.launcher, self.base, self.project, args,
-                                         PATH=str(self.git_only)).returncode)
+        self.assertEqual(result(reference), result(invoke_next(self.launcher, self.base, self.project, args,
+                                         PATH=str(self.git_only))))
 
     def test_trailing_dot_evidence_keeps_python_ledger_naming(self):
         trailing = self.evidence.with_name("run.")
