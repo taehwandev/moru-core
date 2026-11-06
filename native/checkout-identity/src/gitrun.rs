@@ -1,4 +1,4 @@
-//! Read-only git fallback: no shell, two-second timeout per call.
+//! Read-only Git: two-second text reads and ten-second raw EvidenceInputs listings.
 
 use crate::text::Text;
 use std::io::Read;
@@ -17,6 +17,30 @@ impl GitRead {
         capture(Command::new("git").arg("-C").arg(root).args(args))
     }
 
+    /// Raw UTF-8 listing for EvidenceInputs; stderr bytes are deliberately ignored.
+    /// None is runner uncertainty; Some(Err) is a deterministic capture failure.
+    #[allow(dead_code)]
+    pub(crate) fn input_paths(root: &std::path::Path) -> Option<Result<String, ()>> {
+        let (stdout, _, success) = capture_raw(
+            Command::new("git")
+                .args([
+                    "ls-files",
+                    "--cached",
+                    "--others",
+                    "--exclude-standard",
+                    "-z",
+                ])
+                .current_dir(root),
+            Duration::from_secs(10),
+        )
+        .ok()??;
+        Some(if success {
+            String::from_utf8(stdout).map_err(|_| ())
+        } else {
+            Err(())
+        })
+    }
+
     #[allow(dead_code)] // Used by the launcher crate, not the identity library.
     pub(crate) fn status(root: &str) -> Option<String> {
         capture(
@@ -29,9 +53,12 @@ impl GitRead {
     }
 }
 
-// None covers missing Git, timeout or nonzero exit; callers retain their
-// original compatibility handling. Both entrypoints share this exact bound.
-fn capture(command: &mut Command) -> Result<Option<String>, ()> {
+// None covers runner uncertainty; exit status and raw pipes stay separate so
+// each caller can preserve its reference decoding and failure behavior.
+fn capture_raw(
+    command: &mut Command,
+    timeout: Duration,
+) -> Result<Option<(Vec<u8>, Vec<u8>, bool)>, ()> {
     let mut child = match command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -41,7 +68,7 @@ fn capture(command: &mut Command) -> Result<Option<String>, ()> {
         Ok(child) => child,
         Err(_) => return Ok(None),
     };
-    let deadline = Instant::now() + TIMEOUT;
+    let deadline = Instant::now() + timeout;
     let (sender, receiver) = mpsc::channel();
     if let Some(pipe) = child.stdout.take() {
         read_pipe(pipe, true, sender.clone());
@@ -80,11 +107,18 @@ fn capture(command: &mut Command) -> Result<Option<String>, ()> {
             stderr = bytes;
         }
     }
+    Ok(Some((stdout, stderr, status.success())))
+}
+
+fn capture(command: &mut Command) -> Result<Option<String>, ()> {
+    let Some((stdout, stderr, success)) = capture_raw(command, TIMEOUT)? else {
+        return Ok(None);
+    };
     if std::str::from_utf8(&stderr).is_err() {
         return Err(());
     }
     let stdout = String::from_utf8(stdout).map_err(|_| ())?;
-    if !status.success() {
+    if !success {
         return Ok(None);
     }
     Ok(Some(Text::universal_newlines(&stdout)))
@@ -101,3 +135,6 @@ fn read_pipe<R: Read + Send + 'static>(
         let _ = sender.send((stdout, result));
     });
 }
+#[cfg(test)]
+#[path = "gitrun_tests.rs"]
+mod tests;

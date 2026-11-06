@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import sqlite3
@@ -387,6 +388,37 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
+        from agent_evidence_inputs import EvidenceInputs
+        input_rules = base / "input-rules"
+        input_rules.mkdir()
+        subprocess.run(["git", "init", "-q", str(input_rules)], env=normal, check=True, capture_output=True)
+        (input_rules / "guide.txt").write_text("synthetic rules")
+        active_data = json.loads(active.read_text())
+        active_data.update(project=str(advisor), rules=str(input_rules))
+        active.write_text(json.dumps(active_data))
+        with patch.dict(os.environ, normal, clear=True):
+            snapshot = {"schema_version": 2, "project": str(advisor), "rules": str(input_rules),
+                "input_paths": ["한글 note.py"], "states": {
+                    "project": EvidenceInputs.capture(advisor, ["한글 note.py"]),
+                    "rules": EvidenceInputs.capture(input_rules, [])}}
+        active_ledger = _new_ledger(active, active_data)
+        active_ledger["entries"] = [{"gate": "tests", "status": "SUCCESS", "evidence": "",
+            "fields": {"check": "portable", "result": "1 passed"}, "reuse_snapshot": snapshot}]
+        active.with_name("active-preflight-gate-evidence.json").write_text(json.dumps(active_ledger))
+        for changed in (False, True):
+            if changed:
+                (advisor / "한글 note.py").write_text("synthetic = 2\n")
+            for output in ("json", "markdown"):
+                args = [str(entry), "next", "--project", str(advisor), "--evidence", str(active), "--format", output]
+                reference = subprocess.run(args, capture_output=True,
+                    env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=advisor, timeout=8)
+                done = subprocess.run(args, capture_output=True, env=no_python, cwd=advisor, timeout=8)
+                assert reference.returncode == 0 and not reference.stderr, reference
+                if output == "json":
+                    assert ("tests" in json.loads(reference.stdout)["remaining_gates"]) == changed
+                assert (done.returncode, done.stdout, done.stderr) == (
+                    reference.returncode, reference.stdout, reference.stderr), done
+                checks += 1
         status_project = base / "status-project"
         state = status_project / ".moru"
         state.mkdir(parents=True)

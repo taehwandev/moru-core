@@ -5,6 +5,8 @@
 mod binding;
 #[path = "next_gate_fields.rs"]
 mod fields;
+#[path = "next_input_freshness.rs"]
+mod freshness;
 use crate::python_json::{PythonJson as Py, Value};
 use std::{collections::BTreeSet, fs, path::Path};
 include!(concat!(env!("OUT_DIR"), "/next_contract.rs"));
@@ -84,9 +86,10 @@ impl NextLedger {
                     continue;
                 };
                 if binding::LedgerBinding::equals(snapshot.get("schema_version"), 2) {
-                    return None;
-                }
-                if !binding::LedgerBinding::equals(snapshot.get("schema_version"), 1) {
+                    if !freshness::InputFreshness::valid(snapshot, evidence)? {
+                        continue;
+                    }
+                } else if !binding::LedgerBinding::equals(snapshot.get("schema_version"), 1) {
                     continue;
                 }
             }

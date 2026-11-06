@@ -85,7 +85,7 @@ class NativeNextLedgerTests(unittest.TestCase):
 
     def test_content_scoped_snapshot_does_not_bypass_freshness(self):
         self.ledger([self.passed(reuse_snapshot={"schema_version": 2})])
-        self.parity(self.preflight["route"]["gates"], native=False)
+        self.parity(self.preflight["route"]["gates"])
 
     def test_nonexistent_path_component_does_not_falsely_invalidate_binding(self):
         recorded = str(self.evidence.parent / "absent" / ".." / self.evidence.name)

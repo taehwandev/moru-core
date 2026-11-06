@@ -77,12 +77,12 @@
       "id": "scripts/checkout_identity.py",
       "inventory_id": 1,
       "kind": "primary",
-      "status": "native_local_verified",
+      "status": "native_revalidation",
       "entry_aliases": "checkout-identity",
-      "remaining": "Four-host native acceptance passed. Reconcile the direct Python compatibility entry and shared caller ownership against the full Goal before final unit closure; supporting Python sources remain separately accounted for.",
+      "remaining": "The shared Git reader changed for content-scoped evidence capture. Thirteen checkout process tests and local transported lookup passed, but refresh installed and four-host acceptance against the changed owner before restoring verification. Direct Python entry and shared caller migration also remain open.",
       "verification": {
         "native_owner": "native/checkout-identity/src/lib.rs",
-        "platform_evidence": "All four native bundle and transported-consumer jobs passed in https://github.com/taehwandev/moru-core/actions/runs/42161685172 at d5c0f5e0. Frozen checkout engine source hashes below remain unchanged; this does not attest unfinished Python caller migration.",
+        "platform_evidence": "Historical baseline: all four jobs passed in https://github.com/taehwandev/moru-core/actions/runs/42161685172 at d5c0f5e0. Source hashes and installed receipt below describe that pre-refactor baseline only; gitrun.rs changed for schema2 input capture and requires fresh platform and installed acceptance.",
         "behavior": "13 process-level checkout conformance tests passed; frozen UTF-8 NDJSON values, exit status and stderr contract.",
         "negative_authority": "Closed read-only two-key request schema, malformed input/recovery, backend failure and no-Python/Git/toolchain regressions passed.",
         "portable": "90 fresh-consumer checks passed on macos-arm64, including native checkout lookup with empty PATH.",
@@ -101,10 +101,10 @@
         },
         "installed_sha256": "85f6e9d03734405c24759cd46cfcd649b87be4391c8e44da6a1cdd872a7b55c8",
         "platforms": {
-          "macos-arm64": "PASS",
-          "macos-x86_64": "PASS",
-        "linux-arm64": "PASS",
-        "linux-x86_64": "PASS"
+          "macos-arm64": "PENDING",
+          "macos-x86_64": "PENDING",
+          "linux-arm64": "PENDING",
+          "linux-x86_64": "PENDING"
         }
       }
     },
@@ -231,7 +231,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "next",
-      "remaining": "Explicit-evidence active advice handles ordinary recorded gate ledgers with exact route/preflight binding, latest-entry validity and schema1 reuse semantics. Complete session/registry discovery, schema2 content-scoped freshness and remaining malformed input/CLI boundaries before full native closure.",
+      "remaining": "Explicit-evidence active advice handles recorded gate ledgers including schema2 bounded content-scoped freshness. Complete session/registry discovery, remaining malformed input/CLI and filesystem compatibility boundaries, and shared Python caller migration before full native closure.",
       "verification": {}
     },
     {

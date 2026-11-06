@@ -56,7 +56,9 @@ fn legacy_snapshot_and_content_freshness_stay_distinct() {
         .contains("tests"));
     ledger["entries"][0]["reuse_snapshot"]["schema_version"] = json!(2);
     fs::write(&path, ledger.to_string()).unwrap();
-    assert!(NextLedger::read(&evidence, &path, &p, &bytes).is_none());
+    assert!(NextLedger::read(&evidence, &path, &p, &bytes)
+        .unwrap()
+        .is_empty());
     ledger["preflight_evidence_sha256"] = json!("stale");
     fs::write(&path, ledger.to_string()).unwrap();
     assert!(NextLedger::read(&evidence, &path, &p, &bytes)
