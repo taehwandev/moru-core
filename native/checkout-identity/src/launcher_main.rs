@@ -7,6 +7,9 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod callback_replay;
+mod android_manifest;
+mod manifest_process;
+mod react_manifest;
 mod callback_state;
 mod cards_identity;
 mod cards_process;
@@ -128,6 +131,12 @@ fn main() {
 
     if args.first().is_some_and(|a| a == "work-cards") {
         finish(cards_process::CardsProcess::run(&launcher, &args));
+    }
+
+    if args.first().is_some_and(|a| {
+        a == "check-android-skill-manifest" || a == "check-react-rn-skill-manifest"
+    }) {
+        finish(manifest_process::ManifestProcess::run(&launcher, &args));
     }
 
     if args.first().is_some_and(|a| a == "project-discover") {

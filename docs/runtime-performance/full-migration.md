@@ -113,3 +113,21 @@ execution limit, as confirmed by job `127694808548`'s timeout annotation.
 Its ceiling is now 30 minutes; other hosts retain 15 minutes. The runner,
 test selectors, assertions and consumer packaging are unchanged. This removes
 an observed acceptance interruption and does not establish an Intel pass.
+
+Units 36–37 now have source-bound launcher ingress and native local manifest
+engines. Android compares snapshot paths and bounded Git identities; React/RN
+checks provenance, ownership and optional local source hashes. Existing direct
+Python CLIs remain available. Their ledger status stays `partial_native`:
+exceptional input compatibility and direct callers still need migration.
+React/RN remote checks decline before any effects, preserving the reference
+implementation's decoding, timeout and output behavior without replaying a
+remote request. Process tests use fake Git only; this batch fetches no sources
+and performs no real remote checks. Unsupported native inputs remain explicit
+remaining work, not completed migrations.
+
+Local acceptance for this increment: 43 focused Python/reference/installed-entry
+tests, 45 Rust tests with both standard and software SHA implementations, and
+95 transported-bundle checks passed. The process tests include Python-free
+local checks, ordered validation failures, preserved compatibility refusals and
+fake-Git proof that remote fallback executes once. Platform CI and actual local
+activation are separate delivery evidence; these counts do not attest them.

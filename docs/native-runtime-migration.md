@@ -8,7 +8,7 @@ type: ai-generated
 
 Track **56 execution units**: **31 primary runtime units plus 25 ancillary
 direct CLIs**. The original 52-unit baseline gains one portable-bundle CLI;
-this is delivery tooling, not another required Rust conversion.
+this is delivery tooling and is included in the full migration Goal.
 At baseline
 `1a61f4be`, the stable launcher exposed 45 alias names backed by 28 distinct
 Python entry scripts. Add one common launcher and the checkout-identity unit:
@@ -47,7 +47,11 @@ acceptance explicitly. Tests check complete, unique entry-owner coverage.
 
 The product target is convergence of ordinary installed execution on Rust,
 starting with frequent callbacks. Python remains transitional compatibility and
-verification support; developer tools need not be rewritten to reach a quota.
+verification support; owned developer tools remain in the full Goal scope.
+
+Primary and ancillary labels preserve the inventory's responsibility groups.
+Adding a native launcher alias for an existing ancillary tool does not create a
+new unit or renumber the inventory; both manifest checkers retain units 36–37.
 
 The [ls/Git inspection extension](runtime-performance/native-ls-git.md) expands
 the two existing pretool boundaries without adding another inventory unit or

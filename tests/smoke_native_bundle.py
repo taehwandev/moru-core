@@ -28,6 +28,12 @@ def smoke(archive):
             (root / relative).mkdir(parents=True, exist_ok=True)
         sources = set(receipt["source_sha256"]) | {
             "AGENTS.md", "index.md", "common/skills/agent-operating-skill/SKILL.md"}
+        manifest_path = "common/skills/react-rn-external-skill-source-coverage/references/source-manifest.json"
+        sources.add(manifest_path)
+        sources.add("platforms/android/skills/android-external-skill-source-coverage/references/current-guidance.md")
+        manifest = json.loads((PROJECT / manifest_path).read_text())
+        for skill in manifest["skills"]:
+            sources.update(skill.get("owners", []))
         for relative in sources:
             assert not Path(relative).is_absolute() and ".." not in Path(relative).parts
             target = root / relative
@@ -214,6 +220,18 @@ def smoke(archive):
         git_only.mkdir()
         (git_only / "git").symlink_to(shutil.which("git"))
         no_python = {**normal, "PATH": str(git_only)}
+        for alias in ("check-android-skill-manifest", "check-react-rn-skill-manifest"):
+            args = [str(entry), alias]
+            reference = subprocess.run(args, capture_output=True, cwd=project,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, timeout=40)
+            done = subprocess.run(args, capture_output=True, cwd=project,
+                env=no_python, timeout=40)
+            assert reference.returncode in (0, 1), reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            if alias == "check-react-rn-skill-manifest":
+                assert done.returncode == 0, done
+            checks += 1
         common = subprocess.run(["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
             capture_output=True, text=True, env=normal, check=True).stdout.strip()
         repo_key = hashlib.sha256(common.encode()).hexdigest()[:24]

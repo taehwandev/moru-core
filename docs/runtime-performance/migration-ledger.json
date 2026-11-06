@@ -420,18 +420,18 @@
       "id": "scripts/check_android_external_skill_manifest.py",
       "inventory_id": 36,
       "kind": "ancillary",
-      "status": "planned",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
+      "status": "partial_native",
+      "entry_aliases": "check-android-skill-manifest; legacy direct Python CLI",
+      "remaining": "Native manifest/snapshot comparison and bounded Git identity reads are implemented. Complete filesystem/encoding exception behavior, migrate direct callers, and verify portable/installed delivery before full completion. No snapshot fetching is authorized.",
       "verification": {}
     },
     {
       "id": "scripts/check_react_rn_external_skill_manifest.py",
       "inventory_id": 37,
       "kind": "ancillary",
-      "status": "planned",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
+      "status": "partial_native",
+      "entry_aliases": "check-react-rn-skill-manifest; legacy direct Python CLI",
+      "remaining": "Native local validation/provenance and source hashing are implemented. Complete help/invalid CLI, file/JSON exceptions, oversized integers, integer negative zero, nonstandard JSON and non-ASCII nested repr. Explicit remote checks decline before any effects; retain as open native work. Migrate direct callers and verify portable/installed delivery. No real remote checks are authorized by this batch.",
       "verification": {}
     },
     {
