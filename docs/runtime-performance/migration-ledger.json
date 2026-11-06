@@ -103,11 +103,11 @@
         "installed_sha256": "fe3c48c5bc37d63282dc2c3b489724764937c9e8b81d20e6e56b228a3554c20f",
         "platforms": {
           "macos-arm64": "PASS",
-          "linux-arm64": "PASS",
           "linux-x86_64": "PASS"
         },
         "historical_platforms": {
-          "macos-x86_64": "PASS"
+          "macos-x86_64": "PASS",
+          "linux-arm64": "PASS"
         }
       }
     },
@@ -984,7 +984,6 @@
   "retired_python_sources": {},
   "supported_platforms": [
     "macos-arm64",
-    "linux-arm64",
     "linux-x86_64"
   ]
 }

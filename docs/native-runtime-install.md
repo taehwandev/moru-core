@@ -19,28 +19,28 @@ for installation. Release assets have no Actions retention timer and remain
 available unless the release or asset is deleted. Public release downloads do
 not require a GitHub login.
 
-[v26.44.1](https://github.com/taehwandev/moru-core/releases/tag/v26.44.1) provides:
+[v26.45.0](https://github.com/taehwandev/moru-core/releases/tag/v26.45.0) provides:
 
 - `moru-native-macos-arm64.tar.gz`
-- `moru-native-macos-x86_64.tar.gz`
-- `moru-native-linux-arm64.tar.gz`
 - `moru-native-linux-x86_64.tar.gz`
 - `SHA256SUMS` and `BUILD.json` with archive checksums and original build provenance
 
 Download your platform's `.tar.gz` directly, without unpacking it. Use the Core
 source at the same release tag; the importer rejects mismatched native source.
-The list above describes the historical v26.44.1 release. Future bundles target
-macOS ARM64 and Linux ARM64/x86_64; new macOS Intel bundles are discontinued.
+Current bundles target macOS ARM64 and Linux x86_64. New macOS Intel and Linux
+ARM64 bundles are discontinued. The historical
+[v26.44.1 release](https://github.com/taehwandev/moru-core/releases/tag/v26.44.1)
+retains its original four platform assets.
 For a first installation only:
 
 ```sh
-git clone --branch v26.44.1 https://github.com/taehwandev/moru-core.git ~/.moru/core
+git clone --branch v26.45.0 https://github.com/taehwandev/moru-core.git ~/.moru/core
 ```
 
 Reuse an existing checkout when present. Select the matching release through
 your normal Git workflow, preserving local edits; do not reset an active
 checkout or automatically create a second copy. `BUILD.json` identifies the exact
-CI source revision and run. New release promotion requires all three current host builds,
+CI source revision and run. New release promotion requires both current host builds,
 behavior checks and transported-consumer smoke checks to pass against that exact
 tagged revision. The preceding v26.44.0 release retains its original `31c97d07`
 build provenance; its tag and assets are not replaced.
@@ -48,9 +48,9 @@ build provenance; its tag and assets are not replaced.
 ## CI artifacts are for development
 
 The [Native runtime bundles workflow](../.github/workflows/native-runtime.yml)
-builds macOS ARM64, Linux x86_64 and Linux ARM64 separately. It
+builds macOS ARM64 and Linux x86_64 separately. It
 runs only when manually requested on main. Ordinary pushes, pull requests and
-tags do not start this three-platform build or create temporary CI bundles.
+tags do not start this two-platform build or create temporary CI bundles.
 Maintainers request a build after a cohesive milestone or when preparing an
 explicitly authorized release; everyday changes use focused local checks.
 Each job
@@ -63,7 +63,7 @@ only after those checks pass.
 The matching `moru-native-<platform>-<commit>` workflow artifact is a temporary
 development copy. These require sign-in/read access and expire after seven days;
 that expiry does not remove files attached to a release. Maintainers promote the
-three successful build outputs to an explicitly authorized versioned release,
+two successful build outputs to an explicitly authorized versioned release,
 preserving the original source revision, checksums and provenance. A documentation
 update does not move that release tag. No release is created automatically by CI.
 
@@ -71,6 +71,16 @@ macOS bundles target macOS 13+ and are tested on the selected macOS 15 runners.
 Linux bundles are built/tested on Ubuntu 24.04; older glibc distributions are not
 established compatible. Windows is not supported by this POSIX native runtime.
 Do not infer performance on these hosts from the local Mac benchmark.
+
+## Release version contract
+
+Native release trains use weekly CalVer `vYY.WW.N` on the Korean Gregorian
+calendar, with Monday as the first weekday, one minimum day in the first week,
+and `Asia/Seoul` as the release timezone. The week containing January 1 starts
+the week-year. `N` starts at zero each week and counts published release trains;
+unpublished build attempts do not advance it. Local publication uses this
+explicit calendar rather than a CI runner's locale or timezone. The release-note
+title carries the exact tag, which must identify the verified build source.
 
 ## Install after updating source
 

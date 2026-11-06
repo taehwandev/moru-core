@@ -1,0 +1,51 @@
+# Moru Core v26.45.0
+
+This release expands the optional Rust runtime and publishes native bundles for
+macOS ARM64 and Linux x86_64. Native coverage now includes prepared registry and
+completion reads, additional status/continuation paths, manifest checks, offline
+Figma validation and per-session transcript overhead aggregation. These paths
+retain source and environment guards plus Python compatibility for unsupported
+inputs; the full Python-to-Rust migration remains in progress.
+
+## Download and install
+
+Download the archive matching your host, together with SHA256SUMS and BUILD.json.
+The two native archives are moru-native-macos-arm64.tar.gz and
+moru-native-linux-x86_64.tar.gz. New macOS Intel and Linux ARM64 archives are no
+longer produced; older releases retain their original assets. Windows native
+execution is not supported.
+
+Use Core source at v26.45.0. Preserve local edits when selecting that revision.
+For a new checkout only:
+
+```sh
+git clone --branch v26.45.0 https://github.com/taehwandev/moru-core.git ~/.moru/core
+cd ~/.moru/core
+python3 scripts/native-runtime-bundle.py install --bundle /path/to/moru-native-macos-arm64.tar.gz
+python3 scripts/setup-agent-hooks.py --dry-run
+python3 scripts/setup-agent-hooks.py
+python3 scripts/setup-agent-hooks.py --check
+```
+
+Choose the Linux archive on Linux. Python 3.9+ and Git remain required; receiving
+computers do not need Rust or Cargo. Source-mismatched archives are rejected.
+Release downloads do not have the temporary Actions artifact expiry.
+
+## Verification and recovery
+
+Release promotion requires both host jobs to pass the pinned Rust/locked-crate
+checks, runtime conformance suite and transported-consumer smoke checks at the
+tagged source revision. BUILD.json records exact build/run provenance and archive
+hashes; SHA256SUMS covers both native archives.
+
+Full hosted builds run only on explicit manual requests. Routine source pushes
+do not create new bundles or public releases. No state schema migration or
+credential change is required. Existing renderer chains and Spill connections
+are preserved. Set MORU_LAUNCHER_BACKEND=python and
+MORU_CHECKOUT_IDENTITY_BACKEND=python for explicit native rollback, or select the
+previous release with its matching source and archive while preserving edits.
+
+macOS targets version 13+; Linux is built/tested on Ubuntu 24.04. Older glibc is
+not established compatible. No new cross-host speedup claim is made.
+
+Full source comparison: https://github.com/taehwandev/moru-core/compare/v26.44.1...v26.45.0
