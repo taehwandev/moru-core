@@ -9,11 +9,20 @@ import json
 from pathlib import Path
 import sys
 import string
+import os
+import shutil
+from unittest.mock import patch
 
 
 def emit(output):
     print("cargo:rustc-env=MORU_NEXT_ARGPARSE_COLOR="
           + str(bool(getattr(argparse.ArgumentParser(), "color", False))).lower())
+    with patch.dict(os.environ, {"COLUMNS": "0", "LINES": "0"}), \
+         patch("os.get_terminal_size", return_value=os.terminal_size((0, 0))):
+        zero_columns = shutil.get_terminal_size().columns
+    if zero_columns not in (0, 80):
+        raise RuntimeError("unrecognized zero-column terminal policy")
+    print("cargo:rustc-env=MORU_NEXT_ZERO_COLUMNS=" + str(zero_columns))
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
     from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS

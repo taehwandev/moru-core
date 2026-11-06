@@ -18,35 +18,51 @@ impl CliRender {
     }
     const PROG: &'static str = "agent_next_action.py";
     pub(super) fn width() -> Option<usize> {
-        let env = std::env::var("COLUMNS").ok();
-        if env
-            .as_ref()
-            .is_some_and(|v| !v.is_ascii() || v.contains('_'))
-        {
-            return None;
-        }
-        if let Some(raw) = env.as_ref() {
-            let raw = raw.trim();
-            let digits = raw.trim_start_matches(['+', '-']);
-            if !digits.is_empty()
-                && digits.bytes().all(|c| c.is_ascii_digit())
-                && raw.parse::<i64>().is_err()
-            {
-                return None;
-            }
-        }
-        let columns = env
-            .and_then(|v| v.trim().parse::<i64>().ok())
+        let columns = std::env::var("COLUMNS")
+            .ok()
+            .and_then(|value| Self::columns(&value))
             .filter(|n| *n > 0)
             .unwrap_or_else(|| {
                 let mut size: libc::winsize = unsafe { std::mem::zeroed() };
-                if unsafe { libc::ioctl(1, libc::TIOCGWINSZ, &mut size) } == 0 && size.ws_col > 0 {
-                    i64::from(size.ws_col)
+                if unsafe { libc::ioctl(1, libc::TIOCGWINSZ, &mut size) } == 0 {
+                    if size.ws_col == 0 {
+                        env!("MORU_NEXT_ZERO_COLUMNS").parse().expect("validated build policy")
+                    } else {
+                        usize::from(size.ws_col)
+                    }
                 } else {
                     80
                 }
             });
-        (columns > 2 && columns <= 10000).then_some(columns as usize - 2)
+        Some(columns.saturating_sub(2))
+    }
+    fn columns(value: &str) -> Option<usize> {
+        use crate::python_text::PythonText;
+        // int() rejects ASCII information separators even though str.isspace accepts them.
+        let value = value.trim_matches(|c| PythonText::whitespace(c)
+            && !matches!(c, '\u{1c}'..='\u{1f}'));
+        let negative = value.starts_with('-');
+        let value = value.strip_prefix(['+', '-']).unwrap_or(value);
+        let mut previous_digit = false;
+        let mut digits = 0;
+        let mut columns = 0usize;
+        for c in value.chars() {
+            if c == '_' && previous_digit {
+                previous_digit = false;
+                continue;
+            }
+            let digit = PythonText::decimal_value(c)?;
+            digits += 1;
+            // Every rendered line is shorter than this. Larger positive widths
+            // have identical output, without overflowing on Python's big integers.
+            columns = (columns * 10 + usize::from(digit)).min(10000);
+            previous_digit = true;
+        }
+        let limit = env!("MORU_PYTHON_INT_MAX_STR_DIGITS").parse::<usize>().ok()?;
+        if !previous_digit || (limit != 0 && digits > limit) {
+            return None;
+        }
+        Some(if negative { 0 } else { columns })
     }
     pub(super) fn usage(width: usize) -> String {
         let parts = [

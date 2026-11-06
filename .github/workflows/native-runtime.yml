@@ -45,7 +45,7 @@ jobs:
             platform: linux-arm64
     runs-on: ${{ matrix.runner }}
     # Intel macOS exceeded 15 minutes while running the complete acceptance suite.
-    timeout-minutes: ${{ matrix.platform == 'macos-x86_64' && 30 || 15 }}
+    timeout-minutes: ${{ startsWith(matrix.platform, 'macos-') && 30 || 15 }}
     env:
       PYTHONDONTWRITEBYTECODE: '1'
       MACOSX_DEPLOYMENT_TARGET: '13.0'

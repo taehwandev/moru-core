@@ -1,9 +1,14 @@
 """Next argument parsing preserves argparse output, status and ordering."""
 import json
+import os
+import fcntl
+import termios
+import struct
+import subprocess
 import unittest
 
 from native_next_support import invoke_next
-from native_pretool_support import result
+from native_pretool_support import result, environment
 import test_native_next_session as session_tests
 
 
@@ -80,10 +85,48 @@ class NativeNextCliTests(unittest.TestCase):
                 self.parity(["--format", value], code=2)
 
     def test_help_and_usage_width_match_terminal_columns(self):
-        for columns in ("20", "40", "60", "80", "120", "invalid", "-1"):
+        for columns in ("1", "2", "3", "20", "40", "60", "80", "120", "invalid", "-1",
+                        "٤٠", "４０", "4_0", "\u2003+٤_٠\u2003", "1__2", "40_",
+                        "\x1c40", "++40", "--40", "9" * 100, "-" + "9" * 100,
+                        "0" * 4500 + "40", "0" * 4000 + "40"):
             with self.subTest(columns=columns):
                 self.parity(["--help"], code=0, COLUMNS=columns)
                 self.parity(["--format=bad"], code=2, COLUMNS=columns)
+
+    def test_zero_column_pty_uses_builder_terminal_policy(self):
+        for columns in ("1__2", "٤_٠", "1", "0"):
+            for args in (["--help"], ["--format=bad"]):
+                outputs = []
+                for backend in ("python", "auto"):
+                    master, slave = os.openpty()
+                    try:
+                        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 0, 0, 0))
+                        env = {**environment(self.base), "NO_COLOR": "1", "COLUMNS": columns,
+                               "MORU_LAUNCHER_BACKEND": backend}
+                        if backend == "auto":
+                            env["PATH"] = str(self.git_only)
+                        done = subprocess.run([str(self.launcher), "next", *args],
+                            stdout=slave, stderr=subprocess.PIPE, env=env, cwd=self.project, timeout=15)
+                        os.close(slave)
+                        slave = -1
+                        data = bytearray()
+                        while True:
+                            try:
+                                chunk = os.read(master, 4096)
+                            except OSError as error:
+                                if error.errno != 5:
+                                    raise
+                                break
+                            if not chunk:
+                                break
+                            data.extend(chunk)
+                        outputs.append((done.returncode, bytes(data), done.stderr))
+                    finally:
+                        if slave >= 0:
+                            os.close(slave)
+                        os.close(master)
+                self.assertEqual(2 if args == ["--format=bad"] else 0, outputs[0][0])
+                self.assertEqual(outputs[0], outputs[1], (columns, args))
 
     def test_end_marker_and_empty_explicit_values_preserve_argparse(self):
         for args in (["--"], ["--format=json", "--"], ["--", ""], [""]):

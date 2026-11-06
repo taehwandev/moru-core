@@ -231,7 +231,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "next",
-      "remaining": "Native next includes CLI parsing/help/errors and ps owner fallback plus state-root aliases, evidence discovery, ownership and schema2 freshness. Complete remaining terminal/color/locale/parser and malformed filesystem boundaries, source/caller migration and portable acceptance before full native closure.",
+      "remaining": "Native next includes CLI parsing/help/errors with Unicode and arbitrary-size terminal-width integers and ps owner fallback plus state-root aliases, evidence discovery, ownership and schema2 freshness. Complete remaining terminal/color/locale/parser and malformed filesystem boundaries, source/caller migration and portable acceptance before full native closure.",
       "verification": {}
     },
     {

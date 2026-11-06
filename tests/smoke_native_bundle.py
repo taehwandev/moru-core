@@ -512,11 +512,13 @@ def smoke(archive):
                 assert (done.returncode, done.stdout, done.stderr) == (
                     reference.returncode, reference.stdout, reference.stderr), done
                 checks += 1
-        for args in (["--help"], ["--format=bad"]):
+        for args, columns in ((["--help"], "80"), (["--format=bad"], "80"),
+                              (["--help"], "\u2003+٤_٠\u2003"),
+                              (["--help"], "1"), (["--format=bad"], "9" * 100)):
             reference = subprocess.run([str(entry), "next", *args], capture_output=True,
-                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=advisor, timeout=8)
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python", "COLUMNS": columns}, cwd=advisor, timeout=8)
             done = subprocess.run([str(entry), "next", *args], capture_output=True,
-                env={**env, "PATH": str(empty)}, cwd=advisor, timeout=8)
+                env={**env, "PATH": str(empty), "COLUMNS": columns}, cwd=advisor, timeout=8)
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
