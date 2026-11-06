@@ -1,7 +1,7 @@
 name: Native runtime bundles
 
 on:
-  # Run the full four-platform acceptance/bundle build only when requested.
+  # Run the full supported-platform acceptance/bundle build only when requested.
   # Ordinary source pushes are checked locally and do not create CI artifacts.
   workflow_dispatch:
 
@@ -17,14 +17,12 @@ jobs:
         include:
           - runner: macos-15
             platform: macos-arm64
-          - runner: macos-15-intel
-            platform: macos-x86_64
           - runner: ubuntu-24.04
             platform: linux-x86_64
           - runner: ubuntu-24.04-arm
             platform: linux-arm64
     runs-on: ${{ matrix.runner }}
-    # Intel macOS exceeded 15 minutes while running the complete acceptance suite.
+    # The complete macOS acceptance suite needs a longer bound than Linux.
     timeout-minutes: ${{ startsWith(matrix.platform, 'macos-') && 30 || 15 }}
     env:
       PYTHONDONTWRITEBYTECODE: '1'

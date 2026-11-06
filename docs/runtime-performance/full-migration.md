@@ -32,7 +32,9 @@ engine, but its remaining Python responsibility still needs an owner.
 
 `native_local_verified` records a complete engine accepted on the named local
 host while other-host acceptance remains pending. `native_verified` requires
-all four supported bundle hosts plus the following recorded evidence:
+all three supported bundle hosts (macOS ARM64 and Linux ARM64/x86_64) plus the
+following recorded evidence. The user's 2026-11-06 distribution decision removes
+macOS Intel from current acceptance; prior Intel evidence remains historical:
 
 1. Rust owns the full supported public behavior, including arguments, formats,
    failures, state/lock behavior and negative authority decisions. A Rust
