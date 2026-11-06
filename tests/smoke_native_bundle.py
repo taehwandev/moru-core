@@ -243,6 +243,19 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
+        numeric_manifest = json.loads(json.dumps(manifest))
+        numeric_manifest["skills"][0]["path"] = "NUMERIC_SENTINEL"
+        for index, number in enumerate(("18446744073709551616", "[-0,-0.0,NaN,Infinity]")):
+            path = base / f"numeric-manifest-{index}.json"
+            path.write_text(json.dumps(numeric_manifest).replace('"NUMERIC_SENTINEL"', number))
+            args = [str(entry), "check-react-rn-skill-manifest", "--manifest", str(path)]
+            reference = subprocess.run(args, capture_output=True, cwd=project,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, timeout=8)
+            done = subprocess.run(args, capture_output=True, cwd=project, env=no_python, timeout=8)
+            assert reference.returncode == 1, reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
         common = subprocess.run(["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
             capture_output=True, text=True, env=normal, check=True).stdout.strip()
         repo_key = hashlib.sha256(common.encode()).hexdigest()[:24]

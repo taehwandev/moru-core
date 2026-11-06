@@ -1,10 +1,10 @@
 //! owner: ReactManifestCli; allowed imports: std, libc, PythonText; forbidden imports: process/network;
 //! callers/tests: ReactManifest and subject tests; verification: argparse CLI parity.
+use crate::python_text::PythonText;
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},
 };
-use crate::python_text::PythonText;
 pub struct ReactManifestCli {
     pub manifest: PathBuf,
     pub source: Option<PathBuf>,

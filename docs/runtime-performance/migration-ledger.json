@@ -79,10 +79,10 @@
       "kind": "primary",
       "status": "native_local_verified",
       "entry_aliases": "checkout-identity",
-      "remaining": "Current supported-host CI acceptance remains open; the native checkout engine is locally verified and its Python shared callers remain separately accounted for.",
+      "remaining": "Four-host native acceptance passed. Reconcile the direct Python compatibility entry and shared caller ownership against the full Goal before final unit closure; supporting Python sources remain separately accounted for.",
       "verification": {
         "native_owner": "native/checkout-identity/src/lib.rs",
-        "platform_evidence": "macos-arm64 local acceptance plus successful macos-arm64/linux-arm64/linux-x86_64 bundle jobs in https://github.com/taehwandev/moru-core/actions/runs/42157432003; macos-x86_64 is still pending.",
+        "platform_evidence": "All four native bundle and transported-consumer jobs passed in https://github.com/taehwandev/moru-core/actions/runs/42161685172 at d5c0f5e0. Frozen checkout engine source hashes below remain unchanged; this does not attest unfinished Python caller migration.",
         "behavior": "13 process-level checkout conformance tests passed; frozen UTF-8 NDJSON values, exit status and stderr contract.",
         "negative_authority": "Closed read-only two-key request schema, malformed input/recovery, backend failure and no-Python/Git/toolchain regressions passed.",
         "portable": "90 fresh-consumer checks passed on macos-arm64, including native checkout lookup with empty PATH.",
@@ -102,7 +102,7 @@
         "installed_sha256": "85f6e9d03734405c24759cd46cfcd649b87be4391c8e44da6a1cdd872a7b55c8",
         "platforms": {
           "macos-arm64": "PASS",
-          "macos-x86_64": "PENDING",
+          "macos-x86_64": "PASS",
         "linux-arm64": "PASS",
         "linux-x86_64": "PASS"
         }
@@ -431,7 +431,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "check-react-rn-skill-manifest; legacy direct Python CLI",
-      "remaining": "Native local validation/provenance, source hashes, help, CLI errors and Unicode scalar repr/classification are implemented; maintained guidance uses the alias. Complete file/JSON exceptions, oversized integers, integer negative zero, nonstandard JSON, lone surrogates and exotic CLI/width inputs. Text and help follow artifact-builder Python semantics. Explicit remote checks decline before effects and remain open. Retire direct Python compatibility only after full delivery; no real remote checks are authorized by this batch.",
+      "remaining": "Native local checks, CLI, Unicode, exact integers and Python nonfinite JSON values are implemented. Complete filesystem/malformed-JSON errors, lone surrogates, depth above128, integer-digit-limit exceptions, validation type errors and exotic CLI/width inputs. Text/help/digit limits follow artifact-builder Python semantics. Explicit remote checks remain pre-effect fallback. Retire direct Python compatibility only after full delivery; no real remote checks are authorized by this batch.",
       "verification": {}
     },
     {

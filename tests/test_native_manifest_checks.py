@@ -70,10 +70,7 @@ class NativeManifestChecks(unittest.TestCase):
     def test_exceptional_inputs_defer_before_output(self):
         malformed = self.base / "malformed.json"
         malformed.write_text("{")
-        negative_zero = self.base / "negative-zero.json"
-        negative_zero.write_text('{"schema_version": -0}')
-        cases = (["--manifest", str(malformed)],
-                 ["--manifest", str(negative_zero)])
+        cases = (["--manifest", str(malformed)],)
         for args in cases:
             with self.subTest(args=args):
                 expected = self.call("check-react-rn-skill-manifest", args, backend="python")
@@ -132,6 +129,45 @@ class NativeManifestChecks(unittest.TestCase):
             path = self.base / f"unicode-{index}.json"
             path.write_text(json.dumps(payload, ensure_ascii=False))
             self.assertEqual(1, self.parity("check-react-rn-skill-manifest", ["--manifest", str(path)]).returncode)
+
+    def test_json_numbers_and_duplicate_key_order_match_without_python(self):
+        source = PROJECT / "common/skills/react-rn-external-skill-source-coverage/references/source-manifest.json"
+        payload = json.loads(source.read_text())
+        payload["skills"][0]["path"] = "NUMERIC_SENTINEL"
+        template = json.dumps(payload)
+        values = ("-0", "-0.0", str(2 ** 128), str(-(2 ** 200)), "9" * 1000,
+                  "NaN", "Infinity", "-Infinity", "1e400", "-1e400", "1e-400",
+                  "[-0, -0.0, NaN, Infinity, 18446744073709551616]",
+                  '{"z":1,"a":2,"z":18446744073709551616}')
+        for index, value in enumerate(values):
+            with self.subTest(value=value[:80]):
+                path = self.base / f"number-{index}.json"
+                path.write_text(template.replace('"NUMERIC_SENTINEL"', value))
+                self.assertEqual(1, self.parity("check-react-rn-skill-manifest", ["--manifest", str(path)]).returncode)
+
+    def test_invalid_syntax_and_lone_surrogate_preserve_reference_fallback(self):
+        for index, value in enumerate(("01", "+1", "1.", "1e", "-NaN", "+Infinity",
+                                        "[1,]", '{"a":1,}', '"\\ud800"')):
+            with self.subTest(value=value):
+                path = self.base / f"bad-number-{index}.json"
+                path.write_text('{"schema_version":' + value + '}')
+                args = ["--manifest", str(path)]
+                expected = self.call("check-react-rn-skill-manifest", args, backend="python")
+                self.assertEqual(result(expected), result(self.call("check-react-rn-skill-manifest", args)))
+                native = self.call("check-react-rn-skill-manifest", args, PATH=str(self.path))
+                self.assertEqual(127, native.returncode)
+                self.assertEqual(b"", native.stdout)
+
+    def test_numeric_truthiness_preserves_installable_counts(self):
+        source = PROJECT / "common/skills/react-rn-external-skill-source-coverage/references/source-manifest.json"
+        payload = json.loads(source.read_text())
+        payload["skills"][0]["installable"] = "NUMERIC_SENTINEL"
+        template = json.dumps(payload)
+        for index, value in enumerate(("-0", "-0.0", "NaN", "Infinity", "18446744073709551616")):
+            with self.subTest(value=value):
+                path = self.base / f"truth-{index}.json"
+                path.write_text(template.replace('"NUMERIC_SENTINEL"', value))
+                self.parity("check-react-rn-skill-manifest", ["--manifest", str(path)])
 
     def test_explicit_remote_check_uses_only_a_fake_git(self):
         fake = self.path / "git"

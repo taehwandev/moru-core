@@ -1,6 +1,6 @@
-//! owner: ManifestValidation; allowed imports: std, serde_json, PythonText; forbidden imports:
+//! owner: ManifestValidation; allowed imports: std, manifest value modules, PythonText; forbidden imports:
 //! process/network; callers/tests: ReactManifest; verification: manifest parity.
-use serde_json::{Map, Value};
+use super::{object::ManifestObject as Map, value::ManifestValue as Value};
 use crate::python_text::PythonText;
 use std::collections::BTreeSet;
 use std::path::{Component, Path};
@@ -10,7 +10,7 @@ impl ManifestValidation {
         match v {
             Value::Null => false,
             Value::Bool(v) => *v,
-            Value::Number(v) => v.as_f64() != Some(0.0),
+            Value::Number(v) => v.truthy(),
             Value::String(v) => !v.is_empty(),
             Value::Array(v) => !v.is_empty(),
             Value::Object(v) => !v.is_empty(),
@@ -21,8 +21,7 @@ impl ManifestValidation {
             Value::Null => "None".into(),
             Value::Bool(v) => if *v { "True" } else { "False" }.into(),
             Value::String(v) => v.clone(),
-            Value::Number(v) if v.is_i64() || v.is_u64() => v.to_string(),
-            Value::Number(v) => Self::float(v.as_f64()?),
+            Value::Number(v) => v.text(),
             Value::Array(v) => format!(
                 "[{}]",
                 v.iter()
@@ -43,39 +42,6 @@ impl ManifestValidation {
             ),
         })
     }
-    fn float(v: f64) -> String {
-        // Rust and Python use shortest round-trip digits, with different exponent spelling.
-        let raw = format!("{v:?}");
-        let Some((mantissa, exponent)) = raw.split_once('e') else {
-            return raw;
-        };
-        let exponent: i32 = exponent.parse().expect("Rust float exponent");
-        if !(-4..16).contains(&exponent) {
-            return format!(
-                "{}e{}{:02}",
-                mantissa,
-                if exponent >= 0 { "+" } else { "-" },
-                exponent.abs()
-            );
-        }
-        let sign = if mantissa.starts_with('-') { "-" } else { "" };
-        let digits = mantissa.trim_start_matches('-').replace('.', "");
-        let point = 1 + exponent;
-        if point <= 0 {
-            format!("{sign}0.{}{digits}", "0".repeat((-point) as usize))
-        } else if point as usize >= digits.len() {
-            format!(
-                "{sign}{digits}{}.0",
-                "0".repeat(point as usize - digits.len())
-            )
-        } else {
-            format!(
-                "{sign}{}.{}",
-                &digits[..point as usize],
-                &digits[point as usize..]
-            )
-        }
-    }
     fn repr(v: &Value) -> Option<String> {
         if let Value::String(s) = v {
             Some(PythonText::repr(s))
@@ -83,7 +49,7 @@ impl ManifestValidation {
             Self::string(v)
         }
     }
-    pub fn field(m: &Map<String, Value>, key: &str) -> Option<String> {
+    pub fn field(m: &Map, key: &str) -> Option<String> {
         m.get(key)
             .map(Self::string)
             .unwrap_or_else(|| Some(String::new()))
@@ -99,7 +65,7 @@ impl ManifestValidation {
     fn equals(v: Option<&Value>, n: u64) -> bool {
         match v {
             Some(Value::Bool(b)) => u64::from(*b) == n,
-            Some(Value::Number(v)) => v.as_f64() == Some(n as f64),
+            Some(Value::Number(v)) => v.equals_u64(n),
             _ => false,
         }
     }
@@ -132,7 +98,7 @@ impl ManifestValidation {
             return Some(vec![Self::schema()]);
         }
         let mut f = Vec::new();
-        for (provider, record) in repos {
+        for (provider, record) in repos.iter() {
             let Some(r) = record.as_object() else {
                 f.push(format!(
                     "repository {provider} must be an object with url, commit, and provenance"

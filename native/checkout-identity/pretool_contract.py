@@ -56,6 +56,8 @@ def emit(output):
     # subprocess. Python 3.9 says "optional arguments", newer versions "options".
     title = argparse.ArgumentParser()._optionals.title
     print("cargo:rustc-env=MORU_ARGPARSE_OPTIONS_TITLE=" + title + ":")
+    print("cargo:rustc-env=MORU_PYTHON_INT_MAX_STR_DIGITS=" + str(
+        getattr(sys, "get_int_max_str_digits", lambda: 0)()))
     root = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(root / "scripts"))
     from support.native_source_inputs import CACHE_DIRECTORIES, pretool_contract

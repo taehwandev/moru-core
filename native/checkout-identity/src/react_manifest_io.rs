@@ -1,7 +1,7 @@
 //! owner: ManifestIo; allowed imports: std, sha2, serde_json, validation;
 //! forbidden imports: Python/runtime launchers; callers/tests: ReactManifest; verification: fixture parity.
 use super::validation::ManifestValidation as V;
-use serde_json::Value;
+use super::value::ManifestValue as Value;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::Path};
 pub struct ManifestIo;
@@ -77,7 +77,7 @@ impl ManifestIo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    macro_rules! json { ($($t:tt)*) => { Value::from(serde_json::json!($($t)*)) }; }
     #[test]
     fn missing_root_has_no_sources() {
         assert!(

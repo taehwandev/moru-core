@@ -1,5 +1,5 @@
 use super::*;
-use serde_json::json;
+macro_rules! json { ($($t:tt)*) => { Value::from(serde_json::json!($($t)*)) }; }
 #[test]
 fn float_spelling() {
     for (v, s) in [
@@ -9,7 +9,7 @@ fn float_spelling() {
         (1e15, "1000000000000000.0"),
         (-0.0, "-0.0"),
     ] {
-        assert_eq!(ManifestValidation::float(v), s);
+        assert_eq!(super::super::number::ManifestNumber::float(v), s);
     }
 }
 #[test]

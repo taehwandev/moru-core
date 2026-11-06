@@ -152,3 +152,20 @@ against the builder Python digest for every valid Unicode scalar, plus
 multi-character quote/escape tests. The contract follows the builder's Unicode
 database; a different consumer Python database can differ on newly assigned
 characters. Lone surrogates remain a separate JSON-input migration boundary.
+
+Manifest JSON now uses an isolated native value/parser boundary. Integers retain
+their exact decimal digits, integer `-0` normalizes to `0`, float negative zero
+stays distinct, and Python's `NaN`/`Infinity` spellings and exponent overflow
+are represented without changing global serde features. Ordered objects keep
+the first key position when a later duplicate overwrites its value. The builder
+Python's integer digit limit is captured alongside existing static contracts.
+Malformed JSON, lone surrogates, nesting beyond 128 and digit-limit exceptions
+still decline before effects; these are open migration work, not silently
+accepted inputs. Explicit Python environment overrides keep their earlier
+whole-command compatibility behavior.
+
+Run `42161685172` completed all four supported-host bundle and transported
+consumer jobs successfully at `d5c0f5e0`. This closes the earlier Intel timeout
+acceptance gap for that source revision; subsequent commits retain their own
+CI requirements. The ledger keeps direct Python entry/caller reconciliation
+separate from the frozen checkout engine's cross-platform acceptance.
