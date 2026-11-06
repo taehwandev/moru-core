@@ -1,6 +1,7 @@
 use std::{env, path::PathBuf, process::Command};
 
 fn main() {
+    println!("cargo:rerun-if-env-changed=PATH");
     let package = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let directory = PathBuf::from(env::var_os("OUT_DIR").unwrap());
     let output = directory.join("pretool_contract.rs");

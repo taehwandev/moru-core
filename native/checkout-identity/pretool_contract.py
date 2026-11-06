@@ -2,11 +2,45 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
+import io
 import json
 from pathlib import Path
 import sys
 import unicodedata
+
+
+def emit_argparse_contract():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--manifest")
+    parser.add_argument("--source-root")
+    parser.add_argument("--remote-check", action="store_true")
+    patterns = {r"^-\d+$|^-\d*\.\d+$": "full", r"-\.?\d": "prefix"}
+    pattern = parser._negative_number_matcher.pattern
+    if pattern not in patterns:
+        raise RuntimeError("unsupported argparse negative-number pattern: " + pattern)
+
+    def outcome(args):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            try:
+                parser.parse_args(args)
+            except SystemExit as error:
+                return error.code
+            except IndexError:
+                return "IndexError"
+        return "parsed"
+
+    observed = tuple(outcome([arg]) for arg in ("-hfoo", "-hhfoo", "-h=foo", "-h=", "-h=h", "-hh=foo", "--help=foo"))
+    modes = {(2, 2, 2, "IndexError", 0, 2, 2): "legacy", (0, 0, 2, 2, 2, 2, 2): "eager"}
+    if observed not in modes:
+        raise RuntimeError("unsupported argparse short-help behavior: " + repr(observed))
+    ambiguity = outcome(["--help", "--=x"])
+    if ambiguity not in (0, 2):
+        raise RuntimeError("unsupported argparse ambiguity ordering: " + repr(ambiguity))
+    print("cargo:rustc-env=MORU_ARGPARSE_SHORT_HELP=" + modes[observed])
+    print("cargo:rustc-env=MORU_ARGPARSE_NEGATIVE_NUMBER=" + patterns[pattern])
+    print("cargo:rustc-env=MORU_ARGPARSE_AMBIGUITY=" + ("prescan" if ambiguity == 2 else "sequential"))
 
 
 def emit_python_text(output):
@@ -51,6 +85,7 @@ def emit_python_text(output):
 
 
 def emit(output):
+    emit_argparse_contract()
     emit_python_text(output.parent / "python_text_contract.rs")
     # Preserve the artifact builder's argparse wording without a runtime Python
     # subprocess. Python 3.9 says "optional arguments", newer versions "options".

@@ -88,7 +88,10 @@ class NativeManifestChecks(unittest.TestCase):
                  ["--remote-check", "--help"], ["-hfoo"], ["--unknown", "--manifest"],
                  ["--=x"], ["-hh"], ["-hhfoo"], ["--=x", "--help"],
                  ["--manifest", "-1\n", "--help"], ["--manifest", "-.2\n", "--help"],
-                 ["--manifest", "-1\n\n", "--help"])
+                 ["--manifest", "-1\n\n", "--help"], ["-h=foo"],
+                 ["--manifest", "-1e2", "--help"], ["--manifest", "-1tail", "--help"],
+                 ["--manifest", "-.٢tail", "--help"], ["--help", "--=x"],
+                 ["-h=h"], ["-hh=foo"])
         for width in ("40", "80", "120"):
             for args in cases:
                 with self.subTest(width=width, args=args):

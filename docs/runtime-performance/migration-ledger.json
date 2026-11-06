@@ -431,7 +431,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "check-react-rn-skill-manifest; legacy direct Python CLI",
-      "remaining": "Native local checks, CLI, Unicode, exact integers and Python nonfinite JSON values are implemented. Complete filesystem/malformed-JSON errors, lone surrogates, depth above128, integer-digit-limit exceptions, validation type errors and exotic CLI/width inputs. Text/help/digit limits follow artifact-builder Python semantics. Explicit remote checks remain pre-effect fallback. Retire direct Python compatibility only after full delivery; no real remote checks are authorized by this batch.",
+      "remaining": "Native local checks, CLI, Unicode, exact integers and Python nonfinite JSON values are implemented. Complete filesystem/malformed-JSON errors, lone surrogates, depth above128, integer-digit-limit exceptions, validation type errors and exotic CLI/width inputs. Text/help/digit limits and argparse short-help, numeric-option and ambiguity ordering follow artifact-builder Python semantics. CI run42162748805 exposed Python-version parsing differences; local 3.9 and 3.14 parity repair is tracked separately from pending cross-host acceptance. Explicit remote checks remain pre-effect fallback. Retire direct Python compatibility only after full delivery; no real remote checks are authorized by this batch.",
       "verification": {}
     },
     {

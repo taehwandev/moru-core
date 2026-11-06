@@ -1,10 +1,8 @@
 //! owner: ReactManifestCli; allowed imports: std, libc, PythonText; forbidden imports: process/network;
 //! callers/tests: ReactManifest and subject tests; verification: argparse CLI parity.
 use crate::python_text::PythonText;
-use std::{
-    ffi::OsString,
-    path::{Path, PathBuf},
-};
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 pub struct ReactManifestCli {
     pub manifest: PathBuf,
     pub source: Option<PathBuf>,
@@ -14,6 +12,9 @@ pub struct ReactManifestCli {
 impl ReactManifestCli {
     const PROG: &'static str = "check_react_rn_external_skill_manifest.py";
     const OPTIONS: [&'static str; 4] = ["--help", "--manifest", "--source-root", "--remote-check"];
+    const SHORT_HELP: &'static str = env!("MORU_ARGPARSE_SHORT_HELP");
+    const NEGATIVE: &'static str = env!("MORU_ARGPARSE_NEGATIVE_NUMBER");
+    const AMBIGUITY: &'static str = env!("MORU_ARGPARSE_AMBIGUITY");
     pub fn parse(root: &Path, args: &[OsString]) -> Option<Self> {
         let mut result=Self { manifest:root.join("common/skills/react-rn-external-skill-source-coverage/references/source-manifest.json"), source:None,remote:false,exit:None };
         let args = args
@@ -22,20 +23,17 @@ impl ReactManifestCli {
             .collect::<Option<Vec<_>>>()?;
         let mut extras = Vec::new();
         // argparse classifies every option before executing help or consuming values.
-        for arg in args.iter().take_while(|arg| **arg != "--") {
-            let key = arg.split_once('=').map_or(*arg, |(key, _)| key);
-            if !key.starts_with("--") {
-                continue;
-            }
-            let matches: Vec<_> = Self::OPTIONS
-                .into_iter()
-                .filter(|name| name.starts_with(key))
-                .collect();
-            if matches.len() > 1 {
-                return result.error(&format!(
-                    "ambiguous option: {arg} could match {}",
-                    matches.join(", ")
-                ));
+        for arg in args
+            .iter()
+            .take(if Self::AMBIGUITY == "prescan" {
+                args.len()
+            } else {
+                0
+            })
+            .take_while(|arg| **arg != "--")
+        {
+            if let Err(message) = Self::name(arg) {
+                return result.error(&message);
             }
         }
         let mut i = 0;
@@ -48,34 +46,41 @@ impl ReactManifestCli {
             let (key, explicit) = arg
                 .split_once('=')
                 .map_or((arg, None), |(k, v)| (k, Some(v)));
-            let name = if key.starts_with("--") {
-                Self::OPTIONS.into_iter().find(|name| name.starts_with(key))
-            } else if key.starts_with("-h") {
-                Some("--help")
-            } else {
-                None
+            let name = match Self::name(arg) {
+                Ok(name) => name,
+                Err(message) => return result.error(&message),
             };
             match name {
                 Some("--help") => {
-                    let value = if key.starts_with("--") || key == "-h" {
+                    let value = if Self::SHORT_HELP == "eager" && !key.starts_with("--") {
+                        if key[1..].chars().all(|c| c == 'h') {
+                            explicit
+                        } else {
+                            None
+                        }
+                    } else if key.starts_with("--") || key == "-h" {
                         explicit
                     } else {
                         Some(&arg[2..])
                     };
                     if let Some(v) = value {
                         // Python 3.9 short-option clustering raises IndexError for -h=.
-                        if key == "-h" && v.is_empty() {
+                        if Self::SHORT_HELP == "legacy" && key == "-h" && v.is_empty() {
                             return None;
                         }
-                        let rest = if key.starts_with("--") {
+                        let rest = if Self::SHORT_HELP == "eager" || key.starts_with("--") {
                             v
                         } else {
                             v.trim_start_matches('h')
                         };
-                        if key.starts_with("--") || !rest.is_empty() || v.is_empty() {
+                        if Self::SHORT_HELP == "eager"
+                            || key.starts_with("--")
+                            || !rest.is_empty()
+                            || v.is_empty()
+                        {
                             return result.error(&format!(
                                 "argument -h/--help: ignored explicit argument {}",
-                                Self::repr(rest)?
+                                PythonText::repr(rest)
                             ));
                         }
                     }
@@ -87,7 +92,7 @@ impl ReactManifestCli {
                     if let Some(v) = explicit {
                         return result.error(&format!(
                             "argument --remote-check: ignored explicit argument {}",
-                            Self::repr(v)?
+                            PythonText::repr(v)
                         ));
                     }
                     result.remote = true;
@@ -122,6 +127,24 @@ impl ReactManifestCli {
         }
         Some(result)
     }
+    fn name(arg: &str) -> Result<Option<&'static str>, String> {
+        let key = arg.split_once('=').map_or(arg, |(key, _)| key);
+        if key.starts_with("--") {
+            let matches: Vec<_> = Self::OPTIONS
+                .into_iter()
+                .filter(|name| name.starts_with(key))
+                .collect();
+            if matches.len() > 1 {
+                return Err(format!(
+                    "ambiguous option: {arg} could match {}",
+                    matches.join(", ")
+                ));
+            }
+            Ok(matches.into_iter().next())
+        } else {
+            Ok(key.starts_with("-h").then_some("--help"))
+        }
+    }
     fn error(mut self, message: &str) -> Option<Self> {
         eprint!(
             "{}{}: error: {message}\n",
@@ -136,6 +159,15 @@ impl ReactManifestCli {
             return Some(false);
         }
         let n = value[1..].strip_suffix('\n').unwrap_or(&value[1..]);
+        if Self::NEGATIVE == "prefix" {
+            return Some(
+                !n.strip_prefix('.')
+                    .unwrap_or(n)
+                    .chars()
+                    .next()
+                    .is_some_and(PythonText::decimal),
+            );
+        }
         let numeric = if let Some((a, b)) = n.split_once('.') {
             !b.is_empty()
                 && a.chars().all(PythonText::decimal)
@@ -144,9 +176,6 @@ impl ReactManifestCli {
             !n.is_empty() && n.chars().all(PythonText::decimal)
         };
         Some(!numeric)
-    }
-    fn repr(s: &str) -> Option<String> {
-        Some(PythonText::repr(s))
     }
     fn width() -> Option<usize> {
         let env = std::env::var("COLUMNS").ok();

@@ -10,13 +10,52 @@ fn parse_precedence_and_values() {
     };
     assert_eq!(parse(&["--unknown", "--help"]).exit, Some(0));
     assert_eq!(parse(&["--=x"]).exit, Some(2));
-    assert_eq!(parse(&["--help", "--=x"]).exit, Some(2));
+    assert_eq!(
+        parse(&["--help", "--=x"]).exit,
+        Some(if ReactManifestCli::AMBIGUITY == "prescan" {
+            2
+        } else {
+            0
+        })
+    );
     assert_eq!(parse(&["--manifest", "--help"]).exit, Some(2));
     assert_eq!(parse(&["--manifest", "-1\n", "--help"]).exit, Some(0));
-    assert_eq!(parse(&["--manifest", "-1\n\n", "--help"]).exit, Some(2));
+    assert_eq!(
+        parse(&["--manifest", "-1\n\n", "--help"]).exit,
+        Some(if ReactManifestCli::NEGATIVE == "full" {
+            2
+        } else {
+            0
+        })
+    );
     assert_eq!(parse(&["--", "--help"]).exit, Some(2));
     assert_eq!(parse(&["-hh"]).exit, Some(0));
-    assert_eq!(parse(&["-hfoo"]).exit, Some(2));
+    for flag in ["-hfoo", "-hhfoo", "-hfoo=x"] {
+        assert_eq!(
+            parse(&[flag]).exit,
+            Some(if ReactManifestCli::SHORT_HELP == "legacy" {
+                2
+            } else {
+                0
+            })
+        );
+    }
+    assert_eq!(parse(&["-h=foo"]).exit, Some(2));
+    assert_eq!(parse(&["-hh=foo"]).exit, Some(2));
+    assert_eq!(
+        parse(&["-h=h"]).exit,
+        Some(if ReactManifestCli::SHORT_HELP == "legacy" {
+            0
+        } else {
+            2
+        })
+    );
+    let empty = ReactManifestCli::parse(Path::new("."), &[OsString::from("-h=")]);
+    if ReactManifestCli::SHORT_HELP == "legacy" {
+        assert!(empty.is_none());
+    } else {
+        assert_eq!(empty.unwrap().exit, Some(2));
+    }
     let valid = parse(&["--m=one", "--manifest", "-1", "--s=", "--r"]);
     assert_eq!(valid.manifest, PathBuf::from("-1"));
     assert_eq!(valid.source, Some(PathBuf::from("")));
@@ -28,8 +67,14 @@ fn value_classification() {
     for value in ["-1", "-.2", "-1.2", "-1\n", "-.2\n", "-", "-a b", ""] {
         assert_eq!(ReactManifestCli::option(value), Some(false));
     }
-    for value in ["-1e2", "-1.", "-1\n\n", "--help", "--"] {
+    for value in ["--help", "--"] {
         assert_eq!(ReactManifestCli::option(value), Some(true));
+    }
+    for value in ["-1e2", "-1.", "-1\n\n", "-.2x", "-٩tail"] {
+        assert_eq!(
+            ReactManifestCli::option(value),
+            Some(ReactManifestCli::NEGATIVE == "full")
+        );
     }
 }
 #[test]
