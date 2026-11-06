@@ -56,6 +56,10 @@ class ReviewAttestation:
         return evidence_path.with_name(f"{evidence_path.stem}-review-attestation.json")
 
     @staticmethod
+    def archive_dir(evidence_path: Path) -> Path:
+        return ReviewAttestation.path(evidence_path).with_suffix("")
+
+    @staticmethod
     def local_config_subject(project: Path, review_paths: list[str]) -> dict[str, Any]:
         """Snapshot an explicit allowlisted ignored agent-local boundary."""
 
@@ -117,6 +121,7 @@ class ReviewAttestation:
             },
         }
         _complete_review_record(payload, checks, project, rules)
+        _archive_review(evidence_path, payload)
         atomic_write_json(ReviewAttestation.path(evidence_path), payload)
         return payload
 
@@ -144,6 +149,7 @@ class ReviewAttestation:
         route: dict[str, Any],
         ledger_fields: dict[str, str],
         ledger_source: str,
+        attestation: dict[str, Any] | None = None,
     ) -> list[str]:
         """Return why the latest ledger success lacks a current real review."""
 
@@ -154,7 +160,17 @@ class ReviewAttestation:
             route=route,
             ledger_fields=ledger_fields,
             ledger_source=ledger_source,
+            record=attestation,
         )
+
+
+def _archive_review(evidence: Path, payload: dict) -> None:
+    archive = ReviewAttestation.archive_dir(evidence) / f"{payload['attestation_id']}.json"
+    if archive.exists():
+        if read_json_object(archive) != payload:
+            raise ValueError("review attestation archive integrity does not match")
+    else:
+        atomic_write_json(archive, payload)
 
 
 def _complete_review_record(payload: dict, checks: dict, project: Path, rules: Path) -> None:
@@ -242,8 +258,10 @@ def _attestation_failures(
     route: dict[str, Any],
     ledger_fields: dict[str, str],
     ledger_source: str,
+    record: dict[str, Any] | None = None,
 ) -> list[str]:
-    record = read_json_object(ReviewAttestation.path(evidence_path.resolve()))
+    if record is None:
+        record = read_json_object(ReviewAttestation.path(evidence_path.resolve()))
     if not record or record.get("invalid_json"):
         return ["review hook attestation is missing or invalid"]
     failures = _record_shape_failures(record)
