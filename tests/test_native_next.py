@@ -62,14 +62,14 @@ class NativeNextTests(unittest.TestCase):
                  for p in (self.project / ".moru").rglob("*") if p.is_file()}
         self.assertEqual(before, after)
 
-    def test_active_and_unknown_state_never_gain_native_completion_advice(self):
+    def test_registry_states_preserve_reference_session_advice(self):
         for state in ("running", "paused", "resuming", "claiming", "blocked", "interrupted", "reconcile_required", "unknown"):
             seed(self.project, state)
             baseline = self.call(backend="python", CODEX_THREAD_ID="synthetic-next")
             if state in ("running", "paused", "resuming"):
                 self.assertEqual("active_run", json.loads(baseline.stdout)["status"])
             self.assertEqual(result(baseline), result(self.call(CODEX_THREAD_ID="synthetic-next")))
-            self.assertEqual(127, self.call(CODEX_THREAD_ID="synthetic-next", PATH=str(self.git_only)).returncode)
+            self.assertEqual(result(baseline), result(self.call(CODEX_THREAD_ID="synthetic-next", PATH=str(self.git_only))))
 
     def test_cli_fallbacks_and_unicode_paths_preserve_parity(self):
         evidence = seed(self.project, "running")

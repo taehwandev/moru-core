@@ -4,11 +4,11 @@
 mod advice;
 #[path = "next_ledger.rs"]
 mod ledger;
+#[path = "next_session.rs"]
+mod session;
 use crate::next_verification::Verification;
-use crate::{
-    callback_state::LocalState as State, pretool_guard::CallbackGuard, stop_state::StopState,
-};
-use std::{env, ffi::OsString, fs::File, io::Write, path::Path};
+use crate::pretool_guard::CallbackGuard;
+use std::{env, ffi::OsString, io::Write, path::Path};
 
 pub(crate) struct NextProcess;
 
@@ -44,13 +44,12 @@ fn quiet(launcher: &OsString, args: &[OsString]) -> Option<String> {
     {
         return None;
     }
-    // This precheck only rejects. Recheck after source validation under locks.
-    if has_session()? {
-        StopState::candidate(&project)?;
-    }
     let core = CallbackGuard::root(launcher, "git")?;
-    drop(inactive(&project)?); // Python also releases registry locks before Git.
+    let evidence = session::NextSession::discover(&project)?;
     let verification = Verification::discover(&project)?;
+    if let Some(evidence) = evidence {
+        return selected(&project, &evidence, home, format, &verification);
+    }
     let copyable = format!(
         "{} start --project {} --rules {} --command <route> --request \"<USER_REQUEST>\" \
          --intent <safe_slug> --target-summary \"<bounded target>\"",
@@ -120,6 +119,19 @@ fn explicit(launcher: &OsString, args: &[OsString]) -> Option<String> {
     CallbackGuard::root(launcher, "git")?;
     // Reference explicit evidence bypasses registry/session selection and its locks.
     let verification = Verification::discover(&project)?;
+    selected(&project, &evidence, home, format, &verification)
+}
+
+fn selected(
+    project: &Path,
+    evidence: &Path,
+    home: &Path,
+    format: &str,
+    verification: &Verification,
+) -> Option<String> {
+    if evidence.file_name()?.to_str()?.ends_with('.') {
+        return None;
+    }
     let preflight_bytes = std::fs::read(&evidence).ok()?;
     let preflight =
         crate::python_json::PythonJson::parse(std::str::from_utf8(&preflight_bytes).ok()?)?;
@@ -153,44 +165,6 @@ fn arguments<'a>(args: &'a [OsString], cwd: &Path) -> Option<(std::path::PathBuf
         }
         _ => None,
     }
-}
-
-fn has_session() -> Option<bool> {
-    let mut found = false;
-    for key in [
-        "CLAUDE_CODE_SESSION_ID",
-        "CODEX_THREAD_ID",
-        "ANTIGRAVITY_CONVERSATION_ID",
-    ] {
-        match env::var(key) {
-            Ok(value) => found |= !crate::statusline::Renderer::strip(&value).is_empty(),
-            Err(env::VarError::NotPresent) => {}
-            Err(_) => return None,
-        }
-    }
-    Some(found)
-}
-
-fn inactive(project: &Path) -> Option<Vec<File>> {
-    if !has_session()? {
-        return Some(Vec::new());
-    }
-    let local = project.join(".moru");
-    State::safe_path(project, &local)?;
-    if State::absent_dir(&local)? {
-        return Some(Vec::new());
-    }
-    for marker in ["moru-root", "projects.json", "bin/moru-hook"] {
-        if local.join(marker).exists() {
-            return None;
-        }
-    }
-    let locks = vec![
-        State::lock(&local.join(".state.lock.lock"))?,
-        State::lock(&local.join(".run-registry.json.lock"))?,
-    ];
-    StopState::candidate(project)?;
-    Some(locks)
 }
 
 fn render(project: &str, copyable: &str, verification: &Verification, format: &str) -> String {
