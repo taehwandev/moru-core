@@ -1,7 +1,7 @@
-//! owner: ManifestIo; allowed imports: std, sha2, serde_json, validation;
+//! owner: ManifestIo; allowed imports: std, sha2, PythonJson values, validation;
 //! forbidden imports: Python/runtime launchers; callers/tests: ReactManifest; verification: fixture parity.
 use super::validation::ManifestValidation as V;
-use super::value::ManifestValue as Value;
+use crate::python_json::Value;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::Path};
 pub struct ManifestIo;

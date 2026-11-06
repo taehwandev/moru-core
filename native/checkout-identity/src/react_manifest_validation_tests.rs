@@ -9,7 +9,7 @@ fn float_spelling() {
         (1e15, "1000000000000000.0"),
         (-0.0, "-0.0"),
     ] {
-        assert_eq!(super::super::number::ManifestNumber::float(v), s);
+        assert_eq!(crate::python_json::Number::float(v), s);
     }
 }
 #[test]

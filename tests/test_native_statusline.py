@@ -137,6 +137,53 @@ class NativeStatuslineTests(unittest.TestCase):
             self.assertEqual(127, self.cli(text, "--chain", command, path=self.empty).returncode)
         self.assertEqual(b"", count.read_bytes())
 
+    def test_json_values_and_python_coercion_run_without_python(self):
+        values = [True, 42, -0.0, 1e-7, 1e-5, 1e-4, 1e15, 1e16, 1e20, 1e23,
+                  1.2345678901234567, 5e-324, sys.float_info.max, 10**80, -10**100,
+                  float("nan"), float("inf"), -float("inf"),
+                  [None, True, False, "it's", '"quoted"', "\u200b", "한글"],
+                  {"b": [1, -0.0, {"nested": "line\n"}], "a": None},
+                  {}, [], 0, False, None]
+        for alias in ("claude-statusline", "agy-statusline"):
+            for value in values:
+                payload = {"model": {"display_name": value, "id": "fallback"},
+                           "workspace": {"project_dir": value, "current_dir": "/fallback"},
+                           "unused": float("nan")}
+                text = json.dumps(payload, ensure_ascii=False)
+                with self.subTest(alias=alias, value=repr(value)):
+                    actual = self.cli(text.encode(), alias=alias, path=self.empty)
+                    self.assertEqual((0, self.expected(text), b""),
+                                     (actual.returncode, actual.stdout, actual.stderr))
+        for value in (10**80, -10**80, 0, -0.0):
+            self.assert_native({"rate_limits": {"session": {"percent": value}}})
+        for kind in (True, 42, ["session"], {"week": None}):
+            self.assert_native({"rate_limits": [{"kind": kind, "percent": 25}]})
+        self.assert_native({"rate_limits": {"unknown": {"percent": float("nan")}}})
+
+    def test_coercion_chain_keeps_original_input_once_without_python(self):
+        count = self.base / "coercion-chain-count"
+        count.write_bytes(b"")
+        command = f"printf x >> {shlex.quote(str(count))}; /bin/cat"
+        text = '{"model":{"display_name":{"b":1,"a":null,"b":2}},"unused":Infinity}'
+        actual = self.cli(text.encode(), "--chain", command, path=self.empty)
+        self.assertEqual((0, self.expected(text) + b"  " + text.encode(), b""),
+                         (actual.returncode, actual.stdout, actual.stderr))
+        self.assertEqual(b"x", count.read_bytes())
+
+    def test_huge_integer_float_overflow_defers_before_chain(self):
+        count = self.base / "integer-overflow-chain-count"
+        count.write_bytes(b"")
+        command = f"printf x >> {shlex.quote(str(count))}"
+        for field in ("percent", "window_minutes"):
+            text = json.dumps({"rate_limits": {"session": {"percent": 1, field: 10**400}}}).encode()
+            expected = self.cli(text, "--chain", command, backend="python")
+            actual = self.cli(text, "--chain", command)
+            self.assertEqual(1, expected.returncode)
+            self.assertEqual((expected.returncode, expected.stdout, expected.stderr),
+                             (actual.returncode, actual.stdout, actual.stderr))
+            self.assertEqual(127, self.cli(text, "--chain", command, path=self.empty).returncode)
+        self.assertEqual(b"", count.read_bytes())
+
     def test_fallback_retains_raw_pipe_input_before_chain(self):
         counter = self.base / "fallback-count"
         counter.write_bytes(b"")

@@ -1,4 +1,4 @@
-use serde_json::{Map, Value};
+use crate::python_json::{Object as Map, PythonJson, Value};
 
 use super::py::Py;
 
@@ -7,8 +7,8 @@ const MAX_CHARS: usize = 34;
 pub(crate) struct Location;
 
 impl Location {
-    /// None means a non-string path was selected and Python must decide.
-    pub(crate) fn resolve(root: &Map<String, Value>, home: &str, color: bool) -> Option<String> {
+    /// Selected truthy values use Python str(), including nested collection representations.
+    pub(crate) fn resolve(root: &Map, home: &str, color: bool) -> Option<String> {
         let workspace = match root.get("workspace") {
             Some(Value::Object(workspace)) => Py::pick(workspace, &["project_dir", "current_dir"]),
             _ => None,
@@ -16,10 +16,9 @@ impl Location {
         let selected = workspace.or_else(|| Py::pick(root, &["cwd"]));
         let path = match selected {
             None => return Some(String::new()),
-            Some(Value::String(path)) => path.as_str(),
-            Some(_) => return None,
+            Some(value) => PythonJson::string(value),
         };
-        let shown = Self::shorten(Self::fold(path, home));
+        let shown = Self::shorten(Self::fold(&path, home));
         Some(if color {
             format!("\x1b[34m{shown}\x1b[0m")
         } else {

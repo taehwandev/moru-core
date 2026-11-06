@@ -80,6 +80,12 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 0, "5h ██▊░░░░░  35%  chained".encode(), b""), done
             checks += 1
+            done = subprocess.run([str(entry), alias, "--chain=printf chained"],
+                                  input=b'{"model":{"display_name":{"b":[null,true],"a":18446744073709551616}},"unused":NaN}',
+                                  capture_output=True, env={**env, "NO_COLOR": "1"}, timeout=8)
+            assert (done.returncode, done.stdout, done.stderr) == (
+                0, b"{'b': [None, True], 'a': 18446744073709551616}  chained", b""), done
+            checks += 1
         native = entry.with_name("moru-hook-native")
         state = base / "prepared-registry"
         state.mkdir()

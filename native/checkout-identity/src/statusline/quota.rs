@@ -1,7 +1,7 @@
 #[path = "quota_number.rs"]
 mod number;
+use crate::python_json::{Object as Map, PythonJson, Value};
 use number::QuotaNumber;
-use serde_json::{Map, Value};
 
 use super::gauge::Gauge;
 use super::py::Py;
@@ -13,11 +13,11 @@ pub(crate) struct Quota;
 
 impl Quota {
     /// None means an unsupported shape was met and Python must decide.
-    pub(crate) fn render(root: &Map<String, Value>, color: bool) -> Option<String> {
-        let mut entries: Vec<(String, &Map<String, Value>)> = Vec::new();
+    pub(crate) fn render(root: &Map, color: bool) -> Option<String> {
+        let mut entries: Vec<(String, &Map)> = Vec::new();
         match root.get("rate_limits") {
             Some(Value::Object(limits)) => {
-                for (key, value) in limits {
+                for (key, value) in limits.iter() {
                     if let Value::Object(entry) = value {
                         entries.push((key.clone(), entry));
                     }
@@ -28,8 +28,7 @@ impl Quota {
                     if let Value::Object(entry) = item {
                         let key = match Py::pick(entry, &["kind", "window"]) {
                             None => String::new(),
-                            Some(Value::String(key)) => key.clone(),
-                            Some(_) => return None,
+                            Some(value) => PythonJson::string(value),
                         };
                         entries.push((key, entry));
                     }
@@ -76,9 +75,9 @@ impl Quota {
         format!("{open}{text}\x1b[0m")
     }
 
-    fn slot(key: &str, entry: &Map<String, Value>) -> Option<Option<usize>> {
+    fn slot(key: &str, entry: &Map) -> Option<Option<usize>> {
         let window = match entry.get("window_minutes") {
-            Some(Value::Number(value)) => value.as_f64(),
+            Some(Value::Number(value)) => Some(value.as_float()?),
             Some(Value::String(value)) => QuotaNumber::parse(value),
             _ => None,
         }
@@ -117,10 +116,10 @@ impl Quota {
     }
 
     /// Outer None: unsupported, use Python. Inner None: no convertible value.
-    fn used(entry: &Map<String, Value>) -> Option<Option<f64>> {
+    fn used(entry: &Map) -> Option<Option<f64>> {
         for name in USED_KEYS {
             match entry.get(name) {
-                Some(Value::Number(number)) => return number.as_f64().map(Some),
+                Some(Value::Number(number)) => return number.as_float().map(Some),
                 Some(Value::String(text)) => {
                     if let Some(value) = QuotaNumber::parse(text) {
                         return Some(Some(value));

@@ -11,6 +11,7 @@ mod android_manifest;
 mod manifest_process;
 mod react_manifest;
 mod python_text;
+mod python_json;
 mod callback_state;
 mod cards_identity;
 mod cards_process;

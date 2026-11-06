@@ -1,53 +1,16 @@
 //! owner: ManifestValidation; allowed imports: std, manifest value modules, PythonText; forbidden imports:
 //! process/network; callers/tests: ReactManifest; verification: manifest parity.
-use super::{object::ManifestObject as Map, value::ManifestValue as Value};
+use crate::python_json::{Object as Map, PythonJson, Value};
 use crate::python_text::PythonText;
 use std::collections::BTreeSet;
 use std::path::{Component, Path};
 pub struct ManifestValidation;
 impl ManifestValidation {
     pub fn truthy(v: &Value) -> bool {
-        match v {
-            Value::Null => false,
-            Value::Bool(v) => *v,
-            Value::Number(v) => v.truthy(),
-            Value::String(v) => !v.is_empty(),
-            Value::Array(v) => !v.is_empty(),
-            Value::Object(v) => !v.is_empty(),
-        }
+        PythonJson::truthy(v)
     }
     pub fn string(v: &Value) -> Option<String> {
-        Some(match v {
-            Value::Null => "None".into(),
-            Value::Bool(v) => if *v { "True" } else { "False" }.into(),
-            Value::String(v) => v.clone(),
-            Value::Number(v) => v.text(),
-            Value::Array(v) => format!(
-                "[{}]",
-                v.iter()
-                    .map(Self::repr)
-                    .collect::<Option<Vec<_>>>()?
-                    .join(", ")
-            ),
-            Value::Object(v) => format!(
-                "{{{}}}",
-                v.iter()
-                    .map(|(k, v)| Some(format!(
-                        "{}: {}",
-                        Self::repr(&Value::String(k.clone()))?,
-                        Self::repr(v)?
-                    )))
-                    .collect::<Option<Vec<_>>>()?
-                    .join(", ")
-            ),
-        })
-    }
-    fn repr(v: &Value) -> Option<String> {
-        if let Value::String(s) = v {
-            Some(PythonText::repr(s))
-        } else {
-            Self::string(v)
-        }
+        Some(PythonJson::string(v))
     }
     pub fn field(m: &Map, key: &str) -> Option<String> {
         m.get(key)

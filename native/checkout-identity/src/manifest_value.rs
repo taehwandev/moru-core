@@ -2,7 +2,7 @@
 //! forbidden imports: process/network; callers/tests: manifest parser/validator; verification: parser tests.
 use super::{number::ManifestNumber, object::ManifestObject};
 #[derive(Debug, Clone)]
-pub(super) enum ManifestValue {
+pub(crate) enum ManifestValue {
     Null,
     Bool(bool),
     Number(ManifestNumber),

@@ -260,7 +260,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "agy-statusline",
-      "remaining": "Native finite numeric strings include builder-Unicode decimal digits and Python underscore grammar, including invalid-string precedence. Close remaining renderer coercion, JSON extensions, nonfinite exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
+      "remaining": "Shared native JSON values preserve exact integers, nonfinite values, ordered container coercion and Unicode numeric strings. Close unsupported JSON/surrogate/depth boundaries, live numeric exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
       "verification": {}
     },
     {
@@ -287,7 +287,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "claude-statusline",
-      "remaining": "Native finite numeric strings include builder-Unicode decimal digits and Python underscore grammar, including invalid-string precedence. Close remaining renderer coercion, JSON extensions, nonfinite exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
+      "remaining": "Shared native JSON values preserve exact integers, nonfinite values, ordered container coercion and Unicode numeric strings. Close unsupported JSON/surrogate/depth boundaries, live numeric exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
       "verification": {}
     },
     {

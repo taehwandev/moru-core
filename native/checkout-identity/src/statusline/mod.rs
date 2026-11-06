@@ -3,8 +3,11 @@ mod location;
 mod model;
 mod py;
 mod quota;
+#[cfg(test)]
+#[path = "renderer_tests.rs"]
+mod tests;
 
-use serde_json::{Map, Value};
+use crate::python_json::{Object as Map, PythonJson, Value};
 
 use location::Location;
 use model::ModelName;
@@ -21,7 +24,7 @@ impl Renderer {
         let root = if text.is_empty() {
             Value::Object(Map::new())
         } else {
-            serde_json::from_str::<Value>(text).ok()?
+            PythonJson::parse(text)?
         };
         let Value::Object(root) = root else {
             return Some(String::new());

@@ -2,7 +2,7 @@
 //! callers/tests: manifest parser/validator; verification: duplicate-key ordering tests.
 use super::value::ManifestValue;
 #[derive(Debug, Clone, Default)]
-pub(super) struct ManifestObject(Vec<(String, ManifestValue)>);
+pub(crate) struct ManifestObject(Vec<(String, ManifestValue)>);
 impl ManifestObject {
     pub fn new() -> Self {
         Self::default()

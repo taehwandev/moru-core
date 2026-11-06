@@ -57,8 +57,11 @@ fn nonfinite_and_signed_zero_are_values() {
 fn quota_defers_only_live_nonfinite_rounding() {
     use super::super::Quota;
     let render = |limits: serde_json::Value| {
-        let mut root = serde_json::Map::new();
-        root.insert("rate_limits".into(), limits);
+        let mut root = crate::python_json::Object::new();
+        root.insert(
+            "rate_limits".into(),
+            crate::python_json::Value::from(limits),
+        );
         Quota::render(&root, false)
     };
     assert!(render(serde_json::json!({"primary":{"used_percentage":"nan"}})).is_none());

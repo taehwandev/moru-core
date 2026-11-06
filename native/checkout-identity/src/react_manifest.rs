@@ -1,21 +1,13 @@
-//! owner: ReactManifest; allowed imports: std, serde_json, private manifest modules;
+//! owner: ReactManifest; allowed imports: std, PythonJson, private manifest modules;
 //! forbidden imports: Python launchers; callers/tests: native launcher; verification: CLI parity.
 #[path = "react_manifest_cli.rs"]
 mod cli;
 #[path = "react_manifest_io.rs"]
 mod io;
-#[path = "manifest_number.rs"]
-mod number;
-#[path = "manifest_object.rs"]
-mod object;
-#[path = "manifest_parser.rs"]
-mod parser;
 #[path = "react_manifest_validation.rs"]
 mod validation;
-#[path = "manifest_value.rs"]
-mod value;
 use self::{cli::ReactManifestCli, io::ManifestIo, validation::ManifestValidation as V};
-use self::{parser::ManifestParser, value::ManifestValue as Value};
+use crate::python_json::{PythonJson, Value};
 use std::{ffi::OsString, fs, path::Path};
 pub struct ReactManifest;
 impl ReactManifest {
@@ -37,7 +29,7 @@ impl ReactManifest {
             return None;
         }
         let text = fs::read_to_string(manifest).ok()?;
-        let payload = ManifestParser::parse(&text)?;
+        let payload = PythonJson::parse(&text)?;
         let mut failures = V::failures(&payload, root)?;
         if let Some(source) = source {
             failures.extend(ManifestIo::source_failures(&payload, &source)?);

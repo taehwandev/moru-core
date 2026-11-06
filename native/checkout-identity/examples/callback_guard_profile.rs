@@ -5,6 +5,8 @@
 mod pretool_guard;
 #[path = "../src/python_text.rs"]
 mod python_text;
+#[path = "../src/python_json.rs"]
+mod python_json;
 #[path = "../src/statusline/mod.rs"]
 mod statusline;
 

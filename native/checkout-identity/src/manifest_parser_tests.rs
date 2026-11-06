@@ -1,7 +1,7 @@
-use super::super::validation::ManifestValidation;
 use super::*;
+use crate::python_json::PythonJson;
 fn text(source: &str) -> String {
-    ManifestValidation::string(&ManifestParser::with_limit(source, 0).unwrap()).unwrap()
+    PythonJson::string(&ManifestParser::with_limit(source, 0).unwrap())
 }
 #[test]
 fn arbitrary_integers_and_signed_zero() {
@@ -25,13 +25,13 @@ fn nonfinite_and_overflow_are_python_values() {
     );
     for source in ["NaN", "Infinity", "-Infinity"] {
         let value = ManifestParser::with_limit(source, 0).unwrap();
-        assert!(ManifestValidation::truthy(&value));
+        assert!(PythonJson::truthy(&value));
         let Value::Number(number) = value else {
             panic!("number expected")
         };
         assert!(!number.equals_u64(1));
     }
-    assert!(!ManifestValidation::truthy(
+    assert!(!PythonJson::truthy(
         &ManifestParser::with_limit("-0", 0).unwrap()
     ));
 }

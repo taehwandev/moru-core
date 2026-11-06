@@ -1,11 +1,18 @@
 //! owner: ManifestNumber; allowed imports: std; forbidden imports: process/network;
 //! callers/tests: manifest parser/validator; verification: numeric representation parity.
 #[derive(Debug, Clone)]
-pub(super) enum ManifestNumber {
+pub(crate) enum ManifestNumber {
     Integer(String),
     Float(f64),
 }
 impl ManifestNumber {
+    /// Python float(int) raises OverflowError, while float JSON values may be nonfinite.
+    pub fn as_float(&self) -> Option<f64> {
+        match self {
+            Self::Float(value) => Some(*value),
+            Self::Integer(text) => text.parse::<f64>().ok().filter(|value| value.is_finite()),
+        }
+    }
     /// Lexical validity is established by ManifestParser, never inferred from f64 parsing.
     pub fn from_token(token: &str, digit_limit: usize) -> Option<Self> {
         if token == "NaN" {
