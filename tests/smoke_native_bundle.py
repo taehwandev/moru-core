@@ -242,7 +242,12 @@ def smoke(archive):
         from test_figma_validate import _valid_summary, _valid_v4_summary
         invalid_figma = _valid_v4_summary()
         invalid_figma["assetCandidates"] = [{"id": "1:2"}]
-        for index, summary in enumerate((_valid_summary(), _valid_v4_summary(), invalid_figma, [])):
+        numeric_figma = _valid_summary()
+        numeric_figma["components"] = [{"componentId": str(i), "usageCount": count}
+                                       for i, count in enumerate((1e16, 1.0, 1.0))]
+        figma_cases = [(_valid_summary(), 0), (_valid_v4_summary(), 0),
+                       (invalid_figma, 1), ([], 1), (numeric_figma, 0)]
+        for index, (summary, code) in enumerate(figma_cases):
             summary_path = base / f"figma-summary-{index}.json"
             summary_path.write_text(json.dumps(summary))
             args = [str(entry), "figma-validate", str(summary_path)]
@@ -250,7 +255,17 @@ def smoke(archive):
                 env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, timeout=8)
             done = subprocess.run(args, capture_output=True, cwd=project,
                 env={**no_python, "PATH": str(empty)}, timeout=8)
-            assert reference.returncode == (0 if index < 2 else 1), reference
+            assert reference.returncode == code, reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
+        for path in (str(base / "missing-figma-summary"), str(base), "--help"):
+            args = [str(entry), "figma-validate", path]
+            reference = subprocess.run(args, capture_output=True, cwd=project,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, timeout=8)
+            done = subprocess.run(args, capture_output=True, cwd=project,
+                env={**no_python, "PATH": str(empty)}, timeout=8)
+            assert reference.returncode == 2, reference
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1

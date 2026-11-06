@@ -17,7 +17,7 @@ BRACE_TOP_LEVEL_TYPE_RE = re.compile(
     r"^\s*"
     r"(?:(?:export\s+default\s+|export\s+|public\s+|private\s+|protected\s+|internal\s+|"
     r"open\s+|final\s+|sealed\s+|abstract\s+|data\s+|value\s+|inline\s+|static\s+|readonly\s+|"
-    r"expect\s+|actual\s+|pub\s+|pub\(crate\)\s+)*)"
+    r"expect\s+|actual\s+|pub\s+|pub\((?:crate|self|super|in\s+[A-Za-z_][A-Za-z0-9_:]*)\)\s+)*)"
     r"(?:(?:enum\s+class|annotation\s+class|sealed\s+class|sealed\s+interface|data\s+class|"
     r"value\s+class)\s+|"
     r"(?P<kind>class|interface|enum|struct|record|object|protocol|actor|typealias|type|trait)\s+)"
@@ -30,7 +30,7 @@ TS_EXPORTED_VALUE_RE = re.compile(
 )
 BRACE_TOP_LEVEL_FUNCTION_RE = re.compile(
     r"^\s*(?:(?:export\s+default\s+|export\s+|public\s+|private\s+|protected\s+|"
-    r"internal\s+|open\s+|final\s+|static\s+|pub\s+|pub\(crate\)\s+)*)"
+    r"internal\s+|open\s+|final\s+|static\s+|pub\s+|pub\((?:crate|self|super|in\s+[A-Za-z_][A-Za-z0-9_:]*)\)\s+)*)"
     r"(?:async\s+)?(?P<kind>function|func|fun|fn)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b"
 )
 KOTLIN_TOP_LEVEL_FUNCTION_RE = re.compile(
@@ -161,6 +161,11 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
                 receiver=match_receiver(match),
                 default_public=default_public_top_level(path),
             )
+            if path.suffix.lower() == ".rs":
+                # Rust items are private unless their own declaration has pub;
+                # a public field on the same line does not export its struct.
+                exported = bool(re.match(r"^\s*pub(?:\([^)]*\))?\s", line))
+                declaration.update(private=not exported, exported=exported)
             if declaration["owner"]:
                 declarations.append(declaration)
         brace_depth = max(0, brace_depth + line.count("{") - line.count("}"))
@@ -554,7 +559,7 @@ def source_root_package_parts(parts: tuple[str, ...], *, dart: bool = False) -> 
 
 
 def exported_by_default(path: Path) -> bool:
-    return path.suffix.lower() in {".java", ".kt", ".kts", ".swift", ".dart", ".cs", ".go", ".rs"}
+    return path.suffix.lower() in {".java", ".kt", ".kts", ".swift", ".dart", ".cs", ".go"}
 
 
 def mixed_roles_blocked(roles: list[str]) -> bool:

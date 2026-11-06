@@ -1,58 +1,43 @@
-//! owner: CoverageSum; allowed imports: shared JSON numbers/std; forbidden imports:
-//! I/O/version guesses; callers/tests: FigmaCoverage; verification: exact numeric sums.
+//! owner: CoverageSum; allowed imports: shared JSON numbers, CoverageFloat/std;
+//! forbidden imports: I/O/version guesses; callers/tests: FigmaCoverage; verification: numeric sum parity.
+#[path = "figma_coverage_float.rs"]
+mod floating;
 use crate::python_json::{Number, Value};
+use floating::CoverageFloat;
 pub(super) struct CoverageSum;
 impl CoverageSum {
     pub(super) fn sum<'a>(values: impl Iterator<Item = &'a Value>) -> Option<Value> {
         let mut integer = "0".to_owned();
-        let mut floating = None;
+        let mut floating: Option<CoverageFloat> = None;
+        let mut fast = true;
         for value in values {
             let Value::Number(number) = value else {
                 continue;
             };
-            match (number, floating) {
-                (Number::Integer(text), None) => integer = Self::add(&integer, text),
-                _ => {
-                    let previous = match floating {
-                        Some(value) => value,
-                        None => Self::small_integer(&integer)?,
-                    };
-                    let next = match number {
-                        Number::Integer(text) => Self::small_integer(text)?,
-                        Number::Float(value) => *value,
-                    };
-                    floating = Some(Self::exact_add(previous, next)?);
+            if let Some(total) = floating.as_mut() {
+                total.add(number)?;
+                continue;
+            }
+            match number {
+                Number::Integer(text) => {
+                    let total = Self::add(&integer, text);
+                    fast &= CoverageFloat::fits_long(text) && CoverageFloat::fits_long(&total);
+                    integer = total;
+                }
+                Number::Float(value) => {
+                    floating = Some(CoverageFloat::new(&integer, *value, fast)?)
                 }
             }
         }
         Some(Value::Number(match floating {
-            Some(value) => Number::Float(value),
-            // The report formats this integer; Python's conversion digit limit
-            // can reject a sum even when every individual input was admissible.
+            Some(total) => Number::Float(total.finish()),
+            // Python can reject report formatting after an otherwise valid integer sum.
             None => Number::from_token(
                 &integer,
                 env!("MORU_PYTHON_INT_MAX_STR_DIGITS").parse().ok()?,
             )?,
         }))
     }
-
-    fn small_integer(text: &str) -> Option<f64> {
-        let value = text.parse::<i64>().ok()?;
-        (value.unsigned_abs() <= (1u64 << 53)).then_some(value as f64)
-    }
-
-    fn exact_add(a: f64, b: f64) -> Option<f64> {
-        let sum = a + b;
-        if !a.is_finite() || !b.is_finite() || !sum.is_finite() {
-            return None;
-        }
-        // Error-free TwoSum: admit only zero rounding residual. This avoids the
-        // Python 3.12 compensated-summation difference without changing policy.
-        let b_virtual = sum - a;
-        let error = (a - (sum - b_virtual)) + (b - b_virtual);
-        (error == 0.0).then_some(sum)
-    }
-
     fn add(a: &str, b: &str) -> String {
         let an = a.starts_with('-');
         let bn = b.starts_with('-');

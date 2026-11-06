@@ -197,9 +197,12 @@ class NativeStableLauncherTests(unittest.TestCase):
                    and int(line.split("|")[1].strip()) <= 31]
         self.assertEqual(31, len(covered))
         self.assertEqual(len(covered), len(set(covered)))
-        native_tooling = {"scripts/check_android_external_skill_manifest.py",
-                          "scripts/check_react_rn_external_skill_manifest.py"}
-        self.assertEqual(expected, set(covered) | native_tooling)
+        # Promoting an inventoried ancillary CLI to a launcher alias does not
+        # create another primary unit. An alias absent from all rows still fails.
+        ancillary = {line.split("|")[2].strip().strip("`") for line in document.splitlines()
+                     if line.startswith("| ") and line.split("|")[1].strip().isdigit()
+                     and int(line.split("|")[1].strip()) > 31}
+        self.assertEqual(expected, set(covered) | (expected & ancillary))
 
     def test_inventory_covers_all_direct_python_entrypoints(self):
         tree = ast.parse(_launcher_script_text())

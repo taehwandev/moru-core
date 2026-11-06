@@ -459,12 +459,12 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "figma-validate; direct Python reference",
-      "remaining": "Native offline schema, visibility, coverage and Markdown report owners are integrated through a source-bound alias. Exact file/JSON exceptions, unhashable IDs, rounding-sensitive or nonfinite sums, unsupported parser inputs, direct Python and imported extraction/live-smoke callers remain owned migration scope. Portable and installed verification is tracked per cohesive batch; this is not full unit closure.",
+      "remaining": "Native offline schema, visibility, coverage, builder-bound numeric sums, ordinary file errors and Markdown report run through a source-bound alias. Exact JSON/decoding exceptions, unhashable IDs, integer-to-float overflow and formatting-limit exceptions, stream inputs, stdio failures, unsupported parser inputs, direct Python and imported extraction/live-smoke callers remain owned migration scope. This is not full unit closure.",
       "verification": {
         "native_owner": "native/checkout-identity/src/figma_process.rs",
-        "behavior": "PASS: 14 native Figma process tests plus 37 canonical Figma/inventory tests; 119 Rust tests including validation, coverage, integer limits and report; 35 existing next/manifest regression tests.",
-        "negative_authority": "PASS: no-Python empty PATH; source-byte drift and environment refusal; read-only inputs, FIFO and descriptor-offset refusal; no partial output before compatibility fallback; no token/network calls.",
-        "portable": "PASS: 144 transported checks on local macOS ARM64, including four Figma valid/v4/negative controls. Cross-platform CI for this exact batch is pending."
+        "behavior": "PASS:78 Figma/reference/inventory/launcher/Rust-visibility Python tests;121 Rust tests;69 structure-review regression tests (5 visibility tests overlap). Builder numeric probes observed Python3.9 and3.14 locally;3.12 profile source/model only. Prior e190 CI inventory-alias omission is repaired without renumbering units.",
+        "negative_authority": "PASS: empty PATH native execution, source-byte/environment refusal, read-only inputs, FIFO/descriptor offset refusal, exact original-path error diagnostics and no partial output before compatibility fallback; no token/network calls.",
+        "portable": "PASS:148 transported checks on local macOS ARM64, including Figma numeric and ordinary file-error cases. Cross-platform CI for exact batch pending."
       }
     },
     {
@@ -613,6 +613,7 @@
     }
   ],
   "unmigrated_python_sources": [
+    "native/checkout-identity/figma_contract.py",
     "native/checkout-identity/next_contract.py",
     "native/checkout-identity/pretool_contract.py",
     "native/checkout-identity/status_contract.py",

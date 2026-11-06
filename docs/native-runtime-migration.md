@@ -51,7 +51,8 @@ verification support; owned developer tools remain in the full Goal scope.
 
 Primary and ancillary labels preserve the inventory's responsibility groups.
 Adding a native launcher alias for an existing ancillary tool does not create a
-new unit or renumber the inventory; both manifest checkers retain units 36–37.
+new unit or renumber the inventory; manifest checkers retain units 36–37 and
+the offline Figma validator retains unit 40.
 
 The [ls/Git inspection extension](runtime-performance/native-ls-git.md) expands
 the two existing pretool boundaries without adding another inventory unit or
@@ -62,15 +63,16 @@ claiming a new numerical speedup.
 The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
-renderer. Twenty-six processors still have Python branches, including two
-partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and prepared-status paths. Seventeen primary boundaries now have implementation
+renderer. Python branches remain in partially native pretool, quiet mailbox,
+quiet/settled Stop, next and prepared-status paths. Seventeen primary boundaries now have implementation
 coverage, all involving native work (including partial entry/discovery,
 launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
 The latest native extensions add no new timing claim; earlier measurements remain historical.
-The two ancillary manifest checker engines add implementation coverage for
-units 36–37. That is 19/56 inventory coverage, including 17/31 primary units,
-not effort-weighted completion: 18 are partial and one is locally verified;
-36 remain planned and one has an unresolved external ownership boundary. The earlier
+The ancillary manifest checker and offline Figma validator engines add
+implementation coverage for units 36–37 and 40. That is 20/56 inventory coverage,
+including 17/31 primary units, not effort-weighted completion: 19 are partial and
+one is locally verified; 35 remain planned and one has an unresolved external
+ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
 target for quiet prompt delivery only. Main integration and local installation
@@ -190,7 +192,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 37 | `scripts/check_react_rn_external_skill_manifest.py` | check-react-rn-skill-manifest | Partial native | Local provenance and source hashes; remote and exceptional inputs remain open |
 | 38 | `scripts/device-mcp.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
-| 40 | `scripts/figma-handoff/figma_validate.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
+| 40 | `scripts/figma-handoff/figma_validate.py` | figma-validate; direct reference | Partial native | Offline schema, visibility, coverage, numeric sums and ordinary file errors; parser/exception and imported Python callers remain |
 | 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 42 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |

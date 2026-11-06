@@ -57,8 +57,17 @@ and fidelity coverage.
 Installed runtimes expose `<MORU_LAUNCHER> figma-validate <summary-path>`.
 Native validation preserves problem ordering, schema-v4 visibility exclusions,
 coverage deduplication, report text and exit status. The source-bound launcher
-defers before output when a Python exception or numeric boundary is not proven
-equivalent. Direct Python and imported callers remain the reference path.
+handles ordinary file errors with the original argument spelling and selects
+numeric summation semantics from a checked build profile. It defers before
+output for unproven parser, stream or numeric conversion exceptions. Direct
+Python and imported callers remain the reference path.
+The numeric build profile distinguishes sequential sums, compensated float-only
+sums, and compensated float/integer sums. Its boundary probes track the
+[CPython 3.9](https://github.com/python/cpython/blob/v3.9.0/Python/bltinmodule.c),
+[3.12](https://github.com/python/cpython/blob/v3.12.0/Python/bltinmodule.c), and
+[3.14](https://github.com/python/cpython/blob/v3.14.0/Python/bltinmodule.c)
+implementations, including the transition to generic addition after C-long
+overflow. An unrecognized profile fails the build instead of guessing.
 `test_native_figma_validate` compares both processes and repeats supported cases
 with no executables in PATH; portable bundle smoke exercises the same alias.
 

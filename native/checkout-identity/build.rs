@@ -32,4 +32,12 @@ fn main() {
         .expect("native build requires Python for next-advice contract generation");
     assert!(status.success(), "next-advice contract generation failed");
     println!("cargo:rerun-if-changed=next_contract.py");
+    let status = Command::new("python3")
+        .arg(package.join("figma_contract.py"))
+        .arg("--emit")
+        .arg(directory.join("figma_contract.rs"))
+        .status()
+        .expect("native build requires Python for Figma numeric contract generation");
+    assert!(status.success(), "Figma numeric contract generation failed");
+    println!("cargo:rerun-if-changed=figma_contract.py");
 }

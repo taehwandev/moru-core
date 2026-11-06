@@ -2,6 +2,7 @@
 import copy
 import json
 import os
+import random
 import shutil
 from pathlib import Path
 import subprocess
@@ -136,8 +137,6 @@ class NativeFigmaValidate(unittest.TestCase):
         for content in cases:
             self.summary.write_bytes(content)
             self.assert_deferred([str(self.summary)])
-        for args in ([str(self.base / "missing")], [str(self.base)], ["--help"]):
-            self.assert_deferred(args)
 
     def assert_deferred(self, args):
         expected = self.call(args, backend="python")
@@ -153,14 +152,51 @@ class NativeFigmaValidate(unittest.TestCase):
             self.assertEqual(127, done.returncode)
             self.assertEqual(b"", done.stdout)
 
-    def test_rounding_sensitive_and_nonfinite_sums_defer(self):
-        for counts in ([1e16, 1.0, 1.0], [float("nan")], [float("inf")],
-                       [2 ** 160, 0.5]):
+    def test_rounding_sensitive_and_nonfinite_sums_match_without_python(self):
+        cases = [[1e16, 1.0, 1.0], [float("nan")], [float("inf")], [2 ** 160, 0.5],
+                 [1e16, 1.0, -1e16], [1e308, 1e308, -1e308],
+                 [float("inf"), -float("inf")], [-0.0, -0.0],
+                 [1.0, 2 ** 160], [2 ** 160 + 1, -(2 ** 160), 0.5],
+                 [2 ** 63 - 1, 1, -2 ** 63, 0.5], [5e-324] * 5,
+                 [0.1] * 10, [1e308, 1.0, -1e308, 1.0]]
+        rng = random.Random(4815)
+        values = [0.1, 0.5, 1e16, -1e16, 5e-324, 2 ** 65, -(2 ** 65), 1.0, -0.0, 1e308]
+        cases.extend([[rng.choice(values) for _ in range(12)] for _ in range(24)])
+        for counts in cases:
+            payload = _valid_summary()
+            payload["components"] = [{"componentId": str(i), "usageCount": value}
+                                     for i, value in enumerate(counts)]
+            with self.subTest(counts=counts):
+                self.parity(payload)
+
+    def test_integer_to_float_overflow_still_preserves_exception_fallback(self):
+        for counts in ([10 ** 400, 0.5], [0.5, 10 ** 400]):
             payload = _valid_summary()
             payload["components"] = [{"componentId": str(i), "usageCount": value}
                                      for i, value in enumerate(counts)]
             self.summary.write_text(json.dumps(payload))
             self.assert_deferred([str(self.summary)])
+
+    def test_file_read_errors_match_without_python(self):
+        self.summary.write_text("{}")
+        loop = self.base / "loop"
+        loop.symlink_to(loop.name)
+        dangling = self.base / "dangling"
+        dangling.symlink_to(self.base / "missing-target")
+        paths = [str(self.base / "missing"), str(self.base), "--help", "", ".",
+                 "missing 한글'\n\u200b", str(self.summary / "child"), str(loop),
+                 str(dangling), str(self.base / ("a" * 300)), str(self.summary) + "/"]
+        denied = self.base / "denied"
+        denied.write_text("{}")
+        denied.chmod(0)
+        self.addCleanup(denied.chmod, 0o600)
+        if os.geteuid() != 0:
+            paths.append(str(denied))
+        for path in paths:
+            with self.subTest(path=path):
+                expected = self.call([path], backend="python")
+                self.assertEqual(2, expected.returncode, expected.stderr)
+                self.assertEqual(result(expected), result(self.call([path], PATH=str(self.empty_path))))
 
     def test_no_token_no_python_locale_and_regular_symlink(self):
         self.summary.write_text(json.dumps(_valid_summary()))

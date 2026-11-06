@@ -218,8 +218,10 @@ Validate a produced bundle through the installed source-bound native launcher:
 <MORU_LAUNCHER> figma-validate /path/to/bundle/summary/design-summary.json
 ```
 
-This offline command needs no token or network. Unsupported JSON, file errors,
-and numeric summation boundaries use the Python compatibility implementation;
+This offline command needs no token or network. Ordinary file-read errors and
+numeric sums use native handling bound to the builder's Python behavior.
+Unsupported JSON, stream inputs and numeric conversion exceptions still use
+the Python compatibility implementation;
 the launcher reports an execution error if that fallback is unavailable. The
 direct Python entry remains available for source-only checkouts and parity:
 
