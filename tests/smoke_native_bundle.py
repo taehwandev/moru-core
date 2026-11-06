@@ -373,6 +373,20 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
+        from agent_gate_evidence import _new_ledger
+        active_ledger = _new_ledger(active, json.loads(active.read_text()))
+        active_ledger["entries"] = [{"gate": "tests", "status": "SUCCESS", "evidence": "",
+            "fields": {"check": "portable", "result": "1 passed"}, "reuse_snapshot": {"schema_version": 1}}]
+        active.with_name("active-preflight-gate-evidence.json").write_text(json.dumps(active_ledger))
+        for output in ("json", "markdown"):
+            args = [str(entry), "next", "--project", str(advisor), "--evidence", str(active), "--format", output]
+            reference = subprocess.run(args, capture_output=True,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=advisor, timeout=8)
+            done = subprocess.run(args, capture_output=True, env=no_python, cwd=advisor, timeout=8)
+            assert reference.returncode == 0 and not reference.stderr, reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
         status_project = base / "status-project"
         state = status_project / ".moru"
         state.mkdir(parents=True)

@@ -1,7 +1,9 @@
-//! Quiet next advice plus explicit-evidence advice when no ledger exists.
+//! Quiet next advice plus explicit-evidence advice with supported bound ledgers.
 //! Imports: std, existing guard/locks/terminal-state/Git readers. No state writes.
 #[path = "next_advice.rs"]
 mod advice;
+#[path = "next_ledger.rs"]
+mod ledger;
 use crate::next_verification::Verification;
 use crate::{
     callback_state::LocalState as State, pretool_guard::CallbackGuard, stop_state::StopState,
@@ -118,8 +120,9 @@ fn explicit(launcher: &OsString, args: &[OsString]) -> Option<String> {
     CallbackGuard::root(launcher, "git")?;
     // Reference explicit evidence bypasses registry/session selection and its locks.
     let verification = Verification::discover(&project)?;
+    let preflight_bytes = std::fs::read(&evidence).ok()?;
     let preflight =
-        crate::python_json::PythonJson::parse(&std::fs::read_to_string(&evidence).ok()?)?;
+        crate::python_json::PythonJson::parse(std::str::from_utf8(&preflight_bytes).ok()?)?;
     let ledger = evidence
         .parent()?
         .join(if evidence.file_name()? == "preflight.json" {
@@ -127,10 +130,7 @@ fn explicit(launcher: &OsString, args: &[OsString]) -> Option<String> {
         } else {
             format!("{}-gate-evidence.json", evidence.file_stem()?.to_str()?)
         });
-    match std::fs::symlink_metadata(ledger) {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        _ => return None,
-    }
+    let recorded = ledger::NextLedger::read(&evidence, &ledger, &preflight, &preflight_bytes)?;
     advice::NextAdvice::render(
         &project,
         &evidence,
@@ -138,6 +138,7 @@ fn explicit(launcher: &OsString, args: &[OsString]) -> Option<String> {
         &verification,
         format,
         &home.join(".moru/bin/moru-hook"),
+        &recorded,
     )
 }
 

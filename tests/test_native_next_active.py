@@ -54,14 +54,17 @@ class NativeNextActiveTests(unittest.TestCase):
                     self.assertEqual(result(reference), result(self.call(output, no_python=True)))
             self.assertEqual(before, self.snapshot(), "advice must not mutate run state")
 
-    def test_present_ledger_is_not_ignored_even_when_empty_or_invalid(self):
+    def test_empty_or_invalid_ledger_preserves_reference_advice(self):
         ledger = self.evidence.with_name("gate-evidence.json")
         for content in ("{}", "{", '{"entries":[]}'):
             with self.subTest(content=content):
                 ledger.write_text(content)
                 before = self.snapshot()
                 self.assertEqual(result(self.call(backend="python")), result(self.call()))
-                self.assertEqual(127, self.call(no_python=True).returncode)
+                if content == "{":
+                    self.assertEqual(127, self.call(no_python=True).returncode)
+                else:
+                    self.assertEqual(result(self.call(backend="python")), result(self.call(no_python=True)))
                 self.assertEqual(before, self.snapshot())
 
     def test_gate_templates_and_skill_aliases_match_canonical_owners(self):

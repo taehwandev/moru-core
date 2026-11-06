@@ -9,6 +9,7 @@ fn advice(gates: &[&str]) -> Value {
             &Verification::default(),
             "json",
             Path::new("/launcher"),
+            &BTreeSet::new(),
         )
         .unwrap(),
     )
@@ -57,7 +58,8 @@ fn malformed_route_shapes_decline() {
             &Py::parse(text).unwrap(),
             &Verification::default(),
             "json",
-            Path::new("/l")
+            Path::new("/l"),
+            &BTreeSet::new()
         )
         .is_none());
     }

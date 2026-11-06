@@ -8,13 +8,17 @@ import itertools
 import json
 from pathlib import Path
 import sys
+import string
 
 
 def emit(output):
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
     from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS
-    from agent_gate_evidence import FIELD_REQUIREMENTS, gate_field_enums
+    from agent_gate_evidence import (FIELD_REQUIREMENTS, gate_field_enums, SCHEMA_VERSION,
+        CAPSULE_BINDING_FIELD, PROSE_COMPATIBLE_STRUCTURED_GATES, MULTI_AGENT_SERIAL_MODES,
+        MULTI_AGENT_PARALLEL_FIELDS, _GATE_RENDERERS)
+    from agent_finish_gate_surface_validators import _LABELS, _EMPTY_VALUES
     from agent_gate_record_template import _placeholder, remaining_gate_template_lines
     from agent_review_hook import GATE_REQUIRED_REVIEW_EVIDENCE, required_review_evidence_flags
     from agent_skill_catalog import SKILL_CONTAINER_DIRS, SKILL_ID_ALIASES
@@ -39,6 +43,23 @@ def emit(output):
     contract = {"gates": gates, "reviews": reviews, "review_gates": review_gates,
                 "containers": sorted(SKILL_CONTAINER_DIRS), "aliases": SKILL_ID_ALIASES,
                 "skills_note": note.removesuffix("sample")}
+    expected = {"cycle contract", "agentic run state", "ambiguity check", "alignment brief",
+                "boundary plan", "work surface resolution", "multi-agent split decision",
+                "side-effect audit", "retrospective check", "documentation impact",
+                "documentation", "source docs", "tests"}
+    if set(_GATE_RENDERERS) != expected:
+        raise RuntimeError("next ledger gate renderer set changed; review native predicates")
+    surface_fields = {name: "{" + name + "}" for name in FIELD_REQUIREMENTS["work surface resolution"]}
+    surface = _GATE_RENDERERS["work surface resolution"]("work surface resolution", surface_fields, "")[0]
+    contract["ledger"] = {
+        "schema": SCHEMA_VERSION, "capsule_field": CAPSULE_BINDING_FIELD,
+        "required": FIELD_REQUIREMENTS, "prose": sorted(PROSE_COMPATIBLE_STRUCTURED_GATES),
+        "renderers": sorted(_GATE_RENDERERS), "serial": sorted(MULTI_AGENT_SERIAL_MODES),
+        "parallel_fields": MULTI_AGENT_PARALLEL_FIELDS,
+        "closed_fields": {gate: gate_field_enums(gate) for gate in ("ambiguity check", "alignment brief")},
+        "surface_template": [[literal, field] for literal, field, _, _ in string.Formatter().parse(surface)],
+        "surface_labels": _LABELS, "surface_empty": sorted(_EMPTY_VALUES),
+    }
     text = json.dumps(contract, ensure_ascii=False, separators=(",", ":"))
     output.write_text("const CONTRACT: &str = " + json.dumps(text, ensure_ascii=False) + ";\n")
 

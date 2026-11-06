@@ -1,6 +1,6 @@
 //! owner: NextAdvice; allowed imports: PythonJson, PythonText, Verification, serde_json, std;
 //! forbidden imports: state writes, subprocess, gate validation; callers/tests: NextProcess;
-//! verification: explicit-evidence absent-ledger advice parity, generated canonical templates.
+//! verification: explicit-evidence remaining-gate parity, generated canonical templates.
 use crate::{
     next_verification::Verification,
     python_json::{PythonJson as Py, Value as PyValue},
@@ -18,6 +18,7 @@ impl NextAdvice {
         verification: &Verification,
         format: &str,
         launcher: &Path,
+        recorded: &BTreeSet<String>,
     ) -> Option<String> {
         let contract: Value = serde_json::from_str(CONTRACT).ok()?;
         let p = preflight.as_object()?;
@@ -38,7 +39,7 @@ impl NextAdvice {
         }) {
             return None;
         }
-        let gates = match route.get("gates").filter(|v| Py::truthy(v)) {
+        let full_gates = match route.get("gates").filter(|v| Py::truthy(v)) {
             Some(v) => v
                 .as_array()?
                 .iter()
@@ -47,12 +48,24 @@ impl NextAdvice {
                 .collect::<Vec<_>>(),
             None => Vec::new(),
         };
+        let gates = full_gates
+            .iter()
+            .filter(|gate| !recorded.contains(*gate))
+            .cloned()
+            .collect::<Vec<_>>();
         let skills = Self::skills(&contract, route)?;
         let prefix = format!("{}", launcher.to_str()?);
         let project = project.to_str()?;
         let evidence_text = evidence.to_str()?;
-        let (step, command, shape) =
-            Self::decision(&contract, &prefix, project, evidence_text, &gates, &skills)?;
+        let (step, command, shape) = Self::decision(
+            &contract,
+            &prefix,
+            project,
+            evidence_text,
+            &gates,
+            &skills,
+            &full_gates,
+        )?;
         let field = |key: &str| p.get(key).filter(|v| Py::truthy(v)).map(Py::string);
         let run =
             field("agent_run_id").unwrap_or(evidence.parent()?.file_name()?.to_str()?.to_owned());
@@ -135,11 +148,12 @@ impl NextAdvice {
         evidence_text: &str,
         gates: &[String],
         skills: &[String],
+        full_gates: &[String],
     ) -> Option<(&'static str, String, String)> {
         let active_review = contract["review_gates"]
             .as_array()?
             .iter()
-            .filter(|v| gates.iter().any(|g| Some(g.as_str()) == v.as_str()))
+            .filter(|v| full_gates.iter().any(|g| Some(g.as_str()) == v.as_str()))
             .cloned()
             .collect::<Vec<_>>();
         let review = contract["reviews"]
@@ -184,7 +198,7 @@ impl NextAdvice {
                 )
             }
         };
-        let shape = if gates.iter().any(|g| g == "review hook") {
+        let shape = if full_gates.iter().any(|g| g == "review hook") {
             review["shape"].as_str()?
         } else {
             ""

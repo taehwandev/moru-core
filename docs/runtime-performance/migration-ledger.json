@@ -231,7 +231,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "next",
-      "remaining": "Explicit-evidence active advice with absent gate ledger is implemented; complete session/registry evidence discovery, ledger merge/freshness and malformed input/CLI boundaries before full native closure.",
+      "remaining": "Explicit-evidence active advice handles ordinary recorded gate ledgers with exact route/preflight binding, latest-entry validity and schema1 reuse semantics. Complete session/registry discovery, schema2 content-scoped freshness and remaining malformed input/CLI boundaries before full native closure.",
       "verification": {}
     },
     {
