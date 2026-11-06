@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import agy_hook_adapter as adapter
+import agy_hook_state
+import agy_hook_verify
 from support.agy_setup import _agy_hooks_spec, _merge_agy_hooks
 
 
@@ -28,7 +30,7 @@ class PreToolTranslationTests(unittest.TestCase):
             self.assertEqual({"decision": "allow"}, adapter.pre_tool(self.call("read_file", {"Path": "x"})))
 
     def test_a_partial_read_of_a_skill_is_flagged_once_and_a_full_read_is_not(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)):
             skill = Path(tmp) / "demo" / "SKILL.md"
             skill.parent.mkdir()
             skill.write_text("\n".join(f"line {n}" for n in range(1, 151)), encoding="utf-8")
@@ -77,7 +79,7 @@ class StopTranslationTests(unittest.TestCase):
             captured.append(stdin)
             return json.dumps({"decision": "block", "reason": "finish first"})
 
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", fake), patch.object(adapter, "verify_in_session", return_value=(False, {})):
             first = adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"], "executionNum": 0})
             second = adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"], "executionNum": 1})
@@ -87,8 +89,8 @@ class StopTranslationTests(unittest.TestCase):
         self.assertEqual({"decision": "continue", "reason": "finish first"}, second)
 
     def test_no_block_lets_the_agent_stop(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
-                patch.object(adapter, "run_script", return_value=""), patch.object(adapter, "routed_through_3d", return_value=False):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), patch.object(agy_hook_verify, "routed_through_3d", return_value=False):
             self.assertEqual({}, adapter.stop({"conversationId": "c1", "workspacePaths": ["/w"]}))
 
 
@@ -96,9 +98,9 @@ class UnverifiedReminderTests(unittest.TestCase):
     PAYLOAD = {"conversationId": "c7", "workspacePaths": ["/w"], "executionNum": 0}
 
     def test_a_3d_routed_session_is_reminded_once_at_stop(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=""), \
-                patch.object(adapter, "routed_through_3d", return_value=True):
+                patch.object(agy_hook_verify, "routed_through_3d", return_value=True):
             first = adapter.stop(self.PAYLOAD)
             second = adapter.stop(self.PAYLOAD)
             third = adapter.stop(self.PAYLOAD)
@@ -107,24 +109,24 @@ class UnverifiedReminderTests(unittest.TestCase):
         self.assertEqual({}, second)
 
     def test_other_sessions_and_a_second_execution_are_not_reminded(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=""):
-            with patch.object(adapter, "routed_through_3d", return_value=False):
+            with patch.object(agy_hook_verify, "routed_through_3d", return_value=False):
                 self.assertEqual({}, adapter.stop(self.PAYLOAD))
-            with patch.object(adapter, "routed_through_3d", return_value=True):
+            with patch.object(agy_hook_verify, "routed_through_3d", return_value=True):
                 self.assertEqual({}, adapter.stop({**self.PAYLOAD, "executionNum": 1}))
 
     def test_the_gate_block_wins_and_no_run_means_no_reminder(self):
         block = json.dumps({"decision": "block", "reason": "finish first"})
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=block):
             self.assertEqual("finish first", adapter.stop(self.PAYLOAD)["reason"])
         with patch.object(adapter, "run_script", return_value=""), \
                 patch("agent_runtime_session.resolve_runtime_evidence", return_value=None):
-            self.assertFalse(adapter.routed_through_3d(self.PAYLOAD))
+            self.assertFalse(agy_hook_verify.routed_through_3d(self.PAYLOAD))
 
     def test_route_and_stop_markers_do_not_collide(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)):
             self.assertFalse(adapter.already_delivered("c1", "route text"))
             self.assertFalse(adapter.already_delivered("c1", "reminder", "stop"))
             self.assertTrue(adapter.already_delivered("c1", "route text"))
@@ -141,7 +143,7 @@ class StopGateContinuationCapTests(unittest.TestCase):
             seen.append(stdin["stop_hook_active"])
             return "" if stdin["stop_hook_active"] else json.dumps({"decision": "block", "reason": "finish first"})
 
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", side_effect=gate), \
                 patch.object(adapter, "verify_in_session", return_value=(True, {})):
             first = adapter.stop(self.PAYLOAD)
@@ -155,7 +157,7 @@ class StopGateContinuationCapTests(unittest.TestCase):
         def gate(name, args, stdin, cwd, env=None):
             return "" if stdin["stop_hook_active"] else json.dumps({"decision": "block", "reason": "finish first"})
 
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", side_effect=gate), \
                 patch.object(adapter, "verify_in_session", return_value=(True, {})):
             adapter.stop(self.PAYLOAD)
@@ -169,7 +171,7 @@ class StopGateContinuationCapTests(unittest.TestCase):
             seen.append(stdin["stop_hook_active"])
             return ""
 
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", side_effect=gate), \
                 patch.object(adapter, "verify_in_session", side_effect=[(True, {"decision": "continue", "reason": "fix"}), (True, {})]):
             adapter.stop(self.PAYLOAD)
@@ -203,9 +205,9 @@ class InSessionVerificationTests(unittest.TestCase):
                                         if any(x["verdict"] == "fail" for x in r) else "")
         fake.remaining_text = lambda r: ("STILL: " + ",".join(x["id"] for x in r if x["verdict"] == "fail")
                                          if any(x["verdict"] == "fail" for x in r) else "")
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=""), \
-                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
                 patch.dict(sys.modules, {"verify": fake}):
             for _ in range(rounds_before):
                 adapter.stop(self.PAYLOAD)
@@ -230,9 +232,9 @@ class InSessionVerificationTests(unittest.TestCase):
             return [{"id": "a"}], [{"id": "a", "verdict": "pass"}]
 
         fake.verify_project = verify_project
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=""), \
-                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
                 patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": "http://127.0.0.1:9"}, clear=False), \
                 patch.dict(sys.modules, {"verify": fake}):
             adapter.stop(self.PAYLOAD)
@@ -265,9 +267,9 @@ class InSessionVerificationTests(unittest.TestCase):
             raise RuntimeError("judge url refused")
 
         fake.verify_project = boom
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=""), \
-                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
                 patch.dict(sys.modules, {"verify": fake}):
             first = adapter.stop(self.PAYLOAD)
             second = adapter.stop(self.PAYLOAD)
@@ -328,7 +330,7 @@ class IndependentCheckNoticeTests(unittest.TestCase):
         def fake(name, args, stdin, cwd, env=None):
             return "# Moru Core Workflow Route\n" if name == "workflow.py" else entry
 
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", fake), \
                 patch.object(adapter, "independent_check_available", return_value=available):
             return adapter.pre_invocation(self.PAYLOAD)["injectSteps"][0]["systemMessage"]["systemMessage"]
@@ -375,9 +377,9 @@ class VerificationStateResetTests(unittest.TestCase):
         fake.verify_project = verify_project
         fake.feedback_text = lambda r: "FIX"
         base = {"conversationId": "cr", "workspacePaths": ["/w"], "executionNum": 0}
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=""), \
-                patch.object(adapter, "routed_through_3d", return_value=True), \
+                patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
                 patch.dict(sys.modules, {"verify": fake}):
             adapter.stop({**base, "lastUserInput": "first request"})
             adapter.stop({**base, "lastUserInput": "first request"})
@@ -390,7 +392,7 @@ class PreInvocationTests(unittest.TestCase):
         def fake(name, args, stdin, cwd, env=None):
             return "# Moru Core Workflow Route\n" if name == "workflow.py" else "status: not_found\n"
 
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", fake):
             payload = {"conversationId": "c9", "workspacePaths": [tmp], "lastUserInput": "Create a page"}
             first = adapter.pre_invocation(payload)
@@ -412,30 +414,30 @@ class PreInvocationTests(unittest.TestCase):
                     return {"ok": True}
                 return {"value": store.get(body["key"])}
 
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
-                patch.object(adapter, "_verifier", return_value=FakeVerify), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
+                patch.object(agy_hook_state, "_verifier", return_value=FakeVerify), \
                 patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": "http://127.0.0.1:1"}, clear=False):
             path = Path(tmp) / "conv1.stop.json"
-            adapter.save_state(path, "stop", {"input": "x", "continuations": 1})
-            loaded = adapter.load_state(path, "stop")
+            agy_hook_state.save_state(path, "stop", {"input": "x", "continuations": 1})
+            loaded = agy_hook_state.load_state(path, "stop")
             on_disk = list(Path(tmp).iterdir())
         self.assertEqual(1, loaded["continuations"])
         self.assertEqual([], on_disk, "nothing is written where the checked session could rewrite it")
         self.assertIn("conv1.stop", store)
 
     def test_state_untouched_for_an_hour_is_forgotten(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)):
             path = Path(tmp) / "conv2.stop.json"
-            adapter.save_state(path, "stop", {"input": "x", "continuations": 1})
-            self.assertEqual(1, adapter.load_state(path, "stop")["continuations"])
-            with patch.object(adapter.time, "time", return_value=__import__("time").time() + 3601):
-                self.assertEqual({}, adapter.load_state(path, "stop"))
+            agy_hook_state.save_state(path, "stop", {"input": "x", "continuations": 1})
+            self.assertEqual(1, agy_hook_state.load_state(path, "stop")["continuations"])
+            with patch.object(agy_hook_state.time, "time", return_value=__import__("time").time() + 3601):
+                self.assertEqual({}, agy_hook_state.load_state(path, "stop"))
 
     def test_a_new_request_after_an_unchanged_route_still_gets_project_entry_once(self):
         def fake(name, args, stdin, cwd, env=None):
             return "unchanged since this session already received it" if name == "workflow.py" else "status: guided\n"
 
-        with tempfile.TemporaryDirectory() as tmp, patch.object(adapter, "MARKER_DIR", Path(tmp)), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", fake):
             base = {"conversationId": "c10", "workspacePaths": [tmp]}
             first = adapter.pre_invocation({**base, "lastUserInput": "Now build a 3D scene"})
