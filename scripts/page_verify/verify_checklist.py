@@ -34,7 +34,7 @@ Rules:
   rather than a constant-speed jump; (5) things said to return end where they began; (6) the offered controls
   actually change what they claim to change; (7) a vehicle that rises or descends vertically keeps its body level
   (pitch near zero) and does not stand on its tail, dive nose-first or fall like a rocket unless the request asks
-  for that, and its pitch and roll stay plausible through every phase.
+  for that (a rocket or launch vehicle rises upright and may return tail-first, so judge its attitude against its flight path), and its pitch and roll stay plausible through every phase.
 - Phrase each item so the available evidence can settle it. Pictures show only a few moments (the start, about 3, 6\n  and 10 seconds after the action, after each control, a touch-sized view after the action and near the end), so write\n  'at the sampled moments' for whole-sequence claims; a numeric text timeline every half second shows continuity;\n  code shows what a picture cannot. An item that no evidence can ever settle only produces a permanent failure.\n- Add nothing the request does not imply. No visual taste judgements such as "beautiful".
 - At most 10 items. Each item: id (short kebab-case), claim, phase (initial | during_action | after_action | any),
   evidence (a non-empty subset of: screenshots, text, console, code). Use code for anything a screenshot cannot
@@ -74,7 +74,9 @@ MENU_ITEMS = [{
     "claim": ("When the vehicle rises or descends vertically (takeoff, landing, hover), its body stays level (pitch near "
               "zero); it does not stand on its tail, dive nose-first or fall like a rocket unless the request asks for that."),
     "phase": "during_action", "evidence": ["code", "screenshots"], "source": "menu",
-    "applies": r"take.?off|landing|\bland\b|lift.?off|hover|ascen|descen|vtol|rocket|\bfl(?:y|ies|ight)\b|aircraft|spaceship|drone",
+    "applies": r"take.?off|landing|\bland\b|lift.?off|hover|ascen|descen|vtol|\bfl(?:y|ies|ight)\b|aircraft|spaceship|drone",
+    # A rocket or capsule rises upright and returns tail-first by design: a level body is the wrong standard for it.
+    "excludes": r"\brockets?\b|booster|launch vehicle|capsule|saturn|falcon|artemis|starship",
     "covered": r"level|pitch|nose|attitude|tail",
 }, {
     "id": "scene-follows-drag-and-wheel",
@@ -95,7 +97,8 @@ def ensure_menu_items(request: str, items: list[dict]) -> list[dict]:
 
     have = " ".join(f"{i['id']} {i['claim']}" for i in items).lower()
     extra = [{k: m[k] for k in ("id", "claim", "phase", "evidence", "source")} for m in MENU_ITEMS
-             if re.search(m["applies"], request, re.I) and not re.search(m["covered"], have)]
+             if re.search(m["applies"], request, re.I) and not re.search(m["covered"], have)
+             and not (m.get("excludes") and re.search(m["excludes"], request, re.I))]
     return [*items, *extra]
 
 

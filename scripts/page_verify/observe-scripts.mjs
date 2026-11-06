@@ -2,12 +2,17 @@
 // pointer input would reach. Plain strings, no state; observe.mjs drives them.
 
 export const FIND_PRIMARY = `(() => {
-  const pattern = /(take.?off|launch|start|begin|initiate|play|go\\b|fly|run|deploy)/i;
+  // The action that starts the page's own sequence: launch words first, generic start words next, "play" last,
+  // because "Play" is often a mode switch beside "Autopilot" rather than the thing that starts anything.
+  const tiers = [/(take.?off|lift.?off|launch|ignit)/i, /(start|begin|initiate|fly|run|deploy|go\\b)/i, /(play)/i];
   const visible = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
-    return r.width > 4 && r.height > 4 && s.visibility !== 'hidden' && s.display !== 'none'; };
+    return r.width > 4 && r.height > 4 && s.visibility !== 'hidden' && s.display !== 'none' && !el.disabled; };
   const nodes = [...document.querySelectorAll('button, [role=button], a, input[type=button]')].filter(visible);
   const label = (el) => (el.innerText || el.value || el.getAttribute('aria-label') || '').trim();
-  const hit = nodes.find((el) => pattern.test(label(el)));
+  const toggle = (el) => el.getAttribute('aria-pressed') !== null;
+  // Within a tier a plain button beats a pressed-state toggle; DOM order breaks the remaining ties.
+  const hit = tiers.flatMap((tier) => [nodes.filter((el) => tier.test(label(el)) && !toggle(el)),
+    nodes.filter((el) => tier.test(label(el)) && toggle(el))]).find((list) => list.length)?.[0];
   if (!hit) return null;
   const r = hit.getBoundingClientRect();
   return { text: label(hit).slice(0, 60), x: r.left + r.width / 2, y: r.top + r.height / 2 };
