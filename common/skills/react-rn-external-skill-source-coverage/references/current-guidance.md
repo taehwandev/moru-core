@@ -129,13 +129,17 @@ existing Moru owner and keep this coverage document as provenance only.
 Run:
 
 ```text
-python3 scripts/check_react_rn_external_skill_manifest.py \
+<MORU_LAUNCHER> check-react-rn-skill-manifest \
   --source-root <reviewed-snapshot>
-python3 scripts/check_react_rn_external_skill_manifest.py --remote-check
+<MORU_LAUNCHER> check-react-rn-skill-manifest --remote-check
 python3 -m unittest tests.test_react_rn_external_skill_manifest
 python3 scripts/workflow.py validate
 vibeguard audit . --rules .
 ```
+
+Resolve `<MORU_LAUNCHER>` to the installed absolute launcher. Local validation
+uses the source-matching native implementation when available; compatibility
+paths, including remote checks, still require Python during migration.
 
 `--remote-check` is opt-in and needs network access; the default run stays
 offline. It reports `CURRENT` when a provider's remote HEAD still equals the

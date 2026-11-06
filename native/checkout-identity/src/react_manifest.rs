@@ -1,66 +1,28 @@
 //! owner: ReactManifest; allowed imports: std, serde_json, private manifest modules;
 //! forbidden imports: Python launchers; callers/tests: native launcher; verification: CLI parity.
+#[path = "react_manifest_cli.rs"]
+mod cli;
 #[path = "react_manifest_io.rs"]
 mod io;
 #[path = "react_manifest_validation.rs"]
 mod validation;
-use self::{io::ManifestIo, validation::ManifestValidation as V};
+use self::{cli::ReactManifestCli, io::ManifestIo, validation::ManifestValidation as V};
 use serde_json::Value;
-use std::{
-    ffi::OsString,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{ffi::OsString, fs, path::Path};
 pub struct ReactManifest;
 impl ReactManifest {
     /// None is a pre-effect decline for Python exceptions/coercions not represented here.
     pub fn run(root: &Path, args: &[OsString]) -> Option<i32> {
-        let mut manifest = root.join(
-            "common/skills/react-rn-external-skill-source-coverage/references/source-manifest.json",
-        );
-        let mut source: Option<PathBuf> = None;
-        let mut remote = false;
-        let mut i = 0;
-        while i < args.len() {
-            let arg = args[i].to_str()?;
-            let (key, inline) = arg
-                .split_once('=')
-                .map_or((arg, None), |(a, b)| (a, Some(b)));
-            let names = ["--manifest", "--source-root", "--remote-check"];
-            let matches: Vec<_> = names
-                .into_iter()
-                .filter(|n| key.starts_with("--") && n.starts_with(key))
-                .collect();
-            if matches.len() != 1 {
-                return None;
-            }
-            match matches[0] {
-                "--remote-check" => {
-                    if inline.is_some() {
-                        return None;
-                    }
-                    remote = true;
-                }
-                option => {
-                    let value = if let Some(v) = inline {
-                        OsString::from(v)
-                    } else {
-                        i += 1;
-                        let v = args.get(i)?;
-                        if v.to_string_lossy().starts_with('-') {
-                            return None;
-                        }
-                        v.clone()
-                    };
-                    if option == "--manifest" {
-                        manifest = PathBuf::from(value);
-                    } else {
-                        source = Some(PathBuf::from(value));
-                    }
-                }
-            }
-            i += 1;
+        let options = ReactManifestCli::parse(root, args)?;
+        if let Some(status) = options.exit {
+            return Some(status);
         }
+        let ReactManifestCli {
+            manifest,
+            source,
+            remote,
+            ..
+        } = options;
         // Python decodes both remote pipes and applies communicate()'s timeout.
         // Preserve those exception/pipe-lifetime semantics before any remote effect.
         if remote {

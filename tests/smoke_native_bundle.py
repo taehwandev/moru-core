@@ -232,6 +232,16 @@ def smoke(archive):
             if alias == "check-react-rn-skill-manifest":
                 assert done.returncode == 0, done
             checks += 1
+        for flags in (["--help"], ["--manifest"]):
+            args = [str(entry), "check-react-rn-skill-manifest", *flags]
+            reference = subprocess.run(args, capture_output=True, cwd=project,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python", "COLUMNS": "80"}, timeout=8)
+            done = subprocess.run(args, capture_output=True, cwd=project,
+                env={**no_python, "COLUMNS": "80"}, timeout=8)
+            assert reference.returncode in (0, 2), reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
         common = subprocess.run(["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
             capture_output=True, text=True, env=normal, check=True).stdout.strip()
         repo_key = hashlib.sha256(common.encode()).hexdigest()[:24]

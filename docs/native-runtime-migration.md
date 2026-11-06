@@ -67,8 +67,10 @@ partially native pretool, quiet mailbox, quiet/settled Stop, inactive-next and p
 coverage, all involving native work (including partial entry/discovery,
 launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
 The latest native extensions add no new timing claim; earlier measurements remain historical.
-That is 17/56 inventory coverage, or 17/31 primary
-coverage, not effort-weighted completion. The remaining 39 are candidates. The earlier
+The two ancillary manifest checker engines add implementation coverage for
+units 36–37. That is 19/56 inventory coverage, including 17/31 primary units,
+not effort-weighted completion: 18 are partial and one is locally verified;
+36 remain planned and one has an unresolved external ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
 target for quiet prompt delivery only. Main integration and local installation
@@ -143,19 +145,19 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 4 | `scripts/agent-finish-check.py` | agent-finish-check | Partial native opt-in requirement coverage; Python lifecycle retained | Admission, freshness, artifact/gate coverage and completion safety |
 | 5 | `scripts/agent-hook.py` | agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify | Partial native quality/requirement checks; Python lifecycle retained | Authority/recording, warning-only lint, stable requirement IDs/revisions and compatibility |
 | 6 | `scripts/agent-mailbox.py` | agent-mailbox | Partial native empty-inbox status; Python packets/send/receive retained | Exact counts/output, repository and scan limits; read-only state parity and portable execution |
-| 7 | `scripts/agent-os-maintenance.py` | agent-os-maintenance | Python candidate | Low-frequency operator work; justify a port before changing Python |
+| 7 | `scripts/agent-os-maintenance.py` | agent-os-maintenance | Python candidate | Owned operator work; preserve effect boundaries during native conversion |
 | 8 | `scripts/agent-os-status.py` | agent-os-status | Partial native prepared basic/validated snapshots; Python initialization/trends/fallback | Exact API/metadata/lock parity; warm native status gains about 65-67% |
-| 9 | `scripts/agent-os-watchdog.py` | agent-os-watchdog | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 9 | `scripts/agent-os-watchdog.py` | agent-os-watchdog | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 10 | `scripts/agent-preflight.py` | agent-preflight | Python candidate | Admission, state/evidence freshness and completion safety |
-| 11 | `scripts/agent_doctor.py` | doctor | Python candidate | Low-frequency operator work; justify a port before changing Python |
+| 11 | `scripts/agent_doctor.py` | doctor | Python candidate | Owned operator work; preserve effect boundaries during native conversion |
 | 12 | `scripts/agent_execution_capsule.py` | execution-capsule | Python candidate | Admission, state/evidence freshness and completion safety |
-| 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
-| 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 17 | `scripts/agent_work_cards.py` | work-cards | Partial native read-only CLI; Python internal reads/writes/recovery retained | Exact JSON, repository/schema/WAL/lock behavior; bundled consumer without Python |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
-| 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
+| 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |
 | 21 | `scripts/claude_statusline.py` | claude-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 22 | `scripts/claude_stop_gate.py` | claude-stop-gate | Partial native quiet/settled Stop | Preserve active continuation, interruption, legacy edits, indexed projects and mailbox ack |
@@ -163,56 +165,58 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 24 | `scripts/codex_pretool_gate.py` | codex-pretool-gate | Partial native plain-query callback | Codex metadata boundary and no-Python query execution; other branches retain Python |
 | 25 | `scripts/codex_stop_gate.py` | codex-stop-gate | Partial native quiet Stop | Exact active evidence/authority handling and mailbox ack through Python |
 | 26 | `scripts/project-discover.py` | project-discover | Partial native traversal/facts/root lookup; Python compatibility retained | Same formats/ranking/bounds/symlinks; native-only supported CLI |
-| 27 | `scripts/setup-agent-hooks.py` | setup-agent-hooks | Python candidate | Low-frequency operator work; justify a port before changing Python |
-| 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
-| 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
-| 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Python candidate | Behavior, failure/recovery, measured benefit and rollback |
-| 31 | `scripts/agy_hook_adapter.py` | agy-hook | Python retained | Antigravity lifecycle hook ingress; profile before considering a port |
+| 27 | `scripts/setup-agent-hooks.py` | setup-agent-hooks | Python candidate | Owned operator work; preserve effect boundaries during native conversion |
+| 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 31 | `scripts/agy_hook_adapter.py` | agy-hook | Python retained | Antigravity lifecycle hook ingress; native conversion required by full Goal |
 
 ## Ancillary direct CLI coverage
 
-These 25 entries sit outside the primary stable-launcher catalog. Inventorying
-them does not execute them, authorize migrations/deletion/device operations,
-or justify rewriting upstream dependencies. They retain Python by default
-until a measured bottleneck and a safe owner boundary justify another choice.
+These 25 entries preserve their ancillary inventory classification, including
+tools now exposed through installed aliases. The full Goal selects all owned
+implementations for conversion. Their existing runtime effects still need the
+appropriate invocation authority; the migration does not authorize device
+actions, data deletion, paid calls or vendor replacement. Existing performance
+evidence is reused; no per-unit profiling prerequisite is imposed.
 
 | ID | Source owner | Entry | State | Disposition |
 | --- | --- | --- | --- | --- |
-| 32 | `scripts/agent-structure-check.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 33 | `scripts/agent_experience_eval.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 34 | `scripts/agent_unittest_result.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 35 | `scripts/build_native_runtime.py` | Direct CLI | Python retained | Keep Python build orchestration; Rust SDK is developer-only |
-| 36 | `scripts/check_android_external_skill_manifest.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 37 | `scripts/check_react_rn_external_skill_manifest.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 38 | `scripts/device-mcp.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
-| 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
-| 40 | `scripts/figma-handoff/figma_validate.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
-| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
+| 32 | `scripts/agent-structure-check.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 33 | `scripts/agent_experience_eval.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 34 | `scripts/agent_unittest_result.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 35 | `scripts/build_native_runtime.py` | Direct CLI | Planned native | Port owned build orchestration; Rust SDK remains developer-only |
+| 36 | `scripts/check_android_external_skill_manifest.py` | check-android-skill-manifest | Partial native | Local snapshot comparison and bounded Git identity; exceptional inputs remain open |
+| 37 | `scripts/check_react_rn_external_skill_manifest.py` | check-react-rn-skill-manifest | Partial native | Local provenance and source hashes; remote and exceptional inputs remain open |
+| 38 | `scripts/device-mcp.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
+| 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
+| 40 | `scripts/figma-handoff/figma_validate.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
+| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 42 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 43 | `scripts/live_device.py` | Direct CLI | Python retained | External/device protocol boundary; retain Python unless I/O profiling justifies change |
+| 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
 | 45 | `scripts/migrate_skill_bundles.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 47 | `scripts/mutation-check.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 48 | `scripts/path_claims.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 47 | `scripts/mutation-check.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 48 | `scripts/path_claims.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 49 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
-| 50 | `scripts/run_smoke_checks.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 50 | `scripts/run_smoke_checks.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 51 | `scripts/runs-prune.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 52 | `scripts/support/codex_statusline_setup.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 53 | `scripts/third_party/wikimap/wikimap.py` | Direct CLI | Python retained | Upstream dependency; retain ownership/license boundary and optimize adapters separately |
 | 54 | `scripts/native-runtime-bundle.py` | Direct CLI | Python delivery tooling | Explicit local pack/install, host/source/hash checks; no compiler on consumer |
-| 55 | `scripts/page_verify/judge_service.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
-| 56 | `scripts/page_verify/verify.py` | Direct CLI | Python retained | Operator/test tooling; profile before considering a port |
+| 55 | `scripts/page_verify/judge_service.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 56 | `scripts/page_verify/verify.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 
 ## Delivery order
 
 1. Checkout lookup: native implementation, direct invocation and compatibility.
 2. Common ingress: stable launcher fast path and unchanged legacy delegation.
-3. Profile repeated entrypoints next (pretool, status line and mailbox) and
-   choose the smallest worthwhile owner; move policy only with its negative
-   tests. Do not infer that the table order mandates a full rewrite.
-4. Treat installers/maintenance and larger state machines separately, based on
-   actual call frequency and compatibility cost.
+3. Complete repeated entrypoints next (pretool, status line and mailbox),
+   moving policy with its negative tests and reusing existing measurements.
+4. Complete installers, maintenance, owned tools and larger state machines in
+   cohesive batches. The full Goal covers all owned units and support code;
+   ordering by call frequency changes priority, not the completion scope.
 
 Performance work now follows the [dedicated performance programme](runtime-performance/prd.md):
 isolated change, focused verification, final staged review and a local commit

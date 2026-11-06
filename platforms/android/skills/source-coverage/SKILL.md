@@ -88,7 +88,7 @@ copying vendor-specific prose, sample code, or release-note detail.
 
 - Re-run the source manifest comparison against the local snapshots when
   refreshing source coverage.
-- Run `python3 scripts/check_android_external_skill_manifest.py` from the
+- Run `<MORU_LAUNCHER> check-android-skill-manifest` from the
   Moru Core root when the local source snapshots are available.
 - Confirm the split source-map references still cover all 63 upstream
   `SKILL.md` entrypoints and the reference groups that affect implementation or

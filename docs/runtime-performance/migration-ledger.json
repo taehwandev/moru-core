@@ -422,7 +422,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "check-android-skill-manifest; legacy direct Python CLI",
-      "remaining": "Native manifest/snapshot comparison and bounded Git identity reads are implemented. Complete filesystem/encoding exception behavior, migrate direct callers, and verify portable/installed delivery before full completion. No snapshot fetching is authorized.",
+      "remaining": "Native manifest/snapshot comparison and bounded Git identity reads are implemented; maintained guidance uses the installed alias. Complete filesystem/encoding exception behavior and retire the direct Python compatibility entry only after callers and full delivery are proven. No snapshot fetching is authorized.",
       "verification": {}
     },
     {
@@ -431,7 +431,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "check-react-rn-skill-manifest; legacy direct Python CLI",
-      "remaining": "Native local validation/provenance and source hashing are implemented. Complete help/invalid CLI, file/JSON exceptions, oversized integers, integer negative zero, nonstandard JSON and non-ASCII nested repr. Explicit remote checks decline before any effects; retain as open native work. Migrate direct callers and verify portable/installed delivery. No real remote checks are authorized by this batch.",
+      "remaining": "Native local validation/provenance, source hashes, help and ordinary CLI errors are implemented; maintained guidance uses the alias. Complete file/JSON exceptions, oversized integers, integer negative zero, nonstandard JSON, non-ASCII nested repr and exotic CLI/width inputs. Help wording follows the artifact builder Python version. Explicit remote checks decline before effects and remain open. Retire direct Python compatibility only after full delivery; no real remote checks are authorized by this batch.",
       "verification": {}
     },
     {

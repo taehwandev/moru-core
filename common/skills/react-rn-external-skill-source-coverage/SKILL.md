@@ -83,11 +83,13 @@ external-source provenance or a version-sensitive provider surface.
 
 ## Verification
 
-- `python3 scripts/check_react_rn_external_skill_manifest.py`
+- `<MORU_LAUNCHER> check-react-rn-skill-manifest`
 - Add `--source-root <reviewed-snapshot>` to verify exact paths and hashes.
 - Add `--remote-check` to compare each pinned commit with the provider's current
   remote HEAD; it needs network access and fails on an unpinned or unreachable
   provider, not on an upstream that merely moved.
+- The installed launcher uses the source-matching native local checker;
+  compatibility paths, including explicit remote checks, still require Python.
 - `python3 -m unittest tests.test_react_rn_external_skill_manifest`
 - Run the React/RN source-coverage route smoke and
   `python3 scripts/workflow.py validate` after routing changes.

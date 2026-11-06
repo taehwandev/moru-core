@@ -8,6 +8,10 @@ import sys
 
 
 def emit(output):
+    # Preserve the artifact builder's argparse wording without a runtime Python
+    # subprocess. Python 3.9 says "optional arguments", newer versions "options".
+    title = argparse.ArgumentParser()._optionals.title
+    print("cargo:rustc-env=MORU_ARGPARSE_OPTIONS_TITLE=" + title + ":")
     root = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(root / "scripts"))
     from support.native_source_inputs import CACHE_DIRECTORIES, pretool_contract

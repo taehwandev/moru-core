@@ -72,7 +72,7 @@ class NativeManifestChecks(unittest.TestCase):
         malformed.write_text("{")
         negative_zero = self.base / "negative-zero.json"
         negative_zero.write_text('{"schema_version": -0}')
-        cases = (["--help"], ["--unknown"], ["--manifest", str(malformed)],
+        cases = (["--manifest", str(malformed)],
                  ["--manifest", str(negative_zero)])
         for args in cases:
             with self.subTest(args=args):
@@ -81,6 +81,33 @@ class NativeManifestChecks(unittest.TestCase):
                 absent = self.call("check-react-rn-skill-manifest", args, PATH=str(self.path))
                 self.assertEqual(127, absent.returncode)
                 self.assertEqual(b"", absent.stdout)
+
+    def test_help_and_cli_errors_match_without_python(self):
+        cases = (["--help"], ["-h"], ["--he"], ["--unknown"], ["--"],
+                 ["--manifest"], ["--source-root"], ["--manifest", "--help"],
+                 ["--remote-check=yes"], ["--help=yes"], ["--s"],
+                 ["--unknown", "--help"], ["--help", "--unknown"],
+                 ["--manifest", "--unknown"], ["-xyz"], ["a", "b"],
+                 ["--remote-check", "--help"], ["-hfoo"], ["--unknown", "--manifest"],
+                 ["--=x"], ["-hh"], ["-hhfoo"], ["--=x", "--help"],
+                 ["--manifest", "-1\n", "--help"], ["--manifest", "-.2\n", "--help"],
+                 ["--manifest", "-1\n\n", "--help"])
+        for width in ("40", "80", "120"):
+            for args in cases:
+                with self.subTest(width=width, args=args):
+                    expected = self.call("check-react-rn-skill-manifest", args,
+                                         backend="python", COLUMNS=width)
+                    self.assertIn(expected.returncode, (0, 2))
+                    actual = self.call("check-react-rn-skill-manifest", args,
+                                       PATH=str(self.path), COLUMNS=width)
+                    self.assertEqual(result(expected), result(actual))
+
+    def test_manifest_option_abbreviations_and_equals(self):
+        source = PROJECT / "common/skills/react-rn-external-skill-source-coverage/references/source-manifest.json"
+        for args in (["--manifest=" + str(source)], ["--m", str(source)],
+                     ["--manifest", str(source), "--manifest", str(source)]):
+            with self.subTest(args=args):
+                self.assertEqual(0, self.parity("check-react-rn-skill-manifest", args).returncode)
 
     def test_explicit_remote_check_uses_only_a_fake_git(self):
         fake = self.path / "git"

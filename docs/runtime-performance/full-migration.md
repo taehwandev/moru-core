@@ -131,3 +131,14 @@ tests, 45 Rust tests with both standard and software SHA implementations, and
 local checks, ordered validation failures, preserved compatibility refusals and
 fake-Git proof that remote fallback executes once. Platform CI and actual local
 activation are separate delivery evidence; these counts do not attest them.
+
+The following increment moves React/RN help and ordinary argument errors into
+Rust, including option abbreviations, repeated values, ambiguity before help,
+and terminal-newline negative-number classification. Maintained skill guidance
+now invokes both installed aliases; historical audit reports remain unchanged.
+The legacy Python entrypoints remain compatibility/reference paths, not extra
+completed units. Native help uses the artifact builder's argparse section
+title, emitted during existing static-contract generation: a consumer running
+a different Python generation may see a different title on explicit rollback.
+No runtime Python process is required for native help. Exotic/non-UTF-8 CLI
+inputs and engine exceptions remain in the ledger along with remote execution.
