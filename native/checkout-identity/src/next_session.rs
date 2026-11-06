@@ -5,6 +5,8 @@
 mod candidates;
 #[path = "next_process_owner.rs"]
 mod process_owner;
+#[path = "next_state_root.rs"]
+mod state_root;
 #[path = "next_worker_scope.rs"]
 mod worker_scope;
 use crate::{
@@ -24,24 +26,16 @@ impl NextSession {
         let Some((runtime, session)) = Self::identity()? else {
             return Some(None);
         };
-        let state = project.join(".moru");
-        State::safe_path(project, &state)?;
-        if State::absent_dir(&state)? {
+        let Some(state) = state_root::NextStateRoot::resolve(project)? else {
             return Some(None);
-        }
-        for name in ["moru-root", "projects.json", "bin/moru-hook"] {
-            match std::fs::symlink_metadata(state.join(name)) {
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                _ => return None,
-            }
-        }
+        };
         // The legacy key uses Path.resolve even when no default evidence exists.
-        State::safe_path(project, &state.join("preflight.json"))?;
+        State::safe_path(&state, &state.join("preflight.json"))?;
         let bindings = {
             let _project = State::lock(&state.join(".state.lock.lock"))?;
             let _registry = State::lock(&state.join(".run-registry.json.lock"))?;
             let path = state.join("run-registry.json");
-            State::safe_path(project, &path)?;
+            State::safe_path(&state, &path)?;
             if matches!(std::fs::symlink_metadata(&path), Err(e) if e.kind() == std::io::ErrorKind::NotFound)
             {
                 return Some(None);
@@ -56,17 +50,20 @@ impl NextSession {
         if bindings.is_empty() {
             return Some(None);
         }
-        Self::select(project, &bindings, runtime, &session)
+        Self::select(project, &state, &bindings, runtime, &session)
     }
 
     fn select(
         project: &Path,
+        state: &Path,
         bindings: &BTreeMap<String, Value>,
         runtime: &str,
         session: &str,
     ) -> Option<Option<PathBuf>> {
         let (paths, outside, complete) = match worker_scope::WorkerScope::current(project)? {
-            worker_scope::WorkerScope::Parent => candidates::Candidates::select(project, bindings)?,
+            worker_scope::WorkerScope::Parent => {
+                candidates::Candidates::select(project, state, bindings)?
+            }
             worker_scope::WorkerScope::Invalid => return Some(None),
             worker_scope::WorkerScope::Selected(path) => (vec![path], Vec::new(), true),
         };

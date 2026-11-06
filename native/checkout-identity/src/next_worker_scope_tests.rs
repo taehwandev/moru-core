@@ -34,3 +34,24 @@ fn worker_shape_and_relative_paths_preserve_scope() {
     ));
     fs::remove_dir_all(base).unwrap();
 }
+
+#[test]
+fn linked_state_root_invalidates_even_real_worker_path() {
+    let base = env::temp_dir().join(format!("moru-next-worker-linked-{}", std::process::id()));
+    fs::create_dir_all(base.join("project")).unwrap();
+    fs::create_dir_all(base.join("state/workers/one")).unwrap();
+    let base = base.canonicalize().unwrap();
+    let project = base.join("project");
+    symlink(base.join("state"), project.join(".moru")).unwrap();
+    let path = base.join("state/workers/one/preflight.json");
+    fs::write(&path, "{}").unwrap();
+    assert!(matches!(
+        WorkerScope::parse(&project, path.to_str().unwrap(), &project),
+        Some(WorkerScope::Invalid)
+    ));
+    assert!(matches!(
+        WorkerScope::parse(&project, " \t", &project),
+        Some(WorkerScope::Parent)
+    ));
+    fs::remove_dir_all(base).unwrap();
+}

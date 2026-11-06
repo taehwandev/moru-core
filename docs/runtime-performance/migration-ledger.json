@@ -231,7 +231,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "next",
-      "remaining": "Native next advice handles canonical and recursive custom evidence discovery, parent/worker scope, exact process-owner ambiguity and recorded ledgers including schema2 freshness. Complete remapped/migrated state discovery, ps-required process-owner lookup, remaining malformed input/CLI and filesystem boundaries, and shared Python caller migration before full native closure.",
+      "remaining": "Native next advice handles canonical/recursive evidence, state-root symlink and global-marker read layouts, parent/worker isolation, exact process ownership and schema2 ledger freshness. Current state target is project/.moru, not a separate remapping API. Complete ps-required process-owner lookup, remaining malformed input/CLI/filesystem boundaries, and shared Python caller migration before full native closure.",
       "verification": {}
     },
     {

@@ -15,9 +15,14 @@ pub(super) struct Candidates;
 impl Candidates {
     pub(super) fn select(
         project: &Path,
+        state: &Path,
         bindings: &BTreeMap<String, Value>,
     ) -> Option<(Vec<PathBuf>, Vec<PathBuf>, bool)> {
-        if let Some(paths) = Self::read(project, bindings) {
+        // Python's run-local containment uses the lexical .moru/runs root.
+        if let Some(paths) = (state == project.join(".moru"))
+            .then(|| Self::read(project, bindings))
+            .flatten()
+        {
             return Some((
                 paths.into_iter().map(|(path, _)| path).collect(),
                 Vec::new(),
@@ -29,11 +34,12 @@ impl Candidates {
             .map(|run| NextSession::text(run.get("evidence_name")))
             .filter(|name| !name.is_empty() && name != "." && !name.contains('/'))
             .collect();
-        let result = walk::NextWalk::read(&project.join(".moru"), &names)?;
+        let result = walk::NextWalk::read(state, &names)?;
         Some((result.candidates, result.workers, result.complete))
     }
     pub(super) fn key(project: &Path, path: &Path) -> Option<String> {
-        let text = path.strip_prefix(project).ok()?.to_str()?;
+        let text = path.strip_prefix(project).unwrap_or(path).to_str()?;
+        let text = if text.is_empty() { "." } else { text };
         Some(format!("{:x}", Sha256::digest(text.as_bytes())))
     }
 

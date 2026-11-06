@@ -54,6 +54,11 @@ impl WorkerScope {
             .filter(|c| *c != Component::CurDir)
             .collect();
         let workers = project.join(".moru/workers");
+        // A linked state root violates the lexical worker-root identity contract.
+        let state = project.join(".moru");
+        if state.canonicalize().ok()? != state {
+            return Some(Self::Invalid);
+        }
         for checked in [&workers, path.parent()?, &path] {
             match fs::symlink_metadata(checked) {
                 Ok(meta) if meta.file_type().is_symlink() => return Some(Self::Invalid),
