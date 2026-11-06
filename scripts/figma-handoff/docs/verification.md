@@ -57,9 +57,11 @@ and fidelity coverage.
 Installed runtimes expose `<MORU_LAUNCHER> figma-validate <summary-path>`.
 Native validation preserves problem ordering, schema-v4 visibility exclusions,
 coverage deduplication, report text and exit status. The source-bound launcher
-handles ordinary file errors with the original argument spelling and selects
-numeric summation semantics from a checked build profile. It defers before
-output for unproven parser, stream or numeric conversion exceptions. Direct
+handles ordinary file errors with the original argument spelling, UTF-8 errors
+with byte offsets, and JSON syntax errors with Unicode character positions.
+Decoding precedes universal-newline conversion and JSON validation. Numeric
+summation and diagnostic differences use checked build profiles. It defers before
+output for unsupported strings/depth, streams or numeric conversion exceptions. Direct
 Python and imported callers remain the reference path.
 The numeric build profile distinguishes sequential sums, compensated float-only
 sums, and compensated float/integer sums. Its boundary probes track the
@@ -68,6 +70,10 @@ sums, and compensated float/integer sums. Its boundary probes track the
 [3.14](https://github.com/python/cpython/blob/v3.14.0/Python/bltinmodule.c)
 implementations, including the transition to generic addition after C-long
 overflow. An unrecognized profile fails the build instead of guessing.
+`test_native_figma_decode` covers version-specific trailing commas, invalid
+escapes, BOMs, integer digit limits, multibyte text, CRLF/CR and invalid UTF-8
+across buffer-sized boundaries. Existing parser consumers retain their prior
+invalid-versus-unsupported classification; diagnostics do not silently widen it.
 `test_native_figma_validate` compares both processes and repeats supported cases
 with no executables in PATH; portable bundle smoke exercises the same alias.
 

@@ -6,6 +6,8 @@ use crate::{
     figma_coverage::FigmaCoverage, figma_validation::FigmaValidation,
     figma_validation_report::FigmaReport, pretool_guard::CallbackGuard, python_json::PythonJson,
 };
+#[path = "figma_decode.rs"]
+mod decode;
 #[path = "figma_file.rs"]
 mod file;
 use std::{ffi::OsString, io::Write};
@@ -62,8 +64,14 @@ impl FigmaProcess {
                 })
             }
         };
-        let text = std::str::from_utf8(&bytes).ok()?;
-        let summary = PythonJson::parse(text)?;
+        let text = match decode::FigmaDecode::decode(&bytes) {
+            Ok(text) => text,
+            Err(error) => return Some(Self::read_error(error)),
+        };
+        let summary = match PythonJson::parse(&text) {
+            Some(summary) => summary,
+            None => return Some(Self::read_error(PythonJson::error(&text)?)),
+        };
         let problems = FigmaValidation::validate(&summary)?;
         let coverage = FigmaCoverage::compute(&summary)?;
         let mut output = FigmaReport::render(&coverage, &problems)?;
@@ -74,5 +82,13 @@ impl FigmaProcess {
             stdout: output,
             stderr: String::new(),
         })
+    }
+
+    fn read_error(error: String) -> Outcome {
+        Outcome {
+            code: 2,
+            stdout: String::new(),
+            stderr: format!("ERROR: cannot read summary: {error}\n"),
+        }
     }
 }

@@ -19,6 +19,9 @@ pub(crate) use value::ManifestValue as Value;
 
 pub(crate) struct PythonJson;
 impl PythonJson {
+    pub(crate) fn error(text: &str) -> Option<String> {
+        parser::ManifestParser::error(text)
+    }
     /// Manifests preserve the reference exception path for every parse failure.
     pub(crate) fn parse(text: &str) -> Option<Value> {
         parser::ManifestParser::parse(text)

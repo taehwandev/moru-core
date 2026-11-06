@@ -269,6 +269,18 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
+        for index, content in enumerate((b"{", '["한글",]'.encode(), b'"\xed\xa0\x80"', b"\xef\xbb\xbf{}")):
+            path = base / f"figma-invalid-{index}.json"
+            path.write_bytes(content)
+            args = [str(entry), "figma-validate", str(path)]
+            reference = subprocess.run(args, capture_output=True, cwd=project,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, timeout=8)
+            done = subprocess.run(args, capture_output=True, cwd=project,
+                env={**no_python, "PATH": str(empty)}, timeout=8)
+            assert reference.returncode == 2, reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
         for alias in ("check-android-skill-manifest", "check-react-rn-skill-manifest"):
             args = [str(entry), alias]
             reference = subprocess.run(args, capture_output=True, cwd=project,

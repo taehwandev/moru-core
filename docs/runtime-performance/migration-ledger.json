@@ -459,12 +459,12 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "figma-validate; direct Python reference",
-      "remaining": "Native offline schema, visibility, coverage, builder-bound numeric sums, ordinary file errors and Markdown report run through a source-bound alias. Exact JSON/decoding exceptions, unhashable IDs, integer-to-float overflow and formatting-limit exceptions, stream inputs, stdio failures, unsupported parser inputs, direct Python and imported extraction/live-smoke callers remain owned migration scope. This is not full unit closure.",
+      "remaining": "Native offline schema, visibility, coverage, builder-bound numeric sums, ordinary file errors, UTF-8 decoding and JSON syntax diagnostics, and Markdown report run through a source-bound alias. Unhashable IDs, integer-to-float overflow and formatting-limit exceptions, stream inputs, stdio failures, unsupported surrogate/depth parser inputs, direct Python and imported extraction/live-smoke callers remain owned migration scope. This is not full unit closure.",
       "verification": {
         "native_owner": "native/checkout-identity/src/figma_process.rs",
-        "behavior": "PASS:78 Figma/reference/inventory/launcher/Rust-visibility Python tests;121 Rust tests;69 structure-review regression tests (5 visibility tests overlap). Builder numeric probes observed Python3.9 and3.14 locally;3.12 profile source/model only. Prior e190 CI inventory-alias omission is repaired without renumbering units.",
+        "behavior": "PASS:78 Figma/reference/inventory/launcher tests completed with one digit-limit test skipped on builder Python3.9;127 Rust tests passed. Shared statusline/manifest/next consumers:41 passed under sandbox, process-inspection test passed separately with required permission. Exact JSON syntax offsets and UTF-8 byte diagnostics preserve builder Python messages; Python3.9 and3.14 diagnostic probes passed.",
         "negative_authority": "PASS: empty PATH native execution, source-byte/environment refusal, read-only inputs, FIFO/descriptor offset refusal, exact original-path error diagnostics and no partial output before compatibility fallback; no token/network calls.",
-        "portable": "PASS:148 transported checks on local macOS ARM64, including Figma numeric and ordinary file-error cases. Cross-platform CI for exact batch pending."
+        "portable": "PASS:152 transported checks on local macOS ARM64, including Figma numeric, file, decoding and JSON error cases. Cross-platform CI for exact batch pending."
       }
     },
     {
@@ -614,6 +614,7 @@
   ],
   "unmigrated_python_sources": [
     "native/checkout-identity/figma_contract.py",
+    "native/checkout-identity/json_contract.py",
     "native/checkout-identity/next_contract.py",
     "native/checkout-identity/pretool_contract.py",
     "native/checkout-identity/status_contract.py",

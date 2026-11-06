@@ -1,12 +1,18 @@
-//! owner: ManifestParser; allowed imports: std, serde_json string decoder, manifest value modules;
-//! forbidden imports: process/network; callers/tests: ReactManifest; verification: Python JSON fixtures.
+//! owner: ManifestParser; allowed imports: std, scalar decoder and private diagnostics;
+//! forbidden imports: process/network; callers/tests: PythonJson; verification: JSON parity.
+#[path = "manifest_parser_diagnostic.rs"]
+mod diagnostic;
+#[path = "manifest_parser_scalar.rs"]
+mod scalar;
 use super::ParseOutcome;
-use super::{number::ManifestNumber, object::ManifestObject, value::ManifestValue as Value};
+use super::{object::ManifestObject, value::ManifestValue as Value};
+use diagnostic::JsonDiagnostic;
 pub(super) struct ManifestParser<'a> {
     text: &'a str,
     offset: usize,
     digit_limit: usize,
     unsupported: bool,
+    diagnostic: Option<String>,
 }
 impl<'a> ManifestParser<'a> {
     pub fn parse(text: &'a str) -> Option<Value> {
@@ -15,14 +21,24 @@ impl<'a> ManifestParser<'a> {
             _ => None,
         }
     }
-    pub fn parse_outcome(text: &'a str) -> ParseOutcome {
-        let digit_limit = option_env!("MORU_PYTHON_INT_MAX_STR_DIGITS")
+    fn limit() -> Option<usize> {
+        option_env!("MORU_PYTHON_INT_MAX_STR_DIGITS")
             .unwrap_or("0")
             .parse()
-            .ok();
-        match digit_limit {
+            .ok()
+    }
+    pub fn parse_outcome(text: &'a str) -> ParseOutcome {
+        match Self::limit() {
             Some(limit) => Self::outcome_with_limit(text, limit),
             None => ParseOutcome::Unsupported,
+        }
+    }
+    pub fn error(text: &'a str) -> Option<String> {
+        let (parser, _) = Self::inspect(text, Self::limit()?);
+        if parser.unsupported {
+            None
+        } else {
+            parser.diagnostic
         }
     }
     #[cfg(test)]
@@ -33,21 +49,40 @@ impl<'a> ManifestParser<'a> {
         }
     }
     fn outcome_with_limit(text: &'a str, digit_limit: usize) -> ParseOutcome {
+        let (parser, value) = Self::inspect(text, digit_limit);
+        if parser.unsupported {
+            ParseOutcome::Unsupported
+        } else {
+            value.map_or(ParseOutcome::Invalid, ParseOutcome::Value)
+        }
+    }
+    fn inspect(text: &'a str, digit_limit: usize) -> (Self, Option<Value>) {
         let mut parser = Self {
             text,
             offset: 0,
             digit_limit,
             unsupported: false,
+            diagnostic: None,
         };
-        let value = parser.value(0);
-        if parser.unsupported {
-            return ParseOutcome::Unsupported;
+        if text.starts_with('\u{feff}') {
+            parser.fail::<()>("Unexpected UTF-8 BOM (decode using utf-8-sig)", 0);
+            return (parser, None);
         }
-        parser.space();
-        match value {
-            Some(value) if parser.offset == text.len() => ParseOutcome::Value(value),
-            _ => ParseOutcome::Invalid,
+        let mut value = parser.value(0);
+        if value.is_some() {
+            parser.space();
+            if parser.offset != text.len() {
+                parser.fail::<()>("Extra data", parser.offset);
+                value = None;
+            }
         }
+        (parser, value)
+    }
+    fn fail<T>(&mut self, message: &str, offset: usize) -> Option<T> {
+        if self.diagnostic.is_none() {
+            self.diagnostic = Some(JsonDiagnostic::syntax(self.text, offset, message));
+        }
+        None
     }
     fn space(&mut self) {
         while matches!(self.peek(), Some(b' ' | b'\n' | b'\r' | b'\t')) {
@@ -79,156 +114,99 @@ impl<'a> ManifestParser<'a> {
             return None;
         }
         self.space();
-        match self.peek()? {
-            b'"' => self.string().map(Value::String),
-            b'n' => {
-                self.literal("null")?;
-                Some(Value::Null)
-            }
-            b't' => {
-                self.literal("true")?;
-                Some(Value::Bool(true))
-            }
-            b'f' => {
-                self.literal("false")?;
-                Some(Value::Bool(false))
-            }
-            b'[' => {
-                self.offset += 1;
-                self.space();
-                let mut entries = Vec::new();
-                if self.take(b']').is_some() {
-                    return Some(Value::Array(entries));
+        match self.peek() {
+            Some(b'"') => self.string().map(Value::String),
+            Some(b'n') => {
+                if self.literal("null").is_some() {
+                    Some(Value::Null)
+                } else {
+                    self.fail("Expecting value", self.offset)
                 }
-                loop {
-                    entries.push(self.value(depth + 1)?);
-                    self.space();
-                    if self.take(b']').is_some() {
-                        break;
-                    }
-                    self.take(b',')?;
-                }
-                Some(Value::Array(entries))
             }
-            b'{' => {
-                self.offset += 1;
-                self.space();
-                let mut object = ManifestObject::new();
-                if self.take(b'}').is_some() {
-                    return Some(Value::Object(object));
+            Some(b't') => {
+                if self.literal("true").is_some() {
+                    Some(Value::Bool(true))
+                } else {
+                    self.fail("Expecting value", self.offset)
                 }
-                loop {
-                    self.space();
-                    let key = self.string()?;
-                    self.space();
-                    self.take(b':')?;
-                    let value = self.value(depth + 1)?;
-                    object.insert(key, value);
-                    self.space();
-                    if self.take(b'}').is_some() {
-                        break;
-                    }
-                    self.take(b',')?;
-                }
-                Some(Value::Object(object))
             }
+            Some(b'f') => {
+                if self.literal("false").is_some() {
+                    Some(Value::Bool(false))
+                } else {
+                    self.fail("Expecting value", self.offset)
+                }
+            }
+            Some(b'[') => self.array(depth),
+            Some(b'{') => self.object(depth),
             _ => self.number().map(Value::Number),
         }
     }
-    fn string(&mut self) -> Option<String> {
-        let start = self.offset;
-        self.take(b'"')?;
+    fn array(&mut self, depth: usize) -> Option<Value> {
+        self.offset += 1;
+        self.space();
+        let mut entries = Vec::new();
+        if self.take(b']').is_some() {
+            return Some(Value::Array(entries));
+        }
         loop {
-            match self.peek()? {
-                b'"' => {
-                    self.offset += 1;
-                    let value = serde_json::from_str(&self.text[start..self.offset]).ok();
-                    if value.is_none() {
-                        self.unsupported = true;
-                    }
-                    return value;
-                }
-                b'\\' => {
-                    self.offset += 1;
-                    match self.peek()? {
-                        b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't' => self.offset += 1,
-                        b'u' => {
-                            self.offset += 1;
-                            // Validate the complete string before decoding surrogate semantics.
-                            self.hex_unit()?;
-                        }
-                        _ => return None,
-                    }
-                }
-                0..=31 => return None,
-                _ => self.offset += 1,
+            entries.push(self.value(depth + 1)?);
+            self.space();
+            if self.take(b']').is_some() {
+                break;
+            }
+            let comma = self.offset;
+            if self.take(b',').is_none() {
+                return self.fail("Expecting ',' delimiter", self.offset);
+            }
+            self.space();
+            if self.peek() == Some(b']') && JsonDiagnostic::trailing(true) {
+                return self.fail("Illegal trailing comma before end of array", comma);
             }
         }
+        Some(Value::Array(entries))
     }
-    fn hex_unit(&mut self) -> Option<u16> {
-        let mut unit = 0u16;
-        for _ in 0..4 {
-            let digit = match self.peek()? {
-                b'0'..=b'9' => self.peek()? - b'0',
-                b'a'..=b'f' => self.peek()? - b'a' + 10,
-                b'A'..=b'F' => self.peek()? - b'A' + 10,
-                _ => return None,
-            };
-            unit = unit * 16 + u16::from(digit);
-            self.offset += 1;
+    fn object(&mut self, depth: usize) -> Option<Value> {
+        self.offset += 1;
+        self.space();
+        let mut object = ManifestObject::new();
+        if self.take(b'}').is_some() {
+            return Some(Value::Object(object));
         }
-        Some(unit)
-    }
-    fn number(&mut self) -> Option<ManifestNumber> {
-        let start = self.offset;
-        for special in ["NaN", "Infinity", "-Infinity"] {
-            if self.literal(special).is_some() {
-                return ManifestNumber::from_token(special, self.digit_limit);
+        loop {
+            self.space();
+            if self.peek() != Some(b'"') {
+                return self.fail(
+                    "Expecting property name enclosed in double quotes",
+                    self.offset,
+                );
+            }
+            let key = self.string()?;
+            self.space();
+            if self.take(b':').is_none() {
+                return self.fail("Expecting ':' delimiter", self.offset);
+            }
+            let value = self.value(depth + 1)?;
+            object.insert(key, value);
+            self.space();
+            if self.take(b'}').is_some() {
+                break;
+            }
+            let comma = self.offset;
+            if self.take(b',').is_none() {
+                return self.fail("Expecting ',' delimiter", self.offset);
+            }
+            self.space();
+            if self.peek() == Some(b'}') && JsonDiagnostic::trailing(false) {
+                return self.fail("Illegal trailing comma before end of object", comma);
             }
         }
-        if self.peek() == Some(b'-') {
-            self.offset += 1;
-        }
-        match self.peek()? {
-            b'0' => self.offset += 1,
-            b'1'..=b'9' => {
-                while self.peek().is_some_and(|b| b.is_ascii_digit()) {
-                    self.offset += 1;
-                }
-            }
-            _ => return None,
-        }
-        if self.peek() == Some(b'.') {
-            self.offset += 1;
-            let begin = self.offset;
-            while self.peek().is_some_and(|b| b.is_ascii_digit()) {
-                self.offset += 1;
-            }
-            if begin == self.offset {
-                return None;
-            }
-        }
-        if matches!(self.peek(), Some(b'e' | b'E')) {
-            self.offset += 1;
-            if matches!(self.peek(), Some(b'+' | b'-')) {
-                self.offset += 1;
-            }
-            let begin = self.offset;
-            while self.peek().is_some_and(|b| b.is_ascii_digit()) {
-                self.offset += 1;
-            }
-            if begin == self.offset {
-                return None;
-            }
-        }
-        let token = &self.text[start..self.offset];
-        let value = ManifestNumber::from_token(token, self.digit_limit);
-        if value.is_none() && token.contains(['.', 'e', 'E']) {
-            self.unsupported = true;
-        }
-        value
+        Some(Value::Object(object))
     }
 }
+#[cfg(test)]
+#[path = "manifest_parser_diagnostic_tests.rs"]
+mod diagnostic_tests;
 #[cfg(test)]
 #[path = "manifest_parser_tests.rs"]
 mod tests;

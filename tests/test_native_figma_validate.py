@@ -128,8 +128,8 @@ class NativeFigmaValidate(unittest.TestCase):
             self.assertEqual(2, expected.returncode)
             self.assertEqual(result(expected), result(self.call(args, PATH=str(self.empty_path))))
 
-    def test_file_json_and_exception_boundaries_defer_without_partial_output(self):
-        cases = [b"{", b'"\\ud800"', b"\xff", b"\xef\xbb\xbf{}"]
+    def test_surrogate_and_exception_boundaries_defer_without_partial_output(self):
+        cases = [b'"\\ud800"']
         for value in ([], {}):
             payload = _valid_v4_summary()
             payload["assetCandidates"] = [{"id": value}]
