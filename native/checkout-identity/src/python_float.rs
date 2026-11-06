@@ -1,9 +1,9 @@
-//! owner: QuotaNumber; allowed imports: std, PythonText; forbidden imports: process/network;
-//! callers/tests: Quota and subject tests; verification: Python float-string parity.
+//! owner: PythonFloat; allowed imports: std, PythonText; forbidden imports: process/network;
+//! callers/tests: Quota, overhead and subject tests; verification: Python float-string parity.
 use crate::python_text::PythonText;
-pub(super) struct QuotaNumber;
-impl QuotaNumber {
-    pub(super) fn parse(text: &str) -> Option<f64> {
+pub(crate) struct PythonFloat;
+impl PythonFloat {
+    pub(crate) fn parse(text: &str) -> Option<f64> {
         let mut normalized = String::with_capacity(text.len());
         for c in text.chars() {
             if c.is_ascii() {
@@ -89,5 +89,5 @@ impl QuotaNumber {
     }
 }
 #[cfg(test)]
-#[path = "quota_number_tests.rs"]
+#[path = "python_float_tests.rs"]
 mod tests;

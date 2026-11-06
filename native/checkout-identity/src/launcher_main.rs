@@ -10,11 +10,16 @@ mod callback_replay;
 mod android_manifest;
 mod manifest_process;
 mod figma_process;
+mod overhead_process;
+mod overhead_session;
+mod overhead_hooks;
+mod overhead_text;
 mod figma_validation;
 mod figma_coverage;
 mod figma_validation_report;
 mod react_manifest;
 mod python_text;
+mod python_float;
 mod python_json;
 mod python_encoding;
 mod callback_state;
@@ -122,6 +127,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "--overhead-probe") {
+        exit(overhead_process::OverheadProcess::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "--registry-read-probe") {
         exit(registry_read::RegistryRead::run(&launcher, &args));

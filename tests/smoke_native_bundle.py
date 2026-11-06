@@ -93,6 +93,21 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (0, b"chained", b""), done
             checks += 1
         native = entry.with_name("moru-hook-native")
+        transcript = base / "synthetic-overhead.jsonl"
+        transcript.write_text(json.dumps({"type": "assistant", "timestamp": "2026-10-10T00:00:00Z",
+            "message": {"id": "m1", "usage": {"input_tokens": 5}, "content": []}}) + "\n")
+        overhead = {"path": str(transcript), "roots": [], "window": [None, None]}
+        done = subprocess.run([str(native), str(entry), "--overhead-probe", "session"],
+            input=json.dumps(overhead).encode(), capture_output=True, env=env, cwd=project, timeout=8)
+        assert (done.returncode, done.stderr) == (0, b""), done
+        measured = json.loads(done.stdout)["result"]["row"]
+        assert measured["assistant_turns"] == 1 and measured["tok_total"] == 5, measured
+        checks += 1
+        overhead["path"] = "/dev/stdin"
+        done = subprocess.run([str(native), str(entry), "--overhead-probe", "session"],
+            input=json.dumps(overhead).encode(), capture_output=True, env=env, cwd=project, timeout=8)
+        assert (done.returncode, done.stdout, done.stderr) == (125, b"", b""), done
+        checks += 1
         state = base / "prepared-registry"
         state.mkdir()
         for name in (".state.lock.lock", ".run-registry.json.lock"):

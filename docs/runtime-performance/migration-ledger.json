@@ -516,10 +516,15 @@
       "id": "scripts/moru_overhead_report.py",
       "inventory_id": 46,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Native per-session transcript tally is connected through a source-bound private probe. Complete report statistics, collection/window CLI, timings, JSON/Markdown writers, unsupported timestamps/values and direct Python removal. This is supporting coverage, not full unit closure.",
+      "verification": {
+        "native_owner": "native/checkout-identity/src/overhead_session.rs",
+        "behavior": "PASS:32 overhead/reference/registry/completion/inventory tests completed (1 builder-limit skip),18 statusline regression tests and139 Rust tests. Independent review repaired invalid-duration empty-key ordering and builder integer-string limits.",
+        "negative_authority": "PASS: native-required adapter calls and empty-PATH private protocol; malformed-response atomicity, source/environment refusal, unbuffered descriptor offsets including Darwin case alias, FIFO/symlink refusal and no input writes. Synthetic transcripts only; no provider calls.",
+        "portable": "Transported artifact checks recorded in source closeout; cross-platform exact-batch CI remains pending."
+      }
     },
     {
       "id": "scripts/mutation-check.py",
@@ -908,6 +913,7 @@
     "scripts/support/moru_run_state.py",
     "scripts/support/native_bundle.py",
     "scripts/support/native_launcher_install.py",
+    "scripts/support/native_overhead.py",
     "scripts/support/native_probe_transport.py",
     "scripts/support/native_source_inputs.py",
     "scripts/support/permission_entries.py",

@@ -69,9 +69,11 @@ coverage, all involving native work (including partial entry/discovery,
 launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
 The latest native extensions add no new timing claim; earlier measurements remain historical.
 The ancillary manifest checker and offline Figma validator engines add
-implementation coverage for units 36–37 and 40. That is 20/56 inventory coverage,
-including 17/31 primary units, not effort-weighted completion: 19 are partial and
-one is locally verified; 35 remain planned and one has an unresolved external
+implementation coverage for units 36–37 and 40. The native session aggregation
+used by the overhead reporter adds partial supporting coverage for unit 46.
+That is 21/56 inventory coverage, including 17/31 primary units, not
+effort-weighted completion: 20 are partial and one is locally verified;
+34 remain planned and one has an unresolved external
 ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -83,6 +85,16 @@ The [registered evidence lookup](runtime-performance/evidence-lookup.md) further
 optimizes the existing `next` boundary and its shared resolver. It adds no
 inventory unit or Rust conversion: generated active-next improves on large
 history/cache fixtures, while compact and custom fallback show no benefit.
+
+Unit 46's `measure_session` now requests a source-bound native session tally.
+The private probe reads only bounded regular files, replaces invalid UTF-8 and
+normalizes universal newlines before parsing JSONL. The adapter validates the
+complete result before merging shared counters, preserving replay on decline.
+Symlinks, descriptors, streams, unfamiliar datetime grammar, oversized numeric
+values and other unsupported input shapes retain Python behavior. Native rows
+restore datetime and Counter values at the Python boundary. Report statistics,
+collection, CLI parsing and JSON/Markdown file effects still belong to the
+remaining unit-46 migration; this increment claims no measured speedup.
 The [native pretool batch](runtime-performance/native-pretool.md) adds two partial
 Rust boundaries with CPU/wall/RSS evidence and no-Python plain-query execution.
 The [file-query extension](runtime-performance/native-pretool-files.md) expands
@@ -198,7 +210,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
 | 45 | `scripts/migrate_skill_bundles.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Native session tally / Python report CLI | Aggregation, file selection and output writers remain owned scope |
 | 47 | `scripts/mutation-check.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 48 | `scripts/path_claims.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 49 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |

@@ -1,7 +1,5 @@
-#[path = "quota_number.rs"]
-mod number;
+use crate::python_float::PythonFloat as QuotaNumber;
 use crate::python_json::{Object as Map, PythonJson, Value};
-use number::QuotaNumber;
 
 use super::gauge::Gauge;
 use super::py::Py;
@@ -129,5 +127,46 @@ impl Quota {
             }
         }
         Some(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn quota_defers_only_live_nonfinite_rounding() {
+        let render = |limits: serde_json::Value| {
+            let mut root = crate::python_json::Object::new();
+            root.insert(
+                "rate_limits".into(),
+                crate::python_json::Value::from(limits),
+            );
+            Quota::render(&root, false)
+        };
+        assert!(render(serde_json::json!({"primary":{"used_percentage":"nan"}})).is_none());
+        assert!(
+            render(serde_json::json!({"unknown":{"used_percentage":"nan"}}))
+                .unwrap()
+                .is_empty()
+        );
+        assert!(render(
+            serde_json::json!({"primary":{"used_percentage":"1","window_minutes":"Infinity"}})
+        )
+        .is_none());
+        assert!(render(
+            serde_json::json!({"primary":{"used_percentage":"1","window_minutes":"-Infinity"}})
+        )
+        .unwrap()
+        .contains("99%"));
+        assert!(
+            render(serde_json::json!({"primary":{"used_percentage":"bad_","percent":"١٢"}}))
+                .unwrap()
+                .contains("88%")
+        );
+        assert!(render(
+            serde_json::json!([{"kind":"primary","percent":"nan"},{"kind":"primary","percent":"1"}])
+        )
+        .unwrap()
+        .contains("99%"));
     }
 }

@@ -260,6 +260,10 @@ def measure_session(path: str, moru_roots: list[str], shared: dict[str, Any],
                     window: tuple[dt.datetime | None, dt.datetime | None] = (None, None)) -> dict[str, Any]:
     """Read one transcript's entries inside the window; malformed lines are skipped."""
 
+    from support.native_overhead import NativeOverhead
+    native = NativeOverhead.measure(path, moru_roots, shared, window)
+    if native is not None:
+        return native
     tally = SessionTally(path, moru_roots, shared, window)
     with open(path, encoding="utf-8", errors="replace") as handle:
         for line in handle:
