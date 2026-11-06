@@ -29,6 +29,7 @@ SCRIPT_ALIASES = {
     "work-cards": "agent_work_cards.py",
     "check-android-skill-manifest": "check_android_external_skill_manifest.py",
     "check-react-rn-skill-manifest": "check_react_rn_external_skill_manifest.py",
+    "figma-validate": "figma-handoff/figma_validate.py",
     "loop": "agent_loop.py",
     "workflow-dispatch": "workflow_dispatch.py",
     "workflow-dispatch-launch": "workflow_dispatch_launch.py",

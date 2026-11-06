@@ -81,7 +81,7 @@ case "${MORU_LAUNCHER_BACKEND:-auto}" in
         if [ "${MORU_LAUNCHER_BACKEND:-auto}" = auto ]; then
             case "${1-}" in
                 checkout-identity|claude-statusline|agy-statusline|next|agent-os-status|project-discover|work-cards|agent-mailbox) ;;
-                check-android-skill-manifest|check-react-rn-skill-manifest) ;;
+                check-android-skill-manifest|check-react-rn-skill-manifest|figma-validate) ;;
                 claude-pretool-gate|codex-pretool-gate|mailbox-hook|claude-stop-gate|codex-stop-gate) ;;
                 *) exec python3 "$0" "$@" ;;
             esac

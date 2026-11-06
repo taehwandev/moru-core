@@ -12,7 +12,6 @@ mod parser;
 #[path = "manifest_value.rs"]
 mod value;
 use crate::python_text::PythonText;
-#[cfg(test)]
 pub(crate) use number::ManifestNumber as Number;
 pub(crate) use object::ManifestObject as Object;
 pub(crate) use outcome::ParseOutcome;

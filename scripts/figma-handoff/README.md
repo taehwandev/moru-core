@@ -212,10 +212,19 @@ python3 scripts/figma-handoff/figma-handoff.py \
   --name standalone-check --dry-run
 ```
 
-Validate a produced bundle with:
+Validate a produced bundle through the installed source-bound native launcher:
+
+```text
+<MORU_LAUNCHER> figma-validate /path/to/bundle/summary/design-summary.json
+```
+
+This offline command needs no token or network. Unsupported JSON, file errors,
+and numeric summation boundaries use the Python compatibility implementation;
+the launcher reports an execution error if that fallback is unavailable. The
+direct Python entry remains available for source-only checkouts and parity:
 
 ```bash
-python3 scripts/figma-handoff/figma_validate.py \
+python3 -B scripts/figma-handoff/figma_validate.py \
   /path/to/bundle/summary/design-summary.json
 ```
 

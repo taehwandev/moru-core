@@ -457,10 +457,15 @@
       "id": "scripts/figma-handoff/figma_validate.py",
       "inventory_id": 40,
       "kind": "ancillary",
-      "status": "planned",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "status": "partial_native",
+      "entry_aliases": "figma-validate; direct Python reference",
+      "remaining": "Native offline schema, visibility, coverage and Markdown report owners are integrated through a source-bound alias. Exact file/JSON exceptions, unhashable IDs, rounding-sensitive or nonfinite sums, unsupported parser inputs, direct Python and imported extraction/live-smoke callers remain owned migration scope. Portable and installed verification is tracked per cohesive batch; this is not full unit closure.",
+      "verification": {
+        "native_owner": "native/checkout-identity/src/figma_process.rs",
+        "behavior": "PASS: 14 native Figma process tests plus 37 canonical Figma/inventory tests; 119 Rust tests including validation, coverage, integer limits and report; 35 existing next/manifest regression tests.",
+        "negative_authority": "PASS: no-Python empty PATH; source-byte drift and environment refusal; read-only inputs, FIFO and descriptor-offset refusal; no partial output before compatibility fallback; no token/network calls.",
+        "portable": "PASS: 144 transported checks on local macOS ARM64, including four Figma valid/v4/negative controls. Cross-platform CI for this exact batch is pending."
+      }
     },
     {
       "id": "scripts/figma-handoff/live_smoke.py",

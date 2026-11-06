@@ -239,6 +239,21 @@ def smoke(archive):
         git_only.mkdir()
         (git_only / "git").symlink_to(shutil.which("git"))
         no_python = {**normal, "PATH": str(git_only)}
+        from test_figma_validate import _valid_summary, _valid_v4_summary
+        invalid_figma = _valid_v4_summary()
+        invalid_figma["assetCandidates"] = [{"id": "1:2"}]
+        for index, summary in enumerate((_valid_summary(), _valid_v4_summary(), invalid_figma, [])):
+            summary_path = base / f"figma-summary-{index}.json"
+            summary_path.write_text(json.dumps(summary))
+            args = [str(entry), "figma-validate", str(summary_path)]
+            reference = subprocess.run(args, capture_output=True, cwd=project,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, timeout=8)
+            done = subprocess.run(args, capture_output=True, cwd=project,
+                env={**no_python, "PATH": str(empty)}, timeout=8)
+            assert reference.returncode == (0 if index < 2 else 1), reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
         for alias in ("check-android-skill-manifest", "check-react-rn-skill-manifest"):
             args = [str(entry), alias]
             reference = subprocess.run(args, capture_output=True, cwd=project,

@@ -9,9 +9,14 @@ use moru_checkout_identity::CheckoutIdentity;
 mod callback_replay;
 mod android_manifest;
 mod manifest_process;
+mod figma_process;
+mod figma_validation;
+mod figma_coverage;
+mod figma_validation_report;
 mod react_manifest;
 mod python_text;
 mod python_json;
+mod python_encoding;
 mod callback_state;
 mod cards_identity;
 mod cards_process;
@@ -134,6 +139,10 @@ fn main() {
 
     if args.first().is_some_and(|a| a == "work-cards") {
         finish(cards_process::CardsProcess::run(&launcher, &args));
+    }
+
+    if args.first().is_some_and(|a| a == "figma-validate") {
+        finish(figma_process::FigmaProcess::run(&launcher, &args));
     }
 
     if args.first().is_some_and(|a| {

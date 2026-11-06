@@ -54,6 +54,14 @@ behavior must go through the existing network mocks.
 `figma_validate.py` reads any `design-summary.json` and checks schema invariants
 and fidelity coverage.
 
+Installed runtimes expose `<MORU_LAUNCHER> figma-validate <summary-path>`.
+Native validation preserves problem ordering, schema-v4 visibility exclusions,
+coverage deduplication, report text and exit status. The source-bound launcher
+defers before output when a Python exception or numeric boundary is not proven
+equivalent. Direct Python and imported callers remain the reference path.
+`test_native_figma_validate` compares both processes and repeats supported cases
+with no executables in PATH; portable bundle smoke exercises the same alias.
+
 ```bash
 python3 scripts/figma-handoff/figma_validate.py \
   <bundle>/summary/design-summary.json
