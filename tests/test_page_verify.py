@@ -15,8 +15,16 @@ sys.path.insert(0, str(ROOT / "scripts" / "page_verify"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import verify  # noqa: E402
+import verify_backend  # noqa: E402
+import verify_evidence  # noqa: E402
+import verify_judging  # noqa: E402
 
 os.environ.setdefault("MORU_VERIFY_EFFECT_LOG", str(Path(tempfile.gettempdir()) / "moru-verify-effect-test.jsonl"))
+
+
+def observer_source() -> str:
+    folder = ROOT / "scripts" / "page_verify"
+    return (folder / "observe.mjs").read_text() + (folder / "observe-scripts.mjs").read_text()
 
 
 def write_evidence(directory: Path, **extra) -> None:
@@ -188,7 +196,7 @@ class LocalCodexJudgeTests(unittest.TestCase):
 
         with unittest.mock.patch.dict("os.environ", {"MORU_VERIFY_BACKEND": "codex", "MORU_VERIFY_MODEL": "",
                                                      "MORU_VERIFY_CONFIG": "/nonexistent"}, clear=False), \
-                unittest.mock.patch.object(verify.subprocess, "run", fake_run):
+                unittest.mock.patch.object(verify_backend.subprocess, "run", fake_run):
             result = verify.chat("ignored/model", content)
         return result, calls
 
@@ -222,9 +230,9 @@ class LocalCodexJudgeTests(unittest.TestCase):
         env = {"MORU_VERIFY_JUDGE_URL": "", "MORU_VERIFY_BACKEND": "codex", "MORU_VERIFY_ALLOW_PAID": "",
                "OPENROUTER_API_KEY": "", "MORU_VERIFY_CONFIG": "/nonexistent"}
         with unittest.mock.patch.dict("os.environ", env, clear=False):
-            with unittest.mock.patch.object(verify, "codex_available", return_value=True):
+            with unittest.mock.patch.object(verify_backend, "codex_available", return_value=True):
                 self.assertTrue(verify.can_judge())
-            with unittest.mock.patch.object(verify, "codex_available", return_value=False):
+            with unittest.mock.patch.object(verify_backend, "codex_available", return_value=False):
                 self.assertFalse(verify.can_judge())
                 with self.assertRaises(RuntimeError):
                     verify.require_backend()
@@ -242,7 +250,7 @@ class JudgeSelectionTests(unittest.TestCase):
                 return verify.judge_settings(), verify.judge_configured(), verify.can_judge()
 
     def test_nothing_is_chosen_by_default_even_if_codex_and_a_key_exist(self):
-        with unittest.mock.patch.object(verify, "codex_available", return_value=True):
+        with unittest.mock.patch.object(verify_backend, "codex_available", return_value=True):
             settings, configured, can = self.settings({"OPENROUTER_API_KEY": "present"})
         self.assertEqual("none", settings["backend"])
         self.assertFalse(configured)
@@ -250,7 +258,7 @@ class JudgeSelectionTests(unittest.TestCase):
 
     def test_a_saved_choice_applies_and_the_environment_overrides_it_for_one_run(self):
         saved = {"backend": "codex", "model": "cheap-model", "effort": "low"}
-        with unittest.mock.patch.object(verify, "codex_available", return_value=True):
+        with unittest.mock.patch.object(verify_backend, "codex_available", return_value=True):
             settings, configured, _ = self.settings(saved=saved)
             self.assertEqual({"backend": "codex", "model": "cheap-model", "effort": "low"}, settings)
             self.assertTrue(configured)
@@ -276,7 +284,7 @@ class JudgeSelectionTests(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0, "", "")
 
         env = {"MORU_VERIFY_BACKEND": "codex", "MORU_VERIFY_MODEL": "cheap-model", "MORU_VERIFY_CONFIG": "/nonexistent"}
-        with unittest.mock.patch.dict("os.environ", env, clear=False), unittest.mock.patch.object(verify.subprocess, "run", fake_run):
+        with unittest.mock.patch.dict("os.environ", env, clear=False), unittest.mock.patch.object(verify_backend.subprocess, "run", fake_run):
             verify.chat("ignored", "hi")
         self.assertEqual("cheap-model", seen["model"])
 
@@ -315,7 +323,7 @@ class PaidCallsAreOffByDefaultTests(unittest.TestCase):
                "OPENROUTER_API_KEY": "present"}
         with unittest.mock.patch.dict("os.environ", env, clear=False):
             self.assertFalse(verify.can_judge())
-            with unittest.mock.patch.object(verify, "open_provider_request", side_effect=AssertionError("network used")):
+            with unittest.mock.patch.object(verify_backend, "open_provider_request", side_effect=AssertionError("network used")):
                 with self.assertRaises(RuntimeError) as caught:
                     verify.chat("any/model", "hi")
         self.assertIn("MORU_VERIFY_ALLOW_PAID=1", str(caught.exception))
@@ -345,7 +353,7 @@ class MobileAndTimelineTests(unittest.TestCase):
                 "inputProbes": {"primary": {"x": 1, "y": 2, "reaches": False, "by": "div.sheet", "text": "", "invisible": True}},
                 "consoleErrors": ["boom"]}))
 
-        with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch.object(verify, "observe", fake_observe):
+        with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch.object(verify_evidence, "observe", fake_observe):
             out = Path(tmp)
             evidence = {"steps": [{"label": "initial"}], "consoleErrors": []}
             verify.observe_mobile("http://x", out, evidence)
@@ -358,7 +366,7 @@ class MobileAndTimelineTests(unittest.TestCase):
         def broken(*args, **kwargs):
             raise RuntimeError("no chrome")
 
-        with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch.object(verify, "observe", broken):
+        with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch.object(verify_evidence, "observe", broken):
             evidence = {"steps": [], "consoleErrors": []}
             verify.observe_mobile("http://x", Path(tmp), evidence)
         self.assertIn("no chrome", evidence["mobileError"])
@@ -367,7 +375,7 @@ class MobileAndTimelineTests(unittest.TestCase):
         evidence = {"timeline": [{"t": 1, "text": "ALT 1"}, {"t": 1.5, "text": "ALT 1"}, {"t": 2, "text": "ALT 5"}]}
         self.assertEqual("- 1s: ALT 1\n- 2s: ALT 5", verify.timeline_text(evidence))
         self.assertEqual("(none)", verify.timeline_text({}))
-        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        source = observer_source()
         for needle in ("evidence.timeline", "setInterval", "const brief", "after-action"):
             self.assertIn(needle, source)
 
@@ -393,7 +401,7 @@ class InputReachTests(unittest.TestCase):
         self.assertEqual("unobserved", verify.settle_input_items(pending, {})[0]["verdict"])
 
     def test_the_observer_probes_hits_and_does_a_real_drag_and_wheel_and_the_menu_asks_for_it(self):
-        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        source = observer_source()
         for needle in ("elementFromPoint", "pointer-drag-before", "pointer-drag-after", "mouseWheel", "inputProbes.primary"):
             self.assertIn(needle, source)
         items = verify.ensure_menu_items("A page with orbit and zoom camera controls", [])
@@ -534,7 +542,7 @@ class CheaperEvidenceTests(unittest.TestCase):
     def test_the_image_selection_is_capped_and_keeps_the_start_default_view_and_end(self):
         steps = self.steps()
         chosen = verify.select_steps(steps)
-        self.assertLessEqual(len(chosen), verify.MAX_IMAGES)
+        self.assertLessEqual(len(chosen), verify_judging.MAX_IMAGES)
         labels = [s["label"] for s in chosen]
         for must in ("initial", "default-view-t3s", "default-view-t10s", steps[-1]["label"]):
             self.assertIn(must, labels)
@@ -570,7 +578,7 @@ class CheaperEvidenceTests(unittest.TestCase):
         self.assertEqual(2, len(sent["images"]))
 
     def test_the_observer_ends_at_rest_and_keeps_few_small_screenshots(self):
-        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        source = observer_source()
         for needle in ("endedAtRest = true", "restKey", "quality: 45", "width: 1024, height: 640", ".slice(0, 5)"):
             self.assertIn(needle, source)
 
@@ -654,7 +662,7 @@ class RemoteJudgeTests(unittest.TestCase):
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class ObserverTests(unittest.TestCase):
     def test_the_observer_shows_the_default_view_first_retries_a_swallowed_click_and_runs_long(self):
-        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        source = observer_source()
         self.assertLess(source.index("default-view-t"), source.index("FIND_SECONDARY)) || []"))
         self.assertLess(source.index("FIND_SECONDARY)) || []"), source.index("late-t"))
         for needle in ("primaryAttempts = 2", "option('--seconds', '75')"):
@@ -662,7 +670,7 @@ class ObserverTests(unittest.TestCase):
         self.assertIn("default=75", (ROOT / "scripts" / "page_verify" / "verify.py").read_text())
 
     def test_secondary_controls_do_not_match_ordinary_words_like_in_progress(self):
-        source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
+        source = observer_source()
         self.assertNotIn("|in\\\\b|out\\\\b", source)
         self.assertIn("drone", source)
 
@@ -670,8 +678,8 @@ class ObserverTests(unittest.TestCase):
         source = (ROOT / "scripts" / "page_verify" / "observe.mjs").read_text()
         for needle in ("detached: true", "process.kill(-chrome.pid", "watchdog expired", "--in-process-gpu"):
             self.assertIn(needle, source)
-        self.assertIn("start_new_session=True", (ROOT / "scripts" / "page_verify" / "verify.py").read_text())
-        self.assertIn("os.killpg", (ROOT / "scripts" / "page_verify" / "verify.py").read_text())
+        self.assertIn("start_new_session=True", (ROOT / "scripts" / "page_verify" / "verify_evidence.py").read_text())
+        self.assertIn("os.killpg", (ROOT / "scripts" / "page_verify" / "verify_evidence.py").read_text())
 
     def test_the_observer_is_valid_javascript_and_explains_its_usage(self):
         script = str(ROOT / "scripts" / "page_verify" / "observe.mjs")

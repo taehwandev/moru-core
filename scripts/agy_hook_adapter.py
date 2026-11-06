@@ -20,31 +20,20 @@ Every failure allows: a gate that traps a session is worse than one that misses.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
-import shutil
-import time
 import subprocess
 import sys
 from pathlib import Path
+
+from agy_hook_state import already_delivered, continuations_for, count_continuation, session_id, workspace
+from agy_hook_verify import unverified_reminder, verify_in_session
 
 SCRIPTS = Path(__file__).resolve().parent
 RUNTIME = "antigravity"
 EDIT_TOOLS = {"write_file": "Write", "edit_file": "Edit"}
 UNCHANGED_NOTE = "unchanged since this session already received it"
 TIMEOUT_SECONDS = 25
-
-
-def workspace(payload: dict) -> str:
-    paths = payload.get("workspacePaths")
-    if isinstance(paths, list) and paths:
-        return str(paths[0])
-    return os.getcwd()
-
-
-def session_id(payload: dict) -> str:
-    return str(payload.get("conversationId") or "")
 
 
 def run_script(name: str, args: list[str], stdin: dict | str, cwd: str, env: dict | None = None) -> str:
@@ -65,45 +54,6 @@ def parse_json(text: str) -> dict:
     return value if isinstance(value, dict) else {}
 
 
-MARKER_DIR = Path.home() / ".moru" / "agy-hook"
-MARKER_MAX_AGE_SECONDS = 7 * 24 * 3600
-
-
-def already_delivered(conversation: str, text: str, kind: str = "route") -> bool:
-    """Whether this conversation already holds exactly this text; record it if not.
-
-    The shared route cache only exists once a project has run a hook, so a new
-    workspace would otherwise be re-sent the same text on every model call.
-    """
-
-    safe = "".join(ch for ch in conversation if ch.isalnum() or ch in "-_")
-    if not safe:
-        return False
-    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    marker = MARKER_DIR / f"{safe}.{kind}.digest"
-    try:
-        if marker.read_text(encoding="utf-8") == digest:
-            return True
-    except OSError:
-        pass
-    try:
-        MARKER_DIR.mkdir(parents=True, exist_ok=True)
-        marker.write_text(digest, encoding="utf-8")
-        cutoff = time.time() - MARKER_MAX_AGE_SECONDS
-        for old in MARKER_DIR.glob("*.digest"):
-            if old.stat().st_mtime < cutoff:
-                old.unlink()
-    except OSError:
-        pass
-    return False
-
-
-NOT_JUDGED_NOTE = (
-    "No model judgement of the request's acceptance items is configured, so only the basic checks ran: the page loads, "
-    "the main action responds, and pointer input reaches the controls and the scene. Everything else the request asks "
-    "for is unverified by this check: look at the running page yourself and say plainly in your final report what "
-    "you could not verify."
-)
 INDEPENDENT_CHECK_NOTICE = (
     "When you stop, an independent check opens the finished page in a real browser, uses its main action, drags and "
     "scrolls over the scene, and sends failures back. Before you finish, look at the running page yourself once, in its "
@@ -203,211 +153,6 @@ def pre_tool(payload: dict) -> dict:
     if reason:
         verdict["reason"] = reason
     return verdict
-
-
-THREE_D_SKILL = "web-3d-interaction"
-UNVERIFIED_REMINDER = (
-    "Before you finish: say in your final report which user-visible properties (motion direction, "
-    "framing of every camera mode, lighting, controls) you observed in a running page, and mark "
-    "every one you did not observe as unverified. A build or unit tests do not cover them."
-)
-
-
-def routed_through_3d(payload: dict) -> bool:
-    """Whether this conversation's Moru run was routed through the web 3D skill.
-
-    Reads only the run's recorded route documents, never the transcript or the
-    model's messages.
-    """
-
-    try:
-        sys.path.insert(0, str(SCRIPTS))
-        from agent_run_registry import RUN_STATES
-        from agent_runtime_session import resolve_runtime_evidence
-
-        evidence = resolve_runtime_evidence(
-            Path(workspace(payload)), {"runtime": RUNTIME, "session_id": session_id(payload)},
-            frozenset(RUN_STATES), latest_of_several=True,
-        )
-        if evidence is None:
-            return False
-        docs = json.loads(Path(evidence).read_text(encoding="utf-8")).get("route", {}).get("required_docs", [])
-        return any(THREE_D_SKILL in str(doc) for doc in docs)
-    except Exception:  # noqa: BLE001 - a reminder is advisory and must never trap a stop
-        return False
-
-
-def unverified_reminder(payload: dict, execution: int) -> dict:
-    """Once per conversation, ask for an honest verification statement at stop."""
-
-    if execution >= 1 or not routed_through_3d(payload):
-        return {}
-    if already_delivered(session_id(payload), UNVERIFIED_REMINDER, "stop"):
-        return {}
-    return {"decision": "continue", "reason": UNVERIFIED_REMINDER}
-
-
-def _verifier():
-    sys.path.insert(0, str(SCRIPTS / "page_verify"))
-    import verify
-
-    return verify
-
-
-STATE_TTL_SECONDS = 3600
-
-
-def load_state(path: Path, kind: str) -> dict:
-    """Hook state. With a judge service it lives there, out of reach of the session being checked.
-
-    State untouched for STATE_TTL_SECONDS is dropped, so repeating an identical request much later
-    starts clean instead of inheriting the earlier request's rounds.
-    """
-
-    state = _load_state(path, kind)
-    if time.time() - float(state.get("at", 0) or 0) > STATE_TTL_SECONDS:
-        return {}
-    return state
-
-
-def _load_state(path: Path, kind: str) -> dict:
-    if os.environ.get("MORU_VERIFY_JUDGE_URL"):
-        try:
-            value = _verifier().remote_call("/state", {"op": "get", "key": f"{path.stem.split('.')[0]}.{kind}"}).get("value")
-            return value if isinstance(value, dict) else {}
-        except Exception:  # noqa: BLE001 - an unreachable service means no state, not a trapped stop
-            return {}
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-
-
-def save_state(path: Path, kind: str, state: dict | None) -> None:
-    """Persist ``state`` stamped with the time; None forgets it."""
-
-    if state is not None:
-        state = {**state, "at": time.time()}
-
-    if os.environ.get("MORU_VERIFY_JUDGE_URL"):
-        try:
-            _verifier().remote_call("/state", {"op": "put", "key": f"{path.stem.split('.')[0]}.{kind}", "value": state})
-        except Exception:  # noqa: BLE001
-            pass
-        return
-    try:
-        if state is None:
-            path.unlink(missing_ok=True)
-        else:
-            MARKER_DIR.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(state), encoding="utf-8")
-    except OSError:
-        pass
-
-
-VERIFY_MAX_ROUNDS = 1
-
-
-def verification_state_path(conversation: str) -> Path | None:
-    safe = "".join(ch for ch in conversation if ch.isalnum() or ch in "-_")
-    return MARKER_DIR / f"{safe}.verify.json" if safe else None
-
-
-def verify_in_session(payload: dict) -> tuple[bool, dict]:
-    """Run the independent page verifier from the stop hook and send failures back.
-
-    Returns (ran, verdict). ``ran`` is False when verification could not run here
-    (no built page, no browser, no judge), so the caller can fall back to the
-    unverified-properties reminder. The checklist is derived once from the request
-    and reused for the re-check, and at most VERIFY_MAX_ROUNDS fixes are requested.
-    """
-
-    state_path = verification_state_path(session_id(payload))
-    if state_path is None or not routed_through_3d(payload):
-        return False, {}
-    try:
-        sys.path.insert(0, str(SCRIPTS / "page_verify"))
-        import verify
-
-        project = Path(workspace(payload))
-        if verify.find_dist(project) is None or not verify.can_observe():
-            return False, {}
-        state = load_state(state_path, "verify")
-        digest = hashlib.sha256(str(payload.get("lastUserInput") or "").encode("utf-8")).hexdigest()
-        if state.get("input") != digest:
-            state = {"input": digest}  # a new request must not inherit the last one's checklist or rounds
-        rounds = int(state.get("rounds", 0))
-        if rounds >= VERIFY_MAX_ROUNDS + 1:
-            return True, {}
-        fingerprint = verify.project_fingerprint(project)
-        if rounds and state.get("fingerprint") == fingerprint:
-            # Nothing changed since the last check, so another one would only repeat it. Failures it found
-            # and nobody fixed are still reported, once.
-            held = verify.remaining_text(state.get("results") or [])
-            if held and not state.get("reported"):
-                state["reported"] = True
-                save_state(state_path, "verify", state)
-                return True, {"decision": "continue", "reason": held}
-            return True, {}
-        request = str(state.get("request") or payload.get("lastUserInput") or "")
-        out = MARKER_DIR / "verify" / (state_path.stem.split(".")[0]) / f"round{rounds}"
-        try:
-            items, results = verify.verify_project(project, request, out, checklist=state.get("checklist"))
-        finally:
-            if os.environ.get("MORU_VERIFY_JUDGE_URL"):
-                # With a judge service the checklist and the evidence live there. Leaving them in this home would
-                # let the checked session read what it is checked against (one run did, right after a failure).
-                shutil.rmtree(out, ignore_errors=True)
-        # Before the last allowed check the failures go back for a fix; after it they are reported, once.
-        last_check = rounds >= VERIFY_MAX_ROUNDS
-        feedback = verify.remaining_text(results) if last_check else verify.feedback_text(results)
-        if not verify.judge_configured():
-            feedback = (feedback + "\n\n" if feedback else "") + NOT_JUDGED_NOTE if (
-                feedback or not already_delivered(session_id(payload), NOT_JUDGED_NOTE, "not-judged")) else ""
-        kept = [{k: r.get(k) for k in ("id", "claim", "verdict", "reason")} for r in results]
-        save_state(state_path, "verify", {"input": digest, "rounds": rounds + 1, "request": request, "checklist": items,
-                                          "fingerprint": fingerprint, "results": kept,
-                                          "reported": bool(feedback and last_check),
-                                          "last": [{"id": r["id"], "verdict": r["verdict"]} for r in results]})
-        return True, ({"decision": "continue", "reason": feedback} if feedback else {})
-    except Exception as error:  # noqa: BLE001 - verification is advisory and must never trap a stop
-        try:  # a silent fail-open hides why a fix loop ended, so leave the reason beside the state
-            MARKER_DIR.mkdir(parents=True, exist_ok=True)
-            state_path.with_suffix(".error").write_text(f"{type(error).__name__}: {str(error)[:400]}", encoding="utf-8")
-        except OSError:
-            pass
-        # An independent check that could not run is not a pass: say so once, so it cannot end the run unseen.
-        crash = f"{type(error).__name__}: {str(error)[:200]}"
-        if not already_delivered(session_id(payload), crash, "verify-crash"):
-            return True, {"decision": "continue", "reason": (
-                f"The independent check of the page could not run ({crash}). Nothing was independently verified: "
-                "do not call the page verified, and say so plainly in your final report.")}
-        return False, {}
-
-
-def continuations_for(payload: dict) -> tuple[Path | None, dict]:
-    """How many times a stop hook already continued this conversation for the current user input.
-
-    Claude tells its Stop hooks so through ``stop_hook_active``; Antigravity's ``executionNum`` does
-    not accumulate, which let the finish gate block again after every edit (ten blocks in one run).
-    """
-
-    safe = "".join(ch for ch in session_id(payload) if ch.isalnum() or ch in "-_")
-    if not safe:
-        return None, {}
-    path = MARKER_DIR / f"{safe}.stop.json"
-    digest = hashlib.sha256(str(payload.get("lastUserInput") or "").encode("utf-8")).hexdigest()
-    state = load_state(path, "stop")
-    if state.get("input") != digest:
-        state = {"input": digest, "continuations": 0}
-    return path, state
-
-
-def count_continuation(path: Path | None, state: dict) -> None:
-    if path is None:
-        return
-    state["continuations"] = int(state.get("continuations", 0)) + 1
-    save_state(path, "stop", state)
 
 
 def stop(payload: dict) -> dict:
