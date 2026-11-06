@@ -1,8 +1,10 @@
-//! owner: NextSession; allowed imports: local state, PythonJson, candidate reader;
-//! forbidden imports: writes/process ownership; callers/tests: next process/session tests;
+//! owner: NextSession; allowed imports: local state, PythonJson, candidates/process identity;
+//! forbidden imports: writes/claims; callers/tests: next process/session tests;
 //! verification: canonical session selection and registry chronology parity.
 #[path = "next_candidates.rs"]
 mod candidates;
+#[path = "next_process_owner.rs"]
+mod process_owner;
 use crate::{
     callback_state::LocalState as State,
     python_json::{PythonJson, Value},
@@ -67,7 +69,23 @@ impl NextSession {
         match matched.len() {
             0 => Some(None),
             1 => Some(matched.pop()),
-            _ => None,
+            _ => {
+                let Some(owner) = process_owner::ProcessOwner::current()? else {
+                    return Some(None);
+                };
+                let mut owned = Vec::new();
+                for path in matched {
+                    let key = candidates::Candidates::key(project, &path)?;
+                    if owner.matches(bindings[&key].get("owner")) {
+                        owned.push(path);
+                    }
+                }
+                if owned.len() == 1 {
+                    Some(owned.pop())
+                } else {
+                    Some(None)
+                }
+            }
         }
     }
 

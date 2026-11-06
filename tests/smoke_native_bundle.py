@@ -435,6 +435,31 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
+        from agent_run_owner import process_owner
+        owner = process_owner()
+        assert owner.get("pid", 0) > 0, "transport fixture needs a real process owner"
+        peer = session_evidence.parent.parent / ("c" * 32) / "preflight.json"
+        peer.parent.mkdir()
+        peer.write_text(session_evidence.read_text())
+        registry_path = advisor / ".moru/run-registry.json"
+        registry = json.loads(registry_path.read_text())
+        registry["runs"][0]["owner"] = owner
+        registry["runs"].append({"run_id": "c" * 32, "state": "running", "evidence_name": peer.name,
+            "evidence_key": hashlib.sha256(peer.relative_to(advisor).as_posix().encode()).hexdigest()})
+        registry_path.write_text(json.dumps(registry))
+        for output in ("json", "markdown"):
+            args = [str(entry), "next", "--project", str(advisor), "--format", output]
+            reference = subprocess.run(args, capture_output=True,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python", "CODEX_THREAD_ID": "synthetic-next"},
+                cwd=advisor, timeout=8)
+            done = subprocess.run(args, capture_output=True,
+                env={**no_python, "CODEX_THREAD_ID": "synthetic-next"}, cwd=advisor, timeout=8)
+            assert reference.returncode == 0 and not reference.stderr, reference
+            if output == "json":
+                assert json.loads(reference.stdout)["evidence"] == str(session_evidence)
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
         status_project = base / "status-project"
         state = status_project / ".moru"
         state.mkdir(parents=True)

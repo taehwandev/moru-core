@@ -102,9 +102,9 @@ class NativeNextSessionTests(unittest.TestCase):
         self.parity(True)
         self.assertEqual("review", json.loads(self.call(no_python=True).stdout)["next_step"])
 
-    def test_multiple_matching_claims_defer_without_choosing_newest(self):
+    def test_multiple_unowned_matching_claims_do_not_choose_newest(self):
         self.add_run("c" * 32, session="synthetic-next")
-        self.parity(False, native=False)
+        self.parity(False)
 
     def test_unresolved_key_uses_reference_discovery(self):
         registry = json.loads(self.registry.read_text())

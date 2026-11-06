@@ -77,17 +77,17 @@
       "id": "scripts/checkout_identity.py",
       "inventory_id": 1,
       "kind": "primary",
-      "status": "native_revalidation",
+      "status": "native_local_verified",
       "entry_aliases": "checkout-identity",
-      "remaining": "The shared Git reader changed for content-scoped evidence capture. Thirteen checkout process tests and local transported lookup passed, but refresh installed and four-host acceptance against the changed owner before restoring verification. Direct Python entry and shared caller migration also remain open.",
+      "remaining": "Checkout engine revalidated after the shared Git reader change. Direct Python entry and shared caller migration remain open before full native closure.",
       "verification": {
         "native_owner": "native/checkout-identity/src/lib.rs",
-        "platform_evidence": "Historical baseline: all four jobs passed in https://github.com/taehwandev/moru-core/actions/runs/42161685172 at d5c0f5e0. Source hashes and installed receipt below describe that pre-refactor baseline only; gitrun.rs changed for schema2 input capture and requires fresh platform and installed acceptance.",
+        "platform_evidence": "All four jobs passed in https://github.com/taehwandev/moru-core/actions/runs/42174120877 at 8efbec7c. Scoped checkout engine owner inputs below are unchanged by subsequent next-session work.",
         "behavior": "13 process-level checkout conformance tests passed; frozen UTF-8 NDJSON values, exit status and stderr contract.",
         "negative_authority": "Closed read-only two-key request schema, malformed input/recovery, backend failure and no-Python/Git/toolchain regressions passed.",
-        "portable": "90 fresh-consumer checks passed on macos-arm64, including native checkout lookup with empty PATH.",
-        "installed": "5 actual installed NDJSON cases passed with Python absent; nine unchanged owner inputs match the installed receipt, scoped to the checkout engine.",
-        "source_revision": "d4296f6b8e365b16bc1b86a5332d2df7438af755",
+        "portable": "115 fresh-consumer checks passed on macos-arm64, including native checkout lookup with empty PATH; four-host CI bundle acceptance passed at8efbec7c.",
+        "installed": "Two actual installed checkout NDJSON requests (root and nested path) matched forced Python with empty PATH for both; Python and Git absent. Source-scoped owner inputs match the installed8efbec7c receipt.",
+        "source_revision": "8efbec7c5c62e59022c9d8b4d87209d85d4a50a8",
         "source_hashes": {
           "native/checkout-identity/Cargo.toml": "586fcaecfe821fb084ca736aefb15d60f0df383f1a42fbc34e53bf9a71700108",
           "native/checkout-identity/Cargo.lock": "9d139ac9e50a9c2094dce8d0ddc4a96d289a792907095d50bba55c4db0142aaa",
@@ -96,15 +96,15 @@
           "native/checkout-identity/src/identity.rs": "069f52203056e8c27eea124f6c39825c354734225d093a437082fe2bf8d3662b",
           "native/checkout-identity/src/protocol.rs": "1eb03b1afb834214763dc89d7e4aa591e549595cd69b1aba038cae65ec2cc3aa",
           "native/checkout-identity/src/framing.rs": "615888c2b9f0372d2b70658422ab5d1b9ad50c694b1c467a1bf6cf8f1e6a417d",
-          "native/checkout-identity/src/gitrun.rs": "33e5c7d3827b5bbf98aed72d86eeda89c1de2fb98c67101e3559ce2846beefaa",
+          "native/checkout-identity/src/gitrun.rs": "ad5654e8e47d2419ee041ff50df44d70b3cb7987947cbdbaabe0e9f69ec3eefd",
           "native/checkout-identity/src/text.rs": "1bf0eb11ef88024c3f72f28360005133db2c6537b6457d1085e65cd731927ba5"
         },
-        "installed_sha256": "85f6e9d03734405c24759cd46cfcd649b87be4391c8e44da6a1cdd872a7b55c8",
+        "installed_sha256": "fb8aa825fecdfcaa4d5d54d82719d2a1b42caa69690606410afcb43ff4c99d0c",
         "platforms": {
-          "macos-arm64": "PENDING",
-          "macos-x86_64": "PENDING",
-          "linux-arm64": "PENDING",
-          "linux-x86_64": "PENDING"
+          "macos-arm64": "PASS",
+          "macos-x86_64": "PASS",
+          "linux-arm64": "PASS",
+          "linux-x86_64": "PASS"
         }
       }
     },
@@ -231,7 +231,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "next",
-      "remaining": "Native next advice now selects unique canonical current-session active evidence and handles recorded ledgers including schema2 content freshness. Complete noncanonical/worker discovery, process-owner ambiguity resolution, remaining malformed input/CLI and filesystem boundaries, and shared Python caller migration before full native closure.",
+      "remaining": "Native next advice selects canonical current-session active evidence with exact process-owner ambiguity resolution and recorded ledgers including schema2 freshness. Complete noncanonical/worker discovery, ps-required process-owner lookup, remaining malformed input/CLI and filesystem boundaries, and shared Python caller migration before full native closure.",
       "verification": {}
     },
     {
