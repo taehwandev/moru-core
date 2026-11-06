@@ -240,6 +240,7 @@ def smoke(archive):
         card_db = Path(normal["MORU_STATE_HOME"]) / "work-cards/cards.sqlite3"
         card_db.parent.mkdir(parents=True)
         with sqlite3.connect(card_db) as connection:
+            connection.execute("PRAGMA journal_mode=WAL")
             connection.execute(_SCHEMA)
             connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
             connection.executemany("INSERT INTO cards(repo,work_id,summary,command,project,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
@@ -254,6 +255,21 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
         assert before_cards == card_db.read_bytes()
+        for state in ("done", "cancelled"):
+            with sqlite3.connect(card_db) as connection:
+                connection.execute("UPDATE cards SET state='active' WHERE work_id=?", ("a" * 32,))
+            done = subprocess.run([str(entry), "work-cards", "--project", str(project), "close", "a" * 32,
+                                   "--state", state], capture_output=True, env=no_python, cwd=project, timeout=8)
+            expected = (json.dumps({"state": state, "work_id": "a" * 32}, sort_keys=True) + "\n").encode()
+            assert (done.returncode, done.stdout, done.stderr) == (0, expected, b""), done
+            with sqlite3.connect(card_db) as connection:
+                assert connection.execute("SELECT state FROM cards WHERE work_id=?", ("a" * 32,)).fetchone()[0] == state
+                assert connection.execute("SELECT state FROM cards WHERE work_id=?", ("b" * 32,)).fetchone()[0] == "done"
+            checks += 1
+        done = subprocess.run([str(entry), "work-cards", "--project", str(project), "close", "a" * 32],
+                              capture_output=True, env=no_python, cwd=project, timeout=8)
+        assert (done.returncode, done.stdout, done.stderr) == (2, b"", b"work cards: no active card with that work id in this repository\n"), done
+        checks += 1
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

@@ -4,13 +4,14 @@ status: review
 type: ai-generated
 ---
 
-# Native read-only work-card CLI
+# Native work-card CLI
 
 ## Scope and contract
 
 The generated launcher handles `work-cards [--project PATH] list [--all]` in
 Rust. The existing Python module remains the owner of internal card reads,
-writes, migrations, close/resume, liveness and error/recovery policy. This
+writes, migrations, resume, liveness and error/recovery beyond the bounded close
+extension below. This
 extends one already-covered inventory boundary without adding another entry.
 
 Open only an existing database with SQLite read-only flags. Missing stores,
@@ -72,5 +73,43 @@ with Git-only PATH, including exact Python output and unchanged database bytes.
 Four-host CI includes the new suite; no remote or other-host run is claimed.
 
 No latency, CPU/RSS or cost experiment is repeated, and no numerical speed or
-savings claim is made. This increment stays on the local performance branch:
-no main integration, push, release, tag or global runtime replacement is included.
+savings claim is made. Those initial read-only acceptance results preceded
+the later authorized main integration, push and local activation batches.
+
+## Existing-store settlement
+
+The full migration Goal next extends `work-cards [--project PATH] close WORK_ID`
+with optional `--state done|cancelled`. `CardSettlement` owns one transaction;
+the CLI owns arguments/output and reuses the repository identity, source guard,
+path validation and UTC formatter. No general SQL operation is exposed.
+
+Eligibility requires an existing canonical version-3 WAL store with its exact
+owned schema and no custom indexes/triggers. Native reserves the writer with
+`BEGIN IMMEDIATE` before inspecting the schema, so concurrent DDL/writers cannot
+change that decision before UPDATE. Unknown stores, legacy/future schemas,
+non-WAL mode, symlinked directories/sidecars, busy locks and unsupported inputs
+close the reservation and defer before DML. The unit remains partial: Python
+still owns creation, upgrades, open, resume and other recovery.
+
+One UPDATE changes only an active card matching the repository and work ID.
+It preserves all other fields/rows and the Python UTC timestamp shape. Commit
+precedes public success. An absent/already-settled card returns the canonical
+exit 2 diagnostic. Once UPDATE is attempted, SQLite failures return directly;
+the CLI never retries through Python after a possible mutation. Connection
+closure rolls back an uncommitted transaction. Unit-test process trees retain
+the requirement for an explicit temporary state home before native writes.
+
+Observing checks cover both backends, Git-only PATH, default/cancelled results,
+unmodified rows, timestamp bounds, read-snapshot isolation, file symlinks and
+the declined-store/input/lock boundaries. Transported-consumer smoke includes
+both settled states and the already-settled diagnostic without Python.
+
+Local verification covers 41 distinct passing card/reference/identity/ledger
+cases. The first 23-case run passed 22; one fixture expected its WAL pathname
+to be absent although the host SQLite left an empty WAL after its last reader.
+The fixture now checks that it is empty before replacing it with the synthetic
+symlink. That case plus 18 reference/identity cases pass. An extended real
+store-guard test and the three ledger cases pass after the final conservative
+non-UTF-8 environment handling change. Rust tests pass in both default and
+software-SHA modes (31 each); final consumer acceptance covers 93 checks.
+These are local results for this extension; its other-host CI remains open.

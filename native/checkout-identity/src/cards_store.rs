@@ -5,39 +5,20 @@
 use crate::discovery_fs::DiscoveryFs;
 use rusqlite::{types::ValueRef, Connection, OpenFlags};
 use serde_json::{json, Value};
-use std::{collections::BTreeMap, fs, io, path::Path, time::Duration};
+use std::{
+    collections::BTreeMap,
+    fs, io,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 pub(crate) struct CardStore(Connection);
 
 impl CardStore {
     pub(crate) fn open(path: &Path) -> Option<Option<Self>> {
-        let parent = path.parent()?;
-        match fs::symlink_metadata(parent) {
-            Ok(meta) if meta.is_symlink() => return Some(None),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return Some(None),
-            Err(_) => return None,
-            _ => {}
-        }
-        match fs::metadata(path) {
-            Ok(meta) if meta.is_file() => {}
-            Ok(_) => return Some(None),
-            Err(e)
-                if matches!(
-                    e.raw_os_error(),
-                    Some(libc::ENOENT | libc::ENOTDIR | libc::ELOOP)
-                ) =>
-            {
-                return Some(None)
-            }
-            Err(_) => return None,
-        }
-        let path = DiscoveryFs::resolve(path)?;
-        for suffix in ["-wal", "-shm", "-journal"] {
-            let sidecar = path.with_file_name(format!("{}{suffix}", path.file_name()?.to_str()?));
-            if fs::symlink_metadata(sidecar).is_ok_and(|m| m.is_symlink()) {
-                return None;
-            }
-        }
+        let Some(path) = Self::path(path)? else {
+            return Some(None);
+        };
         let connection = Connection::open_with_flags(
             &path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -70,6 +51,37 @@ impl CardStore {
             return None;
         }
         Some(Some(Self(connection)))
+    }
+
+    pub(crate) fn path(path: &Path) -> Option<Option<PathBuf>> {
+        let parent = path.parent()?;
+        match fs::symlink_metadata(parent) {
+            Ok(meta) if meta.is_symlink() => return Some(None),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Some(None),
+            Err(_) => return None,
+            _ => {}
+        }
+        match fs::metadata(path) {
+            Ok(meta) if meta.is_file() => {}
+            Ok(_) => return Some(None),
+            Err(e)
+                if matches!(
+                    e.raw_os_error(),
+                    Some(libc::ENOENT | libc::ENOTDIR | libc::ELOOP)
+                ) =>
+            {
+                return Some(None)
+            }
+            Err(_) => return None,
+        }
+        let path = DiscoveryFs::resolve(path)?;
+        for suffix in ["-wal", "-shm", "-journal"] {
+            let sidecar = path.with_file_name(format!("{}{suffix}", path.file_name()?.to_str()?));
+            if fs::symlink_metadata(sidecar).is_ok_and(|m| m.is_symlink()) {
+                return None;
+            }
+        }
+        Some(Some(path))
     }
 
     pub(crate) fn list(&self, repo: &str, all: bool) -> Option<Vec<BTreeMap<String, Value>>> {

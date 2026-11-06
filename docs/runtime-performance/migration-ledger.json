@@ -82,6 +82,7 @@
       "remaining": "Current supported-host CI acceptance remains open; the native checkout engine is locally verified and its Python shared callers remain separately accounted for.",
       "verification": {
         "native_owner": "native/checkout-identity/src/lib.rs",
+        "platform_evidence": "macos-arm64 local acceptance plus successful macos-arm64/linux-arm64/linux-x86_64 bundle jobs in https://github.com/taehwandev/moru-core/actions/runs/42157432003; macos-x86_64 is still pending.",
         "behavior": "13 process-level checkout conformance tests passed; frozen UTF-8 NDJSON values, exit status and stderr contract.",
         "negative_authority": "Closed read-only two-key request schema, malformed input/recovery, backend failure and no-Python/Git/toolchain regressions passed.",
         "portable": "90 fresh-consumer checks passed on macos-arm64, including native checkout lookup with empty PATH.",
@@ -102,8 +103,8 @@
         "platforms": {
           "macos-arm64": "PASS",
           "macos-x86_64": "PENDING",
-          "linux-arm64": "PENDING",
-          "linux-x86_64": "PENDING"
+        "linux-arm64": "PASS",
+        "linux-x86_64": "PASS"
         }
       }
     },
@@ -248,8 +249,10 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "work-cards",
-      "remaining": "Port card writes, close/resume, internal reads and canonical recovery beyond listing.",
-      "verification": {}
+      "remaining": "Port card creation/upgrades, open and internal writes/reads, resume and recovery; close currently covers only existing canonical v3 WAL stores.",
+      "verification": {
+        "bounded_close": "Existing canonical v3 WAL close: native/Python state and timestamp checks, repository isolation, WAL read snapshots and no-Python delivery; other work-card behaviors remain open. See native-work-cards.md."
+      }
     },
     {
       "id": "scripts/agy_statusline.py",

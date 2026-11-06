@@ -1,10 +1,11 @@
-//! Owner: read-only work-cards list ingress and JSON formatting.
-//! Allowed: std, serde_json, cards_store/identity and existing source/FS readers.
-//! Forbidden: close/resume, schema/data writes, lifecycle/liveness and caches.
-//! Callers/tests: launcher_main; test_native_work_cards, transported smoke.
+//! Owner: work-cards list/closed-settlement ingress and JSON formatting.
+//! Allowed: std, serde_json, card owners and existing source/FS/time readers.
+//! Forbidden: SQL, schema creation/migrations, resume, lifecycle/liveness, caches.
+//! Callers/tests: launcher_main; native card tests and transported smoke.
 use crate::{
-    cards_identity::CardRepository, cards_store::CardStore, discovery_fs::DiscoveryFs,
-    pretool_guard::CallbackGuard, statusline::Renderer,
+    cards_identity::CardRepository, cards_settlement::CardSettlement, cards_store::CardStore,
+    discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard, status_snapshot::StatusSnapshot,
+    statusline::Renderer,
 };
 use serde_json::Value;
 use std::{collections::BTreeMap, env, ffi::OsString, io::Write, path::PathBuf};
@@ -16,6 +17,14 @@ impl CardsProcess {
         // Keep bundled dependency notices in distributed binaries as well as
         // in the source checkout required by the installation contract.
         std::hint::black_box(include_str!("../SQLITE-NOTICES.txt"));
+        if let Some((code, output)) = close(launcher, &args[1..]) {
+            let result = if code == 0 {
+                std::io::stdout().write_all(output.as_bytes())
+            } else {
+                std::io::stderr().write_all(output.as_bytes())
+            };
+            return if result.is_ok() { code } else { 1 };
+        }
         let Some(output) = snapshot(launcher, &args[1..]) else {
             crate::exec_python(launcher, args);
         };
@@ -39,6 +48,15 @@ fn snapshot(launcher: &OsString, args: &[OsString]) -> Option<String> {
         ["--project", path, "list", "--all"] => (PathBuf::from(path), true),
         _ => return None,
     };
+    let (project, state) = context(launcher, project)?;
+    let Some(store) = CardStore::open(&state.join("work-cards/cards.sqlite3"))? else {
+        return Some("[]\n".into());
+    };
+    let repo = CardRepository::key(&project)?;
+    render(&store.list(&repo, all)?)
+}
+
+fn context(launcher: &OsString, project: PathBuf) -> Option<(PathBuf, PathBuf)> {
     let project = DiscoveryFs::resolve(&project)?;
     CallbackGuard::root(launcher, "git")?;
     let state = match env::var("MORU_STATE_HOME") {
@@ -46,11 +64,55 @@ fn snapshot(launcher: &OsString, args: &[OsString]) -> Option<String> {
         Err(env::VarError::NotUnicode(_)) => return None,
         _ => PathBuf::from(env::var_os("HOME")?).join(".moru"),
     };
-    let Some(store) = CardStore::open(&state.join("work-cards/cards.sqlite3"))? else {
-        return Some("[]\n".into());
+    Some((project, state))
+}
+
+fn close(launcher: &OsString, args: &[OsString]) -> Option<(i32, String)> {
+    let words = args
+        .iter()
+        .map(|s| s.to_str())
+        .collect::<Option<Vec<_>>>()?;
+    let (project, words) = match words.as_slice() {
+        ["--project", path, rest @ ..] => (PathBuf::from(path), rest),
+        rest => (env::current_dir().ok()?, rest),
     };
+    let (work, state) = match words {
+        ["close", work] => (*work, "done"),
+        ["close", work, "--state", state @ ("done" | "cancelled")] => (*work, *state),
+        _ => return None,
+    };
+    if work.len() != 32
+        || !work
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        return None;
+    }
+    // Preserve Python's user-store protection for test process trees.
+    if env::var("MORU_STATE_HOME")
+        .ok()
+        .is_none_or(|s| Renderer::strip(&s).is_empty())
+        && env::var("MORU_UNDER_UNITTEST")
+            .map(|s| !Renderer::strip(&s).is_empty())
+            .unwrap_or_else(|error| matches!(error, env::VarError::NotUnicode(_)))
+    {
+        return None;
+    }
+    let (project, home) = context(launcher, project)?;
     let repo = CardRepository::key(&project)?;
-    render(&store.list(&repo, all)?)
+    let stamp = StatusSnapshot::capture_time()?;
+    let store = CardSettlement::open(&home.join("work-cards/cards.sqlite3"))?;
+    Some(match store.settle(&repo, work, state, &stamp) {
+        Ok(true) => (
+            0,
+            format!("{{\"state\": \"{state}\", \"work_id\": \"{work}\"}}\n"),
+        ),
+        Ok(false) => (
+            2,
+            "work cards: no active card with that work id in this repository\n".into(),
+        ),
+        Err(message) => (2, format!("work cards: {message}\n")),
+    })
 }
 
 fn render(cards: &[BTreeMap<String, Value>]) -> Option<String> {
