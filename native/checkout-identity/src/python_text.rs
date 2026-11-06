@@ -43,6 +43,12 @@ impl PythonText {
     pub(crate) fn decimal(character: char) -> bool {
         Self::contains(DECIMAL, character)
     }
+    pub(crate) fn decimal_value(character: char) -> Option<u8> {
+        let cp = character as u32;
+        let index = DECIMAL.partition_point(|(_, end)| *end < cp);
+        let (start, _) = DECIMAL.get(index)?;
+        (cp >= *start).then(|| ((cp - start) % 10) as u8)
+    }
     pub(crate) fn whitespace(character: char) -> bool {
         Self::contains(WHITESPACE, character)
     }

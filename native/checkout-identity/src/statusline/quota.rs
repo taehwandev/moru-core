@@ -1,3 +1,6 @@
+#[path = "quota_number.rs"]
+mod number;
+use number::QuotaNumber;
 use serde_json::{Map, Value};
 
 use super::gauge::Gauge;
@@ -45,6 +48,9 @@ impl Quota {
             }
         }
 
+        if slots.iter().flatten().any(|used| !used.is_finite()) {
+            return None;
+        }
         let segments: Vec<String> = slots
             .iter()
             .zip(LABELS)
@@ -73,11 +79,14 @@ impl Quota {
     fn slot(key: &str, entry: &Map<String, Value>) -> Option<Option<usize>> {
         let window = match entry.get("window_minutes") {
             Some(Value::Number(value)) => value.as_f64(),
-            Some(Value::String(value)) => Self::parse(value).ok()?,
+            Some(Value::String(value)) => QuotaNumber::parse(value),
             _ => None,
         }
         .filter(|minutes| *minutes > 0.0);
         if let Some(minutes) = window {
+            if !minutes.is_finite() {
+                return None;
+            }
             let rounded = minutes.round_ties_even();
             return Some(if rounded == 300.0 {
                 Some(0)
@@ -112,69 +121,14 @@ impl Quota {
         for name in USED_KEYS {
             match entry.get(name) {
                 Some(Value::Number(number)) => return number.as_f64().map(Some),
-                Some(Value::String(text)) => match Self::parse(text) {
-                    Ok(Some(value)) => return Some(Some(value)),
-                    Ok(None) => {}
-                    Err(()) => return None,
-                },
+                Some(Value::String(text)) => {
+                    if let Some(value) = QuotaNumber::parse(text) {
+                        return Some(Some(value));
+                    }
+                }
                 _ => {}
             }
         }
         Some(None)
-    }
-
-    /// Ok(Some) value, Ok(None) ordinary invalid text, Err unsupported spelling.
-    fn parse(text: &str) -> Result<Option<f64>, ()> {
-        let text = Py::strip(text);
-        if Self::safe(text) {
-            return match text.parse::<f64>() {
-                Ok(value) if value.is_finite() => Ok(Some(value)),
-                _ => Err(()),
-            };
-        }
-        let lower = text.to_ascii_lowercase();
-        let bare = lower.trim_start_matches(['+', '-']);
-        if !text.is_ascii()
-            || text.contains('_')
-            || bare.starts_with("inf")
-            || bare.starts_with("nan")
-        {
-            Err(())
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn safe(text: &str) -> bool {
-        let bytes = text.as_bytes();
-        let digits = |at: &mut usize| {
-            let start = *at;
-            while *at < bytes.len() && bytes[*at].is_ascii_digit() {
-                *at += 1;
-            }
-            *at - start
-        };
-        let mut at = 0;
-        if matches!(bytes.first(), Some(b'+' | b'-')) {
-            at += 1;
-        }
-        let mut count = digits(&mut at);
-        if bytes.get(at) == Some(&b'.') {
-            at += 1;
-            count += digits(&mut at);
-        }
-        if count == 0 {
-            return false;
-        }
-        if matches!(bytes.get(at), Some(b'e' | b'E')) {
-            at += 1;
-            if matches!(bytes.get(at), Some(b'+' | b'-')) {
-                at += 1;
-            }
-            if digits(&mut at) == 0 {
-                return false;
-            }
-        }
-        at == bytes.len()
     }
 }

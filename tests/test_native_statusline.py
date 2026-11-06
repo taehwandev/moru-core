@@ -89,11 +89,59 @@ class NativeStatuslineTests(unittest.TestCase):
         result = self.cli(text.encode(), path=self.empty)
         self.assertEqual((0, self.expected(text)), (result.returncode, result.stdout))
 
+    def test_numeric_strings_run_without_python_for_both_runtimes(self):
+        values = ["٦٥", "６５.５", "𝟞𝟝.𝟝", "+٦_٥.٥e-٠", "6_5", "6_5.5_0",
+                  "6.5e+1", "\u200365.5\u3000", "\u008565\u00a0", "-0", "1e-999",
+                  "_65", "65_", "6__5", "6_.5", "6._5", "6e_1", "6e+_1",
+                  "٦٫٥", "²", "Ⅵ", "−65", "65\x00", "\x1c65", "65\x1f",
+                  "\u200b65", "", "bad", "nanx", "infinityx"]
+        for alias in ("claude-statusline", "agy-statusline"):
+            for value in values:
+                with self.subTest(alias=alias, value=value):
+                    text = json.dumps({"rate_limits": {"session": {
+                        "used_percentage": value, "percent": 25}}}, ensure_ascii=False)
+                    actual = self.cli(text.encode(), alias=alias, path=self.empty)
+                    self.assertEqual((0, self.expected(text), b""),
+                                     (actual.returncode, actual.stdout, actual.stderr))
+        for minutes in ("٣_٠٠", "１_００８０", "𝟛𝟘𝟘.𝟝", "\x1c300", "300_", "\u2003300"):
+            self.assert_native({"rate_limits": {"session": {
+                "percent": "٦٥", "window_minutes": minutes}}})
+        self.assert_native({"rate_limits": {"unknown": {"percent": "NaN"}}})
+        self.assert_native({"rate_limits": [
+            {"kind": "session", "percent": "NaN"}, {"kind": "session", "percent": "٦٥"}]})
+        for minutes in ("NaN", "-Infinity"):
+            self.assert_native({"rate_limits": {"session": {
+                "percent": "٦٥", "window_minutes": minutes}}})
+
+    def test_native_numeric_chain_executes_once(self):
+        count = self.base / "numeric-chain-count"
+        count.write_bytes(b"")
+        command = f"printf x >> {shlex.quote(str(count))}; printf chained"
+        text = '{"rate_limits":{"session":{"percent":"٦_٥"}}}'
+        actual = self.cli(text.encode(), "--chain", command, path=self.empty)
+        self.assertEqual((0, self.expected(text) + b"  chained", b""),
+                         (actual.returncode, actual.stdout, actual.stderr))
+        self.assertEqual(b"x", count.read_bytes())
+
+    def test_nonfinite_numeric_exception_does_not_execute_chain(self):
+        count = self.base / "nonfinite-chain-count"
+        count.write_bytes(b"")
+        command = f"printf x >> {shlex.quote(str(count))}"
+        for value in ("NaN", "+inf", "-Infinity", "1e999"):
+            text = json.dumps({"rate_limits": {"session": {"percent": value}}}).encode()
+            expected = self.cli(text, "--chain", command, backend="python")
+            actual = self.cli(text, "--chain", command)
+            self.assertEqual(1, expected.returncode)
+            self.assertEqual((expected.returncode, expected.stdout, expected.stderr),
+                             (actual.returncode, actual.stdout, actual.stderr))
+            self.assertEqual(127, self.cli(text, "--chain", command, path=self.empty).returncode)
+        self.assertEqual(b"", count.read_bytes())
+
     def test_fallback_retains_raw_pipe_input_before_chain(self):
         counter = self.base / "fallback-count"
         counter.write_bytes(b"")
         command = f"printf x >> {shlex.quote(str(counter))}; /bin/cat"
-        # Unsupported str coercion, JSON extension and Unicode numeric forms.
+        # Unsupported coercion/JSON forms retain input; numeric text is native.
         for text in ('{ "model": {"display_name": 42} }\r\n',
                      '{"model":"M","unused":NaN}',
                      '{"rate_limits":{"session":{"percent":"٦٥"}}}',

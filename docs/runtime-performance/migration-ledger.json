@@ -260,7 +260,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "agy-statusline",
-      "remaining": "Close renderer/chain/encoding compatibility gaps and verify full native default execution.",
+      "remaining": "Native finite numeric strings include builder-Unicode decimal digits and Python underscore grammar, including invalid-string precedence. Close remaining renderer coercion, JSON extensions, nonfinite exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
       "verification": {}
     },
     {
@@ -287,7 +287,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "claude-statusline",
-      "remaining": "Close renderer/chain/encoding compatibility gaps and verify full native default execution.",
+      "remaining": "Native finite numeric strings include builder-Unicode decimal digits and Python underscore grammar, including invalid-string precedence. Close remaining renderer coercion, JSON extensions, nonfinite exceptions, CLI and encoding gaps and verify full native default execution; supporting Python callers remain owned scope.",
       "verification": {}
     },
     {

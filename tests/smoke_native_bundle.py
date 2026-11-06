@@ -73,6 +73,13 @@ def smoke(archive):
         subprocess.run(["git", "init", "-q", str(project)], env=normal, check=True, capture_output=True)
         payload = {"cwd": str(project), "session_id": "transported-smoke", "tool_name": "Bash"}
         checks = 3
+        for alias in ("claude-statusline", "agy-statusline"):
+            done = subprocess.run([str(entry), alias, "--chain=printf chained"],
+                                  input='{"rate_limits":{"session":{"percent":"٦_٥","window_minutes":"３００"}}}'.encode(),
+                                  capture_output=True, env={**env, "NO_COLOR": "1"}, timeout=8)
+            assert (done.returncode, done.stdout, done.stderr) == (
+                0, "5h ██▊░░░░░  35%  chained".encode(), b""), done
+            checks += 1
         native = entry.with_name("moru-hook-native")
         state = base / "prepared-registry"
         state.mkdir()

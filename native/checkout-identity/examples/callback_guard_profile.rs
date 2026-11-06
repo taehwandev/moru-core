@@ -3,6 +3,8 @@
 
 #[path = "../src/pretool_guard.rs"]
 mod pretool_guard;
+#[path = "../src/python_text.rs"]
+mod python_text;
 #[path = "../src/statusline/mod.rs"]
 mod statusline;
 

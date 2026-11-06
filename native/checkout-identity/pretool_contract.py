@@ -47,7 +47,8 @@ def emit_python_text(output):
     """Bind text semantics to the artifact builder's Unicode database.
 
     Digest order per valid scalar: repr UTF-8, LF, then three raw boolean
-    bytes in printable/decimal/whitespace order. Surrogates are excluded.
+    bytes in printable/decimal/whitespace order, then decimal value or 255.
+    Surrogates are excluded.
     """
     ranges = [[], [], []]
     starts = [None, None, None]
@@ -66,9 +67,13 @@ def emit_python_text(output):
                 ranges[index].append((starts[index], codepoint - 1))
                 starts[index] = None
         if scalar:
+            digit = unicodedata.decimal(text, 255)
+            if flags[1]:
+                assert digit == (codepoint - starts[1]) % 10
             digest.update(repr(text).encode("utf-8"))
             digest.update(b"\n")
             digest.update(bytes(flags))
+            digest.update(bytes([digit]))
     for index, start in enumerate(starts):
         if start is not None:
             ranges[index].append((start, 0x10FFFF))

@@ -12,6 +12,7 @@ fn every_unicode_scalar_matches_builder_python() {
             u8::from(PythonText::printable(character)),
             u8::from(PythonText::decimal(character)),
             u8::from(PythonText::whitespace(character)),
+            PythonText::decimal_value(character).unwrap_or(255),
         ]);
     }
     assert_eq!(
