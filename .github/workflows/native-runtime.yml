@@ -1,29 +1,9 @@
 name: Native runtime bundles
 
 on:
+  # Run the full four-platform acceptance/bundle build only when requested.
+  # Ordinary source pushes are checked locally and do not create CI artifacts.
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - native/checkout-identity/**
-      - scripts/build_native_runtime.py
-      - scripts/native-runtime-bundle.py
-      - scripts/support/native_bundle.py
-      # The native source guard binds every runtime Python module.
-      - scripts/**/*.py
-      - tests/test_native_*.py
-      - tests/native_*support.py
-      - tests/smoke_native_bundle.py
-      - tests/test_agent_state_read.py
-      - tests/test_agent_repository_key.py
-      - tests/test_agent_observability.py
-      - tests/test_agent_work_cards*.py
-      - tests/_moru_test_support.py
-      - tests/test_template_repository.py
-      - tests/test_benchmark_read_inspection.py
-      - tests/benchmark_read_inspection.py
-      - tests/read_inspection_support.py
-      - .github/workflows/native-runtime.yml
 
 permissions:
   contents: read

@@ -47,10 +47,14 @@ build provenance; its tag and assets are not replaced.
 
 The [Native runtime bundles workflow](../.github/workflows/native-runtime.yml)
 builds macOS ARM64, macOS x86_64, Linux x86_64 and Linux ARM64 separately. It
-runs on main when native/build inputs change, or manually on main. Each job
+runs only when manually requested on main. Ordinary pushes, pull requests and
+tags do not start this four-platform build or create temporary CI bundles.
+Maintainers request a build after a cohesive milestone or when preparing an
+explicitly authorized release; everyday changes use focused local checks.
+Each job
 builds pinned Rust 1.94.1 with locked crates, runs behavioral checks, packs the
 two binaries and verifies transport into a fresh source root and temporary home.
-The 19 consumer checks use empty PATH for lookup/status/pretool and Git-only PATH
+The consumer checks use empty PATH for lookup/status/pretool and Git-only PATH
 for quiet mailbox/Stop after preparing isolated state. An artifact is uploaded
 only after those checks pass.
 
