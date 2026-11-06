@@ -49,7 +49,18 @@ def load_images(evidence_dir: Path, evidence: dict) -> dict[str, str]:
             for step in evidence.get("steps", [])}
 
 
-MAX_IMAGES = 12
+MAX_IMAGES = 16
+
+
+LATE_IMAGES = 5
+
+
+def spread(items: list, count: int) -> list:
+    """``count`` items spread evenly over the list, always including the last one."""
+
+    if len(items) <= count:
+        return list(items)
+    return [items[round(i * (len(items) - 1) / (count - 1))] for i in range(count)]
 
 
 def select_steps(steps: list[dict], limit: int = MAX_IMAGES) -> list[dict]:
@@ -63,8 +74,12 @@ def select_steps(steps: list[dict], limit: int = MAX_IMAGES) -> list[dict]:
     keep = [s for s in steps
             if s["label"] == "initial" or s["label"].startswith(("default-view", "pointer-", "mobile-"))]
     controls = [s for s in steps if s["label"].startswith("control-")]
-    late = [s for s in steps if s["label"].startswith("late-")]
-    chosen = keep + controls[: max(0, limit - len(keep) - 2)] + late[-2:]
+    late = []
+    for step in steps:
+        # A frame whose page text equals the one before it shows nothing new (an idle scene still shifts a few pixels).
+        if step["label"].startswith("late-") and not (late and step.get("text") and step.get("text") == late[-1].get("text")):
+            late.append(step)
+    chosen = keep + controls[: max(0, limit - len(keep) - LATE_IMAGES)] + spread(late, LATE_IMAGES)
     chosen = [s for s in steps if s in chosen]
     return chosen[:limit] if len(chosen) > limit else chosen
 
@@ -77,7 +92,7 @@ def timeline_text(evidence: dict) -> str:
         if sample.get("text") != last:
             lines.append(f"- {sample['t']}s: {sample['text'][:160]}")
             last = sample.get("text")
-    return "\n".join(lines[:70]) or "(none)"
+    return "\n".join(spread(lines, 70)) or "(none)"
 
 
 def judge_loaded(items: list[dict], evidence: dict, images: dict[str, str], *, ask=chat) -> list[dict]:

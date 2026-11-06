@@ -207,8 +207,10 @@ try {
     // The page's own numbers (altitude, speed, phase) every half second: they show jumps and smoothness
     // that a handful of pictures cannot.
     evidence.timeline = [];
+    // Every half second for the first 80 s; after that every 5 s, so a ten-minute mission still has a timeline.
     const sampler = setInterval(async () => {
-      if (evidence.timeline.length >= 160) return;
+      const last = evidence.timeline[evidence.timeline.length - 1];
+      if (evidence.timeline.length >= 480 || (evidence.timeline.length >= 160 && last && at() - last.t < 5)) return;
       try {
         const text = (await evaluate(cdp, SNAPSHOT)).text;
         evidence.timeline.push({ t: Number(at().toFixed(1)), text: text.slice(0, 200) });
@@ -241,12 +243,22 @@ try {
     }
     // Then the rest of the timeline in whatever view is active, ending as soon as the page is back at
     // rest (its text matches the initial text apart from numbers) instead of waiting out a fixed window.
-    for (const mark of [14, 20, 28, 38, 50, 62, totalSeconds].filter((s) => s <= totalSeconds)) {
+    // After the first minute a long mission is sampled every 45 s, so later phases (a lunar orbit, a landing) are seen.
+    const lateMarks = [14, 20, 28, 38, 50, 62];
+    for (let mark = 107; mark < totalSeconds; mark += 45) lateMarks.push(mark);
+    for (const mark of [...lateMarks, totalSeconds].filter((s) => s <= totalSeconds)) {
       const wait = mark * 1000 - (Date.now() - started);
       if (wait > 0) await sleep(wait);
       await capture(cdp, `late-t${mark}s`, mark);
       if (restKey(evidence.steps[evidence.steps.length - 1].text) === initialKey) {
         evidence.endedAtRest = true;
+        break;
+      }
+      // A mission that ended on its own result screen is idle: three late frames with the same page text add nothing
+      // to wait for (the picture can still shift a little, so it is not compared).
+      const tail = evidence.steps.slice(-3);
+      if (tail.length === 3 && tail.every((step) => step.label.startsWith('late-') && step.text === tail[0].text)) {
+        evidence.endedIdle = true;
         break;
       }
     }

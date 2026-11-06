@@ -726,5 +726,42 @@ console.log(JSON.stringify([
         self.assertEqual(["Launch", "Start mission", "Play", "Launch", None], json.loads(done.stdout))
 
 
+class LongMissionSamplingTests(unittest.TestCase):
+    def test_spread_picks_evenly_and_keeps_the_last(self):
+        self.assertEqual([0, 3, 6, 9], verify_judging.spread(list(range(10)), 4))
+        self.assertEqual([1, 2], verify_judging.spread([1, 2], 5))
+
+    def test_late_pictures_of_a_long_mission_are_spread_not_just_the_last_two(self):
+        steps = ([{"label": "initial"}] + [{"label": f"default-view-t{i}s"} for i in (3, 6, 10)]
+                 + [{"label": f"late-t{i}s"} for i in range(14, 600, 45)])
+        chosen = [s["label"] for s in verify.select_steps(steps)]
+        late = [label for label in chosen if label.startswith("late-")]
+        self.assertEqual(verify_judging.LATE_IMAGES, len(late))
+        self.assertEqual(steps[-1]["label"], late[-1])
+        self.assertGreater(int(late[-2][6:-1]), 200, "the middle of the mission must reach the judge")
+
+    def test_a_long_timeline_is_thinned_over_the_whole_run_not_cut_at_the_start(self):
+        timeline = [{"t": i * 5, "text": f"ALT {i}"} for i in range(300)]
+        lines = verify.timeline_text({"timeline": timeline}).splitlines()
+        self.assertEqual(70, len(lines))
+        self.assertIn("ALT 299", lines[-1])
+
+    def test_identical_late_frames_do_not_take_picture_slots(self):
+        moving = [{"label": f"late-t{i}s", "shotHash": f"h{i}", "text": f"T+{i}"} for i in (14, 20, 28, 38, 50, 62, 107, 152)]
+        idle = [{"label": f"late-t{i}s", "shotHash": "same", "text": "DONE"} for i in range(197, 600, 45)]
+        steps = [{"label": "initial"}] + [{"label": f"default-view-t{i}s"} for i in (3, 6, 10)] + moving + idle
+        chosen = verify.select_steps(steps)
+        self.assertLessEqual(sum(1 for s in chosen if s.get("shotHash") == "same"), 1)
+        self.assertGreaterEqual(sum(1 for s in chosen if str(s.get("shotHash", "")).startswith("h")), 4)
+
+    def test_the_observer_stops_when_three_late_frames_are_identical(self):
+        self.assertIn("endedIdle = true", observer_source())
+
+    def test_the_observer_samples_late_marks_and_the_timeline_through_a_long_run(self):
+        source = observer_source()
+        for needle in ("mark += 45", "evidence.timeline.length >= 480", "at() - last.t < 5"):
+            self.assertIn(needle, source)
+
+
 if __name__ == "__main__":
     unittest.main()
