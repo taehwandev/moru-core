@@ -39,9 +39,7 @@ fn quiet(launcher: &OsString, args: &[OsString]) -> Option<String> {
     let project = project.canonicalize().ok()?;
     let home = env::var_os("HOME")?;
     let home = Path::new(&home);
-    if home.canonicalize().ok()?.as_os_str() != home.as_os_str()
-        || env::var_os("MORU_WORKER_EVIDENCE").is_some()
-    {
+    if home.canonicalize().ok()?.as_os_str() != home.as_os_str() {
         return None;
     }
     let core = CallbackGuard::root(launcher, "git")?;

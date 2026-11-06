@@ -460,6 +460,31 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
+        custom = advisor / ".moru/custom/deep/preflight.json"
+        custom.parent.mkdir(parents=True)
+        session_evidence.rename(custom)
+        worker = advisor / ".moru/workers/opaque/preflight.json"
+        worker.parent.mkdir(parents=True)
+        worker.write_text(custom.read_text())
+        registry["runs"] = [registry["runs"][0], {"run_id": "f" * 32, "state": "running",
+            "evidence_name": worker.name,
+            "evidence_key": hashlib.sha256(worker.relative_to(advisor).as_posix().encode()).hexdigest()}]
+        registry["runs"][0]["evidence_key"] = hashlib.sha256(custom.relative_to(advisor).as_posix().encode()).hexdigest()
+        registry_path.write_text(json.dumps(registry))
+        for selected, scope in ((custom, {}), (worker, {"MORU_WORKER_EVIDENCE": str(worker)})):
+            for output in ("json", "markdown"):
+                args = [str(entry), "next", "--project", str(advisor), "--format", output]
+                reference = subprocess.run(args, capture_output=True,
+                    env={**normal, "MORU_LAUNCHER_BACKEND": "python", "CODEX_THREAD_ID": "synthetic-next", **scope},
+                    cwd=advisor, timeout=8)
+                done = subprocess.run(args, capture_output=True,
+                    env={**no_python, "CODEX_THREAD_ID": "synthetic-next", **scope}, cwd=advisor, timeout=8)
+                assert reference.returncode == 0 and not reference.stderr, reference
+                if output == "json":
+                    assert json.loads(reference.stdout)["evidence"] == str(selected)
+                assert (done.returncode, done.stdout, done.stderr) == (
+                    reference.returncode, reference.stdout, reference.stderr), done
+                checks += 1
         status_project = base / "status-project"
         state = status_project / ".moru"
         state.mkdir(parents=True)

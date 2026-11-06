@@ -5,13 +5,15 @@
 mod candidates;
 #[path = "next_process_owner.rs"]
 mod process_owner;
+#[path = "next_worker_scope.rs"]
+mod worker_scope;
 use crate::{
     callback_state::LocalState as State,
     python_json::{PythonJson, Value},
     python_text::PythonText,
 };
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     env,
     path::{Path, PathBuf},
 };
@@ -22,9 +24,6 @@ impl NextSession {
         let Some((runtime, session)) = Self::identity()? else {
             return Some(None);
         };
-        if env::var_os("MORU_WORKER_EVIDENCE").is_some() {
-            return None;
-        }
         let state = project.join(".moru");
         State::safe_path(project, &state)?;
         if State::absent_dir(&state)? {
@@ -57,14 +56,48 @@ impl NextSession {
         if bindings.is_empty() {
             return Some(None);
         }
-        let paths = candidates::Candidates::read(project, &bindings)?;
+        Self::select(project, &bindings, runtime, &session)
+    }
+
+    fn select(
+        project: &Path,
+        bindings: &BTreeMap<String, Value>,
+        runtime: &str,
+        session: &str,
+    ) -> Option<Option<PathBuf>> {
+        let (paths, outside, complete) = match worker_scope::WorkerScope::current(project)? {
+            worker_scope::WorkerScope::Parent => candidates::Candidates::select(project, bindings)?,
+            worker_scope::WorkerScope::Invalid => return Some(None),
+            worker_scope::WorkerScope::Selected(path) => (vec![path], Vec::new(), true),
+        };
         let mut matched = Vec::new();
-        for (path, key) in paths {
-            let raw = State::read(&path, 1024 * 1024)?;
+        let mut resolved = BTreeSet::new();
+        for path in paths {
+            let key = candidates::Candidates::key(project, &path)?;
+            let Some(run) = bindings.get(&key) else {
+                continue;
+            };
+            resolved.insert(key);
+            let raw = match State::read(&path, 1024 * 1024) {
+                Some(raw) => raw,
+                None if matches!(std::fs::symlink_metadata(&path), Err(e) if e.kind() == std::io::ErrorKind::NotFound) => {
+                    "{}".into()
+                }
+                None => return None,
+            };
             let payload = PythonJson::parse(&raw)?;
-            if Self::matches(&payload, &bindings[&key], runtime, &session)? {
+            if Self::matches(&payload, run, runtime, session)? {
                 matched.push(path);
             }
+        }
+        for path in outside {
+            let key = candidates::Candidates::key(project, &path)?;
+            if bindings.contains_key(&key) {
+                resolved.insert(key);
+            }
+        }
+        if !complete && resolved.len() != bindings.len() {
+            return Some(None);
         }
         match matched.len() {
             0 => Some(None),

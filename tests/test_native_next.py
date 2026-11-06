@@ -102,11 +102,15 @@ class NativeNextTests(unittest.TestCase):
             path.touch()
 
     def test_environment_overrides_missing_git_and_noncanonical_home_select_python(self):
-        overrides = [{"PYTHONPATH": "synthetic"}, {"MORU_WORKER_EVIDENCE": "synthetic"},
+        overrides = [{"PYTHONPATH": "synthetic"},
                      {"HOME": str(self.base / "home") + "/."}]
         for values in overrides:
             self.assertEqual(result(self.call(backend="python", **values)), result(self.call(**values)))
             self.assertEqual(127, self.call(PATH=str(self.git_only), **values).returncode)
+        worker = {"MORU_WORKER_EVIDENCE": "synthetic"}
+        baseline = self.call(backend="python", **worker)
+        self.assertEqual(0, baseline.returncode, baseline.stderr)
+        self.assertEqual(result(baseline), result(self.call(PATH=str(self.git_only), **worker)))
         empty = self.base / "empty"
         empty.mkdir()
         self.assertEqual(127, self.call(PATH=str(empty)).returncode)

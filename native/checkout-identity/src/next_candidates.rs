@@ -1,16 +1,37 @@
 //! owner: Candidates; allowed imports: std, SHA256, local state and shared JSON;
-//! forbidden imports: writes/recursive discovery; callers/tests: NextSession;
+//! forbidden imports: writes/session decisions; callers/tests: NextSession;
 //! verification: process parity of complete canonical registry bindings.
+#[path = "next_walk.rs"]
+mod walk;
 use super::NextSession;
 use crate::{callback_state::LocalState as State, python_json::Value};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
 };
 pub(super) struct Candidates;
 impl Candidates {
+    pub(super) fn select(
+        project: &Path,
+        bindings: &BTreeMap<String, Value>,
+    ) -> Option<(Vec<PathBuf>, Vec<PathBuf>, bool)> {
+        if let Some(paths) = Self::read(project, bindings) {
+            return Some((
+                paths.into_iter().map(|(path, _)| path).collect(),
+                Vec::new(),
+                true,
+            ));
+        }
+        let names: BTreeSet<String> = bindings
+            .values()
+            .map(|run| NextSession::text(run.get("evidence_name")))
+            .filter(|name| !name.is_empty() && name != "." && !name.contains('/'))
+            .collect();
+        let result = walk::NextWalk::read(&project.join(".moru"), &names)?;
+        Some((result.candidates, result.workers, result.complete))
+    }
     pub(super) fn key(project: &Path, path: &Path) -> Option<String> {
         let text = path.strip_prefix(project).ok()?.to_str()?;
         Some(format!("{:x}", Sha256::digest(text.as_bytes())))

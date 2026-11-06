@@ -110,11 +110,11 @@ class NativeNextSessionTests(unittest.TestCase):
         registry = json.loads(self.registry.read_text())
         registry["runs"][0]["evidence_key"] = "0" * 64
         self.registry.write_text(json.dumps(registry))
-        self.parity(False, native=False)
+        self.parity(False)
 
     def test_nested_checkout_marker_keeps_reference_discovery(self):
         (self.evidence.parent / ".git").symlink_to("absent")
-        self.parity(False, native=False)
+        self.parity(False)
 
     def test_malformed_latest_state_preserves_reference_error(self):
         original = json.loads(self.registry.read_text())
