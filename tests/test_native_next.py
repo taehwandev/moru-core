@@ -73,8 +73,7 @@ class NativeNextTests(unittest.TestCase):
 
     def test_cli_fallbacks_and_unicode_paths_preserve_parity(self):
         evidence = seed(self.project, "running")
-        forms = [["--project", str(self.project), "--evidence", str(evidence), "--format", "json"],
-                 ["--help"], ["--project"], ["--format", "yaml"],
+        forms = [["--help"], ["--project"], ["--format", "yaml"],
                  ["--project", ".", "--format", "json"],
                  ["--format", "json", "--project", str(self.project)]]
         for args in forms:

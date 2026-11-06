@@ -231,7 +231,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "next",
-      "remaining": "Port active-run evidence discovery, next decisions and output beyond inactive advice.",
+      "remaining": "Explicit-evidence active advice with absent gate ledger is implemented; complete session/registry evidence discovery, ledger merge/freshness and malformed input/CLI boundaries before full native closure.",
       "verification": {}
     },
     {
@@ -607,6 +607,7 @@
     }
   ],
   "unmigrated_python_sources": [
+    "native/checkout-identity/next_contract.py",
     "native/checkout-identity/pretool_contract.py",
     "native/checkout-identity/status_contract.py",
     "scripts/agent-entry.py",

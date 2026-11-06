@@ -1,5 +1,7 @@
-//! Quiet next-advisor only; active/uncertain state stays with Python.
+//! Quiet next advice plus explicit-evidence advice when no ledger exists.
 //! Imports: std, existing guard/locks/terminal-state/Git readers. No state writes.
+#[path = "next_advice.rs"]
+mod advice;
 use crate::next_verification::Verification;
 use crate::{
     callback_state::LocalState as State, pretool_guard::CallbackGuard, stop_state::StopState,
@@ -21,6 +23,12 @@ impl NextProcess {
 }
 
 fn quiet(launcher: &OsString, args: &[OsString]) -> Option<String> {
+    if args.iter().any(|a| {
+        a.to_str()
+            .is_some_and(|s| s == "--evidence" || s.starts_with("--evidence="))
+    }) {
+        return explicit(launcher, args);
+    }
     let cwd = env::current_dir().ok()?;
     let (project, format) = arguments(args, &cwd)?;
     if !project.is_absolute() || !project.is_dir() {
@@ -49,6 +57,88 @@ fn quiet(launcher: &OsString, args: &[OsString]) -> Option<String> {
         core.to_str()?
     );
     Some(render(project.to_str()?, &copyable, &verification, format))
+}
+
+fn explicit(launcher: &OsString, args: &[OsString]) -> Option<String> {
+    let mut project = env::current_dir().ok()?;
+    let mut evidence = None;
+    let mut format = "markdown";
+    let mut i = 0;
+    while i < args.len() {
+        let word = args[i].to_str()?;
+        let (key, inline) = word
+            .split_once('=')
+            .map_or((word, None), |(k, v)| (k, Some(v)));
+        if !matches!(key, "--project" | "--evidence" | "--format") {
+            return None;
+        }
+        let value = if let Some(v) = inline {
+            v
+        } else {
+            i += 1;
+            let value = args.get(i)?.to_str()?;
+            if value.starts_with('-') {
+                return None;
+            }
+            value
+        };
+        match key {
+            "--project" => project = Path::new(value).to_owned(),
+            "--evidence" => evidence = Some(Path::new(value).to_owned()),
+            "--format" if matches!(value, "json" | "markdown") => format = value,
+            _ => return None,
+        }
+        i += 1;
+    }
+    let home = env::var_os("HOME")?;
+    let home = Path::new(&home);
+    if home.canonicalize().ok()?.as_os_str() != home.as_os_str() {
+        return None;
+    }
+    if project == Path::new("~") {
+        project = home.to_owned();
+    } else if project.to_str()?.starts_with("~/") {
+        project = home.join(&project.to_str()?[2..]);
+    } else if project.to_str()?.starts_with('~') {
+        return None;
+    }
+    let project = project.canonicalize().ok()?;
+    if !project.is_dir() {
+        return None;
+    }
+    let evidence = evidence?;
+    if !evidence.is_file() {
+        return None;
+    }
+    let evidence = evidence.canonicalize().ok()?;
+    // pathlib's trailing-dot stem semantics changed between builder Python versions.
+    if evidence.file_name()?.to_str()?.ends_with('.') {
+        return None;
+    }
+    CallbackGuard::root(launcher, "git")?;
+    // Reference explicit evidence bypasses registry/session selection and its locks.
+    let verification = Verification::discover(&project)?;
+    let preflight =
+        crate::python_json::PythonJson::parse(&std::fs::read_to_string(&evidence).ok()?)?;
+    let ledger = evidence
+        .parent()?
+        .join(if evidence.file_name()? == "preflight.json" {
+            "gate-evidence.json".to_string()
+        } else {
+            format!("{}-gate-evidence.json", evidence.file_stem()?.to_str()?)
+        });
+    match std::fs::symlink_metadata(ledger) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        _ => return None,
+    }
+    advice::NextAdvice::render(
+        &project,
+        &evidence,
+        &preflight,
+        &verification,
+        format,
+        &home.join(".moru/bin/moru-hook"),
+    )
 }
 
 fn arguments<'a>(args: &'a [OsString], cwd: &Path) -> Option<(std::path::PathBuf, &'a str)> {

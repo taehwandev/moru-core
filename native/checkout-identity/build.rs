@@ -24,4 +24,12 @@ fn main() {
         .expect("native build requires Python for status-contract generation");
     assert!(status.success(), "status-contract generation failed");
     println!("cargo:rerun-if-changed=status_contract.py");
+    let status = Command::new("python3")
+        .arg(package.join("next_contract.py"))
+        .arg("--emit")
+        .arg(directory.join("next_contract.rs"))
+        .status()
+        .expect("native build requires Python for next-advice contract generation");
+    assert!(status.success(), "next-advice contract generation failed");
+    println!("cargo:rerun-if-changed=next_contract.py");
 }

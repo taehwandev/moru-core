@@ -360,6 +360,19 @@ def smoke(archive):
             assert (done.returncode, done.stdout, done.stderr) == (
                 reference.returncode, reference.stdout, reference.stderr), done
             checks += 1
+        active = advisor / "active-preflight.json"
+        active.write_text(json.dumps({"agent_run_id": "portable-active", "work": {"id": "portable"},
+            "route": {"command": "build", "gates": ["tests", "review hook", "retrospective check"],
+                      "required_docs": ["common/skills/agent-operating-skill/SKILL.md"]}}))
+        for output in ("json", "markdown"):
+            args = [str(entry), "next", "--project", str(advisor), "--evidence", str(active), "--format", output]
+            reference = subprocess.run(args, capture_output=True,
+                env={**normal, "MORU_LAUNCHER_BACKEND": "python"}, cwd=advisor, timeout=8)
+            done = subprocess.run(args, capture_output=True, env=no_python, cwd=advisor, timeout=8)
+            assert reference.returncode == 0 and not reference.stderr, reference
+            assert (done.returncode, done.stdout, done.stderr) == (
+                reference.returncode, reference.stdout, reference.stderr), done
+            checks += 1
         status_project = base / "status-project"
         state = status_project / ".moru"
         state.mkdir(parents=True)
