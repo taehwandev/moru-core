@@ -106,7 +106,8 @@ An absolute cd scope may precede the single output pipe. This covers ordinary
 worktree-targeted inspection and truncated search/Git output without starting
 Python for the gate. It does not execute or accelerate the requested command.
 The whole command remains limited to 16 KiB; the producer retains its 20-word
-limit, plus the exact two-word cd prefix and at most three-word output stage.
+limit, plus the exact two-word cd prefix. Numeric/count output stages have at
+most three words; the search-filter extension below has its own bounded argv.
 
 Only one absolute, literal directory change and one closed output stage are
 recognized. Operators inside complete literal quotes stay argument text.
@@ -120,3 +121,26 @@ The existing actual-callback suite adds parity and no-Python checks for both
 providers, quoted paths/patterns, pipe limits, shadowed programs and malformed
 Codex metadata. Transported-consumer smoke includes scoped and piped queries.
 No hook registration, policy authority, inventory count or timing claim changes.
+
+## Context search and stdin filters
+
+The first [full migration Goal](full-migration.md) batch adds `rg -n` context
+options: `-A`, `-B`, `-C`, `--after-context`, `--before-context` and `--context`.
+Counts are ASCII decimals from 0 to 1,000,000, either a separate word or attached
+as `-A20` / `--context=20`. They may precede or follow the pattern/paths, before
+the literal `--` boundary. Listing mode keeps its earlier grammar.
+
+A single output stage may now be a stdin-only `rg` filter, for example
+`git ls-files | rg 'py|rs'` or `cat notes.txt | rg -C2 pattern`. It reuses the
+file-query grammar and eligibility checks, requires a pattern, rejects explicit
+filesystem operands/listing mode and never executes a program. Optional `-n`
+is normalized only in validation metadata; the user's command/output is intact.
+The normalized filter retains the 20-word limit and the whole command's 16 KiB
+cap. Unknown flags, preprocessors, expansion, writes and further pipes use Python.
+
+Producer and consumer checks retain process/effective-directory shadows and
+resolvable pattern prefixes. Codex normalization checks the filter in its
+recorded workdir unless an explicit absolute cd fixed the scope. Both transcript
+forms have a regression for looped pattern paths. The new actual-callback tests
+and transported smoke extend the same boundaries; neither completes the full
+pretool unit or establishes a new numerical speed/cost claim.

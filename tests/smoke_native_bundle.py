@@ -195,7 +195,9 @@ def smoke(archive):
                             f"git -C '{project}' status --short",
                             f"cd '{project}' && cat notes.txt",
                             "rg -n 'TODO|FIXME' notes.txt | head -n 20",
-                            f"cd '{project}' && git log -3 --format='%h %s' | wc -l"):
+                            f"cd '{project}' && git log -3 --format='%h %s' | wc -l",
+                            "rg -n -A 3 -B1 TODO notes.txt", "git ls-files | rg 'txt|py'",
+                            f"cd '{project}' && cat notes.txt | rg -C2 TODO"):
                 data = {**payload, "tool_input": {"command": command}}
                 done = subprocess.run([str(entry), runtime + "-pretool-gate"], input=json.dumps(data).encode(),
                     capture_output=True, env=env, cwd=project, timeout=8)

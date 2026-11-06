@@ -29,13 +29,19 @@ workflow_dispatch_cli.py has no execution dispatch and is not a separate CLI.
 The other 270 baseline files have no discovered standalone entry boundary;
 resolve their supporting ownership with callers when a unit is selected.
 
-This is a candidate inventory. Later units need behavioral parity, a rollback
+The [full migration Goal](runtime-performance/full-migration.md), requested on
+2026-11-06, now selects all owned targets in this inventory and their supporting
+runtime responsibilities. The [ledger](runtime-performance/migration-ledger.json)
+records the complete remaining scope. Current Python/partial states below are
+implementation status, not final exceptions. Vendor boundaries remain explicit.
+
+Later units need behavioral parity, a rollback
 path and a verified performance-branch commit, with related units batched.
 Existing comparisons establish the migration direction; follow the
 [programme's selective measurement policy](runtime-performance/prd.md#behavior-acceptance-and-selective-measurement)
 rather than benchmarking or calculating cost for every remaining script.
-Low-frequency setup/maintenance may remain Python; do not port them solely to
-reach a count. A unit can require several small commits. Internal helper or
+Prioritize frequent callbacks, then finish the lower-frequency owned targets
+under that Goal. A unit can require several small commits. Internal helper or
 policy splits do not silently increase this inventory; update its scope and
 acceptance explicitly. Tests check complete, unique entry-owner coverage.
 

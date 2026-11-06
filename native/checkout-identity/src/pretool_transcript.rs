@@ -7,7 +7,12 @@ use std::{
     path::Path,
 };
 
-pub(crate) fn safe(payload: &Value, file_command: Option<&str>, output: Option<&str>) -> bool {
+pub(crate) fn safe(
+    payload: &Value,
+    file_command: Option<&str>,
+    output: Option<&str>,
+    filter: Option<&crate::pretool_files::FileQuery>,
+) -> bool {
     let valid_directory = |path: &str| {
         file_command.is_none_or(|command| {
             crate::pretool_files::FileQuery::command(command)
@@ -15,7 +20,7 @@ pub(crate) fn safe(payload: &Value, file_command: Option<&str>, output: Option<&
         }) && output.is_none_or(|program| {
             std::fs::symlink_metadata(Path::new(path).join(program))
                 .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
-        })
+        }) && filter.is_none_or(|query| query.ready(Path::new(path)))
     };
     let Some(path) = payload.get("transcript_path").and_then(Value::as_str) else {
         return true;

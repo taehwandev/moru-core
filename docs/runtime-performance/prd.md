@@ -38,11 +38,15 @@ only for a materially different execution architecture, an observed regression,
 or an explicit measurement request. New extensions without a new measurement
 make no additional numerical speed or savings claim.
 
-The [inventory](../native-runtime-migration.md) now defines 53 boundaries: 30
-primary units and 23 ancillary CLIs, including the new bundle tool. Its baseline
-had 52. Inventory coverage is not a commitment to rewrite them all.
-Keep infrequent tooling in Python when conversion has no proven
-benefit. Shared implementations can serve more than one entrypoint.
+The [inventory](../native-runtime-migration.md) now defines 56 boundaries: 31
+primary units and 25 ancillary CLIs. Its original baseline had 52.
+On 2026-11-06 the user explicitly selected all remaining owned execution and
+supporting runtime work as a Goal. The [full migration contract](full-migration.md)
+and [ledger](migration-ledger.json) supersede the earlier selective-retention
+disposition: lower-frequency owned tooling remains open until accepted, rather
+than silently excluded. Shared implementations can serve several entrypoints.
+Developer reference tests and vendor ownership remain distinct from migrated
+product execution; no partial ingress counts as a fully migrated unit.
 
 ## Behavior acceptance and selective measurement
 

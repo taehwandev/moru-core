@@ -170,6 +170,70 @@ class NativeQueryTests(unittest.TestCase):
             finally:
                 shadow.unlink()
 
+    def test_rg_context_options_are_native_before_and_after_the_pattern(self):
+        for command in ("rg -n -A 3 -B 1 'foo|bar' notes.txt", "rg -n -A0 foo notes.txt",
+                        "rg -n foo notes.txt -C2", "rg -n --after-context=4 --before-context 1 foo src",
+                        "rg -n --context 1000000 --glob='*.py' '^class ' src",
+                        f"cd '{self.project}' && rg -n -C3 foo notes.txt | head -n 20"):
+            with self.subTest(command=command):
+                self.check_native(command)
+
+    def test_rg_context_unsafe_and_unsupported_neighbors_keep_python(self):
+        for command in ("rg -n -A foo notes.txt", "rg -n -A -1 foo notes.txt",
+                        "rg -n -B+1 foo notes.txt", "rg -n -C1000001 foo notes.txt",
+                        "rg -n --context=4294967296 foo notes.txt",
+                        "rg -n --after-context= foo notes.txt", "rg --files -A3 src",
+                        "rg -n foo -- notes.txt -A2", "rg -n -A 3 foo --pre=evil notes.txt",
+                        "rg -n -C3 foo notes.txt > written"):
+            with self.subTest(command=command):
+                self.check_fallback(command)
+        self.assertFalse((self.project / "written").exists())
+
+    def test_rg_stdin_filters_are_native_without_filesystem_operands(self):
+        for command in ("git ls-files | rg 'py|rs'", "rg --files | rg -n 'src|notes'",
+                        "cat notes.txt | rg -C 2 foo",
+                        f"cd '{self.project}' && git ls-files | rg --context=2 'notes|src'"):
+            with self.subTest(command=command):
+                self.check_native(command)
+        for command in ("git ls-files | rg", "git ls-files | rg --files",
+                        "git ls-files | rg -n foo notes.txt", "git ls-files | rg --pre=evil foo",
+                        "git ls-files | rg -n foo --pre=evil", "git ls-files | rg -n --files",
+                        "git ls-files | rg -n foo > written", "git ls-files | rg -n foo | wc -l"):
+            with self.subTest(command=command):
+                self.check_fallback(command)
+        self.assertFalse((self.project / "written").exists())
+
+    def test_rg_filter_shadows_and_pattern_paths_keep_python(self):
+        shadow = self.project / "rg"
+        shadow.write_text("synthetic shadow\n")
+        try:
+            self.check_fallback("git ls-files | rg notes")
+        finally:
+            shadow.unlink()
+        loop = self.project / "filter-loop"
+        loop.symlink_to("filter-loop")
+        self.check_fallback("git ls-files | rg 'filter-loop/child'")
+
+    def test_rg_filters_validate_codex_normalized_workdir_metadata(self):
+        target = self.project / "filter-workdir"
+        target.mkdir()
+        loop = target / "filter-loop"
+        loop.symlink_to("filter-loop")
+        command = "git ls-files | rg 'filter-loop/child'"
+        transcript = self.base / "filter-transcript.jsonl"
+        records = [
+            {"type": "function_call", "arguments": json.dumps({"cmd": command, "workdir": str(target)})},
+            {"type": "custom_tool_call", "input": 'tools.exec_command({cmd:"' + command + '",workdir:"' + str(target) + '"})'},
+        ]
+        for record in records:
+            transcript.write_text(json.dumps({"payload": record}) + "\n")
+            payload = request(self.project, command, transcript_path=str(transcript))
+            alias = "codex-pretool-gate"
+            self.assertEqual(result(invoke(self.launcher, self.base, self.project, alias, payload, backend="python")),
+                             result(invoke(self.launcher, self.base, self.project, alias, payload)))
+            self.assertEqual(127, invoke(self.launcher, self.base, self.project, alias, payload,
+                                       PATH=str(self.empty)).returncode)
+
 
 if __name__ == "__main__":
     unittest.main()

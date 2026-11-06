@@ -15,6 +15,21 @@ impl FileQuery {
         Self::parse(tokens)
     }
 
+    pub(crate) fn stdin_filter(command: &str) -> Option<Self> {
+        let mut tokens = crate::literal_args::LiteralArgs::parse(command)?;
+        if tokens.first().map(String::as_str) != Some("rg")
+            || tokens.get(1).map(String::as_str) == Some("--files")
+        {
+            return None;
+        }
+        // The extra -n is validation metadata only; no command is executed.
+        if tokens.get(1).map(String::as_str) != Some("-n") {
+            tokens.insert(1, "-n".to_owned());
+        }
+        let query = Self::parse(tokens)?;
+        query.paths.is_empty().then_some(query)
+    }
+
     fn parse(tokens: Vec<String>) -> Option<Self> {
         if tokens.len() > 20 {
             return None;
@@ -120,6 +135,43 @@ fn rg_paths(tokens: &[&str]) -> Option<Vec<usize>> {
             if glob.is_empty() || glob.starts_with('-') {
                 return None;
             }
+        } else if !literal
+            && !files
+            && matches!(
+                word,
+                "-A" | "-B" | "-C" | "--after-context" | "--before-context" | "--context"
+            )
+        {
+            index += 1;
+            if !context_count(tokens.get(index)?) {
+                return None;
+            }
+        } else if !literal
+            && !files
+            && [
+                "-A",
+                "-B",
+                "-C",
+                "--after-context=",
+                "--before-context=",
+                "--context=",
+            ]
+            .iter()
+            .any(|prefix| word.starts_with(prefix))
+        {
+            let value = [
+                "-A",
+                "-B",
+                "-C",
+                "--after-context=",
+                "--before-context=",
+                "--context=",
+            ]
+            .iter()
+            .find_map(|prefix| word.strip_prefix(prefix))?;
+            if !context_count(value) {
+                return None;
+            }
         } else if !literal && word == "--" {
             literal = true;
         } else if !pattern {
@@ -136,6 +188,12 @@ fn rg_paths(tokens: &[&str]) -> Option<Vec<usize>> {
         index += 1;
     }
     pattern.then_some(paths)
+}
+
+fn context_count(word: &str) -> bool {
+    !word.is_empty()
+        && word.bytes().all(|b| b.is_ascii_digit())
+        && word.parse::<u32>().is_ok_and(|n| n <= 1_000_000)
 }
 
 fn print_range(script: &str) -> bool {

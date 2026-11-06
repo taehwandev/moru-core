@@ -1,5 +1,5 @@
 //! Owner: closed literal cd scope and single read-output pipe recognition.
-//! Allowed: literal argv helper and std paths. Forbidden: execution, state writes,
+//! Allowed: literal/file-query helpers and std paths. Forbidden: execution, state writes,
 //! general shell parsing and authority. Callers/tests: PretoolProcess and actual
 //! native query callbacks; verification includes quotes, shadows and fallback.
 use std::path::{Path, PathBuf};
@@ -9,6 +9,7 @@ pub(crate) struct QueryScope<'a> {
     pub(crate) cwd: PathBuf,
     pub(crate) absolute_cd: bool,
     pub(crate) output: Option<&'static str>,
+    pub(crate) filter: Option<crate::pretool_files::FileQuery>,
 }
 
 impl<'a> QueryScope<'a> {
@@ -21,6 +22,7 @@ impl<'a> QueryScope<'a> {
             cwd: cwd.to_owned(),
             absolute_cd: false,
             output: None,
+            filter: None,
         };
         if let Some(index) = operator(command, b"&&") {
             let words = crate::literal_args::LiteralArgs::parse(&command[..index])?;
@@ -38,7 +40,8 @@ impl<'a> QueryScope<'a> {
             result.command = &command[index + 2..];
         }
         if let Some(index) = operator(result.command, b"|") {
-            let words = crate::literal_args::LiteralArgs::parse(&result.command[index + 1..])?;
+            let consumer = &result.command[index + 1..];
+            let words = crate::literal_args::LiteralArgs::parse(consumer)?;
             let words: Vec<_> = words.iter().map(String::as_str).collect();
             result.output = Some(match words.as_slice() {
                 [program @ ("head" | "tail"), "-n", count]
@@ -53,6 +56,10 @@ impl<'a> QueryScope<'a> {
                     }
                 }
                 ["wc"] | ["wc", "-l" | "-w" | "-c" | "-m"] => "wc",
+                ["rg", ..] => {
+                    result.filter = Some(crate::pretool_files::FileQuery::stdin_filter(consumer)?);
+                    "rg"
+                }
                 _ => return None,
             });
             result.command = &result.command[..index];

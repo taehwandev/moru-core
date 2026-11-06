@@ -71,6 +71,9 @@ impl PretoolProcess {
         {
             return false;
         }
+        if scope.filter.as_ref().is_some_and(|query| !query.ready(cwd)) {
+            return false;
+        }
         if file_command.is_some()
             && !crate::pretool_files::FileQuery::command(command)
                 .is_some_and(|query| query.ready(cwd))
@@ -90,6 +93,11 @@ impl PretoolProcess {
                         None
                     } else {
                         scope.output
+                    },
+                    if scope.absolute_cd {
+                        None
+                    } else {
+                        scope.filter.as_ref()
                     },
                 ))
     }

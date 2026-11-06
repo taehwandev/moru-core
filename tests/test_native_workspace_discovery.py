@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -38,18 +39,21 @@ class NativeWorkspaceDiscoveryTests(unittest.TestCase):
             {"role": "app", "root": str(self.app), "aliases": ["desktop"]},
             {"role": "web", "root": str(self.web), "aliases": ["browser"]}], **fields}
 
-    def call(self, request="suite", *, backend="auto", args=(), **overrides):
+    def call(self, request="suite", *, backend="auto", args=(), direct=False, **overrides):
         command = [str(self.entry), "project-discover", "--request", request,
             "--cwd", str(self.workspace), "--registry", str(self.registry), "--format", "json", *args]
+        if direct:
+            command = ([sys.executable, "-B"] if backend == "python" else
+                       [str(self.entry.with_name("moru-hook-native"))]) + command
         return subprocess.run(command, cwd=self.base, capture_output=True, timeout=10,
             env={**self.env, "MORU_LAUNCHER_BACKEND": backend, **overrides})
 
-    def parity(self, request="suite", *, args=(), **env):
-        expected = self.call(request, backend="python", args=args, **env)
+    def parity(self, request="suite", *, args=(), direct=False, **env):
+        expected = self.call(request, backend="python", args=args, direct=direct, **env)
         self.assertIn(expected.returncode, (0, 2, 3), expected.stderr)
         self.assertFalse(expected.stderr)
-        self.assertEqual(result(expected), result(self.call(request, args=args, **env)))
-        self.assertEqual(result(expected), result(self.call(request, args=args, PATH=str(self.empty), **env)))
+        self.assertEqual(result(expected), result(self.call(request, args=args, direct=direct, **env)))
+        self.assertEqual(result(expected), result(self.call(request, args=args, direct=direct, PATH=str(self.empty), **env)))
         return json.loads(expected.stdout) if "--format" not in args else expected.stdout
 
     def test_group_alias_remains_ambiguous_and_member_alias_selects_exactly(self):
@@ -139,8 +143,10 @@ class NativeWorkspaceDiscoveryTests(unittest.TestCase):
         for raw, target in cases:
             with self.subTest(raw=raw):
                 self.write([self.group(members=[{"root": raw}])])
-                self.assertEqual(str(target), self.parity(GROUP_ROOT=str(self.app),
+                self.assertEqual(str(target), self.parity(direct=raw == "${GROUP ROOT}", GROUP_ROOT=str(self.app),
                     **{"GROUP ROOT": str(self.app)})["selected_project"]["path"])
+                if raw == "${GROUP ROOT}":
+                    self.parity(GROUP_ROOT=str(self.app), **{"GROUP ROOT": str(self.app)})
 
     def test_registry_changes_are_observed_without_a_cache(self):
         for path in (self.app, self.web, self.app):

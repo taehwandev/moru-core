@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -32,18 +33,21 @@ class NativeProjectRegistryTests(unittest.TestCase):
     def write(self, value):
         self.registry.write_text(json.dumps(value))
 
-    def call(self, request="launch", *, backend="auto", args=(), **overrides):
+    def call(self, request="launch", *, backend="auto", args=(), direct=False, **overrides):
         command = [str(self.entry), "project-discover", "--request", request,
             "--cwd", str(self.current), "--registry", str(self.registry), "--format", "json", *args]
+        if direct:
+            command = ([sys.executable, "-B"] if backend == "python" else
+                       [str(self.entry.with_name("moru-hook-native"))]) + command
         return subprocess.run(command, cwd=self.base, capture_output=True, timeout=10,
             env={**self.env, "MORU_LAUNCHER_BACKEND": backend, **overrides})
 
-    def parity(self, request="launch", *, args=(), **env):
-        expected = self.call(request, backend="python", args=args, **env)
+    def parity(self, request="launch", *, args=(), direct=False, **env):
+        expected = self.call(request, backend="python", args=args, direct=direct, **env)
         self.assertIn(expected.returncode, (0, 2, 3), expected.stderr)
         self.assertFalse(expected.stderr)
-        self.assertEqual(result(expected), result(self.call(request, args=args, **env)))
-        self.assertEqual(result(expected), result(self.call(request, args=args, PATH=str(self.empty), **env)))
+        self.assertEqual(result(expected), result(self.call(request, args=args, direct=direct, **env)))
+        self.assertEqual(result(expected), result(self.call(request, args=args, direct=direct, PATH=str(self.empty), **env)))
         return json.loads(expected.stdout) if "--format" not in args else expected.stdout
 
     def test_aliases_names_generic_terms_and_exact_boundaries(self):
@@ -112,7 +116,13 @@ class NativeProjectRegistryTests(unittest.TestCase):
         for raw, target in cases:
             with self.subTest(raw=raw):
                 self.write({"projects": [{"root": raw, "aliases": ["launch"]}]})
-                self.assertEqual(str(target), self.parity(**env)["selected_project"]["path"])
+                unusual = raw in {"${ROOT WITH SPACE}", "${한글변수}", "$1ROOT"}
+                # /bin/sh implementations differ in preserving names that are
+                # not shell identifiers. Test expansion without the shell and
+                # separately retain the actual generated-launcher parity check.
+                self.assertEqual(str(target), self.parity(direct=unusual, **env)["selected_project"]["path"])
+                if unusual:
+                    self.parity(**env)
         # An empty expansion becomes Path('.'), not an absent empty OS path.
         (self.base / "AGENTS.md").touch()
         self.write({"projects": [{"root": "$EMPTY_ROOT", "aliases": ["launch"]}]})

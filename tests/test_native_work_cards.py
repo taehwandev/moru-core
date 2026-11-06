@@ -179,9 +179,14 @@ class NativeWorkCardTests(unittest.TestCase):
                 lock = self.store()
                 self.insert(lock)
                 lock.commit()
+                # Snapshot before taking the POSIX lock: opening/closing any
+                # other fd for this file in this process can release that lock.
+                # https://www.sqlite.org/howtocorrupt.html#_posix_advisory_locks_canceled_by_a_separate_thread_doing_close_
+                before = self.database.read_bytes()
                 lock.execute("BEGIN EXCLUSIVE")
             try:
-                before = self.database.read_bytes()
+                if state != "locked":
+                    before = self.database.read_bytes()
                 expected = self.call(backend="python")
                 # The canonical owner retries a locked store with its existing
                 # immutable read path; native must delegate that recovery.
