@@ -1,9 +1,10 @@
 //! owner: CardWriteProcess; allowed imports: serde, guarded card transaction,
-//! existing source/state/UTC readers; forbidden imports: Python, SQL, creation,
-//! schema changes, arbitrary paths, retry; callers/tests: private launcher probe,
+//! existing source/state/UTC readers; forbidden imports: Python, raw SQL,
+//! new schema policy, arbitrary paths, retry; callers/tests: private launcher probe,
 //! test_native_card_write and transported consumer; verification: no post-DML 125.
 use crate::{
-    cards_process::CardsProcess, cards_transaction::CardTransaction, overhead_clock::OverheadClock,
+    cards_bootstrap::CardBootstrap, cards_process::CardsProcess,
+    cards_transaction::CardTransaction, overhead_clock::OverheadClock,
     overhead_stamp::OverheadStamp, pretool_guard::CallbackGuard, python_text::PythonText,
     statusline::Renderer,
 };
@@ -32,7 +33,7 @@ impl CardWriteProcess {
             };
         }
         if args.len() != 2
-            || !matches!(args[1].to_str(), Some("open" | "settle"))
+            || !matches!(args[1].to_str(), Some("open" | "settle" | "bootstrap"))
             || CallbackGuard::root(launcher, "git").is_none()
             || !test_store_allowed()
         {
@@ -46,6 +47,9 @@ impl CardWriteProcess {
             || bytes.len() > 65536
         {
             return 125;
+        }
+        if args[1] == "bootstrap" {
+            return bootstrap(&bytes);
         }
         let Some((values, cutoff, foreign_keys)) = input(&bytes, args[1] == "open") else {
             return 125;
@@ -75,6 +79,45 @@ impl CardWriteProcess {
             Ok(bytes) if bytes.len() <= 65536 && std::io::stdout().write_all(&bytes).is_ok() => 0,
             _ => 1,
         }
+    }
+}
+
+fn bootstrap(bytes: &[u8]) -> i32 {
+    let Some(packet) = serde_json::from_slice::<Value>(bytes).ok() else {
+        return 125;
+    };
+    let Some(fields) = packet.as_object() else {
+        return 125;
+    };
+    if fields.len() != 2
+        || fields
+            .get("values")
+            .and_then(Value::as_array)
+            .is_none_or(|v| !v.is_empty())
+    {
+        return 125;
+    }
+    let Some(foreign_keys) = fields.get("foreign_keys").and_then(Value::as_bool) else {
+        return 125;
+    };
+    let Some(home) = CardsProcess::state_home() else {
+        return 125;
+    };
+    let Some(store) = CardBootstrap::open(&home.join("work-cards/cards.sqlite3"), foreign_keys)
+    else {
+        return 125;
+    };
+    // All refusals above precede WAL/DDL. Never return125 after initialization.
+    let packet = match store.initialize() {
+        Ok(None) => json!({"schema_version":1,"result":{"changed":true}}),
+        Ok(Some(version)) => json!({"schema_version":1,"unsupported_version":version}),
+        Err(rusqlite::Error::SqliteFailure(code, message)) => json!({"schema_version":1,
+            "error":{"code":code.extended_code,"message":message.unwrap_or_else(|| code.to_string())}}),
+        Err(_) => return 1,
+    };
+    match serde_json::to_vec(&packet) {
+        Ok(bytes) if bytes.len() <= 65536 && std::io::stdout().write_all(&bytes).is_ok() => 0,
+        _ => 1,
     }
 }
 

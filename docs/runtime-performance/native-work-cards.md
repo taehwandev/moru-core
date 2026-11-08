@@ -10,8 +10,8 @@ type: ai-generated
 
 The generated launcher handles `work-cards [--project PATH] list [--all]` in
 Rust. Internal Python card callers now use the private native snapshot reader
-described below. The existing module retains bootstrap, migrations, resume
-and exceptional recovery beyond the bounded native extensions below. This
+described below. The existing module retains path/initial-connection admission,
+resume and exceptional recovery beyond the bounded native extensions below. This
 extends one already-covered inventory boundary without adding another entry.
 
 Open only an existing database with SQLite read-only flags. Missing stores,
@@ -191,13 +191,14 @@ checks use synthetic state only; exact-batch Linux acceptance remains pending.
 
 ## Internal card transactions
 
-`open_card` and `settle_card` retain their original Python bootstrap and argument
+`open_card` and `settle_card` retain their original bootstrap and argument
 evaluation order, then offer the DML to `CardTransaction`. Opening inserts or
 reactivates the repository/work pair, preserves its original creation timestamp,
 refreshes its current run/session fields and prunes all rows whose update text
 precedes the 90-day cutoff. Upsert and pruning commit together. Settlement changes
-only an active matching pair and returns the original boolean. Native does not
-create files, upgrade schemas or receive arbitrary SQL/database paths.
+only an active matching pair and returns the original boolean. The transaction
+owner does not create files, upgrade schemas or receive arbitrary SQL/database
+paths. Bootstrap SQL has its separate native owner below.
 
 The private ingress accepts canonical v3 WAL stores, including the known column
 orders produced by the existing legacy bootstrap. A writer reservation protects
@@ -226,7 +227,7 @@ and [3.11+](https://github.com/python/cpython/blob/3.11/Modules/_sqlite/util.c)
 differ for misuse/range failures. This protocol never uses the read-only probe's
 retry/fallback behavior.
 
-Bootstrap/schema upgrades, resume, exceptional read/registry recovery,
+Path/initial-connection admission, resume, exceptional bootstrap/read/registry recovery,
 unsupported customized writes and direct Python retirement remain open in unit
 17. The new Python file is transport/eligibility glue and remains in the full
 migration ledger; this increment does not claim full native card ownership.
@@ -248,3 +249,46 @@ oracles now compare exact card and dependent-table outcomes under both settings.
 The final suite and independent correction review pass. All fixtures are
 synthetic. Exact-batch Linux CI remains pending; no release or speed claim is
 made by this local increment.
+
+## Native bootstrap SQL
+
+The original Python path guard, directory mode, initial SQLite connection and
+row factory still run first. `CardBootstrap` then owns WAL selection, schema
+version validation, table creation, missing run/runtime/session columns and the
+final version pragma. A single native `CardSchema` supplies both the creator
+statement and transaction eligibility signature. The original Python SQL is
+retained for explicit pre-effect decline and rollback.
+
+The parent connection remains open and idle throughout native initialization,
+then returns to its original caller. Native derives the same existing file from
+global state, opens without CREATE and matches the parent foreign-key setting.
+It does not receive SQL or a filesystem path from input. Constructor lookahead
+may conservatively decline uncertain schema/path data before WAL or DDL; the
+initializer never declines after its first WAL attempt.
+
+Order is part of this contract. WAL selection precedes an unsupported-version
+error; the parent closes that connection before raising the original ValueError.
+Each successful DDL statement commits as in the original, without a new enclosing
+transaction. A later duplicate-column failure must preserve earlier successful
+ALTER statements and the old schema version. The existing effect-aware transport
+keeps unknown post-attempt outcomes terminal, including a committed bootstrap
+whose response is lost. Unit 17 remains partial: filesystem/connection admission,
+resume, exceptional recovery and direct Python retirement are still open.
+
+Final verification passes 99 Python 3.9 cases, five selected Python 3.14 oracles,
+39 Rust card cases and 173 transported macOS ARM64 checks. Eight Rust bootstrap
+tests cover 32 metadata-mask/version combinations, zero-byte parent-opened stores,
+future-version ordering, UTF-8 refusal, connection settings and partial failures.
+The four new consumer cases compare full schemas, version and WAL state against
+the original for empty, legacy and future stores with no Python/Git on PATH.
+
+The first 98-case Python suite passed 97: its existing no-dispatch mock also
+blocked legitimate bootstrap setup. Move setup outside that DML-specific mock.
+The initial 39 Rust cases passed 38: APFS rejects creation of invalid UTF-8
+filenames, so its fixture now proves absence and native refusal for that exact
+OS result; filesystems permitting creation retain the original existing-file
+assertions. Independent review also found the new unsupported-version response
+needed operation binding. It is now valid only for bootstrap; both DML operations
+retain terminal unknown-outcome errors without replay. The new peer regression
+and independent correction review pass. No hosted build, release or numerical
+performance claim accompanies this increment.

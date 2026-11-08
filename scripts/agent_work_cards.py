@@ -86,6 +86,12 @@ def _connect() -> sqlite3.Connection:
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     connection = sqlite3.connect(directory / DATABASE_NAME, timeout=2)
     connection.row_factory = sqlite3.Row
+    try:
+        if NativeCardWrite.bootstrap(connection) is not None:
+            return connection
+    except ValueError:
+        connection.close()  # Original _check_version closes unsupported stores.
+        raise
     connection.execute("PRAGMA journal_mode=WAL")
     _check_version(connection)
     connection.execute(_SCHEMA)

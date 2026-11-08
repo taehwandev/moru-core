@@ -8,20 +8,7 @@ use std::{path::Path, time::Duration};
 
 // Frozen eligibility signature, not a schema creator. Compare the complete
 // stored definition so unknown constraints/defaults cannot enter the writer.
-const SCHEMA: &str = "CREATE TABLE cards (
-    repo TEXT NOT NULL,
-    work_id TEXT NOT NULL,
-    summary TEXT NOT NULL,
-    command TEXT NOT NULL,
-    project TEXT NOT NULL,
-    state TEXT NOT NULL CHECK (state IN ('active', 'done', 'cancelled')),
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    run_id TEXT NOT NULL DEFAULT '',
-    runtime TEXT NOT NULL DEFAULT '',
-    session_id TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (repo, work_id)
-)";
+const SCHEMA: &str = crate::cards_schema::CardSchema::SIGNATURE;
 
 pub(crate) struct CardTransaction(Connection);
 

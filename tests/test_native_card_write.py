@@ -192,23 +192,25 @@ class NativeCardWriteTests(unittest.TestCase):
     def test_foreign_in_memory_or_busy_parent_connections_cannot_dispatch(self):
         self.activate()
         values = ("done","2026-11-08T00:00:00+00:00",self.key(),"a"*32)
-        with patch.object(transport.subprocess,"Popen",side_effect=AssertionError("unexpected dispatch")):
-            for path in (":memory:",str(self.base/"foreign.sqlite3")):
-                with closing(sqlite3.connect(path)) as connection:
-                    self.assertIsNone(NativeCardWrite.settle(connection,values))
-            with closing(cards._connect()) as connection:
+        with closing(cards._connect()) as connection:
+            with patch.object(transport.subprocess,"Popen",side_effect=AssertionError("unexpected dispatch")):
+                for path in (":memory:",str(self.base/"foreign.sqlite3")):
+                    with closing(sqlite3.connect(path)) as foreign:
+                        self.assertIsNone(NativeCardWrite.settle(foreign,values))
                 connection.execute("BEGIN IMMEDIATE")
                 self.assertIsNone(NativeCardWrite.settle(connection,values))
 
-    def peer(self, action, ready=True):
+    def peer(self, action, ready=True, bootstrap=True):
         native = self.entry.with_name("moru-hook-native")
         # The installed fixture is a copy/hardlink; replace its inode first.
         native.unlink()
         marker = self.base/"peer-marker"
-        native.write_text("#!"+sys.executable+"\nimport sys, pathlib, time\n"
+        native.write_text("#!"+sys.executable+"\nimport sys, pathlib, time, os\n"
             +"if sys.argv[-1] == 'ready':\n"
             +(" print('{\"schema_version\":1,\"ready\":true}'); sys.exit(0)\n" if ready else
               " print('unknown protocol',file=sys.stderr); sys.exit(2)\n")
+            +("if sys.argv[-1] == 'bootstrap':\n os.execv("+repr(str(fixtures.PROJECT/".moru/native/bin/moru-native-launcher"))
+              +",["+repr(str(fixtures.PROJECT/".moru/native/bin/moru-native-launcher"))+",*sys.argv[1:]])\n" if bootstrap else "")
             +f"pathlib.Path({str(marker)!r}).write_text('possible external effect')\n"+action+"\n")
         native.chmod(0o755)
         return marker
@@ -282,6 +284,17 @@ class NativeCardWriteTests(unittest.TestCase):
                 name = "SQLITE_CONSTRAINT_UNIQUE" if code == 2067 else "SQLITE_"+transport._PRIMARY_NAMES[code]
                 self.assertEqual(name,raised.exception.sqlite_errorname)
             self.assert_native()
+
+    def test_future_version_packet_is_rejected_for_both_dml_operations(self):
+        self.activate()
+        self.open()
+        self.peer("print('{\"schema_version\":1,\"unsupported_version\":99}')")
+        self.parent_sql.clear()
+        for operation in (lambda:self.open(),lambda:cards.settle_card(self.project,"a"*32,"done")):
+            with self.assertRaisesRegex(sqlite3.OperationalError,"refusing to replay"):
+                operation()
+        self.assert_native()
+        self.assertEqual("active",self.rows()[0]["state"])
 
     def test_raw_private_protocol_protects_store_and_declines_unknown_input_before_write(self):
         self.activate()

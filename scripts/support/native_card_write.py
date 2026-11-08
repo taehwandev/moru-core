@@ -1,7 +1,7 @@
-"""Effect-aware native card DML; only a quiet pre-write refusal permits replay.
+"""Effect-aware native card SQL; only a quiet pre-write refusal permits replay.
 
 Owner: NativeCardWrite. Allowed: stdlib, global state, NativeProbe availability.
-Forbidden: schema/bootstrap changes, SQL mutation, generic probes or write retries.
+Forbidden: Python SQL mutation, arbitrary schema changes, generic probes or retries.
 Callers/tests: agent_work_cards; test_native_card_write proves effects/no replay.
 """
 from __future__ import annotations
@@ -52,9 +52,9 @@ def _sqlite_error(code, message):
     return error
 
 
-def _response(done, stdout, stderr):
+def _response(done, stdout, stderr, operation="open"):
     if done == 125 and not stdout and not stderr:
-        return None  # The child guarantees every 125 occurs before DML.
+        return None  # Every125 precedes bootstrap/DML mutation in the child.
     try:
         if done != 0 or stderr or len(stdout) > 65536:
             raise ValueError
@@ -66,6 +66,10 @@ def _response(done, stdout, stderr):
             result = packet["result"]
             if type(result) is dict and set(result) == {"changed"} and type(result["changed"]) is bool:
                 return result["changed"]
+        if operation == "bootstrap" and set(packet) == {"schema_version", "unsupported_version"}:
+            version = packet["unsupported_version"]
+            if type(version) is int and -(1 << 63) <= version < (1 << 63) and version not in (0, 1, 2, 3):
+                return ValueError(f"unsupported work-card schema version {version}")
         if set(packet) == {"schema_version", "error"}:
             error = packet["error"]
             if (type(error) is dict and set(error) == {"code", "message"}
@@ -100,7 +104,7 @@ def _eligible(connection, values):
 
 
 def _request(connection, operation, values):
-    # Every decline here precedes process creation and SQL mutation.
+    # Every decline here precedes writer creation and SQL mutation.
     try:
         if not _eligible(connection, values):
             return None
@@ -142,13 +146,20 @@ def _request(connection, operation, values):
         if isinstance(error, (OSError, subprocess.TimeoutExpired)):
             raise sqlite3.OperationalError(_UNKNOWN) from None
         raise
-    result = _response(child.returncode, stdout, stderr)
+    result = _response(child.returncode, stdout, stderr, operation)
     if isinstance(result, BaseException):
         raise result
     return result
 
 
 class NativeCardWrite:
+    @staticmethod
+    def bootstrap(connection):
+        result = _request(connection, "bootstrap", ())
+        if result is False:
+            raise sqlite3.OperationalError(_UNKNOWN)
+        return result
+
     @staticmethod
     def open(connection, values, now, retention):
         if (type(now) is not datetime or (now.tzinfo is not None and now.tzinfo is not timezone.utc)

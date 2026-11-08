@@ -131,6 +131,45 @@ def _card_writes(native, entry, base, project, repo, normal, empty):
     return 5
 
 
+def _card_bootstrap(native, entry, base, project, normal, empty):
+    from contextlib import closing
+    import agent_work_cards as cards
+
+    for version in (None,1,2,99):
+        states=[base/f"bootstrap-{version}-{suffix}" for suffix in ("native","python")]
+        databases=[state/"work-cards/cards.sqlite3" for state in states]
+        for database in databases:
+            database.parent.mkdir(parents=True)
+            with closing(sqlite3.connect(database)) as connection:
+                if version is not None:
+                    schema=cards._SCHEMA
+                    missing=("runtime","session_id") if version==2 else ("run_id","runtime","session_id")
+                    for name in missing: schema=schema.replace(f"    {name} TEXT NOT NULL DEFAULT '',\n","")
+                    connection.execute(schema)
+                    connection.execute(f"PRAGMA user_version={version}")
+        with patch.dict(os.environ,{**normal,"MORU_STATE_HOME":str(states[1]),"MORU_LAUNCHER_BACKEND":"python"},clear=True):
+            try:
+                with closing(cards._connect()): pass
+                expected={"schema_version":1,"result":{"changed":True}}
+            except ValueError:
+                assert version==99
+                expected={"schema_version":1,"unsupported_version":99}
+        done=subprocess.run([str(native),str(entry),"--cards-write-probe","bootstrap"],
+            input=b'{"values":[],"foreign_keys":false}',capture_output=True,cwd=project,timeout=8,
+            env={**normal,"MORU_STATE_HOME":str(states[0]),"PATH":str(empty)})
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)==expected,done.stdout
+        snapshots=[]
+        for database in databases:
+            with closing(sqlite3.connect(database)) as connection:
+                snapshots.append((connection.execute("PRAGMA user_version").fetchone(),
+                    connection.execute("PRAGMA journal_mode").fetchone(),
+                    connection.execute("SELECT type,name,sql FROM sqlite_master ORDER BY type,name").fetchall(),
+                    connection.execute("PRAGMA table_info(cards)").fetchall()))
+        assert snapshots[0]==snapshots[1],(version,snapshots)
+    return 4
+
+
 def smoke(archive):
     with tempfile.TemporaryDirectory(prefix="native-consumer-") as tmp:
         base = Path(tmp).resolve()
@@ -547,6 +586,7 @@ def smoke(archive):
         checks += _typed_card_snapshot(native, entry, card_db, project, normal, {**no_python, "PATH": str(empty)})
         checks += _card_context(native, entry, base, project, repo_key, normal, empty)
         checks += _card_writes(native, entry, base, project, repo_key, normal, empty)
+        checks += _card_bootstrap(native, entry, base, project, normal, empty)
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):
