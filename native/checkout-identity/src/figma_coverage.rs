@@ -1,8 +1,6 @@
-//! owner: FigmaCoverage; allowed imports: shared PythonJson, CoverageSum/std;
+//! owner: FigmaCoverage; allowed imports: shared PythonJson, PythonSum/std;
 //! forbidden imports: I/O/schema policy; callers/tests: Figma validation/report;
 //! verification: complete canonical coverage fields and Python truthiness parity.
-#[path = "figma_coverage_sum.rs"]
-mod sum;
 use crate::python_json::{Number, Object, PythonJson, Value};
 use std::collections::BTreeSet;
 pub(crate) struct FigmaCoverage;
@@ -19,7 +17,9 @@ impl FigmaCoverage {
                     ("total", Self::number(components.len() as i128)),
                     (
                         "instances",
-                        sum::CoverageSum::sum(components.iter().map(|item| &item["usageCount"]))?,
+                        crate::python_sum::PythonSum::sum(
+                            components.iter().map(|item| &item["usageCount"]),
+                        )?,
                     ),
                     ("withVariant", Self::count(&components, "variantProperties")),
                     ("blueprints", length("componentBlueprints")),

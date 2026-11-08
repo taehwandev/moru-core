@@ -520,12 +520,15 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Native per-session transcript tally is connected through a source-bound private probe. Complete report statistics, collection/window CLI, timings, JSON/Markdown writers, unsupported timestamps/values and direct Python removal. This is supporting coverage, not full unit closure.",
+      "remaining": "Native session tally, three-group aggregation, finite statistics and regular timing JSONL processing are connected through source-bound private probes. Complete collection/window CLI, JSON/Markdown writers, unsupported timestamps/values, exceptional/nonfinite or large aggregate numbers and direct Python removal. Supporting adapter/build Python remains owned scope; this is not full unit closure.",
       "verification": {
         "native_owner": "native/checkout-identity/src/overhead_session.rs",
+        "native_report_owner": "native/checkout-identity/src/overhead_aggregate.rs",
+        "report_behavior": "PASS:9 native report tests plus39 existing report/session/Figma/inventory checks completed (2 builder-specific skips);147 Rust tests passed. Exact finite means, builder sums, decimal rounding, integer/float types, key order and counter ties match Python. Review repaired malformed-result integer conversion; execution parity caught and repaired loss of large input integer identity.",
+        "report_negative_authority": "PASS: native-required group analysis and timing parsing, empty-PATH probes, stable regular-file reads, source/environment refusal, descriptor/FIFO/symlink refusal, unchanged input bytes and declined malformed responses. Synthetic inputs only; no providers or user records.",
         "behavior": "PASS:32 overhead/reference/registry/completion/inventory tests completed (1 builder-limit skip),18 statusline regression tests and139 Rust tests. Independent review repaired invalid-duration empty-key ordering and builder integer-string limits.",
         "negative_authority": "PASS: native-required adapter calls and empty-PATH private protocol; malformed-response atomicity, source/environment refusal, unbuffered descriptor offsets including Darwin case alias, FIFO/symlink refusal and no input writes. Synthetic transcripts only; no provider calls.",
-        "portable": "Transported artifact checks recorded in source closeout; cross-platform exact-batch CI remains pending."
+        "portable": "PASS:156 transported macOS ARM64 checks including native report analysis and timing JSONL with empty PATH. Exact-batch Linux x86_64 CI remains pending; the workflow is manual-only."
       }
     },
     {
@@ -916,6 +919,7 @@
     "scripts/support/native_bundle.py",
     "scripts/support/native_launcher_install.py",
     "scripts/support/native_overhead.py",
+    "scripts/support/native_overhead_report.py",
     "scripts/support/native_probe_transport.py",
     "scripts/support/native_source_inputs.py",
     "scripts/support/permission_entries.py",

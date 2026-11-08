@@ -1,13 +1,13 @@
-//! owner: CoverageFloat; allowed imports: std/shared Number, builder sum constants;
-//! forbidden imports: I/O; callers/tests: CoverageSum; verification: CPython profile cases.
+//! owner: SumFloat; allowed imports: std/shared Number, builder sum constants;
+//! forbidden imports: I/O; callers/tests: PythonSum; verification: CPython profile cases.
 use crate::python_json::Number;
 include!(concat!(env!("OUT_DIR"), "/figma_contract.rs"));
-pub(super) struct CoverageFloat {
+pub(super) struct SumFloat {
     high: f64,
     low: f64,
     fast: bool,
 }
-impl CoverageFloat {
+impl SumFloat {
     pub(super) fn new(integer: &str, value: f64, fast: bool) -> Option<Self> {
         let previous = Number::Integer(integer.into()).as_float()?;
         Some(Self {

@@ -103,6 +103,28 @@ def smoke(archive):
         measured = json.loads(done.stdout)["result"]["row"]
         assert measured["assistant_turns"] == 1 and measured["tok_total"] == 5, measured
         checks += 1
+        aggregate_row = {key: measured[key] for key in (
+            "assistant_turns", "user_prompts", "tool_calls", "lifecycle_total", "policy_notes",
+            "hook_denials", "moru_hook_denials", "stop_hook_blocks", "guidance_reads", "guidance_bash_reads",
+            "tok_total", "tok_output", "tok_cache_read", "tok_cache_create",
+            "moru_injected_tokens_est", "moru_injected_events", "tok_input", "tools", "lifecycle_calls", "moru_core")}
+        done = subprocess.run([str(native),str(entry),"--overhead-probe","analyze"],
+            input=json.dumps({"sessions":[aggregate_row],"hook_latency":{"hook":[1e16,1.0,-1e16]}}).encode(),
+            capture_output=True,env=env,cwd=project,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        analysis = json.loads(done.stdout)["result"]
+        assert analysis["all"]["tok_total"]["sum"]==5 and analysis["all"]["sessions"]==1,analysis
+        assert analysis["moru_hook_latency_ms_from_transcripts"]["hook"]["mean"]==0.33,analysis
+        checks += 1
+        timing = base/"synthetic-timing.jsonl"
+        timing.write_text('{"hook":"empty"}\n{"hook":"start","status":"ok","timings":{"hook_total":"١٢.٥"}}\n')
+        done = subprocess.run([str(native),str(entry),"--overhead-probe","timings"],
+            input=json.dumps({"path":str(timing)}).encode(),capture_output=True,env=env,cwd=project,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        timing_result=json.loads(done.stdout)["result"]
+        assert timing_result["records"]==1 and timing_result["per_hook_ms"]["empty"]=={"n":0},timing_result
+        assert timing_result["per_hook_ms"]["start"]["median"]==12.5,timing_result
+        checks += 1
         overhead["path"] = "/dev/stdin"
         done = subprocess.run([str(native), str(entry), "--overhead-probe", "session"],
             input=json.dumps(overhead).encode(), capture_output=True, env=env, cwd=project, timeout=8)

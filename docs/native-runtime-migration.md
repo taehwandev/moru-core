@@ -210,7 +210,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
 | 45 | `scripts/migrate_skill_bundles.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Native session tally / Python report CLI | Aggregation, file selection and output writers remain owned scope |
+| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Native session tally, group statistics and timing JSONL / Python report CLI | File selection, output writers, exceptional numeric inputs and direct Python remain owned scope |
 | 47 | `scripts/mutation-check.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 48 | `scripts/path_claims.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 49 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |

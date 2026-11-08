@@ -1,14 +1,15 @@
-//! owner: CoverageSum; allowed imports: shared JSON numbers, CoverageFloat/std;
-//! forbidden imports: I/O/version guesses; callers/tests: FigmaCoverage; verification: numeric sum parity.
-#[path = "figma_coverage_float.rs"]
+//! owner: PythonSum; allowed imports: shared JSON numbers, SumFloat/std;
+//! forbidden imports: I/O/version guesses; callers/tests: FigmaCoverage, overhead statistics;
+//! verification: builder-profile numeric sum parity.
+#[path = "python_sum_float.rs"]
 mod floating;
 use crate::python_json::{Number, Value};
-use floating::CoverageFloat;
-pub(super) struct CoverageSum;
-impl CoverageSum {
-    pub(super) fn sum<'a>(values: impl Iterator<Item = &'a Value>) -> Option<Value> {
+use floating::SumFloat;
+pub(crate) struct PythonSum;
+impl PythonSum {
+    pub(crate) fn sum<'a>(values: impl Iterator<Item = &'a Value>) -> Option<Value> {
         let mut integer = "0".to_owned();
-        let mut floating: Option<CoverageFloat> = None;
+        let mut floating: Option<SumFloat> = None;
         let mut fast = true;
         for value in values {
             let Value::Number(number) = value else {
@@ -21,12 +22,10 @@ impl CoverageSum {
             match number {
                 Number::Integer(text) => {
                     let total = Self::add(&integer, text);
-                    fast &= CoverageFloat::fits_long(text) && CoverageFloat::fits_long(&total);
+                    fast &= SumFloat::fits_long(text) && SumFloat::fits_long(&total);
                     integer = total;
                 }
-                Number::Float(value) => {
-                    floating = Some(CoverageFloat::new(&integer, *value, fast)?)
-                }
+                Number::Float(value) => floating = Some(SumFloat::new(&integer, *value, fast)?),
             }
         }
         Some(Value::Number(match floating {

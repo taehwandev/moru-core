@@ -1,5 +1,5 @@
-use super::*;
-use crate::python_json::PythonJson;
+use super::PythonSum as CoverageSum;
+use crate::python_json::{Number, PythonJson, Value};
 mod profile {
     include!(concat!(env!("OUT_DIR"), "/figma_contract.rs"));
     pub(super) fn values() -> (&'static str, u32) {

@@ -35,6 +35,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from claude_transcript_overhead import measure_session, new_shared_counters, parse_timestamp  # noqa: E402
+from support.native_overhead_report import NativeOverheadReport  # noqa: E402
 
 NUMERIC = (
     "assistant_turns", "user_prompts", "tool_calls", "lifecycle_total", "policy_notes",
@@ -74,6 +75,9 @@ def _share(numerator: float, denominator: float) -> float:
 
 
 def aggregate(sessions: list[dict[str, Any]]) -> dict[str, Any]:
+    native = NativeOverheadReport.aggregate(sessions)
+    if native is not None:
+        return native
     result: dict[str, Any] = {"sessions": len(sessions)}
     result.update({key: summarize([session[key] for session in sessions]) for key in NUMERIC})
     tools: collections.Counter = collections.Counter()
@@ -96,6 +100,9 @@ def aggregate(sessions: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def read_timings(path: str) -> dict[str, Any]:
+    native = NativeOverheadReport.timings(path)
+    if native is not None:
+        return native
     per_hook: dict[str, list[float]] = collections.defaultdict(list)
     status: collections.Counter = collections.Counter()
     records = 0
@@ -144,6 +151,15 @@ def build_report(args: argparse.Namespace, now: dt.datetime) -> dict[str, Any]:
         raise SystemExit("--since/--until must be ISO timestamps")
     shared = new_shared_counters()
     sessions = collect_sessions(args, roots, since, until, shared)
+    analysis = NativeOverheadReport.analyze(sessions, shared["hook_latency"])
+    if analysis is None:
+        analysis = {
+            "all": aggregate(sessions),
+            "moru_core": aggregate([session for session in sessions if session["moru_core"]]),
+            "other_projects": aggregate([session for session in sessions if not session["moru_core"]]),
+            "moru_hook_latency_ms_from_transcripts": {
+                key: summarize(values) for key, values in sorted(shared["hook_latency"].items())},
+        }
     return {
         "generated_at": now.isoformat(),
         "window": {"since": since.isoformat(), "until": until.isoformat()},
@@ -151,11 +167,7 @@ def build_report(args: argparse.Namespace, now: dt.datetime) -> dict[str, Any]:
         "notes": "tokens sum input, cache read, cache creation and output per unique assistant message; "
                  "moru_injected_tokens_est is chars/4 of Moru hook context, plain-text hook stdout and "
                  "Moru PreToolUse denial reasons, an approximation rather than a tokenizer count.",
-        "all": aggregate(sessions),
-        "moru_core": aggregate([session for session in sessions if session["moru_core"]]),
-        "other_projects": aggregate([session for session in sessions if not session["moru_core"]]),
-        "moru_hook_latency_ms_from_transcripts": {
-            key: summarize(values) for key, values in sorted(shared["hook_latency"].items())},
+        **analysis,
         "timings_jsonl": read_timings(args.timings),
         "top_policy_notes": [{"count": c, "message": m} for m, c in shared["notes"].most_common(5)],
         "top_hook_denials": [{"count": c, "message": m} for m, c in shared["denials"].most_common(5)],

@@ -1,7 +1,11 @@
 //! owner: OverheadProcess; allowed imports: source guard, session tally, std/JSON;
 //! forbidden imports: providers, transcript writes, mutable shared state;
 //! callers/tests: NativeOverhead; verification: synthetic protocol and fallback parity.
-use crate::{overhead_session::OverheadSession, pretool_guard::CallbackGuard, text::Text};
+use crate::{
+    overhead_aggregate::OverheadAggregate, overhead_session::OverheadSession,
+    overhead_timings::OverheadTimings, pretool_guard::CallbackGuard, python_json::PythonJson,
+    text::Text,
+};
 use serde_json::{json, Value};
 use std::{
     ffi::OsString,
@@ -15,7 +19,10 @@ pub(crate) struct OverheadProcess;
 impl OverheadProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || args[1] != "session"
+            || !matches!(
+                args[1].to_str(),
+                Some("session" | "aggregate" | "analyze" | "timings")
+            )
             || CallbackGuard::root(launcher, "overhead-probe").is_none()
         {
             return 125;
@@ -29,9 +36,28 @@ impl OverheadProcess {
         {
             return 125;
         }
-        let result = serde_json::from_slice::<Value>(&bytes)
-            .ok()
-            .and_then(|v| Self::measure(&v));
+        let result = if args[1] == "aggregate" || args[1] == "analyze" {
+            // Parse numeric requests losslessly: serde's Value can turn a large
+            // integer into a float before our supported-integer check sees it.
+            std::str::from_utf8(&bytes)
+                .ok()
+                .and_then(PythonJson::parse)
+                .and_then(|v| {
+                    if args[1] == "aggregate" {
+                        OverheadAggregate::aggregate(v["sessions"].as_array()?)
+                    } else {
+                        OverheadAggregate::analyze(&v)
+                    }
+                })
+        } else {
+            serde_json::from_slice::<Value>(&bytes).ok().and_then(|v| {
+                if args[1] == "session" {
+                    Self::measure(&v)
+                } else {
+                    Self::timings(&v)
+                }
+            })
+        };
         let Some(result) = result else {
             return 125;
         };
@@ -64,6 +90,14 @@ impl OverheadProcess {
         let bytes = Self::read(path)?;
         let text = Text::universal_newlines(&String::from_utf8_lossy(&bytes));
         OverheadSession::measure(path, &text, &roots, window)
+    }
+    fn timings(payload: &Value) -> Option<Value> {
+        let path = payload.get("path")?.as_str()?;
+        if !Path::new(path).exists() {
+            return OverheadTimings::read("");
+        }
+        let bytes = Self::read(path)?;
+        OverheadTimings::read(&Text::universal_newlines(&String::from_utf8_lossy(&bytes)))
     }
     fn read(path: &str) -> Option<Vec<u8>> {
         const LIMIT: u64 = 64 * 1024 * 1024;
