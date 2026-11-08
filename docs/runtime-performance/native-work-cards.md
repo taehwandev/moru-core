@@ -292,3 +292,77 @@ needed operation binding. It is now valid only for bootstrap; both DML operation
 retain terminal unknown-outcome errors without replay. The new peer regression
 and independent correction review pass. No hosted build, release or numerical
 performance claim accompanies this increment.
+
+## Explicit native session picker
+
+The public `work-cards [--project PATH] resume` path reads the current repository's
+full card snapshot and prepares every binding before exposing a menu. A direct
+binding requires runtime `codex` and an exact lowercase hyphenated UUID. Only
+cards with both runtime and session empty/false may use retained preflight
+evidence, whose work ID must match that exact card. There is no latest-session
+lookup, inference, automatic selection or cross-call cache. Unsafe streams,
+unknown shapes and unsupported profiles decline before UI or input consumption.
+
+Menu order and the displayed selection are frozen. A later board/evidence
+change does not retarget the chosen conversation. The selected child receives
+only `codex resume SESSION` with the currently selected repository as cwd,
+including when a card's old worktree has been removed. Core does not change
+cards, preflight files, sessions or lifecycle authorization. The provider's own
+permission flow remains authoritative after the explicit numbered choice.
+
+Provider launch uses direct `execve` with the original PATH candidate order,
+argv0, inherited environment and first meaningful error. A no-shebang executable
+never gains implicit shell execution; later PATH candidates are still tried.
+Inherited descriptors beyond stdin/stdout/stderr are closed in the child while
+preserving the launcher's error-reporting pipe. Tests include denied/missing/
+ENOEXEC candidates and an explicitly inherited synthetic descriptor.
+
+When stdin and stdout are both TTYs, an owned duplicated C input stream preserves
+the original stdio read-ahead, C-string embedded-NUL behavior and partial-EOF
+trimming. Its prompt goes to stderr and ignores prompt write errors, matching
+the original terminal path. The source C implementation indexes before its
+buffer when the first successful read starts with NUL and has zero C-string
+length. That allocator-dependent undefined behavior has no portable equivalence
+proof; Rust avoids the invalid access and unit 17 remains explicitly partial.
+
+The input owner preserves blank/EOF cancellation, Python whitespace with ASCII
+decimal selection, LF-delimited lines (with trailing CR stripped as whitespace),
+ordinary read-ahead and nonblocking EOF/partial lines. A blocking reader inherits
+a blocked SIGINT; the main thread waits in bounded channel intervals, joins the
+reader before dispatch, and exits the CLI on cancellation so the reader cannot
+survive. No shared descriptor flags are changed, including when another process
+also reads stdin. Integer-limit errors, IO buffer/chunk sizes and final stdout-flush
+diagnostics use source-bound builder profiles; their small build-time probes do not invoke a provider. The
+native interactive path does not start Python. Unsupported codec, descriptor or
+identity conditions retain pre-UI compatibility. Once UI/input/provider work
+starts, it never falls back to replay the picker.
+
+The stdout owner preserves text/binary buffering and the original distinction
+between print/prompt-write failures and input's ignored prompt-flush failure.
+Closed stdout can still dispatch an explicitly selected session; cancellation
+and invalid input never dispatch. Final flush failure retains status 120 even
+under soft-fail. Real closed pipes and long menus test both effects and exact
+diagnostics around text and host binary-buffer boundaries.
+
+Input Ctrl+C cancels without launching. An inherited ignored SIGINT remains
+ignored. Provider-phase SIGINT gives the owned child the original short grace,
+then kills/reaps that child and terminates by SIGINT; hook soft-fail does not
+absorb operator interruption. It never signals a process group. Running
+children are observed with bounded nonblocking waits, closing the signal-flag
+check versus blocking-wait race. Deterministic unit checks inject SIGINT after
+the last flag check, before the wait. Auto-reaped SIGCHLD behavior follows the
+original subprocess convention. Stable menu,
+selection errors, EOF and provider diagnostics are compared byte-for-byte;
+provider interruption checks signal termination, `KeyboardInterrupt` suffix and
+child cleanup, rather than language/interpreter traceback frames that vary with
+signal arrival. Tests use only an owned shell stand-in for Codex, never a real
+session or paid provider call. Direct Python compatibility and exceptional
+profiles/recovery remain in partial unit 17.
+
+Verification: 24 native CLI cases, 106 existing card/reference/identity/ledger
+cases (105 initial passes plus one repaired stale Python-only resume expectation),
+eight selected Python 3.14 cases, 65 Rust card tests and 178 transported macOS
+ARM64 checks passed. The real TTY partial-EOF oracle preloads noncanonical VMIN0
+input, avoiding timing-dependent coalescing of consecutive canonical VEOFs.
+Integer/flush wording remains bound to the artifact builder's profile; these
+checks do not claim arbitrary interpreter-profile or exact-batch Linux parity.

@@ -1,10 +1,11 @@
 //! Owner: work-cards read/context/closed-settlement ingress and JSON formatting.
 //! Allowed: std, serde_json, card owners and existing source/FS/time readers.
-//! Forbidden: SQL, schema creation/migrations, resume, lifecycle authority, caches.
+//! Forbidden: SQL, schema creation/migrations, lifecycle authority, caches.
 //! Callers/tests: launcher_main; native card tests and transported smoke.
 use crate::{
-    cards_identity::CardRepository, cards_recall::CardRecall, cards_transaction::CardTransaction,
-    cards_store::CardStore, discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard,
+    cards_identity::CardRepository, cards_recall::CardRecall,
+    cards_resume_process::CardResumeProcess, cards_store::CardStore,
+    cards_transaction::CardTransaction, discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard,
     status_snapshot::StatusSnapshot, statusline::Renderer,
 };
 use serde_json::{json, Value};
@@ -19,6 +20,10 @@ use std::{
 pub(crate) struct CardsProcess;
 
 impl CardsProcess {
+    pub(crate) fn resolve(launcher: &OsString, project: PathBuf) -> Option<(PathBuf, PathBuf)> {
+        context(launcher, project)
+    }
+
     pub(crate) fn state_home() -> Option<PathBuf> {
         state_home()
     }
@@ -64,6 +69,9 @@ impl CardsProcess {
         // Keep bundled dependency notices in distributed binaries as well as
         // in the source checkout required by the installation contract.
         std::hint::black_box(include_str!("../SQLITE-NOTICES.txt"));
+        if let Some(code) = CardResumeProcess::run(launcher, &args[1..]) {
+            return code;
+        }
         if let Some((code, output)) = close(launcher, &args[1..]) {
             let result = if code == 0 {
                 std::io::stdout().write_all(output.as_bytes())
@@ -196,7 +204,10 @@ fn close(launcher: &OsString, args: &[OsString]) -> Option<(i32, String)> {
             2,
             "work cards: no active card with that work id in this repository\n".into(),
         ),
-        Err(error) => (2, format!("work cards: {}\n", CardTransaction::message(error))),
+        Err(error) => (
+            2,
+            format!("work cards: {}\n", CardTransaction::message(error)),
+        ),
     })
 }
 

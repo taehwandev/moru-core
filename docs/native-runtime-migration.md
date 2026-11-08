@@ -135,9 +135,11 @@ adds ordinary absolute/current-home path lookup before registered candidates.
 Quotes, escapes, unusual whitespace and uncertain inputs retain Python. This
 also extends units 3 and 26 without changing inventory coverage counts.
 
-The [native work-card query](runtime-performance/native-work-cards.md) adds
-read-only list/list-all execution with bundled SQLite. Internal Python readers,
-write/close/resume operations and canonical recovery remain with Python.
+The [native work-card extension](runtime-performance/native-work-cards.md) adds
+public listing, recorded-session resume and bounded close, plus internal typed
+reads, recall, bootstrap SQL and DML through guarded bridges. Python still owns
+path/initial-connection admission, direct compatibility and exceptional recovery;
+unit 17 remains partial.
 
 The [native mailbox status increment](runtime-performance/native-mailbox-status.md)
 upgrades the already-covered mailbox CLI: empty inboxes and acknowledgement
@@ -171,7 +173,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
-| 17 | `scripts/agent_work_cards.py` | work-cards | Partial native CLI, typed reads, recall, bootstrap SQL and internal DML; Python path/connection admission, resume and recovery retained | Exact values/order, schema/error timing, partial upgrades, retention/reactivation and no replay; bundled consumer without Python |
+| 17 | `scripts/agent_work_cards.py` | work-cards | Partial native CLI including explicit Codex picker, typed reads, recall, bootstrap SQL and DML; Python admission/direct compatibility/recovery retained | Exact session binding/selection and child cleanup, schema/error timing, retention/reactivation and no replay; bundled consumer without Python |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |
