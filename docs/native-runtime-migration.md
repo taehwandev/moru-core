@@ -171,7 +171,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
-| 17 | `scripts/agent_work_cards.py` | work-cards | Partial native CLI and internal typed SQLite reads; Python writes/recovery retained | Exact values/order, repository/schema/WAL/lock behavior; bundled consumer without Python |
+| 17 | `scripts/agent_work_cards.py` | work-cards | Partial native CLI, typed SQLite reads and bounded liveness/recall context; Python writes/recovery retained | Exact values/order, repository/schema/WAL/lock behavior and settlement dispatch; bundled consumer without Python |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |

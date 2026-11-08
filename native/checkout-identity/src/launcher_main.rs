@@ -11,6 +11,7 @@ mod callback_replay;
 mod callback_state;
 mod cards_identity;
 mod cards_process;
+mod cards_recall;
 mod cards_settlement;
 mod cards_store;
 mod completion_process;

@@ -1,7 +1,7 @@
 """Read-only native work-card snapshots with exact SQLite cell reconstruction.
 
 Owner: NativeCards. Allowed: stdlib, canonical repository-key reader, NativeProbe. Forbidden: SQL, filesystem
-writes, schema changes or policy. Callers/tests: agent_work_cards.list_cards;
+writes, schema changes or Python policy algorithms. Callers/tests: agent_work_cards;
 test_native_card_snapshot verifies real ingress, types, order and atomic refusal.
 """
 from __future__ import annotations
@@ -58,19 +58,39 @@ def _rows(value):
     return result
 
 
+def _request(project, operation, fields):
+    if type(project) is not type(Path()):
+        return None
+    try:
+        if not NativeProbe.available():
+            return None
+        # Retain the canonical per-read-scope identity memo.
+        repo = repository_key(project)
+        return NativeProbe.request("--cards-probe", operation, {"repo": repo, **fields})
+    except (OSError, ValueError, RuntimeError):
+        return None
+
+
 class NativeCards:
     @staticmethod
     def list(project, include_settled):
-        if type(project) is not type(Path()) or type(include_settled) is not bool:
+        if type(include_settled) is not bool:
             return None
-        try:
-            if not NativeProbe.available():
+        return _rows(_request(project, "list", {"include_settled": include_settled}))
+
+    @staticmethod
+    def context(project, current_work_id):
+        if type(current_work_id) is not str:
+            return None
+        value = _request(project, "context", {"current_work_id": current_work_id})
+        if (type(value) is not dict or set(value) != {"lines", "stale"}
+                or type(value["lines"]) is not list or len(value["lines"]) > 5
+                or any(type(line) is not str for line in value["lines"])
+                or type(value["stale"]) is not list or len(value["stale"]) > 20):
+            return None
+        for pair in value["stale"]:
+            if (type(pair) is not list or len(pair) != 2 or type(pair[0]) is not str
+                    or pair[0] == current_work_id or type(pair[1]) is not str
+                    or pair[1] not in ("done", "cancelled")):
                 return None
-            # Retain the caller's per-read-scope Git identity memo, avoiding a
-            # second native Git lookup that could observe a different checkout.
-            repo = repository_key(project)
-            value = NativeProbe.request("--cards-probe", "list",
-                {"repo": repo, "include_settled": include_settled})
-        except (OSError, ValueError, RuntimeError):
-            return None
-        return _rows(value)
+        return value

@@ -64,6 +64,37 @@ def _typed_card_snapshot(native, entry, database, project, normal, no_python):
     return 2
 
 
+def _card_context(native, entry, base, project, repo, normal, empty):
+    from agent_work_cards import _SCHEMA, open_card_lines
+
+    state = base / "recall-state"
+    database = state / "work-cards/cards.sqlite3"
+    database.parent.mkdir(parents=True)
+    location = base / "recall-project"
+    (location / ".moru").mkdir(parents=True)
+    registry = location / ".moru/run-registry.json"
+    registry.write_text(json.dumps({"runs": [{"run_id": key*32, "state": status}
+        for key, status in (("a", "running"), ("b", "completed"), ("c", "cancelled"))]}))
+    with sqlite3.connect(database) as connection:
+        connection.execute(_SCHEMA)
+        connection.execute("PRAGMA user_version=3")
+        connection.executemany("INSERT INTO cards(repo,work_id,summary,command,project,state,created_at,updated_at) VALUES(?,?,?,?,?,'active',?,?)",
+            [(repo, key*32, "synthetic recall 한😀", "implement", str(location), "now", stamp)
+             for key, stamp in (("a", "3"), ("b", "2"), ("c", "1"))])
+    env = {**normal, "MORU_STATE_HOME": str(state)}
+    before = database.read_bytes(), registry.read_bytes()
+    with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+        expected = open_card_lines(project, "f"*32)
+    done = subprocess.run([str(native), str(entry), "--cards-probe", "context"],
+        input=json.dumps({"repo": repo, "current_work_id": "f"*32}).encode(),
+        capture_output=True, env={**env, "PATH": str(empty)}, cwd=project, timeout=8)
+    assert (done.returncode, done.stderr) == (0, b""), done
+    assert json.loads(done.stdout)["result"] == {"lines": expected,
+        "stale": [["b"*32, "done"], ["c"*32, "cancelled"]]}, done.stdout
+    assert before == (database.read_bytes(), registry.read_bytes())
+    return 1
+
+
 def smoke(archive):
     with tempfile.TemporaryDirectory(prefix="native-consumer-") as tmp:
         base = Path(tmp).resolve()
@@ -478,6 +509,7 @@ def smoke(archive):
         assert (done.returncode, done.stdout, done.stderr) == (2, b"", b"work cards: no active card with that work id in this repository\n"), done
         checks += 1
         checks += _typed_card_snapshot(native, entry, card_db, project, normal, {**no_python, "PATH": str(empty)})
+        checks += _card_context(native, entry, base, project, repo_key, normal, empty)
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

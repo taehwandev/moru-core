@@ -140,7 +140,7 @@ or string conversion. The adapter validates the complete response before
 returning any row. Invalid UTF-8, malformed tags, oversized output or unsupported
 state declines the whole read. SQLite's ordinary shared-memory locking remains
 in force; no immutable/no-lock shortcut is added. Public CLI float/blob fallback
-is retained. Creation, schema upgrades, internal writes, resume/liveness,
+is retained. Creation, schema upgrades, internal writes, resume,
 exceptional recovery and direct Python removal remain in unit 17's open scope.
 
 The internal-read increment passed 60 initial Python card/reference/lifecycle/
@@ -154,3 +154,38 @@ or schema error; the adapter now declines and reproducer tests preserve the
 original order. Missing stores remain absent and main database bytes unchanged.
 SQLite may still perform its normal transient shared-memory locking. Linux
 acceptance for this exact batch remains pending an authorized manual build.
+
+## Native recall context
+
+`open_card_lines` now requests native context directly. The read-only owner
+filters out current work, checks at most 20 other cards against project existence
+and their cached run registries, and renders at most three live cards plus the
+unchecked/hidden count. Only `completed` and `cancelled` are settled registry
+states; an unknown nonempty state retains the original unfinished result.
+Missing projects, registries or run IDs and settled entries produce ordered
+settlement candidates. Registry cache lifetime is one request.
+Cache keys use the original lexical dot equivalence (`p` and `./p`) without
+canonicalizing distinct aliases; the guarded read keeps its original path.
+
+The private result contains complete lines and ordered candidates. Python still
+dispatches candidates through the original `settle_card` writer when requested,
+with the original first-error abort behavior. Native policy does not write the
+database or registry. The adapter rejects an entire result containing an action
+for current work before dispatching any returned candidate. Invalid UTF-8 or
+JSON syntax retains the original empty
+registry result; unsupported parse shapes and unusual files decline before
+use. In particular `runs: null` retains its original error through rollback,
+and FIFOs/symlinks are declined before stream consumption. Rendering reads only
+fields that the original bounded algorithm reaches. Exceptional input recovery,
+all creation/upgrades and remaining internal writes remain open migration work.
+
+The context increment passed 70 initial Python cases and all 10 affected context
+cases after review corrections (71 distinct cases), 19 final Rust card tests and
+164 transported macOS ARM64 checks. Tests prohibit Python policy/SQLite replay,
+compare original recall and write ordering, and verify first-error abort and
+unchanged rows. Review found two missing checks: malformed returned actions
+could target current work, and `p`/`./p` split a cache that Python shares. Full
+result rejection now precedes any returned action, and a seeded-cache regression
+checks lexical equivalence while retaining roots, parent components and distinct
+aliases. Unsupported streams are declined within a fixed process timeout. These
+checks use synthetic state only; exact-batch Linux acceptance remains pending.

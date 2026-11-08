@@ -238,12 +238,24 @@ def _stale_state(card: dict[str, Any], cache: dict[Path, dict[str, str]]) -> str
     return ""
 
 
+def _settle_card_pairs(project: Path, pairs) -> None:
+    try:
+        for work_id, state in pairs:
+            settle_card(project, work_id, state)
+    except (OSError, ValueError, sqlite3.Error):
+        pass  # Settling is housekeeping; the listing already excludes them.
+
+
 def open_card_lines(project: Path, current_work_id: str, *, settle_stale: bool = False) -> list[str]:
     """Name other unfinished work in this repository as reference context.
 
     At most MAX_LIVENESS_CHECKS cards are checked; the rest are only counted.
     `settle_stale` (the start path) also settles the abandoned ones it found.
     """
+    native = NativeCards.context(project, current_work_id)
+    if native is not None:
+        _settle_card_pairs(project, native["stale"] if settle_stale else ())
+        return native["lines"]
     others = [card for card in list_cards(project) if card["work_id"] != current_work_id]
     if not others:
         return []
@@ -252,11 +264,7 @@ def open_card_lines(project: Path, current_work_id: str, *, settle_stale: bool =
     for card in others[:MAX_LIVENESS_CHECKS]:
         settled = _stale_state(card, cache)
         (stale if settled else live).append((card, settled))
-    try:
-        for card, settled in stale if settle_stale else ():
-            settle_card(project, card["work_id"], settled)
-    except (OSError, ValueError, sqlite3.Error):
-        pass  # Settling is housekeeping; the listing already excludes them.
+    _settle_card_pairs(project, ((card["work_id"], state) for card, state in stale) if settle_stale else ())
     unchecked = max(0, len(others) - MAX_LIVENESS_CHECKS)
     if not live and not unchecked:
         return []

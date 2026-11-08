@@ -1,11 +1,11 @@
-//! Owner: work-cards list/closed-settlement ingress and JSON formatting.
+//! Owner: work-cards read/context/closed-settlement ingress and JSON formatting.
 //! Allowed: std, serde_json, card owners and existing source/FS/time readers.
-//! Forbidden: SQL, schema creation/migrations, resume, lifecycle/liveness, caches.
+//! Forbidden: SQL, schema creation/migrations, resume, lifecycle authority, caches.
 //! Callers/tests: launcher_main; native card tests and transported smoke.
 use crate::{
-    cards_identity::CardRepository, cards_settlement::CardSettlement, cards_store::CardStore,
-    discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard, status_snapshot::StatusSnapshot,
-    statusline::Renderer,
+    cards_identity::CardRepository, cards_recall::CardRecall, cards_settlement::CardSettlement,
+    cards_store::CardStore, discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard,
+    status_snapshot::StatusSnapshot, statusline::Renderer,
 };
 use serde_json::{json, Value};
 use std::{
@@ -20,7 +20,10 @@ pub(crate) struct CardsProcess;
 
 impl CardsProcess {
     pub(crate) fn probe(launcher: &OsString, args: &[OsString]) -> i32 {
-        if args.len() != 2 || args[1] != "list" || CallbackGuard::root(launcher, "git").is_none() {
+        if args.len() != 2
+            || !matches!(args[1].to_str(), Some("list" | "context"))
+            || CallbackGuard::root(launcher, "git").is_none()
+        {
             return 125;
         }
         let mut bytes = Vec::new();
@@ -32,29 +35,13 @@ impl CardsProcess {
         {
             return 125;
         }
-        let rows = serde_json::from_slice::<Value>(&bytes)
+        let result = serde_json::from_slice::<Value>(&bytes)
             .ok()
-            .and_then(|payload| {
-                let repo = payload.get("repo")?.as_str()?;
-                if repo.len() != 24
-                    || !repo
-                        .bytes()
-                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-                {
-                    return None;
-                }
-                let all = payload.get("include_settled")?.as_bool()?;
-                let state = state_home()?;
-                let Some(store) = CardStore::open(&state.join("work-cards/cards.sqlite3"))? else {
-                    return Some(json!([]));
-                };
-                store.snapshot(repo, all)
-            });
-        let Some(rows) = rows else {
+            .and_then(|payload| probe_result(&payload, args[1] == "context"));
+        let Some(result) = result else {
             return 125;
         };
-        let Ok(mut output) =
-            serde_json::to_vec(&json!({"schema_version":1,"result":{"rows":rows}}))
+        let Ok(mut output) = serde_json::to_vec(&json!({"schema_version":1,"result":result}))
         else {
             return 125;
         };
@@ -88,6 +75,36 @@ impl CardsProcess {
             Ok(()) => 0,
             Err(_) => 1,
         }
+    }
+}
+
+fn probe_result(payload: &Value, context: bool) -> Option<Value> {
+    let repo = payload.get("repo")?.as_str()?;
+    if repo.len() != 24
+        || !repo
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        return None;
+    }
+    let current = if context {
+        Some(payload.get("current_work_id")?.as_str()?)
+    } else {
+        None
+    };
+    let all = if context {
+        false
+    } else {
+        payload.get("include_settled")?.as_bool()?
+    };
+    let state = state_home()?;
+    let rows = match CardStore::open(&state.join("work-cards/cards.sqlite3"))? {
+        Some(store) => store.snapshot(repo, all)?,
+        None => json!([]),
+    };
+    match current {
+        Some(current) => CardRecall::evaluate(&rows, current),
+        None => Some(json!({"rows":rows})),
     }
 }
 
