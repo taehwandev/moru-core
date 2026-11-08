@@ -321,22 +321,37 @@ def coalesce_next_route_adapter(path: Path, declarations: list[dict[str, Any]]) 
     This does not admit an additional public helper or relax block/import checks.
     Class and type declarations remain ordinary owners even with reserved names.
     """
-    is_app_route = path.name in {"route.ts", "route.tsx", "route.js", "route.jsx"} and (
-        path.parts[:2] == ("src", "app") or path.parts[:1] == ("app",)
-    )
-    if not is_app_route:
+    in_app_router = path.parts[:2] == ("src", "app") or path.parts[:1] == ("app",)
+    if in_app_router and path.stem in NEXT_PAGE_FILE_STEMS and path.suffix in NEXT_ENTRY_SUFFIXES:
+        # A page/layout must export its segment config and metadata hooks beside the default component.
+        page = [item for item in declarations if item["source"].startswith("export default ")
+                and item["kind"] in {"function", "const"}]
+        reserved = [item for item in declarations if item["exported"] and item["kind"] in {"function", "const"}
+                    and item["name"] in NEXT_SEGMENT_CONFIG | NEXT_PAGE_HOOKS]
+        return next_adapter_family(declarations, page + reserved, "NextPageAdapter") if page and reserved else declarations
+    if not (in_app_router and path.stem == "route" and path.suffix in NEXT_ENTRY_SUFFIXES):
         return declarations
     methods = {"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}
-    configuration = {"dynamic", "dynamicParams", "revalidate", "fetchCache", "runtime", "preferredRegion", "maxDuration"}
     adapter = [item for item in declarations if item["exported"] and item["kind"] in {"function", "const"}
-               and item["name"] in methods | configuration]
+               and item["name"] in methods | NEXT_SEGMENT_CONFIG]
     if len(adapter) < 2 or not any(item["name"] in methods for item in adapter):
         return declarations
-    names = {item["name"] for item in adapter}
+    return next_adapter_family(declarations, adapter, "NextRouteAdapter")
+
+
+NEXT_ENTRY_SUFFIXES = {".ts", ".tsx", ".js", ".jsx"}
+NEXT_PAGE_FILE_STEMS = {"page", "layout", "template", "default"}
+NEXT_SEGMENT_CONFIG = {"dynamic", "dynamicParams", "revalidate", "fetchCache", "runtime", "preferredRegion", "maxDuration"}
+NEXT_PAGE_HOOKS = {"generateMetadata", "generateStaticParams", "generateViewport", "metadata", "viewport"}
+
+
+def next_adapter_family(
+    declarations: list[dict[str, Any]], adapter: list[dict[str, Any]], name: str,
+) -> list[dict[str, Any]]:
     first = min(adapter, key=lambda item: item["line"])
-    family = {**first, "kind": "framework_adapter", "name": "NextRouteAdapter", "role": "contract",
+    family = {**first, "kind": "framework_adapter", "name": name, "role": "contract",
               "references": set().union(*(item.get("references", set()) for item in adapter))}
-    return [item for item in declarations if item["name"] not in names or item not in adapter] + [family]
+    return [item for item in declarations if item not in adapter] + [family]
 
 
 def retain_legacy_typescript_support_types(
