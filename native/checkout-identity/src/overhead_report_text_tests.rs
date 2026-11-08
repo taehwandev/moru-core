@@ -1,4 +1,5 @@
 use super::OverheadReportText;
+use crate::python_json::PythonJson;
 use serde_json::{json, Value};
 
 fn report() -> Value {
@@ -89,4 +90,70 @@ fn malformed_markdown_shapes_and_excessive_json_depth_decline() {
         nested = Value::Array(vec![nested]);
     }
     assert!(OverheadReportText::json(&nested).is_none());
+}
+
+#[test]
+fn lossless_json_preserves_large_integers_nonfinite_values_and_duplicate_order() {
+    let value = PythonJson::parse(concat!(
+        "[184467440737095516160123456789,-184467440737095516160123456789,",
+        "NaN,Infinity,-Infinity,-0.0,{\"b\":1,\"a\":0,\"b\":NaN}]"
+    ))
+    .unwrap();
+    assert_eq!(
+        OverheadReportText::json_value(&value).unwrap(),
+        concat!(
+        "[\n  184467440737095516160123456789,\n  -184467440737095516160123456789,\n",
+        "  NaN,\n  Infinity,\n  -Infinity,\n  -0.0,\n  {\n    \"b\": NaN,\n    \"a\": 0\n  }\n]"
+    )
+    );
+}
+
+#[test]
+fn lossless_markdown_uses_python_display_and_json_lifecycle_spelling() {
+    let value = PythonJson::parse(r#"{
+        "generated_at":true,"window":{"since":["한",null],"until":{"x":false}},
+        "all":{"sessions":184467440737095516160123456789,
+            "assistant_turns":{"n":true,"median":NaN,"p90":-Infinity},
+            "tool_calls":{"n":null,"median":[null,true,{"한":Infinity}],"p90":{"x":false}},
+            "lifecycle_share_of_tool_calls_pct":Infinity,"injected_tokens_vs_new_input_pct":-0.0,
+            "lifecycle_calls_by_subcommand_total":{"한😀":184467440737095516160123456789,"other":[NaN,true,null]}},
+        "moru_core":{"sessions":null},"other_projects":{"sessions":[1,2]},
+        "moru_hook_latency_ms_from_transcripts":{"Stop":{"n":184467440737095516160123456789,"median":Infinity,"p90":NaN}},
+        "top_policy_notes":[{"count":true,"message":[null,{"한":NaN}]}],
+        "top_hook_denials":[{"count":184467440737095516160123456789,"message":null}]}
+    "#).unwrap();
+    let text = OverheadReportText::markdown_value(&value).unwrap();
+    assert!(text.starts_with(concat!(
+        "# Moru workflow overhead\n\nGenerated: True  \n",
+        "Window: ['한', None] .. {'x': False}\n\n",
+        "Sessions: all=184467440737095516160123456789, moru-core=None, other=[1, 2]\n\n"
+    )));
+    assert!(text.contains("| assistant turns | nan | -inf | True |\n"));
+    assert!(text.contains("| tool calls | [None, True, {'한': inf}] | {'x': False} | None |\n"));
+    assert!(text.contains(
+        "- lifecycle share of tool calls: inf%\n- injected tokens vs new input: -0.0%\n"
+    ));
+    assert!(text.contains(concat!(
+        "- lifecycle subcommands: {\"\\ud55c\\ud83d\\ude00\": ",
+        "184467440737095516160123456789, \"other\": [NaN, true, null]}\n"
+    )));
+    assert!(text.contains("| Stop | 184467440737095516160123456789 | inf | nan |\n"));
+    assert!(text.ends_with(concat!(
+        "## Top policy notes\n\n1. (True) [None, {'한': nan}]\n\n",
+        "## Top hook denials\n\n1. (184467440737095516160123456789) None\n"
+    )));
+}
+
+#[test]
+fn lossless_markdown_requires_structural_objects_and_keys() {
+    for raw in [
+        "{}",
+        "null",
+        r#"{"window":[]}"#,
+        r#"{"window":{"since":"then","until":"now"}}"#,
+    ] {
+        let value = PythonJson::parse(raw).unwrap();
+        assert!(OverheadReportText::markdown_value(&value).is_none());
+    }
+    assert!(PythonJson::parse(r#""\ud800""#).is_none());
 }

@@ -48,9 +48,9 @@ Explicit `--out` or `--md` selects the complete original command before any
 output effects. Its Python writer still owns ordered partial failures (a JSON
 file can exist before a later Markdown write fails). Native computation and
 formatting remain available inside that compatibility command. This write
-phase and live stdio errors still require native ownership. Nonfinite statistics,
-large integers, unsupported JSON/text shapes and direct Python callers also
-remain in the ledger. This increment creates no completed inventory unit.
+phase and live stdio errors still require native ownership. Exceptional statistics,
+unsupported JSON/text shapes and direct Python callers also remain in the ledger.
+This increment creates no completed inventory unit.
 Current distributed bundle targets remain macOS ARM64 and Linux x86_64;
 other-host acceptance is pending until a matching manual build actually runs.
 
@@ -71,3 +71,24 @@ tests passed. The final artifact passed 159 transported checks. Reference
 comparisons use the same working directory, timestamps and source files.
 Existing developer caches are seeded explicitly and retained by the cache
 fixture; negative symlink and unknown-directory checks remain in place.
+
+The formatter now uses the shared lossless JSON value owner rather than
+converting integers through `i64` or floats through finite-only serde values.
+It retains arbitrary-size integer digits within the artifact builder's Python
+limit. JSON prints `NaN`, `Infinity` and `-Infinity`; Markdown scalar display
+prints `nan`, `inf` and `-inf`, while its nested lifecycle JSON keeps JSON spelling.
+Signed zero, insertion order, Unicode escaping and integer/float identity are
+preserved. The Python caller wraps serialized report text inside the unchanged
+strict JSON transport envelope; unrelated probes still reject nonfinite envelopes.
+The older private report-object input remains accepted. Unsupported caller
+objects, lone surrogates, excessive depth and malformed shapes still decline
+before returning a result. This extends rendering only: native statistics retain
+their documented numeric bounds and nonfinite refusal.
+
+The lossless increment passed 37 related Python tests (one existing builder-limit
+skip), 27 affected Rust tests and 161 transported macOS ARM64 checks. Five new
+process cases require the real native formatter with empty PATH and compare
+against the Python reference; three Rust cases cover lossless numeric/display
+values. Both old and text-envelope private inputs are exercised. Independent
+read-only review found no actionable defect. Linux acceptance for this exact
+batch remains pending the next authorized manual build.

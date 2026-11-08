@@ -7,6 +7,7 @@ moru_overhead_report; native report parity, refusal and transported checks.
 from __future__ import annotations
 
 import collections
+import json
 import math
 
 from support.native_probe_transport import NativeProbe
@@ -27,7 +28,13 @@ def _json_tree(value, depth=0):
 def _format_report(report, style):
     if style not in ("json", "markdown") or not NativeProbe.available() or not _json_tree(report):
         return None
-    value = NativeProbe.request("--overhead-probe", "format", {"report": report, "format": style})
+    try:
+        # Keep the strict transport envelope unchanged. The lossless native
+        # report decoder owns Python's nonfinite tokens and integer precision.
+        raw = json.dumps(report, ensure_ascii=True, allow_nan=True)
+    except (ValueError, TypeError, OverflowError):
+        return None
+    value = NativeProbe.request("--overhead-probe", "format", {"report_json": raw, "format": style})
     return (value["text"] if type(value) is dict and set(value) == {"text"}
             and type(value["text"]) is str else None)
 

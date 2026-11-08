@@ -20,6 +20,25 @@ from support.native_source_inputs import pretool_contract
 from runtime_snapshot_normalize import normalize_output
 
 
+def _lossless_report_formats(native, entry, report, env, project):
+    from moru_overhead_report import render_markdown
+
+    report = json.loads(json.dumps(report))
+    report["all"]["sessions"] = 10**100
+    report["all"]["assistant_turns"] = {"n": 1, "median": float("nan"), "p90": float("inf")}
+    report["all"]["lifecycle_calls_by_subcommand_total"] = {"한😀": 10**100}
+    with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+        expected = {"json": json.dumps(report, ensure_ascii=False, indent=2),
+                    "markdown": render_markdown(report)}
+    for style, text in expected.items():
+        done = subprocess.run([str(native), str(entry), "--overhead-probe", "format"],
+            input=json.dumps({"report_json": json.dumps(report), "format": style}, allow_nan=False).encode(),
+            capture_output=True, env=env, cwd=project, timeout=8)
+        assert (done.returncode, done.stderr) == (0, b""), done
+        assert json.loads(done.stdout)["result"]["text"] == text, done.stdout
+    return len(expected)
+
+
 def smoke(archive):
     with tempfile.TemporaryDirectory(prefix="native-consumer-") as tmp:
         base = Path(tmp).resolve()
@@ -147,6 +166,7 @@ def smoke(archive):
             else:
                 assert text.startswith("# Moru workflow overhead\n") and "| assistant turns | 1.0 | 1.0 | 1 |" in text,text
             checks += 1
+        checks += _lossless_report_formats(native, entry, report, env, project)
         overhead["path"] = "/dev/stdin"
         done = subprocess.run([str(native), str(entry), "--overhead-probe", "session"],
             input=json.dumps(overhead).encode(), capture_output=True, env=env, cwd=project, timeout=8)

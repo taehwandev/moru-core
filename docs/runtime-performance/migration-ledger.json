@@ -526,7 +526,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "overhead-report; direct Python compatibility CLI",
-      "remaining": "Native ordinary stdout CLI, collection/windows, session tally, group/timing statistics and JSON/Markdown formatting are connected. Complete explicit output-file writers and ordered failure/stdio behavior, exceptional numeric and timestamp shapes, glob/encoding/TTY gaps and direct Python removal. This is partial native execution; supporting adapter/build Python remains owned scope.",
+      "remaining": "Native ordinary stdout CLI, collection/windows, session tally, group/timing statistics and lossless JSON/Markdown numeric formatting are connected. Complete explicit output-file writers and ordered failure/stdio behavior, exceptional statistics and timestamp shapes, surrogate/depth, glob/encoding/TTY gaps and direct Python removal. This is partial native execution; supporting adapter/build Python remains owned scope.",
       "verification": {
         "native_owner": "native/checkout-identity/src/overhead_session.rs",
         "native_report_owner": "native/checkout-identity/src/overhead_aggregate.rs",
@@ -537,7 +537,9 @@
         "portable": "PASS:159 final transported macOS ARM64 checks, including public report stdout and private JSON/Markdown formatting with empty PATH. Exact-batch Linux x86_64 CI remains pending; workflow stays manual-only.",
         "native_cli_owner": "native/checkout-identity/src/overhead_command.rs",
         "cli_behavior": "PASS:9 native stdout/format/argument/writer-fallback process tests;42 distinct related Python checks observed (1 builder skip).159 initial Rust tests and24 affected tests after empty-path/width repairs passed. Native/Python full JSON and Markdown bytes, mtime microseconds, hidden/subagent selection and shared-before-min-turn filtering match.",
-        "cli_negative_authority": "PASS:empty-PATH native stdout and formatting; unsupported files and explicit output writes defer before output. Original writer invoked once; a failed Markdown write preserves its earlier JSON file. Source/encoding/TTY and exceptional-value gaps remain open."
+        "cli_negative_authority": "PASS:empty-PATH native stdout and formatting; unsupported files and explicit output writes defer before output. Original writer invoked once; a failed Markdown write preserves its earlier JSON file. Source/encoding/TTY and exceptional-value gaps remain open.",
+        "format_behavior": "PASS:37 related Python tests completed (1 existing builder-limit skip),27 affected Rust tests and161 transported macOS ARM64 checks. Lossless arbitrary integers, NaN/Infinity JSON versus nan/inf Markdown, signed zero, ordered Unicode containers and the old/new format probe inputs match the Python reference. Exact-batch Linux x86_64 acceptance remains pending.",
+        "format_negative_authority": "PASS: actual native formatting with empty PATH; malformed report JSON, unsupported depth/surrogate values, custom objects, cycles and forced-Python rollback decline without output or serialization side effects. The shared strict probe transport, numeric computation bounds and whole-command file-writer fallback are retained."
       }
     },
     {

@@ -1,28 +1,38 @@
-//! owner: OverheadReportText; allowed imports: serde_json, PythonJson Number, std;
+//! owner: OverheadReportText; allowed imports: serde_json, shared PythonJson values, std;
 //! forbidden imports: I/O, runtime Python, providers; callers/tests: overhead report CLI;
 //! verification: JSON/Markdown formatting parity with synthetic reports.
-use crate::python_json::Number;
-use serde_json::Value;
+use crate::python_json::{Number, PythonJson, Value};
 
 pub(crate) struct OverheadReportText;
 
 impl OverheadReportText {
-    pub(crate) fn json(report: &Value) -> Option<String> {
+    pub(crate) fn json(report: &serde_json::Value) -> Option<String> {
+        Self::json_value(&PythonJson::parse(&report.to_string())?)
+    }
+
+    pub(crate) fn json_value(report: &Value) -> Option<String> {
         let mut text = String::new();
         Self::write_json(report, 0, true, false, &mut text)?;
         Some(text)
     }
 
-    pub(crate) fn markdown(report: &Value) -> Option<String> {
+    pub(crate) fn markdown(report: &serde_json::Value) -> Option<String> {
+        Self::markdown_value(&PythonJson::parse(&report.to_string())?)
+    }
+
+    pub(crate) fn markdown_value(report: &Value) -> Option<String> {
         let window = report.get("window")?.as_object()?;
         let mut lines = vec![
             "# Moru workflow overhead".into(),
             String::new(),
-            format!("Generated: {}  ", report.get("generated_at")?.as_str()?),
+            format!(
+                "Generated: {}  ",
+                PythonJson::string(report.get("generated_at")?)
+            ),
             format!(
                 "Window: {} .. {}",
-                window.get("since")?.as_str()?,
-                window.get("until")?.as_str()?
+                PythonJson::string(window.get("since")?),
+                PythonJson::string(window.get("until")?)
             ),
             String::new(),
             format!(
@@ -45,13 +55,14 @@ impl OverheadReportText {
         for (key, value) in report
             .get("moru_hook_latency_ms_from_transcripts")?
             .as_object()?
+            .iter()
         {
             let stats = value.as_object()?;
             lines.push(format!(
                 "| {key} | {} | {} | {} |",
-                Self::display(stats.get("n"))?,
-                Self::display(stats.get("median"))?,
-                Self::display(stats.get("p90"))?
+                Self::display(stats.get("n")),
+                Self::display(stats.get("median")),
+                Self::display(stats.get("p90"))
             ));
         }
         for (title, key) in [
@@ -63,16 +74,16 @@ impl OverheadReportText {
                 lines.push(format!(
                     "{}. ({}) {}",
                     index + 1,
-                    Self::number(item.get("count")?.as_number()?)?,
-                    item.get("message")?.as_str()?
+                    PythonJson::string(item.get("count")?),
+                    PythonJson::string(item.get("message")?)
                 ));
             }
         }
         Some(lines.join("\n") + "\n")
     }
 
-    fn sessions(report: &Value, name: &str) -> Option<u64> {
-        report.get(name)?.get("sessions")?.as_u64()
+    fn sessions(report: &Value, name: &str) -> Option<String> {
+        Some(PythonJson::string(report.get(name)?.get("sessions")?))
     }
 
     fn group(data: &Value, name: &str, lines: &mut Vec<String>) -> Option<()> {
@@ -97,16 +108,18 @@ impl OverheadReportText {
             ("Moru-injected tokens (chars/4)", "moru_injected_tokens_est"),
         ] {
             let stats = match data.get(key) {
-                None | Some(Value::Null) => None,
-                Some(Value::Object(stats)) => Some(stats),
-                _ => return None,
+                None => None,
+                Some(value) if !PythonJson::truthy(value) => None,
+                Some(value) => Some(value.as_object()?),
             };
             let field = |key| stats.and_then(|stats| stats.get(key));
             lines.push(format!(
                 "| {label} | {} | {} | {} |",
-                Self::display(field("median"))?,
-                Self::display(field("p90"))?,
-                Self::display(field("n").or(Some(&Value::from(0))))?
+                Self::display(field("median")),
+                Self::display(field("p90")),
+                field("n")
+                    .map(PythonJson::string)
+                    .unwrap_or_else(|| "0".into())
             ));
         }
         let mut lifecycle = String::new();
@@ -122,11 +135,11 @@ impl OverheadReportText {
             String::new(),
             format!(
                 "- lifecycle share of tool calls: {}%",
-                Self::display(data.get("lifecycle_share_of_tool_calls_pct"))?
+                Self::display(data.get("lifecycle_share_of_tool_calls_pct"))
             ),
             format!(
                 "- injected tokens vs new input: {}%",
-                Self::display(data.get("injected_tokens_vs_new_input_pct"))?
+                Self::display(data.get("injected_tokens_vs_new_input_pct"))
             ),
             format!("- lifecycle subcommands: {lifecycle}"),
             String::new(),
@@ -134,23 +147,17 @@ impl OverheadReportText {
         Some(())
     }
 
-    fn display(value: Option<&Value>) -> Option<String> {
-        Some(match value.unwrap_or(&Value::Null) {
-            Value::Null => "None".into(),
-            Value::Bool(value) => if *value { "True" } else { "False" }.into(),
-            Value::String(value) => value.clone(),
-            Value::Number(value) => Self::number(value)?,
-            _ => return None,
-        })
+    fn display(value: Option<&Value>) -> String {
+        PythonJson::string(value.unwrap_or(&Value::Null))
     }
 
-    fn number(value: &serde_json::Number) -> Option<String> {
-        if value.is_f64() {
-            Some(Number::float(
-                value.as_f64().filter(|value| value.is_finite())?,
-            ))
-        } else {
-            Some(value.to_string())
+    fn number(value: &Number) -> String {
+        match value {
+            Number::Integer(value) => value.clone(),
+            Number::Float(value) if value.is_nan() => "NaN".into(),
+            Number::Float(value) if *value == f64::INFINITY => "Infinity".into(),
+            Number::Float(value) if *value == f64::NEG_INFINITY => "-Infinity".into(),
+            Number::Float(value) => Number::float(*value),
         }
     }
 
@@ -185,7 +192,7 @@ impl OverheadReportText {
         match value {
             Value::Null => out.push_str("null"),
             Value::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
-            Value::Number(value) => out.push_str(&Self::number(value)?),
+            Value::Number(value) => out.push_str(&Self::number(value)),
             Value::String(value) => out.push_str(&Self::quote(value, ascii)?),
             Value::Array(values) => {
                 out.push('[');
