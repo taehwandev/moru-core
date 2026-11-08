@@ -3,7 +3,7 @@
 //! Forbidden: SQL, schema creation/migrations, resume, lifecycle authority, caches.
 //! Callers/tests: launcher_main; native card tests and transported smoke.
 use crate::{
-    cards_identity::CardRepository, cards_recall::CardRecall, cards_settlement::CardSettlement,
+    cards_identity::CardRepository, cards_recall::CardRecall, cards_transaction::CardTransaction,
     cards_store::CardStore, discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard,
     status_snapshot::StatusSnapshot, statusline::Renderer,
 };
@@ -19,6 +19,10 @@ use std::{
 pub(crate) struct CardsProcess;
 
 impl CardsProcess {
+    pub(crate) fn state_home() -> Option<PathBuf> {
+        state_home()
+    }
+
     pub(crate) fn probe(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
             || !matches!(args[1].to_str(), Some("list" | "context"))
@@ -182,7 +186,7 @@ fn close(launcher: &OsString, args: &[OsString]) -> Option<(i32, String)> {
     let (project, home) = context(launcher, project)?;
     let repo = CardRepository::key(&project)?;
     let stamp = StatusSnapshot::capture_time()?;
-    let store = CardSettlement::open(&home.join("work-cards/cards.sqlite3"))?;
+    let store = CardTransaction::open(&home.join("work-cards/cards.sqlite3"))?;
     Some(match store.settle(&repo, work, state, &stamp) {
         Ok(true) => (
             0,
@@ -192,7 +196,7 @@ fn close(launcher: &OsString, args: &[OsString]) -> Option<(i32, String)> {
             2,
             "work cards: no active card with that work id in this repository\n".into(),
         ),
-        Err(message) => (2, format!("work cards: {message}\n")),
+        Err(error) => (2, format!("work cards: {}\n", CardTransaction::message(error))),
     })
 }
 

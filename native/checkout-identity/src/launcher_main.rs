@@ -12,7 +12,8 @@ mod callback_state;
 mod cards_identity;
 mod cards_process;
 mod cards_recall;
-mod cards_settlement;
+mod cards_transaction;
+mod cards_write_process;
 mod cards_store;
 mod completion_process;
 mod completion_progress;
@@ -141,6 +142,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "--cards-write-probe") {
+        exit(cards_write_process::CardWriteProcess::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "--cards-probe") {
         exit(cards_process::CardsProcess::probe(&launcher, &args));

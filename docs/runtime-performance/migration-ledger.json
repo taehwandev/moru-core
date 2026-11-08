@@ -252,14 +252,16 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "work-cards",
-      "remaining": "Native internal listing covers typed SQLite cells/order; context selection covers bounded project/registry liveness and recall rendering. Port card creation/upgrades, open and internal writes, resume, exceptional read/registry recovery and direct Python removal; close currently covers only existing canonical v3 WAL stores.",
-      "supporting_sources": ["scripts/support/native_cards.py"],
+      "remaining": "Native internal listing and recall cover typed SQLite cells/order and bounded liveness. Internal open/reactivation/retention and settlement DML run natively after original Python bootstrap/validation. Port bootstrap/schema upgrades, resume, exceptional read/registry recovery, unsupported/custom DML and direct Python removal; public close retains its narrower canonical-store eligibility.",
+      "supporting_sources": ["scripts/support/native_card_write.py", "scripts/support/native_cards.py"],
       "verification": {
         "bounded_close": "Existing canonical v3 WAL close: native/Python state and timestamp checks, repository isolation, WAL read snapshots and no-Python delivery; other work-card behaviors remain open. See native-work-cards.md.",
         "internal_read": "PASS:60 initial card/reference/lifecycle/identity/ledger tests,10 affected snapshot tests after review correction (61 distinct Python cases),10 Rust card tests and163 final transported macOS ARM64 checks. Native-required internal reads preserve SQLite integer/real/text/null/blob types, column order, generated columns, legacy defaults, repository identity memo and committed WAL snapshots.",
         "internal_negative_authority": "PASS: no store/table creation or database-byte changes; unsupported versions/indexes/invalid UTF8 and malformed typed results decline atomically. Independent review found and verified repair of early RuntimeError lookup replacing original missing-store/schema outcomes. Private transported snapshots run with empty PATH. Creation, migration, internal writes and recovery remain open; exact-batch Linux acceptance pending.",
         "context_behavior": "PASS:70 initial Python cases and10 affected context cases after review corrections (71distinct),19 final Rust card tests and164 transported macOS ARM64 checks. Native-required context covers current exclusion, first20/first3 limits, Unicode/lazy fields, registry coercion and malformed input behavior, ordered stale decisions and original writer dispatch/abort semantics. Private transported context runs without Python or Git on PATH.",
-        "context_negative_authority": "PASS: native policy reads only; no DB/registry changes before original writer dispatch. FIFO/symlink registry input declines before consumption; runs:null preserves original error via rollback. Independent review repaired whole-response rejection of current-card actions (zero returned-action writes) and lexical dot alias cache equivalence without merging distinct paths. Exceptional recovery/writes and exact-batch Linux acceptance remain open."
+        "context_negative_authority": "PASS: native policy reads only; no DB/registry changes before original writer dispatch. FIFO/symlink registry input declines before consumption; runs:null preserves original error via rollback. Independent review repaired whole-response rejection of current-card actions (zero returned-action writes) and lexical dot alias cache equivalence without merging distinct paths. Exceptional recovery/writes and exact-batch Linux acceptance remain open.",
+        "internal_dml": "PASS:87 final Python3.9 card/reference/lifecycle/identity/ledger cases,2 Python3.14 error/FK oracle cases,31 Rust card tests and169 transported macOS ARM64 checks. Original bootstrap/validation order precedes native open/reactivation/global90day pruning and settlement. Twelve transaction tests cover all8known ALTER layouts, unknown schema/lock guards, creation-time retention and rollback of failed DELETE/COMMIT/UPDATE. Unit17 remains partial; exact-batch Linux acceptance pending.",
+        "internal_dml_negative_authority": "PASS: parent SQL traces prove native DML without legacy INSERT/UPDATE/DELETE replay. Real committed-child/lost-response and timeout/nonzero/nonquiet125/malformed/duplicate output tests prohibit replay; old installed protocols decline via a separate read-only capability exchange. Initial85case suite failed14errors/2failures on old installed binaries; repaired source and regression test pass final87. Independent review found bundled SQLite FK default could cascade into other tables; actual parent FK mode is now passed/set/verified before BEGIN with CASCADE/RESTRICT oracle parity. CLI declines incoming FKs. No real user fixture, schema change, remote build or release is claimed."
       }
     },
     {
@@ -935,6 +937,7 @@
     "scripts/support/marketing_catalog.py",
     "scripts/support/moru_run_state.py",
     "scripts/support/native_bundle.py",
+    "scripts/support/native_card_write.py",
     "scripts/support/native_cards.py",
     "scripts/support/native_launcher_install.py",
     "scripts/support/native_overhead.py",

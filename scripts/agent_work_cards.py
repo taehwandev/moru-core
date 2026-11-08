@@ -27,6 +27,7 @@ from support.global_state import project_state_dir_target
 from agent_state_read import REGISTRY_FILENAME
 from support.global_state import global_state_dir, user_store_write_error
 from support.native_cards import NativeCards
+from support.native_card_write import NativeCardWrite
 
 
 # Version 3 retains the runtime session after a task worktree is removed.
@@ -146,6 +147,10 @@ def open_card(
     now = _now()
     run_id = _work_id(run_id) if run_id else work_id
     with closing(_connect()) as connection, connection:
+        values = (repository_key(project), _work_id(work_id), _summary(summary), command,
+                  str(project.resolve()), now.isoformat(), now.isoformat(), run_id, runtime, session_id)
+        if NativeCardWrite.open(connection, values, now, IDLE_RETENTION) is not None:
+            return
         connection.execute(
             "INSERT INTO cards (repo, work_id, summary, command, project, state, "
             "created_at, updated_at, run_id, runtime, session_id) "
@@ -154,8 +159,7 @@ def open_card(
             "command = excluded.command, project = excluded.project, "
             "state = 'active', updated_at = excluded.updated_at, run_id = excluded.run_id, "
             "runtime = excluded.runtime, session_id = excluded.session_id",
-            (repository_key(project), _work_id(work_id), _summary(summary), command,
-             str(project.resolve()), now.isoformat(), now.isoformat(), run_id, runtime, session_id),
+            values,
         )
         connection.execute(
             "DELETE FROM cards WHERE updated_at < ?", ((now - IDLE_RETENTION).isoformat(),)
@@ -167,10 +171,14 @@ def settle_card(project: Path, work_id: str, state: str) -> bool:
     if state not in STATES[1:]:
         raise ValueError(f"cards settle only to {STATES[1:]}")
     with closing(_connect()) as connection, connection:
+        values = (state, _now().isoformat(), repository_key(project), _work_id(work_id))
+        native = NativeCardWrite.settle(connection, values)
+        if native is not None:
+            return native
         changed = connection.execute(
             "UPDATE cards SET state = ?, updated_at = ? "
             "WHERE repo = ? AND work_id = ? AND state = 'active'",
-            (state, _now().isoformat(), repository_key(project), _work_id(work_id)),
+            values,
         ).rowcount
     return bool(changed)
 

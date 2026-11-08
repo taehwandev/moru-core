@@ -95,6 +95,42 @@ def _card_context(native, entry, base, project, repo, normal, empty):
     return 1
 
 
+def _card_writes(native, entry, base, project, repo, normal, empty):
+    from agent_work_cards import _SCHEMA
+
+    state = base / "write-state"
+    database = state / "work-cards/cards.sqlite3"
+    database.parent.mkdir(parents=True)
+    with sqlite3.connect(database) as connection:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute(_SCHEMA)
+        connection.execute("PRAGMA user_version=3")
+        connection.execute("INSERT INTO cards VALUES(?,?,?,?,?,'done',?,?,?,'','')",
+            ("other", "c"*32, "expired", "test", str(project), "old", "0001", "c"*32))
+    env = {**normal, "MORU_STATE_HOME": str(state), "PATH": str(empty)}
+    def request(operation, values):
+        done = subprocess.run([str(native), str(entry), "--cards-write-probe", operation],
+            input=json.dumps({"values":values,"foreign_keys":False}).encode(),capture_output=True,env=env,cwd=project,timeout=8)
+        assert (done.returncode, done.stderr) == (0, b""), done
+        return json.loads(done.stdout)["result"]["changed"]
+    first = "2026-11-08T01:02:03.123456+00:00"
+    second = "2026-11-09T01:02:03+00:00"
+    values = [repo, "a"*32, "synthetic 한😀", "implement", str(project), first, first, "b"*32, "codex", "opaque"]
+    assert request("open", values) is True
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT work_id FROM cards").fetchall() == [("a"*32,)]
+    assert request("settle", ["done", first, repo, "a"*32]) is True
+    values[5:7] = [second, second]
+    values[2] = "reactivated"
+    assert request("open", values) is True
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT state,created_at,updated_at,summary FROM cards").fetchone() == (
+            "active", first, second, "reactivated")
+    assert request("settle", ["cancelled", second, repo, "a"*32]) is True
+    assert request("settle", ["done", second, repo, "a"*32]) is False
+    return 5
+
+
 def smoke(archive):
     with tempfile.TemporaryDirectory(prefix="native-consumer-") as tmp:
         base = Path(tmp).resolve()
@@ -510,6 +546,7 @@ def smoke(archive):
         checks += 1
         checks += _typed_card_snapshot(native, entry, card_db, project, normal, {**no_python, "PATH": str(empty)})
         checks += _card_context(native, entry, base, project, repo_key, normal, empty)
+        checks += _card_writes(native, entry, base, project, repo_key, normal, empty)
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

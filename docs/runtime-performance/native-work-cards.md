@@ -10,9 +10,8 @@ type: ai-generated
 
 The generated launcher handles `work-cards [--project PATH] list [--all]` in
 Rust. Internal Python card callers now use the private native snapshot reader
-described below. The existing module retains writes, migrations, resume,
-liveness and error/recovery beyond the bounded close
-extension below. This
+described below. The existing module retains bootstrap, migrations, resume
+and exceptional recovery beyond the bounded native extensions below. This
 extends one already-covered inventory boundary without adding another entry.
 
 Open only an existing database with SQLite read-only flags. Missing stores,
@@ -81,7 +80,7 @@ the later authorized main integration, push and local activation batches.
 ## Existing-store settlement
 
 The full migration Goal next extends `work-cards [--project PATH] close WORK_ID`
-with optional `--state done|cancelled`. `CardSettlement` owns one transaction;
+with optional `--state done|cancelled`. `CardTransaction` owns one transaction;
 the CLI owns arguments/output and reuses the repository identity, source guard,
 path validation and UTC formatter. No general SQL operation is exposed.
 
@@ -189,3 +188,63 @@ result rejection now precedes any returned action, and a seeded-cache regression
 checks lexical equivalence while retaining roots, parent components and distinct
 aliases. Unsupported streams are declined within a fixed process timeout. These
 checks use synthetic state only; exact-batch Linux acceptance remains pending.
+
+## Internal card transactions
+
+`open_card` and `settle_card` retain their original Python bootstrap and argument
+evaluation order, then offer the DML to `CardTransaction`. Opening inserts or
+reactivates the repository/work pair, preserves its original creation timestamp,
+refreshes its current run/session fields and prunes all rows whose update text
+precedes the 90-day cutoff. Upsert and pruning commit together. Settlement changes
+only an active matching pair and returns the original boolean. Native does not
+create files, upgrade schemas or receive arbitrary SQL/database paths.
+
+The private ingress accepts canonical v3 WAL stores, including the known column
+orders produced by the existing legacy bootstrap. A writer reservation protects
+schema inspection and DML. Unknown schemas, constraints, indexes, triggers,
+unsupported arguments and busy stores decline before any DML; Python then owns
+the original operation and timeout. The public close CLI keeps its previous,
+narrower schema admission. No stored format or schema version changes.
+The private adapter reads the actual parent connection's foreign-key setting
+and applies/verifies it before reserving the native writer. This matters because
+bundled SQLite enables foreign keys by default while supported Python builds
+can default to disabled. Retention therefore preserves the original dependent
+rows, cascades or constraint failures. Public CLI close cannot inspect a live
+Python connection and declines incoming foreign-key schemas to its original
+owner. Unrelated tables without incoming card references remain eligible.
+
+Writes use a separate effect-aware transport. A read-only capability exchange
+first rejects old installed binaries without ever starting their writer. Only a
+failure before writer creation or an empty exit-125 response permits Python
+execution. Once a child may
+have attempted DML, timeout, malformed/duplicate/oversized output, stderr or an
+unexpected exit raises an error without replay. The child is killed and reaped
+on interrupted communication. A structured SQLite failure keeps its class and
+message; Python 3.11+ also retains the extended code/name. The mapping follows
+the selected interpreter: [CPython 3.9](https://github.com/python/cpython/blob/3.9/Modules/_sqlite/util.c)
+and [3.11+](https://github.com/python/cpython/blob/3.11/Modules/_sqlite/util.c)
+differ for misuse/range failures. This protocol never uses the read-only probe's
+retry/fallback behavior.
+
+Bootstrap/schema upgrades, resume, exceptional read/registry recovery,
+unsupported customized writes and direct Python retirement remain open in unit
+17. The new Python file is transport/eligibility glue and remains in the full
+migration ledger; this increment does not claim full native card ownership.
+
+Final local verification passes 87 Python 3.9 card/reference/lifecycle/identity/
+ledger cases, two selected Python 3.14 error/FK oracle cases, 31 Rust card tests
+and 169 transported macOS ARM64 checks. The new consumer checks run native
+insert, reactivation, global pruning and both settlement results with no Python
+or Git on PATH. Parent SQL traces prove supported public APIs use native DML.
+Fault peers prove that actual committed child effects survive lost responses
+without a second parent write. Transaction tests exercise all eight bootstrap
+layouts, quote/token distinctions and DELETE/COMMIT/UPDATE rollback.
+
+The initial 85-case Python suite exposed stale installed launchers: 14 errors
+and two lifecycle failures. Read-only capability negotiation and an old-protocol
+regression repair that boundary. Independent review additionally exposed the
+SQLite foreign-key default difference; Python/native CASCADE and RESTRICT
+oracles now compare exact card and dependent-table outcomes under both settings.
+The final suite and independent correction review pass. All fixtures are
+synthetic. Exact-batch Linux CI remains pending; no release or speed claim is
+made by this local increment.
