@@ -44,7 +44,7 @@ jobs:
           PYTHONPATH=scripts:tests python3 -B tests/run_native_session.py -m unittest \
             test_native_bundle test_native_migration_ledger test_checkout_identity_runtime test_native_stable_launcher \
             test_native_statusline test_native_runtime_status test_native_pretool test_native_pretool_files \
-            test_native_pretool_git test_native_pretool_queries test_native_registry_read test_native_overhead_session test_native_overhead_report \
+            test_native_pretool_git test_native_pretool_queries test_native_registry_read test_native_overhead_session test_native_overhead_report test_native_overhead_cli \
             test_native_mailbox test_native_stop test_native_next test_native_next_active test_native_next_ledger test_native_manifest_checks test_native_figma_validate test_native_figma_decode test_agent_review_rust_visibility \
             test_native_next_freshness test_native_next_session test_native_next_owner test_native_next_discovery test_native_next_state_root test_native_next_cli test_native_next_ps test_native_next_paths test_native_next_verification \
             test_native_project_discovery test_native_project_registry test_native_workspace_discovery \

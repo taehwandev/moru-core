@@ -37,8 +37,18 @@ functions. Private requests inherit source/environment checks and bounded
 transport, file size and output limits; descriptors, FIFOs, symlinks and
 unstable reads are declined. No stream is consumed and replayed.
 
-The direct CLI, file collection/window grammar, report serialization and
-Markdown/output writers still need native ownership. Nonfinite statistics,
+The installed `overhead-report` alias now builds ordinary stdout reports without
+Python. Its native path owns argument parsing, UTC generation and date windows,
+filesystem enumeration in glob order, hidden/excluded files, optional subagent
+collection, mtime filtering and report assembly. Shared hook counters include
+sessions removed by `--min-turns`, matching the original ordering. Python
+compatibility callers also use the native JSON and Markdown formatters.
+
+Explicit `--out` or `--md` selects the complete original command before any
+output effects. Its Python writer still owns ordered partial failures (a JSON
+file can exist before a later Markdown write fails). Native computation and
+formatting remain available inside that compatibility command. This write
+phase and live stdio errors still require native ownership. Nonfinite statistics,
 large integers, unsupported JSON/text shapes and direct Python callers also
 remain in the ledger. This increment creates no completed inventory unit.
 Current distributed bundle targets remain macOS ARM64 and Linux x86_64;
@@ -52,3 +62,12 @@ builder-specific skips), 147 Rust tests and 156 transported checks. The tests
 compare numeric types, signed zero, dictionary order and rendered Markdown as
 well as values. Independent code review and executable negative cases repaired
 malformed response overflow and premature input integer-to-float conversion.
+
+The stdout CLI increment adds nine process-level collection/format/argument and
+writer-fallback tests. Across related suites, 42 distinct Python checks were
+observed (one builder-specific skip). The initial Rust run passed 159 tests;
+after the empty-path and oversized-width repairs, the 24 affected overhead
+tests passed. The final artifact passed 159 transported checks. Reference
+comparisons use the same working directory, timestamps and source files.
+Existing developer caches are seeded explicitly and retained by the cache
+fixture; negative symlink and unknown-directory checks remain in place.

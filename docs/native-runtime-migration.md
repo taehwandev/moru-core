@@ -92,9 +92,11 @@ normalizes universal newlines before parsing JSONL. The adapter validates the
 complete result before merging shared counters, preserving replay on decline.
 Symlinks, descriptors, streams, unfamiliar datetime grammar, oversized numeric
 values and other unsupported input shapes retain Python behavior. Native rows
-restore datetime and Counter values at the Python boundary. Report statistics,
-collection, CLI parsing and JSON/Markdown file effects still belong to the
-remaining unit-46 migration; this increment claims no measured speedup.
+restore datetime and Counter values at the Python boundary. Native group
+statistics, regular timing JSONL, collection/window handling and the installed
+`overhead-report` stdout CLI now share the engine. JSON and Markdown rendering
+also run natively for supported reports. Explicit output-file effects and
+unsupported inputs remain in unit46; this increment claims no measured speedup.
 The [native pretool batch](runtime-performance/native-pretool.md) adds two partial
 Rust boundaries with CPU/wall/RSS evidence and no-Python plain-query execution.
 The [file-query extension](runtime-performance/native-pretool-files.md) expands
@@ -210,7 +212,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
 | 45 | `scripts/migrate_skill_bundles.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Native session tally, group statistics and timing JSONL / Python report CLI | File selection, output writers, exceptional numeric inputs and direct Python remain owned scope |
+| 46 | `scripts/moru_overhead_report.py` | `overhead-report`; direct Python compatibility CLI | Native ordinary stdout CLI, collection, statistics and formatting | Output writers, exceptional inputs, stdio failures and direct Python removal remain owned scope |
 | 47 | `scripts/mutation-check.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 48 | `scripts/path_claims.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 49 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |

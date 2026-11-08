@@ -125,6 +125,28 @@ def smoke(archive):
         assert timing_result["records"]==1 and timing_result["per_hook_ms"]["empty"]=={"n":0},timing_result
         assert timing_result["per_hook_ms"]["start"]["median"]==12.5,timing_result
         checks += 1
+        report_projects=base/"report-projects/p"
+        report_projects.mkdir(parents=True)
+        shutil.copy2(transcript,report_projects/"session.jsonl")
+        done=subprocess.run([str(entry),"overhead-report","--projects-dir",str(report_projects.parent),
+            "--timings",str(timing),"--since","2026-10-01T00:00:00Z","--until","2026-11-08T00:00:00Z"],
+            capture_output=True,env=env,cwd=project,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        report=json.loads(done.stdout)
+        assert report["all"]["sessions"]==1 and report["all"]["tok_total"]["sum"]==5,report
+        assert report["timings_jsonl"]["records"]==1,report
+        checks += 1
+        for style in ("json","markdown"):
+            formatted=subprocess.run([str(native),str(entry),"--overhead-probe","format"],
+                input=json.dumps({"report":report,"format":style}).encode(),capture_output=True,
+                env=env,cwd=project,timeout=8)
+            assert (formatted.returncode,formatted.stderr)==(0,b""),formatted
+            text=json.loads(formatted.stdout)["result"]["text"]
+            if style=="json":
+                assert text+"\n"==done.stdout.decode(),text
+            else:
+                assert text.startswith("# Moru workflow overhead\n") and "| assistant turns | 1.0 | 1.0 | 1 |" in text,text
+            checks += 1
         overhead["path"] = "/dev/stdin"
         done = subprocess.run([str(native), str(entry), "--overhead-probe", "session"],
             input=json.dumps(overhead).encode(), capture_output=True, env=env, cwd=project, timeout=8)

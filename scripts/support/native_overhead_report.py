@@ -12,7 +12,28 @@ import math
 from support.native_probe_transport import NativeProbe
 
 
+def _json_tree(value, depth=0):
+    if depth > 120:
+        return False
+    if type(value) in (str, int, float, bool, type(None)):
+        return True
+    if type(value) is list:
+        return all(_json_tree(v, depth+1) for v in value)
+    if type(value) is dict:
+        return all(type(k) is str and _json_tree(v, depth+1) for k, v in value.items())
+    return False
+
+
+def _format_report(report, style):
+    if style not in ("json", "markdown") or not NativeProbe.available() or not _json_tree(report):
+        return None
+    value = NativeProbe.request("--overhead-probe", "format", {"report": report, "format": style})
+    return (value["text"] if type(value) is dict and set(value) == {"text"}
+            and type(value["text"]) is str else None)
+
+
 class NativeOverheadReport:
+    render = staticmethod(_format_report)
     NUMERIC = (
         "assistant_turns", "user_prompts", "tool_calls", "lifecycle_total", "policy_notes",
         "hook_denials", "moru_hook_denials", "stop_hook_blocks", "guidance_reads", "guidance_bash_reads",

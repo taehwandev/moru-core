@@ -282,7 +282,10 @@
       "status": "partial_native",
       "entry_aliases": "claude-pretool-gate",
       "remaining": "Port full command/effect parsing, scope, workflow, publication and mutation decisions beyond read queries.",
-      "verification": {}
+      "verification": {},
+      "supporting_sources": [
+        "scripts/agent_closeout_command.py"
+      ]
     },
     {
       "id": "scripts/claude_statusline.py",
@@ -380,8 +383,11 @@
       "kind": "primary",
       "status": "planned",
       "entry_aliases": "agy-hook",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port both AGY adapter boundaries, including PreInvocation required-doc delivery and marker writes in agy_required_docs_hook.py. Preserve exact stdin/stdout, failure and authority behavior.",
+      "verification": {},
+      "supporting_entrypoints": [
+        "scripts/agy_required_docs_hook.py"
+      ]
     },
     {
       "id": "scripts/agent-structure-check.py",
@@ -519,8 +525,8 @@
       "inventory_id": 46,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Native session tally, three-group aggregation, finite statistics and regular timing JSONL processing are connected through source-bound private probes. Complete collection/window CLI, JSON/Markdown writers, unsupported timestamps/values, exceptional/nonfinite or large aggregate numbers and direct Python removal. Supporting adapter/build Python remains owned scope; this is not full unit closure.",
+      "entry_aliases": "overhead-report; direct Python compatibility CLI",
+      "remaining": "Native ordinary stdout CLI, collection/windows, session tally, group/timing statistics and JSON/Markdown formatting are connected. Complete explicit output-file writers and ordered failure/stdio behavior, exceptional numeric and timestamp shapes, glob/encoding/TTY gaps and direct Python removal. This is partial native execution; supporting adapter/build Python remains owned scope.",
       "verification": {
         "native_owner": "native/checkout-identity/src/overhead_session.rs",
         "native_report_owner": "native/checkout-identity/src/overhead_aggregate.rs",
@@ -528,7 +534,10 @@
         "report_negative_authority": "PASS: native-required group analysis and timing parsing, empty-PATH probes, stable regular-file reads, source/environment refusal, descriptor/FIFO/symlink refusal, unchanged input bytes and declined malformed responses. Synthetic inputs only; no providers or user records.",
         "behavior": "PASS:32 overhead/reference/registry/completion/inventory tests completed (1 builder-limit skip),18 statusline regression tests and139 Rust tests. Independent review repaired invalid-duration empty-key ordering and builder integer-string limits.",
         "negative_authority": "PASS: native-required adapter calls and empty-PATH private protocol; malformed-response atomicity, source/environment refusal, unbuffered descriptor offsets including Darwin case alias, FIFO/symlink refusal and no input writes. Synthetic transcripts only; no provider calls.",
-        "portable": "PASS:156 transported macOS ARM64 checks including native report analysis and timing JSONL with empty PATH. Exact-batch Linux x86_64 CI remains pending; the workflow is manual-only."
+        "portable": "PASS:159 final transported macOS ARM64 checks, including public report stdout and private JSON/Markdown formatting with empty PATH. Exact-batch Linux x86_64 CI remains pending; workflow stays manual-only.",
+        "native_cli_owner": "native/checkout-identity/src/overhead_command.rs",
+        "cli_behavior": "PASS:9 native stdout/format/argument/writer-fallback process tests;42 distinct related Python checks observed (1 builder skip).159 initial Rust tests and24 affected tests after empty-path/width repairs passed. Native/Python full JSON and Markdown bytes, mtime microseconds, hidden/subagent selection and shared-before-min-turn filtering match.",
+        "cli_negative_authority": "PASS:empty-PATH native stdout and formatting; unsupported files and explicit output writes defer before output. Original writer invoked once; a failed Markdown write preserves its earlier JSON file. Source/encoding/TTY and exceptional-value gaps remain open."
       }
     },
     {
@@ -640,6 +649,7 @@
     "scripts/agent_android_action_boundary.py",
     "scripts/agent_block_lessons.py",
     "scripts/agent_capability_policy.py",
+    "scripts/agent_closeout_command.py",
     "scripts/agent_command_runtime.py",
     "scripts/agent_commit_ready.py",
     "scripts/agent_completion_checks.py",
@@ -798,6 +808,7 @@
     "scripts/agy_hook_adapter.py",
     "scripts/agy_hook_state.py",
     "scripts/agy_hook_verify.py",
+    "scripts/agy_required_docs_hook.py",
     "scripts/agy_statusline.py",
     "scripts/build_native_runtime.py",
     "scripts/check_android_external_skill_manifest.py",

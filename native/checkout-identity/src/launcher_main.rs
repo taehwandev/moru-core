@@ -40,9 +40,17 @@ mod manifest_process;
 mod next_process;
 mod next_verification;
 mod overhead_aggregate;
+mod overhead_cli;
+mod overhead_clock;
+mod overhead_collection;
+mod overhead_command;
+mod overhead_format;
 mod overhead_hooks;
 mod overhead_process;
+mod overhead_report;
+mod overhead_report_text;
 mod overhead_session;
+mod overhead_stamp;
 mod overhead_stats;
 mod overhead_text;
 mod overhead_timings;
@@ -157,6 +165,9 @@ fn main() {
 
     if args.first().is_some_and(|a| a == "figma-validate") {
         finish(figma_process::FigmaProcess::run(&launcher, &args));
+    }
+    if args.first().is_some_and(|a| a == "overhead-report") {
+        finish(overhead_command::OverheadCommand::run(&launcher, &args));
     }
 
     if args.first().is_some_and(|a| {
