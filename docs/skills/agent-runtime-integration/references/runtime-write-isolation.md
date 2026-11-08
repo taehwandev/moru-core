@@ -21,7 +21,8 @@ Claude and Codex. The engine classifies the pending tool call and reads existing
 run evidence; it does not route, search documents, run VibeGuard, or review.
 Claude additionally installs continuation hooks:
 
-- a `SessionStart` continuation hook for `startup|resume|fork`;
+- a `SessionStart` continuation hook for `startup|resume|fork|compact` (after a compaction it hands the
+  run's required docs back as `additionalContext`);
 - the Claude `PreToolUse` workflow/checkpoint gate for
   `Edit|Write|MultiEdit|NotebookEdit`;
 - matching `PostToolUse` and `PostToolUseFailure` continuation hooks; and

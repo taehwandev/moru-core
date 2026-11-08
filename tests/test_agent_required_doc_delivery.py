@@ -14,7 +14,10 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from agent_required_doc_delivery import MARKER, _contains_run, _read_spans, delivery_text, edited_paths
+from agent_required_doc_delivery import (
+    MARKER, MAX_REDELIVERIES, _contains_run, compaction_text, _read_spans, delivery_text, edited_paths,
+)
+from agent_closeout_command import closeout_project
 
 STARTED = "2026-10-02T03:00:00+00:00"
 CORE = "platforms/android/skills/sample/SKILL.md"
@@ -114,6 +117,40 @@ class DeliveryTests(unittest.TestCase):
                    "tool_input": {"file_path": str(self.project / "src" / "Screen.kt")}}
         found = self.evidence if evidence is None else evidence
         return delivery_text(payload, lambda project: found if project == self.project else None)
+
+    def _compaction(self, evidence: Path | None = None, cwd: Path | None = None) -> str:
+        payload = {"cwd": str(self.project if cwd is None else cwd), "transcript_path": str(self.transcript)}
+        found = self.evidence if evidence is None else evidence
+        return compaction_text(payload, lambda project: found if project == self.project else None)
+
+    def test_a_compaction_event_hands_back_every_required_doc(self) -> None:
+        self._transcript((STARTED, CORE))
+        text = self._compaction()
+        self.assertIn("Keep state immutable.", text)
+        self.assertIn("Run the tests.", text)
+
+    def test_a_compaction_event_is_not_delivered_again_by_the_edit_check(self) -> None:
+        self._transcript((STARTED, CORE))
+        self._compaction()
+        self.assertEqual("", self._deliver())
+        self.assertEqual("", self._deliver())
+
+    def test_a_later_compaction_still_reaches_the_edit_check_once_event_was_missed(self) -> None:
+        self._transcript((STARTED, CORE))
+        self._compaction()
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        self.assertIn("Keep state immutable.", self._deliver())
+
+    def test_a_compaction_event_names_an_oversized_doc_instead_of_inlining_it(self) -> None:
+        self._preflight([CORE, BIG])
+        text = self._compaction()
+        self.assertIn("Keep state immutable.", text)
+        self.assertIn(f"{self.rules}/{BIG}", text)
+        self.assertNotIn("x" * 100, text)
+
+    def test_a_compaction_event_without_a_run_or_a_cwd_is_silent(self) -> None:
+        self.assertEqual("", compaction_text({"transcript_path": str(self.transcript)}, lambda p: self.evidence))
+        self.assertEqual("", self._compaction(cwd=self.project.parent / "elsewhere"))
 
     def _count_document_reads(self):
         counts = {CORE: 0, OTHER: 0}
@@ -220,6 +257,227 @@ class DeliveryTests(unittest.TestCase):
                     text = self._deliver()
                     self.assertIn(f"=== {CORE} ===", text)
                     self.assertNotIn(f"=== {OTHER} ===", text)
+
+    def _append(self, *rows: dict) -> None:
+        with self.transcript.open("a", encoding="utf-8") as handle:
+            for row in rows:
+                handle.write(json.dumps(row) + "\n")
+
+    def test_a_compaction_after_the_delivery_delivers_the_unread_docs_again(self) -> None:
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        self.assertEqual("", self._deliver())
+        self._append({"type": "assistant", "message": {"content": []}})
+        self.assertEqual("", self._deliver())
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        again = self._deliver()
+        self.assertIn(f"=== {CORE} ===", again)
+        self.assertIn(f"=== {OTHER} ===", again)
+        self.assertEqual("", self._deliver())
+
+    def test_docs_read_again_after_the_compaction_are_not_delivered(self) -> None:
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        stamp = "2099-01-01T00:00:00.000Z"
+        self._append(
+            {"type": "assistant", "timestamp": stamp, "message": {"content": [
+                {"type": "tool_use", "id": "r1", "name": "Read",
+                 "input": {"file_path": f"{self.rules}/{CORE}"}}]}},
+            {"type": "user", "timestamp": stamp, "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "r1",
+                 "content": (self.rules / CORE).read_text(encoding="utf-8")}]}})
+        again = self._deliver()
+        self.assertNotIn(f"=== {CORE} ===", again)
+        self.assertIn(f"=== {OTHER} ===", again)
+
+    def test_redelivery_is_bounded_per_run(self) -> None:
+        from agent_required_doc_delivery import MAX_REDELIVERIES
+
+        self._deliver()
+        for _ in range(MAX_REDELIVERIES):
+            self._append({"type": "system", "subtype": "compact_boundary"})
+            self.assertIn(f"=== {CORE} ===", self._deliver())
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        self.assertEqual("", self._deliver())
+
+    def test_a_reuse_proof_does_not_survive_a_compaction(self) -> None:
+        reuse = patch("agent_required_doc_delivery.required_doc_reuse",
+                      return_value={"reused": [CORE], "unread": [OTHER]})
+        with reuse:
+            first = self._deliver()
+            self.assertNotIn(f"=== {CORE} ===", first)
+            self._append({"type": "system", "subtype": "compact_boundary"})
+            again = self._deliver()
+        self.assertIn(f"=== {CORE} ===", again)
+        self.assertIn(f"=== {OTHER} ===", again)
+
+    def test_a_compaction_row_written_after_a_partial_line_is_still_found(self) -> None:
+        with self.transcript.open("a", encoding="utf-8") as handle:
+            handle.write('{"type": "assistant", "message": {"content": [')  # still being written
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        with self.transcript.open("a", encoding="utf-8") as handle:
+            handle.write(']}}\n' + json.dumps({"type": "system", "subtype": "compact_boundary"}) + "\n")
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+
+    def test_a_large_partial_compaction_line_keeps_the_previous_offset_until_completed(self) -> None:
+        from agent_required_doc_delivery import _aligned_size
+
+        self._append({"type": "assistant", "message": {"content": []}})
+        prior_offset = self.transcript.stat().st_size
+        with self.transcript.open("a", encoding="utf-8") as handle:
+            handle.write('{"type": "compacted", "payload": {"summary": "' + ("x" * 70000))
+        self.assertEqual(prior_offset, _aligned_size(self.transcript, prior_offset))
+        self.assertEqual(0, _aligned_size(self.transcript))
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        with self.transcript.open("a", encoding="utf-8") as handle:
+            handle.write('"}}\n')
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+
+    def test_an_unterminated_compaction_json_line_waits_for_its_newline_and_delivers_once(self) -> None:
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        with self.transcript.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"type": "system", "subtype": "compact_boundary"}))
+        self.assertEqual("", self._deliver())
+        with self.transcript.open("a", encoding="utf-8") as handle:
+            handle.write("\n")
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        self.assertEqual("", self._deliver())
+        state = json.loads((self.evidence.parent / MARKER).read_text(encoding="utf-8"))
+        self.assertEqual(1, state["redeliveries"])
+
+    def test_no_transcript_path_records_no_offset_instead_of_a_directory_size(self) -> None:
+        payload = {"tool_name": "Edit", "tool_input": {"file_path": str(self.project / "a.kt")}}
+        delivery_text(payload, lambda project: self.evidence if project == self.project else None)
+        state = json.loads((self.evidence.parent / MARKER).read_text(encoding="utf-8"))
+        self.assertEqual(0, state["transcript_bytes"])
+
+    def test_a_shrunken_transcript_is_scanned_again_from_the_start(self) -> None:
+        self._append(*({"type": "assistant", "message": {"content": [{"type": "text", "text": "x" * 50}]}}
+                       for _ in range(5)))
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        self.transcript.write_text(json.dumps({"type": "system", "subtype": "compact_boundary"}) + "\n",
+                                   encoding="utf-8")
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+
+    def _closeout(self) -> str:
+        payload = {"tool_name": "Bash", "transcript_path": str(self.transcript), "cwd": "/elsewhere",
+                   "tool_input": {"command": f"moru-hook finish --project {self.project} --rules {self.rules}"}}
+        project = closeout_project(payload)
+        edit = {**payload, "tool_name": "Edit", "tool_input": {"file_path": str(project)}}
+        return delivery_text(edit, lambda found: self.evidence if found == self.project else None, closeout=True)
+
+    def test_a_closeout_command_names_its_project_and_other_commands_do_not(self) -> None:
+        def project(command: str, cwd: str = "/w"):
+            return closeout_project({"tool_name": "Bash", "cwd": cwd, "tool_input": {"command": command}})
+
+        self.assertEqual(Path("/p"), project("~/.moru/bin/moru-hook finish --project /p --rules /r"))
+        self.assertEqual(Path("/p q"), project("moru-hook review --project '/p q'"))
+        self.assertEqual(Path("/w/rel"), project("moru-hook gate-batch --project rel"))
+        self.assertEqual(Path("/w"), project("moru-hook finish"))
+        self.assertIsNone(project("moru-hook start --project /p"))
+        self.assertIsNone(project("git status"))
+        self.assertIsNone(project("cat moru-hook-notes.md"))
+        # Shell words, not substrings: mentions are not closeouts, a chained cd moves relative paths.
+        self.assertIsNone(project('rg "moru-hook finish" scripts/'))
+        self.assertIsNone(project('git commit -m "run moru-hook review --project /p"'))
+        self.assertIsNone(project("echo moru-hook finish"))
+        self.assertEqual(Path("/proj"), project("cd /proj && moru-hook finish --project ."))
+        self.assertEqual(Path("/proj/sub"), project("cd /proj; moru-hook review --project sub"))
+        self.assertEqual(Path("/proj"), project("cd /proj\nmoru-hook gate-batch"))
+        self.assertEqual(Path("/p"), project("MORU_X=1 moru-hook finish --project=/p"))
+        self.assertEqual(Path("/p"), project("python3 /r/scripts/agent-hook.py finish --project /p"))
+        self.assertEqual(Path("/p"), project("moru-hook start --project /wrong && moru-hook finish --project /p"))
+        # Edge syntax that broke the first parser: it must not raise and must stay accurate.
+        self.assertIsNone(project("cd ~nosuchuser_zz && git push # finish"))
+        self.assertEqual(Path("/w"), project("cd ~nosuchuser_zz; moru-hook finish --project ~nosuchuser_zz"))
+        self.assertEqual(Path("/p"), project("moru-hook finish \\\n  --project /p"))
+        self.assertEqual(Path("/p"), project("# closeout\nmoru-hook finish --project /p"))
+        self.assertEqual(Path("/p"), project("python3 -u /r/scripts/agent-hook.py finish --project /p"))
+        self.assertEqual(Path("/p"), project("env A=1 moru-hook finish --project /p"))
+        self.assertEqual(Path("/proj"), project("(cd /proj && moru-hook finish --project .)"))
+        self.assertEqual(Path("/proj"), project("cd -P /proj && moru-hook finish --project ."))
+        self.assertEqual(Path("/w"), project("cd /missing || moru-hook finish --project ."))
+        self.assertIsNone(project("python3 cd /tmp"))
+        self.assertEqual(Path("/p"), project("moru-hook finish --project /p # don't skip"))
+        self.assertIsNone(project("# cd /tmp && moru-hook finish\ngit status"))
+        self.assertEqual(Path("/w"), project("moru-hook finish # --project /wrong"))
+        self.assertEqual(Path("/w"), project('moru-hook finish --project "$TARGET"'))
+        self.assertEqual(Path("/p"), project("git commit -m 'a\nb'\nmoru-hook finish --project /p"))
+
+    def test_a_late_compaction_is_caught_at_the_closeout_command(self) -> None:
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        self.assertIn(f"=== {CORE} ===", self._closeout())
+        self.assertEqual("", self._closeout())
+
+    def test_the_closeout_keeps_one_redelivery_the_edits_cannot_spend(self) -> None:
+        self._deliver()
+        for _ in range(MAX_REDELIVERIES):
+            self._append({"type": "system", "subtype": "compact_boundary"})
+            self.assertIn(f"=== {CORE} ===", self._deliver())
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        self.assertEqual("", self._deliver())
+        self.assertIn(f"=== {CORE} ===", self._closeout())
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        self.assertEqual("", self._closeout())
+
+    def test_a_held_lock_delays_delivery_but_never_stalls_it(self) -> None:
+        import fcntl
+        import agent_required_doc_delivery as module
+
+        lock = self.evidence.parent / (MARKER + ".lock")
+        with lock.open("a") as handle, patch.object(module, "_LOCK_WAIT_SECONDS", 0.1):
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            self.assertIn(f"=== {CORE} ===", self._deliver())
+
+    def test_a_reuse_proof_is_void_when_a_compaction_came_before_the_first_delivery(self) -> None:
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        with patch("agent_required_doc_delivery.required_doc_reuse",
+                   return_value={"reused": [CORE], "unread": []}):
+            self.assertIn(f"=== {CORE} ===", self._deliver())
+
+    def test_a_reuse_proof_is_void_by_a_compaction_before_this_run_started(self) -> None:
+        # The proof carries no time: a compaction between the earlier run and this
+        # one (before this run's preflight) may have evicted the doc, so deliver it.
+        self._append({"type": "system", "subtype": "compact_boundary",
+                      "timestamp": "2026-10-02T02:00:00.000Z"})
+        with patch("agent_required_doc_delivery.required_doc_reuse",
+                   return_value={"reused": [CORE], "unread": []}):
+            self.assertIn(f"=== {CORE} ===", self._deliver())
+
+    def test_a_reuse_proof_is_void_when_a_compaction_is_newer_than_this_run(self) -> None:
+        self._append({"type": "system", "subtype": "compact_boundary",
+                      "timestamp": "2026-10-02T03:05:00.000Z"})
+        with patch("agent_required_doc_delivery.required_doc_reuse",
+                   return_value={"reused": [CORE], "unread": []}):
+            self.assertIn(f"=== {CORE} ===", self._deliver())
+
+    def test_a_reuse_proof_still_holds_without_any_compaction(self) -> None:
+        with patch("agent_required_doc_delivery.required_doc_reuse",
+                   return_value={"reused": [CORE], "unread": []}):
+            self.assertNotIn(f"=== {CORE} ===", self._deliver())
+
+    def test_an_old_marker_with_no_compaction_is_upgraded_in_place_without_delivering(self) -> None:
+        marker = self.evidence.parent / MARKER
+        marker.write_text(json.dumps({"delivered": [CORE]}), encoding="utf-8")
+        self._append({"type": "assistant"})
+        self.assertEqual("", self._deliver())
+        upgraded = json.loads(marker.read_text(encoding="utf-8"))
+        self.assertEqual(self.transcript.stat().st_size, upgraded["transcript_bytes"])
+        self.assertEqual(0, upgraded["redeliveries"])
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+
+    def test_an_old_marker_with_a_compaction_already_in_the_transcript_delivers_once(self) -> None:
+        # When the old marker was written is unknown, so the compaction may be after it.
+        (self.evidence.parent / MARKER).write_text(json.dumps({"delivered": []}), encoding="utf-8")
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        self.assertEqual("", self._deliver())
+
+    def test_a_compaction_before_the_delivery_does_not_repeat_it(self) -> None:
+        self._append({"type": "system", "subtype": "compact_boundary"})
+        self.assertIn(f"=== {CORE} ===", self._deliver())
+        self.assertEqual("", self._deliver())
 
     def test_a_doc_changed_after_its_reading_is_delivered(self) -> None:
         self._transcript(("2026-10-02T02:00:00.000Z", CORE))
@@ -424,7 +682,8 @@ class DeliveryTests(unittest.TestCase):
     def test_a_doc_over_the_inline_cap_is_named_not_inlined(self) -> None:
         self._preflight([BIG, CORE])
         text = self._deliver()
-        self.assertIn(f"{BIG} (", text)
+        self.assertIn(f"{self.rules / BIG} (", text)
+        self.assertIn("whole, with no line range", text)
         self.assertNotIn("x" * 100, text)
         self.assertIn(f"=== {CORE} ===", text)
 
@@ -456,6 +715,33 @@ class GateCarriesTheDeliveryTests(unittest.TestCase):
                 self.assertEqual("delivered docs", hook["additionalContext"])
                 self.assertNotIn("permissionDecision", hook)
                 self.assertNotIn("systemMessage", json.loads(output.getvalue()))
+
+    def test_a_closeout_command_queues_the_delivery_and_other_bash_does_not(self) -> None:
+        import claude_pretool_gate as gate
+
+        calls = []
+
+        def fake(payload, evidence_for, read_in_context=None, *, closeout=False):
+            calls.append((payload["tool_input"], closeout))
+            return "docs"
+
+        class Reader:
+            @staticmethod
+            def resolve_runtime_evidence(project, identity):
+                return None
+
+        for command, queued in (("moru-hook finish --project /p", True), ("ls", False)):
+            gate._PENDING_CONTEXT.clear()
+            calls.clear()
+            payload = {"tool_name": "Bash", "session_id": "s", "cwd": "/w", "tool_input": {"command": command}}
+            with patch("agent_required_doc_delivery.delivery_text", fake), \
+                    patch.object(gate, "_run_evidence_reader", return_value=Reader), \
+                    patch.object(gate, "gate_enabled", return_value=True):
+                gate._queue_unread_required_docs(payload)
+            self.assertEqual(queued, bool(gate._PENDING_CONTEXT), command)
+            if queued:
+                self.assertEqual([({"file_path": "/p"}, True)], calls)
+        gate._PENDING_CONTEXT.clear()
 
 
 if __name__ == "__main__":

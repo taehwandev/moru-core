@@ -11,9 +11,11 @@ from support.runtime_bridge import (
     runtime_bridge_required_phrases,
 )
 from support.setup_config_files import merge_permissions_allow, quote, read_json, write_json
-from support.stable_launcher import stable_launcher_path
+from support.stable_launcher import is_disposable_root, stable_launcher_path
 
 AGY_RUNTIME_BRIDGE_REQUIRED_PHRASES = runtime_bridge_required_phrases("Antigravity", "AGENTS.md")
+AGY_HOOK_GROUP = "moru-core"
+AGY_DOCS_HOOK_SCRIPT = "agy_required_docs_hook.py"
 _STATUSLINE_ALIAS = "agy-statusline"
 _STATUSLINE_MARKER = "MORU_STATUSLINE=1"
 
@@ -111,6 +113,17 @@ def configure_agy(
         "status": status,
         "path": str(hooks_path),
     })
+    status = _merge_agy_docs_hook(
+        hooks_path,
+        f"python3 {quote(str(scripts_dir / AGY_DOCS_HOOK_SCRIPT))}",
+        dry_run,
+    )
+    results.append({
+        "tool": "agy",
+        "hook": "config.hooks.required_docs",
+        "status": status,
+        "path": str(hooks_path),
+    })
     return results
 
 
@@ -148,6 +161,56 @@ def _merge_agy_hooks(target: Path, spec: dict, dry_run: bool) -> str:
     config[_HOOKS_NAME] = spec
     write_json(target, config)
     return "installed" if current is None else "updated"
+
+
+def _merge_agy_docs_hook(target: Path, command: str, dry_run: bool) -> str:
+    """Register Moru's PreInvocation required-doc hook as its own named group.
+
+    The shared hooks file belongs to every tool that uses agy, so only the
+    `moru-core` group is written and every other group is left as found.
+    """
+
+    config = read_json(target)
+    desired = {"PreInvocation": [{"type": "command", "command": command, "timeout": 10}]}
+    if config.get(AGY_HOOK_GROUP) == desired:
+        return "ok"
+    if _replaces_durable_with_disposable(config.get(AGY_HOOK_GROUP), command):
+        return "ok (kept: this installer runs from a task worktree that outlives only its task)"
+    if dry_run:
+        return "would_update"
+    config[AGY_HOOK_GROUP] = desired
+    write_json(target, config)
+    return "installed"
+
+
+def _hook_root(command: str) -> Path:
+    """The checkout a `python3 <root>/scripts/<hook>.py` command runs from."""
+
+    return Path(command.split(" ", 1)[-1].strip("'\"")).parent.parent
+
+
+def _is_task_worktree(root: Path) -> bool:
+    return is_disposable_root(root) or (root / ".git").is_file()
+
+
+def _replaces_durable_with_disposable(current: object, command: str) -> bool:
+    """Whether this would point a working hook at a task worktree that outlives only its task.
+
+    A dangling `python3 <deleted path>` fails on every model call, so a hook
+    that still works from a durable checkout is not replaced from a task
+    worktree (a linked worktree has a `.git` file, wherever it lives).
+    """
+
+    try:
+        old = current["PreInvocation"][0]["command"]
+    except (KeyError, IndexError, TypeError):
+        return False
+    if not isinstance(old, str) or old == command:
+        return False
+    old_root = _hook_root(old)
+    old_script = Path(old.split(" ", 1)[-1].strip("'\""))
+    return (_is_task_worktree(_hook_root(command)) and old_script.is_file()
+            and not _is_task_worktree(old_root))
 
 
 def _merge_agy_statusline(target: Path, command: str, dry_run: bool) -> str:

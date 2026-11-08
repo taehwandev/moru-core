@@ -8,7 +8,7 @@ from support.setup_config_files import quote, read_json, write_json
 
 
 CONTINUATION_ALIAS = "claude-continuation-hook"
-SESSION_START_MATCHER = "startup|resume|fork"
+SESSION_START_MATCHER = "startup|resume|fork|compact"
 
 
 def configure_claude_continuation(

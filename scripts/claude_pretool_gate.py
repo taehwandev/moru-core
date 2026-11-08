@@ -2893,11 +2893,23 @@ def decide(payload: dict) -> int:
 
 
 def _queue_unread_required_docs(payload: dict) -> None:
-    """Owe the model the run's unread required docs at its first file edit."""
+    """Owe the model the run's unread required docs at its first file edit.
 
-    if payload.get("tool_name") not in EDIT_TOOLS or not gate_enabled():
+    A Moru closeout command (review, finish, gate-batch) is the same moment for
+    a run that ends without another edit: the docs that rule its last step are
+    the ones a late compaction drops.
+    """
+
+    if not gate_enabled():
         return
+    from agent_closeout_command import closeout_project
     from agent_required_doc_delivery import delivery_text
+
+    closeout = closeout_project(payload) if payload.get("tool_name") in BASH_TOOLS else None
+    if payload.get("tool_name") not in EDIT_TOOLS and closeout is None:
+        return
+    if closeout is not None:
+        payload = {**payload, "tool_input": {"file_path": str(closeout)}}
 
     session_id = str(payload.get("session_id") or "")
     reader = _run_evidence_reader()
@@ -2907,7 +2919,8 @@ def _queue_unread_required_docs(payload: dict) -> None:
     try:
         # The reader directly, not `session_evidence`: the verdict's own
         # lookups must stay exactly as they were without this delivery.
-        text = delivery_text(payload, lambda project: reader.resolve_runtime_evidence(project, identity))
+        text = delivery_text(payload, lambda project: reader.resolve_runtime_evidence(project, identity),
+                             closeout=closeout is not None)
     except Exception:  # noqa: BLE001 - delivery is advisory and must never change a verdict
         return
     if text:

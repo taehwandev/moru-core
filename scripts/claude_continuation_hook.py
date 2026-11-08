@@ -142,6 +142,8 @@ class ClaudeContinuationAdapter:
         session_id = str(payload.get("session_id") or "")
         if root is None or not session_id:
             return None
+        if payload.get("source") == "compact":
+            return _compaction_context(payload, session_id)
         target, listed = _resume_target(root, session_id)
         if not target:
             return _unresumed_context(listed)
@@ -405,6 +407,15 @@ def _resume_brief(result: dict[str, Any]) -> str:
         if omitted > 0:
             lines.append(f"Verified: {omitted} additional successful records omitted.")
     return "\n".join(lines)
+
+
+def _compaction_context(payload: dict[str, Any], session_id: str) -> dict[str, Any] | None:
+    """The run's required docs again, since a compaction dropped them."""
+
+    from agent_required_doc_delivery import compaction_text
+
+    text = compaction_text(payload, lambda project: _session_evidence(project, session_id))
+    return _context(text) if text else None
 
 
 def _context(text: str) -> dict[str, Any]:

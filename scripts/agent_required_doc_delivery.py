@@ -2,7 +2,7 @@
 
 Owner: delivery of a run's unread required docs to the model.
 Allowed imports: the standard library and agent_required_doc_reuse.
-Callers/tests: `claude_pretool_gate.decide` (Claude and Codex);
+Callers/tests: `claude_pretool_gate.decide` (Claude and Codex), `claude_continuation_hook`;
 `tests/test_agent_required_doc_delivery.py`.
 Verification: that module, which covers delivery, skipping read or reused
 docs, the once-per-run marker, the size cap and every fail-quiet path.
@@ -14,14 +14,22 @@ edit, so at the first edit of a run it compares the required list with the
 complete reads still in context (see `_read_in_context`). It then passes the unread docs to
 the model as context, the way the hook already passes policy notes. It never
 blocks: the edit gets the verdict it would have had anyway. It runs once per
-run, and a delivery that cannot be computed is skipped silently, so the hook
+run, plus at most `MAX_REDELIVERIES` more times, each after a compaction that
+landed since the last delivery (the hash of an unchanged doc says nothing about
+whether its text is still in context). A Moru closeout command (`review`,
+`finish`, `gate-batch`) counts as an edit for this purpose and may spend one
+redelivery more than the edits can, so a compaction late in the run is caught
+at its last step. A delivery that cannot be computed is skipped silently, so the hook
 fails towards the behaviour it had before.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -32,6 +40,10 @@ MARKER = "required-docs-delivered.json"
 # One small core contract is ~4-6 KB; the cap keeps a delivery to a few of them.
 MAX_INLINE_DOC_BYTES = 8 * 1024
 MAX_DELIVERY_BYTES = 24 * 1024
+# A long run that compacts many times must not re-pay the delivery each time.
+MAX_REDELIVERIES = 3
+_LOCK_WAIT_SECONDS = 2.0
+_COMPACTION_MARKS = (b'"compact_boundary"', b'"compacted"', b'"CHECKPOINT"')
 # Cheap substring filters before a transcript line is parsed.
 _TOOL_EVENT = ('"tool_use"', '"tool_result"', '"custom_tool_call', '"function_call',
                '"CommandExecution"')
@@ -56,24 +68,116 @@ def edited_paths(payload: dict) -> list[Path]:
     return [Path(p) if Path(p).is_absolute() else cwd / p for p in paths if isinstance(p, str) and p]
 
 
-def delivery_text(payload: dict, evidence_for) -> str:
+def delivery_text(payload: dict, evidence_for, read_in_context=None, *, closeout: bool = False) -> str:
     """The unread required docs to show with this edit, or "" (also on any failure).
 
     `evidence_for(project)` returns this session's active run evidence for a
     project, or None; the gate passes its own resolver so binding stays exact.
+    `read_in_context(transcript, rules, texts)` replaces the transcript reader
+    for a runtime whose transcript has another shape (agy). `closeout` marks a
+    Moru closeout command: it may spend one redelivery beyond the edits' budget,
+    which an edit-heavy run would otherwise have used up before its last step.
     """
 
     try:
         evidence = _session_run(payload, evidence_for)
         if evidence is None:
             return ""
-        marker = evidence.parent / MARKER
-        if marker.exists():
+        with _serialized(evidence.parent / MARKER):
+            return _deliver(payload, evidence, read_in_context, closeout)
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""
+
+
+def compaction_text(payload: dict, evidence_for) -> str:
+    """Every required doc of this session's run, right after its compaction.
+
+    The runtime announces the compaction itself (Claude's SessionStart with
+    source "compact"), so nothing is guessed from the transcript: a compaction
+    drops all of the context, and every doc is owed again. The marker is moved
+    to the current transcript size so the edit-time check does not deliver the
+    same compaction a second time. Any failure returns "".
+    """
+
+    try:
+        cwd = str(payload.get("cwd") or "")
+        if not cwd:
             return ""
+        evidence = _session_run({**payload, "tool_input": {"file_path": cwd}}, evidence_for)
+        if evidence is None:
+            return ""
+        with _serialized(evidence.parent / MARKER):
+            preflight = json.loads(evidence.read_text(encoding="utf-8"))
+            rules = Path(preflight["rules"])
+            docs = list(dict.fromkeys(preflight["route"].get("required_docs") or []))
+            texts = {}
+            for doc in docs:
+                try:
+                    texts[doc] = (rules / doc).read_text(encoding="utf-8")
+                except OSError:
+                    continue
+            pending = [doc for doc in docs if doc in texts]
+            transcript = Path(str(payload.get("transcript_path") or ""))
+            _write_marker(evidence.parent / MARKER, pending, _aligned_size(transcript), 0)
+            return _render(texts, pending, rules)
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""
+
+
+@contextlib.contextmanager
+def _serialized(marker: Path):
+    """Hold one lock over read-decide-write so two hooks cannot spend the same redelivery."""
+
+    try:
+        import fcntl
+
+        handle = marker.with_name(marker.name + ".lock").open("a")
+    except (ImportError, OSError):
+        yield
+        return
+    with handle:
+        deadline = time.monotonic() + _LOCK_WAIT_SECONDS
+        while True:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    break  # a stuck holder must not stall the turn; deliver unserialized
+                time.sleep(0.02)
+        yield
+
+
+def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> str:
+    try:
+        marker = evidence.parent / MARKER
+        transcript = Path(str(payload.get("transcript_path") or ""))
+        previous = _marker_state(marker)
+        previous_offset = previous.get("transcript_bytes")
+        if marker.exists():
+            if type(previous_offset) is not int:
+                if not _compacted_before(transcript):
+                    delivered = previous.get("delivered")
+                    _write_marker(marker, delivered if isinstance(delivered, list) else [],
+                                  _aligned_size(transcript), 0)
+                    return ""
+                # Unknown when the old marker was written, so a compaction in the
+                # transcript may be after it: deliver once and record the size.
+            elif not _due_after_compaction(
+                    previous, transcript, MAX_REDELIVERIES + (1 if closeout else 0)):
+                return ""
+        offset = _aligned_size(transcript, previous_offset if type(previous_offset) is int else 0)
         preflight = json.loads(evidence.read_text(encoding="utf-8"))
         rules = Path(preflight["rules"])
         docs = list(dict.fromkeys(preflight["route"].get("required_docs") or []))
-        reused = set(required_doc_reuse(evidence)["reused"])
+        # A reuse proof says an earlier run took the doc in, not that its text is
+        # in this context; a compaction since the proof was made voids it.
+        reuse = {} if previous else required_doc_reuse(evidence)
+        reused = set(reuse.get("reused") or [])
+        if reused and _compacted_before(transcript):
+            # The reuse proof carries no time, so any compaction may have evicted the
+            # docs it covers; delivering again is cheap, a missing doc is not.
+            reused = set()
         docs = [doc for doc in docs if doc not in reused]
         texts = {}
         for doc in docs:
@@ -81,12 +185,122 @@ def delivery_text(payload: dict, evidence_for) -> str:
                 texts[doc] = (rules / doc).read_text(encoding="utf-8")
             except OSError:
                 continue
-        read = _read_in_context(Path(str(payload.get("transcript_path") or "")), rules, texts)
+        read = (read_in_context or _read_in_context)(transcript, rules, texts)
         pending = [doc for doc in docs if doc not in read]
-        marker.write_text(json.dumps({"delivered": pending}), encoding="utf-8")
-        return _render(texts, pending)
+        redeliveries = int(previous.get("redeliveries", 0)) + (1 if previous and pending else 0)
+        _write_marker(marker, pending, offset, redeliveries)
+        return _render(texts, pending, rules)
     except (OSError, ValueError, KeyError, TypeError):
         return ""
+
+
+def _write_marker(marker: Path, delivered: list, offset: int, redeliveries: int) -> None:
+    staged = marker.with_name(f"{marker.name}.{os.getpid()}.tmp")
+    staged.write_text(json.dumps({"delivered": delivered, "transcript_bytes": offset,
+                                  "redeliveries": redeliveries}), encoding="utf-8")
+    os.replace(staged, marker)
+
+
+def _compacted_before(transcript: Path) -> bool:
+    """Whether the transcript holds any compaction boundary."""
+
+    if not _size(transcript):
+        return False
+    with transcript.open("rb") as handle:
+        for raw in handle:
+            if any(mark in raw for mark in _COMPACTION_MARKS):
+                try:
+                    if is_compaction(json.loads(raw)):
+                        return True
+                except ValueError:
+                    continue
+    return False
+
+
+def _marker_state(marker: Path) -> dict:
+    """The last delivery's record; {} when absent or unreadable (the old marker shape too)."""
+
+    try:
+        state = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return state if isinstance(state, dict) else {}
+
+
+def _size(transcript: Path) -> int:
+    """File size, or 0 for no transcript (an empty path is `.`, a directory)."""
+
+    try:
+        return transcript.stat().st_size if transcript.is_file() else 0
+    except OSError:
+        return 0
+
+
+def _aligned_size(transcript: Path, fallback: int = 0) -> int:
+    """The size up to the last complete line, so a row still being written is scanned later."""
+
+    size = _size(transcript)
+    if not size:
+        return 0
+    try:
+        with transcript.open("rb") as handle:
+            handle.seek(max(0, size - 1))
+            if handle.read(1) == b"\n":
+                return size
+            start = max(0, size - 65536)
+            handle.seek(start)
+            tail = handle.read(size - start)
+    except OSError:
+        return size
+    newline = tail.rfind(b"\n")
+    if newline >= 0:
+        return start + newline + 1
+    return fallback if 0 <= fallback <= start else 0
+
+
+def _due_after_compaction(state: dict, transcript: Path, limit: int = MAX_REDELIVERIES) -> bool:
+    """Whether a compaction landed after the last delivery, so its docs may be gone.
+
+    Compaction summarises tool results away, which is how a delivered or read
+    doc leaves the context while its hash is unchanged. Only the transcript
+    appended since the marker is scanned. A marker without a recorded size (the
+    old shape), a replaced transcript or an exhausted redelivery budget keeps
+    the once-per-run behaviour.
+    """
+
+    offset = state.get("transcript_bytes")
+    if type(offset) is not int or int(state.get("redeliveries", 0)) >= limit:
+        return False
+    size = _size(transcript)
+    if size == offset:
+        return False
+    if size < offset:
+        offset = 0  # rewritten or replaced: scan it whole rather than skip its start
+    with transcript.open("rb") as handle:
+        handle.seek(offset)
+        for raw in handle:
+            if not raw.endswith(b"\n") or not any(mark in raw for mark in _COMPACTION_MARKS):
+                continue
+            try:
+                row = json.loads(raw)
+            except ValueError:
+                continue
+            if is_compaction(row):
+                return True
+    return False
+
+
+def is_compaction(row: object) -> bool:
+    """Whether a transcript row is a compaction boundary (Claude, Codex or agy)."""
+
+    if not isinstance(row, dict):
+        return False
+    if row.get("type") == "compacted" or (
+            row.get("type") == "system" and row.get("subtype") == "compact_boundary"):
+        return True
+    # agy writes the summary that replaces the history as a CHECKPOINT step.
+    return row.get("type") == "CHECKPOINT" and str(row.get("content") or "").startswith(
+        "# Resuming from a compaction")
 
 
 def _session_run(payload: dict, evidence_for) -> Path | None:
@@ -196,7 +410,8 @@ def _stamp(row: dict) -> float:
     """The row's timestamp; a row without one proves no ordering."""
 
     try:
-        return datetime.fromisoformat(str(row.get("timestamp")).replace("Z", "+00:00")).timestamp()
+        raw = row.get("timestamp") or row.get("created_at")
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).timestamp()
     except ValueError:
         return float("-inf")
 
@@ -325,7 +540,7 @@ def _result_text(content) -> str:
     return ""
 
 
-def _render(texts: dict[str, str], pending: list[str]) -> str:
+def _render(texts: dict[str, str], pending: list[str], rules: Path | None = None) -> str:
     if not pending:
         return ""
     inline, listed, used = [], [], 0
@@ -338,12 +553,13 @@ def _render(texts: dict[str, str], pending: list[str]) -> str:
             inline.append(f"=== {doc} ===\n{text}")
             used += size
         else:
-            listed.append(f"{doc} ({size} bytes)")
+            listed.append(f"{rules / doc if rules else doc} ({size} bytes)")
     if not inline and not listed:
         return ""
     parts = ["Moru required docs not yet read in this run, delivered once before its first edit. "
              "Apply them to this change; this does not block the edit."]
     if listed:
-        parts.append("Read these yourself before continuing (too large to include): " + "; ".join(listed))
+        parts.append("Read each of these whole, with no line range, before continuing "
+                     "(too large to include; a ranged read does not count as read): " + "; ".join(listed))
     parts.extend(inline)
     return "\n\n".join(parts)

@@ -173,8 +173,12 @@ handoff contract. Staged callers may name `product-planning`,
 language matches select reading only; they do not authorize work, spend or
 outreach. Code fixes, lookups and commits do not gain all three skills merely
 because they mention a business term. If required guidance is still unread at
-the first file edit, the existing Claude/Codex delivery hook supplies it once;
-agents must still follow the required-doc reading contract in every runtime.
+the first file edit, the existing Claude/Codex delivery hook supplies it, and
+again (up to three times per run, plus one more at a `review`, `finish` or
+`gate-batch` closeout command) after a context compaction; agy receives it
+through its `PreInvocation` hook once `moru-core` is registered in
+`~/.gemini/config/hooks.json`. Agents must still follow the required-doc reading
+contract in every runtime.
 - Agent credential broker ideation: `product-patterns/skills/agent-credential-broker-ideation/SKILL.md`
 
 ## Workflow

@@ -319,6 +319,27 @@ class ClaudeSessionResumeTests(unittest.TestCase):
                 "another session's packet must not be claimed",
             )
 
+    def test_session_start_after_a_compaction_returns_the_docs_and_resumes_nothing(self) -> None:
+        """The compact source re-delivers; it never claims or resumes a run."""
+
+        with tempfile.TemporaryDirectory() as directory:
+            first = RuntimeFixture(directory, session_id="first-session")
+            payload = {
+                "hook_event_name": "SessionStart",
+                "source": "compact",
+                "cwd": str(first.project),
+                "session_id": "first-session",
+            }
+            with patch("agent_required_doc_delivery.compaction_text", return_value="DOCS") as owed, \
+                 patch("claude_continuation_hook.resume_last") as resumed:
+                output = ClaudeContinuationAdapter.session_start(payload)
+            self.assertEqual("DOCS", output["hookSpecificOutput"]["additionalContext"])
+            self.assertEqual("SessionStart", output["hookSpecificOutput"]["hookEventName"])
+            owed.assert_called_once()
+            resumed.assert_not_called()
+            with patch("agent_required_doc_delivery.compaction_text", return_value=""):
+                self.assertIsNone(ClaudeContinuationAdapter.session_start(payload))
+
     def test_session_start_claims_nothing_when_no_run_is_bound_to_this_session(self) -> None:
         """A new session in a busy checkout has no run of its own to resume."""
 
