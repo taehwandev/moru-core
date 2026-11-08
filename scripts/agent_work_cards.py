@@ -26,6 +26,7 @@ from agent_repository_key import repository_key
 from support.global_state import project_state_dir_target
 from agent_state_read import REGISTRY_FILENAME
 from support.global_state import global_state_dir, user_store_write_error
+from support.native_cards import NativeCards
 
 
 # Version 3 retains the runtime session after a task worktree is removed.
@@ -176,6 +177,9 @@ def settle_card(project: Path, work_id: str, state: str) -> bool:
 
 def list_cards(project: Path, *, include_settled: bool = False) -> list[dict[str, Any]]:
     """Read cards without writing anything; a missing store lists nothing."""
+    native = NativeCards.list(project, include_settled)
+    if native is not None:
+        return native
     states = STATES if include_settled else ("active",)
     connection = _connect_readonly()
     if connection is None:

@@ -85,12 +85,7 @@ impl CardStore {
     }
 
     pub(crate) fn list(&self, repo: &str, all: bool) -> Option<Vec<BTreeMap<String, Value>>> {
-        let sql = if all {
-            "SELECT * FROM cards WHERE repo = ?1 AND state IN ('active','done','cancelled') ORDER BY updated_at DESC"
-        } else {
-            "SELECT * FROM cards WHERE repo = ?1 AND state IN ('active') ORDER BY updated_at DESC"
-        };
-        let mut statement = self.0.prepare(sql).ok()?;
+        let mut statement = self.0.prepare(Self::list_sql(all)).ok()?;
         let names: Vec<String> = statement
             .column_names()
             .into_iter()
@@ -119,6 +114,77 @@ impl CardStore {
         }
         Some(cards)
     }
+
+    pub(crate) fn snapshot(&self, repo: &str, all: bool) -> Option<Value> {
+        let mut statement = self.0.prepare(Self::list_sql(all)).ok()?;
+        let columns = statement.column_count();
+        let mut rows = statement.query([repo]).ok()?;
+        let mut cards = Vec::new();
+        let mut names = None;
+        loop {
+            let next = rows.next().ok()?;
+            if names.is_none() {
+                // Step SELECT first: a returned row holds its schema read lock.
+                // rusqlite's column_names panics on invalid UTF-8; read raw names
+                // through SQL instead, including generated but not hidden columns.
+                names = Some(self.snapshot_names(columns)?);
+            }
+            let Some(row) = next else { break };
+            let names = names.as_ref()?;
+            let mut card = Vec::new();
+            for (index, name) in names.iter().enumerate() {
+                if name != "repo" {
+                    card.push(json!([name, Self::cell(row.get_ref(index).ok()?)?]));
+                }
+            }
+            for name in ["run_id", "runtime", "session_id"] {
+                if !names.iter().any(|existing| existing == name) {
+                    card.push(json!([name, ["text", ""]]));
+                }
+            }
+            cards.push(Value::Array(card));
+        }
+        Some(Value::Array(cards))
+    }
+
+    fn snapshot_names(&self, columns: usize) -> Option<Vec<String>> {
+        let mut statement = self
+            .0
+            .prepare("SELECT name FROM pragma_table_xinfo('cards') WHERE hidden != 1 ORDER BY cid")
+            .ok()?;
+        let mut rows = statement.query([]).ok()?;
+        let mut names = Vec::new();
+        while let Some(row) = rows.next().ok()? {
+            let ValueRef::Text(raw) = row.get_ref(0).ok()? else {
+                return None;
+            };
+            names.push(std::str::from_utf8(raw).ok()?.to_owned());
+        }
+        (names.len() == columns).then_some(names)
+    }
+
+    fn list_sql(all: bool) -> &'static str {
+        if all {
+            "SELECT * FROM cards WHERE repo = ?1 AND state IN ('active','done','cancelled') ORDER BY updated_at DESC"
+        } else {
+            "SELECT * FROM cards WHERE repo = ?1 AND state IN ('active') ORDER BY updated_at DESC"
+        }
+    }
+
+    fn cell(value: ValueRef<'_>) -> Option<Value> {
+        Some(match value {
+            ValueRef::Null => json!(["null"]),
+            ValueRef::Integer(number) => json!(["integer", number]),
+            ValueRef::Real(number) => json!(["real", format!("{number:?}")]),
+            ValueRef::Text(raw) => json!(["text", std::str::from_utf8(raw).ok()?]),
+            ValueRef::Blob(raw) => json!([
+                "blob",
+                raw.iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>()
+            ]),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -128,3 +194,7 @@ mod tests {
         assert!(rusqlite::version_number() >= 3_051_003);
     }
 }
+
+#[cfg(test)]
+#[path = "cards_store_tests.rs"]
+mod snapshot_tests;

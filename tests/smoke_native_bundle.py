@@ -39,6 +39,31 @@ def _lossless_report_formats(native, entry, report, env, project):
     return len(expected)
 
 
+def _typed_card_snapshot(native, entry, database, project, normal, no_python):
+    from agent_work_cards import list_cards
+    from agent_repository_key import repository_key
+    from support.native_cards import _rows
+
+    with sqlite3.connect(database) as connection:
+        connection.execute("ALTER TABLE cards ADD COLUMN metric REAL")
+        connection.execute("ALTER TABLE cards ADD COLUMN payload BLOB")
+        connection.execute("UPDATE cards SET metric=?, payload=?", (float("inf"), bytes(range(256))))
+    before = database.read_bytes()
+    for all in (False, True):
+        with patch.dict(os.environ, {**normal, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = list_cards(project, include_settled=all)
+            repo = repository_key(project)
+        done = subprocess.run([str(native), str(entry), "--cards-probe", "list"],
+            input=json.dumps({"repo": repo, "include_settled": all}).encode(),
+            capture_output=True, env=no_python, cwd=project, timeout=8)
+        assert (done.returncode, done.stderr) == (0, b""), done
+        actual = _rows(json.loads(done.stdout)["result"])
+        assert actual == expected and actual is not None, done.stdout
+        assert [list(row) for row in actual] == [list(row) for row in expected], done.stdout
+    assert before == database.read_bytes()
+    return 2
+
+
 def smoke(archive):
     with tempfile.TemporaryDirectory(prefix="native-consumer-") as tmp:
         base = Path(tmp).resolve()
@@ -452,6 +477,7 @@ def smoke(archive):
                               capture_output=True, env=no_python, cwd=project, timeout=8)
         assert (done.returncode, done.stdout, done.stderr) == (2, b"", b"work cards: no active card with that work id in this repository\n"), done
         checks += 1
+        checks += _typed_card_snapshot(native, entry, card_db, project, normal, {**no_python, "PATH": str(empty)})
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

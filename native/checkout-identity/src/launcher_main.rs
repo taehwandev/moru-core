@@ -141,6 +141,10 @@ fn main() {
     };
     let args: Vec<OsString> = argv.collect();
 
+    if args.first().is_some_and(|a| a == "--cards-probe") {
+        exit(cards_process::CardsProcess::probe(&launcher, &args));
+    }
+
     if args.first().is_some_and(|a| a == "--overhead-probe") {
         exit(overhead_process::OverheadProcess::run(&launcher, &args));
     }

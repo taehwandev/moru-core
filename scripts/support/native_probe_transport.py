@@ -20,7 +20,7 @@ class NativeProbe:
 
     @staticmethod
     def request(protocol: str, operation: str, payload: dict) -> dict | None:
-        if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe"} or not NativeProbe.available():
+        if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe"} or not NativeProbe.available():
             return None
         entry = Path.home() / ".moru/bin/moru-hook"
         try:

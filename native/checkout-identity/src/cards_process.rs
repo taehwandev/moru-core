@@ -7,12 +7,68 @@ use crate::{
     discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard, status_snapshot::StatusSnapshot,
     statusline::Renderer,
 };
-use serde_json::Value;
-use std::{collections::BTreeMap, env, ffi::OsString, io::Write, path::PathBuf};
+use serde_json::{json, Value};
+use std::{
+    collections::BTreeMap,
+    env,
+    ffi::OsString,
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 pub(crate) struct CardsProcess;
 
 impl CardsProcess {
+    pub(crate) fn probe(launcher: &OsString, args: &[OsString]) -> i32 {
+        if args.len() != 2 || args[1] != "list" || CallbackGuard::root(launcher, "git").is_none() {
+            return 125;
+        }
+        let mut bytes = Vec::new();
+        if std::io::stdin()
+            .take(65537)
+            .read_to_end(&mut bytes)
+            .is_err()
+            || bytes.len() > 65536
+        {
+            return 125;
+        }
+        let rows = serde_json::from_slice::<Value>(&bytes)
+            .ok()
+            .and_then(|payload| {
+                let repo = payload.get("repo")?.as_str()?;
+                if repo.len() != 24
+                    || !repo
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                {
+                    return None;
+                }
+                let all = payload.get("include_settled")?.as_bool()?;
+                let state = state_home()?;
+                let Some(store) = CardStore::open(&state.join("work-cards/cards.sqlite3"))? else {
+                    return Some(json!([]));
+                };
+                store.snapshot(repo, all)
+            });
+        let Some(rows) = rows else {
+            return 125;
+        };
+        let Ok(mut output) =
+            serde_json::to_vec(&json!({"schema_version":1,"result":{"rows":rows}}))
+        else {
+            return 125;
+        };
+        output.push(b'\n');
+        if output.len() > 1024 * 1024 {
+            return 125;
+        }
+        if std::io::stdout().write_all(&output).is_ok() {
+            0
+        } else {
+            1
+        }
+    }
+
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         // Keep bundled dependency notices in distributed binaries as well as
         // in the source checkout required by the installation contract.
@@ -57,14 +113,22 @@ fn snapshot(launcher: &OsString, args: &[OsString]) -> Option<String> {
 }
 
 fn context(launcher: &OsString, project: PathBuf) -> Option<(PathBuf, PathBuf)> {
-    let project = DiscoveryFs::resolve(&project)?;
     CallbackGuard::root(launcher, "git")?;
+    context_path(project)
+}
+
+fn context_path(project: PathBuf) -> Option<(PathBuf, PathBuf)> {
+    let project = DiscoveryFs::resolve(&project)?;
+    Some((project, state_home()?))
+}
+
+fn state_home() -> Option<PathBuf> {
     let state = match env::var("MORU_STATE_HOME") {
         Ok(value) if !Renderer::strip(&value).is_empty() => PathBuf::from(Renderer::strip(&value)),
         Err(env::VarError::NotUnicode(_)) => return None,
         _ => PathBuf::from(env::var_os("HOME")?).join(".moru"),
     };
-    Some((project, state))
+    Some(state)
 }
 
 fn close(launcher: &OsString, args: &[OsString]) -> Option<(i32, String)> {

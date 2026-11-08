@@ -252,9 +252,12 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "work-cards",
-      "remaining": "Port card creation/upgrades, open and internal writes/reads, resume and recovery; close currently covers only existing canonical v3 WAL stores.",
+      "remaining": "Native internal listing now covers typed SQLite cells and field order. Port card creation/upgrades, open and internal writes, resume/liveness, exceptional read recovery and direct Python removal; close currently covers only existing canonical v3 WAL stores.",
+      "supporting_sources": ["scripts/support/native_cards.py"],
       "verification": {
-        "bounded_close": "Existing canonical v3 WAL close: native/Python state and timestamp checks, repository isolation, WAL read snapshots and no-Python delivery; other work-card behaviors remain open. See native-work-cards.md."
+        "bounded_close": "Existing canonical v3 WAL close: native/Python state and timestamp checks, repository isolation, WAL read snapshots and no-Python delivery; other work-card behaviors remain open. See native-work-cards.md.",
+        "internal_read": "PASS:60 initial card/reference/lifecycle/identity/ledger tests,10 affected snapshot tests after review correction (61 distinct Python cases),10 Rust card tests and163 final transported macOS ARM64 checks. Native-required internal reads preserve SQLite integer/real/text/null/blob types, column order, generated columns, legacy defaults, repository identity memo and committed WAL snapshots.",
+        "internal_negative_authority": "PASS: no store/table creation or database-byte changes; unsupported versions/indexes/invalid UTF8 and malformed typed results decline atomically. Independent review found and verified repair of early RuntimeError lookup replacing original missing-store/schema outcomes. Private transported snapshots run with empty PATH. Creation, migration, internal writes and recovery remain open; exact-batch Linux acceptance pending."
       }
     },
     {
@@ -930,6 +933,7 @@
     "scripts/support/marketing_catalog.py",
     "scripts/support/moru_run_state.py",
     "scripts/support/native_bundle.py",
+    "scripts/support/native_cards.py",
     "scripts/support/native_launcher_install.py",
     "scripts/support/native_overhead.py",
     "scripts/support/native_overhead_report.py",

@@ -9,8 +9,9 @@ type: ai-generated
 ## Scope and contract
 
 The generated launcher handles `work-cards [--project PATH] list [--all]` in
-Rust. The existing Python module remains the owner of internal card reads,
-writes, migrations, resume, liveness and error/recovery beyond the bounded close
+Rust. Internal Python card callers now use the private native snapshot reader
+described below. The existing module retains writes, migrations, resume,
+liveness and error/recovery beyond the bounded close
 extension below. This
 extends one already-covered inventory boundary without adding another entry.
 
@@ -29,8 +30,8 @@ closes native resources and delegates to Python, which retains its existing
 two-second timeout and recovery. Native does not use immutable/no-lock flags.
 The Python owner can use its pre-existing immutable retry after an operational
 error; preserving that behavior is a compatibility boundary, not a new native
-shortcut. Unknown versions, custom indexes, float/blob conversion, unusual CLI
-forms, source/environment drift and uncertain paths also retain Python.
+shortcut. Unknown versions, custom indexes, public CLI float/blob conversion,
+unusual CLI forms, source/environment drift and uncertain paths also retain Python.
 
 ## Bundled dependency and distribution
 
@@ -70,7 +71,8 @@ is retained; this does not claim that no transient SQLite sidecar activity occur
 The final archive passes all 53 transported consumer checks. The three added
 checks prove missing-store listing without Git/Python and active/all listing
 with Git-only PATH, including exact Python output and unchanged database bytes.
-Four-host CI includes the new suite; no remote or other-host run is claimed.
+The original four-host CI coverage predates the current two supported targets,
+macOS ARM64 and Linux x86_64. No remote or other-host run is claimed here.
 
 No latency, CPU/RSS or cost experiment is repeated, and no numerical speed or
 savings claim is made. Those initial read-only acceptance results preceded
@@ -113,3 +115,42 @@ store-guard test and the three ledger cases pass after the final conservative
 non-UTF-8 environment handling change. Rust tests pass in both default and
 software-SHA modes (31 each); final consumer acceptance covers 93 checks.
 These are local results for this extension; its other-host CI remains open.
+
+## Internal typed snapshots
+
+`list_cards` now submits an optional private read request, so ordinary lifecycle
+callers use native SQLite reads rather than only the public CLI. The source,
+environment, existing-store, schema, index, lock and path checks are shared with
+CLI lookup. No database path or SQL arrives in a request: the native owner
+derives the existing store from the normal global state location. No store,
+table, index, schema, cache or card is created or changed. The original Python
+lookup remains the rollback and exceptional recovery path.
+
+The Python caller retains its canonical repository-key lookup and per-read-scope
+Git memo, supplying that content-free key to the native query. The native reader
+does not repeat Git identity resolution or replace a memoized identity with a
+later checkout observation.
+
+Snapshots preserve `SELECT *` column order, remove `repo`, and append only
+missing legacy `run_id`, `runtime` and `session_id` defaults. Private cells carry
+explicit NULL/integer/real/text/blob tags; real text round-trips binary64 values
+and infinities, and hexadecimal blobs round-trip arbitrary bytes. This retains
+Python's internal return types without forcing them through public JSON number
+or string conversion. The adapter validates the complete response before
+returning any row. Invalid UTF-8, malformed tags, oversized output or unsupported
+state declines the whole read. SQLite's ordinary shared-memory locking remains
+in force; no immutable/no-lock shortcut is added. Public CLI float/blob fallback
+is retained. Creation, schema upgrades, internal writes, resume/liveness,
+exceptional recovery and direct Python removal remain in unit 17's open scope.
+
+The internal-read increment passed 60 initial Python card/reference/lifecycle/
+identity/inventory cases, then all 10 affected snapshot cases after a review
+correction (61 distinct Python cases). Ten Rust card tests and 163 final
+transported macOS ARM64 checks passed. Native-required cases disable Python
+SQLite replay, compare exact types and dictionary order, and observe committed
+WAL snapshots. Private transported reads run with empty PATH. Review exposed an
+early `RuntimeError` from path identity lookup replacing the original empty-store
+or schema error; the adapter now declines and reproducer tests preserve the
+original order. Missing stores remain absent and main database bytes unchanged.
+SQLite may still perform its normal transient shared-memory locking. Linux
+acceptance for this exact batch remains pending an authorized manual build.
