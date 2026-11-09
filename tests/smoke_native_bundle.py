@@ -424,7 +424,8 @@ def smoke(archive):
             assert json.loads(done.stdout)["selected_project"]["path"] == str(target), done
             checks += 1
         for runtime in ("claude", "codex"):
-            for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt",
+            for command in ("git log -5 --oneline", "git ls-files", "git diff", "git diff --cached -- notes.txt",
+                            "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',
                             "tail -n 20 notes.txt", "wc -l notes.txt", "sed -n '1,20p' '한글 메모.txt'",
                             "ls -la", "git status --short --branch", "git remote -v",

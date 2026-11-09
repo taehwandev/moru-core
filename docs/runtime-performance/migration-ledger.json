@@ -301,7 +301,7 @@
       "status": "partial_native",
       "entry_aliases": "claude-pretool-gate",
       "remaining": "Port full command/effect parsing, scope, workflow, publication and mutation decisions beyond read queries.",
-      "verification": {},
+      "verification": {"diff_queries": "PASS:34 Python pretool/query cases,4 Rust grammar tests and199 transported macOS ARM64 checks. Plain/cached/literal-path diff classification matches Python without Python/Git on PATH; unsafe syntax, shadows and exceptional contexts retain replay. One bounded follow-up only; see native-pretool-diff.md. Full pretool migration remains open."},
       "supporting_sources": [
         "scripts/agent_closeout_command.py"
       ]
@@ -340,7 +340,7 @@
       "status": "partial_native",
       "entry_aliases": "codex-pretool-gate",
       "remaining": "Port full pretool policy and Codex normalization/approval handling beyond read queries.",
-      "verification": {}
+      "verification": {"diff_queries": "Same shared classifier and34/4/199 checks as unit20; new ordinary diff forms preserve Codex transcript binding and exact Python replay. See native-pretool-diff.md. Full pretool and cross-host acceptance remain open."}
     },
     {
       "id": "scripts/codex_stop_gate.py",
