@@ -218,7 +218,7 @@ def retained_work_summary(project: Path, binding_path: Path) -> dict | None:
                 or read_work_record(binding_path)[0] != current):
             return None
         return copy.deepcopy({key: packet["work"][key] for key in (
-            "objective", "non_goals", "decisions", "acceptance_criteria", "evidence_refs"
+            "objective", "non_goals", "decisions", "acceptance_criteria", "requirements", "evidence_refs"
         ) if key in packet["work"]})
     except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError):
         return None

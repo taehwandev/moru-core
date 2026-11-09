@@ -50,6 +50,49 @@ class CompletionIntegrationTests(unittest.TestCase):
         (self.run.project / "plan.md").unlink()
         self.assertTrue(work_completion_failures(self.run.project, self.run.evidence))
 
+    def test_resume_exposes_requirement_only_contract_without_claiming_verification(self):
+        from agent_continuation_resume import resume_references
+
+        required = contract(gate="verify")
+        self.checkpoint({"requirements": required})
+        before = (self.run.evidence.parent / "continuation.json").read_bytes()
+        result = resume_references(self.run.project, self.run.run["run_id"])
+        self.assertEqual("ok", result["result"])
+        self.assertEqual(required, result["work_contract"].get("requirements"))
+        self.assertEqual("recorded", result["requirements_status"])
+        self.assertFalse(result["verification_reuse"])
+        self.assertEqual("reference_only", result["authority"])
+        self.assertEqual(before, (self.run.evidence.parent / "continuation.json").read_bytes())
+
+    def test_continued_requirements_still_need_current_action_gate_and_artifact(self):
+        from agent_hook_continuation import start_checkpoint
+        from test_agent_work_continuity import RetainedWorkSummaryTests
+
+        fixture = RetainedWorkSummaryTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        required = contract(gate="prior-only")
+        fixture.source.checkpoint("decision", work={"requirements": required})
+        target = fixture.target
+        target.preflight["route"] = {**target.preflight["route"], "lifecycle_version": 2}
+        fixture.write_preflight(target)
+        args = SimpleNamespace(project=target.project, command="task")
+        with patch("agent_hook_continuation.run_binding_path", return_value=target.binding_path):
+            kind, work = start_checkpoint(args)
+        target.checkpoint(kind, work=work)
+        self.assertEqual(required, target.packet()["work"].get("requirements"))
+        self.assertTrue(work_completion_failures(target.project, target.binding_path))
+        (target.project / "plan.md").write_text("Observed fixture plan\n")
+        self.assertTrue(work_completion_failures(target.project, target.binding_path))
+        # A route change keeps the requirement but permits explicit revision
+        # to a current observing gate, without losing its stable ID.
+        target.checkpoint("decision", work={"requirements": contract(2, gate="verify")})
+        self.assertEqual(required, fixture.source.packet()["work"]["requirements"])
+        self.assertTrue(work_completion_failures(target.project, target.binding_path))
+        record_gate_evidence(evidence_path=target.binding_path, preflight=target.preflight,
+            gate="verify", status="SUCCESS", evidence="Observed current action fixture plan")
+        self.assertEqual([], work_completion_failures(target.project, target.binding_path))
+
     def test_revision_changes_preserve_ids_and_atomic_prior_checkpoint(self):
         self.checkpoint({"requirements": contract(gate="verify")})
         path = self.run.evidence.parent / "continuation.json"

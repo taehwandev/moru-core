@@ -31,6 +31,43 @@ the required lifecycle before edits; reuse the living task and existing authorit
 
 ## Verification And Maintenance
 
+### Requirement delivery and state-review scope (H06, H08, H09)
+
+Baseline `8eebeb55`, macOS/Codex, clean isolated task checkout. Claude's real
+read-only critique challenged the initial diagnosis: optional coverage and
+inability to judge arbitrary content are documented limitations, not proof of
+a broken validator. The initial gate-plus-file probe exercised coverage only,
+not the complete finish/freshness contract. No matched model-quality experiment
+or performance claim is made.
+
+AGY's real read-only critique also distinguished self-authored intake omissions
+from mechanical defects. Its freeze/provenance proposal is not implemented here:
+unchanged verified artifacts and state-only work must remain valid, and richer
+schemas cannot prove semantic fulfillment. The existing heredoc rejection already
+explains syntax uncertainty and a file-based remedy; that boundary is retained.
+
+| ID | Priority | Reproducer and observed failure | Repair and falsifying check |
+| --- | --- | --- | --- |
+| F20 | High / H06, H09 | A valid checkpoint with structured `requirements` lost that subtree when `retained_work_summary` initialized a continued action; read-only `resume_references` also omitted it and reported requirement-only packets as unrecorded. | Preserve the existing mapping in both transports. A two-action test checks IDs/revision/deep-copy retention; a native integration test requires current-action gate and artifact evidence after transport. No prior verification or authority is copied. |
+| F21 | Medium / H06, H08 | `repo-hygiene` with unrelated dirty source reached structural review and demanded source repairs outside a state-only task. | Refuse this scope mismatch before structural review as an invocation error, with the existing cleanup route or explicit source scope as the remedy. Preserve dirty files; neither skip source validation nor grant cleanup authority. The actual review entrypoint test checks clean acceptance and dirty refusal without calling the structural checker. |
+
+The source change adds no checkpoint schema, provider call, mandatory gate,
+mtime heuristic or requirement-inference system. Unknown command effects and
+historical compatibility keep their safety boundaries. Local regression evidence
+is recorded in the task's ignored run logs; it does not prove globally installed
+runtime activation or eliminate model judgment errors.
+
+Observed local verification: 61 continuity/scope tests, 144 completion/resume/
+review tests, and seven native coverage tests passed (212 unique tests); the
+strengthened dirty-scope test was then rerun successfully. The mapping's gate
+was also explicitly revised for a changed route, preserving its
+ID and immutable predecessor while still requiring current-action verification.
+Reintroducing the mapping-drop defect failed its transport assertion; its native companion also
+refused the changed source binding, so that error is not claimed as a semantic
+regression assertion. Restoring the exact candidate passed both tests.
+`workflow.py validate` checked 204 references, 502 frontmatter/link blocks and
+30 route contracts. No global install, merge, push or inference benchmark ran.
+
 ### Fixed startup context and external goal repetition (H06, H09, H10)
 
 The startup-context diet is based on local `ed1452e8`, not main. `AGENTS.md`

@@ -52,12 +52,12 @@ complete the rest. Distinguish uninvestigated work from a verified blocker and
 report partial results as partial. Retain earlier authorization unless changed or
 revoked; do not narrow the original scope to the last approved subset.
 
-For multi-outcome delivery with matching native completion support, map each
-required outcome to a stable ID, owner, observing route gate and local artifacts
-using optional `work.requirements`. Preserve IDs and advance its revision on
-changes; `docs/runtime-performance/native-completion-evidence.md` defines the
-closed contract. Coverage complements remaining-work reconciliation; it never
-infers requirements, waives work or grants authority.
+With native support, map multiple outcomes to stable IDs, owners, observing
+gates and artifacts in optional `work.requirements`. Keep IDs across action
+continuations; advance revisions on change. See
+`docs/runtime-performance/native-completion-evidence.md`.
+Coverage checks mapped files/gates, not omitted requirements or semantic truth.
+Judge outcomes against actual observing results; coverage grants no authority.
 
 The prompt hook delivers this section once per session and on change. It starts
 no task, invalidates no passed check and grants no authority; a completed task
