@@ -246,9 +246,12 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "project-memory",
-      "remaining": "Native lexical terms, eligibility and recall ranking are implemented. Store IO/validation, capture/retire, source hashing, analysis binding, rendering, exceptional profiles and Python retirement remain open.",
+      "remaining": "Native lexical terms, recall ranking, ordinary file decode/validation and sorted scans are implemented. Store/repository admission, capture/retire, source hashing, analysis binding, rendering, exceptional profiles and Python retirement remain open.",
       "supporting_sources": ["scripts/support/native_memory.py", "native/checkout-identity/memory_contract.py"],
-      "verification": {"recall": "PASS:100 distinct Python3.9 cases,4 selected Python3.14 profile/error cases,4 Rust tests and191 transported macOS ARM64 checks. Actual native helper calls reject Python lexical/ranking replay and return original objects without writes. Fixture-only tie/profile assertions were corrected against source; see native-memory-recall.md. No completed-unit or exact-batch Linux claim."}
+      "verification": {
+        "recall": "PASS:100 distinct Python3.9 cases,4 selected Python3.14 profile/error cases,4 Rust tests and191 transported macOS ARM64 checks. Actual native helper calls reject Python lexical/ranking replay and return original objects without writes. Fixture-only tie/profile assertions were corrected against source; see native-memory-recall.md. No completed-unit or exact-batch Linux claim.",
+        "record_reads": "PASS:109 Python3.9 memory/source/ledger cases,3 selected Python3.14 cases,9 Rust memory tests and195 transported macOS ARM64 checks. Native file decoding, canonical digest/schema checks and sorted scans execute without Python read_text/digest/record-loop replay; guarded descriptor/FIFO, permissions, symlinks and unsupported metadata preserve read-only fallback. See native-memory-files.md. Unit16 remains partial; no exact-batch Linux claim."
+      }
     },
     {
       "id": "scripts/agent_work_cards.py",

@@ -224,6 +224,10 @@ def _record_path(project: Path, record_id: str) -> Path:
 
 def read_record(path: Path) -> dict[str, Any] | None:
     """Return one validated record, or None for anything that fails validation."""
+    from support.native_memory import NativeMemory
+    native = NativeMemory.files("record", path)
+    if native is not None:
+        return native["record"]
     if path.is_symlink():
         return None
     try:
@@ -343,6 +347,10 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
 def scan_records(project: Path) -> tuple[list[dict[str, Any]], int]:
     """Read the store once: every validated record and the count of rejected files."""
     directory = store_dir(project)
+    from support.native_memory import NativeMemory
+    native = NativeMemory.files("scan", directory)
+    if native is not None:
+        return native["records"], native["unreadable"]
     if not directory.is_dir() or directory.is_symlink():
         return [], 0
     records, unreadable = [], 0

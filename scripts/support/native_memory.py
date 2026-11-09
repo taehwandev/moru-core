@@ -1,4 +1,4 @@
-"""Optional native memory ranking; the original owner keeps all store authority.
+"""Optional native memory reads/ranking; original owner keeps write authority.
 
 Owner: NativeMemory. Allowed: stdlib/NativeProbe. Forbidden: ranking, store
 reads/writes, providers. Callers/tests: project-memory recall, native oracles.
@@ -11,6 +11,25 @@ from support.native_probe_transport import NativeProbe
 
 
 class NativeMemory:
+    @staticmethod
+    def files(operation, path):
+        if operation not in {"record", "scan"} or type(path) is not type(Path()):
+            return None
+        try:
+            result = NativeProbe.request("--memory-probe", operation,
+                {"unicode":unicodedata.unidata_version,"path":str(path)})
+        except (OSError, ValueError, RuntimeError):
+            return None
+        if type(result) is not dict:
+            return None
+        if operation == "record":
+            return result if set(result) == {"record"} and (result["record"] is None or type(result["record"]) is dict) else None
+        if (set(result) != {"records","unreadable"} or type(result["records"]) is not list
+                or any(type(item) is not dict for item in result["records"])
+                or type(result["unreadable"]) is not int or result["unreadable"] < 0):
+            return None
+        return result
+
     @staticmethod
     def recall(scope, today, records, request, summary, paths):
         if (type(scope) is not str or type(today) is not date or type(records) is not list

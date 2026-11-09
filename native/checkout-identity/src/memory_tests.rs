@@ -41,7 +41,7 @@ fn dates_versions_schema_and_non_authority_queries_decline() {
         let mut payload = query(json!([record("a","a")]),""); payload["today"] = json!(day);
         assert!(MemoryRecall::evaluate("recall",&payload).is_none());
     }
-    for day in ["2000-02-29","2024-02-29","2026-04-30"] { assert!(MemoryRecall::date(day)); }
+    for day in ["2000-02-29","2024-02-29","2026-04-30"] { assert!(MemoryRecord::date(day)); }
     let mut payload = query(json!([]),""); payload["unicode"] = json!("unknown");
     assert!(MemoryRecall::evaluate("recall",&payload).is_none());
     assert!(MemoryRecall::evaluate("capture",&query(json!([]),"")).is_none());

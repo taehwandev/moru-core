@@ -20,7 +20,7 @@ from support.native_source_inputs import pretool_contract
 from runtime_snapshot_normalize import normalize_output
 from smoke_native_card_resume import check_card_resume
 from smoke_native_doc_transcript import check_doc_transcript
-from smoke_native_memory import check_memory
+from smoke_native_memory import check_memory, check_memory_files
 
 
 def _lossless_report_formats(native, entry, report, env, project):
@@ -593,6 +593,7 @@ def smoke(archive):
         checks += check_card_resume(entry, base, project, repo_key, normal)
         checks += check_doc_transcript(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory(native, entry, project, {**normal,"PATH":str(empty)})
+        checks += check_memory_files(native, entry, base, project, {**normal,"PATH":str(empty)})
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

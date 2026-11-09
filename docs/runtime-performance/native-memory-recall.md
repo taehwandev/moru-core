@@ -9,8 +9,10 @@ type: ai-generated
 The Rust memory owner computes lexical terms, eligibility, weighted relevance
 and stable selection order from the original owner's supplied records. It
 returns indices; the Python bridge returns the same original record objects.
-Capture, validation, storage, source hashing, analysis binding, rendering,
-retirement and authority remain with their original owners. Unit16 is partial.
+The [native file reader](native-memory-files.md) now handles ordinary stored
+record decoding, validation and sorted scans. Capture, storage writes, source
+hashing, analysis binding, rendering, retirement and authority remain with their
+original owners. Unit16 is partial.
 
 The lexical contract retains Python word classes and full case folding,
 path/filename alternatives, nearest directories and stems, identifier weights,
@@ -25,10 +27,11 @@ dictionary scoring, relevance-before-scope/date/id ordering and stable ties.
 Context-free inspection keeps unrelated eligible records. No result limit or
 new relevance threshold is introduced.
 
-The private protocol accepts only terms/recall queries, a closed top-level
-schema and a bounded JSON packet under the existing exact-source/environment
-guard. It reads no memory store and cannot write, invoke a provider, capture
-advice or grant authority. Unsupported values, Unicode profiles, date forms,
+The lexical operations accept terms/recall queries, a closed top-level schema
+and a bounded JSON packet under the existing exact-source/environment guard.
+They read no memory store; separate record/scan operations have guarded file
+reads. Neither path can write, invoke a provider, capture advice or grant
+authority. Unsupported values, Unicode profiles, date forms,
 custom objects, surrogates and transport failures decline to the original path;
 fallback retains source errors and evaluation order. No user memory is used
 as a fixture or changed by this migration.

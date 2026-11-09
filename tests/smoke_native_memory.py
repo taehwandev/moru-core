@@ -1,5 +1,6 @@
 """Transported memory ranking without Python, Git or user-store IO."""
 import json
+import hashlib
 import subprocess
 import unicodedata
 
@@ -16,4 +17,28 @@ def check_memory(native,entry,project,env):
             input=json.dumps(payload).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":indices}},done
+    return 4
+
+
+def check_memory_files(native,entry,base,project,env):
+    directory=base/"synthetic-memory-store"; directory.mkdir()
+    record={"schema_version":1,"id":"a"*16,"status":"active","scope":"task",
+            "body":"프로필 확인; src/ui/ProfileScreen.kt","source":"checked source","review_on":"2099-01-01"}
+    content={key:record[key] for key in ("body","source","scope","review_on")}
+    record["digest"]=hashlib.sha256(json.dumps(content,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+    path=directory/(record["id"]+".json"); path.write_text(json.dumps(record),encoding="utf-8")
+    (directory/"invalid.json").write_text("invalid",encoding="utf-8")
+    def invoke(operation,target,expected):
+        before=path.read_bytes()
+        payload={"unicode":unicodedata.unidata_version,"path":str(target)}
+        done=subprocess.run([str(native),str(entry),"--memory-probe",operation],input=json.dumps(payload).encode(),
+            capture_output=True,cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
+        assert before==path.read_bytes()
+    invoke("record",path,{"record":record})
+    invoke("scan",directory,{"records":[record],"unreadable":1})
+    path.write_text(json.dumps({**record,"body":"tampered"}),encoding="utf-8")
+    invoke("record",path,{"record":None})
+    invoke("scan",base/"missing-memory-store",{"records":[],"unreadable":0})
     return 4

@@ -1,7 +1,7 @@
 //! owner: MemoryRecall; allowed imports: JSON/std/MemoryTerms; forbidden imports:
 //! filesystem, writes, provider and lifecycle authority; callers/tests: private
 //! recall process; verification: source eligibility/rank/negative-input oracles.
-use crate::memory_terms::MemoryTerms;
+use crate::{memory_record::MemoryRecord, memory_terms::MemoryTerms};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 pub(crate) struct MemoryRecall;
@@ -23,11 +23,11 @@ impl MemoryRecall {
     }
     fn recall(payload: &Value) -> Option<Value> {
         let scope = payload.get("scope")?.as_str()?;
-        if !Self::scope(scope) {
+        if !MemoryRecord::scope(scope) {
             return None;
         }
         let today = payload.get("today")?.as_str()?;
-        if !Self::date(today) {
+        if !MemoryRecord::date(today) {
             return None;
         }
         let context = payload.get("context")?.as_str()?;
@@ -60,7 +60,7 @@ impl MemoryRecall {
                 continue;
             }
             let review = record.get("review_on")?.as_str()?;
-            if !Self::date(review) {
+            if !MemoryRecord::date(review) {
                 return None;
             }
             if review <= today {
@@ -95,38 +95,6 @@ impl MemoryRecall {
             )
         });
         Some(json!({"indices":eligible.into_iter().map(|(i,_,_,_)|i).collect::<Vec<_>>()}))
-    }
-    fn scope(value: &str) -> bool {
-        let raw = value.as_bytes();
-        (2..=41).contains(&raw.len())
-            && raw[0].is_ascii_lowercase()
-            && raw[1..]
-                .iter()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'_' || *c == b'-')
-    }
-    fn date(value: &str) -> bool {
-        let raw = value.as_bytes();
-        if raw.len() != 10
-            || raw[4] != b'-'
-            || raw[7] != b'-'
-            || raw
-                .iter()
-                .enumerate()
-                .any(|(i, c)| i != 4 && i != 7 && !c.is_ascii_digit())
-        {
-            return false;
-        }
-        let year = value[..4].parse::<u32>().unwrap();
-        let month = value[5..7].parse::<u32>().unwrap();
-        let day = value[8..].parse::<u32>().unwrap();
-        let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
-        let days = match month {
-            2 => 28 + u32::from(leap),
-            4 | 6 | 9 | 11 => 30,
-            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-            _ => 0,
-        };
-        year > 0 && day > 0 && day <= days
     }
 }
 
