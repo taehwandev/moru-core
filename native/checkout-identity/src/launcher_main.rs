@@ -37,6 +37,8 @@ mod discovery_paths;
 mod discovery_process;
 mod discovery_registry;
 mod discovery_search;
+mod doc_transcript;
+mod doc_transcript_process;
 mod figma_coverage;
 mod figma_process;
 mod figma_validation;
@@ -153,6 +155,12 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "--doc-transcript-probe") {
+        exit(doc_transcript_process::DocTranscriptProcess::run(
+            &launcher, &args,
+        ));
+    }
 
     if args.first().is_some_and(|a| a == "--cards-write-probe") {
         exit(cards_write_process::CardWriteProcess::run(&launcher, &args));

@@ -233,6 +233,7 @@ class InSessionVerificationTests(unittest.TestCase):
 
         fake.verify_project = verify_project
         with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
+                patch.object(agy_hook_verify, "MARKER_DIR", Path(tmp)), \
                 patch.object(adapter, "run_script", return_value=""), \
                 patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
                 patch.dict("os.environ", {"MORU_VERIFY_JUDGE_URL": "http://127.0.0.1:9"}, clear=False), \

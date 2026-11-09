@@ -145,7 +145,10 @@
       "status": "partial_native",
       "entry_aliases": "agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify",
       "remaining": "Port every lifecycle command and its supporting authority/state logic.",
-      "verification": {}
+      "verification": {
+        "doc_transcript": "Shared doc-delivery compaction/alignment file scans now run through a source-bound Rust owner; see native-doc-transcript.md for exact source/native, caller marker and transported proof. Lifecycle authority, evidence binding, marker writes and remaining owned code stay Python; unit5 is partial."
+      },
+      "supporting_sources": ["scripts/agent_required_doc_delivery.py", "scripts/support/native_doc_transcript.py"]
     },
     {
       "id": "scripts/agent-mailbox.py",
@@ -282,10 +285,10 @@
       "id": "scripts/claude_continuation_hook.py",
       "inventory_id": 19,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "claude-continuation-hook",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Shared compaction/alignment transcript scans are native. Port session/project resolution, checkpoint/claim/binding, brief/render/delivery state and all remaining adapter/support logic. No completed-unit claim.",
+      "verification": {"doc_transcript": "Actual shared delivery-marker/budget and source/native file parity in native-doc-transcript.md; all mutation and continuation authority remains with the original owner."}
     },
     {
       "id": "scripts/claude_pretool_gate.py",
@@ -393,10 +396,10 @@
       "id": "scripts/agy_hook_adapter.py",
       "inventory_id": 31,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "agy-hook",
-      "remaining": "Port both AGY adapter boundaries, including PreInvocation required-doc delivery and marker writes in agy_required_docs_hook.py. Preserve exact stdin/stdout, failure and authority behavior.",
-      "verification": {},
+      "remaining": "Shared doc-delivery compaction/alignment scans are native. Port both AGY adapter boundaries: event translation/dispatch, PreInvocation read-credit/rendering/evidence/marker flow, gate and stop/verifier state. Preserve exact IO/effects; unit31 is partial.",
+      "verification": {"doc_transcript": "Actual AGY CHECKPOINT delivery/whole-read marker flow compares source/native; native file scans and encoding/stream fallbacks are verified. See native-doc-transcript.md. No public adapter or marker-write cutover is claimed."},
       "supporting_entrypoints": [
         "scripts/agy_required_docs_hook.py"
       ]
@@ -944,6 +947,7 @@
     "scripts/support/native_bundle.py",
     "scripts/support/native_card_write.py",
     "scripts/support/native_cards.py",
+    "scripts/support/native_doc_transcript.py",
     "scripts/support/native_launcher_install.py",
     "scripts/support/native_overhead.py",
     "scripts/support/native_overhead_report.py",

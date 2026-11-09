@@ -19,6 +19,7 @@ from support.stable_launcher import ensure_stable_launcher
 from support.native_source_inputs import pretool_contract
 from runtime_snapshot_normalize import normalize_output
 from smoke_native_card_resume import check_card_resume
+from smoke_native_doc_transcript import check_doc_transcript
 
 
 def _lossless_report_formats(native, entry, report, env, project):
@@ -589,6 +590,7 @@ def smoke(archive):
         checks += _card_writes(native, entry, base, project, repo_key, normal, empty)
         checks += _card_bootstrap(native, entry, base, project, normal, empty)
         checks += check_card_resume(entry, base, project, repo_key, normal)
+        checks += check_doc_transcript(native, entry, base, project, {**normal,"PATH":str(empty)})
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

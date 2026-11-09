@@ -141,6 +141,12 @@ reads, recall, bootstrap SQL and DML through guarded bridges. Python still owns
 path/initial-connection admission, direct compatibility and exceptional recovery;
 unit 17 remains partial.
 
+The [shared native document-transcript scans](runtime-performance/native-doc-transcript.md)
+move compaction detection and complete-line offsets into Rust for lifecycle and
+Claude/Codex/Antigravity delivery callers. Evidence binding, marker writes,
+rendering and remaining CLI/adapter behavior stay with their original owners.
+Units 5, 19 and 31 remain partial.
+
 The [native mailbox status increment](runtime-performance/native-mailbox-status.md)
 upgrades the already-covered mailbox CLI: empty inboxes and acknowledgement
 counts run natively; packets, delivery and uncertain state retain Python.
@@ -175,7 +181,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 17 | `scripts/agent_work_cards.py` | work-cards | Partial native CLI including explicit Codex picker, typed reads, recall, bootstrap SQL and DML; Python admission/direct compatibility/recovery retained | Exact session binding/selection and child cleanup, schema/error timing, retention/reactivation and no replay; bundled consumer without Python |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
-| 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Partial native shared doc transcript scans | Session binding/checkpoints/delivery state and remaining adapter logic |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |
 | 21 | `scripts/claude_statusline.py` | claude-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 22 | `scripts/claude_stop_gate.py` | claude-stop-gate | Partial native quiet/settled Stop | Preserve active continuation, interruption, legacy edits, indexed projects and mailbox ack |
@@ -187,7 +193,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
-| 31 | `scripts/agy_hook_adapter.py` | agy-hook | Python retained | Antigravity lifecycle hook ingress; native conversion required by full Goal |
+| 31 | `scripts/agy_hook_adapter.py` | agy-hook | Partial native shared doc transcript scans | Both adapter boundaries, PreInvocation read/render/evidence/marker flow and gate/Stop/verifier state |
 
 ## Ancillary direct CLI coverage
 
