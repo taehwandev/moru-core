@@ -363,6 +363,10 @@ def _recall(project: Path, scope: str, *, today: date | None = None,
     today = today or date.today()
     if records is None:
         records = scan_records(project)[0]
+    from support.native_memory import NativeMemory
+    selected = NativeMemory.recall(scope, today, records, request, target_summary, target_paths)
+    if selected is not None:
+        return selected
     live = [record for record in records if record["status"] in RECALLABLE_STATUSES]
     # Replacement is durable even if retiring its predecessor was interrupted.
     # Retiring or replacing the successor must never resurrect invalidated advice.

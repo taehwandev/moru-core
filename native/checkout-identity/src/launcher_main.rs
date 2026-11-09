@@ -51,6 +51,9 @@ mod mailbox_process;
 mod mailbox_state;
 mod mailbox_status_process;
 mod mailbox_status_state;
+mod memory_terms;
+mod memory_recall;
+mod memory_process;
 mod manifest_process;
 mod next_process;
 mod next_verification;
@@ -155,6 +158,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+
+    if args.first().is_some_and(|a| a == "--memory-probe") {
+        exit(memory_process::MemoryProcess::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "--doc-transcript-probe") {
         exit(doc_transcript_process::DocTranscriptProcess::run(

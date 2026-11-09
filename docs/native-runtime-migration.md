@@ -178,7 +178,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
-| 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 16 | `scripts/agent_project_memory.py` | project-memory | Partial native recall | [Lexical/ranking migration](runtime-performance/native-memory-recall.md); remaining store/CLI/supporting ownership stays open |
 | 17 | `scripts/agent_work_cards.py` | work-cards | Partial native CLI including explicit Codex picker, typed reads, recall, bootstrap SQL and DML; Python admission/direct compatibility/recovery retained | Exact session binding/selection and child cleanup, schema/error timing, retention/reactivation and no replay; bundled consumer without Python |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Partial native shared doc transcript scans | Session binding/checkpoints/delivery state and remaining adapter logic |

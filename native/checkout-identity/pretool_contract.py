@@ -108,6 +108,9 @@ def _resume_flush_error():
 def emit(output):
     emit_argparse_contract()
     emit_python_text(output.parent / "python_text_contract.rs")
+    from memory_contract import emit as emit_memory
+    emit_memory(output.parent / "memory_contract.rs")
+    print("cargo:rerun-if-changed=memory_contract.py")
     # Preserve the artifact builder's argparse wording without a runtime Python
     # subprocess. Python 3.9 says "optional arguments", newer versions "options".
     title = argparse.ArgumentParser()._optionals.title
