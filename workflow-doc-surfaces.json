@@ -21,11 +21,13 @@
       "common/skills/foldable-adaptive-layout/SKILL.md"
     ],
     "common_ui_quality": [
+      "common/nodes/ui-state-render-boundary.md",
       "common/skills/ui-visual-verification/SKILL.md",
       "common/skills/performance-verification/SKILL.md",
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "android_compose_ui": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/android/skills/android-compose-ui/SKILL.md",
       "platforms/android/skills/android-compose-ui/references/screen-structure.md",
       "platforms/android/skills/android-module-structure/SKILL.md",
@@ -40,6 +42,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "application_ui": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/application/skills/application-command-ui/SKILL.md",
       "platforms/application/skills/application-architecture/SKILL.md",
       "platforms/application/skills/application-review/SKILL.md",
@@ -49,6 +52,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "application_react_desktop": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/application/skills/application-react-desktop/SKILL.md",
       "platforms/application/skills/application-command-ui/SKILL.md",
       "platforms/application/skills/application-system-integration/SKILL.md",
@@ -61,6 +65,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "flutter_ui": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/flutter/skills/flutter-widget-ui/SKILL.md",
       "platforms/flutter/skills/flutter-project-structure/SKILL.md",
       "platforms/flutter/skills/flutter-state-data/SKILL.md",
@@ -70,6 +75,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "ios_ui": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/ios/skills/ios-swiftui-ui/SKILL.md",
       "platforms/ios/skills/ios-uikit-ui/SKILL.md",
       "platforms/ios/skills/ios-module-structure/SKILL.md",
@@ -82,6 +88,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "ios_swiftui": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/ios/skills/ios-swiftui-ui/SKILL.md",
       "platforms/ios/skills/ios-module-structure/SKILL.md",
       "platforms/ios/skills/ios-state-concurrency/SKILL.md",
@@ -93,6 +100,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "ios_uikit": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/ios/skills/ios-uikit-ui/SKILL.md",
       "platforms/ios/skills/ios-module-structure/SKILL.md",
       "platforms/ios/skills/ios-state-concurrency/SKILL.md",
@@ -104,6 +112,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "kmp_compose_ui": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/kmp/skills/kmp-compose-ui/SKILL.md",
       "platforms/kmp/skills/kmp-module-structure/SKILL.md",
       "platforms/kmp/skills/kmp-state-data/SKILL.md",
@@ -113,6 +122,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "swift_ui_design": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/swift/skills/swift-design-system/SKILL.md",
       "platforms/swift/skills/swift-code-structure/SKILL.md",
       "platforms/swift/skills/swift-review/SKILL.md",
@@ -121,6 +131,7 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "web_ui": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/web/skills/web-code-structure/SKILL.md",
       "platforms/web/skills/web-state-data/SKILL.md",
       "platforms/web/skills/web-design-system/SKILL.md",
@@ -131,9 +142,11 @@
       "common/skills/minimal-visual-design/SKILL.md"
     ],
     "web_react_ui": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/web/skills/web-react-ui/SKILL.md"
     ],
     "react_native_app": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/react-native/skills/react-native-app/SKILL.md",
       "platforms/web/skills/web-react-ui/SKILL.md",
       "platforms/web/skills/web-state-data/SKILL.md",
@@ -214,22 +227,45 @@
       "common/skills/testing/SKILL.md",
       "platforms/web/skills/web-state-data/SKILL.md"
     ],
+    "flutter_ui_touch": [
+      "common/nodes/ui-state-render-boundary.md",
+      "platforms/flutter/skills/flutter-widget-ui/SKILL.md",
+      "platforms/flutter/skills/flutter-review/SKILL.md",
+      "common/skills/ui-visual-verification/SKILL.md"
+    ],
+    "swift_design_touch": [
+      "common/nodes/ui-state-render-boundary.md",
+      "platforms/swift/skills/swift-design-system/SKILL.md",
+      "platforms/swift/skills/swift-code-structure/SKILL.md",
+      "platforms/swift/skills/swift-review/SKILL.md",
+      "common/skills/ui-visual-verification/SKILL.md"
+    ],
+    "react_native_touch": [
+      "common/nodes/ui-state-render-boundary.md",
+      "platforms/react-native/skills/react-native-app/SKILL.md",
+      "platforms/web/skills/web-react-ui/SKILL.md",
+      "common/skills/ui-visual-verification/SKILL.md"
+    ],
     "android_ui_layout_change": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/android/skills/android-compose-ui/SKILL.md",
       "common/skills/accessibility-i18n/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
     ],
     "web_ui_layout_change": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/web/skills/web-react-ui/SKILL.md",
       "common/skills/accessibility-i18n/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
     ],
     "android_compose_touch": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/android/skills/android-compose-ui/SKILL.md",
       "platforms/android/skills/android-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
     ],
     "ios_swiftui_touch": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/ios/skills/ios-swiftui-ui/SKILL.md",
       "platforms/ios/skills/ios-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
@@ -238,16 +274,19 @@
       "platforms/swift/skills/swift-code-structure/SKILL.md"
     ],
     "ios_uikit_touch": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/ios/skills/ios-uikit-ui/SKILL.md",
       "platforms/ios/skills/ios-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
     ],
     "web_react_touch": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/web/skills/web-react-ui/SKILL.md",
       "platforms/web/skills/web-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
     ],
     "kmp_compose_touch": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/kmp/skills/kmp-compose-ui/SKILL.md",
       "platforms/kmp/skills/kmp-review/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
@@ -278,18 +317,22 @@
       "common/skills/performance-verification/SKILL.md"
     ],
     "android_ui_state_change": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/android/skills/android-viewmodel-state/SKILL.md",
       "common/skills/state-modeling/SKILL.md"
     ],
     "ios_ui_state_change": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/ios/skills/ios-state-concurrency/SKILL.md",
       "common/skills/state-modeling/SKILL.md"
     ],
     "web_ui_state_change": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/web/skills/web-state-data/SKILL.md",
       "common/skills/state-modeling/SKILL.md"
     ],
     "ios_ui_layout_change": [
+      "common/nodes/ui-state-render-boundary.md",
       "platforms/ios/skills/ios-swiftui-ui/SKILL.md",
       "common/skills/accessibility-i18n/SKILL.md",
       "common/skills/ui-visual-verification/SKILL.md"
@@ -2024,6 +2067,7 @@
         "*/src/main/**/ui/**/*.kt",
         "**/src/main/**/compose/**/*.kt",
         "**/src/main/**/*Screen.kt",
+        "**/src/main/**/*Content.kt",
         "**/src/main/**/*Route.kt",
         "**/src/main/**/*Composable.kt",
         "**/src/main/**/*UiState.kt"
@@ -2069,9 +2113,9 @@
         "**/*_widget.dart"
       ],
       "doc_sets": [
-        "flutter_ui"
+        "flutter_ui_touch"
       ],
-      "reason": "Touched Flutter screen, page, or widget paths imply Flutter widget UI/state guidance should be read."
+      "reason": "Touched Flutter screen, page or widget paths require widget authoring, state/render boundaries and visual verification; broader structure or data rules follow the change."
     },
     {
       "name": "ios_swiftui_paths",
@@ -2109,27 +2153,61 @@
     {
       "name": "kmp_compose_paths",
       "patterns": [
+        "**/desktopMain/**/ui/**/*.kt",
+        "**/desktopMain/**/ui/*.kt",
+        "**/desktopMain/**/compose/**/*.kt",
+        "**/desktopMain/**/compose/*.kt",
+        "**/desktopMain/**/*Screen.kt",
+        "**/desktopMain/**/*Content.kt",
+        "**/desktopMain/**/*Composable.kt",
+        "**/desktopMain/**/*UiState.kt",
+        "**/jvmMain/**/ui/**/*.kt",
+        "**/jvmMain/**/ui/*.kt",
+        "**/jvmMain/**/compose/**/*.kt",
+        "**/jvmMain/**/compose/*.kt",
+        "**/jvmMain/**/*Screen.kt",
+        "**/jvmMain/**/*Content.kt",
+        "**/jvmMain/**/*Composable.kt",
+        "**/jvmMain/**/*UiState.kt",
         "**/commonMain/**/ui/**/*.kt",
         "**/commonMain/**/ui/*.kt",
         "**/commonMain/**/compose/**/*.kt",
         "**/commonMain/**/compose/*.kt",
         "**/commonMain/**/*Screen.kt",
+        "**/commonMain/**/*Content.kt",
         "**/commonMain/**/*Composable.kt",
         "**/commonMain/**/*UiState.kt"
       ],
       "doc_sets": [
         "kmp_compose_touch"
       ],
-      "reason": "Touched KMP commonMain Compose UI paths imply Compose Multiplatform UI, review, and visual verification guidance should be read."
+      "reason": "Touched shared or desktop KMP Compose UI paths imply Compose Multiplatform UI, review, and visual verification guidance should be read."
     },
     {
       "name": "kmp_compose_ecosystem",
       "patterns": [
+        "**/desktopMain/**/ui/**/*.kt",
+        "**/desktopMain/**/ui/*.kt",
+        "**/desktopMain/**/compose/**/*.kt",
+        "**/desktopMain/**/compose/*.kt",
+        "**/desktopMain/**/*Screen.kt",
+        "**/desktopMain/**/*Content.kt",
+        "**/desktopMain/**/*Composable.kt",
+        "**/desktopMain/**/*UiState.kt",
+        "**/jvmMain/**/ui/**/*.kt",
+        "**/jvmMain/**/ui/*.kt",
+        "**/jvmMain/**/compose/**/*.kt",
+        "**/jvmMain/**/compose/*.kt",
+        "**/jvmMain/**/*Screen.kt",
+        "**/jvmMain/**/*Content.kt",
+        "**/jvmMain/**/*Composable.kt",
+        "**/jvmMain/**/*UiState.kt",
         "**/commonMain/**/ui/**/*.kt",
         "**/commonMain/**/ui/*.kt",
         "**/commonMain/**/compose/**/*.kt",
         "**/commonMain/**/compose/*.kt",
         "**/commonMain/**/*Screen.kt",
+        "**/commonMain/**/*Content.kt",
         "**/commonMain/**/*Composable.kt",
         "**/commonMain/**/*UiState.kt"
       ],
@@ -2149,7 +2227,7 @@
         "Sources/**/*Component.swift"
       ],
       "doc_sets": [
-        "swift_ui_design"
+        "swift_design_touch"
       ],
       "reason": "Touched Swift design-system, style, modifier, primitive, or component paths imply Swift UI/design guidance should be read."
     },
@@ -2166,9 +2244,9 @@
         "**/*.android.tsx"
       ],
       "doc_sets": [
-        "react_native_app"
+        "react_native_touch"
       ],
-      "reason": "Touched React Native app roots or platform-qualified TypeScript paths imply mobile screen, state, native-integration, visual, and performance guidance."
+      "reason": "Touched React Native app roots or platform-qualified TypeScript paths require mobile/React authoring, state/render boundaries and visual verification; data and performance guidance follow the change."
     },
     {
       "name": "web_react_paths",
@@ -2212,6 +2290,7 @@
         "*/src/main/**/ui/**/*.kt",
         "**/src/main/**/compose/**/*.kt",
         "**/src/main/**/*Screen.kt",
+        "**/src/main/**/*Content.kt",
         "**/src/main/**/*Route.kt",
         "**/src/main/**/*Composable.kt",
         "**/src/main/**/*UiState.kt"

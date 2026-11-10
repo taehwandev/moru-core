@@ -2,6 +2,8 @@
 keyflow_id: sys_kmp_compose_ui
 status: review
 type: human-reviewed-needed
+requires:
+  - platforms/compose/nodes/ui-screen-structure.md
 ---
 
 # KMP Compose UI
@@ -16,22 +18,17 @@ splits, also read `platforms/kmp/skills/kmp-module-structure/SKILL.md`.
 
 ## Compose Layers
 
-Use this shape unless the repo has a stricter local pattern:
+Follow `platforms/compose/nodes/ui-screen-structure.md` for layers, naming and
+dependencies. Preserve neighbouring screens' naming; without an established
+convention use `FooScreen` (stateful) -> `FooContent` (stateless), reserving
+`Route` for navigation destination types. Existing `FooRoot` -> `FooScreen`
+conventions remain valid; do not introduce a competing convention.
 
-```text
-Route/Host Composable -> Screen Composable -> Section Composable
--> Feature Component -> Design-System Primitive
-```
-
-- Route/host composables wire state owners, effects, navigation callbacks,
-  platform launchers, focus/window hooks, and dependency entry points.
-- Screen composables are stateless. They receive immutable UI state and explicit
-  callbacks, then render the whole screen.
-- Section composables receive only the state they need.
-- Feature components may know product UI models, but not repositories, target
-  entry points, permission APIs, windows, activities, controllers, or DI.
-- Design-system primitives know visual and interaction contracts, not product
-  routes, analytics labels, storage, shell commands, or fake data.
+Generate both concrete composables for a state-owner-backed screen and connect
+the app's entry to the holder and the holder to content. The content must render
+fixture values without a holder, DI or target services. Shared content must not
+acquire windows, activities, controllers, permission APIs or platform launchers;
+the holder or a target adapter translates them into values and callbacks.
 
 ## Design-System Consumption
 
@@ -116,17 +113,17 @@ For non-trivial shared Compose screens, use an explicit state/action/effect
 contract:
 
 ```text
-<Screen>Root     state owner, lifecycle collection, effects, navigation callbacks
-<Screen>         stateless rendering from state and callbacks
-<Screen>State    persistent visible state
-<Screen>Action   user intents
-<Screen>Effect   one-off navigation, snackbar, permission, file, or external launch
+<Name>Screen     state owner, lifecycle collection, effects, navigation callbacks
+<Name>Content    stateless rendering from state and callbacks
+<Name>State      persistent visible state
+<Name>Action     user intents
+<Name>Effect     one-off navigation, snackbar, permission, file, or external launch
 ```
 
 Rules:
 
-- Keep route/root composables thin. They collect state, handle effects, and
-  delegate rendering to stateless screens.
+- Keep the stateful composable thin. It collects state, handles effects and
+  delegates rendering to stateless content, using the repo's lifecycle APIs.
 - Stateless screens receive immutable state and one action callback or
   role-sized callbacks. They do not resolve DI, read repositories, start network
   calls, or parse navigation arguments.
@@ -172,6 +169,8 @@ a screenshot test, Compose UI test, desktop smoke, or manual target check.
 
 ## Verification
 
+- Trace concrete app entry -> holder -> content and content callback -> holder
+  action symbols; render the same content directly from deterministic fixtures.
 - Compile the changed Compose source set and affected app target.
 - Test state owner transitions when events, effects, loading, errors, or
   permissions changed.
