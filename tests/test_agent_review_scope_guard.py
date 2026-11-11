@@ -424,6 +424,22 @@ class ReviewScopeGuardTests(unittest.TestCase):
                     lambda output: "Ready" if "Ready" in output else "unknown",
                     finish_with_result,
                 )
+                # A dirty hygiene request is an invocation mismatch, not a
+                # structural review of another task's source.
+                (project / "unrelated.py").write_text("def unrelated():\n    pass\n")
+                with (patch("agent_review_hook.structure_review") as structure,
+                      patch("agent_review_hook.record_review_gate") as record_gate):
+                    dirty_result = review_hook(
+                        args, run_command, git_status,
+                        lambda _project, _rules: ["vibeguard", "audit", "."],
+                        lambda output: "Ready" if "Ready" in output else "unknown",
+                        finish_with_result,
+                    )
+                structure.assert_not_called()
+                record_gate.assert_not_called()
+                self.assertEqual(1, dirty_result)
+                self.assertTrue(outputs[-1]["invocation_error"])
+                self.assertIn("cleanup", " ".join(outputs[-1]["details"]))
 
         self.assertEqual(0, result)
         self.assertTrue(outputs[0]["success"])

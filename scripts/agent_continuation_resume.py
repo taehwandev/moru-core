@@ -95,11 +95,12 @@ def resume_references(project: Path, run_id: str, *, check_files: bool = False) 
     if isinstance(origin, str) and RUN_ID_RE.fullmatch(origin):
         original = {"run_id": origin, "path": str(continuation_path(project, origin).parent / "preflight.json"),
                     "json_pointer": "/request_intake", "availability": "unchecked"}
-    contract_keys = ("objective", "non_goals", "decisions", "acceptance_criteria", "remaining_work", "blockers")
+    contract_keys = ("objective", "non_goals", "decisions", "acceptance_criteria", "requirements", "remaining_work", "blockers")
     return {
         **result, "result": "ok", "run_state": record.get("state", "unknown"),
         "work_contract": {key: packet["work"][key] for key in contract_keys if key in packet["work"]},
-        "requirements_status": "recorded" if packet["work"].get("acceptance_criteria") else "not_recorded",
+        "requirements_status": "recorded" if (packet["work"].get("acceptance_criteria")
+                                               or packet["work"].get("requirements")) else "not_recorded",
         "intake_source": {
             "path": str(path.parent / "preflight.json"), "json_pointer": "/request_intake",
             "sha256": packet["binding"]["file_sha256"] if binding.name == "preflight.json" else None,

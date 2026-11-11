@@ -286,6 +286,22 @@ def _review_scope_verdict(
         failures.append("git status failed")
     elif full_status_before["returncode"] != 0 and not full_status_before.get("review_only"):
         failures.append("git status failed")
+    elif getattr(args, "review_scope", "") == "repo-hygiene" and status_before_lines:
+        # A clean-state attestation must not adopt unrelated dirty source as
+        # its review subject or demand a code repair outside the action scope.
+        checks["review_scope_failure"] = "repo-hygiene requires a clean checkout"
+        if on_invocation_error is not None:
+            on_invocation_error()
+        return finish_with_result(
+            "review", False,
+            ["review scope: repo-hygiene",
+             "repo-hygiene requires a clean checkout; no source review was started",
+             "For state-only cleanup use start --command cleanup and verify the exact post-state; "
+             "for source changes use pathspec with the owned paths or an exact commit-range.",
+             "Preserve unrelated changes; this refusal does not authorize cleaning the checkout.",
+             "review did not start; no failed lifecycle checkpoint or repair-verify is required"],
+            args.output, checks, args.repair_cycle, invocation_error=True,
+        )
     elif (
         not status_before_lines
         and not status_before.get("review_only")

@@ -59,6 +59,19 @@ every artifact must exist. Native observation hashes bounded bytes (16 MiB/file,
 ownership/freshness, pending work and authority; coverage never grants those.
 Hashes are returned observations, not persisted gate-to-artifact attestations.
 
+Continuation and read-only resume references retain the optional requirement
+mapping, including IDs, revision, owners, observing gates and artifact paths.
+They do not import prior action verification or authority. The current action
+must satisfy its admitted gates and artifact checks; a changed route can require
+explicit mapping revision before closeout. A requirement-only packet is reported
+as recorded even when it has no prose `acceptance_criteria`.
+
+This is structural coverage, not semantic acceptance: a present but unrelated
+file can satisfy an existence check. Requirements omitted by the agent remain
+unknown. Use the original request and an outcome-specific observing check or
+review to judge fulfillment; do not add timestamp heuristics or universal extra
+gates to imply that the harness can judge arbitrary requested behavior.
+
 Transmit only gate names/statuses, preserving history order and malformed rows.
 Rust folds the complete history within the 1 MiB transport bound; there is no
 128-entry history limit, and a later failure invalidates earlier success.

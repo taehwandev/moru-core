@@ -358,6 +358,25 @@ class RetainedWorkSummaryTests(unittest.TestCase):
         self.assertEqual(summary, inherited)
         self.assertEqual([], third.checkpoint(kind, work=inherited)["work"]["verification"])
 
+    def test_structured_requirements_survive_two_actions_without_carried_verification(self):
+        contract = {"revision": 3, "items": [{"id": "r1", "outcome": "Deliver the plan",
+                    "owner": "lead", "gate": "verify", "artifacts": ["plan.md"]}]}
+        # This fixture tests continuation transport, not the native contract validator.
+        with patch("agent_completion_checks.requirement_update"):
+            self.source.checkpoint("decision", work={"requirements": contract})
+            args = SimpleNamespace(project=self.target.project, command="implement")
+            with patch("agent_hook_continuation.run_binding_path", return_value=self.target.binding_path):
+                kind, inherited = start_checkpoint(args)
+            self.assertEqual(contract, inherited.get("requirements"))
+            self.target.checkpoint(kind, work=inherited)
+            third = self.new_action(self.target)
+            result = self.summary(third)
+        self.assertEqual(contract, result["requirements"])
+        self.assertNotIn("verification", result)
+        self.assertNotIn("remaining_work", result)
+        result["requirements"]["items"].clear()
+        self.assertEqual(contract, self.summary(third)["requirements"])
+
     def test_refresh_keeps_the_current_contract_instead_of_restoring_predecessor(self):
         self.target.checkpoint("initial", work={"objective": "Explicitly revised outcome",
                                                "acceptance_criteria": ["Current acceptance"]})
