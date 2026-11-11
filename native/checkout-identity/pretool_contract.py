@@ -6,7 +6,9 @@ import contextlib
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import unicodedata
 
@@ -89,15 +91,46 @@ def emit_python_text(output):
     output.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
+def _resume_flush_error():
+    incoming, outgoing = os.pipe()
+    os.close(incoming)
+    try:
+        done = subprocess.run([sys.executable, "-S", "-c",
+            "import sys;sys.stdout.write('x');sys.exit(2)"], stdin=subprocess.DEVNULL,
+            stdout=outgoing, stderr=subprocess.PIPE, timeout=5)
+        return done.stderr.decode("utf-8") if done.returncode == 120 else ""
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return ""
+    finally:
+        os.close(outgoing)
+
+
 def emit(output):
     emit_argparse_contract()
     emit_python_text(output.parent / "python_text_contract.rs")
+    from memory_contract import emit as emit_memory
+    emit_memory(output.parent / "memory_contract.rs")
+    print("cargo:rerun-if-changed=memory_contract.py")
     # Preserve the artifact builder's argparse wording without a runtime Python
     # subprocess. Python 3.9 says "optional arguments", newer versions "options".
     title = argparse.ArgumentParser()._optionals.title
     print("cargo:rustc-env=MORU_ARGPARSE_OPTIONS_TITLE=" + title + ":")
-    print("cargo:rustc-env=MORU_PYTHON_INT_MAX_STR_DIGITS=" + str(
-        getattr(sys, "get_int_max_str_digits", lambda: 0)()))
+    integer_limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
+    print("cargo:rustc-env=MORU_PYTHON_INT_MAX_STR_DIGITS=" + str(integer_limit))
+    integer_error = ""
+    if 0 < integer_limit <= 100_000:
+        try:
+            int("1" * (integer_limit + 1))
+        except ValueError as error:
+            message = str(error)
+            count = str(integer_limit + 1)
+            if message.count(count) == 1:
+                integer_error = message.replace(count, "<count>")
+    print("cargo:rustc-env=MORU_PYTHON_INT_LIMIT_ERROR=" + integer_error)
+    print("cargo:rustc-env=MORU_PYTHON_FLUSH_ERROR_JSON=" + json.dumps(_resume_flush_error()))
+    print("cargo:rustc-env=MORU_PYTHON_IO_BUFFER=" + str(io.DEFAULT_BUFFER_SIZE))
+    print("cargo:rustc-env=MORU_PYTHON_IO_CHUNK=" + str(sys.stdout._CHUNK_SIZE))
+    print("cargo:rustc-env=MORU_PYTHON_DEFAULT_PATH=" + os.defpath)
     root = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(root / "scripts"))
     from support.native_source_inputs import CACHE_DIRECTORIES, pretool_contract

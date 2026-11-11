@@ -1,14 +1,14 @@
 //! owner: OverheadStamp; allowed imports: std; forbidden imports: I/O/locale/timezone lookup;
 //! callers/tests: OverheadSession; verification: common ISO timestamps and window comparisons.
 #[derive(Clone)]
-pub(super) struct OverheadStamp {
-    pub(super) iso: String,
+pub(crate) struct OverheadStamp {
+    pub(crate) iso: String,
     ticks: i64,
     aware: bool,
 }
 impl OverheadStamp {
     /// Outer None is unproven grammar; inner None is a proven invalid datetime.
-    pub(super) fn parse(raw: &str) -> Option<Option<Self>> {
+    pub(crate) fn parse(raw: &str) -> Option<Option<Self>> {
         let text = raw.replace('Z', "+00:00");
         let b = text.as_bytes();
         if b.len() < 4 || !b[..4].iter().all(u8::is_ascii_digit) {
@@ -156,7 +156,13 @@ impl OverheadStamp {
         }
         text.parse().ok()
     }
-    pub(super) fn compare(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    pub(crate) fn compare(&self, other: &Self) -> Option<std::cmp::Ordering> {
         (self.aware == other.aware).then(|| self.ticks.cmp(&other.ticks))
+    }
+    pub(crate) fn ticks(&self) -> i64 {
+        self.ticks
+    }
+    pub(crate) fn aware(&self) -> bool {
+        self.aware
     }
 }

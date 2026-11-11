@@ -92,9 +92,11 @@ normalizes universal newlines before parsing JSONL. The adapter validates the
 complete result before merging shared counters, preserving replay on decline.
 Symlinks, descriptors, streams, unfamiliar datetime grammar, oversized numeric
 values and other unsupported input shapes retain Python behavior. Native rows
-restore datetime and Counter values at the Python boundary. Report statistics,
-collection, CLI parsing and JSON/Markdown file effects still belong to the
-remaining unit-46 migration; this increment claims no measured speedup.
+restore datetime and Counter values at the Python boundary. Native group
+statistics, regular timing JSONL, collection/window handling and the installed
+`overhead-report` stdout CLI now share the engine. JSON and Markdown rendering
+also run natively for supported reports. Explicit output-file effects and
+unsupported inputs remain in unit46; this increment claims no measured speedup.
 The [native pretool batch](runtime-performance/native-pretool.md) adds two partial
 Rust boundaries with CPU/wall/RSS evidence and no-Python plain-query execution.
 The [file-query extension](runtime-performance/native-pretool-files.md) expands
@@ -133,9 +135,17 @@ adds ordinary absolute/current-home path lookup before registered candidates.
 Quotes, escapes, unusual whitespace and uncertain inputs retain Python. This
 also extends units 3 and 26 without changing inventory coverage counts.
 
-The [native work-card query](runtime-performance/native-work-cards.md) adds
-read-only list/list-all execution with bundled SQLite. Internal Python readers,
-write/close/resume operations and canonical recovery remain with Python.
+The [native work-card extension](runtime-performance/native-work-cards.md) adds
+public listing, recorded-session resume and bounded close, plus internal typed
+reads, recall, bootstrap SQL and DML through guarded bridges. Python still owns
+path/initial-connection admission, direct compatibility and exceptional recovery;
+unit 17 remains partial.
+
+The [shared native document-transcript scans](runtime-performance/native-doc-transcript.md)
+move compaction detection and complete-line offsets into Rust for lifecycle and
+Claude/Codex/Antigravity delivery callers. Evidence binding, marker writes,
+rendering and remaining CLI/adapter behavior stay with their original owners.
+Units 5, 19 and 31 remain partial.
 
 The [native mailbox status increment](runtime-performance/native-mailbox-status.md)
 upgrades the already-covered mailbox CLI: empty inboxes and acknowledgement
@@ -168,10 +178,10 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
-| 16 | `scripts/agent_project_memory.py` | project-memory | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
-| 17 | `scripts/agent_work_cards.py` | work-cards | Partial native read-only CLI; Python internal reads/writes/recovery retained | Exact JSON, repository/schema/WAL/lock behavior; bundled consumer without Python |
+| 16 | `scripts/agent_project_memory.py` | project-memory | Partial native read/recall | [Record reads](runtime-performance/native-memory-files.md) and [ranking](runtime-performance/native-memory-recall.md); remaining write/CLI/supporting ownership stays open |
+| 17 | `scripts/agent_work_cards.py` | work-cards | Partial native CLI including explicit Codex picker, typed reads, recall, bootstrap SQL and DML; Python admission/direct compatibility/recovery retained | Exact session binding/selection and child cleanup, schema/error timing, retention/reactivation and no replay; bundled consumer without Python |
 | 18 | `scripts/agy_statusline.py` | agy-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
-| 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 19 | `scripts/claude_continuation_hook.py` | claude-continuation-hook | Partial native shared doc transcript scans | Session binding/checkpoints/delivery state and remaining adapter logic |
 | 20 | `scripts/claude_pretool_gate.py` | claude-pretool-gate | Partial native plain-query callback | Exact deferral/error/fallback parity; complex/write branches remain Python |
 | 21 | `scripts/claude_statusline.py` | claude-statusline | Shared native renderer on performance branch | Repeated-call latency with context/state/delivery correctness |
 | 22 | `scripts/claude_stop_gate.py` | claude-stop-gate | Partial native quiet/settled Stop | Preserve active continuation, interruption, legacy edits, indexed projects and mailbox ack |
@@ -183,7 +193,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
-| 31 | `scripts/agy_hook_adapter.py` | agy-hook | Python retained | Antigravity lifecycle hook ingress; native conversion required by full Goal |
+| 31 | `scripts/agy_hook_adapter.py` | agy-hook | Partial native shared doc transcript scans | Both adapter boundaries, PreInvocation read/render/evidence/marker flow and gate/Stop/verifier state |
 
 ## Ancillary direct CLI coverage
 
@@ -210,7 +220,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
 | 45 | `scripts/migrate_skill_bundles.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
-| 46 | `scripts/moru_overhead_report.py` | Direct CLI | Native session tally, group statistics and timing JSONL / Python report CLI | File selection, output writers, exceptional numeric inputs and direct Python remain owned scope |
+| 46 | `scripts/moru_overhead_report.py` | `overhead-report`; direct Python compatibility CLI | Native ordinary stdout CLI, collection, statistics and lossless numeric formatting | Output writers, exceptional statistics/timestamps, text/stdio gaps and direct Python removal remain owned scope |
 | 47 | `scripts/mutation-check.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 48 | `scripts/path_claims.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 49 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |

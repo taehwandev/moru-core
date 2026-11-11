@@ -18,6 +18,159 @@ from support.native_bundle import install_bundle
 from support.stable_launcher import ensure_stable_launcher
 from support.native_source_inputs import pretool_contract
 from runtime_snapshot_normalize import normalize_output
+from smoke_native_card_resume import check_card_resume
+from smoke_native_doc_transcript import check_doc_transcript
+from smoke_native_memory import check_memory, check_memory_files
+
+
+def _lossless_report_formats(native, entry, report, env, project):
+    from moru_overhead_report import render_markdown
+
+    report = json.loads(json.dumps(report))
+    report["all"]["sessions"] = 10**100
+    report["all"]["assistant_turns"] = {"n": 1, "median": float("nan"), "p90": float("inf")}
+    report["all"]["lifecycle_calls_by_subcommand_total"] = {"한😀": 10**100}
+    with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+        expected = {"json": json.dumps(report, ensure_ascii=False, indent=2),
+                    "markdown": render_markdown(report)}
+    for style, text in expected.items():
+        done = subprocess.run([str(native), str(entry), "--overhead-probe", "format"],
+            input=json.dumps({"report_json": json.dumps(report), "format": style}, allow_nan=False).encode(),
+            capture_output=True, env=env, cwd=project, timeout=8)
+        assert (done.returncode, done.stderr) == (0, b""), done
+        assert json.loads(done.stdout)["result"]["text"] == text, done.stdout
+    return len(expected)
+
+
+def _typed_card_snapshot(native, entry, database, project, normal, no_python):
+    from agent_work_cards import list_cards
+    from agent_repository_key import repository_key
+    from support.native_cards import _rows
+
+    with sqlite3.connect(database) as connection:
+        connection.execute("ALTER TABLE cards ADD COLUMN metric REAL")
+        connection.execute("ALTER TABLE cards ADD COLUMN payload BLOB")
+        connection.execute("UPDATE cards SET metric=?, payload=?", (float("inf"), bytes(range(256))))
+    before = database.read_bytes()
+    for all in (False, True):
+        with patch.dict(os.environ, {**normal, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = list_cards(project, include_settled=all)
+            repo = repository_key(project)
+        done = subprocess.run([str(native), str(entry), "--cards-probe", "list"],
+            input=json.dumps({"repo": repo, "include_settled": all}).encode(),
+            capture_output=True, env=no_python, cwd=project, timeout=8)
+        assert (done.returncode, done.stderr) == (0, b""), done
+        actual = _rows(json.loads(done.stdout)["result"])
+        assert actual == expected and actual is not None, done.stdout
+        assert [list(row) for row in actual] == [list(row) for row in expected], done.stdout
+    assert before == database.read_bytes()
+    return 2
+
+
+def _card_context(native, entry, base, project, repo, normal, empty):
+    from agent_work_cards import _SCHEMA, open_card_lines
+
+    state = base / "recall-state"
+    database = state / "work-cards/cards.sqlite3"
+    database.parent.mkdir(parents=True)
+    location = base / "recall-project"
+    (location / ".moru").mkdir(parents=True)
+    registry = location / ".moru/run-registry.json"
+    registry.write_text(json.dumps({"runs": [{"run_id": key*32, "state": status}
+        for key, status in (("a", "running"), ("b", "completed"), ("c", "cancelled"))]}))
+    with sqlite3.connect(database) as connection:
+        connection.execute(_SCHEMA)
+        connection.execute("PRAGMA user_version=3")
+        connection.executemany("INSERT INTO cards(repo,work_id,summary,command,project,state,created_at,updated_at) VALUES(?,?,?,?,?,'active',?,?)",
+            [(repo, key*32, "synthetic recall 한😀", "implement", str(location), "now", stamp)
+             for key, stamp in (("a", "3"), ("b", "2"), ("c", "1"))])
+    env = {**normal, "MORU_STATE_HOME": str(state)}
+    before = database.read_bytes(), registry.read_bytes()
+    with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+        expected = open_card_lines(project, "f"*32)
+    done = subprocess.run([str(native), str(entry), "--cards-probe", "context"],
+        input=json.dumps({"repo": repo, "current_work_id": "f"*32}).encode(),
+        capture_output=True, env={**env, "PATH": str(empty)}, cwd=project, timeout=8)
+    assert (done.returncode, done.stderr) == (0, b""), done
+    assert json.loads(done.stdout)["result"] == {"lines": expected,
+        "stale": [["b"*32, "done"], ["c"*32, "cancelled"]]}, done.stdout
+    assert before == (database.read_bytes(), registry.read_bytes())
+    return 1
+
+
+def _card_writes(native, entry, base, project, repo, normal, empty):
+    from agent_work_cards import _SCHEMA
+
+    state = base / "write-state"
+    database = state / "work-cards/cards.sqlite3"
+    database.parent.mkdir(parents=True)
+    with sqlite3.connect(database) as connection:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute(_SCHEMA)
+        connection.execute("PRAGMA user_version=3")
+        connection.execute("INSERT INTO cards VALUES(?,?,?,?,?,'done',?,?,?,'','')",
+            ("other", "c"*32, "expired", "test", str(project), "old", "0001", "c"*32))
+    env = {**normal, "MORU_STATE_HOME": str(state), "PATH": str(empty)}
+    def request(operation, values):
+        done = subprocess.run([str(native), str(entry), "--cards-write-probe", operation],
+            input=json.dumps({"values":values,"foreign_keys":False}).encode(),capture_output=True,env=env,cwd=project,timeout=8)
+        assert (done.returncode, done.stderr) == (0, b""), done
+        return json.loads(done.stdout)["result"]["changed"]
+    first = "2026-11-08T01:02:03.123456+00:00"
+    second = "2026-11-09T01:02:03+00:00"
+    values = [repo, "a"*32, "synthetic 한😀", "implement", str(project), first, first, "b"*32, "codex", "opaque"]
+    assert request("open", values) is True
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT work_id FROM cards").fetchall() == [("a"*32,)]
+    assert request("settle", ["done", first, repo, "a"*32]) is True
+    values[5:7] = [second, second]
+    values[2] = "reactivated"
+    assert request("open", values) is True
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT state,created_at,updated_at,summary FROM cards").fetchone() == (
+            "active", first, second, "reactivated")
+    assert request("settle", ["cancelled", second, repo, "a"*32]) is True
+    assert request("settle", ["done", second, repo, "a"*32]) is False
+    return 5
+
+
+def _card_bootstrap(native, entry, base, project, normal, empty):
+    from contextlib import closing
+    import agent_work_cards as cards
+
+    for version in (None,1,2,99):
+        states=[base/f"bootstrap-{version}-{suffix}" for suffix in ("native","python")]
+        databases=[state/"work-cards/cards.sqlite3" for state in states]
+        for database in databases:
+            database.parent.mkdir(parents=True)
+            with closing(sqlite3.connect(database)) as connection:
+                if version is not None:
+                    schema=cards._SCHEMA
+                    missing=("runtime","session_id") if version==2 else ("run_id","runtime","session_id")
+                    for name in missing: schema=schema.replace(f"    {name} TEXT NOT NULL DEFAULT '',\n","")
+                    connection.execute(schema)
+                    connection.execute(f"PRAGMA user_version={version}")
+        with patch.dict(os.environ,{**normal,"MORU_STATE_HOME":str(states[1]),"MORU_LAUNCHER_BACKEND":"python"},clear=True):
+            try:
+                with closing(cards._connect()): pass
+                expected={"schema_version":1,"result":{"changed":True}}
+            except ValueError:
+                assert version==99
+                expected={"schema_version":1,"unsupported_version":99}
+        done=subprocess.run([str(native),str(entry),"--cards-write-probe","bootstrap"],
+            input=b'{"values":[],"foreign_keys":false}',capture_output=True,cwd=project,timeout=8,
+            env={**normal,"MORU_STATE_HOME":str(states[0]),"PATH":str(empty)})
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)==expected,done.stdout
+        snapshots=[]
+        for database in databases:
+            with closing(sqlite3.connect(database)) as connection:
+                snapshots.append((connection.execute("PRAGMA user_version").fetchone(),
+                    connection.execute("PRAGMA journal_mode").fetchone(),
+                    connection.execute("SELECT type,name,sql FROM sqlite_master ORDER BY type,name").fetchall(),
+                    connection.execute("PRAGMA table_info(cards)").fetchall()))
+        assert snapshots[0]==snapshots[1],(version,snapshots)
+    return 4
 
 
 def smoke(archive):
@@ -125,6 +278,29 @@ def smoke(archive):
         assert timing_result["records"]==1 and timing_result["per_hook_ms"]["empty"]=={"n":0},timing_result
         assert timing_result["per_hook_ms"]["start"]["median"]==12.5,timing_result
         checks += 1
+        report_projects=base/"report-projects/p"
+        report_projects.mkdir(parents=True)
+        shutil.copy2(transcript,report_projects/"session.jsonl")
+        done=subprocess.run([str(entry),"overhead-report","--projects-dir",str(report_projects.parent),
+            "--timings",str(timing),"--since","2026-10-01T00:00:00Z","--until","2026-11-08T00:00:00Z"],
+            capture_output=True,env=env,cwd=project,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        report=json.loads(done.stdout)
+        assert report["all"]["sessions"]==1 and report["all"]["tok_total"]["sum"]==5,report
+        assert report["timings_jsonl"]["records"]==1,report
+        checks += 1
+        for style in ("json","markdown"):
+            formatted=subprocess.run([str(native),str(entry),"--overhead-probe","format"],
+                input=json.dumps({"report":report,"format":style}).encode(),capture_output=True,
+                env=env,cwd=project,timeout=8)
+            assert (formatted.returncode,formatted.stderr)==(0,b""),formatted
+            text=json.loads(formatted.stdout)["result"]["text"]
+            if style=="json":
+                assert text+"\n"==done.stdout.decode(),text
+            else:
+                assert text.startswith("# Moru workflow overhead\n") and "| assistant turns | 1.0 | 1.0 | 1 |" in text,text
+            checks += 1
+        checks += _lossless_report_formats(native, entry, report, env, project)
         overhead["path"] = "/dev/stdin"
         done = subprocess.run([str(native), str(entry), "--overhead-probe", "session"],
             input=json.dumps(overhead).encode(), capture_output=True, env=env, cwd=project, timeout=8)
@@ -248,7 +424,8 @@ def smoke(archive):
             assert json.loads(done.stdout)["selected_project"]["path"] == str(target), done
             checks += 1
         for runtime in ("claude", "codex"):
-            for command in ("git log -5 --oneline", "git ls-files", "rg --files", "cat notes.txt",
+            for command in ("git log -5 --oneline", "git ls-files", "git diff", "git diff --cached -- notes.txt",
+                            "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',
                             "tail -n 20 notes.txt", "wc -l notes.txt", "sed -n '1,20p' '한글 메모.txt'",
                             "ls -la", "git status --short --branch", "git remote -v",
@@ -410,6 +587,14 @@ def smoke(archive):
                               capture_output=True, env=no_python, cwd=project, timeout=8)
         assert (done.returncode, done.stdout, done.stderr) == (2, b"", b"work cards: no active card with that work id in this repository\n"), done
         checks += 1
+        checks += _typed_card_snapshot(native, entry, card_db, project, normal, {**no_python, "PATH": str(empty)})
+        checks += _card_context(native, entry, base, project, repo_key, normal, empty)
+        checks += _card_writes(native, entry, base, project, repo_key, normal, empty)
+        checks += _card_bootstrap(native, entry, base, project, normal, empty)
+        checks += check_card_resume(entry, base, project, repo_key, normal)
+        checks += check_doc_transcript(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_memory(native, entry, project, {**normal,"PATH":str(empty)})
+        checks += check_memory_files(native, entry, base, project, {**normal,"PATH":str(empty)})
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

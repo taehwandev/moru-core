@@ -160,9 +160,12 @@ class NativePretoolTests(unittest.TestCase):
                         ignore=shutil.ignore_patterns("__pycache__"))
         for name in ("AGENTS.md", "index.md"):
             shutil.copy2(PROJECT / name, source / name)
+        existing = source / "scripts/.pytest_cache/v/cache/existing.json"
+        existing.parent.mkdir(parents=True, exist_ok=True)
+        existing.write_text('{"existing":true}')
         for name in (".pytest_cache", ".mypy_cache", ".ruff_cache"):
             directory = source / "scripts" / name / "v/cache"
-            directory.mkdir(parents=True)
+            directory.mkdir(parents=True, exist_ok=True)
             (directory / "nodeids.json").write_text('["synthetic"]')
         isolated = self.base / "cache-home"
         isolated.mkdir()
@@ -171,6 +174,7 @@ class NativePretoolTests(unittest.TestCase):
             done = invoke(launcher, isolated, project, alias, request(project),
                           source=source, PATH=str(self.empty_path))
             self.assertEqual((0, b"", b""), result(done))
+        self.assertEqual('{"existing":true}', existing.read_text())
         cache = source / "scripts/.pytest_cache"
         shutil.rmtree(cache)
         cache.symlink_to(self.base, target_is_directory=True)

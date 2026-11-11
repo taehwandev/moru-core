@@ -145,7 +145,10 @@
       "status": "partial_native",
       "entry_aliases": "agent-hook, cancel, checkpoint, fingerprint, finish, gate, gate-batch, handoff, repair-verify, resume, review, skill-curate, skill-draft, skill-feedback, skill-maintenance, skill-review, start, verify",
       "remaining": "Port every lifecycle command and its supporting authority/state logic.",
-      "verification": {}
+      "verification": {
+        "doc_transcript": "Shared doc-delivery compaction/alignment file scans now run through a source-bound Rust owner; see native-doc-transcript.md for exact source/native, caller marker and transported proof. Lifecycle authority, evidence binding, marker writes and remaining owned code stay Python; unit5 is partial."
+      },
+      "supporting_sources": ["scripts/agent_required_doc_delivery.py", "scripts/support/native_doc_transcript.py"]
     },
     {
       "id": "scripts/agent-mailbox.py",
@@ -241,10 +244,14 @@
       "id": "scripts/agent_project_memory.py",
       "inventory_id": 16,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "project-memory",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Native lexical terms, recall ranking, ordinary file decode/validation and sorted scans are implemented. Store/repository admission, capture/retire, source hashing, analysis binding, rendering, exceptional profiles and Python retirement remain open.",
+      "supporting_sources": ["scripts/support/native_memory.py", "native/checkout-identity/memory_contract.py"],
+      "verification": {
+        "recall": "PASS:100 distinct Python3.9 cases,4 selected Python3.14 profile/error cases,4 Rust tests and191 transported macOS ARM64 checks. Actual native helper calls reject Python lexical/ranking replay and return original objects without writes. Fixture-only tie/profile assertions were corrected against source; see native-memory-recall.md. No completed-unit or exact-batch Linux claim.",
+        "record_reads": "PASS:109 Python3.9 memory/source/ledger cases,3 selected Python3.14 cases,9 Rust memory tests and195 transported macOS ARM64 checks. Native file decoding, canonical digest/schema checks and sorted scans execute without Python read_text/digest/record-loop replay; guarded descriptor/FIFO, permissions, symlinks and unsupported metadata preserve read-only fallback. See native-memory-files.md. Unit16 remains partial; no exact-batch Linux claim."
+      }
     },
     {
       "id": "scripts/agent_work_cards.py",
@@ -252,9 +259,21 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "work-cards",
-      "remaining": "Port card creation/upgrades, open and internal writes/reads, resume and recovery; close currently covers only existing canonical v3 WAL stores.",
+      "remaining": "Native typed listing/recall, bootstrap SQL, DML and the ordinary UTF8 public resume picker/provider path are implemented. Port original Python path/directory/initial-connection admission, direct Python resume compatibility, exceptional bootstrap/read/registry/IO recovery, unsupported customized/profile cases and Python retirement. Public close retains conservative store admission; unit17 is not complete.",
+      "supporting_sources": ["scripts/agent_work_card_resume.py", "scripts/support/native_card_write.py", "scripts/support/native_cards.py"],
       "verification": {
-        "bounded_close": "Existing canonical v3 WAL close: native/Python state and timestamp checks, repository isolation, WAL read snapshots and no-Python delivery; other work-card behaviors remain open. See native-work-cards.md."
+        "bounded_close": "Existing canonical v3 WAL close: native/Python state and timestamp checks, repository isolation, WAL read snapshots and no-Python delivery; other work-card behaviors remain open. See native-work-cards.md.",
+        "internal_read": "PASS:60 initial card/reference/lifecycle/identity/ledger tests,10 affected snapshot tests after review correction (61 distinct Python cases),10 Rust card tests and163 final transported macOS ARM64 checks. Native-required internal reads preserve SQLite integer/real/text/null/blob types, column order, generated columns, legacy defaults, repository identity memo and committed WAL snapshots.",
+        "internal_negative_authority": "PASS: no store/table creation or database-byte changes; unsupported versions/indexes/invalid UTF8 and malformed typed results decline atomically. Independent review found and verified repair of early RuntimeError lookup replacing original missing-store/schema outcomes. Private transported snapshots run with empty PATH. Creation, migration, internal writes and recovery remain open; exact-batch Linux acceptance pending.",
+        "context_behavior": "PASS:70 initial Python cases and10 affected context cases after review corrections (71distinct),19 final Rust card tests and164 transported macOS ARM64 checks. Native-required context covers current exclusion, first20/first3 limits, Unicode/lazy fields, registry coercion and malformed input behavior, ordered stale decisions and original writer dispatch/abort semantics. Private transported context runs without Python or Git on PATH.",
+        "context_negative_authority": "PASS: native policy reads only; no DB/registry changes before original writer dispatch. FIFO/symlink registry input declines before consumption; runs:null preserves original error via rollback. Independent review repaired whole-response rejection of current-card actions (zero returned-action writes) and lexical dot alias cache equivalence without merging distinct paths. Exceptional recovery/writes and exact-batch Linux acceptance remain open.",
+        "internal_dml": "PASS:87 final Python3.9 card/reference/lifecycle/identity/ledger cases,2 Python3.14 error/FK oracle cases,31 Rust card tests and169 transported macOS ARM64 checks. Original bootstrap/validation order precedes native open/reactivation/global90day pruning and settlement. Twelve transaction tests cover all8known ALTER layouts, unknown schema/lock guards, creation-time retention and rollback of failed DELETE/COMMIT/UPDATE. Unit17 remains partial; exact-batch Linux acceptance pending.",
+        "internal_dml_negative_authority": "PASS: parent SQL traces prove native DML without legacy INSERT/UPDATE/DELETE replay. Real committed-child/lost-response and timeout/nonzero/nonquiet125/malformed/duplicate output tests prohibit replay; old installed protocols decline via a separate read-only capability exchange. Initial85case suite failed14errors/2failures on old installed binaries; repaired source and regression test pass final87. Independent review found bundled SQLite FK default could cascade into other tables; actual parent FK mode is now passed/set/verified before BEGIN with CASCADE/RESTRICT oracle parity. CLI declines incoming FKs. No real user fixture, schema change, remote build or release is claimed.",
+        "bootstrap_sql": "PASS:99 final Python3.9 cases,5 selected Python3.14 oracles,39 Rust card tests and173 transported macOS ARM64 checks. CardBootstrap owns actual WAL/version/CREATE/metadata ALTER/version3 SQL after the original parent-opened idle connection; CardSchema shares exact native creator/signature. Eight Rust bootstrap tests cover32mask/version combinations, no-create admission, UTF8 predecline, parentFK/busy/autocommit and original partialDDL effects. Unit17 remains partial; no exact-batch Linux claim.",
+        "bootstrap_negative_authority": "PASS: parent traces reject legacy bootstrap/DML SQL replay. WAL precedes futureversion ValueError/parent close; generated runtime duplicate failure retains earlier run_id ALTER and oldversion. Real committedDDL/lostresponse is terminal. Independent review repaired per-operation packet binding: unsupported_version is accepted only by bootstrap, terminal OperationalError for both DML operations. Initial98Python had1mock-boundary fixture failure and39Rust had1APFS invalidUTF8-creation fixture failure; scoped repairs retain refusal assertions, final99/39 pass. Filesystem/path/initial connection and exceptional recovery stay Python-owned; no new schema/version policy or real-user fixture.",
+        "session_resume": "PASS:24 native CLI cases plus106 existing card/reference/identity/ledger cases (105 initial passes and1 repaired stale resume-only-Python expectation),8 selected Python3.14 cases,65 Rust card tests and178 transported macOS ARM64 checks. Direct/legacy exact-work binding, frozen menu/session selection, canonical/noncanonical TTY and pipe input, read-ahead, cancellation, explicit argv/cwd/status and unchanged board/evidence are exercised with owned shell providers and no Python on native PATH.",
+        "session_resume_negative_authority": "PASS: real closed stdout and long menus preserve original dispatch/final-flush effects. Review repaired SIGINT lost-wakeup races using a masked owned reader/bounded channel, join-before-dispatch and bounded child wait; deterministic post-flag injection, PTY cancellation and real child reaping pass. Actual ENOEXEC test caught Rust implicit shell execution; direct execve now preserves PATH/error order, inherited environment, child signal defaults and close_fds including a passed synthetic fd>=128. Missing-procfs fallback is tested. No real provider/session, DB/session write, remote build or release.",
+        "session_resume_limits": "Unit17 remains partial. Original leading-NUL TTY C code reads before its buffer and has no portable equivalence proof; Rust avoids that undefined access. Exceptional allocation/descriptor/thread/oversized-input outcomes, unsupported customized/interpreter profiles, original path/initial-open ownership, direct Python compatibility and retirement remain open. Exact-batch Linux acceptance is pending. Canonical VEOF coalescence in the reference fixture was replaced by a real preloaded VMIN0 TTY partial-EOF oracle; no runtime assertion was waived."
       }
     },
     {
@@ -270,10 +289,10 @@
       "id": "scripts/claude_continuation_hook.py",
       "inventory_id": 19,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "claude-continuation-hook",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Shared compaction/alignment transcript scans are native. Port session/project resolution, checkpoint/claim/binding, brief/render/delivery state and all remaining adapter/support logic. No completed-unit claim.",
+      "verification": {"doc_transcript": "Actual shared delivery-marker/budget and source/native file parity in native-doc-transcript.md; all mutation and continuation authority remains with the original owner."}
     },
     {
       "id": "scripts/claude_pretool_gate.py",
@@ -282,7 +301,10 @@
       "status": "partial_native",
       "entry_aliases": "claude-pretool-gate",
       "remaining": "Port full command/effect parsing, scope, workflow, publication and mutation decisions beyond read queries.",
-      "verification": {}
+      "verification": {"diff_queries": "PASS:34 Python pretool/query cases,4 Rust grammar tests and199 transported macOS ARM64 checks. Plain/cached/literal-path diff classification matches Python without Python/Git on PATH; unsafe syntax, shadows and exceptional contexts retain replay. One bounded follow-up only; see native-pretool-diff.md. Full pretool migration remains open."},
+      "supporting_sources": [
+        "scripts/agent_closeout_command.py"
+      ]
     },
     {
       "id": "scripts/claude_statusline.py",
@@ -318,7 +340,7 @@
       "status": "partial_native",
       "entry_aliases": "codex-pretool-gate",
       "remaining": "Port full pretool policy and Codex normalization/approval handling beyond read queries.",
-      "verification": {}
+      "verification": {"diff_queries": "Same shared classifier and34/4/199 checks as unit20; new ordinary diff forms preserve Codex transcript binding and exact Python replay. See native-pretool-diff.md. Full pretool and cross-host acceptance remain open."}
     },
     {
       "id": "scripts/codex_stop_gate.py",
@@ -378,10 +400,13 @@
       "id": "scripts/agy_hook_adapter.py",
       "inventory_id": 31,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "agy-hook",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Shared doc-delivery compaction/alignment scans are native. Port both AGY adapter boundaries: event translation/dispatch, PreInvocation read-credit/rendering/evidence/marker flow, gate and stop/verifier state. Preserve exact IO/effects; unit31 is partial.",
+      "verification": {"doc_transcript": "Actual AGY CHECKPOINT delivery/whole-read marker flow compares source/native; native file scans and encoding/stream fallbacks are verified. See native-doc-transcript.md. No public adapter or marker-write cutover is claimed."},
+      "supporting_entrypoints": [
+        "scripts/agy_required_docs_hook.py"
+      ]
     },
     {
       "id": "scripts/agent-structure-check.py",
@@ -519,8 +544,8 @@
       "inventory_id": 46,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Native session tally, three-group aggregation, finite statistics and regular timing JSONL processing are connected through source-bound private probes. Complete collection/window CLI, JSON/Markdown writers, unsupported timestamps/values, exceptional/nonfinite or large aggregate numbers and direct Python removal. Supporting adapter/build Python remains owned scope; this is not full unit closure.",
+      "entry_aliases": "overhead-report; direct Python compatibility CLI",
+      "remaining": "Native ordinary stdout CLI, collection/windows, session tally, group/timing statistics and lossless JSON/Markdown numeric formatting are connected. Complete explicit output-file writers and ordered failure/stdio behavior, exceptional statistics and timestamp shapes, surrogate/depth, glob/encoding/TTY gaps and direct Python removal. This is partial native execution; supporting adapter/build Python remains owned scope.",
       "verification": {
         "native_owner": "native/checkout-identity/src/overhead_session.rs",
         "native_report_owner": "native/checkout-identity/src/overhead_aggregate.rs",
@@ -528,7 +553,12 @@
         "report_negative_authority": "PASS: native-required group analysis and timing parsing, empty-PATH probes, stable regular-file reads, source/environment refusal, descriptor/FIFO/symlink refusal, unchanged input bytes and declined malformed responses. Synthetic inputs only; no providers or user records.",
         "behavior": "PASS:32 overhead/reference/registry/completion/inventory tests completed (1 builder-limit skip),18 statusline regression tests and139 Rust tests. Independent review repaired invalid-duration empty-key ordering and builder integer-string limits.",
         "negative_authority": "PASS: native-required adapter calls and empty-PATH private protocol; malformed-response atomicity, source/environment refusal, unbuffered descriptor offsets including Darwin case alias, FIFO/symlink refusal and no input writes. Synthetic transcripts only; no provider calls.",
-        "portable": "PASS:156 transported macOS ARM64 checks including native report analysis and timing JSONL with empty PATH. Exact-batch Linux x86_64 CI remains pending; the workflow is manual-only."
+        "portable": "PASS:159 final transported macOS ARM64 checks, including public report stdout and private JSON/Markdown formatting with empty PATH. Exact-batch Linux x86_64 CI remains pending; workflow stays manual-only.",
+        "native_cli_owner": "native/checkout-identity/src/overhead_command.rs",
+        "cli_behavior": "PASS:9 native stdout/format/argument/writer-fallback process tests;42 distinct related Python checks observed (1 builder skip).159 initial Rust tests and24 affected tests after empty-path/width repairs passed. Native/Python full JSON and Markdown bytes, mtime microseconds, hidden/subagent selection and shared-before-min-turn filtering match.",
+        "cli_negative_authority": "PASS:empty-PATH native stdout and formatting; unsupported files and explicit output writes defer before output. Original writer invoked once; a failed Markdown write preserves its earlier JSON file. Source/encoding/TTY and exceptional-value gaps remain open.",
+        "format_behavior": "PASS:37 related Python tests completed (1 existing builder-limit skip),27 affected Rust tests and161 transported macOS ARM64 checks. Lossless arbitrary integers, NaN/Infinity JSON versus nan/inf Markdown, signed zero, ordered Unicode containers and the old/new format probe inputs match the Python reference. Exact-batch Linux x86_64 acceptance remains pending.",
+        "format_negative_authority": "PASS: actual native formatting with empty PATH; malformed report JSON, unsupported depth/surrogate values, custom objects, cycles and forced-Python rollback decline without output or serialization side effects. The shared strict probe transport, numeric computation bounds and whole-command file-writer fallback are retained."
       }
     },
     {
@@ -625,6 +655,7 @@
   "unmigrated_python_sources": [
     "native/checkout-identity/figma_contract.py",
     "native/checkout-identity/json_contract.py",
+    "native/checkout-identity/memory_contract.py",
     "native/checkout-identity/next_contract.py",
     "native/checkout-identity/pretool_contract.py",
     "native/checkout-identity/status_contract.py",
@@ -640,6 +671,7 @@
     "scripts/agent_android_action_boundary.py",
     "scripts/agent_block_lessons.py",
     "scripts/agent_capability_policy.py",
+    "scripts/agent_closeout_command.py",
     "scripts/agent_command_runtime.py",
     "scripts/agent_commit_ready.py",
     "scripts/agent_completion_checks.py",
@@ -798,6 +830,7 @@
     "scripts/agy_hook_adapter.py",
     "scripts/agy_hook_state.py",
     "scripts/agy_hook_verify.py",
+    "scripts/agy_required_docs_hook.py",
     "scripts/agy_statusline.py",
     "scripts/build_native_runtime.py",
     "scripts/check_android_external_skill_manifest.py",
@@ -917,7 +950,11 @@
     "scripts/support/marketing_catalog.py",
     "scripts/support/moru_run_state.py",
     "scripts/support/native_bundle.py",
+    "scripts/support/native_card_write.py",
+    "scripts/support/native_cards.py",
+    "scripts/support/native_doc_transcript.py",
     "scripts/support/native_launcher_install.py",
+    "scripts/support/native_memory.py",
     "scripts/support/native_overhead.py",
     "scripts/support/native_overhead_report.py",
     "scripts/support/native_probe_transport.py",

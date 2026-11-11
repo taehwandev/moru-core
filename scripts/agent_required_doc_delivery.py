@@ -204,6 +204,11 @@ def _write_marker(marker: Path, delivered: list, offset: int, redeliveries: int)
 def _compacted_before(transcript: Path) -> bool:
     """Whether the transcript holds any compaction boundary."""
 
+    from support.native_doc_transcript import NativeDocTranscript
+    native = NativeDocTranscript.compacted(transcript)
+    if native is not None:
+        return native
+
     if not _size(transcript):
         return False
     with transcript.open("rb") as handle:
@@ -239,6 +244,11 @@ def _size(transcript: Path) -> int:
 def _aligned_size(transcript: Path, fallback: int = 0) -> int:
     """The size up to the last complete line, so a row still being written is scanned later."""
 
+    from support.native_doc_transcript import NativeDocTranscript
+    native = NativeDocTranscript.aligned(transcript, fallback)
+    if native is not None:
+        return native
+
     size = _size(transcript)
     if not size:
         return 0
@@ -267,6 +277,11 @@ def _due_after_compaction(state: dict, transcript: Path, limit: int = MAX_REDELI
     old shape), a replaced transcript or an exhausted redelivery budget keeps
     the once-per-run behaviour.
     """
+
+    from support.native_doc_transcript import NativeDocTranscript
+    native = NativeDocTranscript.due(state, transcript, limit)
+    if native is not None:
+        return native
 
     offset = state.get("transcript_bytes")
     if type(offset) is not int or int(state.get("redeliveries", 0)) >= limit:

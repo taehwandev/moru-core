@@ -9,10 +9,23 @@ use moru_checkout_identity::CheckoutIdentity;
 mod android_manifest;
 mod callback_replay;
 mod callback_state;
+mod cards_bootstrap;
 mod cards_identity;
 mod cards_process;
-mod cards_settlement;
+mod cards_recall;
+mod cards_resume;
+mod cards_resume_child;
+mod cards_resume_exec;
+mod cards_resume_input;
+mod cards_resume_output;
+mod cards_resume_process;
+mod cards_resume_signal;
+mod cards_resume_signal_mask;
+mod cards_resume_terminal;
+mod cards_schema;
 mod cards_store;
+mod cards_transaction;
+mod cards_write_process;
 mod completion_process;
 mod completion_progress;
 mod completion_quality;
@@ -24,6 +37,8 @@ mod discovery_paths;
 mod discovery_process;
 mod discovery_registry;
 mod discovery_search;
+mod doc_transcript;
+mod doc_transcript_process;
 mod figma_coverage;
 mod figma_process;
 mod figma_validation;
@@ -36,13 +51,27 @@ mod mailbox_process;
 mod mailbox_state;
 mod mailbox_status_process;
 mod mailbox_status_state;
+mod memory_terms;
+mod memory_recall;
+mod memory_process;
+mod memory_json;
+mod memory_record;
+mod memory_files;
 mod manifest_process;
 mod next_process;
 mod next_verification;
 mod overhead_aggregate;
+mod overhead_cli;
+mod overhead_clock;
+mod overhead_collection;
+mod overhead_command;
+mod overhead_format;
 mod overhead_hooks;
 mod overhead_process;
+mod overhead_report;
+mod overhead_report_text;
 mod overhead_session;
+mod overhead_stamp;
 mod overhead_stats;
 mod overhead_text;
 mod overhead_timings;
@@ -133,6 +162,24 @@ fn main() {
     };
     let args: Vec<OsString> = argv.collect();
 
+    if args.first().is_some_and(|a| a == "--memory-probe") {
+        exit(memory_process::MemoryProcess::run(&launcher, &args));
+    }
+
+    if args.first().is_some_and(|a| a == "--doc-transcript-probe") {
+        exit(doc_transcript_process::DocTranscriptProcess::run(
+            &launcher, &args,
+        ));
+    }
+
+    if args.first().is_some_and(|a| a == "--cards-write-probe") {
+        exit(cards_write_process::CardWriteProcess::run(&launcher, &args));
+    }
+
+    if args.first().is_some_and(|a| a == "--cards-probe") {
+        exit(cards_process::CardsProcess::probe(&launcher, &args));
+    }
+
     if args.first().is_some_and(|a| a == "--overhead-probe") {
         exit(overhead_process::OverheadProcess::run(&launcher, &args));
     }
@@ -157,6 +204,9 @@ fn main() {
 
     if args.first().is_some_and(|a| a == "figma-validate") {
         finish(figma_process::FigmaProcess::run(&launcher, &args));
+    }
+    if args.first().is_some_and(|a| a == "overhead-report") {
+        finish(overhead_command::OverheadCommand::run(&launcher, &args));
     }
 
     if args.first().is_some_and(|a| {

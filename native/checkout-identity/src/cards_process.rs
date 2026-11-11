@@ -1,22 +1,77 @@
-//! Owner: work-cards list/closed-settlement ingress and JSON formatting.
+//! Owner: work-cards read/context/closed-settlement ingress and JSON formatting.
 //! Allowed: std, serde_json, card owners and existing source/FS/time readers.
-//! Forbidden: SQL, schema creation/migrations, resume, lifecycle/liveness, caches.
+//! Forbidden: SQL, schema creation/migrations, lifecycle authority, caches.
 //! Callers/tests: launcher_main; native card tests and transported smoke.
 use crate::{
-    cards_identity::CardRepository, cards_settlement::CardSettlement, cards_store::CardStore,
-    discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard, status_snapshot::StatusSnapshot,
-    statusline::Renderer,
+    cards_identity::CardRepository, cards_recall::CardRecall,
+    cards_resume_process::CardResumeProcess, cards_store::CardStore,
+    cards_transaction::CardTransaction, discovery_fs::DiscoveryFs, pretool_guard::CallbackGuard,
+    status_snapshot::StatusSnapshot, statusline::Renderer,
 };
-use serde_json::Value;
-use std::{collections::BTreeMap, env, ffi::OsString, io::Write, path::PathBuf};
+use serde_json::{json, Value};
+use std::{
+    collections::BTreeMap,
+    env,
+    ffi::OsString,
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 pub(crate) struct CardsProcess;
 
 impl CardsProcess {
+    pub(crate) fn resolve(launcher: &OsString, project: PathBuf) -> Option<(PathBuf, PathBuf)> {
+        context(launcher, project)
+    }
+
+    pub(crate) fn state_home() -> Option<PathBuf> {
+        state_home()
+    }
+
+    pub(crate) fn probe(launcher: &OsString, args: &[OsString]) -> i32 {
+        if args.len() != 2
+            || !matches!(args[1].to_str(), Some("list" | "context"))
+            || CallbackGuard::root(launcher, "git").is_none()
+        {
+            return 125;
+        }
+        let mut bytes = Vec::new();
+        if std::io::stdin()
+            .take(65537)
+            .read_to_end(&mut bytes)
+            .is_err()
+            || bytes.len() > 65536
+        {
+            return 125;
+        }
+        let result = serde_json::from_slice::<Value>(&bytes)
+            .ok()
+            .and_then(|payload| probe_result(&payload, args[1] == "context"));
+        let Some(result) = result else {
+            return 125;
+        };
+        let Ok(mut output) = serde_json::to_vec(&json!({"schema_version":1,"result":result}))
+        else {
+            return 125;
+        };
+        output.push(b'\n');
+        if output.len() > 1024 * 1024 {
+            return 125;
+        }
+        if std::io::stdout().write_all(&output).is_ok() {
+            0
+        } else {
+            1
+        }
+    }
+
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         // Keep bundled dependency notices in distributed binaries as well as
         // in the source checkout required by the installation contract.
         std::hint::black_box(include_str!("../SQLITE-NOTICES.txt"));
+        if let Some(code) = CardResumeProcess::run(launcher, &args[1..]) {
+            return code;
+        }
         if let Some((code, output)) = close(launcher, &args[1..]) {
             let result = if code == 0 {
                 std::io::stdout().write_all(output.as_bytes())
@@ -32,6 +87,36 @@ impl CardsProcess {
             Ok(()) => 0,
             Err(_) => 1,
         }
+    }
+}
+
+fn probe_result(payload: &Value, context: bool) -> Option<Value> {
+    let repo = payload.get("repo")?.as_str()?;
+    if repo.len() != 24
+        || !repo
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        return None;
+    }
+    let current = if context {
+        Some(payload.get("current_work_id")?.as_str()?)
+    } else {
+        None
+    };
+    let all = if context {
+        false
+    } else {
+        payload.get("include_settled")?.as_bool()?
+    };
+    let state = state_home()?;
+    let rows = match CardStore::open(&state.join("work-cards/cards.sqlite3"))? {
+        Some(store) => store.snapshot(repo, all)?,
+        None => json!([]),
+    };
+    match current {
+        Some(current) => CardRecall::evaluate(&rows, current),
+        None => Some(json!({"rows":rows})),
     }
 }
 
@@ -57,14 +142,22 @@ fn snapshot(launcher: &OsString, args: &[OsString]) -> Option<String> {
 }
 
 fn context(launcher: &OsString, project: PathBuf) -> Option<(PathBuf, PathBuf)> {
-    let project = DiscoveryFs::resolve(&project)?;
     CallbackGuard::root(launcher, "git")?;
+    context_path(project)
+}
+
+fn context_path(project: PathBuf) -> Option<(PathBuf, PathBuf)> {
+    let project = DiscoveryFs::resolve(&project)?;
+    Some((project, state_home()?))
+}
+
+fn state_home() -> Option<PathBuf> {
     let state = match env::var("MORU_STATE_HOME") {
         Ok(value) if !Renderer::strip(&value).is_empty() => PathBuf::from(Renderer::strip(&value)),
         Err(env::VarError::NotUnicode(_)) => return None,
         _ => PathBuf::from(env::var_os("HOME")?).join(".moru"),
     };
-    Some((project, state))
+    Some(state)
 }
 
 fn close(launcher: &OsString, args: &[OsString]) -> Option<(i32, String)> {
@@ -101,7 +194,7 @@ fn close(launcher: &OsString, args: &[OsString]) -> Option<(i32, String)> {
     let (project, home) = context(launcher, project)?;
     let repo = CardRepository::key(&project)?;
     let stamp = StatusSnapshot::capture_time()?;
-    let store = CardSettlement::open(&home.join("work-cards/cards.sqlite3"))?;
+    let store = CardTransaction::open(&home.join("work-cards/cards.sqlite3"))?;
     Some(match store.settle(&repo, work, state, &stamp) {
         Ok(true) => (
             0,
@@ -111,7 +204,10 @@ fn close(launcher: &OsString, args: &[OsString]) -> Option<(i32, String)> {
             2,
             "work cards: no active card with that work id in this repository\n".into(),
         ),
-        Err(message) => (2, format!("work cards: {message}\n")),
+        Err(error) => (
+            2,
+            format!("work cards: {}\n", CardTransaction::message(error)),
+        ),
     })
 }
 

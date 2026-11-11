@@ -39,6 +39,55 @@ class NativeGitQueryTests(unittest.TestCase):
                     self.assertEqual(result(reference), result(self.run_query(alias, command)))
                     self.assertEqual(result(reference), result(self.run_query(alias, command, PATH=str(self.empty))))
 
+    def test_plain_cached_and_path_limited_diffs_are_native_and_match_python(self):
+        commands=["git diff","git diff --cached","git diff --cached --exit-code",
+            "git diff -- README.md","git diff --cached -- README.md src/lib.rs",
+            "git diff --cached --stat -- .","git diff --name-status -- '소스 폴더/파일.rs'",
+            "git diff --cached -- README.md | head -n 10",
+            "git -C '"+str(self.project)+"' diff --cached -- README.md"]
+        for option in ("--stat","--check","--name-only","--name-status","--numstat","--exit-code"):
+            commands.extend(("git diff "+option+" -- README.md","git diff --cached "+option+" -- src"))
+        for alias in ("claude-pretool-gate","codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias,command=command):
+                    expected=result(self.run_query(alias,command,backend="python"))
+                    self.assertEqual((0,b"",b""),expected)
+                    self.assertEqual(expected,result(self.run_query(alias,command,PATH=str(self.empty))))
+
+    def test_diff_unsafe_flags_pathspecs_and_shell_neighbors_replay_python(self):
+        commands=["git diff --output=written","git diff --out=written","git diff --ext-dif",
+            "git diff --textconv -- README.md","git diff -- --output=written",
+            "git diff --cached --cached","git diff --", "git diff -- ../README.md",
+            "git diff -- ':(top,literal)README.md'","git diff -- '*.rs'","git diff -- 'a|b.rs'",
+            "git diff --cached -- README.md > written","git diff -- README.md; touch written",
+            "git diff -- README.md && touch written","git diff -- README.md # note",
+            "git diff -- \"$FILE\"","git diff -- README.md\n","git diff -- README.md | cat"]
+        for alias in ("claude-pretool-gate","codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias,command=command):
+                    self.assertEqual(127,self.run_query(alias,command,PATH=str(self.empty)).returncode)
+                    self.assertEqual(result(self.run_query(alias,command,backend="python")),
+                                     result(self.run_query(alias,command)))
+        self.assertFalse((self.project/"written").exists())
+
+    def test_diff_transcript_context_and_path_errors_match_original(self):
+        command="git diff --cached -- README.md"
+        transcript=self.base/"synthetic-diff.jsonl"
+        transcript.write_text(json.dumps({"payload":{"type":"function_call","arguments":
+            json.dumps({"cmd":command,"workdir":str(self.project)})}})+"\n")
+        payload=request(self.project,command,transcript_path=str(transcript))
+        self.assertEqual((0,b"",b""),result(invoke(self.launcher,self.base,self.project,
+            "codex-pretool-gate",payload,PATH=str(self.empty))))
+        transcript.write_text(json.dumps({"payload":{"type":"custom_tool_call","input":
+            'await tools.exec_command({cmd:"git diff --cached -- README.md",workdir:"/'+"x"*300+'"})'}})+"\n")
+        expected=invoke(self.launcher,self.base,self.project,"codex-pretool-gate",payload,backend="python")
+        self.assertEqual(result(expected),result(invoke(self.launcher,self.base,self.project,"codex-pretool-gate",payload)))
+        self.assertEqual(127,invoke(self.launcher,self.base,self.project,"codex-pretool-gate",payload,PATH=str(self.empty)).returncode)
+        loop=self.project/"loop.rs"; loop.symlink_to("loop.rs")
+        for alias in ("claude-pretool-gate","codex-pretool-gate"):
+            self.assertEqual(result(self.run_query(alias,"git diff -- loop.rs",backend="python")),
+                             result(self.run_query(alias,"git diff -- loop.rs")))
+
     def test_unsafe_and_unsupported_neighbors_replay_the_real_policy(self):
         commands = ["git log -0 --oneline", "git log -1001 --oneline", "git log -4294967296 --oneline",
                     "git remote -v add origin nowhere", "git remote update",
@@ -63,7 +112,7 @@ class NativeGitQueryTests(unittest.TestCase):
             else: path.symlink_to(self.launcher if kind == "launcher" else "git")
             try:
                 for alias in ("claude-pretool-gate", "codex-pretool-gate"):
-                    for command in ("git log -5 --oneline", "git status --short"):
+                    for command in ("git log -5 --oneline", "git status --short", "git diff", "git diff --cached -- README.md"):
                         self.assertEqual(127, self.run_query(alias, command, PATH=str(self.empty)).returncode)
                         self.assertEqual(result(self.run_query(alias, command, backend="python")),
                                          result(self.run_query(alias, command)))

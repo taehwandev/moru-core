@@ -3,15 +3,13 @@
 //! verification: per-session rows, deduplication, windows and whole-call decline parity.
 #[path = "overhead_session_number.rs"]
 mod number;
-#[path = "overhead_stamp.rs"]
-mod stamp;
+use crate::overhead_stamp::OverheadStamp;
 use crate::{
     overhead_hooks::OverheadHooks,
     python_json::{Object, ParseOutcome, PythonJson, Value},
 };
 use number::SessionNumber;
 use serde_json::{json, Value as Json};
-use stamp::OverheadStamp;
 use std::{cmp::Ordering, collections::HashSet};
 pub(crate) struct OverheadSession;
 struct Tally<'a> {

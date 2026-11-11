@@ -21,7 +21,7 @@ impl OverheadProcess {
         if args.len() != 2
             || !matches!(
                 args[1].to_str(),
-                Some("session" | "aggregate" | "analyze" | "timings")
+                Some("session" | "aggregate" | "analyze" | "timings" | "format")
             )
             || CallbackGuard::root(launcher, "overhead-probe").is_none()
         {
@@ -36,7 +36,7 @@ impl OverheadProcess {
         {
             return 125;
         }
-        let result = if args[1] == "aggregate" || args[1] == "analyze" {
+        let result = if args[1] == "aggregate" || args[1] == "analyze" || args[1] == "format" {
             // Parse numeric requests losslessly: serde's Value can turn a large
             // integer into a float before our supported-integer check sees it.
             std::str::from_utf8(&bytes)
@@ -45,8 +45,10 @@ impl OverheadProcess {
                 .and_then(|v| {
                     if args[1] == "aggregate" {
                         OverheadAggregate::aggregate(v["sessions"].as_array()?)
-                    } else {
+                    } else if args[1] == "analyze" {
                         OverheadAggregate::analyze(&v)
+                    } else {
+                        crate::overhead_format::OverheadFormat::format(&v)
                     }
                 })
         } else {
@@ -99,7 +101,7 @@ impl OverheadProcess {
         let bytes = Self::read(path)?;
         OverheadTimings::read(&Text::universal_newlines(&String::from_utf8_lossy(&bytes)))
     }
-    fn read(path: &str) -> Option<Vec<u8>> {
+    pub(crate) fn read(path: &str) -> Option<Vec<u8>> {
         const LIMIT: u64 = 64 * 1024 * 1024;
         if path.is_empty() || path.ends_with('/') {
             return None;

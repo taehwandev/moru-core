@@ -26,6 +26,8 @@ from agent_repository_key import repository_key
 from support.global_state import project_state_dir_target
 from agent_state_read import REGISTRY_FILENAME
 from support.global_state import global_state_dir, user_store_write_error
+from support.native_cards import NativeCards
+from support.native_card_write import NativeCardWrite
 
 
 # Version 3 retains the runtime session after a task worktree is removed.
@@ -84,6 +86,12 @@ def _connect() -> sqlite3.Connection:
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     connection = sqlite3.connect(directory / DATABASE_NAME, timeout=2)
     connection.row_factory = sqlite3.Row
+    try:
+        if NativeCardWrite.bootstrap(connection) is not None:
+            return connection
+    except ValueError:
+        connection.close()  # Original _check_version closes unsupported stores.
+        raise
     connection.execute("PRAGMA journal_mode=WAL")
     _check_version(connection)
     connection.execute(_SCHEMA)
@@ -145,6 +153,10 @@ def open_card(
     now = _now()
     run_id = _work_id(run_id) if run_id else work_id
     with closing(_connect()) as connection, connection:
+        values = (repository_key(project), _work_id(work_id), _summary(summary), command,
+                  str(project.resolve()), now.isoformat(), now.isoformat(), run_id, runtime, session_id)
+        if NativeCardWrite.open(connection, values, now, IDLE_RETENTION) is not None:
+            return
         connection.execute(
             "INSERT INTO cards (repo, work_id, summary, command, project, state, "
             "created_at, updated_at, run_id, runtime, session_id) "
@@ -153,8 +165,7 @@ def open_card(
             "command = excluded.command, project = excluded.project, "
             "state = 'active', updated_at = excluded.updated_at, run_id = excluded.run_id, "
             "runtime = excluded.runtime, session_id = excluded.session_id",
-            (repository_key(project), _work_id(work_id), _summary(summary), command,
-             str(project.resolve()), now.isoformat(), now.isoformat(), run_id, runtime, session_id),
+            values,
         )
         connection.execute(
             "DELETE FROM cards WHERE updated_at < ?", ((now - IDLE_RETENTION).isoformat(),)
@@ -166,16 +177,23 @@ def settle_card(project: Path, work_id: str, state: str) -> bool:
     if state not in STATES[1:]:
         raise ValueError(f"cards settle only to {STATES[1:]}")
     with closing(_connect()) as connection, connection:
+        values = (state, _now().isoformat(), repository_key(project), _work_id(work_id))
+        native = NativeCardWrite.settle(connection, values)
+        if native is not None:
+            return native
         changed = connection.execute(
             "UPDATE cards SET state = ?, updated_at = ? "
             "WHERE repo = ? AND work_id = ? AND state = 'active'",
-            (state, _now().isoformat(), repository_key(project), _work_id(work_id)),
+            values,
         ).rowcount
     return bool(changed)
 
 
 def list_cards(project: Path, *, include_settled: bool = False) -> list[dict[str, Any]]:
     """Read cards without writing anything; a missing store lists nothing."""
+    native = NativeCards.list(project, include_settled)
+    if native is not None:
+        return native
     states = STATES if include_settled else ("active",)
     connection = _connect_readonly()
     if connection is None:
@@ -234,12 +252,24 @@ def _stale_state(card: dict[str, Any], cache: dict[Path, dict[str, str]]) -> str
     return ""
 
 
+def _settle_card_pairs(project: Path, pairs) -> None:
+    try:
+        for work_id, state in pairs:
+            settle_card(project, work_id, state)
+    except (OSError, ValueError, sqlite3.Error):
+        pass  # Settling is housekeeping; the listing already excludes them.
+
+
 def open_card_lines(project: Path, current_work_id: str, *, settle_stale: bool = False) -> list[str]:
     """Name other unfinished work in this repository as reference context.
 
     At most MAX_LIVENESS_CHECKS cards are checked; the rest are only counted.
     `settle_stale` (the start path) also settles the abandoned ones it found.
     """
+    native = NativeCards.context(project, current_work_id)
+    if native is not None:
+        _settle_card_pairs(project, native["stale"] if settle_stale else ())
+        return native["lines"]
     others = [card for card in list_cards(project) if card["work_id"] != current_work_id]
     if not others:
         return []
@@ -248,11 +278,7 @@ def open_card_lines(project: Path, current_work_id: str, *, settle_stale: bool =
     for card in others[:MAX_LIVENESS_CHECKS]:
         settled = _stale_state(card, cache)
         (stale if settled else live).append((card, settled))
-    try:
-        for card, settled in stale if settle_stale else ():
-            settle_card(project, card["work_id"], settled)
-    except (OSError, ValueError, sqlite3.Error):
-        pass  # Settling is housekeeping; the listing already excludes them.
+    _settle_card_pairs(project, ((card["work_id"], state) for card, state in stale) if settle_stale else ())
     unchecked = max(0, len(others) - MAX_LIVENESS_CHECKS)
     if not live and not unchecked:
         return []

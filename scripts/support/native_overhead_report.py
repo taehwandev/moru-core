@@ -7,12 +7,40 @@ moru_overhead_report; native report parity, refusal and transported checks.
 from __future__ import annotations
 
 import collections
+import json
 import math
 
 from support.native_probe_transport import NativeProbe
 
 
+def _json_tree(value, depth=0):
+    if depth > 120:
+        return False
+    if type(value) in (str, int, float, bool, type(None)):
+        return True
+    if type(value) is list:
+        return all(_json_tree(v, depth+1) for v in value)
+    if type(value) is dict:
+        return all(type(k) is str and _json_tree(v, depth+1) for k, v in value.items())
+    return False
+
+
+def _format_report(report, style):
+    if style not in ("json", "markdown") or not NativeProbe.available() or not _json_tree(report):
+        return None
+    try:
+        # Keep the strict transport envelope unchanged. The lossless native
+        # report decoder owns Python's nonfinite tokens and integer precision.
+        raw = json.dumps(report, ensure_ascii=True, allow_nan=True)
+    except (ValueError, TypeError, OverflowError):
+        return None
+    value = NativeProbe.request("--overhead-probe", "format", {"report_json": raw, "format": style})
+    return (value["text"] if type(value) is dict and set(value) == {"text"}
+            and type(value["text"]) is str else None)
+
+
 class NativeOverheadReport:
+    render = staticmethod(_format_report)
     NUMERIC = (
         "assistant_turns", "user_prompts", "tool_calls", "lifecycle_total", "policy_notes",
         "hook_denials", "moru_hook_denials", "stop_hook_blocks", "guidance_reads", "guidance_bash_reads",

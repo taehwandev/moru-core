@@ -39,3 +39,34 @@ class NextRouteOwnerTests(unittest.TestCase):
 
     def test_configuration_without_http_method_is_not_an_adapter(self):
         self.assertTrue(self.failures("export const runtime = 'nodejs';\nexport const dynamic = 'force-dynamic';"))
+
+
+class NextPageOwnerTests(unittest.TestCase):
+    def failures(self, source: str, path: str = 'src/app/[locale]/[handle]/post/[slug]/page.tsx', previous: str | None = None):
+        target = Path(path)
+        before = top_level_type_declarations(target, previous.splitlines()) if previous is not None else None
+        return top_level_declaration_failures(target, top_level_type_declarations(target, source.splitlines()), before)
+
+    def test_page_component_and_reserved_exports_form_one_adapter(self):
+        source = (
+            "export const revalidate = 3600;\n"
+            "export function generateStaticParams() { return []; }\n"
+            "export async function generateMetadata({ params }: Props) { return meta(params); }\n"
+            "export default async function PostPage(props: Props) { return render(props); }"
+        )
+        for path in ('src/app/[locale]/[handle]/post/[slug]/page.tsx', 'app/blog/page.tsx', 'src/app/(group)/layout.tsx'):
+            with self.subTest(path=path):
+                self.assertEqual([], self.failures(source, path))
+
+    def test_an_extra_public_helper_in_a_page_still_fails(self):
+        source = "export const revalidate = 60;\nexport default function Page() { return null; }\nexport function helper() { return 1; }"
+        self.assertTrue(self.failures(source, 'src/app/blog/page.tsx'))
+
+    def test_reserved_page_names_outside_app_router_still_fail(self):
+        source = "export const revalidate = 60;\nexport function generateMetadata() { return {}; }\nexport default function Page() { return null; }"
+        for path in ('src/components/page.tsx', 'src/app/blog/helpers.tsx'):
+            with self.subTest(path=path):
+                self.assertTrue(self.failures(source, path))
+
+    def test_reserved_exports_without_default_page_are_not_an_adapter(self):
+        self.assertTrue(self.failures("export const revalidate = 60;\nexport function generateMetadata() { return {}; }", 'src/app/blog/page.tsx'))

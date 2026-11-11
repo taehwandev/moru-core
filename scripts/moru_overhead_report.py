@@ -175,6 +175,9 @@ def build_report(args: argparse.Namespace, now: dt.datetime) -> dict[str, Any]:
 
 
 def render_markdown(report: dict[str, Any]) -> str:
+    native = NativeOverheadReport.render(report, "markdown")
+    if native is not None:
+        return native
     lines = ["# Moru workflow overhead", "", f"Generated: {report['generated_at']}  ",
              f"Window: {report['window']['since']} .. {report['window']['until']}", "",
              "Sessions: all={}, moru-core={}, other={}".format(
@@ -230,7 +233,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     report = build_report(args, dt.datetime.now(dt.timezone.utc))
-    text = json.dumps(report, indent=2, ensure_ascii=False)
+    text = NativeOverheadReport.render(report, "json")
+    if text is None:
+        text = json.dumps(report, indent=2, ensure_ascii=False)
     if args.out:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
     else:

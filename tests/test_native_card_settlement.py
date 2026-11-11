@@ -140,8 +140,13 @@ class NativeCardSettlementTests(unittest.TestCase):
         self.seed()
         before = self.rows()
         for args in (self.close_args(work="BAD"), self.close_args("active"),
-                     self.close_args() + ["--unknown"], ["resume"]):
+                     self.close_args() + ["--unknown"]):
             self.assertEqual(127, self.call(args, PATH=str(self.git_only)).returncode)
+        # Resume now has native recorded-session navigation. An unbound board
+        # must report the original no-session error without writes or Python.
+        expected = self.call(["resume"], backend="python")
+        self.assertEqual((2,b"",b"work cards: no tasks with a recorded Codex session in this repository\n"),result(expected))
+        self.assertEqual(result(expected),result(self.call(["resume"],PATH=str(self.git_only))))
         for env in ({"PYTHONVERBOSE": "1"}, {"MORU_STATE_HOME": "relative-store"}):
             self.assertEqual(127, self.call(self.close_args(), PATH=str(self.git_only), **env).returncode)
         protected = Path(self.env["HOME"]) / ".moru/work-cards"

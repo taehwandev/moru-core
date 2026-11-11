@@ -224,6 +224,10 @@ def _record_path(project: Path, record_id: str) -> Path:
 
 def read_record(path: Path) -> dict[str, Any] | None:
     """Return one validated record, or None for anything that fails validation."""
+    from support.native_memory import NativeMemory
+    native = NativeMemory.files("record", path)
+    if native is not None:
+        return native["record"]
     if path.is_symlink():
         return None
     try:
@@ -343,6 +347,10 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
 def scan_records(project: Path) -> tuple[list[dict[str, Any]], int]:
     """Read the store once: every validated record and the count of rejected files."""
     directory = store_dir(project)
+    from support.native_memory import NativeMemory
+    native = NativeMemory.files("scan", directory)
+    if native is not None:
+        return native["records"], native["unreadable"]
     if not directory.is_dir() or directory.is_symlink():
         return [], 0
     records, unreadable = [], 0
@@ -363,6 +371,10 @@ def _recall(project: Path, scope: str, *, today: date | None = None,
     today = today or date.today()
     if records is None:
         records = scan_records(project)[0]
+    from support.native_memory import NativeMemory
+    selected = NativeMemory.recall(scope, today, records, request, target_summary, target_paths)
+    if selected is not None:
+        return selected
     live = [record for record in records if record["status"] in RECALLABLE_STATUSES]
     # Replacement is durable even if retiring its predecessor was interrupted.
     # Retiring or replacing the successor must never resurrect invalidated advice.
