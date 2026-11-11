@@ -76,6 +76,28 @@ class Run:
 
 
 class RunInterruptionTests(unittest.TestCase):
+    def test_active_same_session_is_diagnostic_only_and_never_claims(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run = Run(directory, packet=True)
+            run.checkpoint()
+            registry = registry_path(run.project)
+            packet = continuation_path(run.project, run.run['run_id'])
+            before = (registry.read_bytes(), packet.read_bytes())
+            with patch('agent_continuation_claim.runtime_session', return_value=run.session):
+                result = claim_resume(run.project, run.run['run_id'], expected_generation=0)
+            self.assertEqual('already_active_same_session', result['result'])
+            self.assertIsNone(result['packet'])
+            self.assertEqual(before, (registry.read_bytes(), packet.read_bytes()))
+
+    def test_active_foreign_session_or_process_remains_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run = Run(directory, packet=True)
+            run.checkpoint()
+            with patch('agent_continuation_claim.runtime_session', return_value={'runtime':'codex','session_id':'other'}):
+                self.assertEqual('live_owner_refused', claim_resume(run.project, run.run['run_id'], expected_generation=0)['result'])
+            with patch('agent_continuation_claim.runtime_session', return_value=run.session), patch('agent_continuation_claim.process_owner', return_value={'pid':1,'start_token':''}):
+                self.assertEqual('live_owner_refused', claim_resume(run.project, run.run['run_id'], expected_generation=0)['result'])
+
     prior_verification = [{'id': 'before_edit', 'kind': 'unit', 'result': 'success',
                            'evidence_sha256': 'a' * 64, 'completed_at': '2026-08-13T00:00:00+00:00'}]
 

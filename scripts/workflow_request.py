@@ -126,8 +126,10 @@ def inferred_concern_note(concerns: list[str]) -> str:
     """Name keyword-inferred concerns and say which of them became required."""
 
     risk = [c for c in concerns if c in RISK_CONCERNS_REQUIRED_WHEN_INFERRED]
-    optional = [c for c in concerns if c not in RISK_CONCERNS_REQUIRED_WHEN_INFERRED]
+    optional = [c for c in concerns if c not in RISK_CONCERNS_REQUIRED_WHEN_INFERRED and c != "device-scenario-qa"]
     notes: list[str] = []
+    if "device-scenario-qa" in concerns:
+        notes.append("The requested device scenario execution requires the device scenario QA contract.")
     if optional:
         notes.append(
             f"Inferred concern(s) from request keywords: {_joined(optional)}. Their documents "

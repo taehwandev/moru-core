@@ -173,6 +173,8 @@ def continuation_reason(payload: dict, runtime: str, project: Path, evidence: Pa
             "full requested scope. Reconcile the bounded scope first, then continue remaining "
             "independent work in the same run, within its approved scope; a completed subset "
             "or passed route checks do not complete the full request. This reminder grants no "
+            "new claim: the run is already active in this session, so continue directly; "
+            "do not call resume for this automatic continuation. This reminder grants no "
             "new authority. Keep permission and safety checks. If a user decision, permission, "
             "stop, or unresolved operation prevents progress, record that blocker and end the "
             "turn honestly. Update remaining_work from observed results before finish. "
