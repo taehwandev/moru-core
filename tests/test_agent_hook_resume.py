@@ -156,6 +156,21 @@ class ListTests(unittest.TestCase):
 
 
 class LastTests(unittest.TestCase):
+    def test_active_same_session_is_reported_without_claim_or_conflict(self):
+        from test_agent_run_interruption import Run
+
+        with tempfile.TemporaryDirectory() as directory:
+            run = Run(directory, packet=True)
+            run.checkpoint()
+            before = project_bytes(run.project)
+            with patch('agent_continuation_claim.runtime_session', return_value=run.session):
+                code, output = run_resume(run.project, run.project, '--last')
+            self.assertEqual(1, code)
+            self.assertIn('already_active_same_session', output)
+            self.assertIn('Do not retry resume', output)
+            self.assertNotIn('live_owner_refused', output)
+            self.assertEqual(before, project_bytes(run.project))
+
     def test_the_newest_free_packet_is_claimed_and_reported_ready(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = free_fixture(directory, "resume the wiring after a crash")

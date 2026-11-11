@@ -114,6 +114,10 @@ def _reserve(
             holder = "same_session_stopped"
         if int(run.get("resume_generation") or 0) != int(expected_generation):
             return _refusal("claim_lost", run_id, holder_state=holder)
+        if holder == "live" and _active_session_matches(run, binding):
+            # This is a diagnosis, not a claim: other workers can share a
+            # runtime session, so do not change ownership or expose the packet.
+            return _refusal("already_active_same_session", run_id, holder_state=holder)
         if holder in HOLDER_REFUSALS:
             return _refusal(HOLDER_REFUSALS[holder], run_id, holder_state=holder)
         generation = int(run.get("resume_generation") or 0) + 1
@@ -423,6 +427,25 @@ def _refusal(
         "packet": None,
         "failures": failures or [],
     }
+
+
+def _active_session_matches(run: dict[str, Any], binding: dict[str, Any]) -> bool:
+    owner = run.get("owner")
+    current = process_owner()
+    route = binding.get("route") or {}
+    return (
+        run.get("state") == "running"
+        and isinstance(owner, dict)
+        and isinstance(owner.get("pid"), int) and owner["pid"] > 0
+        and owner == current
+        and type(route.get("lifecycle_version")) is int
+        and route.get("lifecycle_version") == 2
+        and run.get("route_fingerprint") == route_fingerprint(route)
+        and same_runtime_session(
+            binding.get("runtime_session"), runtime_session(),
+            resume_generation=int(run.get("resume_generation") or 0),
+        )
+    )
 
 
 def stopped_session_matches(run: dict[str, Any], binding: dict[str, Any]) -> bool:

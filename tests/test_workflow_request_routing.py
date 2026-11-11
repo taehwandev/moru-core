@@ -405,6 +405,26 @@ class KoreanReleaseScopeSignalTests(unittest.TestCase):
 
 
 class DeviceMcpRoutingTests(unittest.TestCase):
+    def test_multi_step_device_scenarios_select_the_scenario_contract(self):
+        from workflow_route import resolve_docs
+
+        for request in (
+            "실기기로 게시판 시나리오 모두 검증해줘",
+            "플립으로 게시판 시나리오 돌려줘",
+            "run scenarios on an android device",
+        ):
+            with self.subTest(request=request):
+                concerns = infer_concerns_from_request(request)
+                self.assertIn("device-testing", concerns)
+                self.assertIn("device-scenario-qa", concerns)
+                route = resolve_docs("task", None, concerns, request_classified=True,
+                                     inferred_concerns=concerns, request_text=request)
+                self.assertIn("common/skills/local-tools/references/device-scenario-qa.md", route["required_docs"])
+
+        for request in ("실기기로 키보드 포커스 검증해줘", "에뮬레이터 없이 시나리오 단위 테스트만 실행해줘", "실기기 시나리오 검증하지 마", "do not run scenarios on an android device"):
+            with self.subTest(request=request):
+                self.assertNotIn("device-scenario-qa", infer_concerns_from_request(request))
+
     def test_on_device_requests_select_device_preparation(self):
         for request in (
             "실기기로 키보드 포커스 검증해줘",
