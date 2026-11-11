@@ -57,6 +57,7 @@ mod memory_process;
 mod memory_json;
 mod memory_record;
 mod memory_files;
+mod memory_source;
 mod manifest_process;
 mod next_process;
 mod next_verification;

@@ -153,17 +153,7 @@ impl MemoryFiles {
                 _ => return None,
             };
             prefix.push(name);
-            let mut text = prefix.to_str()?.to_owned();
-            if cfg!(target_os = "macos") {
-                text.make_ascii_lowercase();
-            }
-            let names: Vec<_> = text.split('/').filter(|p| !p.is_empty()).collect();
-            if (names.first() == Some(&"dev")
-                && matches!(names.get(1), Some(&"fd" | &"stdin" | &"stdout" | &"stderr")))
-                || (names.first() == Some(&"proc")
-                    && (names.get(2) == Some(&"fd")
-                        || (names.get(2) == Some(&"task") && names.get(4) == Some(&"fd"))))
-            {
+            if Self::descriptor(&prefix)? {
                 return None;
             }
             let name = CString::new(name.as_bytes()).ok()?;
@@ -189,6 +179,20 @@ impl MemoryFiles {
             && actual.is_file() == expected.is_file()
             && actual.is_dir() == expected.is_dir())
         .then_some(file)
+    }
+    pub(crate) fn descriptor(path: &Path) -> Option<bool> {
+        let mut text = path.to_str()?.to_owned();
+        if cfg!(target_os = "macos") {
+            text.make_ascii_lowercase();
+        }
+        let names: Vec<_> = text.split('/').filter(|p| !p.is_empty()).collect();
+        Some(
+            (names.first() == Some(&"dev")
+                && matches!(names.get(1), Some(&"fd" | &"stdin" | &"stdout" | &"stderr")))
+                || (names.first() == Some(&"proc")
+                    && (names.get(2) == Some(&"fd")
+                        || (names.get(2) == Some(&"task") && names.get(4) == Some(&"fd")))),
+        )
     }
     fn names(directory: &File) -> Option<Vec<String>> {
         let fd = unsafe { libc::fcntl(directory.as_raw_fd(), libc::F_DUPFD_CLOEXEC, 0) };

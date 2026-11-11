@@ -109,6 +109,10 @@ def _source_blob(project: Path, path: str, *, tracked: bool = False) -> str:
     if not _valid_source_path(path):
         return ""
     root = project.resolve()
+    from support.native_memory import NativeMemory
+    native = NativeMemory.blob(root, path, tracked)
+    if native is not None:
+        return native["blob"]
     candidate = root / path
     try:
         # Reject symlinks, including parent symlinks, before reading any bytes.

@@ -9,7 +9,8 @@ type: ai-generated
 The ordinary project-memory reader and sorted store scan now execute filesystem
 reads, UTF-8/JSON decoding, record validation and SHA256 integrity checks in Rust.
 The Python owner still resolves the store/repository and owns capture, retirement,
-source hashing, analysis evidence binding, rendering and write authority. Unit16
+analysis evidence binding, rendering and write authority. Ordinary source-file
+verification now has a [native Git boundary](native-memory-source.md). Unit16
 remains partial; its earlier lexical/ranking engine is documented in
 [native-memory-recall.md](native-memory-recall.md).
 

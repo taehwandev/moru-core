@@ -10,9 +10,10 @@ The Rust memory owner computes lexical terms, eligibility, weighted relevance
 and stable selection order from the original owner's supplied records. It
 returns indices; the Python bridge returns the same original record objects.
 The [native file reader](native-memory-files.md) now handles ordinary stored
-record decoding, validation and sorted scans. Capture, storage writes, source
-hashing, analysis binding, rendering, retirement and authority remain with their
-original owners. Unit16 is partial.
+record decoding, validation and sorted scans; the [source verifier](native-memory-source.md)
+handles ordinary candidate-file checks and bounded Git calls. Capture, storage
+writes, source-status aggregation/cache, analysis binding, rendering, retirement
+and authority remain with their original owners. Unit16 is partial.
 
 The lexical contract retains Python word classes and full case folding,
 path/filename alternatives, nearest directories and stems, identifier weights,

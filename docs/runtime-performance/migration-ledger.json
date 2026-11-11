@@ -246,11 +246,12 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "project-memory",
-      "remaining": "Native lexical terms, recall ranking, ordinary file decode/validation and sorted scans are implemented. Store/repository admission, capture/retire, source hashing, analysis binding, rendering, exceptional profiles and Python retirement remain open.",
+      "remaining": "Native lexical terms, recall ranking, ordinary file decode/validation, sorted scans and candidate/Git source-blob checks are implemented. Python relative-path/root admission, source-status/cache aggregation, store/repository admission, capture/retire, analysis binding, rendering, exceptional profiles and Python retirement remain open.",
       "supporting_sources": ["scripts/support/native_memory.py", "native/checkout-identity/memory_contract.py"],
       "verification": {
         "recall": "PASS:100 distinct Python3.9 cases,4 selected Python3.14 profile/error cases,4 Rust tests and191 transported macOS ARM64 checks. Actual native helper calls reject Python lexical/ranking replay and return original objects without writes. Fixture-only tie/profile assertions were corrected against source; see native-memory-recall.md. No completed-unit or exact-batch Linux claim.",
-        "record_reads": "PASS:109 Python3.9 memory/source/ledger cases,3 selected Python3.14 cases,9 Rust memory tests and195 transported macOS ARM64 checks. Native file decoding, canonical digest/schema checks and sorted scans execute without Python read_text/digest/record-loop replay; guarded descriptor/FIFO, permissions, symlinks and unsupported metadata preserve read-only fallback. See native-memory-files.md. Unit16 remains partial; no exact-batch Linux claim."
+        "record_reads": "PASS:109 Python3.9 memory/source/ledger cases,3 selected Python3.14 cases,9 Rust memory tests and195 transported macOS ARM64 checks. Native file decoding, canonical digest/schema checks and sorted scans execute without Python read_text/digest/record-loop replay; guarded descriptor/FIFO, permissions, symlinks and unsupported metadata preserve read-only fallback. See native-memory-files.md. Unit16 remains partial; no exact-batch Linux claim.",
+        "source_blobs": "PASS:112 focused Python cases,9 Rust memory tests and204 transported macOS ARM64 checks. Native candidate-file/Git checks preserve exact argv, SHA1/SHA256, filters, timeouts, supplied case, binary tracked output and typed UTF8 errors without normal Python file/Git replay. Actual EOF/locale admission defers live/unknown profiles before Git. Python relative-path/root admission and status/cache remain; see native-memory-source.md. Unit16 stays partial; Linux exact-batch acceptance is open."
       }
     },
     {
