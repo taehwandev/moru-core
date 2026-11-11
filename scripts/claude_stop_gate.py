@@ -315,6 +315,18 @@ def block_reason(root: Path) -> str:
     )
 
 
+def _pending_publication(root: Path, session_id: str) -> str:
+    """Declared publication that finish deferred and nobody has observed yet."""
+    from agent_pending_publication import pending_reason
+    from agent_runtime_session import resolve_runtime_evidence
+
+    evidence = resolve_runtime_evidence(
+        root, {"runtime": "claude", "session_id": session_id}, frozenset({"completed"}),
+        latest_of_several=True,
+    )
+    return pending_reason(root, evidence) if evidence else ""
+
+
 def gate_enabled() -> bool:
     return os.environ.get("MORU_CLAUDE_STOP_GATE", "").strip() != "0"
 
@@ -337,6 +349,8 @@ def decide(payload: dict) -> int:
         from agent_stop_continuation import continuation_reason as work_continuation
 
         if reason := work_continuation(payload, "claude", root):
+            return block(reason)
+        if not payload.get("stop_hook_active") and (reason := _pending_publication(root, session_id)):
             return block(reason)
         from agent_run_interruption import record_turn_boundary
         if record_turn_boundary(root, "claude", session_id):

@@ -1036,6 +1036,14 @@ def finish_hook(args: argparse.Namespace) -> int:
                        + ". With user authority for commit/merge/push: "
                        f"start --continue-from {preflight_evidence_path(args).parent.name} "
                        "--command commit --approved-effect git_write (external_write to push)")
+        pending_lines, pending_failure = _pending_publication_lines(args, captured)
+        if pending_failure:
+            # Fail closed: a deferred publication with no stored receipt would
+            # look complete. Leave the run active so finish can be retried.
+            print_status("finish", False, ["deferred publication could not be recorded", pending_failure,
+                                          "Keep this run active; repair the run directory and rerun finish."])
+            return 3
+        details.extend(pending_lines)
         # Complete the registry first. If the process dies between these two
         # writes, the run is already terminal and cannot be resumed from a
         # packet that still displays the pre-finish checkpoint.
@@ -1127,6 +1135,26 @@ def _fast_forward_line(project: Path) -> str:
         f"`git -C {main} merge --ff-only {commit}`. Name the commit, never `HEAD`: "
         "in that command HEAD is main's own HEAD. Do not open a commit route for it."
     )
+
+
+def _pending_publication_lines(args: argparse.Namespace, receipt_captured: bool) -> tuple[list[str], str]:
+    """Persist finish-deferred publication; returns (lines, failure) and never swallows a failure."""
+    from agent_pending_publication import pending_reason, record_pending, split_remaining
+    from agent_work_completion import bound_work_packet
+
+    try:
+        evidence = preflight_evidence_path(args)
+        preflight = json.loads(evidence.read_text(encoding="utf-8"))
+        packet = bound_work_packet(args.project, evidence) or {}
+        _blocking, deferred = split_remaining(preflight, (packet.get("work") or {}).get("remaining_work") or [], args.project)
+        if not deferred:
+            return [], ""
+        if not receipt_captured:
+            return [], "the publication receipt was not captured, so deferred publication cannot be admitted"
+        failure = record_pending(args.project, evidence, deferred)
+        return ([pending_reason(args.project, evidence)] if not failure else []), failure
+    except (OSError, ValueError, TypeError, RuntimeError) as error:
+        return [], f"pending publication could not be evaluated ({type(error).__name__})"
 
 
 def _closed_run_lines(project: Path) -> list[str]:

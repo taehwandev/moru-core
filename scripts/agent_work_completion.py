@@ -52,7 +52,10 @@ def work_completion_failures(project: Path, evidence: Path) -> list[str]:
     failures = []
     if scope_unreconciled(preflight, packet):
         failures.append("requested scope has not been reconciled; record its bounded objective, acceptance and remaining outcomes before finish")
-    if work.get("remaining_work"):
+    # A declared publication the run's effect already admits is finish-deferred and
+    # stays owed in the pending-publication record; any other item still blocks.
+    from agent_pending_publication import split_remaining
+    if split_remaining(preflight, work.get("remaining_work") or [], project)[0]:
         failures.append("requested work remains unfinished; complete or explicitly resolve every declared outcome before finish")
     if work.get("blockers") or packet.get("phase") == "blocked":
         failures.append("requested work has unresolved blockers; report partial progress without a completion receipt")
