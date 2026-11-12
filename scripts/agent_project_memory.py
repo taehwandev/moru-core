@@ -39,6 +39,7 @@ MAX_PREVIOUS_CHARS = 160
 MAX_HISTORY_ITEMS = 20
 APPLICABILITY_FIELDS = ("applies_when", "not_when")
 MAX_CONDITION_CHARS = 160
+_ANALYSIS_BINDING_ERROR = "analysis question and context must both be one line of 1–300 characters"
 BLOB_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 PATH_RE = re.compile(r"[\w.-]+(?:/[\w.-]+)+|[\w-]+\.[a-zA-Z0-9]+")
@@ -68,12 +69,24 @@ def _digest(record: dict[str, Any]) -> str:
 
 
 def _analysis_binding(question: str, context: str) -> dict[str, str] | None:
+    if type(question) is str and type(context) is str and not question and not context:
+        return None
+    from support.native_memory_analysis import NativeMemoryAnalysis
+    native = NativeMemoryAnalysis.binding(question, context)
+    if native is not None:
+        if "invalid" in native:
+            raise ValueError(_ANALYSIS_BINDING_ERROR)
+        return native["binding"]
+    return _analysis_binding_reference(question, context)
+
+
+def _analysis_binding_reference(question: str, context: str) -> dict[str, str] | None:
     if not question and not context:
         return None
     values = {"question": question, "context": context}
     if any(not isinstance(value, str) or not value.strip() or len(value) > 300
            or not value.isprintable() for value in values.values()):
-        raise ValueError("analysis question and context must both be one line of 1–300 characters")
+        raise ValueError(_ANALYSIS_BINDING_ERROR)
     # Preserve case, identifiers and negation. Semantic similarity is not identity.
     return {key: value.strip() for key, value in values.items()}
 
@@ -406,13 +419,24 @@ def _recall(project: Path, scope: str, *, today: date | None = None,
     return eligible
 
 
+def _analysis_candidates(scope: str, binding: dict[str, str], records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if type(records) is list and not records:
+        return []
+    from support.native_memory_analysis import NativeMemoryAnalysis
+    selected = NativeMemoryAnalysis.candidates(scope, binding, records)
+    return selected if selected is not None else _analysis_candidates_reference(scope, binding, records)
+
+
+def _analysis_candidates_reference(scope: str, binding: dict[str, str], records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [record for record in records if record["scope"] == scope and "analysis" in record
+            and all(record["analysis"].get(key) == value for key, value in binding.items())]
+
+
 def _analysis_recall(project: Path, scope: str, question: str, context: str) -> list[dict[str, Any]]:
     binding = _analysis_binding(question, context)
     if binding is None:
         raise ValueError("analysis recall requires a question and context")
-    candidates = [record for record in _recall(project, scope)
-                  if record["scope"] == scope and "analysis" in record
-                  and all(record["analysis"].get(key) == value for key, value in binding.items())]
+    candidates = _analysis_candidates(scope, binding, _recall(project, scope))
     if not candidates:
         return []
     try:

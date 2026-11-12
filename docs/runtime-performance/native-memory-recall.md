@@ -19,6 +19,9 @@ uncached evidence in Rust; cache-only aggregation remains Python. Unit16 is part
 [Replacement-history traversal](native-memory-history.md) also executes in Rust;
 record admission and projection of the original metadata remain Python-owned.
 
+[Analysis identity and candidate selection](native-memory-analysis.md) use the
+native exact-match kernel; freshness, budgets and write authority remain Python-owned.
+
 The lexical contract retains Python word classes and full case folding,
 path/filename alternatives, nearest directories and stems, identifier weights,
 Korean particle variants and stop words. Builder-generated Unicode data is
