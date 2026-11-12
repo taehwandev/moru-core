@@ -12,8 +12,9 @@ returns indices; the Python bridge returns the same original record objects.
 The [native file reader](native-memory-files.md) now handles ordinary stored
 record decoding, validation and sorted scans; the [source verifier](native-memory-source.md)
 handles ordinary candidate-file checks and bounded Git calls. Capture, storage
-writes, source-status aggregation/cache, analysis binding, rendering, retirement
-and authority remain with their original owners. Unit16 is partial.
+writes, analysis binding, rendering, retirement and authority remain with their
+original owners. [Source-status aggregation](native-memory-status.md) batches
+uncached evidence in Rust; cache-only aggregation remains Python. Unit16 is partial.
 
 The lexical contract retains Python word classes and full case folding,
 path/filename alternatives, nearest directories and stems, identifier weights,

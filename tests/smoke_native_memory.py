@@ -66,4 +66,22 @@ def check_memory_source(native,entry,base,project,env):
     invoke(False,"",path="../outside.py")
     invoke(False,"",path_env=base/"missing-git-path")
     assert source.read_bytes()==b"raw\r\n" and (project/".git/index").read_bytes()==before
-    return 5
+    files=[{"path":"memory-source.py","blob":expected},{"path":"missing-source.py","blob":"a"*40}]
+    def status(files,blobs,expected_result,path_env=tools):
+        payload={"unicode":unicodedata.unidata_version,"root":str(project),"files":files,"blobs":blobs,
+                 "stdin_eof":True,"encoding":"utf-8"}
+        done=subprocess.run([str(native),str(entry),"--memory-probe","source-status"],
+            input=json.dumps(payload).encode(),capture_output=True,cwd=project,
+            env={**env,"PATH":str(path_env)},timeout=10)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":expected_result},done
+    status(files,{}, {"blobs":{"memory-source.py":expected,"missing-source.py":""},"result":{
+        "source_status":"unavailable","unverified_sources":["missing-source.py"],
+        "warning":"Source evidence unavailable — verify before use"}})
+    status(files,{"memory-source.py":"b"*40,"missing-source.py":""},{"blobs":{},"result":{
+        "source_status":"changed","unverified_sources":["memory-source.py","missing-source.py"],
+        "warning":"Source evidence changed — verify before use"}},base/"missing-git-path")
+    status(files[:1],{"memory-source.py":expected},{"blobs":{},"result":{"source_status":"unchanged"}},
+           base/"missing-git-path")
+    assert source.read_bytes()==b"raw\r\n" and (project/".git/index").read_bytes()==before
+    return 8

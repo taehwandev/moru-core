@@ -142,6 +142,10 @@ def _source_status(project: Path, record: dict[str, Any],
     if not files:
         return {}
     blobs = {} if blobs is None else blobs
+    from support.native_memory_status import NativeMemoryStatus
+    native = NativeMemoryStatus.evaluate(project, files, blobs)
+    if native is not None:
+        return native
     statuses = []
     for item in files:
         if item["path"] not in blobs:
