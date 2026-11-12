@@ -246,13 +246,14 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "project-memory",
-      "remaining": "Native lexical terms, recall ranking, ordinary record reads/scans, source-blob checks and uncached source-status batching are implemented. Python relative-path/root admission, cache-only aggregation/error transport, store/repository admission, capture/retire, analysis binding, rendering, exceptional profiles and Python retirement remain open.",
-      "supporting_sources": ["scripts/support/native_memory.py", "scripts/support/native_memory_status.py", "native/checkout-identity/memory_contract.py"],
+      "remaining": "Native lexical terms, recall ranking, record reads/scans, source-blob/status batches and history traversal are implemented. Python admission, cache-only aggregation/error transport, history field projection, capture/retire, analysis binding, rendering, exceptional profiles and Python retirement remain open.",
+      "supporting_sources": ["scripts/support/native_memory.py", "scripts/support/native_memory_status.py", "scripts/support/native_memory_history.py", "native/checkout-identity/memory_contract.py"],
       "verification": {
         "recall": "PASS:100 distinct Python3.9 cases,4 selected Python3.14 profile/error cases,4 Rust tests and191 transported macOS ARM64 checks. Actual native helper calls reject Python lexical/ranking replay and return original objects without writes. Fixture-only tie/profile assertions were corrected against source; see native-memory-recall.md. No completed-unit or exact-batch Linux claim.",
         "record_reads": "PASS:109 Python3.9 memory/source/ledger cases,3 selected Python3.14 cases,9 Rust memory tests and195 transported macOS ARM64 checks. Native file decoding, canonical digest/schema checks and sorted scans execute without Python read_text/digest/record-loop replay; guarded descriptor/FIFO, permissions, symlinks and unsupported metadata preserve read-only fallback. See native-memory-files.md. Unit16 remains partial; no exact-batch Linux claim.",
         "source_blobs": "PASS:112 focused Python cases,9 Rust memory tests and204 transported macOS ARM64 checks. Native candidate-file/Git checks preserve exact argv, SHA1/SHA256, filters, timeouts, supplied case, binary tracked output and typed UTF8 errors without normal Python file/Git replay. Actual EOF/locale admission defers live/unknown profiles before Git. Python relative-path/root admission remains; later status progress is recorded separately. See native-memory-source.md. Unit16 stays partial; Linux exact-batch acceptance is open.",
-        "source_status": "PASS:126 distinct Python cases,12 Rust memory tests and207 final transported macOS ARM64 checks. Final14-case status suite passed after its independent-cache fixture correction; inventory repair accounts for two baseline hook helpers with3 ledger cases passing. Native uncached batches preserve cache identity/order, duplicate warnings, changed/unavailable precedence and partial-decline/UTF8 prefixes without Python hash-loop replay. Fully cached calls use0 native requests; reversed warning packets and custom-key/aliased roots defer safely. Python cache-only aggregation/error transport and exceptional profiles remain. See native-memory-status.md; unit16 and Linux acceptance remain open."
+        "source_status": "PASS:126 distinct Python cases,12 Rust memory tests and207 final transported macOS ARM64 checks. Final14-case status suite passed after its independent-cache fixture correction; inventory repair accounts for two baseline hook helpers with3 ledger cases passing. Native uncached batches preserve cache identity/order, duplicate warnings, changed/unavailable precedence and partial-decline/UTF8 prefixes without Python hash-loop replay. Fully cached calls use0 native requests; reversed warning packets and custom-key/aliased roots defer safely. Python cache-only aggregation/error transport and exceptional profiles remain. See native-memory-status.md; unit16 and Linux acceptance remain open.",
+        "history": "PASS:139 Python cases,21 Rust memory tests and211 transported macOS ARM64 checks. Native hash-indexed traversal preserves duplicate/fork insertion order, explicit/dangling links, cycles, scan-race errors and20 cap.13 history cases include40 seeded graphs, real temporary-store CLI and captured pre-edit projection values/order. Original object identity survives; Python traversal is disabled in mandatory-native checks, with a negative control. Empty scans use0 native requests; invalid links/packets and duplicate selected IDs defer. Source/store admission, field projection and Python/exceptional/Linux scope remain open; see native-memory-history.md. No timing or complete-unit claim."
       }
     },
     {
@@ -959,6 +960,7 @@
     "scripts/support/native_doc_transcript.py",
     "scripts/support/native_launcher_install.py",
     "scripts/support/native_memory.py",
+    "scripts/support/native_memory_history.py",
     "scripts/support/native_memory_status.py",
     "scripts/support/native_overhead.py",
     "scripts/support/native_overhead_report.py",

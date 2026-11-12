@@ -16,6 +16,9 @@ writes, analysis binding, rendering, retirement and authority remain with their
 original owners. [Source-status aggregation](native-memory-status.md) batches
 uncached evidence in Rust; cache-only aggregation remains Python. Unit16 is partial.
 
+[Replacement-history traversal](native-memory-history.md) also executes in Rust;
+record admission and projection of the original metadata remain Python-owned.
+
 The lexical contract retains Python word classes and full case folding,
 path/filename alternatives, nearest directories and stems, identifier weights,
 Korean particle variants and stop words. Builder-generated Unicode data is

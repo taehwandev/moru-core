@@ -455,7 +455,22 @@ def _history(project: Path, record_id: str) -> list[dict[str, Any]]:
     """
 
     _existing(project, record_id)
-    by_id = {record["id"]: record for record in scan_records(project)[0]}
+    records = scan_records(project)[0]
+    from support.native_memory_history import NativeMemoryHistory
+    selected = NativeMemoryHistory.select(record_id, records)
+    if selected is not None:
+        return [_history_fields(record) for record in selected]
+    return _history_reference(record_id, records)
+
+
+def _history_fields(record: dict[str, Any]) -> dict[str, Any]:
+    return {key: record[key] for key in
+            ("id", "status", "body", "source", "created_at", "retired_at", "replaces", *APPLICABILITY_FIELDS)
+            if key in record}
+
+
+def _history_reference(record_id: str, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_id = {record["id"]: record for record in records}
     # The replacement is durable before retiring its predecessor writes replaced_by.
     following = {record["replaces"]: record["id"] for record in by_id.values()
                  if record.get("replaces")}
@@ -468,10 +483,7 @@ def _history(project: Path, record_id: str) -> list[dict[str, Any]]:
     while current in by_id and current not in seen and len(chain) < MAX_HISTORY_ITEMS:
         seen.add(current)
         record = by_id[current]
-        chain.append({key: record[key] for key in
-                      ("id", "status", "body", "source", "created_at", "retired_at", "replaces",
-                       *APPLICABILITY_FIELDS)
-                      if key in record})
+        chain.append(_history_fields(record))
         current = record.get("replaces") or ""
     return chain
 

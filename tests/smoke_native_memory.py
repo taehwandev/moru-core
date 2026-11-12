@@ -18,7 +18,22 @@ def check_memory(native,entry,project,env):
             input=json.dumps(payload).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":indices}},done
-    return 4
+    rows=[{"id":"a","replaces":None,"replaced_by":None},
+          {"id":"b","replaces":"a","replaced_by":None},
+          {"id":"c","replaces":"b","replaced_by":None}]
+    for record_id,indices in (("a",[2,1,0]),("b",[2,1,0]),("c",[2,1,0])):
+        payload={"unicode":unicodedata.unidata_version,"record_id":record_id,"records":rows}
+        done=subprocess.run([str(native),str(entry),"--memory-probe","history"],
+            input=json.dumps(payload).encode(),capture_output=True,cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":indices}},done
+    rows[0]["replaced_by"]="missing"
+    done=subprocess.run([str(native),str(entry),"--memory-probe","history"],input=json.dumps({
+        "unicode":unicodedata.unidata_version,"record_id":"a","records":rows}).encode(),
+        capture_output=True,cwd=project,env=env,timeout=8)
+    assert (done.returncode,done.stderr)==(0,b""),done
+    assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":[0]}},done
+    return 8
 
 
 def check_memory_files(native,entry,base,project,env):
