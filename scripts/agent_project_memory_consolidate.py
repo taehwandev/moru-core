@@ -116,6 +116,20 @@ def _shared_source_groups_reference(live: list[dict[str, Any]]) -> list[dict[str
 
 
 def _unfinished_replacements(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from support.native_memory_upkeep import NativeMemoryUpkeep
+    selected = NativeMemoryUpkeep.replacements(live)
+    if selected is None:
+        return _unfinished_replacements_reference(live)
+    findings = []
+    for record, replacements in selected:
+        entry = _entry(record, "a live record replaces this one; `retire` it to finish "
+                               "the interrupted replacement")
+        entry["replaced_by"] = replacements
+        findings.append(entry)
+    return findings
+
+
+def _unfinished_replacements_reference(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
     replaced_by: dict[str, list[str]] = {}
     for record in live:
         if record.get("replaces"):
@@ -130,13 +144,23 @@ def _unfinished_replacements(live: list[dict[str, Any]]) -> list[dict[str, Any]]
     return findings
 
 
+def _live_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from support.native_memory_upkeep import NativeMemoryUpkeep
+    selected = NativeMemoryUpkeep.live(records, RECALLABLE_STATUSES)
+    return selected if selected is not None else _live_records_reference(records)
+
+
+def _live_records_reference(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted((record for record in records if record["status"] in RECALLABLE_STATUSES),
+                  key=lambda item: item["id"])
+
+
 def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
              within_days: int = DEFAULT_WITHIN_DAYS) -> dict[str, Any]:
     """Classify validated records; the result carries bodies for the agent only."""
     if within_days < 0:
         raise ValueError("--within-days must not be negative")
-    live = sorted((record for record in records if record["status"] in RECALLABLE_STATUSES),
-                  key=lambda item: item["id"])
+    live = _live_records(records)
     horizon = today + timedelta(days=within_days)
     review_on = {record["id"]: date.fromisoformat(record["review_on"]) for record in live}
     return {
@@ -180,22 +204,36 @@ def summary_line(report: dict[str, Any], project: Path, launcher: str) -> str:
 def startup_summary_line(records: list[dict[str, Any]], project: Path, launcher: str,
                          *, today: date) -> str:
     """Linear, content-free hints; fuzzy comparison belongs to explicit consolidate."""
+    from support.native_memory_upkeep import NativeMemoryUpkeep
+    packet = NativeMemoryUpkeep.startup(records, normalize, date.fromisoformat, today, RECALLABLE_STATUSES)
+    if packet is None:
+        return _startup_summary_line_reference(records, project, launcher, today=today)
+    counts, prepared = packet
+    if counts is None:
+        return _startup_summary_line_reference(records, project, launcher, today=today, _prepared=prepared)
+    return _summary_counts_line(counts, project, launcher)
+
+
+def _startup_summary_line_reference(records: list[dict[str, Any]], project: Path, launcher: str,
+                                    *, today: date, _prepared: list[dict[str, Any]] | None = None) -> str:
     live = [record for record in records if record["status"] in RECALLABLE_STATUSES]
     bodies: dict[str, Counter] = defaultdict(Counter)
     sources: Counter = Counter()
     replaced = {record.get("replaces") for record in live}
-    for record in live:
-        body = normalize(record["body"])
+    for index, record in enumerate(live):
+        body = normalize(record["body"]) if _prepared is None else _prepared[index]["body"]
         if body:
             bodies[body][record["scope"]] += 1
-        sources[normalize(record["source"])] += 1
+        source = normalize(record["source"]) if _prepared is None else _prepared[index]["source"]
+        sources[source] += 1
     # An `all` record bridges otherwise disjoint route groups with the same body.
     exact_duplicates = sum(
         int(sum(scopes.values()) > 1) if scopes["all"] else sum(n > 1 for n in scopes.values())
         for scopes in bodies.values()
     )
     counts = {
-        "expired": sum(date.fromisoformat(record["review_on"]) <= today for record in live),
+        "expired": sum(date.fromisoformat(record["review_on"]) <= today if _prepared is None
+                       else _prepared[index]["review"] <= today.toordinal() for index, record in enumerate(live)),
         "exact_duplicates": exact_duplicates,
         "shared_source": sum(n > 1 for n in sources.values()),
         "unfinished": sum(record["id"] in replaced for record in live),

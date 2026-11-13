@@ -26,6 +26,9 @@ native exact-match kernel; freshness, budgets and write authority remain Python-
 components and shared-source groups; normalization, dates and report projection
 remain Python-owned.
 
+[Upkeep kernels](native-memory-upkeep.md) also handle startup counts, live-record
+selection and unfinished replacement lookup with original report metadata.
+
 The lexical contract retains Python word classes and full case folding,
 path/filename alternatives, nearest directories and stems, identifier weights,
 Korean particle variants and stop words. Builder-generated Unicode data is

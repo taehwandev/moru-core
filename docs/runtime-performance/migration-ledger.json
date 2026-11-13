@@ -246,7 +246,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "project-memory",
-      "remaining": "Native recall, record reads/scans, source-blob/status batches, history, ordinary analysis binding/candidate selection and consolidation grouping are implemented. Python admission, cache-only aggregation/error transport, history projection, capture/retire, analysis freshness/rendering/budgets, consolidation normalization/reports/dates/startup hints, exceptional profiles and retirement remain open.",
+      "remaining": "Native recall, record reads/scans, source-blob/status batches, history, ordinary analysis binding/candidate selection, consolidation grouping and startup/live/replacement upkeep kernels are implemented. Python admission, cache-only aggregation/error transport, history projection, capture/retire, analysis freshness/rendering/budgets, consolidation normalization/reports/date parsing, explicit date buckets and startup rendering, exceptional profiles and retirement remain open.",
       "supporting_sources": [
         "scripts/support/native_memory.py",
         "scripts/support/native_memory_status.py",
@@ -254,6 +254,7 @@
         "scripts/support/native_memory_analysis.py",
         "scripts/agent_project_memory_consolidate.py",
         "scripts/support/native_memory_consolidation.py",
+        "scripts/support/native_memory_upkeep.py",
         "native/checkout-identity/memory_contract.py"
       ],
       "verification": {
@@ -263,7 +264,8 @@
         "source_status": "PASS:126 distinct Python cases,12 Rust memory tests and207 final transported macOS ARM64 checks. Final14-case status suite passed after its independent-cache fixture correction; inventory repair accounts for two baseline hook helpers with3 ledger cases passing. Native uncached batches preserve cache identity/order, duplicate warnings, changed/unavailable precedence and partial-decline/UTF8 prefixes without Python hash-loop replay. Fully cached calls use0 native requests; reversed warning packets and custom-key/aliased roots defer safely. Python cache-only aggregation/error transport and exceptional profiles remain. See native-memory-status.md; unit16 and Linux acceptance remain open.",
         "history": "PASS:139 Python cases,21 Rust memory tests and211 transported macOS ARM64 checks. Native hash-indexed traversal preserves duplicate/fork insertion order, explicit/dangling links, cycles, scan-race errors and20 cap.13 history cases include40 seeded graphs, real temporary-store CLI and captured pre-edit projection values/order. Original object identity survives; Python traversal is disabled in mandatory-native checks, with a negative control. Empty scans use0 native requests; invalid links/packets and duplicate selected IDs defer. Source/store admission, field projection and Python/exceptional/Linux scope remain open; see native-memory-history.md. No timing or complete-unit claim.",
         "analysis": "PASS:155 Python cases, including16 analysis cases;29 Rust memory tests;216 transported macOS ARM64 checks. Captured pre-edit values/order, Unicode/raw300-character limits, exact case/negation/context, duplicate original identities, freshness/budgets and real temporary-store CLI all match. Mandatory-native negative controls prevent Python validation/filter replay. Empty bindings/candidates start0 requests; custom keys and malformed packets defer. Source freshness/rendering/budgets, exceptional profiles and Python retirement remain; see native-memory-analysis.md. Actual installation is verified separately; no timing, full-unit or exact-batch Linux claim.",
-        "consolidation": "PASS:187 Python cases including15 consolidation cases,35 Rust memory tests and220 transported macOS ARM64 checks. Original captured output/reasons/order,0.8 threshold, transitive all-scope bridges, Unicode normalization, duplicate-ID stability, original metadata and real temporary-store CLI match. Negative controls forbid Python pair/group replay; empty helpers start0 requests. Reordered/overlapping packets and custom profiles defer. Python normalization/report/date/startup decisions and writes remain. Actual installation is a separate check; unit16 and Linux acceptance stay open; no timing claim. See native-memory-consolidation.md."
+        "consolidation": "PASS:187 Python cases including15 consolidation cases,35 Rust memory tests and220 transported macOS ARM64 checks. Original captured output/reasons/order,0.8 threshold, transitive all-scope bridges, Unicode normalization, duplicate-ID stability, original metadata and real temporary-store CLI match. Negative controls forbid Python pair/group replay; empty helpers start0 requests. Reordered/overlapping packets and custom profiles defer. Python normalization/report/date/startup decisions and writes remain. Actual installation is a separate check; unit16 and Linux acceptance stay open; no timing claim. See native-memory-consolidation.md.",
+        "upkeep": "PASS:206 distinct Python cases (initial205 and final36 affected after availability-only guard/regression),43 unchanged Rust memory tests and226 final transported macOS ARM64 checks.19 upkeep cases cover24 seeded three-kernel corpora, captured notice/report values/order, statuses/date/Unicode, duplicate-ID stability, original metadata, malformed replies, negative Python-replay controls and real read-only CLI/store bytes. Startup fallback reuses normalized/date inputs; absent/unreadable binary skips preparation safely. Empty helpers start0 requests. Python normalization/date parsing/explicit date buckets/rendering/authority and retirement remain. Actual installation separate; unit16 and Linux acceptance stay partial; no timing claim. See native-memory-upkeep.md."
       }
     },
     {
@@ -972,6 +974,7 @@
     "scripts/support/native_memory.py",
     "scripts/support/native_memory_analysis.py",
     "scripts/support/native_memory_consolidation.py",
+    "scripts/support/native_memory_upkeep.py",
     "scripts/support/native_memory_history.py",
     "scripts/support/native_memory_status.py",
     "scripts/support/native_overhead.py",

@@ -66,7 +66,26 @@ def check_memory(native,entry,project,env):
             cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":{"groups":groups}},done
-    return 17
+    live_rows=[{"id":"b","status":"active"},{"id":"a","status":"pending"},{"id":"x","status":"retired"}]
+    link_rows=[{"id":"a","replaces":None},{"id":"c","replaces":"a"},{"id":"b","replaces":"a"}]
+    startup_rows=[{"id":name,"scope":scope,"body":"same","source":origin,"replaces":link,"review":review}
+                  for name,scope,origin,link,review in (("a","task","docs",None,2),
+                      ("b","review","docs","a",3),("c","all","other",None,1))]
+    counts={"expired":2,"exact_duplicates":1,"shared_source":1,"unfinished":1}
+    zero={key:0 for key in counts}
+    cases=[("upkeep-live",{"statuses":["active","pending","approved"],"records":live_rows},{"indices":[1,0]}),
+           ("upkeep-live",{"statuses":["active"],"records":[]},{"indices":[]}),
+           ("upkeep-replacements",{"records":link_rows},{"findings":[{"index":0,"replacements":[2,1]}]}),
+           ("upkeep-replacements",{"records":[]},{"findings":[]}),
+           ("upkeep-startup",{"today":2,"records":startup_rows},{"counts":counts}),
+           ("upkeep-startup",{"today":1,"records":[]},{"counts":zero})]
+    for operation,values,expected in cases:
+        done=subprocess.run([str(native),str(entry),"--memory-probe",operation],input=json.dumps({
+            "unicode":unicodedata.unidata_version,**values}).encode(),capture_output=True,
+            cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
+    return 23
 
 
 def check_memory_files(native,entry,base,project,env):

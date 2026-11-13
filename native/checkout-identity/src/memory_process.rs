@@ -5,6 +5,7 @@ use crate::{
     memory_analysis::MemoryAnalysis, memory_consolidation::MemoryConsolidation,
     memory_files::MemoryFiles, memory_history::MemoryHistory,
     memory_recall::MemoryRecall, memory_source::MemorySource, memory_status::MemoryStatus,
+    memory_upkeep::MemoryUpkeep,
     pretool_guard::CallbackGuard,
 };
 use serde_json::{json, Value};
@@ -33,7 +34,9 @@ impl MemoryProcess {
         let Some(result) = serde_json::from_slice::<Value>(&bytes)
             .ok()
             .and_then(|payload| {
-                if matches!(operation, "duplicate-groups" | "shared-source-groups") {
+                if matches!(operation, "upkeep-live" | "upkeep-replacements" | "upkeep-startup") {
+                    MemoryUpkeep::evaluate(operation, &payload)
+                } else if matches!(operation, "duplicate-groups" | "shared-source-groups") {
                     MemoryConsolidation::evaluate(operation, &payload)
                 } else if matches!(operation, "analysis-binding" | "analysis-candidates") {
                     MemoryAnalysis::evaluate(operation, &payload)

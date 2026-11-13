@@ -13,8 +13,10 @@ The result includes transitive components, including bridges through `all`.
 Empty token sets do not match. Shared sources use exact equality after original
 normalization, including empty normalized sources.
 
-Python retains lowercase/punctuation/whitespace normalization, date and live
-record classification, reason strings, report projection and startup summaries.
+Python retains lowercase/punctuation/whitespace normalization, date parsing and
+explicit date classification, reason strings and report projection.
+[Upkeep kernels](native-memory-upkeep.md) handle startup counts, live input
+selection and unfinished replacement relations.
 The typed protocol carries only IDs, scopes and normalized tokens or sources;
 Rust returns index groups. Records, applicability values and unrelated metadata
 remain original Python objects. Stable ID sorting, duplicate IDs and group ties
