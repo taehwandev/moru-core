@@ -22,6 +22,10 @@ record admission and projection of the original metadata remain Python-owned.
 [Analysis identity and candidate selection](native-memory-analysis.md) use the
 native exact-match kernel; freshness, budgets and write authority remain Python-owned.
 
+[Consolidation grouping](native-memory-consolidation.md) delegates duplicate
+components and shared-source groups; normalization, dates and report projection
+remain Python-owned.
+
 The lexical contract retains Python word classes and full case folding,
 path/filename alternatives, nearest directories and stems, identifier weights,
 Korean particle variants and stop words. Builder-generated Unicode data is

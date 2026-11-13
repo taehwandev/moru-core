@@ -2,7 +2,8 @@
 //! forbidden imports: direct store IO, writes, providers; callers/tests: private
 //! native protocol; verification: source/transport/schema/empty-PATH checks.
 use crate::{
-    memory_analysis::MemoryAnalysis, memory_files::MemoryFiles, memory_history::MemoryHistory,
+    memory_analysis::MemoryAnalysis, memory_consolidation::MemoryConsolidation,
+    memory_files::MemoryFiles, memory_history::MemoryHistory,
     memory_recall::MemoryRecall, memory_source::MemorySource, memory_status::MemoryStatus,
     pretool_guard::CallbackGuard,
 };
@@ -32,7 +33,9 @@ impl MemoryProcess {
         let Some(result) = serde_json::from_slice::<Value>(&bytes)
             .ok()
             .and_then(|payload| {
-                if matches!(operation, "analysis-binding" | "analysis-candidates") {
+                if matches!(operation, "duplicate-groups" | "shared-source-groups") {
+                    MemoryConsolidation::evaluate(operation, &payload)
+                } else if matches!(operation, "analysis-binding" | "analysis-candidates") {
                     MemoryAnalysis::evaluate(operation, &payload)
                 } else if operation == "history" {
                     MemoryHistory::evaluate(&payload)

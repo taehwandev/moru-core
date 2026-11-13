@@ -51,7 +51,22 @@ def check_memory(native,entry,project,env):
             }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":indices}},done
-    return 13
+    duplicate_rows=[{"id":"c","scope":"review","tokens":list("abcdef")},
+                    {"id":"a","scope":"task","tokens":list("abcd")},
+                    {"id":"b","scope":"all","tokens":list("abcde")}]
+    source_rows=[{"id":"z","source":""},{"id":"a","source":"x"},
+                 {"id":"b","source":""},{"id":"c","source":"x"}]
+    cases=[("duplicate-groups",duplicate_rows,[[1,2,0]]),
+           ("duplicate-groups",[],[]),
+           ("shared-source-groups",source_rows,[[1,3],[2,0]]),
+           ("shared-source-groups",[],[])]
+    for operation,rows,groups in cases:
+        done=subprocess.run([str(native),str(entry),"--memory-probe",operation],input=json.dumps({
+            "unicode":unicodedata.unidata_version,"records":rows}).encode(),capture_output=True,
+            cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":{"groups":groups}},done
+    return 17
 
 
 def check_memory_files(native,entry,base,project,env):

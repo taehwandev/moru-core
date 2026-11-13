@@ -60,6 +60,19 @@ def _group(records: list[dict[str, Any]], reason: str) -> dict[str, Any]:
 
 
 def _duplicate_groups(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from support.native_memory_consolidation import NativeMemoryConsolidation
+    groups = NativeMemoryConsolidation.groups("duplicate-groups", live, _tokens, DUPLICATE_JACCARD)
+    if groups is None:
+        return _duplicate_groups_reference(live)
+    return [_group(members, _duplicate_reason()) for members in groups]
+
+
+def _duplicate_reason() -> str:
+    return (f"bodies share at least {DUPLICATE_JACCARD:.0%} of their words in overlapping "
+            "scopes; merge with `capture --replaces <one>`, then retire the others")
+
+
+def _duplicate_groups_reference(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
     # Connected components over near-identical pairs, so a chain of close
     # copies is reported once. `live` is id-sorted, which keeps it stable.
     tokens = [_tokens(record["body"]) for record in live]
@@ -80,12 +93,20 @@ def _duplicate_groups(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for index, record in enumerate(live):
         components.setdefault(root(index), []).append(record)
     groups = [members for members in components.values() if len(members) > 1]
-    reason = (f"bodies share at least {DUPLICATE_JACCARD:.0%} of their words in overlapping "
-              "scopes; merge with `capture --replaces <one>`, then retire the others")
+    reason = _duplicate_reason()
     return sorted((_group(members, reason) for members in groups), key=lambda item: item["ids"])
 
 
 def _shared_source_groups(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from support.native_memory_consolidation import NativeMemoryConsolidation
+    groups = NativeMemoryConsolidation.groups("shared-source-groups", live, normalize)
+    if groups is None:
+        return _shared_source_groups_reference(live)
+    reason = "records cite the same source; open it and keep, merge or retire the ones that disagree"
+    return [_group(members, reason) for members in groups]
+
+
+def _shared_source_groups_reference(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_source: dict[str, list[dict[str, Any]]] = {}
     for record in live:
         by_source.setdefault(normalize(record["source"]), []).append(record)

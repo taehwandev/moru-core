@@ -61,6 +61,7 @@ mod memory_source;
 mod memory_status;
 mod memory_history;
 mod memory_analysis;
+mod memory_consolidation;
 mod manifest_process;
 mod next_process;
 mod next_verification;
