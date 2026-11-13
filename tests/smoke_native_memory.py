@@ -33,7 +33,25 @@ def check_memory(native,entry,project,env):
         capture_output=True,cwd=project,env=env,timeout=8)
     assert (done.returncode,done.stderr)==(0,b""),done
     assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":[0]}},done
-    return 8
+    binding_cases=[({"question":" Q ","context":" Context "},
+                    {"binding":{"question":"Q","context":"Context"}}),
+                   ({"question":"","context":""},{"binding":None}),
+                   ({"question":"q\n","context":"c"},{"invalid":True})]
+    for values,expected in binding_cases:
+        done=subprocess.run([str(native),str(entry),"--memory-probe","analysis-binding"],input=json.dumps({
+            "unicode":unicodedata.unidata_version,**values}).encode(),capture_output=True,cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
+    matching={"scope":"analysis","analysis":{"question":"Q","context":"Context"}}
+    rows=[matching,{"scope":"all","analysis":matching["analysis"]},
+          {"scope":"analysis","analysis":{"question":"q","context":"Context"}},matching]
+    for values,indices in ((rows,[0,3]),([],[])):
+        done=subprocess.run([str(native),str(entry),"--memory-probe","analysis-candidates"],input=json.dumps({
+            "unicode":unicodedata.unidata_version,"scope":"analysis","binding":matching["analysis"],"records":values
+            }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":indices}},done
+    return 13
 
 
 def check_memory_files(native,entry,base,project,env):
