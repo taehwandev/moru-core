@@ -77,6 +77,11 @@ justifies another start/review/finish. Never create a journal, dummy diff, test,
 worktree move or second task just to feed a gate. Report a manifest conflict; do
 not fake a pass.
 
+Parallel slices of one request each get their own linked worktree and their own
+`start --project <worktree>`; a session's run in one checkout never authorizes
+or blocks writes in a sibling. After a slice is merged, remove its clean worktree
+from the main checkout and delete its branch with `git branch -d`, never `-D`.
+
 ## Execution Round Trips
 
 Batch bounded reads/ready gates; inspect each result and require success before
