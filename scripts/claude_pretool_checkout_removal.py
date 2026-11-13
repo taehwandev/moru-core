@@ -2,7 +2,8 @@
 
 Owner: which checkouts a shell command removes outright -- `git worktree
 remove` (forced or not) and a recursive `rm` of a checkout or of the folder
-holding checkouts -- and the refusal when one of them still holds work.
+holding checkouts -- the refusal when one of them still holds work, and exact
+admission of a clean, settled linked worktree already merged into main.
 Allowed imports: the standard library, claude_bash_git, claude_scratch_checkout
 and agent_repository_checkouts.
 Forbidden imports: claude_pretool_gate and any run-evidence or policy reader.
@@ -20,6 +21,7 @@ runtime's own permission flow, which cannot see either. This module looks.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from agent_repository_checkouts import checkout_removal_hazard
@@ -54,7 +56,79 @@ def checkout_removal_denial(tokens: list[str], cwd: Path) -> str:
                         "not mean the checkout is finished: commit or discard the changes "
                         "and finish or cancel the run there first, or leave it in place."
                     )
+                if (Path(segment[0]).name == "git"
+                        and not throwaway_checkout(checkout)
+                        and _merged_into_main(checkout) is False):
+                    return (
+                        f"This command deletes the checkout {checkout}, but its HEAD is "
+                        "not merged into the main checkout's current branch. Merge its "
+                        "work first or leave the checkout in place."
+                    )
     return ""
+
+
+def merged_worktree_removal(tokens: list[str], cwd: Path) -> bool:
+    """Admit only an exact removal of a clean, settled, merged linked checkout.
+
+    `--force` alone proves nothing. Resolve the actual repository, require its
+    main checkout as the command target, and fail closed on unavailable reads.
+    Shell chains, redirects, config overrides and unknown flags keep their
+    ordinary workflow verdict.
+    """
+
+    if not tokens or tokens[0] != "git":
+        return False
+    index = 1
+    here = cwd
+    while index + 1 < len(tokens) and tokens[index] == "-C":
+        here = _absolute(tokens[index + 1], here)
+        index += 2
+    if tokens[index:index + 2] != ["worktree", "remove"]:
+        return False
+    arguments = tokens[index + 2:]
+    if "--" in arguments:
+        split = arguments.index("--")
+        options, operands = arguments[:split], arguments[split + 1:]
+    else:
+        options = [arg for arg in arguments if arg.startswith("-")]
+        operands = [arg for arg in arguments if not arg.startswith("-")]
+    if set(options) - {"-f", "--force"} or len(operands) != 1:
+        return False
+    target = _absolute(operands[0], here)
+    common = _git_output(here, ["rev-parse", "--path-format=absolute", "--git-common-dir"])
+    top = _git_output(here, ["rev-parse", "--show-toplevel"])
+    if common is None or top is None or Path(common).parent != Path(top):
+        return False
+    registered = _git_output(here, ["worktree", "list", "--porcelain", "-z"])
+    if registered is None or f"worktree {target}" not in registered.split("\0"):
+        return False
+    status = _git_output(target, ["status", "--porcelain=v1", "--untracked-files=normal"])
+    return (status == "" and not checkout_removal_hazard(target)
+            and _merged_into_main(target) is True)
+
+
+def _git_output(checkout: Path, arguments: list[str]) -> str | None:
+    try:
+        result = subprocess.run(["git", "-C", str(checkout), *arguments],
+                                capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _merged_into_main(checkout: Path) -> bool | None:
+    """Ancestry of an actual linked checkout; None when it cannot be verified."""
+
+    if not (checkout / ".git").is_file():
+        return None
+    common = _git_output(checkout, ["rev-parse", "--path-format=absolute", "--git-common-dir"])
+    head = _git_output(checkout, ["rev-parse", "--verify", "HEAD"])
+    if not common or not head:
+        return None
+    main = Path(common).parent
+    if not _git_output(main, ["symbolic-ref", "--quiet", "HEAD"]):
+        return None
+    return _git_output(main, ["merge-base", "--is-ancestor", head, "HEAD"]) == ""
 
 
 def worktree_removal_targets(tokens: list[str], cwd: Path) -> list[Path]:

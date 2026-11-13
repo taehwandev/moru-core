@@ -287,8 +287,9 @@ changed start intake or read-to-write transition gets a fresh run path, while
 an unchanged intake reuses its run. Explicit evidence remains explicit. Only
 successful registration settles superseded runs in the same runtime session;
 failed entry must leave the earlier run intact. A new request also settles
-the session's paused and failed runs and those in its other checkouts, files untouched
-(scope: worktree-hygiene guidance).
+the session's interrupted and failed runs in other checkouts, files untouched.
+Active sibling claims (running, paused, resuming) stay independent, including
+Claude subagents sharing the parent's session id (scope: worktree-hygiene guidance).
 
 HTTP inspection is provider-independent. Use `curl -q` (or `--disable` as the
 first argument) with GET/HEAD and stdout; this disables implicit curlrc actions

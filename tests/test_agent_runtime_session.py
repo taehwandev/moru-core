@@ -740,6 +740,7 @@ class SupersededSessionRunTests(unittest.TestCase):
             with self.subTest(keeps_work=keeps_work), tempfile.TemporaryDirectory() as directory:
                 main = RuntimeFixture(str(Path(directory) / "main"), session_id="claude-session")
                 linked = RuntimeFixture(str(Path(directory) / "linked"), session_id="claude-session")
+                agent_run_registry.transition_run(main.project, main.evidence, "interrupted")
                 marker = main.project / ".moru" / "claude-pretool-gate" / "claude-session.settled"
                 with (
                     patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "claude-session"}, clear=True),
@@ -779,6 +780,23 @@ class SupersededSessionRunTests(unittest.TestCase):
 
             self.assertEqual([], settled)
             self.assertEqual("running", self._states(fixture.project)[fixture.run_id])
+
+    def test_sibling_start_preserves_every_active_claim_and_exact_session_binding(self):
+        for state in agent_runtime_session.ACTIVE_RUN_STATES:
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as directory:
+                first = RuntimeFixture(str(Path(directory) / "first"), session_id="shared")
+                second = RuntimeFixture(str(Path(directory) / "second"), session_id="shared")
+                agent_run_registry.transition_run(first.project, first.evidence, state)
+                with patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "shared"}, clear=True), \
+                     patch.object(agent_runtime_session, "checkouts_with_run_state", return_value=[first.project]), \
+                     patch.object(agent_runtime_session, "_request_fingerprint", return_value="new-request"):
+                    self.assertEqual([], agent_runtime_session.settle_superseded_session_runs(
+                        second.project, keep_run_id=second.run_id, new_request=True))
+                self.assertEqual(state, self._states(first.project)[first.run_id])
+                self.assertEqual(first.evidence.resolve(), resolve_runtime_evidence(
+                    first.project, {"runtime": "claude", "session_id": "shared"}))
+                self.assertIsNone(resolve_runtime_evidence(
+                    first.project, {"runtime": "claude", "session_id": "foreign"}))
 
     def test_no_runtime_session_settles_nothing(self) -> None:
         """Without a session id there is no claim this start supersedes."""

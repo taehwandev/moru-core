@@ -65,6 +65,9 @@ Moru Core remain outside this gate. Tune the freshness window with
 `MORU_CLAUDE_GATE_MAX_AGE_SECONDS` (default 8 hours). Policy violations return a
 deterministic denial instead of an operator confirmation, so Claude repairs the
 workflow or worktree boundary without asking for every Edit, Write, or Bash call.
+Bindings are checkout-local: a session may hold independent active runs in
+several linked worktrees. A sibling-run location is only a denial hint when
+the target checkout has no exact run of its own.
 
 ## Worktree Write Isolation
 
@@ -111,6 +114,13 @@ On Codex every `ask` becomes a silent pass to Codex's own approval policy. This
 keeps the common development path prompt-free while preserving a meaningful
 operator decision for the rare dangerous path.
 
+From the main checkout, an exact `git worktree remove` (including `--force`)
+needs no run when the registered linked checkout is clean, has no unsettled
+run, and its HEAD is an ancestor of the main checkout's current branch.
+Unavailable checks grant no admission; dirty and unmerged checkouts are kept.
+Non-forced `git branch -d` retains its self-protecting admission: Git refuses
+unmerged branches. Forced branch deletion gains no such exemption.
+
 The Bash allowance is command- and option-aware. A compound line is read-only
 only when every command it executes is read-only; loop and branch keywords are
 syntax, but their conditions and bodies are still classified. `find`, `sort`,
@@ -124,7 +134,9 @@ prove safe leaves the read-only fast path and is judged by the rules above.
 
 After a new parent `start` has atomically promoted its claim to `running`, it
 may self-heal same-session ambiguity by cancelling older active parent claims
-for that exact runtime session. The registry performs that cancellation as a
+for that exact runtime session in the same checkout. Active claims in sibling
+checkouts remain independent, including subagents sharing a session id.
+The registry performs that cancellation as a
 compare-and-set on evidence key, run id, run-instance start time, active state,
 and resume generation. If an older run finishes, fails, is rebound, or its
 terminal id is adopted by a new start before the transaction acquires the

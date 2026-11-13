@@ -79,7 +79,7 @@ class RegistryShape(unittest.TestCase):
             with self.subTest(gate=gate):
                 self.assertEqual(gate_field_enums(gate), {})
 
-    def test_registered_fields_are_declared_requirements(self):
+    def test_registered_fields_are_required_or_explicitly_optional(self):
         for gate, fields in (
             ("ambiguity check", gate_field_enums("ambiguity check")),
             ("alignment brief", gate_field_enums("alignment brief")),
@@ -87,7 +87,16 @@ class RegistryShape(unittest.TestCase):
         ):
             for field in fields:
                 with self.subTest(gate=gate, field=field):
-                    self.assertIn(field, FIELD_REQUIREMENTS[gate])
+                    optional = ("efficiency",) if gate == "retrospective check" else ()
+                    self.assertIn(field, (*FIELD_REQUIREMENTS[gate], *optional))
+
+    def test_optional_efficiency_still_validates_its_value_and_evidence(self):
+        base = _retrospective_evidence("no_reusable_gap", "not_needed")
+        self.assertEqual([], validate_retrospective_check(base))
+        self.assertEqual([], validate_retrospective_check(
+            base + "; efficiency: unmeasured; efficiency evidence: no timing sample"))
+        for suffix in ("; efficiency: unmeasured", "; efficiency: invalid; efficiency evidence: sample"):
+            self.assertTrue(validate_retrospective_check(base + suffix))
 
     def test_every_registered_field_offers_values(self):
         for gate in (
@@ -272,7 +281,12 @@ class RenderedAdvertisement(unittest.TestCase):
     def test_closed_set_fields_show_their_values(self):
         line = self._line_for("retrospective check")
         for field, values in gate_field_enums("retrospective check").items():
-            self.assertIn(f"{field} ({'|'.join(values)})", line)
+            if field in FIELD_REQUIREMENTS["retrospective check"]:
+                self.assertIn(f"{field} ({'|'.join(values)})", line)
+            else:
+                # Opt-in fields are advertised in the accompanying guidance.
+                self.assertIn(f"{field}: {'|'.join(values)}", "\n".join(
+                    self.lines(["retrospective check"])))
 
     def test_open_fields_show_no_parenthetical(self):
         line = self._line_for("retrospective check")

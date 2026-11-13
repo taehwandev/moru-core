@@ -400,10 +400,11 @@ def settle_superseded_session_runs(
     the same session is the moment that supersedes the earlier claims, so it is
     the one place their intent is known well enough to settle them.
 
-    ``new_request`` widens that moment to what a new, unrelated request
-    actually supersedes. A run the Stop hook paused, or one whose finish
-    failed, is just as abandoned as an active one, and the session's next work
-    often lands in another checkout of the same repository. Left alone, such a
+    ``new_request`` also settles abandoned runs in sibling checkouts. A run
+    the Stop hook interrupted, or one whose finish failed, may otherwise be
+    reclaimed on publication there. Active sibling claims remain
+    independent: a shared session can work in several checkouts concurrently,
+    including from Claude subagents. Left alone, an abandoned
     run in the main checkout was reclaimed by the pre-tool gate on the
     session's next publication there and refused it as "still open", with no
     close path short of editing the registry by hand. A continuation or resume
@@ -448,8 +449,9 @@ def settle_superseded_session_runs(
     transfer = _request_fingerprint(own, keep_run_id) if new_request else ""
     settled: list[str] = []
     for checkout in checkouts:
+        checkout_states = states if checkout == own else states - ACTIVE_RUN_STATES
         for run_id, prior_state in _settle_session_runs_in(
-            checkout, keep, states, runtime=runtime, session_id=session_id,
+            checkout, keep, checkout_states, runtime=runtime, session_id=session_id,
             superseded_by=keep_run_id,
             transfer_fingerprint=transfer if checkout != own else "",
         ):
