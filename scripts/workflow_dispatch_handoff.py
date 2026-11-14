@@ -303,6 +303,8 @@ def build_handoff_prompt(
         "You are a delegated Codex worker for one bounded task stage.",
         "Do not delegate another Codex child from this worker.",
         "Follow the scoped handoff and preserve existing user changes.",
+        "Before reporting blocked, correct agent-owned argument, working-directory, edit-context or missing-evidence errors within the current authority, verify, and continue the failed step.",
+        "Recover transient failures only when replay is safe; wait on pending executions and reconcile existing effects. Preserve read-only, cancellation, approval and retry-budget boundaries.",
     ]
     if non_authoring:
         instructions.append(
@@ -540,6 +542,7 @@ def build_worker_result_packet(
     *,
     returncode: int,
     raw_output: str = "",
+    recovery_action: str = "",
 ) -> dict[str, object]:
     """Build and persist a bounded ``worker_result_v1`` packet (<= 4096 bytes)."""
 
@@ -613,10 +616,7 @@ def build_worker_result_packet(
         "checks": _normalize_checks(parsed.get("checks"), returncode=returncode),
         "blockers": blockers,
         "next_action": _utf8_truncate(
-            str(
-                parsed.get("next_action")
-                or ("integrate worker result" if status in {"ok", "findings"} else "inspect worker stream log and blockers")
-            ),
+            _worker_next_action(parsed, status, recovery_action),
             300,
         ),
         "artifacts": {
@@ -639,3 +639,10 @@ def build_worker_result_packet(
     _check_no_symlink(result_path)
     result_path.write_text(serialized + "\n", encoding="utf-8")
     return packet
+
+
+def _worker_next_action(parsed, status, recovery_action):
+    if recovery_action:
+        return recovery_action
+    return str(parsed.get("next_action") or (
+        "integrate worker result" if status in {"ok", "findings"} else "inspect worker stream log and blockers"))

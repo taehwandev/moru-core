@@ -39,6 +39,7 @@ from workflow_request import (
     route_block_reason,
 )
 from support.global_state import project_state_dir_target
+from workflow_dispatch_retry import DEFAULT_MAX_RETRIES, WorkerOutcome
 
 
 def _validated_capability(
@@ -235,6 +236,7 @@ def build_dispatch_manifest(
         "isolation_required": isolation_required,
         "worktree_path": worktree_path or None,
         "heartbeat_interval_seconds": max(0.0, float(heartbeat_interval_seconds)),
+        "max_retries": DEFAULT_MAX_RETRIES,
         "partial_result_id": str(partial_result_id or ""),
         "handoff_state": handoff_state,
         # Kept for programmatic callers. Human-facing output always redacts it:
@@ -345,7 +347,7 @@ def _parent_evidence_path(project: Path, evidence_path: Path | None) -> Path:
 def execute_dispatch_manifest(
     manifest: Mapping[str, object],
     *,
-    runner: Callable[[list[str]], int] | None = None,
+    runner: Callable[[list[str]], int | WorkerOutcome] | None = None,
 ) -> int:
     return _execute_dispatch_manifest(
         manifest,

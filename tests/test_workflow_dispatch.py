@@ -1590,7 +1590,7 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
     def test_nonzero_worker_exit_transitions_task_to_failed(self) -> None:
         # Integration coverage for the launch branch where the real worker
         # process returns non-zero: transition_task(..., "failed") plus the
-        # (default max_retries=0) retry logic. This regained the coverage lost
+        # typed retry policy (an unclassified exit is not replayed). Coverage lost
         # when test_dispatch_executor_runs_selected_argv was removed, since every
         # other converted launch test mocks subprocess.run to returncode=0.
         real_run = subprocess.run

@@ -209,7 +209,22 @@ leaf in the current process or use a native worker, regardless of whether the
 selected profile, sandbox, or parent profile information matches. One dispatch is not
 multi-agent fanout. The main session remains responsible for orchestration,
 integration, and final verification. Omit `--execute` to inspect a
-non-executing handoff manifest. The profiles are explicit:
+non-executing handoff manifest.
+
+CLI workers default to two recovery retries (`max_retries: 2` in the manifest);
+an explicit zero disables them. Only a recognized terminal transport/server
+error before any tool activity admits automatic replay. Retries wait 1 then 2
+seconds, honor a bounded `retry_after_seconds` (at most 30 seconds), and retain
+the task's existing attempt budget and partial-result identity. Cancellation or
+ownership loss during the wait prevents relaunch. Completed/started tools,
+in-progress turns, unreadable/incomplete event streams and unknown errors never
+prove replay safe. Reconcile existing work before resuming those cases.
+Invalid arguments, auth, permission and missing-tool failures return a concrete
+correction in `worker_result_v1.next_action`; correct that boundary instead of
+declaring the whole task blocked or changing Moru. This does not intercept
+arbitrary provider-internal tool failures or grant new execution authority.
+
+The profiles are explicit:
 
 | Stage | Tier and reasoning effort |
 | --- | --- |

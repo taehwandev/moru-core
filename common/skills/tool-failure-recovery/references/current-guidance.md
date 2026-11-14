@@ -34,6 +34,10 @@ error. Do not paste secret values from logs.
 - Fix the smallest relevant code, config, test, fixture, or docs issue.
 - Preserve unrelated user changes and unrelated failures.
 - Rerun the narrowest command that proves the correction.
+- For a wrong argument, working directory, edit context or missing workflow
+  evidence, perform the documented correction within existing authority and
+  continue the failed step. A failed invocation alone is not a reason to stop
+  the task or ask the user to make an agent-owned correction.
 - Escalate or ask only when the failure requires network, credentials,
   destructive cleanup, external state, or a product decision.
 - If the same command fails twice for different reasons, repeat diagnosis from
@@ -53,6 +57,10 @@ service state:
 - Prefer temporary local caches over changing global caches when the package
   manager supports it.
 - Report the blocker when the needed condition cannot be changed safely.
+- A sandboxed credential lookup or one unauthenticated path does not prove the
+  host has no login. Check the existing normal authentication path through its
+  approved boundary before requesting new credentials or declaring auth blocked.
+  Never change credentials or bypass a permission decision to make a retry pass.
 
 ### Pending Commands And Approval Requests
 

@@ -15,6 +15,7 @@ from agent_ipc import read_events
 from agent_scheduler import claim_next, claim_task, enqueue_task, heartbeat_task, retry_task, scheduler_path, transition_task
 from workflow_dispatch_launch import _claim_scheduler_task, _run_scheduled_worker
 from workflow_dispatch import build_dispatch_manifest
+from workflow_dispatch_retry import WorkerOutcome
 
 
 class DispatchHeartbeatTests(unittest.TestCase):
@@ -130,9 +131,10 @@ class DispatchSchedulingTests(unittest.TestCase):
 
             def runner(_argv: list[str]) -> int:
                 claim_task(project, other["task_id"], capacity=2)
-                return 1
+                return WorkerOutcome(1, "UNAVAILABLE", replay_safe=True)
 
-            self.assertEqual(1, _run_scheduled_worker([], runner, project, task))
+            with patch("workflow_dispatch_launch.time.sleep"):
+                self.assertEqual(1, _run_scheduled_worker([], runner, project, task))
             self.assertEqual("failed", self._states(project)[task["task_id"]])
 
     def test_superseded_attempt_neither_renews_lease_nor_reports_result(self) -> None:

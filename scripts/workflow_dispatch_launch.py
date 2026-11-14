@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import errno
 import os
 import subprocess
+import sys
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Callable, Mapping
@@ -27,6 +30,7 @@ from workflow_dispatch_handoff import (
     prepare_worker_output_dir,
     worker_output_paths,
 )
+from workflow_dispatch_retry import DEFAULT_MAX_RETRIES, WorkerOutcome, read_worker_outcome, recovery_message
 
 LEASE_RENEWAL_SECONDS = 600
 
@@ -34,7 +38,7 @@ LEASE_RENEWAL_SECONDS = 600
 def execute_dispatch_manifest(
     manifest: Mapping[str, object],
     *,
-    runner: Callable[[list[str]], int] | None,
+    runner: Callable[[list[str]], int | WorkerOutcome] | None,
     execution_capsule_state: Callable[..., dict[str, object]],
     isolated_worker_evidence: Callable[..., Path],
     codex_argv: Callable[..., list[str]],
@@ -115,25 +119,11 @@ def execute_dispatch_manifest(
             output_last_message=last_message_path,
         )
 
-    def _run_spooled(command: list[str]) -> int:
-        prepare_worker_output_dir(prepared, clear_stale=True)
-        with open(stream_log_path, "a", encoding="utf-8") as stream_log:
-            proc = subprocess.run(
-                command,
-                check=False,
-                env=worker_environment(
-                    prepared, task_context["task"], worktree_path=worktree_path
-                ),
-                stdout=stream_log,
-                stderr=subprocess.STDOUT,
-            )
-        build_worker_result_packet(prepared, returncode=proc.returncode)
-        return proc.returncode
 
     try:
         return _run_scheduled_worker(
             argv,
-            _run_spooled,
+            lambda command: _run_spooled_worker(command, prepared, task_context["task"], worktree_path),
             project,
             scheduler_task,
             heartbeat_interval_seconds=heartbeat_interval,
@@ -141,6 +131,30 @@ def execute_dispatch_manifest(
         )
     except OSError as error:
         raise RuntimeError("Unable to start the delegated Codex worker") from error
+
+
+def _run_spooled_worker(command, prepared, task, worktree_path):
+    stream_log_path = Path(worker_output_paths(prepared)["stream_log_path"])
+    prepare_worker_output_dir(prepared, clear_stale=True)
+    with open(stream_log_path, "a", encoding="utf-8") as stream_log:
+        offset = stream_log.buffer.tell()
+        try:
+            proc = subprocess.run(
+                command, check=False,
+                env=worker_environment(prepared, task, worktree_path=worktree_path),
+                stdout=stream_log, stderr=subprocess.STDOUT,
+            )
+        except OSError as error:
+            outcome = WorkerOutcome(127, errno.errorcode.get(error.errno, "UNKNOWN"), replay_safe=True)
+            build_worker_result_packet(prepared, returncode=127, recovery_action=recovery_message(outcome.action))
+            raise
+    outcome = read_worker_outcome(proc.returncode, stream_log_path, offset)
+    action = outcome.action
+    if action == "retry_transient" and int(task.get("attempt", 1)) >= int(task.get("max_attempts", 1)):
+        action = "retry_budget_exhausted"
+    build_worker_result_packet(prepared, returncode=outcome.returncode,
+                               recovery_action=recovery_message(action) if outcome.returncode else "")
+    return outcome
 
 
 def _is_worktree_isolated(manifest: Mapping[str, object]) -> bool:
@@ -177,7 +191,7 @@ def _claim_scheduler_task(
     parent_evidence = Path(str(prepared["preflight_evidence"])).resolve()
     run_id = latest_run_id(project, parent_evidence) or uuid.uuid4().hex
     independent_slices = int(manifest.get("independent_slices") or 1)
-    max_retries = int(manifest.get("max_retries") or 0)
+    max_retries = int(manifest.get("max_retries", DEFAULT_MAX_RETRIES) or 0)
     requested_workers = int(manifest.get("requested_workers") or 1)
     capacity = choose_capacity(independent_slices, requested_workers)
     task = enqueue_task(
@@ -199,7 +213,7 @@ def _claim_scheduler_task(
 
 def _run_scheduled_worker(
     argv: list[str],
-    runner: Callable[[list[str]], int],
+    runner: Callable[[list[str]], int | WorkerOutcome],
     project: Path,
     task: Mapping[str, object],
     *,
@@ -213,55 +227,10 @@ def _run_scheduled_worker(
         task_id = str(current_task["task_id"])
         worker_id = f"worker-{task_id}"
         attempt = int(current_task.get("attempt") or 1)
-        stop_heartbeat = threading.Event()
         events_enabled = heartbeat_interval_seconds > 0
-        # The worker has no timeout because comparisons may legitimately run
-        # long, so the lease tracks this process instead: it is renewed while
-        # the worker runs, even without opt-in heartbeat events, and expires
-        # for stale recovery only once this process is gone.
-        lease_interval = heartbeat_interval_seconds if events_enabled else LEASE_RENEWAL_SECONDS
-        if events_enabled:
-            heartbeat_task(project, task_id, expected_attempt=attempt)
-            emit_heartbeat(
-                project,
-                run_id=str(current_task["run_id"]),
-                task_id=task_id,
-                worker_id=worker_id,
-                attempt=attempt,
-            )
-
-        def heartbeat_loop() -> None:
-            while not stop_heartbeat.wait(lease_interval):
-                if heartbeat_task(project, task_id, expected_attempt=attempt) is None:
-                    return
-                if events_enabled:
-                    emit_heartbeat(
-                        project,
-                        run_id=str(current_task["run_id"]),
-                        task_id=task_id,
-                        worker_id=worker_id,
-                        attempt=attempt,
-                    )
-
-        heartbeat_thread = threading.Thread(target=heartbeat_loop, name=f"agent-heartbeat-{task_id}", daemon=True)
-        heartbeat_thread.start()
-        try:
-            result = runner(argv)
-        except BaseException:
-            stop_heartbeat.set()
-            heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
-            owned = transition_task(project, task_id, "failed", expected_state="running", expected_attempt=attempt)
-            if events_enabled and owned is not None:
-                emit_worker_failure(
-                    project,
-                    run_id=str(current_task["run_id"]),
-                    task_id=task_id,
-                    worker_id=worker_id,
-                    attempt=attempt,
-                )
-            raise
-        stop_heartbeat.set()
-        heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
+        raw = _run_worker_attempt(argv, runner, project, current_task, heartbeat_interval_seconds)
+        outcome = raw if isinstance(raw, WorkerOutcome) else WorkerOutcome(raw)
+        result = outcome.returncode
         # Events follow the guarded transition: an attempt that stale recovery
         # already moved reports nothing over its newer owner.
         if result == 0:
@@ -276,22 +245,13 @@ def _run_scheduled_worker(
                     attempt=attempt,
                 )
             return result
-        if transition_task(project, task_id, "failed", expected_state="running", expected_attempt=attempt) is None:
-            return result
-        if events_enabled:
-            emit_worker_failure(
-                project,
-                run_id=str(current_task["run_id"]),
-                task_id=task_id,
-                worker_id=worker_id,
-                attempt=attempt,
-            )
-        retried = resume_task(project, task_id) if current_task.get("partial_result_id") else retry_task(project, task_id)
+        retried = _retry_failed_worker(project, current_task, outcome, events_enabled)
         if retried is None:
             return result
         claimed = claim_task(
             project,
             task_id,
+            expected_attempt=int(retried["attempt"]),
             capacity=choose_capacity(
                 int(retried.get("independent_slices") or 1),
                 int(retried.get("requested_workers") or 1),
@@ -309,6 +269,88 @@ def _run_scheduled_worker(
         current_task = claimed
         if task_context is not None:
             task_context["task"] = current_task
+
+
+def _run_worker_attempt(argv, runner, project, current_task, heartbeat_interval_seconds):
+    task_id = str(current_task["task_id"])
+    worker_id = f"worker-{task_id}"
+    attempt = int(current_task.get("attempt") or 1)
+    events_enabled = heartbeat_interval_seconds > 0
+    stop_heartbeat = threading.Event()
+    # The worker has no timeout because comparisons may legitimately run
+    # long, so the lease tracks this process instead: it is renewed while
+    # the worker runs, even without opt-in heartbeat events, and expires
+    # for stale recovery only once this process is gone.
+    lease_interval = heartbeat_interval_seconds if events_enabled else LEASE_RENEWAL_SECONDS
+    if events_enabled:
+        heartbeat_task(project, task_id, expected_attempt=attempt)
+        emit_heartbeat(
+            project,
+            run_id=str(current_task["run_id"]),
+            task_id=task_id,
+            worker_id=worker_id,
+            attempt=attempt,
+        )
+
+    def heartbeat_loop() -> None:
+        while not stop_heartbeat.wait(lease_interval):
+            if heartbeat_task(project, task_id, expected_attempt=attempt) is None:
+                return
+            if events_enabled:
+                emit_heartbeat(
+                    project,
+                    run_id=str(current_task["run_id"]),
+                    task_id=task_id,
+                    worker_id=worker_id,
+                    attempt=attempt,
+                )
+
+    heartbeat_thread = threading.Thread(target=heartbeat_loop, name=f"agent-heartbeat-{task_id}", daemon=True)
+    heartbeat_thread.start()
+    try:
+        return runner(argv)
+    except BaseException:
+        stop_heartbeat.set()
+        heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
+        owned = transition_task(project, task_id, "failed", expected_state="running", expected_attempt=attempt)
+        if events_enabled and owned is not None:
+            emit_worker_failure(
+                project,
+                run_id=str(current_task["run_id"]),
+                task_id=task_id,
+                worker_id=worker_id,
+                attempt=attempt,
+            )
+        raise
+    finally:
+        stop_heartbeat.set()
+        heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
+
+
+def _retry_failed_worker(project, task, outcome, events_enabled):
+    task_id, attempt = str(task["task_id"]), int(task.get("attempt") or 1)
+    action = outcome.action
+    retry = action == "retry_transient" and attempt < int(task.get("max_attempts") or 1)
+    shown = "retry_budget_exhausted" if action == "retry_transient" and not retry else action
+    print(f"Worker recovery: {shown}; attempt={attempt}; retry={'yes' if retry else 'no'}", file=sys.stderr)
+    if retry:
+        if heartbeat_task(project, task_id, expected_attempt=attempt) is None:
+            return None
+        try:
+            time.sleep(outcome.delay(attempt))
+        except BaseException:
+            transition_task(project, task_id, "cancelled", expected_state="running", expected_attempt=attempt)
+            raise
+    state = "cancelled" if action == "honor_cancellation" else "failed"
+    if transition_task(project, task_id, state, expected_state="running", expected_attempt=attempt) is None:
+        return None
+    if events_enabled and state != "cancelled":
+        emit_worker_failure(project, run_id=str(task["run_id"]), task_id=task_id,
+                            worker_id=f"worker-{task_id}", attempt=attempt)
+    if not retry:
+        return None
+    requeue = resume_task if task.get("partial_result_id") else retry_task
+    return requeue(project, task_id, expected_attempt=attempt)
 
 
 def prepare_launch_handoff(
