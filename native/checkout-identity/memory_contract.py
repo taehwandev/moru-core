@@ -8,7 +8,7 @@ import unicodedata
 
 
 def emit(output):
-    ranges, folds, start = [], [], None
+    ranges, folds, lower, cased, ignored, spaces, start = [], [], [], [], [], [], None
     for point in range(0x110000):
         char = chr(point)
         enabled = char.isalnum() or char == "_"
@@ -19,6 +19,16 @@ def emit(output):
             start = None
         if char.casefold() != char:
             folds.append((point, char.casefold()))
+        if char.lower() != char:
+            lower.append((point, char.lower()))
+        # Derive effective casing/ignorable context from the builder's lower
+        # oracle, including characters with both Unicode properties.
+        if (char + "Σ").lower().endswith("ς"):
+            cased.append(point)
+        elif ("A" + char + "Σ").lower().endswith("ς"):
+            ignored.append(point)
+        if char.isspace():
+            spaces.append(point)
     if start is not None:
         ranges.append((start, 0x10ffff))
     rows = [f'const MEMORY_UNICODE: &str = "{unicodedata.unidata_version}";',
@@ -27,4 +37,11 @@ def emit(output):
     rows.extend(['];', 'const CASE_FOLDS: &[(u32,&str)] = &['])
     rows.extend(f'({point},{json.dumps(fold, ensure_ascii=False)}),' for point, fold in folds)
     rows.append('];')
+    rows.append('const LOWER_MAP: &[(u32,&str)] = &[')
+    rows.extend(f'({point},{json.dumps(value, ensure_ascii=False)}),' for point, value in lower)
+    rows.append('];')
+    for name, points in (("LOWER_CASED", cased), ("LOWER_IGNORED", ignored), ("PYTHON_SPACE", spaces)):
+        rows.append(f'const {name}: &[u32] = &[')
+        rows.extend(f'{point},' for point in points)
+        rows.append('];')
     output.write_text("\n".join(rows) + "\n", encoding="utf-8")

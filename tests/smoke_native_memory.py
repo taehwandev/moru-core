@@ -94,6 +94,24 @@ def check_memory(native,entry,project,env):
             "records":[{**dated_rows[0],"review":review}]}).encode(),capture_output=True,
             cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
+    # A transported consumer supplies raw Unicode and receives only closed counts.
+    text_bodies=["ΟΣ!", "ος", "ΟΣΑ"]
+    text_sources=["Shared-" + chr(31) + "SOURCE", "shared source", "Other"]
+    text_rows=[{**row,"body":text_bodies[i],"source":text_sources[i],
+                "scope":"all" if i==1 else row["scope"]} for i,row in enumerate(dated_rows)]
+    for rows,expected in ((text_rows,counts),([],zero)):
+        done=subprocess.run([str(native),str(entry),"--memory-probe","upkeep-startup-text"],input=json.dumps({
+            "unicode":unicodedata.unidata_version,"today":"0001-01-02","records":rows}).encode(),
+            capture_output=True,cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":{"counts":expected}},done
+    # Invalid dates decline atomically so the caller can use the reference path.
+    for review in ("1900-02-29",2):
+        done=subprocess.run([str(native),str(entry),"--memory-probe","upkeep-startup-text"],input=json.dumps({
+            "unicode":unicodedata.unidata_version,"today":"2026-11-13",
+            "records":[{**text_rows[0],"review":review}]}).encode(),
+            capture_output=True,cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
     review_rows=[{"id":"a","review":"2026-11-12"},{"id":"b","review":"2026-11-27"},
                  {"id":"a","review":"2026-12-01"}]
     fused_rows=[{"id":name,"status":status,"review":review} for name,status,review in (
@@ -111,7 +129,7 @@ def check_memory(native,entry,project,env):
             }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
-    return 31
+    return 35
 
 
 def check_memory_files(native,entry,base,project,env):

@@ -19,6 +19,7 @@ import agent_project_memory as memory
 import agent_project_memory_consolidate as source
 from native_pretool_support import environment, prepare
 from support.native_memory_upkeep import NativeMemoryUpkeep
+from support.native_memory_startup import NativeMemoryStartup
 from support.native_probe_transport import NativeProbe
 
 TODAY = date(2026, 11, 13)
@@ -142,9 +143,10 @@ class NativeMemoryUpkeepTests(unittest.TestCase):
 
     def test_each_native_wiring_has_a_negative_control(self):
         records = [self.record("a"),self.record("b",replaces="a")]
-        for operation, method in (("live","live"),("replacements","replacements"),("startup","startup")):
+        for operation, owner, method in (("live",NativeMemoryUpkeep,"live"),
+                ("replacements",NativeMemoryUpkeep,"replacements"),("startup",NativeMemoryStartup,"hints")):
             self.call(operation, records, required=True)
-            with patch.object(NativeMemoryUpkeep,method,return_value=None):
+            with patch.object(owner,method,return_value=None):
                 with self.assertRaisesRegex(AssertionError,"Python upkeep replay"):
                     self.call(operation, records, required=True)
 

@@ -3,7 +3,10 @@
 //! callers/tests: MemoryProcess and memory_upkeep_tests; verification: source parity.
 use crate::{memory_record::MemoryRecord, memory_terms::MemoryTerms};
 use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+};
 
 pub(crate) struct MemoryUpkeep;
 impl MemoryUpkeep {
@@ -16,11 +19,16 @@ impl MemoryUpkeep {
         match operation {
             "upkeep-live" if object.len() == 3 => Self::live(records, object.get("statuses")?),
             "upkeep-replacements" if object.len() == 2 => Self::replacements(records),
-            "upkeep-startup" | "upkeep-startup-dates" if object.len() == 3 => Self::startup(
-                records,
-                object.get("today")?,
-                operation == "upkeep-startup-dates",
-            ),
+            "upkeep-startup" | "upkeep-startup-dates" | "upkeep-startup-text"
+                if object.len() == 3 =>
+            {
+                Self::startup(
+                    records,
+                    object.get("today")?,
+                    operation != "upkeep-startup",
+                    operation == "upkeep-startup-text",
+                )
+            }
             _ => None,
         }
     }
@@ -73,10 +81,10 @@ impl MemoryUpkeep {
         Some(json!({"findings":findings}))
     }
 
-    fn startup(records: &[Value], today: &Value, iso: bool) -> Option<Value> {
+    fn startup(records: &[Value], today: &Value, iso: bool, normalize: bool) -> Option<Value> {
         let today = Self::date_key(today, iso)?;
-        let mut bodies: HashMap<&str, HashMap<&str, usize>> = HashMap::new();
-        let mut sources: HashMap<&str, usize> = HashMap::new();
+        let mut bodies: HashMap<Cow<'_, str>, HashMap<&str, usize>> = HashMap::new();
+        let mut sources: HashMap<Cow<'_, str>, usize> = HashMap::new();
         let mut replaced = HashSet::new();
         let mut ids = Vec::with_capacity(records.len());
         let mut expired = 0;
@@ -86,12 +94,14 @@ impl MemoryUpkeep {
                 return None;
             }
             ids.push(row.get("id")?.as_str()?);
-            let body = row.get("body")?.as_str()?;
+            let body = Self::text_key(row.get("body")?.as_str()?, normalize);
             let scope = row.get("scope")?.as_str()?;
             if !body.is_empty() {
                 *bodies.entry(body).or_default().entry(scope).or_default() += 1;
             }
-            *sources.entry(row.get("source")?.as_str()?).or_default() += 1;
+            *sources
+                .entry(Self::text_key(row.get("source")?.as_str()?, normalize))
+                .or_default() += 1;
             if let Some(target) = Self::link(row.get("replaces")?)? {
                 replaced.insert(target);
             }
@@ -113,6 +123,14 @@ impl MemoryUpkeep {
             "shared_source":sources.values().filter(|&&count| count > 1).count(),
             "unfinished":ids.iter().filter(|id| replaced.contains(**id)).count()
         }}))
+    }
+
+    fn text_key(text: &str, normalize: bool) -> Cow<'_, str> {
+        if normalize {
+            Cow::Owned(MemoryTerms::normalize(text))
+        } else {
+            Cow::Borrowed(text)
+        }
     }
 
     fn date_key(value: &Value, iso: bool) -> Option<i64> {

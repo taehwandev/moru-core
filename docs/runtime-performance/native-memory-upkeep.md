@@ -11,7 +11,7 @@ It continues unit 16; three kernels do not count as three completed units.
 
 | Decision | Rust owns | Python retains |
 | --- | --- | --- |
-| Startup hints | Exact body/scope groups, source groups, strict ISO date validation/comparison, expired and replacement counts | Status/profile admission, normalization, exceptional date parsing, ordered notice text and shell quoting |
+| Startup hints | Ordinary text normalization, exact body/scope groups, source groups, strict ISO date validation/comparison, expired and replacement counts | Status/profile admission, custom/exceptional normalization and date parsing, ordered notice text and shell quoting |
 | Unfinished replacements | Ordered target lookup and sorted replacement indices | Original record metadata, reason text and report projection |
 | Live report inputs | Status membership and stable ID sorting | Profile admission and original objects |
 
@@ -26,15 +26,16 @@ links. Duplicate IDs and equal sort keys keep their original insertion order.
 
 The typed adapter sends only required scalar fields and returns original records
 or bounded count/index packets. Empty inputs start no native process. Custom
-profiles retain the original Python algorithms and error order. For an unavailable
-or declining startup transport, the fallback reuses the already normalized text
-and parsed date ordinals; it does not repeat those callbacks. A forced Python
-backend or missing binary bypasses that preparation. No store writes, automatic
+profiles retain the original Python algorithms and error order. Prepared
+callback/date-only requests reuse normalized fields on decline; fused raw-text
+requests prepare reference fields only after decline. Neither path repeats the
+callbacks. A forced Python backend or missing binary bypasses native preparation.
+No store writes, automatic
 merges/retirement, model calls or authority changes are introduced.
 
 ## Strict startup dates
 
-Ordinary startup notices send review dates and today's date as ISO strings in
+Date-only startup callers send review dates and today's date as ISO strings in
 the existing count request (`upkeep-startup-dates`). The Rust owner reuses the
 record calendar validator and computes all four counts atomically. This removes
 per-record Python `fromisoformat`/`toordinal` calls without an extra process.
@@ -76,3 +77,39 @@ source-bound bundle passes 226 transported checks. Actual installed acceptance
 uses a separate source/binary-matching check. Unit 16 stays partial; exact Linux
 execution and performance measurements remain open. Push, hosted builds and
 external deployment remain on hold.
+
+
+## Fused startup text: local test acceptance
+
+Ordinary source startup sends original body/source text in the existing
+upkeep-startup-text request. The pure MemoryTerms owner applies the builder
+Python Unicode lowercase contract, removes punctuation and collapses Python
+whitespace before MemoryUpkeep groups/counts the records. Lowercase deliberately
+differs from casefold; contextual Greek sigma is resolved before punctuation or
+combining-mark removal. Build-time tables come from the existing builder
+Unicode oracle; consumers do not generate tables or start Python for the
+native operation. See the [CPython lowercase implementation](https://github.com/python/cpython/blob/v3.9.6/Objects/unicodeobject.c).
+
+The new NativeMemoryStartup adapter only admits plain supported profiles,
+sends required scalar fields and validates closed bounded counts. It performs
+no text normalization or store IO. Custom normalizers, changed normalizer code
+or punctuation rules and custom calendars keep the reference/custom path.
+Unavailable or declined native transport runs the reference normalization once.
+Empty live inputs start no request; original record objects remain unchanged.
+
+Local verification passes 69 affected Python behavior cases, three ledger
+cases, 58 Rust memory tests and 35 protocol checks on a copied native consumer,
+including four new raw-text scenarios. The native consumer runs in a disposable
+test home with Python, Git and compilers absent from PATH. Profiling observes
+zero Python normalization/date-parser/ordinal calls and one existing request for
+the ordinary path. Unicode/context, callback/code/regex overrides,
+fallback/error priority, malformed packets and preserved record/store bytes are
+covered. In-place code-override tests restore the function in a finally block;
+Python 3.9 mock cleanup cannot delete the function's code descriptor.
+
+The user approved local debug/test compilation only. These checks used the
+debug profile and temporary test fixtures; no release profile, distribution
+archive, hosted build or actual user installation was performed. Earlier
+transported-bundle counts above cover previous increments, not this one. Exact
+Linux and installed-runtime acceptance remain pending, no timing improvement
+is claimed, and unit 16 remains partial.

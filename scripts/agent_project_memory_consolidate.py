@@ -31,6 +31,11 @@ def normalize(text: str) -> str:
     return " ".join(_PUNCTUATION_RE.sub("", text.lower()).split())
 
 
+_NATIVE_NORMALIZE = normalize
+_NATIVE_NORMALIZE_CODE = normalize.__code__
+_NATIVE_PUNCTUATION = _PUNCTUATION_RE
+
+
 def _tokens(text: str) -> frozenset[str]:
     return frozenset(normalize(text).split())
 
@@ -228,6 +233,13 @@ def summary_line(report: dict[str, Any], project: Path, launcher: str) -> str:
 def startup_summary_line(records: list[dict[str, Any]], project: Path, launcher: str,
                          *, today: date) -> str:
     """Linear, content-free hints; fuzzy comparison belongs to explicit consolidate."""
+    if (normalize is _NATIVE_NORMALIZE and normalize.__code__ is _NATIVE_NORMALIZE_CODE
+            and _PUNCTUATION_RE is _NATIVE_PUNCTUATION and date is _NATIVE_DATE):
+        from support.native_memory_startup import NativeMemoryStartup
+        counts = NativeMemoryStartup.hints(records, today, RECALLABLE_STATUSES)
+        if counts is not None:
+            return _summary_counts_line(counts, project, launcher)
+        return _startup_summary_line_reference(records, project, launcher, today=today)
     from support.native_memory_upkeep import NativeMemoryUpkeep
     packet = NativeMemoryUpkeep.startup(records, normalize, date.fromisoformat, today,
                                       RECALLABLE_STATUSES, strict_dates=date is _NATIVE_DATE)

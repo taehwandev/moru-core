@@ -56,7 +56,7 @@ class NativeMemoryStartupDatesTests(unittest.TestCase):
         self.assertEqual(expected, actual)
         self.assertEqual([], calls)
         self.assertEqual(1, requested.call_count)
-        self.assertEqual("upkeep-startup-dates", requested.call_args.args[0])
+        self.assertEqual("upkeep-startup-text", requested.call_args.args[0])
         self.assertEqual([r["review_on"] for r in rows], [r["review"] for r in requested.call_args.args[1]])
         self.assertEqual(TODAY.isoformat(), requested.call_args.kwargs["today"])
 

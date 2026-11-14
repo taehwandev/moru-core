@@ -234,6 +234,24 @@ fn startup_iso_dates_empty_payload_still_validates_today() {
 }
 
 #[test]
+fn startup_raw_text_normalizes_body_and_source_in_the_existing_count_pass() {
+    let mut value = packet(json!([
+        {"id":"a","scope":"task","body":" ΟΣ! ","source":"Docs!","replaces":null,"review":"2026-11-13"},
+        {"id":"b","scope":"all","body":"ος","source":" docs ","replaces":"a","review":"2099-01-01"},
+        {"id":"c","scope":"review","body":" !!! ","source":"!?","replaces":null,"review":"2026-11-12"}
+    ]));
+    value["today"] = json!("2026-11-13");
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-text", &value),
+        Some(json!({"counts":{"expired":2,"exact_duplicates":1,"shared_source":1,"unfinished":1}}))
+    );
+    let legacy = MemoryUpkeep::evaluate("upkeep-startup-dates", &value).unwrap();
+    assert_eq!(legacy["counts"]["exact_duplicates"], json!(0));
+    value["records"][2]["review"] = json!("2026-02-30");
+    assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &value).is_none());
+}
+
+#[test]
 fn malformed_later_rows_decline_without_returning_a_partial_prefix() {
     for bad in [
         json!({"id":"a"}),

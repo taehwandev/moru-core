@@ -41,6 +41,7 @@ impl MemoryProcess {
                         | "upkeep-replacements"
                         | "upkeep-startup"
                         | "upkeep-startup-dates"
+                        | "upkeep-startup-text"
                 ) {
                     MemoryUpkeep::evaluate(operation, &payload)
                 } else if matches!(operation, "duplicate-groups" | "shared-source-groups") {
