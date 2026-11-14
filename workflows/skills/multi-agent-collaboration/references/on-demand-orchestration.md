@@ -106,6 +106,27 @@ duplicate launches. Continue with available tools and same-session work when
 they can satisfy acceptance. Never install, log in, upgrade, enable billing,
 switch to paid APIs, or create recurring calls automatically.
 
+For an authorized AGY read-only review, use the existing ACP client instead of
+an ad hoc fixed `--print-timeout` wrapper:
+
+```text
+python3 <MORU_ROOT>/scripts/agent_review_acp.py --project <TARGET_REPO> --prompt-file <RUN_DIR>/review-input.txt --output <RUN_DIR>/review-result.json --executable <EXISTING_ACP_BINARY>
+```
+
+Select the existing real ACP executable, never a wrapper that injects permission
+bypasses. Supply a bounded source question and retain the default model/effort.
+The client requires advertised plan mode, denies tools and preserves only final
+response text. Current-session processing chunks renew the 120-second idle
+timer; metadata and foreign-session traffic do not. A separate 900-second total
+limit bounds a genuinely long turn. Activity is liveness evidence, not approval.
+Startup transport failure gets one retry before any prompt is submitted; after
+ambiguous submission retain the session and observe it, never launch a duplicate.
+Timeouts cancel only the owned turn and distinguish confirmed cancellation from
+an unknown outcome. Inspect the result and continue independently authorized work
+using available evidence when this review is optional; a required review still
+needs actual findings or an explicit user waiver. Do not raise model budgets,
+change settings, or repeat equivalent model calls automatically.
+
 ## Closeout And Verification
 
 Reuse checks only while their covered inputs and freshness remain valid. Add
