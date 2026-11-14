@@ -1166,8 +1166,9 @@ def _closed_run_lines(project: Path) -> list[str]:
 
     return [
         "This run is closed; finish attests verification, not pending actions. Continue "
-        "authorized steps in the verified scope; report the confirmed outcome without "
-        "repeating review/finish. New effects, targets or changed evidence need admission. "
+        "authorized steps in the verified scope; report the initial request, any scope "
+        "changes, and how each outcome was handled and verified without repeating "
+        "review/finish. New effects, targets or changed evidence need admission. "
         + _fast_forward_line(project),
         "Project memory: retain the verified stored record or grounded not_needed decision; "
         "capture before that gate and finish. Historical runs keep their original contract.",

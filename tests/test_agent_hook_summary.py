@@ -50,6 +50,10 @@ class AgentHookSummaryTests(unittest.TestCase):
         closed, memory = agent_hook._closed_run_lines(Path("/nonexistent-fixture"))
         self.assertIn("verification, not pending actions", closed)
         self.assertIn("authorized steps in the verified scope", closed)
+        self.assertIn(
+            "report the initial request, any scope changes, and how each outcome was handled and verified",
+            closed,
+        )
         self.assertIn("New effects, targets or changed evidence need admission", closed)
         self.assertIn("before that gate and finish", memory)
         self.assertIn("Historical runs keep their original contract", memory)
