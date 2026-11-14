@@ -11,7 +11,10 @@ layout, access control, public contracts, or where new SwiftUI/UIKit code should
 live.
 
 For Swift-wide package, file ownership, access control, public API, and target
-split rules, also use `platforms/swift/skills/swift-code-structure/SKILL.md`.
+split rules, also use `platforms/swift/skills/swift-code-structure/SKILL.md`
+(`platforms/swift/skills/swift-code-structure/references/package-boundaries.md`
+and `platforms/swift/skills/swift-code-structure/references/package-layout-and-migration.md`)
+together with `common/nodes/package-module-boundaries.md`.
 For Swift app architecture and design-system ownership, also use
 `platforms/swift/skills/swift-architecture/SKILL.md` and `platforms/swift/skills/swift-design-system/SKILL.md`.
 
@@ -156,18 +159,27 @@ Do not:
 - Use extensions, nested types, or broad `Common`/`Helpers` files to hide mixed
   UI, state, data, platform, and testing responsibilities.
 
-For SwiftUI features:
+For SwiftUI features (keep `*Route` as pure destination data in `*Contract` when
+split, `*Screen` as stateful holder, and `*Content` as pure rendering):
 
 ```text
-Features/Profile/
-  ProfileRoute.swift          dependency and navigation wiring
-  ProfileScreen.swift         pure rendering
-  ProfileViewModel.swift      state owner and intents
+Sources/FeatureProfileContract/
+  ProfileRoute.swift          pure Hashable/Codable/Sendable destination + args
+Sources/FeatureProfile/
+  ProfileScreen.swift         stateful SwiftUI holder + ViewModel/store binding
+  ProfileContent.swift        pure stateless rendering view
+  ProfileViewModel.swift      @MainActor state owner (or TCA @Reducer)
   ProfileUiState.swift        state, actions, effects, display models
-  Components/                 feature-local views
+  ProfileDestinationBinding.swift  navigationDestination registration for App
+  Components/                 feature-local subviews (2+ callers inside feature)
   PreviewData/                deterministic preview fixtures
-  Tests/
+Tests/FeatureProfileTests/
 ```
+
+When the feature stays inside a single app target before any split is earned,
+keep the same file-naming separation (`ProfileRoute.swift` value vs
+`ProfileScreen.swift` holder vs `ProfileContent.swift` view) so later extraction
+into `FeatureProfileContract` + `FeatureProfile` requires zero type renames.
 
 For UIKit features:
 
@@ -183,32 +195,73 @@ Features/Members/
   Tests/
 ```
 
-For local Swift packages, keep the package manifest explicit:
+For local Swift packages, keep `Package.swift` `products:` narrower than
+internal `targets:`, use `package` access across sibling targets inside the same
+package when supported, and only extract `Feature<Name>UI` when a named consumer
+outside `Feature<Name>` (for example a Widget, App Clip, or sibling feature)
+renders the concrete SwiftUI view without its ViewModel:
 
 ```text
-Package.swift
-Sources/
-  FeatureProfile/
-  FeatureProfileContract/
+Packages/AppModules/Package.swift
+Packages/AppModules/Sources/
+  FeatureProfileContract/     exported product for navigating/extension callers
+  FeatureProfile/             implementation target wired by App composition root
+  FeatureProfileUI/           optional: only when Widget/AppClip/sibling renders it
   DesignSystem/
-Tests/
+  FeatureProfileTestSupport/  fakes/fixtures for consumer tests
+Packages/AppModules/Tests/
   FeatureProfileTests/
 ```
+
+## Extension, Widget, App Clip, And Watch Slices
+
+Apple extension targets have strict binary size, memory, entitlement, and API
+constraints (`UIApplication.shared` unavailable in extensions):
+
+- Compile Widgets, Live Activities, Intents, Share Extensions, App Clips, and
+  Watch targets against narrow `*Contract`, `Core<Capability>`, `DesignSystem`,
+  and optional `*UI` targets — never against the main `App` target or full
+  UIKit/SDK-heavy feature implementation targets.
+- Share Keychain, App Group `UserDefaults`, or SwiftData/SQLite container paths
+  through a small `CoreStorage` or `CoreSession` capability target rather than
+  duplicating entitlement strings across targets.
+- When Xcode 16+ file-system synchronized groups, Tuist (`Project.swift`), or
+  XcodeGen (`project.yml`) manage target membership, verify that moving a file
+  into a local Swift package removes it from the app/extension synchronized
+  folder so the symbol is never compiled into two modules.
+
+## Root Folder Audit And Complete Role Moves
+
+Apply `common/nodes/package-module-boundaries.md` when a target or feature root
+accumulates ~20+ `.swift` files or mixes three or more roles (views, state
+owners, mappers, repositories/clients, platform adapters):
+
+- Keep only the public entry surface and compact flow root in the target root.
+- Split large features **by user flow first** (`Checkout/`, `OrderHistory/`),
+  then by role; split data/domain targets **by capability first** (`Auth/`,
+  `Catalog/`), then by role.
+- When introducing a role subfolder (`Components/`, `Mappers/`, `Policy/`), move
+  **all** existing root files of that role in the same change — never leave a
+  half-applied split.
+- Ban `Common/`, `Shared/`, `Utils/`, `Helpers/`, and `Misc/` targets or folders.
 
 ## Migration Strategy
 
 When modernizing an old iOS feature:
 
-1. Record target membership, imports, resources, entitlements, and package
-   dependencies before moving files.
-2. Extract stable route, state, repository, or adapter protocols before moving
-   implementation.
-3. Make previews or tests pass against the new contract first.
-4. Move implementation in the smallest reviewable slice.
-5. Keep behavior changes out of the module move unless they are required to make
-   the boundary correct.
-6. Remove old target membership and duplicate resources only after the new owner
-   compiles and previews/tests run.
+1. Record target membership, imports, `Bundle.main` vs `Bundle.module` resource
+   lookups, entitlements, and package dependencies before moving files.
+2. Extract stable `*Route` contract, repository protocol, or adapter protocol
+   targets before moving implementation, and verify navigating or extension
+   callers compile against `*Contract` alone.
+3. Make previews and unit tests pass against the new contract first.
+4. Move implementation in a complete role/slice move so the host target shrinks
+   rather than gaining permanent forwarding shims.
+5. Keep behavior changes out of the module move unless required for Swift
+   concurrency (`Sendable` / `@MainActor`) or bundle correctness.
+6. Remove old Xcode target membership, duplicate resources, and unused
+   `Package.swift` target dependencies in the same slice, and run `rg` import
+   checks for forbidden cross-feature implementation imports.
 
 ## Review Checklist
 

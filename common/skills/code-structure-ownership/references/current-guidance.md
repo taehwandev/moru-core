@@ -19,7 +19,10 @@ ownership line.
 For SOLID, Interface Segregation, Dependency Inversion, and DDD/domain-modeling
 fit, also use `common/skills/solid-design-principles/SKILL.md`. In structure decisions,
 SOLID means narrow caller contracts and dependency direction; it does not mean
-creating layers or interfaces before a real boundary exists.
+creating layers or interfaces before a real boundary exists. For the executable
+cross-platform package/module split gate, `api`/`impl`/optional `ui`/`assertions`
+contract, root-package audit, and complete role-move rules, also read
+`common/nodes/package-module-boundaries.md`.
 
 ## Architecture-To-Structure Drill
 
@@ -222,19 +225,30 @@ Use an `api` / `impl` split when at least one of these is true:
 - Contract compatibility matters for generated clients, SDKs, plugins, or public
   packages.
 
-An `api` module should contain only stable contracts:
+An `api` module should contain only stable contracts, including the whole
+navigation or launch identity callers need (`*Route` destination data,
+arguments, deep-link/result/event shapes, navigate/launch helpers, ports):
 
 ```text
-interfaces, route/event contracts, public models, typed commands,
-factory/provider contracts, small value types, compatibility docs
+interfaces, route/event/result contracts, navigate helpers, public models,
+typed commands, factory/provider contracts, small value types, compatibility docs
 ```
 
-An `impl` module should contain implementation details:
+Keep `*Route` strictly as destination/contract data in `api`; never reuse
+`*Route` as the name of a stateful UI holder (`*Screen` / `*Container`) or
+stateless renderer (`*Content` / `*View`).
+
+An `impl` module should contain execution and binding details:
 
 ```text
-screens, adapters, repositories, framework code, internal mappers,
-real/fake providers, DI bindings, platform integrations
+stateful holders, state owners, stateless screens/views, destination-to-content
+bindings, adapters, repositories, framework entries, internal mappers, DI bindings
 ```
+
+Extract a separate `ui` module on top of `api + impl` only when a named
+consumer outside `impl` must render the same concrete surface without pulling
+platform/host entry code; previews, internal folders, and the feature's own
+entry wrapper do not justify `ui`.
 
 Do not create an `api` module only to mirror architecture. If no caller can use
 the API without the implementation, the split is probably too early.
@@ -317,6 +331,14 @@ testing/ or fixture/  test doubles, samples, deterministic fixtures
 Use the repo's existing names first. Do not rename established packages unless
 the rename itself is the task. Existing names still need review when a new
 caller cannot infer the capability without reading implementation files.
+
+Keep a module or target root limited to its entry surface once ~20+ files or
+three or more distinct roles accumulate. Split large features by flow first and
+role second, and split data/domain modules by capability first and role second
+(never into horizontal repo-wide `models/`, `services/`, or `utils/` dumps).
+When introducing a role subfolder (`ui/`, `mapper/`, `remote/`, `local/`), move
+every existing root file of that role in the same change rather than leaving a
+half-applied split.
 
 ## Boundary Rules
 

@@ -13,11 +13,14 @@ TestPredicate = Callable[[Path], bool]
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
 
 PYTHON_TOP_LEVEL_TYPE_RE = re.compile(r"^class\s+([A-Za-z_]\w*)\b")
+INLINE_ATTRIBUTE_PREFIX = r"@[A-Za-z_][A-Za-z0-9_.]*(?:\([^)]*\))?\s+"
 BRACE_TOP_LEVEL_TYPE_RE = re.compile(
     r"^\s*"
-    r"(?:(?:export\s+default\s+|export\s+|public\s+|private\s+|protected\s+|internal\s+|"
-    r"open\s+|final\s+|sealed\s+|abstract\s+|data\s+|value\s+|inline\s+|static\s+|readonly\s+|"
-    r"expect\s+|actual\s+|pub\s+|pub\((?:crate|self|super|in\s+[A-Za-z_][A-Za-z0-9_:]*)\)\s+)*)"
+    rf"(?:(?:{INLINE_ATTRIBUTE_PREFIX}|export\s+default\s+|export\s+|public\s+|package\s+|"
+    r"private\s+|fileprivate\s+|protected\s+|internal\s+|open\s+|final\s+|sealed\s+|"
+    r"abstract\s+|data\s+|value\s+|inline\s+|indirect\s+|nonisolated(?:\([^)]*\))?\s+|"
+    r"distributed\s+|static\s+|readonly\s+|expect\s+|actual\s+|pub\s+|"
+    r"pub\((?:crate|self|super|in\s+[A-Za-z_][A-Za-z0-9_:]*)\)\s+)*)"
     r"(?:(?:enum\s+class|annotation\s+class|sealed\s+class|sealed\s+interface|data\s+class|"
     r"value\s+class)\s+|"
     r"(?P<kind>class|interface|enum|struct|record|object|protocol|actor|typealias|type|trait)\s+)"
@@ -29,12 +32,16 @@ TS_EXPORTED_VALUE_RE = re.compile(
     r"^\s*export\s+(?P<kind>const|let|var)\s+(?P<name>[A-Za-z_]\w*)\b"
 )
 BRACE_TOP_LEVEL_FUNCTION_RE = re.compile(
-    r"^\s*(?:(?:export\s+default\s+|export\s+|public\s+|private\s+|protected\s+|"
-    r"internal\s+|open\s+|final\s+|static\s+|pub\s+|pub\((?:crate|self|super|in\s+[A-Za-z_][A-Za-z0-9_:]*)\)\s+)*)"
+    r"^\s*"
+    rf"(?:(?:{INLINE_ATTRIBUTE_PREFIX}|export\s+default\s+|export\s+|public\s+|package\s+|"
+    r"private\s+|fileprivate\s+|protected\s+|internal\s+|open\s+|final\s+|"
+    r"nonisolated(?:\([^)]*\))?\s+|static\s+|pub\s+|"
+    r"pub\((?:crate|self|super|in\s+[A-Za-z_][A-Za-z0-9_:]*)\)\s+)*)"
     r"(?:async\s+)?(?P<kind>function|func|fun|fn)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b"
 )
 KOTLIN_TOP_LEVEL_FUNCTION_RE = re.compile(
-    r"^\s*(?:(?:public\s+|private\s+|protected\s+|internal\s+|open\s+|final\s+|"
+    r"^\s*"
+    rf"(?:(?:{INLINE_ATTRIBUTE_PREFIX}|public\s+|private\s+|protected\s+|internal\s+|open\s+|final\s+|"
     r"expect\s+|actual\s+|inline\s+|tailrec\s+|operator\s+|infix\s+|external\s+|suspend\s+)*)"
     r"(?P<kind>fun)\s+(?:<[^>]+>\s*)?"
     r"(?:(?P<receiver>(?:[A-Za-z_][A-Za-z0-9_?.<>]*\.)+))?"
@@ -160,6 +167,8 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
                 index,
                 receiver=match_receiver(match),
                 default_public=default_public_top_level(path),
+                is_swift=path.suffix.lower() == ".swift",
+                modifiers=declaration_modifiers(match, line),
             )
             if path.suffix.lower() == ".rs":
                 # Rust items are private unless their own declaration has pub;
@@ -191,6 +200,16 @@ def match_receiver(match: re.Match[str]) -> str | None:
     return receiver.rstrip(".") if receiver else None
 
 
+def declaration_modifiers(match: re.Match[str], line: str) -> str:
+    group_names = match.groupdict()
+    name_start = match.start("name") if "name" in group_names else match.start(1)
+    header_end = name_start
+    if "kind" in group_names and match.group("kind") is not None:
+        header_end = min(header_end, match.start("kind"))
+    prefix = line[:header_end]
+    return re.sub(r"@[A-Za-z_][A-Za-z0-9_.]*(?:\([^)]*\))?", " ", prefix)
+
+
 def type_declaration(
     kind: str,
     name: str,
@@ -198,18 +217,29 @@ def type_declaration(
     index: int,
     receiver: str | None = None,
     default_public: bool = False,
+    is_swift: bool = False,
+    modifiers: str | None = None,
 ) -> dict[str, Any]:
     role = role_for_declaration(kind, name)
+    mod_text = line if modifiers is None else modifiers
+    internal_re = r"\b(?:internal|package)\b" if is_swift else r"\binternal\b"
     return {
         "kind": kind,
         "name": name,
         "receiver": receiver,
         "line": index + 1,
-        "private": bool(re.search(r"\bprivate\b", line)) or name.startswith("_"),
-        "internal": bool(re.search(r"\binternal\b", line)),
-        "exported": bool(re.search(r"\b(export|public|pub)\b", line)),
+        "private": bool(re.search(r"\b(?:file)?private\b", mod_text)) or name.startswith("_"),
+        "internal": bool(re.search(internal_re, mod_text)),
+        "exported": bool(re.search(r"\b(?:export|public|pub|open)\b", mod_text)),
         "role": role,
-        "owner": top_level_owner(kind, name, line, role=role, default_public=default_public),
+        "owner": top_level_owner(
+            kind,
+            name,
+            mod_text,
+            role=role,
+            default_public=default_public,
+            is_swift=is_swift,
+        ),
         "source": line.strip(),
     }
 
@@ -231,15 +261,21 @@ def default_public_top_level(path: Path) -> bool:
 def top_level_owner(
     kind: str,
     name: str,
-    line: str,
+    modifiers: str,
     role: str | None = None,
     default_public: bool = False,
+    is_swift: bool = False,
 ) -> bool:
-    if default_public and not re.search(r"\bprivate\b", line):
+    if default_public and not re.search(r"\b(?:file)?private\b", modifiers):
         return True
+    visible_re = (
+        r"\b(?:export|public|pub|open|internal|package)\b"
+        if is_swift
+        else r"\b(?:export|public|pub|open|internal)\b"
+    )
     return (
         kind in TYPE_OWNER_KINDS
-        or bool(re.search(r"\b(export|public|pub|internal)\b", line))
+        or bool(re.search(visible_re, modifiers))
         or role is not None
         or component_or_hook_name(name)
     )
@@ -541,7 +577,9 @@ def package_role_failures(
     for parent in sorted({path.parent for path in paths if not test_exempt_path(path)}):
         changed = [path for path in paths if path.parent == parent and not test_exempt_path(path)]
         package_parts = source_root_package_parts(
-            parent.parts, dart=any(path.suffix.lower() == ".dart" for path in changed)
+            parent.parts,
+            dart=any(path.suffix.lower() == ".dart" for path in changed),
+            swift=any(path.suffix.lower() == ".swift" for path in changed),
         )
         if package_parts[:2] == (".agents", "shared"):
             package_parts = package_parts[2:]
@@ -557,16 +595,24 @@ def package_role_failures(
 JVM_SOURCE_LANGUAGE_DIRS = {"kotlin", "java"}
 
 
-def source_root_package_parts(parts: tuple[str, ...], *, dart: bool = False) -> tuple[str, ...]:
+def source_root_package_parts(
+    parts: tuple[str, ...],
+    *,
+    dart: bool = False,
+    swift: bool = False,
+) -> tuple[str, ...]:
     """Drop Gradle module directories before `src/<sourceSet>/kotlin|java/`.
     A module named `shared` (the KMP convention) is a build unit, not a package.
     For Dart sources, drop the package directory and its mandatory `lib/` root,
     plus the conventional private `src/` directory directly under it.
+    For Swift packages, drop container directories through `Sources/`.
     """
 
     if dart and "lib" in parts:
         below = parts[len(parts) - 1 - parts[::-1].index("lib") + 1:]
         return below[1:] if below[:1] == ("src",) else below
+    if swift and "Sources" in parts:
+        return parts[len(parts) - 1 - parts[::-1].index("Sources") + 1:]
     for index in range(len(parts) - 2):
         if parts[index] == "src" and parts[index + 2] in JVM_SOURCE_LANGUAGE_DIRS:
             return parts[index + 3:]

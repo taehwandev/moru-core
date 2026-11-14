@@ -40,7 +40,9 @@ stable export surface usually adds `pubspec.yaml` overhead before it adds value.
 
 ## File And Class Split
 
-Apply `common/skills/code-structure-ownership/SKILL.md` before growing Dart files.
+Apply `common/skills/code-structure-ownership/SKILL.md` and
+`common/nodes/package-module-boundaries.md` before growing Dart files or
+creating packages.
 Default to one primary public widget, controller, notifier, view model,
 repository, service, DTO, mapper, adapter, fixture, or test assertion owner per
 Dart file. Private helper widgets or functions may stay near a single caller
@@ -149,7 +151,9 @@ Forbidden edges:
 
 ## Feature Layout
 
-Inside an app package:
+Keep navigation destination data (`*Route`), stateful holder (`*Screen`), and
+stateless rendering (`*Content`) separate whether inside one app package or split
+into pub workspace / Melos packages:
 
 ```text
 lib/
@@ -159,8 +163,9 @@ lib/
     router.dart
     di.dart
   features/profile/
-    profile_route.dart
-    profile_view.dart
+    profile_route.dart          typed route args / destination contract
+    profile_screen.dart         stateful holder binding notifier/bloc/viewModel
+    profile_content.dart        stateless pure rendering widget
     profile_view_model.dart
     profile_state.dart
     widgets/
@@ -170,19 +175,36 @@ lib/
   design_system/
 ```
 
-Inside a reusable package:
+When a feature or capability earns a pub workspace / Melos split (`api` + `impl`
++ optional `ui` + `assertions` per `common/nodes/package-module-boundaries.md`):
 
 ```text
-packages/profile/
-  pubspec.yaml
-  lib/profile.dart          public exports
-  lib/src/                  private implementation
-  test/
+packages/
+  feature_profile_contract/     api: ProfileRoute, navigation helpers, result types
+    pubspec.yaml
+    lib/feature_profile_contract.dart
+    lib/src/
+  feature_profile/              impl: ProfileScreen, ProfileContent, ViewModel, route binding
+    pubspec.yaml
+    lib/feature_profile.dart
+    lib/src/
+  feature_profile_ui/           optional: only when a named external package renders it
+  feature_profile_test_support/ assertions/fakes for consumer tests
 ```
 
-Expose only caller-facing types from `lib/<package>.dart`. Keep implementation
-files under `lib/src` so callers do not build accidental dependencies on
-unstable internals.
+Rules for Dart packages and folders:
+
+- Expose only caller-facing contracts from `lib/<package>.dart`; keep all
+  implementation files under `lib/src/`. Never import another package's
+  `package:<other>/src/...` path (verify with
+  `rg "import 'package:[^/]+/src/" lib packages test`).
+- Audit `lib/` or `lib/features/<name>/` when a root folder passes ~20 Dart
+  files or mixes 3+ roles. Split large features **by user flow first**, and
+  data/domain packages **by capability first** (`account/`, `catalog/`), moving
+  **all** existing root files of any extracted role (no half-applied splits, no
+  `common/`/`utils/`/`helpers/` folders).
+- Verify every `pubspec.yaml` path/workspace dependency has a real `import` and
+  host folders shrink when code moves to a package.
 
 ## Repository And Service Layout
 

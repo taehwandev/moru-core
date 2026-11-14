@@ -194,10 +194,58 @@
       "platforms/android/skills/android-module-structure/references/module-layout.md"
     ],
     "android_module_boundaries": [
+      "common/nodes/package-module-boundaries.md",
       "platforms/android/skills/android-module-structure/references/current-guidance.md",
       "platforms/android/skills/android-module-structure/references/module-boundaries.md",
       "platforms/android/skills/android-module-structure/references/module-layout.md",
       "platforms/android/skills/android-module-structure/references/review-checklist.md"
+    ],
+    "package_module_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "common/skills/code-structure-ownership/SKILL.md"
+    ],
+    "swift_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/swift/skills/swift-code-structure/SKILL.md",
+      "platforms/swift/skills/swift-code-structure/references/package-boundaries.md",
+      "platforms/swift/skills/swift-code-structure/references/package-layout-and-migration.md"
+    ],
+    "ios_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/ios/skills/ios-module-structure/SKILL.md",
+      "platforms/swift/skills/swift-code-structure/references/package-boundaries.md",
+      "platforms/swift/skills/swift-code-structure/references/package-layout-and-migration.md"
+    ],
+    "kmp_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/kmp/skills/kmp-module-structure/SKILL.md",
+      "platforms/kmp/skills/kmp-module-structure/references/package-layout.md"
+    ],
+    "flutter_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/flutter/skills/flutter-project-structure/SKILL.md"
+    ],
+    "web_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/web/skills/web-code-structure/SKILL.md"
+    ],
+    "react_native_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/react-native/skills/react-native-app/SKILL.md",
+      "platforms/web/skills/web-code-structure/SKILL.md"
+    ],
+    "application_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/application/skills/application-architecture/SKILL.md"
+    ],
+    "server_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/server/skills/server-architecture/SKILL.md"
+    ],
+    "python_package_boundaries": [
+      "common/nodes/package-module-boundaries.md",
+      "platforms/python/skills/python-web-service/SKILL.md",
+      "platforms/server/skills/server-architecture/SKILL.md"
     ],
     "android_module_compose_entry": [
       "platforms/android/skills/android-module-structure/references/current-guidance.md",
@@ -1554,6 +1602,7 @@
         "extract .* module",
         "모듈 경계",
         "모듈(?:을|만|의)?\\s*분리",
+        "패키지(?:를|만|의)?\\s*분리",
         "모듈(?:의)?\\s+(?:DI\\s*조립과\\s+)?서비스\\s*구현\\s*경계",
         "패키지 경계"
       ],
@@ -1561,6 +1610,675 @@
         "android_module_boundaries"
       ],
       "reason": "Android module and package boundary work needs the boundary artifact, layout, and review checklist rules."
+    },
+    {
+      "name": "swift_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "swift"
+      ],
+      "request_any": [
+        "Package\\.swift",
+        "local\\s+(?:Swift\\s+)?package",
+        "Swift\\s+package",
+        "\\bSPM\\s+(?:target|package|module)\\b",
+        "Xcode\\s+target",
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "target\\s+(?:boundary|split)",
+        "\\bapi/impl\\b",
+        "\\bContract\\s*(?:/|and|\\+)\\s*(?:Impl|Feature)\\b",
+        "로컬\\s*패키지",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "타겟(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*구조"
+      ],
+      "doc_sets": [
+        "swift_package_boundaries"
+      ],
+      "reason": "Swift package and target boundary work needs the SPM target vs folder visibility contract, Contract/Feature boundary packet, and Swift migration hazard rules."
+    },
+    {
+      "name": "ios_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "ios"
+      ],
+      "request_any": [
+        "Package\\.swift",
+        "local\\s+(?:Swift\\s+)?package",
+        "Swift\\s+package",
+        "\\bSPM\\s+(?:target|package|module)\\b",
+        "Xcode\\s+target",
+        "widget\\s+target",
+        "app\\s+extension",
+        "app\\s+clip",
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "target\\s+(?:boundary|split)",
+        "\\bapi/impl\\b",
+        "\\bContract\\s*(?:/|and|\\+)\\s*(?:Impl|Feature)\\b",
+        "로컬\\s*패키지",
+        "위젯\\s*타겟",
+        "앱\\s*익스텐션",
+        "앱\\s*클립",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "타겟(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*구조"
+      ],
+      "doc_sets": [
+        "ios_package_boundaries"
+      ],
+      "reason": "iOS target, extension, widget, and local SPM split work needs ios-module-structure together with the shared Swift Package.swift boundary and migration contracts."
+    },
+    {
+      "name": "application_swift_package_boundary_split",
+      "required_priority": 50,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "application"
+      ],
+      "request_all": [
+        [
+          "\\b(swift|macos|mac\\s+os|appkit|spm|xcode)\\b",
+          "Package\\.swift",
+          "(스위프트|맥\\s*os|앱킷)"
+        ],
+        [
+          "Package\\.swift",
+          "local\\s+(?:Swift\\s+)?package",
+          "package\\s+(?:boundary|split|layout|structure)",
+          "module\\s+(?:boundary|split|layout|structure)",
+          "target\\s+(?:boundary|split)",
+          "Xcode\\s+target",
+          "\\bapi/impl\\b",
+          "\\bContract\\s*(?:/|and|\\+)\\s*(?:Impl|Feature)\\b",
+          "로컬\\s*패키지",
+          "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "타겟(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "패키지\\s*(?:경계|구조)",
+          "모듈\\s*(?:경계|구조)"
+        ]
+      ],
+      "doc_sets": [
+        "application_package_boundaries",
+        "swift_package_boundaries"
+      ],
+      "reason": "Desktop application boundary work that explicitly names Swift, macOS, AppKit, Xcode, or Package.swift needs both desktop architecture and Swift SPM boundary guidance."
+    },
+    {
+      "name": "application_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "application"
+      ],
+      "request_any": [
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "boundary note",
+        "monorepo\\s+package",
+        "workspace\\s+package",
+        "\\bapi/impl\\b",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*구조"
+      ],
+      "doc_sets": [
+        "application_package_boundaries"
+      ],
+      "reason": "Desktop application module and package splits need desktop shell/core/IPC boundary rules plus the shared boundary promotion contract without unrelated Swift guidance."
+    },
+    {
+      "name": "kmp_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "kmp"
+      ],
+      "request_any": [
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "source[- ]set\\s+boundary",
+        "boundary note",
+        "gradle\\s+module",
+        "feature\\s+module",
+        "\\bapi/impl\\b",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*구조"
+      ],
+      "doc_sets": [
+        "kmp_package_boundaries"
+      ],
+      "reason": "KMP module and package splits need kmp-module-structure and package-layout together with the shared boundary ladder."
+    },
+    {
+      "name": "flutter_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "flutter"
+      ],
+      "request_any": [
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "feature\\s+package",
+        "melos",
+        "pub\\s+workspace",
+        "boundary note",
+        "\\bapi/impl\\b",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*구조"
+      ],
+      "doc_sets": [
+        "flutter_package_boundaries"
+      ],
+      "reason": "Flutter package and lib/src boundary splits need flutter-project-structure together with the shared boundary ladder."
+    },
+    {
+      "name": "web_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "web"
+      ],
+      "request_any": [
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "feature\\s+folder",
+        "monorepo\\s+package",
+        "workspace\\s+package",
+        "boundary note",
+        "\\bapi/impl\\b",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*(?:구조|분리)"
+      ],
+      "doc_sets": [
+        "web_package_boundaries"
+      ],
+      "reason": "Web folder and workspace package splits need web-code-structure together with the shared boundary ladder."
+    },
+    {
+      "name": "react_native_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "react-native"
+      ],
+      "request_any": [
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "monorepo\\s+package",
+        "workspace\\s+package",
+        "boundary note",
+        "\\bapi/impl\\b",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*(?:구조|분리)"
+      ],
+      "doc_sets": [
+        "react_native_package_boundaries"
+      ],
+      "reason": "React Native feature folder, workspace package, and native-module boundary splits need react-native-app and web-code-structure together with the shared boundary ladder."
+    },
+    {
+      "name": "server_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "server"
+      ],
+      "request_any": [
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "domain\\s+module",
+        "monorepo\\s+package",
+        "workspace\\s+package",
+        "boundary note",
+        "\\bapi/impl\\b",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*(?:구조|분리)"
+      ],
+      "doc_sets": [
+        "server_package_boundaries"
+      ],
+      "reason": "Backend service package and module boundary splits need server-architecture together with the shared boundary ladder."
+    },
+    {
+      "name": "python_package_boundary_split",
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "platforms": [
+        "python"
+      ],
+      "request_any": [
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "uv\\s+workspace",
+        "monorepo\\s+package",
+        "workspace\\s+package",
+        "boundary note",
+        "\\bapi/impl\\b",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)",
+        "폴더\\s*(?:구조|분리)"
+      ],
+      "doc_sets": [
+        "python_package_boundaries"
+      ],
+      "reason": "Python package and workspace boundary splits need python-web-service and server-architecture together with the shared boundary ladder."
+    },
+    {
+      "name": "unresolved_swift_package_boundary_split",
+      "platform_unresolved_only": true,
+      "required_priority": 50,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "request_all": [
+        [
+          "Package\\.swift",
+          "\\b(swift|spm|xcode|appkit)\\b",
+          "(스위프트|앱킷)"
+        ],
+        [
+          "Package\\.swift",
+          "local\\s+(?:Swift\\s+)?package",
+          "package\\s+(?:boundary|split|layout|structure)",
+          "module\\s+(?:boundary|split|layout|structure)",
+          "target\\s+(?:boundary|split)",
+          "Xcode\\s+target",
+          "\\bapi/impl\\b",
+          "\\bContract\\s*(?:/|and|\\+)\\s*(?:Impl|Feature)\\b",
+          "로컬\\s*패키지",
+          "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "타겟(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "패키지\\s*(?:경계|구조)",
+          "모듈\\s*(?:경계|구조)"
+        ]
+      ],
+      "doc_sets": [
+        "swift_package_boundaries"
+      ],
+      "reason": "Unresolved-platform requests naming Package.swift, SPM, Xcode, or Swift package/target splits still need the Swift package boundary contract."
+    },
+    {
+      "name": "unresolved_ios_package_boundary_split",
+      "platform_unresolved_only": true,
+      "required_priority": 50,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "request_all": [
+        [
+          "\\b(uikit|widgetkit|app\\s*clip|app\\s*extension)\\b",
+          "(유아이킷|위젯\\s*타겟|앱\\s*익스텐션|앱\\s*클립)"
+        ],
+        [
+          "widget\\s*target",
+          "app\\s*extension",
+          "app\\s*clip",
+          "package\\s+(?:boundary|split|layout|structure)",
+          "module\\s+(?:boundary|split|layout|structure)",
+          "target\\s+(?:boundary|split)",
+          "위젯\\s*타겟",
+          "앱\\s*익스텐션",
+          "로컬\\s*패키지",
+          "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "타겟(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "패키지\\s*(?:경계|구조)",
+          "모듈\\s*(?:경계|구조)"
+        ]
+      ],
+      "doc_sets": [
+        "ios_package_boundaries"
+      ],
+      "reason": "Unresolved-platform requests naming UIKit, WidgetKit, App Clip, or iOS app extensions alongside target/package splits need ios-module-structure and Swift package boundaries."
+    },
+    {
+      "name": "unresolved_react_native_package_boundary_split",
+      "platform_unresolved_only": true,
+      "required_priority": 50,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "request_all": [
+        [
+          "\\b(react\\s+native|rn|expo)\\b",
+          "(리액트\\s*네이티브|엑스포)"
+        ],
+        [
+          "package\\s+(?:boundary|split|layout|structure)",
+          "module\\s+(?:boundary|split|layout|structure)",
+          "monorepo\\s+package",
+          "workspace\\s+package",
+          "\\bapi/impl\\b",
+          "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "패키지\\s*(?:경계|구조)",
+          "모듈\\s*(?:경계|구조)",
+          "폴더\\s*(?:구조|분리)"
+        ]
+      ],
+      "doc_sets": [
+        "react_native_package_boundaries"
+      ],
+      "reason": "React Native and Expo package-split requests without --platform still need react-native-app, web-code-structure, and shared boundary guidance."
+    },
+    {
+      "name": "unresolved_web_package_boundary_split",
+      "platform_unresolved_only": true,
+      "required_priority": 50,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "request_all": [
+        [
+          "\\b(next\\.?js|nuxt|vite|sveltekit|remix|astro|angular|vue|turborepo|pnpm\\s+workspaces?|yarn\\s+workspaces?)\\b",
+          "\\breact(?!\\s+native)\\b",
+          "(프론트엔드|넥스트)"
+        ],
+        [
+          "package\\s+(?:boundary|split|layout|structure)",
+          "module\\s+(?:boundary|split|layout|structure)",
+          "feature\\s+folder",
+          "monorepo\\s+package",
+          "workspace\\s+package",
+          "\\bapi/impl\\b",
+          "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "패키지\\s*(?:경계|구조)",
+          "모듈\\s*(?:경계|구조)",
+          "폴더\\s*(?:구조|분리)"
+        ]
+      ],
+      "doc_sets": [
+        "web_package_boundaries"
+      ],
+      "reason": "Frontend/web framework and workspace package-split requests without --platform still need web-code-structure and shared boundary guidance."
+    },
+    {
+      "name": "unresolved_python_package_boundary_split",
+      "platform_unresolved_only": true,
+      "required_priority": 50,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "request_all": [
+        [
+          "\\b(python|fastapi|pydantic|starlette|django|flask|uv\\s+workspaces?|poetry)\\b",
+          "(파이썬|패스트\\s*api)"
+        ],
+        [
+          "package\\s+(?:boundary|split|layout|structure)",
+          "module\\s+(?:boundary|split|layout|structure)",
+          "uv\\s+workspace",
+          "monorepo\\s+package",
+          "workspace\\s+package",
+          "\\bapi/impl\\b",
+          "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "패키지\\s*(?:경계|구조)",
+          "모듈\\s*(?:경계|구조)",
+          "폴더\\s*(?:구조|분리)"
+        ]
+      ],
+      "doc_sets": [
+        "python_package_boundaries"
+      ],
+      "reason": "Python/FastAPI/Django package-split requests without --platform still need python-web-service, server-architecture, and shared boundary guidance."
+    },
+    {
+      "name": "unresolved_application_package_boundary_split",
+      "platform_unresolved_only": true,
+      "required_priority": 50,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "request_all": [
+        [
+          "\\b(electron|tauri|desktop\\s+app)\\b",
+          "(데스크톱\\s*앱|일렉트론|타우리)"
+        ],
+        [
+          "package\\s+(?:boundary|split|layout|structure)",
+          "module\\s+(?:boundary|split|layout|structure)",
+          "monorepo\\s+package",
+          "workspace\\s+package",
+          "\\bapi/impl\\b",
+          "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "패키지\\s*(?:경계|구조)",
+          "모듈\\s*(?:경계|구조)",
+          "폴더\\s*(?:구조|분리)"
+        ]
+      ],
+      "doc_sets": [
+        "application_package_boundaries"
+      ],
+      "reason": "Electron/Tauri/desktop package-split requests without --platform still need application-architecture and shared boundary guidance."
+    },
+    {
+      "name": "unresolved_server_package_boundary_split",
+      "platform_unresolved_only": true,
+      "required_priority": 50,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "request_all": [
+        [
+          "\\b(backend|server|spring\\s*boot|nestjs|golang)\\b",
+          "(백엔드|서버)"
+        ],
+        [
+          "package\\s+(?:boundary|split|layout|structure)",
+          "module\\s+(?:boundary|split|layout|structure)",
+          "domain\\s+module",
+          "monorepo\\s+package",
+          "workspace\\s+package",
+          "\\bapi/impl\\b",
+          "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+          "패키지\\s*(?:경계|구조)",
+          "모듈\\s*(?:경계|구조)",
+          "폴더\\s*(?:구조|분리)"
+        ]
+      ],
+      "doc_sets": [
+        "server_package_boundaries"
+      ],
+      "reason": "Backend/server package-split requests without --platform still need server-architecture and shared boundary guidance."
+    },
+    {
+      "name": "unresolved_generic_package_boundary_split",
+      "platform_unresolved_only": true,
+      "required_priority": 50,
+      "subject_exclusion": true,
+      "commands": [
+        "feature",
+        "task",
+        "build",
+        "refactor",
+        "review",
+        "code-simplify",
+        "plan"
+      ],
+      "request_any": [
+        "package\\s+(?:boundary|split|layout|structure)",
+        "module\\s+(?:boundary|split|layout|structure)",
+        "boundary note",
+        "monorepo\\s+package",
+        "workspace\\s+package",
+        "\\bapi/impl\\b",
+        "패키지(?:를|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "모듈(?:을|만|의|로|별|별로)?\\s*(?:분리|나누|쪼개)",
+        "패키지\\s*(?:경계|구조)",
+        "모듈\\s*(?:경계|구조)"
+      ],
+      "doc_sets": [
+        "package_module_boundaries"
+      ],
+      "reason": "Generic package and module boundary requests in an unresolved workspace still need the shared boundary promotion ladder and code-structure ownership guidance."
     },
     {
       "name": "android_module_compose_entry_contract",
@@ -2456,6 +3174,27 @@
         "platforms/android/skills/android-module-structure/references/module-layout.md"
       ],
       "reason": "Changes inside the android-module-structure bundle must keep the boundary and layout rules consistent with the entrypoint."
+    },
+    {
+      "name": "swift_package_manifest_paths",
+      "patterns": [
+        "Package.swift",
+        "**/Package.swift"
+      ],
+      "doc_sets": [
+        "swift_package_boundaries"
+      ],
+      "reason": "Touched Swift package manifests change compile-enforced target boundaries, products, and import visibility."
+    },
+    {
+      "name": "swift_code_structure_bundle",
+      "patterns": [
+        "platforms/swift/skills/swift-code-structure/**"
+      ],
+      "doc_sets": [
+        "swift_package_boundaries"
+      ],
+      "reason": "Changes inside the swift-code-structure bundle must keep package boundary and layout rules consistent with the entrypoint."
     },
     {
       "name": "kmp_desktop_shell_paths",
