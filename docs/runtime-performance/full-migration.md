@@ -78,6 +78,32 @@ contract. Preserve authority, user data, configuration and provider neutrality.
 Keep developer tests in their useful reference language; migrating an execution
 tool does not require rewriting every test fixture.
 
+## Build and install approval
+
+The user's current restriction requires an explicit matching request before
+native builds or local installation/activation. A request to continue source
+work, commit, integrate main or push does not grant either effect. Earlier
+batch-delivery assumptions do not override this restriction. Discussing or
+editing this policy also does not authorize a build.
+
+Build/package generation, hosted build dispatch and local installation are
+separate effects: carry out only the requested subset. Test execution that
+compiles native test code has its own boundary; when that authority is unclear,
+hold compilation, ask once and continue independent source or static checks.
+Never relabel a release build as a test to cross the approval boundary.
+
+The native bundle workflow has only a manual trigger. Its boolean
+`build_runtime` input defaults to false, and the bundle job requires the
+typed input to be true, a manual dispatch, the public repository and the main
+branch. Missing or false opt-in skips the entire job before either matrix
+runner starts. GitHub documents the [typed input and job condition semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax).
+Do not dispatch a hosted build merely to validate this guard.
+
+When builds or installation are deferred, preserve the exact source batch and
+its remaining verification. Report static checks separately from executed
+native tests, transported-bundle checks and installed-runtime acceptance. Do not
+mark an uncompiled or uninstalled unit as accepted on that evidence alone.
+
 ## Per-batch work
 
 Use the durable performance checkout and existing performance branch. Keep the
@@ -86,11 +112,14 @@ Maintain one bounded implementation action per cohesive batch; reuse unchanged
 guidance, measurements and checks. Record the complete Goal here and in the
 ledger while each action closes only its declared batch.
 
-Implement, run affected observing checks, verify a source-matching portable
-bundle, review/finish the exact unit, then perform the authorized commit, main
-integration, push and actual local activation. Refresh publication attestation
-only when actual rules/input freshness requires it. Keep CI and other-host
-results explicit. Do not report the Goal complete after one batch.
+Implement and run the affected checks within the current approval, then
+review/finish the exact source batch before its authorized commit or main
+integration. Apply the build and install approval boundary above before any
+native compilation, bundling, hosted build or activation. Record deferred
+verification explicitly; source completion alone never establishes a verified
+native unit. Refresh publication attestation only for an authorized publication
+whose rules or inputs require it. Keep CI and other-host results explicit.
+Do not report the Goal complete after one batch.
 
 Existing comparisons establish the Rust direction. Do not repeat wall/CPU/RSS
 or cost calculations for each file or syntax extension. Measure again only for

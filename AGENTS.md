@@ -175,6 +175,14 @@ uses `commit`/`git_commit`. Push, PR, tags, releases, deployment, migration and
 publishing need matching authority/checks. Read
 [source-control details](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md#release-and-source-control).
 
+For this repository's native migration, source continuation, commits, main
+integration and pushes do not authorize native builds, bundle generation,
+hosted build dispatch or local installation/activation. Require a matching
+explicit user request for those effects; editing build policy is not approval
+to build. Keep test compilation separate and hold it when its authority is
+unclear while continuing independent source work. See
+[build and install approval](docs/runtime-performance/full-migration.md#build-and-install-approval).
+
 ## Runtime And Ownership Rules
 
 Use the installed launcher by resolved absolute path. Keep `<MORU_ROOT>` and
