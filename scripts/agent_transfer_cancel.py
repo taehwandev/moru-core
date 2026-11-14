@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_execution_capsule_state import atomic_write_json
+from agent_continuation_mutation_state import no_mutation_evidence
 from agent_hook_runtime import finish_with_result
 from agent_run_owner import (
     is_recorded_owner,
@@ -271,10 +272,10 @@ def cancel_no_change_run(args: Any) -> int:
     above needs a replacement run that finished the work, which is exactly what
     does not exist here. The run was left unfinished, which is its own hazard.
 
-    "Nothing changed" is proven here, not asserted, by two observations that
-    already exist: the checkout is clean, and the run's own continuation packet
-    records no changed scope. The second is what covers a run that changed files
-    and committed them, which the first would not catch.
+    New packets retain a monotonic mutation count and initial HEAD. No mutation,
+    pending entry, changed scope or HEAD movement permits settlement even when
+    other sessions keep editing the checkout. Legacy packets without that
+    history still require a clean checkout. Ownership is checked in either case.
 
     The residual limit is stated rather than hidden: a file written outside the
     governed path leaves no record in either place. Preventing that is the
@@ -304,6 +305,13 @@ def cancel_no_change_run(args: Any) -> int:
             "cancel", False, scope_refusal, args.output, {}, args.repair_cycle,
             invocation_error=True,
         )
+    untouched = no_mutation_evidence(args.project, str(run["run_id"]))
+    if untouched is False:
+        return finish_with_result(
+            "cancel", False, ["source run recorded a mutation or its initial HEAD changed; "
+                              "complete review and finish instead of cancelling"],
+            args.output, {}, args.repair_cycle, invocation_error=True,
+        )
     idle = foreign_live_owner_is_idle(args.project, evidence, run)
     if idle is False:
         return finish_with_result(
@@ -331,6 +339,8 @@ def cancel_no_change_run(args: Any) -> int:
             return "source run was rebound after validation"
         if recorded_changed_scope(args.project, str(current["run_id"])) != 0:
             return "source run recorded changes after validation"
+        if untouched is True and no_mutation_evidence(args.project, str(current["run_id"])) is not True:
+            return "source run recorded a mutation or HEAD changed after validation"
         if idle is True and foreign_live_owner_is_idle(args.project, evidence, current) is not True:
             return "source run is no longer idle"
         if owner_dead and not foreign_owner_death_is_proven(current):
@@ -351,12 +361,13 @@ def cancel_no_change_run(args: Any) -> int:
         evidence,
         receipt,
         [
-            "source checkout is clean",
+            "source run has no mutation or commit evidence" if untouched else "source checkout is clean",
             "the run's continuation packet records no changed scope",
             "run settled as cancelled with no change; existing evidence was preserved",
         ],
         require_owner=not (idle or owner_dead),
         run_precondition=unchanged_no_change_run,
+        allow_dirty=untouched is True,
     )
 
 
@@ -429,7 +440,8 @@ def recorded_changed_scope(project: Path, run_id: str) -> int | None:
     changed scope is a record that nothing changed. A missing or unreadable
     packet is no record at all -- a pruned run directory looks exactly like
     that -- so it answers None rather than the 0 a real empty scope gives. Even
-    0 is only half the proof; the clean-checkout precondition is the other half.
+    Pending mutations also refuse settlement. The mutation ledger/initial HEAD,
+    or the legacy clean-checkout precondition, supplies the rest of the proof.
     """
 
     if not run_id:
@@ -441,7 +453,8 @@ def recorded_changed_scope(project: Path, run_id: str) -> int | None:
         return None
     work = (result["packet"] or {}).get("work") or {}
     scope = work.get("changed_scope")
-    return len(scope) if isinstance(scope, list) else 0
+    pending = (result["packet"].get("checkpoint") or {}).get("mutation_pending")
+    return max(len(scope) if isinstance(scope, list) else 0, int(pending is not None))
 
 
 def _record_settled_session(project: Path, evidence: Path) -> None:
@@ -473,6 +486,7 @@ def _settle_cancellation(
     args: Any, evidence: Path, receipt: dict, details: list[str],
     require_owner: bool = True,
     run_precondition=None,
+    allow_dirty: bool = False,
 ) -> int:
     """Take the clean-checkout observation and the transition in one transaction."""
 
@@ -493,7 +507,7 @@ def _settle_cancellation(
         if status.returncode != 0:
             refusals.append("source checkout Git status could not be verified")
             return refusals[-1]
-        if status.stdout.strip():
+        if status.stdout.strip() and not allow_dirty:
             refusals.append(
                 "source checkout stopped being clean before the cancellation "
                 "transition: Git reports tracked or untracked changes; clean it "

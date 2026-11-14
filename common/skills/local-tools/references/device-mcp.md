@@ -11,6 +11,9 @@ select the configured host-driven device MCP automatically. This includes
 on-device UI tests, gesture/keyboard/focus checks, navigation and bug reproduction.
 The `device-testing` concern selects this short contract. It does not create an
 extra lifecycle gate, background process, or hook before every tool call.
+For an explicitly requested multi-step device scenario, also follow
+`device-scenario-qa.md` in this directory. Single bug reproductions and
+source-only checks do not acquire a scenario queue from this reference.
 
 Do not prepare devices for source-only lookups, ordinary commits, documentation,
 or unit tests. An explicit request to omit device checks wins. For other target

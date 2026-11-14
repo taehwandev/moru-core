@@ -20,8 +20,10 @@ from agent_continuation_packet import (
     CONTINUATION_SCHEMA_VERSION,
     STORAGE_CLASS,
     ContinuationPacketError,
+    validate_continuation_packet,
 )
 from agent_continuation_store import (
+    boundary_failures,
     continuation_path,
     read_continuation_packet,
     write_continuation_packet,
@@ -40,7 +42,7 @@ from agent_gate_evidence import (
 )
 from agent_route_state import route_fingerprint
 from agent_run_owner import process_owner
-from agent_runtime_session import runtime_session
+from agent_runtime_session import runtime_session, same_runtime_session
 from agent_run_registry import read_registry_state, registry_path
 from agent_state_lock import project_state_lock, state_lock
 
@@ -63,7 +65,17 @@ EMPTY_WORK: dict[str, Any] = {
 }
 
 
-def write_continuation_checkpoint(
+def write_continuation_checkpoint(**kwargs: Any) -> dict[str, Any]:
+    """Serialize the entire read/capture/write cycle for sibling tool hooks."""
+    path = continuation_path(kwargs["project"], kwargs["run_id"])
+    failures = boundary_failures(kwargs["project"], path)
+    if failures:
+        raise ContinuationPacketError(failures)
+    with state_lock(path.with_name(".checkpoint-transaction")):
+        return _write_continuation_checkpoint(**kwargs)
+
+
+def _write_continuation_checkpoint(
     *,
     project: Path,
     rules: Path,
@@ -96,6 +108,14 @@ def write_continuation_checkpoint(
             [failure("invalid_completed_checkpoint", "/phase")]
         )
     base = _base_packet(project, run_id, kind)
+    tool_id = (mutation or {}).get("tool_use_id")
+    previous = (base.get("checkpoint") or {}).get("mutation_pending") or {}
+    if (kind == "post_mutation" and "tool_use_ids" in previous
+            and tool_id not in previous["tool_use_ids"]
+            and (tool_id or previous.get("outstanding", 1) <= len(previous["tool_use_ids"]))):
+        raise ContinuationPacketError([failure("unknown_mutation_tool", "/checkpoint/mutation_pending")])
+    if kind == "pre_mutation" and tool_id and tool_id in previous.get("tool_use_ids", []):
+        return base
     binding_payload = _binding_payload(project, run_id, binding_path)
     work_update = dict(work or {})
     if "requirements" in work_update:
@@ -144,6 +164,12 @@ def write_continuation_checkpoint(
                 binding_path, run_state=str(record.get("state") or "")
             ),
             "mutation_pending": pending,
+            **({"mutation_count": 0, "initial_head": drift["project"]["head"]}
+               if kind == "initial" else {
+                   key: value + int(kind == "pre_mutation") if key == "mutation_count" else value
+                   for key, value in (base.get("checkpoint") or {}).items()
+                   if key in {"mutation_count", "initial_head"}
+               }),
         },
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -188,7 +214,7 @@ def _baseline_for(
 
     previous = (base.get("checkpoint") or {}).get("mutation_pending")
     shared = pending is not None and previous is not None and (
-        kind == "post_mutation"
+        kind != "pre_mutation"
         or (kind == "pre_mutation" and int(pending.get("outstanding") or 1) > 1)
     )
     if not shared:
@@ -198,7 +224,7 @@ def _baseline_for(
             project, [str(path) for path in (mutation or {}).get("paths") or []]
         )
     kept = MutationCheckpointState._read(project, run_id)
-    if not isinstance(kept.get("states"), dict):
+    if not isinstance(kept.get("states"), dict) or kept.get("packet_generation") != base.get("generation"):
         raise ContinuationPacketError(
             [failure("missing_mutation_baseline", "/checkpoint/mutation_pending")]
         )
@@ -215,11 +241,19 @@ def _baseline_for(
 def _validate_reconciliation(project, rules, record, binding, base, work, phase):
     """Explicit recovery acknowledges observed state; it never grants authority."""
     identity = runtime_session()
-    if (record.get("state") != "reconcile_required" or not identity.get("session_id")
-            or binding.get("runtime_session") != identity):
-        raise ValueError("reconcile requires this session's exact reconcile_required run")
+    pending = (base.get("checkpoint") or {}).get("mutation_pending")
+    if (record.get("state") not in ({"reconcile_required"} | (ACTIVE_CHECKPOINT_STATES if pending else set()))
+            or not identity.get("session_id")
+            or not same_runtime_session(binding.get("runtime_session"), identity,
+                                        resume_generation=int(record.get("resume_generation") or 0))):
+        raise ValueError("reconcile requires this session's exact reconcile_required run or pending mutation")
     if not work.get("objective") or work.get("verification") != [] or phase not in {"acting", "blocked"}:
         raise ValueError("reconcile requires observed work via --work-file or --work-stdin, verification: [], and phase acting or blocked")
+    if pending:
+        required = set(pending.get("paths") or []) | set(MutationCheckpointState._scope_paths(
+            (base.get("work") or {}).get("changed_scope")))
+        if not required.issubset(MutationCheckpointState._scope_paths(work.get("changed_scope"))):
+            raise ValueError("reconcile requires changed_scope acknowledging every pending and previously changed path")
     drift = verify_drift(project, rules, base, required_doc_records=binding_required_docs(binding))
     if "required_docs" in drift.get("changed_signals", []):
         raise ValueError("required guidance changed: refresh the same action with start --evidence before reconciliation")
@@ -316,7 +350,7 @@ def _write_owned_checkpoint(
         if current is None:
             raise ContinuationPacketError([failure("unknown_run", "/run_id")])
         allowed_states = (
-            {"completed"} if finalize_completed else {"reconcile_required"} if reconcile else ACTIVE_CHECKPOINT_STATES
+            {"completed"} if finalize_completed else {"reconcile_required", *ACTIVE_CHECKPOINT_STATES} if reconcile else ACTIVE_CHECKPOINT_STATES
         )
         if current.get("state") not in allowed_states:
             raise ContinuationPacketError([failure("run_not_active", "/run_id")])
@@ -341,18 +375,23 @@ def _write_owned_checkpoint(
                 [failure("checkpoint_generation_changed", "/generation")]
             )
         baseline_path = MutationCheckpointState.path(project, run_id)
+        failures = validate_continuation_packet(packet)
+        if failures:
+            raise ContinuationPacketError(failures)
         if baseline is not None and not MutationCheckpointState.is_local(
             project, baseline_path
         ):
             raise ContinuationPacketError(
                 [failure("mutation_baseline_not_git_ignored", "/checkpoint/mutation_pending")]
             )
-        write_continuation_packet(project, packet)
         if baseline is not None:
             atomic_write_json(
                 baseline_path,
                 {"packet_generation": packet["generation"], **baseline},
             )
+        # Publish a pending packet only after its baseline exists. A crash may
+        # leave a newer sidecar, which reconciliation handles without trusting it.
+        write_continuation_packet(project, packet)
         if (packet.get("checkpoint") or {}).get("mutation_pending") is None:
             baseline_path.unlink(missing_ok=True)
         if reconcile:
@@ -452,6 +491,8 @@ def _merged_pending(previous: dict[str, Any], mutation: dict[str, Any]) -> dict[
         "kind": next(iter(kinds)) if len(kinds) == 1 else "update",
         "paths": paths,
         "outstanding": int(previous.get("outstanding") or 1) + 1,
+        **({"tool_use_ids": [*(previous.get("tool_use_ids") or []), mutation["tool_use_id"]]}
+           if mutation.get("tool_use_id") else {}),
     }
 
 
@@ -467,6 +508,10 @@ def _pending(
     if kind == "post_mutation":
         if previous is None:
             raise ContinuationPacketError([failure("no_pending_mutation", "/checkpoint")])
+        previous = dict(previous)
+        if "tool_use_ids" in previous:
+            previous["tool_use_ids"] = [item for item in previous["tool_use_ids"]
+                                        if item != (mutation or {}).get("tool_use_id")]
         remaining = int(previous.get("outstanding") or 1) - 1
         if remaining <= 0:
             return None
@@ -475,12 +520,15 @@ def _pending(
         return {**previous, "outstanding": remaining}
     if kind != "pre_mutation":
         return previous
-    if previous is not None and not _nothing_written_since(previous, drift):
-        if isinstance(mutation, dict) and _in_flight(previous):
+    if previous is not None:
+        if isinstance(mutation, dict) and (mutation.get("tool_use_id") or "tool_use_ids" in previous):
             return _merged_pending(previous, mutation)
-        raise ContinuationPacketError(
-            [failure("mutation_already_pending", "/checkpoint/mutation_pending")]
-        )
+        if not _nothing_written_since(previous, drift) and isinstance(mutation, dict) and _in_flight(previous):
+            return _merged_pending(previous, mutation)
+        if not _nothing_written_since(previous, drift):
+            raise ContinuationPacketError(
+                [failure("mutation_already_pending", "/checkpoint/mutation_pending")]
+            )
     if not isinstance(mutation, dict):
         raise ContinuationPacketError([failure("missing_mutation", "/checkpoint/mutation_pending")])
     return {
@@ -489,6 +537,7 @@ def _pending(
         "project": drift["project"],
         "rules": drift["rules"],
         "started_at": datetime.now(timezone.utc).isoformat(),
+        **({"tool_use_ids": [mutation["tool_use_id"]]} if mutation.get("tool_use_id") else {}),
     }
 
 

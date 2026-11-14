@@ -52,7 +52,7 @@ def sibling_open_run(
 ) -> Path | None:
     """The other checkout of `root`'s repository where this session has a run."""
 
-    if not session_id:
+    if not session_id or session_evidence(root, session_id) is not None:
         return None
     main = _resolved(main_checkout_for(root) or root)
     if main is None:

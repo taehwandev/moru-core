@@ -44,6 +44,8 @@ from support.bounded_git import run_git
 PRUNED_DIRECTORIES = frozenset({".moru", ".git"})
 # For callers that want `.moru/skills` but not one directory per run.
 PRUNED_RUN_STATE = frozenset({".git", ".moru/runs"})
+# The file-name prefix macOS gives the metadata sidecar of a copied file.
+APPLE_DOUBLE_PREFIX = "._"
 
 
 def iter_project_files(
@@ -64,6 +66,11 @@ def iter_project_files(
     are not followed, matching ``Path.rglob``, so a link cannot walk a caller
     out of the tree it asked about.
 
+    A macOS sidecar (``._<name>``) is skipped. Copying a tree from a Mac with
+    ``tar`` or an archive tool adds one beside every file, holding binary
+    metadata under the real file's suffix, so it matched ``*.md`` and reached
+    callers that read documents as text.
+
     Only files are yielded, which is the one way this differs from ``rglob``:
     that also returns a *directory* whose name matches, so a directory called
     ``notes.md`` used to enter the document graph as a node whose contents
@@ -83,6 +90,8 @@ def iter_project_files(
             and (here / item).relative_to(root).as_posix() not in pruned
         ]
         for file_name in files:
+            if file_name.startswith(APPLE_DOUBLE_PREFIX):
+                continue
             if name and not (
                 file_name.endswith(suffix) if suffix else file_name == name
             ):

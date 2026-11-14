@@ -5,6 +5,7 @@ type: ai-generated
 use_when: Adding, splitting, moving or reviewing a Compose screen, section or feature component.
 skip_when: The change touches no composable, or only edits a modifier, effect or value inside an existing composable without changing its shape.
 requires:
+  - common/nodes/ui-state-render-boundary.md
   - platforms/compose/nodes/state-model-stability.md
 ---
 
@@ -118,8 +119,9 @@ The state model and its stability contract are in
 ## Verification
 
 - Diff review: each changed composable is classified into one layer, content
-  composables take only state, callbacks, slots and `modifier`, and no UI code
-  calls a repository or state holder directly.
+  composables take only state, callbacks, slots and `modifier`, and no content
+  or leaf calls a repository or state holder directly. Trace the real entry to
+  the holder, its call to content, and the callback back to the holder action.
 - Compile check for the changed modules; a rendered preview exists for every
   new or changed stateless composable.
 - Report the naming convention found and any layer exception with its reason.

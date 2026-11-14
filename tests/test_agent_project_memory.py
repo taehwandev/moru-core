@@ -319,6 +319,7 @@ class ProjectMemoryTests(unittest.TestCase):
             with self.subTest(request=request):
                 self.assertEqual(useful["id"], recall(self.project, "task", request=request)[0]["id"])
 
+    @mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"})
     def test_one_recall_hashes_each_source_file_once(self) -> None:
         files = tuple(f"src/f{number}.py" for number in range(4))
         for path in files:

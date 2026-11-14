@@ -8,7 +8,8 @@ type: human-reviewed-needed
 
 Use when deciding whether a feature flow needs additional packages or when
 auditing an existing package layout. This card complements module and file
-ownership guidance; it does not prescribe a repository-wide directory tree.
+ownership guidance (`common/nodes/package-module-boundaries.md`); it does not
+prescribe a repository-wide directory tree.
 
 ## Three-Step Gate
 
@@ -77,10 +78,40 @@ boundary cannot satisfy a real caller, release, dependency, or test boundary.
 Shared promotion requires at least two stable callers plus a common contract,
 clear owner, and preserved dependency direction; reuse by itself is not enough.
 
+## Root Package Audit And Complete Role Moves
+
+A module or feature root package should hold only its entry surface (navigation
+binding, public entry composable/Activity, DI module) and a compact flow's state
+owner + UDF types. Run a root-package audit (`common/nodes/package-module-boundaries.md`)
+when:
+
+- the root package holds more than ~20 Kotlin files, or
+- the root mixes three or more distinct import roles (Compose UI sections,
+  unrelated flow ViewModels, domain/DTO mappers, repositories/data sources,
+  parsers, or platform adapters), or
+- shared file prefixes (`Checkout*`, `Refund*`, `Address*`) reveal multiple user
+  flows hiding in one flat root.
+
+When splitting after an audit:
+
+- Split large feature modules **by user flow first** (`<flow>/`, `<flow>/ui/`),
+  then by role inside each flow.
+- Split large data/domain modules **by capability first** (`account/`,
+  `catalog/`, `billing/`), then by role (`repository/`, `local/`, `remote/`,
+  `mapper/`), never into repo-wide horizontal `models/` or `utils/` buckets.
+- **Complete role moves:** when adding a role subpackage (`ui/`, `mapper/`,
+  `policy/`), move **all** existing root files of that role in the same change.
+  A half-applied package layout (some screens in `ui/`, others left in the root)
+  fails review. Collapse any subpackage that ends up with one file and no
+  distinct import rule.
+
 ## Verification
 
 - Every new package has a named owner and at least one concrete boundary or
   caller.
+- Touched module/flow root packages hold only the entry surface (or compact flow
+  root), with zero half-migrated role files left behind and zero `common/`,
+  `shared/`, `utils/`, or `helpers/` packages introduced.
 - Compact flows do not gain ceremony without a measurable benefit.
 - Complex flows preserve dependency direction and expose a focused test seam.
 - The boundary note and the nearest package/module verification are updated in

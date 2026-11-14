@@ -100,9 +100,9 @@ class SupersededSessionRunTests(unittest.TestCase):
     def paused_and_resumed_run(self, project: Path, request: str) -> str:
         """A run the Stop hook paused, the session resumed, and Stop paused again."""
         run = run_id(self.ok(start(project, ROOT, request)))
-        self.ok(turn_boundary(project))
+        self.ok(turn_boundary(project, continued=True))
         self.resume(project, run)
-        self.ok(turn_boundary(project))
+        self.ok(turn_boundary(project, continued=True))
         record = runs(project)[run]
         # A resumed run carries its generation in the binding; Stop still pauses it.
         self.assertEqual(("interrupted", 1), (record["state"], record["resume_generation"]))
@@ -132,7 +132,7 @@ class SupersededSessionRunTests(unittest.TestCase):
 
     def test_a_continued_paused_run_is_never_settled(self) -> None:
         first = run_id(self.ok(start(self.main, ROOT, "src/module.py 의 가드를 고쳐줘")))
-        self.ok(turn_boundary(self.main))
+        self.ok(turn_boundary(self.main, continued=True))
 
         follow = self.ok(start(self.main, ROOT, "이어서 해줘", "--continue-from", first))
 
@@ -141,6 +141,13 @@ class SupersededSessionRunTests(unittest.TestCase):
 
     def failed_run(self, project: Path, request: str, session: str = SESSION) -> str:
         run = run_id(self.ok(start(project, ROOT, request, session=session)))
+        # This fixture tests missing route gates, after reconciling its scope;
+        # an unshaped start now stops at completion preconditions instead.
+        work = project / ".moru/fixture-work.json"
+        work.write_text(json.dumps({"objective": "Exercise finish gate failure in this fixture",
+                                    "remaining_work": []}))
+        self.ok(hook(project, ROOT, "checkpoint", "--checkpoint-kind", "decision",
+                     "--phase", "verifying", "--work-file", str(work), session=session))
         self.assertEqual(1, hook(project, ROOT, "finish", session=session).returncode)
         self.assertEqual("failed", runs(project)[run]["state"])
         return run
@@ -183,6 +190,64 @@ class SupersededSessionRunTests(unittest.TestCase):
 
         self.assertNotIn("superseded run(s)", new.stdout)
         self.assertEqual("reconcile_required", runs(self.main)[run_id(first)]["state"])
+
+    def isolated_checkouts(self, *names: str) -> list[Path]:
+        policy = self.main / ".agents/shared/worktree-policy.json"
+        policy.parent.mkdir(parents=True)
+        policy.write_text(json.dumps({"schema_version": 1, "require_linked_worktree": True,
+                                      "require_workflow_entry": True,
+                                      "protected_branches": ["main"]}))
+        git(self.main, "branch", "-M", "main")
+        git(self.main, "add", ".agents")
+        git(self.main, "commit", "-qm", "isolation policy")
+        checkouts = [self.root / name for name in names]
+        for name, checkout in zip(names, checkouts):
+            git(self.main, "worktree", "add", "-qb", f"fix/{name}", str(checkout))
+        return checkouts
+
+    def edit_verdict(self, checkout: Path, session: str = SESSION) -> tuple[str, str]:
+        result = self.ok(subprocess.run(
+            [sys.executable, str(SCRIPTS / "claude_pretool_gate.py")],
+            input=json.dumps({"tool_name": "Write", "cwd": str(self.main),
+                              "session_id": session,
+                              "tool_input": {"file_path": str(checkout / "src/module.py"),
+                                             "content": "value = 2\n"}}),
+            capture_output=True, text=True, timeout=30,
+            env={**environment(session), "MORU_PRETOOL_RUNTIME": "claude"},
+        ))
+        output = json.loads(result.stdout)["hookSpecificOutput"] if result.stdout.strip() else {}
+        return output.get("permissionDecision", "allow"), output.get("permissionDecisionReason", "")
+
+    def test_same_session_starts_keep_three_linked_checkouts_writable(self) -> None:
+        checkouts = self.isolated_checkouts("sidebar", "registry", "attention")
+        started = [run_id(self.ok(start(checkout, ROOT, f"Fix the {index} sample guard")))
+                   for index, checkout in enumerate(checkouts)]
+        for checkout, run in zip(checkouts, started):
+            with self.subTest(checkout=checkout.name):
+                self.assertEqual("running", runs(checkout)[run]["state"])
+                self.assertEqual(("allow", ""), self.edit_verdict(checkout))
+
+    def test_subagent_start_keeps_parent_run_and_both_checkout_permissions(self) -> None:
+        parent, worker = self.isolated_checkouts("parent", "worker")
+        parent_run = run_id(self.ok(start(parent, ROOT, "Fix the parent guard")))
+        # A Claude Agent child starts in a separate process with the same session id.
+        worker_run = run_id(self.ok(start(worker, ROOT, "Fix the worker guard")))
+        for checkout, run in ((worker, worker_run), (parent, parent_run)):
+            self.assertEqual(("allow", ""), self.edit_verdict(checkout))
+            self.assertEqual("running", runs(checkout)[run]["state"])
+        # Sharing a repository or a process environment is never session authority.
+        self.assertEqual("deny", self.edit_verdict(worker, "foreign-session")[0])
+        self.assertEqual("deny", self.edit_verdict(parent, "foreign-session")[0])
+
+    def test_sibling_run_is_only_a_hint_when_target_has_no_own_run(self) -> None:
+        parent, fresh = self.isolated_checkouts("parent", "fresh")
+        self.ok(start(parent, ROOT, "Fix the parent guard"))
+        verdict, reason = self.edit_verdict(fresh)
+        self.assertEqual("deny", verdict)
+        self.assertIn(str(parent), reason)
+        self.assertIn("another checkout", reason)
+        # Even a valid sibling run never authorizes authoring in main.
+        self.assertEqual("deny", self.edit_verdict(self.main)[0])
 
     def test_transfer_accepts_a_resumed_source_of_the_same_session(self) -> None:
         request = "같은 작업을 워크트리에서 끝냈어"

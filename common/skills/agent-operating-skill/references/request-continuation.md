@@ -145,6 +145,26 @@ executable `remaining_work` may receive one continuation per turn. User stops,
 pending approvals, global waits and unresolved operations prevent it. A blocker
 on one item does not erase separately recorded executable work. Finish rejects
 recorded remaining outcomes or blockers even when every route gate passed.
+
+One exception: on a `commit` route whose admitted effect already covers it, an
+exact `publication.commit` (`git_write`) or `publication.push`
+(`external_write`) remaining item may finish as deferred. It is never waived:
+finish stores it in `pending-publication.json` beside the run and fails if that
+receipt cannot be stored. A missing, corrupt or foreign receipt counts as still
+owed, and the Claude and Codex Stop gates keep blocking a completed run while
+any item is unobserved. `agent_pending_publication.py settle` clears an item
+only after read-only Git shows it (HEAD descends from the finished base with a
+clean tracked tree for a commit; for a push, the upstream branch equals HEAD,
+which is the reviewed finish HEAD itself when the commit predates finish, or a
+descendant when `publication.commit` is also declared); free text is never
+proof. A pull request is declared as `publication.pull-request/<target>` and is
+deferrable independently of the provider. Settlement takes a bounded JSON
+observation produced by the agent's actual provider lookup, showing `exists`,
+state OPEN or MERGED, and the exact source branch, HEAD commit and target.
+The agent must obtain this result from the provider before submitting it; the
+runtime checks identity but does not authenticate the supplied observation.
+An absent, mismatched or unobserved PR stays owed. No provider-specific tool
+or repository status script is run by the runtime.
 An admitted writable run carrying only the runtime's default workflow label
 also requires one scope-reconciliation pass; a pending finish keeps that run
 active rather than recording a failed check or a completion receipt.

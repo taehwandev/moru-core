@@ -20,7 +20,7 @@ from support.native_source_inputs import pretool_contract
 from runtime_snapshot_normalize import normalize_output
 from smoke_native_card_resume import check_card_resume
 from smoke_native_doc_transcript import check_doc_transcript
-from smoke_native_memory import check_memory, check_memory_files
+from smoke_native_memory import check_memory, check_memory_files, check_memory_source
 
 
 def _lossless_report_formats(native, entry, report, env, project):
@@ -425,6 +425,8 @@ def smoke(archive):
             checks += 1
         for runtime in ("claude", "codex"):
             for command in ("git log -5 --oneline", "git ls-files", "git diff", "git diff --cached -- notes.txt",
+                            "git diff --staged", "git diff --stat --staged -- notes.txt",
+                            "git diff --name-status --cached -- '한글 메모.txt'",
                             "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',
                             "tail -n 20 notes.txt", "wc -l notes.txt", "sed -n '1,20p' '한글 메모.txt'",
@@ -595,6 +597,7 @@ def smoke(archive):
         checks += check_doc_transcript(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory(native, entry, project, {**normal,"PATH":str(empty)})
         checks += check_memory_files(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_memory_source(native, entry, base, project, normal)
         for runtime in ("claude", "codex"):
             for args in (["mailbox-hook", "deliver", "--runtime", runtime],
                          ["mailbox-hook", "ack", "--runtime", runtime], [runtime + "-stop-gate"]):

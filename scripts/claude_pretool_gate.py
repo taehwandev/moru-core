@@ -75,7 +75,9 @@ try:  # The gate must never fail to load; the import is only used for a message.
     )
     from claude_command_effect import INTERPRETER_REASON, command_effect, unknown_recovery
     from claude_scratch_checkout import scratch_command, scratch_script_command, throwaway_checkout
-    from claude_pretool_checkout_removal import checkout_removal_denial, worktree_removal_targets
+    from claude_pretool_checkout_removal import (
+        checkout_removal_denial, merged_worktree_removal, worktree_removal_targets,
+    )
     from claude_pretool_cli_worker import foreground_cli_worker_denial
     from claude_bash_syntax import command_segments, resolve_target, scratch_write_target, shell_keyword_command
     from claude_bash_readonly import simple_command_kind
@@ -281,6 +283,9 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
 
     def checkout_removal_denial(tokens: list[str], cwd: Path) -> str:
         return ""
+
+    def merged_worktree_removal(tokens: list[str], cwd: Path) -> bool:
+        return False
 
     def worktree_removal_targets(tokens: list[str], cwd: Path) -> list[Path]:
         return []
@@ -1216,6 +1221,21 @@ def _finished_runs() -> "_integration.FinishedRuns":
     )
 
 
+def _open_run_holds(root: Path, session_id: str, cwd: Path, held: str) -> bool:
+    """An untouched run cannot hold opaque commands executing elsewhere.
+
+    Known publications and commands executing here keep the usual gates. This
+    exemption grants neither workflow entry nor publication authority elsewhere.
+    """
+    if held != "unreadable" or is_relative_to(cwd.resolve(), root.resolve()):
+        return bool(held)
+    evidence = session_evidence(root, session_id)
+    if evidence is None:
+        return True
+    from agent_continuation_mutation_state import no_mutation_evidence
+    return no_mutation_evidence(root, evidence.parent.name) is not True
+
+
 def publication_before_finish_reason(root: Path, *, unreadable: bool = False) -> str:
     if _publication is None:
         return f"Moru lifecycle: this session's run in {root} is still open."
@@ -1672,7 +1692,7 @@ def _isolated_checkout_verdict(
                 if tool in BASH_TOOLS
                 else ""
             )
-            if held:
+            if held and _open_run_holds(governed, session_id, effective_cwd or cwd, held):
                 return deny(
                     publication_before_finish_reason(
                         governed, unreadable=held == "unreadable"
@@ -1946,6 +1966,7 @@ def _worktree_policy_verdict(
                 candidate
                 for candidate in (roots or [root])
                 if workflow_entry_allows(candidate, session_id)
+                and _open_run_holds(candidate, session_id, command_cwd, held)
             ),
             None,
         )
@@ -2553,6 +2574,8 @@ def _call_scope(payload: dict, tool: str, cwd: Path) -> _CallScope:
     effective_cwd, tokens, syntax_is_simple = bash_invocation(payload, cwd)
     command_cwd = _git_effective_cwd(tokens, effective_cwd)
     kind, detail = command_effect(tokens, syntax_is_simple, bash_command_kind(tokens, syntax_is_simple, effective_cwd))
+    if syntax_is_simple and merged_worktree_removal(tokens, effective_cwd):
+        kind, detail = "bootstrap", ""
     command = bash_command(payload)
     # A helper script kept in the session scratchpad lands in no project, so
     # running it needs no run in any project -- unless the line visibly

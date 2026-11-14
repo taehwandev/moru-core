@@ -65,6 +65,22 @@ def find_project_root(cwd: Path) -> Path | None:
     return prefer_git_root(candidates)
 
 
+def pending_publication_stop(root: Path, session_id: str, payload: dict) -> int:
+    """A finished run's declared, unobserved publication outlives its Stop."""
+    from agent_pending_publication import pending_reason
+
+    evidence = resolve_runtime_evidence(
+        root, {"runtime": "codex", "session_id": session_id}, frozenset({"completed"}),
+        latest_of_several=True,
+    )
+    reason = pending_reason(root, evidence) if evidence else ""
+    if not reason:
+        return allow()
+    if payload.get("stop_hook_active"):
+        return stop_incomplete("The turn was stopped without reporting completion. " + reason)
+    return continue_closeout(reason)
+
+
 def closeout_reason(root: Path, evidence: Path) -> str:
     preflight = read_json(evidence) if read_json is not None else {}
     rules = Path(str(preflight.get("rules") or root))
@@ -105,7 +121,7 @@ def decide(payload: dict) -> int:
         root, {"runtime": "codex", "session_id": session_id}
     )
     if evidence is None:
-        return allow()
+        return pending_publication_stop(root, session_id, payload)
 
     from agent_mailbox_task import continuation_reason
     reason = continuation_reason(payload, "codex")

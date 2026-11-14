@@ -30,20 +30,22 @@ from test_agent_continuation_checkpoint import initialize_git
 
 
 class Run:
-    def __init__(self, directory: str, runtime: str = 'codex', version=2, packet=False, writable=False):
+    def __init__(self, directory: str, runtime: str = 'codex', version=2, packet=False, writable=False,
+                 command='task', effect='local_write', authority=None):
         self.project = Path(directory) / 'project'
         self.project.mkdir()
         (self.project / 'AGENTS.md').write_text('uses moru\n')
         (self.project / 'source.txt').write_text('before\n')
         if packet:
             initialize_git(self.project)
-        self.route = {'command': 'task', 'gates': ['scope', 'verify'], 'required_docs': []}
+        self.route = {'command': command, 'gates': ['scope', 'verify'], 'required_docs': []}
         if version is not None:
             self.route['lifecycle_version'] = version
         if writable:
             self.route['request_classification'] = {'intent_envelope': {
                 'schema_valid': True, 'envelope_present': True,
-                'effective_effect': 'local_write', 'failures': []}}
+                'effective_effect': effect, 'failures': [],
+                **({'authority': authority} if authority else {})}}
         self.intake = {'request': 'bounded local work', 'request_classified': False}
         self.evidence = self.project / '.moru' / 'runs' / uuid.uuid4().hex / 'preflight.json'
         self.evidence.parent.mkdir(parents=True)
@@ -76,6 +78,28 @@ class Run:
 
 
 class RunInterruptionTests(unittest.TestCase):
+    def test_active_same_session_is_diagnostic_only_and_never_claims(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run = Run(directory, packet=True)
+            run.checkpoint()
+            registry = registry_path(run.project)
+            packet = continuation_path(run.project, run.run['run_id'])
+            before = (registry.read_bytes(), packet.read_bytes())
+            with patch('agent_continuation_claim.runtime_session', return_value=run.session):
+                result = claim_resume(run.project, run.run['run_id'], expected_generation=0)
+            self.assertEqual('already_active_same_session', result['result'])
+            self.assertIsNone(result['packet'])
+            self.assertEqual(before, (registry.read_bytes(), packet.read_bytes()))
+
+    def test_active_foreign_session_or_process_remains_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run = Run(directory, packet=True)
+            run.checkpoint()
+            with patch('agent_continuation_claim.runtime_session', return_value={'runtime':'codex','session_id':'other'}):
+                self.assertEqual('live_owner_refused', claim_resume(run.project, run.run['run_id'], expected_generation=0)['result'])
+            with patch('agent_continuation_claim.runtime_session', return_value=run.session), patch('agent_continuation_claim.process_owner', return_value={'pid':1,'start_token':''}):
+                self.assertEqual('live_owner_refused', claim_resume(run.project, run.run['run_id'], expected_generation=0)['result'])
+
     prior_verification = [{'id': 'before_edit', 'kind': 'unit', 'result': 'success',
                            'evidence_sha256': 'a' * 64, 'completed_at': '2026-08-13T00:00:00+00:00'}]
 
@@ -115,7 +139,8 @@ class RunInterruptionTests(unittest.TestCase):
             args = SimpleNamespace(project=run.project, rules=run.project, work_stdin=True,
                                    checkpoint_kind='reconcile', phase='acting', last_completed=None,
                                    output=None, repair_cycle=False)
-            summary = {'objective': 'finish the observed partial edit', 'verification': []}
+            summary = {'objective': 'finish the observed partial edit', 'verification': [],
+                       'changed_scope': [{'path': 'source.txt', 'role': 'modified'}]}
             with (patch('agent_hook_checkpoint.run_binding_path', return_value=run.evidence),
                   patch('agent_hook_checkpoint._read_work_stdin', return_value=summary),
                   patch('agent_continuation_checkpoint.runtime_session', return_value=run.session),

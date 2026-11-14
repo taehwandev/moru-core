@@ -20,6 +20,28 @@ response/error implementation details, also use `server-api-implementation.md`.
 Route/Handler -> Use Case/Service -> Repository/Client -> Database/External System
 ```
 
+## Package And Module Boundaries
+
+Apply `common/nodes/package-module-boundaries.md` and
+`common/skills/code-structure-ownership/SKILL.md` when structuring server
+packages or workspace modules:
+
+- Organize server code **by domain capability first** (`billing/`, `accounts/`,
+  `orders/`), then by layer inside the capability (`router`/`handler`, `schema`,
+  `service`/`usecase`, `repository`, `domain`), rather than growing repo-wide
+  horizontal `controllers/`, `services/`, `models/`, and `utils/` directories.
+- Cross-capability dependencies must go through the other capability's narrow
+  public contract (`api` module, service interface, or exported facade) — never
+  import another capability's ORM models, SQL queries, or repository
+  implementation directly.
+- In monorepos or multi-process services (`api`, `worker`, `scheduler`), extract
+  shared capabilities into narrow `core/<capability>` or `<capability>-contract`
+  packages instead of importing the HTTP `api` app into background workers.
+- Audit any package root exceeding ~20 files or mixing 3+ roles; move **all**
+  existing root files of an extracted role (no half-applied splits) and forbid
+  `common`, `shared`, `utils`, or `helpers` dump packages. Verify forbidden
+  cross-capability repository/ORM imports with `rg`.
+
 ## Rules
 
 - Keep request parsing separate from product rules.

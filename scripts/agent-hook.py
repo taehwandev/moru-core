@@ -1036,6 +1036,14 @@ def finish_hook(args: argparse.Namespace) -> int:
                        + ". With user authority for commit/merge/push: "
                        f"start --continue-from {preflight_evidence_path(args).parent.name} "
                        "--command commit --approved-effect git_write (external_write to push)")
+        pending_lines, pending_failure = _pending_publication_lines(args, captured)
+        if pending_failure:
+            # Fail closed: a deferred publication with no stored receipt would
+            # look complete. Leave the run active so finish can be retried.
+            print_status("finish", False, ["deferred publication could not be recorded", pending_failure,
+                                          "Keep this run active; repair the run directory and rerun finish."])
+            return 3
+        details.extend(pending_lines)
         # Complete the registry first. If the process dies between these two
         # writes, the run is already terminal and cannot be resumed from a
         # packet that still displays the pre-finish checkpoint.
@@ -1129,6 +1137,26 @@ def _fast_forward_line(project: Path) -> str:
     )
 
 
+def _pending_publication_lines(args: argparse.Namespace, receipt_captured: bool) -> tuple[list[str], str]:
+    """Persist finish-deferred publication; returns (lines, failure) and never swallows a failure."""
+    from agent_pending_publication import pending_reason, record_pending, split_remaining
+    from agent_work_completion import bound_work_packet
+
+    try:
+        evidence = preflight_evidence_path(args)
+        preflight = json.loads(evidence.read_text(encoding="utf-8"))
+        packet = bound_work_packet(args.project, evidence) or {}
+        _blocking, deferred = split_remaining(preflight, (packet.get("work") or {}).get("remaining_work") or [], args.project)
+        if not deferred:
+            return [], ""
+        if not receipt_captured:
+            return [], "the publication receipt was not captured, so deferred publication cannot be admitted"
+        failure = record_pending(args.project, evidence, deferred)
+        return ([pending_reason(args.project, evidence)] if not failure else []), failure
+    except (OSError, ValueError, TypeError, RuntimeError) as error:
+        return [], f"pending publication could not be evaluated ({type(error).__name__})"
+
+
 def _closed_run_lines(project: Path) -> list[str]:
     """What a successful finish leaves the agent to do, including the memory capture point.
 
@@ -1138,8 +1166,9 @@ def _closed_run_lines(project: Path) -> list[str]:
 
     return [
         "This run is closed; finish attests verification, not pending actions. Continue "
-        "authorized steps in the verified scope; report the confirmed outcome without "
-        "repeating review/finish. New effects, targets or changed evidence need admission. "
+        "authorized steps in the verified scope; report the initial request, any scope "
+        "changes, and how each outcome was handled and verified without repeating "
+        "review/finish. New effects, targets or changed evidence need admission. "
         + _fast_forward_line(project),
         "Project memory: retain the verified stored record or grounded not_needed decision; "
         "capture before that gate and finish. Historical runs keep their original contract.",
@@ -2075,6 +2104,7 @@ def _add_gate_arguments(parser: argparse.ArgumentParser) -> None:
     gate.add_argument("--test-directory", default="tests", help="verify: project-local unittest discovery directory")
     gate.add_argument("--test-pattern", default="test_*.py", help="verify: unittest discovery filename glob")
     gate.add_argument("--verify-timeout", type=int, default=600, help="verify: maximum test process seconds")
+    gate.add_argument("--retry-reason", default="", help="verify: changed external condition requiring fresh verification")
     # --name is what agents guess. --gate stays undefined on purpose (finish must not take gate
     # evidence); `_parse_args` names the right option for it instead.
     gate.add_argument("--gate-name", "--name", dest="gate_name",

@@ -78,6 +78,17 @@ class ParallelMutationTest(unittest.TestCase):
                 )
                 self.assertEqual([], failures)
 
+    def test_malformed_or_duplicate_tool_ids_are_refused_without_crashing(self) -> None:
+        for ids, outstanding in ((None, 1), ([1], 1), (["toolu_a", "toolu_a"], 2),
+                                 (["toolu_a", "toolu_b"], 1), (["toolu_a"], "bad")):
+            with self.subTest(ids=ids, outstanding=outstanding):
+                record = {**_pending_record(["a.txt"]), "tool_use_ids": ids,
+                          "outstanding": outstanding}
+                failures = []
+                validate_checkpoint({"last_completed": None, "first_unfinished": None,
+                                     "mutation_pending": record}, failures)
+                self.assertTrue(failures)
+
 
 if __name__ == "__main__":
     unittest.main()

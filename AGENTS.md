@@ -148,8 +148,10 @@ budgets and migration exceptions, read
 
 ## Failure And Recovery
 
-Required gate failure is `🐱🔴 FAIL`, never completion. Use one
-`retrospective_repair_verify_resume` cycle from the first failed checkpoint:
+Required gate failure is `🐱🔴 FAIL`, never completion. Diagnose and correct the
+owning task, missing evidence, invocation or environment first; failure alone
+does not require a Moru Core edit or a separate retrospective. Only an evidenced
+framework defect uses one `retrospective_repair_verify_resume` cycle:
 repair the canonical rule, hook, validator, or test; verify it; then resume the
 original task. Stop if the failure recurs, repair is unsafe/ambiguous, ownership
 is uncertain, or verification fails.

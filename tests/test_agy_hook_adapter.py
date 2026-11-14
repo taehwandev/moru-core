@@ -452,6 +452,94 @@ class PreInvocationTests(unittest.TestCase):
         with patch.object(adapter, "run_script", return_value="unchanged since this session already received it"):
             self.assertEqual({}, adapter.pre_invocation({"conversationId": "c1", "workspacePaths": ["/w"]}))
 
+    def test_step_two_after_full_route_does_not_reinject_entry_or_respawn(self):
+        calls = []
+
+        def fake(name, args, stdin, cwd, env=None):
+            calls.append((name, args))
+            if name == "workflow.py":
+                return (
+                    "# Moru Core Workflow Route\n"
+                    if sum(1 for n, _ in calls if n == "workflow.py") == 1
+                    else "unchanged since this session already received it"
+                )
+            req = args[args.index("--request") + 1]
+            if "3D" in req:
+                return "guidance:\n- platforms/web/skills/web-3d-interaction/SKILL.md\n"
+            return "status: selected\n"
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", fake), \
+                patch.object(adapter, "independent_check_available", return_value=True):
+            same = {"conversationId": "c11", "workspacePaths": [tmp], "lastUserInput": "Refactor hooks"}
+            step1 = adapter.pre_invocation(same)
+            step2 = adapter.pre_invocation(same)
+            step3 = adapter.pre_invocation(same)
+            self.assertEqual(2, len(calls), "steps 2+ within the same user input must spawn no subprocesses")
+            self.assertEqual([{}, {}], [step2, step3])
+            self.assertIn("Workflow Route", step1["injectSteps"][0]["systemMessage"]["systemMessage"])
+            self.assertIn("status: selected", step1["injectSteps"][0]["systemMessage"]["systemMessage"])
+
+            turn2 = {**same, "lastUserInput": "Now build a 3D scene"}
+            next_first = adapter.pre_invocation(turn2)
+            next_second = adapter.pre_invocation(turn2)
+            self.assertEqual(4, len(calls), "a new user input recomputes route and entry once")
+            next_text = next_first["injectSteps"][0]["systemMessage"]["systemMessage"]
+            self.assertIn("web-3d-interaction", next_text)
+            self.assertIn("independent check opens the finished page", next_text)
+            self.assertEqual({}, next_second)
+
+    def test_autoloaded_workspace_instructions_are_trimmed_while_external_projects_stay_intact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "ws"
+            external = Path(tmp) / "other"
+            workspace.mkdir()
+            external.mkdir()
+            (workspace / "AGENTS.md").write_text("# agents\n", encoding="utf-8")
+            (external / "AGENTS.md").write_text("# agents\n", encoding="utf-8")
+
+            ws_entry = (
+                "status: selected\n"
+                f"project: {workspace}\n"
+                "instruction_files:\n"
+                "- AGENTS.md\n"
+                "- CLAUDE.md\n"
+                "next_steps:\n"
+                "- Open the selected project's runtime instruction files before project work.\n"
+                "- Run preflight before edits.\n"
+            )
+            trimmed = adapter._trim_autoloaded_workspace_entry(ws_entry, {"workspacePaths": [str(workspace)]})
+            self.assertNotIn("instruction_files:", trimmed)
+            self.assertNotIn("CLAUDE.md", trimmed)
+            self.assertNotIn("Open the selected project's runtime instruction files", trimmed)
+            self.assertIn("- Run preflight before edits.", trimmed)
+
+            ext_entry = ws_entry.replace(str(workspace), str(external))
+            untouched = adapter._trim_autoloaded_workspace_entry(ext_entry, {"workspacePaths": [str(workspace)]})
+            self.assertIn("instruction_files:", untouched)
+            self.assertIn("- AGENTS.md", untouched)
+            self.assertIn("Open the selected project's runtime instruction files", untouched)
+
+    def test_required_docs_deliver_in_process_even_when_prompt_guidance_short_circuits(self):
+        calls = []
+
+        def fake(name, args, stdin, cwd, env=None):
+            calls.append(name)
+            return "# Moru Core Workflow Route\n" if name == "workflow.py" else "status: selected\n"
+
+        doc_step = {"injectSteps": [{"systemMessage": {"systemMessage": "REQUIRED DOC BODY"}}]}
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", fake), \
+                patch.object(adapter.agy_required_docs_hook, "respond", side_effect=[{}, doc_step, {}]):
+            payload = {"conversationId": "c12", "workspacePaths": [tmp], "lastUserInput": "Implement fix"}
+            before_start = adapter.pre_invocation(payload)
+            after_start = adapter.pre_invocation(payload)
+            after_delivery = adapter.pre_invocation(payload)
+        self.assertEqual(["workflow.py", "agent-entry.py"], calls)
+        self.assertEqual(1, len(before_start["injectSteps"]))
+        self.assertEqual([{"systemMessage": {"systemMessage": "REQUIRED DOC BODY"}}], after_start["injectSteps"])
+        self.assertEqual({}, after_delivery)
+
 
 class FailOpenTests(unittest.TestCase):
     def test_a_broken_payload_never_blocks(self):

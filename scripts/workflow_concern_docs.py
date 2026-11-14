@@ -197,6 +197,10 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
     ),
     "performance": ("common/skills/performance-verification/SKILL.md",),
     "device-testing": ("common/skills/local-tools/references/device-mcp.md",),
+    "device-scenario-qa": (
+        "common/skills/local-tools/references/device-mcp.md",
+        "common/skills/local-tools/references/device-scenario-qa.md",
+    ),
     "browser-testing": ("common/skills/browser-runtime-testing/SKILL.md", "common/skills/ui-visual-verification/SKILL.md"),
     "devtools": ("common/skills/browser-runtime-testing/SKILL.md",),
     "persistence": ("common/skills/data-persistence-sync/SKILL.md",),

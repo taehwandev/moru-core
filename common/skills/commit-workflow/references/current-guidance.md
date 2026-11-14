@@ -153,6 +153,60 @@ failure until the relevant condition or approved execution path changes.
 This is a scope reduction, not a safety exemption. The final diff, evidence
 freshness, secrets boundary, repo-local rules, and commit readiness still apply.
 
+## Recover An Index Lock Without Abandoning Delivery
+
+An `index.lock` error is a recovery checkpoint, not evidence that the requested
+commit or PR is impossible. Diagnose it before stopping or asking the user to
+delete anything. Keep the current task, authorization and valid checks; do not
+open an implementation route just to resolve a transient Git lock.
+
+1. Identify the exact repository, linked worktree and failed command. Resolve
+   the effective index with `git -C <worktree> rev-parse --git-path index`,
+   resolving a relative result against that Git command's working directory.
+   Its lock is that path with `.lock` appended; confirm the reported error
+   names the same file. This honors an explicit `GIT_INDEX_FILE`, whereas
+   `--git-path index.lock` alone can still name the default lock. Never assume
+   a linked worktree uses the main checkout's `.git/index.lock`.
+   Prefer `git --no-optional-locks ...` or `GIT_OPTIONAL_LOCKS=0` for read-only
+   status/inspection commands so diagnosis does not refresh the index itself.
+2. Inspect the exact lock's type, identity, size and modification time, open
+   handles, and Git/editor activity for this repository. Use bounded process
+   identities and working directories, not full command lines that may expose
+   credentials. Check relevant concurrent agent work too. A process lookup
+   alone, an old timestamp or an empty file does not prove that a lock is stale.
+   Briefly recheck for a continuing writer or a changed/replaced lock.
+3. If a writer is active, preserve its lock and let that operation complete
+   within a bounded wait. Do not kill it, remove its lock, or start a competing
+   Git write. If inspection is unavailable or ownership remains uncertain,
+   report the exact unknown and the next check needed; do not label the file
+   stale or claim a filesystem permission failure without observed evidence.
+4. When the observations establish that an interrupted operation left the same
+   regular lock file behind and this repository has no continuing writer,
+   recover that exact stale lock as a prerequisite of the already authorized
+   Git operation. Do not ask for the same commit/PR approval again solely
+   because this recovery is needed, or default to making the user delete it.
+   Preserve any nonempty lock's bytes in an ignored local recovery artifact
+   before removal; never discard a possible pending index or install it over
+   the real index automatically. Recheck the lock identity and writer state
+   immediately before removing only that file. A symlink, changed lock or new
+   writer returns to diagnosis. Never remove the real index, unrelated locks,
+   worktree files, branches or user data as part of this procedure.
+5. Retry the failed operation once after recovery and verify its result. If the
+   lock reappears, investigate the writer rather than repeatedly deleting it.
+   Check the staged diff and reviewed-input binding before continuing; changed
+   inputs require only their affected checks. Lock recovery alone does not
+   invalidate unchanged verification or authorize another staged unit. Continue
+   the remaining authorized commit, push and PR steps through observable
+   completion, rather than reporting only that the lock was removed.
+
+This procedure grants no broader cleanup or publication authority. An explicit
+read-only restriction, user prohibition, active lock or mandatory approval rule
+still applies. For a real native sandbox/permission refusal, use the runtime's
+scoped escalation for the exact authorized action; never bypass the refusal or
+present a Moru policy rejection as an OS permission error. If escalation is
+unavailable or rejected, identify the exact action and stated reason instead of
+claiming that every `index.lock` requires manual user intervention.
+
 ## Read
 
 - Repo-local commit, branch, signing, and generated-file rules.

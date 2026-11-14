@@ -31,6 +31,26 @@ MARKER_DIR = Path.home() / ".moru" / "agy-hook"
 MARKER_MAX_AGE_SECONDS = 7 * 24 * 3600
 
 
+def _marker_target(conversation: str, text: str, kind: str) -> tuple[Path | None, str]:
+    safe = "".join(ch for ch in conversation if ch.isalnum() or ch in "-_")
+    if not safe:
+        return None, ""
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return MARKER_DIR / f"{safe}.{kind}.digest", digest
+
+
+def has_delivered(conversation: str, text: str, kind: str = "route") -> bool:
+    """Whether this conversation already recorded ``text`` under ``kind`` without mutating state."""
+
+    marker, digest = _marker_target(conversation, text, kind)
+    if marker is None:
+        return False
+    try:
+        return marker.read_text(encoding="utf-8") == digest
+    except OSError:
+        return False
+
+
 def already_delivered(conversation: str, text: str, kind: str = "route") -> bool:
     """Whether this conversation already holds exactly this text; record it if not.
 
@@ -38,11 +58,9 @@ def already_delivered(conversation: str, text: str, kind: str = "route") -> bool
     workspace would otherwise be re-sent the same text on every model call.
     """
 
-    safe = "".join(ch for ch in conversation if ch.isalnum() or ch in "-_")
-    if not safe:
+    marker, digest = _marker_target(conversation, text, kind)
+    if marker is None:
         return False
-    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    marker = MARKER_DIR / f"{safe}.{kind}.digest"
     try:
         if marker.read_text(encoding="utf-8") == digest:
             return True

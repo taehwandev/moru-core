@@ -36,6 +36,9 @@ between modules, build-logic convention plugins, and Hilt module placement.
    | Another module navigates to, launches, or compiles against it | `api` + `impl` |
    | A named consumer outside `impl` renders the same concrete surface | `api` + `impl` + `ui` |
 
+   Cross-platform invariants live in
+   [package-module-boundaries.md](../../../../common/nodes/package-module-boundaries.md).
+
 4. **Place ownership.** `api` holds the whole navigation contract (destination
    type, arguments, deep link, result, public events, `navigateTo<Feature>`);
    `impl` holds holder, ViewModel, state, content, entry binding, and any
@@ -80,6 +83,9 @@ between modules, build-logic convention plugins, and Hilt module placement.
 ## Do Not
 
 - Create modules to fill a template shape; each module needs a named caller.
+- Add a role subpackage (`ui/`, `mapper/`, `policy/`) while leaving existing
+  root files of that role in the module/flow root (half-applied split), or
+  create `common/`, `shared/`, `utils/`, `helpers/` packages.
 - Extract `ui` for a preview, an internal package, or the feature's own
   Activity.
 - Hide a single concrete composable behind an interface with one

@@ -94,7 +94,7 @@ class VerificationHookTests(unittest.TestCase):
         self.assertIn("exit=1", self.entries()[-1]["fields"]["result"])
 
     def test_a_failure_records_the_checkpoint_repair_verify_needs(self):
-        """The failure output names repair-verify, which refused every checkpoint."""
+        """Actual failures remain available if diagnosis finds a framework defect."""
 
         from agent_repair_ledger import checkpoint_failure_signature, checkpoint_has_recorded_failure
 

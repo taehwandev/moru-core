@@ -689,6 +689,9 @@ def resolve_docs(
         # concerns are on that list and why release is not.
         if concern not in inferred
         or concern in RISK_CONCERNS_REQUIRED_WHEN_INFERRED
+        # This narrowly matched explicit execution request needs the scenario
+        # contract during the run, not merely in the reference catalog.
+        or concern == "device-scenario-qa"
     ]
     organization, organization_missing = (
         organization_route(

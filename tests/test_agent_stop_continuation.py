@@ -58,6 +58,8 @@ class StopContinuationTests(unittest.TestCase):
                 self.assertIsNotNone(result)
                 self.assertEqual("block", result["decision"])
                 self.assertIn("approved", result["reason"])
+                self.assertIn("run is already active in this session", result["reason"])
+                self.assertIn("do not call resume", result["reason"])
                 self.assertEqual("running", run.state())
                 self.assertFalse(list((run.project / ".moru").rglob("finish.json")))
 

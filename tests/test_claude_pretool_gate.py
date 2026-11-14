@@ -469,7 +469,8 @@ class ClaudePreToolGateTests(unittest.TestCase):
             self.assertIn("do not request write authority just to run a lookup", reason)
 
     def test_bash_outside_moru_project_is_allowed(self) -> None:
-        code, out = _decide({"tool_name": "Bash", "cwd": "/tmp", "session_id": "s"})
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = _decide({"tool_name": "Bash", "cwd": tmp, "session_id": "s"})
         self.assertEqual(0, code)
         self.assertEqual("", out)
 
@@ -1054,8 +1055,8 @@ class ClaudePreToolGateTests(unittest.TestCase):
                 "git symbolic-ref HEAD refs/heads/other",
                 "git replace HEAD abc123",
                 "git notes add -m x",
-                "git archive -o /tmp/x.tar HEAD",
-                "git worktree add --force /tmp/w main",
+                "git archive -o x.tar HEAD",
+                "git worktree add --force ../w main",
                 "git brand-new-verb thing",
             ):
                 with self.subTest(command=command):
@@ -1679,14 +1680,15 @@ class ClaudePreToolGateTests(unittest.TestCase):
     def test_a_session_outside_any_project_is_not_gated_at_all(self) -> None:
         # The outward-hazard check keys on the session's own root, so a session
         # that is not in a governed project keeps the gate out of its way.
-        code, out = _decide(
-            {
-                "tool_name": "Bash",
-                "cwd": "/tmp",
-                "session_id": "s",
-                "tool_input": {"command": "git push --force origin main"},
-            }
-        )
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = _decide(
+                {
+                    "tool_name": "Bash",
+                    "cwd": tmp,
+                    "session_id": "s",
+                    "tool_input": {"command": "git push --force origin main"},
+                }
+            )
         self.assertEqual(0, code)
         self.assertEqual("", out)
 

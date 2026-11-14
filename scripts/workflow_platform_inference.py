@@ -7,13 +7,17 @@ import re
 
 _NAMES = {
     "android": r"(?<![\w/])(?:android|안드로이드)(?![a-z_/])",
-    "ios": r"(?<![\w/])ios(?![a-z_/])",
-    "swift": r"(?<![\w/])(?:swift|macos|mac os|맥os)(?![a-z_/])",
+    "ios": r"(?<![\w/])(?:ios|아이오에스)(?![a-z_/])",
+    "swift": r"(?<![\w/])(?:swift|스위프트|macos|mac os|맥os)(?![a-z_/])",
     "kmp": r"(?<![\w/])(?:kmp|kotlin multiplatform)(?![a-z_/])",
     "flutter": r"(?<![\w/])(?:flutter|플러터)(?![a-z_/])",
     "web": r"(?<![\w/])(?:web|웹)(?![a-z_/])",
 }
-_SCOPE = r"\s*(?:의\s*)?(?:앱|코드|모듈|프로젝트|서비스|app\b|code\b|module\b|project\b|service\b)"
+_SCOPE = (
+    r"\s*(?:의\s*|에서\s*)?"
+    r"(?:앱|코드|모듈|패키지|타겟|프로젝트|서비스|"
+    r"app\b|code\b|module\b|package\b|target\b|project\b|service\b)"
+)
 _UNCERTAIN = r"\b(?:maybe|perhaps|possibly|whether)\b|일지도|인지\s*(?:모르|불명)|아마"
 _NEGATIVE = (
     r"\b(?:not|no|never|don't|unrelated|exclude|excluding|except|without)\b|"

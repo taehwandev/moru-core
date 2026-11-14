@@ -13,9 +13,10 @@ boundaries, and endpoint tests.
 ## Core Principle
 
 Keep transport, validation, product rules, persistence, outbound calls, and
-public response shape in named boundaries. Routes adapt HTTP to a use case; they
-should not become the use case, repository, serializer, and error policy at
-once.
+public response shape in named boundaries (`common/nodes/package-module-boundaries.md`
+and `common/skills/code-structure-ownership/SKILL.md`). Routes adapt HTTP to a
+use case; they should not become the use case, repository, serializer, and error
+policy at once.
 
 ## When To Use
 
@@ -37,6 +38,29 @@ Use this when a Python service change touches:
 | Repository/client | Keep database sessions, transactions, external calls, timeouts, retries, and provider DTO mapping behind repository/client boundaries. | Repository/client test or mocked external-call test for success and failure. |
 | Async and blocking I/O | Keep blocking work off the event loop or isolate it behind the framework-approved path. Propagate cancellation/timeouts where the repo pattern supports them. | Async test, server-start smoke, or timeout/cancellation check for the changed path. |
 | Settings and middleware | Load environment-specific settings through the repo's config pattern. Keep CORS, auth, compression, proxy, and error middleware order explicit. | App startup or middleware test for configured behavior. |
+
+## Python Package And Workspace Layout
+
+Apply `common/nodes/package-module-boundaries.md` to Python service packages and
+`uv` / `pyproject.toml` workspaces:
+
+- **Capability-first `src/` layout:** structure services under
+  `src/<service>/<capability>/` (`billing/`, `accounts/`, `orders/`) with
+  focused role modules (`router.py`, `schemas.py`, `service.py`,
+  `repository.py`, `models.py`) rather than flat repo-wide `routers/`,
+  `models/`, `schemas/`, `crud/`, and `utils/` dumps.
+- **Narrow `__init__.py` contracts:** keep `__init__.py` empty or limited to the
+  capability's intentional public contract; never trigger eager database engine
+  creation, settings I/O, or ORM table side effects at package import time.
+- **Cross-capability & layer edges:** sibling capabilities call each other's
+  public service/contract interface, never importing another capability's ORM
+  `models.py`, private `_` modules, or SQL queries; pure domain/policy modules
+  must not import `fastapi`, `starlette`, or `sqlalchemy` (verify with `rg`).
+- **Workspace splits & complete moves:** in multi-service repos (`api`,
+  `worker`, `cli`), share narrow library distributions (`packages/<capability>`)
+  instead of importing the FastAPI app package into workers; audit any package
+  root past ~20 `.py` files or 3+ mixed roles and move all files of an extracted
+  role together.
 
 ## FastAPI Defaults
 

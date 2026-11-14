@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tests.test_claude_pretool_gate import _decide  # also puts scripts/ on sys.path
 from support.global_state import STATE_HOME_ENV
@@ -25,7 +26,7 @@ from agent_repository_checkouts import (
 )
 from agent_worktree_identity import WorktreeSessionError, new_worktree_path, resolve_base_ref
 from agent_worktree_session import create_worker_worktree, remove_worker_worktree
-from claude_pretool_checkout_removal import checkout_removal_denial
+from claude_pretool_checkout_removal import checkout_removal_denial, merged_worktree_removal
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -177,6 +178,72 @@ class FinishedCleanCheckoutIsRemovableTests(_Repository):
         link = self.base / "link"
         link.symlink_to(self.task)
         self.assertEqual("", checkout_removal_denial(["rm", "-rf", str(link)], self.base))
+
+
+class MergedCleanupWithoutRunTests(_Repository):
+    def setUp(self) -> None:
+        super().setUp()
+        (self.main / ".moru").mkdir()
+        (self.main / "AGENTS.md").write_text("Use moru-hook.\n")
+        _git(self.main, "add", "AGENTS.md")
+        _git(self.main, "commit", "-qm", "workflow policy")
+
+    def test_clean_merged_forced_removal_then_branch_delete_need_no_run(self) -> None:
+        _write_registry(self.task, "completed")
+        for command in (f"git worktree remove --force {self.task}",
+                        f"git -C {self.main} worktree remove -f ../repo-worktrees/task"):
+            with self.subTest(command=command):
+                self.assertIn(self.decision(command)[0], {"allow", "silent"})
+        _git(self.main, "worktree", "remove", "--force", str(self.task))
+        self.assertIn(self.decision("git branch -d owner/fix/task")[0], {"allow", "silent"})
+        _git(self.main, "branch", "-d", "owner/fix/task")
+        self.assertFalse(self.task.exists())
+
+    def test_relative_git_cwd_is_applied_once(self) -> None:
+        (self.main / "subdir").mkdir()
+        self.assertIn(self.decision(
+            f"git -C subdir worktree remove --force ../../repo-worktrees/task"
+        )[0], {"allow", "silent"})
+
+    def test_config_overrides_unknown_flags_and_unavailable_status_are_not_admitted(self) -> None:
+        import claude_pretool_checkout_removal as removal
+
+        for tokens in (["git", "-c", "core.worktree=elsewhere", "worktree", "remove", "--force", str(self.task)],
+                       ["git", "worktree", "remove", "--unknown", str(self.task)]):
+            self.assertFalse(merged_worktree_removal(tokens, self.main))
+        read = removal._git_output
+        with patch.object(removal, "_git_output", side_effect=lambda root, args:
+                          None if args[0] == "status" else read(root, args)):
+            self.assertFalse(merged_worktree_removal(
+                ["git", "worktree", "remove", "--force", str(self.task)], self.main))
+
+    def test_unmerged_worktree_head_refuses_plain_and_forced_removal(self) -> None:
+        _git(self.task, "commit", "--allow-empty", "-qm", "unmerged work")
+        for flag in ("", "--force", "-f"):
+            with self.subTest(flag=flag):
+                self.assertEqual("deny", self.decision(f"git worktree remove {flag} {self.task}")[0])
+        self.assertTrue(self.task.is_dir())
+
+    def test_dirty_merged_worktree_stays_denied(self) -> None:
+        (self.task / "module.py").write_text("value = 2\n")
+        self.assertEqual("deny", self.decision(f"git worktree remove --force {self.task}")[0])
+
+    def test_branch_capital_d_and_force_stay_governed(self) -> None:
+        for options in ("-D", "-d --force", "-df"):
+            with self.subTest(options=options):
+                self.assertNotIn(self.decision(f"git branch {options} owner/fix/task")[0],
+                                 {"allow", "silent"})
+
+    def test_branch_delete_leaves_unmerged_branch_to_git_refusal(self) -> None:
+        _git(self.task, "commit", "--allow-empty", "-qm", "unmerged work")
+        _git(self.main, "branch", "unmerged", "owner/fix/task")
+        # -d is self-protecting: admission does not turn it into a forced deletion.
+        self.assertIn(self.decision("git branch -d unmerged")[0], {"allow", "silent"})
+        result = subprocess.run(["git", "branch", "-d", "unmerged"], cwd=self.main,
+                                capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("not fully merged", result.stderr)
+        _git(self.main, "show-ref", "--verify", "refs/heads/unmerged")
 
 
 class WorkerWorktreeRunTests(unittest.TestCase):

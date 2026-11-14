@@ -111,7 +111,14 @@ class PlatformInferenceTests(unittest.TestCase):
                 self.assertIsNone(infer_platform(request))
 
     def test_macos_selects_shared_swift_platform_without_implying_ios(self):
-        for request in ("macOS 앱 리팩토링", "Swift macOS app refactor", "Swift code cleanup"):
+        for request in (
+            "macOS 앱 리팩토링",
+            "Swift macOS app refactor",
+            "Swift code cleanup",
+            "스위프트 패키지 분리 리팩토링",
+            "스위프트에서 타겟 분리",
+            "Swift package boundary cleanup",
+        ):
             with self.subTest(request=request):
                 self.assertEqual(infer_platform(request), "swift")
                 route, error, status = preflight.route_payload(self.args(request, ""))
@@ -119,8 +126,18 @@ class PlatformInferenceTests(unittest.TestCase):
                 self.assertEqual(route["platform"], "swift")
                 self.assertFalse(any(doc.startswith("platforms/ios/") for doc in route["required_docs"]))
 
+    def test_ios_target_and_package_scope_inferred_without_flag(self):
+        for request in ("iOS 타겟 분리", "아이오에스 앱 모듈 분리", "iOS package split"):
+            with self.subTest(request=request):
+                self.assertEqual(infer_platform(request), "ios")
+
     def test_macos_exclusions_and_cross_platform_requests_abstain(self):
-        for request in ("macOS 앱은 제외", "Maybe a macOS app", "macOS app and iOS app"):
+        for request in (
+            "macOS 앱은 제외",
+            "스위프트 패키지는 건드리지 마",
+            "Maybe a macOS app",
+            "macOS app and iOS app",
+        ):
             self.assertIsNone(infer_platform(request))
 
     def test_ambiguous_negated_unrelated_and_repository_mentions_abstain(self):

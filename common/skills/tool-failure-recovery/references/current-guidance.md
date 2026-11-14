@@ -122,13 +122,17 @@ Hook failure:
 - Treat a hook `FAIL` as an active recovery task, not a handoff summary.
 - Read every failure detail and classify it as safe scoped fix, scope decision,
   environment blocker, external-state risk, or broader refactor.
-- Follow the canonical bounded repair cycle in
+- Correct ordinary task, invocation, missing-evidence and environment failures
+  at their actual owner, then verify only the affected scope. A gate refusal
+  or failed test alone does not justify changing Moru Core or generating a
+  repair receipt. Reuse the existing task records; do not add a parallel diary.
+- Only for an evidenced framework defect, follow the bounded repair cycle in
   `workflows/skills/retrospective-learning/SKILL.md`: run an actionable
   retrospective, improve and verify the owning Moru Core guidance, hook,
   validator, or test, then resume the original task at
   `first_failed_checkpoint`.
-- Keep the hook read-only. Apply safe scoped fixes outside it only after the
-  durable Moru Core improvement is verified.
+- Keep the hook read-only. Apply scoped corrections outside it; an identified
+  framework defect retains its verified repair receipt and single-cycle limit.
 - If recovery requires destructive action, credentials, external state, or a
   broader refactor, ask before acting. Stop when the same failure signature
   recurs after repair, the repair is unsafe or ambiguous, source ownership is

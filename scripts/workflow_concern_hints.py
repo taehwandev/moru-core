@@ -438,12 +438,20 @@ REQUEST_CONCERN_HINTS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
     (
         "device-testing",
         (
-            r"(?:실기기|실제\s*기기|에뮬레이터|안드로이드\s*기기)(?![^\n]*(?:없이|필요\s*없|제외|생략)).{0,60}(?:테스트|검증|확인|재현)",
+            r"(?:실기기|실제\s*기기|에뮬레이터|안드로이드\s*기기|플립|휴대폰)(?![^\n]*(?:없이|필요\s*없|제외|생략)).{0,60}(?:테스트|검증|확인|재현|돌려)",
             r"\b(?:real device|android device|emulator)(?![^\n]*\bwithout\b).{0,60}\b(?:test|verify|check|reproduce)",
             r"\b(?:test|verify|check|reproduce).{0,60}\bon (?:the |an? )?(?:android device|real device|emulator)\b",
+            r"\brun\s+scenarios?\s+on (?:the |an? )?(?:android device|real device|emulator)\b",
             r"\b(?:android|mobile) (?:ui|e2e|end-to-end) (?:test|verification)",
             r"안드로이드\s*(?:ui|화면|e2e)\s*(?:테스트|검증)",
             r"\bdevice[- ]mcp\b",
+        ),
+    ),
+    (
+        "device-scenario-qa",
+        (
+            r"^(?=[^\n]*(?:실기기|실제\s*기기|에뮬레이터|안드로이드\s*기기|플립|휴대폰))(?![^\n]*(?:없이|필요\s*없|제외|생략|하지\s*마|하지\s*않))(?=[^\n]*시나리오)(?=[^\n]*(?:테스트|검증|확인|돌려))",
+            r"^(?=[^\n]*\b(?:real device|android device|emulator)\b)(?![^\n]*(?:\bwithout\b|\bdo not\b|\bdon't\b))(?=[^\n]*\bscenarios?\b)(?=[^\n]*\b(?:test|verify|check|run)\b)",
         ),
     ),
     (

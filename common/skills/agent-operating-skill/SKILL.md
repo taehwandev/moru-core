@@ -59,9 +59,8 @@ continuations; advance revisions on change. See
 Coverage checks mapped files/gates, not omitted requirements or semantic truth.
 Judge outcomes against actual observing results; coverage grants no authority.
 
-The prompt hook delivers this section once per session and on change. It starts
-no task, invalidates no passed check and grants no authority; a completed task
-stays completed.
+The prompt hook delivers this section once per session and on change; it grants
+no authority and reopens no completed task.
 
 ## Proportionate Execution
 
@@ -76,6 +75,9 @@ operational evidence unless tracked records are required. A receipt alone never
 justifies another start/review/finish. Never create a journal, dummy diff, test,
 worktree move or second task just to feed a gate. Report a manifest conflict; do
 not fake a pass.
+
+Parallel slices: one worktree and `start` each; when merged, remove it and
+`git branch -d`.
 
 ## Execution Round Trips
 

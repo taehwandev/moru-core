@@ -54,7 +54,7 @@ def merge_codex_pre_tool_gate(target: Path, command: str, dry_run: bool) -> str:
     if not isinstance(groups, list):
         groups = []
 
-    current = False
+    current_count = 0
     stale = False
     for group in groups:
         if not isinstance(group, dict):
@@ -64,14 +64,14 @@ def merge_codex_pre_tool_gate(target: Path, command: str, dry_run: bool) -> str:
                 continue
             hook_command = str(hook.get("command") or "")
             if hook_command == command and group.get("matcher") == CODEX_PRETOOL_MATCHER:
-                current = True
+                current_count += 1
             elif MANAGED_PRETOOL_ALIAS in hook_command:
                 stale = True
 
-    if current and not stale:
+    if current_count == 1 and not stale:
         return "ok"
     if dry_run:
-        return "would_update" if current or stale else "missing"
+        return "would_update" if current_count or stale else "missing"
 
     cleaned = _without_managed_hooks(groups, MANAGED_PRETOOL_ALIAS)
     cleaned.append(
@@ -97,7 +97,7 @@ def merge_codex_stop_gate(target: Path, command: str, dry_run: bool) -> str:
     if not isinstance(groups, list):
         groups = []
 
-    current = False
+    current_count = 0
     stale = False
     for group in groups:
         if not isinstance(group, dict):
@@ -110,14 +110,14 @@ def merge_codex_stop_gate(target: Path, command: str, dry_run: bool) -> str:
                 continue
             hook_command = str(hook.get("command") or "")
             if hook_command == command:
-                current = True
+                current_count += 1
             elif MANAGED_STOP_ALIAS in hook_command:
                 stale = True
 
-    if current and not stale:
+    if current_count == 1 and not stale:
         return "ok"
     if dry_run:
-        return "would_update" if current or stale else "missing"
+        return "would_update" if current_count or stale else "missing"
 
     cleaned = _without_managed_hooks(groups, MANAGED_STOP_ALIAS)
     cleaned.append(

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import pathlib
 import subprocess
@@ -24,6 +26,7 @@ from support.project_tree import (
 import workflow_doc_graph_build
 from workflow_doc_graph_build import _markdown_docs, clear_doc_graph_cache
 from workflow_route import resolve_docs
+import workflow_validate
 from workflow_validate import MARKDOWN_VALIDATE_IGNORED_DIRS, markdown_files_to_validate
 
 
@@ -178,6 +181,38 @@ class PrunedWalkTests(unittest.TestCase):
             found = {path.relative_to(base).as_posix() for path in iter_project_files(base)}
 
             self.assertEqual({"guide.md", "code.py"}, found)
+
+    def test_a_macos_sidecar_is_not_a_document(self) -> None:
+        # macOS tar and archive tools add `._<name>` beside every file when a
+        # tree is copied from a Mac. The sidecar holds binary metadata and
+        # carries the real file's suffix, so it used to enter the markdown
+        # validator as a document that cannot be decoded.
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            build(base, "AGENTS.md", "docs/guide.md")
+            (base / "._AGENTS.md").write_bytes(b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X \xa3")
+            (base / "docs" / "._guide.md").write_bytes(b"\x00\x05\x16\x07\xa3")
+
+            found = {path.relative_to(base).as_posix() for path in iter_project_files(base, "*.md")}
+            everything = {path.relative_to(base).as_posix() for path in iter_project_files(base)}
+
+            self.assertEqual({"AGENTS.md", "docs/guide.md"}, found)
+            self.assertEqual({"AGENTS.md", "docs/guide.md"}, everything)
+
+    def test_a_document_that_is_not_utf8_is_named_instead_of_crashing_validation(self) -> None:
+        # The validator reads from the repository root, so the broken document
+        # has to live under it for the length of the call.
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+            base = Path(directory)
+            (base / "broken.md").write_bytes(b"---\nname: x\n---\n\xa3 not text\n")
+            captured = io.StringIO()
+
+            with contextlib.redirect_stderr(captured):
+                status = workflow_validate.validate()
+
+            relative = (base / "broken.md").relative_to(ROOT).as_posix()
+            self.assertNotEqual(0, status)
+            self.assertIn(f"{relative}: not valid UTF-8", captured.getvalue())
 
 
 def scanned_directories(walk) -> list[str]:

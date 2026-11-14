@@ -596,7 +596,8 @@ class WorkflowDocSurfacesTests(unittest.TestCase):
         self.assertIn("platforms/ios/skills/figma-to-ios/SKILL.md", docs)
         self.assertIn("platforms/web/skills/figma-to-web/SKILL.md", docs)
         self.assertEqual(
-            ["platforms/web/skills/web-react-ui/SKILL.md"],
+            ["common/nodes/ui-state-render-boundary.md",
+             "platforms/web/skills/web-react-ui/SKILL.md"],
             rules["doc_sets"]["web_react_ui"],
         )
 

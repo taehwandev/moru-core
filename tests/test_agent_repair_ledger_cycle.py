@@ -176,14 +176,14 @@ class RepairLedgerCycleTests(unittest.TestCase):
         self.assertIn("invalid choice", result.stderr)
         self.assertNotIn("recovery request", result.stdout + result.stderr)
 
-    def test_hook_failure_policy_requires_verified_repair_before_resume(self) -> None:
+    def test_hook_failure_policy_classifies_owner_before_framework_repair(self) -> None:
         policy, details = hook_failure_policy(success=False, repair_cycle=0)
 
-        self.assertEqual("retrospective_then_repair_verify_resume", policy["next_action"])
-        self.assertEqual("verified_moru_improvement", policy["recovery_required"])
+        self.assertEqual("diagnose_correct_verify_resume", policy["next_action"])
+        self.assertEqual("verified_owner_correction", policy["recovery_required"])
         joined_details = " ".join(details)
-        self.assertIn("actionable retrospective", joined_details)
-        self.assertIn("Moru Core doc, hook, validator, or test", joined_details)
+        self.assertIn("Only an evidenced framework defect", joined_details)
+        self.assertIn("failed gate alone does not require a Moru Core edit", joined_details)
         self.assertIn("--repair-cycle 1", joined_details)
         self.assertIn("--resume-checkpoint", joined_details)
 

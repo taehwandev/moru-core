@@ -319,6 +319,16 @@ def _route_prose(route: dict[str, Any]) -> list[tuple[str, str]]:
     return prose
 
 
+def _read_markdown(path: Path, relative: Path, failures: list[str]) -> str | None:
+    """Read a document as text, naming the file when it is not text."""
+
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        failures.append(f"{relative}: not valid UTF-8 (byte {error.start})")
+        return None
+
+
 def validate() -> int:
     refs: set[str] = set(CORE_DOCS)
     for profile in COMMANDS.values():
@@ -345,7 +355,9 @@ def validate() -> int:
 
     for path in markdown_files:
         relative = path.relative_to(ROOT)
-        text = path.read_text(encoding="utf-8")
+        text = _read_markdown(path, relative, bad_frontmatter)
+        if text is None:
+            continue
         bad_removed_cli_options.extend(removed_cli_option_failures(relative, text))
         if not text.startswith("---\n"):
             bad_frontmatter.append(f"{relative}: missing frontmatter")

@@ -93,6 +93,10 @@ not install or relaunch the app, and read each save's result with
 
 ## Verification
 
+- For state-owner-backed screens, require concrete holder and content
+  composables. Trace app entry -> holder -> content and content callback ->
+  ViewModel action; render that content directly with fixture state. A renamed
+  monolith or an unused preview-only content function does not satisfy the split.
 - Compile changed modules; render changed previews.
 - Input screens: IME open and closed, bottom action and last field visible, no
   bottom gap.

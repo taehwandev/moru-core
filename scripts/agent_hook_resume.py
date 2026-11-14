@@ -36,6 +36,12 @@ REFUSAL_GUIDANCE = {
     "live_owner_refused": (
         "the targeted packet's run still has a live owner; resume never substitutes another task"
     ),
+    "already_active_same_session": (
+        "the targeted run is already active in this runtime session and process; "
+        "no claim was granted and no packet was resumed. Do not retry resume; "
+        "the existing executor may continue with its original evidence; "
+        "a concurrent worker must not act on this diagnostic"
+    ),
     "owner_unproven_wait": (
         "the targeted packet's owner cannot be proven dead and its fallback window has not expired"
     ),
