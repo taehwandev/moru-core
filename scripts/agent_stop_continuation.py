@@ -155,6 +155,7 @@ def continuation_reason(payload: dict, runtime: str, project: Path, evidence: Pa
                 or not same_runtime_session(preflight.get("runtime_session"), identity,
                                             resume_generation=int(run.get("resume_generation") or 0))
                 or preflight.get("execution_mode", {}).get("read_only")
+                or route.get("command") == "commit"
                 or route_minimum_effect(route.get("command", "")) == "read"
                 or not envelope.get("schema_valid") or not envelope.get("envelope_present")
                 or envelope.get("failures") or envelope.get("effective_effect") not in
@@ -162,12 +163,17 @@ def continuation_reason(payload: dict, runtime: str, project: Path, evidence: Pa
             return None
         packet = bound_work_packet(project, evidence)
         if (not packet or packet.get("phase") not in {"scoped", "acting", "verifying", "reviewing"}
-                or not ((packet.get("work") or {}).get("remaining_work") or scope_unreconciled(preflight, packet))
                 or not stop_ready(payload, identity, project, independent_work=True)):
             return None
-        from agent_completion_checks import progress_note
+        from agent_completion_checks import coverage_observation, progress_note
         work = packet.get("work") or {}
-        note = progress_note(project, evidence, work, identity) + _surface_graph_note(project, preflight, work)
+        coverage_note = ""
+        if not (work.get("remaining_work") or scope_unreconciled(preflight, packet)):
+            observed = coverage_observation(project, evidence, work, route)
+            if not observed or not observed.get("failures"):
+                return None  # Unknown native state cannot supply an executable retry.
+            coverage_note = " Recorded requirement coverage is incomplete: " + "; ".join(observed["failures"][:3])
+        note = coverage_note + progress_note(project, evidence, work, identity) + _surface_graph_note(project, preflight, work)
         return (
             "This existing user-approved task has remaining work or has not reconciled its "
             "full requested scope. Reconcile the bounded scope first, then continue remaining "

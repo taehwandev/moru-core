@@ -45,13 +45,18 @@ def _gates(evidence: Path) -> list[dict]:
 
 
 def coverage_failures(project: Path, evidence: Path, work: dict, route: dict) -> list[str]:
-    if "requirements" not in work:
-        return []
-    result = completion_native("coverage", {"current": work["requirements"], "project": str(project.resolve()),
-        "gates": _gates(evidence), "allowed_gates": route.get("gates", [])})
+    result = coverage_observation(project, evidence, work, route)
     if result is None:
         return ["requirements coverage is unavailable; restore the matching native runtime before finish"]
     return result["failures"]
+
+
+def coverage_observation(project: Path, evidence: Path, work: dict, route: dict) -> dict | None:
+    """Reuse native policy; unavailable observation cannot drive a Stop retry."""
+    if "requirements" not in work:
+        return {"failures": []}
+    return completion_native("coverage", {"current": work["requirements"], "project": str(project.resolve()),
+        "gates": _gates(evidence), "allowed_gates": route.get("gates", [])})
 
 
 def progress_note(project: Path, evidence: Path, work: dict, identity: dict) -> str:

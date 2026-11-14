@@ -89,11 +89,24 @@ def validate_completion_binding(project: Path, identity: dict, binding: dict) ->
         raise ValueError("task completion request binding has changed")
 
 
-def stop_ready(payload: dict, identity: dict, project: Path, *, independent_work: bool = False) -> bool:
+def stop_signal_ready(payload: dict, identity: dict) -> bool:
+    """User stops and approval waits outrank both active and finished work reminders."""
     if payload.get("stop_hook_active") or any(payload.get(key) for key in
             ("user_interrupted", "interrupted", "approval_pending", "waiting_for_approval")):
         return False
     if payload.get("stop_reason") not in (None, "", "end_turn", "completed"):
+        return False
+    directory = global_state_dir() / "codex-operator-review"
+    paths = list(directory.glob("*.json")) if directory.exists() else []
+    if len(paths) > 128:
+        return False
+    return not any(record.get("session_id") == identity["session_id"] and record.get("status") == "pending"
+                   and record.get("expires_at", 0) > time.time()
+                   for record in (read_json_object(path) for path in paths))
+
+
+def stop_ready(payload: dict, identity: dict, project: Path, *, independent_work: bool = False) -> bool:
+    if not stop_signal_ready(payload, identity):
         return False
     evidence = resolve_runtime_evidence(project, identity)
     if evidence is None:
@@ -105,10 +118,4 @@ def stop_ready(payload: dict, identity: dict, project: Path, *, independent_work
     if (packet.get("phase") == "blocked" or (work.get("blockers") and not partial)
             or (packet.get("checkpoint") or {}).get("mutation_pending") is not None):
         return False
-    directory = global_state_dir() / "codex-operator-review"
-    paths = list(directory.glob("*.json")) if directory.exists() else []
-    if len(paths) > 128:
-        return False
-    return not any(record.get("session_id") == identity["session_id"] and record.get("status") == "pending"
-                   and record.get("expires_at", 0) > time.time()
-                   for record in (read_json_object(path) for path in paths))
+    return True

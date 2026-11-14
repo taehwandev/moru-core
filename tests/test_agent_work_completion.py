@@ -119,3 +119,64 @@ class WorkCompletionTests(unittest.TestCase):
                     binding_path=self.run.evidence, kind="decision",
                     work={"objective": f"{command} workflow", "remaining_work": []})
                 self.assertEqual([], self.finish_failures())
+
+    def publication(self, **work):
+        import json
+
+        self.run.route.update(command="commit", gates=["request intake", "review hook", "commit readiness"])
+        self.run.route["request_classification"]["intent_envelope"].update(
+            authority="envelope", schema_valid=True, failures=[], effective_effect="external_write")
+        self.run.evidence.write_text(json.dumps(self.run.binding))
+        return write_continuation_checkpoint(project=self.run.project, rules=self.run.project,
+            run_id=self.run.run["run_id"], binding_path=self.run.evidence, kind="decision",
+            work={"objective": "commit workflow", "remaining_work": [], **work})
+
+    def test_commit_pr_readiness_precedes_its_actual_publication_actions(self):
+        pending = [{"checkpoint": "publication.commit", "action": "Create the authorized commit after finish"},
+                   {"checkpoint": "publication.pull-request/main", "action": "Create the authorized PR after finish"}]
+        packet = self.publication(remaining_work=pending)
+        self.assertEqual([], self.finish_failures())
+        self.assertEqual(pending, packet["work"]["remaining_work"])
+        self.assertEqual("running", self.run.state())
+
+    def test_commit_cannot_defer_unfinished_implementation_with_publication(self):
+        self.publication(remaining_work=[
+            {"checkpoint": "publication.commit", "action": "Commit after finish"},
+            {"checkpoint": "implementation", "action": "Complete the requested behavior"}])
+        self.assertTrue(any("remains unfinished" in x for x in self.finish_failures()))
+
+    def test_commit_keeps_implementation_requirements_as_context_not_current_gates(self):
+        required = {"revision": 1, "items": [{"id": "r1", "outcome": "Implement the requested behavior",
+                    "owner": "lead", "gate": "tests", "artifacts": ["implementation.md"]}]}
+        with patch("agent_completion_checks.requirement_update"):
+            packet = self.publication(requirements=required)
+        with patch("agent_completion_checks.coverage_failures") as coverage:
+            self.assertEqual([], self.finish_failures())
+        coverage.assert_not_called()
+        self.assertEqual(required, packet["work"]["requirements"])
+
+    def test_publication_still_refuses_blockers_pending_operations_and_stale_binding(self):
+        import json
+
+        self.publication(blockers=["Publication authorization unresolved"])
+        self.assertTrue(any("unresolved blockers" in x for x in self.finish_failures()))
+        self.publication(blockers=[])
+        self.checkpoint(kind="pre_mutation", mutation={"kind": "update", "paths": ["source.txt"]})
+        self.assertTrue(any("unresolved operation" in x for x in self.finish_failures()))
+        altered = dict(self.run.binding, request_intake={"request": "foreign scope"})
+        self.run.evidence.write_text(json.dumps(altered))
+        self.assertTrue(any("unreadable or stale" in x for x in self.finish_failures()))
+
+    def test_real_commit_finish_still_rejects_missing_review_and_readiness(self):
+        self.publication(remaining_work=[{"checkpoint": "publication.pull-request/main", "action": "Create authorized PR after finish"}])
+        scripts = Path(__file__).resolve().parents[1] / "scripts"
+        env = dict(os.environ, CODEX_THREAD_ID="bound-session", CLAUDE_CODE_SESSION_ID="",
+                   MORU_STATE_HOME=self.tmp.name + "/global-state")
+        result = subprocess.run([sys.executable, "-B", str(scripts / "agent-hook.py"), "finish",
+            "--project", str(self.run.project), "--rules", str(self.run.project),
+            "--evidence", str(self.run.evidence)], text=True, capture_output=True, env=env, timeout=30)
+        self.assertNotEqual(0, result.returncode)
+        self.assertNotIn("requested delivery is still pending", result.stdout)
+        self.assertIn("missing required gate evidence", result.stdout)
+        self.assertIn("review hook", result.stdout)
+        self.assertNotEqual("completed", self.run.state())

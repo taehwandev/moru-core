@@ -542,6 +542,10 @@ def _review_verdict(
             str(getattr(args, "allow_vibeguard_review", "") or "").strip(),
         )
     )
+    if not failures:
+        from agent_intake_context import IntakeContext
+        details.extend(IntakeContext.review_note(args.project,
+            args.evidence or project_state_dir_target(args.project) / "preflight.json"))
     if not failures and checks.get("reported_findings"):
         details.append(
             "review outcome: findings recorded as this read-only review's result; "

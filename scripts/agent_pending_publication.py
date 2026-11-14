@@ -145,14 +145,16 @@ def record_pending(project: Path, evidence: Path, deferred: list) -> str:
     if problem != "missing":
         return f"pending-publication record is {problem}"
     head = _git(project, "rev-parse", "HEAD")
-    if not head:
-        return "project HEAD could not be read to anchor the pending publication"
+    branch = _git(project, "symbolic-ref", "--short", "HEAD")
+    if not head or not branch:
+        return "project HEAD or source branch could not be read to anchor the pending publication"
     try:
         atomic_write_json(_path(evidence), {
             "schema_version": 1,
             "run_id": evidence.parent.name,
             "evidence_sha256": _sha(evidence),
             "base_head": head,
+            "source_branch": branch,
             "items": [{"checkpoint": c, "state": "pending", "observation": ""} for c in dict.fromkeys(wanted)],
         })
     except (OSError, ValueError) as error:
@@ -219,6 +221,11 @@ def _remote_head(project: Path, head: str) -> tuple[str, str]:
 def _observe(project: Path, record: dict, item: dict, observation_path: Path | None = None) -> tuple[str, str]:
     """Check Git and the caller's provider observation against the reviewed unit."""
     checkpoint, base_head = kind(item["checkpoint"]), record["base_head"]
+    branch = _git(project, "symbolic-ref", "--short", "HEAD")
+    if not record.get("source_branch"):
+        return "", "source branch was not recorded; re-prepare this publication under current authority"
+    if branch != record["source_branch"]:
+        return "", "source branch differs from the finished publication"
     head = _git(project, "rev-parse", "HEAD")
     if not head:
         return "", "HEAD could not be read"

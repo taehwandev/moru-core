@@ -31,6 +31,105 @@ the required lifecycle before edits; reuse the living task and existing authorit
 
 ## Verification And Maintenance
 
+### Original intake alongside the current checklist (H06, H08, H09)
+
+The follow-up found that preserving an agent-authored requirement map still
+cannot surface an outcome omitted while authoring it. Existing resume context
+returned an unchecked original-intake locator, but neither that context nor
+implementation review showed the original request for comparison.
+
+| ID | Priority | Owner and reproduced behavior | Repair and observing check |
+| --- | --- | --- | --- |
+| F33 | Medium / H08, H09 | A source request for features A and B plus keyboard access is reduced to an A-only checklist; recovery and review only show that incomplete checklist. | `agent_intake_context.py` reads the exact registered origin with both packet bindings checked; resume CLI and implementation review receive the existing quoted source. Tests exercise both actual renderers, changed bindings, foreign project/session boundaries and oversized input without truncation. It adds no gate, persisted prompt copy, provider classifier or publication burden. |
+
+This supports semantic reconciliation by the runtime agent; it is not a
+deterministic semantic evaluator. A stale/foreign origin is not guessed from a
+transcript or the latest run, and a machine-green result never proves that every
+requested outcome was delivered. Current user revisions take precedence.
+
+In a synthetic runtime check, the actual recovery helper returned the original
+A-and-B request plus keyboard constraint while the declared result contained
+only A. Existing Claude and AGY CLIs each returned `completion_supported: false`
+and identified both B and keyboard access as missing. No real user content or
+local paths were sent. This is one concrete semantic-reconciliation example,
+not a universal omission detector or model-quality benchmark.
+
+### Implementation delivery versus publication readiness (H06, H08)
+
+Baseline `9029c2b0`, macOS/Codex, clean isolated task checkout. The report was
+that ordinary work still dropped requirements while commit/PR later refused
+to proceed. Two readiness tests reproduced the stage mismatch: a default
+`commit workflow` checkpoint with pending authorized publication actions was
+rejected as unreconciled/unfinished delivery; retained implementation mappings
+could also demand gates absent from the commit manifest. The inspected local
+commit record had already completed, so this is not an attribution of every
+reported refusal to that particular run.
+
+| ID | Priority | Owner and reproduced behavior | Repair and observing check |
+| --- | --- | --- | --- |
+| F31 | High / H06, H08 | `agent_work_completion.py` applied implementation scope and coverage checks to normalized commit/PR readiness, before those actions could legally execute. | Keep implementation mappings as context; use current publication route gates. Preserve upstream canonical effect-admitted publication deferral and receipts; other remaining work still blocks, as do stale packets, explicit blockers and pending operations. A real finish CLI still refuses missing review/readiness; no publication command or authority is synthesized. |
+| F32 | Medium / H06, H08 | `agent_stop_continuation.py` only observed declared remaining work/default scope, so an empty list hid a recorded missing artifact until finish. | At an eligible ordinary writable Stop, reuse native coverage when the list is empty. Missing recorded gates/artifacts get the existing one continuation; no mapping or unknown native observation adds no retry. Codex native-artifact integration and both runtime adapters observe the reminder; user stop, approval wait and retry limits remain. Publication never replays this implementation loop. |
+
+This is a correction to the previous continuity repair, not semantic requirement
+inference. Unknown or never-recorded requirements remain unobservable. Existing
+review, safety, input freshness and effect-authority contracts remain mandatory.
+No new gate, schema, storage service, transcript reader or provider call is added.
+Native artifacts are built offline in ignored task state for real integration
+checks; no global install, main integration, push or PR is performed by this task.
+
+Real Claude and AGY read-only critiques both identified the ordering conflict.
+The selected repair uses normalized route ownership, not free-text classification
+or a new delivery/publication schema. Both noted that reviewed but incomplete
+or untested work can still be committed: readiness is not an implementation
+completion certificate. Preserve that distinction rather than add a blanket
+requirement for every commit to repeat a completed implementation lifecycle.
+
+Local verification: 29 delivery/Stop tests, 14 native completion integration
+tests, one real commit-finish negative control and 176 commit-readiness,
+continuity, publication-admission, readonly and runtime-adapter compatibility
+tests passed (220 unique tests). The strengthened native Stop scenario passed
+again in a serial run, including unavailable-native behavior; an earlier parallel
+attempt timed out during fixture `git init` at its unchanged five-second limit.
+That failure remains in ignored logs and is not counted as a pass. Injecting an
+empty coverage observation killed the missing-artifact regression with the
+expected output assertion. No test timeout or authority check was relaxed.
+Workflow validation checked 205 references, 504 frontmatter/link blocks and
+30 route contracts. These local checks do not prove semantic task completion
+or a globally activated fix.
+
+Before final review, the base advanced to `d4b5c7f3`. Preserve its active-session
+continuation wording and added resume/ownership tests; the nine-file patch applied
+cleanly. Recheck the overlapping Stop, resume/claim and completion boundaries on
+that base rather than reinterpret the earlier 220 tests as fresh integrated runs.
+The final integrated run passed 98 completion, Stop, native-coverage, resume and
+interruption tests. Validation on that base passed 206 references, 505
+frontmatter/link blocks and 30 route contracts; both staged and working-tree
+whitespace checks passed.
+
+The actual-PC repair landed independently in `6b48f8b0`. Its 30 dedicated tests
+passed on main before integration into this task branch. It defers only exact,
+effect-admitted publication checkpoints and preserves receipts until Git/provider
+observations settle them. The broader draft exemption was removed; mixed
+publication and unfinished implementation still fails. Main was not edited.
+An additional completed-run probe reproduced a safety gap in both Stop adapters:
+`user_interrupted`, `approval_pending`, and `waiting_for_approval` still returned
+`block` (continue). Both now reuse the existing stop-signal and operator-wait
+policy; pausing leaves the publication receipt owed. These checks concern
+preparation and publication ordering, not arbitrary requirement semantics.
+Real Claude and AGY design critiques also requested wrong-branch observation
+checks. A local probe settled a commit made on another source branch. New
+receipts therefore retain the finish source branch and refuse settlement after
+a branch switch, without changing the receipt. Detached preparation is refused;
+legacy receipts without that anchor remain owed and require fresh preparation,
+never a guessed branch or an automatic data migration. Provider observations
+remain caller-supplied evidence rather than authenticated provider queries.
+
+On the integrated base, 302 delivery, Stop, resume, review and mailbox tests
+passed. After the final source-branch guard, all 36 publication tests passed;
+the native runtime was rebuilt and its 14 completion integration tests passed
+again. These are local executable checks plus two providers' bounded design
+critiques, not a live observation of the other PC or a general quality score.
+
 ### Requirement delivery and state-review scope (H06, H08, H09)
 
 Baseline `8eebeb55`, macOS/Codex, clean isolated task checkout. Claude's real
