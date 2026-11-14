@@ -229,7 +229,8 @@ def startup_summary_line(records: list[dict[str, Any]], project: Path, launcher:
                          *, today: date) -> str:
     """Linear, content-free hints; fuzzy comparison belongs to explicit consolidate."""
     from support.native_memory_upkeep import NativeMemoryUpkeep
-    packet = NativeMemoryUpkeep.startup(records, normalize, date.fromisoformat, today, RECALLABLE_STATUSES)
+    packet = NativeMemoryUpkeep.startup(records, normalize, date.fromisoformat, today,
+                                      RECALLABLE_STATUSES, strict_dates=date is _NATIVE_DATE)
     if packet is None:
         return _startup_summary_line_reference(records, project, launcher, today=today)
     counts, prepared = packet

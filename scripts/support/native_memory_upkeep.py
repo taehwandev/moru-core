@@ -70,7 +70,7 @@ class NativeMemoryUpkeep:
         return findings
 
     @staticmethod
-    def startup(records, normalizer, parse_date, today, statuses):
+    def startup(records, normalizer, parse_date, today, statuses, *, strict_dates=False):
         if (not NativeMemoryUpkeep._profile(records, ("status",))
                 or type(statuses) is not frozenset or any(type(s) is not str for s in statuses)):
             return None
@@ -88,13 +88,18 @@ class NativeMemoryUpkeep:
             return None
         rows = [{"id":row["id"],"body":normalizer(row["body"]),"scope":row["scope"],
                  "source":normalizer(row["source"]),"replaces":row.get("replaces")} for row in records]
+        strict_dates = (strict_dates is True and type(parse_date) is type(date.fromisoformat)
+                        and parse_date == date.fromisoformat)
         for row, original in zip(rows, records):
-            row["review"] = parse_date(original["review_on"]).toordinal()
-        result = NativeMemoryUpkeep._request("upkeep-startup", rows, today=today.toordinal())
-        if type(result) is not dict or set(result) != {"counts"}:
-            return None, rows
-        counts = result["counts"]
-        if (type(counts) is not dict or set(counts) != set(_COUNTS)
-                or any(type(n) is not int or not 0 <= n <= len(records) for n in counts.values())):
-            return None, rows
-        return {key:counts[key] for key in _COUNTS}, rows
+            row["review"] = (original["review_on"] if strict_dates
+                             else parse_date(original["review_on"]).toordinal())
+        result = NativeMemoryUpkeep._request("upkeep-startup-dates" if strict_dates else "upkeep-startup",
+            rows, today=today.isoformat() if strict_dates else today.toordinal())
+        counts = result.get("counts") if type(result) is dict and set(result) == {"counts"} else None
+        if (type(counts) is dict and set(counts) == set(_COUNTS)
+                and all(type(n) is int and 0 <= n <= len(records) for n in counts.values())):
+            return {key:counts[key] for key in _COUNTS}, rows
+        if strict_dates:
+            for row in rows:
+                row["review"] = parse_date(row["review"]).toordinal()
+        return None, rows

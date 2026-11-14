@@ -123,7 +123,12 @@ fn all_operations_accept_valid_empty_payloads() {
 
 #[test]
 fn protocol_rejects_wrong_version_extra_fields_and_invalid_ordinals() {
-    for operation in ["upkeep-live", "upkeep-replacements", "upkeep-startup"] {
+    for operation in [
+        "upkeep-live",
+        "upkeep-replacements",
+        "upkeep-startup",
+        "upkeep-startup-dates",
+    ] {
         assert!(MemoryUpkeep::evaluate(operation, &json!([])).is_none());
         let mut wrong = packet(json!([]));
         wrong["unicode"] = json!("wrong");
@@ -151,6 +156,81 @@ fn protocol_rejects_wrong_version_extra_fields_and_invalid_ordinals() {
     let mut bad_status = live(json!([]));
     bad_status["statuses"] = json!([1]);
     assert!(MemoryUpkeep::evaluate("upkeep-live", &bad_status).is_none());
+}
+
+#[test]
+fn startup_iso_dates_preserve_boundaries_and_count_each_duplicate_id_independently() {
+    let mut records = json!([
+        row("a", "task", "same", "docs", Value::Null, 1),
+        row("a", "all", "same", "docs", json!("a"), 1),
+        row("c", "review", "", "other", Value::Null, 1)
+    ]);
+    for (index, text) in ["2000-02-29", "2000-03-01", "0001-01-01"]
+        .iter()
+        .enumerate()
+    {
+        records[index]["review"] = json!(text);
+    }
+    let mut value = packet(records);
+    value["today"] = json!("2000-02-29");
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-dates", &value),
+        Some(json!({"counts":{"expired":2,"exact_duplicates":1,"shared_source":1,"unfinished":2}}))
+    );
+    value["today"] = json!("0001-01-01");
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-dates", &value).unwrap()["counts"]["expired"],
+        json!(1)
+    );
+    value["today"] = json!("9999-12-31");
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-dates", &value).unwrap()["counts"]["expired"],
+        json!(3)
+    );
+}
+
+#[test]
+fn startup_iso_dates_reject_malformed_calendar_and_cross_schema_values_atomically() {
+    let mut value = packet(json!([
+        {"id":"a","scope":"task","body":"x","source":"docs","replaces":null,"review":"2026-11-13"},
+        {"id":"b","scope":"task","body":"x","source":"docs","replaces":null,"review":"2026-11-13"}
+    ]));
+    value["today"] = json!("2026-11-13");
+    for bad in [
+        json!("1900-02-29"),
+        json!("0000-01-01"),
+        json!("10000-01-01"),
+        json!("2026-13-01"),
+        json!("20261113"),
+        json!("2026-W46-5"),
+        json!("２０２６-11-13"),
+        json!("2026-11-13\n"),
+        json!(739933),
+        json!(true),
+        json!(null),
+    ] {
+        let mut row = value.clone();
+        row["records"][1]["review"] = bad.clone();
+        assert!(MemoryUpkeep::evaluate("upkeep-startup-dates", &row).is_none());
+        row = value.clone();
+        row["today"] = bad;
+        assert!(MemoryUpkeep::evaluate("upkeep-startup-dates", &row).is_none());
+    }
+    assert!(MemoryUpkeep::evaluate("upkeep-startup", &value).is_none());
+    value["extra"] = json!(true);
+    assert!(MemoryUpkeep::evaluate("upkeep-startup-dates", &value).is_none());
+}
+
+#[test]
+fn startup_iso_dates_empty_payload_still_validates_today() {
+    let mut value = packet(json!([]));
+    value["today"] = json!("9999-12-31");
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-dates", &value),
+        Some(json!({"counts":{"expired":0,"exact_duplicates":0,"shared_source":0,"unfinished":0}}))
+    );
+    value["today"] = json!("2026-02-30");
+    assert!(MemoryUpkeep::evaluate("upkeep-startup-dates", &value).is_none());
 }
 
 #[test]

@@ -4,11 +4,16 @@ import json
 import os
 from pathlib import Path
 import random
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from datetime import date
 from unittest.mock import patch
+
+_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_ROOT / "scripts"))
+sys.path.insert(0, str(_ROOT / "tests"))
 
 import agent_project_memory as memory
 import agent_project_memory_consolidate as source
@@ -169,15 +174,14 @@ class NativeMemoryUpkeepTests(unittest.TestCase):
             self.assertEqual(2*len(records),normalized.call_count)
             self.assertEqual(len(records),dates.fromisoformat.call_count)
 
-    def test_invalid_dates_fail_before_transport_with_original_errors(self):
+    def test_invalid_dates_keep_original_errors_after_native_validation_declines(self):
         for review in ("", "not-a-date", "2026-02-30"):
             records = [self.record(review_on=review)]
             try:
                 self.call("startup",records,"python")
             except ValueError as expected:
-                with patch.object(NativeProbe,"request",side_effect=AssertionError("invalid date transport")):
-                    with self.assertRaises(ValueError) as actual:
-                        self.call("startup",records)
+                with self.assertRaises(ValueError) as actual:
+                    self.call("startup",records)
                 self.assertEqual(expected.args, actual.exception.args)
 
     def test_custom_and_malformed_profiles_keep_reference_errors(self):

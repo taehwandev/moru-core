@@ -73,18 +73,27 @@ def check_memory(native,entry,project,env):
                       ("b","review","docs","a",3),("c","all","other",None,1))]
     counts={"expired":2,"exact_duplicates":1,"shared_source":1,"unfinished":1}
     zero={key:0 for key in counts}
+    dated_rows=[{**row,"review":f"0001-01-0{row['review']}"} for row in startup_rows]
     cases=[("upkeep-live",{"statuses":["active","pending","approved"],"records":live_rows},{"indices":[1,0]}),
            ("upkeep-live",{"statuses":["active"],"records":[]},{"indices":[]}),
            ("upkeep-replacements",{"records":link_rows},{"findings":[{"index":0,"replacements":[2,1]}]}),
            ("upkeep-replacements",{"records":[]},{"findings":[]}),
            ("upkeep-startup",{"today":2,"records":startup_rows},{"counts":counts}),
-           ("upkeep-startup",{"today":1,"records":[]},{"counts":zero})]
+           ("upkeep-startup",{"today":1,"records":[]},{"counts":zero}),
+           ("upkeep-startup-dates",{"today":"0001-01-02","records":dated_rows},{"counts":counts}),
+           ("upkeep-startup-dates",{"today":"0001-01-01","records":[]},{"counts":zero})]
     for operation,values,expected in cases:
         done=subprocess.run([str(native),str(entry),"--memory-probe",operation],input=json.dumps({
             "unicode":unicodedata.unidata_version,**values}).encode(),capture_output=True,
             cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
+    for review in ("1900-02-29",2):
+        done=subprocess.run([str(native),str(entry),"--memory-probe","upkeep-startup-dates"],input=json.dumps({
+            "unicode":unicodedata.unidata_version,"today":"2026-11-13",
+            "records":[{**dated_rows[0],"review":review}]}).encode(),capture_output=True,
+            cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
     review_rows=[{"id":"a","review":"2026-11-12"},{"id":"b","review":"2026-11-27"},
                  {"id":"a","review":"2026-12-01"}]
     fused_rows=[{"id":name,"status":status,"review":review} for name,status,review in (
@@ -102,7 +111,7 @@ def check_memory(native,entry,project,env):
             }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
-    return 27
+    return 31
 
 
 def check_memory_files(native,entry,base,project,env):

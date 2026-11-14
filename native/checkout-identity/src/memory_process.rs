@@ -3,11 +3,9 @@
 //! native protocol; verification: source/transport/schema/empty-PATH checks.
 use crate::{
     memory_analysis::MemoryAnalysis, memory_consolidation::MemoryConsolidation,
-    memory_files::MemoryFiles, memory_history::MemoryHistory,
-    memory_recall::MemoryRecall, memory_source::MemorySource, memory_status::MemoryStatus,
-    memory_upkeep::MemoryUpkeep,
-    memory_review::MemoryReview,
-    pretool_guard::CallbackGuard,
+    memory_files::MemoryFiles, memory_history::MemoryHistory, memory_recall::MemoryRecall,
+    memory_review::MemoryReview, memory_source::MemorySource, memory_status::MemoryStatus,
+    memory_upkeep::MemoryUpkeep, pretool_guard::CallbackGuard,
 };
 use serde_json::{json, Value};
 use std::{
@@ -37,7 +35,13 @@ impl MemoryProcess {
             .and_then(|payload| {
                 if matches!(operation, "review-partition" | "review-findings") {
                     MemoryReview::evaluate(operation, &payload)
-                } else if matches!(operation, "upkeep-live" | "upkeep-replacements" | "upkeep-startup") {
+                } else if matches!(
+                    operation,
+                    "upkeep-live"
+                        | "upkeep-replacements"
+                        | "upkeep-startup"
+                        | "upkeep-startup-dates"
+                ) {
                     MemoryUpkeep::evaluate(operation, &payload)
                 } else if matches!(operation, "duplicate-groups" | "shared-source-groups") {
                     MemoryConsolidation::evaluate(operation, &payload)

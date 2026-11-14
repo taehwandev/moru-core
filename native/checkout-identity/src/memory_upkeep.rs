@@ -1,7 +1,7 @@
-//! owner: MemoryUpkeep; allowed imports: std collections, serde_json, MemoryTerms;
+//! owner: MemoryUpkeep; allowed imports: std collections, serde_json, MemoryTerms, MemoryRecord;
 //! forbidden imports: IO, process, store, writes, providers, clock, authority;
 //! callers/tests: MemoryProcess and memory_upkeep_tests; verification: source parity.
-use crate::memory_terms::MemoryTerms;
+use crate::{memory_record::MemoryRecord, memory_terms::MemoryTerms};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 
@@ -16,7 +16,11 @@ impl MemoryUpkeep {
         match operation {
             "upkeep-live" if object.len() == 3 => Self::live(records, object.get("statuses")?),
             "upkeep-replacements" if object.len() == 2 => Self::replacements(records),
-            "upkeep-startup" if object.len() == 3 => Self::startup(records, object.get("today")?),
+            "upkeep-startup" | "upkeep-startup-dates" if object.len() == 3 => Self::startup(
+                records,
+                object.get("today")?,
+                operation == "upkeep-startup-dates",
+            ),
             _ => None,
         }
     }
@@ -69,11 +73,8 @@ impl MemoryUpkeep {
         Some(json!({"findings":findings}))
     }
 
-    fn startup(records: &[Value], today: &Value) -> Option<Value> {
-        let today = today.as_i64()?;
-        if !(1..=3652059).contains(&today) {
-            return None;
-        }
+    fn startup(records: &[Value], today: &Value, iso: bool) -> Option<Value> {
+        let today = Self::date_key(today, iso)?;
         let mut bodies: HashMap<&str, HashMap<&str, usize>> = HashMap::new();
         let mut sources: HashMap<&str, usize> = HashMap::new();
         let mut replaced = HashSet::new();
@@ -94,10 +95,7 @@ impl MemoryUpkeep {
             if let Some(target) = Self::link(row.get("replaces")?)? {
                 replaced.insert(target);
             }
-            let review = row.get("review")?.as_i64()?;
-            if !(1..=3652059).contains(&review) {
-                return None;
-            }
+            let review = Self::date_key(row.get("review")?, iso)?;
             expired += usize::from(review <= today);
         }
         let exact_duplicates: usize = bodies
@@ -115,6 +113,14 @@ impl MemoryUpkeep {
             "shared_source":sources.values().filter(|&&count| count > 1).count(),
             "unfinished":ids.iter().filter(|id| replaced.contains(**id)).count()
         }}))
+    }
+
+    fn date_key(value: &Value, iso: bool) -> Option<i64> {
+        if iso {
+            let text = value.as_str()?;
+            return MemoryRecord::date(text).then(|| text.replace('-', "").parse().ok())?;
+        }
+        value.as_i64().filter(|day| (1..=3652059).contains(day))
     }
 
     fn link(value: &Value) -> Option<Option<&str>> {
