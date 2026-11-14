@@ -124,6 +124,11 @@ def checkpoint_hook(args: argparse.Namespace) -> int:
             "for optional fields. Keep scope paths repository-relative; evidence "
             "hashes must be real SHA-256 values, not result labels. A post_mutation "
             "requires a recorded pre_mutation and must omit verification entirely. "
+            "For a lost post hook or baseline use --checkpoint-kind reconcile "
+            "in the exact owning session, with --phase acting (or blocked), "
+            "objective, verification: [], and changed_scope acknowledging every "
+            "pending and previously changed path. Re-read the worktree first; "
+            "reconciliation grants no verification or publication authority. "
             "Do not fabricate past mutation or verification evidence.",
         )
     except ValueError as error:

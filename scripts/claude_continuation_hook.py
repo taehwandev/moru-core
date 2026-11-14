@@ -106,25 +106,17 @@ class ClaudeContinuationAdapter:
             root,
             evidence,
             "pre_mutation",
-            mutation={"kind": kind, "paths": [relative]},
+            mutation={"kind": kind, "paths": [relative],
+                      **({"tool_use_id": payload["tool_use_id"]} if payload.get("tool_use_id") else {})},
         )
 
     @staticmethod
     def post_mutation(payload: dict[str, Any]) -> str | None:
-        """Close the bracket if one is open. Never block: the write already ran.
+        """Close only this tool id's bracket. Never block: the write already ran.
 
-        This runs after the tool wrote bytes, so refusing here cannot prevent
-        anything -- it only reports a mutation that succeeded as failed. The
-        protocol's leverage point is the pre-mutation bracket, and its designed
-        answer to a checkpoint that never closed is already correct without any
-        blocking: the packet keeps the pending record, worktree verification
-        fails against it, and resume enters reconciliation instead of calling
-        those bytes verified progress.
-
-        There is also no pending to close whenever the pre-mutation side
-        legitimately skipped -- an edit outside the project, or storage the
-        packet cannot live in. Treating that absence as a failure turned every
-        such edit into a reported tool error.
+        Failed closes leave pending state for explicit reconciliation. A skipped
+        pre hook (outside the project or unavailable storage) has nothing to
+        close, and an unrelated tool's post event cannot settle an edit.
         """
         root = _event_project(payload)
         session_id = str(payload.get("session_id") or "")
@@ -133,7 +125,9 @@ class ClaudeContinuationAdapter:
         evidence = _session_evidence(root, session_id)
         if not is_run_local_continuation_evidence(root, evidence):
             return None
-        _checkpoint(root, evidence, "post_mutation")
+        if payload.get("tool_name") in EDIT_TOOLS:
+            _checkpoint(root, evidence, "post_mutation",
+                        mutation={"tool_use_id": payload.get("tool_use_id")})
         return None
 
     @staticmethod
@@ -189,9 +183,11 @@ def _checkpoint(
     *,
     mutation: dict[str, Any] | None = None,
 ) -> str | None:
+    bound = False
     try:
         binding = json.loads(evidence.read_text(encoding="utf-8"))
         rules = Path(str(binding.get("rules") or root)).resolve()
+        bound = True
         write_continuation_checkpoint(
             project=root,
             rules=rules,
@@ -204,8 +200,13 @@ def _checkpoint(
         rules = [item["rule"] for item in error.failures]
         if all(rule in UNAVAILABLE_RULES for rule in rules):
             return None
-        return f"Moru continuation {kind} checkpoint was refused: {', '.join(rules)}."
-    except (OSError, RuntimeError, ValueError, json.JSONDecodeError):
+        return (f"Moru continuation {kind} checkpoint was refused: {', '.join(rules)}. "
+                "For an abandoned tool, use checkpoint --checkpoint-kind reconcile "
+                "with observed changed_scope, objective, verification: [], and --phase acting.")
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as error:
+        if kind == "pre_mutation" and bound:
+            return ("Moru continuation pre_mutation checkpoint could not be recorded "
+                    f"({type(error).__name__}). Repair local checkpoint storage and retry this tool.")
         # The binding evidence is missing or unreadable, so no checkpoint exists
         # to be wrong about this mutation. Same class as the rules above.
         return None

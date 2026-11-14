@@ -139,7 +139,8 @@ class RunInterruptionTests(unittest.TestCase):
             args = SimpleNamespace(project=run.project, rules=run.project, work_stdin=True,
                                    checkpoint_kind='reconcile', phase='acting', last_completed=None,
                                    output=None, repair_cycle=False)
-            summary = {'objective': 'finish the observed partial edit', 'verification': []}
+            summary = {'objective': 'finish the observed partial edit', 'verification': [],
+                       'changed_scope': [{'path': 'source.txt', 'role': 'modified'}]}
             with (patch('agent_hook_checkpoint.run_binding_path', return_value=run.evidence),
                   patch('agent_hook_checkpoint._read_work_stdin', return_value=summary),
                   patch('agent_continuation_checkpoint.runtime_session', return_value=run.session),
