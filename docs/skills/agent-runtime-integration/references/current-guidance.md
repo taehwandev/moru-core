@@ -489,10 +489,15 @@ Gemini/Antigravity/AGY:
 - Moru Core command permissions may live in
   `~/.gemini/config/config.json` or the legacy
   `~/.gemini/antigravity-cli/settings.json`, depending on the active AGY
-  runtime. Runtime hooks remain in `~/.gemini/config/hooks.json`.
+  runtime. Runtime hooks remain in `~/.gemini/config/hooks.json` under the
+  durable `moru` hook group (`<MORU_LAUNCHER> agy-hook ...`), whose
+  `pre-invocation` handler caches prompt/entry guidance per user input and
+  delivers unread `required_docs` in-process; setup retires any older standalone
+  `moru-core` `agy_required_docs_hook.py` group once run from a durable root.
 - AGY Moru Core permissions follow the same absolute-wrapper rule as
-  Claude, using the AGY permission key shape, for example
-  `command(/Users/USER/.moru/bin/moru-hook *)`.
+  Claude, using AGY's literal-prefix `command(...)` shape without Claude's
+  `:*` or ` *` wildcard suffixes, for example
+  `command(/absolute/home/.moru/bin/moru-hook)`.
   Avoid `$HOME`, `${HOME}`, `~`, relative script paths, and saved prefixes that
   include task-specific arguments.
 - Antigravity runtimes bind active runs natively when

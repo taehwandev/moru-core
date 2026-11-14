@@ -123,25 +123,43 @@ class AgyHookTests(unittest.TestCase):
 
 
 class AgyHookRegistrationTests(unittest.TestCase):
-    def test_only_the_moru_group_is_written_and_reinstall_is_a_no_op(self) -> None:
-        from support.agy_setup import AGY_HOOK_GROUP, _merge_agy_docs_hook
+    def test_managed_standalone_docs_group_is_retired_from_durable_root_preserving_other_hooks(self) -> None:
+        from support.agy_setup import AGY_HOOK_GROUP, _retire_agy_docs_hook
 
         with tempfile.TemporaryDirectory() as directory:
-            target = Path(directory) / "config" / "hooks.json"
+            base = Path(directory)
+            durable = base / "moru"
+            (durable / "scripts").mkdir(parents=True)
+            (durable / ".git").mkdir()
+            target = base / "config" / "hooks.json"
             target.parent.mkdir()
             other = {"auto-approve": {"PreToolUse": [{"matcher": "*", "hooks": []}]}}
-            target.write_text(json.dumps(other), encoding="utf-8")
-            self.assertEqual("would_update", _merge_agy_docs_hook(target, "python3 x.py", True))
-            self.assertEqual(other, json.loads(target.read_text(encoding="utf-8")))
-            self.assertEqual("installed", _merge_agy_docs_hook(target, "python3 x.py", False))
+            managed = {
+                **other,
+                AGY_HOOK_GROUP: {
+                    "PreInvocation": [{
+                        "type": "command",
+                        "command": f"python3 '{durable}/scripts/agy_required_docs_hook.py'",
+                        "timeout": 10,
+                    }]
+                },
+            }
+            target.write_text(json.dumps(managed), encoding="utf-8")
+            self.assertEqual("would_remove", _retire_agy_docs_hook(target, True, root=durable))
+            self.assertIn(AGY_HOOK_GROUP, json.loads(target.read_text(encoding="utf-8")))
+            self.assertEqual("removed", _retire_agy_docs_hook(target, False, root=durable))
             written = json.loads(target.read_text(encoding="utf-8"))
-            self.assertEqual(other["auto-approve"], written["auto-approve"])
-            self.assertEqual("python3 x.py", written[AGY_HOOK_GROUP]["PreInvocation"][0]["command"])
-            self.assertEqual("ok", _merge_agy_docs_hook(target, "python3 x.py", False))
-            self.assertEqual("installed", _merge_agy_docs_hook(target, "python3 y.py", False))
+            self.assertEqual(other, written)
+            self.assertEqual("ok", _retire_agy_docs_hook(target, False, root=durable))
 
-    def test_a_task_worktree_does_not_replace_a_working_durable_hook(self) -> None:
-        from support.agy_setup import _merge_agy_docs_hook
+            # A non-Moru group that happens to share the name is left untouched.
+            foreign = {**other, AGY_HOOK_GROUP: {"PreInvocation": [{"type": "command", "command": "python3 custom.py"}]}}
+            target.write_text(json.dumps(foreign), encoding="utf-8")
+            self.assertEqual("ok", _retire_agy_docs_hook(target, False, root=durable))
+            self.assertEqual(foreign, json.loads(target.read_text(encoding="utf-8")))
+
+    def test_a_task_worktree_keeps_a_working_durable_docs_hook_until_durable_setup_runs(self) -> None:
+        from support.agy_setup import AGY_HOOK_GROUP, _retire_agy_docs_hook
 
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
@@ -156,18 +174,15 @@ class AgyHookRegistrationTests(unittest.TestCase):
                 return f"python3 {root}/scripts/agy_required_docs_hook.py"
 
             target = base / "hooks.json"
-            self.assertEqual("installed", _merge_agy_docs_hook(target, command(durable), False))
+            target.write_text(json.dumps({AGY_HOOK_GROUP: {"PreInvocation": [
+                {"type": "command", "command": command(durable), "timeout": 10}]}}), encoding="utf-8")
             for task in (linked, tagged):
-                self.assertTrue(_merge_agy_docs_hook(target, command(task), False).startswith("ok (kept"))
+                self.assertTrue(_retire_agy_docs_hook(target, False, root=task).startswith("ok (kept"))
                 self.assertIn(str(durable), target.read_text(encoding="utf-8"))
-            # A hook whose script is gone is not worth keeping, even if the directory remains.
+            # A hook whose script is gone is dangling and safe to remove even from a task worktree.
             (durable / "scripts" / "agy_required_docs_hook.py").unlink()
-            self.assertEqual("installed", _merge_agy_docs_hook(target, command(linked), False))
-            target.write_text("{}", encoding="utf-8")
-            # A hook whose checkout is gone is not worth keeping.
-            target.write_text(json.dumps({"moru-core": {"PreInvocation": [
-                {"type": "command", "command": command(base / "gone"), "timeout": 10}]}}), encoding="utf-8")
-            self.assertEqual("installed", _merge_agy_docs_hook(target, command(linked), False))
+            self.assertEqual("removed", _retire_agy_docs_hook(target, False, root=linked))
+            self.assertEqual({}, json.loads(target.read_text(encoding="utf-8")))
 
 
 if __name__ == "__main__":

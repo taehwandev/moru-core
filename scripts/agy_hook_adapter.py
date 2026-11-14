@@ -7,7 +7,8 @@ module only translates; every policy decision stays in the gate it calls.
 
 Events:
 - ``pre-invocation``: deliver the advisory workflow route and the request's task
-  guidance once per user input, as a system message.
+  guidance once per user input, plus any unread ``required_docs`` for an active
+  run (and again after a compaction ``CHECKPOINT``), as system messages.
 - ``pre-tool``: run the shared pre-mutation gate for run_command/write_file/
   edit_file. A deny or ask becomes advisory context unless MORU_AGY_GATE=strict.
 - ``stop``: run the shared Stop gate; its block becomes ``continue`` once. For a session routed
@@ -26,8 +27,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from agy_hook_state import already_delivered, continuations_for, count_continuation, session_id, workspace
+from agy_hook_state import already_delivered, continuations_for, count_continuation, has_delivered, session_id, workspace
 from agy_hook_verify import unverified_reminder, verify_in_session
+import agy_required_docs_hook
 
 SCRIPTS = Path(__file__).resolve().parent
 RUNTIME = "antigravity"
@@ -74,31 +76,114 @@ def independent_check_available() -> bool:
         return False
 
 
-def pre_invocation(payload: dict) -> dict:
+_AUTOLOADED_OR_FOREIGN_INSTRUCTIONS = frozenset({"AGENTS.md", "GEMINI.md", "CLAUDE.md", "CODEX.md"})
+_OPEN_INSTRUCTIONS_STEP = "- Open the selected project's runtime instruction files before project work."
+
+
+def _compaction_count(payload: dict) -> int:
+    transcript = Path(str(payload.get("transcriptPath") or ""))
+    if not transcript.is_file():
+        return 0
+    try:
+        from agent_required_doc_delivery import is_compaction
+
+        with transcript.open(encoding="utf-8", errors="replace") as handle:
+            return sum(
+                1 for line in handle
+                if '"CHECKPOINT"' in line and is_compaction(parse_json(line))
+            )
+    except Exception:  # noqa: BLE001 - transcript inspection is best-effort
+        return 0
+
+
+def _resolved_dir(raw: str) -> Path | None:
+    try:
+        return Path(raw).expanduser().resolve() if raw else None
+    except (OSError, RuntimeError):
+        return None
+
+
+def _trim_autoloaded_workspace_entry(entry: str, payload: dict) -> str:
+    """Drop redundant instruction-read prompts when AGY already auto-loaded the workspace AGENTS.md."""
+
+    lines = entry.splitlines()
+    selected = next((line[9:].strip() for line in lines if line.startswith("project: ")), "")
+    selected_dir = _resolved_dir(selected)
+    workspaces = {d for item in (payload.get("workspacePaths") or []) if (d := _resolved_dir(str(item)))}
+    if selected_dir is None or selected_dir not in workspaces or not (selected_dir / "AGENTS.md").is_file():
+        return entry
+    kept: list[str] = []
+    index, saw_instructions, remaining = 0, False, []
+    while index < len(lines):
+        if lines[index] == "instruction_files:":
+            saw_instructions = True
+            index += 1
+            while index < len(lines) and lines[index].startswith("- "):
+                if lines[index][2:].strip() not in _AUTOLOADED_OR_FOREIGN_INSTRUCTIONS:
+                    remaining.append(lines[index])
+                index += 1
+            if remaining:
+                kept.extend(["instruction_files:", *remaining])
+            continue
+        if saw_instructions and not remaining and lines[index] == _OPEN_INSTRUCTIONS_STEP:
+            index += 1
+            continue
+        kept.append(lines[index])
+        index += 1
+    return "\n".join(kept)
+
+
+def _prompt_guidance_steps(payload: dict) -> list[dict]:
+    sid = session_id(payload)
     cwd = workspace(payload)
     prompt = str(payload.get("lastUserInput") or "")
-    claude = {"session_id": session_id(payload), "cwd": cwd, "prompt": prompt,
-              "hook_event_name": "UserPromptSubmit"}
+    input_key = f"{cwd}\0{_compaction_count(payload)}\0{prompt}"
+    # Antigravity fires PreInvocation before every model step in a turn, not only
+    # once on UserPromptSubmit. Short-circuit before spawning subprocesses once
+    # this exact (workspace, compaction-epoch, user-input) was already processed.
+    if sid and prompt.strip() and has_delivered(sid, input_key, "input"):
+        return []
+    claude = {"session_id": sid, "cwd": cwd, "prompt": prompt, "hook_event_name": "UserPromptSubmit"}
     route = run_script("workflow.py", ["route", "triage", "--advisory", "--hook-stdin"], claude, cwd,
                        {"SPILL_AI_TOOL": RUNTIME}).strip()
     if not route:
-        return {}
+        return []
     unchanged = UNCHANGED_NOTE in route
-    # An unchanged route says nothing about a new request: a conversation can move to a different kind of
-    # work, so project entry is recomputed once per distinct user input and still deduplicated below.
-    if unchanged and (not prompt.strip() or already_delivered(session_id(payload), prompt, "input")):
-        return {}
+    if unchanged and not prompt.strip():
+        return []
     entry = run_script("agent-entry.py", ["--runtime", RUNTIME, "--cwd", cwd, "--no-default-search-roots",
                                           "--request", prompt], "", cwd).strip()
+    if entry:
+        entry = _trim_autoloaded_workspace_entry(entry, payload)
+    if sid and prompt.strip():
+        already_delivered(sid, input_key, "input")
     base = "" if unchanged else route
     text = base if not entry else f"{base}\n\n## Project entry\n{entry}".strip()
     if not text:
-        return {}
+        return []
     if "web-3d-interaction" in entry and independent_check_available():
         text += "\n\n" + INDEPENDENT_CHECK_NOTICE
-    if already_delivered(session_id(payload), text):
-        return {}
-    return {"injectSteps": [{"systemMessage": {"systemMessage": text}}]}
+    if already_delivered(sid, text):
+        return []
+    return [{"systemMessage": {"systemMessage": text}}]
+
+
+def _required_docs_steps(payload: dict) -> list[dict]:
+    try:
+        answer = agy_required_docs_hook.respond(payload)
+    except Exception:  # noqa: BLE001 - required-doc delivery must never break route delivery
+        return []
+    steps = answer.get("injectSteps") if isinstance(answer, dict) else None
+    return steps if isinstance(steps, list) else []
+
+
+def pre_invocation(payload: dict) -> dict:
+    try:
+        guidance = _prompt_guidance_steps(payload)
+    except Exception:  # noqa: BLE001 - fail open so required-doc delivery still runs
+        guidance = []
+    steps = [*guidance, *_required_docs_steps(payload)]
+    return {"injectSteps": steps} if steps else {}
 
 
 def partial_read_note(args: dict, conversation: str) -> str:

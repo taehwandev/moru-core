@@ -81,7 +81,6 @@ def configure_agy(
         "command(node)",
         "command(npm)",
         "command(npx)",
-        "command(pytest)",
     ])
     cleanup_entries = agy_legacy_permission_entries(scripts_dir)
     if not spill_available:
@@ -113,11 +112,7 @@ def configure_agy(
         "status": status,
         "path": str(hooks_path),
     })
-    status = _merge_agy_docs_hook(
-        hooks_path,
-        f"python3 {quote(str(scripts_dir / AGY_DOCS_HOOK_SCRIPT))}",
-        dry_run,
-    )
+    status = _retire_agy_docs_hook(hooks_path, dry_run, root=root)
     results.append({
         "tool": "agy",
         "hook": "config.hooks.required_docs",
@@ -163,24 +158,42 @@ def _merge_agy_hooks(target: Path, spec: dict, dry_run: bool) -> str:
     return "installed" if current is None else "updated"
 
 
-def _merge_agy_docs_hook(target: Path, command: str, dry_run: bool) -> str:
-    """Register Moru's PreInvocation required-doc hook as its own named group.
+def _retire_agy_docs_hook(target: Path, dry_run: bool, *, root: Path) -> str:
+    """Retire the former standalone ``moru-core`` PreInvocation group once durable.
 
-    The shared hooks file belongs to every tool that uses agy, so only the
-    `moru-core` group is written and every other group is left as found.
+    ``moru`` (``moru-hook agy-hook pre-invocation``) now runs required-doc
+    delivery in-process. Only an entry whose command provably invokes
+    ``agy_required_docs_hook.py`` is removed, and a task worktree never removes a
+    working durable registration before the durable root itself is updated.
     """
 
     config = read_json(target)
-    desired = {"PreInvocation": [{"type": "command", "command": command, "timeout": 10}]}
-    if config.get(AGY_HOOK_GROUP) == desired:
+    if not isinstance(config, dict):
         return "ok"
-    if _replaces_durable_with_disposable(config.get(AGY_HOOK_GROUP), command):
+    current = config.get(AGY_HOOK_GROUP)
+    old_command = _managed_agy_docs_hook_command(current)
+    if not old_command:
+        return "ok"
+    if _keeps_durable_hook_from_worktree(old_command, root):
         return "ok (kept: this installer runs from a task worktree that outlives only its task)"
     if dry_run:
-        return "would_update"
-    config[AGY_HOOK_GROUP] = desired
+        return "would_remove"
+    config.pop(AGY_HOOK_GROUP, None)
     write_json(target, config)
-    return "installed"
+    return "removed"
+
+
+def _managed_agy_docs_hook_command(current: object) -> str:
+    if not isinstance(current, dict) or set(current) - {"PreInvocation", "enabled"}:
+        return ""
+    handlers = current.get("PreInvocation")
+    if not isinstance(handlers, list) or len(handlers) != 1 or not isinstance(handlers[0], dict):
+        return ""
+    command = handlers[0].get("command")
+    if not isinstance(command, str):
+        return ""
+    script_path = Path(command.split(" ", 1)[-1].strip("'\""))
+    return command if script_path.name == AGY_DOCS_HOOK_SCRIPT else ""
 
 
 def _hook_root(command: str) -> Path:
@@ -193,24 +206,16 @@ def _is_task_worktree(root: Path) -> bool:
     return is_disposable_root(root) or (root / ".git").is_file()
 
 
-def _replaces_durable_with_disposable(current: object, command: str) -> bool:
-    """Whether this would point a working hook at a task worktree that outlives only its task.
+def _keeps_durable_hook_from_worktree(old_command: str, installer_root: Path) -> bool:
+    """Whether an installer running from a task worktree should leave a durable hook in place."""
 
-    A dangling `python3 <deleted path>` fails on every model call, so a hook
-    that still works from a durable checkout is not replaced from a task
-    worktree (a linked worktree has a `.git` file, wherever it lives).
-    """
-
-    try:
-        old = current["PreInvocation"][0]["command"]
-    except (KeyError, IndexError, TypeError):
-        return False
-    if not isinstance(old, str) or old == command:
-        return False
-    old_root = _hook_root(old)
-    old_script = Path(old.split(" ", 1)[-1].strip("'\""))
-    return (_is_task_worktree(_hook_root(command)) and old_script.is_file()
-            and not _is_task_worktree(old_root))
+    old_root = _hook_root(old_command)
+    old_script = Path(old_command.split(" ", 1)[-1].strip("'\""))
+    return (
+        _is_task_worktree(installer_root)
+        and old_script.is_file()
+        and not _is_task_worktree(old_root)
+    )
 
 
 def _merge_agy_statusline(target: Path, command: str, dry_run: bool) -> str:

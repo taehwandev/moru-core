@@ -222,7 +222,7 @@ def _merge_claude_user_prompt_submit(target: Path, command: str, dry_run: bool) 
     # Scan every entry before deciding. Returning as soon as the current command
     # turns up would leave a managed entry installed under an earlier launcher
     # name in place beside it, and the runtime would run both.
-    has_current_command = False
+    current_count = 0
     has_stale_managed_command = False
     for group in groups:
         if not isinstance(group, dict):
@@ -232,15 +232,15 @@ def _merge_claude_user_prompt_submit(target: Path, command: str, dry_run: bool) 
                 continue
             hook_command = hook.get("command", "")
             if hook_command == command and group.get("matcher") == ".*":
-                has_current_command = True
+                current_count += 1
                 continue
             if _is_managed_claude_spill_bridge_command(hook_command):
                 has_stale_managed_command = True
 
-    if has_current_command and not has_stale_managed_command:
+    if current_count == 1 and not has_stale_managed_command:
         return "ok"
     if dry_run:
-        return "would_update" if has_current_command or has_stale_managed_command else "missing"
+        return "would_update" if current_count or has_stale_managed_command else "missing"
 
     cleaned = _remove_managed_hook_objects(
         groups,
@@ -305,7 +305,7 @@ def _merge_claude_stop_gate(target: Path, command: str, dry_run: bool) -> str:
     if not isinstance(groups, list):
         groups = []
 
-    has_current_command = False
+    current_count = 0
     has_stale_managed_command = False
     for group in groups:
         if not isinstance(group, dict):
@@ -315,15 +315,15 @@ def _merge_claude_stop_gate(target: Path, command: str, dry_run: bool) -> str:
                 continue
             hook_command = hook.get("command", "")
             if hook_command == command:
-                has_current_command = True
+                current_count += 1
                 continue
             if _is_managed_claude_stop_gate_command(hook_command):
                 has_stale_managed_command = True
 
-    if has_current_command and not has_stale_managed_command:
+    if current_count == 1 and not has_stale_managed_command:
         return "ok"
     if dry_run:
-        return "would_update" if has_current_command or has_stale_managed_command else "missing"
+        return "would_update" if current_count or has_stale_managed_command else "missing"
 
     cleaned = _remove_managed_hook_objects(groups, _is_managed_claude_stop_gate_command)
     cleaned.append({
@@ -345,7 +345,7 @@ def _merge_claude_pre_tool_gate(target: Path, command: str, dry_run: bool) -> st
     if not isinstance(groups, list):
         groups = []
 
-    has_current_command = False
+    current_count = 0
     has_stale_managed_command = False
     for group in groups:
         if not isinstance(group, dict):
@@ -355,15 +355,15 @@ def _merge_claude_pre_tool_gate(target: Path, command: str, dry_run: bool) -> st
                 continue
             hook_command = hook.get("command", "")
             if hook_command == command and group.get("matcher") == _PRETOOL_GATE_MATCHER:
-                has_current_command = True
+                current_count += 1
                 continue
             if _is_managed_claude_pre_tool_gate_command(hook_command):
                 has_stale_managed_command = True
 
-    if has_current_command and not has_stale_managed_command:
+    if current_count == 1 and not has_stale_managed_command:
         return "ok"
     if dry_run:
-        return "would_update" if has_current_command or has_stale_managed_command else "missing"
+        return "would_update" if current_count or has_stale_managed_command else "missing"
 
     cleaned = _remove_managed_hook_objects(
         groups,
