@@ -63,6 +63,7 @@ mod memory_history;
 mod memory_analysis;
 mod memory_consolidation;
 mod memory_upkeep;
+mod memory_review;
 mod manifest_process;
 mod next_process;
 mod next_verification;

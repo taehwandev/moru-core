@@ -85,7 +85,24 @@ def check_memory(native,entry,project,env):
             cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
-    return 23
+    review_rows=[{"id":"a","review":"2026-11-12"},{"id":"b","review":"2026-11-27"},
+                 {"id":"a","review":"2026-12-01"}]
+    fused_rows=[{"id":name,"status":status,"review":review} for name,status,review in (
+        ("b","active","2026-11-13"),("a","approved","2026-11-12"),
+        ("r","retired",None),("a","pending","2026-12-01"),("c","active","2026-11-27"))]
+    empty={"live":[],"expired":[],"expiring":[]}
+    cases=[("review-partition",{"records":review_rows},{"live":[0,1,2],"expired":[],"expiring":[1]}),
+           ("review-partition",{"records":[]},empty),
+           ("review-findings",{"records":fused_rows,"statuses":["active","pending","approved"]},
+               {"live":[1,3,0,4],"expired":[0],"expiring":[4]}),
+           ("review-findings",{"records":[],"statuses":["active"]},empty)]
+    for operation,values,expected in cases:
+        done=subprocess.run([str(native),str(entry),"--memory-probe",operation],input=json.dumps({
+            "unicode":unicodedata.unidata_version,"today":"2026-11-13","horizon":"2026-11-27",**values
+            }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
+    return 27
 
 
 def check_memory_files(native,entry,base,project,env):

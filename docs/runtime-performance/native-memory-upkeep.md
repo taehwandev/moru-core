@@ -13,7 +13,10 @@ It continues unit 16; three kernels do not count as three completed units.
 | --- | --- | --- |
 | Startup hints | Exact body/scope groups, source groups, expired and replacement counts | Status/profile admission, normalization, date parsing, ordered notice text and shell quoting |
 | Unfinished replacements | Ordered target lookup and sorted replacement indices | Original record metadata, reason text and report projection |
-| Live report inputs | Status membership and stable ID sorting | Profile admission, original objects, explicit report date classification |
+| Live report inputs | Status membership and stable ID sorting | Profile admission and original objects |
+
+[Review-date kernels](native-memory-review.md) reuse live selection in a fused
+request for strict report date buckets; exceptional calendar behavior stays local.
 
 Startup body groups preserve `all` bridges and separate disjoint scopes without
 fuzzy pair comparisons. Empty normalized bodies do not create duplicate hints;

@@ -20,6 +20,8 @@ from agent_project_memory import APPLICABILITY_FIELDS, RECALLABLE_STATUSES, scan
 
 DEFAULT_WITHIN_DAYS = 14
 DUPLICATE_JACCARD = 0.8
+_NATIVE_DATE = date
+_NATIVE_DELTA = timedelta
 _PUNCTUATION_RE = re.compile(r"[^\w\s]")
 _DECISION_FIELDS = ("id", "scope", "body", "source", "review_on", *APPLICABILITY_FIELDS)
 
@@ -155,25 +157,47 @@ def _live_records_reference(records: list[dict[str, Any]]) -> list[dict[str, Any
                   key=lambda item: item["id"])
 
 
+def _review_buckets(live: list[dict[str, Any]], today: date, horizon: date):
+    from support.native_memory_review import NativeMemoryReview
+    if date is _NATIVE_DATE and timedelta is _NATIVE_DELTA:
+        selected = NativeMemoryReview.partition(live, today, horizon)
+        if selected is not None:
+            return selected
+    return _review_buckets_reference(live, today, horizon)
+
+
+def _review_buckets_reference(live: list[dict[str, Any]], today: date, horizon: date):
+    review_on = {record["id"]: date.fromisoformat(record["review_on"]) for record in live}
+    # Keep projection interleaved with comparisons for customized records/dates.
+    return ((record for record in live if review_on[record["id"]] <= today),
+            (record for record in live if today < review_on[record["id"]] <= horizon))
+
+
 def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
              within_days: int = DEFAULT_WITHIN_DAYS) -> dict[str, Any]:
     """Classify validated records; the result carries bodies for the agent only."""
     if within_days < 0:
         raise ValueError("--within-days must not be negative")
-    live = _live_records(records)
-    horizon = today + timedelta(days=within_days)
-    review_on = {record["id"]: date.fromisoformat(record["review_on"]) for record in live}
+    from support.native_memory_review import NativeMemoryReview
+    selected = (NativeMemoryReview.findings_inputs(records, today, within_days, RECALLABLE_STATUSES)
+                if date is _NATIVE_DATE and timedelta is _NATIVE_DELTA else None)
+    if selected is None:
+        live = _live_records(records)
+        horizon = today + timedelta(days=within_days)
+        expired, expiring = _review_buckets(live, today, horizon)
+    else:
+        live, expired, expiring = selected
     return {
         "today": today.isoformat(),
         "within_days": within_days,
         "expired": [
             _entry(record, "review date reached; recheck the source, then renew with "
                            "`capture --replaces` and a new date, or `retire`")
-            for record in live if review_on[record["id"]] <= today
+            for record in expired
         ],
         "expiring": [
             _entry(record, f"review date within {within_days} days; renew or retire ahead of time")
-            for record in live if today < review_on[record["id"]] <= horizon
+            for record in expiring
         ],
         "duplicate_groups": _duplicate_groups(live),
         "shared_source_groups": _shared_source_groups(live),

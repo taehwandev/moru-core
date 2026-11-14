@@ -13,8 +13,10 @@ The result includes transitive components, including bridges through `all`.
 Empty token sets do not match. Shared sources use exact equality after original
 normalization, including empty normalized sources.
 
-Python retains lowercase/punctuation/whitespace normalization, date parsing and
-explicit date classification, reason strings and report projection.
+Python retains lowercase/punctuation/whitespace normalization, startup date
+parsing, exceptional calendar/date-format compatibility, reasons and projection.
+[Review-date kernels](native-memory-review.md) handle strict report dates and
+fused live/date input selection.
 [Upkeep kernels](native-memory-upkeep.md) handle startup counts, live input
 selection and unfinished replacement relations.
 The typed protocol carries only IDs, scopes and normalized tokens or sources;

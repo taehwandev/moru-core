@@ -29,6 +29,9 @@ remain Python-owned.
 [Upkeep kernels](native-memory-upkeep.md) also handle startup counts, live-record
 selection and unfinished replacement lookup with original report metadata.
 
+[Review dates](native-memory-review.md) combine live inputs and strict expired/
+upcoming buckets, preserving original date/profile compatibility.
+
 The lexical contract retains Python word classes and full case folding,
 path/filename alternatives, nearest directories and stems, identifier weights,
 Korean particle variants and stop words. Builder-generated Unicode data is
