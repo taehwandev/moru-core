@@ -59,8 +59,10 @@ parent/worker scope classification rather than one recursive scan per active
 run; `.moru/preflight.json`, freshness
 alone, and newest-file selection never unlock editing. `PreToolUse` fails closed
 when the required pre-mutation checkpoint cannot be written. The post hooks
-clear the pending mutation after success or failure and block the next agentic
-step when reconciliation is required. Non-edit tools and directories outside
+close only the matching `tool_use_id` after success or failure; parallel pre
+hooks serialize their packet/baseline transactions and retain every outstanding
+call, including siblings whose pre hooks arrive before either writes. Duplicate
+or unrelated post events cannot close another call. Non-edit tools and directories outside
 Moru Core remain outside this gate. Tune the freshness window with
 `MORU_CLAUDE_GATE_MAX_AGE_SECONDS` (default 8 hours). Policy violations return a
 deterministic denial instead of an operator confirmation, so Claude repairs the
@@ -68,6 +70,29 @@ workflow or worktree boundary without asking for every Edit, Write, or Bash call
 Bindings are checkout-local: a session may hold independent active runs in
 several linked worktrees. A sibling-run location is only a denial hint when
 the target checkout has no exact run of its own.
+
+An abandoned tool can be recovered in the exact owning session with
+`<MORU_LAUNCHER> checkpoint --project <TARGET_REPO> --rules <MORU_ROOT>
+--checkpoint-kind reconcile --phase acting --work-file <OBSERVED_WORK_JSON>`.
+First re-read the worktree and supply `objective`, `verification: []`, and
+`changed_scope` acknowledging every pending and previously changed path;
+`--phase blocked` is also accepted. This works for an active pending mutation
+or a `reconcile_required` run even if `.mutation-baseline.json` is missing.
+It clears pending state and old verification, records observed scope, and grants
+no edit, publication or review authority. Do not manufacture a baseline or edit
+the run's state files by hand.
+
+New checkpoints retain a monotonic `mutation_count` and `initial_head`.
+`cancel --no-change-evidence <reason>` can settle a run with no mutation,
+pending entry, changed scope or HEAD movement despite other sessions' tracked
+or untracked edits. Both the run identity and this proof are checked again
+inside the cancellation transaction; no foreign files are cleaned. A legacy
+initial packet also proves no mutations; older advanced packets without this
+history keep the clean-checkout requirement. HEAD movement is conservatively
+refused because commits are not attributed to individual runs. Such an untouched
+open run cannot hold an opaque command executing outside its checkout; known
+publications, commands executing inside it, other projects' own workflow entry,
+main-checkout edit gates and dirty/unmerged worktree removal guards remain.
 
 ## Worktree Write Isolation
 

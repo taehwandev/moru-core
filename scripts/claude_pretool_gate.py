@@ -1221,6 +1221,21 @@ def _finished_runs() -> "_integration.FinishedRuns":
     )
 
 
+def _open_run_holds(root: Path, session_id: str, cwd: Path, held: str) -> bool:
+    """An untouched run cannot hold opaque commands executing elsewhere.
+
+    Known publications and commands executing here keep the usual gates. This
+    exemption grants neither workflow entry nor publication authority elsewhere.
+    """
+    if held != "unreadable" or is_relative_to(cwd.resolve(), root.resolve()):
+        return bool(held)
+    evidence = session_evidence(root, session_id)
+    if evidence is None:
+        return True
+    from agent_continuation_mutation_state import no_mutation_evidence
+    return no_mutation_evidence(root, evidence.parent.name) is not True
+
+
 def publication_before_finish_reason(root: Path, *, unreadable: bool = False) -> str:
     if _publication is None:
         return f"Moru lifecycle: this session's run in {root} is still open."
@@ -1677,7 +1692,7 @@ def _isolated_checkout_verdict(
                 if tool in BASH_TOOLS
                 else ""
             )
-            if held:
+            if held and _open_run_holds(governed, session_id, effective_cwd or cwd, held):
                 return deny(
                     publication_before_finish_reason(
                         governed, unreadable=held == "unreadable"
@@ -1951,6 +1966,7 @@ def _worktree_policy_verdict(
                 candidate
                 for candidate in (roots or [root])
                 if workflow_entry_allows(candidate, session_id)
+                and _open_run_holds(candidate, session_id, command_cwd, held)
             ),
             None,
         )

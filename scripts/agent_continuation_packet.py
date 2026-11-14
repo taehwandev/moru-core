@@ -273,7 +273,12 @@ def _checkpoint(value: Any, failures: list) -> None:
     if not isinstance(value, dict):
         failures.append(failure("invalid_type", "/checkpoint"))
         return
-    closed_object(value, CHECKPOINT_FIELDS, "/checkpoint", failures)
+    optional = tuple(key for key in ("mutation_count", "initial_head") if key in value)
+    closed_object(value, CHECKPOINT_FIELDS + optional, "/checkpoint", failures)
+    if "mutation_count" in value:
+        count(value["mutation_count"], "/checkpoint/mutation_count", failures)
+    if "initial_head" in value:
+        state_head(value["initial_head"], "/checkpoint/initial_head", failures)
     checkpoint_name(value.get("last_completed"), "/checkpoint/last_completed", failures, optional=True)
     checkpoint_name(value.get("first_unfinished"), "/checkpoint/first_unfinished", failures, optional=True)
     pending = value.get("mutation_pending")
@@ -283,10 +288,18 @@ def _checkpoint(value: Any, failures: list) -> None:
         failures.append(failure("invalid_type", "/checkpoint/mutation_pending"))
         return
     # `outstanding` appears only while parallel tool calls share one pending.
-    fields = PENDING_FIELDS + (("outstanding",) if "outstanding" in pending else ())
+    fields = PENDING_FIELDS + tuple(key for key in ("outstanding", "tool_use_ids") if key in pending)
     closed_object(pending, fields, "/checkpoint/mutation_pending", failures)
     if "outstanding" in pending:
         count(pending.get("outstanding"), "/checkpoint/mutation_pending/outstanding", failures)
+    if "tool_use_ids" in pending:
+        ids = pending["tool_use_ids"]
+        items(ids, "/checkpoint/mutation_pending/tool_use_ids", failures, 64,
+              lambda item, pointer: filename(item, pointer, failures))
+        outstanding = pending.get("outstanding", 1)
+        if isinstance(ids, list) and (len(set(str(item) for item in ids)) != len(ids)
+                                     or type(outstanding) is int and len(ids) > outstanding):
+            failures.append(failure("invalid_count", "/checkpoint/mutation_pending/tool_use_ids"))
     enum_value(pending.get("kind"), MUTATION_KINDS, "/checkpoint/mutation_pending/kind", failures)
     items(pending.get("paths"), "/checkpoint/mutation_pending/paths", failures, 64,
           lambda item, pointer: relative_path(item, pointer, failures))
