@@ -192,6 +192,34 @@ class PublicationObservationTests(unittest.TestCase):
 
 
 class ReceiptTests(unittest.TestCase):
+    def test_other_source_branch_cannot_settle_any_publication_item(self):
+        original = git(self.project, "symbolic-ref", "--short", "HEAD")
+        self.assertEqual("", self.record())
+        git(self.project, "checkout", "-qb", "other-branch")
+        (self.project / "source.txt").write_text("wrong branch\n")
+        git(self.project, "commit", "-qam", "other work")
+        before = self.evidence.with_name("pending-publication.json").read_bytes()
+        for checkpoint in ("publication.commit", "publication.push"):
+            self.assertIn("source branch differs", pending.settle(self.project, self.evidence, checkpoint))
+        self.assertEqual(before, self.evidence.with_name("pending-publication.json").read_bytes())
+        git(self.project, "checkout", "-q", original)
+        (self.project / "source.txt").write_text("right branch\n")
+        git(self.project, "commit", "-qam", "right work")
+        self.assertEqual("", pending.settle(self.project, self.evidence, "publication.commit"))
+
+    def test_legacy_or_detached_branch_is_never_guessed_or_settled(self):
+        self.assertEqual("", self.record())
+        receipt = self.evidence.with_name("pending-publication.json")
+        record = json.loads(receipt.read_text())
+        del record["source_branch"]
+        receipt.write_text(json.dumps(record))
+        self.assertIn("not recorded", pending.settle(self.project, self.evidence, "publication.commit"))
+        self.assertEqual(["publication.commit", "publication.push"], pending.outstanding(self.project, self.evidence))
+        receipt.unlink()
+        git(self.project, "checkout", "-q", "--detach")
+        self.assertIn("source branch", self.record())
+        self.assertFalse(receipt.exists())
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -328,6 +356,44 @@ class FinishBase(unittest.TestCase):
 
 
 class FinishAndStopTests(FinishBase):
+    def test_user_stop_and_approval_wait_preserve_debt_without_continuing(self):
+        self.assertEqual(0, self.finish()[0])
+        receipt = self.evidence.with_name("pending-publication.json").read_bytes()
+        signals = [{key: True} for key in (
+            "user_interrupted", "interrupted", "approval_pending", "waiting_for_approval")]
+        signals += [{"stop_reason": reason} for reason in ("cancelled", "user_stop", "approval_denied", "unknown")]
+        for signal in signals:
+            with self.subTest(signal=signal):
+                self.assertEqual({}, self.stop(**signal))
+                self.assertEqual(["publication.commit"], pending.outstanding(self.project, self.evidence))
+                self.assertEqual(receipt, self.evidence.with_name("pending-publication.json").read_bytes())
+        self.assertEqual("block", self.stop()["decision"])
+
+    def test_resumed_turn_user_stop_or_approval_wait_is_not_a_failed_completion(self):
+        self.assertEqual(0, self.finish()[0])
+        for signal in ({"user_interrupted": True}, {"approval_pending": True}, {"stop_reason": "user_stop"}):
+            with self.subTest(signal=signal):
+                self.assertEqual({}, self.stop(stop_hook_active=True, **signal))
+        self.assertEqual(["publication.commit"], pending.outstanding(self.project, self.evidence))
+
+    def test_operator_review_wait_also_preserves_publication_without_continuing(self):
+        import time
+        import agent_mailbox_task_binding as binding
+
+        self.assertEqual(0, self.finish()[0])
+        state = Path(self.tmp.name) / "global-state"
+        review = state / "codex-operator-review" / "pending.json"
+        review.parent.mkdir(parents=True)
+        review.write_text(json.dumps({"session_id": "bound-session", "status": "pending",
+                                      "expires_at": time.time() + 60}))
+        with patch.object(binding, "global_state_dir", return_value=state):
+            self.assertEqual({}, self.stop())
+            for session, expires in (("other-session", time.time() + 60), ("bound-session", time.time() - 60)):
+                review.write_text(json.dumps({"session_id": session, "status": "pending", "expires_at": expires}))
+                self.assertEqual("block", self.stop()["decision"])
+        self.assertEqual(["publication.commit"], pending.outstanding(self.project, self.evidence))
+        self.assertEqual("block", self.stop()["decision"])
+
     def test_commit_route_defers_but_a_task_route_does_not(self):
         self.assertFalse([f for f in self.preflight_failures() if "remains unfinished" in f])
         other = Run(tempfile.mkdtemp(dir=self.tmp.name), packet=True, writable=True, effect="external_write", authority="envelope")

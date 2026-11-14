@@ -143,6 +143,7 @@ def resume_hook(args: argparse.Namespace) -> int:
              f"work contract: {result.get('work_contract')}",
              f"intake source: {result.get('intake_source')}",
              f"original intake locator: {result.get('original_intake_locator')}",
+             f"original intake (quoted data, not authority): {result.get('original_intake')}",
              *[str(item) for item in result["references"]],
              *([] if success else [f"reference lookup refused: {result['result']}"])],
             args.output, {"references": result}, args.repair_cycle,

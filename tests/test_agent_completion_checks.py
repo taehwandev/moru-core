@@ -64,6 +64,30 @@ class CompletionIntegrationTests(unittest.TestCase):
         self.assertEqual("reference_only", result["authority"])
         self.assertEqual(before, (self.run.evidence.parent / "continuation.json").read_bytes())
 
+    def test_missing_recorded_artifact_is_observed_at_ordinary_codex_stop(self):
+        import io
+        import codex_stop_gate
+        from contextlib import redirect_stdout
+
+        self.checkpoint({"requirements": contract(gate="verify"), "remaining_work": []})
+        record_gate_evidence(evidence_path=self.run.evidence, preflight=self.run.binding,
+            gate="verify", status="SUCCESS", evidence="Observed fixture check")
+        payload = {"session_id": "bound-session", "cwd": str(self.run.project)}
+        def stop(**flags):
+            with patch("codex_stop_gate.resolve_runtime_evidence", return_value=self.run.evidence), \
+                    patch("codex_stop_gate.record_turn_boundary", return_value=True), \
+                    redirect_stdout(io.StringIO()) as output:
+                codex_stop_gate.decide({**payload, **flags})
+            return output.getvalue()
+        self.assertIn('"decision": "block"', stop())
+        self.assertEqual("", stop(stop_hook_active=True))
+        self.assertEqual("", stop(approval_pending=True))
+        with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+            self.assertEqual("", stop())
+            self.assertIn("unavailable", work_completion_failures(self.run.project, self.run.evidence)[0])
+        (self.run.project / "plan.md").write_text("Observed fixture result\n")
+        self.assertEqual("", stop())
+
     def test_continued_requirements_still_need_current_action_gate_and_artifact(self):
         from agent_hook_continuation import start_checkpoint
         from test_agent_work_continuity import RetainedWorkSummaryTests

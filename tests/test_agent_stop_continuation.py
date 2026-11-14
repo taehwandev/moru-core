@@ -63,6 +63,39 @@ class StopContinuationTests(unittest.TestCase):
                 self.assertEqual("running", run.state())
                 self.assertFalse(list((run.project / ".moru").rglob("finish.json")))
 
+    def test_empty_remaining_work_does_not_hide_observed_requirement_failure(self):
+        for runtime in ("codex", "claude"):
+            with self.subTest(runtime=runtime):
+                run = self.run_fixture(runtime)
+                write_continuation_checkpoint(project=run.project, rules=run.project,
+                    run_id=run.run["run_id"], binding_path=run.evidence, kind="decision",
+                    work={"remaining_work": []})
+                with patch("agent_completion_checks.coverage_observation", return_value={
+                        "failures": ["requirement r1: artifact is missing or unsafe"]}):
+                    result = self.stop(run)
+                self.assertEqual("block", result["decision"])
+                self.assertIn("requirement r1", result["reason"])
+                self.assertEqual("running", run.state())
+
+    def test_unknown_coverage_never_supplies_an_automatic_retry(self):
+        run = self.run_fixture()
+        write_continuation_checkpoint(project=run.project, rules=run.project,
+            run_id=run.run["run_id"], binding_path=run.evidence, kind="decision",
+            work={"remaining_work": []})
+        with patch("agent_completion_checks.coverage_observation", return_value=None):
+            self.assertIsNone(self.stop(run))
+
+    def test_publication_never_replays_implementation_work_at_stop(self):
+        run = self.run_fixture()
+        run.route["command"] = "commit"
+        run.evidence.write_text(json.dumps(run.binding))
+        write_continuation_checkpoint(project=run.project, rules=run.project,
+            run_id=run.run["run_id"], binding_path=run.evidence, kind="decision",
+            work={"objective": "commit workflow"})
+        with patch("agent_completion_checks.coverage_observation") as coverage:
+            self.assertIsNone(self.stop(run))
+        coverage.assert_not_called()
+
     def test_a_blocked_item_does_not_abandon_other_declared_executable_work(self):
         run = self.run_fixture(blockers=["A separate target needs a user decision"])
         self.assertEqual("block", self.stop(run)["decision"])

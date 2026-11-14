@@ -63,14 +63,42 @@ Continuation and read-only resume references retain the optional requirement
 mapping, including IDs, revision, owners, observing gates and artifact paths.
 They do not import prior action verification or authority. The current action
 must satisfy its admitted gates and artifact checks; a changed route can require
-explicit mapping revision before closeout. A requirement-only packet is reported
+explicit mapping revision before implementation closeout. A requirement-only packet is reported
 as recorded even when it has no prose `acceptance_criteria`.
+
+The normalized `commit` route (including PR aliases) is publication readiness,
+not another implementation delivery phase. Retained requirements remain context;
+they are not rebound to commit gates. The effect-admitted canonical publication
+checkpoints alone may run after finish; their pending-publication receipt remains
+owed until observed. Other remaining work still blocks. User stops and approval
+waits pause reminders without marking publication complete. Current review, readiness, input freshness,
+authority, unresolved-operation and explicit-blocker checks still apply. Finish
+does not assert those pending actions ran or that all implementation was delivered.
+
+During ordinary writable work, an eligible Stop with empty `remaining_work`
+also observes native coverage for an existing requirement map. A confirmed missing
+gate/artifact uses the existing single continuation, before publication is requested.
+No mapping or unavailable native observation adds no retry; finish remains strict
+for implementation coverage. User stops, approval waits, blockers and pending
+operations retain precedence. No transcript inference or mandatory mapping is added.
 
 This is structural coverage, not semantic acceptance: a present but unrelated
 file can satisfy an existence check. Requirements omitted by the agent remain
 unknown. Use the original request and an outcome-specific observing check or
 review to judge fulfillment; do not add timestamp heuristics or universal extra
 gates to imply that the harness can judge arbitrary requested behavior.
+
+To reconcile requirements omitted from that checklist, implementation review
+also quotes the existing canonical original intake from the exact registered
+work origin. Read-only resume context exposes the same source next to the
+current work contract. Both source bindings and project membership must validate;
+the current action's intake is paired with the original so explicit user
+revisions or cancellations are not silently replaced by older requirements.
+different/unknown runtime sessions and oversized input receive an explicit source
+pointer instead of automatic quotation or silent truncation. These are local
+quoted data, not authority or proof of fulfillment; current user changes win.
+No new prompt store, transcript capture, model call or completion gate is added.
+Commit/PR review receives no extra implementation reconciliation output.
 
 Transmit only gate names/statuses, preserving history order and malformed rows.
 Rust folds the complete history within the 1 MiB transport bound; there is no

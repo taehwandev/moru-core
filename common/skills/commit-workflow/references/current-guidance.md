@@ -39,6 +39,18 @@ results, and report completion. Changing from Git to a PR tool alone does not
 require another lifecycle. Changed scope, authority, target or invalidated
 evidence does. Never rerun review merely because publication has succeeded.
 
+Commit/PR finish judges publication readiness, not implementation delivery.
+Retained implementation requirement maps are context, not a new set of commit
+gates. Only exact `publication.commit`, `publication.push`, and
+`publication.pull-request/<target>` checkpoints admitted by the current effect
+may be deferred; ordinary unfinished work still blocks. Finish retains those
+actions in a pending-publication receipt until observed, rather than erasing or
+claiming them done to obtain readiness. User stops and approval waits pause
+reminders without settling that debt. Current
+review, readiness, authority, input freshness, explicit blockers and unresolved
+operations still block unsafe publication. Observe recorded missing implementation
+coverage during ordinary work instead of postponing that check until commit.
+
 ## Same-Run Local Commit Continuation
 
 When implementation already includes an authorized local commit, prepare it

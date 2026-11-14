@@ -96,6 +96,7 @@ def resume_references(project: Path, run_id: str, *, check_files: bool = False) 
         original = {"run_id": origin, "path": str(continuation_path(project, origin).parent / "preflight.json"),
                     "json_pointer": "/request_intake", "availability": "unchecked"}
     contract_keys = ("objective", "non_goals", "decisions", "acceptance_criteria", "requirements", "remaining_work", "blockers")
+    from agent_intake_context import IntakeContext
     return {
         **result, "result": "ok", "run_state": record.get("state", "unknown"),
         "work_contract": {key: packet["work"][key] for key in contract_keys if key in packet["work"]},
@@ -106,6 +107,7 @@ def resume_references(project: Path, run_id: str, *, check_files: bool = False) 
             "sha256": packet["binding"]["file_sha256"] if binding.name == "preflight.json" else None,
         },
         "original_intake_locator": original,
+        "original_intake": IntakeContext.reference(project, path.parent / "preflight.json"),
         "references": inspect_evidence_refs(
             packet["work"].get("evidence_refs", []), check_files=check_files,
         ),
