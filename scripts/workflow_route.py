@@ -162,7 +162,9 @@ LIGHTWEIGHT_PUBLICATION_CONCERNS = {
 }
 
 BRANCH_CLEANUP_SKILL = "common/skills/branch-cleanup/SKILL.md"
-LIGHTWEIGHT_CLEANUP_CONCERNS = {"branch", "worktree"}
+# Cleanup owns Git state; the same concern on application routes still selects
+# state-modeling. Any separate risk concern keeps full document selection.
+LIGHTWEIGHT_CLEANUP_CONCERNS = {"branch", "worktree", "state"}
 
 
 def _uses_fixed_cleanup_documents(command: str, concerns: list[str]) -> bool:

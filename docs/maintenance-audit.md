@@ -908,3 +908,65 @@ so it need not build its own harness; cheaper evidence (fewer and smaller screen
 judged without images, a smaller judge for passes); observing until the resting state returns instead
 of a fixed window. Container note outside Moru: a PID 1 that does not reap children let defunct
 processes accumulate (227 observed) toward the process limit; `--init` is the remedy.
+
+## Public Harness Comparison: 2026-11-13
+
+Baseline `cd4eb512`, macOS/Codex; scope H01/H06. Compared official public
+sources with Moru's routing, execution-capsule bindings and pending-publication
+owner. No external harness was installed or executed, and no paid model call
+or permission change was introduced.
+
+Sources, with repository creation dates distinguished from release dates:
+
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness): GitHub
+  [metadata](https://api.github.com/repos/deepseek-ai/deepseek-harness) reports
+  creation on 2026-08-13. Its [core map](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/README.md)
+  separates session, prompt, tool and loop owners rather than prescribing one
+  inseparable composition.
+- [DeepSeek Super-agent prototype](https://github.com/deepseek-ai/dsh-superagent-prototype):
+  GitHub [metadata](https://api.github.com/repos/deepseek-ai/dsh-superagent-prototype)
+  reports creation on 2026-10-31. Its README explicitly calls it a research
+  prototype and distinguishes implemented code from future designs. The
+  [authorization](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/main/docs/002-authorization.md)
+  and [execution](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/main/docs/003-execution.md)
+  contracts separate follow-up context from authority and require checking
+  existing external results before replay after restart.
+- [Gemini CLI v0.68.0](https://github.com/google-gemini/gemini-cli/releases/tag/v0.68.0)
+  was released on 2026-11-10 UTC. Its existing
+  [JIT context contract](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/gemini-md.md)
+  loads component instructions on access within trusted roots. This is an
+  existing design examined alongside the recent release, not a claim that
+  v0.68.0 first introduced JIT loading.
+- Google's [ADK 2.0 rationale](https://developers.googleblog.com/en/why-we-built-adk-20/)
+  (2026-07-01) separates deterministic orchestration from model reasoning and
+  bounds the state passed to each node. It is a framework design reference,
+  not a new November release or the source of Antigravity's server harness.
+
+Decision: tighten the existing scoped context contract. Keep Moru's request,
+evidence and pending-publication owners; adding another authority store,
+background router or plugin runtime would duplicate responsibilities without
+an observed need. Full-access execution and automatic proactive dispatch are
+not adopted from the prototype. The present comparison does not establish
+model-quality, cost or throughput superiority for any harness.
+
+### Git state must not load UI state guidance (H01/H06)
+
+Reproducer: `resolve_docs("cleanup", None, ["state"], ...)` with the user's
+merged worktree/branch/stash request. The legacy `state` concern bypassed the
+fixed Git deletion contract and selected UI state-modeling and general worktree
+guidance. The existing cleanup route already owns only Git administration.
+
+Treat `state` as Git state within that route's fixed concern family. Required
+documents fall from four / 44,227 UTF-8 bytes to two / 10,467 bytes for this
+exact input. The deletion gates are byte-for-byte identical. Application-state
+routes still select state-modeling; cleanup with a separate security concern
+still selects risk guidance. These are selected-source byte counts, not token,
+observed-reading, elapsed-time or success-rate measurements.
+
+The three focused regressions in `test_workflow_cleanup_context` pass. A broader
+96-case screen passed 94 cases and exposed two pre-existing document-size
+assertion failures: cleanup selects 10,467 bytes against a 10,000-byte cap;
+PRD selects 16,472 against 16,000. Both reproduce with the unmodified HEAD
+router and unchanged source documents. Their limits and documents are retained;
+the broad screen is not reported as passing. No end-to-end performance gain or
+live CLI installation is claimed.
