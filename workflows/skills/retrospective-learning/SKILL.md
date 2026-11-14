@@ -33,7 +33,9 @@ failure-repair and skill-learning automation boundary.
    earlier lifecycle recorded success; do not wait for recurrence or treat the
    correction as ordinary successful-task feedback.
 2. Open only the matching focused reference.
-3. Keep failure repair inside the bounded repair-and-resume cycle.
+3. Correct ordinary task, invocation, missing-evidence and environment failures
+   at their actual owner. Only an evidenced framework defect requires a durable
+   Moru Core repair and structural receipt; keep that repair inside one cycle.
    Select the active Moru Core root as the canonical repair owner. An
    upstream or reference Moru Core checkout is not a repair target unless
    the user explicitly starts a runtime migration task.

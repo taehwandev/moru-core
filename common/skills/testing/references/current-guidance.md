@@ -217,6 +217,16 @@ tests; assess ignored artifacts, dependencies and external state normally.
 Do not rerun a completed selection merely to adopt this shortcut, and keep
 final review.
 
+The optional runner admits two attempts without a verified pass for each unchanged
+command, timeout and project/rules snapshot, then returns `no_progress` without spawning
+tests. The existing run-local repair ledger keeps at most 32 input identities;
+a completed pass clears its own budget. Corrected inputs or a different test
+selection are independently runnable. For changed dependencies, services or
+other external conditions, `--retry-reason` names the concrete change; repeating
+the same reason does not replenish the budget. This applies to `moru-hook verify`,
+not arbitrary tool calls inside provider runtimes. Ordinary test failures do not
+require framework edits or structural repair receipts.
+
 ## Report
 
 For automated checks, report command, result, and what boundary it proved. For

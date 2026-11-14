@@ -14,13 +14,15 @@ not share a trigger, completion effect, or automation budget.
 
 | Event | Flow | Completion effect | Detailed reference |
 | --- | --- | --- | --- |
-| A required hook, gate, or finish check fails | Failure repair | Blocking | `failure-repair.md` |
+| A required hook, gate, or finish check fails | Diagnose and correct the actual owner; framework repair only for an evidenced framework defect | Blocking | `failure-repair.md` |
 | The user explicitly reports that a previously completed result was wrong and asks to correct that same result | Failure repair | Blocking | `failure-repair.md` |
 | A tracked work route requires a closeout check | Short retrospective check | Required before finish | Entry point; `skill-feedback.md` only for a reusable gap |
 | The check reveals a reusable gap in a skill actually used | Skill-document maintenance | Same-closeout follow-up blocks finish until terminal | `skill-feedback.md` |
 
-Failure repair protects the current task. It diagnoses the failed checkpoint,
-improves a durable enforcement surface, verifies the repair, and resumes once.
+Failure recovery protects the current task. Ordinary task, invocation, missing
+evidence and environment failures need a verified correction at their actual
+owner. They do not automatically require a Moru Core change or repair receipt.
+An evidenced framework defect uses the bounded durable repair-and-resume flow.
 A user-confirmed wrong completion is failure evidence even when every earlier
 gate said success: the completion decision itself is the failed checkpoint.
 This trigger does not require two occurrences.

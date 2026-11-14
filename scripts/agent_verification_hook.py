@@ -8,6 +8,7 @@ Caller: agent-hook verify; verification: test_agent_verification_hook.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import signal
 import subprocess
@@ -20,7 +21,10 @@ from agent_gate_evidence import record_many_gate_evidence
 from agent_gate_reuse import GateEvidenceReuse
 from agent_hook_gate_records import _gate_progress, preflight_evidence_path, record_hook_gate
 from agent_hook_runtime import finish_with_result
-from agent_repair_ledger import failure_signature, record_failure_checkpoints
+from agent_repair_ledger import (
+    claim_verification_attempt, clear_verification_attempt,
+    failure_signature, record_failure_checkpoints,
+)
 from agent_runtime_session import resolve_runtime_evidence, runtime_session
 
 
@@ -38,46 +42,64 @@ def verification_hook(args) -> int:
                 or "tests" not in (preflight.get("route") or {}).get("gates", [])):
             raise ValueError("verify requires matching project/rules and a tests gate")
         command = unittest_command(args)
-        check = " ".join(command)
-        # Clear an older pass before execution, including interruption/timeout.
-        # The normal ledger writer enforces live ownership before any test runs.
-        record_hook_gate(args, "tests", "verification started; no completed result",
-                         {"check": check, "result": "incomplete"}, "execution", "FAIL")
-        candidate = {"gate": "tests", "status": "SUCCESS", "source": "execution",
-                     "evidence": "observed unittest process result",
-                     "fields": {"check": check, "result": "pending"}}
-        before = _snapshot(preflight, candidate)
-        started = monotonic()
-        code, count, passed = execute_unittest(command, args.project, args.verify_timeout)
-        after = _snapshot(preflight, candidate)
-        stable = before["reuse_snapshot"] == after["reuse_snapshot"]
-        success = code == 0 and passed and count > 0 and stable
-        result = (f"exit={code}; tests={count}; elapsed={monotonic() - started:.3f}s; "
-                  f"inputs_unchanged={stable}")
-        after["fields"]["result"] = result
-        after["status"] = "SUCCESS" if success else "FAIL"
-        if not success:
-            after.pop("reuse_snapshot", None)
-        record_many_gate_evidence(evidence_path=path, preflight=preflight, records=[after])
-        if not success:
-            # The failure output points at repair-verify, which only accepts a
-            # recorded failed checkpoint; without this the printed recovery
-            # path ended in `checkpoint_not_failed`.
-            # Elapsed time is left out so a recurring failure keeps its signature.
-            signature = failure_signature([f"verify exit={code}; tests={count}; inputs_unchanged={stable}"])
-            record_failure_checkpoints(evidence_path=path, preflight=preflight, checkpoints=["tests"],
-                                       signature=signature, checkpoint_signatures={"tests": signature})
-        progress = _gate_progress(args)
-        return finish_with_result(
-            "verify", success,
-            [result, "Tests gate recorded for this selection; do not repeat gate-batch. Final review still applies.",
-             f"Remaining route gates: {progress['remaining_gates']}"],
-            getattr(args, "output", None), {"gate_evidence": after, "gate_progress": progress},
-            getattr(args, "repair_cycle", 0),
-        )
+        return _verify_selection(args, path, preflight, command)
     except (OSError, ValueError, RuntimeError) as error:
         print(f"FAIL verify: {error}", file=sys.stderr)
         return 1
+
+
+def _verify_selection(args, path, preflight, command):
+    check = " ".join(command)
+    # Clear an older pass before execution, including interruption/timeout.
+    # The normal ledger writer enforces live ownership before any test runs.
+    record_hook_gate(args, "tests", "verification started; no completed result",
+                     {"check": check, "result": "incomplete"}, "execution", "FAIL")
+    candidate = {"gate": "tests", "status": "SUCCESS", "source": "execution",
+                 "evidence": "observed unittest process result",
+                 "fields": {"check": check, "result": "pending"}}
+    before = _snapshot(preflight, candidate)
+    identity = hashlib.sha256(json.dumps({
+        "command": command, "timeout": args.verify_timeout,
+        "inputs": {key: value for key, value in before["reuse_snapshot"].items() if key != "session"},
+        "retry_reason": getattr(args, "retry_reason", "").strip(),
+    }, sort_keys=True).encode()).hexdigest()
+    attempt = claim_verification_attempt(evidence_path=path, preflight=preflight, identity=identity)
+    if not attempt:
+        result = "no_progress: two attempts without a verified pass for unchanged inputs; no process started"
+        record_hook_gate(args, "tests", result, {"check": check, "result": result}, "execution", "FAIL")
+        return finish_with_result(
+            "verify", False, [result], getattr(args, "output", None), {}, getattr(args, "repair_cycle", 0),
+            verification_failure="no_progress",
+        )
+    started = monotonic()
+    code, count, passed = execute_unittest(command, args.project, args.verify_timeout)
+    after = _snapshot(preflight, candidate)
+    stable = before["reuse_snapshot"] == after["reuse_snapshot"]
+    success = code == 0 and passed and count > 0 and stable
+    result = (f"exit={code}; tests={count}; elapsed={monotonic() - started:.3f}s; "
+              f"inputs_unchanged={stable}")
+    after["fields"]["result"] = result
+    after["status"] = "SUCCESS" if success else "FAIL"
+    if not success:
+        after.pop("reuse_snapshot", None)
+    record_many_gate_evidence(evidence_path=path, preflight=preflight, records=[after])
+    if success:
+        clear_verification_attempt(evidence_path=path, preflight=preflight, identity=identity, attempt=attempt)
+    else:
+        # Keep real failure evidence available if a framework defect is found.
+        # Elapsed time is left out so a recurring failure keeps its signature.
+        signature = failure_signature([f"verify exit={code}; tests={count}; inputs_unchanged={stable}"])
+        record_failure_checkpoints(evidence_path=path, preflight=preflight, checkpoints=["tests"],
+                                   signature=signature, checkpoint_signatures={"tests": signature})
+    progress = _gate_progress(args)
+    return finish_with_result(
+        "verify", success,
+        [result, "Tests gate recorded for this selection; do not repeat gate-batch. Final review still applies.",
+         f"Remaining route gates: {progress['remaining_gates']}"],
+        getattr(args, "output", None), {"gate_evidence": after, "gate_progress": progress},
+        getattr(args, "repair_cycle", 0),
+        verification_failure="" if success else "task_failure",
+    )
 
 
 def _snapshot(preflight, candidate):

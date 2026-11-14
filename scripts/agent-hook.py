@@ -2103,6 +2103,7 @@ def _add_gate_arguments(parser: argparse.ArgumentParser) -> None:
     gate.add_argument("--test-directory", default="tests", help="verify: project-local unittest discovery directory")
     gate.add_argument("--test-pattern", default="test_*.py", help="verify: unittest discovery filename glob")
     gate.add_argument("--verify-timeout", type=int, default=600, help="verify: maximum test process seconds")
+    gate.add_argument("--retry-reason", default="", help="verify: changed external condition requiring fresh verification")
     # --name is what agents guess. --gate stays undefined on purpose (finish must not take gate
     # evidence); `_parse_args` names the right option for it instead.
     gate.add_argument("--gate-name", "--name", dest="gate_name",

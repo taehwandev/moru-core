@@ -71,6 +71,7 @@ def finish_with_result(
     refreshable_failure: bool = False,
     fresh_start_required: bool = False,
     drift_receipt: str = "",
+    verification_failure: str = "",
 ) -> int:
     policy, policy_details = hook_failure_policy(
         success,
@@ -80,6 +81,7 @@ def finish_with_result(
         refreshable_failure=refreshable_failure,
         fresh_start_required=fresh_start_required,
         drift_receipt=drift_receipt,
+        verification_failure=verification_failure,
     )
     details = [*details, *policy_details]
     evidence = {
@@ -133,6 +135,7 @@ def hook_failure_policy(
     refreshable_failure: bool = False,
     fresh_start_required: bool = False,
     drift_receipt: str = "",
+    verification_failure: str = "",
 ) -> tuple[dict[str, Any], list[str]]:
     if success:
         next_action = "resume_failed_checkpoint" if repair_cycle else "continue"
@@ -198,20 +201,36 @@ def hook_failure_policy(
             "lifecycle, and rerun the affected analysis or review before finish. This is stale "
             "workspace evidence, not a Moru Core repair; do not run repair-verify",
         ]
+    if verification_failure and repair_cycle < REPAIR_CYCLE_LIMIT:
+        stopped = verification_failure == "no_progress"
+        return {
+            "repair_cycle": repair_cycle,
+            "repair_cycle_limit": REPAIR_CYCLE_LIMIT,
+            "next_action": "stop_unchanged_verification" if stopped else "diagnose_task_failure",
+            "recovery_required": "changed_inputs_or_external_condition",
+            "resume_scope": "tests",
+        }, [
+            "verification request: inspect the test failure and correct the owning task or "
+            "environment; do not run repair-verify or change Moru Core unless evidence "
+            "identifies a framework defect. After two attempts without a verified pass and unchanged "
+            "inputs, stop and change the failing inputs or use --retry-reason to name a "
+            "changed external condition before revalidation",
+        ]
     if repair_cycle < REPAIR_CYCLE_LIMIT:
         return {
             "repair_cycle": repair_cycle,
             "repair_cycle_limit": REPAIR_CYCLE_LIMIT,
             "repair_policy": REPAIR_POLICY,
-            "next_action": "retrospective_then_repair_verify_resume",
-            "recovery_required": "verified_moru_improvement",
+            "next_action": "diagnose_correct_verify_resume",
+            "recovery_required": "verified_owner_correction",
             "resume_scope": RESUME_SCOPE,
         }, [
-            "recovery request: diagnose every failure, run an actionable retrospective for this "
-            "failed scope, improve the owning Moru Core doc, hook, validator, or test, and "
-            "verify that repair outside the hook. Create a structural receipt with the "
-            "repair-verify hook, then pass its path with --repair-cycle 1, --repair-target, "
-            "--repair-evidence, and --resume-checkpoint before resuming the original task",
+            "recovery request: classify the failed checkpoint and correct its owning task, "
+            "missing evidence, invocation or environment; verify the correction and resume "
+            "only the failed scope. A failed gate alone does not require a Moru Core edit "
+            "or an actionable retrospective. Only an evidenced framework defect uses "
+            "repair-verify with --repair-cycle 1, --repair-target, --repair-evidence and "
+            "--resume-checkpoint; preserve that bounded repair limit",
         ]
     return {
         "repair_cycle": repair_cycle,
