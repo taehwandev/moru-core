@@ -319,7 +319,10 @@
       "status": "partial_native",
       "entry_aliases": "claude-pretool-gate",
       "remaining": "Port full command/effect parsing, scope, workflow, publication and mutation decisions beyond read queries.",
-      "verification": {"diff_queries": "PASS:34 Python pretool/query cases,4 Rust grammar tests and199 transported macOS ARM64 checks. Plain/cached/literal-path diff classification matches Python without Python/Git on PATH; unsafe syntax, shadows and exceptional contexts retain replay. One bounded follow-up only; see native-pretool-diff.md. Full pretool migration remains open."},
+      "verification": {
+        "diff_queries": "PASS:34 Python pretool/query cases,4 Rust grammar tests and199 transported macOS ARM64 checks. Plain/cached/literal-path diff classification matches Python without Python/Git on PATH; unsafe syntax, shadows and exceptional contexts retain replay. One bounded follow-up only; see native-pretool-diff.md. Full pretool migration remains open.",
+        "staged_diff_queries": "Python pretool/query cases and Rust grammar tests cover --staged and cache/display selector reordering; the original Python policy is matched without Python/Git on PATH. Duplicate/conflicting selectors, unsafe options, shadows and invalid Codex transcript binding retain replay. Unit20 stays partial and no installed/Linux/performance claim is made. See native-pretool-diff.md."
+      },
       "supporting_sources": [
         "scripts/agent_closeout_command.py"
       ]
@@ -358,7 +361,10 @@
       "status": "partial_native",
       "entry_aliases": "codex-pretool-gate",
       "remaining": "Port full pretool policy and Codex normalization/approval handling beyond read queries.",
-      "verification": {"diff_queries": "Same shared classifier and34/4/199 checks as unit20; new ordinary diff forms preserve Codex transcript binding and exact Python replay. See native-pretool-diff.md. Full pretool and cross-host acceptance remain open."}
+      "verification": {
+        "diff_queries": "Same shared classifier and34/4/199 checks as unit20; new ordinary diff forms preserve Codex transcript binding and exact Python replay. See native-pretool-diff.md. Full pretool and cross-host acceptance remain open.",
+        "staged_diff_queries": "Same shared staged/reordered diff classifier as unit20, including Codex transcript and both-runtime shadow refusal checks. Unit24 stays partial; see native-pretool-diff.md."
+      }
     },
     {
       "id": "scripts/codex_stop_gate.py",

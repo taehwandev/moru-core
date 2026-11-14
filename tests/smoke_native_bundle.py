@@ -425,6 +425,8 @@ def smoke(archive):
             checks += 1
         for runtime in ("claude", "codex"):
             for command in ("git log -5 --oneline", "git ls-files", "git diff", "git diff --cached -- notes.txt",
+                            "git diff --staged", "git diff --stat --staged -- notes.txt",
+                            "git diff --name-status --cached -- '한글 메모.txt'",
                             "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',
                             "tail -n 20 notes.txt", "wc -l notes.txt", "sed -n '1,20p' '한글 메모.txt'",

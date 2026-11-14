@@ -8,10 +8,12 @@ type: ai-generated
 
 This single bounded follow-up moves ordinary Git diff classification onto the
 existing native pretool path for both Claude and Codex. It does not execute Git
-or change the Python policy. The full-inventory automatic goal remains paused.
+or change the Python policy. A bounded extension does not complete or implicitly
+resume the full-inventory migration.
 
-Supported forms include plain `git diff`, an optional leading `--cached`, one
-existing display/check selector, and optional literal paths after `--`.
+Supported forms include plain `git diff`, an optional `--cached` or `--staged`,
+one existing display/check selector, and optional literal paths after `--`.
+The cache/staged selector and display/check selector may appear in either order.
 Selectors are `--stat`, `--check`, `--name-only`, `--name-status`, `--numstat`
 and `--exit-code`. Paths may contain ordinary letters/digits, Unicode, spaces,
 underscores, dots, hyphens and slashes. Existing absolute `-C`, scoped output
@@ -22,6 +24,8 @@ paths, Git magic/glob pathspecs, parent traversal and unsupported shell syntax
 retain Python handling. Local executable shadows and exceptional transcript or
 path contexts preserve the original callback results. No permission or write
 capability is added. Remaining full pretool migration stays open in units20/24.
+Duplicate cache/staged selectors, duplicate display/check selectors, mixed
+`--cached --staged`, abbreviated flags and value-bearing variants also defer.
 
 ## Evidence
 
@@ -40,3 +44,25 @@ claim is added; cross-host acceptance is not inferred from local results.
 
 Actual installation is checked separately after exact main integration. This
 batch does not request a remote build, push, tag or release.
+
+## Staged alias and option ordering
+
+The next bounded increment adds `--staged` and recognizes a single cache selector
+before or after one display/check selector. The original Python callback accepted
+`git diff --staged`; the previous native entrypoint replayed Python and failed
+with exit127 when Python was absent. This baseline is an observing negative
+control for the new native route, rather than a new policy decision.
+
+The shared grammar still classifies commands without executing Git. Both callback
+entrypoints are checked against Python across 24 staged/reordered forms, including
+literal Unicode paths, absolute repository selection, scoped cwd and output
+filters. Unsafe/ambiguous neighbors, executable shadows and invalid Codex
+transcript metadata retain the original replay path. New transported callbacks
+cover both runtimes with Python and Git absent from PATH. No timing, whole-unit,
+installed-runtime or other-host claim is added by these source changes.
+
+Verification passed 39 Python cases (36 pretool/query plus three ledger checks),
+four Rust grammar tests and 213 transported macOS ARM64 checks. The transported
+suite adds six staged/reordered callbacks to the previous 207-check artifact.
+Memory source/status runtime inputs match the preceding verified artifact;
+comparing receipts finds changes only in `pretool_query.rs` and its Rust test file.
