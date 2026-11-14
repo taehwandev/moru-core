@@ -103,6 +103,55 @@ Any unclassifiable UI difference is an equivalence failure that blocks caller
 cutover. Do not switch a caller while the visual change count is nonzero or
 the approval basis is empty.
 
+## Replacing A Shipped Product
+
+Use when a rewrite replaces a product users already run (an app, service or CLI),
+not only a module. Parity is what the old product already did, so a PRD, an ARD
+and an implementation ledger do not prove it.
+
+- **Behavior ledger.** One row per old behavior, taken from the old product's
+  regression tests and from what users see, not from file or class names. A
+  rewrite renames everything, so a name search is a pointer, not a verdict. Each
+  row ends in a new test, a recorded live check, or an owned drop decision. An
+  open acceptance row blocks installing the product for users and any release.
+- **Port state models, not only screens.** Where the old product derived a
+  status from inputs (process, output, time), port the model and its tests
+  first. A label with fewer states than the old one is a regression even when it
+  renders.
+- **Lifecycle contract.** List what each process owns and what survives quit,
+  crash, update and reboot, and compare it with the old product. Prove it by
+  killing the app in a test and by reading the old product's real state
+  read-only.
+- **Imports reconcile.** After importing user data, compare per-entity counts of
+  source and destination on real data, read-only, and explain every difference;
+  a skip is reported with its reason. On a collision merge into what exists
+  instead of skipping. Write the completion marker after the work, make a second
+  run add nothing and a partial run continue, and bring things over lazily when
+  they are not needed at once. Do not assume a one-to-one relation the old
+  product allowed to be many.
+- **Bounds are measured.** Anything unbounded (rows, panes, pages, windows) is
+  windowed or capped, with a test far above normal size. Measure the smallest
+  size the layout can reach at the maximum count and assert it fits a laptop
+  screen. Read the hang or crash report before guessing a cause. A constraint
+  that is not required can still decide a view's size, so measure the real views
+  in the real arrangement, never placeholder views.
+- **Platform basics.** For every window and input surface check the platform's
+  defaults (title bar drag and double click, zoom and minimize, resize, drop and
+  paste onto each input, IME, accessibility, light and dark) instead of waiting
+  for users to report them.
+- **Gates travel with triggers.** For every flag or setting that gates a
+  feature, find what sets it in the old product. Port the trigger or remove the
+  gate on purpose and record it.
+- **Coexistence.** When old and new share an identity (bundle id, data folder,
+  socket, host), decide who may attach, what the user is told and who quits whom
+  before the first install, and test with both present.
+- **Live before moved.** A slice is not moved until it ran in the installed
+  product on the user's real data, read-only first, and the report says what was
+  and was not checked live. When the product cannot be clicked, drive it through
+  its own entry points (links, validation flags, state files) and check the
+  effect in files and processes. Back the old product up under a name that
+  cannot collide before replacing it.
+
 ## Workspace Root Relocation
 
 Treat a developer workspace root rename as a coordinated migration across all
