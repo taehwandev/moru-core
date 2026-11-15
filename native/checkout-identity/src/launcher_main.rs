@@ -53,6 +53,7 @@ mod mailbox_status_process;
 mod mailbox_status_state;
 mod memory_terms;
 mod memory_recall;
+mod memory_context;
 mod memory_process;
 mod memory_json;
 mod memory_record;

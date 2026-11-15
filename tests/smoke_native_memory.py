@@ -18,6 +18,22 @@ def check_memory(native,entry,project,env):
             input=json.dumps(payload).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":indices}},done
+    limits={"items":3,"chars":1200,"previous":160}
+    for rows,context,bounds,expected in (
+        (records,"ProfileScreen",limits,[{k:records[0][k] for k in ("id","body","source","review_on")}]),
+        ([],"",limits,[]),
+        (records,"",{**limits,"items":0},[])):
+        done=subprocess.run([str(native),str(entry),"--memory-probe","recall-context"],input=json.dumps({
+            "unicode":unicodedata.unidata_version,"scope":"task","today":"2026-11-09",
+            "context":context,"records":rows,"limits":bounds}).encode(),
+            capture_output=True,cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":{"items":expected}},done
+    done=subprocess.run([str(native),str(entry),"--memory-probe","recall-context"],input=json.dumps({
+        "unicode":unicodedata.unidata_version,"scope":"task","today":"2026-11-09","context":"",
+        "limits":limits,"records":[{**records[0],"source_files":[{"path":"never-read","blob":"old"}]}]}).encode(),
+        capture_output=True,cwd=project,env=env,timeout=8)
+    assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
     rows=[{"id":"a","replaces":None,"replaced_by":None},
           {"id":"b","replaces":"a","replaced_by":None},
           {"id":"c","replaces":"b","replaced_by":None}]
@@ -129,7 +145,7 @@ def check_memory(native,entry,project,env):
             }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
-    return 35
+    return 39
 
 
 def check_memory_files(native,entry,base,project,env):

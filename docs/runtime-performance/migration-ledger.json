@@ -246,9 +246,10 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "project-memory",
-      "remaining": "Native recall, record reads/scans, source-blob/status batches, history, ordinary analysis binding/candidate selection, consolidation grouping, startup/live/replacement upkeep, strict review-date/fused report, strict startup ISO-date/count and ordinary startup text-normalization kernels are implemented. Python admission, cache-only aggregation/error transport, history projection, capture/retire, analysis freshness/rendering/budgets, consolidation custom/exceptional normalization, report/startup rendering, exceptional startup/report calendars and date formats, exceptional profiles and retirement remain open. Startup text is locally verified with debug fixtures; release/bundle, installed and exact Linux acceptance for this increment remain pending.",
+      "remaining": "Native recall, source-file-free recall projection/budget, record reads/scans, source-blob/status batches, history, ordinary analysis binding/candidate selection, consolidation grouping, startup/live/replacement upkeep, strict review-date/fused report, strict startup ISO-date/count and ordinary startup text-normalization kernels are implemented. Python admission/final compatible JSON encoding, source-backed rendering, cache-only aggregation/error transport, history projection, capture/retire, analysis freshness/rendering/budgets, consolidation custom/exceptional normalization, report/startup rendering, exceptional startup/report calendars and date formats, exceptional profiles and retirement remain open. Recall context and startup text are locally verified with debug fixtures; release/bundle, installed and exact Linux acceptance for these increments remain pending.",
       "supporting_sources": [
         "scripts/support/native_memory.py",
+        "scripts/support/native_memory_context.py",
         "scripts/support/native_memory_status.py",
         "scripts/support/native_memory_history.py",
         "scripts/support/native_memory_analysis.py",
@@ -260,6 +261,7 @@
         "native/checkout-identity/memory_contract.py"
       ],
       "verification": {
+        "recall_context": "PASS:79 distinct Python cases,63 Rust memory tests,39 transported macOS ARM64 debug checks and80 original-source rendering scenarios. Source-file-free projection/budget uses one existing ranking request; observing and negative-control tests reject Python replay. Source-backed/custom paths retain the reference, cached statuses retain zero IPC and native decline avoids a second ranking process. Initial high-load transport/Git-setup timeouts passed scoped retries with unchanged production timeouts. Final compatible JSON encoding and source-backed behavior remain Python-owned; unit16 stays partial. No timing, bundle, installed or Linux claim. Genuine AGY reviewed public snippets only. See native-memory-context.md.",
         "recall": "PASS:100 distinct Python3.9 cases,4 selected Python3.14 profile/error cases,4 Rust tests and191 transported macOS ARM64 checks. Actual native helper calls reject Python lexical/ranking replay and return original objects without writes. Fixture-only tie/profile assertions were corrected against source; see native-memory-recall.md. No completed-unit or exact-batch Linux claim.",
         "record_reads": "PASS:109 Python3.9 memory/source/ledger cases,3 selected Python3.14 cases,9 Rust memory tests and195 transported macOS ARM64 checks. Native file decoding, canonical digest/schema checks and sorted scans execute without Python read_text/digest/record-loop replay; guarded descriptor/FIFO, permissions, symlinks and unsupported metadata preserve read-only fallback. See native-memory-files.md. Unit16 remains partial; no exact-batch Linux claim.",
         "source_blobs": "PASS:112 focused Python cases,9 Rust memory tests and204 transported macOS ARM64 checks. Native candidate-file/Git checks preserve exact argv, SHA1/SHA256, filters, timeouts, supplied case, binary tracked output and typed UTF8 errors without normal Python file/Git replay. Actual EOF/locale admission defers live/unknown profiles before Git. Python relative-path/root admission remains; later status progress is recorded separately. See native-memory-source.md. Unit16 stays partial; Linux exact-batch acceptance is open.",
@@ -679,6 +681,9 @@
     }
   ],
   "unmigrated_python_sources": [
+    "scripts/support/native_memory_context.py",
+    "scripts/agent_behavior_eval.py",
+    "scripts/agent_review_journal.py",
     "scripts/agent_review_acp.py",
     "scripts/agent_intake_context.py",
     "scripts/workflow_dispatch_retry.py",
