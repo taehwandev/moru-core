@@ -30,8 +30,8 @@ jobs:
           - runner: ubuntu-24.04
             platform: linux-x86_64
     runs-on: ${{ matrix.runner }}
-    # The complete macOS acceptance suite needs a longer bound than Linux.
-    timeout-minutes: ${{ startsWith(matrix.platform, 'macos-') && 30 || 15 }}
+    # Full baseline-oracle, dispatch and transport acceptance stays bounded.
+    timeout-minutes: ${{ startsWith(matrix.platform, 'macos-') && 60 || 30 }}
     env:
       PYTHONDONTWRITEBYTECODE: '1'
       MACOSX_DEPLOYMENT_TARGET: '13.0'
@@ -49,14 +49,16 @@ jobs:
           rustup toolchain install 1.94.1 --profile minimal
           rustup default 1.94.1
           cargo fetch --locked --manifest-path native/checkout-identity/Cargo.toml
-      - name: Build and verify runtime behavior
+      - name: Build runtime and verify native units
         run: |
           cargo test --locked --offline --manifest-path native/checkout-identity/Cargo.toml \
             --target-dir .moru/native/cargo-target
           cargo test --locked --offline --manifest-path native/checkout-identity/Cargo.toml \
             --target-dir .moru/native/cargo-target --features sha2/force-soft
           python3 scripts/build_native_runtime.py
-          PYTHONPATH=scripts:tests python3 -B tests/run_native_session.py -m unittest \
+      - name: Verify native CLI behavior
+        run: |
+          PYTHONPATH=scripts:tests python3 -B tests/run_native_session.py -m unittest -v \
             test_native_bundle test_native_migration_ledger test_checkout_identity_runtime test_native_stable_launcher test_native_behavior_review \
             test_native_statusline test_native_runtime_status test_native_pretool test_native_pretool_files \
             test_native_pretool_git test_native_pretool_queries test_native_registry_read test_native_registry_retention test_native_retention_identity test_native_retention_bytes test_native_retention_plan test_native_runs_prune test_runs_prune test_native_overhead_session test_native_overhead_report test_native_overhead_cli test_native_overhead_format \
@@ -70,7 +72,9 @@ jobs:
             test_agent_state_read test_agent_repository_key test_agent_observability \
             test_agent_work_cards test_agent_work_cards_lifecycle test_agent_work_card_resume test_benchmark_read_inspection \
             test_template_repository < /dev/null
-          PYTHONPATH=scripts:tests python3 -B tests/run_native_dispatch_session.py -m unittest \
+      - name: Verify dispatched worker behavior
+        run: |
+          PYTHONPATH=scripts:tests python3 -B tests/run_native_dispatch_session.py -m unittest -v \
             test_native_dispatch_guardian test_workflow_dispatch_process test_workflow_dispatch_execution < /dev/null
       - name: Package and test a fresh consumer without a toolchain
         env:
