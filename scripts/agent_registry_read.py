@@ -8,6 +8,7 @@ test_native_registry_read and registry/session regressions verify parity.
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 from agent_run_states import ACTIVE_RUN_STATES
 from agent_state_read import evidence_binding_key, registry_path
@@ -46,3 +47,29 @@ def latest_run_id(project: Path, evidence_path: Path) -> str | None:
         return result["value"]
     from agent_run_registry import latest_run_id as legacy
     return legacy(project, evidence_path)
+
+
+def retention_states(path: Path, states: frozenset[str]) -> tuple[bool, dict | None]:
+    """Read a retention map without locks; decline before any deletion decision."""
+    if type(path) is not type(Path()) or type(states) not in (set, frozenset) or any(type(s) is not str for s in states):
+        return False, None
+    try:
+        result = NativeProbe.request("--registry-read-probe", "retention-states", {
+            "state_dir": str(path.parent), "states": sorted(states),
+            "int_digits": getattr(sys, "get_int_max_str_digits", lambda: 0)()})
+    except (OSError, ValueError, RuntimeError):
+        return False, None
+    if type(result) is not dict or set(result) != {"value"}:
+        return False, None
+    rows = result["value"]
+    if rows is None:
+        return True, None
+    if type(rows) is not list:
+        return False, None
+    values = {}
+    for row in rows:
+        if (type(row) is not list or len(row) != 2 or any(type(v) is not str for v in row)
+                or not row[0] or row[0] in values or row[1] not in states):
+            return False, None
+        values[row[0]] = row[1]
+    return True, values

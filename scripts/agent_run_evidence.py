@@ -64,6 +64,8 @@ FINISHED_PHASES = {"done"}
 CLAIM_HOLDING_STATES = frozenset({"running", "paused", "resuming", "claiming"})
 SETTLED_STATES = frozenset({"completed", "cancelled"})
 REGISTRY_SCHEMA_VERSION = 1
+_NATIVE_JSON_LOADS = (json.loads, json.loads.__code__, json.loads.__defaults__, dict(json.loads.__kwdefaults__ or {}))
+_NATIVE_READ_TEXT = (Path.read_text, Path.read_text.__code__, Path.read_text.__defaults__, dict(Path.read_text.__kwdefaults__ or {}))
 
 
 def runs_dir(project: Path) -> Path:
@@ -80,6 +82,17 @@ def read_registry_states(project: Path) -> dict[str, str] | None:
     from agent_run_registry import RUN_STATES
 
     path = project_state_dir_target(project) / "run-registry.json"
+    profiles = ((getattr(json, "loads", None), _NATIVE_JSON_LOADS), (getattr(Path, "read_text", None), _NATIVE_READ_TEXT))
+    if type(REGISTRY_SCHEMA_VERSION) is int and REGISTRY_SCHEMA_VERSION == 1 and all(fn is original and fn.__code__ is code and fn.__defaults__ is defaults
+           and dict(fn.__kwdefaults__ or {}) == kw for fn, (original, code, defaults, kw) in profiles):
+        from agent_registry_read import retention_states
+        handled, states = retention_states(path, RUN_STATES)
+        if handled:
+            return states
+    return _read_registry_states_reference(path, RUN_STATES)
+
+
+def _read_registry_states_reference(path: Path, run_states) -> dict[str, str] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
@@ -94,7 +107,7 @@ def read_registry_states(project: Path) -> dict[str, str] | None:
     for run in payload["runs"]:
         if (not isinstance(run, dict) or not isinstance(run.get("run_id"), str)
                 or not run["run_id"] or not isinstance(run.get("state"), str)
-                or run["state"] not in RUN_STATES or run["run_id"] in states):
+                or run["state"] not in run_states or run["run_id"] in states):
             return None
         states[run["run_id"]] = run["state"]
     return states

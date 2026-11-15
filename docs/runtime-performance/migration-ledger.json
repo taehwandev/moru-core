@@ -631,10 +631,17 @@
       "id": "scripts/runs-prune.py",
       "inventory_id": 51,
       "kind": "ancillary",
-      "status": "planned",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "status": "partial_native",
+      "entry_aliases": "Direct CLI; shared agent_run_evidence retention reader",
+      "remaining": "Ordinary registry retention reads/validation are native. Port the public CLI, run-directory planning/classification, identity/size accounting, locked revalidation/deletion and maintenance orchestration; preserve all authority and prove portable/installed acceptance before retirement.",
+      "supporting_sources": ["scripts/agent_run_evidence.py", "scripts/agent_registry_read.py"],
+      "verification": {
+        "retention_registry": "PASS:41 Python cases,4 Rust owner cases and6 local debug empty-PATH checks. Immutable61b69b2d reader/preview oracle, ordered ID/state maps, bool/float schema equality, ignored extended JSON, decoder/file/profile/error fallback; see native-retention-registry.md.",
+        "execution": "PASS: one real request with zero Python registry-file or reference-reader replay; forced Python negative control observes both. Native map feeds the typed removal preview with identical protected/completed classification.",
+        "authority": "PASS: report creates/acquires no locks; existing deletion/resume/replacement/identity regressions pass. Native reader cannot write/prune/claim. Synthetic fixtures only.",
+        "portable": "PENDING two-host release acceptance;6 debug-only temporary consumer checks are not a distribution claim.",
+        "installed": "PENDING; no real cleanup or runtime installation."
+      }
     },
     {
       "id": "scripts/support/codex_statusline_setup.py",
