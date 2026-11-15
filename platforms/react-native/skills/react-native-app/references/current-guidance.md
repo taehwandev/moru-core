@@ -2,6 +2,8 @@
 keyflow_id: sys_platforms_react_native_app
 status: review
 type: human-reviewed-needed
+requires:
+  - common/nodes/ui-state-render-boundary.md
 ---
 
 # React Native App
@@ -44,10 +46,14 @@ Use this when a React Native or Expo change touches:
 Apply `common/nodes/package-module-boundaries.md` to Expo / React Native apps
 and monorepos:
 
-- **Thin route files vs feature owners:** keep Expo Router `app/` files (or
-  React Navigation screen registrations) thin — route param parsing and
-  navigation wiring only (`*Route`), delegating to `features/<name>/` where
-  `*Screen` (stateful container/hook wiring) and `*Content` (pure view) live.
+- **Thin route entries vs feature owners:** keep Expo Router `app/` files (with
+  their filesystem-required filenames, optionally exporting `*RouteEntry`) or
+  React Navigation registrations thin — route param parsing and navigation
+  wiring only, mounting `features/<name>/` where `*Container` (stateful
+  hook/query/permission/effect owner) and `*Screen` (stateless pure renderer)
+  live by default (matching `web-react-ui`). Preserve an established repo-local
+  `*Screen` (stateful) -> `*Content` (stateless) convention without renaming;
+  reserve `*Route` for pure destination/param contract types.
 - **Cross-feature contract discipline:** features must not deep-import another
   feature's internal `components/`, `hooks/`, `api/`, or `model/` files; share
   navigation contracts through typed route helpers or a narrow contract module.

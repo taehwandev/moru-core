@@ -39,9 +39,14 @@ file-private -> flow/role package -> unsplit module/target -> api + impl
   renderer, mappers, destination-to-content binding, and platform/host entry
   adapters. Only the composition root imports `impl` to wire the graph.
 - `ui` is an optional extraction created **only** when a named consumer outside
-  `impl` renders the same concrete surface without pulling platform/host entry
-  code. Previews, internal folders, and the feature's own wrapper are not
-  outside consumers. `impl` delegates to `ui`; `ui` never imports `impl`.
+  `impl` reuses the same concrete surface without pulling platform/host entry
+  code: move the stateless renderer (`*Content`), visual display models, and
+  callbacks/slots when the consumer supplies state (Widget, App Clip, preview
+  gallery), or move the holder + state owner + stateless renderer over stable
+  ports when a second host needs the working feature without `impl`'s platform
+  entry (keeping `*Content` stateless). Previews, internal folders, and the
+  feature's own wrapper are not outside consumers. `impl` delegates to `ui`;
+  `ui` never imports `impl`.
 - `assertions` (`*TestSupport`) owns role-sized fixtures, recording fakes,
   builders, and assertion subjects compiling against `api` alone, never `impl`.
 - Start data coarse (one capability-partitioned contract + impl pair before

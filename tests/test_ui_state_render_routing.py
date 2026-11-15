@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from workflow_doc_graph_refs import frontmatter_required_doc_refs
 from workflow_request import infer_concerns_from_request
 from workflow_route import resolve_docs
 
@@ -90,16 +92,76 @@ class UiStateRenderRoutingTests(unittest.TestCase):
     def test_path_only_ui_work_loads_the_boundary_without_a_performance_audit(self):
         for platform, path in (
             ("flutter", "lib/profile/profile_screen.dart"),
+            ("flutter", "lib/profile/profile_content.dart"),
+            ("web", "packages/billing/BillingSettingsContainer.tsx"),
+            ("web", "packages/billing/BillingSettingsContent.tsx"),
             ("swift", "Sources/App/DesignSystem/ProfileComponent.swift"),
             ("react-native", "packages/mobile/src/screens/ProfileScreen.tsx"),
         ):
-            with self.subTest(platform=platform):
+            with self.subTest(platform=platform, path=path):
                 result = route(platform, paths=(path,))
                 self.assertIn(BOUNDARY, result["required_docs"])
                 self.assertNotIn(
                     "common/skills/performance-verification/references/current-guidance.md",
                     result["required_docs"],
                 )
+
+    def test_ios_swiftui_content_and_non_ui_swift_native_stay_distinct(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            swiftui_content = project / "App/Features/Profile/ProfileContent.swift"
+            swiftui_content.parent.mkdir(parents=True)
+            swiftui_content.write_text("import SwiftUI\nstruct ProfileContent: View { var body: some View { EmptyView() } }\n", encoding="utf-8")
+
+            native_parser = project / "Sources/Core/ContentParser.swift"
+            native_parser.parent.mkdir(parents=True)
+            native_parser.write_text("import Foundation\nstruct ContentParser {}\n", encoding="utf-8")
+
+            ui_route = resolve_docs(
+                "feature",
+                "ios",
+                [],
+                request_classified=True,
+                surface_paths=["App/Features/Profile/ProfileContent.swift"],
+                project_root=project,
+            )
+            self.assertIn(BOUNDARY, ui_route["required_docs"])
+            self.assertTrue(
+                any("ios-swiftui-ui" in doc for doc in ui_route["required_docs"])
+            )
+
+            native_route = resolve_docs(
+                "bugfix",
+                "swift",
+                [],
+                request_classified=True,
+                surface_paths=["Sources/Core/ContentParser.swift"],
+                project_root=project,
+            )
+            self.assertNotIn(BOUNDARY, native_route["required_docs"])
+            self.assertFalse(
+                any("ios-swiftui-ui" in doc for doc in native_route["required_docs"])
+            )
+
+    def test_ui_authoring_references_declare_the_shared_render_boundary(self):
+        expected_cards = (
+            "platforms/ios/skills/ios-swiftui-ui/references/current-guidance.md",
+            "platforms/ios/skills/ios-uikit-ui/references/current-guidance.md",
+            "platforms/flutter/skills/flutter-widget-ui/references/current-guidance.md",
+            "platforms/web/skills/web-react-ui/references/current-guidance.md",
+            "platforms/react-native/skills/react-native-app/references/current-guidance.md",
+            "platforms/application/skills/application-command-ui/references/current-guidance.md",
+            "platforms/application/skills/application-react-desktop/references/current-guidance.md",
+            "platforms/compose/nodes/ui-screen-structure.md",
+        )
+        for rel_path in expected_cards:
+            with self.subTest(card=rel_path):
+                text = (ROOT / rel_path).read_text(encoding="utf-8")
+                targets = [
+                    target
+                    for _, target in frontmatter_required_doc_refs(ROOT, rel_path, text)
+                ]
+                self.assertIn(BOUNDARY, targets)
 
     def test_cosmetic_android_edit_keeps_detailed_structure_optional(self):
         result = route(

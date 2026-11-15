@@ -614,6 +614,52 @@ final class SystemClock extends Clock {
 """
         self.assertTrue(top_level_declaration_failures(path, declarations(source, path)))
 
+    def test_content_and_container_names_do_not_false_positive_as_ui_roles(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            parser_file = project / "src/data/ContentParser.kt"
+            parser_file.parent.mkdir(parents=True)
+            parser_file.write_text("class ContentParser\n", encoding="utf-8")
+            dto_file = project / "src/data/ArticleDto.kt"
+            dto_file.write_text("data class ArticleDto(val id: String)\n", encoding="utf-8")
+
+            container_file = project / "src/runtime/ServiceContainer.kt"
+            container_file.parent.mkdir(parents=True)
+            container_file.write_text("class ServiceContainer\n", encoding="utf-8")
+            worker_file = project / "src/runtime/SyncWorker.kt"
+            worker_file.write_text("class SyncWorker\n", encoding="utf-8")
+
+            failures = purpose_failures(
+                project,
+                [
+                    Path("src/data/ContentParser.kt"),
+                    Path("src/data/ArticleDto.kt"),
+                    Path("src/runtime/ServiceContainer.kt"),
+                    Path("src/runtime/SyncWorker.kt"),
+                ],
+                {},
+                lambda _: True,
+                lambda _: False,
+            )
+            self.assertEqual([], failures)
+
+    def test_swift_public_screen_and_content_visibility_boundary(self) -> None:
+        path = Path("Sources/FeatureProfile/ProfileScreen.swift")
+        both_public = """
+public struct ProfileScreen {}
+public struct ProfileContent {}
+"""
+        explicit_internal_or_private_content = """
+public struct ProfileScreen {}
+internal struct ProfileContent {}
+private struct ProfileRow {}
+"""
+        self.assertTrue(top_level_declaration_failures(path, declarations(both_public, path)))
+        self.assertEqual(
+            [],
+            top_level_declaration_failures(path, declarations(explicit_internal_or_private_content, path)),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

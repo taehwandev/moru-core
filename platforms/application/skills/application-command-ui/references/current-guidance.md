@@ -2,6 +2,8 @@
 keyflow_id: sys_application_command_ui
 status: review
 type: human-reviewed-needed
+requires:
+  - common/nodes/ui-state-render-boundary.md
 ---
 
 # Application Command And UI
@@ -22,15 +24,20 @@ privileged APIs, IPC, signing, notarization, and update trust, also read
 
 ## Application Layers
 
-Use this shape unless the repo has a stricter local pattern:
+Use this shape for GUI surfaces unless the repo has a stricter local pattern
+(CLI/headless entry points omit the window/content layers):
 
 ```text
-Window/Panel/View -> Presentation State -> Command/Use Case
--> App Service -> System Adapter
+Window/Panel Host (stateful adapter) -> Content View (stateless renderer)
+-> Presentation State -> Command/Use Case -> App Service -> System Adapter
 ```
 
-- Window/panel/view owns rendering, focus, layout, user intent, and presentation
-  lifecycle.
+- Window/panel host owns window/panel lifecycle, shell focus/placement,
+  presentation-state observation, one-off OS dialogs/sheets, and mapping UI
+  callbacks onto shared commands.
+- Content view renders the window or panel surface from immutable display state
+  and explicit callbacks so previews and UI tests run without live services,
+  IPC bridges, or OS handles.
 - Presentation state owns visible loading, error, permission, progress, and
   selection state.
 - Command/use case owns product action semantics and can be invoked from menu,
@@ -153,7 +160,8 @@ A desktop feature can use:
 
 ```text
 features/capture/
-  CaptureWindow       window, panel, or root view
+  CaptureWindow       stateful window or panel host
+  CaptureContent      stateless window/panel content view
   CaptureState        presentation state owner
   CaptureCommand      command/use case shared by every entry point
   CaptureService      orchestration and background work

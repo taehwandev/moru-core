@@ -2827,6 +2827,7 @@
         "lib/**/pages/**/*.dart",
         "lib/**/widgets/**/*.dart",
         "**/*_screen.dart",
+        "**/*_content.dart",
         "**/*_page.dart",
         "**/*_widget.dart"
       ],
@@ -2840,7 +2841,8 @@
       "swift_framework": "iOSSwiftUI",
       "patterns": [
         "*View.swift",
-        "*Screen.swift"
+        "*Screen.swift",
+        "*Content.swift"
       ],
       "doc_sets": [
         "ios_swiftui_touch"
@@ -2979,7 +2981,9 @@
         "src/**/screens/**/*.tsx",
         "src/**/components/**/*.tsx",
         "src/**/features/**/*.tsx",
+        "**/*Container.tsx",
         "**/*Screen.tsx",
+        "**/*Content.tsx",
         "**/*Page.tsx"
       ],
       "exclude_patterns": [
@@ -3035,7 +3039,8 @@
       "name": "ios_swiftui_ecosystem",
       "patterns": [
         "**/*View.swift",
-        "**/*Screen.swift"
+        "**/*Screen.swift",
+        "**/*Content.swift"
       ],
       "doc_sets": [
         "ios_swiftui"
@@ -3070,7 +3075,9 @@
         "src/**/screens/**/*.tsx",
         "src/**/components/**/*.tsx",
         "src/**/features/**/*.tsx",
+        "**/*Container.tsx",
         "**/*Screen.tsx",
+        "**/*Content.tsx",
         "**/*Page.tsx"
       ],
       "exclude_patterns": [

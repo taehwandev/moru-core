@@ -2,6 +2,8 @@
 keyflow_id: sys_ios_swiftui_ui
 status: review
 type: human-reviewed-needed
+requires:
+  - common/nodes/ui-state-render-boundary.md
 ---
 
 # iOS SwiftUI UI
@@ -28,19 +30,27 @@ boundaries, also read `platforms/ios/skills/ios-module-structure/SKILL.md` and
 
 ## SwiftUI Layers
 
-Use this shape unless the repo has a stricter local pattern:
+Use this shape unless the repo has an established local naming convention:
 
 ```text
-Route/Coordinator -> Screen View -> Section View -> Feature View
+Route (*Contract value) / Coordinator -> Screen (stateful holder)
+-> Content (stateless view) -> Section View -> Feature View
 -> Design-System Primitive
 ```
 
-- Route/coordinator owns navigation wiring, dependency entry points, sheets,
-  alerts that cross screen boundaries, and platform handoff.
-- Screen view renders one workflow. It observes state, sends user intent, and
-  delegates complex areas to section views.
-- Section views render one part of the screen and receive only the state they
-  need.
+- Route (`*Route` in `*Contract`) is pure `Hashable`/`Codable` destination data;
+  a coordinator or navigation entry wires dependency entry points, sheets,
+  cross-screen alerts, and platform handoff.
+- Screen (`*Screen`) is the stateful holder for store/ViewModel-backed
+  workflows: it acquires or observes the store/`@Observable` ViewModel, runs
+  lifecycle-bound `.task` triggers and one-off effects, and delegates all
+  rendering to `*Content`. Pure local-`@State` screens with no external state
+  owner or service side effects (`Simple SwiftUI`) need no extra wrapper.
+- Content (`*Content`) renders the whole workflow from immutable display state,
+  explicit callbacks/actions, and slots so `#Preview` and snapshot/UI tests run
+  from deterministic fixtures without stores, repositories, or routers.
+- Section views render one part of the screen and receive only the state slice
+  they need.
 - Feature views may know feature display models but not repositories, API
   clients, keychain, files, permission services, or analytics dispatch.
 - Design-system primitives own visual and interaction contracts, not product
@@ -139,7 +149,8 @@ ProfileFeature.State      loading/content/empty/error/navigation state
 ProfileFeature.Action     appeared, retryTapped, response, child actions
 ProfileFeature.Reducer    pure state transitions plus effect requests
 ProfileFeature.Dependency API, persistence, clock, uuid, analytics, crash hooks
-ProfileScreen             observes store state and sends actions only
+ProfileScreen             observes store state, handles effects, delegates to ProfileContent
+ProfileContent            stateless view rendering display state and action closures
 ```
 
 Use child reducers for independently testable child workflows. Keep product
@@ -223,10 +234,28 @@ subtree avoids extra invalidation.
 
 ## View Composition
 
-Screen views should be easy to preview and test:
+Keep stateful screen holders thin and make stateless content views easy to
+preview and test:
 
 ```swift
 struct ProfileScreen: View {
+    @State private var viewModel: ProfileViewModel
+
+    init(viewModel: ProfileViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
+
+    var body: some View {
+        ProfileContent(
+            state: viewModel.state,
+            onRetry: { viewModel.retry() },
+            onEdit: { viewModel.editProfile() }
+        )
+        .task { await viewModel.onAppear() }
+    }
+}
+
+struct ProfileContent: View {
     let state: ProfileUiState
     let onRetry: () -> Void
     let onEdit: () -> Void
@@ -236,7 +265,7 @@ struct ProfileScreen: View {
         case .loading:
             ProfileSkeleton()
         case .content(let data):
-            ProfileContent(data: data, onEdit: onEdit)
+            ProfileBodyView(data: data, onEdit: onEdit)
         case .empty:
             EmptyStateView(...)
         case .permissionDenied:
@@ -288,12 +317,13 @@ A feature can use:
 
 ```text
 Features/Profile/
-  ProfileRoute.swift          navigation and dependency wiring
-  ProfileScreen.swift         pure screen rendering
+  ProfileRoute.swift          pure destination value (in Contract when split)
+  ProfileScreen.swift         stateful holder observing store or ViewModel
+  ProfileContent.swift        stateless screen rendering (#Preview target)
   ProfileFeature.swift        TCA state, actions, reducer, effects
   ProfileViewModel.swift      only for MVVM tracks
   ProfileUiState.swift        display state for non-TCA tracks
-  Components/                 feature-local views
+  Components/                 feature-local section and feature views
   PreviewData/                deterministic preview fixtures
   ProfileFeatureTests.swift   or ProfileViewModelTests.swift
 ```

@@ -2,6 +2,8 @@
 keyflow_id: sys_flutter_widget_ui
 status: review
 type: human-reviewed-needed
+requires:
+  - common/nodes/ui-state-render-boundary.md
 ---
 
 # Flutter Widget UI
@@ -17,17 +19,25 @@ promotion decisions, also read `platforms/flutter/skills/flutter-project-structu
 
 ## Widget Layers
 
-Use this shape unless the repo has a stricter local pattern:
+Preserve an established repo convention (`*Page`/`*Root` -> `*Screen`) when one
+exists; otherwise use this default shape aligned with
+`platforms/flutter/skills/flutter-project-structure/SKILL.md`:
 
 ```text
-Route/Page -> Screen Widget -> Section Widget -> Feature Widget
--> Design-System Primitive
+Route (destination args/entry) -> Screen Widget (stateful holder)
+-> Content Widget (stateless renderer) -> Section Widget
+-> Feature Widget -> Design-System Primitive
 ```
 
-- Route/page widgets wire navigation, state owners, effects, permission
-  launchers, and dependency entry points.
-- Screen widgets receive immutable view state and explicit callbacks.
-- Section widgets receive only the state needed for that section.
+- Route (`*Route` / `*_route.dart`) defines typed navigation arguments and thin
+  router registration, never product state or layout trees.
+- Screen widgets (`*Screen` / `*_screen.dart`) wire state owners
+  (notifier/bloc/viewModel), one-off effects, permission launchers, and
+  navigation callbacks, delegating rendering to `*Content`.
+- Content widgets (`*Content` / `*_content.dart`) receive immutable view state,
+  explicit callbacks, and slots so widget/golden tests run from fixtures without
+  providers, routers, or DI.
+- Section widgets receive only the state slice needed for that section.
 - Feature widgets may know product UI models but not repositories, platform
   channels, route parsers, or service locators.
 - Design-system primitives know visual and interaction contracts, not product
@@ -35,10 +45,15 @@ Route/Page -> Screen Widget -> Section Widget -> Feature Widget
 
 ## Statefulness
 
-- Use `StatelessWidget` for pure rendering.
-- Use `StatefulWidget`, hooks, controllers, or local notifiers only for local UI
-  state such as focus, scroll, animation, text editing, selection, tabs,
-  expansion, and gesture state.
+- App-stateful owner vs app-stateless renderer (`ui-state-render-boundary.md`)
+  is a dependency boundary, not a `StatefulWidget` vs `StatelessWidget` class
+  test: a `StatelessWidget` reading a global provider is app-stateful, while an
+  app-stateless `*Content` renderer may subclass `StatefulWidget` (or hooks)
+  solely for local UI controllers.
+- Use `StatelessWidget` for pure rendering when no local controller is needed.
+- Use `StatefulWidget`, hooks, controllers, or local notifiers in renderers only
+  for local UI state such as focus, scroll, animation, text editing, selection,
+  tabs, expansion, and gesture state.
 - Keep product state in the repo's state owner, not in a widget subtree that can
   be rebuilt, disposed, or duplicated unexpectedly.
 - Dispose controllers, subscriptions, animation controllers, focus nodes,

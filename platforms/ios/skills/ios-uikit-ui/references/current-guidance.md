@@ -2,6 +2,8 @@
 keyflow_id: sys_ios_uikit_ui
 status: review
 type: human-reviewed-needed
+requires:
+  - common/nodes/ui-state-render-boundary.md
 ---
 
 # iOS UIKit UI
@@ -29,14 +31,22 @@ controls, and visual-state contracts, also read
 Use this shape unless the repo has a stricter local pattern:
 
 ```text
-Coordinator/Router -> ViewController -> ViewModel/Presenter
--> Use Case -> Repository/Client -> Platform Adapter
+Coordinator/Router -> ViewController (stateful adapter)
+-> Content UIView / UIContentConfiguration (stateless renderer)
+-> ViewModel/Presenter -> Use Case -> Repository/Client -> Platform Adapter
 ```
 
 - Coordinator/router owns navigation, deep links, modal presentation, and flow
   assembly.
-- ViewController owns view lifecycle, UIKit binding, layout, and user intent
-  forwarding.
+- ViewController is the stateful lifecycle and binding adapter: it observes the
+  ViewModel/presenter, handles navigation/alerts/keyboard/cell reuse, and binds
+  immutable display state into stateless views.
+- Root/content `UIView` or `UIContentConfiguration` renders non-trivial
+  `ViewModel`-backed screens, cells, and reusable sections from immutable
+  `ViewData` and action closures so snapshots, previews, and view tests do not
+  require a `ViewModel`, coordinator, or service graph (trivial static or
+  local-only VCs need no extra wrapper per `ui-state-render-boundary.md`, and
+  small content views may share the VC file when repo rules allow).
 - ViewModel/presenter owns UI state, state transitions, async coordination, and
   display models.
 - Use case owns product rules when they are reused, risky, or independently
@@ -48,12 +58,14 @@ Coordinator/Router -> ViewController -> ViewModel/Presenter
 
 ViewControllers should:
 
-- Bind state to UIKit views.
-- Forward user actions to the ViewModel or coordinator.
-- Own lifecycle-specific UI concerns such as keyboard, focus, scroll, and cell
-  reuse.
+- Bind `UiState`/`ViewData` to a stateless root/content `UIView` or
+  `UIContentConfiguration` and forward user action closures to the ViewModel or
+  coordinator.
+- Own lifecycle-specific UI concerns such as keyboard, focus, scroll, one-off
+  alerts/modals, and cell reuse.
 - Keep table/collection data source updates deterministic.
-- Keep layout and view construction separate enough to review.
+- Keep stateless view construction and layout separate from `ViewModel`
+  subscription so rendering can be exercised with fixture `ViewData`.
 
 ViewControllers should not:
 
@@ -131,7 +143,8 @@ A UIKit feature can use:
 ```text
 Features/Members/
   MembersCoordinator.swift
-  MembersViewController.swift
+  MembersViewController.swift    stateful lifecycle and ViewModel binding
+  MembersContentView.swift       stateless root UIView / configuration (ViewData + closures)
   MembersViewModel.swift
   MembersUiState.swift
   MembersViewData.swift
