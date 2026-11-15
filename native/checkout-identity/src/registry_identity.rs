@@ -28,12 +28,55 @@ impl RegistryRead {
         Some(Value::Array(results))
     }
 
-    fn identity_rows(root: &Path, remaining: &mut usize) -> Option<Value> {
+    pub(super) fn retention_bytes(payload: &Value) -> Option<Value> {
+        let object = payload.as_object()?;
+        let roots = object.get("paths")?.as_array()?;
+        if object.len() != 1 || roots.len() > 256 {
+            return None;
+        }
+        let mut remaining = 4096;
+        let mut total = 0u128;
+        for root in roots {
+            for path in Self::metadata_paths(Path::new(root.as_str()?), &mut remaining)?
+                .into_iter()
+                .skip(1)
+            {
+                let first = match fs::metadata(&path) {
+                    Ok(metadata) => metadata,
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+                        ) =>
+                    {
+                        continue
+                    }
+                    Err(_) => return None,
+                };
+                if first.is_file() {
+                    // The reference performs stat again after the is_file predicate.
+                    let size = fs::metadata(path).ok()?.size();
+                    if size > i64::MAX as u64 {
+                        return None;
+                    }
+                    total = total.checked_add(size as u128)?;
+                }
+            }
+        }
+        Some(json!(total.to_string()))
+    }
+
+    fn metadata_paths(root: &Path, remaining: &mut usize) -> Option<Vec<PathBuf>> {
         if !root.is_absolute() || root.canonicalize().ok()?.as_path() != root || *remaining == 0 {
             return None;
         }
         let paths = Self::identity_paths(root, *remaining - 1)?;
         *remaining -= paths.len();
+        Some(paths)
+    }
+
+    fn identity_rows(root: &Path, remaining: &mut usize) -> Option<Value> {
+        let paths = Self::metadata_paths(root, remaining)?;
         let mut result = Vec::with_capacity(paths.len());
         // Match Python: collect/sort every path before reading any returned stat.
         for path in paths {
@@ -169,6 +212,29 @@ mod tests {
         assert_eq!(
             RegistryRead::retention_identities(&json!({"paths":[]})),
             Some(json!([]))
+        );
+    }
+    #[test]
+    fn byte_totals_follow_file_links_exclude_root_files_and_repeat_roots() {
+        use std::os::unix::fs::symlink;
+        let f = Fixture::new();
+        fs::write(f.0.join("data"), b"12345").unwrap();
+        symlink("data", f.0.join("link")).unwrap();
+        symlink("absent", f.0.join("broken")).unwrap();
+        assert_eq!(
+            RegistryRead::retention_bytes(&json!({"paths":[f.0,f.0]})),
+            Some(json!("20"))
+        );
+        assert_eq!(
+            RegistryRead::retention_bytes(&json!({"paths":[f.0.join("data")]})),
+            Some(json!("0"))
+        );
+        assert_eq!(
+            RegistryRead::retention_bytes(&json!({"paths":[]})),
+            Some(json!("0"))
+        );
+        assert!(
+            RegistryRead::retention_bytes(&json!({"paths":[f.0,f.0.join("absent")]})).is_none()
         );
     }
 }

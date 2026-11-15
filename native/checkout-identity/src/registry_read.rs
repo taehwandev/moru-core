@@ -55,6 +55,9 @@ impl RegistryRead {
     }
 
     fn inspect(operation: &str, payload: &Value) -> Option<Value> {
+        if operation == "retention-bytes" {
+            return Self::retention_bytes(payload);
+        }
         if operation == "retention-identities" {
             return Self::retention_identities(payload);
         }

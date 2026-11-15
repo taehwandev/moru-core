@@ -70,7 +70,7 @@ _NATIVE_IDENTITY_PATH = Path
 _NATIVE_IDENTITY_TYPE = type(Path())
 _NATIVE_IDENTITY_METHODS = [(name, fn, getattr(fn, "__code__", None), getattr(fn, "__defaults__", None),
     dict(getattr(fn, "__kwdefaults__", None) or {}))
-    for name in ("rglob", "lstat", "stat", "relative_to", "__str__", "__lt__") for fn in [getattr(Path, name)]]
+    for name in ("rglob", "lstat", "stat", "relative_to", "__str__", "__lt__", "is_file") for fn in [getattr(Path, name)]]
 
 
 def runs_dir(project: Path) -> Path:
@@ -169,17 +169,24 @@ def _identity(path: Path) -> tuple | None:
 _NATIVE_IDENTITY_BINDING = (_identity, _identity.__code__, _identity.__defaults__)
 
 
+def _metadata_profile(paths) -> bool:
+    candidate=globals().get("_NATIVE_REMOVAL_CLASS")
+    supported=(type(paths) is list or candidate is not None and type(paths) is candidate
+        and all(getattr(candidate,name,None) is getattr(list,name) for name in ("__iter__","__len__","__getitem__")))
+    return (supported and all(type(path) is _NATIVE_IDENTITY_TYPE for path in paths)
+        and all(getattr(_NATIVE_IDENTITY_PATH,name,None) is fn
+            and getattr(fn,"__code__",None) is code and getattr(fn,"__defaults__",None) is defaults
+            and dict(getattr(fn,"__kwdefaults__",None) or {})==kw
+            for name,fn,code,defaults,kw in _NATIVE_IDENTITY_METHODS))
+
+
 def _identities(paths: list[Path]) -> dict:
     if type(paths) is list and not paths:
         return {}
-    if (type(paths) is list and all(type(path) is _NATIVE_IDENTITY_TYPE for path in paths)
+    if (type(paths) is list and _metadata_profile(paths)
             and globals().get("_identity") is _NATIVE_IDENTITY_BINDING[0]
             and _identity.__code__ is _NATIVE_IDENTITY_BINDING[1]
-            and _identity.__defaults__ is _NATIVE_IDENTITY_BINDING[2]
-            and all(getattr(_NATIVE_IDENTITY_PATH, name, None) is fn
-                and getattr(fn, "__code__", None) is code and getattr(fn, "__defaults__", None) is defaults
-                and dict(getattr(fn, "__kwdefaults__", None) or {}) == kw
-                for name, fn, code, defaults, kw in _NATIVE_IDENTITY_METHODS)):
+            and _identity.__defaults__ is _NATIVE_IDENTITY_BINDING[2]):
         from agent_registry_read import retention_identities
         value = retention_identities(paths)
         if value is not None:
@@ -196,6 +203,9 @@ class _RemovalCandidates(list):
         self.options = options
         self.identities = _identities(paths)
         self.removed_bytes = 0
+
+
+_NATIVE_REMOVAL_CLASS = _RemovalCandidates
 
 
 def plan(
@@ -318,6 +328,15 @@ def apply_plan(removable: list[Path]) -> int:
 
 
 def directory_bytes(paths: list[Path]) -> int:
+    if _metadata_profile(paths):
+        from agent_registry_read import retention_bytes
+        value=retention_bytes(list(paths))
+        if value is not None:
+            return value
+    return _directory_bytes_reference(paths)
+
+
+def _directory_bytes_reference(paths: list[Path]) -> int:
     return sum(
         item.stat().st_size
         for path in paths

@@ -112,3 +112,21 @@ def _identity_rows(rows) -> tuple | None:
         else:
             previous = order
     return tuple(tuple(row) for row in rows) if rows else None
+
+
+def retention_bytes(paths: list[Path]) -> int | None:
+    if type(paths) is not list or any(type(path) is not type(Path()) for path in paths):
+        return None
+    if not paths:
+        return 0
+    try:
+        result=NativeProbe.request("--registry-read-probe","retention-bytes",{"paths":[str(path) for path in paths]})
+    except (OSError,ValueError,RuntimeError):
+        return None
+    if type(result) is not dict or set(result)!={"value"}:
+        return None
+    value=result["value"]
+    if (type(value) is not str or not value or len(value)>24 or not value.isascii() or not value.isdecimal()
+            or len(value)>1 and value.startswith("0")):
+        return None
+    return int(value)

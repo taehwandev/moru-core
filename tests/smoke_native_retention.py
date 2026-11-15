@@ -54,3 +54,25 @@ def check_retention_identity(native,entry,base,project,env):
             input=json.dumps(payload).encode(),env={**env,"MORU_HOOK_SOFT_FAIL":"1"},cwd=project,capture_output=True,timeout=8)
         assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
     return 5
+
+
+def check_retention_bytes(native,entry,base,project,env):
+    root=base/"retention sizes";root.mkdir();(root/"nested").mkdir()
+    (root/"nested/data").write_bytes(b"12345");(root/"plain").write_bytes(b"123")
+    (root/"link").symlink_to("nested/data");(root/"broken").symlink_to("absent")
+    (root/"dir-link").symlink_to("nested",target_is_directory=True)
+    before={str(p.relative_to(root)):os.lstat(p) for p in [root,*root.rglob("*")]}
+    for paths,expected in (([root,root],"26"),([],"0"),([root/"plain"],"0")):
+        done=subprocess.run([str(native),str(entry),"--registry-read-probe","retention-bytes"],
+            input=json.dumps({"paths":[str(path) for path in paths]}).encode(),env=env,cwd=project,capture_output=True,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":{"value":expected}},done
+    for payload in ({"paths":[str(root)],"extra":1},{"paths":[str(root/"absent")]}):
+        done=subprocess.run([str(native),str(entry),"--registry-read-probe","retention-bytes"],
+            input=json.dumps(payload).encode(),env={**env,"MORU_HOOK_SOFT_FAIL":"1"},cwd=project,capture_output=True,timeout=8)
+        assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
+    after={str(p.relative_to(root)):os.lstat(p) for p in [root,*root.rglob("*")]}
+    assert set(before)==set(after)
+    assert all((m.st_ino,m.st_mode,m.st_size,m.st_mtime_ns,m.st_ctime_ns)==
+        (after[p].st_ino,after[p].st_mode,after[p].st_size,after[p].st_mtime_ns,after[p].st_ctime_ns) for p,m in before.items())
+    return 5

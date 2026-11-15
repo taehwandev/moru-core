@@ -104,3 +104,29 @@ The debug receipt binds589 runtime inputs. Actual runtime/config file hashes
 remain unchanged; this is still source/test acceptance, not a user-runtime
 installation, Linux release result or full unit51 completion. No Python source
 is retired and all remaining full56-unit responsibilities remain in the ledger.
+
+## Batched directory-size accounting
+
+`retention-bytes` accepts the same bounded root list and reads target metadata
+only. A fresh stat follows the file predicate, preserving the original per-item
+read order. File symlinks contribute their target sizes, directory symlinks are
+not descended, duplicate roots contribute repeatedly, and an explicitly supplied
+file root contributes zero because the existing function counts descendants.
+Unsupported roots or errors decline the whole request without a partial total.
+
+Native accumulation uses a checked128-bit integer and returns canonical decimal
+text; Python reconstructs an exact integer. Plain lists and canonical removal
+previews with builtin list iteration are supported. Preview identity observations,
+options and opaque values stay local. Custom containers/Path methods preserve
+reference behavior. Empty lists and empty typed previews start no process.
+
+The immutable `c8919ff2f60e553e76ba45518c9f906437c3d910` source provides the size
+oracle. The final affected run covers63 cases:62 pass and the existing local
+non-UTF-8 filename case remains skipped. Four Rust metadata cases and5 fresh
+empty-PATH size checks pass. Observers prove one request for multiple roots and
+for the actual typed removal list, with no original Python size scan. Report
+totals match the original without creating locks or changing fixture bytes.
+
+All589 runtime source inputs match the local debug receipt. Source/test evidence
+does not prove Linux, release, installation or full unit51 acceptance. Immediate
+Python identity checks and all original deletion authority remain intact.
