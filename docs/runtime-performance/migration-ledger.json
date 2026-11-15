@@ -640,10 +640,17 @@
       "id": "scripts/support/codex_statusline_setup.py",
       "inventory_id": 52,
       "kind": "ancillary",
-      "status": "planned",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "status": "partial_native",
+      "entry_aliases": "setup-agent-hooks imported merge; legacy direct Python CLI",
+      "remaining": "The complete deterministic text merge engine is native for the ordinary guarded profile. Port public file IO/direct CLI and setup orchestration, prove portable/installed delivery, then retire compatibility only with caller evidence; no actual config installation authorized.",
+      "verification": {
+        "native_owner": "native/checkout-identity/src/codex_statusline.rs",
+        "text_engine": "PASS: assignment/table and quoted-array scanning, minimal edits, defaults/conflicts/comments/Unicode preserve original output.27 Python cases including10 native integration,8 existing setup,3 ledger and6 existing private-protocol dispatch checks;4 Rust cases. Immutable159bd28e source oracle covers fixed configs in both dry/write modes and160 seeded configs.",
+        "authority": "PASS: dry-run creates no config/parents; ok/missing preserve bytes; read/UTF8/write errors retain ordering; source mismatch, malformed schema and unknown operation decline quietly with125 even under soft-fail. Only synthetic files/homes used.",
+        "execution": "PASS: one real setup probe request and zero original Python scanner/render calls; forced Python negative control observes replay. Python IO remains and this is partial, not native unit completion.",
+        "portable": "PENDING two-host release acceptance. Local debug-only empty-PATH setup and existing memory consumer probes are recorded separately; no bundle or installation claim.",
+        "installed": "PENDING; actual user runtime/config untouched."
+      }
     },
     {
       "id": "scripts/third_party/wikimap/wikimap.py",

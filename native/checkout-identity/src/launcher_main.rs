@@ -30,6 +30,7 @@ mod completion_process;
 mod completion_progress;
 mod completion_quality;
 mod completion_requirements;
+mod codex_statusline;
 mod discovery_candidates;
 mod discovery_fs;
 mod discovery_groups;
@@ -159,6 +160,20 @@ fn native_checkout_identity(extra: &[OsString]) -> i32 {
     }
 }
 
+fn private_probe(launcher: &OsString, args: &[OsString]) -> Option<i32> {
+    Some(match args.first().and_then(|arg| arg.to_str())? {
+        "--setup-probe" => codex_statusline::CodexStatusLine::run(launcher, args),
+        "--memory-probe" => memory_process::MemoryProcess::run(launcher, args),
+        "--doc-transcript-probe" => doc_transcript_process::DocTranscriptProcess::run(launcher, args),
+        "--cards-write-probe" => cards_write_process::CardWriteProcess::run(launcher, args),
+        "--cards-probe" => cards_process::CardsProcess::probe(launcher, args),
+        "--overhead-probe" => overhead_process::OverheadProcess::run(launcher, args),
+        "--registry-read-probe" => registry_read::RegistryRead::run(launcher, args),
+        "--completion-probe" => completion_process::CompletionProcess::run(launcher, args),
+        _ => return None,
+    })
+}
+
 fn main() {
     let mut argv = env::args_os().skip(1);
     let launcher = match argv.next() {
@@ -170,34 +185,8 @@ fn main() {
     };
     let args: Vec<OsString> = argv.collect();
 
-    if args.first().is_some_and(|a| a == "--memory-probe") {
-        exit(memory_process::MemoryProcess::run(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--doc-transcript-probe") {
-        exit(doc_transcript_process::DocTranscriptProcess::run(
-            &launcher, &args,
-        ));
-    }
-
-    if args.first().is_some_and(|a| a == "--cards-write-probe") {
-        exit(cards_write_process::CardWriteProcess::run(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--cards-probe") {
-        exit(cards_process::CardsProcess::probe(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--overhead-probe") {
-        exit(overhead_process::OverheadProcess::run(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--registry-read-probe") {
-        exit(registry_read::RegistryRead::run(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--completion-probe") {
-        exit(completion_process::CompletionProcess::run(&launcher, &args));
+    if let Some(code) = private_probe(&launcher, &args) {
+        exit(code);
     }
 
     if args.first().is_some_and(|a| a == "agent-mailbox") {
