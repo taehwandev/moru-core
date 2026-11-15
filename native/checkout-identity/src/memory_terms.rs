@@ -105,7 +105,13 @@ impl MemoryTerms {
                 .collect();
             let name = parts.last().copied().unwrap_or("");
             let stem = match name.rfind('.') {
-                Some(n) if n > 0 && n < name.len() - 1 => &name[..n],
+                Some(n)
+                    if n > 0
+                        && n < name.len() - 1
+                        && (MEMORY_LEADING_DOT_SUFFIX || name[..n].chars().any(|c| c != '.')) =>
+                {
+                    &name[..n]
+                }
                 _ => name,
             };
             stems.insert(stem.to_owned());

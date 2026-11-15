@@ -4,6 +4,7 @@ Owner: memory term contract. Allowed: stdlib. Forbidden: runtime policy/store
 imports. Caller: pretool_contract.py. Verification: source/native term corpus.
 """
 import json
+from pathlib import Path
 import unicodedata
 
 
@@ -32,6 +33,7 @@ def emit(output):
     if start is not None:
         ranges.append((start, 0x10ffff))
     rows = [f'const MEMORY_UNICODE: &str = "{unicodedata.unidata_version}";',
+            f'const MEMORY_LEADING_DOT_SUFFIX: bool = {str(Path("..x").stem != "..x").lower()};',
             'const WORD_RANGES: &[(u32,u32)] = &[']
     rows.extend(f'({low},{high}),' for low, high in ranges)
     rows.extend(['];', 'const CASE_FOLDS: &[(u32,&str)] = &['])

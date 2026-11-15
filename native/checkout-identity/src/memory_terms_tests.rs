@@ -1,6 +1,27 @@
 use super::*;
 
 #[test]
+fn path_stems_preserve_the_builder_leading_dot_suffix_profile() {
+    let (_, _, modules) = MemoryTerms::terms("src/.hidden src/..x src/...x src/.a.b");
+    for name in [
+        ".hidden",
+        ".a",
+        if MEMORY_LEADING_DOT_SUFFIX {
+            "."
+        } else {
+            "..x"
+        },
+        if MEMORY_LEADING_DOT_SUFFIX {
+            ".."
+        } else {
+            "...x"
+        },
+    ] {
+        assert!(modules.contains(name), "missing {name}: {modules:?}");
+    }
+}
+
+#[test]
 fn normalization_preserves_lowercase_rather_than_casefold_and_punctuation_order() {
     for (text, expected) in [
         ("Straße STRASSE", "straße strasse"),
