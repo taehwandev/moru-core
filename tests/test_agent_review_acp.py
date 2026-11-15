@@ -1,16 +1,20 @@
 """Exercise review orchestration through a real subprocess speaking ACP."""
 import json
+from contextlib import contextmanager
 from pathlib import Path
+import signal
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from agent_review_acp import run_review
+from agent_review_acp import _Client, run_review
 
 
 FAKE = r'''
-import json, sys, time
+import json, os, sys, time
 from pathlib import Path
 scenario, log = sys.argv[1:]
 def emit(data):
@@ -22,6 +26,8 @@ if scenario == 'startup_retry':
     marker=Path(log+'.started')
     if not marker.exists():
         marker.touch(); sys.exit(1)
+if scenario == 'startup_cleanup':
+    os.close(sys.stdout.fileno()); time.sleep(30); sys.exit(0)
 for line in sys.stdin:
     m=json.loads(line); method=m.get('method')
     with open(log,'a') as f: f.write(json.dumps(m)+'\n')
@@ -31,6 +37,7 @@ for line in sys.stdin:
     elif method=='session/load':
         update('agent_message_chunk','Recovered response.')
         emit({'id':m['id'],'result':{'sessionId':'owned'}})
+        if scenario=='linger_load': time.sleep(30)
     elif method=='session/new':
         emit({'id':m['id'],'result':{'sessionId':'owned','modes':
             {'currentModeId':'default','availableModes':None if scenario=='malformed_modes' else [{'id':'plan'}]}}})
@@ -56,12 +63,34 @@ for line in sys.stdin:
                 time.sleep(.04); update('agent_thought_chunk','private reasoning')
         if scenario!='empty': update('agent_message_chunk','No blocking defects found.')
         emit({'id':prompt_id,'result':{'stopReason':'end_turn'}})
+        if scenario=='linger_after_prompt': time.sleep(30)
     elif method=='session/cancel':
         if scenario!='cancel_unknown': emit({'id':prompt_id,'result':{'stopReason':'cancelled'}})
     elif m.get('id')==90 and 'result' in m:
         update('agent_message_chunk','No blocking defects found.')
         emit({'id':prompt_id,'result':{'stopReason':'end_turn'}})
 '''
+
+
+@contextmanager
+def deny_owned_cleanup():
+    owned = []
+    launch = subprocess.Popen
+    def start(*args, **kwargs):
+        proc = launch(*args, **kwargs)
+        owned.append(proc)
+        return proc
+    try:
+        with patch('agent_review_acp.subprocess.Popen', side_effect=start), \
+             patch('agent_review_acp._signal_owned', side_effect=PermissionError('denied')) as signal_owned:
+            yield owned, signal_owned
+    finally:
+        for proc in owned:
+            if proc.poll() is None:
+                proc.kill()  # Only the actual Popen objects created by this test.
+            proc.wait(timeout=4)
+            proc.stdin.close()
+            proc.stdout.close()
 
 
 class AcpReviewTests(unittest.TestCase):
@@ -164,3 +193,51 @@ class AcpReviewTests(unittest.TestCase):
         self.assertEqual(result['failure_code'], 'total_timeout')
         self.assertEqual(len(self.calls('session/prompt')), 1)
         self.assertEqual(len(self.calls('session/cancel')), 1)
+
+    def test_cleanup_denial_preserves_completed_response_without_false_success(self):
+        with deny_owned_cleanup() as (owned, signals):
+            result = self.review('linger_after_prompt')
+            self.assertEqual(result['status'], 'needs_inspection', result)
+            self.assertEqual(result['response'], 'No blocking defects found.')
+            self.assertEqual(result['session_id'], 'owned')
+            self.assertTrue(result['end_turn_observed'])
+            self.assertEqual(result['cleanup_error'], 'permission_denied')
+            self.assertEqual(result['cleanup_process_id'], owned[0].pid)
+            self.assertEqual(result['next_action'], 'inspect_owned_process')
+            signals.assert_called_once_with(owned[0].pid, signal.SIGTERM)
+            self.assertEqual(len(self.calls('session/prompt')), 1)
+
+    def test_unconfirmed_startup_cleanup_prevents_the_startup_retry(self):
+        with deny_owned_cleanup() as (owned, signals):
+            result = self.review('startup_cleanup')
+            self.assertEqual(result['launch_attempts'], 1)
+            self.assertEqual(len(owned), 1)
+            self.assertEqual(result['status'], 'needs_inspection', result)
+            self.assertEqual(result['cleanup_error'], 'permission_denied')
+            self.assertFalse(result['end_turn_observed'])
+            self.assertFalse(self.calls('session/prompt'))
+
+    def test_observation_cleanup_denial_retains_history_without_fresh_end_turn(self):
+        with deny_owned_cleanup():
+            result = self.review('linger_load', resume_session='owned')
+            self.assertEqual(result['status'], 'needs_inspection', result)
+            self.assertEqual(result['response'], 'Recovered response.')
+            self.assertEqual(result['cleanup_error'], 'permission_denied')
+            self.assertFalse(result['end_turn_observed'])
+            self.assertEqual(len(self.calls('session/load')), 1)
+            self.assertFalse(self.calls('session/prompt'))
+
+    def test_unreapable_child_never_waits_or_closes_a_busy_reader_without_a_bound(self):
+        client = _Client.__new__(_Client)
+        client.proc = Mock()
+        client.proc.wait.side_effect = subprocess.TimeoutExpired('owned-child',1)
+        client.closed = Mock()
+        client.reader = Mock()
+        client.reader.is_alive.return_value = True
+        with patch('agent_review_acp._signal_owned'):
+            self.assertEqual(client.close(),'exit_timeout')
+        self.assertLessEqual(client.proc.wait.call_count,3)
+        for call in client.proc.wait.call_args_list:
+            self.assertGreater(call.kwargs.get('timeout',0),0)
+        client.reader.join.assert_called_once_with(timeout=1)
+        client.proc.stdout.close.assert_not_called()

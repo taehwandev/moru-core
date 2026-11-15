@@ -4,6 +4,10 @@
 Owner: one bounded review turn over an existing local ACP runtime.
 Allowed imports: stdlib. Forbidden: workflow state, provider SDKs, credentials.
 Caller: orchestration CLI below. Tests: test_agent_review_acp.py (real child).
+Cleanup failures retain response/session evidence as needs_inspection. The CLI
+reuses that record without launching again until the owned process is inspected.
+An empty public-input provider cwd is not a writable Git task. The lead retains
+the source acceptance boundary and owns the local review journal.
 """
 from __future__ import annotations
 
@@ -146,17 +150,25 @@ class _Client:
             self.proc.stdin.close()
         except OSError:
             pass  # A dead transport is already represented in the result.
-        try:
-            self.proc.wait(timeout=1)
-        except subprocess.TimeoutExpired:
-            _signal_owned(self.proc.pid, signal.SIGTERM)
+        error = ''
+        for action in (None, signal.SIGTERM, signal.SIGKILL):
             try:
+                if action is not None:
+                    _signal_owned(self.proc.pid, action)
                 self.proc.wait(timeout=1)
+                error = ''
+                break
             except subprocess.TimeoutExpired:
-                _signal_owned(self.proc.pid, signal.SIGKILL)
-                self.proc.wait()
+                error = 'exit_timeout'
+            except PermissionError:
+                error = 'permission_denied'
+                break
         self.reader.join(timeout=1)
-        self.proc.stdout.close()
+        if not self.reader.is_alive():
+            self.proc.stdout.close()
+        elif not error:
+            error = 'reader_timeout'
+        return error
 
 
 def _signal_owned(pid, sig):
@@ -209,6 +221,7 @@ def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cance
     for attempt in range(2):
         client = None
         stopped = {}
+        retry_startup = False
         result['launch_attempts'] = attempt + 1
         try:
             client = _Client(command, cwd)
@@ -225,7 +238,7 @@ def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cance
         except _TransportError:
             result['failure_code'] = 'transport_failure'
             if client is not None and not client.prompt_sent and not resume_session and attempt == 0:
-                continue
+                retry_startup = True
         except (TimeoutError, ValueError) as error:
             result['failure_code'] = str(error)
             if client is not None and client.prompt_sent:
@@ -241,7 +254,19 @@ def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cance
                 result.update(session_id=client.session, response=client.response,
                               activity_events=client.activity, permissions_denied=client.denied,
                               protocol_error_code=client.error_code)
-                client.close()
+                try:
+                    cleanup_error = client.close()
+                except OSError as error:
+                    cleanup_error = 'permission_denied' if isinstance(error, PermissionError) else 'io_error'
+                if cleanup_error:
+                    result.update(status='needs_inspection', next_action='inspect_owned_process',
+                                  cleanup_error=cleanup_error, cleanup_process_id=client.proc.pid,
+                                  end_turn_observed=stopped.get('stopReason') == 'end_turn')
+                    result['failure_code'] = result['failure_code'] or 'cleanup_' + cleanup_error
+        if result.get('cleanup_error'):
+            return result  # Never retry while the previous owned process is unconfirmed.
+        if retry_startup:
+            continue
         reason = stopped.get('stopReason')
         result['cancellation_confirmed'] = reason == 'cancelled'
         if reason == 'end_turn' and result['response'].strip() and not result['permissions_denied']:
@@ -275,7 +300,8 @@ def _main():
     try:
         with ReviewJournal(args.output, args.project, prompt) as journal:
             result = journal.state
-            if result.get('phase') != 'finished' or result.get('status') == 'needs_inspection':
+            if not result.get('cleanup_error') and (
+                    result.get('phase') != 'finished' or result.get('status') == 'needs_inspection'):
                 result = run_review([args.executable, 'acp', '--sandbox'], args.project,
                                     prompt, idle_timeout=args.idle_timeout, max_seconds=args.max_seconds,
                                     checkpoint=journal.update, resume_session=journal.state.get('session_id', ''))

@@ -1,5 +1,7 @@
 """Durable ACP CLI recovery across process death, not just normal return."""
 import json
+from contextlib import redirect_stdout
+import io
 import os
 from pathlib import Path
 import signal
@@ -8,8 +10,10 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
-from test_agent_review_acp import FAKE
+from test_agent_review_acp import FAKE, deny_owned_cleanup
+from agent_review_acp import _main
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -97,3 +101,19 @@ class ReviewJournalTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(json.loads(result.stdout)['failure_code'], 'review_inputs_changed')
         self.assertEqual(len(self.calls('session/prompt')), 1)
+
+    def test_cleanup_failure_is_persisted_and_reuse_never_relaunches(self):
+        command = self.command('linger_after_prompt')
+        with deny_owned_cleanup(), patch.object(sys,'argv',command[1:]), redirect_stdout(io.StringIO()):
+            self.assertEqual(_main(), 1)
+            self.assertEqual(_main(), 1)
+            state = json.loads(self.output.read_text())
+            self.assertEqual(state['status'], 'needs_inspection')
+            self.assertEqual(state['response'], 'No blocking defects found.')
+            self.assertEqual(state['session_id'], 'owned')
+            self.assertEqual(state['cleanup_error'], 'permission_denied')
+            self.assertEqual(state['next_action'], 'inspect_owned_process')
+            self.assertTrue(state['end_turn_observed'])
+        self.assertEqual(len(self.calls('initialize')), 1)
+        self.assertEqual(len(self.calls('session/prompt')), 1)
+        self.assertFalse(self.calls('session/load'))
