@@ -17,6 +17,8 @@ pub(crate) struct RegistryRead;
 mod identity;
 #[path = "registry_retention.rs"]
 mod retention;
+#[path = "registry_retention_plan.rs"]
+mod retention_plan;
 
 impl RegistryRead {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -55,6 +57,9 @@ impl RegistryRead {
     }
 
     fn inspect(operation: &str, payload: &Value) -> Option<Value> {
+        if operation == "retention-plan" {
+            return Self::retention_plan(payload);
+        }
         if operation == "retention-bytes" {
             return Self::retention_bytes(payload);
         }

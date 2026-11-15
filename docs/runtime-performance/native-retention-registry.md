@@ -6,10 +6,11 @@ type: ai-generated
 
 # Native retention registry snapshots
 
-The shared run-evidence retention reader now reads and validates ordinary
-registry state maps in the existing `RegistryRead` native owner. This advances
-inventory unit51; the public pruning CLI, planning/classification, compatibility,
-locks, deletion and maintenance orchestration remain Python work.
+The shared run-evidence reader validates ordinary registry state maps, batches
+preview scan/classification and identity snapshots, and counts directory bytes
+in the existing `RegistryRead` native owner. Inventory unit51 remains partial:
+the public CLI, preparation and exceptional/custom profiles, locks, deletion
+and maintenance orchestration retain Python work.
 Neither this kernel nor source integration completes a public runtime unit.
 
 ## Contract and authority
@@ -65,9 +66,10 @@ complete caller proof and final delivery acceptance.
 
 ## Evidence identity metadata
 
-The same read owner now serves `retention-identities` with a list of absolute
-canonical `paths`. Every preview uses one process for the entire list, including
-the current-plan preview under the original locks. It discovers paths
+The same read owner serves `retention-identities` with a list of absolute
+canonical `paths`. This compatibility API batches the entire list; ordinary
+previews now use the combined planning request below, including current-plan
+revalidation under the original locks. It discovers paths
 iteratively without descending directory symlinks,
 then returns the root followed by all children in path-component order. Thus
 `a/x` precedes `a-b`, matching `sorted(Path.rglob(...))` rather than sorting
@@ -100,7 +102,7 @@ the first deletion and proves the second is preserved. The existing project-main
 disables global skill curation so its retention check stays within that fixture.
 Global skill-learning storage is outside this fixture's acceptance boundary.
 
-The debug receipt binds589 runtime inputs. Actual runtime/config file hashes
+That debug receipt bound589 runtime inputs. Actual runtime/config file hashes
 remain unchanged; this is still source/test acceptance, not a user-runtime
 installation, Linux release result or full unit51 completion. No Python source
 is retired and all remaining full56-unit responsibilities remain in the ledger.
@@ -127,6 +129,54 @@ empty-PATH size checks pass. Observers prove one request for multiple roots and
 for the actual typed removal list, with no original Python size scan. Report
 totals match the original without creating locks or changing fixture bytes.
 
-All589 runtime source inputs match the local debug receipt. Source/test evidence
+That size-accounting batch bound589 runtime source inputs. Source/test evidence
 does not prove Linux, release, installation or full unit51 acceptance. Immediate
 Python identity checks and all original deletion authority remain intact.
+
+## Prepared preview planning
+
+`retention-plan` receives the already prepared directory, registry state map or
+uncertainty, protected IDs, cutoffs, keep count and state/phase vocabularies.
+Python performs the original directory/state/protected/time preparation once.
+An ordinary populated preview then uses one native request for directory
+classification, stable newest-first order and all removable-root identities.
+Registry preparation can separately use the existing state-map request; there
+is no per-candidate subprocess. Empty directories start no planning process.
+
+Held/active/uncertain and orphan branches skip phase reads exactly as before.
+The first phase read precedes the settled-state test; a nonfinished candidate
+uses the original second phase observation before age classification. Missing,
+invalid JSON and invalid UTF-8 keep their empty-phase meaning. Unsupported
+parser/digit-limit profiles, phase symlinks, filesystem conditions and bounds
+decline the whole response, then resume the reference loop with its prepared
+context. That fallback does not read the registry or protected iterator again,
+or start a second metadata request after a failed combined request.
+
+The reader caps4096 entries,256 removable roots,4096 shared identity entries,
+1MiB per phase read and8MiB across phase reads. Responses keep the existing1MiB
+transport bound. Python validates category names/order relationships, protected
+and holding-state exclusions, and complete root-relative identity rows before
+constructing the existing removal-list type. Original options remain local,
+including opaque threshold values already converted by preparation.
+
+A source review found a real error mismatch: Rust `Path::is_dir` hid permission
+errors that the Python3.9 reference raises. A readable but nonsearchable owned
+directory reproduced the public-boundary failure before repair. The planner
+now distinguishes ordinary ignored path errors from uncertainty, which selects
+reference behavior. No permission or exception rule was weakened.
+
+The immutable `0424ec5d81517f79773e7f90538550914acf7be5` source supplies the
+planning oracle. Focused checks cover78 distinct Python cases:77 pass and the
+existing local non-UTF-8 filename case remains skipped. All22 registry Rust
+tests and five fresh relocated empty-PATH planning checks pass. Observers prove
+zero original Python phase/run-predicate replay and one combined request on
+ordinary previews; forced Python records the original loop. Held-run and
+escaping-metadata response injections cannot create invalid deletion candidates.
+
+All604 runtime-source hashes match the debug fixture, and four actual runtime/
+config file hashes stayed unchanged. Both original deletion locks, live owner
+revalidation and immediate Python identity checks remain at their original
+points, including the regression that changes a second candidate after the
+first deletion. Only owned fixtures are removed in these checks. No latency,
+release bundle, hosted build, actual activation, Linux or full-unit completion
+claim is made. No Python source is retired.

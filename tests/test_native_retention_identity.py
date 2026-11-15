@@ -148,8 +148,8 @@ class NativeRetentionIdentityTests(unittest.TestCase):
             (changed/"evidence.json").write_text("changed evidence")
             self.assertEqual(old_time,changed.stat().st_mtime_ns)
             self.assertEqual(1,source.apply_plan(preview["removable"]))
-        batches=[call for call in request.call_args_list if call.args[1]=="retention-identities"]
-        self.assertEqual(2,len(batches));self.assertTrue(all(len(call.args[2]["paths"])==2 for call in batches))
+        batches=[call for call in request.call_args_list if call.args[1]=="retention-plan"]
+        self.assertEqual(2,len(batches));self.assertTrue(all(call.args[2]["directory"]==str(runs) for call in batches))
         self.assertTrue(changed.is_dir());self.assertFalse((runs/("b"*32)).exists())
 
     def test_multiple_roots_share_one_request_without_python_scan(self):

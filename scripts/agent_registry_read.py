@@ -114,6 +114,56 @@ def _identity_rows(rows) -> tuple | None:
     return tuple(tuple(row) for row in rows) if rows else None
 
 
+def retention_plan(directory: Path, context: dict) -> dict | None:
+    """Project prepared, read-only planning data; opaque policy options stay local."""
+    try:
+        result=NativeProbe.request("--registry-read-probe","retention-plan",{
+            "directory":str(directory),**context})
+    except (OSError,ValueError,RuntimeError):
+        return None
+    keys=("finished","unfinished","abandoned","orphaned","unclassified","kept","removable")
+    if type(result) is not dict or set(result)!={"value"} or type(result["value"]) is not dict:
+        return None
+    value=result["value"]
+    if set(value)!={*keys,"identities"}:
+        return None
+    for key in keys:
+        names=value[key]
+        if (type(names) is not list or any(type(name) is not str or not name or name in {".",".."}
+                or "/" in name or "\0" in name for name in names) or len(names)!=len(set(names))):
+            return None
+        if key!="unclassified" and any(len(name)!=32 or any(c not in "0123456789abcdef" for c in name) for name in names):
+            return None
+    all_names=[name for key in keys[:5] for name in value[key]]
+    if len(all_names)>4096 or len(all_names)!=len(set(all_names)):
+        return None
+    finished=value["finished"];removable=value["removable"]
+    if len(removable)>256:
+        return None
+    prefix=finished[context["keep"]:]+value["abandoned"]
+    tail=removable[len(prefix):]
+    if (value["kept"]!=finished[:context["keep"]] or removable[:len(prefix)]!=prefix
+            or tail!=[name for name in value["orphaned"] if name in set(tail)]):
+        return None
+    held=set(context["protected"])
+    states=context["registry_states"] or {}
+    if (set(removable)&held or any(states.get(name) in context["holding_states"] for name in removable)
+            or context["registry_uncertain"] and any(value[key] for key in ("finished","abandoned","orphaned"))):
+        return None
+    rows=value["identities"]
+    if type(rows) is not list or len(rows)!=len(removable):
+        return None
+    identities={}
+    for name,row in zip(removable,rows):
+        if type(row) is not list or len(row)!=2 or type(row[0]) is not str or row[0]!=name:
+            return None
+        identity=_identity_rows(row[1])
+        if identity is None:
+            return None
+        identities[directory/name]=identity
+    return {**{key:[directory/name for name in value[key]] for key in keys},"identities":identities}
+
+
 def retention_bytes(paths: list[Path]) -> int | None:
     if type(paths) is not list or any(type(path) is not type(Path()) for path in paths):
         return None

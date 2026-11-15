@@ -152,7 +152,7 @@ class NativeRegistryRetentionTests(unittest.TestCase):
         self.assertEqual(expected,actual)
         self.assertEqual([],calls)
         operations=[call.args[1] for call in request.call_args_list]
-        self.assertEqual(["retention-states","retention-identities"],operations)
+        self.assertEqual(["retention-states","retention-plan"],operations)
         self.assertIsInstance(actual["removable"],source._RemovalCandidates)
         self.assertEqual([runs/("b"*32)],actual["removable"])
         self.assertIsNotNone(actual["removable"].identities[runs/("b"*32)])

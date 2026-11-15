@@ -45,8 +45,10 @@ until its state can be established.
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import stat
+import sys
 import time
 from pathlib import Path
 from typing import Iterable
@@ -197,15 +199,71 @@ def _identities(paths: list[Path]) -> dict:
 class _RemovalCandidates(list):
     """A list-compatible preview carrying the observations deletion must recheck."""
 
-    def __init__(self, paths: list[Path], project: Path, options: dict) -> None:
+    def __init__(self, paths: list[Path], project: Path, options: dict, *, _native_identities=None) -> None:
         super().__init__(paths)
         self.project = project
         self.options = options
-        self.identities = _identities(paths)
+        self.identities = _identities(paths) if _native_identities is None else _native_identities
         self.removed_bytes = 0
 
 
 _NATIVE_REMOVAL_CLASS = _RemovalCandidates
+_NATIVE_PLAN_INIT = (_RemovalCandidates.__init__, _RemovalCandidates.__init__.__code__)
+_NATIVE_PLAN_TIME = time.time
+_NATIVE_PLAN_DECODER = (json._default_decoder, json._default_decoder.scan_once)
+_NATIVE_PLAN_CALLS = [(name,fn,fn.__code__,fn.__defaults__,dict(fn.__kwdefaults__ or {}))
+    for name in ("phase_of","is_run_directory","_touched_at","_identity","_identities") for fn in [globals()[name]]]
+_NATIVE_PLAN_PATHS = [(name,fn,fn.__code__,fn.__defaults__,dict(fn.__kwdefaults__ or {}))
+    for name in ("iterdir","is_dir","is_symlink","read_text","open","exists","__truediv__") for fn in [getattr(Path,name)]]
+
+
+def _plan_profile(directory, states, held, keep) -> bool:
+    collections=(held,CLAIM_HOLDING_STATES,SETTLED_STATES,FINISHED_PHASES)
+    if (type(keep) is not int or not _metadata_profile([directory])
+            or any(type(items) not in (set,frozenset) or any(type(s) is not str for s in items) for items in collections)
+            or states is not None and (type(states) is not dict or any(type(k) is not str or type(v) is not str for k,v in states.items()))
+            or globals().get("_RemovalCandidates") is not _NATIVE_REMOVAL_CLASS
+            or _RemovalCandidates.__init__ is not _NATIVE_PLAN_INIT[0]
+            or _RemovalCandidates.__init__.__code__ is not _NATIVE_PLAN_INIT[1]
+            or time.time is not _NATIVE_PLAN_TIME or json._default_decoder is not _NATIVE_PLAN_DECODER[0]
+            or json._default_decoder.scan_once is not _NATIVE_PLAN_DECODER[1]):
+        return False
+    loads=_NATIVE_JSON_LOADS
+    if (json.loads is not loads[0] or json.loads.__code__ is not loads[1]
+            or json.loads.__defaults__ is not loads[2] or dict(json.loads.__kwdefaults__ or {})!=loads[3]):
+        return False
+    bindings=[(globals().get(name),fn,code,defaults,kw) for name,fn,code,defaults,kw in _NATIVE_PLAN_CALLS]
+    bindings.extend((getattr(Path,name,None),fn,code,defaults,kw) for name,fn,code,defaults,kw in _NATIVE_PLAN_PATHS)
+    return all(actual is fn and fn.__code__ is code and fn.__defaults__ is defaults
+               and dict(fn.__kwdefaults__ or {})==kw for actual,fn,code,defaults,kw in bindings)
+
+
+def _prepared_native_plan(directory, states, uncertain, held, cutoff, orphan_cutoff, keep, project, options):
+    from support.native_probe_transport import NativeProbe
+    if not _plan_profile(directory,states,held,keep) or not NativeProbe.available():
+        return None,False
+    if any(type(v) not in (int,float) or type(v) is float and not math.isfinite(v) for v in (cutoff,orphan_cutoff)):
+        return None,False
+    entries=directory.iterdir()
+    try:
+        nonempty=next(entries,None) is not None
+    finally:
+        entries.close()
+    if not nonempty:
+        return None,False
+    from agent_registry_read import retention_plan
+    value=retention_plan(directory,{
+        "registry_states":states,"registry_uncertain":uncertain,"protected":sorted(held),
+        "cutoff":cutoff,"orphan_cutoff":orphan_cutoff,"keep":max(0,keep),
+        "holding_states":sorted(CLAIM_HOLDING_STATES),"settled_states":sorted(SETTLED_STATES),
+        "finished_phases":sorted(FINISHED_PHASES),
+        "int_digits":getattr(sys,"get_int_max_str_digits",lambda:0)()})
+    if value is None:
+        return None,True
+    identities=value.pop("identities")
+    value["removable"]=_RemovalCandidates(value["removable"],project,{"keep":max(0,keep),**options},
+                                            _native_identities=identities)
+    return value,True
 
 
 def plan(
@@ -249,6 +307,12 @@ def plan(
     moment = time.time() if now is None else now
     cutoff = moment - max(0, int(abandoned_after_seconds))
     orphan_cutoff = moment - max(0, int(orphan_after_seconds))
+    options={"abandoned_after_seconds":abandoned_after_seconds,
+             "orphan_after_seconds":orphan_after_seconds,"protected":held}
+    native,declined=_prepared_native_plan(directory,registry_states,registry_uncertain,held,
+                                         cutoff,orphan_cutoff,keep,project,options)
+    if native is not None:
+        return native
     finished: list[Path] = []
     unfinished: list[Path] = []
     abandoned: list[Path] = []
@@ -279,6 +343,8 @@ def plan(
 
     finished.sort(key=lambda path: path.stat().st_mtime, reverse=True)
     keep = max(0, int(keep))
+    removable=[*finished[keep:],*abandoned,*removable_orphans]
+    observations={"_native_identities":{path:_identity(path) for path in removable}} if declined else {}
     return {
         "finished": finished,
         "unfinished": unfinished,
@@ -287,9 +353,10 @@ def plan(
         "unclassified": unclassified,
         "kept": finished[:keep],
         "removable": _RemovalCandidates(
-            [*finished[keep:], *abandoned, *removable_orphans], project,
+            removable, project,
             {"keep": keep, "abandoned_after_seconds": abandoned_after_seconds,
              "orphan_after_seconds": orphan_after_seconds, "protected": held},
+            **observations,
         ),
     }
 

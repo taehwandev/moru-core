@@ -75,7 +75,7 @@ impl RegistryRead {
         Some(paths)
     }
 
-    fn identity_rows(root: &Path, remaining: &mut usize) -> Option<Value> {
+    pub(super) fn identity_rows(root: &Path, remaining: &mut usize) -> Option<Value> {
         let paths = Self::metadata_paths(root, remaining)?;
         let mut result = Vec::with_capacity(paths.len());
         // Match Python: collect/sort every path before reading any returned stat.
