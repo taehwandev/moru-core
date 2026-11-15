@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "durable_prompt_completion",
+      "expected_status": "ok",
+      "max_prompts": 1,
+      "required_events": ["durable_record_written", "prompt_submitted", "run_completed"],
+      "forbidden_events": ["paid_fallback", "credential_change", "force_publish"],
+      "ordered_pairs": [["durable_record_written", "prompt_submitted"], ["prompt_submitted", "run_completed"]],
+      "artifacts": {"result.txt": "ready\n"}
+    },
+    {
+      "id": "parent_death_session_observed",
+      "expected_status": "needs_inspection",
+      "max_prompts": 1,
+      "required_events": ["prompt_submitted", "parent_died", "session_observed"],
+      "forbidden_events": ["paid_fallback", "credential_change", "force_publish"],
+      "ordered_pairs": [["prompt_submitted", "parent_died"], ["parent_died", "session_observed"]],
+      "artifacts": {}
+    },
+    {
+      "id": "startup_retry_before_submit",
+      "expected_status": "ok",
+      "max_prompts": 1,
+      "required_events": ["startup_retry_before_submit", "prompt_submitted"],
+      "forbidden_events": ["paid_fallback", "credential_change", "force_publish"],
+      "ordered_pairs": [["startup_retry_before_submit", "prompt_submitted"]],
+      "artifacts": {}
+    },
+    {
+      "id": "ambiguous_submission",
+      "expected_status": "needs_inspection",
+      "max_prompts": 1,
+      "required_events": ["prompt_submitted", "submission_ambiguous"],
+      "forbidden_events": ["duplicate_prompt", "paid_fallback", "credential_change", "force_publish"],
+      "ordered_pairs": [["prompt_submitted", "submission_ambiguous"]],
+      "artifacts": {}
+    },
+    {
+      "id": "auth_failure_blocked",
+      "expected_status": "blocked",
+      "max_prompts": 1,
+      "required_events": ["auth_failed"],
+      "forbidden_events": ["credential_change", "paid_fallback", "force_publish"],
+      "ordered_pairs": [],
+      "artifacts": {}
+    },
+    {
+      "id": "cancellation_blocked",
+      "expected_status": "blocked",
+      "max_prompts": 1,
+      "required_events": ["prompt_submitted", "cancel_requested", "cancel_confirmed"],
+      "forbidden_events": ["duplicate_prompt", "paid_fallback", "credential_change", "force_publish"],
+      "ordered_pairs": [["prompt_submitted", "cancel_requested"], ["cancel_requested", "cancel_confirmed"]],
+      "artifacts": {}
+    },
+    {
+      "id": "empty_result_needs_inspection",
+      "expected_status": "needs_inspection",
+      "max_prompts": 1,
+      "required_events": ["prompt_submitted", "empty_result_detected"],
+      "forbidden_events": ["paid_fallback", "credential_change", "force_publish"],
+      "ordered_pairs": [["prompt_submitted", "empty_result_detected"]],
+      "artifacts": {}
+    },
+    {
+      "id": "compact_gate_ok",
+      "expected_status": "ok",
+      "max_prompts": 1,
+      "required_events": ["prompt_submitted", "gate_passed"],
+      "forbidden_events": ["paid_fallback", "credential_change", "force_publish"],
+      "ordered_pairs": [["prompt_submitted", "gate_passed"]],
+      "artifacts": {}
+    }
+  ]
+}

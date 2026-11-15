@@ -147,3 +147,19 @@ Preserve the route's required gates, authority, and publication boundaries.
 For initial evaluation, note useful findings and rework avoided when observable.
 Use time or usage only when already available; no extra telemetry or model
 calls are needed to measure the policy.
+
+For changes to orchestration behavior, grade normalized traces against the shared
+offline cases and real local artifacts when that boundary needs verification:
+
+```text
+python3 <MORU_ROOT>/scripts/agent_behavior_eval.py --cases <MORU_ROOT>/tests/fixtures/agent-behavior-cases.json --traces <RUN_DIR>/behavior-traces.json --artifact-root <ARTIFACT_ROOT>
+```
+
+The grader checks event order, duplicate submissions, forbidden actions, terminal
+state, provider/case coverage and declared artifact contents. It runs no model or
+trace-supplied command. Artifacts live under
+`<ARTIFACT_ROOT>/<provider>/<case_id>/<relative_path>` so cases cannot borrow
+another provider's result. Observation-only recovery stays `needs_inspection`
+until a completion receipt is available. Synthetic traces test the grading contract; they are not
+live Codex, Claude or AGY performance scores. This adds no unconditional gate:
+reuse relevant checks and select this evaluation for an affected behavior seam.
