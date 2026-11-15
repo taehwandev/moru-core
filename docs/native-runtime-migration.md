@@ -65,16 +65,16 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Python branches remain in partially native pretool, quiet mailbox,
-quiet/settled Stop, next and prepared-status paths. Twenty primary boundaries now have implementation
+quiet/settled Stop, next and prepared-status paths. Twenty-one primary boundaries now have implementation
 coverage, all involving native work (including partial entry/discovery,
 launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
 The latest native extensions add no new timing claim; earlier measurements remain historical.
 The ancillary manifest checker and offline Figma validator engines add
 implementation coverage for units 36–37 and 40. The native session aggregation
 used by the overhead reporter adds partial supporting coverage for unit 46.
-The current ledger records 27/62 units with native implementation coverage,
-not effort-weighted completion: 26 are partial and one engine is locally verified
-while its Python entry remains open. Another 34 remain planned and one has an unresolved external
+The current ledger records 29/62 units with native implementation coverage,
+not effort-weighted completion: 28 are partial and one engine is locally verified
+while its Python entry remains open. Another 32 remain planned and one has an unresolved external
 ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -193,7 +193,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 27 | `scripts/setup-agent-hooks.py` | setup-agent-hooks | Python candidate | Owned operator work; preserve effect boundaries during native conversion |
 | 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
-| 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Partial native admitted worker guardian | Existing spooler/result and authority flow; native lifetime/receipt execution; CLI/orchestration remain Python |
 | 31 | `scripts/agy_hook_adapter.py` | agy-hook | Partial native shared doc transcript scans | Both adapter boundaries, PreInvocation read/render/evidence/marker flow and gate/Stop/verifier state |
 
 ## Ancillary direct CLI coverage
@@ -237,7 +237,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 59 | `scripts/agent_pending_publication.py` | Direct CLI | Python retained | Pending-publication inspection/settlement, exact Git verification and effect boundaries |
 | 60 | `scripts/agent_review_acp.py` | Direct CLI | Python retained | Bounded local ACP review worker and child-process lifetime; no provider invocation authority implied |
 | 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI | Python retained | Required-doc delivery stdout/evidence contract; unit31 supporting overlap is not entry completion |
-| 62 | `scripts/workflow_dispatch_guardian.py` | Direct worker CLI | Python retained | Gated child exec, lifeline and uncertain-result/no-replay authority |
+| 62 | `scripts/workflow_dispatch_guardian.py` | Private native guardian/gate; direct Python compatibility worker | Partial native | Gated exec, durable receipts, EOF/group cleanup and no replay; bootstrap/raw/direct/installed acceptance remain open |
 
 ## Delivery order
 

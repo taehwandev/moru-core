@@ -430,10 +430,12 @@
       "id": "scripts/workflow_dispatch_launch.py",
       "inventory_id": 30,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "workflow-dispatch-launch",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {},
+      "remaining": "The actual spooler now selects a guarded native worker guardian. Port the public dispatch CLI/preparation, scheduler/admission/result orchestration and exceptional profiles; retain no replay, authority and portable/installed acceptance before retirement.",
+      "verification": {
+        "guardian_wiring": "PASS: actual _run_spooled_worker observes one source-bound native guardian and delivers its result packet; common success, cancellation, parent-death, receipt-failure and admission regressions pass in the controlled inherited bootstrap profile. Unit62 owns the shared native lifetime evidence; this does not migrate provider/CLI/scheduler policy."
+      },
       "supporting_sources": ["scripts/workflow_dispatch_completion.py", "scripts/workflow_dispatch_execution.py", "scripts/workflow_dispatch_guardian.py", "scripts/workflow_dispatch_process.py"]
     },
     {
@@ -759,10 +761,16 @@
       "id": "scripts/workflow_dispatch_guardian.py",
       "inventory_id": 62,
       "kind": "ancillary",
-      "status": "planned",
-      "entry_aliases": "Direct private guardian/exec-gate worker",
-      "remaining": "Port admitted child exec, stdin lifeline, execution receipts and termination of the owned process group with unit30 dispatch callers. Preserve EOF-before-go refusal, uncertain outcomes and no replay.",
-      "verification": {}
+      "status": "partial_native",
+      "entry_aliases": "Private --dispatch-guardian/--dispatch-exec-gate; direct Python compatibility worker",
+      "remaining": "Ordinary source-bound guardian/gate, receipt persistence and owned group cleanup are native. Close raw/direct legacy entry, unsupported bootstrap/receipt profiles and complete caller proof; two-host distribution and actual installation remain pending. Keep Python compatibility until those contracts are verified.",
+      "verification": {
+        "native_owner": "native/checkout-identity/src/dispatch_guardian/mod.rs",
+        "behavior": "PASS:63 Python cases, exact8-file Rust handoff with10 focused owner cases, and7 relocated empty-PATH debug checks. Immutable7b6b230e guardian/receipt oracle, ordered/full environment, exact JSON bytes/mode, same-PID exec, lock/FD isolation, success/signal, cancellation, parent SIGKILL and resistant-descendant cleanup observed.615 runtime inputs and4 actual runtime/config hashes match; see native-dispatch-guardian.md.",
+        "negative_authority": "PASS: durable admitted/running fences precede spawn/release; both running/final receipt-write failures preserve uncertainty, selected errors never replay Python, EOF before go executes nothing, unknown stored PIDs are not signaled. Environment-profile loss and unchanged executable-startup override mutants produce observable reference differences; unsupported profiles retain Python before selection.",
+        "portable": "PENDING supported two-host release/consumer acceptance;7 local transported debug cases are source/test evidence only.",
+        "installed": "PENDING actual user runtime activation; four selected runtime/config hashes unchanged. No provider, push, release/profile build, archive or hosted dispatch."
+      }
     }
   ],
   "unmigrated_python_sources": [

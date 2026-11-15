@@ -65,6 +65,8 @@ jobs:
             test_agent_state_read test_agent_repository_key test_agent_observability \
             test_agent_work_cards test_agent_work_cards_lifecycle test_agent_work_card_resume test_benchmark_read_inspection \
             test_template_repository < /dev/null
+          PYTHONPATH=scripts:tests python3 -B tests/run_native_dispatch_session.py -m unittest \
+            test_native_dispatch_guardian test_workflow_dispatch_process test_workflow_dispatch_execution < /dev/null
       - name: Package and test a fresh consumer without a toolchain
         env:
           BUNDLE: moru-native-${{ matrix.platform }}.tar.gz

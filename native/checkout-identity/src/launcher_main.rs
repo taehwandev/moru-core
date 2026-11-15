@@ -42,6 +42,8 @@ mod discovery_registry;
 mod discovery_search;
 mod doc_transcript;
 mod doc_transcript_process;
+#[path = "dispatch_guardian/mod.rs"]
+mod dispatch_guardian;
 mod figma_coverage;
 mod figma_process;
 mod figma_validation;
@@ -189,6 +191,9 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+    if args.first().is_some_and(|arg| arg == "--dispatch-guardian" || arg == "--dispatch-exec-gate") {
+        exit(dispatch_guardian::DispatchGuardian::run(&launcher, &args));
+    }
     if args.first().is_some_and(|arg| arg == "--unittest-admission") {
         // This private, source-verified path must never soften or replay failures.
         exit(unittest_admission::UnittestAdmission::run(&args[1..]));
