@@ -219,7 +219,7 @@ _NATIVE_PLAN_PATHS = [(name,fn,fn.__code__,fn.__defaults__,dict(fn.__kwdefaults_
 
 def _plan_profile(directory, states, held, keep) -> bool:
     collections=(held,CLAIM_HOLDING_STATES,SETTLED_STATES,FINISHED_PHASES)
-    if (type(keep) is not int or not _metadata_profile([directory])
+    if (type(keep) is not int or type(RUN_ID_LENGTH) is not int or RUN_ID_LENGTH!=32 or not _metadata_profile([directory])
             or any(type(items) not in (set,frozenset) or any(type(s) is not str for s in items) for items in collections)
             or states is not None and (type(states) is not dict or any(type(k) is not str or type(v) is not str for k,v in states.items()))
             or globals().get("_RemovalCandidates") is not _NATIVE_REMOVAL_CLASS

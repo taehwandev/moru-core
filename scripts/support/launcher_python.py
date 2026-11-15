@@ -31,6 +31,7 @@ SCRIPT_ALIASES = {
     "check-react-rn-skill-manifest": "check_react_rn_external_skill_manifest.py",
     "figma-validate": "figma-handoff/figma_validate.py",
     "overhead-report": "moru_overhead_report.py",
+    "runs-prune": "runs-prune.py",
     "loop": "agent_loop.py",
     "workflow-dispatch": "workflow_dispatch.py",
     "workflow-dispatch-launch": "workflow_dispatch_launch.py",

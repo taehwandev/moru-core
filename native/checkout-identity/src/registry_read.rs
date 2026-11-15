@@ -13,12 +13,16 @@ use std::{
 
 pub(crate) struct RegistryRead;
 
-#[path = "registry_identity.rs"]
+#[path = "retention/registry_identity.rs"]
 mod identity;
-#[path = "registry_retention.rs"]
+#[path = "retention/registry_retention.rs"]
 mod retention;
-#[path = "registry_retention_plan.rs"]
+#[path = "retention/registry_retention_plan.rs"]
 mod retention_plan;
+#[path = "retention/registry_retention_args.rs"]
+mod retention_args;
+#[path = "retention/registry_retention_report.rs"]
+mod retention_report;
 
 impl RegistryRead {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {

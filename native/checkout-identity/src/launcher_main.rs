@@ -200,6 +200,10 @@ fn main() {
         exit(code);
     }
 
+    if args.first().is_some_and(|arg| arg == "runs-prune") {
+        exit(registry_read::RegistryRead::runs_prune(&launcher, &args));
+    }
+
     if args.first().is_some_and(|a| a == "agent-mailbox") {
         finish(mailbox_status_process::MailboxStatusProcess::run(
             &launcher, &args,

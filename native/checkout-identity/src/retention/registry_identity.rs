@@ -2,6 +2,7 @@
 //! Allowed: std filesystem/Unix metadata and JSON; forbidden: file contents,
 //! writes, deletion, locks or authority decisions. Callers/tests: retention
 //! identity probe; original-source and changed-evidence revalidation tests.
+//! Verification: offline identity/byte tests and parent report parity.
 use super::RegistryRead;
 use serde_json::{json, Value};
 use std::{

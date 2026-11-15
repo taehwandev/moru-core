@@ -78,6 +78,11 @@ class NativeRetentionPlanTests(unittest.TestCase):
         self.assertEqual(expected,actual)
         self.assertIn("phase_of",calls);self.assertIn("is_run_directory",calls)
 
+    def test_changed_run_id_length_preserves_original_classification(self):
+        with patch.object(source,"RUN_ID_LENGTH",16),patch.object(self.oracle,"RUN_ID_LENGTH",16):
+            actual=self.same(keep=0)
+        self.assertEqual(3,len(actual["unclassified"]));self.assertEqual([],actual["removable"])
+
     def test_unsearchable_run_directory_preserves_reference_permission_error(self):
         os.chmod(self.runs,0o400)
         try:

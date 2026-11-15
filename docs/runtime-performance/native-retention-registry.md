@@ -8,9 +8,9 @@ type: ai-generated
 
 The shared run-evidence reader validates ordinary registry state maps, batches
 preview scan/classification and identity snapshots, and counts directory bytes
-in the existing `RegistryRead` native owner. Inventory unit51 remains partial:
-the public CLI, preparation and exceptional/custom profiles, locks, deletion
-and maintenance orchestration retain Python work.
+in the existing `RegistryRead` native owner. The ordinary read-only `runs-prune`
+report also executes natively. Inventory unit51 remains partial: exceptional/
+custom profiles, apply, locks, deletion and maintenance retain Python work.
 Neither this kernel nor source integration completes a public runtime unit.
 
 ## Contract and authority
@@ -180,3 +180,43 @@ points, including the regression that changes a second candidate after the
 first deletion. Only owned fixtures are removed in these checks. No latency,
 release bundle, hosted build, actual activation, Linux or full-unit completion
 claim is made. No Python source is retired.
+
+## Ordinary public report command
+
+The stable `runs-prune` alias runs ordinary reports without Python or Git on
+PATH. It reuses the registry, plan, identity, size and phase readers; the four
+existing retention helper/test files move together under `src/retention/`
+while their lexical Rust module identities remain unchanged. No dependency,
+separate public owner or alternate retention policy is introduced.
+
+The existing static-contract generator derives defaults, state vocabularies,
+schema/run-ID profiles and simple directory suffixes from canonical Python
+AST data. It never imports or executes retention policy. Unsupported expressions,
+rebindings, calls receiving mutable data, path shapes or metadata select compatibility. The Python planner
+also declines changed run-ID-length profiles instead of applying native32
+classification to a changed policy.
+
+Ordinary canonical absolute projects, default cwd, split/equal/repeated flags
+and ASCII signed64-bit counts retain exact report bytes. Reports preserve
+finished ordering, active/settled/orphan/abandoned rules, unclassified bytes,
+the first-five unfinished display and removable size totals. Unsupported
+argparse forms, relative/symlink/noncanonical paths, parser/encoding/IO/bound
+uncertainty and help keep the original Python command. The complete report is
+prepared before the first stdout write, so a decline prints no native prefix.
+
+Every `--apply` form replaces the process with the original Python launcher
+before target reads or native output. Actual process checks preserve argv,
+stdin, cwd, environment and exit code. An empty PATH fails with127 even under
+soft-fail and removes nothing. No native lock, deletion or authority change is
+part of this increment.
+
+The immutable `88901b63f0ceecc36fa15d2f48024a98b6e4780f` CLI supplies the output
+oracle. Final verification covers 120 distinct Python cases: 119 pass and the
+existing local non-UTF-8 filename case remains skipped. The initial combined run
+exposed six already-owned executable entrypoints absent from the 56-row inventory;
+the current inventory now includes all 62. A final full rerun includes that
+accounting correction and the mutable-policy-call regression. All 33 current
+registry Rust cases pass. A relocated debug consumer passes 27 empty-PATH checks,
+including six actual report/deferral checks. All 608 runtime-source hashes match and four actual runtime/config hashes
+remain unchanged. No timing, release, hosted build, installed-runtime, Linux
+or full-unit completion claim is made. All 385 owned Python sources stay open.

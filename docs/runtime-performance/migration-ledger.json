@@ -16,7 +16,8 @@
       22,
       24,
       25,
-      31
+      31,
+      61
     ],
     "state_and_observability": [
       6,
@@ -40,7 +41,10 @@
       27,
       28,
       29,
-      30
+      30,
+      59,
+      60,
+      62
     ],
     "owned_tooling": [
       32,
@@ -66,7 +70,9 @@
       52,
       54,
       55,
-      56
+      56,
+      57,
+      58
     ],
     "external_boundary": [
       53
@@ -637,14 +643,15 @@
       "inventory_id": 51,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Direct CLI; shared agent_run_evidence retention reader",
-      "remaining": "Ordinary registry reads, preview scan/classification/identities and directory-size accounting are native. Port the public CLI/preparation, exceptional/custom metadata handling, immediate identity checks, locked deletion and maintenance orchestration; prove portable/installed acceptance before retirement.",
+      "entry_aliases": "runs-prune; direct Python compatibility CLI; shared agent_run_evidence retention reader",
+      "remaining": "Ordinary read-only report CLI, registry reads, preview scan/classification/identities and sizes are native. Port exceptional/custom metadata and argparse profiles, Python apply, immediate identity checks, locked deletion and maintenance orchestration; prove portable/installed acceptance before retirement.",
       "supporting_sources": ["scripts/agent_run_evidence.py", "scripts/agent_registry_read.py"],
       "verification": {
         "retention_registry": "PASS:41 Python cases,4 Rust owner cases and6 local debug empty-PATH checks. Immutable61b69b2d reader/preview oracle, ordered ID/state maps, bool/float schema equality, ignored extended JSON, decoder/file/profile/error fallback; see native-retention-registry.md.",
         "evidence_identity": "PASS with explicit platform limit:55 Python cases cover54 passes and1 non-UTF-8 child-name skip;3 Rust cases and5 empty-PATH debug probes pass. One native process batches all preview roots; original immediate Python pre-delete checks retain freshness, including changes after a prior deletion. Immutable bd675de7 metadata parity, component order, negative integer nanoseconds, symlinks/FIFO and callback/error fallback observed.589 source inputs bound; actual runtime/config files unchanged. No Linux or full-unit completion claim.",
         "directory_bytes": "PASS with retained platform limit:63 Python cases cover62 passes and1 existing filename skip;4 Rust metadata cases and5 empty-PATH size probes pass. Immutable c8919ff2 totals, one-request multi-root and typed-preview execution, symlink/root-file/duplicate semantics, exact integer projection and original errors/custom fallback observed. No contents, writes, per-candidate subprocesses or premature unit completion.",
         "preview_plan": "PASS with retained platform limit:78 distinct Python cases cover77 passes and1 existing filename skip;22 Rust registry tests and5 relocated empty-PATH probes pass. Immutable0424ec5d planning oracle, one combined scan/identity request, zero Python phase/run-predicate replay, held/orphan/age/tie/custom/decoder/bound/error behavior and typed/opaque projection observed. Real permission-error mismatch reproduced then repaired. Decline reuses preparation without second registry/metadata request.604-source debug binding and4 actual runtime/config hashes match. No timing, release, installed or Linux claim; unit51 remains partial.",
+        "public_report": "PASS with retained platform limit: final120 distinct Python cases cover119 passes and1 existing filename skip after exact entrypoint inventory reconciliation and mutable-policy-call repair;33 current Rust registry cases and27 relocated empty-PATH checks pass, including6 actual report/deferral checks. Immutable88901b63 CLI bytes, canonical AST metadata without policy execution, changed/rebound/mutable policy deferral, no-Python/Git ordinary reports and exact whole-process apply argv/stdin/cwd/env/exit observed.608 runtime source hashes and4 actual runtime/config hashes match. Apply/deletion remains Python; no release, actual install, Linux, timing or full-unit completion claim.",
         "execution": "PASS: one real request with zero Python registry-file or reference-reader replay; forced Python negative control observes both. Native map feeds the typed removal preview with identical protected/completed classification.",
         "authority": "PASS: report creates/acquires no locks; existing deletion/resume/replacement/identity regressions pass. Native reader cannot write/prune/claim. Synthetic fixtures only.",
         "portable": "PENDING two-host release acceptance;6 debug-only temporary consumer checks are not a distribution claim.",
@@ -701,6 +708,60 @@
       "status": "planned",
       "entry_aliases": "Direct CLI",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
+      "verification": {}
+    },
+    {
+      "id": "scripts/agent_behavior_eval.py",
+      "inventory_id": 57,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct offline CLI",
+      "remaining": "Port offline cases/traces/artifact grading, file validation and exact stdout/error/exit behavior. Preserve the no-provider/no-subprocess boundary.",
+      "verification": {}
+    },
+    {
+      "id": "scripts/agent_behavior_trace.py",
+      "inventory_id": 58,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct offline CLI",
+      "remaining": "An explicitly supplied Rust event normalizer exists; it does not retire this Python entry. Port record IO, validation, subprocess and CLI behavior, proving exact content-free outputs and failure bounds with unit23 callers.",
+      "verification": {}
+    },
+    {
+      "id": "scripts/agent_pending_publication.py",
+      "inventory_id": 59,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct status/settle CLI",
+      "remaining": "Port pending-publication inspection and local receipt settlement with original Git/provider observations, exact failures and no authority to publish. Preserve finish/Stop import callers.",
+      "verification": {}
+    },
+    {
+      "id": "scripts/agent_review_acp.py",
+      "inventory_id": 60,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct ACP review CLI",
+      "remaining": "Port bounded ACP review transport, local journal and child lifetime/cleanup. Preserve tool denial, uncertain results and separately authorized provider execution; do not invoke a provider for migration inventory checks.",
+      "verification": {}
+    },
+    {
+      "id": "scripts/agy_required_docs_hook.py",
+      "inventory_id": 61,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct PreInvocation compatibility hook",
+      "remaining": "Port standalone stdin/stdout doc delivery, evidence/transcript reads and marker behavior with unit31 adapter callers and durable legacy registrations. Preserve current effect and failure boundaries.",
+      "verification": {}
+    },
+    {
+      "id": "scripts/workflow_dispatch_guardian.py",
+      "inventory_id": 62,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct private guardian/exec-gate worker",
+      "remaining": "Port admitted child exec, stdin lifeline, execution receipts and termination of the owned process group with unit30 dispatch callers. Preserve EOF-before-go refusal, uncertain outcomes and no replay.",
       "verification": {}
     }
   ],

@@ -118,3 +118,51 @@ def check_retention_plan(native,entry,base,project,env):
         assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
     assert before==snapshot()
     return 5
+
+
+def check_retention_report(native, entry, base, project, env):
+    target = base / "retention report 한글"
+    target.mkdir()
+    directory = target / ".moru/runs"
+    def invoke(*args, **overrides):
+        return subprocess.run([str(entry), "runs-prune", *args],
+            input=b"owned stdin\n", env={**env, **overrides}, cwd=target,
+            capture_output=True, timeout=8)
+    absent = invoke()
+    assert (absent.returncode, absent.stdout, absent.stderr) == (
+        0, f"no run directory at {directory}\n".encode(), b""), absent
+    directory.mkdir(parents=True)
+    empty = invoke("--project", str(target))
+    header = f"runs: {directory}\n"
+    assert (empty.returncode, empty.stdout, empty.stderr) == (0,
+        (header + "finished: 0  unfinished: 0  abandoned: 0  orphaned: 0\n"
+         "keeping the newest 0 finished; removable: 0\nnothing to remove\n").encode(), b""), empty
+    packet = b'{"phase":"done"}'
+    for index, name in enumerate(("a" * 32, "b" * 32)):
+        run = directory / name
+        run.mkdir()
+        (run / "continuation.json").write_bytes(packet)
+        (run / "evidence").write_bytes(b"abc")
+        os.utime(run, (100 + index, 100 + index))
+    def snapshot():
+        return {str(path.relative_to(target)): (os.lstat(path), path.read_bytes() if path.is_file() else None)
+                for path in [target, *target.rglob("*")]}
+    before = snapshot()
+    done = invoke("--project", str(target), "--keep=1")
+    expected = (header + "finished: 2  unfinished: 0  abandoned: 0  orphaned: 0\n"
+                "keeping the newest 1 finished; removable: 1\n"
+                f"bytes to free: {len(packet) + 3}\nreport only; pass --apply to remove them\n").encode()
+    assert (done.returncode, done.stdout, done.stderr) == (0, expected, b""), done
+    for soft in ("0", "1"):
+        apply = invoke("--keep=0", "--apply", MORU_HOOK_SOFT_FAIL=soft)
+        assert (apply.returncode, apply.stdout) == (127, b""), apply
+    relative = invoke("--project", ".")
+    assert (relative.returncode, relative.stdout) == (127, b""), relative
+    after = snapshot()
+    assert set(before) == set(after)
+    for name, (metadata, body) in before.items():
+        current, content = after[name]
+        assert body == content
+        assert (metadata.st_ino, metadata.st_mode, metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns) == (
+            current.st_ino, current.st_mode, current.st_size, current.st_mtime_ns, current.st_ctime_ns)
+    return 6

@@ -86,6 +86,10 @@ struct Classified {
 }
 
 impl RegistryRead {
+    pub(super) fn retention_phase(path: &Path, remaining: &mut usize) -> Option<String> {
+        phase(path, remaining)
+    }
+
     pub(super) fn retention_plan(payload: &Value) -> Option<Value> {
         let prepared = Prepared::read(payload)?;
         let mut entries = Vec::new();

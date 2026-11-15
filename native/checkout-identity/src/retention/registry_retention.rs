@@ -2,6 +2,7 @@
 //! Allowed: LocalState/PythonJson/stdlib; forbidden: writes, pruning, claiming
 //! or acquiring/creating locks. Callers/tests: retention-state private probe,
 //! original-source and report/apply authority regressions.
+//! Verification: offline registry tests and parent original-Python report parity.
 use super::RegistryRead;
 use crate::{
     callback_state::LocalState,
