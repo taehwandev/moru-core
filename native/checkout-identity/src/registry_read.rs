@@ -13,6 +13,8 @@ use std::{
 
 pub(crate) struct RegistryRead;
 
+#[path = "registry_identity.rs"]
+mod identity;
 #[path = "registry_retention.rs"]
 mod retention;
 
@@ -53,6 +55,9 @@ impl RegistryRead {
     }
 
     fn inspect(operation: &str, payload: &Value) -> Option<Value> {
+        if operation == "retention-identities" {
+            return Self::retention_identities(payload);
+        }
         if operation == "retention-states" {
             return Self::retention_states(payload);
         }

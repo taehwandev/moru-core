@@ -1,6 +1,7 @@
 """Transported read-only retention snapshots; only the harness writes fixtures."""
 import hashlib
 import json
+import os
 import subprocess
 import sys
 
@@ -29,3 +30,27 @@ def check_retention(native, entry, base, project, env):
             input=json.dumps(payload).encode(),env={**env,"MORU_HOOK_SOFT_FAIL":"1"},cwd=project,capture_output=True,timeout=8)
         assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
     return 6
+
+
+def check_retention_identity(native,entry,base,project,env):
+    root=base/"retention identity";root.mkdir();(root/"a").mkdir()
+    (root/"a/x").write_text("data");(root/"a-b").write_text("hyphen");(root/"한글").write_text("data")
+    paths=[root,root/"a",root/"a/x",root/"a-b",root/"한글"]
+    def snapshot():
+        rows=[]
+        for path in paths:
+            metadata=os.lstat(path)
+            rows.append(["." if path==root else str(path.relative_to(root)),metadata.st_dev,metadata.st_ino,
+                metadata.st_mode,metadata.st_size,metadata.st_mtime_ns,metadata.st_ctime_ns])
+        return rows
+    expected=snapshot()
+    done=subprocess.run([str(native),str(entry),"--registry-read-probe","retention-identities"],
+        input=json.dumps({"paths":[str(root)]}).encode(),env=env,cwd=project,capture_output=True,timeout=8)
+    assert (done.returncode,done.stderr)==(0,b""),done
+    assert json.loads(done.stdout)=={"schema_version":1,"result":{"value":[expected]}},done
+    assert expected==snapshot()
+    for payload in ({},{"paths":[str(root)],"extra":1},{"paths":["\udcff"]},{"paths":[str(root/"absent")]}):
+        done=subprocess.run([str(native),str(entry),"--registry-read-probe","retention-identities"],
+            input=json.dumps(payload).encode(),env={**env,"MORU_HOOK_SOFT_FAIL":"1"},cwd=project,capture_output=True,timeout=8)
+        assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
+    return 5

@@ -22,7 +22,7 @@ from smoke_native_card_resume import check_card_resume
 from smoke_native_doc_transcript import check_doc_transcript
 from smoke_native_memory import check_memory, check_memory_files, check_memory_source
 from smoke_native_codex_statusline import check_codex_statusline
-from smoke_native_retention import check_retention
+from smoke_native_retention import check_retention, check_retention_identity
 
 
 def _lossless_report_formats(native, entry, report, env, project):
@@ -600,6 +600,7 @@ def smoke(archive):
         checks += check_memory(native, entry, project, {**normal,"PATH":str(empty)})
         checks += check_codex_statusline(native, entry, project, {**normal,"PATH":str(empty)})
         checks += check_retention(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_retention_identity(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory_files(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory_source(native, entry, base, project, normal)
         for runtime in ("claude", "codex"):

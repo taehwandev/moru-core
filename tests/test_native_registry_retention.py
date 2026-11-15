@@ -151,7 +151,8 @@ class NativeRegistryRetentionTests(unittest.TestCase):
                 actual,calls=self.profile(lambda:source.plan(self.project,keep=0,now=1700000000))
         self.assertEqual(expected,actual)
         self.assertEqual([],calls)
-        self.assertEqual(1,request.call_count)
+        operations=[call.args[1] for call in request.call_args_list]
+        self.assertEqual(["retention-states","retention-identities"],operations)
         self.assertIsInstance(actual["removable"],source._RemovalCandidates)
         self.assertEqual([runs/("b"*32)],actual["removable"])
         self.assertIsNotNone(actual["removable"].identities[runs/("b"*32)])

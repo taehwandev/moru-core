@@ -66,6 +66,11 @@ SETTLED_STATES = frozenset({"completed", "cancelled"})
 REGISTRY_SCHEMA_VERSION = 1
 _NATIVE_JSON_LOADS = (json.loads, json.loads.__code__, json.loads.__defaults__, dict(json.loads.__kwdefaults__ or {}))
 _NATIVE_READ_TEXT = (Path.read_text, Path.read_text.__code__, Path.read_text.__defaults__, dict(Path.read_text.__kwdefaults__ or {}))
+_NATIVE_IDENTITY_PATH = Path
+_NATIVE_IDENTITY_TYPE = type(Path())
+_NATIVE_IDENTITY_METHODS = [(name, fn, getattr(fn, "__code__", None), getattr(fn, "__defaults__", None),
+    dict(getattr(fn, "__kwdefaults__", None) or {}))
+    for name in ("rglob", "lstat", "stat", "relative_to", "__str__", "__lt__") for fn in [getattr(Path, name)]]
 
 
 def runs_dir(project: Path) -> Path:
@@ -150,7 +155,6 @@ def _touched_at(path: Path) -> float:
 
 def _identity(path: Path) -> tuple | None:
     """Detect replacement and in-place evidence writes, not just directory age."""
-
     try:
         return tuple(
             (str(item.relative_to(path)), metadata.st_dev, metadata.st_ino,
@@ -162,6 +166,27 @@ def _identity(path: Path) -> tuple | None:
         return None
 
 
+_NATIVE_IDENTITY_BINDING = (_identity, _identity.__code__, _identity.__defaults__)
+
+
+def _identities(paths: list[Path]) -> dict:
+    if type(paths) is list and not paths:
+        return {}
+    if (type(paths) is list and all(type(path) is _NATIVE_IDENTITY_TYPE for path in paths)
+            and globals().get("_identity") is _NATIVE_IDENTITY_BINDING[0]
+            and _identity.__code__ is _NATIVE_IDENTITY_BINDING[1]
+            and _identity.__defaults__ is _NATIVE_IDENTITY_BINDING[2]
+            and all(getattr(_NATIVE_IDENTITY_PATH, name, None) is fn
+                and getattr(fn, "__code__", None) is code and getattr(fn, "__defaults__", None) is defaults
+                and dict(getattr(fn, "__kwdefaults__", None) or {}) == kw
+                for name, fn, code, defaults, kw in _NATIVE_IDENTITY_METHODS)):
+        from agent_registry_read import retention_identities
+        value = retention_identities(paths)
+        if value is not None:
+            return value
+    return {path: _identity(path) for path in paths}
+
+
 class _RemovalCandidates(list):
     """A list-compatible preview carrying the observations deletion must recheck."""
 
@@ -169,7 +194,7 @@ class _RemovalCandidates(list):
         super().__init__(paths)
         self.project = project
         self.options = options
-        self.identities = {path: _identity(path) for path in paths}
+        self.identities = _identities(paths)
         self.removed_bytes = 0
 
 

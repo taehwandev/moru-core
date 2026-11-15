@@ -73,3 +73,42 @@ def retention_states(path: Path, states: frozenset[str]) -> tuple[bool, dict | N
             return False, None
         values[row[0]] = row[1]
     return True, values
+
+
+def retention_identities(paths: list[Path]) -> dict | None:
+    """Project a whole preview in one process, preserving complete identities."""
+    if type(paths) is not list or any(type(path) is not type(Path()) for path in paths):
+        return None
+    if not paths:
+        return {}
+    try:
+        result = NativeProbe.request("--registry-read-probe", "retention-identities", {"paths": [str(path) for path in paths]})
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(result) is not dict or set(result) != {"value"} or type(result["value"]) is not list:
+        return None
+    if len(result["value"]) != len(paths):
+        return None
+    identities = [_identity_rows(rows) for rows in result["value"]]
+    return dict(zip(paths, identities)) if all(value is not None for value in identities) else None
+
+
+def _identity_rows(rows) -> tuple | None:
+    if type(rows) is not list:
+        return None
+    previous = None
+    for index, row in enumerate(rows):
+        if (type(row) is not list or len(row) != 7 or type(row[0]) is not str
+                or any(type(value) is not int for value in row[1:]) or any(value < 0 for value in row[1:5])):
+            return None
+        name = row[0]
+        order = tuple(name.split("/"))
+        if index == 0:
+            if name != ".":
+                return None
+        elif (not name or name.startswith("/") or any(part in {"", ".", ".."} for part in order)
+              or previous is not None and order <= previous):
+            return None
+        else:
+            previous = order
+    return tuple(tuple(row) for row in rows) if rows else None
