@@ -121,6 +121,11 @@ timer; metadata and foreign-session traffic do not. A separate 900-second total
 limit bounds a genuinely long turn. Activity is liveness evidence, not approval.
 Startup transport failure gets one retry before any prompt is submitted; after
 ambiguous submission retain the session and observe it, never launch a duplicate.
+The output record is atomically persisted before submission, bound to the project
+and prompt digest, and protected by a process-scoped lock. Reusing that output
+observes its recorded session or returns its completed result; it never submits
+another prompt. Replayed history alone is not a completion receipt. A changed
+request needs a distinct output record. No prompt or reasoning text is journaled.
 Timeouts cancel only the owned turn and distinguish confirmed cancellation from
 an unknown outcome. Inspect the result and continue independently authorized work
 using available evidence when this review is optional; a required review still

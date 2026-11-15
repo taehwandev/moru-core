@@ -166,15 +166,25 @@ def _signal_owned(pid, sig):
         pass  # The owned child exited between wait and signal.
 
 
-def _setup(client, cwd):
+def _setup(client, cwd, checkpoint, resume_session):
     client.send('initialize', {'protocolVersion': 1, 'clientCapabilities': {}}, 1)
-    if client.wait(1, 30, 30).get('protocolVersion') != 1:
+    initial = client.wait(1, 30, 30)
+    if initial.get('protocolVersion') != 1:
         raise ValueError('unsupported_protocol')
+    if resume_session:
+        client.session = resume_session
+        if initial.get('agentCapabilities', {}).get('loadSession') is not True:
+            raise ValueError('session_observation_unavailable')
+        client.send('session/load', {'sessionId': resume_session, 'cwd': str(cwd), 'mcpServers': []}, 2)
+        client.wait(2, 30, 30)
+        return
     client.send('session/new', {'cwd': str(cwd), 'mcpServers': []}, 2)
     result = client.wait(2, 30, 30)
     client.session = result.get('sessionId')
     if not isinstance(client.session, str) or not client.session:
         raise ValueError('missing_session')
+    if checkpoint:
+        checkpoint({'session_id': client.session, 'phase': 'prepared', 'status': 'running'})
     modes = result.get('modes', {})
     available = modes.get('availableModes') if isinstance(modes, dict) else None
     if not isinstance(available, list) or not any(
@@ -186,7 +196,8 @@ def _setup(client, cwd):
     client.wait(3, 30, 30)
 
 
-def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cancel_timeout=15):
+def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cancel_timeout=15,
+               checkpoint=None, resume_session=''):
     """Retry startup once; never replay an accepted or ambiguously submitted turn."""
     for value in (idle_timeout, max_seconds, cancel_timeout):
         if not math.isfinite(value) or value <= 0:
@@ -201,14 +212,19 @@ def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cance
         result['launch_attempts'] = attempt + 1
         try:
             client = _Client(command, cwd)
-            _setup(client, cwd)
+            _setup(client, cwd, checkpoint, resume_session)
+            if resume_session:
+                result.update(status='needs_inspection', next_action='inspect_existing_session')
+                return result  # History replay is observation, not a new end_turn receipt.
+            if checkpoint:
+                checkpoint({'session_id': client.session, 'phase': 'submitted', 'status': 'running'})
             client.prompt_sent = True  # Set before write: partial delivery is ambiguous.
             client.send('session/prompt', {'sessionId': client.session,
                         'prompt': [{'type': 'text', 'text': prompt}]}, 4)
             stopped = client.wait(4, idle_timeout, max_seconds)
         except _TransportError:
             result['failure_code'] = 'transport_failure'
-            if client is not None and not client.prompt_sent and attempt == 0:
+            if client is not None and not client.prompt_sent and not resume_session and attempt == 0:
                 continue
         except (TimeoutError, ValueError) as error:
             result['failure_code'] = str(error)
@@ -244,6 +260,7 @@ def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cance
 
 
 def _main():
+    from agent_review_journal import ReviewJournal
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', required=True, type=Path)
     parser.add_argument('--prompt-file', required=True, type=Path)
@@ -254,10 +271,18 @@ def _main():
     args = parser.parse_args()
     if not args.executable:
         parser.error('an existing ACP executable is required; no runtime is installed automatically')
-    result = run_review([args.executable, 'acp', '--sandbox'], args.project,
-                        args.prompt_file.read_text(), idle_timeout=args.idle_timeout,
-                        max_seconds=args.max_seconds)
-    args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
+    prompt = args.prompt_file.read_text()
+    try:
+        with ReviewJournal(args.output, args.project, prompt) as journal:
+            result = journal.state
+            if result.get('phase') != 'finished' or result.get('status') == 'needs_inspection':
+                result = run_review([args.executable, 'acp', '--sandbox'], args.project,
+                                    prompt, idle_timeout=args.idle_timeout, max_seconds=args.max_seconds,
+                                    checkpoint=journal.update, resume_session=journal.state.get('session_id', ''))
+                journal.update({**result, 'phase': 'finished'})
+    except (ValueError, OSError) as error:
+        code = str(error) if type(error) is ValueError else 'review_record_unavailable'
+        result = {'status': 'blocked', 'failure_code': code, 'next_action': 'inspect_existing_record'}
     print(json.dumps({k: v for k, v in result.items() if k != 'response'}))
     return 0 if result['status'] == 'ok' else 1
 

@@ -27,7 +27,10 @@ for line in sys.stdin:
     with open(log,'a') as f: f.write(json.dumps(m)+'\n')
     if method=='initialize':
         if scenario=='rpc_error': emit({'id':m['id'],'error':{'code':-32000,'message':'provider error'}})
-        else: emit({'id':m['id'],'result':{'protocolVersion':1}})
+        else: emit({'id':m['id'],'result':{'protocolVersion':1,'agentCapabilities':{'loadSession':True}}})
+    elif method=='session/load':
+        update('agent_message_chunk','Recovered response.')
+        emit({'id':m['id'],'result':{'sessionId':'owned'}})
     elif method=='session/new':
         emit({'id':m['id'],'result':{'sessionId':'owned','modes':
             {'currentModeId':'default','availableModes':None if scenario=='malformed_modes' else [{'id':'plan'}]}}})
