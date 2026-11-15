@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 pub(crate) struct QueryScope<'a> {
     pub(crate) command: &'a str,
     pub(crate) cwd: PathBuf,
-    pub(crate) absolute_cd: bool,
     pub(crate) output: Option<&'static str>,
     pub(crate) filter: Option<crate::pretool_files::FileQuery>,
 }
@@ -20,7 +19,6 @@ impl<'a> QueryScope<'a> {
         let mut result = Self {
             command,
             cwd: cwd.to_owned(),
-            absolute_cd: false,
             output: None,
             filter: None,
         };
@@ -36,7 +34,6 @@ impl<'a> QueryScope<'a> {
             if !result.cwd.is_dir() {
                 return None;
             }
-            result.absolute_cd = true;
             result.command = &command[index + 2..];
         }
         if let Some(index) = operator(result.command, b"|") {

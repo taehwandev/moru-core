@@ -53,11 +53,11 @@ module initialization. The snapshot covers Core code, not `.moru` history,
 user repository files, usage databases or a search index. Its cost is included
 in the benchmark. Source updates need a matching build for the native path.
 
-`pretool_transcript.rs` checks Codex normalization's failure boundary. Closed
-queries defer regardless of a selected valid cwd, but normalization/discovery
-errors can emit warnings. It reads at most the runtime-provided 512 KiB tail,
-retains nothing, and selects Python for uncertain records, escapes, NUL paths
-and unusual line separators. Only synthetic transcripts were used in checks.
+`pretool_transcript.rs` now resolves the exact-command Codex workdir before
+query scope and filesystem checks, as described below. It reads at most the
+runtime-provided 512 KiB tail, retains nothing, and selects Python for uncertain
+records, unsupported escapes, NUL paths and unusual line separators. Only
+synthetic transcripts were used in checks.
 
 Build-time `pretool_contract.py` emits the snapshot without importing policy.
 Shared `native_source_inputs.py` owns builder/installer/bundle input enumeration;
@@ -65,6 +65,39 @@ receipt validation reads candidate code as data rather than executing it.
 One cached `sha2` dependency and locked transitive crates were added. There was
 no download, paid call, service or daemon. The existing
 `MORU_LAUNCHER_BACKEND=python` rollback remains available.
+
+## Exact-command workdir normalization
+
+The old native path checked file operands against the hook payload's cwd before
+consulting the selected Codex call. A file existing only in the call's workdir
+therefore replayed Python unnecessarily. Before this change, the real generated
+callback returned 127 with an empty PATH for both classic JSON and code-mode
+calls, while the Python reference returned silent success.
+
+The Rust resolver now supplies the effective cwd to the entire existing query
+scope before file, Git, producer, filter and consumer shadow checks. It matches
+only the newest bounded call and exact command. Duplicate matching calls must
+agree on workdir; ambiguous, missing and relative workdirs retain the reference
+scope. An explicit absolute `cd` still overrides that scope. The process's real
+cwd remains a separate shadow context, and Claude does not adopt Codex metadata.
+Unsupported records preserve original received bytes for one Python replay.
+Source-integrity checks establish the Moru rules root, not project authority.
+Writes still replay the existing project-specific Python policy.
+
+Verification covers 43 distinct Python tests, two Rust property tests and eight
+fresh relocated debug-fixture callbacks with Python and Git absent from PATH.
+The cross-project test registers writable project A and read-only project B for
+the same session; a mutation recorded for B produces B's read-only denial rather
+than borrowing A's authority. All 589 bound runtime-source hashes and four actual
+runtime/config file hashes matched after checks. The temporary fixture's missing
+Git ignore/setup was corrected before that authority test passed.
+
+A separate Codex source reviewer caught raw control characters that strict JSON
+decoding rejects even inside code-mode values. The resolver now replays at the
+first invalid value; escaped classic JSON remains supported. The reviewer
+rechecked this fix and ordering only; this is not AGY/Claude review. No timing,
+Linux, release artifact or installed-runtime acceptance is claimed. Units 20 and
+24 remain partial, including unsupported metadata and full mutation policy.
 
 ## Verification and review findings
 

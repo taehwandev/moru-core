@@ -25,6 +25,35 @@ from smoke_native_codex_statusline import check_codex_statusline
 from smoke_native_retention import check_retention, check_retention_identity, check_retention_bytes
 
 
+def check_pretool_workdir(entry, base, project, env):
+    """Exercise relocated exact-command scope without Python or Git on PATH."""
+    work = base / "selected workdir 한글"
+    override = base / "explicit cd"
+    work.mkdir(); override.mkdir()
+    (work / "only-there.txt").write_text("synthetic\n")
+    (override / "override.txt").write_text("synthetic\n")
+    transcript = base / "workdir-transport.jsonl"
+    def run(command, classic=True):
+        record = ({"type": "function_call", "arguments": json.dumps({"cmd": command, "workdir": str(work)})}
+                  if classic else {"type": "custom_tool_call", "input":
+                      'tools.exec_command({cmd:' + json.dumps(command) + ',workdir:' + json.dumps(str(work), ensure_ascii=False) + '})'})
+        transcript.write_text(json.dumps({"payload": record}) + "\n")
+        payload = {"tool_name": "Bash", "cwd": str(project), "session_id": "synthetic-transport",
+                   "transcript_path": str(transcript), "tool_input": {"command": command}}
+        return subprocess.run([str(entry), "codex-pretool-gate"], input=json.dumps(payload).encode(),
+                              capture_output=True, env=env, cwd=project, timeout=8)
+    for classic in (True, False):
+        for command in ("cat only-there.txt", "cat only-there.txt | head -n 1",
+                        "cd '" + str(override) + "' && cat override.txt"):
+            done = run(command, classic)
+            assert (done.returncode, done.stdout, done.stderr) == (0, b"", b""), done
+    (work / "head").write_text("synthetic shadow")
+    assert run("cat only-there.txt | head -n 1").returncode == 127
+    assert run("touch never-executed").returncode == 127
+    assert not (work / "never-executed").exists()
+    return 8
+
+
 def _lossless_report_formats(native, entry, report, env, project):
     from moru_overhead_report import render_markdown
 
@@ -453,6 +482,7 @@ def smoke(archive):
             done = subprocess.run([str(entry), runtime + "-stop-gate"], input=json.dumps(payload).encode(),
                 capture_output=True, env=normal, cwd=project, timeout=8)
             assert (done.returncode, done.stdout, done.stderr) == (0, b"", b""), done
+        checks += check_pretool_workdir(entry, base, project, env)
         git_only = base / "git-only"
         git_only.mkdir()
         (git_only / "git").symlink_to(shutil.which("git"))
