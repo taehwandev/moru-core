@@ -507,9 +507,8 @@ def _required_hooks_lines(required: object) -> list[str]:
         return []
     return [
         f"Required hooks: {required}",
-        "Why these hooks: start admitted this work and its route, review checks the exact diff against the "
-        "route's gates, and finish attests that the tests and the review ran on the final bytes. Skipping "
-        "them leaves the work unverified, and the final answer must then say so.",
+        "Why these hooks: start binds scope, review checks final diff, finish validates current "
+        "evidence; skipped checks leave work unverified.",
     ]
 
 
@@ -537,6 +536,7 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
         )
     docs = route.get("required_docs") or []
     shown_takeaways: list[str] = []
+    guidance_reused = False
     if docs:
         reuse = {"reused": [], "unread": list(docs)}
         if _isolated_run_preflight(path, payload):
@@ -544,6 +544,7 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
             if candidate["reused"] or candidate["unread"]:
                 reuse = candidate
         if reuse["reused"]:
+            guidance_reused = not reuse['unread']
             lines.append(
                 "Matching completed same-session evidence "
                 f"({len(reuse['reused'])} unchanged required docs; reuse retained readings):"
@@ -608,9 +609,7 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
             "verdict instead of also running a standalone identical audit. Otherwise audit "
             "the exact publication inputs with --strict before push; never disable the hook."
         )
-    lines.extend(_same_run_commit_lines(route, path, payload))
-    lines.extend(_continuation_summary_lines(route.get("command", "")))
-    lines.extend(_required_hooks_lines(required))
+    lines.extend(_common_guidance_lines(route, path, payload, required, guidance_reused))
     if conditional:
         lines.append(f"Conditional hooks: {conditional}")
     gates = [gate for gate in (route.get("gates") or []) if isinstance(gate, str)]
@@ -618,17 +617,30 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
         flags = required_review_evidence_flags(gates)
         lines.extend(_review_prerequisite_lines(gates))
         lines.append(review_shape_line(flags))
-        lines.extend(_closeout_reuse_lines())
+        lines.extend(_closeout_reuse_lines(guidance_reused))
     elif "review" in conditional:
         lines.append(
             "Conditional review: review only if a diff is created or a commit is requested "
             "(fields: review --help); none for no-diff cleanup."
         )
-    lines.extend(_closeout_gate_lines(gates) + _gate_batch_guidance_lines(gates))
+    lines.extend(_closeout_gate_lines(gates))
+    lines.extend(_gate_batch_guidance_lines(gates, guidance_reused))
     lines.extend(_structured_gate_field_lines(gates, route))
     if "retrospective check" in gates:
         from agent_block_lessons import retrospective_guidance_line
         lines.extend(filter(None, [retrospective_guidance_line(payload.get("global_lessons") or {})]))
+    return lines
+
+
+def _common_guidance_lines(route, path, payload, required, reused):
+    """Suppress already-read common prose, retaining current authority and gate data."""
+    lines = _same_run_commit_lines(route, path, payload)
+    continuation = _continuation_summary_lines(route.get('command', ''))
+    lines.extend(line for line in continuation if not reused or not line.startswith('Work continuity:'))
+    hooks = _required_hooks_lines(required)
+    lines.extend(hooks[:1] if reused else hooks)
+    if reused:
+        lines.append('Guidance reuse: matching required-doc proof covers common guidance; current gates and authority still apply.')
     return lines
 
 
@@ -670,11 +682,10 @@ def _same_run_commit_lines(
     if envelope.get("effective_effect") not in {"git_write", "external_write"}:
         return loop_lines
     return [
-        "Same-run local commit: when this exact commit is already authorized, stage "
-        "before final review and include repository/remote/visibility and safety readiness. "
-        "After finish, verify the same session, target, HEAD and staged bytes, then commit; "
-        "no second commit start/review/finish. Changed scope or missing readiness uses "
-        "the commit route. Push and PR still require their matching route and authority.",
+        "Same-run local commit: stage before final review with remote/visibility/safety readiness. "
+        "After finish verify same session, target, HEAD and staged bytes; then commit "
+        "(no second commit start/review/finish). Changed scope/readiness needs commit route; "
+        "push/PR need matching authority.",
         *loop_lines,
     ]
 
@@ -726,14 +737,11 @@ def _loop_efficiency_lines(
 def _continuation_summary_lines(command: str) -> list[str]:
     publication = [_publication_continuity_guidance()] if command in {"commit", "git_commit"} else []
     return compact_action_brief(command) + _release_reuse_lines(command) + publication + [
-        "Work continuity: a goal iteration is not a new intake; keep the active action, "
-        "retain guidance, decisions and verification plan across runs, and read "
-        "only changed, newly applicable or lost context. Keep changed-unit tests and "
-        "required pre-commit review/finish. A completed run is not writable: admit another "
-        "action with start --continue-from <previous run id> (+ --reuse-inputs when scope, "
-        "toolchain, artifacts and external inputs match) and follow its remaining gates. "
-        "Work identity does not grant authority or carry remote results/review; unrelated "
-        "work omits --continue-from; paused goals require explicit resume."
+        "Work continuity: iteration is not a new intake; retain guidance, decisions and verification plan. "
+        "Read only changed, newly applicable or lost context. Keep changed-unit tests and required "
+        "pre-commit review/finish. A completed run is not writable: start --continue-from <previous run id>; "
+        "--reuse-inputs needs matching scope/toolchain/artifacts/external inputs. Work identity does not "
+        "grant authority or remote evidence; unrelated work omits continuation; paused goals require explicit resume."
     ]
 
 
@@ -754,19 +762,19 @@ def _review_prerequisite_lines(gates: list[str]) -> list[str]:
     ]
 
 
-def _closeout_reuse_lines() -> list[str]:
+def _closeout_reuse_lines(reused: bool = False) -> list[str]:
     """Keep final review monotonic instead of reopening implementation loops."""
 
+    if reused:
+        return []
     return [
-        "Closeout reuse: unchanged HEAD, worktree bytes, target, and external freshness reuse "
-        "completed reads and checks; review the final diff once. Fix a finding only when "
-        "reproducer, impact, current-diff causality, owner and nearest falsifying check prove "
-        "a blocking regression, else record a follow-up. Allow one repair, then rerun only the "
-        "affected check and incremental review. Rely on review's shape, its VibeGuard result and "
-        "remaining gates; do not re-audit, use --help, dump the ledger, or retry another design. "
-        "Status questions or complaints about repetition retain this action and passed evidence; "
-        "answer briefly, then continue only missing authorized work. Do not open a new audit or "
-        "retrospective task unless requested or required by a concrete failure."
+        "Closeout reuse: unchanged HEAD, worktree bytes, target, and external freshness retain checks. "
+        "Blocking fixes need reproducer, impact, current-diff causality, owner and falsifying check; "
+        "else follow-up. Allow one repair; rerun only the affected check and incremental review. "
+        "Use review's shape, its VibeGuard result and remaining gates; do not re-audit, use --help, "
+        "dump the ledger or redesign. Status questions or complaints about repetition retain this "
+        "action; continue only missing authorized work. No new audit/retrospective unless requested "
+        "or required by a concrete failure."
     ]
 
 
@@ -818,20 +826,19 @@ def _closeout_gate_lines(gates: list[str]) -> list[str]:
     return lines
 
 
-def _gate_batch_guidance_lines(gates: list[str]) -> list[str]:
+def _gate_batch_guidance_lines(gates: list[str], reused: bool = False) -> list[str]:
     """Keep strong checkpointing while avoiding one process per ready gate."""
 
     agent_owned = [
         gate for gate in gates
         if gate not in {"request intake", "review hook", "commit readiness"}
     ]
-    if len(agent_owned) < 2:
+    if reused or len(agent_owned) < 2:
         return []
     return [
-        "Performance: record simultaneously-ready agent-owned gates in one gate-batch "
-        "(the hook writes its checkpoint automatically; do not add a manual checkpoint; its "
-        "remaining-gates snapshot replaces a ledger query); keep them separate across different "
-        "phases or after a repeated batch failure."
+        "Performance: batch ready gates; the hook writes its checkpoint automatically, so do not add "
+        "a manual checkpoint. The remaining-gates snapshot replaces a ledger query; separate phases "
+        "and failed batches."
     ]
 
 
