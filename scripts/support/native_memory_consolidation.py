@@ -1,4 +1,4 @@
-"""Typed grouping transport; original normalization and report values stay local.
+"""Typed grouping transport; custom normalization and report values stay local.
 
 Owner: NativeMemoryConsolidation. Allowed: stdlib/NativeProbe, supplied original
 normalizer. Forbidden: pair comparison, union-find, grouping, store IO/writes.
@@ -10,6 +10,34 @@ from support.native_probe_transport import NativeProbe
 
 
 class NativeMemoryConsolidation:
+    @staticmethod
+    def raw_groups(operation, records, threshold=0.8):
+        if (operation not in ("duplicate-groups", "shared-source-groups")
+                or type(records) is not list or type(threshold) is not float or threshold != 0.8
+                or NativeMemoryConsolidation.groups is not _GROUPS_BINDING[0]
+                or NativeMemoryConsolidation.groups.__code__ is not _GROUPS_BINDING[1]
+                or NativeMemoryConsolidation.groups.__defaults__ is not _GROUPS_BINDING[2]):
+            return None, False
+        if not records:
+            return [], False
+        try:
+            if not NativeProbe.available():
+                return None, False
+        except (OSError, ValueError, RuntimeError):
+            return None, False
+        duplicate = operation == "duplicate-groups"
+        required = ("id", "scope", "body") if duplicate else ("id", "source")
+        if any(type(record) is not dict or any(type(key) is not str for key in record)
+               or any(type(record.get(key)) is not str for key in required) for record in records):
+            return None, False
+        rows = [{key:record[key] for key in required} for record in records]
+        try:
+            result = NativeProbe.request("--memory-probe", "duplicate-text-groups" if duplicate else "shared-source-text-groups",
+                {"unicode":unicodedata.unidata_version,"records":rows})
+        except (OSError, ValueError, RuntimeError):
+            return None, True
+        return NativeMemoryConsolidation._result(records, result), True
+
     @staticmethod
     def groups(operation, records, normalizer, threshold=0.8):
         if (operation not in ("duplicate-groups", "shared-source-groups")
@@ -34,6 +62,10 @@ class NativeMemoryConsolidation:
                 {"unicode": unicodedata.unidata_version, "records": rows})
         except (OSError, ValueError, RuntimeError):
             return None
+        return NativeMemoryConsolidation._result(records, result)
+
+    @staticmethod
+    def _result(records, result):
         if type(result) is not dict or set(result) != {"groups"} or type(result["groups"]) is not list:
             return None
         seen = set()
@@ -51,3 +83,7 @@ class NativeMemoryConsolidation:
                 return None
             previous = key
         return [[records[i] for i in group] for group in result["groups"]]
+
+
+_GROUPS_BINDING = (NativeMemoryConsolidation.groups, NativeMemoryConsolidation.groups.__code__,
+                   NativeMemoryConsolidation.groups.__defaults__)

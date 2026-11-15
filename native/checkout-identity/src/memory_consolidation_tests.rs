@@ -1,5 +1,75 @@
 use super::*;
 
+#[test]
+fn raw_duplicate_normalization_keeps_python_lower_unicode_and_empty_rules() {
+    for (left, right, matched) in [
+        ("ΟΣ!", "ος", true),
+        ("ABC_DEF, 한글\u{a0}é", "abc_def 한글 é", true),
+        ("Straße", "STRASSE", false),
+        ("e\u{301}", "é", false),
+        ("İ", "i", true),
+        ("!!!", "???", false),
+        ("\u{1c}a\tb", "a b", true),
+    ] {
+        let input = payload(json!([{"id":"b","scope":"task","body":left},
+            {"id":"a","scope":"task","body":right}]));
+        let expected = if matched {
+            json!({"groups":[[1,0]]})
+        } else {
+            json!({"groups":[]})
+        };
+        assert_eq!(
+            MemoryConsolidation::evaluate("duplicate-text-groups", &input),
+            Some(expected),
+            "{left:?}"
+        );
+    }
+}
+
+#[test]
+fn raw_source_normalization_groups_empty_values_and_preserves_duplicate_stability() {
+    let input = payload(json!([{"id":"x","source":"ΟΣ!"},{"id":"a","source":"!!!"},
+        {"id":"x","source":"ος"},{"id":"b","source":""}]));
+    assert_eq!(
+        MemoryConsolidation::evaluate("shared-source-text-groups", &input),
+        Some(json!({"groups":[[1,3],[0,2]]}))
+    );
+}
+
+#[test]
+fn raw_duplicate_groups_reuse_transitive_all_scope_bridges() {
+    let input = payload(json!([{"id":"c","scope":"review","body":"A b c d e f"},
+        {"id":"a","scope":"task","body":"a b c d"},{"id":"b","scope":"all","body":"a b c d e"}]));
+    assert_eq!(
+        MemoryConsolidation::evaluate("duplicate-text-groups", &input),
+        Some(json!({"groups":[[1,2,0]]}))
+    );
+}
+
+#[test]
+fn raw_empty_and_closed_profiles_decline_invalid_types_without_partial_groups() {
+    for operation in ["duplicate-text-groups", "shared-source-text-groups"] {
+        assert_eq!(
+            MemoryConsolidation::evaluate(operation, &payload(json!([]))),
+            Some(json!({"groups":[]}))
+        );
+    }
+    for record in [
+        json!({"id":"a","scope":"task","body":1}),
+        json!({"id":"a","scope":"task","body":"x","extra":true}),
+    ] {
+        assert!(
+            MemoryConsolidation::evaluate("duplicate-text-groups", &payload(json!([record])))
+                .is_none()
+        );
+    }
+    assert!(MemoryConsolidation::evaluate(
+        "shared-source-text-groups",
+        &payload(json!([{"id":"a","source":null}]))
+    )
+    .is_none());
+}
+
 fn dup_row(id: &str, scope: &str, tokens: &[&str]) -> Value {
     json!({ "id": id, "scope": scope, "tokens": tokens })
 }

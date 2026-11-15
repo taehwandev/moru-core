@@ -20,7 +20,33 @@ impl MemoryConsolidation {
         match operation {
             "duplicate-groups" => Self::duplicate_groups(records),
             "shared-source-groups" => Self::shared_source_groups(records),
+            "duplicate-text-groups" => Self::text_groups(records, true),
+            "shared-source-text-groups" => Self::text_groups(records, false),
             _ => None,
+        }
+    }
+
+    fn text_groups(records: &[Value], duplicate: bool) -> Option<Value> {
+        let mut normalized = Vec::with_capacity(records.len());
+        for value in records {
+            let row = value.as_object()?;
+            if row.len() != if duplicate { 3 } else { 2 } {
+                return None;
+            }
+            let id = row.get("id")?.as_str()?;
+            let field = if duplicate { "body" } else { "source" };
+            let text = MemoryTerms::normalize(row.get(field)?.as_str()?);
+            normalized.push(if duplicate {
+                json!({"id":id,"scope":row.get("scope")?.as_str()?,
+                    "tokens":text.split(' ').filter(|part| !part.is_empty()).collect::<Vec<_>>()})
+            } else {
+                json!({"id":id,"source":text})
+            });
+        }
+        if duplicate {
+            Self::duplicate_groups(&normalized)
+        } else {
+            Self::shared_source_groups(&normalized)
         }
     }
 

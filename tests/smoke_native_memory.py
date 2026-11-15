@@ -87,16 +87,29 @@ def check_memory(native,entry,project,env):
                     {"id":"b","scope":"all","tokens":list("abcde")}]
     source_rows=[{"id":"z","source":""},{"id":"a","source":"x"},
                  {"id":"b","source":""},{"id":"c","source":"x"}]
+    raw_duplicates=[{"id":"c","scope":"review","body":"A b c d e f"},
+                    {"id":"a","scope":"task","body":"a b c d"},
+                    {"id":"b","scope":"all","body":"a b c d e"}]
+    raw_sources=[{"id":"z","source":""},{"id":"a","source":"ΟΣ!"},
+                 {"id":"b","source":"!!!"},{"id":"c","source":"ος"}]
     cases=[("duplicate-groups",duplicate_rows,[[1,2,0]]),
            ("duplicate-groups",[],[]),
            ("shared-source-groups",source_rows,[[1,3],[2,0]]),
-           ("shared-source-groups",[],[])]
+           ("shared-source-groups",[],[]),
+           ("duplicate-text-groups",raw_duplicates,[[1,2,0]]),
+           ("duplicate-text-groups",[],[]),
+           ("shared-source-text-groups",raw_sources,[[1,3],[2,0]]),
+           ("shared-source-text-groups",[],[])]
     for operation,rows,groups in cases:
         done=subprocess.run([str(native),str(entry),"--memory-probe",operation],input=json.dumps({
             "unicode":unicodedata.unidata_version,"records":rows}).encode(),capture_output=True,
             cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":{"groups":groups}},done
+    done=subprocess.run([str(native),str(entry),"--memory-probe","duplicate-text-groups"],input=json.dumps({
+        "unicode":unicodedata.unidata_version,"records":[{"id":"a","scope":"task","body":1}]}).encode(),
+        capture_output=True,cwd=project,env=env,timeout=8)
+    assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
     live_rows=[{"id":"b","status":"active"},{"id":"a","status":"pending"},{"id":"x","status":"retired"}]
     link_rows=[{"id":"a","replaces":None},{"id":"c","replaces":"a"},{"id":"b","replaces":"a"}]
     startup_rows=[{"id":name,"scope":scope,"body":"same","source":origin,"replaces":link,"review":review}
@@ -160,7 +173,7 @@ def check_memory(native,entry,project,env):
             }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
-    return 43
+    return 48
 
 
 def check_memory_files(native,entry,base,project,env):

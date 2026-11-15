@@ -66,9 +66,21 @@ def _group(records: list[dict[str, Any]], reason: str) -> dict[str, Any]:
     }
 
 
+def _raw_grouping(operation, records, threshold=0.8):
+    if (globals().get("normalize") is _NATIVE_NORMALIZE and normalize.__code__ is _NATIVE_NORMALIZE_CODE
+            and globals().get("_PUNCTUATION_RE") is _NATIVE_PUNCTUATION
+            and all(globals().get(name) is original and original.__code__ is code
+                    for name, (original, code) in _NATIVE_GROUP_CALLBACKS.items())):
+        from support.native_memory_consolidation import NativeMemoryConsolidation
+        return NativeMemoryConsolidation.raw_groups(operation, records, threshold)
+    return None, False
+
+
 def _duplicate_groups(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
     from support.native_memory_consolidation import NativeMemoryConsolidation
-    groups = NativeMemoryConsolidation.groups("duplicate-groups", live, _tokens, DUPLICATE_JACCARD)
+    groups, attempted = _raw_grouping("duplicate-groups", live, DUPLICATE_JACCARD)
+    if groups is None and not attempted:
+        groups = NativeMemoryConsolidation.groups("duplicate-groups", live, _tokens, DUPLICATE_JACCARD)
     if groups is None:
         return _duplicate_groups_reference(live)
     return [_group(members, _duplicate_reason()) for members in groups]
@@ -106,7 +118,9 @@ def _duplicate_groups_reference(live: list[dict[str, Any]]) -> list[dict[str, An
 
 def _shared_source_groups(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
     from support.native_memory_consolidation import NativeMemoryConsolidation
-    groups = NativeMemoryConsolidation.groups("shared-source-groups", live, normalize)
+    groups, attempted = _raw_grouping("shared-source-groups", live)
+    if groups is None and not attempted:
+        groups = NativeMemoryConsolidation.groups("shared-source-groups", live, normalize)
     if groups is None:
         return _shared_source_groups_reference(live)
     reason = "records cite the same source; open it and keep, merge or retire the ones that disagree"
@@ -120,6 +134,10 @@ def _shared_source_groups_reference(live: list[dict[str, Any]]) -> list[dict[str
     reason = "records cite the same source; open it and keep, merge or retire the ones that disagree"
     groups = [_group(members, reason) for members in by_source.values() if len(members) > 1]
     return sorted(groups, key=lambda item: item["ids"])
+
+
+_NATIVE_GROUP_CALLBACKS = {name:(globals()[name], globals()[name].__code__) for name in
+    ("_tokens", "_jaccard", "_scopes_overlap", "_duplicate_groups_reference", "_shared_source_groups_reference")}
 
 
 def _unfinished_replacements(live: list[dict[str, Any]]) -> list[dict[str, Any]]:

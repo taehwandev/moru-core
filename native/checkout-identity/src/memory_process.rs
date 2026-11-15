@@ -46,7 +46,13 @@ impl MemoryProcess {
                         | "upkeep-startup-text"
                 ) {
                     MemoryUpkeep::evaluate(operation, &payload)
-                } else if matches!(operation, "duplicate-groups" | "shared-source-groups") {
+                } else if matches!(
+                    operation,
+                    "duplicate-groups"
+                        | "shared-source-groups"
+                        | "duplicate-text-groups"
+                        | "shared-source-text-groups"
+                ) {
                     MemoryConsolidation::evaluate(operation, &payload)
                 } else if matches!(
                     operation,
