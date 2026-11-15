@@ -36,6 +36,15 @@ agent_hook = _load_agent_hook()
 
 class AgentHookSummaryTests(unittest.TestCase):
 
+    def test_compact_route_prints_its_actual_evidence_contract(self):
+        payload = {'route': {'command': 'small-change', 'retrospective_contract': 'compact_v1',
+                             'gates': ['tests', 'review hook', 'retrospective check']}}
+        with patch.object(Path, 'read_text', return_value=json.dumps(payload)):
+            summary = '\n'.join(agent_hook._hook_summary_from_preflight(Path('manifest.json')))
+        self.assertIn('compact_v1', summary)
+        self.assertIn('learning_decision', summary)
+        self.assertNotIn('decision_v1 requires', summary)
+
     def test_compact_start_keeps_reading_and_capture_decisions_actionable(self):
         payload = {"route": {"command": "build", "required_docs": ["required.md"],
                              "gates": ["tests", "review hook", "retrospective check"]}}

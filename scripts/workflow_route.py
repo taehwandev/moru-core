@@ -768,7 +768,7 @@ def resolve_docs(
 
     route = {
         "lifecycle_version": 2,
-        "retrospective_contract": "causal_v1",
+        "retrospective_contract": "compact_v1" if command == "small-change" else "causal_v1",
         "project_memory_contract": "decision_v1",
         "root": str(ROOT),
         "command": command,

@@ -35,9 +35,13 @@ unresolved decision. Risk-sensitive concerns still require the matching full
 route.
 No separate alignment, cycle, split-decision, retrospective or handoff record is
 required during implementation. Before finish, record one bounded closeout
-check using `skills_checked`, `outcome`, and `observation`: pair
+check using `skills_checked`, `outcome`, `observation`, and one grounded
+`learning_decision` naming the observed check/owner and result: pair
 `no_reusable_gap` or `no_skill_used` with `not_needed`. Do not invent a lesson
-or change a skill just to complete the check. Only an evidenced `reusable_gap`
+or change a skill just to complete the check. New small-change routes use
+`compact_v1`: successful bounded work needs no separate causal or memory-decision
+fields. Explicit memory claims still require normal verification. A
+`reusable_gap` retains full causal and memory-decision evidence and
 loads `workflows/skills/retrospective-learning/references/skill-feedback.md`
 and invokes conditional skill maintenance. A normal final response still
 explains the result.

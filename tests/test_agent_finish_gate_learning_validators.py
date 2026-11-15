@@ -10,6 +10,30 @@ from agent_finish_gate_learning_validators import validate_retrospective_check
 from agent_gate_evidence import synthesize_gate_evidence
 
 
+class CompactAssessmentTests(unittest.TestCase):
+    def assess(self, **extra):
+        fields = dict(skills_checked='agent_operating_skill', outcome='no_reusable_gap',
+                      observation='not_needed', learning_decision='Keep existing test_null_input; observed output matches AC1.')
+        fields.update(extra)
+        text, missing = synthesize_gate_evidence('retrospective check', '', fields)
+        self.assertFalse(missing)
+        return validate_retrospective_check(text, contract='compact_v1', memory_contract='decision_v1')
+
+    def test_compact_success_requires_one_grounded_observation(self):
+        self.assertEqual([], self.assess())
+        for text in ('', 'No changes needed', 'none'):
+            self.assertTrue(self.assess(learning_decision=text))
+
+    def test_compact_gap_still_requires_full_causal_and_memory_evidence(self):
+        errors = self.assess(outcome='reusable_gap', observation='recorded')
+        self.assertTrue(any('causal assessment' in x for x in errors))
+        self.assertTrue(any('memory decision' in x for x in errors))
+
+    def test_opted_in_memory_claim_is_still_verified(self):
+        self.assertTrue(self.assess(memory_decision='stored', memory_reason='A durable lesson',
+                                    memory_record='invalid'))
+
+
 class EfficiencyAssessmentTests(unittest.TestCase):
     def render(self, **extra):
         fields = dict(skills_checked="retrospective_learning",

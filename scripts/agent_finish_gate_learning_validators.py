@@ -122,7 +122,10 @@ def validate_retrospective_check(
             )
     failures.extend(_causal_assessment_failures(text, contract, outcome))
     failures.extend(_efficiency_failures(text, outcome))
-    failures.extend(validate_project_memory_decision(text, memory_contract, project, scope))
+    compact_success = contract == 'compact_v1' and outcome in {'no_reusable_gap', 'no_skill_used'}
+    explicit_memory = any(_field(text, name.replace('_', ' ')) for name in MEMORY_DECISION_FIELDS)
+    if not compact_success or explicit_memory:
+        failures.extend(validate_project_memory_decision(text, memory_contract, project, scope))
     return failures
 
 
@@ -224,6 +227,13 @@ def validate_project_memory_decision(text: str, contract: str, project: Path | N
 def _causal_assessment_failures(text: str, contract: str, outcome: str = "") -> list[str]:
     """Check presence and grounded learning_decision without keyword-reclassifying causal_assessment."""
 
+    if contract == 'compact_v1':
+        if outcome in {'no_reusable_gap', 'no_skill_used'}:
+            decision = _full_field(text, 'learning decision')
+            if not decision or _is_ungrounded_learning_decision(decision):
+                return ['compact retrospective requires one grounded learning decision naming the observed check or owner']
+            return []
+        contract = CAUSAL_RETROSPECTIVE_CONTRACT  # Real gaps retain full causal evidence.
     if contract not in ("legacy", CAUSAL_RETROSPECTIVE_CONTRACT):
         return [f"unsupported retrospective contract: {contract!r}"]
     labels = tuple(name.replace("_", " ") for name in CAUSAL_RETROSPECTIVE_FIELDS)

@@ -625,7 +625,7 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
             "(fields: review --help); none for no-diff cleanup."
         )
     lines.extend(_closeout_gate_lines(gates) + _gate_batch_guidance_lines(gates))
-    lines.extend(_structured_gate_field_lines(gates))
+    lines.extend(_structured_gate_field_lines(gates, route))
     if "retrospective check" in gates:
         from agent_block_lessons import retrospective_guidance_line
         lines.extend(filter(None, [retrospective_guidance_line(payload.get("global_lessons") or {})]))
@@ -853,7 +853,7 @@ def _plain_gate_record_lines(gates: list[str]) -> list[str]:
     ]
 
 
-def _structured_gate_field_lines(gates: list[str]) -> list[str]:
+def _structured_gate_field_lines(gates: list[str], route: dict | None = None) -> list[str]:
     """State which gates need named fields, and which fields.
 
     Recording a gate looked like writing a sentence, but several gates reject
@@ -896,6 +896,13 @@ def _structured_gate_field_lines(gates: list[str]) -> list[str]:
         if gate == "work surface resolution":
             lines.append("    evidence chain: include the literal -> separator from anchor to verified owner.")
         if gate == "retrospective check":
+            if (route or {}).get('retrospective_contract') == 'compact_v1':
+                lines.append(
+                    '    compact_v1: add learning_decision naming the observed check/owner and result; '
+                    'no_reusable_gap needs no separate memory decision. reusable_gap retains full '
+                    'causal_v1 and memory evidence; explicit memory claims are always verified.'
+                )
+                continue
             lines.append(
                 "    causal_v1 requires alignment_evidence (baseline, revisions/interventions, ticket/result/check refs), "
                 "causal_assessment (why aligned or first drift/missed detection; correction versus evolution), "

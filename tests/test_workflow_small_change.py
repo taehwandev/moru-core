@@ -15,6 +15,19 @@ from workflow_route import ROOT, resolve_docs
 
 
 class SmallChangeTests(unittest.TestCase):
+    def test_compact_retrospective_reaches_real_gate_policy(self):
+        from agent_finish_gate_policy import validate_gate_evidence
+        from agent_gate_evidence import synthesize_gate_evidence
+        route = resolve_docs('small-change', None, [])
+        self.assertEqual('compact_v1', route['retrospective_contract'])
+        text, missing = synthesize_gate_evidence('retrospective check', '', {
+            'skills_checked': 'agent_operating_skill', 'outcome': 'no_reusable_gap',
+            'observation': 'not_needed',
+            'learning_decision': 'Keep existing test_null_input; observed output matches the agreed one-owner fix.'})
+        self.assertFalse(missing)
+        self.assertEqual([], validate_gate_evidence(
+            {'retrospective check': text}, ['retrospective check'], route=route))
+
     def test_compact_manifest_keeps_short_retrospective_after_review(self):
         route = resolve_docs('small-change', None, [])
         self.assertEqual(['tests', 'review hook', 'retrospective check'], route['gates'])
