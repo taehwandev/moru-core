@@ -569,5 +569,196 @@ class HooksFileMergeTests(unittest.TestCase):
         self.assertEqual("run_command|read_file|write_file|edit_file", spec["PreToolUse"][0]["matcher"])
 
 
+class BackgroundTaskStopSuppressionTests(unittest.TestCase):
+    def _write_transcript(self, path: Path, steps: list[dict]) -> None:
+        path.write_text("\n".join(json.dumps(step) for step in steps) + "\n", encoding="utf-8")
+
+    def test_non_daemon_running_background_task_defers_stop_without_burning_continuations(self):
+        seen = []
+
+        def gate(name, args, stdin, cwd, env=None):
+            seen.append(stdin["stop_hook_active"])
+            return "" if stdin["stop_hook_active"] else json.dumps({"decision": "block", "reason": "finish first"})
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", side_effect=gate), \
+                patch.object(adapter, "verify_in_session", return_value=(True, {})):
+            transcript = Path(tmp) / "transcript.jsonl"
+            steps = [
+                {
+                    "step_index": 1,
+                    "source": "MODEL",
+                    "type": "PLANNER_RESPONSE",
+                    "status": "DONE",
+                    "tool_calls": [{"name": "run_command", "args": {"CommandLine": "pytest", "IsDaemon": False}}],
+                },
+                {
+                    "step_index": 2,
+                    "source": "TOOL_RESULT",
+                    "type": "GENERIC",
+                    "status": "RUNNING",
+                    "content": "Created At: now\nTool is running as a background task with task id: conv/task-42",
+                },
+            ]
+            self._write_transcript(transcript, steps)
+            payload = {
+                "conversationId": "cbg",
+                "workspacePaths": ["/w"],
+                "lastUserInput": "Fix tests",
+                "executionNum": 0,
+                "transcriptPath": str(transcript),
+            }
+            while_running = adapter.stop(payload)
+            self.assertEqual({}, while_running)
+            self.assertEqual([], seen, "stop gate must not run while waiting on background command wakeup")
+
+            steps.append(
+                {
+                    "step_index": 3,
+                    "source": "SYSTEM",
+                    "type": "SYSTEM_MESSAGE",
+                    "status": "DONE",
+                    "content": '[Message] timestamp=now sender=conv/task-42\nTask id "conv/task-42" finished with result:\nok',
+                }
+            )
+            self._write_transcript(transcript, steps)
+            after_done = adapter.stop(payload)
+            after_cap = adapter.stop(payload)
+        self.assertEqual({"decision": "continue", "reason": "finish first"}, after_done)
+        self.assertEqual({}, after_cap)
+        self.assertEqual([False, True], seen)
+
+    def test_daemon_tasks_quoted_source_text_and_restart_notices_do_not_suppress_stop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            transcript = Path(tmp) / "transcript.jsonl"
+            # 1) Daemon background process stays running intentionally and must not suppress final stop.
+            self._write_transcript(
+                transcript,
+                [
+                    {
+                        "step_index": 1,
+                        "source": "MODEL",
+                        "type": "PLANNER_RESPONSE",
+                        "status": "DONE",
+                        "tool_calls": [{"name": "run_command", "args": {"CommandLine": "npm run dev", "IsDaemon": True}}],
+                    },
+                    {
+                        "step_index": 2,
+                        "source": "TOOL_RESULT",
+                        "type": "GENERIC",
+                        "status": "RUNNING",
+                        "content": "Tool is running as a background task with task id: conv/task-dev",
+                    },
+                    {
+                        "step_index": 3,
+                        "source": "MODEL",
+                        "type": "PLANNER_RESPONSE",
+                        "status": "DONE",
+                        "tool_calls": [{"name": "read_file", "args": {"Path": "foo.py"}}],
+                    },
+                    {
+                        "step_index": 4,
+                        "source": "TOOL_RESULT",
+                        "type": "GENERIC",
+                        "status": "DONE",
+                        "content": '1: marker = "Tool is running as a background task with task id: conv/task-fake"',
+                    },
+                ],
+            )
+            self.assertFalse(agy_hook_state.has_inflight_background_task({"transcriptPath": str(transcript)}))
+
+            # 2) Non-daemon task settled by server restart notice or manage_task cancellation clears in-flight state.
+            self._write_transcript(
+                transcript,
+                [
+                    {
+                        "step_index": 1,
+                        "source": "MODEL",
+                        "type": "PLANNER_RESPONSE",
+                        "status": "DONE",
+                        "tool_calls": [{"name": "run_command", "args": {"CommandLine": "sleep 30"}}],
+                    },
+                    {
+                        "step_index": 2,
+                        "source": "TOOL_RESULT",
+                        "type": "GENERIC",
+                        "status": "RUNNING",
+                        "content": "Tool is running as a background task with task id: conv/task-99",
+                    },
+                    {
+                        "step_index": 3,
+                        "source": "SYSTEM",
+                        "type": "SYSTEM_MESSAGE",
+                        "status": "DONE",
+                        "content": "[Notice] All your subagents and background tasks have been stopped due to a server restart.",
+                    },
+                ],
+            )
+            self.assertFalse(agy_hook_state.has_inflight_background_task({"transcriptPath": str(transcript)}))
+
+
+class CliHelpAndWorkflowRulesTests(unittest.TestCase):
+    def test_agent_hook_action_help_scopes_flags_to_the_requested_hook(self):
+        import subprocess
+
+        review_proc = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "agent-hook.py"), "review", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, review_proc.returncode, review_proc.stderr)
+        self.assertIn("--review-outcome", review_proc.stdout)
+        self.assertIn("--structure-review-evidence", review_proc.stdout)
+        self.assertNotIn("--commit-ready", review_proc.stdout)
+        self.assertNotIn("--continue-from", review_proc.stdout)
+
+        start_proc = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "agent-hook.py"), "start", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, start_proc.returncode, start_proc.stderr)
+        self.assertIn("--commit-ready", start_proc.stdout)
+        self.assertNotIn("--review-outcome", start_proc.stdout)
+
+        top_proc = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "agent-hook.py"), "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, top_proc.returncode, top_proc.stderr)
+        self.assertIn("--commit-ready", top_proc.stdout)
+        self.assertIn("--review-outcome", top_proc.stdout)
+
+    def test_workflow_query_accepts_rules_before_or_after_subcommand(self):
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as tmp:
+            rules_dir = Path(tmp) / "custom-rules"
+            (rules_dir / "docs").mkdir(parents=True)
+            (rules_dir / "docs" / "custom-guide.md").write_text(
+                "# Custom Rules Guide\n\nxyzzymoruquerytoken unique guidance entry.\n",
+                encoding="utf-8",
+            )
+            for argv in (
+                ["--rules", str(rules_dir), "query", "xyzzymoruquerytoken", "--format", "json"],
+                ["query", "xyzzymoruquerytoken", "--rules", str(rules_dir), "--format", "json"],
+            ):
+                with self.subTest(argv=argv):
+                    proc = subprocess.run(
+                        [sys.executable, str(ROOT / "scripts" / "workflow.py"), *argv],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    self.assertEqual(0, proc.returncode, proc.stderr)
+                    payload = json.loads(proc.stdout)
+                    paths = [item["path"] for item in payload.get("results", [])]
+                    self.assertEqual(["docs/custom-guide.md"], paths)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -27,7 +27,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from agy_hook_state import already_delivered, continuations_for, count_continuation, has_delivered, session_id, workspace
+from agy_hook_state import (
+    already_delivered,
+    continuations_for,
+    count_continuation,
+    has_delivered,
+    has_inflight_background_task,
+    session_id,
+    workspace,
+)
 from agy_hook_verify import unverified_reminder, verify_in_session
 import agy_required_docs_hook
 
@@ -241,6 +249,8 @@ def pre_tool(payload: dict) -> dict:
 
 
 def stop(payload: dict) -> dict:
+    if has_inflight_background_task(payload):
+        return {}
     cwd = workspace(payload)
     try:
         execution = int(payload.get("executionNum") or 0)

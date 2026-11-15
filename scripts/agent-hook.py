@@ -2153,6 +2153,39 @@ class _HookArgumentParser(argparse.ArgumentParser):
         self.exit(2, f"{self.prog}: error: {message}\nUse --help for command options.\n")
 
 
+_HOOK_HELP_GROUPS = {
+    "start": (_add_start_arguments,),
+    "fingerprint": (_add_start_arguments,),
+    "handoff": (_add_start_arguments,),
+    "cancel": (_add_cancel_arguments,),
+    "resume": (add_resume_arguments,),
+    "checkpoint": (add_checkpoint_arguments, _add_review_arguments),
+    "gate": (_add_gate_arguments,),
+    "gate-batch": (_add_gate_arguments,),
+    "verify": (_add_gate_arguments,),
+    "review": (_add_review_arguments,),
+    "finish": (_add_finish_arguments,),
+    "skill-feedback": (_add_skill_feedback_arguments,),
+    "skill-draft": (_add_skill_feedback_arguments,),
+    "skill-curate": (_add_skill_feedback_arguments,),
+    "skill-review": (_add_skill_feedback_arguments,),
+    "skill-maintenance": (_add_skill_feedback_arguments,),
+    "repair-verify": (),
+}
+
+
+def _build_hook_help_parser(hook: str) -> argparse.ArgumentParser:
+    parser = _HookArgumentParser(
+        prog=f"{Path(sys.argv[0]).name} {hook}",
+        description=f"Run the Moru Core '{hook}' hook.",
+        allow_abbrev=False,
+    )
+    _add_common_arguments(parser)
+    for adder in _HOOK_HELP_GROUPS.get(hook, ()):
+        adder(parser)
+    return parser
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = _HookArgumentParser(
         description="Run essential Moru Core hooks.",
@@ -2172,6 +2205,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _parse_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     argv = sys.argv[1:]
+    if any(item in {"-h", "--help"} for item in argv):
+        named = next((item for item in argv if item in _HOOK_HELP_GROUPS), "")
+        if named:
+            return _build_hook_help_parser(named).parse_args(["--help"])
     if argv and argv[0] == "finish" and any(
         argument == "--gate" or argument.startswith("--gate=")
         for argument in argv
