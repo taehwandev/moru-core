@@ -48,7 +48,10 @@ impl MemoryProcess {
                     MemoryUpkeep::evaluate(operation, &payload)
                 } else if matches!(operation, "duplicate-groups" | "shared-source-groups") {
                     MemoryConsolidation::evaluate(operation, &payload)
-                } else if matches!(operation, "analysis-binding" | "analysis-candidates") {
+                } else if matches!(
+                    operation,
+                    "analysis-binding" | "analysis-candidates" | "analysis-recall"
+                ) {
                     MemoryAnalysis::evaluate(operation, &payload)
                 } else if operation == "history" {
                     MemoryHistory::evaluate(&payload)

@@ -444,7 +444,7 @@ def _analysis_recall(project: Path, scope: str, question: str, context: str) -> 
     binding = _analysis_binding(question, context)
     if binding is None:
         raise ValueError("analysis recall requires a question and context")
-    candidates = _analysis_candidates(scope, binding, _recall(project, scope))
+    candidates = _analysis_selection(project, scope, binding)
     if not candidates:
         return []
     try:
@@ -466,6 +466,25 @@ def _analysis_recall(project: Path, scope: str, question: str, context: str) -> 
         if len(result) == MAX_RECALL_ITEMS:
             break
     return result
+
+
+def _analysis_selection(project, scope, binding):
+    trusted = (date is _CONTEXT_DATE and SCOPE_RE is _CONTEXT_SCOPE
+               and RECALLABLE_STATUSES is _ANALYSIS_SELECTION_STATUSES
+               and all(_context_bound(globals().get(name), mark)
+                       for name, mark in _ANALYSIS_SELECTION_BINDINGS.items()))
+    if trusted and type(scope) is str and SCOPE_RE.fullmatch(scope):
+        from support.native_memory_analysis import NativeMemoryAnalysis
+        today = date.today()
+        records = scan_records(project)[0]
+        selected, attempted = NativeMemoryAnalysis.shortlist(scope, today, records, binding)
+        if selected is not None:
+            return selected
+        if attempted:
+            ranked = _recall_reference(scope, today, records)
+            return _analysis_candidates_reference(scope, binding, ranked)
+        return _analysis_candidates(scope, binding, _recall(project, scope, today=today, records=records))
+    return _analysis_candidates(scope, binding, _recall(project, scope))
 
 
 def _previously(record: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> dict[str, str]:
@@ -616,6 +635,9 @@ _CONTEXT_ENCODER_BINDINGS = {name:_context_binding(getattr(_CONTEXT_ENCODER, nam
                              for name in ("__init__", "encode", "iterencode")}
 _CONTEXT_BINDINGS = {name:_context_binding(globals()[name])
                      for name in ("_recall", "_previously", "_source_status")}
+_ANALYSIS_SELECTION_STATUSES = RECALLABLE_STATUSES
+_ANALYSIS_SELECTION_BINDINGS = {name:_context_binding(globals()[name]) for name in
+    ("_recall", "_recall_reference", "_analysis_candidates", "_analysis_candidates_reference", "_terms", "_relevance")}
 
 
 def _main(argv: list[str] | None = None) -> int:

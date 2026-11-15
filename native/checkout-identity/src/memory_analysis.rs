@@ -1,8 +1,8 @@
-//! owner: MemoryAnalysis; allowed imports: serde_json, std, MemoryTerms, PythonText;
+//! owner: MemoryAnalysis; allowed imports: serde_json, std, MemoryRecall, MemoryTerms, PythonText;
 //! forbidden imports: filesystem, processes, stores, writes, providers, clock, authority;
 //! callers/tests: MemoryProcess analysis dispatch and memory_analysis_tests;
 //! verification: Python _analysis_binding and _analysis_recall candidate parity.
-use crate::{memory_terms::MemoryTerms, python_text::PythonText};
+use crate::{memory_recall::MemoryRecall, memory_terms::MemoryTerms, python_text::PythonText};
 use serde_json::{json, Value};
 
 const MAX_ANALYSIS_CHARS: usize = 300;
@@ -14,8 +14,45 @@ impl MemoryAnalysis {
         match operation {
             "analysis-binding" => Self::binding(payload),
             "analysis-candidates" => Self::candidates(payload),
+            "analysis-recall" => Self::shortlist(payload),
             _ => None,
         }
+    }
+
+    fn shortlist(payload: &Value) -> Option<Value> {
+        let object = payload.as_object()?;
+        if object.len() != 5 {
+            return None;
+        }
+        let binding = object.get("binding")?;
+        let scope = object.get("scope")?;
+        let records = object.get("records")?.as_array()?;
+        let mut recall = payload.clone();
+        let fields = recall.as_object_mut()?;
+        fields.remove("binding");
+        fields.insert("context".to_owned(), json!(""));
+        let selected = MemoryRecall::evaluate("recall", &recall)?;
+        let indices = selected.get("indices")?.as_array()?;
+        let mut rows = Vec::with_capacity(indices.len());
+        for index in indices {
+            let record = records.get(usize::try_from(index.as_u64()?).ok()?)?;
+            let analysis = match record.get("analysis") {
+                None => Value::Null,
+                Some(value) => {
+                    let fields = value.as_object()?;
+                    json!({"question":fields.get("question"),"context":fields.get("context")})
+                }
+            };
+            rows.push(json!({"scope":record.get("scope")?,"analysis":analysis}));
+        }
+        let candidates = Self::candidates(&json!({
+            "unicode":object.get("unicode")?,"scope":scope,"binding":binding,"records":rows
+        }))?;
+        let mut result = Vec::new();
+        for index in candidates.get("indices")?.as_array()? {
+            result.push(indices.get(usize::try_from(index.as_u64()?).ok()?)?.clone());
+        }
+        Some(json!({"indices":result}))
     }
 
     fn binding(payload: &Value) -> Option<Value> {

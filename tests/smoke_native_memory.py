@@ -67,6 +67,21 @@ def check_memory(native,entry,project,env):
             }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":indices}},done
+    full_rows=[{"id":name,"scope":"analysis","status":"active","review_on":"2099-01-01",
+        "body":"checked","source":"source","analysis":{"question":"Q","context":"C"}}
+        for name in ("z","a","b")]
+    for rows,indices in ((full_rows,[1,2,0]),([],[]),([{**full_rows[0],"scope":"all"}],[])):
+        done=subprocess.run([str(native),str(entry),"--memory-probe","analysis-recall"],input=json.dumps({
+            "unicode":unicodedata.unidata_version,"scope":"analysis","today":"2026-11-15",
+            "binding":{"question":"Q","context":"C"},"records":rows}).encode(),capture_output=True,
+            cwd=project,env=env,timeout=8)
+        assert (done.returncode,done.stderr)==(0,b""),done
+        assert json.loads(done.stdout)=={"schema_version":1,"result":{"indices":indices}},done
+    done=subprocess.run([str(native),str(entry),"--memory-probe","analysis-recall"],input=json.dumps({
+        "unicode":unicodedata.unidata_version,"scope":"analysis","today":"2026-11-15",
+        "binding":{"question":"Q"},"records":full_rows}).encode(),capture_output=True,
+        cwd=project,env=env,timeout=8)
+    assert (done.returncode,done.stdout,done.stderr)==(125,b"",b""),done
     duplicate_rows=[{"id":"c","scope":"review","tokens":list("abcdef")},
                     {"id":"a","scope":"task","tokens":list("abcd")},
                     {"id":"b","scope":"all","tokens":list("abcde")}]
@@ -145,7 +160,7 @@ def check_memory(native,entry,project,env):
             }).encode(),capture_output=True,cwd=project,env=env,timeout=8)
         assert (done.returncode,done.stderr)==(0,b""),done
         assert json.loads(done.stdout)=={"schema_version":1,"result":expected},done
-    return 39
+    return 43
 
 
 def check_memory_files(native,entry,base,project,env):

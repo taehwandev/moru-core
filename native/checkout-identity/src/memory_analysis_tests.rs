@@ -1,5 +1,82 @@
 use super::*;
 
+fn fused_row(id: &str) -> Value {
+    json!({"id":id,"status":"active","scope":"analysis","review_on":"2099-01-01",
+        "body":"conclusion","source":"checked","analysis":{"question":"Q","context":"C"}})
+}
+
+fn fused_request(records: Value) -> Value {
+    json!({"unicode":MemoryTerms::version(),"scope":"analysis","today":"2026-11-15",
+        "binding":{"question":"Q","context":"C"},"records":records})
+}
+
+#[test]
+fn fused_selection_maps_ranked_positions_back_to_original_duplicate_indices() {
+    let mut all = fused_row("all");
+    all["scope"] = json!("all");
+    let request = fused_request(json!([fused_row("z"), fused_row("a"), fused_row("a"), all]));
+    assert_eq!(
+        MemoryAnalysis::evaluate("analysis-recall", &request),
+        Some(json!({"indices":[1,2,0]}))
+    );
+}
+
+#[test]
+fn fused_selection_preserves_eligibility_before_exact_analysis_matching() {
+    let mut old = fused_row("old");
+    old["analysis"] = Value::Null;
+    let mut successor = fused_row("new");
+    successor["status"] = json!("retired");
+    successor["replaces"] = json!("old");
+    let mut expired = fused_row("expired");
+    expired["review_on"] = json!("2026-11-15");
+    expired["analysis"] = json!(true);
+    let mut different = fused_row("other");
+    different["analysis"]["question"] = json!("q");
+    let request = fused_request(json!([
+        old,
+        successor,
+        expired,
+        different,
+        fused_row("good")
+    ]));
+    assert_eq!(
+        MemoryAnalysis::evaluate("analysis-recall", &request),
+        Some(json!({"indices":[4]}))
+    );
+}
+
+#[test]
+fn fused_empty_and_nonmatching_requests_return_closed_empty_indices() {
+    assert_eq!(
+        MemoryAnalysis::evaluate("analysis-recall", &fused_request(json!([]))),
+        Some(json!({"indices":[]}))
+    );
+    let mut record = fused_row("a");
+    record.as_object_mut().unwrap().remove("analysis");
+    assert_eq!(
+        MemoryAnalysis::evaluate("analysis-recall", &fused_request(json!([record]))),
+        Some(json!({"indices":[]}))
+    );
+}
+
+#[test]
+fn fused_malformed_profiles_decline_atomically() {
+    let base = fused_request(json!([fused_row("a")]));
+    for (field, value) in [
+        ("binding", json!({"question":"Q"})),
+        ("today", json!("invalid")),
+        ("extra", Value::Null),
+    ] {
+        let mut request = base.clone();
+        request[field] = value;
+        assert!(MemoryAnalysis::evaluate("analysis-recall", &request).is_none());
+    }
+    let mut request = base;
+    request["records"][0]["analysis"] = Value::Null;
+    assert!(MemoryAnalysis::evaluate("analysis-recall", &request).is_none());
+}
+
 fn binding_request(question: &str, context: &str) -> Value {
     json!({
         "unicode": MemoryTerms::version(),
