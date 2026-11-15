@@ -39,6 +39,11 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
+          # Conformance oracles read exact pre-migration Git revisions.
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.14.5'
       - name: Prepare pinned developer toolchain and locked crates
         run: |
           rustup toolchain install 1.94.1 --profile minimal

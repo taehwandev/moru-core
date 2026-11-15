@@ -254,7 +254,9 @@ class NativeCardResumeTests(unittest.TestCase):
     def _until_prompt(self,fd):
         output=b""
         deadline=time.monotonic()+8
-        while not output.endswith(b"> "):
+        # Preloaded terminal input can finish before the prompt is read, so
+        # preserve a prompt and its following error arriving in one pipe read.
+        while b"> " not in output:
             self.assertLess(time.monotonic(),deadline,output)
             readable,_,_=select.select([fd],[],[],max(0,deadline-time.monotonic()))
             self.assertTrue(readable,output)
@@ -352,8 +354,10 @@ class NativeCardResumeTests(unittest.TestCase):
             os.close(slave); slave=None
             process.wait(timeout=8)
             output=b""
+            os.set_blocking(master,False)
             while True:
                 try: chunk=os.read(master,8192)
+                except BlockingIOError: break
                 except OSError as error:
                     if error.errno != 5: raise
                     break
@@ -361,9 +365,11 @@ class NativeCardResumeTests(unittest.TestCase):
                 output+=chunk
             return process.returncode,output,prompt+process.stderr.read(),self.record.read_bytes() if self.record.exists() else None
         finally:
-            if process.poll() is None: process.kill(); process.wait()
             if slave is not None: os.close(slave)
-            process.stderr.close(); os.close(master)
+            os.close(master)
+            try:
+                if process.poll() is None: process.kill(); process.wait(timeout=5)
+            finally: process.stderr.close()
 
     def test_tty_closed_stderr_does_not_replace_explicit_dispatch_with_prompt_error(self):
         self.seed(1)

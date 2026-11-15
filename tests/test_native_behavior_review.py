@@ -137,9 +137,14 @@ class NativeBehaviorReviewTests(unittest.TestCase):
         argv = ['agent_behavior_trace.py', '--review-record', str(self.path), '--provider', 'agy',
                 '--case-id', 'case-1', '--native-executable', str(NATIVE)]
         output = io.StringIO()
-        with patch.object(sys, 'argv', argv), patch.object(trace.subprocess, 'run', side_effect=observe), \
+        with patch.dict(sys.modules) as modules, \
+                patch.object(sys, 'argv', argv), patch.object(trace.subprocess, 'run', side_effect=observe), \
                 patch.object(trace, 'export_review', side_effect=AssertionError('Python record replay')), \
                 patch.dict(os.environ, {'MORU_LAUNCHER_BACKEND': 'auto'}), contextlib.redirect_stdout(output):
+            # Exercise the ordinary interpreter profile even on distro Pythons
+            # that load sitecustomize; refusal is verified separately below.
+            for name in ('sitecustomize', 'usercustomize'):
+                modules.pop(name, None)
             trace.main()
         self.assertEqual(len(observed), 1)
         self.assertEqual(observed[0][2], '--behavior-review-export')
