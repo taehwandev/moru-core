@@ -8,6 +8,7 @@ use moru_checkout_identity::CheckoutIdentity;
 
 mod android_manifest;
 mod behavior_trace;
+mod behavior_review;
 mod behavior_trace_process;
 mod callback_replay;
 mod callback_state;
@@ -191,6 +192,9 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+    if args.first().is_some_and(|arg| arg == "--behavior-review-export") {
+        exit(behavior_review::BehaviorReview::run(&args));
+    }
     if args.first().is_some_and(|arg| arg == "--dispatch-guardian" || arg == "--dispatch-exec-gate") {
         exit(dispatch_guardian::DispatchGuardian::run(&launcher, &args));
     }

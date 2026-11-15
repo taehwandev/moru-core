@@ -5,8 +5,10 @@ Verification: real ACP journal -> Rust normalizer -> behavior evaluator.
 """
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
+import sys
 
 MAX_BYTES = 4 * 1024 * 1024
 
@@ -41,6 +43,41 @@ def export_review(record, *, provider, case_id, native_executable):
     return json.loads(done.stdout)
 
 
+def _native_export_command(args):
+    """Fuse only the exact source-bound candidate; alternate executables keep their API."""
+    if os.environ.get('MORU_LAUNCHER_BACKEND', 'auto') not in ('auto', 'rust'):
+        return None
+    if any(name in sys.modules for name in ('sitecustomize', 'usercustomize')):
+        return None
+    try:
+        from support.native_launcher_install import artifact_plan
+        entry = Path(__file__).resolve()
+        plan = artifact_plan(entry.parent.parent, entry)
+        if (plan is None or not args.review_record.is_file()
+                or args.native_executable.resolve(strict=True) != plan['source'].resolve(strict=True)):
+            return None
+        return [str(plan['source']), str(entry), '--behavior-review-export',
+                str(args.review_record), args.provider, args.case_id,
+                str(getattr(sys, 'get_int_max_str_digits', lambda: 0)())]
+    except (OSError, ValueError, TypeError, ImportError, AttributeError, RuntimeError):
+        return None
+
+
+def _native_export(args):
+    command = _native_export_command(args)
+    if command is None:
+        return False
+    done = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, timeout=10)
+    if done.returncode == 78 and not done.stdout and not done.stderr:
+        # Unsupported JSON encoding/depth/profile: read-only input may use the oracle.
+        return False
+    if done.returncode or done.stderr or len(done.stdout) > MAX_BYTES:
+        raise ValueError('native_trace_rejected')
+    # Keep Python's stream encoding/print behavior at the public CLI boundary.
+    print(done.stdout.decode('ascii').removesuffix('\n'))
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--review-record', required=True, type=Path)
@@ -49,6 +86,8 @@ def main():
     parser.add_argument('--native-executable', required=True, type=Path)
     args = parser.parse_args()
     try:
+        if _native_export(args):
+            return
         result = export_review(args.review_record, provider=args.provider, case_id=args.case_id,
                                native_executable=args.native_executable)
     except (OSError, ValueError, subprocess.TimeoutExpired):

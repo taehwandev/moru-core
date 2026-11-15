@@ -24,6 +24,7 @@ from smoke_native_memory import check_memory, check_memory_files, check_memory_s
 from smoke_native_codex_statusline import check_codex_statusline
 from smoke_native_retention import check_retention, check_retention_identity, check_retention_bytes, check_retention_plan, check_retention_report
 from smoke_native_dispatch_guardian import check_dispatch_guardian
+from smoke_native_behavior_review import check_behavior_review
 
 
 def check_pretool_workdir(entry, base, project, env):
@@ -653,6 +654,7 @@ def smoke(archive):
         checks += check_retention_plan(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_retention_report(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_dispatch_guardian(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_behavior_review(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory_files(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory_source(native, entry, base, project, normal)
         for runtime in ("claude", "codex"):

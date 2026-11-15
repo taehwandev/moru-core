@@ -72,9 +72,9 @@ The latest native extensions add no new timing claim; earlier measurements remai
 The ancillary manifest checker and offline Figma validator engines add
 implementation coverage for units 36–37 and 40. The native session aggregation
 used by the overhead reporter adds partial supporting coverage for unit 46.
-The current ledger records 29/62 units with native implementation coverage,
-not effort-weighted completion: 28 are partial and one engine is locally verified
-while its Python entry remains open. Another 32 remain planned and one has an unresolved external
+The current ledger records 30/62 units with native implementation coverage,
+not effort-weighted completion: 29 are partial and one engine is locally verified
+while its Python entry remains open. Another 31 remain planned and one has an unresolved external
 ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -233,7 +233,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 55 | `scripts/page_verify/judge_service.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 56 | `scripts/page_verify/verify.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 57 | `scripts/agent_behavior_eval.py` | Direct CLI | Python retained | Offline behavior grading and exact report/exit contracts |
-| 58 | `scripts/agent_behavior_trace.py` | Direct CLI | Python retained | ACP trace ingress/export; existing Rust normalization alone does not migrate CLI/IO |
+| 58 | `scripts/agent_behavior_trace.py` | Python argparse; source-bound private native export | Partial native | Fused bounded record IO, validation and normalization; direct library/alternate executable/raw profile and delivery closure remain |
 | 59 | `scripts/agent_pending_publication.py` | Direct CLI | Python retained | Pending-publication inspection/settlement, exact Git verification and effect boundaries |
 | 60 | `scripts/agent_review_acp.py` | Direct CLI | Python retained | Bounded local ACP review worker and child-process lifetime; no provider invocation authority implied |
 | 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI | Python retained | Required-doc delivery stdout/evidence contract; unit31 supporting overlap is not entry completion |

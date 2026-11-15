@@ -725,10 +725,12 @@
       "id": "scripts/agent_behavior_trace.py",
       "inventory_id": 58,
       "kind": "ancillary",
-      "status": "planned",
-      "entry_aliases": "Direct offline CLI",
-      "remaining": "An explicitly supplied Rust event normalizer exists; it does not retire this Python entry. Port record IO, validation, subprocess and CLI behavior, proving exact content-free outputs and failure bounds with unit23 callers.",
-      "verification": {}
+      "status": "partial_native",
+      "entry_aliases": "Python argparse with source-bound private native offline export",
+      "remaining": "Rust reads bounded ordinary UTF8 journals, validates receipts/events and normalizes/prints directly. Complete Python argparse/library execution, alternate executable and unsupported encoding/depth/profile behavior, unit23 caller closure and both-host/installed delivery. Keep explicit original compatibility and no-provider/no-write boundaries. See native-behavior-review.md.",
+      "verification": {
+        "offline_export": "PASS:21 Python cases,11 focused Rust cases and4 relocated empty-PATH probes. Byte-identical272e553f CLI oracle, actual source-bound one-process selection, fixed failure/privacy/no-replay and rollback controls hold.617 source inputs and4 installed-runtime/configuration hashes are checked. No provider/model call, release bundle, Linux acceptance or actual activation; unit58 stays partial. See native-behavior-review.md."
+      }
     },
     {
       "id": "scripts/agent_pending_publication.py",

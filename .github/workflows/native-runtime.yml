@@ -52,7 +52,7 @@ jobs:
             --target-dir .moru/native/cargo-target --features sha2/force-soft
           python3 scripts/build_native_runtime.py
           PYTHONPATH=scripts:tests python3 -B tests/run_native_session.py -m unittest \
-            test_native_bundle test_native_migration_ledger test_checkout_identity_runtime test_native_stable_launcher \
+            test_native_bundle test_native_migration_ledger test_checkout_identity_runtime test_native_stable_launcher test_native_behavior_review \
             test_native_statusline test_native_runtime_status test_native_pretool test_native_pretool_files \
             test_native_pretool_git test_native_pretool_queries test_native_registry_read test_native_registry_retention test_native_retention_identity test_native_retention_bytes test_native_retention_plan test_native_runs_prune test_runs_prune test_native_overhead_session test_native_overhead_report test_native_overhead_cli test_native_overhead_format \
             test_native_mailbox test_native_stop test_native_next test_native_next_active test_native_next_ledger test_native_manifest_checks test_native_figma_validate test_native_figma_decode test_agent_review_rust_visibility \
