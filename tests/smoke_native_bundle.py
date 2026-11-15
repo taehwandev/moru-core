@@ -54,6 +54,22 @@ def check_pretool_workdir(entry, base, project, env):
     return 8
 
 
+def check_unittest_admission(native, entry, base, project, env):
+    """The transported release latch needs neither Python nor a compiler."""
+    shell = ["/bin/sh", "-c", 'test -z "${MORU_UNITTEST_ADMISSION+x}" && printf native-admitted']
+    cases = [(shell, b"\x01", 0, b"native-admitted"),
+             (shell, b"", 125, b""), (shell, b"\x00", 125, b""),
+             ([str(base / "missing-admission-executable")], b"\x01", 127, b""),
+             (["relative-interpreter"], b"\x01", 2, b"")]
+    for command, release, code, out in cases:
+        done = subprocess.run([str(native), str(entry), "--unittest-admission", *command],
+            input=release, capture_output=True, cwd=project, timeout=5,
+            env={**env, "MORU_UNITTEST_ADMISSION": "1", "MORU_HOOK_SOFT_FAIL": "1"})
+        assert (done.returncode, done.stdout) == (code, out), done
+        assert bool(done.stderr) == (code not in (0, 125)), done
+    return len(cases)
+
+
 def _lossless_report_formats(native, entry, report, env, project):
     from moru_overhead_report import render_markdown
 
@@ -629,6 +645,7 @@ def smoke(archive):
         checks += check_doc_transcript(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory(native, entry, project, {**normal,"PATH":str(empty)})
         checks += check_codex_statusline(native, entry, project, {**normal,"PATH":str(empty)})
+        checks += check_unittest_admission(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_retention(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_retention_identity(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_retention_bytes(native, entry, base, project, {**normal,"PATH":str(empty)})

@@ -99,6 +99,14 @@ rechecked this fix and ordering only; this is not AGY/Claude review. No timing,
 Linux, release artifact or installed-runtime acceptance is claimed. Units 20 and
 24 remain partial, including unsupported metadata and full mutation policy.
 
+The source-only integration recheck includes concurrent harness commit
+`522aabf2`: all 43 focused Python tests and eight relocated callbacks passed
+again with a newly bound 599-source debug fixture. Its five newly introduced
+Python support files remain explicitly unmigrated in the ledger, including the
+observed-review trace-export CLI under review tooling and dispatch process
+completion/lifetime helpers. This does not attest the whole harness or retire
+any Python source.
+
 ## Verification and review findings
 
 **303 unique Python tests and nine Rust tests passed** across the focused

@@ -358,8 +358,9 @@
       "kind": "primary",
       "status": "planned",
       "entry_aliases": "operator-review",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port the owned review CLI and supporting flow, including the observed ACP trace-export CLI ingress in agent_behavior_trace.py. Its existing Rust event normalizer does not migrate Python record IO, validation or subprocess/CLI behavior; preserve outputs, failures and effect boundaries.",
+      "verification": {},
+      "supporting_entrypoints": ["scripts/agent_behavior_trace.py"]
     },
     {
       "id": "scripts/codex_pretool_gate.py",
@@ -426,7 +427,8 @@
       "status": "planned",
       "entry_aliases": "workflow-dispatch-launch",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "verification": {},
+      "supporting_sources": ["scripts/workflow_dispatch_completion.py", "scripts/workflow_dispatch_execution.py", "scripts/workflow_dispatch_guardian.py", "scripts/workflow_dispatch_process.py"]
     },
     {
       "id": "scripts/agy_hook_adapter.py",
@@ -462,10 +464,11 @@
       "id": "scripts/agent_unittest_result.py",
       "inventory_id": 34,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Guarded pre-interpreter admission and same-PID exec are native for exact source-bound candidates and executable absolute selections. Python retains unittest discovery, imports, result/receipt semantics, CLI and safe compatibility bootstrap; owned adapter/parent flow and portable/installed acceptance remain open.",
+      "verification": {"native_admission": "40 Python cases (14 actual admission/process plus26 existing verification cases with candidate available),2 Rust latch tests,1 independent actual-unittest holdout and5 relocated empty-PATH probes passed. Stable unavailable interpreters preserve original exit/diagnostics, invalid argv preserves pre-spawn exception; post-selection race fails closed without relaunch. Exact602-source debug artifact reused across worktrees. No timing, release, actual installation or Linux claim; see native-unittest-admission.md."},
+      "supporting_sources": ["scripts/support/native_unittest_admission.py"]
     },
     {
       "id": "scripts/build_native_runtime.py",
@@ -703,6 +706,7 @@
   "unmigrated_python_sources": [
     "scripts/support/native_memory_context.py",
     "scripts/agent_behavior_eval.py",
+    "scripts/agent_behavior_trace.py",
     "scripts/agent_review_journal.py",
     "scripts/agent_review_acp.py",
     "scripts/agent_intake_context.py",
@@ -1022,6 +1026,7 @@
     "scripts/support/native_overhead_report.py",
     "scripts/support/native_probe_transport.py",
     "scripts/support/native_source_inputs.py",
+    "scripts/support/native_unittest_admission.py",
     "scripts/support/permission_entries.py",
     "scripts/support/project_directory_scan.py",
     "scripts/support/project_discovery_native.py",
@@ -1048,9 +1053,13 @@
     "scripts/workflow_decision_attribution.py",
     "scripts/workflow_dispatch.py",
     "scripts/workflow_dispatch_cli.py",
+    "scripts/workflow_dispatch_completion.py",
     "scripts/workflow_dispatch_evidence.py",
+    "scripts/workflow_dispatch_execution.py",
+    "scripts/workflow_dispatch_guardian.py",
     "scripts/workflow_dispatch_handoff.py",
     "scripts/workflow_dispatch_launch.py",
+    "scripts/workflow_dispatch_process.py",
     "scripts/workflow_dispatch_profiles.py",
     "scripts/workflow_doc_graph.py",
     "scripts/workflow_doc_graph_build.py",

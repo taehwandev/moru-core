@@ -113,6 +113,7 @@ mod stop_state;
 mod text;
 mod worker_completion;
 mod worker_completion_process;
+mod unittest_admission;
 use launcher_backend::Backend;
 
 const USAGE: &str = "usage: moru-native-launcher PYTHON_LAUNCHER [ARGS...]\n       moru-native-launcher PYTHON_LAUNCHER checkout-identity [--help]\n";
@@ -188,6 +189,10 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+    if args.first().is_some_and(|arg| arg == "--unittest-admission") {
+        // This private, source-verified path must never soften or replay failures.
+        exit(unittest_admission::UnittestAdmission::run(&args[1..]));
+    }
     behavior_trace_process::BehaviorTraceProcess::dispatch(&args);
     worker_completion_process::WorkerCompletionProcess::dispatch(&args);
 

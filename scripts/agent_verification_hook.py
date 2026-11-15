@@ -165,12 +165,14 @@ def execute_unittest(command: list[str], project: Path, timeout: float,
 
 
 def _execute_admitted(command, project, timeout, environment, output, process_admission):
+    from support.native_unittest_admission import admission_bootstrap
+
     deadline = monotonic() + timeout
     environment = {**(os.environ if environment is None else environment), "MORU_UNITTEST_ADMISSION": "1"}
-    # Only the trusted runtime starts before admission. Isolated/no-site mode
-    # prevents .pth, sitecustomize and PYTHONPATH code from running in this phase.
+    # Exact native bytes or isolated/no-site trusted Python starts before admission;
+    # neither loads selected-interpreter startup hooks or project code in this phase.
     runner = Path(__file__).resolve().with_name("agent_unittest_result.py")
-    bootstrap = [sys.executable, "-I", "-S", str(runner), *command]
+    bootstrap = admission_bootstrap(command, runner, environment)
     process = subprocess.Popen(bootstrap, cwd=project, stdout=output, stderr=output,
                                stdin=subprocess.PIPE, start_new_session=True, env=environment)
     try:
