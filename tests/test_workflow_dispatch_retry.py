@@ -170,7 +170,7 @@ class DispatchRetryTests(unittest.TestCase):
         with patch("workflow_dispatch_launch.time.sleep") as wait:
             result = _run_scheduled_worker(
                 [sys.executable, "-c", program, str(marker), paths["last_message_path"], json.dumps(events)],
-                lambda argv: _run_spooled_worker(argv, prepared, context["task"], ""),
+                lambda argv: _run_spooled_worker(argv, prepared, context["task"], "", project=project),
                 project, task, task_context=context)
         packet = json.loads(Path(paths["result_path"]).read_text())
         return result, int(marker.read_text()), packet, wait.call_count

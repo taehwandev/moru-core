@@ -122,7 +122,10 @@ limit bounds a genuinely long turn. Activity is liveness evidence, not approval.
 Startup transport failure gets one retry before any prompt is submitted; after
 ambiguous submission retain the session and observe it, never launch a duplicate.
 The output record is atomically persisted before submission, bound to the project
-and prompt digest, and protected by a process-scoped lock. Reusing that output
+and prompt digest, bound to the resolved runtime path and executable SHA-256,
+and protected by a process-scoped lock. Runtime changes (including an older
+unbound record) require inspection, never automatic migration or resubmission.
+Reusing that output
 observes its recorded session or returns its completed result; it never submits
 another prompt. Replayed history alone is not a completion receipt. A changed
 request needs a distinct output record. No prompt or reasoning text is journaled.
@@ -163,3 +166,48 @@ another provider's result. Observation-only recovery stays `needs_inspection`
 until a completion receipt is available. Synthetic traces test the grading contract; they are not
 live Codex, Claude or AGY performance scores. This adds no unconditional gate:
 reuse relevant checks and select this evaluation for an affected behavior seam.
+
+ACP records now retain ordered content-free events alongside their existing result.
+`prompt_submitted` counts the durable submission boundary before a possibly
+partial write; it does not prove provider acceptance. Finished status describes
+the observed protocol outcome, not approval of review findings. An explicit
+native candidate can export those observations without a new provider turn:
+
+```text
+python3 <MORU_ROOT>/scripts/agent_behavior_trace.py --review-record <RUN_DIR>/review-result.json --provider agy --case-id <CASE_ID> --native-executable <NATIVE_CANDIDATE>
+```
+
+The Rust normalizer preserves event order and duplicate submissions, rejects
+unknown/content-bearing fields and requires one final receipt at the end.
+Provider labels describe the supplied execution context, not proof of a live
+multi-provider benchmark. Missing/older records, repeated final receipts and
+unavailable native candidates fail closed; no Python normalization, synthetic
+trace, model retry, build, installation or activation is performed automatically.
+Worker completion requires both zero exit and a bounded, valid normalized
+`worker_result_v1` packet with no blockers. Missing, malformed, blocked or
+`needs_inspection` packets fail without replay; their result and next action stay
+available. An `ok` verdict also requires successful recorded checks. `findings`
+can complete only an explicit review/analysis dispatch and remains a findings
+verdict for its consumer. The Rust pure validator and Python compatibility path
+have matching contract tests. `MORU_WORKER_COMPLETION_NATIVE` selects an explicit
+candidate; an unavailable/rejecting candidate fails closed without fallback.
+
+Each real child runs under an ephemeral guardian. The dispatch process alone
+retains the lifeline write end; EOF after its death, cancellation or supersession
+stops the guardian's owned process group, escalating for descendants that ignore
+SIGTERM. Neither the worker nor its descendants inherit the lifeline. A late zero
+exit cannot complete a cancelled or newer attempt. This covers macOS/POSIX process
+groups, not descendants deliberately escaping them or the guardian itself being
+killed.
+
+Before execution, a locked content-free receipt is atomically written and fsynced.
+The child waits for a go-pipe until the guardian persists its running receipt.
+The receipt stores only run/task/attempt, opaque execution identity, state and exit
+code; commands and environment travel only through an anonymous pipe. The stable
+dispatch output slot fences duplicate enqueueing under a new scheduler task.
+Admission precedes clearing old output. Same-attempt, successful, uncertain,
+interrupted, foreign and malformed receipts require inspection instead of replay.
+Only the same task's next attempt after a known nonzero exit may use the existing
+replay-safe retry policy. Guardian failure leaves an uncertain receipt; recovery
+never signals a stored PID. No daemon, service, installation or provider call is
+added.

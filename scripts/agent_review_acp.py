@@ -227,10 +227,13 @@ def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cance
             client = _Client(command, cwd)
             _setup(client, cwd, checkpoint, resume_session)
             if resume_session:
+                if checkpoint:
+                    checkpoint({'_event': 'review.session_observed'})
                 result.update(status='needs_inspection', next_action='inspect_existing_session')
                 return result  # History replay is observation, not a new end_turn receipt.
             if checkpoint:
-                checkpoint({'session_id': client.session, 'phase': 'submitted', 'status': 'running'})
+                checkpoint({'session_id': client.session, 'phase': 'submitted', 'status': 'running',
+                            '_event': 'review.prompt_submitted'})
             client.prompt_sent = True  # Set before write: partial delivery is ambiguous.
             client.send('session/prompt', {'sessionId': client.session,
                         'prompt': [{'type': 'text', 'text': prompt}]}, 4)
@@ -242,10 +245,14 @@ def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cance
         except (TimeoutError, ValueError) as error:
             result['failure_code'] = str(error)
             if client is not None and client.prompt_sent:
+                if checkpoint:
+                    checkpoint({'_event': 'review.cancel_requested'})
                 stopped = client.cancel(cancel_timeout)
         except KeyboardInterrupt:
             result['failure_code'] = 'interrupted'
             if client is not None and client.prompt_sent:
+                if checkpoint:
+                    checkpoint({'_event': 'review.cancel_requested'})
                 stopped = client.cancel(cancel_timeout)
         except OSError:
             result['failure_code'] = 'runtime_unavailable'
@@ -266,9 +273,18 @@ def run_review(command, cwd, prompt, *, idle_timeout=120, max_seconds=900, cance
         if result.get('cleanup_error'):
             return result  # Never retry while the previous owned process is unconfirmed.
         if retry_startup:
+            if checkpoint:
+                checkpoint({'_event': 'review.startup_retry'})
             continue
         reason = stopped.get('stopReason')
         result['cancellation_confirmed'] = reason == 'cancelled'
+        if checkpoint:
+            if reason == 'cancelled':
+                checkpoint({'_event': 'review.cancel_confirmed'})
+            elif client is not None and client.prompt_sent and reason != 'end_turn':
+                checkpoint({'_event': 'review.submission_ambiguous'})
+            elif reason == 'end_turn' and not result['response'].strip():
+                checkpoint({'_event': 'review.empty_result'})
         if reason == 'end_turn' and result['response'].strip() and not result['permissions_denied']:
             result.update(status='ok', failure_code='', next_action='inspect_review_findings')
         elif result['permissions_denied']:
@@ -298,14 +314,17 @@ def _main():
         parser.error('an existing ACP executable is required; no runtime is installed automatically')
     prompt = args.prompt_file.read_text()
     try:
-        with ReviewJournal(args.output, args.project, prompt) as journal:
+        executable = str(Path(args.executable).resolve(strict=True))
+        with ReviewJournal(args.output, args.project, prompt, executable) as journal:
             result = journal.state
             if not result.get('cleanup_error') and (
                     result.get('phase') != 'finished' or result.get('status') == 'needs_inspection'):
-                result = run_review([args.executable, 'acp', '--sandbox'], args.project,
+                result = run_review([executable, 'acp', '--sandbox'], args.project,
                                     prompt, idle_timeout=args.idle_timeout, max_seconds=args.max_seconds,
                                     checkpoint=journal.update, resume_session=journal.state.get('session_id', ''))
-                journal.update({**result, 'phase': 'finished'})
+                if result['status'] == 'ok':
+                    journal.update({'_event': 'review.completed'})
+                journal.update({**result, 'phase': 'finished', '_event': 'review.finished'})
     except (ValueError, OSError) as error:
         code = str(error) if type(error) is ValueError else 'review_record_unavailable'
         result = {'status': 'blocked', 'failure_code': code, 'next_action': 'inspect_existing_record'}

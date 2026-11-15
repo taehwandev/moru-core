@@ -119,7 +119,7 @@ class DispatchSchedulingTests(unittest.TestCase):
                 retry_task(project, task["task_id"])
                 return 0
 
-            self.assertEqual(0, _run_scheduled_worker([], runner, project, task))
+            self.assertEqual(130, _run_scheduled_worker([], runner, project, task))
             self.assertEqual("queued", self._states(project)[task["task_id"]])
 
     def test_retry_that_cannot_be_claimed_ends_failed(self) -> None:
@@ -151,7 +151,7 @@ class DispatchSchedulingTests(unittest.TestCase):
                 return 0
 
             self.assertEqual(
-                0, _run_scheduled_worker([], runner, project, task, heartbeat_interval_seconds=0.01)
+                130, _run_scheduled_worker([], runner, project, task, heartbeat_interval_seconds=0.01)
             )
             self.assertEqual("running", self._states(project)[task["task_id"]])
             self.assertEqual([], read_events(project, event_type="worker.result"))

@@ -7,6 +7,8 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod android_manifest;
+mod behavior_trace;
+mod behavior_trace_process;
 mod callback_replay;
 mod callback_state;
 mod cards_bootstrap;
@@ -109,6 +111,8 @@ mod stop_process;
 mod stop_state;
 #[allow(dead_code)] // Git text decoding shares the library's text contract.
 mod text;
+mod worker_completion;
+mod worker_completion_process;
 use launcher_backend::Backend;
 
 const USAGE: &str = "usage: moru-native-launcher PYTHON_LAUNCHER [ARGS...]\n       moru-native-launcher PYTHON_LAUNCHER checkout-identity [--help]\n";
@@ -184,6 +188,8 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+    behavior_trace_process::BehaviorTraceProcess::dispatch(&args);
+    worker_completion_process::WorkerCompletionProcess::dispatch(&args);
 
     if let Some(code) = private_probe(&launcher, &args) {
         exit(code);

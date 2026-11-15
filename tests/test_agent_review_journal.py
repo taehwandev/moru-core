@@ -117,3 +117,47 @@ class ReviewJournalTests(unittest.TestCase):
         self.assertEqual(len(self.calls('initialize')), 1)
         self.assertEqual(len(self.calls('session/prompt')), 1)
         self.assertFalse(self.calls('session/load'))
+
+    def test_changed_executable_path_cannot_load_original_session(self):
+        proc = self.active()
+        command = self.command('idle')
+        self.stop(proc)
+        executable = Path(command[command.index('--executable') + 1])
+        alternative = self.root / 'other-runtime'
+        alternative.write_bytes(executable.read_bytes())
+        alternative.chmod(0o700)
+        command[command.index('--executable') + 1] = str(alternative)
+        result = subprocess.run(command, capture_output=True, text=True, timeout=4)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)['failure_code'], 'review_runtime_changed')
+        self.assertEqual(len(self.calls('session/load')), 0)
+        self.assertEqual(len(self.calls('session/prompt')), 1)
+
+    def test_changed_executable_bytes_cannot_reuse_completed_review(self):
+        command = self.command('normal')
+        subprocess.run(command, capture_output=True, check=True, timeout=4)
+        executable = Path(command[command.index('--executable') + 1])
+        executable.write_text(executable.read_text() + '\n# upgraded runtime\n')
+        result = subprocess.run(command, capture_output=True, text=True, timeout=4)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)['failure_code'], 'review_runtime_changed')
+        self.assertEqual(len(self.calls('session/prompt')), 1)
+
+    def test_real_child_events_have_one_submission_and_observed_final(self):
+        subprocess.run(self.command('normal'), capture_output=True, check=True, timeout=4)
+        events = json.loads(self.output.read_text())['events']
+        self.assertEqual(events[0], {'event_type': 'review.record_initialized'})
+        self.assertEqual(sum(e['event_type'] == 'review.prompt_submitted' for e in events), 1)
+        self.assertEqual(events[-1], {'event_type': 'review.finished', 'status': 'ok'})
+
+    def test_legacy_unbound_record_does_not_launch_or_adopt_a_runtime(self):
+        command = self.command('normal')
+        subprocess.run(command, capture_output=True, check=True, timeout=4)
+        state = json.loads(self.output.read_text())
+        state.pop('runtime_path')
+        state.pop('runtime_digest')
+        self.output.write_text(json.dumps(state))
+        result = subprocess.run(command, capture_output=True, text=True, timeout=4)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)['failure_code'], 'review_runtime_changed')
+        self.assertEqual(len(self.calls('session/prompt')), 1)

@@ -15,7 +15,7 @@ from typing import Callable, Mapping
 
 from agent_gate_evidence import gate_evidence_path_for_preflight
 from agent_run_registry import latest_run_id
-from agent_ipc import emit_heartbeat, emit_worker_failure, emit_worker_result
+from agent_ipc import emit_event, emit_heartbeat, emit_worker_failure, emit_worker_result
 from agent_scheduler import claim_task, choose_capacity, enqueue_task, heartbeat_task, retry_task, resume_task, transition_task
 from agent_worker_evidence import create_worker_reservation, worker_reservation_matches
 from agent_worktree_identity import (
@@ -31,6 +31,8 @@ from workflow_dispatch_handoff import (
     worker_output_paths,
 )
 from workflow_dispatch_retry import DEFAULT_MAX_RETRIES, WorkerOutcome, read_worker_outcome, recovery_message
+from workflow_dispatch_process import owns_task, run_worker
+from workflow_dispatch_completion import accepts_result, read_result
 
 LEASE_RENEWAL_SECONDS = 600
 
@@ -93,9 +95,12 @@ def execute_dispatch_manifest(
     project = Path(str(manifest["project"])).resolve()
     scheduler_task = _claim_scheduler_task(manifest, prepared, project)
     heartbeat_interval = float(manifest.get("heartbeat_interval_seconds") or 0)
-    task_context = {"task": scheduler_task}
+    task_context = {"task": scheduler_task, "prepared": prepared}
+    task_context["allow_findings"] = (manifest.get("work_kind") in {"analysis", "review"}
+                                     or manifest.get("command") in {"analysis", "review", "code-review"})
     if runner:
-        return _run_scheduled_worker(argv, runner, project, scheduler_task, heartbeat_interval_seconds=heartbeat_interval)
+        return _run_scheduled_worker(argv, runner, project, scheduler_task, heartbeat_interval_seconds=heartbeat_interval,
+                                     task_context=task_context)
     try:
         working_dir, worktree_path = _bind_worker_working_dir(manifest, project)
     except BaseException:
@@ -123,7 +128,7 @@ def execute_dispatch_manifest(
     try:
         return _run_scheduled_worker(
             argv,
-            lambda command: _run_spooled_worker(command, prepared, task_context["task"], worktree_path),
+            lambda command: _run_spooled_worker(command, prepared, task_context["task"], worktree_path, project=project),
             project,
             scheduler_task,
             heartbeat_interval_seconds=heartbeat_interval,
@@ -133,20 +138,24 @@ def execute_dispatch_manifest(
         raise RuntimeError("Unable to start the delegated Codex worker") from error
 
 
-def _run_spooled_worker(command, prepared, task, worktree_path):
+def _run_spooled_worker(command, prepared, task, worktree_path, *, project):
     stream_log_path = Path(worker_output_paths(prepared)["stream_log_path"])
-    prepare_worker_output_dir(prepared, clear_stale=True)
+    prepare_worker_output_dir(prepared)
     with open(stream_log_path, "a", encoding="utf-8") as stream_log:
         offset = stream_log.buffer.tell()
         try:
-            proc = subprocess.run(
-                command, check=False,
-                env=worker_environment(prepared, task, worktree_path=worktree_path),
-                stdout=stream_log, stderr=subprocess.STDOUT,
-            )
+            environment = worker_environment(prepared, task, worktree_path=worktree_path)
+            proc = run_worker(command, env=environment, stdout=stream_log,
+                              project=project, task=task,
+                              execution_key=str(Path(worker_output_paths(prepared)["result_path"]).resolve()),
+                              before_start=lambda: prepare_worker_output_dir(prepared, clear_stale=True))
         except OSError as error:
             outcome = WorkerOutcome(127, errno.errorcode.get(error.errno, "UNKNOWN"), replay_safe=True)
             build_worker_result_packet(prepared, returncode=127, recovery_action=recovery_message(outcome.action))
+            raise
+        except KeyboardInterrupt:
+            build_worker_result_packet(prepared, returncode=130,
+                                       recovery_action=recovery_message("honor_cancellation"))
             raise
     outcome = read_worker_outcome(proc.returncode, stream_log_path, offset)
     action = outcome.action
@@ -228,13 +237,21 @@ def _run_scheduled_worker(
         worker_id = f"worker-{task_id}"
         attempt = int(current_task.get("attempt") or 1)
         events_enabled = heartbeat_interval_seconds > 0
+        if not owns_task(project, current_task):
+            return _reject_worker_result(task_context)
         raw = _run_worker_attempt(argv, runner, project, current_task, heartbeat_interval_seconds)
         outcome = raw if isinstance(raw, WorkerOutcome) else WorkerOutcome(raw)
+        if outcome.returncode == 0 and task_context and task_context.get("prepared"):
+            packet = read_result(task_context["prepared"])
+            if not accepts_result(packet, allow_findings=task_context.get("allow_findings") is True):
+                outcome = WorkerOutcome(1, "WORKER_RESULT_REJECTED")
         result = outcome.returncode
         # Events follow the guarded transition: an attempt that stale recovery
         # already moved reports nothing over its newer owner.
         if result == 0:
             completed = transition_task(project, task_id, "completed", expected_state="running", expected_attempt=attempt)
+            if completed is None:
+                return _reject_worker_result(task_context)
             if events_enabled and completed is not None:
                 emit_worker_result(
                     project,
@@ -269,6 +286,13 @@ def _run_scheduled_worker(
         current_task = claimed
         if task_context is not None:
             task_context["task"] = current_task
+
+
+def _reject_worker_result(task_context):
+    if task_context and task_context.get("prepared"):
+        build_worker_result_packet(task_context["prepared"], returncode=130,
+            recovery_action="The attempt lost execution ownership; inspect its existing result without replaying it.")
+    return 130
 
 
 def _run_worker_attempt(argv, runner, project, current_task, heartbeat_interval_seconds):
@@ -309,13 +333,14 @@ def _run_worker_attempt(argv, runner, project, current_task, heartbeat_interval_
     heartbeat_thread.start()
     try:
         return runner(argv)
-    except BaseException:
+    except BaseException as error:
         stop_heartbeat.set()
         heartbeat_thread.join(timeout=max(1.0, heartbeat_interval_seconds))
-        owned = transition_task(project, task_id, "failed", expected_state="running", expected_attempt=attempt)
+        state = "cancelled" if isinstance(error, KeyboardInterrupt) else "failed"
+        owned = transition_task(project, task_id, state, expected_state="running", expected_attempt=attempt)
         if events_enabled and owned is not None:
-            emit_worker_failure(
-                project,
+            emit_event(
+                project, "worker.cancelled" if state == "cancelled" else "worker.failure", state=state,
                 run_id=str(current_task["run_id"]),
                 task_id=task_id,
                 worker_id=worker_id,
