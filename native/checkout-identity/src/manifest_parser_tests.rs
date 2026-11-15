@@ -1,5 +1,18 @@
 use super::*;
 #[test]
+fn integer_conversion_failure_does_not_reclassify_json_syntax() {
+    for text in ["9999", "-9999", r#"{"ignored":9999}"#] {
+        assert!(ManifestParser::inspect(text, 3).0.integer_failure);
+        assert!(matches!(
+            ManifestParser::outcome_with_limit(text, 3),
+            ParseOutcome::Invalid
+        ));
+    }
+    for text in ["999", "[1,]", r#"{"ignored":}"#] {
+        assert!(!ManifestParser::inspect(text, 3).0.integer_failure);
+    }
+}
+#[test]
 fn syntax_errors_are_invalid_not_unsupported() {
     for source in [
         "",

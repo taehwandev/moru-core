@@ -258,6 +258,9 @@ fn phase(path: &Path, remaining: &mut usize) -> Option<String> {
         return Some(String::new());
     };
     match PythonJson::parse_outcome(text) {
+        // json.loads integer conversion raises ValueError, not JSONDecodeError;
+        // phase_of must retain that uncaught reference exception via fallback.
+        ParseOutcome::Invalid if PythonJson::integer_conversion_failed(text) => None,
         ParseOutcome::Invalid => Some(String::new()),
         ParseOutcome::Unsupported => None,
         ParseOutcome::Value(payload) => Some(

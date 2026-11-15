@@ -145,6 +145,14 @@ class NativeRetentionPlanTests(unittest.TestCase):
             actual=source.plan(project,use_registry=False)
         self.assertTrue(all(not value for value in actual.values()))
 
+    def test_oversized_integer_keeps_reference_value_error(self):
+        limit=getattr(sys,"get_int_max_str_digits",lambda:0)()
+        if not limit:self.skipTest("builder Python has no integer conversion limit")
+        packet=self.runs/("0"*32)/"continuation.json"
+        packet.write_text('{"phase":"done","ignored":'+"9"*(limit+1)+'}')
+        with self.assertRaises(ValueError):self.expected()
+        with self.assertRaises(ValueError):self.call()
+
     def test_custom_phase_and_opaque_thresholds_preserve_original_callbacks(self):
         def phase(path):return "acting"
         with patch.object(source,"phase_of",phase),patch.object(self.oracle,"phase_of",phase), \

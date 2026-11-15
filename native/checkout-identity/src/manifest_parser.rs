@@ -12,6 +12,7 @@ pub(super) struct ManifestParser<'a> {
     offset: usize,
     digit_limit: usize,
     unsupported: bool,
+    integer_failure: bool,
     diagnostic: Option<String>,
 }
 impl<'a> ManifestParser<'a> {
@@ -32,6 +33,9 @@ impl<'a> ManifestParser<'a> {
             Some(limit) => Self::outcome_with_limit(text, limit),
             None => ParseOutcome::Unsupported,
         }
+    }
+    pub fn integer_conversion_failed(text: &'a str) -> bool {
+        Self::limit().is_some_and(|limit| Self::inspect(text, limit).0.integer_failure)
     }
     pub fn error(text: &'a str) -> Option<String> {
         let (parser, _) = Self::inspect(text, Self::limit()?);
@@ -62,6 +66,7 @@ impl<'a> ManifestParser<'a> {
             offset: 0,
             digit_limit,
             unsupported: false,
+            integer_failure: false,
             diagnostic: None,
         };
         if text.starts_with('\u{feff}') {
