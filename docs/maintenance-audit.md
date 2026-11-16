@@ -970,3 +970,48 @@ PRD selects 16,472 against 16,000. Both reproduce with the unmodified HEAD
 router and unchanged source documents. Their limits and documents are retained;
 the broad screen is not reported as passing. No end-to-end performance gain or
 live CLI installation is claimed.
+
+## Harness guidance efficiency: 2026-11-16
+
+Baseline `b81d4831`, clean isolated checkout, Codex/macOS, Python 3.9.6;
+scope H02/H03/H06/H08/H10. Changes are limited to the existing hook-summary
+owner, its notice tests and this audit. The user corrected "hooks" to the
+broader harness and requested discussion with Claude about existing waste.
+
+An actual Claude Code 2.1.325 consultation completed using only public
+[Claude guidance](https://code.claude.com/docs/en/best-practices) and
+[Gemini context documentation](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/gemini-md.md).
+It proposed auditing always-loaded context, matched mechanism-removal experiments
+and delegation overhead. Its main challenge was that shorter output alone does
+not establish lower tokens, latency, billed cost or equal task quality. The lead
+retained that distinction and selected two locally reproduced message defects.
+The consultation did not inspect this source. Automatic approval review declined
+the repository-structure export; that deeper consultation remains unapproved.
+
+| ID | Priority / check | Reproduction and owner | Disposition and observing check |
+| --- | --- | --- | --- |
+| F34 | Medium / H02, H03 | `agent-hook.py::_hook_summary_from_preflight` tied common-prose reuse to every required document being reused. Verified common operating and review readings plus one new task card still reprinted continuity/closeout boilerplate. | Consume the existing same-session reuse proof for both common cards independently of the new task card. Keep unread paths, current hooks, gate schemas and effect-specific commit authority visible. Missing either common proof retains full guidance. Tests exercise both proof failures and each authority ceiling. |
+| F35 | Low / H06, H08 | The start summary listed outcome and observation enums separately, although their valid pairs are coupled. The canonical pairing hint appeared only after rejection. | Display the existing `gate_value_hints` pairing at start. No validator, enum, acceptance rule, default assessment or gate is changed. Both compact and causal contracts show all three valid pairs before the first submission. |
+
+The identical synthetic renderer fixture selects the operating card, review
+card and one task card. "Partial" proves only the two common readings; "all"
+proves all three. These are actual UTF-8 renderer-output sizes:
+
+| Reuse condition | Baseline bytes | Candidate bytes |
+| --- | ---: | ---: |
+| No proof | 6,013 | 6,212 |
+| Both common cards proven; new task card unread | 6,108 | 5,005 |
+| All selected cards proven | 4,712 | 4,911 |
+
+The new upfront pairing hint adds 199 bytes. The partial case nevertheless
+drops 1,103 bytes (18.06%). This measures emitted text for fixed inputs, not
+actual model delivery, token counts, wall time, cost or task success. Retry
+avoidance from the earlier pairing hint remains unmeasured. No blanket removal
+of instructions, gates or checks is justified by these measurements.
+
+Both new behavioral regressions failed on the original implementation and
+passed after the change. The 150 selected notice/summary/template/wording and
+document delivery/reuse tests passed, including proof-freshness boundaries and
+invalid-field rejection. Raw consultation and comparison artifacts remain local
+and untracked. There is no new cache, persisted schema, hook, service, model
+call path, permission rule, native build or installed-runtime change.

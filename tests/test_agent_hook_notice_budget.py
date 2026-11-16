@@ -8,6 +8,60 @@ from test_agent_hook_summary import agent_hook as hook
 
 
 class NoticeBudgetTests(unittest.TestCase):
+    COMMON = ['common/skills/agent-operating-skill/SKILL.md',
+              'workflows/skills/review-and-commit/SKILL.md']
+    NEW_CARD = 'workflows/skills/new-task/SKILL.md'
+
+    def _partial_summary(self, reused, *, effect='local_write'):
+        docs = [*self.COMMON, self.NEW_CARD]
+        payload = {'runtime_session': {'runtime': 'claude', 'session_id': 'fixture'},
+            'route': {'command': 'bugfix', 'required_docs': docs, 'retrospective_contract': 'causal_v1',
+                'gates': ['tests', 'review hook', 'retrospective check'],
+                'hooks': [{'hook': h, 'required': True} for h in ('start', 'review', 'finish')],
+                'request_classification': {'intent_envelope': {'effective_effect': effect}}}}
+        with patch.object(Path, 'read_text', return_value=json.dumps(payload)), \
+                patch.object(hook, '_isolated_run_preflight', return_value=True), \
+                patch.object(hook, 'required_doc_reuse', return_value={
+                    'reused': reused, 'unread': [d for d in docs if d not in reused], 'takeaways': []}):
+            return '\n'.join(hook._hook_summary_from_preflight(Path('manifest.json')))
+
+    def test_new_task_card_keeps_reading_obligation_without_reprinting_proven_common_guidance(self):
+        summary = self._partial_summary(self.COMMON)
+        self.assertIn('Required knowledge (1 required docs', summary)
+        self.assertIn(self.NEW_CARD, summary)
+        self.assertIn('Guidance reuse:', summary)
+        self.assertNotIn('Work continuity:', summary)
+        self.assertNotIn('Closeout reuse:', summary)
+        for dynamic in ('Required hooks:', '--review-outcome', 'tests: check, result',
+                        'retrospective check: skills_checked', 'causal_v1 requires'):
+            self.assertIn(dynamic, summary)
+
+    def test_missing_common_proof_keeps_full_guidance(self):
+        for reused in ([], self.COMMON[:1], self.COMMON[1:], [self.NEW_CARD]):
+            with self.subTest(reused=reused):
+                summary = self._partial_summary(reused)
+                self.assertIn('Work continuity:', summary)
+                self.assertIn('Closeout reuse:', summary)
+
+    def test_partial_reuse_keeps_current_commit_authority_and_current_gate_fields(self):
+        for effect in ('local_write', 'git_write', 'external_write'):
+            with self.subTest(effect=effect):
+                summary = self._partial_summary(self.COMMON, effect=effect)
+                self.assertEqual(effect != 'local_write', 'Same-run local commit:' in summary)
+                self.assertIn('tests: check, result', summary)
+                self.assertIn('learning_decision', summary)
+
+    def test_valid_retrospective_pairs_are_visible_before_first_submission(self):
+        for contract in ('compact_v1', 'causal_v1'):
+            payload = {'route': {'gates': ['tests', 'review hook', 'retrospective check'],
+                                 'retrospective_contract': contract}}
+            with self.subTest(contract=contract), patch.object(
+                    Path, 'read_text', return_value=json.dumps(payload)):
+                summary = '\n'.join(hook._hook_summary_from_preflight(Path('manifest.json')))
+            for pair in ('"no_reusable_gap" + "not_needed"', '"no_skill_used" + "not_needed"',
+                         '"reusable_gap" + "recorded"', '"skills_checked":"none"'):
+                self.assertIn(pair, summary)
+
     def test_common_notice_groups_drop_at_least_a_quarter_from_2371_bytes(self):
         route = {'gates': ['tests', 'review hook', 'retrospective check'],
                  'request_classification': {'intent_envelope': {'effective_effect': 'git_write'}}}

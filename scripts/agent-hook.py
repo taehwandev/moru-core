@@ -26,6 +26,7 @@ from agent_execution_capsule_state import git_states_for_paths
 from agent_continuation_fields import MAX_TEXT
 from support.runtime_bridge import CODEX_PERMISSION_EVIDENCE_BRIDGE_PHRASE
 from agent_finish_gate_validators import gate_wording_hints
+from agent_gate_record_template import gate_value_hints
 from agent_finish_context import context_nudge
 from agent_handoff_hook import handoff_hook
 from agent_hook_continuation import (
@@ -512,6 +513,17 @@ def _required_hooks_lines(required: object) -> list[str]:
     ]
 
 
+def _common_guidance_is_reused(reuse: dict) -> bool:
+    """Separate proven common readings from still-unread task-specific cards."""
+    common = {
+        'common/skills/agent-operating-skill/SKILL.md',
+        'workflows/skills/review-and-commit/SKILL.md',
+    }
+    return bool(reuse['reused']) and (
+        not reuse['unread'] or common.issubset(reuse['reused'])
+    )
+
+
 def _hook_summary_from_preflight(path: Path) -> list[str]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -544,7 +556,7 @@ def _hook_summary_from_preflight(path: Path) -> list[str]:
             if candidate["reused"] or candidate["unread"]:
                 reuse = candidate
         if reuse["reused"]:
-            guidance_reused = not reuse['unread']
+            guidance_reused = _common_guidance_is_reused(reuse)
             lines.append(
                 "Matching completed same-session evidence "
                 f"({len(reuse['reused'])} unchanged required docs; reuse retained readings):"
@@ -892,6 +904,8 @@ def _structured_gate_field_lines(gates: list[str], route: dict | None = None) ->
                      "Never copy old records as fresh evidence.")
     for gate, fields in required:
         lines.append(f"  {gate}: {_rendered_fields(gate, fields)}")
+        if gate == "retrospective check":
+            lines.extend(f"    {hint}" for hint in gate_value_hints(gate, ["outcome", "observation"]))
         if gate in {"documentation", "documentation impact"}:
             lines.append("    unchanged: use inspected=<exact source read> and coverage=<why it still applies>; retained valid readings need no reread.")
         # Several of these gates then decide by substring match, so a truthful
