@@ -251,12 +251,12 @@ class NativeCardResumeTests(unittest.TestCase):
             outcomes.append(((done.returncode,done.stdout,done.stderr),self.record.read_bytes()))
         self.assertEqual(outcomes[0],outcomes[1])
 
-    def _until_prompt(self,fd):
+    def _until_prompt(self,fd,marker=b"> "):
         output=b""
         deadline=time.monotonic()+8
         # Preloaded terminal input can finish before the prompt is read, so
         # preserve a prompt and its following error arriving in one pipe read.
-        while b"> " not in output:
+        while marker not in output:
             self.assertLess(time.monotonic(),deadline,output)
             readable,_,_=select.select([fd],[],[],max(0,deadline-time.monotonic()))
             self.assertTrue(readable,output)
@@ -293,12 +293,15 @@ class NativeCardResumeTests(unittest.TestCase):
             try:
                 output=self._until_prompt(master)
                 os.kill(process.pid,signal.SIGINT)
-                self.assertEqual(0,process.wait(timeout=5))
+                try: status=process.wait(timeout=5)
+                except subprocess.TimeoutExpired as error:
+                    self.fail(f"Ctrl-C did not exit (native={native}): {error}")
+                self.assertEqual(0,status,native)
                 self.assertFalse(self.record.exists())
                 outputs.append(output)
             finally:
-                if process.poll() is None: process.kill(); process.wait()
                 os.close(master)
+                if process.poll() is None: process.kill(); process.wait(timeout=5)
         self.assertEqual(outputs[0],outputs[1])
 
     def test_inherited_ignored_interrupt_remains_ignored_until_explicit_cancel(self):
@@ -382,12 +385,18 @@ class NativeCardResumeTests(unittest.TestCase):
                 env=self.environment(native),cwd=self.project,start_new_session=True)
             os.close(slave); os.close(outgoing)
             try:
+                # Choose after the task row is visible, rather than preloading
+                # input before the receiving interpreter initializes its TTY.
+                self._until_prompt(master,marker=b"]")
                 os.write(master,b"1\n")
-                self.assertEqual(0,process.wait(timeout=8))
+                try: status=process.wait(timeout=8)
+                except subprocess.TimeoutExpired as error:
+                    self.fail(f"closed-stderr picker did not exit (native={native}): {error}")
+                self.assertEqual(0,status,native)
                 outcomes.append(self.record.read_bytes())
             finally:
-                if process.poll() is None: process.kill(); process.wait()
                 os.close(master)
+                if process.poll() is None: process.kill(); process.wait(timeout=5)
         self.assertEqual(outcomes[0],outcomes[1])
 
     def test_nonblocking_stdin_empty_and_partial_line_match_original(self):
