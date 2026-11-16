@@ -1,6 +1,55 @@
 use super::*;
 
 #[test]
+fn report_relations_preserve_duplicate_ids_cycles_and_sorted_replacers() {
+    let input = json!({"unicode":MemoryTerms::version(),"relations":true,"records":[
+        {"id":"b","scope":"task","body":"X!","source":"Guide!","replaces":"a"},
+        {"id":"a","scope":"all","body":"x","source":"guide","replaces":null},
+        {"id":"a","scope":"review","body":"other","source":"else","replaces":"a"},
+        {"id":"c","scope":"review","body":"x","source":"docs","replaces":"missing"}
+    ]});
+    assert_eq!(
+        MemoryConsolidation::evaluate("report-text-groups", &input),
+        Some(json!({
+            "duplicates":[[1,0,3]],"shared_sources":[[1,0]],
+            "findings":[{"index":1,"replacements":[2,0]},{"index":2,"replacements":[2,0]}]
+        }))
+    );
+}
+
+#[test]
+fn report_relations_keep_legacy_empty_shape_and_require_literal_opt_in() {
+    let mut input = payload(json!([]));
+    assert_eq!(
+        MemoryConsolidation::evaluate("report-text-groups", &input),
+        Some(json!({"duplicates":[],"shared_sources":[]}))
+    );
+    input["relations"] = json!(true);
+    assert_eq!(
+        MemoryConsolidation::evaluate("report-text-groups", &input),
+        Some(json!({"duplicates":[],"shared_sources":[],"findings":[]}))
+    );
+    for flag in [json!(false), json!(1), json!("true"), Value::Null] {
+        input["relations"] = flag;
+        assert!(MemoryConsolidation::evaluate("report-text-groups", &input).is_none());
+    }
+}
+
+#[test]
+fn report_relations_reject_invalid_links_without_partial_results() {
+    for link in [json!(false), json!(3), json!([]), json!({})] {
+        let input = json!({"unicode":MemoryTerms::version(),"relations":true,"records":[
+            {"id":"b","scope":"task","body":"x","source":"s","replaces":"a"},
+            {"id":"a","scope":"task","body":"x","source":"s","replaces":link}
+        ]});
+        assert!(MemoryConsolidation::evaluate("report-text-groups", &input).is_none());
+    }
+    let input = json!({"unicode":MemoryTerms::version(),"relations":true,
+        "records":[{"id":"a","scope":"task","body":"x","source":"s"}]});
+    assert!(MemoryConsolidation::evaluate("report-text-groups", &input).is_none());
+}
+
+#[test]
 fn report_groups_keep_independent_normalization_and_transitive_scope_rules() {
     let input = payload(json!([
         {"id":"c","scope":"review","body":"A b c d e f","source":"Docs!"},

@@ -1,8 +1,8 @@
-//! owner: MemoryConsolidation; allowed imports: serde_json, std::collections, MemoryTerms;
+//! owner: MemoryConsolidation; allowed imports: serde_json, std::collections, MemoryTerms, MemoryUpkeep;
 //! forbidden imports: filesystem, processes, stores, writes, providers, clock, authority;
 //! callers/tests: MemoryProcess consolidation dispatch and memory_consolidation_tests;
 //! verification: Python _duplicate_groups and _shared_source_groups parity.
-use crate::memory_terms::MemoryTerms;
+use crate::{memory_terms::MemoryTerms, memory_upkeep::MemoryUpkeep};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -13,10 +13,19 @@ pub(crate) struct MemoryConsolidation;
 impl MemoryConsolidation {
     pub(crate) fn evaluate(operation: &str, payload: &Value) -> Option<Value> {
         let object = payload.as_object()?;
-        if object.len() != 2 || object.get("unicode")?.as_str()? != MemoryTerms::version() {
+        if object.get("unicode")?.as_str()? != MemoryTerms::version() {
             return None;
         }
         let records = object.get("records")?.as_array()?;
+        if operation == "report-text-groups"
+            && object.len() == 3
+            && object.get("relations")?.as_bool()?
+        {
+            return Self::report_relations(records);
+        }
+        if object.len() != 2 {
+            return None;
+        }
         match operation {
             "duplicate-groups" => Self::duplicate_groups(records),
             "shared-source-groups" => Self::shared_source_groups(records),
@@ -25,6 +34,27 @@ impl MemoryConsolidation {
             "report-text-groups" => Self::report_groups(records),
             _ => None,
         }
+    }
+
+    fn report_relations(records: &[Value]) -> Option<Value> {
+        let mut groups = Vec::with_capacity(records.len());
+        let mut links = Vec::with_capacity(records.len());
+        for value in records {
+            let mut row = value.as_object()?.clone();
+            if row.len() != 5 {
+                return None;
+            }
+            let replaces = row.remove("replaces")?;
+            links.push(json!({"id":row.get("id")?.as_str()?,"replaces":replaces}));
+            groups.push(Value::Object(row));
+        }
+        let mut result = Self::report_groups(&groups)?.as_object()?.clone();
+        let links = MemoryUpkeep::evaluate(
+            "upkeep-replacements",
+            &json!({"unicode":MemoryTerms::version(),"records":links}),
+        )?;
+        result.insert("findings".into(), links.get("findings")?.clone());
+        Some(Value::Object(result))
     }
 
     fn report_groups(records: &[Value]) -> Option<Value> {

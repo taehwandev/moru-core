@@ -144,21 +144,28 @@ _NATIVE_GROUP_CALLBACKS = {name:(globals()[name], globals()[name].__code__) for 
     ("_tokens", "_jaccard", "_scopes_overlap", "_duplicate_groups_reference", "_shared_source_groups_reference")}
 
 
-def _report_groups(live):
-    ordinary = (_native_grouping_profile() and all(
+def _native_report_profile():
+    return (_native_grouping_profile() and all(
         globals().get(name) is original and original.__code__ is code and original.__defaults__ is defaults
         for name,(original,code,defaults) in _REPORT_GROUP_CALLBACKS.items()))
-    if ordinary:
+
+
+def _report_groups(live):
+    if _native_report_profile():
         from support.native_memory_consolidation import NativeMemoryConsolidation
         groups, attempted = NativeMemoryConsolidation.report_groups(live,DUPLICATE_JACCARD)
         if groups is not None:
-            duplicates, shared = groups
-            reason = "records cite the same source; open it and keep, merge or retire the ones that disagree"
-            return ([_group(members,_duplicate_reason()) for members in duplicates],
-                    [_group(members,reason) for members in shared])
+            return _group_entries(groups)
         if attempted:
             return _duplicate_groups_reference(live), _shared_source_groups_reference(live)
     return _duplicate_groups(live), _shared_source_groups(live)
+
+
+def _group_entries(groups):
+    duplicates, shared = groups
+    reason = "records cite the same source; open it and keep, merge or retire the ones that disagree"
+    return ([_group(members,_duplicate_reason()) for members in duplicates],
+            [_group(members,reason) for members in shared])
 
 
 _REPORT_GROUP_CALLBACKS = {name:(globals()[name],globals()[name].__code__,globals()[name].__defaults__)
@@ -170,6 +177,10 @@ def _unfinished_replacements(live: list[dict[str, Any]]) -> list[dict[str, Any]]
     selected = NativeMemoryUpkeep.replacements(live)
     if selected is None:
         return _unfinished_replacements_reference(live)
+    return _replacement_entries(selected)
+
+
+def _replacement_entries(selected):
     findings = []
     for record, replacements in selected:
         entry = _entry(record, "a live record replaces this one; `retire` it to finish "
@@ -192,6 +203,32 @@ def _unfinished_replacements_reference(live: list[dict[str, Any]]) -> list[dict[
             entry["replaced_by"] = sorted(replaced_by[record["id"]])
             findings.append(entry)
     return findings
+
+
+def _report_relations(live):
+    ordinary = (_native_report_profile() and all(
+        globals().get(name) is original and original.__code__ is code and original.__defaults__ is defaults
+        for name,(original,code,defaults) in _RELATION_CALLBACKS.items()))
+    if ordinary:
+        from support.native_memory_consolidation import NativeMemoryConsolidation
+        result, attempted = NativeMemoryConsolidation.report_relations(live,DUPLICATE_JACCARD)
+        if result is not None:
+            groups, replacements = result
+            duplicates, shared = _group_entries(groups)
+            return {"duplicate_groups":duplicates,"shared_source_groups":shared,
+                    "unfinished_replacements":_replacement_entries(replacements)}
+        if attempted:
+            return {"duplicate_groups":_duplicate_groups_reference(live),
+                    "shared_source_groups":_shared_source_groups_reference(live),
+                    "unfinished_replacements":_unfinished_replacements_reference(live)}
+    duplicates, shared = _report_groups(live)
+    return {"duplicate_groups":duplicates,"shared_source_groups":shared,
+            "unfinished_replacements":_unfinished_replacements(live)}
+
+
+_RELATION_CALLBACKS = {name:(globals()[name],globals()[name].__code__,globals()[name].__defaults__)
+    for name in ("_report_groups","_unfinished_replacements","_unfinished_replacements_reference",
+                 "_group_entries","_replacement_entries")}
 
 
 def _live_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -248,13 +285,8 @@ def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
             for record in expiring
         ],
     }
-    duplicates, shared = _report_groups(live)
-    report.update({
-        "duplicate_groups": duplicates,
-        "shared_source_groups": shared,
-        "unfinished_replacements": _unfinished_replacements(live),
-        "unreadable": unreadable,
-    })
+    report.update(_report_relations(live))
+    report["unreadable"] = unreadable
     return report
 
 

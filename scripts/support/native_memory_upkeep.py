@@ -54,6 +54,10 @@ class NativeMemoryUpkeep:
             return []
         result = NativeMemoryUpkeep._request("upkeep-replacements",
             [{"id":row["id"], "replaces":row.get("replaces")} for row in records])
+        return NativeMemoryUpkeep._replacement_result(records,result)
+
+    @staticmethod
+    def _replacement_result(records, result):
         if type(result) is not dict or set(result) != {"findings"} or type(result["findings"]) is not list:
             return None
         findings = []
@@ -103,3 +107,8 @@ class NativeMemoryUpkeep:
             for row in rows:
                 row["review"] = parse_date(row["review"]).toordinal()
         return None, rows
+
+
+_REPLACEMENT_BINDINGS = {name:(getattr(NativeMemoryUpkeep,name),
+    getattr(NativeMemoryUpkeep,name).__code__,getattr(NativeMemoryUpkeep,name).__defaults__)
+    for name in ("replacements","_profile","_replacement_result")}

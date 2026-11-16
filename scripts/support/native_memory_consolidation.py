@@ -1,45 +1,77 @@
 """Typed grouping transport; custom normalization and report values stay local.
 
-Owner: NativeMemoryConsolidation. Allowed: stdlib/NativeProbe, supplied original
+Owner: NativeMemoryConsolidation. Allowed: stdlib/NativeProbe/NativeMemoryUpkeep, supplied original
 normalizer. Forbidden: pair comparison, union-find, grouping, store IO/writes.
 Callers/tests: consolidation group helpers and native consolidation tests.
 """
 import unicodedata
 
 from support.native_probe_transport import NativeProbe
+from support import native_memory_upkeep as upkeep
 
+
+def _bindings_match(owner, bindings):
+    return all(getattr(owner,name,None) is original and original.__code__ is code
+               and original.__defaults__ is defaults
+               for name,(original,code,defaults) in bindings.items())
+
+
+def _report_packet(records, threshold, *, relations=False):
+    if (type(records) is not list or type(threshold) is not float or threshold != 0.8
+            or any(current is not binding[0] or current.__code__ is not binding[1]
+                   or current.__defaults__ is not binding[2] for current,binding in
+                   ((NativeMemoryConsolidation.groups,_GROUPS_BINDING),
+                    (NativeMemoryConsolidation.raw_groups,_RAW_GROUPS_BINDING)))):
+        return None, False
+    if not records:
+        return {"duplicates":[],"shared_sources":[],**({"findings":[]} if relations else {})}, False
+    try:
+        if not NativeProbe.available():
+            return None, False
+    except (OSError, ValueError, RuntimeError):
+        return None, False
+    required = ("id", "scope", "body", "source")
+    if any(type(record) is not dict or any(type(key) is not str for key in record)
+           or any(type(record.get(key)) is not str for key in required)
+           or (relations and record.get("replaces") is not None and type(record["replaces"]) is not str)
+           for record in records):
+        return None, False
+    rows = [{key:record[key] for key in required} for record in records]
+    if relations:
+        for row,record in zip(rows,records): row["replaces"] = record.get("replaces")
+    try:
+        result = NativeProbe.request("--memory-probe", "report-text-groups",
+            {"unicode":unicodedata.unidata_version,"records":rows,**({"relations":True} if relations else {})})
+    except (OSError, ValueError, RuntimeError):
+        return None, True
+    return result, True
 
 class NativeMemoryConsolidation:
     @staticmethod
     def report_groups(records, threshold=0.8):
-        if (type(records) is not list or type(threshold) is not float or threshold != 0.8
-                or any(current is not binding[0] or current.__code__ is not binding[1]
-                       or current.__defaults__ is not binding[2] for current,binding in
-                       ((NativeMemoryConsolidation.groups,_GROUPS_BINDING),
-                        (NativeMemoryConsolidation.raw_groups,_RAW_GROUPS_BINDING)))):
+        result, attempted = _report_packet(records,threshold)
+        return NativeMemoryConsolidation._report_result(records,result), attempted
+
+    @staticmethod
+    def report_relations(records, threshold=0.8):
+        if (not _bindings_match(NativeMemoryConsolidation,_REPORT_BINDINGS)
+                or not _bindings_match(upkeep.NativeMemoryUpkeep,upkeep._REPLACEMENT_BINDINGS)):
             return None, False
-        if not records:
-            return ([], []), False
-        try:
-            if not NativeProbe.available():
-                return None, False
-        except (OSError, ValueError, RuntimeError):
-            return None, False
-        required = ("id", "scope", "body", "source")
-        if any(type(record) is not dict or any(type(key) is not str for key in record)
-               or any(type(record.get(key)) is not str for key in required) for record in records):
-            return None, False
-        try:
-            result = NativeProbe.request("--memory-probe", "report-text-groups",
-                {"unicode":unicodedata.unidata_version,
-                 "records":[{key:record[key] for key in required} for record in records]})
-        except (OSError, ValueError, RuntimeError):
-            return None, True
+        result, attempted = _report_packet(records,threshold,relations=True)
+        if type(result) is not dict or set(result) != {"duplicates","shared_sources","findings"}:
+            return None, attempted
+        groups = NativeMemoryConsolidation._report_result(records,
+            {key:result[key] for key in ("duplicates","shared_sources")})
+        replacements = upkeep.NativeMemoryUpkeep._replacement_result(records,{"findings":result["findings"]})
+        return (None if groups is None or replacements is None else (groups,replacements)), attempted
+
+    @staticmethod
+    def _report_result(records, result):
         if type(result) is not dict or set(result) != {"duplicates","shared_sources"}:
-            return None, True
+            return None
         groups = [NativeMemoryConsolidation._result(records,{"groups":result[key]})
                   for key in ("duplicates","shared_sources")]
-        return (None if any(group is None for group in groups) else tuple(groups)), True
+        return None if any(group is None for group in groups) else tuple(groups)
 
     @staticmethod
     def raw_groups(operation, records, threshold=0.8):
@@ -120,3 +152,6 @@ _GROUPS_BINDING = (NativeMemoryConsolidation.groups, NativeMemoryConsolidation.g
                    NativeMemoryConsolidation.groups.__defaults__)
 _RAW_GROUPS_BINDING = (NativeMemoryConsolidation.raw_groups, NativeMemoryConsolidation.raw_groups.__code__,
                        NativeMemoryConsolidation.raw_groups.__defaults__)
+_REPORT_BINDINGS = {name:(getattr(NativeMemoryConsolidation,name),
+    getattr(NativeMemoryConsolidation,name).__code__,getattr(NativeMemoryConsolidation,name).__defaults__)
+    for name in ("report_groups","_report_result","_result")}

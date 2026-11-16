@@ -22,6 +22,68 @@ class ConsolidationReportGroupsTests(unittest.TestCase):
         return [{"id":name,"body":"one two","scope":"task","source":"Guide!",
                  "status":"active","review_on":"2099-01-01"} for name in ("b","a")]
 
+    def test_report_combines_replacements_with_groups_without_another_request(self):
+        records = self.records()
+        records[0]["replaces"] = "a"
+        marker = object()
+        records[1]["applies_when"] = marker
+        with patch("support.native_memory_review.NativeMemoryReview.findings_inputs",
+                   return_value=(records,[],[])):
+            with patch("support.native_memory_consolidation.NativeProbe.available",return_value=False):
+                expected = source.findings(records,0,today=date(2026,11,16))
+            def request(flag,operation,payload):
+                self.assertEqual("report-text-groups",operation)
+                self.assertIs(True,payload.get("relations"),"replacement decision is still separate")
+                return {"duplicates":[[1,0]],"shared_sources":[[1,0]],
+                        "findings":[{"index":1,"replacements":[0]}]}
+            with patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
+                 patch("support.native_memory_consolidation.NativeProbe.request",side_effect=request) as probe:
+                actual = source.findings(records,0,today=date(2026,11,16))
+            self.assertEqual(1,probe.call_count)
+        self.assertEqual(expected,actual)
+        self.assertEqual(list(expected),list(actual))
+        self.assertEqual(["b"],actual["unfinished_replacements"][0]["replaced_by"])
+        self.assertIs(marker,actual["unfinished_replacements"][0]["applies_when"])
+
+    def test_invalid_relations_reply_replays_neither_native_operation(self):
+        records = self.records()
+        records[0]["replaces"] = "a"
+        expected = {"duplicate_groups":source._duplicate_groups_reference(records),
+                    "shared_source_groups":source._shared_source_groups_reference(records),
+                    "unfinished_replacements":source._unfinished_replacements_reference(records)}
+        for findings in (None,[{"index":True,"replacements":[0]}],
+                         [{"index":1,"replacements":[2]}],
+                         [{"index":1,"replacements":[0,0]}],
+                         [{"index":1,"replacements":[0],"extra":1}]):
+            reply = {"duplicates":[[1,0]],"shared_sources":[[1,0]],"findings":findings}
+            with self.subTest(findings=findings), \
+                 patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
+                 patch("support.native_memory_consolidation.NativeProbe.request",return_value=reply) as probe:
+                self.assertEqual(expected,source._report_relations(records))
+                self.assertEqual(1,probe.call_count)
+        with patch("support.native_memory_consolidation.NativeProbe.request",side_effect=AssertionError("transport")):
+            self.assertEqual({key:[] for key in expected},source._report_relations([]))
+
+    def test_custom_replacement_adapter_stays_after_legacy_group_projection(self):
+        records = self.records()
+        def request(flag,operation,payload):
+            self.assertNotIn("relations",payload)
+            return {"duplicates":[[1,0]],"shared_sources":[[1,0]]}
+        with patch("support.native_memory_upkeep.NativeMemoryUpkeep.replacements",
+                   return_value=[(records[1],["custom"])]) as replacements, \
+             patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
+             patch("support.native_memory_consolidation.NativeProbe.request",side_effect=request):
+            result = source._report_relations(records)
+        self.assertEqual(["custom"],result["unfinished_replacements"][0]["replaced_by"])
+        replacements.assert_called_once_with(records)
+        class CustomUpkeep:
+            replacements = staticmethod(lambda rows:[(rows[1],["custom class"])])
+        with patch("support.native_memory_upkeep.NativeMemoryUpkeep",CustomUpkeep), \
+             patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
+             patch("support.native_memory_consolidation.NativeProbe.request",side_effect=request):
+            result = source._report_relations(records)
+        self.assertEqual(["custom class"],result["unfinished_replacements"][0]["replaced_by"])
+
     def test_report_uses_one_group_request_and_preserves_original_projection(self):
         records = self.records()
         marker = object()
@@ -110,12 +172,14 @@ class NativeMemoryConsolidationTests(unittest.TestCase):
     def test_fused_report_matches_seeded_original_without_python_group_replay(self):
         rng = random.Random(261116)
         watched = {getattr(source,name).__code__ for name in
-            ("normalize","_tokens","_jaccard","_duplicate_groups_reference","_shared_source_groups_reference")}
+            ("normalize","_tokens","_jaccard","_duplicate_groups_reference","_shared_source_groups_reference",
+             "_unfinished_replacements_reference")}
         from support.native_probe_transport import NativeProbe
         for _ in range(16):
             records = [self.record(str(rng.randrange(5)),
                 " ".join(rng.sample(list("abcdef"),rng.randrange(7))),
-                rng.choice(["task","review","all"]),source=rng.choice(["a","B!","b",""]))
+                rng.choice(["task","review","all"]),source=rng.choice(["a","B!","b",""]),
+                replaces=rng.choice([None,"","0","1","missing"]))
                 for _ in range(rng.randrange(1,9))]
             with patch.dict(os.environ,{**self.env,"MORU_LAUNCHER_BACKEND":"python"},clear=True):
                 expected = source.findings(records,0,today=date(2026,11,16))
@@ -134,6 +198,8 @@ class NativeMemoryConsolidationTests(unittest.TestCase):
             operations = [call.args[1] for call in probe.call_args_list]
             self.assertEqual(1,operations.count("report-text-groups"))
             self.assertFalse({"duplicate-text-groups","shared-source-text-groups"}.intersection(operations))
+            self.assertNotIn("upkeep-replacements",operations)
+            self.assertEqual(2,len(operations))
 
     def test_pre_edit_projection_values_reasons_and_key_order(self):
         # Captured from the unchanged source before extracting the references.

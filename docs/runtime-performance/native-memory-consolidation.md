@@ -91,3 +91,25 @@ original metadata and real temporary-store bytes retain existing behavior.
 The source-bound debug fixture records 617 runtime inputs. Unit 16 remains
 partial in the current 62-unit inventory. No speedup, new release bundle, Linux
 acceptance or actual installed-runtime activation is claimed for this increment.
+
+## Replacement relations in the report request
+
+The same private operation additionally accepts the literal opt-in
+`relations: true` with a fifth `replaces` field (string or null) on every row.
+The original two-field request and four-string rows retain their original
+two-key result. Other flags and incomplete profiles decline without partial
+output. MemoryConsolidation reuses the existing MemoryUpkeep replacement engine
+and returns its index relations beside both group lists. The Python adapter
+reuses the original replacement decoder; record objects and final projection
+order remain local. Customized callbacks, defaults, replacement methods and
+replacement classes keep the prior path. No automatic retirement is introduced.
+
+Local debug verification passed 78 Rust memory tests and 82 Python cases.
+Sixteen seeded reports include empty, dangling and duplicate replacement IDs,
+preserve complete reference values, and observe two requests instead of three:
+live/date selection followed by combined groups/relations. Profiling observes
+zero Python grouping/replacement replay. Disabling fusion fails on the extra
+replacement request; malformed combined replies make one attempt then use the
+original read-only algorithms. The source-bound debug fixture still records
+617 inputs. Unit 16 remains partial; this adds no release, installation, Linux
+acceptance or measured timing claim.
