@@ -251,19 +251,50 @@ class NativeCardResumeTests(unittest.TestCase):
             outcomes.append(((done.returncode,done.stdout,done.stderr),self.record.read_bytes()))
         self.assertEqual(outcomes[0],outcomes[1])
 
-    def _until_prompt(self,fd,marker=b"> "):
-        output=b""
+    @staticmethod
+    def _read_terminal(fd,output):
+        try: chunk=os.read(fd,8192)
+        except BlockingIOError: return True
+        except OSError as error:
+            if error.errno != 5: raise
+            return False
+        output.extend(chunk)
+        return bool(chunk)
+
+    def _until_prompt(self,fd,marker=b"> ",drain=None):
+        output=bytearray()
+        readers={fd:output}
+        if drain is not None: readers[drain[0]]=drain[1]
         deadline=time.monotonic()+8
         # Preloaded terminal input can finish before the prompt is read, so
         # preserve a prompt and its following error arriving in one pipe read.
         while marker not in output:
             self.assertLess(time.monotonic(),deadline,output)
-            readable,_,_=select.select([fd],[],[],max(0,deadline-time.monotonic()))
+            readable,_,_=select.select(list(readers),[],[],max(0,deadline-time.monotonic()))
             self.assertTrue(readable,output)
-            chunk=os.read(fd,8192)
-            self.assertTrue(chunk,output)
-            output+=chunk
-        return output
+            for ready in readable:
+                if not self._read_terminal(ready,readers[ready]):
+                    self.assertNotEqual(fd,ready,output)
+                    del readers[ready]
+        return bytes(output)
+
+    def _wait_terminal(self,process,readers,native):
+        # A terminal emulator drains output while a command is running. Waiting
+        # for exit before reading can fill the PTY and prevent that very exit.
+        deadline=time.monotonic()+8
+        while process.poll() is None:
+            remaining=deadline-time.monotonic()
+            self.assertGreater(remaining,0,
+                f"picker did not exit (native={native}, provider={self.record.exists()}, "
+                f"drained={[len(output) for output in readers.values()]})")
+            readable,_,_=select.select(list(readers),[],[],min(0.05,max(0,remaining)))
+            for fd in readable:
+                if not self._read_terminal(fd,readers[fd]): del readers[fd]
+        for fd,output in readers.items():
+            os.set_blocking(fd,False)
+            while select.select([fd],[],[],0)[0]:
+                if not self._read_terminal(fd,output): break
+        return process.returncode
 
     def test_selection_uses_displayed_snapshot_after_board_changes(self):
         for native in (False,True):
@@ -336,6 +367,17 @@ class NativeCardResumeTests(unittest.TestCase):
             self.assertEqual(expected,self._terminal(data,True,partial_eof=True),data)
             self.assertEqual(status,expected[0]); self.assertEqual(selected,expected[3] is not None)
 
+    def test_large_tty_menu_is_drained_while_waiting_for_prompt_and_exit(self):
+        self.seed(1)
+        with closing(sqlite3.connect(self.database)) as connection:
+            connection.execute("UPDATE cards SET summary=?",("x"*131072,))
+            connection.commit()
+        expected=self._terminal(b"1\n",False)
+        self.assertEqual(expected,self._terminal(b"1\n",True))
+        self.assertEqual(0,expected[0])
+        self.assertIn(b"x"*131072,expected[1])
+        self.assertEqual([str(self.project),"resume",SESSION],expected[3].decode().splitlines())
+
     def _terminal(self,data,native,partial_eof=False):
         self.record.unlink(missing_ok=True)
         master,slave=pty.openpty()
@@ -352,21 +394,13 @@ class NativeCardResumeTests(unittest.TestCase):
             env=self.environment(native,MORU_TEST_RESUME_READ="1" if b"remaining input" in data else "0"),
             cwd=self.project,start_new_session=True)
         try:
-            prompt=self._until_prompt(process.stderr.fileno())
+            output=bytearray()
+            prompt=self._until_prompt(process.stderr.fileno(),drain=(master,output))
             if not partial_eof: os.write(master,data)
             os.close(slave); slave=None
-            process.wait(timeout=8)
-            output=b""
-            os.set_blocking(master,False)
-            while True:
-                try: chunk=os.read(master,8192)
-                except BlockingIOError: break
-                except OSError as error:
-                    if error.errno != 5: raise
-                    break
-                if not chunk: break
-                output+=chunk
-            return process.returncode,output,prompt+process.stderr.read(),self.record.read_bytes() if self.record.exists() else None
+            errors=bytearray(prompt)
+            status=self._wait_terminal(process,{master:output,process.stderr.fileno():errors},native)
+            return status,bytes(output),bytes(errors),self.record.read_bytes() if self.record.exists() else None
         finally:
             if slave is not None: os.close(slave)
             os.close(master)
@@ -389,9 +423,7 @@ class NativeCardResumeTests(unittest.TestCase):
                 # input before the receiving interpreter initializes its TTY.
                 self._until_prompt(master,marker=b"]")
                 os.write(master,b"1\n")
-                try: status=process.wait(timeout=8)
-                except subprocess.TimeoutExpired as error:
-                    self.fail(f"closed-stderr picker did not exit (native={native}): {error}")
+                status=self._wait_terminal(process,{master:bytearray()},native)
                 self.assertEqual(0,status,native)
                 outcomes.append(self.record.read_bytes())
             finally:
