@@ -52,6 +52,7 @@ impl MemoryProcess {
                         | "shared-source-groups"
                         | "duplicate-text-groups"
                         | "shared-source-text-groups"
+                        | "report-text-groups"
                 ) {
                     MemoryConsolidation::evaluate(operation, &payload)
                 } else if matches!(

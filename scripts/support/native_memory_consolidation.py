@@ -11,6 +11,37 @@ from support.native_probe_transport import NativeProbe
 
 class NativeMemoryConsolidation:
     @staticmethod
+    def report_groups(records, threshold=0.8):
+        if (type(records) is not list or type(threshold) is not float or threshold != 0.8
+                or any(current is not binding[0] or current.__code__ is not binding[1]
+                       or current.__defaults__ is not binding[2] for current,binding in
+                       ((NativeMemoryConsolidation.groups,_GROUPS_BINDING),
+                        (NativeMemoryConsolidation.raw_groups,_RAW_GROUPS_BINDING)))):
+            return None, False
+        if not records:
+            return ([], []), False
+        try:
+            if not NativeProbe.available():
+                return None, False
+        except (OSError, ValueError, RuntimeError):
+            return None, False
+        required = ("id", "scope", "body", "source")
+        if any(type(record) is not dict or any(type(key) is not str for key in record)
+               or any(type(record.get(key)) is not str for key in required) for record in records):
+            return None, False
+        try:
+            result = NativeProbe.request("--memory-probe", "report-text-groups",
+                {"unicode":unicodedata.unidata_version,
+                 "records":[{key:record[key] for key in required} for record in records]})
+        except (OSError, ValueError, RuntimeError):
+            return None, True
+        if type(result) is not dict or set(result) != {"duplicates","shared_sources"}:
+            return None, True
+        groups = [NativeMemoryConsolidation._result(records,{"groups":result[key]})
+                  for key in ("duplicates","shared_sources")]
+        return (None if any(group is None for group in groups) else tuple(groups)), True
+
+    @staticmethod
     def raw_groups(operation, records, threshold=0.8):
         if (operation not in ("duplicate-groups", "shared-source-groups")
                 or type(records) is not list or type(threshold) is not float or threshold != 0.8
@@ -87,3 +118,5 @@ class NativeMemoryConsolidation:
 
 _GROUPS_BINDING = (NativeMemoryConsolidation.groups, NativeMemoryConsolidation.groups.__code__,
                    NativeMemoryConsolidation.groups.__defaults__)
+_RAW_GROUPS_BINDING = (NativeMemoryConsolidation.raw_groups, NativeMemoryConsolidation.raw_groups.__code__,
+                       NativeMemoryConsolidation.raw_groups.__defaults__)

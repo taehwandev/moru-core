@@ -1,6 +1,51 @@
 use super::*;
 
 #[test]
+fn report_groups_keep_independent_normalization_and_transitive_scope_rules() {
+    let input = payload(json!([
+        {"id":"c","scope":"review","body":"A b c d e f","source":"Docs!"},
+        {"id":"a","scope":"task","body":"a b c d","source":"docs"},
+        {"id":"b","scope":"all","body":"a b c d e","source":"Other"}
+    ]));
+    assert_eq!(
+        MemoryConsolidation::evaluate("report-text-groups", &input),
+        Some(json!({"duplicates":[[1,2,0]],"shared_sources":[[1,0]]}))
+    );
+}
+
+#[test]
+fn empty_report_groups_have_no_components() {
+    assert_eq!(
+        MemoryConsolidation::evaluate("report-text-groups", &payload(json!([]))),
+        Some(json!({"duplicates":[],"shared_sources":[]}))
+    );
+}
+
+#[test]
+fn report_groups_decline_closed_profile_errors_without_partial_output() {
+    for row in [
+        json!({"id":"a","scope":"task","body":"x","source":null}),
+        json!({"id":"a","scope":false,"body":"x","source":"s"}),
+        json!({"id":"a","scope":"task","body":3,"source":"s"}),
+        json!({"scope":"task","body":"x","source":"s"}),
+        json!({"id":"a","scope":"task","body":"x","source":"s","extra":1}),
+    ] {
+        assert!(MemoryConsolidation::evaluate(
+            "report-text-groups",
+            &payload(json!([
+                {"id":"valid","scope":"task","body":"x","source":"s"}, row
+            ]))
+        )
+        .is_none());
+    }
+    assert!(MemoryConsolidation::evaluate(
+        "report-text-groups",
+        &json!({"unicode":"unsupported","records":[]})
+    )
+    .is_none());
+}
+
+#[test]
 fn raw_duplicate_normalization_keeps_python_lower_unicode_and_empty_rules() {
     for (left, right, matched) in [
         ("ΟΣ!", "ος", true),

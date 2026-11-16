@@ -66,11 +66,15 @@ def _group(records: list[dict[str, Any]], reason: str) -> dict[str, Any]:
     }
 
 
-def _raw_grouping(operation, records, threshold=0.8):
-    if (globals().get("normalize") is _NATIVE_NORMALIZE and normalize.__code__ is _NATIVE_NORMALIZE_CODE
+def _native_grouping_profile():
+    return (globals().get("normalize") is _NATIVE_NORMALIZE and normalize.__code__ is _NATIVE_NORMALIZE_CODE
             and globals().get("_PUNCTUATION_RE") is _NATIVE_PUNCTUATION
             and all(globals().get(name) is original and original.__code__ is code
-                    for name, (original, code) in _NATIVE_GROUP_CALLBACKS.items())):
+                    for name, (original, code) in _NATIVE_GROUP_CALLBACKS.items()))
+
+
+def _raw_grouping(operation, records, threshold=0.8):
+    if _native_grouping_profile():
         from support.native_memory_consolidation import NativeMemoryConsolidation
         return NativeMemoryConsolidation.raw_groups(operation, records, threshold)
     return None, False
@@ -138,6 +142,27 @@ def _shared_source_groups_reference(live: list[dict[str, Any]]) -> list[dict[str
 
 _NATIVE_GROUP_CALLBACKS = {name:(globals()[name], globals()[name].__code__) for name in
     ("_tokens", "_jaccard", "_scopes_overlap", "_duplicate_groups_reference", "_shared_source_groups_reference")}
+
+
+def _report_groups(live):
+    ordinary = (_native_grouping_profile() and all(
+        globals().get(name) is original and original.__code__ is code and original.__defaults__ is defaults
+        for name,(original,code,defaults) in _REPORT_GROUP_CALLBACKS.items()))
+    if ordinary:
+        from support.native_memory_consolidation import NativeMemoryConsolidation
+        groups, attempted = NativeMemoryConsolidation.report_groups(live,DUPLICATE_JACCARD)
+        if groups is not None:
+            duplicates, shared = groups
+            reason = "records cite the same source; open it and keep, merge or retire the ones that disagree"
+            return ([_group(members,_duplicate_reason()) for members in duplicates],
+                    [_group(members,reason) for members in shared])
+        if attempted:
+            return _duplicate_groups_reference(live), _shared_source_groups_reference(live)
+    return _duplicate_groups(live), _shared_source_groups(live)
+
+
+_REPORT_GROUP_CALLBACKS = {name:(globals()[name],globals()[name].__code__,globals()[name].__defaults__)
+    for name in ("_raw_grouping","_duplicate_groups","_shared_source_groups","_group","_entry","_duplicate_reason")}
 
 
 def _unfinished_replacements(live: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -210,7 +235,7 @@ def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
         expired, expiring = _review_buckets(live, today, horizon)
     else:
         live, expired, expiring = selected
-    return {
+    report = {
         "today": today.isoformat(),
         "within_days": within_days,
         "expired": [
@@ -222,11 +247,15 @@ def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
             _entry(record, f"review date within {within_days} days; renew or retire ahead of time")
             for record in expiring
         ],
-        "duplicate_groups": _duplicate_groups(live),
-        "shared_source_groups": _shared_source_groups(live),
+    }
+    duplicates, shared = _report_groups(live)
+    report.update({
+        "duplicate_groups": duplicates,
+        "shared_source_groups": shared,
         "unfinished_replacements": _unfinished_replacements(live),
         "unreadable": unreadable,
-    }
+    })
+    return report
 
 
 def consolidate(project: Path, *, today: date | None = None,

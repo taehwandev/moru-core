@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import random
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -14,6 +15,64 @@ import agent_project_memory as memory
 import agent_project_memory_consolidate as source
 from native_pretool_support import environment, prepare
 from support.native_memory_consolidation import NativeMemoryConsolidation
+
+
+class ConsolidationReportGroupsTests(unittest.TestCase):
+    def records(self):
+        return [{"id":name,"body":"one two","scope":"task","source":"Guide!",
+                 "status":"active","review_on":"2099-01-01"} for name in ("b","a")]
+
+    def test_report_uses_one_group_request_and_preserves_original_projection(self):
+        records = self.records()
+        marker = object()
+        records[1]["applies_when"] = marker
+        with patch("support.native_memory_review.NativeMemoryReview.findings_inputs",
+                   return_value=(records,[],[])), \
+             patch("support.native_memory_upkeep.NativeMemoryUpkeep.replacements",return_value=[]):
+            with patch("support.native_memory_consolidation.NativeProbe.available",return_value=False):
+                expected = source.findings(records,0,today=date(2026,11,16))
+            def request(flag, operation, payload):
+                self.assertEqual("report-text-groups",operation,"split group requests")
+                return {"duplicates":[[1,0]],"shared_sources":[[1,0]]}
+            with patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
+                 patch("support.native_memory_consolidation.NativeProbe.request",side_effect=request) as probe:
+                actual = source.findings(records,0,today=date(2026,11,16))
+            self.assertEqual(1,probe.call_count)
+        self.assertEqual(expected,actual)
+        self.assertEqual(list(expected),list(actual))
+        self.assertIs(marker,actual["shared_source_groups"][0]["records"][0]["applies_when"])
+
+    def test_invalid_combined_reply_falls_back_once_without_partial_groups(self):
+        records = self.records()
+        expected = source._duplicate_groups_reference(records),source._shared_source_groups_reference(records)
+        for reply in (None,{}, {"duplicates":[],"shared_sources":[[0,1]]},
+                      {"duplicates":[[True,0]],"shared_sources":[]},
+                      {"duplicates":[[1,0]],"shared_sources":[[1,1]]},
+                      {"duplicates":[[1,0]],"shared_sources":[],"extra":True}):
+            with self.subTest(reply=reply), \
+                 patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
+                 patch("support.native_memory_consolidation.NativeProbe.request",return_value=reply) as probe:
+                self.assertEqual(expected,source._report_groups(records))
+                self.assertEqual(1,probe.call_count)
+
+    def test_empty_unavailable_and_exceptional_profiles_do_not_submit_combined_work(self):
+        with patch("support.native_memory_consolidation.NativeProbe.request",
+                   side_effect=AssertionError("transport")):
+            self.assertEqual(([],[]),source._report_groups([]))
+            with patch("support.native_memory_consolidation.NativeProbe.available",return_value=False):
+                self.assertEqual((None,False),NativeMemoryConsolidation.report_groups(self.records()))
+            with patch("support.native_memory_consolidation.NativeProbe.available",return_value=True):
+                for records in ([{}],[{**self.records()[0],"source":None}]):
+                    self.assertEqual((None,False),NativeMemoryConsolidation.report_groups(records))
+                self.assertEqual((None,False),NativeMemoryConsolidation.report_groups(self.records(),0.5))
+
+    def test_custom_report_callbacks_keep_their_order_and_output(self):
+        calls = []
+        with patch.object(source,"_duplicate_groups",side_effect=lambda rows:calls.append("duplicate") or [1]), \
+             patch.object(source,"_shared_source_groups",side_effect=lambda rows:calls.append("source") or [2]), \
+             patch("support.native_memory_consolidation.NativeProbe.request",side_effect=AssertionError("transport")):
+            self.assertEqual(([1],[2]),source._report_groups(self.records()))
+        self.assertEqual(["duplicate","source"],calls)
 
 
 class NativeMemoryConsolidationTests(unittest.TestCase):
@@ -47,6 +106,34 @@ class NativeMemoryConsolidationTests(unittest.TestCase):
     def test_exact_threshold_and_below_are_not_greedy_similarity(self):
         records = [self.record("a"), self.record("b", "a b c d e"), self.record("c", "a b c x y")]
         self.assertEqual([["a", "b"]], [g["ids"] for g in self.parity(records)])
+
+    def test_fused_report_matches_seeded_original_without_python_group_replay(self):
+        rng = random.Random(261116)
+        watched = {getattr(source,name).__code__ for name in
+            ("normalize","_tokens","_jaccard","_duplicate_groups_reference","_shared_source_groups_reference")}
+        from support.native_probe_transport import NativeProbe
+        for _ in range(16):
+            records = [self.record(str(rng.randrange(5)),
+                " ".join(rng.sample(list("abcdef"),rng.randrange(7))),
+                rng.choice(["task","review","all"]),source=rng.choice(["a","B!","b",""]))
+                for _ in range(rng.randrange(1,9))]
+            with patch.dict(os.environ,{**self.env,"MORU_LAUNCHER_BACKEND":"python"},clear=True):
+                expected = source.findings(records,0,today=date(2026,11,16))
+            replay = []
+            def profile(frame,event,arg):
+                if event == "call" and frame.f_code in watched: replay.append(frame.f_code.co_name)
+            original = sys.getprofile()
+            with patch.dict(os.environ,self.env,clear=True), \
+                 patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+                try:
+                    sys.setprofile(profile)
+                    actual = source.findings(records,0,today=date(2026,11,16))
+                finally: sys.setprofile(original)
+            self.assertEqual(expected,actual)
+            self.assertEqual([],replay)
+            operations = [call.args[1] for call in probe.call_args_list]
+            self.assertEqual(1,operations.count("report-text-groups"))
+            self.assertFalse({"duplicate-text-groups","shared-source-text-groups"}.intersection(operations))
 
     def test_pre_edit_projection_values_reasons_and_key_order(self):
         # Captured from the unchanged source before extracting the references.

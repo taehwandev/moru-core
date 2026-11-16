@@ -67,3 +67,27 @@ The final debug fixture binds 583 runtime sources. No release archive, actual
 runtime activation, Linux execution or timing improvement is claimed. This is
 progress in the resumed full 56-unit Goal; unit 16 and the remaining 379 owned
 Python responsibilities plus one external source remain explicitly open.
+
+## Fused report grouping
+
+Ordinary reports submit `report-text-groups` once for both duplicate bodies and
+shared sources. The existing Rust owner reuses its normalization and grouping
+kernels; the closed four-string record projection returns two independently
+validated index-group lists. Python preserves the original metadata objects,
+reason strings, report key order and date-projection-before-grouping order.
+Customized callbacks/defaults, thresholds or record profiles retain the previous
+path. A malformed or declined combined response falls back once to the original
+algorithms without a second native grouping request; empty input starts none.
+
+After explicit test/debug compilation approval under the
+[build contract](full-migration.md#build-and-install-approval), 75 Rust memory
+tests and 76 Python reference/process cases passed on macOS ARM64. Sixteen seeded
+complete reports preserve reference output with one combined group request and
+zero Python normalization/grouping calls, observed without replacing callbacks.
+Both the pre-edit split-request regression and a disabled-fusion negative
+control fail as expected. Malformed replies fall back once; custom callbacks,
+original metadata and real temporary-store bytes retain existing behavior.
+
+The source-bound debug fixture records 617 runtime inputs. Unit 16 remains
+partial in the current 62-unit inventory. No speedup, new release bundle, Linux
+acceptance or actual installed-runtime activation is claimed for this increment.

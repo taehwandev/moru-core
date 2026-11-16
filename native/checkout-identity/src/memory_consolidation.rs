@@ -22,8 +22,28 @@ impl MemoryConsolidation {
             "shared-source-groups" => Self::shared_source_groups(records),
             "duplicate-text-groups" => Self::text_groups(records, true),
             "shared-source-text-groups" => Self::text_groups(records, false),
+            "report-text-groups" => Self::report_groups(records),
             _ => None,
         }
+    }
+
+    fn report_groups(records: &[Value]) -> Option<Value> {
+        let mut duplicates = Vec::with_capacity(records.len());
+        let mut sources = Vec::with_capacity(records.len());
+        for value in records {
+            let row = value.as_object()?;
+            if row.len() != 4 {
+                return None;
+            }
+            let id = row.get("id")?.as_str()?;
+            duplicates.push(json!({"id":id,"scope":row.get("scope")?.as_str()?,
+                "body":row.get("body")?.as_str()?}));
+            sources.push(json!({"id":id,"source":row.get("source")?.as_str()?}));
+        }
+        let duplicates = Self::text_groups(&duplicates, true)?;
+        let sources = Self::text_groups(&sources, false)?;
+        Some(json!({"duplicates":duplicates.get("groups")?,
+            "shared_sources":sources.get("groups")?}))
     }
 
     fn text_groups(records: &[Value], duplicate: bool) -> Option<Value> {
