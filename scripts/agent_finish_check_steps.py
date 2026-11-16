@@ -22,7 +22,7 @@ from agent_execution_capsule_validation import (
 )
 from agent_finish_common import add_gate_signal, append_unique
 from agent_finish_gate_policy import SOURCE_DOCS_GATE, validate_gate_evidence
-from agent_finish_gate_learning_validators import validate_project_memory_decision
+from agent_finish_gate_learning_validators import retrospective_memory_failures
 from agent_finish_documentation import documented_required_doc_updates
 from agent_review_attestation import REVIEW_HOOK_GATE, ReviewAttestation
 from agent_route_state import preflight_evidence_sha256, request_fingerprint, route_fingerprint
@@ -123,14 +123,19 @@ def read_preflight(evidence_path: Path, failures: list[str], *, project: Path | 
 
 
 def project_memory_closeout_failures(route: dict[str, Any], gate_evidence: dict[str, str], project: Path) -> list[str]:
-    """Recheck the mutable user store after final checks, without writing it."""
+    """Recheck mutable memory with the initial gate's policy, without writing it."""
     if "project_memory_contract" not in route or "retrospective check" not in (route.get("gates") or []):
         return []
     evidence = gate_evidence.get("retrospective check", "")
     if not evidence:
         return []  # Initial gate validation owns missing-gate reporting.
-    return validate_project_memory_decision(evidence, route["project_memory_contract"], project,
-                                            str(route.get("command") or "all"))
+    return retrospective_memory_failures(
+        evidence,
+        contract=str(route.get("retrospective_contract") or "legacy"),
+        memory_contract=route["project_memory_contract"],
+        project=project,
+        scope=str(route.get("command") or "all"),
+    )
 
 
 def revalidate_project_memory_closeout(

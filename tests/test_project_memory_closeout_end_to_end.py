@@ -58,6 +58,98 @@ class RetrospectiveMemoryCloseoutTests(unittest.TestCase):
         return self.render(memory_decision="stored", memory_reason="Verified retry cause retained for later work",
                            memory_record=record["id"] + ":" + record["digest"])
 
+    GROUNDED = "Keep existing project_memory_closeout_failures check because the regression covers it"
+
+    def late(self, text):
+        from agent_finish_check_steps import project_memory_closeout_failures
+
+        route = dict(self.route, gates=["retrospective check"])
+        return project_memory_closeout_failures(route, {"retrospective check": text}, self.project)
+
+    def closeout(self, text):
+        from agent_finish_check_steps import revalidate_project_memory_closeout
+
+        route = dict(self.route, gates=["retrospective check"])
+        signals = [dict(gate="retrospective check", signal="SUCCESS", status="passed", evidence=text)]
+        failures, policy = [], []
+        revalidate_project_memory_closeout(route, self.project, {"retrospective check": text},
+                                         signals, failures, policy)
+        return signals, failures, policy
+
+    def compact(self, **extra):
+        self.route["retrospective_contract"] = "compact_v1"
+        extra.setdefault("learning_decision", self.GROUNDED)
+        return self.render(**extra)
+
+    def test_compact_success_without_memory_fields_agrees_at_gate_and_late_closeout(self):
+        for fields in (dict(), dict(skills_checked="none", outcome="no_skill_used")):
+            with self.subTest(**fields):
+                text = self.compact(**fields)
+                self.assertEqual([], self.validate(text))
+                self.assertEqual([], self.late(text))
+                signals, failures, policy = self.closeout(text)
+                self.assertEqual(([], []), (failures, policy))
+                self.assertEqual(["SUCCESS"], [signal["signal"] for signal in signals])
+
+    def test_late_closeout_does_not_reassess_compact_learning_decision(self):
+        text = self.compact(learning_decision="No skill change needed")
+        self.assertTrue(any("grounded learning decision" in error for error in self.validate(text)))
+        self.assertEqual([], self.late(text))
+
+    def test_compact_explicit_memory_claims_are_checked_at_both_stages(self):
+        zero = "0" * 16 + ":" + "0" * 64
+        for memory in (dict(memory_decision="not_needed"),
+                       dict(memory_decision="guessed", memory_reason="Unknown action"),
+                       dict(memory_decision="stored", memory_reason="Confirmed root cause"),
+                       dict(memory_decision="stored", memory_reason="Confirmed root cause", memory_record=zero)):
+            with self.subTest(**memory):
+                text = self.compact(**memory)
+                self.assertTrue(self.validate(text))
+                self.assertTrue(self.late(text))
+                signals, failures, _ = self.closeout(text)
+                self.assertTrue(failures)
+                self.assertEqual(["FAIL"], [signal["signal"] for signal in signals])
+
+    def test_compact_stored_lesson_is_reread_live_at_late_closeout(self):
+        record = self.capture()
+        text = self.compact(memory_decision="stored", memory_reason="Verified retry cause retained for later work",
+                            memory_record=record["id"] + ":" + record["digest"])
+        self.assertEqual([], self.validate(text))
+        self.assertEqual([], self.late(text))
+        _retire(self.project, record["id"])
+        self.assertTrue(self.validate(text))
+        signals, failures, policy = self.closeout(text)
+        self.assertTrue(failures)
+        self.assertEqual(failures, policy)
+        self.assertEqual(["FAIL"], [signal["signal"] for signal in signals])
+
+    def test_gap_causal_and_unknown_contracts_still_require_memory_late(self):
+        for contract, fields in (("compact_v1", dict(outcome="reusable_gap", observation="recorded")),
+                                 ("causal_v1", dict()), ("future_v9", dict())):
+            with self.subTest(contract=contract, **fields):
+                self.route["retrospective_contract"] = contract
+                text = self.render(learning_decision=self.GROUNDED, **fields)
+                self.assertTrue(self.validate(text))
+                self.assertTrue(any("memory decision" in error for error in self.late(text)))
+
+    def test_compact_unknown_memory_contract_fails_and_legacy_stays_frozen(self):
+        text = self.compact()
+        self.route["project_memory_contract"] = "unknown_future"
+        self.assertTrue(any("unsupported project memory contract" in error for error in self.validate(text)))
+        self.assertTrue(any("unsupported project memory contract" in error for error in self.late(text)))
+        del self.route["project_memory_contract"]
+        self.assertEqual([], self.validate(text))
+        self.assertEqual([], self.late(text))
+
+    def test_missing_retrospective_contract_has_the_same_legacy_default_at_both_stages(self):
+        del self.route["retrospective_contract"]
+        text = self.render()
+        self.assertTrue(self.validate(text))
+        self.assertTrue(self.late(text))
+        text = self.render(memory_decision="not_needed", memory_reason="Canonical validator owns the rule")
+        self.assertEqual([], self.validate(text))
+        self.assertEqual([], self.late(text))
+
     def test_old_success_without_memory_decision_is_no_longer_completion(self):
         self.assertTrue(any("memory decision" in error for error in self.validate(self.render())))
 
@@ -172,16 +264,20 @@ class RetrospectiveMemoryCloseoutTests(unittest.TestCase):
         self.assertEqual([], self.validate(text))
         source.write_text("# changed retry contract\n", encoding="utf-8")
         self.assertTrue(self.validate(text))
+        self.assertTrue(self.late(text))
         source.unlink()
         self.assertTrue(self.validate(text))
+        self.assertTrue(self.late(text))
         old = self.capture()
         self.capture(replaces=old["id"])
         self.assertTrue(self.validate(self.stored(old)))
+        self.assertTrue(self.late(self.stored(old)))
         expired = self.capture()
         expired["review_on"] = date.today().isoformat()
         expired["digest"] = _digest(expired)
         (store_dir(self.project) / (expired["id"] + ".json")).write_text(json.dumps(expired), encoding="utf-8")
         self.assertTrue(self.validate(self.stored(expired)))
+        self.assertTrue(self.late(self.stored(expired)))
 
     def test_new_routes_require_the_existing_gate_decision(self):
         from workflow_route import resolve_docs
@@ -225,7 +321,14 @@ class RetrospectiveMemoryCloseoutTests(unittest.TestCase):
                          "--command", "test", "--request", "Verify retry delivery",
                          "--intent", "fixture_verification", "--target-summary", "Verify retry delivery")
             evidence = re.search(r"^- evidence: (.+)$", result, re.M).group(1)
-            return result, ["--project", str(self.project), "--rules", str(root), "--evidence", evidence]
+            context = ["--project", str(self.project), "--rules", str(root), "--evidence", evidence]
+            cli("checkpoint", *context, "--checkpoint-kind", "decision", "--phase", "verifying",
+                "--work-stdin", body=json.dumps({
+                    "objective": "Verify retry delivery and live project-memory closeout through the actual CLI",
+                    "acceptance_criteria": ["Stored retry lessons are rechecked at final closeout"],
+                    "remaining_work": [],
+                }))
+            return result, context
 
         _, context = start()
         fields = dict(skills_checked="retrospective_learning", outcome="no_reusable_gap", observation="not_needed",

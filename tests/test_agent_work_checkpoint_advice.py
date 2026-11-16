@@ -97,7 +97,10 @@ class WorkCheckpointAdviceTests(unittest.TestCase):
         printed = "\n".join(advice)
 
         self.assertIn("moru-hook checkpoint", printed)
-        command = shlex.split(advice[1].splitlines()[1])
+        command_block = next(
+            line for line in advice if line.startswith(wiring.WORK_CHECKPOINT_COMMAND_LEAD)
+        )
+        command = shlex.split(command_block.splitlines()[1])
         self.assertEqual(str(work_file), command[command.index("--work-file") + 1])
         self.assertTrue(work_file.is_absolute())
         self.assertNotIn("--work-stdin", printed)

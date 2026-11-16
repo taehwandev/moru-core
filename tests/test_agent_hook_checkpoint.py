@@ -292,6 +292,87 @@ class CheckpointCommandTests(unittest.TestCase):
             self.assertIn("--work-template", output.getvalue())
             self.assertIn("Do not fabricate", output.getvalue())
 
+    def test_rejected_record_lists_show_only_the_relevant_schema_shapes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory)
+            before = fixture.packet()
+            output = io.StringIO()
+            work = {
+                "verification": ["private-check-result", "another-private-result"],
+                "remaining_work": ["private-next-action"],
+            }
+            with patch.object(sys, "stdin", _stdin(work)), redirect_stdout(output):
+                code = agent_hook_checkpoint.checkpoint_hook(_args(fixture))
+
+            rendered = output.getvalue()
+            self.assertNotEqual(0, code)
+            self.assertEqual(before, fixture.packet())
+            self.assertIn("Expected work input", rendered)
+            self.assertIn("evidence_sha256, completed_at", rendered)
+            self.assertIn("{checkpoint, action}", rendered)
+            self.assertEqual(1, rendered.count("evidence_sha256, completed_at"))
+            self.assertNotIn("{id, status:", rendered)
+            for value in work["verification"] + work["remaining_work"]:
+                self.assertNotIn(value, rendered)
+
+    def test_rejection_shape_is_read_from_the_canonical_shape_renderer(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory)
+            output = io.StringIO()
+            with (
+                patch.object(sys, "stdin", _stdin({"decisions": ["a sentence"]})),
+                patch("agent_hook_continuation._work_shape_lines", return_value=[
+                    "    decisions[12]: canonical-shape-marker",
+                    "    verification[32]: unrelated-shape-marker",
+                ]),
+                redirect_stdout(output),
+            ):
+                code = agent_hook_checkpoint.checkpoint_hook(_args(fixture))
+
+            self.assertNotEqual(0, code)
+            self.assertIn("canonical-shape-marker", output.getvalue())
+            self.assertNotIn("unrelated-shape-marker", output.getvalue())
+
+    def test_unknown_field_suffix_does_not_select_a_different_fields_shape(self) -> None:
+        for field in ("work", "criteria", "", "status", "decisions/x", "decisions/0/x", "objective/x"):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                fixture = RuntimeFixture(directory)
+                output = io.StringIO()
+                with (
+                    patch.object(sys, "stdin", _stdin({field: ["private-next-action"]})),
+                    redirect_stdout(output),
+                ):
+                    code = agent_hook_checkpoint.checkpoint_hook(_args(fixture))
+                self.assertNotEqual(0, code)
+                self.assertIn("unknown_field", output.getvalue())
+                self.assertNotIn("Expected work input", output.getvalue())
+                self.assertNotIn("private-next-action", output.getvalue())
+
+    def test_grouped_schema_rows_support_their_second_field(self) -> None:
+        for field in ("blockers", "inspected_scope"):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                fixture = RuntimeFixture(directory)
+                output = io.StringIO()
+                value = 42 if field == "blockers" else "private-scope-result"
+                with patch.object(sys, "stdin", _stdin({field: [value]})), redirect_stdout(output):
+                    code = agent_hook_checkpoint.checkpoint_hook(_args(fixture))
+                self.assertNotEqual(0, code)
+                self.assertIn(f"{field}[", output.getvalue())
+                self.assertNotIn("private-scope-result", output.getvalue())
+
+    def test_objective_type_error_shows_its_canonical_scalar_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory)
+            output = io.StringIO()
+            with (
+                patch.object(sys, "stdin", _stdin({"objective": ["private-objective"]})),
+                redirect_stdout(output),
+            ):
+                code = agent_hook_checkpoint.checkpoint_hook(_args(fixture))
+            self.assertNotEqual(0, code)
+            self.assertIn("objective: one text string", output.getvalue())
+            self.assertNotIn("private-objective", output.getvalue())
+
     def test_parser_exposes_the_provider_neutral_checkpoint_command(self) -> None:
         parser = agent_hook.build_parser()
         parsed = parser.parse_args(

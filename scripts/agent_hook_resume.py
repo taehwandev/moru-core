@@ -16,6 +16,7 @@ could ever bind to, and demanding one would deadlock the caller.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
@@ -242,6 +243,8 @@ def _resume_last(args: argparse.Namespace) -> int:
                 "reuse": None,
             }
             ready = False
+    if ready:
+        result = _review_resume_checkpoint(result, project=args.project, rules=args.rules)
     details = [f"resume result: {result['result']}"]
     details.extend(_ready_lines(result) if ready else _refusal_lines(result))
     return finish_with_result(
@@ -253,6 +256,41 @@ def _resume_last(args: argparse.Namespace) -> int:
         args.repair_cycle,
         invocation_error=not ready,
     )
+
+
+def _review_resume_checkpoint(result: dict[str, Any], *, project: Path, rules: Path) -> dict[str, Any]:
+    """Choose advice after session rebinding; never alter review evidence."""
+
+    from agent_gate_evidence import merge_gate_evidence_from_ledger
+    from agent_review_attestation import REVIEW_HOOK_GATE, ReviewAttestation
+
+    try:
+        evidence_path = Path(result["evidence_path"])
+        payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+        route = payload.get("route") if isinstance(payload, dict) else None
+        if not isinstance(route, dict):
+            raise ValueError("invalid resume route")
+        gates = route.get("gates", [])
+        if not isinstance(gates, list):
+            raise ValueError("invalid route gates")
+        if REVIEW_HOOK_GATE not in gates:
+            return result
+        checkpoint = result["checkpoint"]
+        if checkpoint != "finish" and (
+            checkpoint not in gates or gates.index(checkpoint) <= gates.index(REVIEW_HOOK_GATE)
+        ):
+            return result
+        _, ledger = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence_path)
+        failures = ReviewAttestation.failures(
+            project=project, rules=rules, evidence_path=evidence_path, route=route,
+            ledger_fields=(ledger.get("entry_fields") or {}).get(REVIEW_HOOK_GATE, {}),
+            ledger_source=(ledger.get("sources") or {}).get(REVIEW_HOOK_GATE, ""),
+        )
+        if not failures:
+            return result
+    except (OSError, RuntimeError, ValueError):
+        return {**result, "review_binding_unverified": True, "next_action": "inspect resume evidence"}
+    return {**result, "checkpoint": REVIEW_HOOK_GATE, "review_refresh_required": True}
 
 
 def _ready_lines(result: dict[str, Any]) -> list[str]:
@@ -280,7 +318,15 @@ def _ready_lines(result: dict[str, Any]) -> list[str]:
         f"retained evidence references: {len(references)}; reference only; "
         f"inspect with resume --context --run-id {result['run_id']}"
     ] if references else []
-    return reconciled + retained + [
+    review = [
+        "refresh the required review before finish; the current binding has no valid "
+        "review attestation. Unchanged test records remain subject to their normal reuse checks."
+    ] if result.get("review_refresh_required") else []
+    inspection = [
+        "next action: inspect resume evidence; review binding is unverified. "
+        "Resolve this before continuing to finish."
+    ] if result.get("review_binding_unverified") else []
+    return reconciled + retained + review + inspection + [
         f"run: {result['run_id']}",
         f"route command: {result['route_command']}",
         f"evidence: {result['evidence_path']}",

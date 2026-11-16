@@ -122,11 +122,33 @@ def validate_retrospective_check(
             )
     failures.extend(_causal_assessment_failures(text, contract, outcome))
     failures.extend(_efficiency_failures(text, outcome))
-    compact_success = contract == 'compact_v1' and outcome in {'no_reusable_gap', 'no_skill_used'}
-    explicit_memory = any(_field(text, name.replace('_', ' ')) for name in MEMORY_DECISION_FIELDS)
-    if not compact_success or explicit_memory:
-        failures.extend(validate_project_memory_decision(text, memory_contract, project, scope))
+    failures.extend(retrospective_memory_failures(
+        text, contract=contract, memory_contract=memory_contract, project=project, scope=scope))
     return failures
+
+
+_COMPACT_SUCCESS_OUTCOMES = frozenset({"no_reusable_gap", "no_skill_used"})
+
+
+def retrospective_memory_failures(
+    text: str,
+    *,
+    contract: str,
+    memory_contract: str,
+    project: Path | None,
+    scope: str,
+) -> list[str]:
+    """Apply one memory policy at the initial gate and the late store reread.
+
+    Compact success can omit memory fields. Explicit claims and unknown
+    contracts remain checked; causal and skill fields belong to the first gate.
+    """
+    outcome = _field(text, "outcome").lower()
+    compact_success = contract == "compact_v1" and outcome in _COMPACT_SUCCESS_OUTCOMES
+    explicit_memory = any(_field(text, name.replace("_", " ")) for name in MEMORY_DECISION_FIELDS)
+    if memory_contract == "decision_v1" and compact_success and not explicit_memory:
+        return []
+    return validate_project_memory_decision(text, memory_contract, project, scope)
 
 
 _BARE_DISMISSAL_RE = re.compile(

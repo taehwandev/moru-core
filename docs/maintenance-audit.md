@@ -1015,3 +1015,48 @@ document delivery/reuse tests passed, including proof-freshness boundaries and
 invalid-field rejection. Raw consultation and comparison artifacts remain local
 and untracked. There is no new cache, persisted schema, hook, service, model
 call path, permission rule, native build or installed-runtime change.
+
+## Repeated agent mistakes: 2026-11-16
+
+Baseline `936b943e`; scope H06/H08/H10. The user approved three concrete
+follow-ups. The original runtime/test files also match public `f7ebc088`;
+the intervening main commits affect other files. The user requested divided
+implementation and review with Claude and AGY, then local main integration.
+Claude supplied the memory-policy patch; the lead
+owns resume/input guidance, source application, executable checks, lifecycle
+evidence and integration. AGY's first implementation request reached the
+unchanged 900-second total limit with confirmed cancellation and no response;
+its distinct narrower review completed and identified field-matching edge
+cases. Claude's source review identified missing real resume-boundary coverage.
+Those findings are addressed by empty/unknown-key tests, a real recorded review
+followed by real session rebinding, and separate inspection advice that retains
+the actual checkpoint. Provider tools are denied. Verification covers source
+and tests; native builds, installation, remote publication and live task-quality
+benchmarks remain outside this delivery.
+
+| ID | Reproduction and owner | Disposition and observing check |
+| --- | --- | --- |
+| F36 | `validate_retrospective_check` accepts compact success without memory fields, but `project_memory_closeout_failures` rejects the same evidence at final closeout. | Both stages use `retrospective_memory_failures`. Compact success may omit a memory decision; explicit claims still reach the live store validator. Causal fields remain owned by initial validation. Unknown memory contracts fail through the existing validator. |
+| F37 | Resume can preserve a successful review gate while runtime session rebinding changes the preflight bytes to which its attestation binds. A retained finish checkpoint then advertises an action that must first refresh review. | After rebinding, consult the existing attestation validator before advising a later checkpoint. An invalid review points back to review; earlier gates and no-review routes retain their checkpoint. Unreadable binding requires inspection. The advisory changes no attestation, ledger or test evidence. |
+| F38 | Rejected checkpoint record lists name JSON pointers but leave the caller to discover object entry fields in another command. | On rejection only, show relevant canonical shape rows. Ignore empty keys and unknown-field diagnostics, whose legacy pointers can contain unescaped slashes; require a field-name boundary so suffix aliases select nothing. Grouped schema rows retain their second fields. Repeated failures do not duplicate rows, submitted values are never echoed, and successful/default output is unchanged. |
+
+The new compact-closeout regression fails on the baseline for both no-gap and
+no-skill outcomes. New checkpoint-shape regressions also fail before the fix.
+Mutable memory remains rechecked for retirement, replacement, expiry and source
+drift. Two existing test fixtures were stale independently of this change:
+the real CLI memory test omitted the current work-scope checkpoint, and the
+checkpoint advice test assumed a fixed output index. Both failures reproduced
+on baseline main; their fixtures now follow the actual contracts.
+
+The integration base was advanced to `9b3da941` after another main task landed;
+its eight changed paths are disjoint, and all nine owned source hashes survived
+the update unchanged. The final 333 selected Python tests pass on this base,
+including actual review-record/session-rebind integration and unchanged
+attestation bytes, stored-memory negatives and checkpoint privacy cases.
+Structural preview passes; legacy oversized modules retain explicit ownership
+and bounded changed functions. Provider source-review results and executable
+checks are retained in local evidence. Both focused provider re-reviews passed.
+The lead also reproduced the remaining legacy-pointer caveat and verified its
+conservative unknown-field handling with slash-key and grouped-row regressions.
+No token, elapsed-time, cost or
+model-quality reduction is inferred from these deterministic cases.

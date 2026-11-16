@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -120,6 +121,7 @@ def checkpoint_hook(args: argparse.Namespace) -> int:
             args, False,
             f"checkpoint refused: {rules}\n"
             f"{prose_hint}"
+            f"{_work_input_shape_hint(error.failures)}"
             "Use checkpoint --work-template for minimal JSON, or --work-shape "
             "for optional fields. Keep scope paths repository-relative; evidence "
             "hashes must be real SHA-256 values, not result labels. A post_mutation "
@@ -145,6 +147,32 @@ def checkpoint_hook(args: argparse.Namespace) -> int:
         args.output,
         {"checkpoint": {"kind": args.checkpoint_kind, "generation": packet["generation"]}},
         args.repair_cycle,
+    )
+
+
+def _work_input_shape_hint(failures: list[dict[str, str]]) -> str:
+    """Show rejected fields' canonical shapes without echoing submitted values."""
+
+    from agent_hook_continuation import _work_shape_lines
+
+    fields = set()
+    for item in failures:
+        parts = item["pointer"].split("/")
+        if len(parts) < 3 or parts[1] != "work" or not parts[2]:
+            continue
+        if item["rule"] == "unknown_field":
+            continue
+        fields.add(parts[2])
+    shapes = [
+        line for line in _work_shape_lines()
+        if any(re.search(rf"\b{re.escape(field)}(?:\[|:)", line)
+               for field in fields)
+    ]
+    if not shapes:
+        return ""
+    return (
+        "Expected work input (schema shapes; entries in braces are objects):\n"
+        + "\n".join(shapes) + "\n"
     )
 
 
