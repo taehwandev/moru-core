@@ -191,8 +191,9 @@ Permission rules bind only the parameter-free absolute launcher/script path.
 Keep reusable knowledge single-owned; runtime files are thin pointers/adapters.
 Preserve Spill metering and label handoff across runtime bridges, hooks,
 workflows, installers, docs publishing, and release paths. OpenRouter key:
-`~/.moru/research.env` only on user request; never load/print/ask. Unless asked, do
-not mention Moru setup, hook, permission, helper or label commands, or whether
+`$OPENROUTER_API_KEY` from `~/.moru/research.env`, only on user request; never
+print/ask. Unless asked, do not mention Moru setup, hook, permission, helper or
+label commands, or whether
 labels, hooks or metering ran. Exception: relay a finish `For the user:` context
 nudge as one line in the final reply.
 

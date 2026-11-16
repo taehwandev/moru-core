@@ -21,6 +21,7 @@ from support.runtime_bridge import (
     RUNTIME_BRIDGE_BEGIN,
     RUNTIME_BRIDGE_END,
     RUNTIME_BRIDGE_POINTER_PHRASE,
+    RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
     RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE,
     RUNTIME_CAPSULE_BRIDGE_PHRASES,
     RUNTIME_CONTINUATION_BRIDGE_PHRASE,
@@ -107,8 +108,10 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
     def test_compact_bridge_routes_details_without_a_blanket_read(self):
         for runtime, entry in (("Codex", "AGENTS.md"), ("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
             pointer_block = runtime_bridge_block(Path("/moru-core"), runtime, entry)
-            # 450 plus the launcher path a hookless runtime needs to start the workflow.
-            self.assertLess(len(pointer_block.encode()), 500)
+            # 450 plus the launcher path a hookless runtime needs to start the workflow,
+            # plus the research key location every project needs (RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE).
+            self.assertLess(len(pointer_block.encode()), 500 + len(RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE) + 1)
+            self.assertIn(RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE, pointer_block)
             self.assertIn("/moru-core/AGENTS.md", pointer_block)
             self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, pointer_block)
             self.assertIn(RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE, pointer_block)
@@ -116,7 +119,8 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
 
             block = runtime_canonical_contract_block(Path("/moru-core"), runtime, entry)
             moved_guidance = sum(len(phrase.encode()) + 3 for phrase in CODEX_OPERATOR_REVIEW_BRIDGE_PHRASES) if runtime == "Codex" else 0
-            budget = 6500 if runtime == "Codex" else 6000
+            # +20 for the OpenRouter key phrase naming $OPENROUTER_API_KEY.
+            budget = 6520 if runtime == "Codex" else 6020
             self.assertLess(len(block.encode()) - moved_guidance, budget)
             self.assertIn("For unresolved lifecycle arguments", block)
             self.assertIn("When delegation is applicable", block)

@@ -535,7 +535,9 @@ class RuntimeSetupTests(unittest.TestCase):
         self.assertIn("only on user request", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
         self.assertNotIn("source it", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
                          "a key on disk is not permission to load it; paid use needs the user's request")
-        self.assertIn("never load, print or ask", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
+        # The shell exports the key so every project can use it; agents still use it only on request.
+        self.assertIn("$OPENROUTER_API_KEY", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
+        self.assertIn("never print or ask", RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE)
 
     def test_every_runtime_bridge_exposes_the_project_local_agent_mailbox(self) -> None:
         surfaces = (

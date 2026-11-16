@@ -141,7 +141,7 @@ RUNTIME_NATIVE_MEMORY_PHRASES = {
 }
 # One home for the research key so other projects and runtimes stop reporting none.
 RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE = (
-    'OpenRouter key: ~/.moru/research.env, only on user request; never load, print or ask.'
+    'OpenRouter key: $OPENROUTER_API_KEY from ~/.moru/research.env; only on user request; never print or ask.'
 )
 RUNTIME_LOOKUP_BRIDGE_PHRASE = (
     'For read-only lookup or checks of a supplied diagnosis, use bounded evidence without '
@@ -277,6 +277,7 @@ def runtime_canonical_contract_block(root: Path, runtime_name: str, instruction_
 def runtime_bridge_required_phrases(runtime_name: str, instruction_file: str) -> list[str]:
     return [
         RUNTIME_BRIDGE_POINTER_PHRASE,
+        RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
         f"{runtime_name} reads {instruction_file}.",
         RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE,
     ]
@@ -293,6 +294,8 @@ def runtime_bridge_block(root: Path, runtime_name: str, instruction_file: str) -
             "when present; reuse unchanged guidance in this session."
         ),
         f"`<MORU_LAUNCHER>` is `{stable_launcher_path()}`; start tracked work with it.",
+        # Every project sees this block, so the key location must live here, not only in AGENTS.md.
+        RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
         f"{runtime_name} reads {instruction_file}. {RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE}",
         RUNTIME_BRIDGE_END,
         "",
