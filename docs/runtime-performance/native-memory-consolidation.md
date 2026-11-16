@@ -113,3 +113,28 @@ replacement request; malformed combined replies make one attempt then use the
 original read-only algorithms. The source-bound debug fixture still records
 617 inputs. Unit 16 remains partial; this adds no release, installation, Linux
 acceptance or measured timing claim.
+
+## Complete ordinary report plan
+
+A separate closed opt-in supplies `review: {today, horizon, statuses}` on the
+existing operation with seven-field rows. MemoryConsolidation composes the
+existing MemoryReview live/date selector and group/replacement kernels. Review
+indices address original input; relation indices address the selected live
+slice. Their existing Python decoders validate each coordinate system and keep
+original objects. Earlier group-only and relation-only packets remain supported.
+
+The caller selects this path only for canonical functions, projection fields,
+calendar bindings and ordinary string/null records. Customized projection
+iteration still precedes grouping; unsupported profiles keep the former path.
+A submitted full-plan decline uses the original read-only pipeline without
+another native attempt. Horizon overflow and lazy reference projection/error
+order remain unchanged. Empty input makes no native request.
+
+Local debug verification passed 81 Rust memory tests and 85 Python cases.
+Sixteen seeded full reports cover status filtering, duplicate IDs, dates and
+replacement links with one request instead of two and zero Python reference
+classification replay. Disabling the complete plan fails on the separate date
+request. Malformed plans, retired invalid date strings, closed schemas, custom
+projection fields and legacy modes retain their tested behavior. The debug
+fixture binds 617 inputs; unit 16 remains partial, with no release, actual
+activation, Linux or measured timing acceptance added.

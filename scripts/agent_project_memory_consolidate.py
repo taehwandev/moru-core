@@ -24,6 +24,7 @@ _NATIVE_DATE = date
 _NATIVE_DELTA = timedelta
 _PUNCTUATION_RE = re.compile(r"[^\w\s]")
 _DECISION_FIELDS = ("id", "scope", "body", "source", "review_on", *APPLICABILITY_FIELDS)
+_NATIVE_DECISION_FIELDS = _DECISION_FIELDS
 
 
 def normalize(text: str) -> str:
@@ -205,22 +206,32 @@ def _unfinished_replacements_reference(live: list[dict[str, Any]]) -> list[dict[
     return findings
 
 
-def _report_relations(live):
-    ordinary = (_native_report_profile() and all(
+def _native_relation_profile():
+    return (_native_report_profile() and all(
         globals().get(name) is original and original.__code__ is code and original.__defaults__ is defaults
         for name,(original,code,defaults) in _RELATION_CALLBACKS.items()))
-    if ordinary:
+
+
+def _relation_entries(groups, replacements):
+    duplicates, shared = _group_entries(groups)
+    return {"duplicate_groups":duplicates,"shared_source_groups":shared,
+            "unfinished_replacements":_replacement_entries(replacements)}
+
+
+def _reference_relations(live):
+    return {"duplicate_groups":_duplicate_groups_reference(live),
+            "shared_source_groups":_shared_source_groups_reference(live),
+            "unfinished_replacements":_unfinished_replacements_reference(live)}
+
+
+def _report_relations(live):
+    if _native_relation_profile():
         from support.native_memory_consolidation import NativeMemoryConsolidation
         result, attempted = NativeMemoryConsolidation.report_relations(live,DUPLICATE_JACCARD)
         if result is not None:
-            groups, replacements = result
-            duplicates, shared = _group_entries(groups)
-            return {"duplicate_groups":duplicates,"shared_source_groups":shared,
-                    "unfinished_replacements":_replacement_entries(replacements)}
+            return _relation_entries(*result)
         if attempted:
-            return {"duplicate_groups":_duplicate_groups_reference(live),
-                    "shared_source_groups":_shared_source_groups_reference(live),
-                    "unfinished_replacements":_unfinished_replacements_reference(live)}
+            return _reference_relations(live)
     duplicates, shared = _report_groups(live)
     return {"duplicate_groups":duplicates,"shared_source_groups":shared,
             "unfinished_replacements":_unfinished_replacements(live)}
@@ -258,11 +269,21 @@ def _review_buckets_reference(live: list[dict[str, Any]], today: date, horizon: 
             (record for record in live if today < review_on[record["id"]] <= horizon))
 
 
-def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
-             within_days: int = DEFAULT_WITHIN_DAYS) -> dict[str, Any]:
-    """Classify validated records; the result carries bodies for the agent only."""
-    if within_days < 0:
-        raise ValueError("--within-days must not be negative")
+def _report_inputs(records, today, within_days):
+    ordinary = (date is _NATIVE_DATE and timedelta is _NATIVE_DELTA
+        and _DECISION_FIELDS is _NATIVE_DECISION_FIELDS and _native_relation_profile() and all(
+        globals().get(name) is original and original.__code__ is code and original.__defaults__ is defaults
+        for name,(original,code,defaults) in _PLAN_CALLBACKS.items()))
+    if ordinary:
+        from support.native_memory_consolidation import NativeMemoryConsolidation
+        plan, attempted = NativeMemoryConsolidation.report_plan(
+            records,today,within_days,RECALLABLE_STATUSES,DUPLICATE_JACCARD)
+        if plan is not None:
+            return *plan, False
+        if attempted:
+            live = _live_records_reference(records)
+            expired, expiring = _review_buckets_reference(live,today,today+timedelta(days=within_days))
+            return (live,expired,expiring), None, True
     from support.native_memory_review import NativeMemoryReview
     selected = (NativeMemoryReview.findings_inputs(records, today, within_days, RECALLABLE_STATUSES)
                 if date is _NATIVE_DATE and timedelta is _NATIVE_DELTA else None)
@@ -270,8 +291,22 @@ def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
         live = _live_records(records)
         horizon = today + timedelta(days=within_days)
         expired, expiring = _review_buckets(live, today, horizon)
-    else:
-        live, expired, expiring = selected
+        selected = live, expired, expiring
+    return selected, None, False
+
+
+_PLAN_CALLBACKS = {name:(globals()[name],globals()[name].__code__,globals()[name].__defaults__)
+    for name in ("_report_relations","_live_records","_live_records_reference","_review_buckets",
+                 "_review_buckets_reference","_relation_entries","_reference_relations")}
+
+
+def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
+             within_days: int = DEFAULT_WITHIN_DAYS) -> dict[str, Any]:
+    """Classify validated records; the result carries bodies for the agent only."""
+    if within_days < 0:
+        raise ValueError("--within-days must not be negative")
+    selected, relations, reference = _report_inputs(records,today,within_days)
+    live, expired, expiring = selected
     report = {
         "today": today.isoformat(),
         "within_days": within_days,
@@ -285,7 +320,8 @@ def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
             for record in expiring
         ],
     }
-    report.update(_report_relations(live))
+    report.update(_relation_entries(*relations) if relations is not None else
+                  _reference_relations(live) if reference else _report_relations(live))
     report["unreadable"] = unreadable
     return report
 

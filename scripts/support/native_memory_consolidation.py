@@ -1,13 +1,14 @@
 """Typed grouping transport; custom normalization and report values stay local.
 
-Owner: NativeMemoryConsolidation. Allowed: stdlib/NativeProbe/NativeMemoryUpkeep, supplied original
-normalizer. Forbidden: pair comparison, union-find, grouping, store IO/writes.
+Owner: NativeMemoryConsolidation. Allowed: stdlib/NativeProbe/typed upkeep and
+review decoders, supplied normalizer. Forbidden: grouping algorithms, store IO/writes.
 Callers/tests: consolidation group helpers and native consolidation tests.
 """
 import unicodedata
 
 from support.native_probe_transport import NativeProbe
 from support import native_memory_upkeep as upkeep
+from support import native_memory_review as review
 
 
 def _bindings_match(owner, bindings):
@@ -46,6 +47,55 @@ def _report_packet(records, threshold, *, relations=False):
         return None, True
     return result, True
 
+
+def _relation_profile():
+    return (_bindings_match(NativeMemoryConsolidation,_REPORT_BINDINGS)
+            and _bindings_match(upkeep.NativeMemoryUpkeep,upkeep._REPLACEMENT_BINDINGS))
+
+
+def _relation_result(records, result):
+    if type(result) is not dict or set(result) != {"duplicates","shared_sources","findings"}:
+        return None
+    groups = NativeMemoryConsolidation._report_result(records,
+        {key:result[key] for key in ("duplicates","shared_sources")})
+    replacements = upkeep.NativeMemoryUpkeep._replacement_result(records,{"findings":result["findings"]})
+    return None if groups is None or replacements is None else (groups,replacements)
+
+
+def _plan_packet(records, today, within_days, statuses, threshold):
+    if (not _relation_profile() or not _bindings_match(NativeMemoryConsolidation,_PLAN_BINDINGS)
+            or not _bindings_match(review.NativeMemoryReview,review._REVIEW_BINDINGS)
+            or not _bindings_match(review.NativeMemoryUpkeep,review._UPKEEP_REVIEW_BINDINGS)
+            or review.date is not review._NATIVE_DATE or review.timedelta is not review._NATIVE_DELTA
+            or type(today) is not review._NATIVE_DATE or type(within_days) is not int
+            or type(statuses) is not frozenset or any(type(status) is not str for status in statuses)
+            or type(threshold) is not float or threshold != 0.8):
+        return None, False
+    if not upkeep.NativeMemoryUpkeep._profile(records,("id","status")):
+        return None, False
+    horizon = today + review.timedelta(days=within_days)
+    if not upkeep.NativeMemoryUpkeep._profile(records,("id","status","scope","body","source","review_on"),links=True):
+        return None, False
+    if not records:
+        return {"review":{"live":[],"expired":[],"expiring":[]},
+                "relations":{"duplicates":[],"shared_sources":[],"findings":[]}}, False
+    try:
+        if not NativeProbe.available():
+            return None, False
+    except (OSError, ValueError, RuntimeError):
+        return None, False
+    rows = [{key:row[key] for key in ("id","status","scope","body","source")} for row in records]
+    for row,record in zip(rows,records):
+        row.update(review=record["review_on"],replaces=record.get("replaces"))
+    try:
+        result = NativeProbe.request("--memory-probe","report-text-groups",{
+            "unicode":unicodedata.unidata_version,"records":rows,
+            "review":{"today":today.isoformat(),"horizon":horizon.isoformat(),"statuses":sorted(statuses)}})
+    except (OSError, ValueError, RuntimeError):
+        return None, True
+    return result, True
+
+
 class NativeMemoryConsolidation:
     @staticmethod
     def report_groups(records, threshold=0.8):
@@ -54,16 +104,21 @@ class NativeMemoryConsolidation:
 
     @staticmethod
     def report_relations(records, threshold=0.8):
-        if (not _bindings_match(NativeMemoryConsolidation,_REPORT_BINDINGS)
-                or not _bindings_match(upkeep.NativeMemoryUpkeep,upkeep._REPLACEMENT_BINDINGS)):
+        if not _relation_profile():
             return None, False
         result, attempted = _report_packet(records,threshold,relations=True)
-        if type(result) is not dict or set(result) != {"duplicates","shared_sources","findings"}:
+        return _relation_result(records,result), attempted
+
+    @staticmethod
+    def report_plan(records, today, within_days, statuses, threshold=0.8):
+        result, attempted = _plan_packet(records,today,within_days,statuses,threshold)
+        if type(result) is not dict or set(result) != {"review","relations"}:
             return None, attempted
-        groups = NativeMemoryConsolidation._report_result(records,
-            {key:result[key] for key in ("duplicates","shared_sources")})
-        replacements = upkeep.NativeMemoryUpkeep._replacement_result(records,{"findings":result["findings"]})
-        return (None if groups is None or replacements is None else (groups,replacements)), attempted
+        selected = review.NativeMemoryReview._decode(result["review"],records,statuses)
+        if selected is None:
+            return None, attempted
+        relations = _relation_result(selected[0],result["relations"])
+        return (None if relations is None else (selected,relations)), attempted
 
     @staticmethod
     def _report_result(records, result):
@@ -155,3 +210,5 @@ _RAW_GROUPS_BINDING = (NativeMemoryConsolidation.raw_groups, NativeMemoryConsoli
 _REPORT_BINDINGS = {name:(getattr(NativeMemoryConsolidation,name),
     getattr(NativeMemoryConsolidation,name).__code__,getattr(NativeMemoryConsolidation,name).__defaults__)
     for name in ("report_groups","_report_result","_result")}
+_PLAN_BINDINGS = {"report_relations":(NativeMemoryConsolidation.report_relations,
+    NativeMemoryConsolidation.report_relations.__code__,NativeMemoryConsolidation.report_relations.__defaults__)}

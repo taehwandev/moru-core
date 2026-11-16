@@ -8,6 +8,8 @@ import unicodedata
 from support.native_memory_upkeep import NativeMemoryUpkeep
 from support.native_probe_transport import NativeProbe
 
+_NATIVE_DATE, _NATIVE_DELTA = date, timedelta
+
 
 class NativeMemoryReview:
     @staticmethod
@@ -72,3 +74,9 @@ class NativeMemoryReview:
                  "review":row.get("review_on") if type(row.get("review_on")) is str else None} for row in records]
         result = NativeMemoryReview._request("review-findings",rows,today,horizon,statuses=sorted(statuses))
         return NativeMemoryReview._decode(result,records,statuses)
+
+
+_REVIEW_BINDINGS = {name:(getattr(NativeMemoryReview,name),getattr(NativeMemoryReview,name).__code__,
+    getattr(NativeMemoryReview,name).__defaults__) for name in ("findings_inputs","partition","_request","_decode")}
+_UPKEEP_REVIEW_BINDINGS = {name:(getattr(NativeMemoryUpkeep,name),getattr(NativeMemoryUpkeep,name).__code__,
+    getattr(NativeMemoryUpkeep,name).__defaults__) for name in ("live","_profile")}

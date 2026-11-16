@@ -22,6 +22,63 @@ class ConsolidationReportGroupsTests(unittest.TestCase):
         return [{"id":name,"body":"one two","scope":"task","source":"Guide!",
                  "status":"active","review_on":"2099-01-01"} for name in ("b","a")]
 
+    def test_complete_report_uses_one_request_for_dates_groups_and_relations(self):
+        records = self.records()
+        records[0].update(review_on="2026-11-16",replaces="a")
+        marker = object()
+        records[1]["applies_when"] = marker
+        with patch("support.native_memory_consolidation.NativeProbe.available",return_value=False):
+            expected = source.findings(records,2,today=date(2026,11,16))
+        def request(flag,operation,payload):
+            self.assertEqual("report-text-groups",operation,"date selection is still separate")
+            self.assertEqual({"today":"2026-11-16","horizon":"2026-11-30",
+                              "statuses":sorted(source.RECALLABLE_STATUSES)},payload["review"])
+            return {"review":{"live":[1,0],"expired":[0],"expiring":[]},
+                    "relations":{"duplicates":[[0,1]],"shared_sources":[[0,1]],
+                                 "findings":[{"index":0,"replacements":[1]}]}}
+        with patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
+             patch("support.native_memory_consolidation.NativeProbe.request",side_effect=request) as probe:
+            actual = source.findings(records,2,today=date(2026,11,16))
+        self.assertEqual(1,probe.call_count)
+        self.assertEqual(expected,actual)
+        self.assertEqual(list(expected),list(actual))
+        self.assertIs(marker,actual["unfinished_replacements"][0]["applies_when"])
+
+    def test_invalid_full_plan_uses_original_report_without_more_native_attempts(self):
+        records = self.records()
+        records[0].update(review_on="2026-11-16",replaces="a")
+        with patch("support.native_memory_consolidation.NativeProbe.available",return_value=False):
+            expected = source.findings(records,2,today=date(2026,11,16))
+        good = {"review":{"live":[1,0],"expired":[0],"expiring":[]},
+                "relations":{"duplicates":[[0,1]],"shared_sources":[[0,1]],
+                             "findings":[{"index":0,"replacements":[1]}]}}
+        for reply in (None,{}, {**good,"extra":True},
+                      {**good,"review":{"live":[True],"expired":[],"expiring":[]}},
+                      {**good,"relations":{"duplicates":[],"shared_sources":[],
+                                           "findings":[{"index":3,"replacements":[0]}]}}):
+            with self.subTest(reply=reply), \
+                 patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
+                 patch("support.native_memory_consolidation.NativeProbe.request",return_value=reply) as probe:
+                self.assertEqual(expected,source.findings(records,2,today=date(2026,11,16)))
+                self.assertEqual(1,probe.call_count)
+        with patch("support.native_memory_consolidation.NativeProbe.request",side_effect=AssertionError("empty transport")):
+            self.assertEqual([],source.findings([],0,today=date(2026,11,16))["expired"])
+            with self.assertRaises(OverflowError):source.findings([],0,today=date.max,within_days=1)
+
+    def test_custom_projection_fields_still_run_before_group_classification(self):
+        class Fields:
+            def __iter__(self): raise RuntimeError("projection first")
+        records = self.records()
+        records[0]["review_on"] = "2026-11-16"
+        def request(flag,operation,payload):
+            self.assertEqual("review-findings",operation)
+            return {"live":[1,0],"expired":[0],"expiring":[]}
+        with patch.object(source,"_DECISION_FIELDS",Fields()), \
+             patch("support.native_memory_consolidation.NativeProbe.request",side_effect=request) as probe:
+            with self.assertRaisesRegex(RuntimeError,"projection first"):
+                source.findings(records,0,today=date(2026,11,16))
+        self.assertEqual(1,probe.call_count)
+
     def test_report_combines_replacements_with_groups_without_another_request(self):
         records = self.records()
         records[0]["replaces"] = "a"
@@ -173,13 +230,15 @@ class NativeMemoryConsolidationTests(unittest.TestCase):
         rng = random.Random(261116)
         watched = {getattr(source,name).__code__ for name in
             ("normalize","_tokens","_jaccard","_duplicate_groups_reference","_shared_source_groups_reference",
-             "_unfinished_replacements_reference")}
+             "_unfinished_replacements_reference","_live_records_reference","_review_buckets_reference")}
         from support.native_probe_transport import NativeProbe
         for _ in range(16):
             records = [self.record(str(rng.randrange(5)),
                 " ".join(rng.sample(list("abcdef"),rng.randrange(7))),
                 rng.choice(["task","review","all"]),source=rng.choice(["a","B!","b",""]),
-                replaces=rng.choice([None,"","0","1","missing"]))
+                replaces=rng.choice([None,"","0","1","missing"]),
+                status=rng.choice(["active","pending","approved","retired"]),
+                review_on=rng.choice(["2026-11-15","2026-11-16","2026-11-17","2099-01-01"]))
                 for _ in range(rng.randrange(1,9))]
             with patch.dict(os.environ,{**self.env,"MORU_LAUNCHER_BACKEND":"python"},clear=True):
                 expected = source.findings(records,0,today=date(2026,11,16))
@@ -199,7 +258,8 @@ class NativeMemoryConsolidationTests(unittest.TestCase):
             self.assertEqual(1,operations.count("report-text-groups"))
             self.assertFalse({"duplicate-text-groups","shared-source-text-groups"}.intersection(operations))
             self.assertNotIn("upkeep-replacements",operations)
-            self.assertEqual(2,len(operations))
+            self.assertNotIn("review-findings",operations)
+            self.assertEqual(1,len(operations))
 
     def test_pre_edit_projection_values_reasons_and_key_order(self):
         # Captured from the unchanged source before extracting the references.

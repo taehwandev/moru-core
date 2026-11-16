@@ -1,8 +1,8 @@
-//! owner: MemoryConsolidation; allowed imports: serde_json, std::collections, MemoryTerms, MemoryUpkeep;
+//! owner: MemoryConsolidation; allowed imports: serde_json, std::collections, MemoryTerms, MemoryUpkeep, MemoryReview;
 //! forbidden imports: filesystem, processes, stores, writes, providers, clock, authority;
 //! callers/tests: MemoryProcess consolidation dispatch and memory_consolidation_tests;
 //! verification: Python _duplicate_groups and _shared_source_groups parity.
-use crate::{memory_terms::MemoryTerms, memory_upkeep::MemoryUpkeep};
+use crate::{memory_review::MemoryReview, memory_terms::MemoryTerms, memory_upkeep::MemoryUpkeep};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -17,6 +17,11 @@ impl MemoryConsolidation {
             return None;
         }
         let records = object.get("records")?.as_array()?;
+        if operation == "report-text-groups" && object.len() == 3 {
+            if let Some(review) = object.get("review") {
+                return Self::report_plan(records, review);
+            }
+        }
         if operation == "report-text-groups"
             && object.len() == 3
             && object.get("relations")?.as_bool()?
@@ -34,6 +39,47 @@ impl MemoryConsolidation {
             "report-text-groups" => Self::report_groups(records),
             _ => None,
         }
+    }
+
+    fn report_plan(records: &[Value], review: &Value) -> Option<Value> {
+        let review = review.as_object()?;
+        if review.len() != 3 {
+            return None;
+        }
+        let mut dates = Vec::with_capacity(records.len());
+        for item in records {
+            let row = item.as_object()?;
+            if row.len() != 7 {
+                return None;
+            }
+            for key in ["id", "status", "scope", "body", "source", "review"] {
+                row.get(key)?.as_str()?;
+            }
+            if !matches!(row.get("replaces")?, Value::Null | Value::String(_)) {
+                return None;
+            }
+            dates.push(json!({"id":row.get("id")?,"status":row.get("status")?,
+                "review":row.get("review")?}));
+        }
+        let selected = MemoryReview::evaluate(
+            "review-findings",
+            &json!({
+                "unicode":MemoryTerms::version(),"records":dates,
+                "today":review.get("today")?,"horizon":review.get("horizon")?,
+                "statuses":review.get("statuses")?
+            }),
+        )?;
+        let mut live = Vec::new();
+        for index in selected.get("live")?.as_array()? {
+            let mut row = records
+                .get(usize::try_from(index.as_u64()?).ok()?)?
+                .as_object()?
+                .clone();
+            row.remove("status")?;
+            row.remove("review")?;
+            live.push(Value::Object(row));
+        }
+        Some(json!({"review":selected,"relations":Self::report_relations(&live)?}))
     }
 
     fn report_relations(records: &[Value]) -> Option<Value> {

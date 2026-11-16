@@ -1,5 +1,78 @@
 use super::*;
 
+fn plan_payload(records: Value) -> Value {
+    json!({"unicode":MemoryTerms::version(),"records":records,
+        "review":{"today":"2026-11-16","horizon":"2026-11-30",
+                  "statuses":["active","pending","approved"]}})
+}
+
+#[test]
+fn complete_report_plan_keeps_original_and_live_relative_indices_separate() {
+    let input = plan_payload(json!([
+        {"id":"b","status":"active","scope":"task","body":"same","source":"S",
+         "review":"2026-11-16","replaces":"a"},
+        {"id":"a","status":"pending","scope":"all","body":"same","source":"S",
+         "review":"2026-11-15","replaces":null},
+        {"id":"c","status":"approved","scope":"task","body":"other","source":"T",
+         "review":"2026-11-17","replaces":null},
+        {"id":"x","status":"retired","scope":"all","body":"same","source":"S",
+         "review":"invalid","replaces":null},
+        {"id":"a","status":"active","scope":"task","body":"same","source":"S",
+         "review":"2099-01-01","replaces":null}
+    ]));
+    assert_eq!(
+        MemoryConsolidation::evaluate("report-text-groups", &input),
+        Some(json!({
+            "review":{"live":[1,4,0,2],"expired":[0],"expiring":[2]},
+            "relations":{"duplicates":[[0,1,2]],"shared_sources":[[0,1,2]],
+                "findings":[{"index":0,"replacements":[2]},{"index":1,"replacements":[2]}]}
+        }))
+    );
+}
+
+#[test]
+fn complete_report_empty_shape_and_closed_calendar_are_preserved() {
+    let mut input = plan_payload(json!([]));
+    assert_eq!(
+        MemoryConsolidation::evaluate("report-text-groups", &input),
+        Some(json!({
+            "review":{"live":[],"expired":[],"expiring":[]},
+            "relations":{"duplicates":[],"shared_sources":[],"findings":[]}
+        }))
+    );
+    for review in [
+        json!(null),
+        json!({}),
+        json!({"today":"2026-02-30","horizon":"2026-11-30","statuses":[]}),
+        json!({"today":"2026-11-16","horizon":"2026-11-30","statuses":"active"}),
+        json!({"today":"2026-11-16","horizon":"2026-11-30","statuses":[],"extra":true}),
+    ] {
+        input["review"] = review;
+        assert!(MemoryConsolidation::evaluate("report-text-groups", &input).is_none());
+    }
+}
+
+#[test]
+fn complete_report_declines_malformed_rows_without_partial_decisions() {
+    let row = json!({"id":"a","status":"active","scope":"task","body":"same",
+        "source":"S","review":"2026-11-16","replaces":null});
+    for (key, value) in [
+        ("source", Value::Null),
+        ("status", json!(true)),
+        ("replaces", json!(3)),
+        ("review", json!("bad date")),
+        ("extra", json!(true)),
+    ] {
+        let mut invalid = row.clone();
+        invalid[key] = value;
+        assert!(MemoryConsolidation::evaluate(
+            "report-text-groups",
+            &plan_payload(json!([row, invalid]))
+        )
+        .is_none());
+    }
+}
+
 #[test]
 fn report_relations_preserve_duplicate_ids_cycles_and_sorted_replacers() {
     let input = json!({"unicode":MemoryTerms::version(),"relations":true,"records":[
