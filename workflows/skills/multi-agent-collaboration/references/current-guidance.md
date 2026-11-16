@@ -178,6 +178,32 @@ final verification. If a worker changes the contract, route, schema, state
 model, or config outside its brief, stop integration and restart from the split
 decision.
 
+When the existing structured plan is valid, `gate-batch --from-plan` projects
+the remaining role, write-scope and agent-brief metadata gates in one batch.
+It uses canonical schema/overlap validation and binds the exact plan bytes by
+SHA-256. Missing, invalid or changed plans fail; regenerate the affected records
+after changing the plan. These records attest metadata only: they do not prove
+brief delivery, worker execution or integration review, and grant no authority.
+The macro refuses an existing failed collaboration gate; inspect and reconcile
+that failure manually before accepting metadata again.
+Manual records remain available for routes without a structured plan.
+
+For bounded local source review, `scripts/agent_review_packet.py` accepts
+explicit tracked paths, optional `--context path.py:Qualified.Symbol` fixtures
+or API definitions and caller-recorded checks. It includes HEAD-to-worktree
+diffs, changed Python definitions and one hop of same-file helpers within the
+byte budget. Hashes, ranges and explicit omissions expose missing context.
+The deterministic local JSON is context only; no source is executed, no check
+is independently verified, and no provider is contacted. Inspect omissions and
+the selected bytes before any separately authorized provider review. Ignored,
+env-like, credential, symlink, untracked and escaping source paths are rejected;
+oversize/binary source, unindexed changed definitions and unavailable symbols
+are reported. Source is bounded to 4,096 lines and output to 128 sections, with
+explicit omissions. Automatic helper selection follows direct same-file calls;
+cross-file/dynamic dependencies need explicit reviewer input. This is not a
+secret-content scanner: inspect selected source bytes as well as file names.
+The CLI creates a new output file and refuses an existing destination.
+
 The two-slice eligibility threshold counts a meaningful slice retained by the
 lead as well as worker slices. Therefore one worker plus a distinct lead-owned
 integration or implementation slice can be a valid parallel plan. Multiple

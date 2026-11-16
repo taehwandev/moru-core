@@ -1,12 +1,12 @@
 """Keep declared post-finish commit/push visible until Git itself shows it happened.
 
-Owner: pending publication items of a finished `commit` run. A
-`publication.commit` / `publication.push` remaining_work item is deferred past
-finish only when the run's admitted effect already covers it; it is never
-waived. Finish records it in `pending-publication.json`, and it stays owed until
-`settle` observes the result in Git (a descendant HEAD with a clean tracked tree
-for a commit; the upstream remote's branch equal to HEAD for a push). Free text
-is never accepted as proof. A `publication.pull-request/<target>` item remains
+Owner: declared delivery items deferred by a finished run's admitted effect;
+they are never waived. New staged_v1 contracts bind reviewed index content,
+checkout/repository identity and local integration target refs. Stop observes
+local commit/integration only after actual Git proof; it performs no Git writes.
+Legacy commit receipts retain descendant/clean-tree proof and explicit settle.
+Push still requires the upstream remote's branch equal to HEAD. Free text
+is never proof. A `publication.pull-request/<target>` item remains
 pending after preparation regardless of the provider. A caller-supplied provider
 observation must match the source branch, reviewed commit and target; an unchecked
 PR is never assumed to exist. The caller is responsible for observing the provider.
@@ -14,7 +14,8 @@ A push or PR is observed for the reviewed finish HEAD itself (a commit made
 before finish) or, when a `publication.commit` item is also declared, for a
 descendant of it.
 Allowed: bounded local reads, atomic receipt writes, fixed read-only Git argv
-(`rev-parse`, `merge-base`, `status`, `config`, `ls-remote`). Forbidden: Git
+(`rev-parse`, `merge-base`, `status`, `config`, `ls-remote`, tree/index/history
+inspection). Forbidden: Git
 writes, executing provider commands, inferring authority, widening a run's effect.
 Every unreadable, missing or foreign receipt counts as still owed.
 Callers/tests: agent_work_completion, agent-hook finish, claude_stop_gate,
@@ -35,12 +36,14 @@ from pathlib import Path
 from agent_execution_capsule_state import atomic_write_json
 from agent_publication_status import observe_pull_request
 from workflow_intent_envelope import EFFECT_RANK
+from agent_local_delivery import LocalDeliveryProof
 
 # checkpoint slug -> effect the run must already be admitted for.
 PUBLICATION_CHECKPOINTS = {
     "publication.commit": "git_write",
     "publication.push": "external_write",
     "publication.pull-request": "external_write",
+    LocalDeliveryProof.INTEGRATION: "git_write",
 }
 PULL_REQUEST = "publication.pull-request"
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$")
@@ -68,7 +71,7 @@ def kind(checkpoint: object) -> str:
     if checkpoint in ("publication.commit", "publication.push"):
         return checkpoint
     head, _, target = checkpoint.partition("/")
-    return PULL_REQUEST if head == PULL_REQUEST and _NAME.fullmatch(target) else ""
+    return head if head in (PULL_REQUEST, LocalDeliveryProof.INTEGRATION) and _NAME.fullmatch(target) else ""
 
 
 def split_remaining(preflight: dict, remaining: list, project: Path | None = None) -> tuple[list, list]:
@@ -79,10 +82,18 @@ def split_remaining(preflight: dict, remaining: list, project: Path | None = Non
     """
     granted = EFFECT_RANK.get(admitted_effect(preflight), -1)
     commit_route = (preflight.get("route") or {}).get("command") == DEFERRING_ROUTE
+    route = preflight.get("route") or {}
+    from workflow_effect_policy import route_minimum_effect
+    local = (route.get("local_delivery_contract") == LocalDeliveryProof.CONTRACT
+             and route_minimum_effect(route.get("command", "")) in {"local_write", "git_write"})
     blocking, deferred = [], []
     for item in remaining or []:
         needed = PUBLICATION_CHECKPOINTS.get(kind(item.get("checkpoint"))) if isinstance(item, dict) else None
-        ok = commit_route and needed and granted >= EFFECT_RANK[needed]
+        checkpoint = kind(item.get("checkpoint")) if isinstance(item, dict) else ""
+        local_kind = checkpoint in ("publication.commit", LocalDeliveryProof.INTEGRATION)
+        eligible = (local if checkpoint == LocalDeliveryProof.INTEGRATION else
+                    commit_route or (local and local_kind))
+        ok = eligible and needed and granted >= EFFECT_RANK[needed]
         (deferred if ok else blocking).append(item)
     return blocking, deferred
 
@@ -105,7 +116,8 @@ def _load(evidence: Path) -> tuple[dict | None, str]:
         return None, "unreadable"
     try:
         valid = (
-            isinstance(record, dict) and record.get("schema_version") == 1
+            isinstance(record, dict) and type(record.get("schema_version")) is int
+            and record.get("schema_version") in (1, 2)
             and record.get("run_id") == evidence.parent.name
             and record.get("evidence_sha256") == _sha(evidence)
             and isinstance(record.get("base_head"), str) and record["base_head"]
@@ -149,14 +161,30 @@ def record_pending(project: Path, evidence: Path, deferred: list) -> str:
     if not head or not branch:
         return "project HEAD or source branch could not be read to anchor the pending publication"
     try:
-        atomic_write_json(_path(evidence), {
+        payload = json.loads(evidence.read_text(encoding="utf-8"))
+        local_contract = (payload.get("route") or {}).get("local_delivery_contract")
+        local_proof = None
+        if any(kind(c) == LocalDeliveryProof.INTEGRATION for c in wanted) and local_contract != LocalDeliveryProof.CONTRACT:
+            return "local integration requires the current local delivery contract"
+        if local_contract == LocalDeliveryProof.CONTRACT and any(
+                kind(c) in ("publication.commit", LocalDeliveryProof.INTEGRATION) for c in wanted):
+            if split_remaining(payload, deferred, project)[0]:
+                return "local delivery is not admitted by this run"
+            try:
+                local_proof = LocalDeliveryProof.capture(project, head, branch, deferred, _git)
+            except ValueError as error:
+                return f'local delivery preparation refused: {error}'
+        record = {
             "schema_version": 1,
             "run_id": evidence.parent.name,
             "evidence_sha256": _sha(evidence),
             "base_head": head,
             "source_branch": branch,
             "items": [{"checkpoint": c, "state": "pending", "observation": ""} for c in dict.fromkeys(wanted)],
-        })
+        }
+        if local_proof is not None:
+            record.update(schema_version=2, local_delivery=local_proof)
+        atomic_write_json(_path(evidence), record)
     except (OSError, ValueError) as error:
         return f"pending-publication record could not be written ({type(error).__name__})"
     stored, problem = _load(evidence)
@@ -206,6 +234,39 @@ def pending_reason(project: Path, evidence: Path) -> str:
     )
 
 
+def pending_session_reason(project: Path, identity: dict[str, str]) -> str:
+    from agent_repository_checkouts import checkouts_with_run_state
+
+    roots = [project] if os.environ.get('MORU_WORKER_EVIDENCE', '').strip() else [project, *checkouts_with_run_state(project)]
+    return '\n'.join(reason for root in roots if (reason := _pending_checkout_reason(root, identity)))
+
+
+def _pending_checkout_reason(project: Path, identity: dict[str, str]) -> str:
+    """Observe local Git facts only; preserve debt across completed session runs."""
+    from agent_runtime_session import completed_session_evidence
+
+    reasons = []
+    for evidence in completed_session_evidence(project, identity):
+        record, _ = _load(evidence)
+        observation_error = ""
+        if record and record.get("schema_version") == 2:
+            for item in record["items"]:
+                if item["state"] == "pending" and kind(item["checkpoint"]) in (
+                        "publication.commit", LocalDeliveryProof.INTEGRATION):
+                    observation_error = settle(project, evidence, item["checkpoint"]) or observation_error
+        reason = pending_reason(project, evidence)
+        if reason:
+            owed = outstanding(project, evidence)
+            local_owed = [name for name in owed if kind(name) in (
+                'publication.commit', LocalDeliveryProof.INTEGRATION)]
+            if record and record.get("schema_version") == 2 and local_owed and len(local_owed) == len(owed):
+                reason = (f"Local delivery is still pending ({', '.join(local_owed)}); verification did not publish it. "
+                          "Perform only the already authorized commit/integration. Closeout observes Git automatically. "
+                          + observation_error)
+            reasons.append(reason)
+    return "\n".join(reasons)
+
+
 def _remote_head(project: Path, head: str) -> tuple[str, str]:
     branch = _git(project, "symbolic-ref", "--short", "HEAD")
     remote = _git(project, "config", f"branch.{branch}.remote") if branch else None
@@ -221,6 +282,14 @@ def _remote_head(project: Path, head: str) -> tuple[str, str]:
 def _observe(project: Path, record: dict, item: dict, observation_path: Path | None = None) -> tuple[str, str]:
     """Check Git and the caller's provider observation against the reviewed unit."""
     checkpoint, base_head = kind(item["checkpoint"]), record["base_head"]
+    if record.get("schema_version") == 2:
+        local = checkpoint in ("publication.commit", LocalDeliveryProof.INTEGRATION)
+        observation, refusal = LocalDeliveryProof.observe(
+            project, record, item["checkpoint"] if local else "publication.commit", _git)
+        if local or refusal:
+            return observation, refusal
+    if checkpoint == LocalDeliveryProof.INTEGRATION:
+        return "", "local integration requires a bound staged-content proof"
     branch = _git(project, "symbolic-ref", "--short", "HEAD")
     if not record.get("source_branch"):
         return "", "source branch was not recorded; re-prepare this publication under current authority"
@@ -251,6 +320,12 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
     record, problem = _load(evidence)
     if record is None:
         return f"no usable pending publication record for this run ({problem})"
+    if record.get("schema_version") == 2:
+        from agent_run_registry import active_run_bindings, evidence_binding_key
+
+        completed = active_run_bindings(project, frozenset({"completed"}))
+        if evidence_binding_key(project, evidence) not in completed:
+            return "local delivery observation requires a completed bound run"
     for item in record["items"]:
         if item["checkpoint"] == checkpoint and item["state"] == "pending":
             observation, refusal = _observe(project, record, item, observation_path)
@@ -258,6 +333,10 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
                 return refusal
             item.update(state="observed", observation=observation,
                         observed_at=datetime.now(timezone.utc).isoformat())
+            if record.get('schema_version') == 2 and kind(checkpoint) in ('publication.commit', LocalDeliveryProof.INTEGRATION):
+                candidate = observation.rsplit(' ', 1)[-1]
+                if re.fullmatch(r'[0-9a-f]{40,64}', candidate):
+                    record['local_delivery']['reviewed_commit'] = candidate
             try:
                 atomic_write_json(_path(evidence), record)
             except (OSError, ValueError) as error:

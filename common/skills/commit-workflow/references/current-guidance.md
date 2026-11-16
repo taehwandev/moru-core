@@ -74,6 +74,28 @@ This continuation leaves the finished run closed. It adds no start, review,
 finish, permission exemption or automatic commit. Runtime admission is not
 proof of user authority or of an unchanged reviewed diff.
 
+New manifests bind `local_delivery_contract: staged_v1`. On an already
+authorized writable source route, retain `publication.commit` and, when
+explicitly authorized, `publication.integrate/<target>` in `remaining_work`.
+They may defer past verification only with admitted `git_write` authority.
+Stage the reviewed unit first; tracked worktree content must match the index.
+Finish binds the index tree, source checkout/repository, base commit, source
+branch and existing different target ref. Empty or unrelated commits cannot
+satisfy the content proof. Integration requires the target to contain the
+matching committed unit (merge/fast-forward ancestry; no squash inference).
+Stop observes these local Git facts across all completed runs of the exact
+session, then records observed items; it never performs Git writes. Explicit
+stops and approval waits preserve the receipt without observing or continuing.
+Verification readiness alone is never delivery completion. Historical manifests
+retain their admission/proof rules. Stop now surfaces debt across all completed
+exact-session runs and related checkouts, including legacy receipts previously
+hidden behind newer work. Push/PR deferral remains restricted to the commit
+route and matching external authority. If proof cannot be obtained, report
+NOT PUBLISHED and the exact blocker; never erase debt to claim completion.
+Repeated Stop does not force an unbounded continuation loop.
+Claude's repeated Stop allows exit without observing; its next normal Stop or
+explicit settlement observes the retained local delivery debt.
+
 Use the lightweight commit route if authority is newly granted after finish,
 the run cannot bind the required effect, review/readiness is incomplete, or
 the session, target, staged set, reviewed inputs or freshness differs. Reuse valid
@@ -81,7 +103,7 @@ evidence there, including `--commit-ready` when eligible. A follow-up repeating
 the same already authorized action does not by itself require new approval.
 After one of several split commits, HEAD and the remaining staged scope have
 changed; do not reuse the first unit's finish blindly for the rest. This local
-continuation does not authorize push, PR, tag, merge, release or deployment.
+continuation does not itself authorize push, PR, tag, merge, release or deployment.
 
 ## Lightweight Execution Contract
 

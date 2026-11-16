@@ -264,7 +264,7 @@ def gate_template_hook(args: argparse.Namespace) -> int:
     )
 
 
-def _gate_progress(args: argparse.Namespace) -> dict[str, Any]:
+def _gate_progress(args: argparse.Namespace, *, include_evidence: bool = False) -> dict[str, Any]:
     """Report the bound ledger after writing; never turn a report failure into a retry."""
     try:
         path = preflight_evidence_path(args)
@@ -277,7 +277,8 @@ def _gate_progress(args: argparse.Namespace) -> dict[str, Any]:
         if diagnostics["warnings"]:
             return {"remaining_gates": None, "ledger_complete": False}
         remaining = [gate for gate in gates if not evidence.get(gate)]
-        return {"remaining_gates": remaining, "ledger_complete": not remaining}
+        return {"remaining_gates": remaining, "ledger_complete": not remaining,
+                **({'gate_evidence': evidence, 'failed_gates': diagnostics['failed_gates']} if include_evidence else {})}
     except (OSError, ValueError, KeyError, TypeError):
         return {"remaining_gates": None, "ledger_complete": False}
 
@@ -402,6 +403,18 @@ def reset_and_record_preflight_gate(
 
 
 def _gate_records_from_args(args: argparse.Namespace) -> list[dict[str, Any]]:
+    if getattr(args, "from_plan", False):
+        if args.gate_record or args.gate_json:
+            raise ValueError("--from-plan cannot be combined with manual gate records")
+        from agent_collaboration_plan_records import CollaborationPlanRecords
+
+        progress = _gate_progress(args, include_evidence=True)
+        if set(progress.get('failed_gates', {})).intersection(CollaborationPlanRecords.GATES):
+            raise ValueError('plan metadata cannot clear a failed collaboration gate; inspect and reconcile its failure manually')
+        remaining = progress["remaining_gates"]
+        if remaining is None:
+            raise ValueError("cannot resolve this run's remaining gates")
+        return CollaborationPlanRecords.build(args.project, remaining, recorded=progress.get('gate_evidence'))
     records: list[dict[str, Any]] = []
     for raw_record in args.gate_record:
         records.extend(_parse_gate_records(raw_record))
@@ -602,6 +615,7 @@ def _validate_records_before_write(
                 required_gates,
                 gate_evidence,
                 read_delegation_plan(args.project),
+                project=args.project,
             )
         )
     if failures:

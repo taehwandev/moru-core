@@ -67,19 +67,15 @@ def find_project_root(cwd: Path) -> Path | None:
 
 def pending_publication_stop(root: Path, session_id: str, payload: dict) -> int:
     """A finished run's declared, unobserved publication outlives its Stop."""
-    from agent_pending_publication import pending_reason
+    from agent_pending_publication import pending_session_reason
     from agent_mailbox_task_binding import stop_signal_ready
 
-    evidence = resolve_runtime_evidence(
-        root, {"runtime": "codex", "session_id": session_id}, frozenset({"completed"}),
-        latest_of_several=True,
-    )
-    reason = pending_reason(root, evidence) if evidence else ""
-    if not reason:
-        return allow()
     identity = {"runtime": "codex", "session_id": session_id}
     # A user stop or approval wait outranks a resumed turn; stop_hook_active alone does not.
     if not stop_signal_ready({**payload, "stop_hook_active": False}, identity):
+        return allow()
+    reason = pending_session_reason(root, identity)
+    if not reason:
         return allow()
     if payload.get("stop_hook_active"):
         return stop_incomplete("The turn was stopped without reporting completion. " + reason)

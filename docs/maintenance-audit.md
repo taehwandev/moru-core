@@ -1060,3 +1060,48 @@ The lead also reproduced the remaining legacy-pointer caveat and verified its
 conservative unknown-field handling with slash-key and grouped-row regressions.
 No token, elapsed-time, cost or
 model-quality reduction is inferred from these deterministic cases.
+
+## Structured collaboration and local delivery: 2026-11-16
+
+Baseline `15af3c76`; scope H06/H08/H10. The user approved the three additional
+improvements with Claude discussion, source work and review. Actual tool-denied
+Claude design discussion challenged descendant-only commit proof and separated
+brief metadata from actual worker delivery. Claude then supplied the bounded
+review-packet draft and its tests; the lead applied and repaired that draft,
+implemented collaboration/delivery, and owns executable verification and local
+integration. No source packet is automatically sent to a provider.
+
+| ID | Reproduction and owner | Disposition and observing check |
+| --- | --- | --- |
+| F39 | Valid structured collaboration plans duplicated role/scope/brief data in manual gate records; template hints asked for empty fields. | `CollaborationPlanRecords` projects only the remaining metadata gates after canonical validation. Every projection binds exact plan bytes. Real gate-batch tests cover successful ledger writes, stale bytes, malformed plans, overlap and incompatible macro inputs. Metadata never attests worker delivery. |
+| F40 | Source-route finish could not retain approved local commit/integration debt; legacy commit proof accepted any descendant plus a clean tree, and latest-only Stop lookup could hide older debt. | Versioned `staged_v1` manifests defer only already-authorized local effects. Finish captures the reviewed index tree and Git identity; commit requires matching content, integration requires target ancestry. Stop observes all completed exact-session runs without performing Git writes. Real temporary Git/finish/Stop tests cover both runtimes, unrelated commits, authority negatives, foreign identities, corrupt receipts and explicit waits/stops. Historical admission/proof rules and remote restrictions remain; session-wide debt visibility intentionally includes older legacy receipts. |
+| F41 | A diff-only review omitted owning definitions, fixture contracts and the limits of caller-reported verification. | `ReviewPacket` creates bounded deterministic local JSON from explicit tracked paths and AST-only definitions/helpers/contexts. Caller checks are labeled unverified by the builder. Tests cover no-execution sentinels, Git ignores, env/symlink/outside rejection, staged additions/deletions, explicit omissions, size and output preservation. The lead corrected Git literal-path incompatibility in `check-ignore` observed when running Claude's draft. |
+
+These are deterministic source/contract improvements. No token, latency, cost or
+task-quality reduction is claimed. Local observation supports merge/fast-forward
+ancestry, not squash/rebase equivalence. Observation checks the oldest 64
+source candidates within a bounded history result; a matched OID is cached and
+revalidated against Git. A missing source branch can use prepared target refs.
+Review packets can omit whole sections when their budget is insufficient; a
+reviewer must resolve those omissions before making a broader claim. No native
+build, install, remote push, recurring service or paid API path is introduced.
+
+Claude's first source review identified stale-plan refresh being unavailable,
+remote-debt guidance being overwritten, bounded-history/source-ref edge cases,
+and unreported AST selection gaps. The lead repaired these and added real
+ledger round-trip/late-finish/refresh coverage, mixed local/remote receipts,
+65-later-commit caching, deleted-source integration, repeated-Stop boundaries,
+setter/line/section limits and explicit-context priority. The ledger renderer
+preserves the plan prefix; the suspected rendering bypass did not reproduce.
+The 286 selected tests pass on integrated base `c4b62249`; packet priority,
+controlled non-ff ancestry and final malformed-plan checks also pass. The two intervening main commits touch
+12 disjoint paths; all 20 original task-owned hashes survived the base update.
+AST selection is now a separate 67-line owner; each new runtime file stays
+below 300 lines. Structure preview reports no failures and requires explicit
+review evidence for existing oversized modules. Evidence is source/test based;
+the final review and local delivery are separate recorded steps.
+
+Final focused Claude source review returned pass. Its optional UTF-8 reader
+consistency suggestion was applied by the lead with invalid-byte and injected
+parser-recursion tests for both canonical readers. The second review conditions
+were checked against the final staged set and completed regression output.

@@ -64,7 +64,7 @@ def read_delegation_plan(project: Path) -> dict[str, Any]:
         return {}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError):
         # path.exists() is true for a directory, and read_text then raises
         # IsADirectoryError (likewise PermissionError for an unreadable file).
         # Treat any unreadable plan as malformed and return the invalid_json
@@ -111,10 +111,17 @@ def validate_delegation_plan_evidence(
     required_gates: list[str],
     gate_evidence: dict[str, str],
     plan: dict[str, Any],
+    *,
+    project: Path | None = None,
 ) -> list[str]:
     if not evidence_requires_delegation_plan(required_gates, gate_evidence):
         return []
-    return validate_delegation_plan_structure(plan)
+    failures = validate_delegation_plan_structure(plan)
+    if not failures:
+        from agent_collaboration_plan_records import CollaborationPlanRecords
+
+        failures.extend(CollaborationPlanRecords.failures(project, gate_evidence))
+    return failures
 
 
 def validate_delegation_plan_structure(plan: dict[str, Any]) -> list[str]:
@@ -129,7 +136,7 @@ def validate_delegation_plan_structure(plan: dict[str, Any]) -> list[str]:
         return ["agent delegation plan is not valid JSON"]
 
     failures: list[str] = []
-    if plan.get("schema_version") != 1:
+    if type(plan.get("schema_version")) is not int or plan.get("schema_version") != 1:
         failures.append("agent delegation plan has an unsupported schema_version")
     if plan.get("mode") != "parallel":
         failures.append(

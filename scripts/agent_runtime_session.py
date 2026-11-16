@@ -514,6 +514,18 @@ def _settle_session_runs_in(
     return settled
 
 
+def completed_session_evidence(project: Path, identity: dict[str, str]) -> list[Path]:
+    """All exactly bound completed runs, so a newer run cannot hide older debt."""
+    worker_scope, _ = _worker_evidence_scope(project)
+    if worker_scope:
+        selected = resolve_runtime_evidence(project, identity, frozenset({"completed"}), latest_of_several=True)
+        return [selected] if selected else []
+    if not identity.get("runtime") or not identity.get("session_id"):
+        return []
+    return [path for path, _ in _session_runs_in(
+        project, frozenset({"completed"}), runtime=identity["runtime"], session_id=identity["session_id"])]
+
+
 def _session_runs_in(
     project: Path,
     states: "frozenset[str]",

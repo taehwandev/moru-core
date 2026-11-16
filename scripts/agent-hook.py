@@ -1069,7 +1069,7 @@ def finish_hook(args: argparse.Namespace) -> int:
             # Fail closed: a deferred publication with no stored receipt would
             # look complete. Leave the run active so finish can be retried.
             print_status("finish", False, ["deferred publication could not be recorded", pending_failure,
-                                          "Keep this run active; repair the run directory and rerun finish."])
+                                          "Keep this run active; resolve the reported staging/target or receipt-write failure and rerun finish."])
             return 3
         details.extend(pending_lines)
         # Complete the registry first. If the process dies between these two
@@ -2152,6 +2152,10 @@ def _add_gate_arguments(parser: argparse.ArgumentParser) -> None:
         help="gate-batch: print the bound run's remaining gates as fill-in records; records nothing",
     )
     gate.add_argument(
+        "--from-plan", action="store_true",
+        help="gate-batch: validate the delegation plan once and record remaining role/scope/brief metadata",
+    )
+    gate.add_argument(
         "--gate-json",
         type=existing_path,
         help="JSON file containing a gate evidence object or array of objects",
@@ -2238,7 +2242,10 @@ def _parse_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
             "gate records one gate with --gate-name <gate>, for example: "
             "gate --gate-name tests --status SUCCESS --gate-evidence \"<observed result>\""
         )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.from_plan and (args.hook != "gate-batch" or args.gate_template or args.gate_record or args.gate_json):
+        parser.error("--from-plan requires gate-batch without --template or manual gate records")
+    return args
 
 
 def _lifecycle_evidence_error(args: argparse.Namespace) -> str:

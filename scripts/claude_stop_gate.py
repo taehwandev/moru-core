@@ -317,14 +317,9 @@ def block_reason(root: Path) -> str:
 
 def _pending_publication(root: Path, session_id: str) -> str:
     """Declared publication that finish deferred and nobody has observed yet."""
-    from agent_pending_publication import pending_reason
-    from agent_runtime_session import resolve_runtime_evidence
+    from agent_pending_publication import pending_session_reason
 
-    evidence = resolve_runtime_evidence(
-        root, {"runtime": "claude", "session_id": session_id}, frozenset({"completed"}),
-        latest_of_several=True,
-    )
-    return pending_reason(root, evidence) if evidence else ""
+    return pending_session_reason(root, {"runtime": "claude", "session_id": session_id})
 
 
 def gate_enabled() -> bool:

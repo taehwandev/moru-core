@@ -668,6 +668,12 @@ def _required_doc_reasons(
     return reasons
 
 
+def _execution_contracts(command: str) -> dict:
+    return {"lifecycle_version": 2,
+            "retrospective_contract": "compact_v1" if command == "small-change" else "causal_v1",
+            "project_memory_contract": "decision_v1", "local_delivery_contract": "staged_v1"}
+
+
 def resolve_docs(
     command: str,
     platform: Optional[str],
@@ -767,9 +773,7 @@ def resolve_docs(
         blocking.append("small-change excludes risk-sensitive concerns; select the matching full route")
 
     route = {
-        "lifecycle_version": 2,
-        "retrospective_contract": "compact_v1" if command == "small-change" else "causal_v1",
-        "project_memory_contract": "decision_v1",
+        **_execution_contracts(command),
         "root": str(ROOT),
         "command": command,
         "platform": platform,

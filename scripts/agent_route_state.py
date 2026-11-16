@@ -26,6 +26,8 @@ def route_fingerprint(route: dict[str, Any]) -> str:
         stable["lifecycle_version"] = route["lifecycle_version"]
     if "project_memory_contract" in route:
         stable["project_memory_contract"] = route["project_memory_contract"]
+    if "local_delivery_contract" in route:
+        stable["local_delivery_contract"] = route["local_delivery_contract"]
     if route.get("organization"):
         # Absent for unbound projects, so their fingerprint is unchanged.
         stable["organization"] = route_fingerprint_part(route["organization"])

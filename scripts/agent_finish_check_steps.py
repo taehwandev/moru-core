@@ -189,7 +189,7 @@ def check_required_gates(
         project=project,
     )
     gate_policy_failures.extend(
-        validate_delegation_plan_evidence(required_gates, gate_evidence, delegation_plan or {})
+        validate_delegation_plan_evidence(required_gates, gate_evidence, delegation_plan or {}, project=project)
     )
     for failure in gate_policy_failures:
         add_gate_signal(gate_signals, "FAIL", "gate evidence policy", "failed", failure)

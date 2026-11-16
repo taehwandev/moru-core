@@ -45,6 +45,12 @@ def gate_record_template(gate: str, *, hook: str = "gate-batch", extra_fields: I
     """Return one copyable record for exactly this gate, every required field a placeholder."""
 
     from agent_finish_gate_learning_validators import CAUSAL_RETROSPECTIVE_FIELDS, MEMORY_DECISION_FIELDS
+    from agent_collaboration_plan_records import CollaborationPlanRecords
+
+    if gate in CollaborationPlanRecords.GATES:
+        return (f"fill-in template for {gate}: gate-batch --from-plan "
+                "validates the existing delegation plan and records its remaining role/scope/brief metadata; "
+                "prepare the plan first. Worker delivery and execution require their own evidence.")
 
     causal = (*CAUSAL_RETROSPECTIVE_FIELDS, *MEMORY_DECISION_FIELDS[:2]) if gate == "retrospective check" else ()
     names = list(dict.fromkeys([*FIELD_REQUIREMENTS.get(gate, ()), *causal, *extra_fields]))
@@ -68,7 +74,15 @@ def remaining_gate_template_lines(remaining: list[str], loaded_skills: Iterable[
     """One copyable record per remaining gate, plus the gates nobody records by hand."""
 
     lines = [f"Remaining route gates: {remaining}"]
+    from agent_collaboration_plan_records import CollaborationPlanRecords
+
+    plan_hint_shown = False
     for gate in remaining:
+        if gate in CollaborationPlanRecords.GATES:
+            if not plan_hint_shown:
+                lines.append(gate_record_template(gate))
+                plan_hint_shown = True
+            continue
         if gate in _NOT_RECORDED:
             lines.append(_NOT_RECORDED[gate])
             continue
