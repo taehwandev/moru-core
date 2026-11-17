@@ -54,7 +54,11 @@ def work_completion_failures(project: Path, evidence: Path) -> list[str]:
     # Retain delivery context without replaying implementation gates here.
     delivery = route.get("command") != "commit"
     if delivery and scope_unreconciled(preflight, packet):
-        failures.append("requested scope has not been reconciled; record its bounded objective, acceptance and remaining outcomes before finish")
+        failures.append(
+            "requested scope has not been reconciled; record its bounded objective, acceptance and remaining outcomes before finish "
+            "(checkpoint --checkpoint-kind decision --phase verifying --work-file <json> with an objective and, "
+            "when nothing is left, \"remaining_work\": []; checkpoint --work-shape prints the shape)"
+        )
     # A declared publication the run's effect already admits is finish-deferred and
     # stays owed in the pending-publication record; any other item still blocks.
     from agent_pending_publication import split_remaining

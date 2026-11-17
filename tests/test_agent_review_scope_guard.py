@@ -17,6 +17,7 @@ from agent_review_hook import (
     clean_restored_pathspec_review,
     clean_task_setup_pathspec_review,
     diff_check_command,
+    invalid_review_subject_details,
     resolve_commit_range_subject,
     review_hook,
 )
@@ -816,6 +817,37 @@ class ReviewScopeGuardTests(unittest.TestCase):
                 resolve_commit_range_subject(project, head, head, run_command)
             with self.assertRaisesRegex(ValueError, "does not resolve"):
                 resolve_commit_range_subject(project, base, "missing-ref", run_command)
+
+    def test_commit_range_behind_a_moved_base_names_the_fork_point_to_use(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+            (project / "shared.py").write_text("value = 1\n", encoding="utf-8")
+            fork_point = commit(project, "fork point")
+            trunk = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project, text=True,
+                stdout=subprocess.PIPE, check=True,
+            ).stdout.strip()
+            subprocess.run(["git", "checkout", "-q", "-b", "topic"], cwd=project, check=True)
+            (project / "topic.py").write_text("value = 2\n", encoding="utf-8")
+            head = commit(project, "topic work")
+            subprocess.run(["git", "checkout", "-q", trunk], cwd=project, check=True)
+            (project / "trunk.py").write_text("value = 3\n", encoding="utf-8")
+            moved_base = commit(project, "base branch moved on")
+
+            with self.assertRaisesRegex(ValueError, "ancestor") as refused:
+                resolve_commit_range_subject(project, moved_base, head, run_command)
+            details = invalid_review_subject_details(str(refused.exception))
+            resolved = resolve_commit_range_subject(project, fork_point, head, run_command)
+
+        hint = next((line for line in details if "merge-base" in line), "")
+        self.assertIn("--review-base", hint)
+        self.assertEqual(["topic.py"], resolved["changed_paths"])
+
+    def test_other_invalid_review_subjects_get_no_fork_point_hint(self) -> None:
+        details = invalid_review_subject_details("commit-range has no changed paths")
+
+        self.assertFalse(any("merge-base" in line for line in details))
 
     def _integration_repository(
         self, project: Path, *, authored: bool, integrated_text: str = "value = 2\n"

@@ -183,12 +183,24 @@ def unavailable_structure_review(reason: str) -> dict[str, Any]:
     }
 
 def invalid_review_subject_details(failure: str) -> list[str]:
-    return [
+    details = [
         f"review subject: {failure}",
         "invocation request: provide an ordered, non-empty commit range whose base and "
         "head both resolve to commits in the target repository",
-        "review did not start, so no lifecycle checkpoint failed and repair-verify is not required",
     ]
+    if "must be an ancestor of head" in failure:
+        # A moving base branch (`origin/develop` after a fetch) is no longer behind the
+        # reviewed head, so naming it fails; the range to review starts where the
+        # branch left it. Naming that fork point keeps the range ordered and exact.
+        details.append(
+            "invocation request: the base is not behind head, usually because the base branch moved "
+            "after this branch was cut; pass the fork point instead, for example "
+            "--review-base \"$(git merge-base <base> HEAD)\" (or HEAD~<n> for the last n commits)"
+        )
+    details.append(
+        "review did not start, so no lifecycle checkpoint failed and repair-verify is not required"
+    )
+    return details
 
 def settled_review_run_state(args: Any) -> str | None:
     """Return the terminal state bound to this review evidence, when present."""
