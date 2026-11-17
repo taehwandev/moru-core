@@ -3,9 +3,11 @@
 Owner: the bounded list of checkouts a session-wide settle may look at, the
 content-free question of whether a settled run's checkout still holds
 unfinished work, and whether removing a checkout would lose work or a run.
-Allowed imports: the standard library and the shared state-root selector.
-Forbidden imports: the run registry and runtime-session modules; the caller
-hands in each checkout and run id and does the settling itself. The registry
+Allowed imports: stdlib, the shared state-root selector and the read-only
+delivery-retention policy.
+Forbidden here: direct registry/session-control imports or mutation. The
+delivery reader may reuse public read-only binding/evidence discovery; it never
+settles a run or delivery. The registry
 file is read here directly, without its locks, because a removal check only
 reads and must fail towards keeping the checkout.
 Callers/tests: agent_runtime_session.settle_superseded_session_runs,
@@ -152,6 +154,12 @@ def checkout_removal_hazard(checkout: Path, *, count_changes: bool = True) -> st
     states = unsettled_run_states(checkout)
     if states:
         return f"it holds an unsettled Moru run ({', '.join(states)})"
+    try:
+        from agent_delivery_retention import DeliveryRetention
+        if reason := DeliveryRetention.reason(checkout):
+            return reason
+    except (ImportError, AttributeError):
+        return 'delivery inspection is unavailable; retain the checkout for inspection'
     if not count_changes:
         return ""
     try:

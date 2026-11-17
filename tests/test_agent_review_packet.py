@@ -170,7 +170,8 @@ class ReviewPacketTest(unittest.TestCase):
         packet = ReviewPacket.build(self.root, ["new.py"])
         self.assertEqual(packet["files"][0]["status"], "added")
         self.assertIsNone(packet["files"][0]["head_sha256"])
-        self.assertEqual([(item["symbol"], item["role"]) for item in packet["definitions"]], [("fresh", "changed")])
+        self.assertEqual([], packet['definitions'])
+        self.assertTrue(any(item.get('symbol') == 'fresh' and item['reason'] == 'covered_by_diff' for item in packet['omissions']))
         self.assertIn("+def fresh():", packet["diffs"][0]["lines"])
 
     def test_deleted_tracked_file_and_global_ignores(self):

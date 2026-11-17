@@ -863,6 +863,11 @@ def _within_worker_root(filename: object, worker_root: Path) -> bool:
     return path == worker_root or worker_root in path.parents
 
 
+def runtime_evidence_candidates(project: Path, evidence_names: set[str]) -> tuple[tuple[Path, ...], tuple[Path, ...], bool]:
+    """Read-only registered evidence discovery for runtime and retention callers."""
+    return _runtime_evidence_candidates(project, evidence_names)
+
+
 def _runtime_evidence_candidates(
     project: Path, evidence_names: set[str]
 ) -> tuple[tuple[Path, ...], tuple[Path, ...], bool]:

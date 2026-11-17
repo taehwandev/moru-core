@@ -95,6 +95,17 @@ NOT PUBLISHED and the exact blocker; never erase debt to claim completion.
 Repeated Stop does not force an unbounded continuation loop.
 Claude's repeated Stop allows exit without observing; its next normal Stop or
 explicit settlement observes the retained local delivery debt.
+Checkout removal also reads delivery records of settled runs. Pending, missing,
+corrupt or unresolved bound delivery evidence keeps the checkout, including a
+clean committed checkout whose delivery has not been observed. The check never
+settles a receipt, runs publication or grants cleanup authority. Observe the
+authorized delivery first, or retain the checkout for inspection.
+Pruned history without retained delivery declarations and cancelled runs with
+no prepared publication receipt do not create new debt. A retained but corrupt
+checkpoint still needs inspection, including when its receipt is missing.
+History is not silently truncated to the latest runs; there is no 512-run
+cleanup ceiling. Missing access or uncertain retained evidence requires record
+inspection/restoration rather than automatic publication or abandonment.
 
 Use the lightweight commit route if authority is newly granted after finish,
 the run cannot bind the required effect, review/readiness is incomplete, or

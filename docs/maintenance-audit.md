@@ -1105,3 +1105,57 @@ Final focused Claude source review returned pass. Its optional UTF-8 reader
 consistency suggestion was applied by the lead with invalid-byte and injected
 parser-recursion tests for both canonical readers. The second review conditions
 were checked against the final staged set and completed regression output.
+
+## Verification, retention and compact review context: 2026-11-17
+
+Baseline `ae9da5c3`; scope H06/H08/H10. The user approved all three proposed
+follow-ups. Source ownership stays serial in the existing task worktree because
+the runner/parser, receipt guard and review-packet integration share closeout
+contracts; separate bounded helpers keep their responsibilities independent.
+No cleanup, native build/install, remote push or new paid service is requested.
+
+| ID | Reproduction and owner | Disposition and observing check |
+| --- | --- | --- |
+| F42 | Optional verification accepted one discovery pattern; disjoint named selections needed manual execution and result copying. | `UnittestSelection` validates up to 64 directory-scoped module/class/method names. The admitted child loads those names and counts overlapping test IDs once. Existing execution receipts, timeout, skip-only/failure rejection, source freshness and no-progress policy remain. Real selection tests cover multiple modules, overlap, missing methods, failures, skipped-only selection, unselected import sentinels and path escapes. |
+| F43 | Checkout removal checked unsettled execution and dirty files, but a completed clean checkout could retain unobserved delivery. | `DeliveryRetention` reads settled-run bindings and canonical publication debt without settlement or publication. It protects pending, corrupt, missing and unresolved evidence, including nonstandard registered locations. Tests exercise actual finish, the removal decision, unchanged receipts and release after actual settlement; user checkouts are never deleted by these checks. |
+| F44 | Added-file diff and definition bodies duplicated source; cross-file call signatures and referenced constants required manual context. | Separate contract projection and assembly owners add guarded repository-local signatures/declarations and represent complete added source once. Oversize whole-file diff can fall back to smaller definitions. AST-only signature projection preserves decorator metadata, avoids shadowed/duplicate declarations, follows no imported function bodies and never imports selected source. Ambiguous/dynamic/external resolution still needs explicit context and the packet is not a secret scanner. |
+
+An initial sibling-helper import broke the isolated pre-admission runner. Moving
+that import after the admission branch restored existing startup, denial,
+cancellation and process-lifetime scenarios; the 52 selected runner/removal
+checks passed. Packet/retention checks also passed. Structural preview exposed
+two oversized blocks; cohesive path resolution and packing were extracted
+without raising limits. The integrated selected regression suite passed 122
+tests; changed retention and packet boundaries received their focused rechecks.
+This records source/contract evidence, not measured token, cost, latency or
+provider task-quality improvements. New automatic context stays local until a
+separately authorized review sends the inspected data.
+
+Claude's source review found an additional exposure path in automatic literal
+projection, overbroad historical retention and two binding-attribution gaps.
+Automatic projections now redact literal strings/bytes and sensitive defaults,
+omit credential-like constants and ambiguous rebindings, and merge tuple symbol
+metadata by source range. Retention distinguishes pruned/unprepared cancelled
+history from retained debt, validates retained checkpoints strictly when the
+receipt is absent, and uses public read-only evidence discovery. No best-effort
+partial history scan can silently waive older delivery. Named selectors also
+guard package initializers and reject cached modules outside the test directory.
+These fixes have explicit privacy, corruption, pruned-history and CLI scenarios.
+
+The final selector boundary checks every prefix against source, bytecode and
+extension candidates. Validated namespaces are pinned to the selected directory
+so ambient search-path modules cannot replace them. The 180 selected regression
+tests and 47 final selector/admission/repetition checks passed. A concurrent
+main update (`291105d6`) changes only writing-workspace guidance; all 19 owned
+file hashes survived the base fast-forward unchanged. No user checkout was
+deleted and no native build/install or remote push was performed.
+
+The final independent selector review identified a nested-namespace regression
+in the initial pinning step. Its new caller-level test failed before the fix
+and passed after pinning only the top-level namespace, as recommended by the
+reviewer; ordinary import machinery binds nested children. Exact directory-name
+casing prevents case aliases from becoming separate pinned modules. The final
+48 selector/admission/repetition tests pass, including nested and mixed package
+success cases. Contracts and retention were accepted in the preceding focused
+review; the lead verified the remaining prescribed selector correction with the
+independent failure oracle and final source inspection.

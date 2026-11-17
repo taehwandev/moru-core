@@ -203,6 +203,20 @@ explicit omissions. Automatic helper selection follows direct same-file calls;
 cross-file/dynamic dependencies need explicit reviewer input. This is not a
 secret-content scanner: inspect selected source bytes as well as file names.
 The CLI creates a new output file and refuses an existing destination.
+When an added file's complete diff fits, its definition bodies are represented
+by that diff once; an omitted large diff can fall back to smaller full
+definitions. Referenced module constants and signatures of unambiguous local
+imports are included as bounded static contracts. Decorators remain metadata;
+no module, default expression or decorator is executed. Imported sources pass
+the same tracked-path, ignore, env-like, symlink and size guards. Dynamic,
+ambiguous and external imports need explicit review context; this is still not
+a secret-content scanner. Packing and signature projection have separate owners.
+Automatic projections redact string/bytes literals and credential-like keyword
+or parameter defaults; credential-like constant declarations require explicit
+context. They do not copy imported function bodies. Rebound or conditional
+declarations require explicit context, and tuple declarations merge their
+symbol names instead of repeating the same source range. Selected source diffs
+and explicit contexts still require inspection before external sharing.
 
 The two-slice eligibility threshold counts a meaningful slice retained by the
 lead as well as worker slices. Therefore one worker plus a distinct lead-owned

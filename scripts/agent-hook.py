@@ -2131,6 +2131,8 @@ def _add_gate_arguments(parser: argparse.ArgumentParser) -> None:
     gate = parser.add_argument_group("gate evidence hook")
     gate.add_argument("--test-directory", default="tests", help="verify: project-local unittest discovery directory")
     gate.add_argument("--test-pattern", default="test_*.py", help="verify: unittest discovery filename glob")
+    gate.add_argument('--test-selector', action='append', default=[],
+                      help='verify: named module/class/method relative to --test-directory; repeat for a bounded batch')
     gate.add_argument("--verify-timeout", type=int, default=600, help="verify: maximum test process seconds")
     gate.add_argument("--retry-reason", default="", help="verify: changed external condition requiring fresh verification")
     # --name is what agents guess. --gate stays undefined on purpose (finish must not take gate
@@ -2245,6 +2247,8 @@ def _parse_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.from_plan and (args.hook != "gate-batch" or args.gate_template or args.gate_record or args.gate_json):
         parser.error("--from-plan requires gate-batch without --template or manual gate records")
+    if args.test_selector and args.hook != 'verify':
+        parser.error('--test-selector is only valid for verify')
     return args
 
 

@@ -18,6 +18,8 @@ import sys
 from pathlib import Path
 
 from agent_review_packet_context import ReviewContext as _Context
+from agent_review_packet_contracts import ReviewContracts as _Contracts
+from agent_review_packet_assembly import ReviewAssembly as _Assembly
 
 _SCHEMA_VERSION, _MAX_SOURCE_BYTES = 1, 256 * 1024
 _MAX_FILES, _MAX_CHECKS, _MAX_FIELD, _MIN_BYTES, _MAX_BYTES = 25, 50, 300, 2048, 1024 * 1024
@@ -162,7 +164,7 @@ class ReviewPacket:
         found = _git(root, ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], ok=(0, 1, 128))
         head = found.stdout.decode("ascii", "replace").strip() if found.returncode == 0 else None
         loaded = {rel: _load(root, rel, head) for rel in dict.fromkeys(rel for _, rel in targets)}
-        files, fixed, diffs, changed, helpers, extra, seen = [], [], [], [], [], [], set()
+        files, fixed, diffs, changed, helpers, extra, seen, selections = [], [], [], [], [], [], set(), {}
         for rel in paths:
             entry, current, previous, reason = loaded[rel]
             files.append(dict(entry, role="selected"))
@@ -180,6 +182,7 @@ class ReviewPacket:
             if unindexed:
                 fixed.append(_omit('definition', rel, 'outside_indexed_definition'))
             called = dict.fromkeys(name for owner in names for name in _Context.helpers(index, owner) if name not in names)
+            selections[rel] = [*names, *called]
             for name, role, bucket in [(n, "changed", changed) for n in names] + [(n, "helper", helpers) for n in called]:
                 seen.add((rel, name))
                 section = _Context.section(rel, name, index[name], new, role)
@@ -196,30 +199,50 @@ class ReviewPacket:
                 seen.add((rel, symbol))
                 section = _Context.section(rel, symbol, index[symbol], _lines(current), "context")
                 extra.append(("contexts", section, _omit("context", rel, _TOO_BIG, symbol)))
-        pending, kept = diffs + extra + changed + helpers, set()
+        contracts, gaps = ReviewPacket._contracts(root, head, loaded, files, selections)
+        fixed += gaps
+        pending, kept = diffs + extra + [('contracts', section, _omit('contract', section['path'], _TOO_BIG, section['symbol']))
+                                        for section in contracts] + changed + helpers, set()
         fixed += [dict(item[2], reason='section_count_budget') for item in pending[128:]]
         pending = pending[:128]
         packet = {"schema_version": _SCHEMA_VERSION, "kind": "review_packet", "context_only": True, "no_execution": True,
                   "notice": _NOTICE, "head": head, "max_bytes": max_bytes, "files": files, "diffs": [], "definitions": [],
-                  "contexts": [], "checks": {"provenance": _RECORDED, "items": recorded}, "omissions": [],
+                  "contexts": [], 'contracts': [], "checks": {"provenance": _RECORDED, "items": recorded}, "omissions": [],
                   "packet_sha256": "0" * 64}
 
-        def size():
-            packet["omissions"] = fixed + [item[2] for number, item in enumerate(pending) if number not in kept]
-            return len(ReviewPacket.render(packet).encode("utf-8"))
+        try:
+            return _Assembly.build(packet, pending, fixed, ReviewPacket.render)
+        except ValueError as error:
+            raise _PacketError(str(error)) from None
 
-        if size() > max_bytes:
-            raise _PacketError("max_bytes is too small for the packet metadata and omissions")
-        for number, (bucket, section, _) in enumerate(pending):
-            kept.add(number)
-            packet[bucket].append(section)
-            if size() > max_bytes:
-                kept.discard(number)
-                packet[bucket].pop()
-        size()
-        body = {key: value for key, value in packet.items() if key != "packet_sha256"}
-        packet["packet_sha256"] = hashlib.sha256(ReviewPacket.render(body).encode("utf-8")).hexdigest()
-        return packet
+    @staticmethod
+    def _contracts(root, head, loaded, files, selections):
+        sections, omissions, seen = [], [], set()
+        def read(rel):
+            if rel not in loaded:
+                if len(loaded) >= 50:
+                    raise _PacketError('contract source budget exceeded')
+                _guard(root, 'local contract', rel)
+                loaded[rel] = _load(root, rel, head)
+                files.append(dict(loaded[rel][0], role='contract'))
+            _, text, _, reason = loaded[rel]
+            if text is None or reason:
+                raise _PacketError('local contract source is unavailable')
+            return text
+        for rel, symbols in selections.items():
+            additions, gaps = _Contracts.collect(root, rel, loaded[rel][1], symbols, read)
+            omissions += gaps
+            for section in additions:
+                key = (section['path'], section['start_line'], section['end_line'], section['role'])
+                if key not in seen:
+                    seen.add(key)
+                    section['symbols'] = [section['symbol']]
+                    sections.append(section)
+                else:
+                    prior = next(s for s in sections if (s['path'], s['start_line'], s['end_line'], s['role']) == key)
+                    if section['symbol'] not in prior['symbols']:
+                        prior['symbols'].append(section['symbol'])
+        return sections, omissions
 
     @staticmethod
     def render(packet: dict) -> str:

@@ -217,6 +217,20 @@ tests; assess ignored artifacts, dependencies and external state normally.
 Do not rerun a completed selection merely to adopt this shortcut, and keep
 final review.
 
+For a disjoint batch, repeat `--test-selector test_owner.Case.test_method` with
+names relative to `--test-directory` (default `tests`). Module and class names
+are accepted too; at most 64 names are allowed. Names must resolve within the
+selected directory, and cannot be combined with a custom discovery pattern.
+Only selected modules load; overlapping selections are counted once by test ID.
+The existing observed-result receipt, admission, freshness and zero/skip-only
+failure rules still apply. Use this runner to record the result directly rather
+than copying test counts into another gate record.
+Named selections require unambiguous filesystem-backed Python source. Every
+prefix rejects module/package collisions, sourceless bytecode and extension
+candidates. Validated top-level namespace prefixes are pinned to the chosen directory
+so later search-path modules cannot replace them. This does not sandbox the
+project code and dependencies that an admitted test intentionally executes.
+
 The optional runner admits two attempts without a verified pass for each unchanged
 command, timeout and project/rules snapshot, then returns `no_progress` without spawning
 tests. The existing run-local repair ledger keeps at most 32 input identities;

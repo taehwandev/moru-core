@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 
+
 class _ProofResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,9 +54,11 @@ def main() -> int:
         # inside the admitted PID and group. The isolated bootstrap loaded no
         # project-controlled interpreter or startup hooks before this point.
         os.execv(sys.argv[1], sys.argv[1:])
+    from agent_unittest_selection import UnittestSelection
     project, directory, pattern, receipt = sys.argv[1:5]
-    sys.path[:] = [str(Path(project).resolve()), *_without_moru_scripts(sys.path)]
-    suite = unittest.defaultTestLoader.discover(start_dir=directory, pattern=pattern)
+    sys.path[:] = [str(Path(directory).resolve()), str(Path(project).resolve()), *_without_moru_scripts(sys.path)]
+    suite = (UnittestSelection.load(Path(directory), pattern) if pattern.startswith(UnittestSelection.PREFIX)
+             else unittest.defaultTestLoader.discover(start_dir=directory, pattern=pattern))
     result = unittest.TextTestRunner(resultclass=_ProofResult).run(suite)
     executed = result.testsRun - result.skipped_methods - len(result.expectedFailures)
     Path(receipt).write_text(

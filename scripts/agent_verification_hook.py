@@ -114,7 +114,13 @@ def unittest_command(args) -> list[str]:
     if not directory.is_relative_to(args.project.resolve()) or not directory.is_dir():
         raise ValueError("test directory must exist inside the project")
     pattern = args.test_pattern
-    if not pattern or any(char in pattern for char in ("/", "\\", "\n")) or not pattern.endswith(".py"):
+    selectors = getattr(args, 'test_selector', [])
+    if selectors:
+        from agent_unittest_selection import UnittestSelection
+        if pattern != 'test_*.py':
+            raise ValueError('named selectors cannot be combined with a discovery pattern')
+        pattern = UnittestSelection.encode(directory, selectors)
+    if not selectors and (not pattern or any(char in pattern for char in ("/", "\\", "\n")) or not pattern.endswith(".py")):
         raise ValueError("test pattern must be a Python filename glob")
     if args.verify_timeout <= 0:
         raise ValueError("verify timeout must be positive")
