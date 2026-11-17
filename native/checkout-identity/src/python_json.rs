@@ -29,6 +29,9 @@ impl PythonJson {
     pub(crate) fn parse_outcome(text: &str) -> ParseOutcome {
         parser::ManifestParser::parse_outcome(text)
     }
+    pub(crate) fn integer_conversion_failed(text: &str) -> bool {
+        parser::ManifestParser::integer_conversion_failed(text)
+    }
     pub(crate) fn truthy(value: &Value) -> bool {
         match value {
             Value::Null => false,

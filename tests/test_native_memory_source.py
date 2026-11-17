@@ -232,6 +232,9 @@ class NativeMemorySourceTests(unittest.TestCase):
         for data, closed, accepted in ((b"", True, True), (b"data", True, False), (b"data", False, False)):
             reader, writer = os.pipe()
             try:
+                # Linux anonymous pipes have one link and are conservatively
+                # declined by the current zero-link EOF admission contract.
+                accepted = accepted and os.fstat(reader).st_nlink == 0
                 if data:
                     os.write(writer, data)
                 if closed:

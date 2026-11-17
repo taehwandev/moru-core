@@ -209,7 +209,22 @@ leaf in the current process or use a native worker, regardless of whether the
 selected profile, sandbox, or parent profile information matches. One dispatch is not
 multi-agent fanout. The main session remains responsible for orchestration,
 integration, and final verification. Omit `--execute` to inspect a
-non-executing handoff manifest. The profiles are explicit:
+non-executing handoff manifest.
+
+CLI workers default to two recovery retries (`max_retries: 2` in the manifest);
+an explicit zero disables them. Only a recognized terminal transport/server
+error before any tool activity admits automatic replay. Retries wait 1 then 2
+seconds, honor a bounded `retry_after_seconds` (at most 30 seconds), and retain
+the task's existing attempt budget and partial-result identity. Cancellation or
+ownership loss during the wait prevents relaunch. Completed/started tools,
+in-progress turns, unreadable/incomplete event streams and unknown errors never
+prove replay safe. Reconcile existing work before resuming those cases.
+Invalid arguments, auth, permission and missing-tool failures return a concrete
+correction in `worker_result_v1.next_action`; correct that boundary instead of
+declaring the whole task blocked or changing Moru. This does not intercept
+arbitrary provider-internal tool failures or grant new execution authority.
+
+The profiles are explicit:
 
 | Stage | Tier and reasoning effort |
 | --- | --- |
@@ -287,8 +302,9 @@ changed start intake or read-to-write transition gets a fresh run path, while
 an unchanged intake reuses its run. Explicit evidence remains explicit. Only
 successful registration settles superseded runs in the same runtime session;
 failed entry must leave the earlier run intact. A new request also settles
-the session's paused and failed runs and those in its other checkouts, files untouched
-(scope: worktree-hygiene guidance).
+the session's interrupted and failed runs in other checkouts, files untouched.
+Active sibling claims (running, paused, resuming) stay independent, including
+Claude subagents sharing the parent's session id (scope: worktree-hygiene guidance).
 
 HTTP inspection is provider-independent. Use `curl -q` (or `--disable` as the
 first argument) with GET/HEAD and stdout; this disables implicit curlrc actions
@@ -488,10 +504,15 @@ Gemini/Antigravity/AGY:
 - Moru Core command permissions may live in
   `~/.gemini/config/config.json` or the legacy
   `~/.gemini/antigravity-cli/settings.json`, depending on the active AGY
-  runtime. Runtime hooks remain in `~/.gemini/config/hooks.json`.
+  runtime. Runtime hooks remain in `~/.gemini/config/hooks.json` under the
+  durable `moru` hook group (`<MORU_LAUNCHER> agy-hook ...`), whose
+  `pre-invocation` handler caches prompt/entry guidance per user input and
+  delivers unread `required_docs` in-process; setup retires any older standalone
+  `moru-core` `agy_required_docs_hook.py` group once run from a durable root.
 - AGY Moru Core permissions follow the same absolute-wrapper rule as
-  Claude, using the AGY permission key shape, for example
-  `command(/Users/USER/.moru/bin/moru-hook *)`.
+  Claude, using AGY's literal-prefix `command(...)` shape without Claude's
+  `:*` or ` *` wildcard suffixes, for example
+  `command(/absolute/home/.moru/bin/moru-hook)`.
   Avoid `$HOME`, `${HOME}`, `~`, relative script paths, and saved prefixes that
   include task-specific arguments.
 - Antigravity runtimes bind active runs natively when

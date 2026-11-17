@@ -6,201 +6,132 @@ type: human-reviewed-needed
 
 # Swift Code Structure
 
-Use when deciding Swift Package Manager layout, Xcode targets, feature folders,
-file ownership, target membership, access control, public contracts, or where
-new Swift code should live.
+Use when deciding Swift Package Manager (`Package.swift`) layout, Xcode targets,
+feature folders, file ownership, target membership, access control, public
+contracts, or where new Swift code should live.
 
 Also use:
 
-- `common/skills/code-structure-ownership/SKILL.md` for generic ownership level,
-  module split, and `api`/`impl` decisions.
-- `common/skills/reusable-code-design/SKILL.md` before promoting Swift code into a
-  shared package or public API.
-- `common/skills/component-api-design/SKILL.md` before extracting reusable UI
-  components.
-- `platforms/swift/skills/swift-architecture/SKILL.md` for Swift app, state, domain, data, and adapter
-  boundary choices.
-- `platforms/swift/skills/swift-design-system/SKILL.md` for shared SwiftUI/UIKit/AppKit UI packages.
+- `common/nodes/package-module-boundaries.md` and
+  `common/skills/code-structure-ownership/SKILL.md` for the shared boundary
+  ladder, `api`/`impl`/`ui`/`assertions` contract, and root-folder audit.
+- `common/skills/reusable-code-design/SKILL.md` before promoting Swift code into
+  a shared target or public package API.
+- `common/skills/component-api-design/SKILL.md` before extracting reusable UI.
+- `platforms/swift/skills/swift-architecture/SKILL.md` for Swift state, domain,
+  data, and platform-adapter architecture tracks.
+- `platforms/swift/skills/swift-design-system/SKILL.md` for shared
+  SwiftUI/UIKit/AppKit design-system packages.
 
 References:
 
-- Swift declarations:
+- Swift declarations and access control:
   `https://docs.swift.org/swift-book/documentation/the-swift-programming-language/declarations/`
+- Swift PackageDescription:
+  `https://developer.apple.com/documentation/packagedescription`
+
+## Swift Folder Versus Target Contract
+
+Unlike Kotlin/Java packages or TypeScript/Python file modules, **folders inside
+a single Swift target create no compiler namespace or import boundary**: every
+`internal` symbol in `Sources/MyTarget/**` is directly visible to every other
+file in `MyTarget` without an `import`.
+
+Apply both levels intentionally:
+
+- **Folders inside one target** organize flows and owner roles for navigation,
+  review scope, and `.agents/structure-rules.json` path gates when compile-time
+  isolation is unnecessary. Never create repo-wide horizontal `Models/`,
+  `Views/`, `ViewModels/`, `Managers/`, `Services/`, or `Utils/` folders.
+- **SPM targets in `Package.swift`** (or distinct Xcode targets when target
+  build settings/entitlements require them) are the unit of **compiler-enforced
+  package separation** in Swift. Adding a target inside an existing local
+  `Package.swift` is cheap; prefer a new target inside the workspace's local
+  `Package.swift` over creating another standalone `Package.swift` repository.
 
 ## Default Boundary
 
-Start with the lowest owner boundary that works:
+Start with the lowest boundary that protects the real owner:
 
 ```text
-private/fileprivate helper -> internal file/folder -> target feature
--> local Swift package target -> shared package -> public package/API
+private/fileprivate helper -> flow/role folder in target -> unsplit feature target
+-> Feature<Name>Contract + Feature<Name> -> + Feature<Name>UI
+-> Core<Capability> target -> public package product
 ```
 
-Do not create a Swift package, target, protocol, or contract module only to
-mirror an architecture diagram. Split when another caller, app extension,
-widget, package, test target, dependency, build scope, or ownership line needs
-the boundary.
-
-## Target And Package Families
-
-Use repo-local names first. Mature Swift apps and libraries commonly separate:
-
-| Family | Owns | Must Not Own |
-| --- | --- | --- |
-| App/executable target | Entry point, lifecycle, composition root, app route, scene/window setup, entitlements, top-level resources. | Feature internals, reusable UI primitives, repository implementations hidden from callers. |
-| Feature target/folder | Screens/controllers, state owners, feature display models, feature-local views, feature commands. | Shared design tokens, app lifecycle, raw SDK clients, global state. |
-| Feature contract target | Route contracts, command interfaces, entry factories, small caller-facing models. | Views, state owners, SDK dependencies, repository implementations. |
-| Design system package | Theme, tokens, styles, reusable controls, feedback views, preview fixtures, accessibility contracts. | Product routes, analytics names, permissions, repositories, domain policy. |
-| Domain package | Entities, product rules, policies, use cases, repository protocols. | SwiftUI/UIKit/AppKit types, DTOs, persistence rows, URLSession, SDK details. |
-| Data package | Repository implementations, DTO mapping, persistence, cache, generated clients, network clients. | Screen state, navigation, product UI copy. |
-| Platform adapters package | Keychain, files, notifications, permissions, StoreKit, HealthKit, camera, location, Accessibility, shell, clipboard, app extensions. | Feature-specific decisions or hidden global state. |
-| Test support package | Fakes, fixtures, deterministic clocks/schedulers, preview/sample data, snapshot helpers. | Production-only behavior that app code must depend on at runtime. |
-
-Prefer local Swift packages when code should compile independently, be reused
-across targets, or hide dependencies. Prefer folders or Xcode targets when the
-code is app-specific and strongly tied to target settings, resources, or
-entitlements.
+Do not create an SPM target, protocol, or `*Contract` module only to mirror an
+architecture diagram. Split targets when another feature, app extension, widget,
+helper process, CLI, test target, heavy SDK dependency, or build scope needs a
+compiler-enforced boundary. Canonical target contracts live in
+[`package-boundaries.md`](package-boundaries.md).
 
 ## File And Type Ownership
 
-- Default to one primary public or internal top-level type per file when the
-  type is imported, tested, previewed, or reviewed as a standalone owner. This
-  includes classes, structs, enums, protocols, actors, views, view models,
-  coordinators, repositories, adapters, fixtures, and assertion helpers.
-- Keep tiny private helpers near their only caller. Move helpers out only when
-  they gain a stable owner or multiple real callers.
-- Use extensions to group protocol conformances, preview helpers, or small
-  domain-specific APIs when it improves scanning. Do not scatter one type across
-  many files without a clear reason.
-- Keep individual Swift `extension` blocks within the 120-line structure review
-  budget by splitting distinct private helper concerns into separate extensions,
-  and pass `--structure-review-evidence` whenever editing a Swift file over 300 lines.
-- Keep generated code, DTOs, persistence rows, fixtures, and production models
-  in separate owners.
-- Keep resources with the target or package that owns them. Package resources
-  should use the package's resource bundle path instead of assuming `Bundle.main`.
-- Keep preview data deterministic and separate from production services.
-- Avoid catch-all `Utils`, `Common`, or `Extensions` folders unless each file
-  has a clear responsibility and owner.
+- Default to **one primary `public`, `package`, or `internal` top-level owner
+  per `.swift` file** when imported, tested, previewed, or reviewed on its own:
+  `struct`, `class`, `actor`, `enum`, `protocol`, `@MainActor` model/ViewModel,
+  `@Observable` model, `@Reducer` feature, SwiftUI `View`, `UIViewController`,
+  `NSViewController`, coordinator, repository, adapter, DTO, mapper, fixture, or
+  assertion helper.
+- Leading attributes (`@MainActor`, `@Observable`, `@Reducer`, `@objc`,
+  `@available`) do not merge separate owners; an `@MainActor final class
+  ProfileViewModel` and `struct ProfileScreen: View` belong in separate files.
+- Keep tiny `private` helpers near their single caller; use `fileprivate` only
+  when same-file extensions or a sealed-style value family genuinely need it.
+- Use `extension` blocks to group protocol conformances or focused private
+  concern clusters, keeping each `extension` block within the 120-line review
+  budget. Pass `--structure-review-evidence` whenever editing a Swift file over
+  300 lines.
+- Keep generated code, DTOs, persistence rows (`@Model`, `NSManagedObject`),
+  production domain models, and preview/test fixtures in separate owners.
+- Keep resources with the owning target and load package resources via
+  `Bundle.module` (or a typed target-owned accessor), never assuming
+  `Bundle.main` inside a Swift package target.
+- Avoid catch-all `Utils`, `Common`, `Shared`, `Helpers`, `Managers`, or
+  `Extensions` folders and files. Name extension files after the receiver and
+  capability (`URLRequest+RetryHeaders.swift`, not `Extensions.swift`).
 
-Review must fail when a Swift runtime file keeps multiple independently
-importable owners in one file: classes, structs, enums, protocols, actors,
-views, view models, coordinators, repositories, adapters, DTOs, mappers,
-fixtures, or assertion helpers.
-
-Do not keep multiple importable Swift types in one file because they are small,
-created together, or used by the same feature. Exceptions should be narrow:
-private helper types, a sealed-style enum/value family, or a tiny protocol
-conformance extension that cannot be imported or reviewed independently.
+Review fails when a Swift runtime file keeps multiple independently importable
+owners together because they are small or belong to the same feature.
 
 ## Type Aliases
 
-Swift `typealias` is allowed when it makes a real Swift API easier to read
-without hiding ownership:
+Swift `typealias` is allowed for long generic/closure signatures, associated-type
+conveniences, or documented compatibility shims where callers already intend the
+same nominal type. Do not use `typealias` when the concept needs nominal
+identity, invariants, validation, protocol conformance, or security separation
+(for example `ProfileID` vs `WorkspaceID`); use a `struct`, `enum`, `actor`, or
+`protocol`.
 
-- long generic shapes, closure signatures, and dictionary/result forms that
-  would otherwise dominate call sites
-- protocol-associated type conveniences inside protocol declarations
-- package or public compatibility surfaces where callers already understand the
-  underlying type
+## Access Control And Import Visibility
 
-Do not use a Swift type alias when the concept needs a new nominal type,
-stored invariants, validation, identity, access-controlled data, protocol
-conformance, or security-sensitive separation. Use a `struct`, `enum`,
-protocol, actor, or wrapper type for those cases.
+Use Swift access levels and SE-0409 import modifiers to enforce boundaries:
 
-## Access Control
+- `private`: helpers inside one declaration and its same-file extensions.
+- `fileprivate`: tightly coupled helpers shared only within one file.
+- `internal` (default): collaborators inside a single target.
+- `package` (Swift 5.9+, SE-0386): APIs shared across sibling targets declared
+  in the same `Package.swift` without exposing them outside the package. Prefer
+  `package` over `public` for local modularization inside one `Package.swift`.
+- `public`: cross-package contracts, Xcode-app-facing library products, or
+  published SDK APIs (requires explicit `public init` and member visibility).
+- `open`: only when cross-module subclassing/overriding is an intentional API.
+- Access-level on imports (Swift 6.0+, SE-0409; requires experimental flag
+  `AccessLevelOnImports` on Swift 5.9): use `private import` or `internal import`
+  for implementation SDKs, persistence, and transport modules so `public`
+  contracts cannot accidentally expose transitive types; use `public import` only
+  for contract modules whose types appear in `public` APIs.
 
-Use Swift access control as part of the architecture:
+Do not widen declarations to `public` only for SwiftUI `#Preview` or unit tests.
+Keep `#Preview` in the owning UI target with deterministic fixtures, use
+`package` access for sibling test/support targets, or use `@testable import` for
+focused white-box unit tests.
 
-- `private` for unstable helpers inside one declaration.
-- `fileprivate` only when neighboring declarations in the same file need shared
-  access.
-- `internal` for collaborators inside one target or package target.
-- `package` for package-internal APIs when the repo uses Swift package access
-  control and the API should not escape the package.
-- `public` for app-facing package contracts, cross-target APIs, or SDK-like
-  surfaces.
-- `open` only when subclassing outside the module is an intentional contract.
+## Topic References
 
-Do not make a type `public` only to satisfy previews or tests. Prefer moving
-tests closer, using `@testable import`, providing public fixture factories, or
-introducing a smaller public contract.
-
-## Dependency Direction
-
-Protect acyclic dependencies:
-
-```text
-App target
-  -> feature contracts and selected feature implementations
-Feature implementation
-  -> own contract, design system, domain, data protocols, platform adapters
-Feature contract
-  -> stable route/data contracts and lightweight value types
-Domain
-  -> repository protocols and pure policies
-Data implementation
-  -> repository protocols, DTOs, generated clients, persistence, network
-Design system
-  -> visual primitives, resources, tokens, accessibility contracts
-Platform adapters
-  -> OS frameworks and SDK-specific implementations
-```
-
-Forbidden edges:
-
-- feature contract -> feature implementation
-- domain -> SwiftUI, UIKit, AppKit, DTO, persistence row, SDK, or route type
-- design system -> feature, repository, app route, analytics, or permission
-  policy
-- repository protocol -> repository implementation
-- shared utility -> feature implementation
-- app extension/widget -> app-only implementation dependency when a smaller
-  contract can express the need
-
-## API / Implementation Split
-
-Create a contract or `api` target only when at least one caller benefits from
-avoiding implementation dependencies:
-
-- route, command, factory, or repository contracts cross a target boundary
-- multiple implementations can exist, such as fake/real, local/remote,
-  app/extension, paid/free, or test/prod
-- implementation dependencies are heavy, optional, platform-specific, or risky
-  to leak to all callers
-- the split removes a cycle, shortens build scope, or lets owners change
-  independently
-
-If no caller can use the contract without the implementation, keep the feature
-local and revisit the split when pressure appears.
-
-## Migration Recipe
-
-When restructuring Swift code:
-
-1. Inventory imports, target membership, package products, resources,
-   entitlements, generated files, previews, and tests.
-2. Name the current owner and intended owner before moving files.
-3. Extract the smallest stable contract first: route, command, repository
-   protocol, display model, use case, or adapter.
-4. Compile or test the contract boundary before moving implementation.
-5. Move one feature, target, package target, or resource owner at a time.
-6. Keep behavior changes separate unless they are required to make the
-   boundary correct.
-7. Remove duplicate resources, old target membership, and compatibility shims
-   only after the new owner is verified.
-
-## Verification
-
-For Swift structure changes:
-
-- run the nearest Swift build, test, or Xcode wrapper for affected targets
-- verify package products and target membership compile
-- run focused tests for mappers, route resolution, repository contracts, or
-  command wiring
-- inspect final imports for forbidden dependencies
-- verify resources, previews, localization, fixtures, and generated files are
-  owned by the moved target or package
-- report whether the chosen boundary is file-local, feature-local, target,
-  package, contract, or public API, and why
+- [`package-boundaries.md`](package-boundaries.md) — `Package.swift` products vs
+  targets, `Contract`/`Feature`/`UI`/`TestSupport` split, `Route` vs `Screen`
+  naming, `Core<Capability>` targets, `Bundle.module`, and pre-code packets.
+- [`package-layout-and-migration.md`](package-layout-and-migration.md) — target
+  folder trees, root-folder audit, complete role moves, dependency-edge searches,
+  Xcode-to-SPM migration hazards, and the Swift structure review checklist.

@@ -45,8 +45,10 @@ until its state can be established.
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import stat
+import sys
 import time
 from pathlib import Path
 from typing import Iterable
@@ -64,6 +66,13 @@ FINISHED_PHASES = {"done"}
 CLAIM_HOLDING_STATES = frozenset({"running", "paused", "resuming", "claiming"})
 SETTLED_STATES = frozenset({"completed", "cancelled"})
 REGISTRY_SCHEMA_VERSION = 1
+_NATIVE_JSON_LOADS = (json.loads, json.loads.__code__, json.loads.__defaults__, dict(json.loads.__kwdefaults__ or {}))
+_NATIVE_READ_TEXT = (Path.read_text, Path.read_text.__code__, Path.read_text.__defaults__, dict(Path.read_text.__kwdefaults__ or {}))
+_NATIVE_IDENTITY_PATH = Path
+_NATIVE_IDENTITY_TYPE = type(Path())
+_NATIVE_IDENTITY_METHODS = [(name, fn, getattr(fn, "__code__", None), getattr(fn, "__defaults__", None),
+    dict(getattr(fn, "__kwdefaults__", None) or {}))
+    for name in ("rglob", "lstat", "stat", "relative_to", "__str__", "__lt__", "is_file") for fn in [getattr(Path, name)]]
 
 
 def runs_dir(project: Path) -> Path:
@@ -80,6 +89,17 @@ def read_registry_states(project: Path) -> dict[str, str] | None:
     from agent_run_registry import RUN_STATES
 
     path = project_state_dir_target(project) / "run-registry.json"
+    profiles = ((getattr(json, "loads", None), _NATIVE_JSON_LOADS), (getattr(Path, "read_text", None), _NATIVE_READ_TEXT))
+    if type(REGISTRY_SCHEMA_VERSION) is int and REGISTRY_SCHEMA_VERSION == 1 and all(fn is original and fn.__code__ is code and fn.__defaults__ is defaults
+           and dict(fn.__kwdefaults__ or {}) == kw for fn, (original, code, defaults, kw) in profiles):
+        from agent_registry_read import retention_states
+        handled, states = retention_states(path, RUN_STATES)
+        if handled:
+            return states
+    return _read_registry_states_reference(path, RUN_STATES)
+
+
+def _read_registry_states_reference(path: Path, run_states) -> dict[str, str] | None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
@@ -94,7 +114,7 @@ def read_registry_states(project: Path) -> dict[str, str] | None:
     for run in payload["runs"]:
         if (not isinstance(run, dict) or not isinstance(run.get("run_id"), str)
                 or not run["run_id"] or not isinstance(run.get("state"), str)
-                or run["state"] not in RUN_STATES or run["run_id"] in states):
+                or run["state"] not in run_states or run["run_id"] in states):
             return None
         states[run["run_id"]] = run["state"]
     return states
@@ -137,7 +157,6 @@ def _touched_at(path: Path) -> float:
 
 def _identity(path: Path) -> tuple | None:
     """Detect replacement and in-place evidence writes, not just directory age."""
-
     try:
         return tuple(
             (str(item.relative_to(path)), metadata.st_dev, metadata.st_ino,
@@ -149,15 +168,102 @@ def _identity(path: Path) -> tuple | None:
         return None
 
 
+_NATIVE_IDENTITY_BINDING = (_identity, _identity.__code__, _identity.__defaults__)
+
+
+def _metadata_profile(paths) -> bool:
+    candidate=globals().get("_NATIVE_REMOVAL_CLASS")
+    supported=(type(paths) is list or candidate is not None and type(paths) is candidate
+        and all(getattr(candidate,name,None) is getattr(list,name) for name in ("__iter__","__len__","__getitem__")))
+    return (supported and all(type(path) is _NATIVE_IDENTITY_TYPE for path in paths)
+        and all(getattr(_NATIVE_IDENTITY_PATH,name,None) is fn
+            and getattr(fn,"__code__",None) is code and getattr(fn,"__defaults__",None) is defaults
+            and dict(getattr(fn,"__kwdefaults__",None) or {})==kw
+            for name,fn,code,defaults,kw in _NATIVE_IDENTITY_METHODS))
+
+
+def _identities(paths: list[Path]) -> dict:
+    if type(paths) is list and not paths:
+        return {}
+    if (type(paths) is list and _metadata_profile(paths)
+            and globals().get("_identity") is _NATIVE_IDENTITY_BINDING[0]
+            and _identity.__code__ is _NATIVE_IDENTITY_BINDING[1]
+            and _identity.__defaults__ is _NATIVE_IDENTITY_BINDING[2]):
+        from agent_registry_read import retention_identities
+        value = retention_identities(paths)
+        if value is not None:
+            return value
+    return {path: _identity(path) for path in paths}
+
+
 class _RemovalCandidates(list):
     """A list-compatible preview carrying the observations deletion must recheck."""
 
-    def __init__(self, paths: list[Path], project: Path, options: dict) -> None:
+    def __init__(self, paths: list[Path], project: Path, options: dict, *, _native_identities=None) -> None:
         super().__init__(paths)
         self.project = project
         self.options = options
-        self.identities = {path: _identity(path) for path in paths}
+        self.identities = _identities(paths) if _native_identities is None else _native_identities
         self.removed_bytes = 0
+
+
+_NATIVE_REMOVAL_CLASS = _RemovalCandidates
+_NATIVE_PLAN_INIT = (_RemovalCandidates.__init__, _RemovalCandidates.__init__.__code__)
+_NATIVE_PLAN_TIME = time.time
+_NATIVE_PLAN_DECODER = (json._default_decoder, json._default_decoder.scan_once)
+_NATIVE_PLAN_CALLS = [(name,fn,fn.__code__,fn.__defaults__,dict(fn.__kwdefaults__ or {}))
+    for name in ("phase_of","is_run_directory","_touched_at","_identity","_identities") for fn in [globals()[name]]]
+_NATIVE_PLAN_PATHS = [(name,fn,fn.__code__,fn.__defaults__,dict(fn.__kwdefaults__ or {}))
+    for name in ("iterdir","is_dir","is_symlink","read_text","open","exists","__truediv__") for fn in [getattr(Path,name)]]
+
+
+def _plan_profile(directory, states, held, keep) -> bool:
+    collections=(held,CLAIM_HOLDING_STATES,SETTLED_STATES,FINISHED_PHASES)
+    if (type(keep) is not int or type(RUN_ID_LENGTH) is not int or RUN_ID_LENGTH!=32 or not _metadata_profile([directory])
+            or any(type(items) not in (set,frozenset) or any(type(s) is not str for s in items) for items in collections)
+            or states is not None and (type(states) is not dict or any(type(k) is not str or type(v) is not str for k,v in states.items()))
+            or globals().get("_RemovalCandidates") is not _NATIVE_REMOVAL_CLASS
+            or _RemovalCandidates.__init__ is not _NATIVE_PLAN_INIT[0]
+            or _RemovalCandidates.__init__.__code__ is not _NATIVE_PLAN_INIT[1]
+            or time.time is not _NATIVE_PLAN_TIME or json._default_decoder is not _NATIVE_PLAN_DECODER[0]
+            or json._default_decoder.scan_once is not _NATIVE_PLAN_DECODER[1]):
+        return False
+    loads=_NATIVE_JSON_LOADS
+    if (json.loads is not loads[0] or json.loads.__code__ is not loads[1]
+            or json.loads.__defaults__ is not loads[2] or dict(json.loads.__kwdefaults__ or {})!=loads[3]):
+        return False
+    bindings=[(globals().get(name),fn,code,defaults,kw) for name,fn,code,defaults,kw in _NATIVE_PLAN_CALLS]
+    bindings.extend((getattr(Path,name,None),fn,code,defaults,kw) for name,fn,code,defaults,kw in _NATIVE_PLAN_PATHS)
+    return all(actual is fn and fn.__code__ is code and fn.__defaults__ is defaults
+               and dict(fn.__kwdefaults__ or {})==kw for actual,fn,code,defaults,kw in bindings)
+
+
+def _prepared_native_plan(directory, states, uncertain, held, cutoff, orphan_cutoff, keep, project, options):
+    from support.native_probe_transport import NativeProbe
+    if not _plan_profile(directory,states,held,keep) or not NativeProbe.available():
+        return None,False
+    if any(type(v) not in (int,float) or type(v) is float and not math.isfinite(v) for v in (cutoff,orphan_cutoff)):
+        return None,False
+    entries=directory.iterdir()
+    try:
+        nonempty=next(entries,None) is not None
+    finally:
+        entries.close()
+    if not nonempty:
+        return None,False
+    from agent_registry_read import retention_plan
+    value=retention_plan(directory,{
+        "registry_states":states,"registry_uncertain":uncertain,"protected":sorted(held),
+        "cutoff":cutoff,"orphan_cutoff":orphan_cutoff,"keep":max(0,keep),
+        "holding_states":sorted(CLAIM_HOLDING_STATES),"settled_states":sorted(SETTLED_STATES),
+        "finished_phases":sorted(FINISHED_PHASES),
+        "int_digits":getattr(sys,"get_int_max_str_digits",lambda:0)()})
+    if value is None:
+        return None,True
+    identities=value.pop("identities")
+    value["removable"]=_RemovalCandidates(value["removable"],project,{"keep":max(0,keep),**options},
+                                            _native_identities=identities)
+    return value,True
 
 
 def plan(
@@ -201,6 +307,12 @@ def plan(
     moment = time.time() if now is None else now
     cutoff = moment - max(0, int(abandoned_after_seconds))
     orphan_cutoff = moment - max(0, int(orphan_after_seconds))
+    options={"abandoned_after_seconds":abandoned_after_seconds,
+             "orphan_after_seconds":orphan_after_seconds,"protected":held}
+    native,declined=_prepared_native_plan(directory,registry_states,registry_uncertain,held,
+                                         cutoff,orphan_cutoff,keep,project,options)
+    if native is not None:
+        return native
     finished: list[Path] = []
     unfinished: list[Path] = []
     abandoned: list[Path] = []
@@ -231,6 +343,8 @@ def plan(
 
     finished.sort(key=lambda path: path.stat().st_mtime, reverse=True)
     keep = max(0, int(keep))
+    removable=[*finished[keep:],*abandoned,*removable_orphans]
+    observations={"_native_identities":{path:_identity(path) for path in removable}} if declined else {}
     return {
         "finished": finished,
         "unfinished": unfinished,
@@ -239,9 +353,10 @@ def plan(
         "unclassified": unclassified,
         "kept": finished[:keep],
         "removable": _RemovalCandidates(
-            [*finished[keep:], *abandoned, *removable_orphans], project,
+            removable, project,
             {"keep": keep, "abandoned_after_seconds": abandoned_after_seconds,
              "orphan_after_seconds": orphan_after_seconds, "protected": held},
+            **observations,
         ),
     }
 
@@ -280,6 +395,15 @@ def apply_plan(removable: list[Path]) -> int:
 
 
 def directory_bytes(paths: list[Path]) -> int:
+    if _metadata_profile(paths):
+        from agent_registry_read import retention_bytes
+        value=retention_bytes(list(paths))
+        if value is not None:
+            return value
+    return _directory_bytes_reference(paths)
+
+
+def _directory_bytes_reference(paths: list[Path]) -> int:
     return sum(
         item.stat().st_size
         for path in paths

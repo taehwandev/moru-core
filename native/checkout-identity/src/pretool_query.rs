@@ -53,18 +53,23 @@ pub(crate) fn executable(command: &str) -> Option<&'static str> {
     }
 }
 
-fn diff_args(args: &[&str]) -> bool {
-    let args = args.strip_prefix(&["--cached"]).unwrap_or(args);
-    let args = if args.first().is_some_and(|word| {
-        matches!(
-            *word,
-            "--stat" | "--check" | "--name-only" | "--name-status" | "--numstat" | "--exit-code"
-        )
-    }) {
-        &args[1..]
-    } else {
-        args
-    };
+fn diff_args(mut args: &[&str]) -> bool {
+    let mut cached = false;
+    let mut selector = false;
+    while let Some(word) = args.first() {
+        match *word {
+            "--cached" | "--staged" if !cached => cached = true,
+            "--stat" | "--check" | "--name-only" | "--name-status" | "--numstat"
+            | "--exit-code"
+                if !selector =>
+            {
+                selector = true
+            }
+            "--" => break,
+            _ => return false,
+        }
+        args = &args[1..];
+    }
     if args.is_empty() {
         return true;
     }

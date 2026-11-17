@@ -88,7 +88,7 @@ def claim_next(project: Path, *, capacity: int = 1) -> dict[str, Any] | None:
     return target
 
 
-def claim_task(project: Path, task_id: str, *, capacity: int = 1) -> dict[str, Any] | None:
+def claim_task(project: Path, task_id: str, *, capacity: int = 1, expected_attempt: int | None = None) -> dict[str, Any] | None:
     """Claim one specific queued task without allowing another task to win the race."""
 
     if capacity < 1:
@@ -102,6 +102,8 @@ def claim_task(project: Path, task_id: str, *, capacity: int = 1) -> dict[str, A
         for task in payload["tasks"]:
             if task.get("task_id") != task_id or task.get("state") != "queued":
                 continue
+            if expected_attempt is not None and int(task.get("attempt", 1)) != expected_attempt:
+                return None
             task["state"] = "running"
             task["updated_at"] = datetime.now(timezone.utc).isoformat()
             _write_scheduler(path, payload)
@@ -205,7 +207,7 @@ def cancel_task(project: Path, task_id: str) -> dict[str, Any] | None:
     return task
 
 
-def retry_task(project: Path, task_id: str) -> dict[str, Any] | None:
+def retry_task(project: Path, task_id: str, *, expected_attempt: int | None = None) -> dict[str, Any] | None:
     """Requeue a failed task only while its bounded retry budget remains."""
 
     path = scheduler_path(project)
@@ -214,6 +216,8 @@ def retry_task(project: Path, task_id: str) -> dict[str, Any] | None:
         for task in payload["tasks"]:
             if task.get("task_id") != task_id or task.get("state") != "failed":
                 continue
+            if expected_attempt is not None and int(task.get("attempt", 1)) != expected_attempt:
+                return None
             if int(task.get("attempt", 1)) >= int(task.get("max_attempts", 1)):
                 return None
             task["attempt"] = int(task.get("attempt", 1)) + 1
@@ -234,7 +238,7 @@ def retry_task(project: Path, task_id: str) -> dict[str, Any] | None:
     return task
 
 
-def resume_task(project: Path, task_id: str) -> dict[str, Any] | None:
+def resume_task(project: Path, task_id: str, *, expected_attempt: int | None = None) -> dict[str, Any] | None:
     """Requeue a failed task and retain its opaque partial-result resume token."""
 
     path = scheduler_path(project)
@@ -243,6 +247,8 @@ def resume_task(project: Path, task_id: str) -> dict[str, Any] | None:
         for task in payload["tasks"]:
             if task.get("task_id") != task_id or task.get("state") != "failed":
                 continue
+            if expected_attempt is not None and int(task.get("attempt", 1)) != expected_attempt:
+                return None
             if not task.get("partial_result_id") or int(task.get("attempt", 1)) >= int(task.get("max_attempts", 1)):
                 return None
             task["attempt"] = int(task.get("attempt", 1)) + 1

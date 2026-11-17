@@ -72,6 +72,11 @@ class SiblingOpenRunTest(unittest.TestCase):
             )
         )
 
+    def test_target_run_takes_precedence_over_a_sibling_run(self) -> None:
+        self.open.update({self.main, self.task})
+        self.assertIsNone(self._find(self.task))
+        self.assertIsNone(self._find(self.main))
+
     def test_the_sentence_names_both_checkouts(self) -> None:
         sentence = sibling_run_sentence(self.main, self.task)
         self.assertIn(str(self.task), sentence)

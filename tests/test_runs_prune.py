@@ -347,7 +347,8 @@ class MaintenanceRunsThisPolicyTests(unittest.TestCase):
         abandoned = self._run(1, "reviewing", age_seconds=60 * 60 * 24 * 40)
         live = self._run(2, "reviewing", age_seconds=60)
 
-        summary = run_maintenance(self.project)["pruned_run_evidence"]
+        # This fixture verifies project retention; global skill curation has its own tests.
+        summary = run_maintenance(self.project, curate_skills=False)["pruned_run_evidence"]
 
         self.assertFalse(abandoned.exists())
         self.assertTrue(live.exists())

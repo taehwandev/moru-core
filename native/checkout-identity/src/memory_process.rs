@@ -1,9 +1,11 @@
-//! owner: MemoryProcess; allowed imports: std/JSON/source guard/recall owner;
-//! forbidden imports: memory store IO, writes, providers; callers/tests: private
+//! owner: MemoryProcess; allowed imports: std/JSON/source guard/read-only memory owners;
+//! forbidden imports: direct store IO, writes, providers; callers/tests: private
 //! native protocol; verification: source/transport/schema/empty-PATH checks.
 use crate::{
-    memory_files::MemoryFiles, memory_recall::MemoryRecall, memory_source::MemorySource,
-    pretool_guard::CallbackGuard,
+    memory_analysis::MemoryAnalysis, memory_consolidation::MemoryConsolidation,
+    memory_context::MemoryContext, memory_files::MemoryFiles, memory_history::MemoryHistory,
+    memory_recall::MemoryRecall, memory_review::MemoryReview, memory_source::MemorySource,
+    memory_status::MemoryStatus, memory_upkeep::MemoryUpkeep, pretool_guard::CallbackGuard,
 };
 use serde_json::{json, Value};
 use std::{
@@ -31,7 +33,37 @@ impl MemoryProcess {
         let Some(result) = serde_json::from_slice::<Value>(&bytes)
             .ok()
             .and_then(|payload| {
-                if operation == "blob" {
+                if operation == "recall-context" {
+                    MemoryContext::evaluate(&payload)
+                } else if matches!(operation, "review-partition" | "review-findings") {
+                    MemoryReview::evaluate(operation, &payload)
+                } else if matches!(
+                    operation,
+                    "upkeep-live"
+                        | "upkeep-replacements"
+                        | "upkeep-startup"
+                        | "upkeep-startup-dates"
+                        | "upkeep-startup-text"
+                ) {
+                    MemoryUpkeep::evaluate(operation, &payload)
+                } else if matches!(
+                    operation,
+                    "duplicate-groups"
+                        | "shared-source-groups"
+                        | "duplicate-text-groups"
+                        | "shared-source-text-groups"
+                ) {
+                    MemoryConsolidation::evaluate(operation, &payload)
+                } else if matches!(
+                    operation,
+                    "analysis-binding" | "analysis-candidates" | "analysis-recall"
+                ) {
+                    MemoryAnalysis::evaluate(operation, &payload)
+                } else if operation == "history" {
+                    MemoryHistory::evaluate(&payload)
+                } else if operation == "source-status" {
+                    MemoryStatus::evaluate(&payload)
+                } else if operation == "blob" {
                     MemorySource::evaluate(&payload)
                 } else if matches!(operation, "record" | "scan") {
                     MemoryFiles::evaluate(operation, &payload)

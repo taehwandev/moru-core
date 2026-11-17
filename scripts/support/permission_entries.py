@@ -41,6 +41,48 @@ EXECUTABLE_ENTRYPOINTS = (
 # Historical names retained only so setup can remove obsolete permissions.
 # They are not executable entrypoints and must never be offered to a runtime.
 STALE_PERMISSION_ENTRYPOINTS = ("agent-docs-read.py", "agent_route_docs.py")
+STALE_REPO_PYTHON_PATHS = (
+    "scripts/agent-docs-read.py",
+    "scripts/agent_preflight_spill.py",
+    "scripts/agent_route_docs.py",
+    "scripts/figma-handoff/figma_fetch.py",
+    "scripts/live_device_follow.py",
+    "scripts/migrate_moru_local_state.py",
+    "scripts/setup-project-graphify.py",
+    "scripts/support/env_names.py",
+    "scripts/support/graphify_checkout_repair.py",
+    "scripts/support/graphify_configuration.py",
+    "scripts/support/graphify_contract.py",
+    "scripts/support/graphify_document_links.py",
+    "scripts/support/graphify_git_tracking.py",
+    "scripts/support/graphify_graph_freshness.py",
+    "scripts/support/graphify_graph_integrity.py",
+    "scripts/support/graphify_graph_state.py",
+    "scripts/support/graphify_input_inspection.py",
+    "scripts/support/graphify_inspection.py",
+    "scripts/support/graphify_paths.py",
+    "scripts/support/graphify_runtime_integration.py",
+    "scripts/support/graphify_setup.py",
+    "scripts/support/graphify_tracking.py",
+    "scripts/support/legacy_names.py",
+    "scripts/update_moru_project_pointers.py",
+    "scripts/workflow_graphify_route.py",
+    "tests/test_claude_memory_approval_gate.py",
+    "tests/test_figma_asset_dedup_parallel.py",
+    "tests/test_graphify_checkout_repair.py",
+    "tests/test_graphify_contract.py",
+    "tests/test_graphify_graph_integrity.py",
+    "tests/test_graphify_graph_location.py",
+    "tests/test_graphify_worktree_portability.py",
+    "tests/test_live_device_follow.py",
+    "tests/test_migrate_moru_local_state.py",
+    "tests/test_site_workflow.py",
+    "tests/test_update_moru_project_pointers.py",
+    "tests/test_workflow_graphify_route.py",
+    "tests/test_workflow_request_korean_commit.py",
+    "tests/test_workflow_request_korean_resume.py",
+    "tests/test_workflow_routing.py",
+)
 
 
 def claude_permission_entries(scripts_dir: Path, *, spill_available: bool = True) -> list[str]:
@@ -190,14 +232,16 @@ def _worktree_permission_entries() -> list[str]:
 
 
 def agy_permission_entries(scripts_dir: Path, *, spill_available: bool = True) -> list[str]:
+    # Antigravity matches command(prefix) literally; Claude's `:*` and ` *`
+    # wildcard suffixes never match in AGY and are retired below.
     entries: list[str] = []
     for command in _stable_launcher_commands("antigravity", include_spill_env=spill_available):
-        _add_permission_command_entries(entries, "command", command)
+        entries.append(f"command({command})")
     if spill_available:
         for command in _spill_helper_permission_commands("antigravity"):
-            _add_permission_command_entries(entries, "command", command)
+            entries.append(f"command({command})")
     for command in _common_moru_tool_commands():
-        _add_permission_command_entries(entries, "command", command)
+        entries.append(f"command({command})")
     return entries
 
 
@@ -209,11 +253,12 @@ def agy_legacy_permission_entries(scripts_dir: Path) -> list[str]:
         _add_permission_command_entries(entries, "command", command)
     for script in _legacy_moru_python_scripts(scripts_dir):
         for command in _python_entrypoint_commands(script, "antigravity", scripts_dir.parent, include_legacy=True):
-            entries.append(f"command({command})")
-            entries.append(f"command({command}:*)")
-            entries.append(f"command({command} *)")
-    for command in _spill_helper_permission_commands("antigravity"):
-        entries.append(f"command({command})")
+            _add_permission_command_entries(entries, "command", command)
+    for command in (
+        *_stable_launcher_commands("antigravity", include_spill_env=True),
+        *_spill_helper_permission_commands("antigravity"),
+        *_common_moru_tool_commands(),
+    ):
         entries.append(f"command({command}:*)")
         entries.append(f"command({command} *)")
     return entries
@@ -276,7 +321,10 @@ def _legacy_moru_python_scripts(scripts_dir: Path) -> list[Path]:
         scripts.extend(
             Path(parent) / name for name in filenames if name.endswith(".py")
         )
-    removed = [scripts_dir / name for name in STALE_PERMISSION_ENTRYPOINTS]
+    removed = [
+        *(scripts_dir / name for name in STALE_PERMISSION_ENTRYPOINTS),
+        *(project_root / rel_path for rel_path in STALE_REPO_PYTHON_PATHS),
+    ]
     return sorted({*scripts, *removed})
 
 

@@ -170,6 +170,39 @@ class NativeQueryTests(unittest.TestCase):
             finally:
                 shadow.unlink()
 
+    def test_codex_workdir_only_operands_and_all_shadow_contexts(self):
+        target=self.project/"selected workdir";target.mkdir()
+        (target/"only.txt").write_text("data")
+        transcript=self.base/"selected.jsonl"
+        for directory,program,command in (
+            (target,"cat","cat only.txt"),
+            (target,"head","cat only.txt | head -n 1"),
+            (target,"rg","cat only.txt | rg data"),
+            (self.project,"head","cat only.txt | head -n 1"),
+            (self.project,"git","git status --short")):
+            record={"type":"function_call","arguments":json.dumps({"cmd":command,"workdir":str(target)})}
+            transcript.write_text(json.dumps({"payload":record})+"\n")
+            payload=request(self.project,command,transcript_path=str(transcript));alias="codex-pretool-gate"
+            self.assertEqual((0,b"",b""),result(invoke(self.launcher,self.base,self.project,alias,payload,PATH=str(self.empty))))
+            shadow=directory/program;shadow.write_text("shadow")
+            try:
+                expected=invoke(self.launcher,self.base,self.project,alias,payload,backend="python")
+                self.assertEqual(result(expected),result(invoke(self.launcher,self.base,self.project,alias,payload)))
+                self.assertEqual(127,invoke(self.launcher,self.base,self.project,alias,payload,PATH=str(self.empty)).returncode)
+            finally:shadow.unlink()
+
+    def test_codex_explicit_cd_overrides_selected_workdir_without_using_its_shadows(self):
+        work=self.project/"metadata workdir";work.mkdir();(work/"head").write_text("irrelevant shadow")
+        target=self.project/"explicit target";target.mkdir();(target/"only.txt").write_text("data")
+        command=f"cd '{target}' && cat only.txt | head -n 1"
+        transcript=self.base/"explicit-cd.jsonl"
+        transcript.write_text(json.dumps({"payload":{"type":"function_call",
+            "arguments":json.dumps({"cmd":command,"workdir":str(work)})}})+"\n")
+        payload=request(self.project,command,transcript_path=str(transcript));alias="codex-pretool-gate"
+        expected=invoke(self.launcher,self.base,self.project,alias,payload,backend="python")
+        self.assertEqual((0,b"",b""),result(expected))
+        self.assertEqual(result(expected),result(invoke(self.launcher,self.base,self.project,alias,payload,PATH=str(self.empty))))
+
     def test_rg_context_options_are_native_before_and_after_the_pattern(self):
         for command in ("rg -n -A 3 -B 1 'foo|bar' notes.txt", "rg -n -A0 foo notes.txt",
                         "rg -n foo notes.txt -C2", "rg -n --after-context=4 --before-context 1 foo src",

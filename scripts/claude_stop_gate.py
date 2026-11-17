@@ -350,7 +350,9 @@ def decide(payload: dict) -> int:
 
         if reason := work_continuation(payload, "claude", root):
             return block(reason)
-        if not payload.get("stop_hook_active") and (reason := _pending_publication(root, session_id)):
+        from agent_mailbox_task_binding import stop_signal_ready
+        if (stop_signal_ready(payload, {"runtime": "claude", "session_id": session_id})
+                and (reason := _pending_publication(root, session_id))):
             return block(reason)
         from agent_run_interruption import record_turn_boundary
         if record_turn_boundary(root, "claude", session_id):

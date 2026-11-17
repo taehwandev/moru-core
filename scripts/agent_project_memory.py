@@ -21,6 +21,7 @@ import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from types import FunctionType
 
 from agent_execution_capsule_state import atomic_write_json
 from agent_evidence_inputs import EvidenceInputs
@@ -37,8 +38,12 @@ MAX_RECALL_CHARS = 1200
 MAX_SOURCE_FILES = 4
 MAX_PREVIOUS_CHARS = 160
 MAX_HISTORY_ITEMS = 20
+_RECALL_HEADER = ("Project memory (agent-written reference; the current request, repo rules "
+                  "and source evidence prevail; check applicability before use; "
+                  "previously is superseded history, never current advice):")
 APPLICABILITY_FIELDS = ("applies_when", "not_when")
 MAX_CONDITION_CHARS = 160
+_ANALYSIS_BINDING_ERROR = "analysis question and context must both be one line of 1–300 characters"
 BLOB_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 PATH_RE = re.compile(r"[\w.-]+(?:/[\w.-]+)+|[\w-]+\.[a-zA-Z0-9]+")
@@ -68,12 +73,24 @@ def _digest(record: dict[str, Any]) -> str:
 
 
 def _analysis_binding(question: str, context: str) -> dict[str, str] | None:
+    if type(question) is str and type(context) is str and not question and not context:
+        return None
+    from support.native_memory_analysis import NativeMemoryAnalysis
+    native = NativeMemoryAnalysis.binding(question, context)
+    if native is not None:
+        if "invalid" in native:
+            raise ValueError(_ANALYSIS_BINDING_ERROR)
+        return native["binding"]
+    return _analysis_binding_reference(question, context)
+
+
+def _analysis_binding_reference(question: str, context: str) -> dict[str, str] | None:
     if not question and not context:
         return None
     values = {"question": question, "context": context}
     if any(not isinstance(value, str) or not value.strip() or len(value) > 300
            or not value.isprintable() for value in values.values()):
-        raise ValueError("analysis question and context must both be one line of 1–300 characters")
+        raise ValueError(_ANALYSIS_BINDING_ERROR)
     # Preserve case, identifiers and negation. Semantic similarity is not identity.
     return {key: value.strip() for key, value in values.items()}
 
@@ -142,6 +159,10 @@ def _source_status(project: Path, record: dict[str, Any],
     if not files:
         return {}
     blobs = {} if blobs is None else blobs
+    from support.native_memory_status import NativeMemoryStatus
+    native = NativeMemoryStatus.evaluate(project, files, blobs)
+    if native is not None:
+        return native
     statuses = []
     for item in files:
         if item["path"] not in blobs:
@@ -379,6 +400,10 @@ def _recall(project: Path, scope: str, *, today: date | None = None,
     selected = NativeMemory.recall(scope, today, records, request, target_summary, target_paths)
     if selected is not None:
         return selected
+    return _recall_reference(scope, today, records, request, target_summary, target_paths)
+
+
+def _recall_reference(scope, today, records, request="", target_summary="", target_paths=()):
     live = [record for record in records if record["status"] in RECALLABLE_STATUSES]
     # Replacement is durable even if retiring its predecessor was interrupted.
     # Retiring or replacing the successor must never resurrect invalidated advice.
@@ -402,13 +427,24 @@ def _recall(project: Path, scope: str, *, today: date | None = None,
     return eligible
 
 
+def _analysis_candidates(scope: str, binding: dict[str, str], records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if type(records) is list and not records:
+        return []
+    from support.native_memory_analysis import NativeMemoryAnalysis
+    selected = NativeMemoryAnalysis.candidates(scope, binding, records)
+    return selected if selected is not None else _analysis_candidates_reference(scope, binding, records)
+
+
+def _analysis_candidates_reference(scope: str, binding: dict[str, str], records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [record for record in records if record["scope"] == scope and "analysis" in record
+            and all(record["analysis"].get(key) == value for key, value in binding.items())]
+
+
 def _analysis_recall(project: Path, scope: str, question: str, context: str) -> list[dict[str, Any]]:
     binding = _analysis_binding(question, context)
     if binding is None:
         raise ValueError("analysis recall requires a question and context")
-    candidates = [record for record in _recall(project, scope)
-                  if record["scope"] == scope and "analysis" in record
-                  and all(record["analysis"].get(key) == value for key, value in binding.items())]
+    candidates = _analysis_selection(project, scope, binding)
     if not candidates:
         return []
     try:
@@ -432,6 +468,25 @@ def _analysis_recall(project: Path, scope: str, question: str, context: str) -> 
     return result
 
 
+def _analysis_selection(project, scope, binding):
+    trusted = (date is _CONTEXT_DATE and SCOPE_RE is _CONTEXT_SCOPE
+               and RECALLABLE_STATUSES is _ANALYSIS_SELECTION_STATUSES
+               and all(_context_bound(globals().get(name), mark)
+                       for name, mark in _ANALYSIS_SELECTION_BINDINGS.items()))
+    if trusted and type(scope) is str and SCOPE_RE.fullmatch(scope):
+        from support.native_memory_analysis import NativeMemoryAnalysis
+        today = date.today()
+        records = scan_records(project)[0]
+        selected, attempted = NativeMemoryAnalysis.shortlist(scope, today, records, binding)
+        if selected is not None:
+            return selected
+        if attempted:
+            ranked = _recall_reference(scope, today, records)
+            return _analysis_candidates_reference(scope, binding, ranked)
+        return _analysis_candidates(scope, binding, _recall(project, scope, today=today, records=records))
+    return _analysis_candidates(scope, binding, _recall(project, scope))
+
+
 def _previously(record: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> dict[str, str]:
     """The body this record replaced, cut to one bounded line, or nothing."""
     previous = by_id.get(record.get("replaces") or "")
@@ -451,7 +506,22 @@ def _history(project: Path, record_id: str) -> list[dict[str, Any]]:
     """
 
     _existing(project, record_id)
-    by_id = {record["id"]: record for record in scan_records(project)[0]}
+    records = scan_records(project)[0]
+    from support.native_memory_history import NativeMemoryHistory
+    selected = NativeMemoryHistory.select(record_id, records)
+    if selected is not None:
+        return [_history_fields(record) for record in selected]
+    return _history_reference(record_id, records)
+
+
+def _history_fields(record: dict[str, Any]) -> dict[str, Any]:
+    return {key: record[key] for key in
+            ("id", "status", "body", "source", "created_at", "retired_at", "replaces", *APPLICABILITY_FIELDS)
+            if key in record}
+
+
+def _history_reference(record_id: str, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_id = {record["id"]: record for record in records}
     # The replacement is durable before retiring its predecessor writes replaced_by.
     following = {record["replaces"]: record["id"] for record in by_id.values()
                  if record.get("replaces")}
@@ -464,17 +534,14 @@ def _history(project: Path, record_id: str) -> list[dict[str, Any]]:
     while current in by_id and current not in seen and len(chain) < MAX_HISTORY_ITEMS:
         seen.add(current)
         record = by_id[current]
-        chain.append({key: record[key] for key in
-                      ("id", "status", "body", "source", "created_at", "retired_at", "replaces",
-                       *APPLICABILITY_FIELDS)
-                      if key in record})
+        chain.append(_history_fields(record))
         current = record.get("replaces") or ""
     return chain
 
 
-def recall_lines(project: Path, scope: str, *,
+def _recall_lines_reference(project: Path, scope: str, *,
                  records: list[dict[str, Any]] | None = None, request: str = "",
-                 target_summary: str = "", target_paths: tuple[str, ...] = ()) -> list[str]:
+                 target_summary: str = "", target_paths: tuple[str, ...] = (), _selected=None) -> list[str]:
     """Render bounded, explicitly non-authoritative context for a start result.
 
     `records` lets a caller that already scanned the store reuse that read.
@@ -485,8 +552,10 @@ def recall_lines(project: Path, scope: str, *,
     if records is None:
         records = scan_records(project)[0]
     by_id = {record["id"]: record for record in records}
-    for record in _recall(project, scope, records=records, request=request,
-                          target_summary=target_summary, target_paths=target_paths):
+    selected = (_recall(project, scope, records=records, request=request,
+                        target_summary=target_summary, target_paths=target_paths)
+                if _selected is None else _selected)
+    for record in selected:
         if len(lines) >= MAX_RECALL_ITEMS:
             break
         fields = {**{key: record[key] for key in ("id", "body", "source", "review_on")},
@@ -505,9 +574,70 @@ def recall_lines(project: Path, scope: str, *,
         size += len(payload)
     if not lines:
         return []
-    return ["Project memory (agent-written reference; the current request, repo rules "
-            "and source evidence prevail; check applicability before use; "
-            "previously is superseded history, never current advice):", *lines]
+    return [_RECALL_HEADER, *lines]
+
+
+def recall_lines(project: Path, scope: str, *,
+                 records: list[dict[str, Any]] | None = None, request: str = "",
+                 target_summary: str = "", target_paths: tuple[str, ...] = ()) -> list[str]:
+    """Recall bounded reference context in one native selection/projection pass."""
+    if records is None:
+        records = scan_records(project)[0]
+    trusted = (date is _CONTEXT_DATE and SCOPE_RE is _CONTEXT_SCOPE
+               and _context_bound(json.dumps, _CONTEXT_DUMPS)
+               and json.JSONEncoder is _CONTEXT_ENCODER
+               and json.JSONEncoder.item_separator is _CONTEXT_SEPARATORS[0]
+               and json.JSONEncoder.key_separator is _CONTEXT_SEPARATORS[1]
+               and all(_context_bound(getattr(json.JSONEncoder, name), mark)
+                       for name, mark in _CONTEXT_ENCODER_BINDINGS.items())
+               and APPLICABILITY_FIELDS is _CONTEXT_APPLICABILITY
+               and all(_context_bound(globals().get(name), mark)
+                       for name, mark in _CONTEXT_BINDINGS.items()))
+    selected = None
+    if trusted and type(scope) is str and SCOPE_RE.fullmatch(scope):
+        from support.native_memory_context import NativeMemoryContext
+        today = date.today()
+        lines, attempted = NativeMemoryContext.render(scope, today, records, request,
+            target_summary, target_paths, {"items":MAX_RECALL_ITEMS,
+                "chars":MAX_RECALL_CHARS, "previous":MAX_PREVIOUS_CHARS})
+        if lines is not None:
+            return [_RECALL_HEADER, *lines] if lines else []
+        if attempted:
+            # A declined fused request must not start a second ranking process.
+            selected = _recall_reference(scope, today, records, request, target_summary, target_paths)
+    return _recall_lines_reference(project, scope, records=records, request=request,
+        target_summary=target_summary, target_paths=target_paths, _selected=selected)
+
+
+def _context_binding(func):
+    if type(func) is not FunctionType:
+        return None, None, None, {}
+    return func, func.__code__, func.__defaults__, dict(func.__kwdefaults__ or {})
+
+
+def _context_bound(func, mark):
+    original, code, defaults, keywords = mark
+    if original is None or func is not original or func.__code__ is not code or func.__defaults__ is not defaults:
+        return False
+    current = func.__kwdefaults__ or {}
+    return (type(current) is dict and all(type(key) is str for key in current)
+            and set(current) == set(keywords)
+            and all(current[key] is value for key, value in keywords.items()))
+
+
+_CONTEXT_DATE = date
+_CONTEXT_SCOPE = SCOPE_RE
+_CONTEXT_APPLICABILITY = APPLICABILITY_FIELDS
+_CONTEXT_DUMPS = _context_binding(json.dumps)
+_CONTEXT_ENCODER = json.encoder.JSONEncoder
+_CONTEXT_SEPARATORS = (_CONTEXT_ENCODER.item_separator, _CONTEXT_ENCODER.key_separator)
+_CONTEXT_ENCODER_BINDINGS = {name:_context_binding(getattr(_CONTEXT_ENCODER, name))
+                             for name in ("__init__", "encode", "iterencode")}
+_CONTEXT_BINDINGS = {name:_context_binding(globals()[name])
+                     for name in ("_recall", "_previously", "_source_status")}
+_ANALYSIS_SELECTION_STATUSES = RECALLABLE_STATUSES
+_ANALYSIS_SELECTION_BINDINGS = {name:_context_binding(globals()[name]) for name in
+    ("_recall", "_recall_reference", "_analysis_candidates", "_analysis_candidates_reference", "_terms", "_relevance")}
 
 
 def _main(argv: list[str] | None = None) -> int:

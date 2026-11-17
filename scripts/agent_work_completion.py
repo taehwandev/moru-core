@@ -50,7 +50,10 @@ def work_completion_failures(project: Path, evidence: Path) -> list[str]:
         return ["work completion checkpoint is unreadable or stale; reconcile it before finish"]
     work = packet.get("work") or {}
     failures = []
-    if scope_unreconciled(preflight, packet):
+    # Commit/PR finish attests readiness to publish, before publication runs.
+    # Retain delivery context without replaying implementation gates here.
+    delivery = route.get("command") != "commit"
+    if delivery and scope_unreconciled(preflight, packet):
         failures.append(
             "requested scope has not been reconciled; record its bounded objective, acceptance and remaining outcomes before finish "
             "(checkpoint --checkpoint-kind decision --phase verifying --work-file <json> with an objective and, "
@@ -65,15 +68,16 @@ def work_completion_failures(project: Path, evidence: Path) -> list[str]:
         failures.append("requested work has unresolved blockers; report partial progress without a completion receipt")
     if packet.get("phase") == "reconcile_required" or (packet.get("checkpoint") or {}).get("mutation_pending"):
         failures.append("requested work has an unresolved operation; reconcile its actual outcome before finish")
-    from agent_completion_checks import coverage_failures
-    failures.extend(coverage_failures(project, evidence, work, route))
+    if delivery:
+        from agent_completion_checks import coverage_failures
+        failures.extend(coverage_failures(project, evidence, work, route))
     return failures
 
 
 def scope_unreconciled(preflight: dict, packet: dict) -> bool:
     """Recognize the runtime's own placeholder, never classify user language."""
     route = preflight.get("route") or {}
-    if route.get("command") in {"small-change", "writing", "editorial"}:
+    if route.get("command") in {"commit", "small-change", "writing", "editorial"}:
         return False
     envelope = (route.get("request_classification") or {}).get("intent_envelope") or {}
     if not envelope.get("schema_valid") or not envelope.get("envelope_present") or envelope.get("failures"):

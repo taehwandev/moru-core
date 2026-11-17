@@ -13,6 +13,9 @@ Stack cards refine this parent; they do not replace it.
 
 Also use:
 
+- `common/nodes/package-module-boundaries.md` and
+  `common/skills/code-structure-ownership/SKILL.md` for package, target, crate,
+  and process boundary splits.
 - `platforms/application/skills/application-command-ui/SKILL.md` for command
   routing, window/panel state, trust boundary bridges, and background resource
   ownership.
@@ -47,6 +50,28 @@ reach it only through narrow, typed, validated commands.
 ```text
 Window/Scene/View -> Presentation State -> Command/Use Case -> App Service -> System Adapter
 ```
+
+## Process, Package, And Target Separation
+
+Desktop apps cross OS process and privilege boundaries, so folder separation
+alone is insufficient (`common/nodes/package-module-boundaries.md`):
+
+- **Separate compile targets / packages / crates by trust zone:** keep the
+  trusted host shell (Electron `main`, Tauri `src-tauri` Rust crates, Swift
+  macOS app/XPC service, JVM desktop host), the **shared typed IPC/bridge
+  contract package** (pure command/event schemas with zero DOM, Node, OS-handle,
+  or renderer imports), capability-named system adapters (`filesystem`,
+  `process`, `keychain`, `updater`, `window`), and the untrusted renderer UI in
+  distinct targets/packages with enforced import rules.
+- **Capability-first host modules:** organize host services and native/Rust/Swift
+  targets by capability (`workspace/`, `terminal/`, `updater/`, `credentials/`),
+  never in a single flat `main/` or `utils/` directory. Audit any package/crate/
+  target root exceeding ~20 files or mixing 3+ roles and complete role moves in
+  one slice.
+- **Verify cross-boundary imports:** confirm with `rg` and target build files
+  (`Package.swift`, `Cargo.toml`, `package.json`, `build.gradle.kts`) that
+  renderer code imports only the typed bridge contract and UI packages — never
+  host-only adapters, Node/Rust/OS APIs, or another feature's internals.
 
 ## Rules
 

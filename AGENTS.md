@@ -148,8 +148,10 @@ budgets and migration exceptions, read
 
 ## Failure And Recovery
 
-Required gate failure is `🐱🔴 FAIL`, never completion. Use one
-`retrospective_repair_verify_resume` cycle from the first failed checkpoint:
+Required gate failure is `🐱🔴 FAIL`, never completion. Diagnose and correct the
+owning task, missing evidence, invocation or environment first; failure alone
+does not require a Moru Core edit or a separate retrospective. Only an evidenced
+framework defect uses one `retrospective_repair_verify_resume` cycle:
 repair the canonical rule, hook, validator, or test; verify it; then resume the
 original task. Stop if the failure recurs, repair is unsafe/ambiguous, ownership
 is uncertain, or verification fails.
@@ -172,6 +174,14 @@ staged, reviewed, finished same-session unit may commit per
 uses `commit`/`git_commit`. Push, PR, tags, releases, deployment, migration and
 publishing need matching authority/checks. Read
 [source-control details](common/skills/agent-operating-skill/references/entrypoint-lifecycle.md#release-and-source-control).
+
+For this repository's native migration, source continuation, commits, main
+integration and pushes do not authorize native builds, bundle generation,
+hosted build dispatch or local installation/activation. Require a matching
+explicit user request for those effects; editing build policy is not approval
+to build. Keep test compilation separate and hold it when its authority is
+unclear while continuing independent source work. See
+[build and install approval](docs/runtime-performance/full-migration.md#build-and-install-approval).
 
 ## Runtime And Ownership Rules
 

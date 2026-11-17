@@ -77,6 +77,32 @@ Use when a workflow gate was missed and the agent must retry that gate.
 - If safe rollback cannot be separated from user-owned changes, stop and report
   the blocker instead of guessing.
 
+## Task Worktree Location And Lifecycle
+
+One convention for every Moru-governed repository, for lead tasks and
+dispatched workers alike. Hooks, permission anchors, the status line,
+`dispatch-finalize` and overhead reports all assume it.
+
+- **Path**: `<repo>/.moru/worktrees/<slug>`, created from the main checkout.
+  `<slug>` is a short kebab-case task name that matches the last segment of the
+  branch. `.moru` is git-ignored, so the worktree never shows up as untracked.
+- **Create**: `git worktree add .moru/worktrees/<slug> -b <branch> <base>`
+  (`<base>` is `origin/main` after a fetch unless the task names another), then
+  run `start` with the worktree path as `--project`. One worktree per branch and
+  per task; reuse it for follow-ups instead of adding another.
+- **Do not create** sibling `<repo>-wt-*`, `<repo>-<topic>`, `<repo>.worktrees`
+  or `<repo>-worktrees` folders, or worktrees under `/tmp`. Siblings clutter the
+  parent folder and sit outside the permission anchors; `/tmp` is cleared by a
+  reboot and loses unpushed work. Existing siblings are read-only legacy: finish
+  their work and remove them, do not move them while a run is unsettled.
+- **Lifecycle**: finish the run, commit, push if authorized, then remove the
+  worktree and delete the merged branch per `../../branch-cleanup/SKILL.md`.
+  A checkout that still holds an unsettled run is preserved, never forced.
+  `git worktree list` should show only the main checkout and tasks in progress.
+- **Scope**: this applies to Moru and repositories that Moru governs by default.
+  A target repository that declares its own location or isolation policy keeps
+  it; Moru's convention never overrides another repository's.
+
 ## Isolated Worker Worktrees
 
 Use when a dispatched worker runs in its own git worktree because it shares an

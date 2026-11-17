@@ -18,6 +18,19 @@ Read neighbouring screens and their entry points to find the repository's
 stateful/stateless naming, state owner and lifecycle convention. Preserve those
 conventions; no new state library, DI layer or framework is implied.
 
+Default platform role aliases when a repository has no established convention:
+
+- **Stateful owner/adapter:** `*Screen` (Compose, SwiftUI, Flutter),
+  `*Container` (React Web and React Native), `UIViewController` (UIKit), or
+  `Window` / `Panel` host (desktop).
+- **Stateless renderer:** `*Content` (Compose, SwiftUI, Flutter),
+  `*Screen` / `*View` (React Web and React Native), root/content `UIView` or
+  `UIContentConfiguration` (UIKit), or window/panel `*Content` view (desktop).
+- **Navigation destination vs route entry:** `*Route` names pure destination
+  data/args in contracts, never a stateful holder or stateless renderer;
+  filesystem router files (Next.js `page.tsx`, Expo `app/`) stay thin route-entry
+  adapters that mount the stateful owner.
+
 ## Generation Contract
 
 - A screen that obtains application state, subscribes to external data or runs

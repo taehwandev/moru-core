@@ -2,6 +2,8 @@
 keyflow_id: sys_web_react_ui
 status: review
 type: human-reviewed-needed
+requires:
+  - common/nodes/ui-state-render-boundary.md
 ---
 
 # Web React UI

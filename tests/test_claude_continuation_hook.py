@@ -233,7 +233,7 @@ class ClaudeMutationAdapterTests(unittest.TestCase):
 
             def announce() -> str | None:
                 return ClaudeContinuationAdapter.pre_mutation(
-                    payload,
+                    {key: value for key, value in payload.items() if key != "tool_use_id"},
                     root=fixture.project,
                     cwd=fixture.project,
                     session_id="old-session",

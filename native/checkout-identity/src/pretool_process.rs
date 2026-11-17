@@ -49,7 +49,20 @@ impl PretoolProcess {
         else {
             return false;
         };
-        let Some(scope) = QueryScope::parse(command, Path::new(cwd)) else {
+        let codex = args[0] == "codex-pretool-gate"
+            || env::var("MORU_PRETOOL_RUNTIME").is_ok_and(|s| {
+                crate::statusline::Renderer::strip(&s).eq_ignore_ascii_case("codex")
+            });
+        let effective = if codex {
+            let Some(path) = crate::pretool_transcript::cwd(&payload, Path::new(cwd), command)
+            else {
+                return false;
+            };
+            path
+        } else {
+            Path::new(cwd).to_owned()
+        };
+        let Some(scope) = QueryScope::parse(command, &effective) else {
             return false;
         };
         let command = scope.command;
@@ -57,10 +70,6 @@ impl PretoolProcess {
         let Some(executable) = crate::pretool_query::executable(command) else {
             return false;
         };
-        let codex = args[0] == "codex-pretool-gate"
-            || env::var("MORU_PRETOOL_RUNTIME").is_ok_and(|s| {
-                crate::statusline::Renderer::strip(&s).eq_ignore_ascii_case("codex")
-            });
         let file_command = (!matches!(executable, "git" | "pwd")).then_some(command);
         if executable == "git" && !unshadowed(cwd, "git") {
             return false;
@@ -81,25 +90,6 @@ impl PretoolProcess {
             return false;
         }
         crate::pretool_guard::CallbackGuard::root(launcher, executable).is_some()
-            && (!codex
-                || crate::pretool_transcript::safe(
-                    &payload,
-                    if scope.absolute_cd {
-                        None
-                    } else {
-                        file_command
-                    },
-                    if scope.absolute_cd {
-                        None
-                    } else {
-                        scope.output
-                    },
-                    if scope.absolute_cd {
-                        None
-                    } else {
-                        scope.filter.as_ref()
-                    },
-                ))
     }
 }
 

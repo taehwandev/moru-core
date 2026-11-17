@@ -59,12 +59,40 @@ parent/worker scope classification rather than one recursive scan per active
 run; `.moru/preflight.json`, freshness
 alone, and newest-file selection never unlock editing. `PreToolUse` fails closed
 when the required pre-mutation checkpoint cannot be written. The post hooks
-clear the pending mutation after success or failure and block the next agentic
-step when reconciliation is required. Non-edit tools and directories outside
+close only the matching `tool_use_id` after success or failure; parallel pre
+hooks serialize their packet/baseline transactions and retain every outstanding
+call, including siblings whose pre hooks arrive before either writes. Duplicate
+or unrelated post events cannot close another call. Non-edit tools and directories outside
 Moru Core remain outside this gate. Tune the freshness window with
 `MORU_CLAUDE_GATE_MAX_AGE_SECONDS` (default 8 hours). Policy violations return a
 deterministic denial instead of an operator confirmation, so Claude repairs the
 workflow or worktree boundary without asking for every Edit, Write, or Bash call.
+Bindings are checkout-local: a session may hold independent active runs in
+several linked worktrees. A sibling-run location is only a denial hint when
+the target checkout has no exact run of its own.
+
+An abandoned tool can be recovered in the exact owning session with
+`<MORU_LAUNCHER> checkpoint --project <TARGET_REPO> --rules <MORU_ROOT>
+--checkpoint-kind reconcile --phase acting --work-file <OBSERVED_WORK_JSON>`.
+First re-read the worktree and supply `objective`, `verification: []`, and
+`changed_scope` acknowledging every pending and previously changed path;
+`--phase blocked` is also accepted. This works for an active pending mutation
+or a `reconcile_required` run even if `.mutation-baseline.json` is missing.
+It clears pending state and old verification, records observed scope, and grants
+no edit, publication or review authority. Do not manufacture a baseline or edit
+the run's state files by hand.
+
+New checkpoints retain a monotonic `mutation_count` and `initial_head`.
+`cancel --no-change-evidence <reason>` can settle a run with no mutation,
+pending entry, changed scope or HEAD movement despite other sessions' tracked
+or untracked edits. Both the run identity and this proof are checked again
+inside the cancellation transaction; no foreign files are cleaned. A legacy
+initial packet also proves no mutations; older advanced packets without this
+history keep the clean-checkout requirement. HEAD movement is conservatively
+refused because commits are not attributed to individual runs. Such an untouched
+open run cannot hold an opaque command executing outside its checkout; known
+publications, commands executing inside it, other projects' own workflow entry,
+main-checkout edit gates and dirty/unmerged worktree removal guards remain.
 
 ## Worktree Write Isolation
 
@@ -111,6 +139,13 @@ On Codex every `ask` becomes a silent pass to Codex's own approval policy. This
 keeps the common development path prompt-free while preserving a meaningful
 operator decision for the rare dangerous path.
 
+From the main checkout, an exact `git worktree remove` (including `--force`)
+needs no run when the registered linked checkout is clean, has no unsettled
+run, and its HEAD is an ancestor of the main checkout's current branch.
+Unavailable checks grant no admission; dirty and unmerged checkouts are kept.
+Non-forced `git branch -d` retains its self-protecting admission: Git refuses
+unmerged branches. Forced branch deletion gains no such exemption.
+
 The Bash allowance is command- and option-aware. A compound line is read-only
 only when every command it executes is read-only; loop and branch keywords are
 syntax, but their conditions and bodies are still classified. `find`, `sort`,
@@ -124,7 +159,9 @@ prove safe leaves the read-only fast path and is judged by the rules above.
 
 After a new parent `start` has atomically promoted its claim to `running`, it
 may self-heal same-session ambiguity by cancelling older active parent claims
-for that exact runtime session. The registry performs that cancellation as a
+for that exact runtime session in the same checkout. Active claims in sibling
+checkouts remain independent, including subagents sharing a session id.
+The registry performs that cancellation as a
 compare-and-set on evidence key, run id, run-instance start time, active state,
 and resume generation. If an older run finishes, fails, is rebound, or its
 terminal id is adopted by a new start before the transaction acquires the

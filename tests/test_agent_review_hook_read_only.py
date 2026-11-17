@@ -5,6 +5,7 @@ demand a code repair and a repair-verify receipt for work the run could not
 own, so a review whose product is its findings could never finish.
 """
 import json
+from pathlib import Path
 import sys
 import unittest
 
@@ -43,11 +44,21 @@ class ReadOnlyReviewFindingsTests(unittest.TestCase):
             "--gate-record", json.dumps({"gate": "retrospective check",
                 "evidence": "Fixture lifecycle follows the existing contract without a guidance gap",
                 "fields": {"skills_checked": "bugfix-debugging", "outcome": "no_reusable_gap",
-                           "observation": "not_needed"}}))
+                           "observation": "not_needed",
+                           "alignment_evidence": "Read-only finding and writable repair remain separate",
+                           "causal_assessment": "Fixture checks actual route review behavior",
+                           "learning_decision": "Keep existing read-only review finding checks",
+                           "memory_decision": "not_needed", "memory_reason": "Synthetic fixture; existing check retained"}}))
         self.assertEqual(0, recorded.returncode, recorded.stdout + recorded.stderr)
 
     def test_read_only_review_with_findings_finishes_and_reports_them(self):
         self.fixture.start(read_only=True)
+        work = Path(self.fixture.directory.name) / 'review-work.json'
+        work.write_text(json.dumps({'objective': 'Inspect AGENTS.md and report the observed finding without edits',
+                                    'remaining_work': [], 'blockers': []}))
+        scoped = self.hook('checkpoint', '--checkpoint-kind', 'decision', '--phase', 'reviewing',
+                          '--work-file', str(work))
+        self.assertEqual(0, scoped.returncode, scoped.stdout + scoped.stderr)
         self.record_route_gates()
 
         reviewed = self.review("--review-scope", "pathspec", "--review-path", "AGENTS.md")

@@ -13,6 +13,13 @@ not yet satisfy its execution contract.
 
 ## Repair And Resume
 
+First classify the actual owner. Ordinary test/compiler failures, missing gate
+evidence, malformed invocations and unavailable environments are corrected at
+that boundary and reverified; keep completion blocked, but do not invent a
+framework defect or demand a Moru Core edit, separate retrospective or repair
+receipt. The structural repair cycle below applies only when evidence identifies
+a framework/enforcement defect, including one that permitted a wrong completion.
+
 1. Stop finalization and preserve the original task checkpoint. For a
    user-confirmed wrong completion, treat the earlier completion decision as the
    failed checkpoint even when its recorded gates were successful.

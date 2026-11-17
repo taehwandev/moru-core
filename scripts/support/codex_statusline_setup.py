@@ -26,32 +26,38 @@ def merge_codex_status_line(target: Path, dry_run: bool) -> str:
     """
 
     original = target.read_text(encoding="utf-8") if target.exists() else ""
-    assignment = _status_line_assignment(original)
-    if assignment is _CONFLICT:
-        return "missing"
-
-    if assignment is None:
-        desired = (*DEFAULT_STATUS_ITEMS, *QUOTA_STATUS_ITEMS)
-        updated = _insert_status_line(original, desired)
-        if updated is None:
-            return "missing"
-    else:
-        opening, closing = assignment
-        configured = _quoted_items(original[opening + 1 : closing])
-        if configured is None:
-            return "missing"
-        missing = [item for item in QUOTA_STATUS_ITEMS if item not in configured]
-        if not missing:
-            return "ok"
-        updated = _append_array_items(original, opening, closing, missing)
-
-    if updated == original:
-        return "ok"
+    result = _native_merge(original)
+    status, updated = result if result is not None else _merge_text_reference(original)
+    if status != "changed":
+        return status
     if dry_run:
         return "would_update"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(updated, encoding="utf-8")
     return "installed"
+
+
+def _merge_text_reference(original: str) -> tuple[str, str]:
+    assignment = _status_line_assignment(original)
+    if assignment is _CONFLICT:
+        return "missing", original
+
+    if assignment is None:
+        desired = (*DEFAULT_STATUS_ITEMS, *QUOTA_STATUS_ITEMS)
+        updated = _insert_status_line(original, desired)
+        if updated is None:
+            return "missing", original
+    else:
+        opening, closing = assignment
+        configured = _quoted_items(original[opening + 1 : closing])
+        if configured is None:
+            return "missing", original
+        missing = [item for item in QUOTA_STATUS_ITEMS if item not in configured]
+        if not missing:
+            return "ok", original
+        updated = _append_array_items(original, opening, closing, missing)
+
+    return ("ok" if updated == original else "changed"), updated
 
 
 _CONFLICT = object()
@@ -269,6 +275,44 @@ def _insert_status_line(text: str, items: tuple[str, ...]) -> str | None:
         )
     separator = "" if not text else "\n" if text.endswith("\n") else "\n\n"
     return f"{text}{separator}[tui]\nstatus_line = [{rendered}]\n"
+
+
+_NATIVE_PROFILE = {name: (globals()[name], globals()[name].__code__, globals()[name].__defaults__)
+    for name in ("_merge_text_reference", "_status_line_assignment", "_matching_array_end",
+                 "_quoted_items", "_append_array_items", "_last_syntax_index", "_item_indent", "_insert_status_line")}
+_NATIVE_VALUES = {name: globals()[name] for name in
+    ("DEFAULT_STATUS_ITEMS", "QUOTA_STATUS_ITEMS", "_TABLE_HEADER", "_CONFLICT")}
+_NATIVE_JSON_DUMPS = (json.dumps, json.dumps.__code__, json.dumps.__kwdefaults__.copy())
+_NATIVE_JSON_MODULE = json
+_NATIVE_RE_MODULE = re
+_NATIVE_RE = {name: (getattr(re, name), getattr(re, name).__code__, getattr(re, name).__defaults__)
+    for name in ("finditer", "search")}
+
+
+def _native_merge(text: str) -> tuple[str, str] | None:
+    if (type(text) is not str
+            or globals().get("json") is not _NATIVE_JSON_MODULE
+            or getattr(json, "dumps", None) is not _NATIVE_JSON_DUMPS[0]
+            or json.dumps.__code__ is not _NATIVE_JSON_DUMPS[1]
+            or json.dumps.__kwdefaults__ != _NATIVE_JSON_DUMPS[2]
+            or globals().get("re") is not _NATIVE_RE_MODULE
+            or any(getattr(re, name, None) is not fn or fn.__code__ is not code or fn.__defaults__ is not defaults
+                   for name, (fn, code, defaults) in _NATIVE_RE.items())
+            or any(globals().get(name) is not value for name, value in _NATIVE_VALUES.items())
+            or any(globals().get(name) is not fn or fn.__code__ is not code or fn.__defaults__ is not defaults
+                   for name, (fn, code, defaults) in _NATIVE_PROFILE.items())):
+        return None
+    from support.native_probe_transport import NativeProbe
+    try:
+        result = NativeProbe.request("--setup-probe", "codex-status-line", {"text": text})
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if (type(result) is not dict or set(result) != {"status", "text"}
+            or type(result["status"]) is not str or type(result["text"]) is not str
+            or result["status"] not in {"ok", "missing", "changed"}
+            or (result["status"] == "changed") != (result["text"] != text)):
+        return None
+    return result["status"], result["text"]
 
 
 def _main() -> int:

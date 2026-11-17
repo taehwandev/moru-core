@@ -26,6 +26,7 @@ from support.project_tree import (
 import workflow_doc_graph_build
 from workflow_doc_graph_build import _markdown_docs, clear_doc_graph_cache
 from workflow_route import resolve_docs
+from workflow_search import _searchable_markdown_paths, search_docs_outcome
 import workflow_validate
 from workflow_validate import MARKDOWN_VALIDATE_IGNORED_DIRS, markdown_files_to_validate
 
@@ -292,6 +293,7 @@ class PrunedTraversalTests(unittest.TestCase):
 
         callers = (
             ("document graph", _markdown_docs, ".moru"),
+            ("document search", _searchable_markdown_paths, ".moru"),
             ("markdown validator", markdown_files_to_validate, ".moru"),
             ("skill catalogue", agent_skill_catalog._skill_ids_under, ".moru/runs"),
         )
@@ -502,6 +504,72 @@ class GraphDocumentSelectionTests(unittest.TestCase):
             (project / "brand-new-card.md").write_text("#\n", encoding="utf-8")
 
             self.assertIn("brand-new-card.md", _markdown_docs(project))
+
+
+class SearchDocumentSelectionTests(unittest.TestCase):
+    """Manual `workflow.py query` search must exclude `.moru/` and ignored copies."""
+
+    def test_legacy_search_excludes_moru_worktrees_backups_and_git_ignored_docs(self) -> None:
+        unavailable = type(
+            "Unavailable",
+            (),
+            {"available": False, "error": "read-only lookup fallback"},
+        )()
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            subprocess.run(["git", "init", "-q", "."], cwd=project, check=True)
+            (project / ".gitignore").write_text("generated/\n", encoding="utf-8")
+            entries = {
+                "common/nodes/ui-state-render-boundary.md": "# UI State And Render Boundary\nstateless stateful boundary\n",
+                ".moru/cleanup-backups/old/ui-state-render-boundary.md": "# UI State And Render Boundary\nstateless stateful boundary\n",
+                ".moru/worktrees/feature-a/ui-state-render-boundary.md": "# UI State And Render Boundary\nstateless stateful boundary\n",
+                "scripts/internal-note.md": "# Internal\nstateless stateful boundary\n",
+                "generated/report.md": "# Report\nstateless stateful boundary\n",
+            }
+            for rel, body in entries.items():
+                target = project / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(body, encoding="utf-8")
+
+            with patch("workflow_search.search_wikimap", return_value=unavailable):
+                outcome = search_docs_outcome(project, "stateless stateful boundary", max_results=8)
+
+        self.assertEqual("legacy", outcome.backend)
+        self.assertEqual(
+            ["common/nodes/ui-state-render-boundary.md"],
+            [item["path"] for item in outcome.results],
+        )
+
+    def test_wikimap_results_drop_moru_and_scripts_paths(self) -> None:
+        available = type(
+            "Available",
+            (),
+            {
+                "available": True,
+                "error": "",
+                "weak": False,
+                "partial": False,
+                "fused": False,
+                "results": [
+                    {"path": ".moru/worktrees/old/guide.md", "line": 1, "heading": "Old"},
+                    {"path": "scripts/note.md", "line": 1, "heading": "Internal"},
+                    {"path": "common/guide.md", "line": 2, "heading": "Canonical"},
+                ],
+            },
+        )()
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            build(
+                project,
+                ".moru/worktrees/old/guide.md",
+                "scripts/note.md",
+                "common/guide.md",
+            )
+            with patch("workflow_search.search_wikimap", return_value=available):
+                outcome = search_docs_outcome(project, "canonical guide", max_results=8)
+
+        self.assertEqual("wikimap", outcome.backend)
+        self.assertEqual(["common/guide.md"], [item["path"] for item in outcome.results])
 
 
 if __name__ == "__main__":

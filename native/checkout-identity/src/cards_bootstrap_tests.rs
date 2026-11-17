@@ -328,7 +328,10 @@ fn admission_never_creates_missing_paths_and_preserves_path_guards() {
             assert!(CardBootstrap::open(&invalid, false).is_none());
             assert_eq!(fs::metadata(&invalid).unwrap().len(), 0);
         }
-        Err(error) if cfg!(target_os = "macos") && error.raw_os_error() == Some(libc::EPERM) => {
+        Err(error)
+            if cfg!(target_os = "macos")
+                && matches!(error.raw_os_error(), Some(libc::EPERM) | Some(libc::EILSEQ)) =>
+        {
             assert!(!invalid.exists());
             assert!(CardBootstrap::open(&invalid, false).is_none());
             assert!(!invalid.exists(), "admission created the rejected filename");

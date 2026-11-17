@@ -75,6 +75,7 @@ def _add_approval_record_argument(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Resolve Moru Core workflow routes.")
+    parser.add_argument("--rules", type=Path, default=ROOT, help="Moru Core rules root directory.")
     subparsers = parser.add_subparsers(dest="action", required=True)
 
     _add_route_parser(subparsers)
@@ -110,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Also search the organization guide bound to this project.",
     )
+    query.add_argument("--rules", type=Path, default=argparse.SUPPRESS)
     add_org_parser(subparsers)
 
     subparsers.add_parser("list", help="List available commands, platforms, and concerns.")
@@ -188,7 +190,7 @@ def _add_route_parser(subparsers: argparse._SubParsersAction) -> None:
             "resolved classification or answer-first handling."
         ),
     )
-    route.add_argument("--rules", type=Path, default=ROOT)
+    route.add_argument("--rules", type=Path, default=argparse.SUPPRESS)
     route.add_argument(
         "--parent-evidence",
         type=Path,
@@ -241,7 +243,7 @@ def _add_dispatch_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Resolved-scope evidence from that matching parent.",
     )
     dispatch.add_argument("--project", default=".", help="Target project root for the delegated Codex task.")
-    dispatch.add_argument("--rules", type=Path, default=ROOT)
+    dispatch.add_argument("--rules", type=Path, default=argparse.SUPPRESS)
     dispatch.add_argument("--evidence", type=Path)
     dispatch.add_argument("--worker-evidence", type=Path)
     dispatch.add_argument("--worker-reservation-token", default="")
@@ -313,7 +315,8 @@ def print_supported_values() -> None:
 
 def print_query(args: argparse.Namespace) -> int:
     query_str = " ".join(args.terms)
-    outcome = search_docs_outcome(ROOT, query_str, max_results=args.max_results)
+    rules = Path(getattr(args, "rules", ROOT)).expanduser().resolve()
+    outcome = search_docs_outcome(rules, query_str, max_results=args.max_results)
     organization, organization_errors = (
         query_organization(args.project.resolve(), query_str, args.max_results)
         if args.project else ([], [])

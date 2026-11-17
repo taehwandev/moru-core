@@ -36,6 +36,15 @@ agent_hook = _load_agent_hook()
 
 class AgentHookSummaryTests(unittest.TestCase):
 
+    def test_compact_route_prints_its_actual_evidence_contract(self):
+        payload = {'route': {'command': 'small-change', 'retrospective_contract': 'compact_v1',
+                             'gates': ['tests', 'review hook', 'retrospective check']}}
+        with patch.object(Path, 'read_text', return_value=json.dumps(payload)):
+            summary = '\n'.join(agent_hook._hook_summary_from_preflight(Path('manifest.json')))
+        self.assertIn('compact_v1', summary)
+        self.assertIn('learning_decision', summary)
+        self.assertNotIn('decision_v1 requires', summary)
+
     def test_compact_start_keeps_reading_and_capture_decisions_actionable(self):
         payload = {"route": {"command": "build", "required_docs": ["required.md"],
                              "gates": ["tests", "review hook", "retrospective check"]}}
@@ -50,6 +59,10 @@ class AgentHookSummaryTests(unittest.TestCase):
         closed, memory = agent_hook._closed_run_lines(Path("/nonexistent-fixture"))
         self.assertIn("verification, not pending actions", closed)
         self.assertIn("authorized steps in the verified scope", closed)
+        self.assertIn(
+            "report the initial request, any scope changes, and how each outcome was handled and verified",
+            closed,
+        )
         self.assertIn("New effects, targets or changed evidence need admission", closed)
         self.assertIn("before that gate and finish", memory)
         self.assertIn("Historical runs keep their original contract", memory)

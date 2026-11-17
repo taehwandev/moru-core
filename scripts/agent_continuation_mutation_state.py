@@ -11,8 +11,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from agent_continuation_fields import failure
+from agent_directory_fingerprint import DIRECTORY_STATE_HEAD
 from agent_continuation_packet import ContinuationPacketError
-from agent_continuation_store import continuation_path
+from agent_continuation_store import continuation_path, read_continuation_packet
 from agent_execution_capsule_state import is_sha256
 from agent_worktree_fingerprint import MAX_UNTRACKED_BYTES, MAX_UNTRACKED_FILES
 from agent_worktree_scan import WorktreeFingerprintLimitExceeded
@@ -396,3 +397,31 @@ class MutationCheckpointState(
     _MutationScanState,
 ):
     """Own mutation baselines and the scope they prove actually changed."""
+
+
+def no_mutation_evidence(project: Path, run_id: str) -> bool | None:
+    """True only for an untouched run; legacy packets may have no proof.
+
+    Foreign working-tree bytes are irrelevant to this run's ledger. HEAD is
+    deliberately conservative: without commit attribution, any movement needs
+    ordinary closeout. A lifecycle checkpoint cannot reset the initial HEAD.
+    """
+    result = read_continuation_packet(project, continuation_path(project, run_id))
+    if result["status"] != "ok":
+        return None
+    packet = result["packet"]
+    checkpoint = packet.get("checkpoint") or {}
+    if (checkpoint.get("mutation_pending") is not None
+            or checkpoint.get("mutation_count", 0)
+            or (packet.get("work") or {}).get("changed_scope")):
+        return False
+    if "mutation_count" not in checkpoint and packet.get("generation") != 0:
+        return None
+    head = checkpoint.get("initial_head") or (packet.get("drift") or {}).get("project", {}).get("head")
+    if not head:
+        return None
+    if is_non_git_workspace(project):
+        return head == DIRECTORY_STATE_HEAD
+    current = run_git(["git", "rev-parse", "HEAD"], cwd=project, check=False,
+                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    return current.returncode == 0 and current.stdout.decode().strip() == head

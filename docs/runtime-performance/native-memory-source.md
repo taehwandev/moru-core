@@ -9,8 +9,9 @@ type: ai-generated
 `_source_blob` delegates ordinary candidate-file resolution, regular-file checks,
 tracked-file verification and bounded Git capture to `MemorySource` in Rust.
 Python retains relative-path admission and resolves the project root in its
-original process before delegation. Source-status aggregation and its per-recall
-cache remain Python; this increment does not complete migration unit16.
+original process before delegation. [Source-status aggregation](native-memory-status.md)
+now batches ordinary checks in Rust while its cache object remains caller-owned.
+Neither increment completes migration unit16.
 
 Git remains the hash implementation: `ls-files --error-unmatch` uses literal
 pathspecs, and `hash-object --no-filters -- <path>` hashes worktree bytes without

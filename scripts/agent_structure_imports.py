@@ -8,13 +8,20 @@ import re
 from pathlib import Path
 
 
+BARE_IMPORT_RE = re.compile(
+    r"^\s*(?:@[A-Za-z_]\w*(?:\([^)]*\))?\s+)*"
+    r"(?:(?:public|package|internal|fileprivate|private)\s+)?"
+    r"import\s+"
+    r"(?:(?:static|struct|class|enum|protocol|actor|typealias|func|var|let)\s+)?"
+    r"([A-Za-z_][\w.]*(?:\.\*)?)(?:;|\s|$)"
+)
 IMPORT_RE = (
     re.compile(r"^\s*import\s+(?:type\s+)?(?:[^\"']+\s+from\s+)?[\"']([^\"']+)[\"']"),
     re.compile(r"^\s*export\s+(?:type\s+)?[^\"']+\s+from\s+[\"']([^\"']+)[\"']"),
     re.compile(r"\brequire\(\s*[\"']([^\"']+)[\"']\s*\)"),
     re.compile(r"\bimport\(\s*[\"']([^\"']+)[\"']\s*\)"),
     re.compile(r"^\s*from\s+([A-Za-z_][\w.]*|\.+[\w.]*)\s+import\b"),
-    re.compile(r"^\s*import\s+([A-Za-z_][\w.]*(?:\.\*)?)(?:\s|$)"),
+    BARE_IMPORT_RE,
     re.compile(r"^\s*use\s+([A-Za-z_][\w:]*)(?:;|\s|$)"),
 )
 
@@ -31,7 +38,7 @@ def imports_for_path(path: Path) -> list[str]:
             continue
         quoted_import_found = False
         for pattern in IMPORT_RE:
-            if quoted_import_found and pattern.pattern.startswith("^\\s*import\\s+([A-Za-z_]"):
+            if quoted_import_found and pattern is BARE_IMPORT_RE:
                 continue
             match = pattern.search(line)
             if not match:
@@ -46,10 +53,17 @@ def imports_for_path(path: Path) -> list[str]:
 
 def import_candidates(spec: str, source_path: Path) -> set[str]:
     candidates = {spec}
+    suffix = source_path.suffix.lower()
     if spec.startswith("."):
         candidates.add(posixpath.normpath(posixpath.join(source_path.parent.as_posix(), spec)))
+    elif suffix == ".dart" and not spec.startswith(("dart:", "package:")) and ":" not in spec:
+        candidates.add(posixpath.normpath(posixpath.join(source_path.parent.as_posix(), spec)))
+    if spec.startswith("package:"):
+        candidates.add(spec[len("package:"):])
     if "." in spec:
         candidates.add(spec.replace(".", "/"))
+        if suffix == ".swift":
+            candidates.add(spec.split(".", 1)[0])
     if "::" in spec:
         candidates.add(spec.replace("::", "/"))
     if spec.startswith("@/"):

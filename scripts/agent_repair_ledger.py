@@ -64,7 +64,7 @@ def capture_failure_checkpoint_binding(evidence_path: Path) -> dict[str, str]:
             or payload.get("invalid_json")
             or payload.get("schema_version") != SCHEMA_VERSION
             or not isinstance(payload.get("failed_checkpoints"), list)
-            or not payload.get("failed_checkpoints")
+            or not (payload.get("failed_checkpoints") or payload.get("verification_attempts"))
             or not preflight
             or preflight.get("invalid_json")
             or not _same_evidence_path(payload.get("preflight_evidence"), evidence_path)
@@ -125,7 +125,7 @@ def rebind_failure_checkpoints_after_required_doc_refresh(
             or payload.get("invalid_json")
             or payload.get("schema_version") != SCHEMA_VERSION
             or not isinstance(payload.get("failed_checkpoints"), list)
-            or not payload.get("failed_checkpoints")
+            or not (payload.get("failed_checkpoints") or payload.get("verification_attempts"))
             or not _same_evidence_path(payload.get("preflight_evidence"), evidence_path)
             or payload.get("preflight_evidence_sha256")
             != prior_binding.get("preflight_evidence_sha256")
@@ -182,8 +182,59 @@ def record_failure_checkpoints(
             "failure_signature": signature,
             "failure_signatures": resolved_signatures,
             "repair_attempts": attempts if isinstance(attempts, dict) else {},
+            "verification_attempts": prior.get("verification_attempts", []),
         }
         atomic_write_json(path, payload)
+
+
+def claim_verification_attempt(
+    *, evidence_path: Path, preflight: dict[str, Any], identity: str,
+) -> int:
+    """Reserve at most two executions of unchanged verification inputs.
+
+    A claim survives interruption and hook failure reporting. Only hashes and
+    counts are stored; command output and the external retry reason stay out.
+    This is execution control, not approval or a replacement for repair receipts.
+    """
+    _enforce_worker_evidence_boundary(evidence_path)
+    path = repair_checkpoint_path_for_preflight(evidence_path)
+    with state_lock(path):
+        payload = _recorded_failure_payload(preflight.get("route") or {}, evidence_path)
+        if not payload:
+            payload = {
+                "schema_version": SCHEMA_VERSION,
+                "preflight_evidence": str(evidence_path.resolve()),
+                "preflight_evidence_sha256": preflight_evidence_sha256(evidence_path),
+                "route_fingerprint": route_fingerprint(preflight.get("route") or {}),
+                "failed_checkpoints": [],
+            }
+        attempts = payload.get("verification_attempts", [])
+        if not isinstance(attempts, list) or any(not isinstance(item, dict) for item in attempts):
+            raise ValueError("invalid verification attempt state")
+        prior = next((item for item in attempts if item.get("identity") == identity), {})
+        count = prior.get("count", 0)
+        if type(count) is not int or count < 0:
+            raise ValueError("invalid verification attempt count")
+        if count >= 2:
+            return 0
+        attempts = [item for item in attempts if item.get("identity") != identity]
+        payload["verification_attempts"] = [*attempts[-31:], {"identity": identity, "count": count + 1}]
+        atomic_write_json(path, payload)
+    return count + 1
+
+
+def clear_verification_attempt(
+    *, evidence_path: Path, preflight: dict[str, Any], identity: str, attempt: int,
+) -> None:
+    """A completed pass clears only its own input identity's retry budget."""
+    _enforce_worker_evidence_boundary(evidence_path)
+    path = repair_checkpoint_path_for_preflight(evidence_path)
+    with state_lock(path):
+        payload = _recorded_failure_payload(preflight.get("route") or {}, evidence_path)
+        attempts = payload.get("verification_attempts", [])
+        if any(item.get("identity") == identity and item.get("count") == attempt for item in attempts):
+            payload["verification_attempts"] = [item for item in attempts if item.get("identity") != identity]
+            atomic_write_json(path, payload)
 
 
 def record_finish_failure_checkpoints(

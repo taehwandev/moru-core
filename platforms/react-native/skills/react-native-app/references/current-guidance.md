@@ -2,6 +2,8 @@
 keyflow_id: sys_platforms_react_native_app
 status: review
 type: human-reviewed-needed
+requires:
+  - common/nodes/ui-state-render-boundary.md
 ---
 
 # React Native App
@@ -12,9 +14,10 @@ animations, networking, native modules, app startup, memory, and bundle size.
 ## Core Principle
 
 Separate mobile rendering from app, network, navigation, and native-capability
-ownership. A screen should render explicit UI states and callbacks; hooks,
-containers, services, or native adapters own data loading, permissions, effects,
-and platform behavior.
+ownership (`common/nodes/package-module-boundaries.md` and
+`common/skills/code-structure-ownership/SKILL.md`). A screen should render
+explicit UI states and callbacks; hooks, containers, services, or native
+adapters own data loading, permissions, effects, and platform behavior.
 
 ## When To Use
 
@@ -37,6 +40,31 @@ Use this when a React Native or Expo change touches:
 | Animations and gestures | Prefer native-thread or Reanimated paths for frame-sensitive motion. Animate transform/opacity before layout-heavy properties when the design allows it. Keep gesture state separate from server state. | Device/simulator interaction smoke; profiler evidence for performance claims. |
 | Native integration | Name the native capability, permission, config plugin or native package owner, and fallback when unavailable. Keep native dependencies in the app package when the monorepo has multiple packages. When implementation crosses into Kotlin, Gradle, JNI, Android SDK or manifest behavior, or an Android native module or bridge, add the focused Android architecture, module, security, and review cards. | Platform build/config check or device smoke for the capability; include the focused Android check when native Android implementation changed. |
 | Startup, memory, bundle | Measure before optimizing. Prefer lazy work, smaller imports, asset discipline, Hermes-aware checks, static analysis, and type checking before broad rewrites. | Startup, memory, bundle analyzer, lint/typecheck, or release-like measurement tied to the changed path. |
+
+## Package, Folder, And Monorepo Boundaries
+
+Apply `common/nodes/package-module-boundaries.md` to Expo / React Native apps
+and monorepos:
+
+- **Thin route entries vs feature owners:** keep Expo Router `app/` files (with
+  their filesystem-required filenames, optionally exporting `*RouteEntry`) or
+  React Navigation registrations thin — route param parsing and navigation
+  wiring only, mounting `features/<name>/` where `*Container` (stateful
+  hook/query/permission/effect owner) and `*Screen` (stateless pure renderer)
+  live by default (matching `web-react-ui`). Preserve an established repo-local
+  `*Screen` (stateful) -> `*Content` (stateless) convention without renaming;
+  reserve `*Route` for pure destination/param contract types.
+- **Cross-feature contract discipline:** features must not deep-import another
+  feature's internal `components/`, `hooks/`, `api/`, or `model/` files; share
+  navigation contracts through typed route helpers or a narrow contract module.
+- **Monorepo `packages/*` native isolation:** keep React Native native modules,
+  Expo config plugins, native SDK wrappers, and platform permissions inside the
+  mobile app or dedicated native capability packages (`packages/mobile-*`),
+  never inside pure shared TypeScript domain or cross-platform UI packages.
+- **Root-folder audit and complete moves:** audit `src/components/`, `src/lib/`,
+  or `features/<name>/` past ~20 files or 3+ mixed roles; split large features
+  by user flow first, move all existing root files of any extracted role, forbid
+  `common`/`utils`/`helpers` dumps, and verify import edges with `rg`.
 
 ## Boundary
 

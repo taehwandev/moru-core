@@ -61,7 +61,12 @@ class NativeGitQueryTests(unittest.TestCase):
             "git diff -- ':(top,literal)README.md'","git diff -- '*.rs'","git diff -- 'a|b.rs'",
             "git diff --cached -- README.md > written","git diff -- README.md; touch written",
             "git diff -- README.md && touch written","git diff -- README.md # note",
-            "git diff -- \"$FILE\"","git diff -- README.md\n","git diff -- README.md | cat"]
+            "git diff -- \"$FILE\"","git diff -- README.md\n","git diff -- README.md | cat",
+            "git diff --staged --cached", "git diff --cached --staged", "git diff --staged --staged",
+            "git diff --stat --check --staged", "git diff --stag --stat", "git diff --staged=true",
+            "git diff --staged --output=written", "git diff --stat --staged --ext-diff",
+            "git diff --staged --textconv -- README.md", "git diff --staged -- ../README.md",
+            "git diff --staged -- '*.rs'", "git diff --stat --staged -- README.md > written"]
         for alias in ("claude-pretool-gate","codex-pretool-gate"):
             for command in commands:
                 with self.subTest(alias=alias,command=command):
@@ -69,6 +74,39 @@ class NativeGitQueryTests(unittest.TestCase):
                     self.assertEqual(result(self.run_query(alias,command,backend="python")),
                                      result(self.run_query(alias,command)))
         self.assertFalse((self.project/"written").exists())
+
+    def test_staged_alias_and_diff_option_order_match_python_without_replay(self):
+        commands = ["git diff --staged", "git diff --staged -- README.md",
+                    "git diff --stat --cached -- '소스 폴더/파일.rs'",
+                    "git diff --staged -- README.md | head -n 10",
+                    "git -C '" + str(self.project) + "' diff --staged --check -- README.md",
+                    "cd '" + str(self.project) + "' && git diff --stat --staged -- README.md"]
+        for option in ("--stat", "--check", "--name-only", "--name-status", "--numstat", "--exit-code"):
+            commands.extend(("git diff --staged " + option + " -- README.md",
+                             "git diff " + option + " --staged -- README.md",
+                             "git diff " + option + " --cached -- src"))
+        for alias in ("claude-pretool-gate", "codex-pretool-gate"):
+            for command in commands:
+                with self.subTest(alias=alias, command=command):
+                    expected = result(self.run_query(alias, command, backend="python"))
+                    self.assertEqual((0, b"", b""), expected)
+                    self.assertEqual(expected, result(self.run_query(alias, command, PATH=str(self.empty))))
+
+    def test_staged_diff_keeps_codex_transcript_binding(self):
+        command = "git diff --stat --staged -- README.md"
+        transcript = self.base / "staged-diff.jsonl"
+        record = {"type": "function_call", "arguments": json.dumps({"cmd": command, "workdir": str(self.project)})}
+        transcript.write_text(json.dumps({"payload": record}) + "\n")
+        payload = request(self.project, command, transcript_path=str(transcript))
+        alias = "codex-pretool-gate"
+        self.assertEqual((0, b"", b""), result(invoke(self.launcher, self.base, self.project, alias,
+                         payload, PATH=str(self.empty))))
+        record["arguments"] = "not-json"
+        transcript.write_text(json.dumps({"payload": record}) + "\n")
+        self.assertEqual(result(invoke(self.launcher, self.base, self.project, alias, payload, backend="python")),
+                         result(invoke(self.launcher, self.base, self.project, alias, payload)))
+        self.assertEqual(127, invoke(self.launcher, self.base, self.project, alias, payload,
+                                   PATH=str(self.empty)).returncode)
 
     def test_diff_transcript_context_and_path_errors_match_original(self):
         command="git diff --cached -- README.md"
@@ -112,7 +150,8 @@ class NativeGitQueryTests(unittest.TestCase):
             else: path.symlink_to(self.launcher if kind == "launcher" else "git")
             try:
                 for alias in ("claude-pretool-gate", "codex-pretool-gate"):
-                    for command in ("git log -5 --oneline", "git status --short", "git diff", "git diff --cached -- README.md"):
+                    for command in ("git log -5 --oneline", "git status --short", "git diff", "git diff --cached -- README.md",
+                                    "git diff --staged -- README.md", "git diff --stat --cached -- README.md"):
                         self.assertEqual(127, self.run_query(alias, command, PATH=str(self.empty)).returncode)
                         self.assertEqual(result(self.run_query(alias, command, backend="python")),
                                          result(self.run_query(alias, command)))

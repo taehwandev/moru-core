@@ -11,6 +11,8 @@ feature folders are shaped, how route files compose data and UI, how a new
 browser build is split by responsibility, or how imports should flow.
 
 Also use:
+- `common/nodes/package-module-boundaries.md` for boundary promotion, `api`/`impl`
+  feature contracts, root-folder audits, and complete role moves.
 - `common/skills/code-structure-ownership/SKILL.md` for ownership level and `api`/`impl`
   decisions.
 - `common/skills/reusable-code-design/SKILL.md` before promoting feature code into a
@@ -179,6 +181,29 @@ client components do not import server-only modules
 Do not create a `common`, `shared`, or `utils` folder for unrelated code with no
 single owner. If a shared folder has many unrelated reasons to change, split it
 by responsibility or keep code feature-local.
+
+## Workspace Packages, Feature Entry Contracts, And Barrel Discipline
+
+Apply `common/nodes/package-module-boundaries.md` across both single-app folders
+and monorepo workspaces (`pnpm`/`npm`/`yarn`/Turborepo/Nx `packages/*`):
+
+- **Feature entry boundary (`api` vs `impl`):** sibling features and route shells
+  may import only a feature's narrow public entry (for example route helpers,
+  shared contract types, or the feature container), never deep-importing another
+  feature's internal `blocks/`, `components/`, `hooks/`, `model/`, or `api/`
+  files (`rg "from ['\"].*features/[^/]+/(blocks|components|hooks|model|api)/"`).
+- **Workspace package `exports`:** every `packages/<capability>/package.json`
+  should declare explicit `"exports"` subpaths instead of exposing internal
+  `src/` paths. Separate `@repo/ui` (design-system primitives) from
+  `@repo/<capability>-contract` and server-only `@repo/<capability>-server` so
+  browser bundles cannot pull server SDKs or database clients.
+- **No catch-all `index.ts` barrels:** do not add wide `index.ts` barrels that
+  re-export unrelated components, hooks, stores, and server/API helpers; they
+  defeat tree-shaking, cause circular imports, and blur server/client boundaries.
+- **Root-folder audit and complete role moves:** audit `src/components/`,
+  `src/lib/`, or `features/<name>/` when a root passes ~20 files or mixes 3+
+  roles; split large features by user flow first and move **all** existing root
+  files of an extracted role in the same change so no folder stays half-split.
 
 ## Server And Client Boundaries
 

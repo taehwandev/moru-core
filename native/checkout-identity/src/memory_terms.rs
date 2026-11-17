@@ -1,6 +1,6 @@
 //! owner: MemoryTerms; allowed imports: std/generated builder Unicode tables;
 //! forbidden imports: filesystem, processes, stores, authority; callers/tests:
-//! MemoryRecall and lexical parity probes; verification: Python corpus oracles.
+//! MemoryRecall, MemoryUpkeep and lexical parity probes; verification: Python oracles.
 use std::collections::BTreeSet;
 include!(concat!(env!("OUT_DIR"), "/memory_contract.rs"));
 type Terms = (BTreeSet<String>, BTreeSet<String>, BTreeSet<String>);
@@ -38,6 +38,42 @@ impl MemoryTerms {
     pub(crate) fn version() -> &'static str {
         MEMORY_UNICODE
     }
+    pub(crate) fn normalize(text: &str) -> String {
+        let chars: Vec<_> = text.chars().collect();
+        let mut lower = String::with_capacity(text.len());
+        for (index, &c) in chars.iter().enumerate() {
+            if c.is_ascii() {
+                lower.push(c.to_ascii_lowercase());
+            } else if c == 'Σ' && Self::final_sigma(&chars, index) {
+                lower.push('ς');
+            } else if let Ok(slot) = LOWER_MAP.binary_search_by_key(&(c as u32), |(cp, _)| *cp) {
+                lower.push_str(LOWER_MAP[slot].1);
+            } else {
+                lower.push(c);
+            }
+        }
+        let mut result = String::with_capacity(lower.len());
+        let mut space = false;
+        for c in lower.chars() {
+            if PYTHON_SPACE.binary_search(&(c as u32)).is_ok() {
+                space = !result.is_empty();
+            } else if Self::word(c) {
+                if space {
+                    result.push(' ');
+                    space = false;
+                }
+                result.push(c);
+            }
+        }
+        result
+    }
+
+    fn final_sigma(chars: &[char], index: usize) -> bool {
+        let visible = |c: &&char| LOWER_IGNORED.binary_search(&(**c as u32)).is_err();
+        let cased = |c: &char| LOWER_CASED.binary_search(&(*c as u32)).is_ok();
+        chars[..index].iter().rev().find(visible).is_some_and(cased)
+            && !chars[index + 1..].iter().find(visible).is_some_and(cased)
+    }
     pub(crate) fn terms(text: &str) -> Terms {
         let chars: Vec<char> = text.chars().collect();
         let mut paths = BTreeSet::new();
@@ -69,7 +105,13 @@ impl MemoryTerms {
                 .collect();
             let name = parts.last().copied().unwrap_or("");
             let stem = match name.rfind('.') {
-                Some(n) if n > 0 && n < name.len() - 1 => &name[..n],
+                Some(n)
+                    if n > 0
+                        && n < name.len() - 1
+                        && (MEMORY_LEADING_DOT_SUFFIX || name[..n].chars().any(|c| c != '.')) =>
+                {
+                    &name[..n]
+                }
                 _ => name,
             };
             stems.insert(stem.to_owned());
@@ -183,3 +225,7 @@ impl MemoryTerms {
         (end > extension).then_some(end)
     }
 }
+
+#[cfg(test)]
+#[path = "memory_terms_tests.rs"]
+mod tests;

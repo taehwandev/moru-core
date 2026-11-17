@@ -31,6 +31,105 @@ the required lifecycle before edits; reuse the living task and existing authorit
 
 ## Verification And Maintenance
 
+### Original intake alongside the current checklist (H06, H08, H09)
+
+The follow-up found that preserving an agent-authored requirement map still
+cannot surface an outcome omitted while authoring it. Existing resume context
+returned an unchecked original-intake locator, but neither that context nor
+implementation review showed the original request for comparison.
+
+| ID | Priority | Owner and reproduced behavior | Repair and observing check |
+| --- | --- | --- | --- |
+| F33 | Medium / H08, H09 | A source request for features A and B plus keyboard access is reduced to an A-only checklist; recovery and review only show that incomplete checklist. | `agent_intake_context.py` reads the exact registered origin with both packet bindings checked; resume CLI and implementation review receive the existing quoted source. Tests exercise both actual renderers, changed bindings, foreign project/session boundaries and oversized input without truncation. It adds no gate, persisted prompt copy, provider classifier or publication burden. |
+
+This supports semantic reconciliation by the runtime agent; it is not a
+deterministic semantic evaluator. A stale/foreign origin is not guessed from a
+transcript or the latest run, and a machine-green result never proves that every
+requested outcome was delivered. Current user revisions take precedence.
+
+In a synthetic runtime check, the actual recovery helper returned the original
+A-and-B request plus keyboard constraint while the declared result contained
+only A. Existing Claude and AGY CLIs each returned `completion_supported: false`
+and identified both B and keyboard access as missing. No real user content or
+local paths were sent. This is one concrete semantic-reconciliation example,
+not a universal omission detector or model-quality benchmark.
+
+### Implementation delivery versus publication readiness (H06, H08)
+
+Baseline `9029c2b0`, macOS/Codex, clean isolated task checkout. The report was
+that ordinary work still dropped requirements while commit/PR later refused
+to proceed. Two readiness tests reproduced the stage mismatch: a default
+`commit workflow` checkpoint with pending authorized publication actions was
+rejected as unreconciled/unfinished delivery; retained implementation mappings
+could also demand gates absent from the commit manifest. The inspected local
+commit record had already completed, so this is not an attribution of every
+reported refusal to that particular run.
+
+| ID | Priority | Owner and reproduced behavior | Repair and observing check |
+| --- | --- | --- | --- |
+| F31 | High / H06, H08 | `agent_work_completion.py` applied implementation scope and coverage checks to normalized commit/PR readiness, before those actions could legally execute. | Keep implementation mappings as context; use current publication route gates. Preserve upstream canonical effect-admitted publication deferral and receipts; other remaining work still blocks, as do stale packets, explicit blockers and pending operations. A real finish CLI still refuses missing review/readiness; no publication command or authority is synthesized. |
+| F32 | Medium / H06, H08 | `agent_stop_continuation.py` only observed declared remaining work/default scope, so an empty list hid a recorded missing artifact until finish. | At an eligible ordinary writable Stop, reuse native coverage when the list is empty. Missing recorded gates/artifacts get the existing one continuation; no mapping or unknown native observation adds no retry. Codex native-artifact integration and both runtime adapters observe the reminder; user stop, approval wait and retry limits remain. Publication never replays this implementation loop. |
+
+This is a correction to the previous continuity repair, not semantic requirement
+inference. Unknown or never-recorded requirements remain unobservable. Existing
+review, safety, input freshness and effect-authority contracts remain mandatory.
+No new gate, schema, storage service, transcript reader or provider call is added.
+Native artifacts are built offline in ignored task state for real integration
+checks; no global install, main integration, push or PR is performed by this task.
+
+Real Claude and AGY read-only critiques both identified the ordering conflict.
+The selected repair uses normalized route ownership, not free-text classification
+or a new delivery/publication schema. Both noted that reviewed but incomplete
+or untested work can still be committed: readiness is not an implementation
+completion certificate. Preserve that distinction rather than add a blanket
+requirement for every commit to repeat a completed implementation lifecycle.
+
+Local verification: 29 delivery/Stop tests, 14 native completion integration
+tests, one real commit-finish negative control and 176 commit-readiness,
+continuity, publication-admission, readonly and runtime-adapter compatibility
+tests passed (220 unique tests). The strengthened native Stop scenario passed
+again in a serial run, including unavailable-native behavior; an earlier parallel
+attempt timed out during fixture `git init` at its unchanged five-second limit.
+That failure remains in ignored logs and is not counted as a pass. Injecting an
+empty coverage observation killed the missing-artifact regression with the
+expected output assertion. No test timeout or authority check was relaxed.
+Workflow validation checked 205 references, 504 frontmatter/link blocks and
+30 route contracts. These local checks do not prove semantic task completion
+or a globally activated fix.
+
+Before final review, the base advanced to `d4b5c7f3`. Preserve its active-session
+continuation wording and added resume/ownership tests; the nine-file patch applied
+cleanly. Recheck the overlapping Stop, resume/claim and completion boundaries on
+that base rather than reinterpret the earlier 220 tests as fresh integrated runs.
+The final integrated run passed 98 completion, Stop, native-coverage, resume and
+interruption tests. Validation on that base passed 206 references, 505
+frontmatter/link blocks and 30 route contracts; both staged and working-tree
+whitespace checks passed.
+
+The actual-PC repair landed independently in `6b48f8b0`. Its 30 dedicated tests
+passed on main before integration into this task branch. It defers only exact,
+effect-admitted publication checkpoints and preserves receipts until Git/provider
+observations settle them. The broader draft exemption was removed; mixed
+publication and unfinished implementation still fails. Main was not edited.
+An additional completed-run probe reproduced a safety gap in both Stop adapters:
+`user_interrupted`, `approval_pending`, and `waiting_for_approval` still returned
+`block` (continue). Both now reuse the existing stop-signal and operator-wait
+policy; pausing leaves the publication receipt owed. These checks concern
+preparation and publication ordering, not arbitrary requirement semantics.
+Real Claude and AGY design critiques also requested wrong-branch observation
+checks. A local probe settled a commit made on another source branch. New
+receipts therefore retain the finish source branch and refuse settlement after
+a branch switch, without changing the receipt. Detached preparation is refused;
+legacy receipts without that anchor remain owed and require fresh preparation,
+never a guessed branch or an automatic data migration. Provider observations
+remain caller-supplied evidence rather than authenticated provider queries.
+
+On the integrated base, 302 delivery, Stop, resume, review and mailbox tests
+passed. After the final source-branch guard, all 36 publication tests passed;
+the native runtime was rebuilt and its 14 completion integration tests passed
+again. These are local executable checks plus two providers' bounded design
+critiques, not a live observation of the other PC or a general quality score.
+
 ### Requirement delivery and state-review scope (H06, H08, H09)
 
 Baseline `8eebeb55`, macOS/Codex, clean isolated task checkout. Claude's real
@@ -809,3 +908,65 @@ so it need not build its own harness; cheaper evidence (fewer and smaller screen
 judged without images, a smaller judge for passes); observing until the resting state returns instead
 of a fixed window. Container note outside Moru: a PID 1 that does not reap children let defunct
 processes accumulate (227 observed) toward the process limit; `--init` is the remedy.
+
+## Public Harness Comparison: 2026-11-13
+
+Baseline `cd4eb512`, macOS/Codex; scope H01/H06. Compared official public
+sources with Moru's routing, execution-capsule bindings and pending-publication
+owner. No external harness was installed or executed, and no paid model call
+or permission change was introduced.
+
+Sources, with repository creation dates distinguished from release dates:
+
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness): GitHub
+  [metadata](https://api.github.com/repos/deepseek-ai/deepseek-harness) reports
+  creation on 2026-08-13. Its [core map](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/README.md)
+  separates session, prompt, tool and loop owners rather than prescribing one
+  inseparable composition.
+- [DeepSeek Super-agent prototype](https://github.com/deepseek-ai/dsh-superagent-prototype):
+  GitHub [metadata](https://api.github.com/repos/deepseek-ai/dsh-superagent-prototype)
+  reports creation on 2026-10-31. Its README explicitly calls it a research
+  prototype and distinguishes implemented code from future designs. The
+  [authorization](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/main/docs/002-authorization.md)
+  and [execution](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/main/docs/003-execution.md)
+  contracts separate follow-up context from authority and require checking
+  existing external results before replay after restart.
+- [Gemini CLI v0.68.0](https://github.com/google-gemini/gemini-cli/releases/tag/v0.68.0)
+  was released on 2026-11-10 UTC. Its existing
+  [JIT context contract](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/gemini-md.md)
+  loads component instructions on access within trusted roots. This is an
+  existing design examined alongside the recent release, not a claim that
+  v0.68.0 first introduced JIT loading.
+- Google's [ADK 2.0 rationale](https://developers.googleblog.com/en/why-we-built-adk-20/)
+  (2026-07-01) separates deterministic orchestration from model reasoning and
+  bounds the state passed to each node. It is a framework design reference,
+  not a new November release or the source of Antigravity's server harness.
+
+Decision: tighten the existing scoped context contract. Keep Moru's request,
+evidence and pending-publication owners; adding another authority store,
+background router or plugin runtime would duplicate responsibilities without
+an observed need. Full-access execution and automatic proactive dispatch are
+not adopted from the prototype. The present comparison does not establish
+model-quality, cost or throughput superiority for any harness.
+
+### Git state must not load UI state guidance (H01/H06)
+
+Reproducer: `resolve_docs("cleanup", None, ["state"], ...)` with the user's
+merged worktree/branch/stash request. The legacy `state` concern bypassed the
+fixed Git deletion contract and selected UI state-modeling and general worktree
+guidance. The existing cleanup route already owns only Git administration.
+
+Treat `state` as Git state within that route's fixed concern family. Required
+documents fall from four / 44,227 UTF-8 bytes to two / 10,467 bytes for this
+exact input. The deletion gates are byte-for-byte identical. Application-state
+routes still select state-modeling; cleanup with a separate security concern
+still selects risk guidance. These are selected-source byte counts, not token,
+observed-reading, elapsed-time or success-rate measurements.
+
+The three focused regressions in `test_workflow_cleanup_context` pass. A broader
+96-case screen passed 94 cases and exposed two pre-existing document-size
+assertion failures: cleanup selects 10,467 bytes against a 10,000-byte cap;
+PRD selects 16,472 against 16,000. Both reproduce with the unmodified HEAD
+router and unchanged source documents. Their limits and documents are retained;
+the broad screen is not reported as passing. No end-to-end performance gain or
+live CLI installation is claimed.

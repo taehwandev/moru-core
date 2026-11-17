@@ -52,6 +52,30 @@ ANDROID_COMPOSE_PREVIEW_DOC = f"{_ANDROID_COMPOSE_REFS}/compose-previews.md"
 ANDROID_COMPOSE_WEAR_DOC = f"{_ANDROID_COMPOSE_REFS}/wear-compose.md"
 ANDROID_COMPOSE_SOURCES_DOC = f"{_ANDROID_COMPOSE_REFS}/official-source-surfaces.md"
 
+PACKAGE_MODULE_BOUNDARIES_NODE = "common/nodes/package-module-boundaries.md"
+
+SWIFT_CODE_STRUCTURE_DOC = "platforms/swift/skills/swift-code-structure/SKILL.md"
+_SWIFT_STRUCTURE_REFS = "platforms/swift/skills/swift-code-structure/references"
+SWIFT_PACKAGE_BOUNDARY_DOC = f"{_SWIFT_STRUCTURE_REFS}/package-boundaries.md"
+SWIFT_PACKAGE_LAYOUT_DOC = f"{_SWIFT_STRUCTURE_REFS}/package-layout-and-migration.md"
+SWIFT_STRUCTURE_DOCS = (
+    PACKAGE_MODULE_BOUNDARIES_NODE,
+    SWIFT_CODE_STRUCTURE_DOC,
+    SWIFT_PACKAGE_BOUNDARY_DOC,
+    SWIFT_PACKAGE_LAYOUT_DOC,
+)
+IOS_STRUCTURE_DOCS = (
+    PACKAGE_MODULE_BOUNDARIES_NODE,
+    "platforms/ios/skills/ios-module-structure/SKILL.md",
+    SWIFT_PACKAGE_BOUNDARY_DOC,
+    SWIFT_PACKAGE_LAYOUT_DOC,
+)
+KMP_STRUCTURE_DOCS = (
+    PACKAGE_MODULE_BOUNDARIES_NODE,
+    "platforms/kmp/skills/kmp-module-structure/SKILL.md",
+    "platforms/kmp/skills/kmp-module-structure/references/package-layout.md",
+)
+
 ANDROID_COMPOSE_DOCS = (
     "platforms/android/skills/android-compose-ui/SKILL.md",
     "platforms/android/skills/android-review/SKILL.md",
@@ -72,6 +96,7 @@ ANDROID_STRUCTURE_DOCS = (
     ANDROID_MODULE_SPLIT_DOC,
     ANDROID_MODULE_REVIEW_DOC,
     ANDROID_ARCH_STRUCTURE_DOC,
+    PACKAGE_MODULE_BOUNDARIES_NODE,
 )
 # `dependency` covers both dependency direction between modules and Android
 # dependency injection, so it takes the layout and DI pieces rather than the
@@ -204,8 +229,8 @@ PLATFORM_CONCERNS: Dict[Tuple[str, str], Tuple[str, ...]] = {
     ("kmp", "compose"): ("platforms/kmp/skills/kmp-compose-ui/SKILL.md",),
     ("kmp", "state"): ("platforms/kmp/skills/kmp-state-data/SKILL.md",),
     ("kmp", "ui"): ("platforms/kmp/skills/kmp-compose-ui/SKILL.md",),
-    ("kmp", "structure"): ("platforms/kmp/skills/kmp-module-structure/SKILL.md",),
-    ("kmp", "module"): ("platforms/kmp/skills/kmp-module-structure/SKILL.md",),
+    ("kmp", "structure"): KMP_STRUCTURE_DOCS,
+    ("kmp", "module"): KMP_STRUCTURE_DOCS,
     ("kmp", "platform"): ("platforms/kmp/skills/kmp-platform-integration/SKILL.md",),
     ("kmp", "desktop"): (
         "platforms/kmp/skills/kmp-platform-integration/SKILL.md",
@@ -216,13 +241,19 @@ PLATFORM_CONCERNS: Dict[Tuple[str, str], Tuple[str, ...]] = {
     ("flutter", "widget"): ("platforms/flutter/skills/flutter-widget-ui/SKILL.md",),
     ("flutter", "state"): ("platforms/flutter/skills/flutter-state-data/SKILL.md",),
     ("flutter", "ui"): ("platforms/flutter/skills/flutter-widget-ui/SKILL.md",),
-    ("flutter", "structure"): ("platforms/flutter/skills/flutter-project-structure/SKILL.md",),
-    ("flutter", "module"): ("platforms/flutter/skills/flutter-project-structure/SKILL.md",),
+    ("flutter", "structure"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/flutter/skills/flutter-project-structure/SKILL.md",
+    ),
+    ("flutter", "module"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/flutter/skills/flutter-project-structure/SKILL.md",
+    ),
     ("flutter", "platform"): ("platforms/flutter/skills/flutter-platform-integration/SKILL.md",),
     ("flutter", "channel"): ("platforms/flutter/skills/flutter-platform-integration/SKILL.md",),
     ("swift", "architecture"): ("platforms/swift/skills/swift-architecture/SKILL.md",),
-    ("swift", "structure"): ("platforms/swift/skills/swift-code-structure/SKILL.md",),
-    ("swift", "module"): ("platforms/swift/skills/swift-code-structure/SKILL.md",),
+    ("swift", "structure"): SWIFT_STRUCTURE_DOCS,
+    ("swift", "module"): SWIFT_STRUCTURE_DOCS,
     ("swift", "state"): ("platforms/swift/skills/swift-architecture/SKILL.md",),
     ("swift", "ui"): ("platforms/swift/skills/swift-design-system/SKILL.md",),
     ("swift", "design"): ("platforms/swift/skills/swift-design-system/SKILL.md",),
@@ -237,8 +268,8 @@ PLATFORM_CONCERNS: Dict[Tuple[str, str], Tuple[str, ...]] = {
     ("ios", "design"): ("platforms/swift/skills/swift-design-system/SKILL.md",),
     ("ios", "design-system"): ("platforms/swift/skills/swift-design-system/SKILL.md",),
     ("ios", "tokens"): ("platforms/swift/skills/swift-design-system/SKILL.md",),
-    ("ios", "structure"): ("platforms/ios/skills/ios-module-structure/SKILL.md",),
-    ("ios", "module"): ("platforms/ios/skills/ios-module-structure/SKILL.md",),
+    ("ios", "structure"): IOS_STRUCTURE_DOCS,
+    ("ios", "module"): IOS_STRUCTURE_DOCS,
     ("web", "accessibility"): ("platforms/web/skills/web-accessibility-i18n/SKILL.md",),
     ("web", "react"): ("platforms/web/skills/web-react-ui/SKILL.md",),
     ("web", "state"): ("platforms/web/skills/web-state-data/SKILL.md",),
@@ -249,14 +280,37 @@ PLATFORM_CONCERNS: Dict[Tuple[str, str], Tuple[str, ...]] = {
     ("web", "ui"): ("platforms/web/skills/web-react-ui/SKILL.md", "platforms/web/skills/web-design-system/SKILL.md"),
     ("web", "component"): ("platforms/web/skills/web-react-ui/SKILL.md", "platforms/web/skills/web-design-system/SKILL.md"),
     ("web", "component-api"): ("platforms/web/skills/web-react-ui/SKILL.md", "platforms/web/skills/web-design-system/SKILL.md"),
-    ("web", "structure"): ("platforms/web/skills/web-code-structure/SKILL.md",),
+    ("web", "structure"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/web/skills/web-code-structure/SKILL.md",
+    ),
+    ("web", "module"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/web/skills/web-code-structure/SKILL.md",
+    ),
     ("web", "security"): ("platforms/web/skills/web-security/SKILL.md",),
     ("server", "api"): ("platforms/server/skills/server-api-implementation/SKILL.md",),
+    ("server", "structure"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/server/skills/server-architecture/SKILL.md",
+    ),
+    ("server", "module"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/server/skills/server-architecture/SKILL.md",
+    ),
     ("react-native", "react"): REACT_NATIVE_DOCS,
     ("react-native", "ui"): REACT_NATIVE_DOCS,
     ("react-native", "component"): REACT_NATIVE_DOCS,
     ("react-native", "state"): REACT_NATIVE_DOCS,
     ("react-native", "api"): REACT_NATIVE_DOCS,
+    ("react-native", "structure"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/react-native/skills/react-native-app/SKILL.md",
+    ),
+    ("react-native", "module"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/react-native/skills/react-native-app/SKILL.md",
+    ),
     ("react-native", "performance"): (
         *REACT_NATIVE_DOCS,
         "common/skills/performance-verification/SKILL.md",
@@ -265,6 +319,14 @@ PLATFORM_CONCERNS: Dict[Tuple[str, str], Tuple[str, ...]] = {
     ("python", "web-service"): PYTHON_WEB_SERVICE_DOCS,
     ("python", "python-web-service"): PYTHON_WEB_SERVICE_DOCS,
     ("python", "fastapi"): PYTHON_WEB_SERVICE_DOCS,
+    ("python", "structure"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/python/skills/python-web-service/SKILL.md",
+    ),
+    ("python", "module"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/python/skills/python-web-service/SKILL.md",
+    ),
     ("python", "security"): (
         *PYTHON_WEB_SERVICE_DOCS,
         "platforms/server/skills/server-security/SKILL.md",
@@ -281,6 +343,14 @@ PLATFORM_CONCERNS: Dict[Tuple[str, str], Tuple[str, ...]] = {
         "platforms/swift/skills/swift-review/SKILL.md",
     ),
     ("application", "architecture"): ("platforms/application/skills/application-architecture/SKILL.md",),
+    ("application", "structure"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/application/skills/application-architecture/SKILL.md",
+    ),
+    ("application", "module"): (
+        PACKAGE_MODULE_BOUNDARIES_NODE,
+        "platforms/application/skills/application-architecture/SKILL.md",
+    ),
     ("application", "desktop"): (
         "platforms/application/skills/application-react-desktop/SKILL.md",
         "platforms/application/skills/application-command-ui/SKILL.md",

@@ -7,6 +7,9 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod android_manifest;
+mod behavior_trace;
+mod behavior_review;
+mod behavior_trace_process;
 mod callback_replay;
 mod callback_state;
 mod cards_bootstrap;
@@ -30,6 +33,7 @@ mod completion_process;
 mod completion_progress;
 mod completion_quality;
 mod completion_requirements;
+mod codex_statusline;
 mod discovery_candidates;
 mod discovery_fs;
 mod discovery_groups;
@@ -39,6 +43,8 @@ mod discovery_registry;
 mod discovery_search;
 mod doc_transcript;
 mod doc_transcript_process;
+#[path = "dispatch_guardian/mod.rs"]
+mod dispatch_guardian;
 mod figma_coverage;
 mod figma_process;
 mod figma_validation;
@@ -53,11 +59,18 @@ mod mailbox_status_process;
 mod mailbox_status_state;
 mod memory_terms;
 mod memory_recall;
+mod memory_context;
 mod memory_process;
 mod memory_json;
 mod memory_record;
 mod memory_files;
 mod memory_source;
+mod memory_status;
+mod memory_history;
+mod memory_analysis;
+mod memory_consolidation;
+mod memory_upkeep;
+mod memory_review;
 mod manifest_process;
 mod next_process;
 mod next_verification;
@@ -101,6 +114,9 @@ mod stop_process;
 mod stop_state;
 #[allow(dead_code)] // Git text decoding shares the library's text contract.
 mod text;
+mod worker_completion;
+mod worker_completion_process;
+mod unittest_admission;
 use launcher_backend::Backend;
 
 const USAGE: &str = "usage: moru-native-launcher PYTHON_LAUNCHER [ARGS...]\n       moru-native-launcher PYTHON_LAUNCHER checkout-identity [--help]\n";
@@ -152,6 +168,20 @@ fn native_checkout_identity(extra: &[OsString]) -> i32 {
     }
 }
 
+fn private_probe(launcher: &OsString, args: &[OsString]) -> Option<i32> {
+    Some(match args.first().and_then(|arg| arg.to_str())? {
+        "--setup-probe" => codex_statusline::CodexStatusLine::run(launcher, args),
+        "--memory-probe" => memory_process::MemoryProcess::run(launcher, args),
+        "--doc-transcript-probe" => doc_transcript_process::DocTranscriptProcess::run(launcher, args),
+        "--cards-write-probe" => cards_write_process::CardWriteProcess::run(launcher, args),
+        "--cards-probe" => cards_process::CardsProcess::probe(launcher, args),
+        "--overhead-probe" => overhead_process::OverheadProcess::run(launcher, args),
+        "--registry-read-probe" => registry_read::RegistryRead::run(launcher, args),
+        "--completion-probe" => completion_process::CompletionProcess::run(launcher, args),
+        _ => return None,
+    })
+}
+
 fn main() {
     let mut argv = env::args_os().skip(1);
     let launcher = match argv.next() {
@@ -162,35 +192,25 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+    if args.first().is_some_and(|arg| arg == "--behavior-review-export") {
+        exit(behavior_review::BehaviorReview::run(&args));
+    }
+    if args.first().is_some_and(|arg| arg == "--dispatch-guardian" || arg == "--dispatch-exec-gate") {
+        exit(dispatch_guardian::DispatchGuardian::run(&launcher, &args));
+    }
+    if args.first().is_some_and(|arg| arg == "--unittest-admission") {
+        // This private, source-verified path must never soften or replay failures.
+        exit(unittest_admission::UnittestAdmission::run(&args[1..]));
+    }
+    behavior_trace_process::BehaviorTraceProcess::dispatch(&args);
+    worker_completion_process::WorkerCompletionProcess::dispatch(&args);
 
-    if args.first().is_some_and(|a| a == "--memory-probe") {
-        exit(memory_process::MemoryProcess::run(&launcher, &args));
+    if let Some(code) = private_probe(&launcher, &args) {
+        exit(code);
     }
 
-    if args.first().is_some_and(|a| a == "--doc-transcript-probe") {
-        exit(doc_transcript_process::DocTranscriptProcess::run(
-            &launcher, &args,
-        ));
-    }
-
-    if args.first().is_some_and(|a| a == "--cards-write-probe") {
-        exit(cards_write_process::CardWriteProcess::run(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--cards-probe") {
-        exit(cards_process::CardsProcess::probe(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--overhead-probe") {
-        exit(overhead_process::OverheadProcess::run(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--registry-read-probe") {
-        exit(registry_read::RegistryRead::run(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "--completion-probe") {
-        exit(completion_process::CompletionProcess::run(&launcher, &args));
+    if args.first().is_some_and(|arg| arg == "runs-prune") {
+        exit(registry_read::RegistryRead::runs_prune(&launcher, &args));
     }
 
     if args.first().is_some_and(|a| a == "agent-mailbox") {

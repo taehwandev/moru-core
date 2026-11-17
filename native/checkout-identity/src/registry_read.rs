@@ -13,6 +13,17 @@ use std::{
 
 pub(crate) struct RegistryRead;
 
+#[path = "retention/registry_identity.rs"]
+mod identity;
+#[path = "retention/registry_retention.rs"]
+mod retention;
+#[path = "retention/registry_retention_plan.rs"]
+mod retention_plan;
+#[path = "retention/registry_retention_args.rs"]
+mod retention_args;
+#[path = "retention/registry_retention_report.rs"]
+mod retention_report;
+
 impl RegistryRead {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2 || CallbackGuard::root(launcher, "registry-read").is_none() {
@@ -50,6 +61,18 @@ impl RegistryRead {
     }
 
     fn inspect(operation: &str, payload: &Value) -> Option<Value> {
+        if operation == "retention-plan" {
+            return Self::retention_plan(payload);
+        }
+        if operation == "retention-bytes" {
+            return Self::retention_bytes(payload);
+        }
+        if operation == "retention-identities" {
+            return Self::retention_identities(payload);
+        }
+        if operation == "retention-states" {
+            return Self::retention_states(payload);
+        }
         if !["active", "bindings", "latest"].contains(&operation) {
             return None;
         }

@@ -507,6 +507,8 @@ class WorkflowDispatchTests(unittest.TestCase):
         def fake_run(command, *args, **kwargs):
             if command and command[0] == "git":
                 return real_run(command, *args, **kwargs)
+            if "-o" in command:
+                Path(command[command.index("-o") + 1]).write_text('{"status":"ok"}')
             return SimpleNamespace(returncode=0)
 
         return fake_run
@@ -536,7 +538,7 @@ class WorkflowDispatchTests(unittest.TestCase):
                     isolation_required=True,
                 )
                 with patch(
-                    "workflow_dispatch_launch.subprocess.run",
+                    "workflow_dispatch_launch.run_worker",
                     side_effect=self._git_only_fake_run(),
                 ) as launch:
                     self.assertEqual(0, execute_dispatch_manifest(manifest))
@@ -566,7 +568,7 @@ class WorkflowDispatchTests(unittest.TestCase):
                     isolation_required=True,
                 )
                 with patch(
-                    "workflow_dispatch_launch.subprocess.run",
+                    "workflow_dispatch_launch.run_worker",
                     side_effect=self._git_only_fake_run(),
                 ):
                     self.assertEqual(0, execute_dispatch_manifest(manifest))
@@ -599,7 +601,7 @@ class WorkflowDispatchTests(unittest.TestCase):
                     isolation_required=True,
                 )
                 with patch(
-                    "workflow_dispatch_launch.subprocess.run",
+                    "workflow_dispatch_launch.run_worker",
                     side_effect=self._git_only_fake_run(),
                 ) as launch:
                     self.assertEqual(0, execute_dispatch_manifest(manifest))
@@ -634,10 +636,12 @@ class WorkflowDispatchTests(unittest.TestCase):
                     # mock only the codex worker launch.
                     if command and command[0] == "git":
                         return real_run(command, *args, **kwargs)
+                    if "-o" in command:
+                        Path(command[command.index("-o") + 1]).write_text('{"status":"ok"}')
                     return SimpleNamespace(returncode=0)
 
                 with patch(
-                    "workflow_dispatch_launch.subprocess.run",
+                    "workflow_dispatch_launch.run_worker",
                     side_effect=fake_run,
                 ) as launch:
                     self.assertEqual(0, execute_dispatch_manifest(manifest))
@@ -1590,7 +1594,7 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
     def test_nonzero_worker_exit_transitions_task_to_failed(self) -> None:
         # Integration coverage for the launch branch where the real worker
         # process returns non-zero: transition_task(..., "failed") plus the
-        # (default max_retries=0) retry logic. This regained the coverage lost
+        # typed retry policy (an unclassified exit is not replayed). Coverage lost
         # when test_dispatch_executor_runs_selected_argv was removed, since every
         # other converted launch test mocks subprocess.run to returncode=0.
         real_run = subprocess.run
@@ -1617,7 +1621,7 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
                     isolation_required=True,
                 )
                 with patch(
-                    "workflow_dispatch_launch.subprocess.run",
+                    "workflow_dispatch_launch.run_worker",
                     side_effect=fake_run,
                 ):
                     self.assertEqual(1, execute_dispatch_manifest(manifest))
@@ -1679,7 +1683,7 @@ class _SchedulerFailureOnWorktreeBindTestCase(unittest.TestCase):
                     isolation_required=True,
                 )
                 with patch(
-                    "workflow_dispatch_launch.subprocess.run",
+                    "workflow_dispatch_launch.run_worker",
                     side_effect=fake_run,
                 ) as launch:
                     self.assertEqual(1, execute_dispatch_manifest(manifest))

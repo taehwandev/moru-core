@@ -21,6 +21,55 @@ from runtime_snapshot_normalize import normalize_output
 from smoke_native_card_resume import check_card_resume
 from smoke_native_doc_transcript import check_doc_transcript
 from smoke_native_memory import check_memory, check_memory_files, check_memory_source
+from smoke_native_codex_statusline import check_codex_statusline
+from smoke_native_retention import check_retention, check_retention_identity, check_retention_bytes, check_retention_plan, check_retention_report
+from smoke_native_dispatch_guardian import check_dispatch_guardian
+from smoke_native_behavior_review import check_behavior_review
+
+
+def check_pretool_workdir(entry, base, project, env):
+    """Exercise relocated exact-command scope without Python or Git on PATH."""
+    work = base / "selected workdir 한글"
+    override = base / "explicit cd"
+    work.mkdir(); override.mkdir()
+    (work / "only-there.txt").write_text("synthetic\n")
+    (override / "override.txt").write_text("synthetic\n")
+    transcript = base / "workdir-transport.jsonl"
+    def run(command, classic=True):
+        record = ({"type": "function_call", "arguments": json.dumps({"cmd": command, "workdir": str(work)})}
+                  if classic else {"type": "custom_tool_call", "input":
+                      'tools.exec_command({cmd:' + json.dumps(command) + ',workdir:' + json.dumps(str(work), ensure_ascii=False) + '})'})
+        transcript.write_text(json.dumps({"payload": record}) + "\n")
+        payload = {"tool_name": "Bash", "cwd": str(project), "session_id": "synthetic-transport",
+                   "transcript_path": str(transcript), "tool_input": {"command": command}}
+        return subprocess.run([str(entry), "codex-pretool-gate"], input=json.dumps(payload).encode(),
+                              capture_output=True, env=env, cwd=project, timeout=8)
+    for classic in (True, False):
+        for command in ("cat only-there.txt", "cat only-there.txt | head -n 1",
+                        "cd '" + str(override) + "' && cat override.txt"):
+            done = run(command, classic)
+            assert (done.returncode, done.stdout, done.stderr) == (0, b"", b""), done
+    (work / "head").write_text("synthetic shadow")
+    assert run("cat only-there.txt | head -n 1").returncode == 127
+    assert run("touch never-executed").returncode == 127
+    assert not (work / "never-executed").exists()
+    return 8
+
+
+def check_unittest_admission(native, entry, base, project, env):
+    """The transported release latch needs neither Python nor a compiler."""
+    shell = ["/bin/sh", "-c", 'test -z "${MORU_UNITTEST_ADMISSION+x}" && printf native-admitted']
+    cases = [(shell, b"\x01", 0, b"native-admitted"),
+             (shell, b"", 125, b""), (shell, b"\x00", 125, b""),
+             ([str(base / "missing-admission-executable")], b"\x01", 127, b""),
+             (["relative-interpreter"], b"\x01", 2, b"")]
+    for command, release, code, out in cases:
+        done = subprocess.run([str(native), str(entry), "--unittest-admission", *command],
+            input=release, capture_output=True, cwd=project, timeout=5,
+            env={**env, "MORU_UNITTEST_ADMISSION": "1", "MORU_HOOK_SOFT_FAIL": "1"})
+        assert (done.returncode, done.stdout) == (code, out), done
+        assert bool(done.stderr) == (code not in (0, 125)), done
+    return len(cases)
 
 
 def _lossless_report_formats(native, entry, report, env, project):
@@ -425,6 +474,8 @@ def smoke(archive):
             checks += 1
         for runtime in ("claude", "codex"):
             for command in ("git log -5 --oneline", "git ls-files", "git diff", "git diff --cached -- notes.txt",
+                            "git diff --staged", "git diff --stat --staged -- notes.txt",
+                            "git diff --name-status --cached -- '한글 메모.txt'",
                             "rg --files", "cat notes.txt",
                             "head -n 20 notes.txt", "cat '한글 메모.txt'", 'rg -n TODO "한글 메모.txt"',
                             "tail -n 20 notes.txt", "wc -l notes.txt", "sed -n '1,20p' '한글 메모.txt'",
@@ -449,6 +500,7 @@ def smoke(archive):
             done = subprocess.run([str(entry), runtime + "-stop-gate"], input=json.dumps(payload).encode(),
                 capture_output=True, env=normal, cwd=project, timeout=8)
             assert (done.returncode, done.stdout, done.stderr) == (0, b"", b""), done
+        checks += check_pretool_workdir(entry, base, project, env)
         git_only = base / "git-only"
         git_only.mkdir()
         (git_only / "git").symlink_to(shutil.which("git"))
@@ -594,6 +646,15 @@ def smoke(archive):
         checks += check_card_resume(entry, base, project, repo_key, normal)
         checks += check_doc_transcript(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory(native, entry, project, {**normal,"PATH":str(empty)})
+        checks += check_codex_statusline(native, entry, project, {**normal,"PATH":str(empty)})
+        checks += check_unittest_admission(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_retention(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_retention_identity(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_retention_bytes(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_retention_plan(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_retention_report(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_dispatch_guardian(native, entry, base, project, {**normal,"PATH":str(empty)})
+        checks += check_behavior_review(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory_files(native, entry, base, project, {**normal,"PATH":str(empty)})
         checks += check_memory_source(native, entry, base, project, normal)
         for runtime in ("claude", "codex"):

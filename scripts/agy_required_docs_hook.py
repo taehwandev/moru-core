@@ -4,8 +4,9 @@
 Owner: delivery of required docs on Antigravity (agy), which has no file-edit
 gate to carry them. Allowed imports: the standard library, agent_required_doc_delivery
 and agent_runtime_session. Forbidden: blocking the turn, writing outside the run's
-delivery marker. Callers/tests: `~/.gemini/config/hooks.json` (installed by
-`support.agy_setup`); `tests/test_agy_required_docs_hook.py`.
+delivery marker. Callers/tests: `agy_hook_adapter.pre_invocation` (via the durable
+`moru` hook in `~/.gemini/config/hooks.json`, installed by `support.agy_setup`);
+`tests/test_agy_required_docs_hook.py`.
 Verification: that test module; contract captured from agy 1.x on 2026-11-05
 (stdin `conversationId`, `workspacePaths`, `transcriptPath`; stdout
 `injectSteps[].systemMessage.systemMessage`, unknown fields make agy reject the hook).

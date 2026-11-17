@@ -2,6 +2,8 @@
 keyflow_id: sys_application_react_desktop
 status: review
 type: ai-generated
+requires:
+  - common/nodes/ui-state-render-boundary.md
 ---
 
 # Application React Desktop

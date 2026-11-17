@@ -149,6 +149,75 @@ class ClaudeSettingsMergeTests(_SettingsFixture, unittest.TestCase):
         self.assertIn(FOREIGN_SHARED_PREFIX, after)
         self.assertNotIn(MORU_STOP_GATE, after)
 
+    def test_duplicate_current_moru_hooks_collapse_to_one_without_touching_foreign_hooks(self) -> None:
+        from support.claude_setup import _PRETOOL_GATE_MATCHER, _merge_claude_pre_tool_gate
+        from support.codex_setup import CODEX_PRETOOL_MATCHER, merge_codex_pre_tool_gate, merge_codex_stop_gate
+
+        self._write({"hooks": {
+            "Stop": [_hook(FOREIGN_STOP, 5), _hook(MORU_STOP_GATE), _hook(MORU_STOP_GATE)],
+            "PreToolUse": [{
+                "matcher": _PRETOOL_GATE_MATCHER,
+                "hooks": [
+                    {"type": "command", "command": "moru-hook claude-pretool-gate", "timeout": 10},
+                    {"type": "command", "command": "moru-hook claude-pretool-gate", "timeout": 10},
+                    {"type": "command", "command": FOREIGN_SHARED_PREFIX, "timeout": 5},
+                ],
+            }],
+        }})
+        self.assertEqual("would_update", _merge_claude_stop_gate(self.settings, MORU_STOP_GATE, dry_run=True))
+        self.assertEqual("installed", _merge_claude_stop_gate(self.settings, MORU_STOP_GATE, dry_run=False))
+        self.assertEqual([FOREIGN_STOP, MORU_STOP_GATE], _commands(self.settings, "Stop"))
+        self.assertEqual("would_update", _merge_claude_pre_tool_gate(self.settings, "moru-hook claude-pretool-gate", dry_run=True))
+        self.assertEqual("installed", _merge_claude_pre_tool_gate(self.settings, "moru-hook claude-pretool-gate", dry_run=False))
+        self.assertEqual([FOREIGN_SHARED_PREFIX, "moru-hook claude-pretool-gate"], _commands(self.settings, "PreToolUse"))
+
+        with tempfile.TemporaryDirectory() as directory:
+            codex_hooks = Path(directory) / "hooks.json"
+            codex_cmd = "MORU_HOOK_SOFT_FAIL=1 moru-hook codex-pretool-gate"
+            codex_stop = "MORU_HOOK_SOFT_FAIL=1 moru-hook codex-stop-gate"
+            codex_hooks.write_text(json.dumps({"hooks": {
+                "PreToolUse": [
+                    {"matcher": CODEX_PRETOOL_MATCHER, "hooks": [
+                        {"type": "command", "command": codex_cmd, "timeout": 10},
+                        {"type": "command", "command": codex_cmd, "timeout": 10},
+                        {"type": "command", "command": FOREIGN_IMPORTER, "timeout": 5},
+                    ]},
+                ],
+                "Stop": [
+                    {"hooks": [
+                        {"type": "command", "command": codex_stop, "timeout": 10},
+                        {"type": "command", "command": codex_stop, "timeout": 10},
+                        {"type": "command", "command": FOREIGN_STOP, "timeout": 5},
+                    ]},
+                ],
+            }}), encoding="utf-8")
+            self.assertEqual("would_update", merge_codex_pre_tool_gate(codex_hooks, codex_cmd, dry_run=True))
+            self.assertEqual("installed", merge_codex_pre_tool_gate(codex_hooks, codex_cmd, dry_run=False))
+            self.assertEqual("would_update", merge_codex_stop_gate(codex_hooks, codex_stop, dry_run=True))
+            self.assertEqual("installed", merge_codex_stop_gate(codex_hooks, codex_stop, dry_run=False))
+            self.assertEqual([FOREIGN_IMPORTER, codex_cmd], _commands(codex_hooks, "PreToolUse"))
+            self.assertEqual([FOREIGN_STOP, codex_stop], _commands(codex_hooks, "Stop"))
+
+    def test_foreign_companion_permissions_survive_while_deleted_moru_and_agy_wildcard_entries_are_pruned(self) -> None:
+        from support.permission_entries import agy_legacy_permission_entries, agy_permission_entries
+        from support.setup_config_files import merge_permissions_allow
+
+        foreign_hook = "command(python3 /opt/vendor-a/adapters/companion-hook.py)"
+        stale_deleted_test = "command(SPILL_AI_TOOL=antigravity python3 tests/test_workflow_routing.py:*)"
+        stale_agy_wildcard = "command(vibeguard:*)"
+        self._write({"permissions": {"allow": [foreign_hook, stale_deleted_test, stale_agy_wildcard]}})
+        status = merge_permissions_allow(
+            self.settings,
+            agy_permission_entries(ROOT / "scripts", spill_available=True),
+            dry_run=False,
+            cleanup_entries=agy_legacy_permission_entries(ROOT / "scripts"),
+        )
+        allow = json.loads(self.settings.read_text(encoding="utf-8"))["permissions"]["allow"]
+        self.assertEqual("installed", status)
+        self.assertIn(foreign_hook, allow)
+        self.assertNotIn(stale_deleted_test, allow)
+        self.assertNotIn(stale_agy_wildcard, allow)
+
 
 class RuntimeEnvOwnershipTests(_SettingsFixture, unittest.TestCase):
     def test_env_written_by_another_product_is_not_removed(self) -> None:

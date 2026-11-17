@@ -6,9 +6,10 @@ type: ai-generated
 
 # Native runtime migration inventory
 
-Track **56 execution units**: **31 primary runtime units plus 25 ancillary
-direct CLIs**. The original 52-unit baseline gains one portable-bundle CLI;
-this is delivery tooling and is included in the full migration Goal.
+Track **62 execution units**: **31 primary runtime units plus 31 ancillary
+direct CLIs**. Preserve the original 56 row IDs. The exact current main-guard
+coverage check found six additional owned entrypoints, now appended as 57–62;
+their Python sources were already included in the full migration Goal.
 At baseline
 `1a61f4be`, the stable launcher exposed 45 alias names backed by 28 distinct
 Python entry scripts. Add one common launcher and the checkout-identity unit:
@@ -64,16 +65,16 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Python branches remain in partially native pretool, quiet mailbox,
-quiet/settled Stop, next and prepared-status paths. Seventeen primary boundaries now have implementation
+quiet/settled Stop, next and prepared-status paths. Twenty-one primary boundaries now have implementation
 coverage, all involving native work (including partial entry/discovery,
 launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
 The latest native extensions add no new timing claim; earlier measurements remain historical.
 The ancillary manifest checker and offline Figma validator engines add
 implementation coverage for units 36–37 and 40. The native session aggregation
 used by the overhead reporter adds partial supporting coverage for unit 46.
-That is 21/56 inventory coverage, including 17/31 primary units, not
-effort-weighted completion: 20 are partial and one is locally verified;
-34 remain planned and one has an unresolved external
+The current ledger records 30/62 units with native implementation coverage,
+not effort-weighted completion: 29 are partial and one engine is locally verified
+while its Python entry remains open. Another 31 remain planned and one has an unresolved external
 ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -192,12 +193,12 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 27 | `scripts/setup-agent-hooks.py` | setup-agent-hooks | Python candidate | Owned operator work; preserve effect boundaries during native conversion |
 | 28 | `scripts/workflow.py` | workflow | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
 | 29 | `scripts/workflow_dispatch.py` | workflow-dispatch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
-| 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 30 | `scripts/workflow_dispatch_launch.py` | workflow-dispatch-launch | Partial native admitted worker guardian | Existing spooler/result and authority flow; native lifetime/receipt execution; CLI/orchestration remain Python |
 | 31 | `scripts/agy_hook_adapter.py` | agy-hook | Partial native shared doc transcript scans | Both adapter boundaries, PreInvocation read/render/evidence/marker flow and gate/Stop/verifier state |
 
 ## Ancillary direct CLI coverage
 
-These 25 entries preserve their ancillary inventory classification, including
+These 31 entries preserve their ancillary inventory classification, including
 tools now exposed through installed aliases. The full Goal selects all owned
 implementations for conversion. Their existing runtime effects still need the
 appropriate invocation authority; the migration does not authorize device
@@ -225,12 +226,18 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 48 | `scripts/path_claims.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 49 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
 | 50 | `scripts/run_smoke_checks.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
-| 51 | `scripts/runs-prune.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
+| 51 | `scripts/runs-prune.py` | runs-prune; direct Python compatibility CLI | Partial native ordinary read-only report | Exact output/options; Python apply, exceptional IO and maintenance remain open |
 | 52 | `scripts/support/codex_statusline_setup.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 53 | `scripts/third_party/wikimap/wikimap.py` | Direct CLI | Python retained | Upstream dependency; retain ownership/license boundary and optimize adapters separately |
 | 54 | `scripts/native-runtime-bundle.py` | Direct CLI | Python delivery tooling | Explicit local pack/install, host/source/hash checks; no compiler on consumer |
 | 55 | `scripts/page_verify/judge_service.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 56 | `scripts/page_verify/verify.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 57 | `scripts/agent_behavior_eval.py` | Direct CLI | Python retained | Offline behavior grading and exact report/exit contracts |
+| 58 | `scripts/agent_behavior_trace.py` | Python argparse; source-bound private native export | Partial native | Fused bounded record IO, validation and normalization; direct library/alternate executable/raw profile and delivery closure remain |
+| 59 | `scripts/agent_pending_publication.py` | Direct CLI | Python retained | Pending-publication inspection/settlement, exact Git verification and effect boundaries |
+| 60 | `scripts/agent_review_acp.py` | Direct CLI | Python retained | Bounded local ACP review worker and child-process lifetime; no provider invocation authority implied |
+| 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI | Python retained | Required-doc delivery stdout/evidence contract; unit31 supporting overlap is not entry completion |
+| 62 | `scripts/workflow_dispatch_guardian.py` | Private native guardian/gate; direct Python compatibility worker | Partial native | Gated exec, durable receipts, EOF/group cleanup and no replay; bootstrap/raw/direct/installed acceptance remain open |
 
 ## Delivery order
 

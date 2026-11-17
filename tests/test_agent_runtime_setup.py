@@ -371,7 +371,10 @@ class RuntimeSetupTests(unittest.TestCase):
             self.assertIn("Bash(uv run *)", entries)
 
     def test_setup_permissions_use_stable_launcher_for_agy(self) -> None:
+        from support.permission_entries import agy_legacy_permission_entries
+
         entry_list = agy_permission_entries(ROOT / "scripts", spill_available=True)
+        legacy_list = agy_legacy_permission_entries(ROOT / "scripts")
         entries = "\n".join(entry_list)
 
         self.assertIn(str(stable_launcher_path()), entries)
@@ -380,7 +383,12 @@ class RuntimeSetupTests(unittest.TestCase):
         self.assertNotIn("$HOME", entries)
         self.assertNotIn("${HOME}", entries)
         self.assertNotIn("~/", entries)
-        self.assertEqual(78, len(entry_list))
+        self.assertFalse(any(entry.endswith((":*)", " *)")) for entry in entry_list))
+        self.assertEqual(26, len(entry_list))
+        self.assertIn(f"command({stable_launcher_path()}:*)", legacy_list)
+        self.assertIn(f"command({stable_launcher_path()} *)", legacy_list)
+        self.assertIn("command(python3 tests/test_workflow_routing.py)", legacy_list)
+        self.assertFalse(set(entry_list) & set(legacy_list))
 
     def test_spill_helper_uses_one_absolute_escaped_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp_home:

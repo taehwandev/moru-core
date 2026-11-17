@@ -7,12 +7,14 @@ import py_compile
 from pathlib import Path
 import shlex
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from native_launcher_support import copied_build_root
-from native_pretool_support import PROJECT, invoke, prepare, request, result
+from native_pretool_support import PROJECT, environment, invoke, prepare, request, result
 
 ALIASES = ("claude-pretool-gate", "codex-pretool-gate")
 
@@ -62,6 +64,107 @@ class NativePretoolTests(unittest.TestCase):
                 self.assertEqual((0, b"", b""), result(self.same(ALIASES[1], payload)))
                 done = invoke(self.launcher, self.base, self.project, ALIASES[1], payload, PATH=str(self.empty_path))
                 self.assertEqual((0, b"", b""), result(done))
+
+    def test_codex_file_operand_only_in_recorded_workdir_avoids_python(self):
+        work=self.project/"work only 한글";work.mkdir()
+        (work/"only-there.txt").write_text("synthetic\n")
+        command="cat only-there.txt"
+        records=[{"type":"function_call","arguments":json.dumps({"cmd":command,"workdir":str(work)})},
+                 {"type":"custom_tool_call","input":'tools.exec_command({cmd:"'+command+'",workdir:"'+str(work)+'"})'}]
+        transcript=self.base/"workdir-only.jsonl"
+        for record in records:
+            with self.subTest(record=record["type"]):
+                transcript.write_text(json.dumps({"payload":record})+"\n")
+                payload=request(self.project,command,transcript_path=str(transcript))
+                self.assertEqual((0,b"",b""),result(self.same(ALIASES[1],payload)))
+                self.assertEqual((0,b"",b""),result(invoke(self.launcher,self.base,self.project,ALIASES[1],payload,PATH=str(self.empty_path))))
+
+    def test_codex_exact_latest_and_ambiguous_commands_use_reference_scope(self):
+        (self.project/"here.txt").write_text("here\n")
+        other=self.base/"other matching cwd";other.mkdir()
+        second=self.base/"second matching cwd";second.mkdir()
+        command="cat here.txt"
+        calls=lambda path,cmd=command:'tools.exec_command({cmd:"'+cmd+'",workdir:"'+str(path)+'"})'
+        cases=[{"type":"function_call","arguments":json.dumps({"cmd":"pwd","workdir":str(other)})},
+            {"type":"custom_tool_call","input":calls(other)+";"+calls(second)},
+            {"type":"custom_tool_call","input":calls(other)+";tools.exec_command({cmd:\"cat here.txt\"})"},
+            {"type":"custom_tool_call","input":'tools.exec_command({cmd:"cat here.txt",workdir:"relative"})'}]
+        transcript=self.base/"scope-cases.jsonl"
+        for record in cases:
+            with self.subTest(record=record):
+                transcript.write_text(json.dumps({"payload":record})+"\n")
+                payload=request(self.project,command,transcript_path=str(transcript))
+                self.same(ALIASES[1],payload)
+                self.assertEqual((0,b"",b""),result(invoke(self.launcher,self.base,self.project,ALIASES[1],payload,PATH=str(self.empty_path))))
+        older={"payload":{"type":"custom_tool_call","input":calls(other)}}
+        newest={"payload":{"type":"custom_tool_call","input":calls(second,"pwd")}}
+        transcript.write_text(json.dumps(older)+"\n"+json.dumps(newest)+"\n")
+        self.assertEqual((0,b"",b""),result(invoke(self.launcher,self.base,self.project,ALIASES[1],
+            request(self.project,command,transcript_path=str(transcript)),PATH=str(self.empty_path))))
+
+    def test_codex_duplicate_matching_workdirs_and_cut_utf8_prefix_still_normalize(self):
+        work=self.project/"work for latest";work.mkdir();(work/"only.txt").write_text("data")
+        command="cat only.txt"
+        code='tools.exec_command({cmd:"'+command+'",workdir:"'+str(work)+'"});'
+        line=json.dumps({"payload":{"type":"custom_tool_call","input":code+code}}).encode()
+        transcript=self.base/"large-scope.jsonl"
+        padding=512*1024+33-38-len(line)
+        transcript.write_bytes(b"x"*32+b"\xe3\x81\x82\n"+b"x"*padding+b"\n"+line+b"\n")
+        payload=request(self.project,command,transcript_path=str(transcript))
+        self.same(ALIASES[1],payload)
+        self.assertEqual((0,b"",b""),result(invoke(self.launcher,self.base,self.project,ALIASES[1],payload,PATH=str(self.empty_path))))
+
+    def test_codex_raw_json_control_values_replay_without_selecting_workdir(self):
+        work=self.project/"raw\ttab";work.mkdir();(work/"only.txt").write_text("data")
+        plain=self.project/"plain work";plain.mkdir();(plain/"only.txt").write_text("data")
+        transcript=self.base/"raw-control.jsonl"
+        for command,directory in (("cat\tonly.txt",plain),("cat only.txt",work)):
+            code='tools.exec_command({cmd:"'+command+'",workdir:"'+str(directory)+'"})'
+            transcript.write_text(json.dumps({"payload":{"type":"custom_tool_call","input":code}})+"\n")
+            payload=request(self.project,command,transcript_path=str(transcript))
+            self.same(ALIASES[1],payload)
+            self.assertEqual(127,invoke(self.launcher,self.base,self.project,ALIASES[1],payload,PATH=str(self.empty_path)).returncode)
+            transcript.write_text(json.dumps({"payload":{"type":"function_call",
+                "arguments":json.dumps({"cmd":command,"workdir":str(directory)})}})+"\n")
+            self.same(ALIASES[1],payload)
+            self.assertEqual((0,b"",b""),result(invoke(self.launcher,self.base,self.project,ALIASES[1],payload,PATH=str(self.empty_path))))
+
+    def test_claude_does_not_adopt_codex_transcript_workdir(self):
+        (self.project/"here.txt").write_text("here")
+        work=self.base/"claude ignored";work.mkdir();(work/"cat").write_text("shadow")
+        transcript=self.base/"claude-isolation.jsonl"
+        transcript.write_text(json.dumps({"payload":{"type":"function_call",
+            "arguments":json.dumps({"cmd":"cat here.txt","workdir":str(work)})}})+"\n")
+        payload=request(self.project,"cat here.txt",transcript_path=str(transcript))
+        self.same(ALIASES[0],payload)
+        self.assertEqual((0,b"",b""),result(invoke(self.launcher,self.base,self.project,ALIASES[0],payload,PATH=str(self.empty_path))))
+
+    def test_cross_project_mutation_replays_to_selected_read_only_evidence(self):
+        from test_claude_pretool_gate import _opt_in_project, _write_preflight
+        from agent_block_lessons import block_lesson_id
+        session="native-cwd-authority"
+        with patch.dict(os.environ,environment(self.base),clear=True):
+            other=_opt_in_project(self.base/"authority-b")
+            for project in (self.project,other):
+                (project/".gitignore").write_text(".moru/\n")
+            subprocess.run(["git","init","-q","-b","main",str(other)],
+                           check=True,capture_output=True,timeout=5)
+            _write_preflight(self.project,session,command="bugfix",runtime="codex")
+            _write_preflight(other,session,command="analysis",read_only=True,runtime="codex")
+        transcript=self.base/"authority.jsonl"
+        transcript.write_text(json.dumps({"payload":{"type":"function_call",
+            "arguments":json.dumps({"cmd":"touch blocked.txt","workdir":str(other)})}})+"\n")
+        payload=request(self.project,"touch blocked.txt",session_id=session,transcript_path=str(transcript))
+        actual=invoke(self.launcher,self.base,self.project,ALIASES[1],payload)
+        lesson=self.base/"state/lessons/inbox"/(block_lesson_id("pretool_gate","read_only_run_mutation")+".json")
+        self.assertTrue(lesson.is_file(),actual)
+        recorded=json.loads(lesson.read_text());self.assertEqual("read_only_run_mutation",recorded["root_cause"])
+        self.assertEqual("pretool_gate/read_only_run_mutation",recorded["block_signature"])
+        self.assertEqual("deny",json.loads(actual.stdout)["hookSpecificOutput"]["permissionDecision"])
+        expected=invoke(self.launcher,self.base,self.project,ALIASES[1],payload,backend="python")
+        self.assertEqual(result(expected),result(actual))
+        self.assertEqual(127,invoke(self.launcher,self.base,self.project,ALIASES[1],payload,PATH=str(self.empty_path)).returncode)
+        self.assertFalse((self.project/"blocked.txt").exists());self.assertFalse((other/"blocked.txt").exists())
 
     def test_rejected_neighbors_replay_exact_payload_to_policy(self):
         commands = ["touch never-executed", "git diff --stat --output=never-executed", "pwd; touch never-executed",

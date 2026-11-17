@@ -15,8 +15,12 @@ Module families and the split decision stay in
 direction are in
 [`layering.md`](../../kmp-architecture/references/layering.md).
 
-## Android Rules That Apply As-Is
+## Shared Rules That Apply As-Is
 
+- Cross-platform boundary promotion ladder, `api` + `impl` + optional `ui` +
+  `assertions` contract, `*Route` vs `*Screen` vs `*Content` naming, root
+  package audit, and complete role moves:
+  [package-module-boundaries.md](../../../../../common/nodes/package-module-boundaries.md).
 - The three-step gate (flow root, candidate classification, audit and
   collapse), the flow-internal owner taxonomy, and the boundary promotion
   ladder:
@@ -27,10 +31,11 @@ direction are in
 - One primary owner per file:
   [`current-guidance.md`](current-guidance.md#file-and-class-split).
 
-Those rules forbid type-named packages created only because a type exists. This
-card adds the opposite failure, which is the common one in KMP code: every file
-of a module left in its root package after the module has grown several
-independent owners.
+Those rules forbid type-named packages created only because a type exists, keep
+pure `*Route` destination contracts in `api` (or `navigation/`) separate from
+stateful `*Screen` / `*Entry` holders and stateless `*Content` composables, and
+forbid half-applied splits. This card details KMP source-set alignment and
+module-family trees when a root package grows multiple independent owners.
 
 ## Source Sets Share One Package Tree
 

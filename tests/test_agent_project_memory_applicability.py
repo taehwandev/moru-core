@@ -132,6 +132,7 @@ class ProjectMemoryApplicabilityTests(unittest.TestCase):
                       memory.recall_lines(self.project, "task")[0])
         self.assertEqual("old exception", memory._history(self.project, new["id"])[1]["not_when"])
 
+    @mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"})
     def test_conditions_and_source_warning_share_the_existing_budget(self):
         record = self.capture("adapter " + "x" * 470, applies_when="a" * 160, not_when="b" * 160)
         record["source_files"] = [{"path": "src/adapter.py", "blob": "a" * 40}]
@@ -145,6 +146,7 @@ class ProjectMemoryApplicabilityTests(unittest.TestCase):
         if any(r["id"] == record["id"] for r in shown):
             self.assertEqual("changed", shown[0]["source_status"])
 
+    @mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"})
     def test_changed_and_missing_sources_still_warn_with_conditions(self):
         record = self.capture("Verify adapter evidence.", applies_when="adapter dispatch")
         record["source_files"] = [{"path": "src/adapter.py", "blob": "a" * 40}]

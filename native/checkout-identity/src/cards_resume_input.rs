@@ -126,8 +126,10 @@ impl CardResumeInput {
     fn cancel(output: &mut CardResumeOutput) -> ! {
         // Exit the CLI process, so a blocked owned reader cannot survive and
         // consume subsequent input or continue into provider execution.
-        output.finish(0);
-        std::process::exit(0);
+        // libc exit cleanup can lock the FILE held by the blocked fgets reader.
+        // Flush our output explicitly, then terminate all threads without it.
+        let status = if output.flush_warning() { 120 } else { 0 };
+        unsafe { libc::_exit(status) }
     }
 
     fn selection(text: &str, count: usize) -> Result<Option<usize>, String> {
@@ -191,6 +193,44 @@ impl CardResumeInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cancellation_bypasses_libc_exit_cleanup() {
+        const CHILD: &str = "MORU_TEST_RESUME_CANCEL_CLEANUP";
+        extern "C" fn unexpected_cleanup() {
+            unsafe { libc::_exit(99) }
+        }
+        if std::env::var(CHILD).as_deref() == Ok("1") {
+            assert_eq!(unsafe { libc::atexit(unexpected_cleanup) }, 0);
+            CardResumeInput::cancel(&mut CardResumeOutput::new().unwrap());
+        }
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "cards_resume_input::tests::cancellation_bypasses_libc_exit_cleanup",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert_eq!(status.code(), Some(0), "cancellation ran C exit cleanup");
+                break;
+            }
+            if std::time::Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("cancellation did not exit within its bound");
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
     #[test]
     fn interrupt_after_flag_check_never_blocks_on_an_empty_channel() {
         let _lock = crate::cards_resume_signal::TEST_LOCK.lock().unwrap();

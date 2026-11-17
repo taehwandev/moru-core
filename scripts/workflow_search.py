@@ -14,17 +14,23 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Sequence
 
+from support.project_tree import PRUNED_DIRECTORIES, git_ignored, iter_project_files
+from support.stage_timing import stage
 from workflow_catalog import CONCERNS
 from workflow_request import infer_concerns_from_request
 from workflow_search_facets import facet_docs, query_terms
 from workflow_wikimap import WIKIMAP_VERSION, search_wikimap
-from support.stage_timing import stage
 
 
 RAW_TERM_WEIGHT = 2
 EXPANDED_TERM_WEIGHT = 1
 POLICY_FACET_BASE_SCORE = 1_000
 WIKIMAP_RANK_BASE_SCORE = 500
+_SEARCH_PRUNED_DIRECTORIES = frozenset({
+    *PRUNED_DIRECTORIES,
+    ".wikimap",
+    "scripts/third_party",
+})
 
 
 @dataclass(frozen=True)
@@ -146,6 +152,26 @@ def _search_docs_outcome(root: Path, query: str, max_results: int = 8) -> Search
     )
 
 
+def _is_excluded_search_doc(rel: str) -> bool:
+    if not rel or rel.startswith("scripts/"):
+        return True
+    parts = Path(rel).parts
+    return ".." in parts or any(
+        part in PRUNED_DIRECTORIES or part == ".wikimap"
+        for part in parts
+    )
+
+
+def _searchable_markdown_paths(root: Path) -> List[tuple[str, Path]]:
+    candidates = [
+        (path.relative_to(root).as_posix(), path)
+        for path in iter_project_files(root, "*.md", pruned=_SEARCH_PRUNED_DIRECTORIES)
+    ]
+    kept = [(rel, path) for rel, path in candidates if not _is_excluded_search_doc(rel)]
+    ignored = git_ignored(root, [rel for rel, _ in kept])
+    return sorted((rel, path) for rel, path in kept if rel not in ignored)
+
+
 def _legacy_search_docs(
     root: Path,
     raw_terms: Sequence[str],
@@ -159,10 +185,7 @@ def _legacy_search_docs(
     descriptions = _parse_index_descriptions(root)
     results: List[Dict[str, object]] = []
 
-    for path in sorted(root.rglob("*.md")):
-        rel = str(path.relative_to(root))
-        if rel.startswith("scripts/"):
-            continue
+    for rel, path in _searchable_markdown_paths(root):
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
@@ -267,7 +290,7 @@ def _document_item(
     descriptions: dict[str, str],
     matched_facets: Sequence[str],
 ) -> Dict[str, object] | None:
-    if not rel or rel.startswith("scripts/"):
+    if _is_excluded_search_doc(rel):
         return None
     path = root / rel
     if not path.is_file() or path.suffix.lower() != ".md":
