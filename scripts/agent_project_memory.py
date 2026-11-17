@@ -312,20 +312,7 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
              replaces: str = "", source_paths: tuple[str, ...] = (),
              applies_when: str = "", not_when: str = "",
              analysis_question: str = "", analysis_context: str = "") -> dict[str, Any]:
-    body, source = body.strip(), source.strip()
-    if not (1 <= len(body) <= 500 and body.isprintable()):
-        raise ValueError("memory body must be one line of 1–500 characters")
-    if not (1 <= len(source) <= 200 and source.isprintable()):
-        raise ValueError("source must be one line of 1–200 characters")
-    if not SCOPE_RE.fullmatch(scope):
-        raise ValueError("scope must be a reusable workflow slug")
-    if date.fromisoformat(review_on) <= date.today():
-        raise ValueError("review date must be in the future")
-    conditions = {key: value.strip() for key, value in
-                  zip(APPLICABILITY_FIELDS, (applies_when, not_when)) if value.strip()}
-    if any(len(value) > MAX_CONDITION_CHARS or not value.isprintable()
-           for value in conditions.values()):
-        raise ValueError(f"applicability conditions must be one line of 1–{MAX_CONDITION_CHARS} characters")
+    body, source, conditions = _capture_inputs(body,source,scope,review_on,applies_when,not_when)
     if replaces:
         _existing(project, replaces)
     if len(source_paths) > MAX_SOURCE_FILES:
@@ -367,6 +354,47 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
     if replaces:
         _retire(project, replaces, replaced_by=record_id)
     return record
+
+
+def _capture_inputs(body, source, scope, review_on, applies_when, not_when):
+    if (date is _CONTEXT_DATE and SCOPE_RE is _CONTEXT_SCOPE
+            and APPLICABILITY_FIELDS is _CONTEXT_APPLICABILITY
+            and type(MAX_CONDITION_CHARS) is int and MAX_CONDITION_CHARS == 160
+            and _context_bound(_capture_inputs_reference,_CAPTURE_INPUTS_BINDING)):
+        from support.native_memory_capture import NativeMemoryCapture
+        result = NativeMemoryCapture.inputs(body,source,scope,review_on,applies_when,not_when)
+        if result is not None:
+            if "invalid" in result:
+                raise ValueError(_CAPTURE_INPUT_ERRORS[result["invalid"]])
+            return result["body"],result["source"],result["conditions"]
+    return _capture_inputs_reference(body,source,scope,review_on,applies_when,not_when)
+
+
+_CAPTURE_INPUT_ERRORS = {
+    "body":"memory body must be one line of 1–500 characters",
+    "source":"source must be one line of 1–200 characters",
+    "scope":"scope must be a reusable workflow slug",
+    "review":"review date must be in the future",
+    "conditions":"applicability conditions must be one line of 1–160 characters",
+}
+
+
+def _capture_inputs_reference(body, source, scope, review_on, applies_when, not_when):
+    body, source = body.strip(), source.strip()
+    if not (1 <= len(body) <= 500 and body.isprintable()):
+        raise ValueError("memory body must be one line of 1–500 characters")
+    if not (1 <= len(source) <= 200 and source.isprintable()):
+        raise ValueError("source must be one line of 1–200 characters")
+    if not SCOPE_RE.fullmatch(scope):
+        raise ValueError("scope must be a reusable workflow slug")
+    if date.fromisoformat(review_on) <= date.today():
+        raise ValueError("review date must be in the future")
+    conditions = {key: value.strip() for key, value in
+                  zip(APPLICABILITY_FIELDS, (applies_when, not_when)) if value.strip()}
+    if any(len(value) > MAX_CONDITION_CHARS or not value.isprintable()
+           for value in conditions.values()):
+        raise ValueError(f"applicability conditions must be one line of 1–{MAX_CONDITION_CHARS} characters")
+    return body, source, conditions
 
 
 def scan_records(project: Path) -> tuple[list[dict[str, Any]], int]:
@@ -630,6 +658,7 @@ def _context_bound(func, mark):
 
 
 _CONTEXT_DATE = date
+_CAPTURE_INPUTS_BINDING = _context_binding(_capture_inputs_reference)
 _HISTORY_APPLICABILITY = APPLICABILITY_FIELDS
 _HISTORY_FIELDS = ("id", "status", "body", "source", "created_at", "retired_at", "replaces", *APPLICABILITY_FIELDS)
 _HISTORY_PROJECTION_BINDING = _context_binding(_history_fields)

@@ -4,8 +4,9 @@
 use crate::{
     memory_analysis::MemoryAnalysis, memory_consolidation::MemoryConsolidation,
     memory_context::MemoryContext, memory_files::MemoryFiles, memory_history::MemoryHistory,
-    memory_recall::MemoryRecall, memory_review::MemoryReview, memory_source::MemorySource,
-    memory_status::MemoryStatus, memory_upkeep::MemoryUpkeep, pretool_guard::CallbackGuard,
+    memory_recall::MemoryRecall, memory_record::MemoryRecord, memory_review::MemoryReview,
+    memory_source::MemorySource, memory_status::MemoryStatus, memory_upkeep::MemoryUpkeep,
+    pretool_guard::CallbackGuard,
 };
 use serde_json::{json, Value};
 use std::{
@@ -33,7 +34,9 @@ impl MemoryProcess {
         let Some(result) = serde_json::from_slice::<Value>(&bytes)
             .ok()
             .and_then(|payload| {
-                if operation == "recall-context" {
+                if operation == "capture-inputs" {
+                    MemoryRecord::capture_inputs(&payload)
+                } else if operation == "recall-context" {
                     MemoryContext::evaluate(&payload)
                 } else if matches!(operation, "review-partition" | "review-findings") {
                     MemoryReview::evaluate(operation, &payload)

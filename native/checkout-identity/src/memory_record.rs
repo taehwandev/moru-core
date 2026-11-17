@@ -1,11 +1,71 @@
-//! owner: MemoryRecord; allowed imports: std/JSON/shared PythonText/MemoryJson;
+//! owner: MemoryRecord; allowed imports: std/JSON/shared PythonText/MemoryJson/MemoryTerms;
 //! forbidden imports: IO/providers/store mutations; callers/tests: memory files,
 //! recall; verification: schema/digest/condition/analysis/source-path oracles.
-use crate::{memory_json::MemoryJson, python_text::PythonText};
-use serde_json::Value;
+use crate::{memory_json::MemoryJson, memory_terms::MemoryTerms, python_text::PythonText};
+use serde_json::{json, Value};
 use std::collections::BTreeSet;
 pub(crate) struct MemoryRecord;
 impl MemoryRecord {
+    pub(crate) fn capture_inputs(payload: &Value) -> Option<Value> {
+        let object = payload.as_object()?;
+        if object.len() != 8 || object.get("unicode")?.as_str()? != MemoryTerms::version() {
+            return None;
+        }
+        for key in [
+            "body",
+            "source",
+            "scope",
+            "review_on",
+            "applies_when",
+            "not_when",
+            "today",
+        ] {
+            object.get(key)?.as_str()?;
+        }
+        let today = object.get("today")?.as_str()?;
+        if !Self::date(today) {
+            return None;
+        }
+        let body = object
+            .get("body")?
+            .as_str()?
+            .trim_matches(PythonText::whitespace);
+        let source = object
+            .get("source")?
+            .as_str()?
+            .trim_matches(PythonText::whitespace);
+        for (key, text, limit) in [("body", body, 500), ("source", source, 200)] {
+            if !Self::line(text, limit) {
+                return Some(json!({"invalid":key}));
+            }
+        }
+        if !Self::scope(object.get("scope")?.as_str()?) {
+            return Some(json!({"invalid":"scope"}));
+        }
+        let review = object.get("review_on")?.as_str()?;
+        // Preserve interpreter-specific date spellings and parser exceptions.
+        if !Self::date(review) {
+            return None;
+        }
+        if review <= today {
+            return Some(json!({"invalid":"review"}));
+        }
+        let mut conditions = serde_json::Map::new();
+        for key in ["applies_when", "not_when"] {
+            let value = object
+                .get(key)?
+                .as_str()?
+                .trim_matches(PythonText::whitespace);
+            if !value.is_empty() {
+                if !Self::line(value, 160) {
+                    return Some(json!({"invalid":"conditions"}));
+                }
+                conditions.insert(key.to_owned(), json!(value));
+            }
+        }
+        Some(json!({"body":body,"source":source,"conditions":conditions}))
+    }
+
     pub(crate) fn valid(record: &Value, name: &str) -> Option<bool> {
         let Some(object) = record.as_object() else {
             return Some(false);
@@ -67,9 +127,14 @@ impl MemoryRecord {
         Some(record.get("digest").and_then(Value::as_str) == MemoryJson::digest(record).as_deref())
     }
     fn text(value: Option<&Value>, limit: usize) -> bool {
-        value.and_then(Value::as_str).is_some_and(|s| {
-            !s.is_empty() && s.chars().count() <= limit && s.chars().all(PythonText::printable)
-        })
+        value
+            .and_then(Value::as_str)
+            .is_some_and(|s| Self::line(s, limit))
+    }
+    fn line(value: &str, limit: usize) -> bool {
+        !value.is_empty()
+            && value.chars().count() <= limit
+            && value.chars().all(PythonText::printable)
     }
     fn hex(value: &str, length: usize) -> bool {
         value.len() == length
@@ -166,3 +231,7 @@ impl MemoryRecord {
         year > 0 && day > 0 && day <= days
     }
 }
+
+#[cfg(test)]
+#[path = "memory_record_tests.rs"]
+mod tests;
