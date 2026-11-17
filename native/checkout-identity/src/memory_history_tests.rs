@@ -1,5 +1,77 @@
 use super::*;
 
+#[test]
+fn projected_history_keeps_field_order_and_last_duplicate_row_presence() {
+    let packet = json!({"unicode":MemoryTerms::version(),"record_id":"a",
+    "fields":["id","status","body","created_at","not_when"],
+    "records":[
+        {"id":"b","replaces":"other","replaced_by":null,"keys":["id","not_when"]},
+        {"id":"a","replaces":null,"replaced_by":null,"keys":["status","id"]},
+        {"id":"b","replaces":"a","replaced_by":null,"keys":["created_at","body","id","unused"]}
+    ]});
+    assert_eq!(
+        MemoryHistory::evaluate(&packet),
+        Some(json!({"indices":[2,1],"fields":[[0,2,3],[0,1]]}))
+    );
+}
+
+#[test]
+fn projected_history_caps_field_plans_with_the_existing_chain_limit() {
+    let records: Vec<Value> = (0..30)
+        .map(|i| {
+            json!({"id":i.to_string(),
+        "replaces":(i>0).then(|| (i-1).to_string()),"replaced_by":null,
+        "keys":if i%2==0 {vec!["id","body"]} else {vec!["id"]}})
+        })
+        .collect();
+    let mut packet = request("0", records);
+    packet["fields"] = json!(["body", "id"]);
+    let indices: Vec<usize> = (10..30).rev().collect();
+    let fields: Vec<Vec<usize>> = indices
+        .iter()
+        .map(|i| if i % 2 == 0 { vec![0, 1] } else { vec![1] })
+        .collect();
+    assert_eq!(
+        MemoryHistory::evaluate(&packet),
+        Some(json!({"indices":indices,"fields":fields}))
+    );
+}
+
+#[test]
+fn projected_history_declines_open_or_ambiguous_field_schemas() {
+    let good = json!({"unicode":MemoryTerms::version(),"record_id":"a","fields":["id"],
+        "records":[{"id":"a","replaces":null,"replaced_by":null,"keys":["id"]}]});
+    for value in [
+        json!(null),
+        json!(true),
+        json!(["id", "id"]),
+        json!(["id", 1]),
+    ] {
+        let mut packet = good.clone();
+        packet["fields"] = value;
+        assert!(MemoryHistory::evaluate(&packet).is_none());
+    }
+    for value in [
+        json!(null),
+        json!(true),
+        json!(["id", "id"]),
+        json!(["id", 1]),
+    ] {
+        let mut packet = good.clone();
+        packet["records"][0]["keys"] = value;
+        assert!(MemoryHistory::evaluate(&packet).is_none());
+    }
+    let mut legacy = request("a", vec![row("a", None, None)]);
+    legacy["fields"] = json!(["id"]);
+    assert!(MemoryHistory::evaluate(&legacy).is_none());
+    let mut packet = good.clone();
+    packet["records"][0]["extra"] = json!(true);
+    assert!(MemoryHistory::evaluate(&packet).is_none());
+    let mut packet = good;
+    packet["extra"] = json!(true);
+    assert!(MemoryHistory::evaluate(&packet).is_none());
+}
+
 fn row(id: &str, replaces: Option<&str>, replaced_by: Option<&str>) -> Value {
     json!({
         "id": id,

@@ -8,12 +8,12 @@ use std::collections::{HashMap, HashSet};
 
 const MAX_HISTORY_ITEMS: usize = 20;
 
-#[derive(Clone, Copy)]
 struct Row<'a> {
     index: usize,
     id: &'a str,
     replaces: &'a str,
     replaced_by: &'a str,
+    fields: Vec<usize>,
 }
 
 pub(crate) struct MemoryHistory;
@@ -21,7 +21,13 @@ pub(crate) struct MemoryHistory;
 impl MemoryHistory {
     pub(crate) fn evaluate(payload: &Value) -> Option<Value> {
         let object = payload.as_object()?;
-        if object.len() != 3 || object.get("unicode")?.as_str()? != MemoryTerms::version() {
+        let fields = match object.get("fields") {
+            Some(value) => Some(Self::field_names(value)?),
+            None => None,
+        };
+        if object.len() != 3 + usize::from(fields.is_some())
+            || object.get("unicode")?.as_str()? != MemoryTerms::version()
+        {
             return None;
         }
         let record_id = object.get("record_id")?.as_str()?;
@@ -30,7 +36,7 @@ impl MemoryHistory {
         let mut by_id: HashMap<&str, usize> = HashMap::new();
         for (index, item) in records.iter().enumerate() {
             let row = item.as_object()?;
-            if row.len() != 3 {
+            if row.len() != 3 + usize::from(fields.is_some()) {
                 return None;
             }
             let entry = Row {
@@ -38,6 +44,17 @@ impl MemoryHistory {
                 id: row.get("id")?.as_str()?,
                 replaces: Self::link(row.get("replaces")?)?,
                 replaced_by: Self::link(row.get("replaced_by")?)?,
+                fields: match &fields {
+                    Some(fields) => {
+                        let keys = Self::field_names(row.get("keys")?)?;
+                        fields
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(i, key)| keys.contains(key).then_some(i))
+                            .collect()
+                    }
+                    None => Vec::new(),
+                },
             };
             if let Some(&slot) = by_id.get(entry.id) {
                 ordered[slot] = entry;
@@ -73,6 +90,7 @@ impl MemoryHistory {
             newest = next;
         }
         let mut indices = Vec::new();
+        let mut projection = Vec::new();
         let mut current = newest;
         let mut seen = HashSet::new();
         while let Some(&slot) = by_id.get(current) {
@@ -81,9 +99,23 @@ impl MemoryHistory {
             }
             let row = &ordered[slot];
             indices.push(row.index);
+            projection.push(&row.fields);
             current = row.replaces;
         }
-        Some(json!({ "indices": indices }))
+        Some(if fields.is_some() {
+            json!({"indices":indices,"fields":projection})
+        } else {
+            json!({"indices":indices})
+        })
+    }
+
+    fn field_names(value: &Value) -> Option<Vec<&str>> {
+        let fields = value
+            .as_array()?
+            .iter()
+            .map(Value::as_str)
+            .collect::<Option<Vec<_>>>()?;
+        (fields.iter().collect::<HashSet<_>>().len() == fields.len()).then_some(fields)
     }
 
     fn link(value: &Value) -> Option<&str> {

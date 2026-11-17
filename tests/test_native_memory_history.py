@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import random
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -13,6 +14,65 @@ from unittest.mock import patch
 import agent_project_memory as source
 from native_pretool_support import environment, prepare
 from support.native_memory_history import NativeMemoryHistory
+from support.native_probe_transport import NativeProbe
+
+
+class HistoryProjectionContractTests(unittest.TestCase):
+    def test_caller_requests_field_plan_without_transporting_metadata_values(self):
+        marker = object()
+        records = [{"id":"a","body":marker,"unused":object(),"status":"active"}]
+        def request(flag, operation, packet):
+            self.assertEqual("history", operation)
+            self.assertEqual(["id","status","body","source","created_at","retired_at",
+                              "replaces","applies_when","not_when"], packet["fields"])
+            self.assertEqual(["id","body","unused","status"],packet["records"][0]["keys"])
+            self.assertNotIn("body",packet["records"][0])
+            return {"indices":[0],"fields":[[0,1,2]]}
+        with patch.object(source,"_existing"), patch.object(source,"scan_records",return_value=(records,0)), \
+             patch("support.native_memory_history.NativeProbe.request",side_effect=request) as probe:
+            actual = source._history(Path("."),"a")
+        self.assertEqual(["id","status","body"],list(actual[0]))
+        self.assertIs(marker,actual[0]["body"])
+        self.assertEqual(1,probe.call_count)
+
+    def test_declined_or_malformed_plan_uses_one_attempt_then_original_projection(self):
+        marker = object()
+        records = [{"id":"a","status":"active","body":marker}]
+        bad = (None, {}, {"indices":[0]}, {"indices":[0],"fields":[]},
+               {"indices":[0],"fields":[[True]]}, {"indices":[0],"fields":[[-1]]},
+               {"indices":[0],"fields":[[9]]}, {"indices":[0],"fields":[[2,0]]},
+               {"indices":[0],"fields":[[0,0]]}, {"indices":[0],"fields":[[3]]},
+               {"indices":[0],"fields":[[0]],"extra":True})
+        for reply in bad:
+            with self.subTest(reply=reply), patch.object(source,"_existing"), \
+                 patch.object(source,"scan_records",return_value=(records,0)), \
+                 patch.object(source,"_history_reference",wraps=source._history_reference) as reference, \
+                 patch("support.native_memory_history.NativeProbe.request",return_value=reply) as probe:
+                result = source._history(Path("."),"a")
+                self.assertEqual(["id","status","body"],list(result[0]))
+                self.assertIs(marker,result[0]["body"])
+                self.assertEqual(1,probe.call_count)
+                self.assertEqual(1,reference.call_count)
+
+    def test_custom_projection_fields_and_old_select_signature_keep_legacy_path(self):
+        records = [{"id":"a","status":"active","custom":object()}]
+        def request(flag, operation, packet):
+            self.assertNotIn("fields",packet)
+            self.assertNotIn("keys",packet["records"][0])
+            return {"indices":[0]}
+        with patch.object(source,"_existing"), patch.object(source,"scan_records",return_value=(records,0)), \
+             patch("support.native_memory_history.NativeProbe.request",side_effect=request):
+            with patch.object(source,"_history_fields",side_effect=lambda row:{"custom":row["custom"]}):
+                self.assertIs(records[0]["custom"],source._history(Path("."),"a")[0]["custom"])
+            with patch.object(source,"APPLICABILITY_FIELDS",("custom",)):
+                self.assertIs(records[0]["custom"],source._history(Path("."),"a")[0]["custom"])
+            with patch.object(NativeMemoryHistory,"select",lambda record_id, rows:rows):
+                self.assertEqual([{"id":"a","status":"active"}],source._history(Path("."),"a"))
+
+    def test_invalid_field_profiles_decline_before_transport(self):
+        with patch("support.native_memory_history.NativeProbe.request",side_effect=AssertionError("bad profile RPC")):
+            for fields in (["id"],("id",True),("id","id")):
+                self.assertIsNone(NativeMemoryHistory.select("a",[{"id":"a"}],fields=fields))
 
 
 class NativeMemoryHistoryTests(unittest.TestCase):
@@ -33,7 +93,18 @@ class NativeMemoryHistoryTests(unittest.TestCase):
              patch.object(source, "_existing"), patch.object(source, "scan_records", return_value=(records, 0)):
             if native_required:
                 with patch.object(source, "_history_reference", side_effect=AssertionError("Python traversal replay")):
-                    return source._history(self.project, id)
+                    projection_calls = []
+                    def observe(frame,event,arg):
+                        if event == "call" and frame.f_code is source._history_fields.__code__:
+                            projection_calls.append(True)
+                    previous = sys.getprofile()
+                    sys.setprofile(observe)
+                    try:
+                        result = source._history(self.project, id)
+                    finally:
+                        sys.setprofile(previous)
+                    self.assertEqual([],projection_calls,"Python field projection replay")
+                    return result
             return source._history(self.project, id)
 
     def parity(self, records, id):
@@ -92,6 +163,20 @@ class NativeMemoryHistoryTests(unittest.TestCase):
         self.assertIs(result[1]["created_at"], marker)
         self.assertIs(result[1]["body"], body)
         self.assertNotIn("unused", result[1])
+
+    def test_real_projection_uses_one_request_and_detects_disabled_field_planning(self):
+        marker = object()
+        records = [self.record("a",created_at=marker),self.record("b",replaces="a")]
+        with patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+            result = self.caller("a",records,native_required=True)
+        self.assertIs(marker,result[1]["created_at"])
+        self.assertEqual(1,probe.call_count)
+        self.assertEqual("history",probe.call_args.args[1])
+        self.assertIn("fields",probe.call_args.args[2])
+        select = NativeMemoryHistory.select
+        with patch.object(NativeMemoryHistory,"select",lambda id, rows:select(id,rows)):
+            with self.assertRaisesRegex(AssertionError,"Python field projection replay"):
+                self.caller("a",records,native_required=True)
 
     def test_projection_matches_the_original_baseline_field_values_and_order(self):
         # Captured from the original _history before extracting its projection.

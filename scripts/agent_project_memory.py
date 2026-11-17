@@ -507,10 +507,14 @@ def _history(project: Path, record_id: str) -> list[dict[str, Any]]:
 
     _existing(project, record_id)
     records = scan_records(project)[0]
-    from support.native_memory_history import NativeMemoryHistory
-    selected = NativeMemoryHistory.select(record_id, records)
+    from support.native_memory_history import NativeMemoryHistory, _SELECT_BINDING
+    projected = (APPLICABILITY_FIELDS is _HISTORY_APPLICABILITY
+                 and _context_bound(_history_fields, _HISTORY_PROJECTION_BINDING)
+                 and _context_bound(NativeMemoryHistory.select, _SELECT_BINDING))
+    selected = (NativeMemoryHistory.select(record_id, records, fields=_HISTORY_FIELDS) if projected
+                else NativeMemoryHistory.select(record_id, records))
     if selected is not None:
-        return [_history_fields(record) for record in selected]
+        return selected if projected else [_history_fields(record) for record in selected]
     return _history_reference(record_id, records)
 
 
@@ -626,6 +630,9 @@ def _context_bound(func, mark):
 
 
 _CONTEXT_DATE = date
+_HISTORY_APPLICABILITY = APPLICABILITY_FIELDS
+_HISTORY_FIELDS = ("id", "status", "body", "source", "created_at", "retired_at", "replaces", *APPLICABILITY_FIELDS)
+_HISTORY_PROJECTION_BINDING = _context_binding(_history_fields)
 _CONTEXT_SCOPE = SCOPE_RE
 _CONTEXT_APPLICABILITY = APPLICABILITY_FIELDS
 _CONTEXT_DUMPS = _context_binding(json.dumps)

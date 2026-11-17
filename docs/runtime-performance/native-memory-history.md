@@ -47,3 +47,34 @@ include four new history queries with empty PATH. Original projection values,
 field order, metadata identity and empty-scan zero-request behavior are covered.
 Actual installation and exact-batch Linux acceptance require separate verification.
 Deployment, push, tags and hosted builds remain on hold.
+
+## Ordinary field selection
+
+The same history operation now accepts a closed optional `fields` list and a
+`keys` list on each link row. Rust selects field positions in the requested
+order while retaining the existing duplicate, traversal and twenty-item rules.
+The response pairs original record indices with ordered field indices. Values
+stay in Python: arbitrary metadata objects, large integers and nonfinite values
+are materialized from the original records without JSON round trips. Legacy
+three-key requests and index-only replies retain their shapes.
+
+The source caller opts in only while its projection function, applicability
+tuple and transport selection method retain canonical bindings. Custom functions,
+in-place code/default changes and older selection signatures retain the former
+path. Unsupported profiles decline before transport; malformed or declined
+submitted plans use one attempt then the original read-only reference. The typed
+decoder rejects invalid, duplicate, reversed or unavailable field positions and
+mismatched plan lengths. Empty scans still start no native request.
+
+Local debug verification passed 84 Rust memory tests and 57 Python behavior
+cases, including 18 history cases. Forty seeded graphs and captured field values
+and order match the reference; profiling observes no Python projection calls on
+the native path. A real request combines traversal and field selection once;
+disabling field planning triggers the projection replay control. Temporary-store
+CLI checks retain exact store bytes. Three ledger checks pass after accounting
+for four Python sources introduced by the preceding main change, giving 60
+distinct Python cases in total. The debug receipt binds 621 runtime inputs.
+
+Python still owns value materialization, store admission, custom compatibility
+and final JSON encoding. Unit 16 remains partial. This source increment adds no
+release build, installation, exact Linux acceptance or measured speed claim.
