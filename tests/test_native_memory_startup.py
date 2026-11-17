@@ -23,6 +23,34 @@ def record(name="a", **values):
             "source": "Docs!", "review_on": "2099-01-01", **values}
 
 
+class StartupSelectionContractTests(unittest.TestCase):
+    def test_full_status_packet_omits_inactive_values_and_preserves_input(self):
+        marker = object()
+        rows = [record("a"), {"status":"retired","body":marker,"replaces":marker},
+                record("b",status="pending")]
+        counts = {"expired":0,"exact_duplicates":1,"shared_source":1,"unfinished":0}
+        def request(operation, packet, **fields):
+            self.assertEqual("upkeep-startup-text",operation)
+            self.assertEqual(sorted(source.RECALLABLE_STATUSES),fields["statuses"])
+            self.assertEqual(["active","retired","pending"],[r["status"] for r in packet])
+            self.assertEqual({"id":None,"status":"retired","body":None,"scope":None,
+                              "source":None,"review":None,"replaces":None},packet[1])
+            return {"counts":counts}
+        with patch.object(NativeProbe,"available",return_value=True), \
+             patch.object(NativeMemoryUpkeep,"_request",side_effect=request) as probe:
+            self.assertEqual(counts,NativeMemoryStartup.hints(rows,TODAY,source.RECALLABLE_STATUSES))
+        self.assertIs(marker,rows[1]["body"])
+        self.assertEqual(1,probe.call_count)
+
+    def test_counts_remain_bounded_by_live_admission_not_total_rows(self):
+        rows = [record("a"),{"status":"retired"},{"status":"retired"}]
+        with patch.object(NativeProbe,"available",return_value=True), \
+             patch.object(NativeMemoryUpkeep,"_request",return_value={"counts":{
+                 "expired":2,"exact_duplicates":0,"shared_source":0,"unfinished":0}}) as probe:
+            self.assertIsNone(NativeMemoryStartup.hints(rows,TODAY,source.RECALLABLE_STATUSES))
+        self.assertEqual(1,probe.call_count)
+
+
 class NativeMemoryStartupTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="native-startup-text-")
@@ -99,11 +127,30 @@ class NativeMemoryStartupTests(unittest.TestCase):
         for _ in range(8):
             rows = [record(str(i % 5), body=rng.choice(["Same!", "SAME", "", "Ος", "ΟΣ", "한글"]),
                 source=rng.choice(["Docs!", " docs ", "", "!?", "출처"]), scope=rng.choice(["task", "review", "all"]),
-                status=rng.choice(["active", "pending", "retired"]), replaces=rng.choice([None, "", "1"]),
+                status=rng.choice(["active", "pending", "approved", "retired", "ACTIVE"]), replaces=rng.choice([None, "", "1"]),
                 review_on=rng.choice(["0001-01-01", "2026-11-13", "9999-12-31"])) for i in range(37)]
             expected = self.reference(rows)
             with patch.object(source, "_startup_summary_line_reference", side_effect=AssertionError("Python replay")):
                 self.assertEqual(expected, self.run_startup(rows))
+
+    def test_mixed_statuses_use_one_native_request_and_detect_missing_selection(self):
+        rows = [record("a",review_on="2026-11-13"),record("b",replaces="a"),
+                {"status":"retired","body":object(),"review_on":object(),"replaces":object()}]
+        expected = self.reference(rows)
+        with patch.object(source,"_startup_summary_line_reference",side_effect=AssertionError("Python selection replay")), \
+             patch.object(NativeMemoryUpkeep,"_request",wraps=NativeMemoryUpkeep._request) as probe:
+            self.assertEqual(expected,self.run_startup(rows))
+        self.assertEqual(1,probe.call_count)
+        self.assertEqual(3,len(probe.call_args.args[1]))
+        self.assertEqual(sorted(source.RECALLABLE_STATUSES),probe.call_args.kwargs["statuses"])
+        request = NativeMemoryUpkeep._request
+        def without_selection(operation, packet, **fields):
+            fields.pop("statuses",None)
+            return request(operation,packet,**fields)
+        with patch.object(NativeMemoryUpkeep,"_request",side_effect=without_selection), \
+             patch.object(source,"_startup_summary_line_reference",side_effect=AssertionError("Python selection replay")):
+            with self.assertRaisesRegex(AssertionError,"Python selection replay"):
+                self.run_startup(rows)
 
     def test_decline_and_invalid_packets_normalize_each_field_once(self):
         rows = [record("a"), record("b", replaces="a")]

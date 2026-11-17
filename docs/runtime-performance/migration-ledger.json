@@ -283,6 +283,7 @@
         "consolidation_plan": "PASS local debug:81 Rust memory tests and85 Python cases.16 seeded reports preserve full output with1 request instead of2 and zero Python reference classification replay. Existing live/date, grouping and replacement owners are composed through a closed opt-in; original and live-relative indices reuse existing decoders. Legacy modes, invalid dates/schemas/replies, calendar overflow, empty inputs, custom bindings and projection fields retain behavior; submitted decline starts no second native request. Pre-edit split-date and disabled-plan controls fail as expected.617 inputs bound. No release, actual activation, Linux, timing or completed-unit claim; unit16 remains partial. See native-memory-consolidation.md.",
         "upkeep": "PASS:206 distinct Python cases (initial205 and final36 affected after availability-only guard/regression),43 unchanged Rust memory tests and226 final transported macOS ARM64 checks.19 upkeep cases cover24 seeded three-kernel corpora, captured notice/report values/order, statuses/date/Unicode, duplicate-ID stability, original metadata, malformed replies, negative Python-replay controls and real read-only CLI/store bytes. Startup fallback reuses normalized/date inputs; absent/unreadable binary skips preparation safely. Empty helpers start0 requests. Python normalization/date parsing/explicit date buckets/rendering/authority and retirement remain. Actual installation separate; unit16 and Linux acceptance stay partial; no timing claim. See native-memory-upkeep.md.",
         "startup_text": "PASS local debug/test scope:69 affected Python behavior cases and3 ledger cases,58 Rust memory tests and35 copied temporary-consumer protocol checks including4 new raw-text scenarios. Profiling proves zero Python normalization/fromisoformat/toordinal calls and one existing request for ordinary startup; callback/code/regex overrides and declined/malformed transport preserve reference behavior. Python3.9 code-override tests restore __code__ explicitly in finally. Newly merged intake/dispatch/ACP Python helpers remain accounted as unmigrated. No release profile, distribution archive, actual user installation, hosted run or performance claim; unit16 remains partial. See native-memory-upkeep.md.",
+        "startup_selection": "PASS local debug:87 Rust memory tests and60 distinct Python cases. Closed statuses opt-in lets the existing startup text kernel select input slots before normalization/date/counting. Python retains profile/cardinality checks, inactive-value suppression, empty fast paths and rendering. Mixed statuses, legacy modes, Unicode, malformed packets, custom callbacks and store bytes retain behavior; one real mixed-status request and disabled-selection control prove wiring. Inactive objects never enter the packet, counts stay bounded by admitted live rows and unavailable/empty inputs start0 requests.625-source debug receipt bound. Four Python sources from prior main5f7af86a added as unmigrated. No release, installation, Linux or speed claim; unit16 stays partial. See native-memory-upkeep.md.",
         "startup_dates": "PASS:67 affected Python cases including8 startup-date cases and54 Rust memory tests. Initial one5s git-init fixture timeout recovered with an isolated19-case root-selector check; final67-case run passed. C-level profiling observes zero Python fromisoformat/toordinal calls on ordinary startup and exactly-once normalization/parsing on decline. Closed strict ISO payloads preserve per-row expiry, calendar limits, custom parsers and interpreter-specific error compatibility without an extra process. Exact unit patch/test hashes verified after unrelated main recovery-policy sync;234 fresh transported macOS ARM64 checks passed on the regenerated source-bound bundle. Actual installation is separate. No timing, complete-unit or exact Linux claim. See native-memory-upkeep.md.",
         "review_dates": "PASS:226 distinct Python cases:225 passed initially; an invalid-ID fixture concatenation was corrected, then20 review cases and canonical root-selector repair verification passed.51 Rust memory tests and230 transported macOS ARM64 checks retain unchanged runtime inputs. Strict ISO date partition and fused live/date input selection preserve duplicate-ID last dates, boundaries, original object identity, metadata/error priority and full read-only CLI output.20 review cases include24 seeded corpora, native-only negative controls, one-request fusion, extended-date/calendar compatibility, malformed packets and store bytes. Empty cases start0 requests. Exceptional dates/calendars, normalization/rendering/authority and Python retirement remain; actual installation separate. Unit16 and Linux acceptance remain partial; no timing claim. See native-memory-review.md."
       }
@@ -821,6 +822,7 @@
     "scripts/agent_continuation_resume.py",
     "scripts/agent_continuation_store.py",
     "scripts/agent_delegation_plan.py",
+    "scripts/agent_delivery_retention.py",
     "scripts/agent_directory_fingerprint.py",
     "scripts/agent_doctor.py",
     "scripts/agent_evidence_inputs.py",
@@ -912,7 +914,9 @@
     "scripts/agent_review_integration_reuse.py",
     "scripts/agent_review_merge_baseline.py",
     "scripts/agent_review_packet.py",
+    "scripts/agent_review_packet_assembly.py",
     "scripts/agent_review_packet_context.py",
+    "scripts/agent_review_packet_contracts.py",
     "scripts/agent_review_purpose.py",
     "scripts/agent_review_removals.py",
     "scripts/agent_review_reuse.py",
@@ -951,6 +955,7 @@
     "scripts/agent_transfer_cancel.py",
     "scripts/agent_transfer_validate.py",
     "scripts/agent_unittest_result.py",
+    "scripts/agent_unittest_selection.py",
     "scripts/agent_verification_command.py",
     "scripts/agent_verification_hook.py",
     "scripts/agent_vibeguard_cache.py",

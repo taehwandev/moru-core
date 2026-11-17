@@ -1,5 +1,83 @@
 use super::*;
 
+fn startup_selection() -> Value {
+    json!({"unicode":MemoryTerms::version(),"today":"2026-11-13",
+    "statuses":["active","pending","approved"],"records":[
+        {"id":"a","status":"active","scope":"task","body":"Same!","source":"Docs",
+         "replaces":null,"review":"2026-11-13"},
+        {"id":"b","status":"pending","scope":"all","body":" same ","source":"docs!",
+         "replaces":"a","review":"2099-01-01"},
+        {"id":"c","status":"retired","scope":null,"body":[],"source":false,
+         "replaces":"b","review":"bad date"},
+        {"id":null,"status":"ACTIVE","scope":null,"body":null,"source":null,
+         "replaces":null,"review":null}
+    ]})
+}
+
+#[test]
+fn startup_selects_exact_statuses_before_parsing_ignored_values() {
+    let mut packet = startup_selection();
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-text", &packet),
+        Some(json!({"counts":{
+        "expired":1,"exact_duplicates":1,"shared_source":1,"unfinished":1}}))
+    );
+    packet["statuses"] = json!(["pending"]);
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-text", &packet),
+        Some(json!({"counts":{
+        "expired":0,"exact_duplicates":0,"shared_source":0,"unfinished":0}}))
+    );
+    packet["statuses"] = json!([]);
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-text", &packet),
+        Some(json!({"counts":{
+        "expired":0,"exact_duplicates":0,"shared_source":0,"unfinished":0}}))
+    );
+}
+
+#[test]
+fn startup_selection_has_closed_schema_and_is_exclusive_to_text_mode() {
+    let packet = startup_selection();
+    for operation in ["upkeep-startup", "upkeep-startup-dates"] {
+        assert!(MemoryUpkeep::evaluate(operation, &packet).is_none());
+    }
+    for statuses in [json!(null), json!(true), json!(["active", 1])] {
+        let mut invalid = packet.clone();
+        invalid["statuses"] = statuses;
+        assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &invalid).is_none());
+    }
+    let mut invalid = packet.clone();
+    invalid["extra"] = json!(true);
+    assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &invalid).is_none());
+    for value in [json!(true), json!(null), json!(3)] {
+        let mut invalid = packet.clone();
+        invalid["records"][2]["status"] = value;
+        assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &invalid).is_none());
+    }
+    let mut invalid = packet;
+    invalid["records"][2]
+        .as_object_mut()
+        .unwrap()
+        .remove("body");
+    invalid["records"][2]["other"] = json!(null);
+    assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &invalid).is_none());
+}
+
+#[test]
+fn startup_selection_declines_invalid_selected_rows_without_partial_counts() {
+    for (key, value) in [
+        ("body", json!(null)),
+        ("review", json!("bad date")),
+        ("replaces", json!([])),
+        ("id", json!(false)),
+    ] {
+        let mut packet = startup_selection();
+        packet["records"][1][key] = value;
+        assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &packet).is_none());
+    }
+}
+
 fn packet(records: Value) -> Value {
     json!({"unicode":MemoryTerms::version(),"records":records})
 }

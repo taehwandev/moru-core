@@ -19,6 +19,13 @@ impl MemoryUpkeep {
         match operation {
             "upkeep-live" if object.len() == 3 => Self::live(records, object.get("statuses")?),
             "upkeep-replacements" if object.len() == 2 => Self::replacements(records),
+            "upkeep-startup-text" if object.len() == 4 => Self::startup(
+                records,
+                object.get("today")?,
+                true,
+                true,
+                Some(object.get("statuses")?),
+            ),
             "upkeep-startup" | "upkeep-startup-dates" | "upkeep-startup-text"
                 if object.len() == 3 =>
             {
@@ -27,6 +34,7 @@ impl MemoryUpkeep {
                     object.get("today")?,
                     operation != "upkeep-startup",
                     operation == "upkeep-startup-text",
+                    None,
                 )
             }
             _ => None,
@@ -81,8 +89,24 @@ impl MemoryUpkeep {
         Some(json!({"findings":findings}))
     }
 
-    fn startup(records: &[Value], today: &Value, iso: bool, normalize: bool) -> Option<Value> {
+    fn startup(
+        records: &[Value],
+        today: &Value,
+        iso: bool,
+        normalize: bool,
+        statuses: Option<&Value>,
+    ) -> Option<Value> {
         let today = Self::date_key(today, iso)?;
+        let statuses = match statuses {
+            Some(value) => Some(
+                value
+                    .as_array()?
+                    .iter()
+                    .map(Value::as_str)
+                    .collect::<Option<HashSet<_>>>()?,
+            ),
+            None => None,
+        };
         let mut bodies: HashMap<Cow<'_, str>, HashMap<&str, usize>> = HashMap::new();
         let mut sources: HashMap<Cow<'_, str>, usize> = HashMap::new();
         let mut replaced = HashSet::new();
@@ -90,8 +114,20 @@ impl MemoryUpkeep {
         let mut expired = 0;
         for item in records {
             let row = item.as_object()?;
-            if row.len() != 6 {
+            if row.len() != 6 + usize::from(statuses.is_some()) {
                 return None;
+            }
+            if let Some(statuses) = &statuses {
+                let status = row.get("status")?.as_str()?;
+                if ["id", "body", "scope", "source", "review", "replaces"]
+                    .iter()
+                    .any(|key| !row.contains_key(*key))
+                {
+                    return None;
+                }
+                if !statuses.contains(status) {
+                    continue;
+                }
             }
             ids.push(row.get("id")?.as_str()?);
             let body = Self::text_key(row.get("body")?.as_str()?, normalize);

@@ -113,3 +113,32 @@ archive, hosted build or actual user installation was performed. Earlier
 transported-bundle counts above cover previous increments, not this one. Exact
 Linux and installed-runtime acceptance remain pending, no timing improvement
 is claimed, and unit 16 remains partial.
+
+## Startup record selection
+
+An optional `statuses` array extends only `upkeep-startup-text`. Its closed
+seven-field rows include status, and the Rust kernel selects records before
+normalizing text, parsing dates or counting links. Every original input slot is
+represented, including inactive rows. The adapter replaces inactive values with
+null placeholders, so their bodies, malformed dates and arbitrary metadata never
+enter the request. The existing three-key startup protocols retain six-field
+rows and their original results.
+
+Python retains compatibility admission and a live cardinality bound for the
+response, plus the no-request path when no records are live. It no longer
+constructs the selected record list for the calculation. This is not full
+retirement of Python status checks or rendering. Unavailable or declined native
+execution keeps the reference path; malformed counts use one submitted attempt
+before reference normalization. Custom normalizers and calendars remain supported.
+
+Local debug verification passed 87 Rust memory tests and 60 Python cases. A real
+mixed-status request contains all input slots and produces the exact reference
+notice once; removing the status opt-in triggers the reference-replay control.
+Eight seeded 37-row corpora include active, pending, approved, retired and
+case-mismatched statuses. Existing Unicode, date, custom-callback, empty-input and
+temporary-store byte checks pass. Counts exceeding the live cardinality decline
+even when the total input count is larger. The debug receipt binds 625 inputs.
+
+The ledger also accounts for four Python sources introduced by the preceding
+main change; they remain unmigrated. Unit 16 stays partial. No release build,
+actual installation, exact Linux acceptance or performance claim is added.

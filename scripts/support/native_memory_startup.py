@@ -14,22 +14,33 @@ class NativeMemoryStartup:
         if (not NativeMemoryUpkeep._profile(records, ("status",))
                 or type(statuses) is not frozenset or any(type(s) is not str for s in statuses)):
             return None
-        live = [row for row in records if row["status"] in statuses]
-        if (not NativeMemoryUpkeep._profile(live, ("id", "body", "scope", "source", "review_on"), links=True)
-                or type(today) is not date):
+        live_count = 0
+        for row in records:
+            if row["status"] in statuses:
+                if not NativeMemoryUpkeep._profile([row], ("id", "body", "scope", "source", "review_on"), links=True):
+                    return None
+                live_count += 1
+        if type(today) is not date:
             return None
-        if not live:
+        if not live_count:
             return dict.fromkeys(_COUNTS, 0)
         try:
             if not NativeProbe.available():
                 return None
         except (OSError, ValueError, RuntimeError):
             return None
-        rows = [{"id":r["id"], "body":r["body"], "scope":r["scope"], "source":r["source"],
-                 "review":r["review_on"], "replaces":r.get("replaces")} for r in live]
-        result = NativeMemoryUpkeep._request("upkeep-startup-text", rows, today=today.isoformat())
+        rows = []
+        for record in records:
+            row = dict.fromkeys(("id", "body", "scope", "source", "review", "replaces"))
+            row["status"] = record["status"]
+            if record["status"] in statuses:
+                row.update({key:record[key] for key in ("id", "body", "scope", "source")},
+                           review=record["review_on"],replaces=record.get("replaces"))
+            rows.append(row)
+        result = NativeMemoryUpkeep._request("upkeep-startup-text", rows, today=today.isoformat(),
+                                            statuses=sorted(statuses))
         counts = result.get("counts") if type(result) is dict and set(result) == {"counts"} else None
         if (type(counts) is dict and set(counts) == set(_COUNTS)
-                and all(type(n) is int and 0 <= n <= len(live) for n in counts.values())):
+                and all(type(n) is int and 0 <= n <= live_count for n in counts.values())):
             return {key:counts[key] for key in _COUNTS}
         return None
