@@ -117,6 +117,20 @@ it as a plain folder.
 7. Verify frontmatter, links, public-discovery metadata, and build/render checks
    in the publishing repo only when that repo is part of the requested scope.
 
+## Publishing Formats And Reader Support
+
+- Read the target's current authoring guide before choosing Markdown, uploaded
+  HTML, or an embedded card. A format accepted by an upload command does not
+  prove that every web, mobile, or desktop reader renders it.
+- Check the actual reader path for the intended audience. Do not infer support
+  from an unused component, an editor preview, or another content type.
+- For embedded websites or videos, verify the target's sandbox/network policy
+  and the provider's framing restrictions. Do not promise login, storage, forms,
+  popups, or external assets without evidence from that publishing surface.
+- Keep a descriptive ordinary link and enough surrounding prose for the article
+  to remain useful when an embed or card cannot render. Record which readers
+  were checked; distinguish source support from deployed or installed behavior.
+
 ## Common Rationalizations
 
 | Rationalization | Required response |
