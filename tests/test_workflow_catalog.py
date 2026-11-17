@@ -511,6 +511,22 @@ class WorkflowCatalogTests(unittest.TestCase):
             with self.subTest(concern=concern, request=request):
                 self.assertIn(concern, infer_concerns_from_request(request))
 
+    def test_korean_post_requests_select_the_writing_concern(self) -> None:
+        requests = (
+            "그리고 이것과 관련해서 키플로우 글하나 쓰자. taehwandev로 쓸거고. agy 한테 맞겨줘",
+            "키플로우 글 쓰자",
+            "keyflow post 하나 쓰자",
+            "블로그 글 써줘",
+            "이번 실험으로 글 한 편 쓸게",
+            "포스트 작성해줘",
+        )
+        for request in requests:
+            with self.subTest(request=request):
+                self.assertIn("writing", infer_concerns_from_request(request))
+        for request in ("글씨 크기를 키워줘", "KeyFlow-Web 빌드 오류를 고쳐줘"):
+            with self.subTest(request=request):
+                self.assertNotIn("writing", infer_concerns_from_request(request))
+
     def test_metering_concern_is_registered_separately_from_design_tokens(self) -> None:
         self.assertIn("metering", CONCERNS)
         self.assertIn("usage", CONCERNS)

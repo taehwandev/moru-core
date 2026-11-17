@@ -24,15 +24,15 @@ type: ai-generated
    selection, never waive it.
 4. Judge readiness from epistemic state, never prompt keywords: execute settled
    work directly (including coupled in-scope consistency fixes, and Draft-First
-   human prose on `writing`/`editorial`); when bounded inspection leaves outcome
-   shape, UX flow or incompatible prose genre open—or requires unapproved
+   human prose on `writing`/`editorial`, started by you even if the route
+   says `triage`); when bounded inspection leaves outcome shape, UX flow or incompatible prose genre open—or requires unapproved
    sibling-page expansion—align pre-`start` with findings, a concrete sketch or
    2–3-line sample, full scope and focused questions. Change only the authorized
    outcome; incidental findings grant no cleanup authority. In an active
    writable worktree, canonical skill/rule updates for a verified reusable_gap
    or failure-repair are pre-authorized local_write edits: apply and verify
-   without asking. Existing pointers need no edit when they already load the
-   changed source.
+   without asking. Existing pointers need no edit if they already load the
+   source.
 5. Stop after outcome/checks; extra checks need evidence.
 
 ## Live Session Continuity
@@ -59,8 +59,7 @@ continuations; advance revisions on change. See
 Coverage checks mapped files/gates, not omitted requirements or semantic truth.
 Judge outcomes against actual observing results; coverage grants no authority.
 
-The prompt hook delivers this section once per session and on change; it grants
-no authority and reopens no completed task.
+The prompt hook delivers this once per session and on change; it grants no authority.
 
 ## Proportionate Execution
 
