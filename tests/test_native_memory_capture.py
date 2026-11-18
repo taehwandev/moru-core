@@ -4,6 +4,7 @@ from pathlib import Path
 from contextlib import redirect_stdout
 import io
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ import agent_project_memory as source
 from native_pretool_support import environment, prepare
 from support.native_memory_capture import NativeMemoryCapture
 from support.native_probe_transport import NativeProbe
+from support.native_memory_analysis import NativeMemoryAnalysis
 
 
 class CaptureInputContractTests(unittest.TestCase):
@@ -65,6 +67,197 @@ class NativeMemoryCaptureTests(unittest.TestCase):
                   "applies_when":" ready ","not_when":""}
         fields.update(updates)
         return tuple(fields[key] for key in ("body","source","scope","review_on","applies_when","not_when"))
+
+    def test_analysis_capture_uses_one_request_without_replaying_binding(self):
+        calls = []
+        codes = (source._analysis_binding.__code__,source._analysis_binding_reference.__code__)
+        def observe(frame,event,arg):
+            if event == "call" and frame.f_code in codes:calls.append(True)
+        previous = sys.getprofile()
+        with patch.dict(os.environ,self.env,clear=True), \
+             patch.object(source,"store_dir",return_value=self.base/"records"), \
+             patch.object(source,"_source_blob",return_value="a"*40), \
+             patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+             patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+            try:
+                sys.setprofile(observe)
+                row = source._capture(self.project,body="body",source="note",scope="task",
+                    review_on="2099-01-01",source_paths=("source.py",),
+                    analysis_question=" Why 한글? ",analysis_context=" Keep Case and not X ")
+            finally:sys.setprofile(previous)
+        self.assertEqual([],calls,"Python analysis binding replay")
+        self.assertEqual(["capture-inputs"],[call.args[1] for call in probe.call_args_list])
+        self.assertEqual({"question":"Why 한글?","context":"Keep Case and not X","inputs":"b"*64},row["analysis"])
+        self.assertEqual(source._digest(row),row["digest"])
+        calls.clear()
+        with patch.dict(os.environ,self.env,clear=True), \
+             patch.object(source,"store_dir",return_value=self.base/"records"), \
+             patch.object(source,"_source_blob",return_value="a"*40), \
+             patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+             patch.object(source,"_capture_analysis_profile",return_value=False), \
+             patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+            try:
+                sys.setprofile(observe)
+                self.analysis_capture()
+            finally:sys.setprofile(previous)
+        self.assertEqual([True],calls)
+        self.assertEqual(["capture-inputs","analysis-binding"],[call.args[1] for call in probe.call_args_list])
+
+    def analysis_capture(self,**updates):
+        fields = dict(body="body",source="note",scope="task",review_on="2099-01-01",
+            source_paths=("source.py",),analysis_question=" Why 한글? ",analysis_context=" Keep NOT X ")
+        return source._capture(self.project,**(fields | updates))
+
+    def test_fused_analysis_matches_reference_unicode_and_raw_length_rules(self):
+        values = ((" q "," c "),("한"*300,"c"),("한"*301,"c"),(" q"+" "*298,"c"),
+                  ("q\n","c"),("\x85q","c"),("","c"),("q",""),(" ","c"))
+        for index,(question,context) in enumerate(values):
+            with self.subTest(index=index),patch.dict(os.environ,self.env,clear=True), \
+                 patch.object(source,"store_dir",return_value=self.base/str(index)), \
+                 patch.object(source,"_source_blob",return_value="a"*40), \
+                 patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+                 patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+                try:expected = source._analysis_binding_reference(question,context)
+                except ValueError as error:
+                    with self.assertRaises(ValueError) as caught:
+                        self.analysis_capture(analysis_question=question,analysis_context=context)
+                    self.assertEqual(error.args,caught.exception.args)
+                    self.assertFalse((self.base/str(index)).exists())
+                else:
+                    row = self.analysis_capture(analysis_question=question,analysis_context=context)
+                    self.assertEqual({**expected,"inputs":"b"*64},row["analysis"])
+                    self.assertEqual(source._digest(row),row["digest"])
+                self.assertEqual(["capture-inputs"],[call.args[1] for call in probe.call_args_list])
+
+    def test_analysis_error_is_deferred_until_existing_source_checks(self):
+        cases = (({"body":""},"memory body",False),({},"source path",True),
+                 ({"source_paths":tuple(str(i) for i in range(5))},"at most",False),
+                 ({"source_paths":()},"analysis question",False))
+        for fields,message,source_checked in cases:
+            with self.subTest(fields=fields),patch.dict(os.environ,self.env,clear=True), \
+                 patch.object(source,"store_dir",return_value=self.base/"records"), \
+                 patch.object(source,"_source_blob",return_value="") as blob:
+                with self.assertRaisesRegex(ValueError,message):
+                    self.analysis_capture(**(dict(analysis_question="",analysis_context="c") | fields))
+                self.assertEqual(source_checked,bool(blob.call_count))
+                self.assertFalse((self.base/"records").exists())
+        with patch.dict(os.environ,self.env,clear=True),patch.object(source,"_existing",side_effect=ValueError("missing old")), \
+             patch.object(source,"_source_blob",side_effect=AssertionError("source read before replacement")):
+            with self.assertRaisesRegex(ValueError,"missing old"):
+                self.analysis_capture(replaces="a"*16,analysis_question="")
+        with patch.dict(os.environ,self.env,clear=True),patch.object(source,"_source_blob",return_value="a"*40), \
+             patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+             patch.object(source,"_writable_store",side_effect=ValueError("denied store")):
+            with self.assertRaisesRegex(ValueError,"denied store"):self.analysis_capture()
+            with self.assertRaisesRegex(ValueError,"requires tracked source evidence"):
+                self.analysis_capture(source_paths=())
+
+    def test_malformed_fused_analysis_declines_without_second_analysis_request(self):
+        bindings = (None,{}, {"invalid":False},{"invalid":1},{"binding":None},
+                    {"binding":{"question":"q"}}, {"binding":{"question":"q","context":True}},
+                    {"binding":{"question":"q","context":"c","extra":"x"}})
+        for binding in bindings:
+            response = {"body":"body","source":"note","conditions":{},"analysis":binding}
+            with self.subTest(binding=binding),patch.dict(os.environ,self.env,clear=True), \
+                 patch.object(source,"store_dir",return_value=self.base/"records"), \
+                 patch.object(source,"_source_blob",return_value="a"*40), \
+                 patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+                 patch.object(NativeProbe,"request",return_value=response) as probe:
+                row = self.analysis_capture()
+                self.assertEqual("Why 한글?",row["analysis"]["question"])
+                self.assertEqual(1,probe.call_count)
+
+    def test_analysis_packet_is_not_mutated_when_store_metadata_is_added(self):
+        response = {"body":"body","source":"note","conditions":{},
+                    "analysis":{"binding":{"question":"q","context":"c"}}}
+        with patch.dict(os.environ,self.env,clear=True),patch.object(source,"store_dir",return_value=self.base/"records"), \
+             patch.object(source,"_source_blob",return_value="a"*40), \
+             patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+             patch.object(NativeProbe,"request",return_value=response):
+            row = self.analysis_capture()
+        self.assertEqual({"question":"q","context":"c"},response["analysis"]["binding"])
+        self.assertEqual("b"*64,row["analysis"]["inputs"])
+
+    def test_custom_analysis_owners_and_late_source_callback_are_respected(self):
+        custom = {"question":"custom","context":"binding"}
+        owners = ((source,"_analysis_binding"),(source,"_analysis_binding_reference"),
+                  (NativeMemoryAnalysis,"binding"),(NativeMemoryAnalysis,"_request"))
+        for owner,name in owners:
+            result = dict(custom) if owner is source else {"binding":dict(custom)}
+            with self.subTest(name=name),patch.dict(os.environ,self.env,clear=True), \
+                 patch.object(source,"store_dir",return_value=self.base/"records"), \
+                 patch.object(source,"_source_blob",return_value="a"*40), \
+                 patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+                 patch.object(owner,name,return_value=result) as changed, \
+                 patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+                if name == "_analysis_binding_reference":
+                    # Force the original native binding to decline, preserving the custom reference.
+                    with patch.object(NativeMemoryAnalysis,"binding",return_value=None):row = self.analysis_capture()
+                else:row = self.analysis_capture()
+                self.assertEqual({**custom,"inputs":"b"*64},row["analysis"])
+                self.assertEqual(1,changed.call_count)
+                self.assertNotIn("analysis",probe.call_args_list[0].args[2])
+        original = source._analysis_binding
+        def blob(*args,**kwargs):
+            source._analysis_binding = lambda *args:dict(custom)
+            return "a"*40
+        with patch.dict(os.environ,self.env,clear=True),patch.object(source,"store_dir",return_value=self.base/"records"), \
+             patch.object(source,"_source_blob",side_effect=blob), \
+             patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+             patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+            try:row = self.analysis_capture()
+            finally:source._analysis_binding = original
+        self.assertIn("analysis",probe.call_args_list[0].args[2])
+        self.assertEqual({**custom,"inputs":"b"*64},row["analysis"])
+
+    def test_analysis_string_subclass_keeps_its_original_strip_behavior(self):
+        class Question(str):
+            def strip(self):return "custom question"
+        with patch.dict(os.environ,self.env,clear=True),patch.object(source,"store_dir",return_value=self.base/"records"), \
+             patch.object(source,"_source_blob",return_value="a"*40), \
+             patch.object(source.EvidenceInputs,"capture",return_value="b"*64), \
+             patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+            row = self.analysis_capture(analysis_question=Question("original"))
+            self.assertEqual("custom question",row["analysis"]["question"])
+            self.assertNotIn("analysis",probe.call_args_list[0].args[2])
+
+    def test_analysis_customization_before_first_capture_import_is_not_treated_as_canonical(self):
+        program = """
+import agent_project_memory as memory
+from support.native_memory_analysis import NativeMemoryAnalysis
+NativeMemoryAnalysis.binding = lambda q,c: {"binding":{"question":"custom","context":"binding"}}
+assert not memory._capture_analysis_profile(), "custom binding admitted as canonical on first import"
+"""
+        done = subprocess.run([sys.executable,"-B","-c",program],capture_output=True,text=True,
+            env={**self.env,"PYTHONPATH":str(Path(source.__file__).parent)},cwd=self.base,timeout=8)
+        self.assertEqual(0,done.returncode,done.stderr)
+
+    def test_analysis_capture_cli_retains_actual_tracked_source_and_input_evidence(self):
+        path = self.project/"source.py";path.write_text("VALUE = 1\n")
+        subprocess.run(["git","-C",str(self.project),"add","source.py"],check=True,capture_output=True)
+        output = io.StringIO()
+        env = {**self.env,"PATH":os.environ.get("PATH","")}
+        with patch.dict(os.environ,env,clear=True),patch.object(source,"store_dir",return_value=self.base/"records"), \
+             patch.object(sys,"stdin",io.StringIO("body")),redirect_stdout(output), \
+             patch.object(NativeProbe,"request",wraps=NativeProbe.request) as probe:
+            self.assertEqual(0,source._main(["--project",str(self.project),"capture","--source","note", "--scope","task",
+                "--review-on","2099-01-01","--source-path","source.py","--analysis-question"," q ","--analysis-context"," c "]))
+            row = source.json.loads(output.getvalue())
+            self.assertEqual("q",row["analysis"]["question"])
+            self.assertEqual(source.EvidenceInputs.capture(self.project,[]),row["analysis"]["inputs"])
+            self.assertEqual(source._source_blob(self.project,"source.py",tracked=True),row["source_files"][0]["blob"])
+            operations = [call.args[1] for call in probe.call_args_list]
+            self.assertEqual(1,operations.count("capture-inputs"))
+            self.assertNotIn("analysis-binding",operations)
+            self.assertEqual(row,source.read_record(self.base/"records"/(row["id"]+".json")))
+
+    def test_unsupported_analysis_packets_and_empty_binding_start_no_request(self):
+        bad = ((),("q",),("q","c","x"),["q","c"],("q",1),("",""))
+        for value in bad:
+            with self.subTest(value=value),patch.object(NativeProbe,"request",side_effect=AssertionError("unexpected request")):
+                self.assertIsNone(NativeMemoryCapture.inputs(*self.values(),analysis=value))
+        with patch.object(NativeProbe,"request",side_effect=AssertionError("unexpected request")):
+            self.assertIsNone(NativeMemoryCapture.inputs(*self.values(),analysis=("q","c"),digest=True))
 
     def call(self,values,required=False):
         calls = []

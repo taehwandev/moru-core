@@ -316,9 +316,15 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
         and type(analysis_question) is str and not analysis_question
         and type(analysis_context) is str and not analysis_context and _capture_digest_profile())
     native_digest = None
+    analysis_packet = None
+    fused_analysis = (type(analysis_question) is str and type(analysis_context) is str
+        and bool(analysis_question or analysis_context) and _capture_analysis_profile())
     if combined:
         body, source, conditions, native_digest = _capture_inputs(
             body,source,scope,review_on,applies_when,not_when,digest=True)
+    elif fused_analysis:
+        body, source, conditions, analysis_packet = _capture_inputs(
+            body,source,scope,review_on,applies_when,not_when,analysis=(analysis_question,analysis_context))
     else:
         body, source, conditions = _capture_inputs(body,source,scope,review_on,applies_when,not_when)
     if replaces:
@@ -331,7 +337,15 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
         if not blob:
             raise ValueError("source path must name a readable tracked repository-relative file without symlinks")
         source_files.append({"path": path, "blob": blob})
-    analysis = _analysis_binding(analysis_question, analysis_context)
+    if fused_analysis and _capture_analysis_profile():
+        if analysis_packet is None:
+            analysis = _analysis_binding_reference(analysis_question,analysis_context)
+        elif "invalid" in analysis_packet:
+            raise ValueError(_ANALYSIS_BINDING_ERROR)
+        else:
+            analysis = analysis_packet["binding"]
+    else:
+        analysis = _analysis_binding(analysis_question, analysis_context)
     if analysis is not None:
         if not source_files:
             raise ValueError("analysis capture requires tracked source evidence")
@@ -378,21 +392,32 @@ def _capture_digest_profile():
         and _context_bound(NativeMemoryCapture.inputs,_INPUTS_BINDING))
 
 
-def _capture_inputs(body, source, scope, review_on, applies_when, not_when, *, digest=False):
+def _capture_analysis_profile():
+    from support.native_memory_capture import NativeMemoryCapture, _INPUTS_BINDING
+    from support import native_memory_analysis as owner
+    return (all(_context_bound(globals().get(name),mark) for name,mark in _CAPTURE_ANALYSIS_BINDINGS.items())
+        and _context_bound(NativeMemoryCapture.inputs,_INPUTS_BINDING)
+        and all(getattr(owner,name,None) is value for name,value in owner._CAPTURE_GLOBALS.items())
+        and all(_context_bound(getattr(owner.NativeMemoryAnalysis,name,None),mark)
+                for name,mark in owner._CAPTURE_BINDINGS.items()))
+
+
+def _capture_inputs(body, source, scope, review_on, applies_when, not_when, *, digest=False, analysis=None):
     if (date is _CONTEXT_DATE and SCOPE_RE is _CONTEXT_SCOPE
             and APPLICABILITY_FIELDS is _CONTEXT_APPLICABILITY
             and type(MAX_CONDITION_CHARS) is int and MAX_CONDITION_CHARS == 160
             and _context_bound(_capture_inputs_reference,_CAPTURE_INPUTS_BINDING)):
         from support.native_memory_capture import NativeMemoryCapture
         result = (NativeMemoryCapture.inputs(body,source,scope,review_on,applies_when,not_when,digest=True)
-                  if digest else NativeMemoryCapture.inputs(body,source,scope,review_on,applies_when,not_when))
+                  if digest else NativeMemoryCapture.inputs(body,source,scope,review_on,applies_when,not_when,analysis=analysis)
+                  if analysis is not None else NativeMemoryCapture.inputs(body,source,scope,review_on,applies_when,not_when))
         if result is not None:
             if "invalid" in result:
                 raise ValueError(_CAPTURE_INPUT_ERRORS[result["invalid"]])
             values = result["body"],result["source"],result["conditions"]
-            return (*values,result["digest"]) if digest else values
+            return (*values,result["digest"]) if digest else (*values,result["analysis"]) if analysis is not None else values
     values = _capture_inputs_reference(body,source,scope,review_on,applies_when,not_when)
-    return (*values,None) if digest else values
+    return (*values,None) if digest or analysis is not None else values
 
 
 _CAPTURE_INPUT_ERRORS = {
@@ -687,6 +712,8 @@ _CAPTURE_INPUTS_BINDING = _context_binding(_capture_inputs_reference)
 _CAPTURE_SHA256 = hashlib.sha256
 _CAPTURE_DIGEST_BINDINGS = {name:_context_binding(globals()[name]) for name in
     ("_digest","_capture_inputs","_capture_inputs_reference","_analysis_binding")}
+_CAPTURE_ANALYSIS_BINDINGS = {name:_context_binding(globals()[name]) for name in
+    ("_capture_inputs","_capture_inputs_reference","_analysis_binding","_analysis_binding_reference")}
 _HISTORY_APPLICABILITY = APPLICABILITY_FIELDS
 _HISTORY_FIELDS = ("id", "status", "body", "source", "created_at", "retired_at", "replaces", *APPLICABILITY_FIELDS)
 _HISTORY_PROJECTION_BINDING = _context_binding(_history_fields)

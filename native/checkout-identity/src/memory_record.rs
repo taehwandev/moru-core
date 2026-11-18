@@ -1,7 +1,10 @@
-//! owner: MemoryRecord; allowed imports: std/JSON/shared PythonText/MemoryJson/MemoryTerms;
+//! owner: MemoryRecord; allowed imports: std/JSON/shared PythonText/MemoryJson/MemoryTerms/MemoryAnalysis;
 //! forbidden imports: IO/providers/store mutations; callers/tests: memory files,
 //! recall; verification: schema/digest/condition/analysis/source-path oracles.
-use crate::{memory_json::MemoryJson, memory_terms::MemoryTerms, python_text::PythonText};
+use crate::{
+    memory_analysis::MemoryAnalysis, memory_json::MemoryJson, memory_terms::MemoryTerms,
+    python_text::PythonText,
+};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
 pub(crate) struct MemoryRecord;
@@ -13,7 +16,9 @@ impl MemoryRecord {
             Some(Value::Bool(true)) => true,
             _ => return None,
         };
-        if object.len() != 8 + usize::from(digest)
+        let analysis = object.get("analysis");
+        if (digest && analysis.is_some())
+            || object.len() != 8 + usize::from(digest) + usize::from(analysis.is_some())
             || object.get("unicode")?.as_str()? != MemoryTerms::version()
         {
             return None;
@@ -78,6 +83,19 @@ impl MemoryRecord {
                 .as_object_mut()?
                 .extend(result.get("conditions")?.as_object()?.clone());
             result["digest"] = json!(MemoryJson::digest(&record)?);
+        }
+        if let Some(analysis) = analysis {
+            let fields = analysis.as_object()?;
+            if fields.len() != 2 {
+                return None;
+            }
+            result["analysis"] = MemoryAnalysis::evaluate(
+                "analysis-binding",
+                &json!({
+                    "unicode":object.get("unicode")?,
+                    "question":fields.get("question")?,"context":fields.get("context")?
+                }),
+            )?;
         }
         Some(result)
     }

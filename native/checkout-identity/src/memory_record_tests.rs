@@ -7,6 +7,70 @@ fn capture() -> Value {
 }
 
 #[test]
+fn capture_analysis_reuses_binding_and_preserves_scalar_error_precedence() {
+    let mut value = capture();
+    value["analysis"] = json!({"question":" Why 한글? ","context":" Keep NOT X "});
+    let result = MemoryRecord::capture_inputs(&value).unwrap();
+    assert_eq!(
+        result["analysis"],
+        json!({"binding":{"question":"Why 한글?","context":"Keep NOT X"}})
+    );
+    assert_eq!(result.as_object().unwrap().len(), 4);
+    value["analysis"]["question"] = json!("");
+    assert_eq!(
+        MemoryRecord::capture_inputs(&value).unwrap()["analysis"],
+        json!({"invalid":true})
+    );
+    value["body"] = json!("");
+    assert_eq!(
+        MemoryRecord::capture_inputs(&value),
+        Some(json!({"invalid":"body"}))
+    );
+}
+
+#[test]
+fn capture_analysis_declines_open_or_combined_digest_schemas() {
+    for analysis in [
+        json!(null),
+        json!([]),
+        json!(true),
+        json!({"question":"q"}),
+        json!({"question":"q","context":1}),
+        json!({"question":"q","context":"c","extra":"x"}),
+    ] {
+        let mut value = capture();
+        value["analysis"] = analysis;
+        assert!(MemoryRecord::capture_inputs(&value).is_none());
+    }
+    let mut value = capture();
+    value["analysis"] = json!({"question":"q","context":"c"});
+    value["digest"] = json!(true);
+    assert!(MemoryRecord::capture_inputs(&value).is_none());
+}
+
+#[test]
+fn capture_analysis_keeps_raw_length_and_printability_rules() {
+    for (question, valid) in [
+        ("한".repeat(300), true),
+        ("한".repeat(301), false),
+        (" q ".to_owned(), true),
+        ("q\n".to_owned(), false),
+        ("\u{85}q".to_owned(), false),
+    ] {
+        let mut value = capture();
+        value["analysis"] = json!({"question":question,"context":"c"});
+        let analysis = MemoryRecord::capture_inputs(&value).unwrap()["analysis"].clone();
+        assert_eq!(analysis.get("binding").is_some(), valid);
+    }
+    let mut value = capture();
+    value["analysis"] = json!({"question":"","context":""});
+    assert_eq!(
+        MemoryRecord::capture_inputs(&value).unwrap()["analysis"],
+        json!({"binding":null})
+    );
+}
+
+#[test]
 fn capture_digest_opt_in_matches_captured_python_canonical_bytes() {
     let mut value = capture();
     value["digest"] = json!(true);

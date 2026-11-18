@@ -70,3 +70,34 @@ is unchanged; rebuilding refreshes the compiled source contract.
 
 All writes, permission checks, IDs/timestamps and retirement stay in Python.
 Unit 16 remains partial; no release, installation, Linux or timing claim is added.
+
+## Analysis binding in the same validation request
+
+An optional closed `analysis` object contains question/context strings and is
+exclusive with the digest opt-in. MemoryRecord composes the existing pure
+MemoryAnalysis binding operation after scalar validation. The response adds its
+binding or invalid marker without introducing another normalization algorithm.
+The caller consumes that result after replacement/source checks, preserving
+their precedence over analysis errors. Empty analysis keeps the existing path.
+
+Canonical captures avoid a separate analysis-binding request and Python binding
+replay. A malformed or declined fused response uses the original Python reference
+without a second analysis request. Custom source functions, native binding/
+request functions and their module globals retain the original owner path;
+those bindings are rechecked after source callbacks. Original native bindings
+are recorded by the analysis module itself, so customization before the first
+capture import also declines fusion. Decoding copies the binding before Python
+adds provenance, leaving the probe response unchanged.
+
+Tracked source validation, EvidenceInputs capture, metadata digest, permissions,
+IDs/timestamps and writes remain Python-owned. This combines two pure checks;
+it does not reduce or bypass source evidence and store admission.
+
+Local debug verification passed 96 Rust memory tests and 122 Python cases,
+including 25 native capture cases. A real capture observes one validation
+request and zero Python binding calls; disabling fusion restores the second
+request. Actual CLI capture retains tracked-file blobs, input evidence and
+reader-valid records. Error precedence, raw Unicode lengths, malformed replies,
+custom and late callbacks, first-import customization and response immutability
+pass. The test-only debug receipt binds 628 inputs. Unit 16 stays partial; no
+release, installation, Linux or measured performance claim is added.

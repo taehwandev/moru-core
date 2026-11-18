@@ -121,3 +121,7 @@ class NativeMemoryAnalysis:
 
 _SHORTLIST_RECALL = NativeMemory.recall, getattr(NativeMemory.recall, "__code__", None)
 _SHORTLIST_CANDIDATES = NativeMemoryAnalysis.candidates, NativeMemoryAnalysis.candidates.__code__
+_CAPTURE_BINDINGS = {name:(func,func.__code__,func.__defaults__,dict(func.__kwdefaults__ or {}))
+    for name in ("binding","_request") for func in (getattr(NativeMemoryAnalysis,name),)}
+_CAPTURE_GLOBALS = {name:NativeMemoryAnalysis.binding.__globals__[name]
+    for name in ("NativeMemoryAnalysis","NativeProbe","unicodedata")}
