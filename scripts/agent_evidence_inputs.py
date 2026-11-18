@@ -70,6 +70,11 @@ class EvidenceInputs:
                 if paths:
                     digest.update(json.dumps([relative, "missing"]).encode())
                 continue
+            if stat.S_ISDIR(before.st_mode) and path != root and (path / ".git").exists():
+                # A submodule is identified by the commit it has checked out, as
+                # Git records the gitlink; a dirty submodule has no such identity.
+                digest.update(json.dumps([relative, "gitlink", EvidenceInputs._clean_gitlink(path)]).encode())
+                continue
             if not stat.S_ISREG(before.st_mode):
                 raise ValueError("input paths must name regular files, not directories or submodules")
             total += before.st_size
@@ -87,6 +92,17 @@ class EvidenceInputs:
                 raise ValueError("input changed during capture")
             digest.update(json.dumps([relative, stat.S_IMODE(before.st_mode), contents.hexdigest()]).encode())
         return digest.hexdigest()
+
+    @staticmethod
+    def _clean_gitlink(path: Path) -> str:
+        try:
+            dirty = git_output(path, "status", "--porcelain", "--untracked-files=normal").strip()
+            head = git_output(path, "rev-parse", "HEAD").strip()
+        except RuntimeError as error:
+            raise ValueError("submodule input has no readable commit") from error
+        if dirty:
+            raise ValueError("submodule input has uncommitted changes")
+        return head
 
     @staticmethod
     def valid_record(snapshot: dict, evidence: Path) -> bool:

@@ -17,6 +17,30 @@ class EvidenceInputsTests(unittest.TestCase):
                 EvidenceInputs.capture(root, ["input"], max_bytes=1)
             self.assertEqual(64, len(EvidenceInputs.capture(root, ["input"])))
 
+    def test_clean_submodule_is_identified_by_its_commit_and_dirty_one_refused(self):
+        import subprocess
+
+        def git(cwd, *args):
+            subprocess.run(["git", "-C", str(cwd), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                           check=True, capture_output=True)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            module = root / "games"
+            module.mkdir()
+            git(module, "init", "-q")
+            (module / "index.html").write_text("one")
+            git(module, "add", ".")
+            git(module, "commit", "-q", "-m", "one")
+            first = EvidenceInputs.capture(root, ["games"])
+            self.assertEqual(first, EvidenceInputs.capture(root, ["games"]))
+
+            (module / "index.html").write_text("two")
+            with self.assertRaisesRegex(ValueError, "uncommitted changes"):
+                EvidenceInputs.capture(root, ["games"])
+            git(module, "commit", "-q", "-am", "two")
+            self.assertNotEqual(first, EvidenceInputs.capture(root, ["games"]))
+
     def test_read_access_time_change_does_not_invalidate_capture(self):
         self._capture_with_stat_change("st_atime_ns", succeeds=True)
 
