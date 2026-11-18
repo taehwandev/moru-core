@@ -82,6 +82,20 @@ Then extract pure helpers before moving side-effectful code. Move behavior and
 change behavior in separate steps unless the repo-local plan explains why they
 cannot be split.
 
+## Call-Site Blast Radius (`moru-narrow`)
+
+When `moru-narrow` (`mnarrow`) is installed on `PATH` and the target repository
+uses Kotlin (Gradle) or TypeScript, prefer `moru-narrow <Name> --repo <project>`
+over reading every `rg -w <Name>` hit when changing a function/constructor/method
+contract (parameters, return type, split, or deletion) or mapping real callers:
+
+- Inspect and edit from `TIER 1` first; do not re-run `rg` for the same symbol
+  unless `TIER 1` looks incomplete (then pass `--all`, or `--flow` in TypeScript).
+- When `moru-narrow` warns about multiple declarations, pass `--decl <file>` for
+  the declaration being changed. For React components in `.tsx`, inspect the
+  props type first and verify JSX uses.
+- Use plain `rg` for simple text/config searches, pure renames, or other languages.
+
 ## Structural Hard-Gate Recovery
 
 When review reports that a changed function or component grew beyond its hard

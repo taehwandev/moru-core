@@ -44,6 +44,11 @@ DEFAULTS_READS = frozenset({"read", "read-type"})
 FOOTPRINT_OUTPUT_OPTIONS = frozenset({"-j", "--json"})
 SAMPLE_SWITCHES = frozenset({"-wait", "-mayDie", "-fullPaths"})
 SAMPLE_OUTPUT_OPTIONS = frozenset({"-f", "-file"})
+MORU_NARROW_NAMES = frozenset({"moru-narrow", "mnarrow"})
+MORU_NARROW_HELP_FLAGS = frozenset({"-h", "--help", "-V", "--version"})
+MORU_NARROW_SWITCHES = frozenset({"--all", "--flow", "--json"})
+MORU_NARROW_VALUE_OPTIONS = frozenset({"--repo", "--decl", "--lang"})
+MORU_NARROW_LANGS = frozenset({"kotlin", "ts"})
 
 
 def node_test_kind(command: list[str], cwd: Path | None) -> str | None:
@@ -150,9 +155,39 @@ def lookup_command_kind(command: list[str], cwd: Path | None) -> str | None:
         admitted = _top_logging(arguments)
     elif name == "sample":
         admitted = _sample_arguments(arguments, cwd)
+    elif name in MORU_NARROW_NAMES:
+        admitted = _moru_narrow_arguments(arguments)
     else:
         return None
     return "read_only" if admitted else None
+
+
+def _moru_narrow_arguments(arguments: list[str]) -> bool:
+    """`moru-narrow <Name> [--repo DIR] [--decl FILE] [--all] [--flow] [--json] [--lang kotlin|ts]`."""
+
+    if len(arguments) == 1 and arguments[0] in MORU_NARROW_HELP_FLAGS:
+        return True
+    operands = 0
+    index = 0
+    while index < len(arguments):
+        word = arguments[index]
+        index += 1
+        if word in MORU_NARROW_SWITCHES:
+            continue
+        flag, equal, value = word.partition("=")
+        if flag in MORU_NARROW_VALUE_OPTIONS:
+            if not equal:
+                if index >= len(arguments):
+                    return False
+                value = arguments[index]
+                index += 1
+            if not value or (flag == "--lang" and value not in MORU_NARROW_LANGS):
+                return False
+            continue
+        if word.startswith("-"):
+            return False
+        operands += 1
+    return operands == 1
 
 
 def _outputs_scratch(arguments: list[str], output_options: frozenset[str], cwd: Path | None) -> bool:

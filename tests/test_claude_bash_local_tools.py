@@ -95,6 +95,10 @@ class NodeTestAndLookupClassification(_Fixture):
             "top -l1 -stats pid,mem",
             "sample 61464 30",
             f"sample 61464 30 -file {self.scratch / 'sample.txt'}",
+            "moru-narrow getGlobalTheme --repo .",
+            f"moru-narrow Card --repo {self.other} --decl core/ui/Card.kt --all --json",
+            "mnarrow load --repo=. --lang=ts --flow",
+            "moru-narrow --version",
             "npm view left-pad version | head -1",
         ):
             with self.subTest(command=command):
@@ -118,6 +122,13 @@ class NodeTestAndLookupClassification(_Fixture):
             f"sample 61464 30 -file {self.project / 'sample.txt'}",
             "sample 61464 30 -file",
             "sample",
+            "moru-narrow",
+            "moru-narrow --install",
+            "moru-narrow --install --force",
+            "moru-narrow --install --agents-md",
+            "mnarrow Card --lang python",
+            "moru-narrow Card ExtraOperand",
+            "moru-narrow Card --repo",
         ):
             with self.subTest(command=command):
                 self.assertEqual("mutating", self._kind(command))
@@ -149,10 +160,11 @@ class NodeTestAndLookupClassification(_Fixture):
             "defaults read /Applications/Spill.app/Contents/Info.plist CFBundleShortVersionString",
             "footprint -p 18008", "top -l 1 -pid 18008",
             f"sample 61464 30 -file {self.scratch / 'sample.txt'}",
+            "moru-narrow getGlobalTheme --repo .",
         ):
             with self.subTest(command=command):
                 self.assertEqual("read_only", scope_kind(command))
-        for command in ("npx tsc", "npm run build", "defaults write com.x k v", "gh pr merge 1"):
+        for command in ("npx tsc", "npm run build", "defaults write com.x k v", "gh pr merge 1", "moru-narrow --install"):
             with self.subTest(command=command):
                 self.assertIn(scope_kind(command), {"mutating", "unknown"})
 
