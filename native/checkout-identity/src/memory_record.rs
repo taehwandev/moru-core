@@ -8,7 +8,14 @@ pub(crate) struct MemoryRecord;
 impl MemoryRecord {
     pub(crate) fn capture_inputs(payload: &Value) -> Option<Value> {
         let object = payload.as_object()?;
-        if object.len() != 8 || object.get("unicode")?.as_str()? != MemoryTerms::version() {
+        let digest = match object.get("digest") {
+            None => false,
+            Some(Value::Bool(true)) => true,
+            _ => return None,
+        };
+        if object.len() != 8 + usize::from(digest)
+            || object.get("unicode")?.as_str()? != MemoryTerms::version()
+        {
             return None;
         }
         for key in [
@@ -63,7 +70,16 @@ impl MemoryRecord {
                 conditions.insert(key.to_owned(), json!(value));
             }
         }
-        Some(json!({"body":body,"source":source,"conditions":conditions}))
+        let mut result = json!({"body":body,"source":source,"conditions":conditions});
+        if digest {
+            let mut record = json!({"body":body,"source":source,
+                "scope":object.get("scope")?,"review_on":review});
+            record
+                .as_object_mut()?
+                .extend(result.get("conditions")?.as_object()?.clone());
+            result["digest"] = json!(MemoryJson::digest(&record)?);
+        }
+        Some(result)
     }
 
     pub(crate) fn valid(record: &Value, name: &str) -> Option<bool> {

@@ -25,7 +25,7 @@ falls back without another capture-validation request.
 
 The probe reads no stores and grants no write permission. Python still checks
 replacement/source/analysis evidence, admits the store, creates IDs/timestamps,
-computes digests, writes the new record first and retires its predecessor. The
+computes remaining digests, writes the new record first and retires its predecessor. The
 change does not migrate those responsibilities or alter the stored schema.
 
 Local debug verification passed 90 Rust memory tests and 89 Python cases,
@@ -40,3 +40,33 @@ applicability, analysis and migration-ledger checks pass too.
 
 This is local source/debug acceptance only. Unit 16 remains partial; release,
 installation, exact Linux execution and performance measurements remain separate.
+
+## Digest in the same validation request
+
+A literal `digest: true` opts into a digest alongside the normalized scalar
+values. MemoryRecord reuses MemoryJson's existing canonical JSON and SHA-256
+implementation; it does not introduce another hashing algorithm or request.
+The original eight-key request and three-key success result remain unchanged.
+False, nonboolean or extra fields decline; malformed digest replies defer to
+the reference without another capture request.
+
+The caller opts in for ordinary captures without source or analysis metadata,
+and only with canonical digest, input-validation, analysis-binding, JSON encoder
+and hash-constructor bindings. Before using the returned digest it rechecks
+those bindings after store admission. A custom callback changing hashing during
+that interval therefore retains its original behavior. Metadata and customized
+paths still use the original Python digest. Replacement and source-evidence
+reads keep their existing work; this fuses only validation and digest calculation.
+
+Local debug verification passed 93 Rust memory tests and 96 Python cases.
+An independent captured Python digest and real Unicode/quoted-text/condition
+captures match native output. Profiling observes zero Python digest calls in an
+ordinary capture, with one real request; disabling fusion exposes the replay.
+The actual capture CLI emits a record accepted by the existing reader. Malformed
+digests, custom digest/hash/JSON handling, metadata and post-validation callback
+changes retain their tested behavior. After the unrelated main review-tool
+update, the rebuilt debug candidate binds 628 inputs. The Rust capture logic
+is unchanged; rebuilding refreshes the compiled source contract.
+
+All writes, permission checks, IDs/timestamps and retirement stay in Python.
+Unit 16 remains partial; no release, installation, Linux or timing claim is added.

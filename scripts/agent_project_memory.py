@@ -312,7 +312,15 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
              replaces: str = "", source_paths: tuple[str, ...] = (),
              applies_when: str = "", not_when: str = "",
              analysis_question: str = "", analysis_context: str = "") -> dict[str, Any]:
-    body, source, conditions = _capture_inputs(body,source,scope,review_on,applies_when,not_when)
+    combined = (type(source_paths) is tuple and not source_paths
+        and type(analysis_question) is str and not analysis_question
+        and type(analysis_context) is str and not analysis_context and _capture_digest_profile())
+    native_digest = None
+    if combined:
+        body, source, conditions, native_digest = _capture_inputs(
+            body,source,scope,review_on,applies_when,not_when,digest=True)
+    else:
+        body, source, conditions = _capture_inputs(body,source,scope,review_on,applies_when,not_when)
     if replaces:
         _existing(project, replaces)
     if len(source_paths) > MAX_SOURCE_FILES:
@@ -347,7 +355,8 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
         record["source_files"] = source_files
     if analysis is not None:
         record["analysis"] = analysis
-    record["digest"] = _digest(record)
+    record["digest"] = (native_digest if native_digest is not None and not source_files
+        and analysis is None and _capture_digest_profile() else _digest(record))
     # The new record is the commit point: recall already hides the record it
     # replaces, so an interrupted retire below never shows both.
     atomic_write_json(_record_path(project, record_id), record)
@@ -356,18 +365,34 @@ def _capture(project: Path, *, body: str, source: str, scope: str, review_on: st
     return record
 
 
-def _capture_inputs(body, source, scope, review_on, applies_when, not_when):
+def _capture_digest_profile():
+    from support.native_memory_capture import NativeMemoryCapture, _INPUTS_BINDING
+    encoder = getattr(json,"JSONEncoder",None)
+    return (APPLICABILITY_FIELDS is _CONTEXT_APPLICABILITY
+        and hashlib.sha256 is _CAPTURE_SHA256 and _context_bound(json.dumps,_CONTEXT_DUMPS)
+        and encoder is _CONTEXT_ENCODER
+        and getattr(encoder,"item_separator",None) is _CONTEXT_SEPARATORS[0]
+        and getattr(encoder,"key_separator",None) is _CONTEXT_SEPARATORS[1]
+        and all(_context_bound(getattr(encoder,name,None),mark) for name,mark in _CONTEXT_ENCODER_BINDINGS.items())
+        and all(_context_bound(globals().get(name),mark) for name,mark in _CAPTURE_DIGEST_BINDINGS.items())
+        and _context_bound(NativeMemoryCapture.inputs,_INPUTS_BINDING))
+
+
+def _capture_inputs(body, source, scope, review_on, applies_when, not_when, *, digest=False):
     if (date is _CONTEXT_DATE and SCOPE_RE is _CONTEXT_SCOPE
             and APPLICABILITY_FIELDS is _CONTEXT_APPLICABILITY
             and type(MAX_CONDITION_CHARS) is int and MAX_CONDITION_CHARS == 160
             and _context_bound(_capture_inputs_reference,_CAPTURE_INPUTS_BINDING)):
         from support.native_memory_capture import NativeMemoryCapture
-        result = NativeMemoryCapture.inputs(body,source,scope,review_on,applies_when,not_when)
+        result = (NativeMemoryCapture.inputs(body,source,scope,review_on,applies_when,not_when,digest=True)
+                  if digest else NativeMemoryCapture.inputs(body,source,scope,review_on,applies_when,not_when))
         if result is not None:
             if "invalid" in result:
                 raise ValueError(_CAPTURE_INPUT_ERRORS[result["invalid"]])
-            return result["body"],result["source"],result["conditions"]
-    return _capture_inputs_reference(body,source,scope,review_on,applies_when,not_when)
+            values = result["body"],result["source"],result["conditions"]
+            return (*values,result["digest"]) if digest else values
+    values = _capture_inputs_reference(body,source,scope,review_on,applies_when,not_when)
+    return (*values,None) if digest else values
 
 
 _CAPTURE_INPUT_ERRORS = {
@@ -659,6 +684,9 @@ def _context_bound(func, mark):
 
 _CONTEXT_DATE = date
 _CAPTURE_INPUTS_BINDING = _context_binding(_capture_inputs_reference)
+_CAPTURE_SHA256 = hashlib.sha256
+_CAPTURE_DIGEST_BINDINGS = {name:_context_binding(globals()[name]) for name in
+    ("_digest","_capture_inputs","_capture_inputs_reference","_analysis_binding")}
 _HISTORY_APPLICABILITY = APPLICABILITY_FIELDS
 _HISTORY_FIELDS = ("id", "status", "body", "source", "created_at", "retired_at", "replaces", *APPLICABILITY_FIELDS)
 _HISTORY_PROJECTION_BINDING = _context_binding(_history_fields)

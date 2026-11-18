@@ -7,6 +7,56 @@ fn capture() -> Value {
 }
 
 #[test]
+fn capture_digest_opt_in_matches_captured_python_canonical_bytes() {
+    let mut value = capture();
+    value["digest"] = json!(true);
+    assert_eq!(
+        MemoryRecord::capture_inputs(&value),
+        Some(json!({
+        "body":"한글 body","source":"note","conditions":{"applies_when":"ready"},
+        "digest":"8a144e1b51e54cc11ca958ba50b48c8f199da2ca90cd34b97863698618bdc41e"}))
+    );
+    value["body"] = json!("");
+    assert_eq!(
+        MemoryRecord::capture_inputs(&value),
+        Some(json!({"invalid":"body"}))
+    );
+}
+
+#[test]
+fn capture_digest_requires_literal_true_and_closed_schema() {
+    for flag in [json!(false), json!(1), json!("true"), json!(null)] {
+        let mut value = capture();
+        value["digest"] = flag;
+        assert!(MemoryRecord::capture_inputs(&value).is_none());
+    }
+    let mut value = capture();
+    value["digest"] = json!(true);
+    value["extra"] = json!(true);
+    assert!(MemoryRecord::capture_inputs(&value).is_none());
+}
+
+#[test]
+fn capture_digest_uses_conditions_and_scope_but_keeps_legacy_response_closed() {
+    let original = capture();
+    let legacy = MemoryRecord::capture_inputs(&original).unwrap();
+    assert_eq!(legacy.as_object().unwrap().len(), 3);
+    let mut value = original;
+    value["digest"] = json!(true);
+    let original_digest = MemoryRecord::capture_inputs(&value).unwrap()["digest"].clone();
+    for (key, text) in [
+        ("scope", "all"),
+        ("not_when", "except"),
+        ("review_on", "2099-01-02"),
+    ] {
+        let mut value = value.clone();
+        value[key] = json!(text);
+        let digest = MemoryRecord::capture_inputs(&value).unwrap()["digest"].clone();
+        assert_ne!(original_digest, digest);
+    }
+}
+
+#[test]
 fn capture_normalizes_python_whitespace_and_preserves_unicode_character_limits() {
     let mut value = capture();
     assert_eq!(
