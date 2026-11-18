@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import locale
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -19,6 +21,7 @@ from typing import Any, Sequence
 from support.project_tree import PRUNED_DIRECTORIES, iter_project_files
 from support.stage_timing import stage
 from support.global_state import project_state_dir_target
+from support.native_probe_transport import NativeProbe
 from workflow_gate_policy import READ_ONLY_LOOKUP
 
 
@@ -280,20 +283,74 @@ def _validate_vendor_source() -> str:
 
 def _run(command: list[str], root: Path) -> tuple[subprocess.CompletedProcess[str], str]:
     try:
-        completed = subprocess.run(
-            command,
-            cwd=root,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=WIKIMAP_TIMEOUT_SECONDS,
-            check=False,
-        )
+        completed = _native_search(command, root)
+        if completed is None:
+            completed = subprocess.run(
+                command,
+                cwd=root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=WIKIMAP_TIMEOUT_SECONDS,
+                check=False,
+            )
     except (OSError, subprocess.TimeoutExpired):
         return _empty_process(command), "wikimap process could not complete"
     if completed.returncode != 0:
         return completed, f"wikimap exited with status {completed.returncode}"
     return completed, ""
+
+
+def _native_search(command: list[str], root: Path) -> subprocess.CompletedProcess[str] | None:
+    if (len(command) < 9 or command[:7] != [sys.executable, str(WIKIMAP_SCRIPT),
+            "--root", str(root), "search", "--json", "-n"]
+            or type(WIKIMAP_TIMEOUT_SECONDS) is not int or WIKIMAP_TIMEOUT_SECONDS != 15
+            or READ_ONLY_LOOKUP.get()
+            or not NativeProbe.available()):
+        return None
+    encoding = "utf-8" if sys.flags.utf8_mode else locale.getpreferredencoding(False)
+    if not all(Path(entry).is_absolute() for entry in os.get_exec_path()):
+        return None
+    interpreter = shutil.which("python3")
+    try:
+        if (encoding.lower() != "utf-8" or not interpreter
+                or Path(interpreter).parent != Path(sys.executable).parent
+                or not os.path.samefile(interpreter, sys.executable)):
+            return None
+    except OSError:
+        return None
+    limit_text = command[7]
+    if len(limit_text) > 19 or not limit_text.isascii() or not limit_text.isdecimal():
+        return None
+    packet = json.dumps({"root": str(root), "limit": int(limit_text), "queries": command[8:]},
+                        ensure_ascii=True).encode()
+    if len(packet) > 1024 * 1024:
+        return None
+    launcher = Path.home() / ".moru/bin/moru-hook"
+    try:
+        reply = subprocess.run(
+            [str(launcher.with_name("moru-hook-native")), str(launcher), "--wikimap-search-probe"],
+            input=packet, capture_output=True, timeout=WIKIMAP_TIMEOUT_SECONDS + 2,
+            env={**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[1])},
+        )
+    except OSError:
+        return None
+    if reply.returncode or reply.stderr:
+        return None
+    try:
+        value = json.loads(reply.stdout)
+    except (ValueError, TypeError):
+        return None
+    if type(value) is not dict:
+        return None
+    if set(value) == {"failed"} and value["failed"] is True:
+        raise OSError("native Wikimap subprocess could not complete")
+    if (set(value) != {"code", "stdout", "stderr"} or type(value["code"]) is not int
+            or any(type(value[key]) is not str for key in ("stdout", "stderr"))):
+        return None
+    stdout, stderr = (value[key].replace("\r\n", "\n").replace("\r", "\n")
+                      for key in ("stdout", "stderr"))
+    return subprocess.CompletedProcess(command, value["code"], stdout, stderr)
 
 
 def _empty_process(command: list[str]) -> subprocess.CompletedProcess[str]:

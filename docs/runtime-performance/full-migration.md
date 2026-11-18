@@ -56,8 +56,9 @@ Linux ARM64 from current acceptance; their prior evidence remains historical:
 The entire Goal additionally requires no pending owned Python responsibility
 and no unverified public unit. External/vendor code has a separate ownership,
 license and replacement boundary. It cannot become an implicit exclusion or a
-completed port because a Rust wrapper invokes it. Any final exclusion requires
-an explicit user decision; until then the target remains open.
+completed port because a Rust wrapper invokes it. Wikimap's pinned upstream
+source is outside the owned Rust port. Moru's adapter remains in scope, and
+the Wikimap search path still requires the upstream Python interpreter.
 
 ## Delivery waves
 

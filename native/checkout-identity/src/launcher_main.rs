@@ -43,6 +43,7 @@ mod discovery_registry;
 mod discovery_search;
 mod doc_transcript;
 mod doc_transcript_process;
+mod wikimap_search;
 #[path = "dispatch_guardian/mod.rs"]
 mod dispatch_guardian;
 mod figma_coverage;
@@ -173,6 +174,7 @@ fn private_probe(launcher: &OsString, args: &[OsString]) -> Option<i32> {
         "--setup-probe" => codex_statusline::CodexStatusLine::run(launcher, args),
         "--memory-probe" => memory_process::MemoryProcess::run(launcher, args),
         "--doc-transcript-probe" => doc_transcript_process::DocTranscriptProcess::run(launcher, args),
+        "--wikimap-search-probe" => wikimap_search::WikimapSearch::run(launcher, args),
         "--cards-write-probe" => cards_write_process::CardWriteProcess::run(launcher, args),
         "--cards-probe" => cards_process::CardsProcess::probe(launcher, args),
         "--overhead-probe" => overhead_process::OverheadProcess::run(launcher, args),

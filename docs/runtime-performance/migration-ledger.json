@@ -83,9 +83,9 @@
       "id": "scripts/checkout_identity.py",
       "inventory_id": 1,
       "kind": "primary",
-      "status": "native_local_verified",
+      "status": "native_revalidation",
       "entry_aliases": "checkout-identity",
-      "remaining": "Native checkout engine and shared bounded process capture have fresh four-host and installed acceptance. Direct Python entry and shared Python callers remain open; this is not full unit migration closure.",
+      "remaining": "The Wikimap adapter extracted exact exit status from the shared bounded process capture. The receipt below describes the previous revision. Repeat transported and installed platform acceptance for the new shared source. Direct Python entry and shared Python callers remain open.",
       "verification": {
         "native_owner": "native/checkout-identity/src/lib.rs",
         "platform_evidence": "Four-host CI42189502554 at750f5e73 passed, including shared ReadProcess extraction from7e194aed; live GitHub job results and matching source hashes verified.",
@@ -692,8 +692,10 @@
       "kind": "ancillary",
       "status": "external_review",
       "entry_aliases": "Direct CLI",
-      "remaining": "Resolve vendor ownership/license and replacement/adapter boundary; never count a wrapper as a port.",
-      "verification": {}
+      "remaining": "Pinned Wikimap is external to the owned Rust port. Moru's workflow_wikimap adapter remains in the unmigrated inventory for corpus signatures, index refresh and receipts, result handling, and compatibility fallback. Wikimap search still requires Python.",
+      "verification": {
+        "adapter_search": "Local debug parity covers Rust launching the pinned ordinary indexed search and returning exact vendor exit status and UTF-8 pipes. Python retains index policy, result projection, and read-only lookup compatibility. Vendored source and pin are unchanged."
+      }
     },
     {
       "id": "scripts/native-runtime-bundle.py",

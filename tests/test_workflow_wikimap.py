@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,43 @@ class WorkflowWikimapTests(unittest.TestCase):
             ),
             _WIKIMAP_INDEX_EXTENSIONS,
         )
+
+    @unittest.skipUnless(os.environ.get("MORU_TEST_WIKIMAP_NATIVE") == "1", "requires native debug fixture")
+    def test_real_native_search_matches_python_without_running_index_through_rust(self) -> None:
+        import workflow_wikimap as adapter
+        from native_pretool_support import environment, prepare
+        from native_launcher_support import NATIVE
+
+        self.assertTrue(NATIVE.is_file(), "test-only native fixture must be built first")
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder).resolve()
+            launcher, root = prepare(base)
+            self.assertTrue(launcher.with_name("moru-hook-native").is_file())
+            (root / "guide.md").write_text("# Guide\n\nretrieval 한글 rule\n", encoding="utf-8")
+            env = environment(base)
+            env["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), *os.defpath.split(os.pathsep)])
+            with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                expected = search_wikimap(root, ["retrieval 한글"], 4)
+            self.assertTrue(expected.results)
+            clear_wikimap_cache()
+            original = adapter._native_search
+            calls = []
+            def observe(command, cwd):
+                result = original(command, cwd)
+                calls.append((command, result))
+                return result
+            with patch.dict(os.environ, env, clear=True), \
+                    patch.object(adapter, "_native_search", side_effect=observe):
+                actual = search_wikimap(root, ["retrieval 한글"], 4)
+                command, completed = calls[-1]
+                (root / ".wikimap/index.db").write_bytes(b"invalid database")
+                failure = original(command, root)
+            self.assertEqual("search", command[4])
+            self.assertIsNotNone(completed, "normal search must execute through Rust")
+            self.assertTrue(all(result is None for argv, result in calls if argv[4] == "update"))
+            self.assertEqual(expected, actual)
+            self.assertIsNotNone(failure, "native search must handle vendor failure without fallback")
+            self.assertEqual(1, failure.returncode)
 
     def test_adapter_invokes_only_update_and_search_commands(self) -> None:
         payload = {

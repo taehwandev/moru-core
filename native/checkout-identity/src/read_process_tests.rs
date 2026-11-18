@@ -1,4 +1,5 @@
 use super::*;
+use std::{process::Stdio, time::Instant};
 
 #[test]
 fn capture_preserves_both_pipes_exit_status_and_null_stdin() {
