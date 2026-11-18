@@ -49,7 +49,7 @@ class WorkflowWikimapTests(unittest.TestCase):
         )
 
     @unittest.skipUnless(os.environ.get("MORU_TEST_WIKIMAP_NATIVE") == "1", "requires native debug fixture")
-    def test_real_native_search_matches_python_without_running_index_through_rust(self) -> None:
+    def test_real_native_refresh_and_search_match_python(self) -> None:
         import workflow_wikimap as adapter
         from native_pretool_support import environment, prepare
         from native_launcher_support import NATIVE
@@ -65,25 +65,65 @@ class WorkflowWikimapTests(unittest.TestCase):
             with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
                 expected = search_wikimap(root, ["retrieval 한글"], 4)
             self.assertTrue(expected.results)
+            # Keep the same corpus for both backends while forcing a cold refresh.
+            (root / ".wikimap").rename(base / "python-reference-index")
             clear_wikimap_cache()
-            original = adapter._native_search
+            original = adapter._native_run
             calls = []
             def observe(command, cwd):
                 result = original(command, cwd)
                 calls.append((command, result))
                 return result
             with patch.dict(os.environ, env, clear=True), \
-                    patch.object(adapter, "_native_search", side_effect=observe):
+                    patch.object(adapter, "_native_run", side_effect=observe):
                 actual = search_wikimap(root, ["retrieval 한글"], 4)
-                command, completed = calls[-1]
+                self.assertTrue((root / ".wikimap/index.db").is_file())
+                self.assertFalse((root / "MAP.md").exists())
+                _, completed = calls[-1]
                 (root / ".wikimap/index.db").write_bytes(b"invalid database")
-                failure = original(command, root)
-            self.assertEqual("search", command[4])
+                failure = original(calls[0][0], root)
+            self.assertEqual(["update", "search"], [argv[4] for argv, _ in calls])
             self.assertIsNotNone(completed, "normal search must execute through Rust")
-            self.assertTrue(all(result is None for argv, result in calls if argv[4] == "update"))
+            self.assertIsNotNone(calls[0][1], "cold refresh must execute through Rust")
             self.assertEqual(expected, actual)
-            self.assertIsNotNone(failure, "native search must handle vendor failure without fallback")
+            self.assertIsNotNone(failure, "native update must return the vendor failure")
             self.assertEqual(1, failure.returncode)
+
+    def test_native_update_replays_only_after_prelaunch_decline(self) -> None:
+        import workflow_wikimap as adapter
+
+        root = ROOT
+        command = [sys.executable, str(WIKIMAP_SCRIPT), "--root", str(root), "update", "--no-map"]
+        for ignored in adapter.WIKIMAP_IGNORES:
+            command.extend(("--ignore", ignored))
+        normal = subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        completed = lambda code, stdout=b"": subprocess.CompletedProcess([], code, stdout=stdout, stderr=b"")
+        cases = [
+            (completed(125), 2, ""),
+            (completed(2), 2, ""),
+            (completed(1), 1, "wikimap process could not complete"),
+            (completed(0, b"broken reply"), 1, "wikimap process could not complete"),
+            (completed(0, b'{"code":2,"stdout":"","stderr":""}'), 1, "wikimap exited with status 2"),
+            (subprocess.TimeoutExpired([], 17), 1, "wikimap process could not complete"),
+        ]
+        with patch.object(adapter.NativeProbe, "available", return_value=True), \
+                patch.object(adapter.shutil, "which", return_value=sys.executable), \
+                patch.object(adapter.os, "get_exec_path", return_value=["/usr/bin"]), \
+                patch.object(adapter.locale, "getpreferredencoding", return_value="UTF-8"):
+            for first, count, expected in cases:
+                with self.subTest(first=first), patch.object(adapter.subprocess, "run", side_effect=[first, normal]) as ran:
+                    _, error = adapter._run(command, root)
+                    self.assertEqual(expected, error)
+                    self.assertEqual(count, ran.call_count)
+                    self.assertEqual("update-v1", ran.call_args_list[0].args[0][-1])
+                    if count == 2:
+                        self.assertEqual(command, ran.call_args.args[0])
+            token = adapter.READ_ONLY_LOOKUP.set(True)
+            try:
+                with patch.object(adapter.subprocess, "run", side_effect=AssertionError("unexpected probe")):
+                    self.assertIsNone(adapter._native_run(command, root))
+            finally:
+                adapter.READ_ONLY_LOOKUP.reset(token)
 
     def test_adapter_invokes_only_update_and_search_commands(self) -> None:
         payload = {

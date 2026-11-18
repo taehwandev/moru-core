@@ -35,6 +35,7 @@ WIKIMAP_IGNORES = (
     "scripts/.moru",
     "scripts/third_party",
 )
+_NATIVE_WIKIMAP_IGNORES = WIKIMAP_IGNORES
 # These sets mirror the pinned vendor's ``INDEX_EXTS``, ``IGNORE_DIRS`` and
 # generated ``MAP.md`` exclusion. They are part of the adapter's versioned
 # contract: changing the pinned source already requires updating its checksum,
@@ -283,7 +284,7 @@ def _validate_vendor_source() -> str:
 
 def _run(command: list[str], root: Path) -> tuple[subprocess.CompletedProcess[str], str]:
     try:
-        completed = _native_search(command, root)
+        completed = _native_run(command, root)
         if completed is None:
             completed = subprocess.run(
                 command,
@@ -301,9 +302,8 @@ def _run(command: list[str], root: Path) -> tuple[subprocess.CompletedProcess[st
     return completed, ""
 
 
-def _native_search(command: list[str], root: Path) -> subprocess.CompletedProcess[str] | None:
-    if (len(command) < 9 or command[:7] != [sys.executable, str(WIKIMAP_SCRIPT),
-            "--root", str(root), "search", "--json", "-n"]
+def _native_run(command: list[str], root: Path) -> subprocess.CompletedProcess[str] | None:
+    if (command[:4] != [sys.executable, str(WIKIMAP_SCRIPT), "--root", str(root)]
             or type(WIKIMAP_TIMEOUT_SECONDS) is not int or WIKIMAP_TIMEOUT_SECONDS != 15
             or READ_ONLY_LOOKUP.get()
             or not NativeProbe.available()):
@@ -319,22 +319,49 @@ def _native_search(command: list[str], root: Path) -> subprocess.CompletedProces
             return None
     except OSError:
         return None
-    limit_text = command[7]
-    if len(limit_text) > 19 or not limit_text.isascii() or not limit_text.isdecimal():
-        return None
-    packet = json.dumps({"root": str(root), "limit": int(limit_text), "queries": command[8:]},
-                        ensure_ascii=True).encode()
+    operation = command[4:]
+    update_args = ["update", "--no-map"]
+    for ignored in _NATIVE_WIKIMAP_IGNORES:
+        update_args.extend(("--ignore", ignored))
+    update = operation == update_args
+    packet_fields = {"root": str(root)}
+    if not update:
+        if len(operation) < 5 or operation[:3] != ["search", "--json", "-n"]:
+            return None
+        limit_text = operation[3]
+        if len(limit_text) > 19 or not limit_text.isascii() or not limit_text.isdecimal():
+            return None
+        packet_fields.update(limit=int(limit_text), queries=operation[4:])
+    packet = json.dumps(packet_fields, ensure_ascii=True).encode()
     if len(packet) > 1024 * 1024:
         return None
     launcher = Path.home() / ".moru/bin/moru-hook"
+    argv = [str(launcher.with_name("moru-hook-native")), str(launcher), "--wikimap-search-probe"]
+    if update:
+        argv.append("update-v1")
     try:
         reply = subprocess.run(
-            [str(launcher.with_name("moru-hook-native")), str(launcher), "--wikimap-search-probe"],
+            argv,
             input=packet, capture_output=True, timeout=WIKIMAP_TIMEOUT_SECONDS + 2,
             env={**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[1])},
         )
     except OSError:
         return None
+    # 125 is the probe's pre-launch decline. Older launcher parsers may reject
+    # the private option with 2. The new probe never exits with the vendor's code.
+    if reply.returncode in (2, 125):
+        return None
+    value = _decode_native_run(reply)
+    if value == {"failed": True} or (value is None and update):
+        raise OSError("native Wikimap subprocess could not complete")
+    if value is None:
+        return None
+    stdout, stderr = (value[key].replace("\r\n", "\n").replace("\r", "\n")
+                      for key in ("stdout", "stderr"))
+    return subprocess.CompletedProcess(command, value["code"], stdout, stderr)
+
+
+def _decode_native_run(reply):
     if reply.returncode or reply.stderr:
         return None
     try:
@@ -344,13 +371,11 @@ def _native_search(command: list[str], root: Path) -> subprocess.CompletedProces
     if type(value) is not dict:
         return None
     if set(value) == {"failed"} and value["failed"] is True:
-        raise OSError("native Wikimap subprocess could not complete")
-    if (set(value) != {"code", "stdout", "stderr"} or type(value["code"]) is not int
-            or any(type(value[key]) is not str for key in ("stdout", "stderr"))):
-        return None
-    stdout, stderr = (value[key].replace("\r\n", "\n").replace("\r", "\n")
-                      for key in ("stdout", "stderr"))
-    return subprocess.CompletedProcess(command, value["code"], stdout, stderr)
+        return value
+    if (set(value) == {"code", "stdout", "stderr"} and type(value["code"]) is int
+            and all(type(value[key]) is str for key in ("stdout", "stderr"))):
+        return value
+    return None
 
 
 def _empty_process(command: list[str]) -> subprocess.CompletedProcess[str]:

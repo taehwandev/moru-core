@@ -1,7 +1,7 @@
 //! owner: WikimapSearch; allowed imports: source guard, ReadProcess, std, JSON and SHA-256.
 //! forbidden imports: shell, index maintenance policy, routing or provider calls.
 //! callers/tests: private launcher probe and workflow Wikimap adapter.
-//! verification: pinned script, closed search arguments and subprocess parity.
+//! verification: pinned script, closed search and update arguments and subprocess parity.
 use crate::{pretool_guard::CallbackGuard, read_process::status::capture_status};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -23,9 +23,12 @@ pub(crate) struct WikimapSearch;
 
 impl WikimapSearch {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
-        if args.len() != 1 {
-            return 125;
-        }
+        // The old probe declines the extended argv before running any command.
+        let update = match args {
+            [_] => false,
+            [_, operation] if operation == "update-v1" => true,
+            _ => return 125,
+        };
         let Some(source) = CallbackGuard::root(launcher, "wikimap-search-probe") else {
             return 125;
         };
@@ -40,7 +43,7 @@ impl WikimapSearch {
         }
         let Some(result) = serde_json::from_slice::<Value>(&bytes)
             .ok()
-            .and_then(|packet| Self::execute(&source, &packet))
+            .and_then(|packet| Self::execute(&source, &packet, update))
         else {
             return 125;
         };
@@ -51,29 +54,32 @@ impl WikimapSearch {
         }
     }
 
-    fn execute(source: &Path, packet: &Value) -> Option<Value> {
+    fn execute(source: &Path, packet: &Value, update: bool) -> Option<Value> {
         let fields = packet.as_object()?;
-        if fields.len() != 3 {
+        if fields.len() != if update { 1 } else { 3 } {
             return None;
         }
         let root = Path::new(fields.get("root")?.as_str()?);
-        let limit = fields.get("limit")?.as_u64()?;
-        let queries = fields
-            .get("queries")?
-            .as_array()?
-            .iter()
-            .map(Value::as_str)
-            .collect::<Option<Vec<_>>>()?;
-        if !root.is_absolute()
-            || !root.join(".wikimap/index.db").is_file()
-            || limit == 0
-            || queries.is_empty()
-            || queries
-                .iter()
-                .any(|value| value.is_empty() || value.starts_with('-') || value.contains('\0'))
-        {
+        if !root.is_absolute() || !root.is_dir() {
             return None;
         }
+        let command_args = if update {
+            [
+                "update",
+                "--no-map",
+                "--ignore",
+                ".moru",
+                "--ignore",
+                "scripts/.moru",
+                "--ignore",
+                "scripts/third_party",
+            ]
+            .into_iter()
+            .map(OsString::from)
+            .collect()
+        } else {
+            Self::search_args(root, fields)?
+        };
         let script = source.join(VENDOR);
         let metadata = fs::metadata(&script).ok()?;
         if !metadata.is_file()
@@ -87,9 +93,7 @@ impl WikimapSearch {
             .arg(script)
             .arg("--root")
             .arg(root)
-            .args(["search", "--json", "-n"])
-            .arg(limit.to_string())
-            .args(queries)
+            .args(command_args)
             .current_dir(root);
         let Some((stdout, stderr, status)) = capture_status(&mut command, Duration::from_secs(15))
             .ok()
@@ -97,13 +101,45 @@ impl WikimapSearch {
         else {
             return Some(json!({"failed": true}));
         };
-        let code = status
+        // All post-launch failures are terminal. A declined update is safe to
+        // retry only before the vendor has had a chance to touch the index.
+        let result = status
             .code()
-            .or_else(|| status.signal().map(|signal| -signal))?;
-        Some(json!({
-            "code": code,
-            "stdout": String::from_utf8(stdout).ok()?,
-            "stderr": String::from_utf8(stderr).ok()?,
-        }))
+            .or_else(|| status.signal().map(|signal| -signal))
+            .zip(String::from_utf8(stdout).ok())
+            .zip(String::from_utf8(stderr).ok());
+        Some(match result {
+            Some(((code, stdout), stderr)) => {
+                json!({"code": code, "stdout": stdout, "stderr": stderr})
+            }
+            None => json!({"failed": true}),
+        })
+    }
+
+    fn search_args(root: &Path, fields: &serde_json::Map<String, Value>) -> Option<Vec<OsString>> {
+        let limit = fields.get("limit")?.as_u64()?;
+        let queries = fields
+            .get("queries")?
+            .as_array()?
+            .iter()
+            .map(Value::as_str)
+            .collect::<Option<Vec<_>>>()?;
+        if !root.join(".wikimap/index.db").is_file()
+            || limit == 0
+            || queries.is_empty()
+            || queries
+                .iter()
+                .any(|value| value.is_empty() || value.starts_with('-') || value.contains('\0'))
+        {
+            return None;
+        }
+        let mut args = vec![
+            "search".into(),
+            "--json".into(),
+            "-n".into(),
+            limit.to_string().into(),
+        ];
+        args.extend(queries.into_iter().map(OsString::from));
+        Some(args)
     }
 }
