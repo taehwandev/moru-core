@@ -112,3 +112,6 @@ class NativeMemoryUpkeep:
 _REPLACEMENT_BINDINGS = {name:(getattr(NativeMemoryUpkeep,name),
     getattr(NativeMemoryUpkeep,name).__code__,getattr(NativeMemoryUpkeep,name).__defaults__)
     for name in ("replacements","_profile","_replacement_result")}
+_STARTUP_RENDER_BINDINGS = {name:(func,func.__code__,func.__defaults__,dict(func.__kwdefaults__ or {}))
+    for name in ("_request","_profile") for func in (getattr(NativeMemoryUpkeep,name),)}
+_STARTUP_COUNTS = _COUNTS

@@ -15,6 +15,76 @@ fn startup_selection() -> Value {
 }
 
 #[test]
+fn startup_notice_matches_captured_count_order_and_preserves_legacy_shape() {
+    let mut packet = startup_selection();
+    let legacy = MemoryUpkeep::evaluate("upkeep-startup-text", &packet).unwrap();
+    assert_eq!(legacy.as_object().unwrap().len(), 1);
+    packet["render"] = json!(true);
+    let result = MemoryUpkeep::evaluate("upkeep-startup-text", &packet).unwrap();
+    assert_eq!(result["counts"], legacy["counts"]);
+    assert_eq!(
+        result["text"],
+        json!("Project memory upkeep: expired=1 exact_duplicates=1 shared_source=1 unfinished=1")
+    );
+    assert_eq!(result.as_object().unwrap().len(), 2);
+}
+
+#[test]
+fn startup_notice_empty_and_inactive_counts_stay_silent() {
+    let mut packet = startup_selection();
+    packet["render"] = json!(true);
+    for records in [
+        json!([]),
+        json!([{"id":null,"status":"retired","body":null,
+        "scope":null,"source":null,"review":null,"replaces":null}]),
+    ] {
+        packet["records"] = records;
+        assert_eq!(
+            MemoryUpkeep::evaluate("upkeep-startup-text", &packet).unwrap()["text"],
+            json!("")
+        );
+    }
+}
+
+#[test]
+fn startup_notice_renders_multidigit_counts_and_keeps_zero_fields() {
+    let mut packet = startup_selection();
+    packet["render"] = json!(true);
+    packet["records"] = json!((0..12)
+        .map(|id| json!({"id":id.to_string(),"status":"active",
+        "body":"Same!","source":"Docs","scope":"task","review":"2026-11-13","replaces":null}))
+        .collect::<Vec<_>>());
+    assert_eq!(
+        MemoryUpkeep::evaluate("upkeep-startup-text", &packet).unwrap()["text"],
+        json!("Project memory upkeep: expired=12 exact_duplicates=1 shared_source=1 unfinished=0")
+    );
+}
+
+#[test]
+fn startup_notice_requires_literal_true_and_closed_text_mode_schema() {
+    for flag in [json!(false), json!(null), json!(1), json!("true")] {
+        let mut packet = startup_selection();
+        packet["render"] = flag;
+        assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &packet).is_none());
+    }
+    let mut packet = startup_selection();
+    packet["render"] = json!(true);
+    for operation in [
+        "upkeep-live",
+        "upkeep-replacements",
+        "upkeep-startup",
+        "upkeep-startup-dates",
+    ] {
+        assert!(MemoryUpkeep::evaluate(operation, &packet).is_none());
+    }
+    packet["extra"] = json!(true);
+    assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &packet).is_none());
+    packet.as_object_mut().unwrap().remove("extra");
+    packet["records"][0]["review"] = json!("1900-02-29");
+    assert!(MemoryUpkeep::evaluate("upkeep-startup-text", &packet).is_none());
+}
+
+#[test]
 fn startup_selects_exact_statuses_before_parsing_ignored_values() {
     let mut packet = startup_selection();
     assert_eq!(

@@ -15,7 +15,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
-from agent_project_memory import APPLICABILITY_FIELDS, RECALLABLE_STATUSES, scan_records
+from agent_project_memory import APPLICABILITY_FIELDS, RECALLABLE_STATUSES, scan_records, _context_binding, _context_bound
 
 
 DEFAULT_WITHIN_DAYS = 14
@@ -351,8 +351,14 @@ def startup_summary_line(records: list[dict[str, Any]], project: Path, launcher:
     if (normalize is _NATIVE_NORMALIZE and normalize.__code__ is _NATIVE_NORMALIZE_CODE
             and _PUNCTUATION_RE is _NATIVE_PUNCTUATION and date is _NATIVE_DATE):
         from support.native_memory_startup import NativeMemoryStartup
-        counts = NativeMemoryStartup.hints(records, today, RECALLABLE_STATUSES)
+        render = _startup_render_profile()
+        counts = (NativeMemoryStartup.hints(records,today,RECALLABLE_STATUSES,render=True) if render
+                  else NativeMemoryStartup.hints(records,today,RECALLABLE_STATUSES))
         if counts is not None:
+            if render:
+                counts, text = counts
+                if text is not None and _startup_render_profile():
+                    return f"{text} -> {_summary_command(project,launcher)}" if text else ""
             return _summary_counts_line(counts, project, launcher)
         return _startup_summary_line_reference(records, project, launcher, today=today)
     from support.native_memory_upkeep import NativeMemoryUpkeep
@@ -396,6 +402,22 @@ def _startup_summary_line_reference(records: list[dict[str, Any]], project: Path
 def _summary_counts_line(counts: dict[str, int], project: Path, launcher: str) -> str:
     if not any(counts.values()):
         return ""
-    command = shlex.join([launcher, "project-memory", "--project", str(project), "consolidate"])
+    command = _summary_command(project, launcher)
     rendered = " ".join(f"{name}={count}" for name, count in counts.items())
     return f"Project memory upkeep: {rendered} -> {command}"
+
+
+def _summary_command(project, launcher):
+    return shlex.join([launcher, "project-memory", "--project", str(project), "consolidate"])
+
+
+def _startup_render_profile():
+    from support import native_memory_startup as startup, native_memory_upkeep as upkeep
+    return (_context_bound(_summary_counts_line,_SUMMARY_BINDING)
+        and _context_bound(startup.NativeMemoryStartup.hints,startup._HINTS_BINDING)
+        and startup._COUNTS is upkeep._STARTUP_COUNTS
+        and all(_context_bound(getattr(upkeep.NativeMemoryUpkeep,name,None),mark)
+                for name,mark in upkeep._STARTUP_RENDER_BINDINGS.items()))
+
+
+_SUMMARY_BINDING = _context_binding(_summary_counts_line)

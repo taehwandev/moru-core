@@ -10,8 +10,8 @@ from support.native_probe_transport import NativeProbe
 
 class NativeMemoryStartup:
     @staticmethod
-    def hints(records, today, statuses):
-        if (not NativeMemoryUpkeep._profile(records, ("status",))
+    def hints(records, today, statuses, *, render=False):
+        if (type(render) is not bool or not NativeMemoryUpkeep._profile(records, ("status",))
                 or type(statuses) is not frozenset or any(type(s) is not str for s in statuses)):
             return None
         live_count = 0
@@ -23,7 +23,8 @@ class NativeMemoryStartup:
         if type(today) is not date:
             return None
         if not live_count:
-            return dict.fromkeys(_COUNTS, 0)
+            counts = dict.fromkeys(_COUNTS, 0)
+            return (counts, "") if render else counts
         try:
             if not NativeProbe.available():
                 return None
@@ -38,9 +39,22 @@ class NativeMemoryStartup:
                            review=record["review_on"],replaces=record.get("replaces"))
             rows.append(row)
         result = NativeMemoryUpkeep._request("upkeep-startup-text", rows, today=today.isoformat(),
-                                            statuses=sorted(statuses))
-        counts = result.get("counts") if type(result) is dict and set(result) == {"counts"} else None
+                                            statuses=sorted(statuses), **({"render":True} if render else {}))
+        keys = ({"counts"},{"counts","text"}) if render else ({"counts"},)
+        counts = result.get("counts") if type(result) is dict and set(result) in keys else None
         if (type(counts) is dict and set(counts) == set(_COUNTS)
                 and all(type(n) is int and 0 <= n <= live_count for n in counts.values())):
-            return {key:counts[key] for key in _COUNTS}
+            counts = {key:counts[key] for key in _COUNTS}
+            if not render:return counts
+            text = result.get("text")
+            if "text" in result and (type(text) is not str or len(text) > 200
+                    or bool(text) != any(counts.values())
+                    or text and (not text.isascii() or not text.isprintable()
+                                 or not text.startswith("Project memory upkeep: "))):
+                return None
+            return counts, text
         return None
+
+
+_HINTS_BINDING = (NativeMemoryStartup.hints,NativeMemoryStartup.hints.__code__,
+    NativeMemoryStartup.hints.__defaults__,dict(NativeMemoryStartup.hints.__kwdefaults__ or {}))

@@ -11,7 +11,7 @@ It continues unit 16; three kernels do not count as three completed units.
 
 | Decision | Rust owns | Python retains |
 | --- | --- | --- |
-| Startup hints | Ordinary text normalization, exact body/scope groups, source groups, strict ISO date validation/comparison, expired and replacement counts | Status/profile admission, custom/exceptional normalization and date parsing, ordered notice text and shell quoting |
+| Startup hints | Ordinary text normalization, exact body/scope groups, source groups, strict ISO date validation/comparison, expired and replacement counts, optional ordered count notice | Status/profile admission, custom/exceptional normalization and date parsing, legacy/custom notice rendering, command assembly and shell quoting |
 | Unfinished replacements | Ordered target lookup and sorted replacement indices | Original record metadata, reason text and report projection |
 | Live report inputs | Status membership and stable ID sorting | Profile admission and original objects |
 
@@ -142,3 +142,36 @@ even when the total input count is larger. The debug receipt binds 625 inputs.
 The ledger also accounts for four Python sources introduced by the preceding
 main change; they remain unmigrated. Unit 16 stays partial. No release build,
 actual installation, exact Linux acceptance or performance claim is added.
+
+## Startup count notice rendering
+
+A literal `render: true` extends only the existing status-aware
+`upkeep-startup-text` request. Rust reuses the original counts and returns their
+content-free notice in expired/exact_duplicates/shared_source/unfinished order.
+Zero fields remain visible when any count is nonzero; all-zero counts return an
+empty string. Legacy requests retain their count-only response. False, nonboolean
+or extra fields decline, and other upkeep operations cannot opt into rendering.
+
+The caller opts in only with its original formatter, typed hints method, count
+order and upstream request/profile functions. Their defining owners retain the
+original bindings, preserving customization before lazy imports. It rechecks
+the profile after the request: a late custom formatter receives the accepted
+counts without recomputation or another native request. A legacy count-only
+response also reuses its counts through the original formatter. Malformed text
+or counts use one attempt before the ordinary reference path.
+
+Python retains command assembly and `shlex.join`; original and native notices
+share that command helper. No project or launcher string enters the new render
+field. Empty/inactive stores start no request, and silent notices never stringify
+command arguments. Normalization/calendar/custom profiles and store authority
+remain unchanged. Unit 16 remains partial.
+
+Local debug verification passed 100 Rust memory tests and 116 Python cases,
+including 23 startup cases. A captured byte/order oracle and real one-request
+profile observe zero Python count-format calls; an older three-argument hints
+callback restores that call. Legacy replies, malformed text/counts, silent
+arguments, custom request code, lazy-import customization and a formatter changed
+during the request pass their controls. Command quoting retains spaces, quotes,
+Unicode and newline behavior. The rebuilt 628-input debug receipt is bound to
+the synchronized main base. No release, installation, Linux or timing claim is
+added; command assembly and custom/legacy rendering remain Python-owned.

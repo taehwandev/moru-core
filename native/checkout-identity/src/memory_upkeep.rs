@@ -15,17 +15,44 @@ impl MemoryUpkeep {
         if object.get("unicode")?.as_str()? != MemoryTerms::version() {
             return None;
         }
+        let render = match object.get("render") {
+            None => false,
+            Some(Value::Bool(true)) => true,
+            _ => return None,
+        };
         let records = object.get("records")?.as_array()?;
         match operation {
             "upkeep-live" if object.len() == 3 => Self::live(records, object.get("statuses")?),
             "upkeep-replacements" if object.len() == 2 => Self::replacements(records),
-            "upkeep-startup-text" if object.len() == 4 => Self::startup(
-                records,
-                object.get("today")?,
-                true,
-                true,
-                Some(object.get("statuses")?),
-            ),
+            "upkeep-startup-text" if object.len() == 4 + usize::from(render) => {
+                let mut result = Self::startup(
+                    records,
+                    object.get("today")?,
+                    true,
+                    true,
+                    Some(object.get("statuses")?),
+                )?;
+                if render {
+                    let counts = result.get("counts")?;
+                    let names = ["expired", "exact_duplicates", "shared_source", "unfinished"];
+                    let values = names
+                        .iter()
+                        .map(|name| counts.get(name)?.as_u64())
+                        .collect::<Option<Vec<_>>>()?;
+                    result["text"] = json!(if values.iter().all(|&n| n == 0) {
+                        String::new()
+                    } else {
+                        let fields = names
+                            .iter()
+                            .zip(values)
+                            .map(|(name, n)| format!("{name}={n}"))
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        format!("Project memory upkeep: {fields}")
+                    });
+                }
+                Some(result)
+            }
             "upkeep-startup" | "upkeep-startup-dates" | "upkeep-startup-text"
                 if object.len() == 3 =>
             {

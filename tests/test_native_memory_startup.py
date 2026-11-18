@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import random
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -67,6 +68,142 @@ class NativeMemoryStartupTests(unittest.TestCase):
 
     def reference(self, rows):
         return source._startup_summary_line_reference(rows, self.project, "moru-hook", today=TODAY)
+
+    def test_real_notice_rendering_skips_python_counts_format_with_legacy_negative_control(self):
+        rows = [record("a",review_on="2026-11-13"),record("b",replaces="a")]
+        prefix = "Project memory upkeep: expired=1 exact_duplicates=1 shared_source=1 unfinished=1"
+        command = source.shlex.join(["moru-hook","project-memory","--project",str(self.project),"consolidate"])
+        expected = prefix+" -> "+command
+        calls = []
+        code = source._summary_counts_line.__code__
+        def observe(frame,event,arg):
+            if event == "call" and frame.f_code is code:calls.append(True)
+        previous = sys.getprofile()
+        with patch.object(NativeProbe,"request",wraps=NativeProbe.request) as requested:
+            try:
+                sys.setprofile(observe)
+                actual = self.run_startup(rows)
+            finally:sys.setprofile(previous)
+        self.assertEqual(expected,actual)
+        self.assertEqual([],calls,"Python count-notice formatting replay")
+        self.assertEqual(1,requested.call_count)
+        original = NativeMemoryStartup.hints
+        def legacy(rows,today,statuses):return original(rows,today,statuses)
+        with patch.object(NativeMemoryStartup,"hints",legacy):
+            try:
+                sys.setprofile(observe)
+                self.assertEqual(expected,self.run_startup(rows))
+            finally:sys.setprofile(previous)
+        self.assertEqual([True],calls)
+
+    def test_legacy_count_reply_reuses_the_counts_without_another_request(self):
+        rows = [record("a"),record("b")]
+        counts = {"expired":1,"exact_duplicates":0,"shared_source":0,"unfinished":0}
+        expected = source._summary_counts_line(counts,self.project,"moru-hook")
+        with patch.object(NativeProbe,"request",return_value={"counts":counts}) as requested, \
+             patch.object(source,"_startup_summary_line_reference",side_effect=AssertionError("count replay")):
+            self.assertEqual(expected,self.run_startup(rows))
+        self.assertTrue(requested.call_args.args[2]["render"])
+        self.assertEqual(1,requested.call_count)
+
+    def test_custom_formatter_is_preserved_even_for_empty_or_zero_counts(self):
+        for rows in ([],[record("a")],[record("a"),record("b")]):
+            with self.subTest(rows=len(rows)),patch.object(source,"_summary_counts_line",return_value="custom notice") as formatted, \
+                 patch.object(NativeProbe,"request",wraps=NativeProbe.request) as requested:
+                self.assertEqual("custom notice",self.run_startup(rows))
+                self.assertEqual(1,formatted.call_count)
+                if requested.call_count:self.assertNotIn("render",requested.call_args.args[2])
+
+    def test_formatter_changed_during_request_is_rechecked_without_count_replay(self):
+        rows = [record("a"),record("b")]
+        original_request, original_summary = NativeProbe.request, source._summary_counts_line
+        def request(*args,**kwargs):
+            result = original_request(*args,**kwargs)
+            source._summary_counts_line = lambda *args:"late custom notice"
+            return result
+        with patch.object(NativeProbe,"request",side_effect=request) as requested:
+            try:self.assertEqual("late custom notice",self.run_startup(rows))
+            finally:source._summary_counts_line = original_summary
+        self.assertEqual(1,requested.call_count)
+
+    def test_custom_request_signature_and_in_place_code_keep_legacy_counts(self):
+        rows = [record("a"),record("b")]
+        counts = {"expired":1,"exact_duplicates":0,"shared_source":0,"unfinished":0}
+        expected = source._summary_counts_line(counts,self.project,"moru-hook")
+        def request(operation,rows,*,today,statuses):return {"counts":counts}
+        with patch.object(NativeMemoryUpkeep,"_request",request):
+            self.assertEqual(expected,self.run_startup(rows))
+        original = NativeMemoryUpkeep._request.__code__
+        def altered(operation,rows,**fields):
+            assert "render" not in fields
+            return {"counts":{"expired":1,"exact_duplicates":0,"shared_source":0,"unfinished":0}}
+        try:
+            NativeMemoryUpkeep._request.__code__ = altered.__code__
+            self.assertEqual(expected,self.run_startup(rows))
+        finally:NativeMemoryUpkeep._request.__code__ = original
+
+    def test_malformed_rendering_or_counts_uses_one_attempt_then_original_notice(self):
+        rows = [record("a"),record("b")]
+        counts = {"expired":0,"exact_duplicates":1,"shared_source":1,"unfinished":0}
+        prefix = "Project memory upkeep: expired=0 exact_duplicates=1 shared_source=1 unfinished=0"
+        replies = [{"counts":counts,"text":text} for text in (None,True,"","X"*201,"other notice",prefix+"\n",prefix+"한글")]
+        replies += [{"counts":{**counts,"expired":value},"text":prefix} for value in (True,-1,3)]
+        replies += [{"counts":counts,"text":prefix,"extra":True},
+                    {"counts":dict.fromkeys(counts,0),"text":prefix}]
+        expected = self.reference(rows)
+        for reply in replies:
+            with self.subTest(reply=reply),patch.object(NativeProbe,"request",return_value=reply) as requested, \
+                 patch.object(source,"_startup_summary_line_reference",wraps=source._startup_summary_line_reference) as reference:
+                self.assertEqual(expected,self.run_startup(rows))
+                self.assertEqual(1,requested.call_count)
+                self.assertEqual(1,reference.call_count)
+
+    def test_silent_notice_never_stringifies_project_or_launcher(self):
+        class Opaque:
+            def __str__(self):raise AssertionError("silent notice stringified a command argument")
+        with patch.dict(os.environ,self.env,clear=True):
+            for rows in ([],[{"status":"retired"}],[record("a")]):
+                with self.subTest(rows=len(rows)),patch.object(source,"_summary_command",side_effect=AssertionError("silent command")):
+                    self.assertEqual("",source.startup_summary_line(rows,Opaque(),Opaque(),today=TODAY))
+
+    def test_native_notice_keeps_python_quoting_and_custom_command_callbacks(self):
+        rows = [record("a"),record("b")]
+        launchers = ("moru-hook","./my tool's $name","tool\nline","")
+        project = Path("space ' 한글/$value")
+        for launcher in launchers:
+            expected = source._startup_summary_line_reference(rows,project,launcher,today=TODAY)
+            with self.subTest(launcher=launcher),patch.dict(os.environ,self.env,clear=True):
+                actual = source.startup_summary_line(rows,project,launcher,today=TODAY)
+                self.assertEqual(expected,actual)
+                self.assertEqual([launcher,"project-memory","--project",str(project),"consolidate"],
+                                 source.shlex.split(actual.split(" -> ",1)[1]))
+        with patch.object(source.shlex,"join",return_value="custom command") as joined:
+            self.assertTrue(self.run_startup(rows).endswith(" -> custom command"))
+            self.assertEqual(1,joined.call_count)
+
+    def test_request_customization_before_lazy_startup_import_keeps_its_signature(self):
+        program = """
+from datetime import date
+from pathlib import Path
+import agent_project_memory_consolidate as source
+from support.native_memory_upkeep import NativeMemoryUpkeep
+from support.native_probe_transport import NativeProbe
+NativeProbe.available = staticmethod(lambda: True)
+def custom(operation,rows,*,today,statuses):
+    return {"counts":{"expired":1,"exact_duplicates":0,"shared_source":0,"unfinished":0}}
+NativeMemoryUpkeep._request = custom
+rows = [{"id":"a","status":"active","body":"x","scope":"task","source":"s","review_on":"2099-01-01"}]
+assert "expired=1" in source.startup_summary_line(rows,Path("."),"moru-hook",today=date(2026,11,13))
+"""
+        env = {**self.env,"PYTHONPATH":str(Path(source.__file__).parent)}
+        done = subprocess.run([sys.executable,"-B","-c",program],env=env,cwd=self.base,
+                              capture_output=True,text=True,timeout=8)
+        self.assertEqual(0,done.returncode,done.stderr)
+
+    def test_render_flag_requires_a_plain_boolean_before_transport(self):
+        with patch.object(NativeProbe,"request",side_effect=AssertionError("unexpected request")):
+            for value in (None,1,"true",[]):
+                self.assertIsNone(NativeMemoryStartup.hints([record()],TODAY,source.RECALLABLE_STATUSES,render=value))
 
     def test_fused_request_skips_python_normalization_and_date_parsing(self):
         marker = object()
