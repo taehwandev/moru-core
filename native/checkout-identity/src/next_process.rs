@@ -10,7 +10,10 @@ mod ledger;
 mod paths;
 #[path = "next_session.rs"]
 mod session;
-use crate::{next_verification::{StdinGuard, Verification}, pretool_guard::CallbackGuard};
+use crate::{
+    next_verification::{StdinGuard, Verification, VerificationSelectors},
+    pretool_guard::CallbackGuard,
+};
 use std::{env, ffi::OsString, io::Write, path::Path};
 pub(crate) struct NextProcess;
 impl NextProcess {
@@ -65,16 +68,16 @@ fn execute(launcher: &OsString, args: &[OsString]) -> Option<(i32, String, bool)
     };
     let verification = Verification::discover(&project)?;
     if let Some(evidence) = evidence {
-        let text = selected(&project, &evidence, home, &parsed.format, &verification)?;
+        let text = selected(&project, &evidence, home, &parsed.format, &verification, &core)?;
         input.commit();
         return Some((0, text, false));
     }
     let copyable = format!(
         "{} start --project {} --rules {} --command <route> --request \"<USER_REQUEST>\" \
          --intent <safe_slug> --target-summary \"<bounded target>\"",
-        home.join(".moru/bin/moru-hook").to_str()?,
-        project.to_str()?,
-        core.to_str()?
+        VerificationSelectors::sh_quote(home.join(".moru/bin/moru-hook").to_str()?),
+        VerificationSelectors::sh_quote(project.to_str()?),
+        VerificationSelectors::sh_quote(core.to_str()?)
     );
     let text = render(project.to_str()?, &copyable, &verification, &parsed.format);
     input.commit();
@@ -86,6 +89,7 @@ fn selected(
     home: &Path,
     format: &str,
     verification: &Verification,
+    core: &Path,
 ) -> Option<String> {
     let preflight_bytes = std::fs::read(&evidence).ok()?;
     let preflight =
@@ -100,6 +104,7 @@ fn selected(
         format,
         &home.join(".moru/bin/moru-hook"),
         &recorded,
+        Some(core),
     )
 }
 
@@ -121,10 +126,7 @@ fn render(project: &str, copyable: &str, verification: &Verification, format: &s
         "- next step: start".to_owned(),
         format!("- copyable command: {copyable}"),
     ];
-    if !verification.commands.is_empty() {
-        lines.push("- suggested fast verification for changed files:".to_owned());
-        lines.extend(verification.commands.iter().map(|s| format!("  * {s}")));
-    }
+    advice::NextAdvice::append_verification_markdown(&mut lines, verification);
     lines.join("\n") + "\n"
 }
 
@@ -137,8 +139,10 @@ mod tests {
             render("/한글", "start", &Verification::default(), "json"),
             "{\"copyable_command\": \"start\", \"next_step\": \"start\", \
              \"project\": \"/한글\", \"status\": \"no_active_run\", \
-             \"verification\": {\"changed_paths\": [], \"matched_test_modules\": [], \
-             \"suggested_commands\": []}}\n"
+             \"verification\": {\"changed_paths\": [], \"coverage_note\": \"\", \
+             \"matched_test_modules\": [], \"next_verify_batch\": [], \"omissions\": [], \
+             \"remaining_test_selectors\": [], \"suggested_commands\": [], \
+             \"test_selectors\": []}}\n"
         );
     }
 

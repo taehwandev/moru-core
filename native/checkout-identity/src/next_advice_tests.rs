@@ -10,6 +10,7 @@ fn advice(gates: &[&str]) -> Value {
             "json",
             Path::new("/launcher"),
             &BTreeSet::new(),
+            None,
         )
         .unwrap(),
     )
@@ -59,7 +60,8 @@ fn malformed_route_shapes_decline() {
             &Verification::default(),
             "json",
             Path::new("/l"),
-            &BTreeSet::new()
+            &BTreeSet::new(),
+            None,
         )
         .is_none());
     }

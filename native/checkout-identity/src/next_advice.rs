@@ -2,7 +2,7 @@
 //! forbidden imports: state writes, subprocess, gate validation; callers/tests: NextProcess;
 //! verification: explicit-evidence remaining-gate parity, generated canonical templates.
 use crate::{
-    next_verification::Verification,
+    next_verification::{Verification, VerificationSelectors},
     python_json::{PythonJson as Py, Value as PyValue},
     python_text::PythonText,
 };
@@ -19,6 +19,7 @@ impl NextAdvice {
         format: &str,
         launcher: &Path,
         recorded: &BTreeSet<String>,
+        core: Option<&Path>,
     ) -> Option<String> {
         let contract: Value = serde_json::from_str(CONTRACT).ok()?;
         let p = preflight.as_object()?;
@@ -57,6 +58,18 @@ impl NextAdvice {
         let prefix = format!("{}", launcher.to_str()?);
         let project = project.to_str()?;
         let evidence_text = evidence.to_str()?;
+        let rules_root = p
+            .get("rules")
+            .filter(|v| Py::truthy(v))
+            .map(Py::string)
+            .or_else(|| core.and_then(|c| c.to_str().map(str::to_owned)))
+            .unwrap_or_default();
+        let mut verification = verification.clone();
+        let verify_cmd = if gates.iter().any(|g| g == "tests") {
+            verification.apply_active_verify(&prefix, project, &rules_root, evidence_text)
+        } else {
+            None
+        };
         let (step, command, shape) = Self::decision(
             &contract,
             &prefix,
@@ -65,6 +78,7 @@ impl NextAdvice {
             &gates,
             &skills,
             &full_gates,
+            verify_cmd.as_deref(),
         )?;
         let field = |key: &str| p.get(key).filter(|v| Py::truthy(v)).map(Py::string);
         let run =
@@ -83,7 +97,10 @@ impl NextAdvice {
             .filter(|v| Py::truthy(v))
             .map(Py::string)
             .unwrap_or_default();
-        let (gate_repr, templates) = Self::templates(&contract, &gates, &skills)?;
+        let (gate_repr, mut templates) = Self::templates(&contract, &gates, &skills)?;
+        if let Some(batch_status) = &verification.batch_status {
+            templates.push(format!("Bounded verification batch: {batch_status}"));
+        }
         if format == "json" {
             let info = json!({"status":"active_run","project":project,"run_id":run,"work_id":work,"command":route_name,"evidence":evidence_text,"remaining_gates":gates,"loaded_skills":skills,"next_step":step,"copyable_command":command,"template_lines":templates,"review_shape":shape,"verification":serde_json::from_str::<Value>(&verification.json()).ok()?});
             return Some(Self::json(&info) + "\n");
@@ -97,11 +114,41 @@ impl NextAdvice {
             format!("- copyable command: {command}"),
         ];
         lines.extend(templates.iter().skip(1).map(|t| format!("- {t}")));
+        Self::append_verification_markdown(&mut lines, &verification);
+        Some(lines.join("\n") + "\n")
+    }
+
+    pub(crate) fn append_verification_markdown(lines: &mut Vec<String>, verification: &Verification) {
         if !verification.commands.is_empty() {
             lines.push("- suggested fast verification for changed files:".into());
             lines.extend(verification.commands.iter().map(|c| format!("  * {c}")));
         }
-        Some(lines.join("\n") + "\n")
+        if !verification.remaining_selectors.is_empty() {
+            lines.push(format!(
+                "- remaining test selectors beyond 64-selector batch ({}): {}",
+                verification.remaining_selectors.len(),
+                verification.remaining_selectors.join(", ")
+            ));
+        }
+        if !verification.omissions.is_empty() {
+            lines.push("- verification omissions:".into());
+            for item in &verification.omissions {
+                let kind = item["kind"].as_str().unwrap_or("");
+                let target = item["path"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| format!("{} items", item["count"]));
+                let reason = item["reason"].as_str().unwrap_or("");
+                lines.push(format!("  * [{kind}] {target}: {reason}"));
+            }
+        }
+        if !verification.coverage_note.is_empty() {
+            lines.push(format!(
+                "- verification scope note: {}",
+                verification.coverage_note
+            ));
+        }
     }
     fn skills(contract: &Value, route: &crate::python_json::Object) -> Option<Vec<String>> {
         let mut skills = BTreeSet::new();
@@ -149,6 +196,7 @@ impl NextAdvice {
         gates: &[String],
         skills: &[String],
         full_gates: &[String],
+        verify_cmd: Option<&str>,
     ) -> Option<(&'static str, String, String)> {
         let active_review = contract["review_gates"]
             .as_array()?
@@ -160,24 +208,34 @@ impl NextAdvice {
             .as_array()?
             .iter()
             .find(|v| v["gates"].as_array() == Some(&active_review))?;
+        let q_prefix = VerificationSelectors::sh_quote(prefix);
+        let q_project = VerificationSelectors::sh_quote(project);
+        let q_evidence = VerificationSelectors::sh_quote(evidence_text);
         let (step, command) = if let Some(index) = gates.iter().position(|g| g == "review hook") {
             let before = gates[..index]
                 .iter()
                 .filter(|g| g.as_str() != "commit readiness")
                 .cloned()
                 .collect::<Vec<_>>();
-            if before.is_empty() {
+            let other_pre = before
+                .iter()
+                .filter(|g| !(verify_cmd.is_some() && g.as_str() == "tests"))
+                .cloned()
+                .collect::<Vec<_>>();
+            if let Some(cmd) = verify_cmd.filter(|_| before.iter().any(|g| g == "tests") && other_pre.is_empty()) {
+                ("verify", cmd.to_owned())
+            } else if other_pre.is_empty() {
                 let flags = review["flags"]
                     .as_array()?
                     .iter()
                     .map(|v| Some(format!("{} \"<observed evidence>\"", v.as_str()?)))
                     .collect::<Option<Vec<_>>>()?
                     .join(" ");
-                ("review",format!("{prefix} review --project {project} --evidence {evidence_text} --review-outcome <pass|findings> {flags}"))
+                ("review", format!("{q_prefix} review --project {q_project} --evidence {q_evidence} --review-outcome <pass|findings> {flags}"))
             } else {
                 (
                     "record_pre_review_gates",
-                    Self::batch(&contract, &prefix, project, evidence_text, &before, &skills)?,
+                    Self::batch(&contract, &q_prefix, &q_project, &q_evidence, &other_pre, &skills)?,
                 )
             }
         } else {
@@ -186,15 +244,17 @@ impl NextAdvice {
                 .filter(|g| g.as_str() != "commit readiness")
                 .cloned()
                 .collect::<Vec<_>>();
-            if manual.is_empty() {
+            if let Some(cmd) = verify_cmd.filter(|_| manual.iter().any(|g| g == "tests")) {
+                ("verify", cmd.to_owned())
+            } else if manual.is_empty() {
                 (
                     "finish",
-                    format!("{prefix} finish --project {project} --evidence {evidence_text}"),
+                    format!("{q_prefix} finish --project {q_project} --evidence {q_evidence}"),
                 )
             } else {
                 (
                     "record_closeout_gates",
-                    Self::batch(&contract, &prefix, project, evidence_text, &manual, &skills)?,
+                    Self::batch(&contract, &q_prefix, &q_project, &q_evidence, &manual, &skills)?,
                 )
             }
         };

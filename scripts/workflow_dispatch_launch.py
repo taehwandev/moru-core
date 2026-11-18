@@ -32,7 +32,7 @@ from workflow_dispatch_handoff import (
 )
 from workflow_dispatch_retry import DEFAULT_MAX_RETRIES, WorkerOutcome, read_worker_outcome, recovery_message
 from workflow_dispatch_process import owns_task, run_worker
-from workflow_dispatch_completion import accepts_result, read_result
+from workflow_dispatch_completion import evaluate_result, read_result
 
 LEASE_RENEWAL_SECONDS = 600
 
@@ -95,7 +95,13 @@ def execute_dispatch_manifest(
     project = Path(str(manifest["project"])).resolve()
     scheduler_task = _claim_scheduler_task(manifest, prepared, project)
     heartbeat_interval = float(manifest.get("heartbeat_interval_seconds") or 0)
-    task_context = {"task": scheduler_task, "prepared": prepared}
+    task_context = {
+        "task": scheduler_task,
+        "prepared": prepared,
+        "working_dir": str(project),
+        "required_verification": manifest.get("required_verification"),
+        "authoring_policy": str(manifest.get("authoring_policy") or ""),
+    }
     task_context["allow_findings"] = (manifest.get("work_kind") in {"analysis", "review"}
                                      or manifest.get("command") in {"analysis", "review", "code-review"})
     if runner:
@@ -109,6 +115,7 @@ def execute_dispatch_manifest(
         # leaving it stuck as running before the worker loop's own guard begins.
         transition_task(project, str(scheduler_task["task_id"]), "failed")
         raise
+    task_context["working_dir"] = str(working_dir)
     if worktree_path:
         # Rebind ``--cd`` to the freshly created worktree so the real worker
         # process writes inside its isolated tree, never the shared checkout.
@@ -243,7 +250,16 @@ def _run_scheduled_worker(
         outcome = raw if isinstance(raw, WorkerOutcome) else WorkerOutcome(raw)
         if outcome.returncode == 0 and task_context and task_context.get("prepared"):
             packet = read_result(task_context["prepared"])
-            if not accepts_result(packet, allow_findings=task_context.get("allow_findings") is True):
+            accepted, assessment = evaluate_result(
+                packet,
+                allow_findings=task_context.get("allow_findings") is True,
+                prepared=task_context.get("prepared"),
+                required_verification=task_context.get("required_verification"),
+                working_dir=task_context.get("working_dir"),
+                authoring_policy=str(task_context.get("authoring_policy") or ""),
+            )
+            task_context["completion_assessment"] = assessment
+            if not accepted:
                 outcome = WorkerOutcome(1, "WORKER_RESULT_REJECTED")
         result = outcome.returncode
         # Events follow the guarded transition: an attempt that stale recovery

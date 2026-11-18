@@ -14,6 +14,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 from time import monotonic
 
@@ -72,13 +73,25 @@ def _verify_selection(args, path, preflight, command):
             verification_failure="no_progress",
         )
     started = monotonic()
-    code, count, passed = execute_unittest(command, args.project, args.verify_timeout)
+    observed = {}
+    execution_id = uuid.uuid4().hex
+    code, count, passed = execute_unittest(command, args.project, args.verify_timeout, observed=observed)
     after = _snapshot(preflight, candidate)
     stable = before["reuse_snapshot"] == after["reuse_snapshot"]
     success = code == 0 and passed and count > 0 and stable
     result = (f"exit={code}; tests={count}; elapsed={monotonic() - started:.3f}s; "
               f"inputs_unchanged={stable}")
     after["fields"]["result"] = result
+    after["fields"]["execution"] = json.dumps({
+        "schema_version": 1, "id": execution_id, "argv": command,
+        "exit_code": code, "tests_run": count, "successful": passed,
+        "inputs_unchanged": stable, "snapshot": before["reuse_snapshot"],
+        "passed_ids": observed.get("passed_ids", []),
+        "failed_ids": observed.get("failed_ids", []),
+        "passed_selectors": observed.get("passed_selectors", []),
+        "failed_selectors": observed.get("failed_selectors", []),
+        "ids_complete": observed.get("ids_complete", False),
+    }, ensure_ascii=False, separators=(",", ":"))
     after["status"] = "SUCCESS" if success else "FAIL"
     if not success:
         after.pop("reuse_snapshot", None)
@@ -95,8 +108,10 @@ def _verify_selection(args, path, preflight, command):
     return finish_with_result(
         "verify", success,
         [result, "Tests gate recorded for this selection; do not repeat gate-batch. Final review still applies.",
+         f"Execution record: receipt_ref={preflight.get('agent_run_id', '')}; execution_id={execution_id}",
          f"Remaining route gates: {progress['remaining_gates']}"],
-        getattr(args, "output", None), {"gate_evidence": after, "gate_progress": progress},
+        getattr(args, "output", None), {"gate_evidence": after, "gate_progress": progress,
+            "execution_reference": {"receipt_ref": preflight.get('agent_run_id', ''), 'execution_id': execution_id}},
         getattr(args, "repair_cycle", 0),
         verification_failure="" if success else "task_failure",
     )
@@ -137,7 +152,7 @@ def unittest_command(args) -> list[str]:
 
 def execute_unittest(command: list[str], project: Path, timeout: float,
                      extra_env: dict[str, str] | None = None,
-                     process_admission=None) -> tuple[int, int, bool]:
+                     process_admission=None, observed: dict | None = None) -> tuple[int, int, bool]:
     # Spool output rather than retaining an unbounded child log in memory or
     # the ledger. Print a bounded tail for diagnosis; persist only result facts.
     if process_admission is not None and os.name != "posix":
@@ -160,11 +175,30 @@ def execute_unittest(command: list[str], project: Path, timeout: float,
         tail = output.read().decode("utf-8", errors="replace")
         print(tail, end="" if tail.endswith("\n") else "\n")
         try:
-            result = json.loads(receipt.read_text(encoding="utf-8"))
+            if receipt.is_symlink():
+                raise ValueError("invalid unittest receipt path")
+            with receipt.open('rb') as stream:
+                payload = stream.read(262145)
+            if len(payload) > 262144:
+                raise ValueError("oversized unittest receipt")
+            result = json.loads(payload)
             count = result["tests_run"]
             passed = result["successful"]
             if type(count) is not int or count < 0 or type(passed) is not bool:
                 raise ValueError("invalid unittest result")
+            if observed is not None:
+                for key in ('passed_ids', 'failed_ids'):
+                    values = result.get(key, [])
+                    observed[key] = values if (isinstance(values, list) and len(values) <= 1024
+                        and all(isinstance(value, str) and len(value.encode('utf-8')) <= 512 for value in values)
+                        and sum(len(value.encode('utf-8')) for value in values) <= 65536) else []
+                observed['ids_complete'] = result.get('ids_complete') is True
+                pattern = command[-1]
+                allowed = json.loads(pattern[len('@selectors:'):]) if pattern.startswith('@selectors:') else []
+                for key in ('passed_selectors', 'failed_selectors'):
+                    labels = result.get(key, [])
+                    observed[key] = labels if (isinstance(labels, list) and len(labels) <= 64
+                        and all(isinstance(label, str) and label in allowed for label in labels)) else []
         except (OSError, ValueError, KeyError, TypeError):
             count, passed = 0, False
         return code, count, passed

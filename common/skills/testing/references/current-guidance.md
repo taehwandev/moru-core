@@ -241,6 +241,50 @@ the same reason does not replenish the budget. This applies to `moru-hook verify
 not arbitrary tool calls inside provider runtimes. Ordinary test failures do not
 require framework edits or structural repair receipts.
 
+### Observed verification in advice, dispatch and review
+
+The read-only next-action advisor connects eligible active Python tests to the
+verification runner. It lists unmatched or unsupported targets explicitly.
+For more than 64 named targets, current registered execution records advance
+the next batch without repeating covered targets or advising review after only
+the first batch. This large-batch path uses the canonical Python advisor; the
+native advisor defers before emitting output. Filename matches are suggestions,
+not proof of complete behavior coverage. Existing manual gate evidence retains
+its established scope and does not become observed execution automatically.
+
+The runner records a local execution ID, actual argument vector, outcome,
+input snapshot and bounded successful/failed test IDs. It prints the run and
+execution references for a consumer to link without copying counts from logs.
+Successful/failed selected-namespace summaries survive the detailed-ID limit;
+they prove only that selected namespace, never an unobserved child method.
+A narrower selected method cannot satisfy a broader required module. An
+unavailable test ID cannot prove a named requirement; use a bounded selection
+that can observe it. These records do not broaden execution
+authority, replace test-selection judgment or attest ignored/external inputs.
+
+Dispatch clients may explicitly set the manifest field
+`required_verification` to `true` or an object such as
+`{"required":true,"selectors":["test_owner.Case.test_behavior"],"test_directory":"tests"}`.
+Completion then requires a matching registered execution record for the issued
+project, rules, source and test scope. Worker checks are labeled
+`process_completion` or `caller_report`; they cannot self-label an observation.
+A parent route's tests gate remains the lead's responsibility, so a legacy
+worker does not acquire parent-ledger write access or a new test obligation.
+Declaring required verification grants no execution or mutation authority.
+
+Review packets accept an optional `--findings-file` containing a finding list
+or a worker-result object. Keep each finding's unique `id` and original source
+binding across revisions. A test-backed resolution can link
+`verification.after_pass` with `receipt_ref` (the registered 32-hex run ID),
+`execution_id` and `selector`; an optional `before_fail` uses the same fields
+for a recorded historical failure. Caller-written pass text or hashes cannot
+close a finding. Stale, missing, foreign or mismatched observations leave it
+unresolved. Low-impact comments may instead link `kind: "source_review"` and a
+run reference to a current canonical pathspec review covering that exact file;
+this does not require before/after tests. Reproducible defects still need test
+evidence. Resolution is per finding; it is not whole-task approval or an
+automatic provider submission.
+
 ## Report
 
 For automated checks, report command, result, and what boundary it proved. For

@@ -107,8 +107,67 @@ class AgentNextActionTests(unittest.TestCase):
 
         ver = next_action.suggest_verification_targets(self.project)
         self.assertIn("tests.test_foo_bar", ver["matched_test_modules"])
+        self.assertIn("test_foo_bar", ver["test_selectors"])
         self.assertTrue(any("py_compile" in cmd for cmd in ver["suggested_commands"]))
         self.assertTrue(any("tests.test_foo_bar" in cmd for cmd in ver["suggested_commands"]))
+
+    def test_active_tests_gate_connects_to_verify_runner_with_directory_relative_selectors(self) -> None:
+        (self.project / "tests" / "pkg").mkdir(parents=True)
+        (self.project / "tests" / "pkg" / "test_sub.py").write_text("import unittest\n", encoding="utf-8")
+        (self.project / "scripts").mkdir()
+        (self.project / "scripts" / "foo.py").write_text("x = 1\n", encoding="utf-8")
+        (self.project / "tests" / "test_foo.py").write_text("import unittest\n", encoding="utf-8")
+
+        run_id = "d" * 32
+        run_dir = self.project / ".moru" / "runs" / run_id
+        run_dir.mkdir(parents=True)
+        preflight_path = run_dir / "preflight.json"
+        preflight = {
+            "agent_run_id": run_id,
+            "rules": str(self.project),
+            "work": {"id": "e" * 32},
+            "route": {
+                "command": "small-change",
+                "gates": ["tests", "review hook", "retrospective check"],
+                "required_docs": [],
+            },
+        }
+        preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+
+        info = next_action.inspect_next_action(self.project, evidence=preflight_path)
+        self.assertEqual("verify", info["next_step"])
+        self.assertIn(" verify ", info["copyable_command"])
+        self.assertIn("--test-selector pkg.test_sub", info["copyable_command"])
+        self.assertIn("--test-selector test_foo", info["copyable_command"])
+        self.assertNotIn("--test-selector tests.", info["copyable_command"])
+        self.assertFalse(any("unittest " in c for c in info["verification"]["suggested_commands"]))
+        self.assertIn("do not prove full-suite", info["verification"]["coverage_note"])
+
+    def test_active_tests_gate_over_64_emits_bounded_batch_and_remaining(self) -> None:
+        (self.project / "tests").mkdir()
+        for idx in range(68):
+            (self.project / "tests" / f"test_n_{idx:02d}.py").write_text("import unittest\n", encoding="utf-8")
+        run_id = "f" * 32
+        run_dir = self.project / ".moru" / "runs" / run_id
+        run_dir.mkdir(parents=True)
+        preflight_path = run_dir / "preflight.json"
+        preflight_path.write_text(
+            json.dumps({
+                "agent_run_id": run_id,
+                "rules": str(self.project),
+                "work": {"id": "a" * 32},
+                "route": {"command": "small-change", "gates": ["tests", "review hook"], "required_docs": []},
+            }),
+            encoding="utf-8",
+        )
+
+        info = next_action.inspect_next_action(self.project, evidence=preflight_path)
+        self.assertEqual("verify", info["next_step"])
+        self.assertEqual(64, info["copyable_command"].count("--test-selector"))
+        self.assertEqual(4, len(info["verification"]["remaining_test_selectors"]))
+        self.assertIn("4 remaining selectors", info["verification"]["batch_status"])
+        rendered = next_action.render_next_markdown(info)
+        self.assertIn("remaining test selectors beyond 64-selector batch (4)", rendered)
 
     def test_cli_json_and_markdown_outputs(self) -> None:
         out = io.StringIO()

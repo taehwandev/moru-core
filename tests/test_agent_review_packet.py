@@ -243,6 +243,57 @@ class ReviewPacketTest(unittest.TestCase):
         self.assertFalse(bad_output.exists())
         self.assertNotIn(SECRET, errors.getvalue())
 
+    def test_findings_resolution_source_binding_and_cli_findings_file(self):
+        app_head = git(self.root, "rev-parse", "HEAD:app.py")
+        head_blob = subprocess.run(
+            ["git", "cat-file", "blob", f"HEAD:./app.py"], cwd=self.root, env=GIT_ENV, check=True, capture_output=True
+        ).stdout
+        orig_sha = hashlib.sha256(head_blob).hexdigest()
+        curr_sha = hashlib.sha256((self.root / "app.py").read_bytes()).hexdigest()
+        self.assertTrue(app_head)
+        self.assertNotEqual(orig_sha, curr_sha)
+
+        findings = [
+            {
+                "id": "F-OPEN", "file": "app.py", "line": 42, "severity": "high",
+                "claim": "helper call changed", "state": "open", "original_sha256": orig_sha,
+            },
+            {
+                "id": "F-PROSE", "file": "app.py", "line": 43, "severity": "high",
+                "claim": "missing check", "state": "closed", "original_sha256": orig_sha,
+            },
+            {
+                "id": "F-VERIFIED", "file": "app.py", "line": 44, "severity": "medium",
+                "claim": "fixed with test", "state": "fixed", "original_sha256": orig_sha,
+                "verification": {"outcome": "pass", "exit_code": 0, "tests_run": 1, "source_sha256": curr_sha},
+            },
+            {
+                "id": "F-SECRET-PATH", "file": ".env", "line": 1, "severity": "high",
+                "claim": "ignored env file", "state": "closed",
+            },
+        ]
+        packet = ReviewPacket.build(self.root, ["app.py"], findings=findings)
+        by_id = {item["id"]: item for item in packet["findings"]}
+        self.assertEqual("stale", by_id["F-OPEN"]["state"])
+        self.assertEqual("reopened", by_id["F-PROSE"]["state"])
+        # Caller-written pass fields are claims; no registered receipt was supplied.
+        self.assertEqual("reopened", by_id["F-VERIFIED"]["state"])
+        self.assertEqual("reopened", by_id["F-SECRET-PATH"]["state"])
+        self.assertEqual(curr_sha, by_id["F-OPEN"]["source_binding"]["current_sha256"])
+        self.assertNotIn(SECRET, ReviewPacket.render(packet))
+        self.assertEqual(["F-OPEN", "F-PROSE", "F-VERIFIED", "F-SECRET-PATH"], packet["re_review"]["unresolved_ids"])
+        self.assertEqual(["F-OPEN", "F-PROSE", "F-VERIFIED"], packet["re_review"]["stale_ids"])
+        self.assertIn({"kind": "finding_source", "path": ".env", "reason": "excluded_or_untracked_path"}, packet["omissions"])
+
+        # CLI --findings-file also accepts a worker-result-shaped JSON object
+        worker_json = self.base / "worker-result.json"
+        worker_json.write_text(json.dumps({"schema_version": "worker_result_v1", "findings": findings}), encoding="utf-8")
+        out_path = self.base / "rereview-packet.json"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            code = _main(["--project", str(self.root), "--path", "app.py", "--findings-file", str(worker_json), "--output", str(out_path)])
+        self.assertEqual(0, code)
+        self.assertEqual(ReviewPacket.render(packet), out_path.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

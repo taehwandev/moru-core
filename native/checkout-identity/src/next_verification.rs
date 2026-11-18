@@ -5,92 +5,212 @@
 mod git;
 #[path = "next_verification_stdin.rs"]
 mod input;
+#[path = "next_verification_render.rs"]
+mod render;
+#[path = "next_verification_selectors.rs"]
+mod selectors;
 use crate::{python_text::PythonText, text::Text};
 pub(crate) use input::StdinGuard;
+use render::VerificationRender;
+pub(crate) use selectors::VerificationSelectors;
+use serde_json::Value;
 use std::{
     collections::BTreeSet,
     path::{Component, Path},
 };
 
-#[derive(Default)]
+pub(super) const RUNNER_SELECTOR_LIMIT: usize = 64;
+const COMPILE_TARGET_LIMIT: usize = 64;
+const FALLBACK_MARKERS: [(&str, &str); 5] = [
+    ("package.json", "npm test"),
+    ("Cargo.toml", "cargo test"),
+    ("go.mod", "go test ./..."),
+    ("Package.swift", "swift test"),
+    ("gradlew", "./gradlew test"),
+];
+
+#[derive(Default, Clone)]
 pub(crate) struct Verification {
     paths: Vec<String>,
     modules: Vec<String>,
+    pub(crate) selectors: Vec<String>,
+    pub(crate) next_batch: Vec<String>,
+    pub(crate) remaining_selectors: Vec<String>,
+    pub(crate) omissions: Vec<Value>,
+    pub(crate) coverage_note: String,
     pub(crate) commands: Vec<String>,
+    pub(crate) verify_command: Option<String>,
+    pub(crate) batch_status: Option<String>,
+}
+
+#[derive(Default)]
+struct TargetCollector {
+    compile: BTreeSet<String>,
+    modules: BTreeSet<String>,
+    selectors: BTreeSet<String>,
+    omissions: Vec<Value>,
+    seen: BTreeSet<(String, String, String)>,
+}
+
+impl TargetCollector {
+    fn record_selector(
+        &mut self,
+        tests_dir: &Path,
+        rel_under_tests: &[&str],
+        omission_path: &str,
+    ) -> Option<bool> {
+        match VerificationSelectors::selector_eligibility(
+            tests_dir,
+            rel_under_tests,
+            reference_is_file,
+        )? {
+            Ok(sel) => {
+                self.modules.insert(format!("tests.{sel}"));
+                self.selectors.insert(sel);
+                Some(true)
+            }
+            Err(reason) => {
+                VerificationRender::push_omission(
+                    &mut self.omissions,
+                    &mut self.seen,
+                    "unsupported_test_file",
+                    omission_path,
+                    reason,
+                    None,
+                );
+                Some(false)
+            }
+        }
+    }
 }
 
 impl Verification {
     pub(crate) fn discover(project: &Path) -> Option<Self> {
         let paths = changed_paths(&git::VerificationGit::status(project)?);
-        let mut modules = BTreeSet::new();
-        let mut compile = Vec::new();
-        for raw in &paths {
+        let collected = Self::collect_targets(project, &paths)?;
+        Self::from_collected(project, paths, collected)
+    }
+
+    fn from_collected(
+        project: &Path,
+        paths: Vec<String>,
+        mut collected: TargetCollector,
+    ) -> Option<Self> {
+        // Batches above 64 selectors require multi-batch Python verification receipt handling.
+        if collected.selectors.len() > RUNNER_SELECTOR_LIMIT {
+            return None;
+        }
+        let selectors: Vec<String> = collected.selectors.into_iter().collect();
+        let modules: Vec<String> = collected.modules.into_iter().collect();
+        let compile: Vec<String> = collected.compile.into_iter().collect();
+        let compile_batch_len = compile.len().min(COMPILE_TARGET_LIMIT);
+        if compile.len() > COMPILE_TARGET_LIMIT {
+            VerificationRender::push_omission(
+                &mut collected.omissions,
+                &mut collected.seen,
+                "compile_limit",
+                "",
+                "exceeds_compile_64_target_limit",
+                Some(compile.len() - COMPILE_TARGET_LIMIT),
+            );
+        }
+        let fallback = if modules.is_empty() {
+            fallback_command(project)?
+        } else {
+            None
+        };
+        let commands =
+            VerificationRender::build_commands(&compile[..compile_batch_len], &modules, fallback);
+        let coverage_note =
+            VerificationRender::coverage_note(!selectors.is_empty(), !compile.is_empty());
+        Some(Self {
+            paths,
+            modules,
+            next_batch: selectors.clone(),
+            selectors,
+            remaining_selectors: Vec::new(),
+            omissions: collected.omissions,
+            coverage_note,
+            commands,
+            verify_command: None,
+            batch_status: None,
+        })
+    }
+
+    fn collect_targets(project: &Path, paths: &[String]) -> Option<TargetCollector> {
+        let mut collected = TargetCollector::default();
+        let tests_dir = project.join("tests");
+        for raw in paths {
             let normalized = Text::norm_path(raw);
             let path = Path::new(&normalized);
             let Some(stem) = python_stem(&normalized) else {
                 continue;
             };
-            if reference_is_file(&project.join(path))? {
-                compile.push(normalized.clone());
+            let is_file = reference_is_file(&project.join(path))?;
+            if is_file {
+                collected.compile.insert(normalized.clone());
             }
-            if path.components().next() == Some(Component::Normal("tests".as_ref()))
-                && path.file_name()?.to_str()?.starts_with("test_")
+            let comps: Vec<&str> = path
+                .components()
+                .filter_map(|c| match c {
+                    Component::Normal(s) => s.to_str(),
+                    _ => None,
+                })
+                .collect();
+            let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            if comps.first() == Some(&"tests") && file_name.starts_with("test_") && comps.len() >= 2
             {
-                modules.insert(format!("tests.{stem}"));
+                collected.record_selector(&tests_dir, &comps[1..], &normalized)?;
                 continue;
             }
+            let mut matched = false;
             for name in [
                 format!("test_{}.py", stem.replace('-', "_")),
                 format!("test_support_{}.py", stem.replace('-', "_")),
             ] {
-                let candidate = project.join("tests").join(name);
-                if reference_is_file(&candidate)? {
-                    modules.insert(format!("tests.{}", candidate.file_stem()?.to_str()?));
+                let candidate = tests_dir.join(&name);
+                if VerificationSelectors::path_exists_lstat(&candidate)?
+                    && collected.record_selector(&tests_dir, &[&name], &format!("tests/{name}"))?
+                {
+                    matched = true;
                 }
             }
-        }
-        let modules: Vec<String> = modules.into_iter().collect();
-        let mut commands = Vec::new();
-        if !compile.is_empty() {
-            commands.push(format!(
-                "python3 -B -m py_compile {}",
-                compile[..compile.len().min(8)].join(" ")
-            ));
-        }
-        if !modules.is_empty() {
-            commands.push(format!(
-                "PYTHONPATH=tests:scripts python3 -B -m unittest {}",
-                modules[..modules.len().min(10)].join(" ")
-            ));
-        } else {
-            for (marker, command) in [
-                ("package.json", "npm test"),
-                ("Cargo.toml", "cargo test"),
-                ("go.mod", "go test ./..."),
-                ("Package.swift", "swift test"),
-                ("gradlew", "./gradlew test"),
-            ] {
-                if reference_is_file(&project.join(marker))? {
-                    commands.push(command.to_owned());
-                    break;
-                }
+            if !matched && is_file && file_name != "__init__.py" {
+                VerificationRender::push_omission(
+                    &mut collected.omissions,
+                    &mut collected.seen,
+                    "unmatched_python_file",
+                    &normalized,
+                    "no_matching_test_file",
+                    None,
+                );
             }
         }
-        Some(Self {
-            paths,
-            modules,
-            commands,
-        })
+        Some(collected)
+    }
+
+    pub(crate) fn apply_active_verify(
+        &mut self,
+        launcher: &str,
+        project: &str,
+        rules: &str,
+        evidence: &str,
+    ) -> Option<String> {
+        VerificationRender::apply_active_verify(self, launcher, project, rules, evidence)
     }
 
     pub(crate) fn json(&self) -> String {
-        format!(
-            "{{\"changed_paths\": {}, \"matched_test_modules\": {}, \"suggested_commands\": {}}}",
-            array(&self.paths),
-            array(&self.modules),
-            array(&self.commands)
-        )
+        VerificationRender::json(self)
     }
+}
+
+fn fallback_command(project: &Path) -> Option<Option<&'static str>> {
+    for (marker, command) in FALLBACK_MARKERS {
+        if reference_is_file(&project.join(marker))? {
+            return Some(Some(command));
+        }
+    }
+    Some(None)
 }
 
 fn reference_is_file(path: &Path) -> Option<bool> {
@@ -111,17 +231,6 @@ fn reference_is_file(path: &Path) -> Option<bool> {
         }
         Err(_) => None,
     }
-}
-
-fn array(values: &[String]) -> String {
-    format!(
-        "[{}]",
-        values
-            .iter()
-            .map(|s| serde_json::to_string(s).unwrap())
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
 }
 
 fn python_stem(normalized: &str) -> Option<&str> {
@@ -263,5 +372,19 @@ mod tests {
     fn uncertain_metadata_error_does_not_become_false() {
         let path = std::env::temp_dir().join("x".repeat(5000));
         assert_eq!(reference_is_file(&path), None);
+    }
+
+    #[test]
+    fn selector_count_above_64_falls_back_to_none() {
+        let build = |count: usize| {
+            let mut collector = TargetCollector::default();
+            for i in 0..count {
+                collector.selectors.insert(format!("test_case_{i:02}"));
+                collector.modules.insert(format!("tests.test_case_{i:02}"));
+            }
+            Verification::from_collected(Path::new("/project"), Vec::new(), collector)
+        };
+        assert_eq!(build(RUNNER_SELECTOR_LIMIT).unwrap().selectors.len(), 64);
+        assert!(build(RUNNER_SELECTOR_LIMIT + 1).is_none());
     }
 }

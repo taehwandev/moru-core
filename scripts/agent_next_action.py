@@ -3,7 +3,7 @@
 
 Owner: developer-experience next-step guidance and changed-file test discovery.
 Allowed imports: standard library, agent_finish_gate_learning_validators,
-agent_gate_evidence, agent_gate_record_template,
+agent_gate_evidence, agent_gate_record_template, agent_next_verification,
 agent_review_hook, agent_route_state, agent_runtime_session,
 agent_skill_catalog, agent_start_guidance, support.bounded_git, support.stable_launcher.
 Forbidden imports: mutating lifecycle writers or test execution side effects.
@@ -17,6 +17,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from agent_next_verification import (
+    apply_active_verify_advice,
+    discover_verification_targets,
+    reconcile_verify_batches,
+    shell_quote,
+)
 from agent_runtime_session import resolve_runtime_evidence, runtime_session
 from support.bounded_git import run_git
 from support.stable_launcher import stable_launcher_path
@@ -52,51 +58,7 @@ def suggest_verification_targets(project: Path, changed_paths: list[str] | None 
     """Map changed files to the nearest unit test selectors and fast verification commands."""
     resolved = project.expanduser().resolve()
     paths = changed_paths if changed_paths is not None else discover_changed_paths(resolved)
-    unittest_modules: list[str] = []
-    compile_targets: list[str] = []
-
-    tests_dir = resolved / "tests"
-    for rel_str in paths:
-        rel = Path(rel_str)
-        if rel.suffix == ".py" and (resolved / rel).is_file():
-            compile_targets.append(rel.as_posix())
-        if rel.parts and rel.parts[0] == "tests" and rel.name.startswith("test_") and rel.suffix == ".py":
-            unittest_modules.append(f"tests.{rel.stem}")
-            continue
-        if rel.suffix == ".py":
-            stem = rel.stem.replace("-", "_")
-            candidates = [
-                tests_dir / f"test_{stem}.py",
-                tests_dir / f"test_support_{stem}.py",
-            ]
-            for cand in candidates:
-                if cand.is_file():
-                    unittest_modules.append(f"tests.{cand.stem}")
-
-    unittest_modules = sorted(dict.fromkeys(unittest_modules))
-    commands: list[str] = []
-    if compile_targets:
-        quoted = " ".join(compile_targets[:8])
-        commands.append(f"python3 -B -m py_compile {quoted}")
-    if unittest_modules:
-        selectors = " ".join(unittest_modules[:10])
-        commands.append(f"PYTHONPATH=tests:scripts python3 -B -m unittest {selectors}")
-    elif (resolved / "package.json").is_file():
-        commands.append("npm test")
-    elif (resolved / "Cargo.toml").is_file():
-        commands.append("cargo test")
-    elif (resolved / "go.mod").is_file():
-        commands.append("go test ./...")
-    elif (resolved / "Package.swift").is_file():
-        commands.append("swift test")
-    elif (resolved / "gradlew").is_file():
-        commands.append("./gradlew test")
-
-    return {
-        "changed_paths": paths,
-        "matched_test_modules": unittest_modules,
-        "suggested_commands": commands,
-    }
+    return discover_verification_targets(resolved, paths)
 
 
 def _find_active_preflight(project: Path, explicit_evidence: Path | None = None) -> Path | None:
@@ -133,9 +95,22 @@ def _build_gate_batch_command(
         records.append({"gate": gate, "status": "<SUCCESS or FAIL>", "fields": fields})
     serialized = json.dumps(records, ensure_ascii=False, separators=(",", ":"))
     return (
-        f"{launcher} gate-batch --project {project} --evidence {evidence_path} "
+        f"{shell_quote(launcher)} gate-batch --project {shell_quote(str(project))} "
+        f"--evidence {shell_quote(str(evidence_path))} "
         f"--gate-record '{serialized}'"
     )
+
+
+def _no_active_advice(launcher, resolved, verification):
+    return {
+        "status": "no_active_run", "project": str(resolved), "next_step": "start",
+        "copyable_command": (
+            f"{shell_quote(launcher)} start --project {shell_quote(str(resolved))} "
+            f"--rules {shell_quote(str(ROOT))} --command <route> "
+            '--request "<USER_REQUEST>" --intent <safe_slug> '
+            '--target-summary "<bounded target>"'),
+        "verification": verification,
+    }
 
 
 def inspect_next_action(project: Path, *, evidence: Path | None = None) -> dict[str, Any]:
@@ -146,17 +121,7 @@ def inspect_next_action(project: Path, *, evidence: Path | None = None) -> dict[
     verification = suggest_verification_targets(resolved)
 
     if preflight_path is None:
-        return {
-            "status": "no_active_run",
-            "project": str(resolved),
-            "next_step": "start",
-            "copyable_command": (
-                f'{launcher} start --project {resolved} --rules {ROOT} --command <route> '
-                '--request "<USER_REQUEST>" --intent <safe_slug> '
-                '--target-summary "<bounded target>"'
-            ),
-            "verification": verification,
-        }
+        return _no_active_advice(launcher, resolved, verification)
 
     try:
         preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
@@ -181,32 +146,66 @@ def inspect_next_action(project: Path, *, evidence: Path | None = None) -> dict[
     recorded, _diagnostics = merge_gate_evidence_from_ledger(route=route, evidence_path=preflight_path)
     remaining = [gate for gate in gates if not recorded.get(gate)]
     loaded_skills = sorted(skill_ids_from_doc_paths(required_docs_for_route(route) or []))
+    rules_root = str(preflight.get("rules") or ROOT)
+    reconciled = reconcile_verify_batches(verification, project=resolved, rules=rules_root,
+                                         evidence_path=preflight_path)
+    if reconciled and not verification['observed_selection_complete'] and 'tests' in gates:
+        remaining = [gate for gate in gates if gate == 'tests' or gate not in recorded]
+    verify_cmd = (
+        apply_active_verify_advice(
+            verification,
+            launcher=launcher,
+            project=resolved,
+            rules=rules_root,
+            evidence_path=preflight_path,
+        )
+        if "tests" in remaining
+        else None
+    )
 
     if not remaining:
         next_step = "finish"
-        copyable = f"{launcher} finish --project {resolved} --evidence {preflight_path}"
+        copyable = (
+            f"{shell_quote(launcher)} finish --project {shell_quote(str(resolved))} "
+            f"--evidence {shell_quote(str(preflight_path))}"
+        )
     elif "review hook" in remaining:
         idx = remaining.index("review hook")
         pre_review = [g for g in remaining[:idx] if g not in ("review hook", "commit readiness")]
-        if pre_review:
+        other_pre = [g for g in pre_review if not (verify_cmd and g == "tests")]
+        if verify_cmd and "tests" in pre_review and not other_pre:
+            next_step = "verify"
+            copyable = verify_cmd
+        elif other_pre:
             next_step = "record_pre_review_gates"
-            copyable = _build_gate_batch_command(launcher, resolved, preflight_path, pre_review, loaded_skills)
+            copyable = _build_gate_batch_command(launcher, resolved, preflight_path, other_pre, loaded_skills)
         else:
             next_step = "review"
             flags = required_review_evidence_flags(gates)
             flag_str = " ".join(f'{flag} "<observed evidence>"' for flag in flags)
             copyable = (
-                f"{launcher} review --project {resolved} --evidence {preflight_path} "
+                f"{shell_quote(launcher)} review --project {shell_quote(str(resolved))} "
+                f"--evidence {shell_quote(str(preflight_path))} "
                 f"--review-outcome <pass|findings> {flag_str}"
             )
     else:
         manual_remaining = [g for g in remaining if g not in ("review hook", "commit readiness")]
-        if manual_remaining:
+        if verify_cmd and "tests" in manual_remaining:
+            next_step = "verify"
+            copyable = verify_cmd
+        elif manual_remaining:
             next_step = "record_closeout_gates"
             copyable = _build_gate_batch_command(launcher, resolved, preflight_path, manual_remaining, loaded_skills)
         else:
             next_step = "finish"
-            copyable = f"{launcher} finish --project {resolved} --evidence {preflight_path}"
+            copyable = (
+                f"{shell_quote(launcher)} finish --project {shell_quote(str(resolved))} "
+                f"--evidence {shell_quote(str(preflight_path))}"
+            )
+
+    template_lines = remaining_gate_template_lines(remaining, loaded_skills)
+    if verification.get("batch_status"):
+        template_lines = [*template_lines, f"Bounded verification batch: {verification['batch_status']}"]
 
     return {
         "status": "active_run",
@@ -219,7 +218,7 @@ def inspect_next_action(project: Path, *, evidence: Path | None = None) -> dict[
         "loaded_skills": loaded_skills,
         "next_step": next_step,
         "copyable_command": copyable,
-        "template_lines": remaining_gate_template_lines(remaining, loaded_skills),
+        "template_lines": template_lines,
         "review_shape": review_shape_line(required_review_evidence_flags(gates)) if "review hook" in gates else "",
         "verification": verification,
     }
@@ -249,6 +248,19 @@ def render_next_markdown(info: dict[str, Any]) -> str:
         lines.append("- suggested fast verification for changed files:")
         for cmd in ver["suggested_commands"]:
             lines.append(f"  * {cmd}")
+    if ver.get("remaining_test_selectors"):
+        rem = ver["remaining_test_selectors"]
+        lines.append(
+            f"- remaining test selectors beyond 64-selector batch ({len(rem)}): "
+            + ", ".join(rem)
+        )
+    if ver.get("omissions"):
+        lines.append("- verification omissions:")
+        for item in ver["omissions"]:
+            target = item.get("path") or f"{item.get('count', '')} items"
+            lines.append(f"  * [{item.get('kind')}] {target}: {item.get('reason')}")
+    if ver.get("coverage_note"):
+        lines.append(f"- verification scope note: {ver['coverage_note']}")
     return "\n".join(lines)
 
 

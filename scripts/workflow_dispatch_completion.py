@@ -1,5 +1,5 @@
 """Owner: bounded worker completion policy and native compatibility adapter.
-Allowed imports: stdlib; forbidden: scheduler mutations, providers and retries.
+Allowed imports: stdlib, workflow_dispatch_verification; forbidden: scheduler mutations, providers and retries.
 Caller: dispatch launch; tests: test_workflow_dispatch_completion (native parity).
 """
 import json
@@ -7,8 +7,18 @@ import os
 from pathlib import Path
 import subprocess
 
+from workflow_dispatch_verification import assess_completion_verification
 
-def accepts_result(packet, *, allow_findings=False):
+
+def evaluate_result(
+    packet,
+    *,
+    allow_findings=False,
+    prepared=None,
+    required_verification=None,
+    working_dir=None,
+    authoring_policy="",
+):
     request = {'returncode': 0, 'allow_findings': allow_findings, 'packet': packet}
     native = os.environ.get('MORU_WORKER_COMPLETION_NATIVE')
     if native:
@@ -16,11 +26,45 @@ def accepts_result(packet, *, allow_findings=False):
             result = subprocess.run([native, 'offline-worker', '--worker-completion-probe'],
                 input=json.dumps(request, ensure_ascii=False, allow_nan=False).encode(),
                 capture_output=True, timeout=5)
-            return (result.returncode == 0 and not result.stderr
-                    and result.stdout == b'true\n')
+            packet_ok = (result.returncode == 0 and not result.stderr
+                         and result.stdout == b'true\n')
         except (OSError, ValueError, subprocess.TimeoutExpired):
-            return False  # An explicitly selected candidate never falls back silently.
-    return _reference(request)
+            packet_ok = False  # An explicitly selected candidate never falls back silently.
+    else:
+        packet_ok = _reference(request)
+
+    assessment = assess_completion_verification(
+        packet if isinstance(packet, dict) else None,
+        prepared=prepared,
+        required_verification=required_verification,
+        allow_findings=allow_findings,
+        working_dir=working_dir,
+        authoring_policy=authoring_policy,
+    )
+    if not packet_ok:
+        return False, {**assessment, "accepted": False, "reason": "worker_packet_rejected"}
+    accepted = bool(assessment["satisfied"])
+    return accepted, {**assessment, "accepted": accepted}
+
+
+def accepts_result(
+    packet,
+    *,
+    allow_findings=False,
+    prepared=None,
+    required_verification=None,
+    working_dir=None,
+    authoring_policy="",
+):
+    accepted, _assessment = evaluate_result(
+        packet,
+        allow_findings=allow_findings,
+        prepared=prepared,
+        required_verification=required_verification,
+        working_dir=working_dir,
+        authoring_policy=authoring_policy,
+    )
+    return accepted
 
 
 def _reference(request):

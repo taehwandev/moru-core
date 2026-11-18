@@ -17,6 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from agent_review_findings import collect_packet_findings
 from agent_review_packet_context import ReviewContext as _Context
 from agent_review_packet_contracts import ReviewContracts as _Contracts
 from agent_review_packet_assembly import ReviewAssembly as _Assembly
@@ -144,13 +145,18 @@ class ReviewPacket:
 
     @staticmethod
     def build(project: Path, paths: list[str], *, contexts: list[str] = (), checks: list[dict] = (),
-              max_bytes: int = 32768) -> dict:
+              findings: list[dict] = (), max_bytes: int = 32768) -> dict:
         if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or not _MIN_BYTES <= max_bytes <= _MAX_BYTES:
             raise _PacketError(f"max_bytes must be an integer between {_MIN_BYTES} and {_MAX_BYTES}")
         for name, value in (("paths", paths), ("contexts", contexts)):
             bad = not isinstance(value, (list, tuple)) or len(value) > _MAX_FILES or len(set(map(repr, value))) != len(value)
             if bad or (name == "paths" and not value):
                 raise _PacketError(f"{name} must be a list of unique entries (at most {_MAX_FILES}; paths needs one)")
+        if not isinstance(findings, (list, tuple)) or any(
+            not isinstance(item, (dict, str)) or (isinstance(item, str) and not item.strip())
+            for item in findings
+        ):
+            raise _PacketError("findings must be a list of finding dicts or non-empty strings")
         specs = [spec.partition(":")[::2] if isinstance(spec, str) else ("", "") for spec in contexts]
         for number, (rel, symbol) in enumerate(specs):
             if not rel.endswith(".py") or not symbol or not all(part.isidentifier() for part in symbol.split(".")):
@@ -199,50 +205,32 @@ class ReviewPacket:
                 seen.add((rel, symbol))
                 section = _Context.section(rel, symbol, index[symbol], _lines(current), "context")
                 extra.append(("contexts", section, _omit("context", rel, _TOO_BIG, symbol)))
-        contracts, gaps = ReviewPacket._contracts(root, head, loaded, files, selections)
+        contracts, gaps = _collect_contracts(root, head, loaded, files, selections)
         fixed += gaps
-        pending, kept = diffs + extra + [('contracts', section, _omit('contract', section['path'], _TOO_BIG, section['symbol']))
-                                        for section in contracts] + changed + helpers, set()
+        finding_items, re_review, finding_omissions = _packet_findings(
+            root, head, loaded, files, findings, {item[1]["path"] for item in diffs}
+        )
+        fixed += finding_omissions
+        unresolved_findings = [item for item in finding_items if item[1]["state"] != "resolved"]
+        resolved_findings = [item for item in finding_items if item[1]["state"] == "resolved"]
+        pending = (
+            diffs + unresolved_findings + extra
+            + [('contracts', section, _omit('contract', section['path'], _TOO_BIG, section['symbol'])) for section in contracts]
+            + changed + helpers + resolved_findings
+        )
         fixed += [dict(item[2], reason='section_count_budget') for item in pending[128:]]
         pending = pending[:128]
         packet = {"schema_version": _SCHEMA_VERSION, "kind": "review_packet", "context_only": True, "no_execution": True,
                   "notice": _NOTICE, "head": head, "max_bytes": max_bytes, "files": files, "diffs": [], "definitions": [],
-                  "contexts": [], 'contracts': [], "checks": {"provenance": _RECORDED, "items": recorded}, "omissions": [],
-                  "packet_sha256": "0" * 64}
+                  "contexts": [], 'contracts': [], "findings": [], "checks": {"provenance": _RECORDED, "items": recorded},
+                  "omissions": [], "packet_sha256": "0" * 64}
+        if re_review is not None:
+            packet["re_review"] = re_review
 
         try:
             return _Assembly.build(packet, pending, fixed, ReviewPacket.render)
         except ValueError as error:
             raise _PacketError(str(error)) from None
-
-    @staticmethod
-    def _contracts(root, head, loaded, files, selections):
-        sections, omissions, seen = [], [], set()
-        def read(rel):
-            if rel not in loaded:
-                if len(loaded) >= 50:
-                    raise _PacketError('contract source budget exceeded')
-                _guard(root, 'local contract', rel)
-                loaded[rel] = _load(root, rel, head)
-                files.append(dict(loaded[rel][0], role='contract'))
-            _, text, _, reason = loaded[rel]
-            if text is None or reason:
-                raise _PacketError('local contract source is unavailable')
-            return text
-        for rel, symbols in selections.items():
-            additions, gaps = _Contracts.collect(root, rel, loaded[rel][1], symbols, read)
-            omissions += gaps
-            for section in additions:
-                key = (section['path'], section['start_line'], section['end_line'], section['role'])
-                if key not in seen:
-                    seen.add(key)
-                    section['symbols'] = [section['symbol']]
-                    sections.append(section)
-                else:
-                    prior = next(s for s in sections if (s['path'], s['start_line'], s['end_line'], s['role']) == key)
-                    if section['symbol'] not in prior['symbols']:
-                        prior['symbols'].append(section['symbol'])
-        return sections, omissions
 
     @staticmethod
     def render(packet: dict) -> str:
@@ -251,22 +239,94 @@ class ReviewPacket:
         return json.dumps(packet, ensure_ascii=False, sort_keys=True, indent=1, allow_nan=False) + "\n"
 
 
+
+def _collect_contracts(root, head, loaded, files, selections):
+    sections, omissions, seen = [], [], set()
+    def read(rel):
+        if rel not in loaded:
+            if len(loaded) >= 50:
+                raise _PacketError('contract source budget exceeded')
+            _guard(root, 'local contract', rel)
+            loaded[rel] = _load(root, rel, head)
+            files.append(dict(loaded[rel][0], role='contract'))
+        _, text, _, reason = loaded[rel]
+        if text is None or reason:
+            raise _PacketError('local contract source is unavailable')
+        return text
+    for rel, symbols in selections.items():
+        additions, gaps = _Contracts.collect(root, rel, loaded[rel][1], symbols, read)
+        omissions += gaps
+        for section in additions:
+            key = (section['path'], section['start_line'], section['end_line'], section['role'])
+            if key not in seen:
+                seen.add(key)
+                section['symbols'] = [section['symbol']]
+                sections.append(section)
+            else:
+                prior = next(s for s in sections if (s['path'], s['start_line'], s['end_line'], s['role']) == key)
+                if section['symbol'] not in prior['symbols']:
+                    prior['symbols'].append(section['symbol'])
+    return sections, omissions
+
+
+
+def _packet_findings(root, head, loaded, files, raw_findings, diff_paths):
+    if not raw_findings:
+        return [], None, []
+    omissions = []
+    def read_source(rel):
+        if rel in loaded:
+            return loaded[rel][0]
+        if len(loaded) >= 50:
+            omissions.append(_omit("finding_source", rel, "source_file_budget"))
+            return {"status": "unverified_file"}
+        try:
+            _guard(root, "finding", rel)
+            loaded[rel] = _load(root, rel, head)
+            files.append(dict(loaded[rel][0], role="finding"))
+            return loaded[rel][0]
+        except _PacketError:
+            omissions.append(_omit("finding_source", rel, "excluded_or_untracked_path"))
+            return {"status": "unverified_file"}
+    try:
+        entries, summary = collect_packet_findings(root, raw_findings, read_source,
+            claim_bytes=_MAX_FIELD, max_findings=_MAX_CHECKS, changed_repo_paths=diff_paths)
+    except ValueError:
+        raise _PacketError("finding identities or evidence metadata are invalid") from None
+    if len(raw_findings) > _MAX_CHECKS:
+        omissions.append({"kind": "finding", "path": "", "reason": "finding_count_budget",
+                          "count": len(raw_findings) - _MAX_CHECKS})
+    pending = [("findings", entry, _omit("finding", entry["file"], _TOO_BIG, entry["id"])) for entry in entries]
+    return pending, summary, omissions
+
+
+def _read_bounded_json(path_str: str):
+    if os.path.islink(path_str):
+        raise _PacketError("input JSON file cannot be a symlink")
+    with open(path_str, encoding="utf-8") as handle:
+        if os.fstat(handle.fileno()).st_size > 65536:
+            raise _PacketError("input JSON file exceeds size limit")
+        return json.loads(handle.read(65537))
+
+
 def _main(argv=None):
     parser = argparse.ArgumentParser(description="Write a source-only review packet to a local file; runs nothing.")
     parser.add_argument("--project", default=".")
     parser.add_argument("--path", action="append", required=True, dest="paths")
     parser.add_argument("--context", action="append", default=[], dest="contexts", metavar="path.py:Qualified.Symbol")
     parser.add_argument("--checks-file")
+    parser.add_argument("--findings-file")
     parser.add_argument("--max-bytes", type=int, default=32768)
     parser.add_argument("--output", required=True)
     args = parser.parse_args(argv)
     try:
-        checks = []
-        if args.checks_file:
-            with open(args.checks_file, encoding="utf-8") as handle:
-                checks = json.loads(handle.read(65537)) if os.fstat(handle.fileno()).st_size <= 65536 else None
+        checks = _read_bounded_json(args.checks_file) if args.checks_file else []
+        findings = []
+        if args.findings_file:
+            raw_findings = _read_bounded_json(args.findings_file)
+            findings = raw_findings["findings"] if isinstance(raw_findings, dict) and "findings" in raw_findings else raw_findings
         packet = ReviewPacket.build(Path(args.project), args.paths, contexts=args.contexts, checks=checks,
-                                    max_bytes=args.max_bytes)
+                                    findings=findings, max_bytes=args.max_bytes)
         with open(args.output, "x", encoding="utf-8", newline="\n") as handle:
             handle.write(ReviewPacket.render(packet))
     except (OSError, ValueError) as error:

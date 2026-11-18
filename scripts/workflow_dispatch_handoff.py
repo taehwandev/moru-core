@@ -8,7 +8,9 @@ from typing import Callable, Mapping
 
 from agent_execution_capsule import capsule_path_for_evidence
 from agent_gate_evidence import gate_evidence_path_for_preflight
+from agent_review_findings import normalize_findings as _normalize_review_findings
 from agent_worker_evidence import create_worker_reservation, worker_reservation_matches
+from workflow_dispatch_verification import CALLER_REPORT, PROCESS_COMPLETION
 
 WORKER_RESULT_SCHEMA = "worker_result_v1"
 MAX_WORKER_RESULT_BYTES = 4096
@@ -432,46 +434,28 @@ def _parse_worker_json(text: str) -> Mapping[str, object]:
 
 
 def _normalize_findings(raw_findings: object, *, claim_bytes: int = 240) -> list[dict[str, object]]:
-    if not isinstance(raw_findings, list):
-        return []
-    normalized: list[dict[str, object]] = []
-    for item in raw_findings[:MAX_WORKER_FINDINGS]:
-        if isinstance(item, Mapping):
-            line_val = item.get("line", 0)
-            line_num = int(line_val) if isinstance(line_val, int) else 0
-            normalized.append(
-                {
-                    "file": _utf8_truncate(str(item.get("file") or ""), 160),
-                    "line": line_num,
-                    "severity": _utf8_truncate(str(item.get("severity") or "info"), 32),
-                    "claim": _utf8_truncate(str(item.get("claim") or ""), claim_bytes),
-                }
-            )
-        elif str(item).strip():
-            normalized.append(
-                {
-                    "file": "",
-                    "line": 0,
-                    "severity": "info",
-                    "claim": _utf8_truncate(str(item).strip(), claim_bytes),
-                }
-            )
-    return normalized
+    return _normalize_review_findings(
+        raw_findings,
+        claim_bytes=claim_bytes,
+        max_findings=MAX_WORKER_FINDINGS,
+        compact=True,
+    )
 
 
 def _normalize_checks(raw_checks: object, *, returncode: int) -> list[dict[str, object]]:
-    default_check = {
-        "cmd": "codex exec",
+    process_check = {
+        "cmd": "worker process exit",
         "exit_code": int(returncode),
         "outcome": "pass" if returncode == 0 else "fail",
+        "provenance": PROCESS_COMPLETION,
     }
     if not isinstance(raw_checks, list) or not raw_checks:
-        return [default_check]
+        return [process_check]
     normalized: list[dict[str, object]] = []
     for item in raw_checks[:10]:
         if isinstance(item, Mapping):
             raw_code = item.get("exit_code", returncode)
-            exit_code = int(raw_code) if isinstance(raw_code, int) else int(returncode)
+            exit_code = int(raw_code) if type(raw_code) is int else int(returncode)
             normalized.append(
                 {
                     "cmd": _utf8_truncate(str(item.get("cmd") or "check"), 160),
@@ -479,6 +463,7 @@ def _normalize_checks(raw_checks: object, *, returncode: int) -> list[dict[str, 
                     "outcome": _utf8_truncate(
                         str(item.get("outcome") or ("pass" if exit_code == 0 else "fail")), 32
                     ),
+                    "provenance": CALLER_REPORT,
                 }
             )
         elif str(item).strip():
@@ -487,10 +472,13 @@ def _normalize_checks(raw_checks: object, *, returncode: int) -> list[dict[str, 
                     "cmd": _utf8_truncate(str(item).strip(), 160),
                     "exit_code": int(returncode),
                     "outcome": "pass" if returncode == 0 else "fail",
+                    "provenance": CALLER_REPORT,
                 }
             )
+    if not normalized:
+        return [process_check]
     if returncode != 0 and all(check.get("exit_code", 0) == 0 for check in normalized):
-        normalized.insert(0, default_check)
+        normalized.insert(0, process_check)
     return normalized[:10]
 
 
@@ -504,15 +492,26 @@ def _compact_packet_to_budget(packet: dict[str, object]) -> str:
         (1, 3, 1, 80),
         (0, 0, 1, 48),
     ):
-        packet["findings"] = [
-            {
-                **item,
+        compacted_findings = []
+        for item in list(packet.get("findings") or [])[:max_findings]:
+            if not isinstance(item, Mapping):
+                continue
+            compact_item = {
+                "id": _utf8_truncate(str(item.get("id") or ""), 64),
                 "file": _utf8_truncate(str(item.get("file") or ""), str_budget),
+                "line": int(item.get("line") or 0) if type(item.get("line")) is int else 0,
+                "severity": _utf8_truncate(str(item.get("severity") or "info"), 32),
                 "claim": _utf8_truncate(str(item.get("claim") or ""), str_budget),
+                "state": _utf8_truncate(str(item.get("state") or "open"), 32),
             }
-            for item in list(packet.get("findings") or [])[:max_findings]
-            if isinstance(item, Mapping)
-        ]
+            if item.get('reproducible') is True:
+                compact_item['reproducible'] = True
+            if str_budget >= 120:
+                for key in ("claimed_state", "reopen_reason", "source_binding", "verification"):
+                    if key in item:
+                        compact_item[key] = item[key]
+            compacted_findings.append(compact_item)
+        packet["findings"] = compacted_findings
         packet["changed_paths"] = [
             _utf8_truncate(str(p), str_budget)
             for p in list(packet.get("changed_paths") or [])[:max_paths]
@@ -562,6 +561,7 @@ def build_worker_result_packet(
         from_stream_log = True
 
     parsed = _parse_worker_json(text)
+    normalized_findings, malformed_findings = _safe_worker_findings(parsed)
     raw_status = str(parsed.get("status") or "")
     if returncode != 0:
         status = "blocked"
@@ -571,7 +571,7 @@ def build_worker_result_packet(
         status = "needs_inspection"
 
     raw_summary = str(parsed.get("summary") or text or f"worker exited with code {returncode}").strip()
-    spilled = len(text.encode("utf-8")) > MAX_WORKER_SUMMARY_BYTES or len(raw_summary.encode("utf-8")) > MAX_WORKER_SUMMARY_BYTES
+    spilled = malformed_findings or len(text.encode("utf-8")) > MAX_WORKER_SUMMARY_BYTES or len(raw_summary.encode("utf-8")) > MAX_WORKER_SUMMARY_BYTES
     if spilled and text and not from_stream_log:
         _check_no_symlink(details_path)
         details_path.write_text(text + "\n", encoding="utf-8")
@@ -582,6 +582,9 @@ def build_worker_result_packet(
         if isinstance(blockers_raw, list)
         else []
     )
+    if malformed_findings:
+        status = 'needs_inspection'
+        blockers.append('ambiguous finding identities; inspect the retained worker output')
     if len(blockers) > MAX_WORKER_BLOCKERS:
         # Never drop a blocker silently: name the remainder and keep the full text locally.
         hidden = len(blockers) - (MAX_WORKER_BLOCKERS - 1)
@@ -612,7 +615,7 @@ def build_worker_result_packet(
         "status": status,
         "summary": _utf8_truncate(raw_summary, MAX_WORKER_SUMMARY_BYTES),
         "changed_paths": changed_paths,
-        "findings": _normalize_findings(parsed.get("findings")),
+        "findings": normalized_findings,
         "checks": _normalize_checks(parsed.get("checks"), returncode=returncode),
         "blockers": blockers,
         "next_action": _utf8_truncate(
@@ -639,6 +642,13 @@ def build_worker_result_packet(
     _check_no_symlink(result_path)
     result_path.write_text(serialized + "\n", encoding="utf-8")
     return packet
+
+
+def _safe_worker_findings(parsed):
+    try:
+        return _normalize_findings(parsed.get('findings')), False
+    except ValueError:
+        return [], True
 
 
 def _worker_next_action(parsed, status, recovery_action):

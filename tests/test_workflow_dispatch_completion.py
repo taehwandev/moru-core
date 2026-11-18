@@ -88,6 +88,36 @@ class WorkerCompletionTests(unittest.TestCase):
                     with patch.dict(os.environ, {'MORU_WORKER_COMPLETION_NATIVE':NATIVE}):
                         self.assertEqual(expected, accepts_result(packet, allow_findings=allowed))
 
+    def test_required_tests_gate_fails_closed_without_observed_execution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            prepared = {
+                'rules': str(project),
+                'preflight_evidence': str(project / 'preflight.json'),
+                'execution_capsule': {'reusable': True},
+                'route_manifest': {'command': 'small-change', 'gates': ['tests']},
+                'required_verification': True,
+            }
+            task = claim_task(project, enqueue_task(project, 'run', max_retries=2)['task_id'])
+            message = worker_output_paths(prepared)['last_message_path']
+            program = 'import sys; from pathlib import Path; Path(sys.argv[1]).write_text(sys.argv[2])'
+            command = [
+                sys.executable, '-c', program, message,
+                json.dumps({'status': 'ok', 'summary': 'done', 'checks': [{'cmd': 'pytest', 'exit_code': 0, 'outcome': 'pass'}]}),
+            ]
+            context = {'task': task, 'prepared': prepared, 'working_dir': str(project)}
+            result = _run_scheduled_worker(
+                command,
+                lambda argv: _run_spooled_worker(argv, prepared, task, '', project=project),
+                project,
+                task,
+                task_context=context,
+            )
+            stored = read_json_object(scheduler_path(project))['tasks'][-1]
+            self.assertEqual(1, result)
+            self.assertEqual('failed', stored['state'])
+            self.assertEqual('caller_report', context['completion_assessment']['classification'])
+
 
 if __name__ == '__main__':
     unittest.main()
