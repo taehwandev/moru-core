@@ -101,6 +101,35 @@ class AgentReviewStructureTests(unittest.TestCase):
 
             self.assertTrue(review_source_path(project, source.relative_to(project)))
 
+    def test_linguist_generated_path_is_outside_human_authored_size_gates(self) -> None:
+        # Archived model output is kept byte-for-byte; only an explicit attribute exempts it.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            subprocess.run(["git", "init", "-q", str(project)], check=True)
+            archived = project / "builds" / "run1" / "main.js"
+            authored = project / "src" / "main.js"
+            for path in (archived, authored):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("const a = 1;\n", encoding="utf-8")
+            (project / ".gitattributes").write_text("builds/** linguist-generated\n", encoding="utf-8")
+
+            self.assertFalse(review_source_path(project, archived.relative_to(project)))
+            self.assertTrue(review_source_path(project, authored.relative_to(project)))
+
+    def test_linguist_generated_path_in_snapshot_without_git(self) -> None:
+        # Commit-range review reads an exported snapshot that has no .git.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            archived = project / "builds" / "run2" / "src" / "main.js"
+            authored = project / "src" / "app.js"
+            for path in (archived, authored):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("const a = 1;\n", encoding="utf-8")
+            (project / ".gitattributes").write_text("builds/** linguist-generated\n", encoding="utf-8")
+
+            self.assertFalse(review_source_path(project, archived.relative_to(project)))
+            self.assertTrue(review_source_path(project, authored.relative_to(project)))
+
     def test_pigeon_schema_input_is_generator_config(self) -> None:
         # Pigeon requires every API type in one input file under pigeons/.
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_review_boundary import boundary_note_requirements
+from agent_review_generated_attrs import linguist_generated_path
 from agent_android_action_boundary import AndroidActionBoundary
 from agent_review_purpose import purpose_failures
 from agent_review_removals import classify_net_deletions
@@ -1020,6 +1021,7 @@ def review_source_path(project: Path, path: Path) -> bool:
         and not any(part in REVIEW_SKIP_PARTS for part in path.parts)
         and not config_or_generated_path(path)
         and not pinned_third_party_source(project, path)
+        and not linguist_generated_path(project, path)
         and absolute.exists()
         and absolute.is_file()
     )
