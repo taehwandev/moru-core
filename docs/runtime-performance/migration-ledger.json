@@ -692,10 +692,11 @@
       "kind": "ancillary",
       "status": "external_review",
       "entry_aliases": "Direct CLI",
-      "remaining": "Pinned Wikimap is external to the owned Rust port. The workflow_wikimap adapter retains corpus signatures, the refresh decision and receipt, result handling, and compatibility fallback. The upstream index and search commands still require Python.",
+      "remaining": "Pinned Wikimap is external to the owned Rust port. The workflow_wikimap adapter retains corpus signatures, the refresh decision and receipt, result path containment, and compatibility fallback. The upstream index and search commands still require Python.",
       "verification": {
         "adapter_search": "Local debug parity covers Rust launching the pinned ordinary indexed search and returning exact vendor exit status and UTF-8 pipes. Python retains index policy, result projection, and read-only lookup compatibility. Vendored source and pin are unchanged.",
-        "adapter_update": "Local debug parity covers a cold Rust-launched update with the original three ignores and --no-map, followed by matching search results. Python retains refresh scheduling, read-only policy and receipt writes. A pre-launch decline permits fallback, while timeout, malformed transport reply and vendor failure do not replay the update."
+        "adapter_update": "Local debug parity covers a cold Rust-launched update with the original three ignores and --no-map, followed by matching search results. Python retains refresh scheduling, read-only policy and receipt writes. A pre-launch decline permits fallback, while timeout, malformed transport reply and vendor failure do not replay the update.",
+        "adapter_projection": "The existing Rust search call projects ordinary JSON results into six adapter fields plus the three search flags. The Python caller keeps filesystem path containment. Irregular vendor output is returned unchanged for reference decoding from the same command; existing probe modes and update remain unchanged."
       }
     },
     {

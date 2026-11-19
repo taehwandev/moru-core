@@ -24,9 +24,10 @@ pub(crate) struct WikimapSearch;
 impl WikimapSearch {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         // The old probe declines the extended argv before running any command.
-        let update = match args {
-            [_] => false,
-            [_, operation] if operation == "update-v1" => true,
+        let (update, project_results) = match args {
+            [_] => (false, false),
+            [_, operation] if operation == "update-v1" => (true, false),
+            [_, operation] if operation == "search-results-v1" => (false, true),
             _ => return 125,
         };
         let Some(source) = CallbackGuard::root(launcher, "wikimap-search-probe") else {
@@ -43,7 +44,7 @@ impl WikimapSearch {
         }
         let Some(result) = serde_json::from_slice::<Value>(&bytes)
             .ok()
-            .and_then(|packet| Self::execute(&source, &packet, update))
+            .and_then(|packet| Self::execute(&source, &packet, update, project_results))
         else {
             return 125;
         };
@@ -54,7 +55,12 @@ impl WikimapSearch {
         }
     }
 
-    fn execute(source: &Path, packet: &Value, update: bool) -> Option<Value> {
+    fn execute(
+        source: &Path,
+        packet: &Value,
+        update: bool,
+        project_results: bool,
+    ) -> Option<Value> {
         let fields = packet.as_object()?;
         if fields.len() != if update { 1 } else { 3 } {
             return None;
@@ -110,10 +116,60 @@ impl WikimapSearch {
             .zip(String::from_utf8(stderr).ok());
         Some(match result {
             Some(((code, stdout), stderr)) => {
+                if code == 0 && project_results && stdout.len() <= LIMIT {
+                    if let Some(projection) = Self::project_results(&stdout) {
+                        return Some(json!({"projection": projection}));
+                    }
+                }
                 json!({"code": code, "stdout": stdout, "stderr": stderr})
             }
             None => json!({"failed": true}),
         })
+    }
+
+    fn project_results(stdout: &str) -> Option<Value> {
+        let payload: Value = serde_json::from_str(stdout).ok()?;
+        let payload = payload.as_object()?;
+        let mut result = serde_json::Map::new();
+        for flag in ["weak", "partial", "fused"] {
+            let value = match payload.get(flag) {
+                None | Some(Value::Null) => false,
+                Some(value) => value.as_bool()?,
+            };
+            result.insert(flag.to_owned(), json!(value));
+        }
+        let rows = payload.get("results")?.as_array()?;
+        let projected = rows
+            .iter()
+            .filter_map(Value::as_object)
+            .map(Self::project_row)
+            .collect::<Option<Vec<_>>>()?;
+        result.insert("results".to_owned(), json!(projected));
+        Some(Value::Object(result))
+    }
+
+    fn project_row(row: &serde_json::Map<String, Value>) -> Option<Value> {
+        let text = |key| match row.get(key) {
+            None | Some(Value::Null) => Some(""),
+            Some(value) => value.as_str(),
+        };
+        let line = match row.get("line") {
+            None | Some(Value::Null) => 0,
+            Some(value) => value.as_i64()?,
+        };
+        let score = match row.get("score") {
+            None | Some(Value::Null) => 0.0,
+            Some(value) => value.as_f64()?,
+        };
+        let matched = match row.get("matched") {
+            None => Vec::new(),
+            Some(value) => value.as_array()?.iter().filter_map(Value::as_str).collect(),
+        };
+        Some(json!({
+            "path": text("path")?, "line": line, "heading": text("heading")?,
+            "score": if score == 0.0 { 0.0 } else { score },
+            "matched": matched, "sources": text("sources")?,
+        }))
     }
 
     fn search_args(root: &Path, fields: &serde_json::Map<String, Value>) -> Option<Vec<OsString>> {
@@ -141,5 +197,42 @@ impl WikimapSearch {
         ];
         args.extend(queries.into_iter().map(OsString::from));
         Some(args)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wikimap_projection_keeps_order_and_normalizes_vendor_fields() {
+        let raw = json!({"results":[
+            {"path":"한글.md","line":8,"score":1.25,"matched":["hit",42],"partial":"1/2"},
+            false, {"path":"second.md","score":-0.0,"sources":"2/2"}],
+            "weak":true, "partial":false, "notes":[{"body":"omitted"}]});
+        assert_eq!(
+            WikimapSearch::project_results(&raw.to_string()),
+            Some(json!({
+                "results":[
+                    {"path":"한글.md","line":8,"heading":"","score":1.25,"matched":["hit"],"sources":""},
+                    {"path":"second.md","line":0,"heading":"","score":0.0,"matched":[],"sources":"2/2"}],
+                "weak":true, "partial":false, "fused":false
+            }))
+        );
+    }
+
+    #[test]
+    fn wikimap_projection_defers_irregular_payloads_to_python() {
+        for raw in [
+            "broken",
+            "[]",
+            r#"{"results":{}}"#,
+            r#"{"results":[],"weak":"nonempty"}"#,
+            r#"{"results":[{"path":"x","line":"2"}]}"#,
+            r#"{"results":[{"path":"x","score":NaN}]}"#,
+            r#"{"results":[{"path":"x","matched":null}]}"#,
+        ] {
+            assert!(WikimapSearch::project_results(raw).is_none(), "{raw}");
+        }
     }
 }

@@ -78,6 +78,12 @@ class WikimapSearchResult:
         return not self.error
 
 
+class _ProjectedWikimapSearch(subprocess.CompletedProcess):
+    def __init__(self, command: list[str], projection: dict):
+        super().__init__(command, 0, stdout="", stderr="")
+        self.projection = projection
+
+
 def search_wikimap(
     root: Path, queries: Sequence[str], max_results: int, *, receipt: Path | None = None,
 ) -> WikimapSearchResult:
@@ -124,6 +130,12 @@ def search_wikimap(
         completed, error = _run(command, root)
     if error:
         return WikimapSearchResult(results=[], error=error)
+
+    if isinstance(completed, _ProjectedWikimapSearch):
+        result = completed.projection
+        rows = [row for row in result["results"] if row["path"] and _is_within_root(root, row["path"])]
+        return WikimapSearchResult(results=rows, weak=result["weak"],
+                                   partial=result["partial"], fused=result["fused"])
 
     try:
         payload = json.loads(completed.stdout)
@@ -337,8 +349,7 @@ def _native_run(command: list[str], root: Path) -> subprocess.CompletedProcess[s
         return None
     launcher = Path.home() / ".moru/bin/moru-hook"
     argv = [str(launcher.with_name("moru-hook-native")), str(launcher), "--wikimap-search-probe"]
-    if update:
-        argv.append("update-v1")
+    argv.append("update-v1" if update else "search-results-v1")
     try:
         reply = subprocess.run(
             argv,
@@ -356,6 +367,10 @@ def _native_run(command: list[str], root: Path) -> subprocess.CompletedProcess[s
         raise OSError("native Wikimap subprocess could not complete")
     if value is None:
         return None
+    if "projection" in value:
+        if update:
+            raise OSError("native Wikimap update returned a search result")
+        return _ProjectedWikimapSearch(command, value["projection"])
     stdout, stderr = (value[key].replace("\r\n", "\n").replace("\r", "\n")
                       for key in ("stdout", "stderr"))
     return subprocess.CompletedProcess(command, value["code"], stdout, stderr)
@@ -372,10 +387,19 @@ def _decode_native_run(reply):
         return None
     if set(value) == {"failed"} and value["failed"] is True:
         return value
+    if set(value) == {"projection"} and _valid_native_projection(value["projection"]):
+        return value
     if (set(value) == {"code", "stdout", "stderr"} and type(value["code"]) is int
             and all(type(value[key]) is str for key in ("stdout", "stderr"))):
         return value
     return None
+
+
+def _valid_native_projection(value):
+    return (type(value) is dict and set(value) == {"weak", "partial", "fused", "results"}
+            and all(type(value[key]) is bool for key in ("weak", "partial", "fused"))
+            and type(value["results"]) is list
+            and all(type(row) is dict and type(row.get("path")) is str for row in value["results"]))
 
 
 def _empty_process(command: list[str]) -> subprocess.CompletedProcess[str]:

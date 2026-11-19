@@ -75,7 +75,8 @@ class WorkflowWikimapTests(unittest.TestCase):
                 calls.append((command, result))
                 return result
             with patch.dict(os.environ, env, clear=True), \
-                    patch.object(adapter, "_native_run", side_effect=observe):
+                    patch.object(adapter, "_native_run", side_effect=observe), \
+                    patch.object(adapter, "_safe_results", side_effect=AssertionError("Python result shaping replay")):
                 actual = search_wikimap(root, ["retrieval 한글"], 4)
                 self.assertTrue((root / ".wikimap/index.db").is_file())
                 self.assertFalse((root / "MAP.md").exists())
@@ -88,6 +89,29 @@ class WorkflowWikimapTests(unittest.TestCase):
             self.assertEqual(expected, actual)
             self.assertIsNotNone(failure, "native update must return the vendor failure")
             self.assertEqual(1, failure.returncode)
+
+    def test_native_projection_still_checks_absolute_and_symlink_escape_paths(self) -> None:
+        import workflow_wikimap as adapter
+
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder).resolve()
+            root = base / "corpus"
+            root.mkdir()
+            (base / "outside.md").touch()
+            (root / "escape.md").symlink_to(base / "outside.md")
+            paths = ["guide.md", "escape.md", "../outside.md", str(base / "outside.md"), ""]
+            rows = [{"path": path, "line": 3, "heading": "Guide", "score": 1.0,
+                     "matched": [], "sources": ""} for path in paths]
+            reply = {"projection": {"results": rows, "weak": True, "partial": False, "fused": True}}
+            wrapped = subprocess.CompletedProcess([], 0, stdout=json.dumps(reply), stderr="")
+            decoded = adapter._decode_native_run(wrapped)
+            completed = adapter._ProjectedWikimapSearch([], decoded["projection"])
+            with patch.object(adapter, "_ensure_index", return_value=""), \
+                    patch.object(adapter, "_run", return_value=(completed, "")):
+                actual = adapter.search_wikimap(root, ["guide"], 4)
+            self.assertEqual([rows[0]], actual.results)
+            self.assertTrue(actual.weak and actual.fused)
+            self.assertFalse(actual.partial)
 
     def test_native_update_replays_only_after_prelaunch_decline(self) -> None:
         import workflow_wikimap as adapter
