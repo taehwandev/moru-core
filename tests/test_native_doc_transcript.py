@@ -12,7 +12,7 @@ import agy_required_docs_hook as agy
 import test_agent_required_doc_delivery as delivery_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
-from support.native_doc_transcript import NativeDocTranscript
+from support.native_doc_transcript import NativeDocTranscript, read_delivery_manifest
 
 
 class NativeDocTranscriptTests(unittest.TestCase):
@@ -172,6 +172,73 @@ class NativeDocTranscriptTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual(self.original("delivery_plan_python", marker, self.path, 4),
                              reference._delivery_plan(marker, self.path, 4))
+
+    def test_native_delivery_manifest_projection_and_fallback(self):
+        evidence = self.base / "preflight.json"
+        ordinary = (
+            b'{"rules":"obsolete","rules":"./rules","route":{"required_docs":'
+            b'["z.md","a.md","z.md","\\ud55c\\uae00.md","a.md"]}}',
+            b'{"rules":"rules","route":{}}',
+            b'{"rules":"rules","route":{"required_docs":null}}',
+            b'{"rules":"rules","route":{"required_docs":[]}}',
+        )
+        evidence.touch()
+        evidence.chmod(0o444)
+        with patch.dict(os.environ, self.env, clear=True):
+            for raw in ordinary:
+                with self.subTest(raw=raw):
+                    evidence.chmod(0o644)
+                    evidence.write_bytes(raw)
+                    evidence.chmod(0o444)
+                    expected = reference._delivery_manifest_python(evidence)
+                    self.assertEqual(expected, read_delivery_manifest(evidence))
+                    self.assertEqual(raw, evidence.read_bytes())
+                    self.assertEqual(0o444, evidence.stat().st_mode & 0o777)
+
+            for raw in (
+                b'{"rules":"rules","route":{"required_docs":"ab"}}',
+                b'{"rules":"rules","route":{"required_docs":[1]}}',
+                b'{"rules":"rules","route":{},"unrelated":NaN}',
+                b'{"rules":"rules","route":{}}' + b' ' * (128 * 1024),
+            ):
+                with self.subTest(prefix=raw[:64]):
+                    evidence.chmod(0o644)
+                    evidence.write_bytes(raw)
+                    self.assertIsNone(read_delivery_manifest(evidence))
+                    self.assertEqual(reference._delivery_manifest_python(evidence),
+                                     reference._delivery_manifest(evidence))
+            for raw in (b'{', b'{"rules":"rules","route":{},"unrelated":"\xff"}'):
+                evidence.write_bytes(raw)
+                self.assertIsNone(read_delivery_manifest(evidence))
+                with self.assertRaises(ValueError):
+                    reference._delivery_manifest(evidence)
+            self.assertEqual((125, b"", b""), result(self.raw(
+                "read-delivery-manifest", {"path": str(evidence.parent)})))
+
+    def test_both_delivery_callers_use_native_manifest_after_admission(self):
+        action_cases = ("_deliver", "_compaction")
+        for name in action_cases:
+            with self.subTest(caller=name):
+                fixture = delivery_fixtures.DeliveryTests()
+                fixture.setUp()
+                try:
+                    fixture._preflight([delivery_fixtures.OTHER, delivery_fixtures.CORE,
+                                        delivery_fixtures.OTHER])
+                    action = getattr(fixture, name)
+                    marker = fixture.evidence.parent / reference.MARKER
+                    with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                        expected = action()
+                        expected_marker = marker.read_bytes()
+                    marker.unlink()
+                    with patch.dict(os.environ, self.env, clear=True), patch.object(
+                            reference, "_delivery_manifest_python", side_effect=AssertionError("Python fallback")):
+                        self.assertEqual(expected, action())
+                    self.assertEqual(expected_marker, marker.read_bytes())
+                    with patch.object(reference, "_delivery_manifest",
+                                      side_effect=AssertionError("manifest read after delivery was skipped")):
+                        self.assertEqual("", fixture._deliver())
+                finally:
+                    fixture.doCleanups()
 
     def test_native_marker_writer_matches_python_and_keeps_write_failures_terminal(self):
         directory = self.project / ".moru" / "runs" / ("a" * 32)

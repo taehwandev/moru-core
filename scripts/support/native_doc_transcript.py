@@ -20,6 +20,19 @@ def _value(result):
     return result["value"] if type(result) is dict and set(result) == {"value"} else None
 
 
+def read_delivery_manifest(path: Path) -> tuple[Path, list[str]] | None:
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "read-delivery-manifest",
+                                           {"path": str(path)}))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is list and len(value) == 2 and type(value[0]) is str:
+        docs = value[1]
+        if type(docs) is list and all(type(doc) is str for doc in docs) and len(set(docs)) == len(docs):
+            return Path(value[0]), docs
+    return None
+
+
 class NativeDocTranscript:
     @staticmethod
     def write_marker(marker: Path, delivered: list, offset: int, redeliveries: int) -> bool:

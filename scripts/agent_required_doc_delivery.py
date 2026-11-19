@@ -107,9 +107,7 @@ def compaction_text(payload: dict, evidence_for) -> str:
         if evidence is None:
             return ""
         with _serialized(evidence.parent / MARKER):
-            preflight = json.loads(evidence.read_text(encoding="utf-8"))
-            rules = Path(preflight["rules"])
-            docs = list(dict.fromkeys(preflight["route"].get("required_docs") or []))
+            rules, docs = _delivery_manifest(evidence)
             texts = _read_docs(rules, docs)
             pending = [doc for doc in docs if doc in texts]
             transcript = Path(str(payload.get("transcript_path") or ""))
@@ -153,9 +151,7 @@ def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> 
         if plan["action"] == "upgrade":
             _write_marker(marker, plan["delivered"], plan["offset"], 0)
             return ""
-        preflight = json.loads(evidence.read_text(encoding="utf-8"))
-        rules = Path(preflight["rules"])
-        docs = list(dict.fromkeys(preflight["route"].get("required_docs") or []))
+        rules, docs = _delivery_manifest(evidence)
         # A reuse proof says an earlier run took the doc in, not that its text is
         # in this context; a compaction since the proof was made voids it.
         reuse = {} if plan["had_previous"] else required_doc_reuse(evidence)
@@ -173,6 +169,18 @@ def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> 
         return _render(texts, pending, rules)
     except (OSError, ValueError, KeyError, TypeError):
         return ""
+
+
+def _delivery_manifest(evidence: Path) -> tuple[Path, list[str]]:
+    from support.native_doc_transcript import read_delivery_manifest
+
+    native = read_delivery_manifest(evidence)
+    return native if native is not None else _delivery_manifest_python(evidence)
+
+
+def _delivery_manifest_python(evidence: Path) -> tuple[Path, list[str]]:
+    preflight = json.loads(evidence.read_text(encoding="utf-8"))
+    return Path(preflight["rules"]), list(dict.fromkeys(preflight["route"].get("required_docs") or []))
 
 
 def _delivery_plan(marker: Path, transcript: Path, limit: int) -> dict:

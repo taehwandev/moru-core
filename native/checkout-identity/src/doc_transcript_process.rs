@@ -27,6 +27,7 @@ impl DocTranscriptProcess {
                         | "agy-covered"
                         | "render"
                         | "read-docs"
+                        | "read-delivery-manifest"
                         | "delivery-plan"
                         | "write-marker"
                 )
@@ -67,6 +68,9 @@ impl DocTranscriptProcess {
                 }
                 let path = Path::new(object.get("path")?.as_str()?);
                 match args[1].to_str()? {
+                    "read-delivery-manifest" if object.len() == 1 => {
+                        DocTranscript::read_delivery_manifest(path)
+                    }
                     "delivery-plan" if object.len() == 3 => DocTranscript::delivery_plan(
                         Path::new(object.get("marker")?.as_str()?),
                         path,
