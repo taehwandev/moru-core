@@ -407,12 +407,17 @@ finally:
                 self.assertEqual((reference.returncode, reference.stdout), (2, b""))
                 self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
                                  (2, b"", reference.stderr))
-        # Syntax diagnostics still use the active Python parser version.
-        cases.write_bytes(b'{"cases": [}')
-        reference = run("python", "0,1")
-        actual = run("auto", "1,1")
-        self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
-                         (2, b"", reference.stderr))
+        # The Rust parser reports caller-specific positions and message text,
+        # including nested trailing commas after multibyte prefixes and CRLF.
+        for malformed in ['{"cases": [}', '{"🧪":[{"한":1, \r\n}]}',
+                          '{"🧪":[1, \n]}', '{"é":"\\u12z4"}', '\ufeff{}', '{"v":1} true']:
+            with self.subTest(malformed=malformed):
+                cases.write_text(malformed, encoding="utf-8")
+                reference = run("python", "0,1")
+                actual = run("auto", "1,0")
+                self.assertEqual((reference.returncode, reference.stdout), (2, b""))
+                self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                 (2, b"", reference.stderr))
 
         def compare_schema_error(message, native_counts, other_unicode=False):
             reference = run("python", "0,2")
@@ -429,7 +434,7 @@ finally:
         compare_schema_error(f"invalid or duplicate provider: {args[-1]!r}", "1,0", True)
         args[-1] = "agy"
         traces.write_text('{"schema_version":1,"runs":[}', encoding="utf-8")
-        compare_schema_error("invalid JSON input", "1,2")
+        compare_schema_error("invalid JSON input", "1,0")
 
         cases.write_text('{"schema_version":1,"cases":['
                          '{"id":"..","expected_status":"ok","max_prompts":0},'

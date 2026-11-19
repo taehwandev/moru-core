@@ -35,8 +35,9 @@ impl PythonJson {
     pub(crate) fn parse_with_diagnostic(
         text: &str,
         digit_limit: Option<usize>,
+        modern_trailing_comma: Option<bool>,
     ) -> Result<Option<Value>, InputDiagnostic> {
-        parser::ManifestParser::parse_with_diagnostic(text, digit_limit)
+        parser::ManifestParser::parse_with_diagnostic(text, digit_limit, modern_trailing_comma)
     }
     pub(crate) fn integer_conversion_failed(text: &str) -> bool {
         parser::ManifestParser::integer_conversion_failed(text)

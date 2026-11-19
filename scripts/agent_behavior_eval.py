@@ -225,6 +225,27 @@ def _read_json(path_str: str) -> Any:
         raise ValueError(f"invalid JSON input {path_str}: {exc}") from exc
 
 
+def _native_json_trailing_comma() -> str | None:
+    """Identify the caller's decoder wording and positions using fixed probes."""
+    if sys.implementation.name != "cpython":
+        return None
+    errors = []
+    for probe in ("[1,]", '{"a":1,}'):
+        try:
+            json.loads(probe)
+        except json.JSONDecodeError as error:
+            errors.append((error.msg, error.pos))
+        else:
+            return None
+    if errors == [("Expecting value", 3),
+                  ("Expecting property name enclosed in double quotes", 7)]:
+        return "legacy"
+    if errors == [("Illegal trailing comma before end of array", 2),
+                  ("Illegal trailing comma before end of object", 6)]:
+        return "modern"
+    return None
+
+
 def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[int, str] | None:
     """Use the verified candidate for reports and stable input diagnostics."""
     if os.environ.get("MORU_LAUNCHER_BACKEND", "auto") not in ("auto", "rust"):
@@ -255,6 +276,8 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
                    f"--artifact-root={Path(ns.artifact_root)}",
                    f"--unicode-version={unicodedata.unidata_version}",
                    f"--int-max-str-digits={getattr(sys, 'get_int_max_str_digits', lambda: 0)()}"]
+        if (trailing_comma := _native_json_trailing_comma()) is not None:
+            command.append(f"--json-trailing-comma={trailing_comma}")
         if providers:
             command.extend(["--providers", *providers])
         result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True)

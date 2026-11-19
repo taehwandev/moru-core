@@ -11,6 +11,7 @@ pub(super) struct ManifestParser<'a> {
     text: &'a str,
     offset: usize,
     digit_limit: usize,
+    modern_trailing_comma: Option<bool>,
     unsupported: bool,
     integer_failure: bool,
     diagnostic: Option<String>,
@@ -48,11 +49,12 @@ impl<'a> ManifestParser<'a> {
     pub fn parse_with_diagnostic(
         text: &'a str,
         digit_limit: Option<usize>,
+        modern_trailing_comma: Option<bool>,
     ) -> Result<Option<Value>, InputDiagnostic> {
         let Some(limit) = digit_limit.or_else(Self::limit) else {
             return Ok(None);
         };
-        let (parser, value) = Self::inspect(text, limit);
+        let (parser, value) = Self::inspect_with_profile(text, limit, modern_trailing_comma);
         if parser.unsupported {
             return Ok(None);
         }
@@ -82,10 +84,18 @@ impl<'a> ManifestParser<'a> {
         }
     }
     fn inspect(text: &'a str, digit_limit: usize) -> (Self, Option<Value>) {
+        Self::inspect_with_profile(text, digit_limit, None)
+    }
+    fn inspect_with_profile(
+        text: &'a str,
+        digit_limit: usize,
+        modern_trailing_comma: Option<bool>,
+    ) -> (Self, Option<Value>) {
         let mut parser = Self {
             text,
             offset: 0,
             digit_limit,
+            modern_trailing_comma,
             unsupported: false,
             integer_failure: false,
             diagnostic: None,
@@ -186,7 +196,11 @@ impl<'a> ManifestParser<'a> {
                 return self.fail("Expecting ',' delimiter", self.offset);
             }
             self.space();
-            if self.peek() == Some(b']') && JsonDiagnostic::trailing(true) {
+            if self.peek() == Some(b']')
+                && self
+                    .modern_trailing_comma
+                    .unwrap_or_else(|| JsonDiagnostic::trailing(true))
+            {
                 return self.fail("Illegal trailing comma before end of array", comma);
             }
         }
@@ -223,7 +237,11 @@ impl<'a> ManifestParser<'a> {
                 return self.fail("Expecting ',' delimiter", self.offset);
             }
             self.space();
-            if self.peek() == Some(b'}') && JsonDiagnostic::trailing(false) {
+            if self.peek() == Some(b'}')
+                && self
+                    .modern_trailing_comma
+                    .unwrap_or_else(|| JsonDiagnostic::trailing(false))
+            {
                 return self.fail("Illegal trailing comma before end of object", comma);
             }
         }

@@ -30,6 +30,7 @@ struct Arguments {
     digit_limit: Option<usize>,
     stable_errors_only: bool,
     matching_unicode: bool,
+    modern_trailing_comma: Option<bool>,
 }
 
 impl BehaviorEvalCli {
@@ -75,6 +76,7 @@ impl BehaviorEvalCli {
         let mut digit_limit = None;
         let mut stable_errors_only = false;
         let mut matching_unicode = false;
+        let mut modern_trailing_comma = None;
         while let Some(raw) = words.next() {
             let (flag, inline) = raw
                 .split_once('=')
@@ -91,6 +93,14 @@ impl BehaviorEvalCli {
                 "--unicode-version" => {
                     let version = inline.or_else(|| words.next_if(next_value))?;
                     matching_unicode = PythonText::matches_unicode_version(version);
+                    continue;
+                }
+                "--json-trailing-comma" => {
+                    modern_trailing_comma = match inline.or_else(|| words.next_if(next_value))? {
+                        "legacy" => Some(false),
+                        "modern" => Some(true),
+                        _ => return None,
+                    };
                     continue;
                 }
                 "--int-max-str-digits" => {
@@ -128,6 +138,7 @@ impl BehaviorEvalCli {
             digit_limit,
             stable_errors_only,
             matching_unicode,
+            modern_trailing_comma,
             providers: providers
                 .unwrap_or_else(|| BehaviorEvalInput::PROVIDERS.map(str::to_owned).to_vec()),
         })
@@ -143,10 +154,10 @@ impl BehaviorEvalCli {
             {
                 return Err("empty provider token in --providers".into());
             }
-            let Some(cases_doc) = Self::read_json(&args.cases, args.digit_limit)? else {
+            let Some(cases_doc) = Self::read_json(&args.cases, args)? else {
                 return Ok(None);
             };
-            let Some(runs_doc) = Self::read_json(&args.traces, args.digit_limit)? else {
+            let Some(runs_doc) = Self::read_json(&args.traces, args)? else {
                 return Ok(None);
             };
             let providers = BehaviorEvalInput::providers(&args.providers)?;
@@ -196,10 +207,7 @@ impl BehaviorEvalCli {
         run().transpose()
     }
 
-    fn read_json(
-        path: &str,
-        digit_limit: Option<usize>,
-    ) -> Result<Option<PythonValue>, BehaviorEvalError> {
+    fn read_json(path: &str, args: &Arguments) -> Result<Option<PythonValue>, BehaviorEvalError> {
         let bad_input = |error: io::Error| {
             let detail = error.to_string();
             match error.raw_os_error() {
@@ -231,13 +239,19 @@ impl BehaviorEvalCli {
         let raw = PythonUtf8::decode(&bytes).map_err(|detail| {
             BehaviorEvalError::Stable(format!("invalid JSON input {path}: {detail}"))
         })?;
-        PythonJson::parse_with_diagnostic(raw, digit_limit).map_err(|diagnostic| match diagnostic {
-            InputDiagnostic::Syntax(detail) => {
-                format!("invalid JSON input {path}: {detail}").into()
-            }
-            // Python reports the interpreter digit policy error directly.
-            InputDiagnostic::IntegerLimit(detail) => detail.into(),
-        })
+        PythonJson::parse_with_diagnostic(raw, args.digit_limit, args.modern_trailing_comma)
+            .map_err(|diagnostic| match diagnostic {
+                InputDiagnostic::Syntax(detail) => {
+                    let error = format!("invalid JSON input {path}: {detail}");
+                    if args.modern_trailing_comma.is_some() {
+                        BehaviorEvalError::Stable(error)
+                    } else {
+                        BehaviorEvalError::Reference(error)
+                    }
+                }
+                // Python reports the interpreter digit policy error directly.
+                InputDiagnostic::IntegerLimit(detail) => detail.into(),
+            })
     }
 
     fn encode(value: &Value) -> String {
