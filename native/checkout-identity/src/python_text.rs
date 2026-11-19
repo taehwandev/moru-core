@@ -9,6 +9,10 @@ include!(concat!(env!("OUT_DIR"), "/python_text_contract.rs"));
 
 pub(crate) struct PythonText;
 impl PythonText {
+    pub(crate) fn matches_unicode_version(version: &str) -> bool {
+        version == UNICODE_VERSION
+    }
+
     pub(crate) fn repr(value: &str) -> String {
         let quote = if value.contains('\'') && !value.contains('"') {
             '"'

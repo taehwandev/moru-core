@@ -2,7 +2,7 @@
 //! forbidden imports: file IO, subprocesses, providers or workflow state.
 //! callers/tests: offline evaluator CLI; verification: Python case and trace schema parity.
 use crate::{
-    python_json::{Number, Object, PythonJson, Value},
+    python_json::{Number, Object, Value},
     python_text::PythonText,
 };
 use std::collections::{HashMap, HashSet};
@@ -24,9 +24,10 @@ impl BehaviorEvalInput {
                 return Err("empty provider token in --providers".into());
             }
             if !Self::PROVIDERS.contains(&token) || result.contains(&token) {
-                return Err(
-                    format!("invalid or duplicate provider: {}", PythonText::repr(token)).into(),
-                );
+                return Err(BehaviorEvalError::text(
+                    "invalid or duplicate provider: ",
+                    token,
+                ));
             }
             result.push(token);
         }
@@ -66,7 +67,7 @@ impl BehaviorEvalInput {
                 let cid = Self::identifier(id)
                     .filter(|s| !s.contains(['/', '\\']) && !matches!(*s, "." | ".."));
                 if !cid.is_some_and(|id| ids.insert(id)) {
-                    return Err(format!("invalid or duplicate case id: {}", PythonJson::repr(id)).into());
+                    return Err(BehaviorEvalError::value("invalid or duplicate case id: ", id));
                 }
                 if !Self::status(status)
                     || !matches!(max, Value::Number(Number::Integer(text)) if !text.starts_with('-'))
@@ -137,14 +138,14 @@ impl BehaviorEvalInput {
             let provider = provider_value
                 .as_str()
                 .filter(|p| Self::PROVIDERS.contains(p))
-                .ok_or_else(|| format!("unknown provider: {}", PythonJson::repr(provider_value)))?;
+                .ok_or_else(|| BehaviorEvalError::value("unknown provider: ", provider_value))?;
             let id = id_value
                 .as_str()
                 .filter(|id| ids.contains(id) && !runs.contains_key(&(provider, *id)))
                 .ok_or_else(|| {
-                    format!(
-                        "unknown or duplicate run: {provider}/{}",
-                        PythonJson::repr(id_value)
+                    BehaviorEvalError::value(
+                        &format!("unknown or duplicate run: {provider}/"),
+                        id_value,
                     )
                 })?;
             let events = raw["events"].as_array().ok_or("events must be a list")?;

@@ -237,6 +237,8 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
     import subprocess
 
     try:
+        import unicodedata
+
         from support.native_launcher_install import artifact_plan
 
         if any(os.fsencode(value) != value.encode("utf-8")
@@ -251,6 +253,7 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
         command = [str(plan["source"]), str(entry), "--behavior-eval", "--stable-errors-only",
                    f"--cases={ns.cases}", f"--traces={ns.traces}",
                    f"--artifact-root={Path(ns.artifact_root)}",
+                   f"--unicode-version={unicodedata.unidata_version}",
                    f"--int-max-str-digits={getattr(sys, 'get_int_max_str_digits', lambda: 0)()}"]
         if providers:
             command.extend(["--providers", *providers])

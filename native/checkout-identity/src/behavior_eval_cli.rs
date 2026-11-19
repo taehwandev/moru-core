@@ -29,6 +29,7 @@ struct Arguments {
     providers: Vec<String>,
     digit_limit: Option<usize>,
     stable_errors_only: bool,
+    matching_unicode: bool,
 }
 
 impl BehaviorEvalCli {
@@ -47,7 +48,16 @@ impl BehaviorEvalCli {
                 }
             }
             Some(Err(BehaviorEvalError::Reference(_))) if args.stable_errors_only => DECLINED,
-            Some(Err(BehaviorEvalError::Stable(error) | BehaviorEvalError::Reference(error))) => {
+            Some(Err(BehaviorEvalError::Unicode(_)))
+                if args.stable_errors_only && !args.matching_unicode =>
+            {
+                DECLINED
+            }
+            Some(Err(
+                BehaviorEvalError::Stable(error)
+                | BehaviorEvalError::Unicode(error)
+                | BehaviorEvalError::Reference(error),
+            )) => {
                 let _ = writeln!(io::stderr().lock(), "error: {error}");
                 2
             }
@@ -64,6 +74,7 @@ impl BehaviorEvalCli {
         let (mut cases, mut traces, mut root, mut providers) = (None, None, None, None);
         let mut digit_limit = None;
         let mut stable_errors_only = false;
+        let mut matching_unicode = false;
         while let Some(raw) = words.next() {
             let (flag, inline) = raw
                 .split_once('=')
@@ -75,6 +86,11 @@ impl BehaviorEvalCli {
                 "--artifact-root" => &mut root,
                 "--stable-errors-only" if inline.is_none() => {
                     stable_errors_only = true;
+                    continue;
+                }
+                "--unicode-version" => {
+                    let version = inline.or_else(|| words.next_if(next_value))?;
+                    matching_unicode = PythonText::matches_unicode_version(version);
                     continue;
                 }
                 "--int-max-str-digits" => {
@@ -111,6 +127,7 @@ impl BehaviorEvalCli {
             artifact_root: root?,
             digit_limit,
             stable_errors_only,
+            matching_unicode,
             providers: providers
                 .unwrap_or_else(|| BehaviorEvalInput::PROVIDERS.map(str::to_owned).to_vec()),
         })

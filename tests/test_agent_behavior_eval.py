@@ -349,6 +349,9 @@ def profile(frame, event, arg):
 sys.addaudithook(audit)
 sys.setprofile(profile)
 try:
+    if os.environ.get('MORU_TEST_OTHER_UNICODE_VERSION'):
+        import unicodedata
+        unicodedata.unidata_version = '0.0.0'
     runpy.run_path(script, run_name='__main__')
 finally:
     assert counts == list(map(int, os.environ['EXPECTED_COUNTS'].split(','))), counts
@@ -364,12 +367,13 @@ finally:
         artifact = _write_artifact(self.root, "agy", "c1", "sub/ready.txt")
         folder = artifact.parent
 
-        def run(backend, counts):
+        def run(backend, counts, other_unicode=False):
             return subprocess.run([sys.executable, "-S", "-B", "-X", "int_max_str_digits=640",
                                    "-c", observe,
                                    str(SCRIPT_PATH), *args],
                                   env={**os.environ, "MORU_LAUNCHER_BACKEND": backend,
-                                       "EXPECTED_COUNTS": counts, "PYTHONIOENCODING": "utf-16-le"},
+                                       "EXPECTED_COUNTS": counts, "PYTHONIOENCODING": "utf-16-le",
+                                       "MORU_TEST_OTHER_UNICODE_VERSION": "1" if other_unicode else ""},
                                   capture_output=True, timeout=12)
 
         def compare(exit_code, native_counts):
@@ -410,9 +414,9 @@ finally:
         self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
                          (2, b"", reference.stderr))
 
-        def compare_schema_error(message, native_counts):
+        def compare_schema_error(message, native_counts, other_unicode=False):
             reference = run("python", "0,2")
-            actual = run("auto", native_counts)
+            actual = run("auto", native_counts, other_unicode)
             self.assertEqual((reference.returncode, reference.stdout), (2, b""))
             self.assertIn(message, reference.stderr.decode("utf-16-le"))
             self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
@@ -421,8 +425,8 @@ finally:
         cases.write_text('{"schema_version":true,"cases":[]}', encoding="utf-8")
         traces.write_text('{"schema_version":1,"runs":[{}]}', encoding="utf-8")
         compare_schema_error("unsupported cases schema_version", "1,0")
-        args[-1] = "unknown"
-        compare_schema_error("invalid or duplicate provider: 'unknown'", "1,2")
+        args[-1] = "unknown'\"\tvalue"
+        compare_schema_error(f"invalid or duplicate provider: {args[-1]!r}", "1,0", True)
         args[-1] = "agy"
         traces.write_text('{"schema_version":1,"runs":[}', encoding="utf-8")
         compare_schema_error("invalid JSON input", "1,2")
@@ -432,7 +436,21 @@ finally:
                          '{"id":"c2","expected_status":"ok","max_prompts":true}]}',
                          encoding="utf-8")
         traces.write_text('{"schema_version":1,"runs":[{}]}', encoding="utf-8")
-        compare_schema_error("invalid or duplicate case id: '..'", "1,2")
+        compare_schema_error("invalid or duplicate case id: '..'", "1,0")
+
+        for value, counts, other_unicode in [
+            ({"ordered": [True, None, 2**80, float("inf")]}, "1,0", True),
+            ({"한😀\u1c89": ["printable", "\u200b"]}, "1,0", False),
+            ({"한😀\u1c89": ["printable", "\u200b"]}, "1,2", True),
+            ({"nested": [{"float": -0.0}]}, "1,2", False),
+        ]:
+            with self.subTest(value=value, other_unicode=other_unicode):
+                cases.write_text(json.dumps({"schema_version": 1, "cases": [
+                    {"id": value, "expected_status": "ok", "max_prompts": 0},
+                    {"id": "c2", "expected_status": "ok", "max_prompts": True},
+                ]}), encoding="utf-8")
+                compare_schema_error(f"invalid or duplicate case id: {value!r}",
+                                     counts, other_unicode)
 
         cases.write_bytes(valid_cases)
         compare_schema_error("malformed run entry", "1,0")
