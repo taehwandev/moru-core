@@ -1,22 +1,21 @@
-//! owner: FigmaFile; allowed imports: bounded regular-file IO, libc, PythonText;
+//! owner: PythonInputFile; allowed imports: bounded regular-file IO, libc, PythonText;
 //! forbidden imports: stream/device reads, writes, Python execution;
-//! callers/tests: FigmaProcess; verification: original-path errno diagnostics and safe deferral.
+//! callers/tests: Figma and offline evaluator; verification: original-path errno and safe deferral.
 use crate::python_text::PythonText;
-#[path = "figma_file_outcome.rs"]
+#[path = "python_input_file_outcome.rs"]
 mod outcome;
-pub(super) use outcome::FileRead;
+pub(crate) use outcome::FileRead;
 use std::{
     collections::VecDeque,
-    ffi::{CStr, OsString},
+    ffi::{CStr, OsStr},
     fs,
     io::Read,
     os::unix::fs::{MetadataExt, OpenOptionsExt},
     path::{Component, Path, PathBuf},
 };
-pub(super) struct FigmaFile;
-impl FigmaFile {
-    pub(super) fn read(path: &OsString) -> Option<FileRead> {
-        const LIMIT: u64 = 64 * 1024 * 1024;
+pub(crate) struct PythonInputFile;
+impl PythonInputFile {
+    pub(crate) fn read(path: &OsStr, limit: u64, report_oversize: bool) -> Option<FileRead> {
         let original = Path::new(path);
         let lexical = if original.is_absolute() {
             original.to_owned()
@@ -31,7 +30,7 @@ impl FigmaFile {
             Ok(meta) => meta,
             Err(error) => return Self::lookup_error(path, error),
         };
-        if (!before.is_file() && !before.is_dir()) || before.len() > LIMIT {
+        if (!before.is_file() && !before.is_dir()) || (!report_oversize && before.len() > limit) {
             return None;
         }
         let canonical = fs::canonicalize(original).ok()?;
@@ -73,8 +72,11 @@ impl FigmaFile {
             return None;
         }
         let mut bytes = Vec::new();
-        file.take(LIMIT + 1).read_to_end(&mut bytes).ok()?;
-        (bytes.len() as u64 <= LIMIT).then_some(FileRead::Bytes(bytes))
+        file.take(limit + 1).read_to_end(&mut bytes).ok()?;
+        if bytes.len() as u64 > limit {
+            return report_oversize.then_some(FileRead::TooLarge);
+        }
+        Some(FileRead::Bytes(bytes))
     }
 
     fn descriptor_path(path: &Path) -> bool {
@@ -119,14 +121,14 @@ impl FigmaFile {
     fn same(left: &fs::Metadata, right: &fs::Metadata) -> bool {
         left.dev() == right.dev() && left.ino() == right.ino() && left.mode() == right.mode()
     }
-    fn lookup_error(path: &OsString, error: std::io::Error) -> Option<FileRead> {
+    fn lookup_error(path: &OsStr, error: std::io::Error) -> Option<FileRead> {
         let errno = error.raw_os_error()?;
         if fs::metadata(path).err()?.raw_os_error()? != errno {
             return None;
         }
         Self::error(path, errno)
     }
-    fn error(path: &OsString, errno: i32) -> Option<FileRead> {
+    fn error(path: &OsStr, errno: i32) -> Option<FileRead> {
         if !matches!(
             errno,
             libc::ENOENT
@@ -146,7 +148,7 @@ impl FigmaFile {
         }
         let message = unsafe { CStr::from_ptr(pointer) }.to_str().ok()?;
         Some(FileRead::Error(format!(
-            "ERROR: cannot read summary: [Errno {errno}] {message}: {}\n",
+            "[Errno {errno}] {message}: {}",
             PythonText::repr(path)
         )))
     }
@@ -157,11 +159,11 @@ mod tests {
     use super::*;
     #[test]
     fn errors_use_original_unicode_repr_and_decline_unmodeled_errno() {
-        let path = OsString::from("./missing '한글'.json");
-        let Some(FileRead::Error(message)) = FigmaFile::error(&path, libc::ENOENT) else {
+        let path = OsStr::new("./missing '한글'.json");
+        let Some(FileRead::Error(message)) = PythonInputFile::error(path, libc::ENOENT) else {
             panic!("missing error");
         };
-        assert!(message.ends_with(": \"./missing '한글'.json\"\n"));
-        assert!(FigmaFile::error(&path, libc::EIO).is_none());
+        assert!(message.ends_with(": \"./missing '한글'.json\""));
+        assert!(PythonInputFile::error(path, libc::EIO).is_none());
     }
 }

@@ -3,12 +3,15 @@
 //! token access, Figma extraction, writes to input; callers/tests: launcher_main,
 //! test_native_figma_validate; verification: reference parity and no-Python tests.
 use crate::{
-    figma_coverage::FigmaCoverage, figma_validation::FigmaValidation,
-    figma_validation_report::FigmaReport, pretool_guard::CallbackGuard, python_json::PythonJson,
-    python_text::PythonUtf8, text::Text,
+    figma_coverage::FigmaCoverage,
+    figma_validation::FigmaValidation,
+    figma_validation_report::FigmaReport,
+    pretool_guard::CallbackGuard,
+    python_input_file::{FileRead, PythonInputFile},
+    python_json::PythonJson,
+    python_text::PythonUtf8,
+    text::Text,
 };
-#[path = "figma_file.rs"]
-mod file;
 use std::{ffi::OsString, io::Write};
 
 struct Outcome {
@@ -53,15 +56,10 @@ impl FigmaProcess {
     }
 
     fn evaluate(path: &OsString) -> Option<Outcome> {
-        let bytes = match file::FigmaFile::read(path)? {
-            file::FileRead::Bytes(bytes) => bytes,
-            file::FileRead::Error(stderr) => {
-                return Some(Outcome {
-                    code: 2,
-                    stdout: String::new(),
-                    stderr,
-                })
-            }
+        let bytes = match PythonInputFile::read(path, 64 * 1024 * 1024, false)? {
+            FileRead::Bytes(bytes) => bytes,
+            FileRead::Error(error) => return Some(Self::read_error(error)),
+            FileRead::TooLarge => return None,
         };
         let text = match PythonUtf8::decode(&bytes) {
             Ok(text) => Text::universal_newlines(text),

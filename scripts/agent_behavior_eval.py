@@ -265,8 +265,6 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
         if any(os.fsencode(value) != value.encode("utf-8")
                for value in (ns.cases, ns.traces, ns.artifact_root, *providers)):
             return None
-        if not Path(ns.cases).is_file() or not Path(ns.traces).is_file():
-            return None
         entry = Path(__file__).resolve()
         plan = artifact_plan(entry.parent.parent, entry)
         if plan is None:

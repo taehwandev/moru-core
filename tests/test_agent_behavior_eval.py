@@ -5,6 +5,7 @@ Synthetic traces verify offline grading behavior only, not live provider scores.
 from __future__ import annotations
 
 import copy
+import errno
 import importlib.util
 import io
 import json
@@ -277,6 +278,20 @@ class AgentBehaviorEvalTests(unittest.TestCase):
             compare(args, 1)  # Ordered trace and artifact failures in the same report.
             compare(args[:-1] + ["agy,agy"], 2)
             compare(args[:3] + [str(folder / "missing.json")] + args[4:], 2)
+            stream = folder / "input.fifo"
+            os.mkfifo(stream)
+            alias = folder / "descriptor.json"
+            with cases.open("rb") as source:
+                source.seek(1)
+                alias.symlink_to(f"/dev/fd/{source.fileno()}")
+                for unsupported in (stream, alias):
+                    result = subprocess.run(
+                        [str(NATIVE), "offline-eval", "--behavior-eval",
+                         *args[:1], str(unsupported), *args[2:]],
+                        env={**os.environ, "PATH": str(empty)}, capture_output=True,
+                        pass_fds=(source.fileno(),), timeout=8)
+                    self.assertEqual((result.returncode, result.stdout, result.stderr), (78, b"", b""))
+                    self.assertEqual(source.tell(), 1)
             traces.write_text('{"schema_version":1,"runs":[}', encoding="utf-8")
             compare(args, 2)
             traces.write_text('{"schema_version":1,"runs":[]}', encoding="utf-8")
@@ -463,6 +478,31 @@ finally:
             {"provider": "agy", "case_id": "c1", "events": [{"kind": "final"}]}
         ]}), encoding="utf-8")
         compare_schema_error("invalid final event", "1,0")
+
+        missing = self.root / "missing '한글'.json"
+        dangling = self.root / "dangling.json"
+        dangling.symlink_to(missing)
+        loop = self.root / "loop.json"
+        loop.symlink_to(loop.name)
+        denied = self.root / "unreadable.json"
+        denied.write_bytes(valid_cases)
+        denied.chmod(0)
+        errors = [(str(missing), errno.ENOENT), (str(dangling), errno.ENOENT),
+                  (str(self.root), errno.EISDIR),
+                  (str(cases) + "/", errno.ENOTDIR), (str(loop), errno.ELOOP)]
+        if not os.access(denied, os.R_OK):
+            errors.append((str(denied), errno.EACCES))
+        for spelling, code in errors:
+            with self.subTest(spelling=spelling):
+                args[1] = spelling
+                reference = run("python", "0,1")
+                actual = run("auto", "1,0")
+                self.assertEqual((reference.returncode, reference.stdout), (2, b""))
+                diagnostic = reference.stderr.decode("utf-16-le")
+                self.assertIn(f"[Errno {code}]", diagnostic)
+                self.assertIn(repr(spelling), diagnostic)
+                self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                 (2, b"", reference.stderr))
 
 
 if __name__ == "__main__":

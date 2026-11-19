@@ -5,16 +5,15 @@ use crate::{
     behavior_eval::BehaviorEval,
     behavior_eval_artifact::BehaviorEvalArtifacts,
     behavior_eval_input::{BehaviorEvalError, BehaviorEvalInput},
+    python_input_file::{FileRead, PythonInputFile},
     python_json::{InputDiagnostic, PythonJson, Value as PythonValue},
     python_text::{PythonText, PythonUtf8},
 };
 use serde_json::{json, Value};
 use std::{
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fmt::Write as _,
-    fs::OpenOptions,
-    io::{self, Read, Write as _},
-    os::unix::fs::OpenOptionsExt,
+    io::{self, Write as _},
 };
 
 const MAX_JSON_BYTES: u64 = 4 * 1024 * 1024;
@@ -208,34 +207,23 @@ impl BehaviorEvalCli {
     }
 
     fn read_json(path: &str, args: &Arguments) -> Result<Option<PythonValue>, BehaviorEvalError> {
-        let bad_input = |error: io::Error| {
-            let detail = error.to_string();
-            match error.raw_os_error() {
-                Some(code) => format!(
-                    "invalid JSON input {path}: [Errno {code}] {}: {}",
-                    detail.split(" (os error ").next().unwrap_or(&detail),
-                    PythonText::repr(path)
-                ),
-                None => format!("invalid JSON input {path}: {detail}"),
+        let bytes = match PythonInputFile::read(OsStr::new(path), MAX_JSON_BYTES, true) {
+            Some(FileRead::Bytes(bytes)) => bytes,
+            Some(FileRead::TooLarge) => {
+                return Err(BehaviorEvalError::Stable(format!(
+                    "input too large: {path}"
+                )))
             }
+            Some(FileRead::Error(error)) => {
+                let detail = format!("invalid JSON input {path}: {error}");
+                return Err(if path.is_ascii() {
+                    BehaviorEvalError::Stable(detail)
+                } else {
+                    BehaviorEvalError::Unicode(detail)
+                });
+            }
+            None => return Ok(None),
         };
-        let file = OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_NONBLOCK)
-            .open(path)
-            .map_err(bad_input)?;
-        if !file.metadata().map_err(bad_input)?.is_file() {
-            return Ok(None);
-        }
-        let mut bytes = Vec::new();
-        file.take(MAX_JSON_BYTES + 1)
-            .read_to_end(&mut bytes)
-            .map_err(bad_input)?;
-        if bytes.len() as u64 > MAX_JSON_BYTES {
-            return Err(BehaviorEvalError::Stable(format!(
-                "input too large: {path}"
-            )));
-        }
         let raw = PythonUtf8::decode(&bytes).map_err(|detail| {
             BehaviorEvalError::Stable(format!("invalid JSON input {path}: {detail}"))
         })?;
