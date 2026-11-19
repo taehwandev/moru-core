@@ -70,6 +70,7 @@ impl CompletionProcess {
             Some("publication-upstream-proof") => PublicationEvidence::upstream(&payload),
             Some("staged-v1-prepare") => LocalDeliveryPrepare::probe(&payload),
             Some("pending-publication-read") => PendingPublicationReceipt::probe(&payload),
+            Some("pending-publication-replace") => PendingPublicationReceipt::replace(&payload),
             Some("pending-publication-status") => PendingPublicationStatus::probe(&payload),
             Some("pending-publication-partition") => PendingPublicationPartition::probe(&payload),
             Some("pending-publication-prepare") => PendingPublicationTransition::prepare(&payload),
@@ -81,7 +82,7 @@ impl CompletionProcess {
         };
         let Ok(mut output) = serde_json::to_vec(&json!({"schema_version":1,"result":result}))
         else {
-            return 125;
+            return 1;
         };
         output.push(b'\n');
         if std::io::stdout().write_all(&output).is_ok() {

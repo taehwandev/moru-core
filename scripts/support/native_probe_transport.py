@@ -23,34 +23,51 @@ class NativeProbe:
     def request(protocol: str, operation: str, payload: dict) -> dict | None:
         if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe"}:
             return None
-        done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE)
-        if done is None or len(done.stdout) > 1024 * 1024:
+        writes_receipt = protocol == "--completion-probe" and operation == "pending-publication-replace"
+        done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE, writes_receipt=writes_receipt)
+        if done is None:
             return None
         try:
-            value = json.loads(done.stdout)
-            if (not isinstance(value, dict) or set(value) != {"schema_version", "result"}
-                    or type(value["schema_version"]) is not int or value["schema_version"] != 1):
-                return None
-            return value["result"] if isinstance(value["result"], dict) else None
+            if len(done.stdout) <= 1024 * 1024:
+                value = json.loads(done.stdout)
+                if (isinstance(value, dict) and set(value) == {"schema_version", "result"}
+                        and type(value["schema_version"]) is int and value["schema_version"] == 1
+                        and isinstance(value["result"], dict)):
+                    return value["result"]
         except (ValueError, TypeError):
-            return None
+            pass
+        if writes_receipt:
+            raise OSError("native receipt replacement outcome could not be determined")
+        return None
 
     @staticmethod
     def encode_publication_receipt(payload: dict, output: BinaryIO) -> bool:
         return NativeProbe._invoke("--completion-probe", "pending-publication-encode", payload, output) is not None
 
     @staticmethod
-    def _invoke(protocol: str, operation: str, payload: dict, stdout) -> subprocess.CompletedProcess | None:
+    def _invoke(protocol: str, operation: str, payload: dict, stdout, *,
+                writes_receipt: bool = False) -> subprocess.CompletedProcess | None:
         if not NativeProbe.available():
             return None
         entry = Path.home() / ".moru/bin/moru-hook"
         try:
             raw = json.dumps(payload, ensure_ascii=True, allow_nan=False).encode()
-            if len(raw) > 1024 * 1024:
-                return None
+        except (ValueError, TypeError):
+            return None
+        if len(raw) > 1024 * 1024:
+            return None
+        try:
             done = subprocess.run([str(entry.with_name("moru-hook-native")), str(entry), protocol, operation],
                                   input=raw, stdout=stdout, stderr=subprocess.PIPE, timeout=10,
                                   env={**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])})
-            return None if done.returncode or done.stderr else done
-        except (OSError, ValueError, TypeError, subprocess.TimeoutExpired):
+        except FileNotFoundError:
             return None
+        except (OSError, ValueError, TypeError, subprocess.TimeoutExpired):
+            if writes_receipt:
+                raise OSError("native receipt replacement outcome could not be determined") from None
+            return None
+        if done.returncode == 0 and not done.stderr:
+            return done
+        if writes_receipt and (done.returncode, done.stdout, done.stderr) != (125, b"", b""):
+            raise OSError("native receipt replacement outcome could not be determined")
+        return None

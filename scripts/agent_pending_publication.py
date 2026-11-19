@@ -31,9 +31,11 @@ import os
 import re
 import subprocess
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from agent_continuation_outbound import assert_no_continuation_outbound
 from agent_execution_capsule_state import atomic_write_json
 from agent_publication_status import observe_pull_request, observe_upstream
 from workflow_intent_envelope import EFFECT_RANK
@@ -127,6 +129,22 @@ def _path(evidence: Path) -> Path:
 
 def _sha(evidence: Path) -> str:
     return hashlib.sha256(evidence.read_bytes()).hexdigest()
+
+
+def _store(evidence: Path, record: dict) -> None:
+    path = _path(evidence)
+    if NativeProbe.available():
+        assert_no_continuation_outbound({"path": path, "payload": record}, boundary="artifact")
+        result = NativeProbe.request("--completion-probe", "pending-publication-replace", {
+            "evidence": str(evidence), "record": record, "temporary": uuid.uuid4().hex,
+        })
+        if result is not None:
+            if result == {"error": None}:
+                return
+            errors = (FileExistsError, FileNotFoundError, PermissionError, IsADirectoryError, NotADirectoryError)
+            error = next((error for error in errors if error.__name__ == result.get("error")), OSError)
+            raise error("native receipt replacement failed")
+    atomic_write_json(path, record, write_payload=NativeProbe.encode_publication_receipt)
 
 
 def _load(evidence: Path) -> tuple[dict | None, str]:
@@ -240,7 +258,7 @@ def record_pending(project: Path, evidence: Path, deferred: list) -> str:
             "base_head": head,
             "source_branch": branch,
         }, wanted, local_proof)
-        atomic_write_json(_path(evidence), record, write_payload=NativeProbe.encode_publication_receipt)
+        _store(evidence, record)
     except (OSError, ValueError) as error:
         return f"pending-publication record could not be written ({type(error).__name__})"
     stored, problem = _load(evidence)
@@ -447,7 +465,7 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
                 return refusal
             record = _observed_record(record, item, observation, datetime.now(timezone.utc).isoformat())
             try:
-                atomic_write_json(_path(evidence), record, write_payload=NativeProbe.encode_publication_receipt)
+                _store(evidence, record)
             except (OSError, ValueError) as error:
                 return f"observation could not be stored ({type(error).__name__})"
             return ""

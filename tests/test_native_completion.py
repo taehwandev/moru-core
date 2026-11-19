@@ -12,7 +12,7 @@ from agent_continuation_checkpoint import write_continuation_checkpoint
 from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from agent_pending_publication import (
-    _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record,
+    _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record, _store,
     outstanding, pending_reason, record_pending, split_remaining,
 )
 from agent_publication_status import _observe_pull_request_python, observe_pull_request, observe_upstream
@@ -119,6 +119,84 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             atomic_write_json(path, unusual, write_payload=NativeProbe.encode_publication_receipt)
         self.assertEqual((json.dumps(unusual, sort_keys=True, indent=2) + "\n").encode(), path.read_bytes())
+
+    def test_native_receipt_replacement_is_bound_and_atomic(self):
+        run, nonce = "a" * 32, "b" * 32
+        directory = self.project / ".moru" / "runs" / run
+        directory.mkdir(parents=True)
+        evidence = directory / "preflight.json"
+        evidence.write_bytes(b"{}\n")
+        target = directory / "pending-publication.json"
+        record = {
+            "schema_version": 1, "run_id": run, "base_head": "c" * 40,
+            "evidence_sha256": hashlib.sha256(evidence.read_bytes()).hexdigest(),
+            "items": [{"checkpoint": "publication.commit", "state": "pending", "observation": "한글"}],
+        }
+        request = {"evidence": str(evidence), "temporary": nonce, "record": record}
+        target.write_bytes(b"old\n")
+        temporary = target.with_name(f"{target.name}.{nonce}.tmp")
+        temporary.write_bytes(b"another writer")
+        self.assertEqual({"error": "FileExistsError"}, self.check("pending-publication-replace", request))
+        self.assertEqual(b"another writer", temporary.read_bytes())
+        self.assertEqual(b"old\n", target.read_bytes())
+        temporary.unlink()
+        for changes in ({"run_id": "d" * 32}, {"evidence_sha256": "0" * 64},
+                        {"opaque": "project_local_never_sync"},
+                        {f".moru/runs/{run}/continuation.json?query": "rejected"}):
+            refused = self.raw("pending-publication-replace", {**request, "record": {**record, **changes}})
+            self.assertEqual((125, b"", b""), (refused.returncode, refused.stdout, refused.stderr))
+            self.assertEqual(b"old\n", target.read_bytes())
+            self.assertFalse(temporary.exists())
+        with patch.dict(os.environ, self.env, clear=True), patch(
+                "agent_pending_publication.atomic_write_json", side_effect=AssertionError("Python fallback")):
+            _store(evidence, record)
+        self.assertEqual((json.dumps(record, sort_keys=True, indent=2) + "\n").encode(), target.read_bytes())
+        self.assertEqual(0o600, target.stat().st_mode & 0o777)
+        self.assertFalse(list(directory.glob("*.tmp")))
+        alias = directory.with_name("e" * 32)
+        alias.symlink_to(directory, target_is_directory=True)
+        aliased = self.raw("pending-publication-replace", {
+            **request, "evidence": str(alias / evidence.name), "record": {**record, "run_id": alias.name},
+        })
+        self.assertEqual((125, b"", b""), (aliased.returncode, aliased.stdout, aliased.stderr))
+        with patch.dict(os.environ, self.env, clear=True), self.assertRaises(OSError):
+            _store(alias / evidence.name, {**record, "run_id": alias.name})
+        self.assertEqual((json.dumps(record, sort_keys=True, indent=2) + "\n").encode(), target.read_bytes())
+        old_target = directory / "external-object"
+        old_target.write_bytes(b"linked content")
+        target.unlink()
+        target.symlink_to(old_target)
+        self.assertEqual({"error": None}, self.check("pending-publication-replace", request))
+        self.assertFalse(target.is_symlink())
+        self.assertEqual(b"linked content", old_target.read_bytes())
+        target.unlink()
+        target.mkdir()
+        with self.assertRaises(OSError) as failure:
+            atomic_write_json(target, record)
+        self.assertEqual({"error": type(failure.exception).__name__},
+                         self.check("pending-publication-replace", request))
+        self.assertFalse(list(directory.glob("*.tmp")))
+        self.assertTrue(target.is_dir())
+
+    def test_receipt_write_transport_does_not_retry_unknown_outcomes(self):
+        evidence = self.project / "preflight.json"
+        record = {"data": True}
+        with patch.dict(os.environ, self.env, clear=True), patch(
+                "agent_pending_publication.atomic_write_json") as legacy, patch(
+                "support.native_probe_transport.subprocess.run") as native:
+            for status, stdout in ((1, b""), (0, b""), (-9, b"")):
+                native.return_value = subprocess.CompletedProcess([], status, stdout, b"")
+                with self.assertRaisesRegex(OSError, "outcome could not be determined"):
+                    _store(evidence, record)
+            native.side_effect = subprocess.TimeoutExpired([], 10)
+            with self.assertRaisesRegex(OSError, "outcome could not be determined"):
+                _store(evidence, record)
+            legacy.assert_not_called()
+            native.side_effect = None
+            native.return_value = subprocess.CompletedProcess([], 125, b"", b"")
+            _store(evidence, record)
+            legacy.assert_called_once_with(evidence.with_name("pending-publication.json"), record,
+                                           write_payload=NativeProbe.encode_publication_receipt)
 
     def test_pending_publication_transitions_preserve_receipt_order_and_metadata(self):
         fields = {"run_id": "test-run", "evidence_sha256": "1" * 64, "base_head": "2" * 40,
