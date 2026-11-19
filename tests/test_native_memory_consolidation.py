@@ -35,6 +35,7 @@ class ConsolidationReportGroupsTests(unittest.TestCase):
                               "statuses":sorted(source.RECALLABLE_STATUSES),"render_days":14},payload["review"])
             return {"review":{"live":[1,0],"expired":[0],"expiring":[]},
                     "date_entries":{"expired":[{"id":"wrong"}],"expiring":[]},
+                    "replacement_entries":[{"id":"wrong"}],
                     "relations":{"duplicates":[[0,1]],"shared_sources":[[0,1]],
                                  "findings":[{"index":0,"replacements":[1]}]}}
         with patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
@@ -428,6 +429,39 @@ class NativeMemoryConsolidationTests(unittest.TestCase):
         for bucket, key in (("expired", "applies_when"), ("expiring", "not_when")):
             self.assertEqual(list(expected[bucket][0]), list(actual[bucket][0]))
             self.assertIs(marker, actual[bucket][0][key])
+
+    def test_native_replacement_entries_preserve_metadata_and_skip_python_entry_assembly(self):
+        from support.native_probe_transport import NativeProbe
+
+        marker = object()
+        records = [
+            self.record("c", "charlie", source="Third", replaces="a"),
+            self.record("a", "alpha", source="First", applies_when=marker),
+            self.record("b", "bravo", source="Second", replaces="a"),
+        ]
+        today = date(2026, 11, 12)
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = source.findings(records, 0, today=today)
+        calls = []
+        code = source._replacement_entries.__code__
+        def observe(frame, event, arg):
+            if event == "call" and frame.f_code is code:
+                calls.append(True)
+        previous = sys.getprofile()
+        with patch.dict(os.environ, self.env, clear=True), \
+                patch.object(NativeProbe, "request", wraps=NativeProbe.request) as request:
+            try:
+                sys.setprofile(observe)
+                actual = source.findings(records, 0, today=today)
+            finally:
+                sys.setprofile(previous)
+        self.assertEqual([], calls)
+        self.assertEqual(1, request.call_count)
+        self.assertEqual(expected, actual)
+        row = actual["unfinished_replacements"][0]
+        self.assertEqual(["b", "c"], row["replaced_by"])
+        self.assertEqual(list(expected["unfinished_replacements"][0]), list(row))
+        self.assertIs(marker, row["applies_when"])
 
     def test_real_store_cli_is_read_only_and_requires_native_grouping(self):
         directory = self.base / "records"

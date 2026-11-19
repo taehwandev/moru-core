@@ -117,8 +117,8 @@ class NativeMemoryConsolidation:
     def report_plan(records, today, within_days, statuses, threshold=0.8, *, render_dates=False):
         result, attempted = _plan_packet(records,today,within_days,statuses,threshold,render_dates=render_dates)
         fields = {"review", "relations"}
-        if type(result) is not dict or (set(result) != fields
-                and not (render_dates and set(result) == fields | {"date_entries"})):
+        optional = {"date_entries", "replacement_entries"} if render_dates else set()
+        if type(result) is not dict or not fields <= set(result) <= fields | optional:
             return None, attempted
         selected = review.NativeMemoryReview._decode(result["review"],records,statuses)
         if selected is None:
@@ -128,7 +128,12 @@ class NativeMemoryConsolidation:
             return None, attempted
         plan = (selected, relations)
         if render_dates:
-            plan += (_date_entries(selected, result.get("date_entries")),)
+            entries = _date_entries(selected, result.get("date_entries")) or {}
+            replacements = result.get("replacement_entries")
+            if _valid_entries([record for record, _ in relations[1]], replacements,
+                              [links for _, links in relations[1]]):
+                entries = {**entries, "unfinished_replacements": replacements}
+            plan += (entries,)
         return plan, attempted
 
     @staticmethod
@@ -230,15 +235,26 @@ _REPORT_PLAN_BINDING = (NativeMemoryConsolidation.report_plan, NativeMemoryConso
 def _date_entries(selected, value):
     if type(value) is not dict or set(value) != {"expired", "expiring"}:
         return None
-    keys = ("id", "scope", "body", "source", "review_on")
     for rows, bucket in zip(selected[1:], ("expired", "expiring")):
-        entries = value[bucket]
-        if type(entries) is not list or len(entries) != len(rows):
+        if not _valid_entries(rows, value[bucket]):
             return None
-        for row, entry in zip(rows, entries):
-            if (type(entry) is not dict or tuple(entry) != (*keys, "reason")
-                    or any(type(entry[key]) is not str or type(row.get(key)) is not str
-                           or entry[key] != row[key] for key in keys)
-                    or type(entry["reason"]) is not str or not entry["reason"]):
-                return None
     return value
+
+
+def _valid_entries(rows, entries, replacements=None):
+    if type(entries) is not list or len(entries) != len(rows):
+        return False
+    keys = ("id", "scope", "body", "source", "review_on")
+    order = (*keys, "reason", "replaced_by") if replacements is not None else (*keys, "reason")
+    for index, (row, entry) in enumerate(zip(rows, entries)):
+        if (type(entry) is not dict or tuple(entry) != order
+                or any(type(entry[key]) is not str or type(row.get(key)) is not str
+                       or entry[key] != row[key] for key in keys)
+                or type(entry["reason"]) is not str or not entry["reason"]):
+            return False
+        if replacements is not None:
+            links = entry["replaced_by"]
+            if (type(links) is not list or any(type(link) is not str for link in links)
+                    or links != replacements[index]):
+                return False
+    return True

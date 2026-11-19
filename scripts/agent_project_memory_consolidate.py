@@ -212,10 +212,15 @@ def _native_relation_profile():
         for name,(original,code,defaults) in _RELATION_CALLBACKS.items()))
 
 
-def _relation_entries(groups, replacements):
+def _relation_entries(groups, replacements, *, rendered=None):
     duplicates, shared = _group_entries(groups)
+    if (rendered is not None and _date_entry_profile() and _native_relation_profile()
+            and _context_bound(_replacement_entries, _REPLACEMENT_ENTRY_BINDING)):
+        unfinished = _materialize_report_entries((record for record, _ in replacements), rendered)
+    else:
+        unfinished = _replacement_entries(replacements)
     return {"duplicate_groups":duplicates,"shared_source_groups":shared,
-            "unfinished_replacements":_replacement_entries(replacements)}
+            "unfinished_replacements":unfinished}
 
 
 def _reference_relations(live):
@@ -305,6 +310,8 @@ _PLAN_CALLBACKS = {name:(globals()[name],globals()[name].__code__,globals()[name
 
 
 _DATE_ENTRY_BINDING = _context_binding(_entry)
+_RELATION_ENTRY_BINDING = _context_binding(_relation_entries)
+_REPLACEMENT_ENTRY_BINDING = _context_binding(_replacement_entries)
 
 
 def _date_entry_profile():
@@ -317,14 +324,21 @@ def _report_date_entries(records, rendered, *, within_days=None):
                   "`capture --replaces` and a new date, or `retire`" if within_days is None
                   else f"review date within {within_days} days; renew or retire ahead of time")
         return [_entry(record, reason) for record in records]
+    return _materialize_report_entries(records, rendered)
+
+
+def _materialize_report_entries(records, rendered):
     entries = []
     for record, row in zip(records, rendered):
         entry = dict(row)
         native_reason = entry.pop("reason")
+        replacements = entry.pop("replaced_by", None)
         for key in _NATIVE_DECISION_FIELDS[5:]:
             if key in record:
                 entry[key] = record[key]
         entry["reason"] = native_reason
+        if replacements is not None:
+            entry["replaced_by"] = list(replacements)
         entries.append(entry)
     return entries
 
@@ -334,17 +348,23 @@ def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
     """Classify validated records; the result carries bodies for the agent only."""
     if within_days < 0:
         raise ValueError("--within-days must not be negative")
-    selected, relations, reference, dates = _report_inputs(records,today,within_days)
+    selected, relations, reference, rendered = _report_inputs(records,today,within_days)
+    entries = rendered if rendered is not None else {}
     live, expired, expiring = selected
     report = {
         "today": today.isoformat(),
         "within_days": within_days,
-        "expired": _report_date_entries(expired, dates["expired"] if dates is not None else None),
-        "expiring": _report_date_entries(expiring, dates["expiring"] if dates is not None else None,
+        "expired": _report_date_entries(expired, entries.get("expired")),
+        "expiring": _report_date_entries(expiring, entries.get("expiring"),
             within_days=within_days),
     }
-    report.update(_relation_entries(*relations) if relations is not None else
-                  _reference_relations(live) if reference else _report_relations(live))
+    if relations is not None:
+        unfinished = entries.get("unfinished_replacements")
+        options = ({"rendered":unfinished} if unfinished is not None
+                   and _context_bound(_relation_entries, _RELATION_ENTRY_BINDING) else {})
+        report.update(_relation_entries(*relations, **options))
+    else:
+        report.update(_reference_relations(live) if reference else _report_relations(live))
     report["unreadable"] = unreadable
     return report
 

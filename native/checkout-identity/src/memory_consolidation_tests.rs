@@ -34,12 +34,20 @@ fn complete_report_plan_keeps_original_and_live_relative_indices_separate() {
 fn complete_report_renders_review_entries_only_when_requested() {
     let mut input = plan_payload(json!([
         {"id":"b","status":"active","scope":"task","body":"second","source":"S2",
-         "review":"2026-11-17","replaces":null},
+         "review":"2026-11-17","replaces":"a"},
         {"id":"a","status":"active","scope":"all","body":"한글","source":"S1",
          "review":"2026-11-16","replaces":null}
     ]));
     input["review"]["render_days"] = json!(14);
     let result = MemoryConsolidation::evaluate("report-text-groups", &input).unwrap();
+    assert_eq!(
+        result["replacement_entries"],
+        json!([
+            {"id":"a","scope":"all","body":"한글","source":"S1","review_on":"2026-11-16",
+                "reason":"a live record replaces this one; `retire` it to finish the interrupted replacement",
+                "replaced_by":["b"]}
+        ])
+    );
     assert_eq!(
         result["date_entries"],
         json!({

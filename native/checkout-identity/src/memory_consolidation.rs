@@ -84,6 +84,8 @@ impl MemoryConsolidation {
         let mut result = json!({"review":selected,"relations":relations});
         if let Some(Some(days)) = render_days {
             result["date_entries"] = Self::review_entries(records, &selected, days)?;
+            result["replacement_entries"] =
+                Self::replacement_entries(records, &selected, &relations)?;
         }
         Some(result)
     }
@@ -95,10 +97,7 @@ impl MemoryConsolidation {
                 .as_array()?
                 .iter()
                 .map(|index| {
-                    let row = records.get(usize::try_from(index.as_u64()?).ok()?)?;
-                    Some(json!({"id":row.get("id")?, "scope":row.get("scope")?,
-                    "body":row.get("body")?, "source":row.get("source")?,
-                    "review_on":row.get("review")?, "reason":reason}))
+                    Self::report_entry(records.get(usize::try_from(index.as_u64()?).ok()?)?, reason)
                 })
                 .collect::<Option<Vec<_>>>()
         };
@@ -108,6 +107,43 @@ impl MemoryConsolidation {
             "expiring":entries("expiring",
                 &format!("review date within {days} days; renew or retire ahead of time"))?
         }))
+    }
+
+    fn report_entry(row: &Value, reason: &str) -> Option<Value> {
+        Some(json!({"id":row.get("id")?, "scope":row.get("scope")?,
+            "body":row.get("body")?, "source":row.get("source")?,
+            "review_on":row.get("review")?, "reason":reason}))
+    }
+
+    fn replacement_entries(
+        records: &[Value],
+        selected: &Value,
+        relations: &Value,
+    ) -> Option<Value> {
+        let live = selected.get("live")?.as_array()?;
+        let row_at = |index: &Value| {
+            let original = live.get(usize::try_from(index.as_u64()?).ok()?)?;
+            records.get(usize::try_from(original.as_u64()?).ok()?)
+        };
+        let reason =
+            "a live record replaces this one; `retire` it to finish the interrupted replacement";
+        let rows = relations
+            .get("findings")?
+            .as_array()?
+            .iter()
+            .map(|finding| {
+                let mut row = Self::report_entry(row_at(finding.get("index")?)?, reason)?;
+                let replacements = finding
+                    .get("replacements")?
+                    .as_array()?
+                    .iter()
+                    .map(|index| row_at(index)?.get("id")?.as_str())
+                    .collect::<Option<Vec<_>>>()?;
+                row["replaced_by"] = json!(replacements);
+                Some(row)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(json!(rows))
     }
 
     fn report_relations(records: &[Value]) -> Option<Value> {
