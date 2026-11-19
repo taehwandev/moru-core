@@ -270,13 +270,13 @@ def _native_json_integer_error(limit: int) -> str | None:
     return template
 
 
-def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[int, str] | None:
+def _native_report(argv: Sequence[str]) -> tuple[int, str] | None:
     """Use the verified candidate for reports and stable input diagnostics."""
     if os.environ.get("MORU_LAUNCHER_BACKEND", "auto") not in ("auto", "rust"):
         return None
     if any(name in sys.modules for name in ("sitecustomize", "usercustomize")):
         return None
-    if not ns.artifact_root:
+    if any(flag in argv for flag in ("-h", "--help")):
         return None
 
     import subprocess
@@ -286,8 +286,7 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
 
         from support.native_launcher_install import artifact_plan
 
-        if any(os.fsencode(value) != value.encode("utf-8")
-               for value in (ns.cases, ns.traces, ns.artifact_root, *providers)):
+        if any(os.fsencode(value) != value.encode("utf-8") for value in argv):
             return None
         entry = Path(__file__).resolve()
         plan = artifact_plan(entry.parent.parent, entry)
@@ -295,16 +294,13 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
             return None
         digit_limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
         command = [str(plan["source"]), str(entry), "--behavior-eval", "--stable-errors-only",
-                   f"--cases={ns.cases}", f"--traces={ns.traces}",
-                   f"--artifact-root={Path(ns.artifact_root)}",
                    f"--unicode-version={unicodedata.unidata_version}",
                    f"--int-max-str-digits={digit_limit}"]
         if (integer_error := _native_json_integer_error(digit_limit)) is not None:
             command.append(f"--json-integer-error={integer_error}")
         if (trailing_comma := _native_json_trailing_comma()) is not None:
             command.append(f"--json-trailing-comma={trailing_comma}")
-        if providers:
-            command.extend(["--providers", *providers])
+        command.extend(["--public-args", *argv])
         result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True)
         if result.returncode in (0, 1) and result.stdout and not result.stderr:
             return result.returncode, result.stdout.decode("ascii")
@@ -317,6 +313,11 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
 
 def main(argv: Sequence[str] | None = None, stdout: TextIO | None = None, stderr: TextIO | None = None) -> int:
     out, err = stdout or sys.stdout, stderr or sys.stderr
+    if __name__ == "__main__" and argv is stdout is stderr is None:
+        if (native := _native_report(sys.argv[1:])) is not None:
+            code, output = native
+            (err if code == 2 else out).write(output)
+            return code
     p = _CliParser(description="Offline agent behavior grader (supplied evidence only, not live scores).")
     for flag, h in (("--cases", "Cases JSON"), ("--traces", "Traces JSON"), ("--artifact-root", "Root holding <provider>/<case_id>/ artifacts")):
         p.add_argument(flag, required=True, help=h)
@@ -326,17 +327,10 @@ def main(argv: Sequence[str] | None = None, stdout: TextIO | None = None, stderr
         toks = None if ns.providers is None else [x.strip() for a in ns.providers for x in a.split(",")]
         if toks is not None and any(not x for x in toks):
             raise ValueError("empty provider token in --providers")
-        native = (_native_report(ns, toks or ())
-                  if __name__ == "__main__" and argv is stdout is stderr is None else None)
-        if native is None:
-            report = evaluate(_read_json(ns.cases), _read_json(ns.traces), ns.artifact_root, SUPPORTED_PROVIDERS if toks is None else toks)
+        report = evaluate(_read_json(ns.cases), _read_json(ns.traces), ns.artifact_root, SUPPORTED_PROVIDERS if toks is None else toks)
     except ValueError as exc:
         err.write(f"error: {exc}\n")
         return 2
-    if native is not None:
-        code, output = native
-        (err if code == 2 else out).write(output)
-        return code
     out.write(json.dumps(report, indent=2) + "\n")
     return 0 if report["failed"] == 0 and report["total"] > 0 else 1
 

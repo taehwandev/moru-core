@@ -354,13 +354,17 @@ import os, runpy, sys
 script = sys.argv.pop(1)
 sys.argv[0] = script
 sys.path.insert(0, os.path.dirname(script))
-counts = [0, 0]
+counts = [0, 0, 0]
 def audit(event, args):
     if event == 'subprocess.Popen':
         counts[0] += 1
 def profile(frame, event, arg):
-    if event == 'call' and frame.f_code.co_name == '_read_json' and frame.f_code.co_filename == script:
+    if event != 'call':
+        return
+    if frame.f_code.co_name == '_read_json' and frame.f_code.co_filename == script:
         counts[1] += 1
+    if frame.f_code.co_name == 'parse_args' and frame.f_globals.get('__name__') == 'argparse':
+        counts[2] += 1
 sys.addaudithook(audit)
 sys.setprofile(profile)
 try:
@@ -382,12 +386,15 @@ finally:
         artifact = _write_artifact(self.root, "agy", "c1", "sub/ready.txt")
         folder = artifact.parent
 
-        def run(backend, counts, other_unicode=False, digit_limit=640):
+        def run(backend, counts, other_unicode=False, digit_limit=640, parses=None):
+            if parses is None:
+                parses = int(backend == "python" or counts != "1,0")
             return subprocess.run([sys.executable, "-S", "-B", "-X", f"int_max_str_digits={digit_limit}",
                                    "-c", observe,
                                    str(SCRIPT_PATH), *args],
                                   env={**os.environ, "MORU_LAUNCHER_BACKEND": backend,
-                                       "EXPECTED_COUNTS": counts, "PYTHONIOENCODING": "utf-16-le",
+                                       "EXPECTED_COUNTS": f"{counts},{parses}",
+                                       "PYTHONIOENCODING": "utf-16-le",
                                        "MORU_TEST_OTHER_UNICODE_VERSION": "1" if other_unicode else ""},
                                   capture_output=True, timeout=12)
 
@@ -407,6 +414,29 @@ finally:
             folder.chmod(0o700)
         cases.write_text(json.dumps(_single_case_doc(max_prompts=2**80)), encoding="utf-8")
         compare(0, "1,0")
+
+        original_args = args.copy()
+        # Both repeated options follow argparse's last-value rule.
+        args[:] = ["--cas=missing.json", "--pro=codex", *original_args, "--pro", "agy", "claude"]
+        compare(1, "1,0")
+        args[:] = original_args
+        args[5] += "/./"
+        compare(0, "1,0")
+        # Public arguments cannot install private options, and malformed
+        # repeated nargs+ options keep the original parser's error.
+        for extra in (["--int-max-str-digits=0"], ["--public-args"],
+                      ["--"], ["--pro", "--pro=agy"]):
+            args[:] = [*original_args, *extra]
+            reference = run("python", "0,0")
+            actual = run("auto", "1,0", parses=1)
+            self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                             (reference.returncode, reference.stdout, reference.stderr))
+        args[:] = ["--help"]
+        reference = run("python", "0,0")
+        actual = run("auto", "0,0")
+        self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                         (reference.returncode, reference.stdout, reference.stderr))
+        args[:] = original_args
 
         valid_cases = cases.read_bytes()
         cases.write_bytes(valid_cases.ljust(eval_mod.MAX_JSON_BYTES, b" "))
