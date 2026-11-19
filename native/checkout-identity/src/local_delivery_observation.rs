@@ -2,7 +2,7 @@
 //! search and JSON bridge. Forbidden: receipts, publication authority and writes.
 //! Caller: guarded completion probe; tests use real Git refs and receipt checks.
 
-use crate::local_delivery_search::LocalDeliverySearch;
+use crate::local_delivery_search::LocalDeliveryGit;
 use serde_json::{json, Value};
 
 const INTEGRATE: &str = "publication.integrate/";
@@ -19,18 +19,19 @@ impl LocalDeliveryObservation {
         let checkpoint = payload.get("checkpoint")?.as_str()?;
         let declared = payload.get("commit_declared")?.as_bool()?;
         let targets = payload.get("targets")?.as_array()?;
-        if !LocalDeliverySearch::oid(base) || targets.len() > 64 {
+        if !LocalDeliveryGit::oid(base) || !LocalDeliveryGit::digest(expected) || targets.len() > 64
+        {
             return None;
         }
         let targets: Vec<&str> = targets.iter().map(Value::as_str).collect::<Option<_>>()?;
-        let search = LocalDeliverySearch::new(project, expected)?;
+        let search = LocalDeliveryGit::new(project)?;
         let heads = Self::reachable_heads(&search, base, source, &targets)?;
         if heads.is_empty() {
             return Some(Self::refusal("local delivery proof cannot be verified"));
         }
         let commit = if declared {
             let cached = Self::eligible_cache(&search, base, cached, &heads)?;
-            search.find(base, cached, &heads)?
+            search.find(base, cached, &heads, expected)?
         } else {
             base.to_owned()
         };
@@ -63,7 +64,7 @@ impl LocalDeliveryObservation {
     }
 
     fn reachable_heads(
-        search: &LocalDeliverySearch<'_>,
+        search: &LocalDeliveryGit<'_>,
         base: &str,
         source: &str,
         targets: &[&str],
@@ -88,12 +89,12 @@ impl LocalDeliveryObservation {
     }
 
     fn eligible_cache<'a>(
-        search: &LocalDeliverySearch<'_>,
+        search: &LocalDeliveryGit<'_>,
         base: &str,
         cached: &'a str,
         heads: &[String],
     ) -> Option<&'a str> {
-        if !LocalDeliverySearch::oid(cached) || !search.ancestor(base, cached)? {
+        if !LocalDeliveryGit::oid(cached) || !search.ancestor(base, cached)? {
             return Some("");
         }
         for head in heads {

@@ -47,7 +47,9 @@ class LocalDeliveryProof:
         return str((project / common).resolve())
 
     @classmethod
-    def capture(cls, project: Path, base: str, source: str, items: list, git) -> dict:
+    def capture(cls, project: Path, base: str, source: str, items: list, git, *, native: bool = False) -> dict:
+        if native and (proof := _prepare_native(project, base, source, items)) is not None:
+            return proof
         if git(project, 'diff', '--no-ext-diff', '--no-textconv', '--quiet', '--exit-code') is None:
             raise ValueError('tracked worktree content must match the reviewed index')
         staged, original = _capture_identities(
@@ -149,6 +151,24 @@ def _observe_native(project, proof, base, source, expected, checkpoint):
         observation, reason = result["observation"], result["reason"]
         if isinstance(observation, str) and isinstance(reason, str) and bool(observation) != bool(reason):
             return observation, reason
+    return None
+
+
+def _prepare_native(project, base, source, items):
+    if (locale.getpreferredencoding(False).lower() != "utf-8"
+            or any(type(item) is not dict or type(item.get("checkpoint")) is not str for item in items)):
+        return None
+    result = NativeProbe.request(
+        "--completion-probe", "staged-v1-prepare",
+        {"project": str(project), "base": base, "source": source,
+         "checkpoints": [item["checkpoint"] for item in items]},
+    )
+    if result is None:
+        return None
+    if set(result) == {"reason"} and isinstance(result["reason"], str) and result["reason"]:
+        raise ValueError(result["reason"])
+    if set(result) == {"proof"} and isinstance(result["proof"], dict):
+        return result["proof"]
     return None
 
 

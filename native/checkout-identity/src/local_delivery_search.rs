@@ -1,4 +1,4 @@
-//! Owner: bounded staged_v1 commit-tree lookup; allowed: fixed local Git reads,
+//! Owner: bounded staged_v1 Git inspection; allowed: fixed local Git reads,
 //! shared process capture and receipt hashing. Forbidden: Git writes, network,
 //! receipt mutations and publication decisions. Caller: guarded completion probe.
 
@@ -12,31 +12,35 @@ use std::{
     time::{Duration, Instant},
 };
 
-const MAX_TREE: usize = 8 * 1024 * 1024;
+pub(super) const MAX_TREE: usize = 8 * 1024 * 1024;
 const MAX_HISTORY: usize = 4 * 1024 * 1024;
 const CANDIDATE_LIMIT: usize = 64;
 const SEARCH_TIMEOUT: Duration = Duration::from_secs(6);
 
-pub(crate) struct LocalDeliverySearch<'a> {
+pub(super) struct LocalDeliveryGit<'a> {
     project: &'a str,
-    expected: &'a str,
     deadline: Instant,
 }
 
-impl<'a> LocalDeliverySearch<'a> {
-    pub(super) fn new(project: &'a str, expected: &'a str) -> Option<Self> {
-        if !Path::new(project).is_absolute() || expected.len() != 64 || !Self::hex(expected) {
+impl<'a> LocalDeliveryGit<'a> {
+    pub(super) fn new(project: &'a str) -> Option<Self> {
+        if !Path::new(project).is_absolute() {
             return None;
         }
         Some(Self {
             project,
-            expected,
             deadline: Instant::now() + SEARCH_TIMEOUT,
         })
     }
 
-    pub(super) fn find(&self, base: &str, cached: &str, heads: &[String]) -> Option<String> {
-        if !cached.is_empty() && self.matches(cached)? {
+    pub(super) fn find(
+        &self,
+        base: &str,
+        cached: &str,
+        heads: &[String],
+        expected: &str,
+    ) -> Option<String> {
+        if !cached.is_empty() && self.matches(cached, expected)? {
             return Some(cached.to_owned());
         }
         for head in heads {
@@ -49,7 +53,7 @@ impl<'a> LocalDeliverySearch<'a> {
                 if !Self::oid(candidate) {
                     return None;
                 }
-                if self.matches(candidate)? {
+                if self.matches(candidate, expected)? {
                     return Some(candidate.to_owned());
                 }
             }
@@ -57,12 +61,12 @@ impl<'a> LocalDeliverySearch<'a> {
         Some(String::new())
     }
 
-    fn matches(&self, oid: &str) -> Option<bool> {
+    fn matches(&self, oid: &str, expected: &str) -> Option<bool> {
         let tree = self.git(&["ls-tree", "-r", "-z", oid], MAX_TREE)?;
-        Some(LocalDeliveryIdentity::digest(&tree, false)? == self.expected)
+        Some(LocalDeliveryIdentity::digest(&tree, false)? == expected)
     }
 
-    fn git(&self, args: &[&str], limit: usize) -> Option<String> {
+    pub(super) fn git(&self, args: &[&str], limit: usize) -> Option<String> {
         let (status, text) = self.run(args, limit)?;
         (status == 0).then_some(text)
     }
@@ -91,7 +95,7 @@ impl<'a> LocalDeliverySearch<'a> {
         }
     }
 
-    fn run(&self, args: &[&str], limit: usize) -> Option<(i32, String)> {
+    pub(super) fn run(&self, args: &[&str], limit: usize) -> Option<(i32, String)> {
         let remaining = self.deadline.checked_duration_since(Instant::now())?;
         let (stdout, stderr, status) = capture_status(
             Command::new("git")
@@ -118,6 +122,10 @@ impl<'a> LocalDeliverySearch<'a> {
 
     pub(super) fn oid(value: &str) -> bool {
         matches!(value.len(), 40 | 64) && Self::hex(value)
+    }
+
+    pub(super) fn digest(value: &str) -> bool {
+        value.len() == 64 && Self::hex(value)
     }
 
     fn hex(value: &str) -> bool {

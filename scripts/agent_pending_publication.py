@@ -174,7 +174,8 @@ def record_pending(project: Path, evidence: Path, deferred: list) -> str:
             if split_remaining(payload, deferred, project)[0]:
                 return "local delivery is not admitted by this run"
             try:
-                local_proof = LocalDeliveryProof.capture(project, head, branch, deferred, _git)
+                local_proof = LocalDeliveryProof.capture(
+                    project, head, branch, deferred, _git, native=_git is _LOCAL_DELIVERY_GIT)
             except ValueError as error:
                 return f'local delivery preparation refused: {error}'
         record = {

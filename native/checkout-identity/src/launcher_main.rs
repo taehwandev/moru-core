@@ -62,6 +62,7 @@ mod launcher_backend;
 mod literal_args;
 mod local_delivery_identity;
 mod local_delivery_observation;
+mod local_delivery_prepare;
 mod local_delivery_search;
 mod mailbox_process;
 mod mailbox_state;

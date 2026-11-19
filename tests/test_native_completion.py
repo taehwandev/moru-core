@@ -61,6 +61,72 @@ class NativeCompletionTests(unittest.TestCase):
             with patch.dict(os.environ, self.env, clear=True), self.assertRaises(ValueError):
                 _capture_identities(bad, tree)
 
+    def test_local_delivery_prepares_exact_receipt_from_linked_worktree(self):
+        repo = self.project
+
+        def git(project, *args):
+            return subprocess.run(["git", "-C", str(project), *args], check=True,
+                                  capture_output=True, text=True, env=self.env, timeout=5).stdout.strip()
+
+        git(repo, "config", "user.email", "fixture@example.invalid")
+        git(repo, "config", "user.name", "Fixture")
+        (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
+        git(repo, "add", "tracked.txt")
+        git(repo, "commit", "-qm", "base")
+        base = git(repo, "rev-parse", "HEAD")
+        work = self.base / "linked"
+        git(repo, "worktree", "add", "-qb", "delivery", str(work))
+        git(work, "commit", "--allow-empty", "-qm", "new HEAD")
+        head = git(work, "rev-parse", "HEAD")
+        alias = self.base / "linked-alias"
+        alias.symlink_to(work, target_is_directory=True)
+        file = work / "tracked.txt"
+        items = [{"checkpoint": "publication.commit"}, {"checkpoint": "publication.integrate/main"}]
+
+        def unexpected_git(*args):
+            self.fail("native preparation fell back to the Python Git reader")
+
+        def compare(checkpoints=items, expected_head=head, reason=""):
+            with patch.dict(os.environ, self.env, clear=True):
+                if reason:
+                    with self.assertRaisesRegex(ValueError, reason):
+                        LocalDeliveryProof.capture(alias, expected_head, "delivery", checkpoints, _git)
+                    with self.assertRaisesRegex(ValueError, reason):
+                        LocalDeliveryProof.capture(alias, expected_head, "delivery", checkpoints,
+                                                   unexpected_git, native=True)
+                else:
+                    reference = LocalDeliveryProof.capture(alias, expected_head, "delivery", checkpoints, _git)
+                    actual = LocalDeliveryProof.capture(alias, expected_head, "delivery", checkpoints,
+                                                        unexpected_git, native=True)
+                    self.assertEqual(reference, actual)
+                    self.assertEqual(str(work.resolve()), actual["project"])
+                    self.assertEqual(str((repo / ".git").resolve()), actual["common"])
+
+        (work / "untracked.txt").write_text("ignored by Git diff\n", encoding="utf-8")
+        compare(checkpoints=items[1:])
+        compare(reason="stage the reviewed changes")
+        file.write_text("unstaged\n", encoding="utf-8")
+        compare(reason="tracked worktree content")
+        git(work, "add", "tracked.txt")
+        compare()
+        compare(checkpoints=items[1:], reason="declare a local commit")
+        compare(expected_head=base, reason="HEAD changed")
+        compare(checkpoints=items[:1] + [{"checkpoint": "publication.integrate/delivery"}],
+                reason="valid different target branch")
+        git(repo, "tag", "tag-only")
+        compare(checkpoints=items[:1] + [{"checkpoint": "publication.integrate/tag-only"}],
+                reason="target must already exist")
+        old_blob = git(work, "rev-parse", "HEAD:tracked.txt")
+        subprocess.run(["git", "-C", str(work), "update-index", "--index-info"],
+                       input=f"0 {'0' * len(old_blob)}\ttracked.txt\n100644 {old_blob} 2\ttracked.txt\n",
+                       text=True, check=True, capture_output=True, env=self.env, timeout=5)
+        with patch.dict(os.environ, self.env, clear=True):
+            with self.assertRaises(ValueError) as reference:
+                LocalDeliveryProof.capture(alias, head, "delivery", items, _git)
+            with self.assertRaises(ValueError) as actual:
+                LocalDeliveryProof.capture(alias, head, "delivery", items, _git, native=True)
+            self.assertEqual(str(reference.exception), str(actual.exception))
+
     def test_local_delivery_search_keeps_cache_order_and_scan_limit(self):
         project = self.project
 
