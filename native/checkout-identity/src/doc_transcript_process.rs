@@ -9,6 +9,8 @@ use std::{
     path::Path,
 };
 
+#[path = "doc_delivery_marker.rs"]
+mod delivery_marker;
 #[path = "doc_delivery_text.rs"]
 mod delivery_text;
 
@@ -26,6 +28,7 @@ impl DocTranscriptProcess {
                         | "render"
                         | "read-docs"
                         | "delivery-plan"
+                        | "write-marker"
                 )
             )
             || CallbackGuard::root(launcher, "doc-transcript-probe").is_none()
@@ -45,6 +48,9 @@ impl DocTranscriptProcess {
             .ok()
             .and_then(|payload| {
                 let object = payload.as_object()?;
+                if args[1] == "write-marker" && object.len() == 5 {
+                    return delivery_marker::write(&payload);
+                }
                 if args[1] == "render" {
                     return delivery_text::DocDeliveryText::render(&payload)
                         .map(|value| json!(value));
@@ -98,7 +104,7 @@ impl DocTranscriptProcess {
         };
         let Ok(mut out) = serde_json::to_vec(&json!({"schema_version":1,"result":{"value":value}}))
         else {
-            return 125;
+            return if args[1] == "write-marker" { 1 } else { 125 };
         };
         if args[1] == "read-docs" && out.len() >= 1024 * 1024 {
             return 125;

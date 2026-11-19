@@ -2,17 +2,14 @@
 //! Allowed: regular-file reads, atomic sibling replacement, JSON and SHA-256.
 //! Forbidden: Git/provider execution and publication decisions. Caller: completion probe.
 
-use crate::{callback_state::LocalState, python_text::PythonText};
+use crate::{atomic_sibling::AtomicSibling, callback_state::LocalState, python_text::PythonText};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     ffi::CString,
     fs::{File, OpenOptions},
-    io::{self, ErrorKind, Read, Write},
-    os::{
-        fd::{AsRawFd, FromRawFd},
-        unix::{ffi::OsStrExt, fs::OpenOptionsExt},
-    },
+    io::{ErrorKind, Read},
+    os::unix::fs::OpenOptionsExt,
     path::{Component, Path},
 };
 
@@ -38,14 +35,7 @@ impl PendingPublicationReceipt {
         {
             return None;
         }
-        let mut dir = File::open("/").ok()?;
-        for part in parent.strip_prefix("/").ok()?.components() {
-            let Component::Normal(name) = part else {
-                return None;
-            };
-            let name = CString::new(name.as_bytes()).ok()?;
-            dir = Self::open_relative(&dir, &name, libc::O_RDONLY | libc::O_DIRECTORY)?;
-        }
+        let dir = AtomicSibling::open_directory(parent)?;
         let record = payload.get("record")?;
         if !Self::shape(record, run)
             || !Self::artifact_safe(record)
@@ -53,7 +43,7 @@ impl PendingPublicationReceipt {
         {
             return None;
         }
-        let evidence_file = Self::open_relative(&dir, c"preflight.json", libc::O_RDONLY)?;
+        let evidence_file = AtomicSibling::open_relative(&dir, c"preflight.json", libc::O_RDONLY)?;
         let bound_bytes = Self::read_file(evidence_file, MAX_EVIDENCE)?.ok()?;
         let digest = format!("{:x}", Sha256::digest(bound_bytes));
         if record.get("evidence_sha256")?.as_str()? != digest {
@@ -62,7 +52,7 @@ impl PendingPublicationReceipt {
         let encoded = Self::encode(record.clone())?;
         let temporary = CString::new(format!("pending-publication.json.{temporary}.tmp")).ok()?;
         let target = c"pending-publication.json";
-        let result = Self::replace_relative(&dir, &temporary, target, encoded.as_bytes());
+        let result = AtomicSibling::Private.replace(&dir, &temporary, target, encoded.as_bytes());
         let error = result.err().map(|error| match error.kind() {
             ErrorKind::AlreadyExists => "FileExistsError",
             ErrorKind::NotFound => "FileNotFoundError",
@@ -105,57 +95,6 @@ impl PendingPublicationReceipt {
             && text
                 .bytes()
                 .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-    }
-
-    fn open_relative(dir: &File, path: &std::ffi::CStr, flags: libc::c_int) -> Option<File> {
-        // The basename is fixed and all access stays relative to the opened run.
-        let fd = unsafe {
-            libc::openat(
-                dir.as_raw_fd(),
-                path.as_ptr(),
-                flags | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC,
-            )
-        };
-        (fd >= 0).then(|| unsafe { File::from_raw_fd(fd) })
-    }
-
-    fn replace_relative(
-        dir: &File,
-        temporary: &std::ffi::CStr,
-        target: &std::ffi::CStr,
-        bytes: &[u8],
-    ) -> io::Result<()> {
-        let dir = dir.as_raw_fd();
-        // Exclusive creation keeps collisions outside the cleanup scope.
-        let fd = unsafe {
-            libc::openat(
-                dir,
-                temporary.as_ptr(),
-                libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_CLOEXEC,
-                0o600 as libc::c_uint,
-            )
-        };
-        if fd < 0 {
-            return Err(io::Error::last_os_error());
-        }
-        let mut file = unsafe { File::from_raw_fd(fd) };
-        let result = file
-            .write_all(bytes)
-            .and_then(|_| file.flush())
-            .and_then(|_| {
-                // The legacy writer requests 0600 even under a restrictive umask.
-                unsafe { libc::fchmod(fd, 0o600) };
-                drop(file);
-                if unsafe { libc::renameat(dir, temporary.as_ptr(), dir, target.as_ptr()) } == 0 {
-                    Ok(())
-                } else {
-                    Err(io::Error::last_os_error())
-                }
-            });
-        if result.is_err() {
-            unsafe { libc::unlinkat(dir, temporary.as_ptr(), 0) };
-        }
-        result
     }
 
     pub(crate) fn encode(mut record: Value) -> Option<String> {

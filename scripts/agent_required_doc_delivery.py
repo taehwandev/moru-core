@@ -218,6 +218,13 @@ def _read_docs_python(rules: Path, docs: list[str]) -> dict[str, str]:
 
 
 def _write_marker(marker: Path, delivered: list, offset: int, redeliveries: int) -> None:
+    from support.native_doc_transcript import NativeDocTranscript
+
+    if not NativeDocTranscript.write_marker(marker, delivered, offset, redeliveries):
+        _write_marker_python(marker, delivered, offset, redeliveries)
+
+
+def _write_marker_python(marker: Path, delivered: list, offset: int, redeliveries: int) -> None:
     staged = marker.with_name(f"{marker.name}.{os.getpid()}.tmp")
     staged.write_text(json.dumps({"delivered": delivered, "transcript_bytes": offset,
                                   "redeliveries": redeliveries}), encoding="utf-8")

@@ -23,8 +23,11 @@ class NativeProbe:
     def request(protocol: str, operation: str, payload: dict) -> dict | None:
         if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe"}:
             return None
-        writes_receipt = protocol == "--completion-probe" and operation == "pending-publication-replace"
-        done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE, writes_receipt=writes_receipt)
+        write_failure = {
+            ("--completion-probe", "pending-publication-replace"): "native receipt replacement outcome could not be determined",
+            ("--doc-transcript-probe", "write-marker"): "native delivery marker outcome could not be determined",
+        }.get((protocol, operation))
+        done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE, write_failure=write_failure)
         if done is None:
             return None
         try:
@@ -36,8 +39,8 @@ class NativeProbe:
                     return value["result"]
         except (ValueError, TypeError):
             pass
-        if writes_receipt:
-            raise OSError("native receipt replacement outcome could not be determined")
+        if write_failure:
+            raise OSError(write_failure)
         return None
 
     @staticmethod
@@ -46,7 +49,7 @@ class NativeProbe:
 
     @staticmethod
     def _invoke(protocol: str, operation: str, payload: dict, stdout, *,
-                writes_receipt: bool = False) -> subprocess.CompletedProcess | None:
+                write_failure: str | None = None) -> subprocess.CompletedProcess | None:
         if not NativeProbe.available():
             return None
         entry = Path.home() / ".moru/bin/moru-hook"
@@ -63,11 +66,11 @@ class NativeProbe:
         except FileNotFoundError:
             return None
         except (OSError, ValueError, TypeError, subprocess.TimeoutExpired):
-            if writes_receipt:
-                raise OSError("native receipt replacement outcome could not be determined") from None
+            if write_failure:
+                raise OSError(write_failure) from None
             return None
         if done.returncode == 0 and not done.stderr:
             return done
-        if writes_receipt and (done.returncode, done.stdout, done.stderr) != (125, b"", b""):
-            raise OSError("native receipt replacement outcome could not be determined")
+        if write_failure and (done.returncode, done.stdout, done.stderr) != (125, b"", b""):
+            raise OSError(write_failure)
         return None

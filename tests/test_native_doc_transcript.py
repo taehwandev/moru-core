@@ -173,6 +173,52 @@ class NativeDocTranscriptTests(unittest.TestCase):
             self.assertEqual(self.original("delivery_plan_python", marker, self.path, 4),
                              reference._delivery_plan(marker, self.path, 4))
 
+    def test_native_marker_writer_matches_python_and_keeps_write_failures_terminal(self):
+        directory = self.project / ".moru" / "runs" / ("a" * 32)
+        directory.mkdir(parents=True)
+        (directory / "preflight.json").write_text("{}")
+        marker = directory / reference.MARKER
+        legacy = self.base / reference.MARKER
+        docs = ["한글.md", "escaped\n\x7f😀.md"]
+        payload = {"marker": str(marker), "delivered": docs, "offset": 41,
+                   "redeliveries": 3, "temporary": "b" * 32}
+        previous_umask = os.umask(0o077)
+        try:
+            reference._write_marker_python(legacy, docs, 41, 3)
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    reference, "_write_marker_python", side_effect=AssertionError("Python fallback")):
+                reference._write_marker(marker, docs, 41, 3)
+                with patch("support.native_probe_transport.subprocess.run", side_effect=subprocess.TimeoutExpired([], 10)):
+                    with self.assertRaisesRegex(OSError, "outcome could not be determined"):
+                        reference._write_marker(marker, [], 0, 0)
+        finally:
+            os.umask(previous_umask)
+        self.assertEqual(legacy.read_bytes(), marker.read_bytes())
+        self.assertEqual(0o600, legacy.stat().st_mode & 0o777)
+        self.assertEqual(legacy.stat().st_mode & 0o777, marker.stat().st_mode & 0o777)
+
+        def probe():
+            done = self.raw("write-marker", payload)
+            self.assertEqual((0, b""), (done.returncode, done.stderr), done)
+            return json.loads(done.stdout)["result"]["value"]
+
+        temporary = directory / f"{reference.MARKER}.{payload['temporary']}.tmp"
+        temporary.write_bytes(b"another writer")
+        self.assertEqual({"stored": False}, probe())
+        self.assertEqual(b"another writer", temporary.read_bytes())
+        self.assertEqual(legacy.read_bytes(), marker.read_bytes())
+        temporary.unlink()
+        marker.unlink()
+        marker.mkdir()
+        self.assertEqual({"stored": False}, probe())
+        self.assertFalse(temporary.exists())
+        self.assertTrue(marker.is_dir())
+        self.assertEqual((125, b"", b""), result(self.raw("write-marker", {**payload, "marker": str(legacy)})))
+        alias = directory.with_name("c" * 32)
+        alias.symlink_to(directory, target_is_directory=True)
+        self.assertEqual((125, b"", b""), result(self.raw(
+            "write-marker", {**payload, "marker": str(alias / reference.MARKER)})))
+
     def test_three_runtime_boundaries_and_partial_rows(self):
         for row in ({"type":"compacted"}, {"type":"system","subtype":"compact_boundary"},
                     {"type":"CHECKPOINT","content":"# Resuming from a compaction\nsummary"}):

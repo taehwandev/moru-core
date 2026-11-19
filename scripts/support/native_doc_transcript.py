@@ -7,6 +7,7 @@ agent_required_doc_delivery; native source/stream/fallback and delivery tests.
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
 
 from support.native_probe_transport import NativeProbe
 
@@ -15,7 +16,25 @@ def _integer(value):
     return type(value) is int and -(1 << 63) <= value < 1 << 63
 
 
+def _value(result):
+    return result["value"] if type(result) is dict and set(result) == {"value"} else None
+
+
 class NativeDocTranscript:
+    @staticmethod
+    def write_marker(marker: Path, delivered: list, offset: int, redeliveries: int) -> bool:
+        if not NativeProbe.available():
+            return False
+        result = NativeProbe.request("--doc-transcript-probe", "write-marker", {
+            "marker": str(marker), "delivered": delivered, "offset": offset,
+            "redeliveries": redeliveries, "temporary": uuid4().hex,
+        })
+        if result is None:
+            return False
+        if result == {"value": {"stored": True}} and type(result["value"]["stored"]) is bool:
+            return True
+        raise OSError("native delivery marker could not be stored")
+
     @staticmethod
     def delivery_plan(marker: Path, transcript: Path, limit: int) -> dict | None:
         try:
@@ -23,7 +42,7 @@ class NativeDocTranscript:
                                          {"marker": str(marker), "path": str(transcript), "limit": limit})
         except (OSError, ValueError, RuntimeError):
             return None
-        state = result.get("value") if type(result) is dict and set(result) == {"value"} else None
+        state = _value(result)
         if type(state) is not dict:
             return None
         if state == {"action": "skip"}:
@@ -46,9 +65,7 @@ class NativeDocTranscript:
                                          {"rules": str(rules), "docs": docs})
         except (OSError, ValueError, RuntimeError):
             return None
-        if type(result) is not dict or set(result) != {"value"}:
-            return None
-        texts = result["value"]
+        texts = _value(result)
         if type(texts) is dict and all(name in docs and type(text) is str for name, text in texts.items()):
             return texts
         return None
@@ -69,9 +86,7 @@ class NativeDocTranscript:
             })
         except (OSError, ValueError, RuntimeError):
             return None
-        if type(result) is not dict or set(result) != {"value"}:
-            return None
-        text = result["value"]
+        text = _value(result)
         return text if type(text) is str else None
 
     @staticmethod
@@ -81,9 +96,7 @@ class NativeDocTranscript:
                                          {"path": str(path), "rules": str(rules), "docs": docs})
         except (OSError, ValueError, RuntimeError):
             return None
-        if type(result) is not dict or set(result) != {"value"}:
-            return None
-        value = result["value"]
+        value = _value(result)
         if type(value) is not list or any(type(doc) is not str or doc not in docs for doc in value):
             return None
         return set(value)
@@ -97,9 +110,7 @@ class NativeDocTranscript:
                                          {"path": str(path), **fields})
         except (OSError, ValueError, RuntimeError):
             return None
-        if type(result) is not dict or set(result) != {"value"}:
-            return None
-        value = result["value"]
+        value = _value(result)
         if type(value) is not expected:
             return None
         return value if expected is bool or 0 <= value < 1 << 63 else None

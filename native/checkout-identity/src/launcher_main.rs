@@ -8,6 +8,7 @@ use moru_checkout_identity::CheckoutIdentity;
 
 mod android_manifest;
 mod argparse_help;
+mod atomic_sibling;
 mod behavior_trace;
 mod behavior_eval;
 mod behavior_eval_artifact;
