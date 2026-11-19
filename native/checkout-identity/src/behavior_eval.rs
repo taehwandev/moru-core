@@ -1,8 +1,8 @@
-//! owner: offline behavior evaluator trace scoring; allowed imports: std collections and serde_json.
+//! owner: offline behavior evaluator trace scoring; allowed imports: std collections and PythonJson.
 //! forbidden imports: file IO, providers, subprocesses or lifecycle decisions.
 //! callers/tests: native offline grader and ordered Python scoring fixtures.
 //! verification: ordered failure evidence and missing-run behavior.
-use serde_json::Value;
+use crate::python_json::{Number, Value};
 use std::collections::HashMap;
 
 pub(crate) struct BehaviorEval;
@@ -15,7 +15,11 @@ impl BehaviorEval {
             return Some(vec!["missing_run".into()]);
         };
         let expected_status = case.get("expected_status")?.as_str()?;
-        let max_prompts = case.get("max_prompts")?.as_u64()?;
+        let Value::Number(Number::Integer(max_prompts)) = case.get("max_prompts")? else {
+            return None;
+        };
+        // A limit larger than u64 cannot be exceeded by a bounded trace.
+        let max_prompts = max_prompts.parse::<u64>().unwrap_or(u64::MAX);
         let mut first = HashMap::new();
         let mut counts = HashMap::new();
         let mut finals = Vec::new();
@@ -82,16 +86,16 @@ mod tests {
 
     #[test]
     fn trace_failures_preserve_python_order_and_repeated_kind_semantics() {
-        let case = json!({
+        let case = Value::from(json!({
             "expected_status":"ok","max_prompts":0,
             "required_events":["missing","missing"],"forbidden_events":["after"],
             "ordered_pairs":[["after","prompt_submitted"],["final","final"],
                              ["prompt_submitted","prompt_submitted"]]
-        });
-        let events = json!([
+        }));
+        let events = Value::from(json!([
             {"kind":"prompt_submitted"},{"kind":"final","status":"blocked"},
             {"kind":"prompt_submitted"},{"kind":"after"}
-        ]);
+        ]));
         assert_eq!(
             BehaviorEval::trace_failures(&case, events.as_array().map(Vec::as_slice)).unwrap(),
             [

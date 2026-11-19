@@ -2,8 +2,11 @@
 //! forbidden imports: providers, subprocesses, mutations or runtime context.
 //! callers/tests: native launcher and Python CLI oracle; verification: output bytes and exit codes.
 use crate::{
-    behavior_eval::BehaviorEval, behavior_eval_artifact::BehaviorEvalArtifacts,
-    behavior_eval_input::BehaviorEvalInput, python_json::PythonJson, python_text::PythonText,
+    behavior_eval::BehaviorEval,
+    behavior_eval_artifact::BehaviorEvalArtifacts,
+    behavior_eval_input::BehaviorEvalInput,
+    python_json::{ParseOutcome, PythonJson, Value as PythonValue},
+    python_text::PythonText,
 };
 use serde_json::{json, Value};
 use std::{
@@ -16,6 +19,10 @@ use std::{
 
 const MAX_JSON_BYTES: u64 = 4 * 1024 * 1024;
 const DECLINED: i32 = 78;
+const INT_MAX_STR_DIGITS: &str = match option_env!("MORU_PYTHON_INT_MAX_STR_DIGITS") {
+    Some(value) => value,
+    None => "0",
+};
 
 pub(crate) struct BehaviorEvalCli;
 
@@ -65,6 +72,12 @@ impl BehaviorEvalCli {
                 "--cases" => &mut cases,
                 "--traces" => &mut traces,
                 "--artifact-root" => &mut root,
+                "--int-max-str-digits" => {
+                    if inline.or_else(|| words.next_if(next_value))? != INT_MAX_STR_DIGITS {
+                        return None;
+                    }
+                    continue;
+                }
                 "--providers" => {
                     let mut values = Vec::new();
                     if let Some(value) = inline {
@@ -129,7 +142,7 @@ impl BehaviorEvalCli {
                         let Some(artifacts) = case["artifacts"].as_object() else {
                             return Ok(None);
                         };
-                        for (path, expected) in artifacts {
+                        for (path, expected) in artifacts.iter() {
                             let mut prefix = path.chars();
                             if prefix.next().is_some_and(|ch| !ch.is_ascii())
                                 && prefix.next() == Some(':')
@@ -157,7 +170,7 @@ impl BehaviorEvalCli {
         run().transpose()
     }
 
-    fn read_json(path: &str) -> Result<Option<Value>, String> {
+    fn read_json(path: &str) -> Result<Option<PythonValue>, String> {
         let bad_input = |error: io::Error| {
             let detail = error.to_string();
             match error.raw_os_error() {
@@ -187,12 +200,17 @@ impl BehaviorEvalCli {
         let Ok(raw) = std::str::from_utf8(&bytes) else {
             return Ok(None);
         };
-        if let Ok(value) = serde_json::from_str::<Value>(raw) {
-            return Ok(Some(value));
-        }
-        match PythonJson::error(raw) {
-            Some(detail) => Err(format!("invalid JSON input {path}: {detail}")),
-            None => Ok(None),
+        match PythonJson::parse_outcome(raw) {
+            ParseOutcome::Value(value) => Ok(Some(value)),
+            ParseOutcome::Unsupported => Ok(None),
+            ParseOutcome::Invalid => match PythonJson::error(raw) {
+                Some(detail) if !PythonJson::integer_conversion_failed(raw) => {
+                    Err(format!("invalid JSON input {path}: {detail}"))
+                }
+                // Python reports the interpreter digit policy error directly.
+                Some(detail) => Err(detail),
+                None => Ok(None),
+            },
         }
     }
 

@@ -1,8 +1,10 @@
-//! owner: offline grader input schemas; allowed imports: serde_json, std collections and PythonText.
+//! owner: offline grader input schemas; allowed imports: PythonJson, PythonText and std collections.
 //! forbidden imports: file IO, subprocesses, providers or workflow state.
 //! callers/tests: offline evaluator CLI; verification: Python case and trace schema parity.
-use crate::python_text::PythonText;
-use serde_json::{json, Value};
+use crate::{
+    python_json::{Number, Object, PythonJson, Value},
+    python_text::PythonText,
+};
 use std::collections::{HashMap, HashSet};
 
 pub(crate) struct BehaviorEvalInput;
@@ -37,7 +39,7 @@ impl BehaviorEvalInput {
             .iter()
             .map(|raw| {
                 let case = raw.as_object().ok_or("malformed case entry")?;
-                if case.keys().any(|k| {
+                if case.iter().any(|(k, _)| {
                     ![
                         "id",
                         "expected_status",
@@ -61,20 +63,25 @@ impl BehaviorEvalInput {
                 let cid = Self::identifier(id)
                     .filter(|s| !s.contains(['/', '\\']) && !matches!(*s, "." | ".."));
                 if !cid.is_some_and(|id| ids.insert(id)) {
-                    return Err(format!("invalid or duplicate case id: {}", Self::repr(id)));
+                    return Err(format!("invalid or duplicate case id: {}", PythonJson::repr(id)));
                 }
-                if !Self::status(status) || max.as_u64().is_none() {
+                if !Self::status(status)
+                    || !matches!(max, Value::Number(Number::Integer(text)) if !text.starts_with('-'))
+                {
                     return Err("invalid expected_status or max_prompts".into());
                 }
                 let mut result = case.clone();
                 for (field, fallback) in [
-                    ("ordered_pairs", json!([])),
-                    ("artifacts", json!({})),
-                    ("required_events", json!([])),
-                    ("forbidden_events", json!([])),
+                    ("ordered_pairs", Value::Array(Vec::new())),
+                    ("artifacts", Value::Object(Object::new())),
+                    ("required_events", Value::Array(Vec::new())),
+                    ("forbidden_events", Value::Array(Vec::new())),
                 ] {
-                    result.entry(field).or_insert(fallback);
+                    if !result.contains_key(field) {
+                        result.insert(field.to_owned(), fallback);
+                    }
                 }
+                let result = Value::Object(result);
                 if !result["ordered_pairs"].as_array().is_some_and(|pairs| {
                     pairs.iter().all(|p| {
                         p.as_array().is_some_and(|pair| {
@@ -87,7 +94,7 @@ impl BehaviorEvalInput {
                 if !result["artifacts"].as_object().is_some_and(|files| {
                     files
                         .iter()
-                        .all(|(k, v)| !k.is_empty() && !k.contains('\0') && v.is_string())
+                        .all(|(k, v)| !k.is_empty() && !k.contains('\0') && v.as_str().is_some())
                 }) {
                     return Err("artifacts must map relative paths to literal strings".into());
                 }
@@ -99,7 +106,7 @@ impl BehaviorEvalInput {
                         return Err(format!("{field} must be a list of non-empty strings"));
                     }
                 }
-                Ok(Value::Object(result))
+                Ok(result)
             })
             .collect()
     }
@@ -114,8 +121,7 @@ impl BehaviorEvalInput {
             .collect();
         let mut runs = HashMap::new();
         for raw in Self::envelope(doc, "runs")? {
-            let run = raw
-                .as_object()
+            raw.as_object()
                 .filter(|run| {
                     run.len() == 3
                         && ["provider", "case_id", "events"]
@@ -123,20 +129,22 @@ impl BehaviorEvalInput {
                             .all(|k| run.contains_key(*k))
                 })
                 .ok_or("malformed run entry")?;
-            let provider = run["provider"]
+            let provider_value = &raw["provider"];
+            let id_value = &raw["case_id"];
+            let provider = provider_value
                 .as_str()
                 .filter(|p| Self::PROVIDERS.contains(p))
-                .ok_or_else(|| format!("unknown provider: {}", Self::repr(&run["provider"])))?;
-            let id = run["case_id"]
+                .ok_or_else(|| format!("unknown provider: {}", PythonJson::repr(provider_value)))?;
+            let id = id_value
                 .as_str()
                 .filter(|id| ids.contains(id) && !runs.contains_key(&(provider, *id)))
                 .ok_or_else(|| {
                     format!(
                         "unknown or duplicate run: {provider}/{}",
-                        Self::repr(&run["case_id"])
+                        PythonJson::repr(id_value)
                     )
                 })?;
-            let events = run["events"].as_array().ok_or("events must be a list")?;
+            let events = raw["events"].as_array().ok_or("events must be a list")?;
             for value in events {
                 let event = value.as_object().ok_or("malformed event entry")?;
                 let kind = event
@@ -157,14 +165,14 @@ impl BehaviorEvalInput {
     }
 
     fn envelope<'a>(doc: &'a Value, name: &str) -> Result<&'a [Value], String> {
-        let object = doc
-            .as_object()
+        doc.as_object()
             .filter(|o| o.len() == 2 && o.contains_key(name) && o.contains_key("schema_version"))
             .ok_or_else(|| format!("malformed {name} document schema"))?;
-        if object["schema_version"].as_u64() != Some(1) {
+        if !matches!(doc["schema_version"], Value::Number(Number::Integer(ref text)) if text == "1")
+        {
             return Err(format!("unsupported {name} schema_version"));
         }
-        object[name]
+        doc[name]
             .as_array()
             .filter(|list| !list.is_empty())
             .map(Vec::as_slice)
@@ -179,12 +187,5 @@ impl BehaviorEvalInput {
 
     fn status(value: &Value) -> bool {
         matches!(value.as_str(), Some("ok" | "blocked" | "needs_inspection"))
-    }
-
-    fn repr(value: &Value) -> String {
-        crate::python_json::PythonJson::parse(&value.to_string()).map_or_else(
-            || value.to_string(),
-            |v| crate::python_json::PythonJson::repr(&v),
-        )
     }
 }

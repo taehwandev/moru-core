@@ -281,6 +281,30 @@ class AgentBehaviorEvalTests(unittest.TestCase):
             compare(args, 2)
             traces.write_text('{"schema_version":1,"runs":[]}', encoding="utf-8")
             compare(args, 2)
+            root_case = '{"schema_version":1,"cases":[{"id":"c1","expected_status":"ok","max_prompts":%s}]}'
+            traces.write_text('{"schema_version":1,"runs":[{"provider":"agy","case_id":"c1",'
+                              '"events":[{"kind":"final","status":"ok"}]}]}', encoding="utf-8")
+            for token, code in [("-0", 0), ("18446744073709551615", 0),
+                                ("18446744073709551616", 0), ("9" * 350, 0),
+                                ("-1", 2), ("true", 2), ("0.0", 2), ("-0.0", 2),
+                                ("NaN", 2), ("1e309", 2)]:
+                with self.subTest(token=token):
+                    cases.write_text(root_case % token, encoding="utf-8")
+                    compare(args, code)
+            # Exercise the wide-object index and the first-position/last-value
+            # behavior when a decoded key repeats after the index is populated.
+            fields = ['"a.txt":"stale"', '"b.txt":"stale"']
+            fields.extend(f'"missing-{index}.txt":"value"' for index in range(40))
+            fields.extend([r'"\u0061.txt":"still missing"', r'"\u0062.txt":"ready\n"'])
+            _write_artifact(self.root, "agy", "c1", "b.txt")
+            cases.write_text((root_case % "0").replace(
+                '"max_prompts":0', '"max_prompts":0,"artifacts":{' + ",".join(fields) + "}"),
+                encoding="utf-8")
+            compare(args, 1)
+            declined = subprocess.run(
+                [str(NATIVE), "offline-eval", "--behavior-eval", "--int-max-str-digits=1", *args],
+                env={**os.environ, "PATH": str(empty)}, capture_output=True, timeout=8)
+            self.assertEqual((declined.returncode, declined.stdout, declined.stderr), (78, b"", b""))
 
     @unittest.skipUnless(os.environ.get("MORU_TEST_BEHAVIOR_EVAL_NATIVE") == "1",
                          "requires source-bound native debug fixture")
@@ -339,7 +363,7 @@ finally:
         finally:
             folder.chmod(0o700)
         cases.write_text(json.dumps(_single_case_doc(max_prompts=2**80)), encoding="utf-8")
-        compare(0, "1,1")
+        compare(0, "1,0")
 
 
 if __name__ == "__main__":

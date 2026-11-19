@@ -250,7 +250,8 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
             return None
         command = [str(plan["source"]), str(entry), "--behavior-eval",
                    f"--cases={ns.cases}", f"--traces={ns.traces}",
-                   f"--artifact-root={Path(ns.artifact_root)}"]
+                   f"--artifact-root={Path(ns.artifact_root)}",
+                   f"--int-max-str-digits={getattr(sys, 'get_int_max_str_digits', lambda: 0)()}"]
         if providers:
             command.extend(["--providers", *providers])
         result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True)
