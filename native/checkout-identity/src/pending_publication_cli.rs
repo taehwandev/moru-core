@@ -49,33 +49,16 @@ impl PendingPublicationCli {
     }
 
     fn settle(args: &[OsString]) -> Option<(i32, String)> {
-        let [_, _, options @ ..] = args else {
-            return None;
-        };
-        if options.len() != 6 {
-            return None;
-        }
-        let (mut project, mut evidence, mut checkpoint) = (None, None, None);
-        for pair in options.chunks_exact(2) {
-            let value = pair[1].to_str()?;
-            if value.is_empty() || value.starts_with('-') {
-                return None;
-            }
-            match pair[0].to_str()? {
-                "--project" if project.is_none() => project = Some(value),
-                "--evidence" if evidence.is_none() => evidence = Some(value),
-                "--checkpoint" if checkpoint.is_none() => checkpoint = Some(value),
-                _ => return None,
-            }
-        }
-        let checkpoint = checkpoint?;
+        let (project, evidence, checkpoint) = Self::settle_options(args.get(2..)?)?;
         if !LocalSettlement::supports(checkpoint) {
             return None;
         }
-        let project = Path::new(project?).canonicalize().ok()?;
+        let project = Path::new(if project.is_empty() { "." } else { project })
+            .canonicalize()
+            .ok()?;
         let evidence: PathBuf = env::current_dir()
             .ok()?
-            .join(evidence?)
+            .join(evidence)
             .components()
             .collect();
         if evidence != evidence.canonicalize().ok()?
@@ -130,6 +113,43 @@ impl PendingPublicationCli {
             )),
         };
         Some(outcome)
+    }
+
+    fn settle_options(args: &[OsString]) -> Option<(&str, &str, &str)> {
+        const OPTIONS: [&str; 4] = ["project", "evidence", "checkpoint", "observation-file"];
+        let mut values = [None; 4];
+        let mut args = args.iter();
+        while let Some(option) = args.next() {
+            let option = option.to_str()?.strip_prefix("--")?;
+            let (name, assigned) = match option.split_once('=') {
+                Some((name, value)) => (name, Some(value)),
+                None => (option, None),
+            };
+            if name.is_empty() {
+                return None;
+            }
+            let mut matching = OPTIONS
+                .iter()
+                .enumerate()
+                .filter(|(_, option)| option.starts_with(name));
+            let (index, _) = matching.next()?;
+            if matching.next().is_some() {
+                return None;
+            }
+            let value = match assigned {
+                Some(value) => value,
+                None => {
+                    let value = args.next()?.to_str()?;
+                    if value.starts_with('-') && value != "-" {
+                        return None;
+                    }
+                    value
+                }
+            };
+            values[index] = Some(value);
+        }
+        // The observation file is ignored only after selecting a local checkpoint.
+        Some((values[0]?, values[1]?, values[2]?))
     }
 
     fn settle_failure(reason: &str) -> (i32, String) {

@@ -178,11 +178,12 @@ class NativeRegistryReadTests(unittest.TestCase):
         self.write(rows + [{"run_id": "newer", "state": "running", "evidence_key": self.key}])
         (self.empty / "git").symlink_to(shutil.which("git"))
 
-        def launcher(name=checkpoint, backend="auto", *, assignment=False):
-            option = ["--checkpoint=" + name] if assignment else ["--checkpoint", name]
+        def launcher(name=checkpoint, backend="auto", *, options=None):
+            if options is None:
+                options = ["--checkpoint", name, "--project", str(self.project),
+                           "--evidence", str(self.evidence.relative_to(self.project))]
             done = subprocess.run([str(self.entry), "pending-publication", "settle",
-                *option, "--project", str(self.project),
-                "--evidence", str(self.evidence.relative_to(self.project))],
+                *options],
                 env={**self.env, "PATH": str(self.empty), "MORU_LAUNCHER_BACKEND": backend},
                 cwd=self.project, capture_output=True, timeout=15)
             return done.returncode, done.stdout, done.stderr
@@ -192,7 +193,11 @@ class NativeRegistryReadTests(unittest.TestCase):
         self.assertEqual(before, receipt.read_bytes())
         self.assertEqual(127, launcher("publication.push")[0])
         self.assertEqual(127, launcher(backend="python")[0])
-        self.assertEqual(127, launcher(assignment=True)[0])
+        expanded = ["--c=publication.push", "--project", "/unused", "--proj=", "--obs=unreadable=path",
+                    "--e=" + str(self.evidence.relative_to(self.project)), "--checkpoint=" + checkpoint]
+        self.assertEqual(launcher(), launcher(options=expanded))
+        for invalid in (["--unknown=x"], ["--checkpoint"], ["--help"], ["--"]):
+            self.assertEqual(127, launcher(options=expanded + invalid)[0])
         self.assertEqual(before, receipt.read_bytes())
         with patch.dict(os.environ, self.env, clear=True), patch.object(
                 reads, "completed_evidence_binding", side_effect=AssertionError("separate binding fallback")
@@ -210,7 +215,7 @@ class NativeRegistryReadTests(unittest.TestCase):
             prepared = publication._prepare_local_settlement(self.project, self.evidence, record, checkpoint)
             self.assertIsNotNone(prepared)
             self.assertEqual(before, receipt.read_bytes())
-            self.assertEqual((0, b"publication observation recorded\n", b""), launcher())
+            self.assertEqual((0, b"publication observation recorded\n", b""), launcher(options=expanded))
             written = receipt.read_bytes()
             self.assertEqual((2, b"FAIL publication settle: that checkpoint is not pending\n", b""), launcher())
             self.assertEqual(written, receipt.read_bytes())
