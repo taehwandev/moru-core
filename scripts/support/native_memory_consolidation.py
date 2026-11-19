@@ -62,7 +62,7 @@ def _relation_result(records, result):
     return None if groups is None or replacements is None else (groups,replacements)
 
 
-def _plan_packet(records, today, within_days, statuses, threshold):
+def _plan_packet(records, today, within_days, statuses, threshold, *, render_dates=False):
     if (not _relation_profile() or not _bindings_match(NativeMemoryConsolidation,_PLAN_BINDINGS)
             or not _bindings_match(review.NativeMemoryReview,review._REVIEW_BINDINGS)
             or not _bindings_match(review.NativeMemoryUpkeep,review._UPKEEP_REVIEW_BINDINGS)
@@ -88,9 +88,13 @@ def _plan_packet(records, today, within_days, statuses, threshold):
     for row,record in zip(rows,records):
         row.update(review=record["review_on"],replaces=record.get("replaces"))
     try:
+        review_fields = {"today":today.isoformat(), "horizon":horizon.isoformat(),
+                         "statuses":sorted(statuses)}
+        if render_dates:
+            review_fields["render_days"] = within_days
         result = NativeProbe.request("--memory-probe","report-text-groups",{
             "unicode":unicodedata.unidata_version,"records":rows,
-            "review":{"today":today.isoformat(),"horizon":horizon.isoformat(),"statuses":sorted(statuses)}})
+            "review":review_fields})
     except (OSError, ValueError, RuntimeError):
         return None, True
     return result, True
@@ -110,15 +114,22 @@ class NativeMemoryConsolidation:
         return _relation_result(records,result), attempted
 
     @staticmethod
-    def report_plan(records, today, within_days, statuses, threshold=0.8):
-        result, attempted = _plan_packet(records,today,within_days,statuses,threshold)
-        if type(result) is not dict or set(result) != {"review","relations"}:
+    def report_plan(records, today, within_days, statuses, threshold=0.8, *, render_dates=False):
+        result, attempted = _plan_packet(records,today,within_days,statuses,threshold,render_dates=render_dates)
+        fields = {"review", "relations"}
+        if type(result) is not dict or (set(result) != fields
+                and not (render_dates and set(result) == fields | {"date_entries"})):
             return None, attempted
         selected = review.NativeMemoryReview._decode(result["review"],records,statuses)
         if selected is None:
             return None, attempted
         relations = _relation_result(selected[0],result["relations"])
-        return (None if relations is None else (selected,relations)), attempted
+        if relations is None:
+            return None, attempted
+        plan = (selected, relations)
+        if render_dates:
+            plan += (_date_entries(selected, result.get("date_entries")),)
+        return plan, attempted
 
     @staticmethod
     def _report_result(records, result):
@@ -212,3 +223,22 @@ _REPORT_BINDINGS = {name:(getattr(NativeMemoryConsolidation,name),
     for name in ("report_groups","_report_result","_result")}
 _PLAN_BINDINGS = {"report_relations":(NativeMemoryConsolidation.report_relations,
     NativeMemoryConsolidation.report_relations.__code__,NativeMemoryConsolidation.report_relations.__defaults__)}
+_REPORT_PLAN_BINDING = (NativeMemoryConsolidation.report_plan, NativeMemoryConsolidation.report_plan.__code__,
+    NativeMemoryConsolidation.report_plan.__defaults__, dict(NativeMemoryConsolidation.report_plan.__kwdefaults__))
+
+
+def _date_entries(selected, value):
+    if type(value) is not dict or set(value) != {"expired", "expiring"}:
+        return None
+    keys = ("id", "scope", "body", "source", "review_on")
+    for rows, bucket in zip(selected[1:], ("expired", "expiring")):
+        entries = value[bucket]
+        if type(entries) is not list or len(entries) != len(rows):
+            return None
+        for row, entry in zip(rows, entries):
+            if (type(entry) is not dict or tuple(entry) != (*keys, "reason")
+                    or any(type(entry[key]) is not str or type(row.get(key)) is not str
+                           or entry[key] != row[key] for key in keys)
+                    or type(entry["reason"]) is not str or not entry["reason"]):
+                return None
+    return value

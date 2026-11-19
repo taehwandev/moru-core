@@ -43,7 +43,8 @@ impl MemoryConsolidation {
 
     fn report_plan(records: &[Value], review: &Value) -> Option<Value> {
         let review = review.as_object()?;
-        if review.len() != 3 {
+        let render_days = review.get("render_days").map(Value::as_u64);
+        if review.len() != 3 + usize::from(render_days.is_some()) || render_days == Some(None) {
             return None;
         }
         let mut dates = Vec::with_capacity(records.len());
@@ -79,7 +80,34 @@ impl MemoryConsolidation {
             row.remove("review")?;
             live.push(Value::Object(row));
         }
-        Some(json!({"review":selected,"relations":Self::report_relations(&live)?}))
+        let relations = Self::report_relations(&live)?;
+        let mut result = json!({"review":selected,"relations":relations});
+        if let Some(Some(days)) = render_days {
+            result["date_entries"] = Self::review_entries(records, &selected, days)?;
+        }
+        Some(result)
+    }
+
+    fn review_entries(records: &[Value], selected: &Value, days: u64) -> Option<Value> {
+        let entries = |bucket: &str, reason: &str| {
+            selected
+                .get(bucket)?
+                .as_array()?
+                .iter()
+                .map(|index| {
+                    let row = records.get(usize::try_from(index.as_u64()?).ok()?)?;
+                    Some(json!({"id":row.get("id")?, "scope":row.get("scope")?,
+                    "body":row.get("body")?, "source":row.get("source")?,
+                    "review_on":row.get("review")?, "reason":reason}))
+                })
+                .collect::<Option<Vec<_>>>()
+        };
+        Some(json!({
+            "expired":entries("expired",
+                "review date reached; recheck the source, then renew with `capture --replaces` and a new date, or `retire`")?,
+            "expiring":entries("expiring",
+                &format!("review date within {days} days; renew or retire ahead of time"))?
+        }))
     }
 
     fn report_relations(records: &[Value]) -> Option<Value> {

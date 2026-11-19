@@ -31,6 +31,31 @@ fn complete_report_plan_keeps_original_and_live_relative_indices_separate() {
 }
 
 #[test]
+fn complete_report_renders_review_entries_only_when_requested() {
+    let mut input = plan_payload(json!([
+        {"id":"b","status":"active","scope":"task","body":"second","source":"S2",
+         "review":"2026-11-17","replaces":null},
+        {"id":"a","status":"active","scope":"all","body":"한글","source":"S1",
+         "review":"2026-11-16","replaces":null}
+    ]));
+    input["review"]["render_days"] = json!(14);
+    let result = MemoryConsolidation::evaluate("report-text-groups", &input).unwrap();
+    assert_eq!(
+        result["date_entries"],
+        json!({
+            "expired":[{"id":"a","scope":"all","body":"한글","source":"S1","review_on":"2026-11-16",
+                "reason":"review date reached; recheck the source, then renew with `capture --replaces` and a new date, or `retire`"}],
+            "expiring":[{"id":"b","scope":"task","body":"second","source":"S2","review_on":"2026-11-17",
+                "reason":"review date within 14 days; renew or retire ahead of time"}]
+        })
+    );
+    for invalid in [json!(true), json!(-1), json!(null), json!("14")] {
+        input["review"]["render_days"] = invalid;
+        assert!(MemoryConsolidation::evaluate("report-text-groups", &input).is_none());
+    }
+}
+
+#[test]
 fn complete_report_empty_shape_and_closed_calendar_are_preserved() {
     let mut input = plan_payload(json!([]));
     assert_eq!(

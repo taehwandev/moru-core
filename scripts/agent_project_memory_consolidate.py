@@ -275,15 +275,19 @@ def _report_inputs(records, today, within_days):
         globals().get(name) is original and original.__code__ is code and original.__defaults__ is defaults
         for name,(original,code,defaults) in _PLAN_CALLBACKS.items()))
     if ordinary:
-        from support.native_memory_consolidation import NativeMemoryConsolidation
+        from support.native_memory_consolidation import NativeMemoryConsolidation, _REPORT_PLAN_BINDING
+        render = (_date_entry_profile()
+                  and _context_bound(NativeMemoryConsolidation.report_plan, _REPORT_PLAN_BINDING))
         plan, attempted = NativeMemoryConsolidation.report_plan(
-            records,today,within_days,RECALLABLE_STATUSES,DUPLICATE_JACCARD)
+            records,today,within_days,RECALLABLE_STATUSES,DUPLICATE_JACCARD,
+            **({"render_dates":True} if render else {}))
         if plan is not None:
-            return *plan, False
+            dates = plan[2] if render and _date_entry_profile() else None
+            return plan[0], plan[1], False, dates
         if attempted:
             live = _live_records_reference(records)
             expired, expiring = _review_buckets_reference(live,today,today+timedelta(days=within_days))
-            return (live,expired,expiring), None, True
+            return (live,expired,expiring), None, True, None
     from support.native_memory_review import NativeMemoryReview
     selected = (NativeMemoryReview.findings_inputs(records, today, within_days, RECALLABLE_STATUSES)
                 if date is _NATIVE_DATE and timedelta is _NATIVE_DELTA else None)
@@ -292,7 +296,7 @@ def _report_inputs(records, today, within_days):
         horizon = today + timedelta(days=within_days)
         expired, expiring = _review_buckets(live, today, horizon)
         selected = live, expired, expiring
-    return selected, None, False
+    return selected, None, False, None
 
 
 _PLAN_CALLBACKS = {name:(globals()[name],globals()[name].__code__,globals()[name].__defaults__)
@@ -300,25 +304,44 @@ _PLAN_CALLBACKS = {name:(globals()[name],globals()[name].__code__,globals()[name
                  "_review_buckets_reference","_relation_entries","_reference_relations")}
 
 
+_DATE_ENTRY_BINDING = _context_binding(_entry)
+
+
+def _date_entry_profile():
+    return _DECISION_FIELDS is _NATIVE_DECISION_FIELDS and _context_bound(_entry, _DATE_ENTRY_BINDING)
+
+
+def _report_date_entries(records, rendered, *, within_days=None):
+    if rendered is None:
+        reason = ("review date reached; recheck the source, then renew with "
+                  "`capture --replaces` and a new date, or `retire`" if within_days is None
+                  else f"review date within {within_days} days; renew or retire ahead of time")
+        return [_entry(record, reason) for record in records]
+    entries = []
+    for record, row in zip(records, rendered):
+        entry = dict(row)
+        native_reason = entry.pop("reason")
+        for key in _NATIVE_DECISION_FIELDS[5:]:
+            if key in record:
+                entry[key] = record[key]
+        entry["reason"] = native_reason
+        entries.append(entry)
+    return entries
+
+
 def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
              within_days: int = DEFAULT_WITHIN_DAYS) -> dict[str, Any]:
     """Classify validated records; the result carries bodies for the agent only."""
     if within_days < 0:
         raise ValueError("--within-days must not be negative")
-    selected, relations, reference = _report_inputs(records,today,within_days)
+    selected, relations, reference, dates = _report_inputs(records,today,within_days)
     live, expired, expiring = selected
     report = {
         "today": today.isoformat(),
         "within_days": within_days,
-        "expired": [
-            _entry(record, "review date reached; recheck the source, then renew with "
-                           "`capture --replaces` and a new date, or `retire`")
-            for record in expired
-        ],
-        "expiring": [
-            _entry(record, f"review date within {within_days} days; renew or retire ahead of time")
-            for record in expiring
-        ],
+        "expired": _report_date_entries(expired, dates["expired"] if dates is not None else None),
+        "expiring": _report_date_entries(expiring, dates["expiring"] if dates is not None else None,
+            within_days=within_days),
     }
     report.update(_relation_entries(*relations) if relations is not None else
                   _reference_relations(live) if reference else _report_relations(live))
