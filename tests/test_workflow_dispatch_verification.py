@@ -1,5 +1,9 @@
 """Required worker checks use real registered execution facts, never CLI claims."""
 import json
+import contextlib
+import io
+import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -43,7 +47,12 @@ class DispatchVerificationTests(unittest.TestCase):
         self.assertFalse(evaluate_result(report, prepared=self.prepared, working_dir=self.project)[0])
 
     def test_real_matching_verification_completes_scheduled_worker_without_replay(self):
+        (self.project / 'tests' / 'test_other.py').write_bytes(
+            (self.project / 'tests' / 'test_sample.py').read_bytes())
         self.assertEqual(0, self.f.run(['test_sample.Case.test_ok']))
+        first = self.f.execution()['id']
+        self.assertEqual(0, self.f.run(['test_other.Case.test_ok']))
+        second = self.f.execution()['id']
         packet = self.packet()
         ok, invalid = evaluate_result(packet, prepared=self.prepared, working_dir=self.project,
             required_verification={'selectors': ['test_missing']})
@@ -55,15 +64,60 @@ class DispatchVerificationTests(unittest.TestCase):
             'import sys; from pathlib import Path; Path(sys.argv[1]).write_text(sys.argv[2])',
             message, json.dumps({'status': 'ok', 'summary': 'done'})]
         context = {'task': task, 'prepared': self.prepared, 'working_dir': str(self.project),
-                   'required_verification': {'selectors': ['test_sample.Case.test_ok']}}
+                   'required_verification': {'selectors': ['test_sample.Case.test_ok', 'test_other.Case.test_ok']}}
         result = _run_scheduled_worker(command,
             lambda argv: _run_spooled_worker(argv, self.prepared, task, '', project=self.project),
             self.project, task, task_context=context)
         self.assertEqual(0, result)
         self.assertEqual(OBSERVED_VERIFICATION, context['completion_assessment']['classification'])
+        self.assertEqual([first, second], context['completion_assessment']['execution_ids'])
         state = read_json_object(scheduler_path(self.project))['tasks'][-1]
         self.assertEqual('completed', state['state'])
         self.assertEqual(1, state['attempt'])
+
+    def test_matching_failure_requests_only_missing_selector_in_dispatch_output(self):
+        self.f.write_test("import os\n        self.assertFalse(os.environ.get('MORU_FIXTURE_FAIL'))")
+        (self.project / 'tests' / 'test_other.py').write_text(
+            'import unittest\nclass Case(unittest.TestCase):\n    def test_ok(self):\n        pass\n')
+        sample = 'test_sample.Case.test_ok'
+        other = 'test_other.Case.test_ok'
+        self.assertEqual(0, self.f.run([sample]))
+        with patch.dict(os.environ, {'MORU_FIXTURE_FAIL': '1'}):
+            self.assertEqual(1, self.f.run([sample]))
+        self.assertEqual(0, self.f.run([other]))
+        packet = self.packet()
+        task = claim_task(self.project, enqueue_task(self.project, 'run', max_retries=1)['task_id'])
+        context = {'task': task, 'prepared': self.prepared, 'working_dir': str(self.project),
+                   'required_verification': {'selectors': [sample, other]}}
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), patch('workflow_dispatch_launch.read_result', return_value=packet):
+            self.assertEqual(1, _run_scheduled_worker([], lambda _: 0, self.project, task, task_context=context))
+        assessment = context['completion_assessment']
+        self.assertEqual([sample], assessment['missing_selectors'])
+        self.assertIn(assessment['retry_command'], stderr.getvalue())
+        self.assertEqual([
+            'verify', '--project', str(self.project), '--rules', str(self.project),
+            '--evidence', str(self.f.path), '--test-directory', 'tests', '--test-selector', sample,
+        ], shlex.split(assessment['retry_command'])[1:])
+
+    def test_required_tests_cannot_combine_across_issued_runs_or_revisions(self):
+        (self.project / 'tests' / 'test_other.py').write_bytes(
+            (self.project / 'tests' / 'test_sample.py').read_bytes())
+        selectors = ['test_sample', 'test_other']
+        self.assertEqual(0, self.f.run(selectors[:1]))
+        first = self.f.path
+        second = first.parent.parent / ('b' * 32) / 'preflight.json'
+        self.f.bind(second, self.project)
+        self.assertEqual(0, self.f.run(selectors[1:]))
+        prepared = {**self.prepared, 'worker_preflight_evidence': str(second)}
+        spec = {'selectors': selectors}
+        self.assertFalse(assess_completion_verification(self.packet(), prepared=prepared,
+            working_dir=self.project, required_verification=spec)['satisfied'])
+        self.f.write_test('self.assertTrue(1)')
+        self.assertEqual(0, self.f.run(selectors[:1]))
+        result = assess_completion_verification(self.packet(), prepared=prepared,
+            working_dir=self.project, required_verification=spec)
+        self.assertEqual(selectors[1:], result['missing_selectors'])
 
     def test_registered_but_unobserved_or_stale_records_cannot_satisfy_requirement(self):
         self.assertEqual(0, self.f.run())

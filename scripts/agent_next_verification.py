@@ -174,6 +174,8 @@ def build_verify_command(
     rules: Path | str,
     evidence_path: Path,
     selectors: list[str],
+    *,
+    test_directory: str | None = None,
 ) -> str:
     """Build a shell-quoted `moru-hook verify` command for up to 64 selectors."""
     parts = [
@@ -186,6 +188,8 @@ def build_verify_command(
         "--evidence",
         shell_quote(str(evidence_path)),
     ]
+    if test_directory is not None:
+        parts.extend(["--test-directory", shell_quote(test_directory)])
     for selector in selectors[:RUNNER_SELECTOR_LIMIT]:
         parts.extend(["--test-selector", shell_quote(selector)])
     return " ".join(parts)
@@ -196,29 +200,13 @@ def reconcile_verify_batches(verification, *, project, rules, evidence_path):
     selectors = verification.get('test_selectors') or []
     if len(selectors) <= RUNNER_SELECTOR_LIMIT:
         return False
-    from agent_verification_receipts import ExecutionReceipts
+    from agent_verification_receipts import ExecutionReceipts, covered_executions
     reader = ExecutionReceipts(project, rules)
     tests_dir = str(Path(project).resolve() / 'tests')
     if not any(fact is not None and fact['test_directory'] == tests_dir
                for fact in reader.history(evidence_path, live=False)):
         return False  # Existing manually recorded checks retain their own scope.
-    covered = set()
-    for fact in reader.history(evidence_path):
-        if fact is None:
-            covered.clear()
-            continue
-        if fact['test_directory'] != tests_dir:
-            continue
-        if fact['successful']:
-            ids = fact['passed_ids'] + fact['passed_selectors']
-            matched = {sel for sel in selectors if any(test_id == sel or test_id.startswith(sel + '.')
-                       for test_id in ids)}
-            if fact['selectors']:
-                matched = {sel for sel in matched if any(sel == name or sel.startswith(name + '.')
-                           for name in fact['selectors'])}
-            covered.update(matched)
-        else:
-            covered = {sel for sel in covered if not reader.failure_overlaps(fact, [sel])}
+    covered = covered_executions(reader.history(evidence_path), selectors, tests_dir)
     pending = [sel for sel in selectors if sel not in covered]
     verification['verified_test_selectors'] = sorted(covered)
     verification['next_verify_batch'] = pending[:RUNNER_SELECTOR_LIMIT]

@@ -1,6 +1,7 @@
 """Dispatch verification policy over canonical observed execution receipts.
 
-Owner: DispatchVerification; allowed imports: stdlib and ExecutionReceipts;
+Owner: DispatchVerification; allowed imports: stdlib, ExecutionReceipts and
+read-only verification command formatting;
 forbidden: test/provider execution, writes or receipt claims from worker prose.
 Callers/tests: dispatch completion/launch; test_workflow_dispatch_verification.
 """
@@ -9,7 +10,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
+from agent_next_verification import build_verify_command
 from agent_verification_receipts import ExecutionReceipts
+from support.stable_launcher import stable_launcher_path
 
 PROCESS_COMPLETION = "process_completion"
 CALLER_REPORT = "caller_report"
@@ -69,17 +72,27 @@ def assess_completion_verification(packet, *, prepared=None, required_verificati
     if not isinstance(prepared, Mapping) or not prepared.get("rules") or not working_dir:
         return {**result, "reason": "missing_handoff_evidence_context"}
     reader = ExecutionReceipts(working_dir, prepared["rules"])
-    reason = "missing_canonical_preflight"
+    best = None
     evidence_keys = ("worker_preflight_evidence",) if prepared.get("worker_owned_verification") is True else (
         "worker_preflight_evidence", "preflight_evidence")
     for key in evidence_keys:
         if not prepared.get(key):
             continue
         # Keep the lexical path; resolving first would conceal a symlink.
-        observed = reader.inspect(Path(str(prepared[key])), selectors=spec["selectors"],
-                                  test_directory=spec["test_directory"])
+        evidence = Path(str(prepared[key]))
+        observed = reader.inspect_selection(evidence, selectors=spec["selectors"],
+                                            test_directory=spec["test_directory"])
         if observed["ok"]:
+            execution_ids = observed.get("execution_ids") or [observed["id"]]
+            reference = {"execution_id": execution_ids[0]} if len(execution_ids) == 1 else {}
             return {**result, "satisfied": True, "classification": OBSERVED_VERIFICATION,
-                    "reason": observed["reason"], "execution_id": observed["id"]}
-        reason = observed["reason"]
-    return {**result, "reason": reason}
+                    "reason": observed["reason"], "execution_ids": execution_ids, **reference}
+        missing = observed.get("missing_selectors", [])
+        if best is None or len(missing) < len(best.get("missing_selectors", [])):
+            best = {"reason": observed["reason"], "missing_selectors": missing}
+            if missing and observed["reason"] not in {"foreign_verification_path", "foreign_preflight_binding",
+                                                      "noncanonical_verification_path", "mismatched_test_directory"}:
+                best["retry_command"] = build_verify_command(
+                    str(stable_launcher_path()), Path(working_dir), prepared["rules"], evidence, missing,
+                    test_directory=spec["test_directory"])
+    return {**result, **(best or {"reason": "missing_canonical_preflight"})}

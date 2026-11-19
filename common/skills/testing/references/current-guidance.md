@@ -285,8 +285,11 @@ for up to 64 named unittest selectors on a route with a tests gate. Use
 `--worker-test-directory` to override the default `tests`. The option selects
 an isolated worker checkout. With `--execute`, the launcher issues evidence
 inside that checkout and the worker runs verification in its own bound run.
-A missing or stale worker record rejects completion even when the process
-reports success. Inspecting the manifest creates no worktree or evidence.
+Named checks may pass across several executions in the same issued run and
+test directory. Each pass must cover the current inputs. A later overlapping
+failure revokes the affected coverage. If checks remain unverified, dispatch
+lists them and prints a retry command for the owning worker's active run.
+Inspecting the manifest creates no worktree or evidence.
 
 Review packets accept an optional `--findings-file` containing a finding list
 or a worker-result object. Keep each finding's unique `id` and original source

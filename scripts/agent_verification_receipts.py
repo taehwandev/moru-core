@@ -147,6 +147,29 @@ def _covers(ids, selectors):
                for sel in selectors)
 
 
+def _selection_covers(fact, selector, ids):
+    return (_covers(ids, [selector]) and (not fact['selectors']
+            or any(selector == chosen or selector.startswith(chosen + '.') for chosen in fact['selectors'])))
+
+
+def covered_executions(facts, selectors, test_directory):
+    """Map currently verified selectors to their last passing execution IDs."""
+    covered = {}
+    for fact in facts:
+        if fact is None:
+            covered.clear()
+        elif fact['test_directory'] == test_directory:
+            if fact['successful']:
+                ids = fact['passed_ids'] + fact['passed_selectors']
+                for selector in selectors:
+                    if _selection_covers(fact, selector, ids):
+                        covered[selector] = fact['id']
+            else:
+                covered = {sel: eid for sel, eid in covered.items()
+                           if not ExecutionReceipts.failure_overlaps(fact, [sel])}
+    return covered
+
+
 def _row_id(row):
     try:
         fields = row.get('fields')
@@ -244,10 +267,7 @@ class ExecutionReceipts:
                 raise _ReceiptError('verification_not_passing' if not historical_failure else 'before_fail_did_not_fail')
             prefix = 'failed' if historical_failure else 'passed'
             ids = fact[prefix + '_ids'] + fact[prefix + '_selectors']
-            if fact['selectors'] and any(not any(req == chosen or req.startswith(chosen + '.')
-                    for chosen in fact['selectors']) for req in selectors):
-                raise _ReceiptError('missing_required_selector')
-            if not _covers(ids, selectors):
+            if any(not _selection_covers(fact, selector, ids) for selector in selectors):
                 raise _ReceiptError('missing_required_selector')
             if test_directory is not None and Path(fact['test_directory']).resolve() != (self.project / test_directory).resolve():
                 raise _ReceiptError('mismatched_test_directory')
@@ -270,6 +290,27 @@ class ExecutionReceipts:
             return []
         tests = [row for row in rows if row.get('gate') == 'tests']
         return [fact for _, fact in _timeline(tests, preflight, reuse, live=live)]
+
+    def inspect_selection(self, evidence, *, selectors, test_directory):
+        if not selectors:
+            return self.inspect(evidence, test_directory=test_directory)
+        try:
+            preflight, rows, reuse = self._load(evidence)
+            directory = (self.project / test_directory).resolve()
+            if not directory.is_relative_to(self.project):
+                raise _ReceiptError('mismatched_test_directory')
+            tests = [row for row in rows if row.get('gate') == 'tests']
+            facts = (fact for _, fact in _timeline(tests, preflight, reuse, live=True))
+            covered = covered_executions(facts, selectors, str(directory))
+        except _ReceiptError as error:
+            return {'ok': False, 'reason': str(error), 'missing_selectors': list(selectors)}
+        except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+            return {'ok': False, 'reason': 'invalid_execution_evidence', 'missing_selectors': list(selectors)}
+        missing = [selector for selector in selectors if selector not in covered]
+        if missing:
+            return {'ok': False, 'reason': 'missing_required_selector', 'missing_selectors': missing}
+        return {'ok': True, 'reason': 'observed_verification_verified',
+                'execution_ids': list(dict.fromkeys(covered.values()))}
 
     @staticmethod
     def failure_overlaps(fact, selectors):

@@ -274,6 +274,11 @@ def _run_scheduled_worker(
             if not accepted:
                 if assessment.get("verification_required") and not assessment.get("satisfied"):
                     print(f"Worker verification rejected: {assessment['reason']}", file=sys.stderr)
+                    if missing := assessment.get("missing_selectors"):
+                        print(f"Tests still needing a current pass: {', '.join(missing)}", file=sys.stderr)
+                    if command := assessment.get("retry_command"):
+                        print(f"Run from the owning worker's active verification session:\n  {command}",
+                              file=sys.stderr)
                 outcome = WorkerOutcome(1, "WORKER_RESULT_REJECTED")
         result = outcome.returncode
         # Events follow the guarded transition: an attempt that stale recovery
