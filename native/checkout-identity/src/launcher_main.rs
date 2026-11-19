@@ -8,6 +8,10 @@ use moru_checkout_identity::CheckoutIdentity;
 
 mod android_manifest;
 mod behavior_trace;
+mod behavior_eval;
+mod behavior_eval_artifact;
+mod behavior_eval_cli;
+mod behavior_eval_input;
 mod behavior_review;
 mod behavior_trace_process;
 mod callback_replay;
@@ -194,6 +198,9 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+    if args.first().is_some_and(|arg| arg == "--behavior-eval") {
+        exit(behavior_eval_cli::BehaviorEvalCli::run(&args[1..]));
+    }
     if args.first().is_some_and(|arg| arg == "--behavior-review-export") {
         exit(behavior_review::BehaviorReview::run(&args));
     }

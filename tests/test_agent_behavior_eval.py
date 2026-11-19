@@ -8,7 +8,9 @@ import copy
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -210,6 +212,75 @@ class AgentBehaviorEvalTests(unittest.TestCase):
             code_bad = eval_mod.main(["--cases", str(FIXTURE_PATH), "--traces", str(Path(io_tmp) / "nope.json"), "--artifact-root", str(self.root)], stdout=out_bad, stderr=err_bad)
             self.assertEqual(code_bad, 2)
             self.assertIn("error:", err_bad.getvalue())
+
+    @unittest.skipUnless(os.environ.get("MORU_TEST_BEHAVIOR_EVAL_NATIVE") == "1",
+                         "requires native debug fixture")
+    def test_native_cli_matches_python_bytes_and_never_needs_path_tools(self) -> None:
+        from native_launcher_support import NATIVE
+
+        self.assertTrue(NATIVE.is_file(), "native debug fixture required")
+        with tempfile.TemporaryDirectory() as io_tmp:
+            folder = Path(io_tmp)
+            cases = folder / "cases.json"
+            traces = folder / "traces.json"
+            empty = folder / "empty"
+            empty.mkdir()
+            cid = "한글😀"
+            self.cases_doc = _single_case_doc(
+                cid=cid, req=["prompt_submitted"], forb=["after"],
+                artifacts={"docs/safe.txt": "ready\n", "docs/absent.txt": "another"})
+            self.traces_doc = {"schema_version": 1, "runs": [
+                {"provider": "agy", "case_id": cid, "events": _ev("prompt_submitted")}
+            ]}
+            artifact = _write_artifact(self.root, "agy", cid, "docs/safe.txt")
+            other = _write_artifact(self.root, "agy", cid, "docs/absent.txt", "another")
+            cases.write_text(json.dumps(self.cases_doc), encoding="utf-8")
+            traces.write_text(json.dumps(self.traces_doc), encoding="utf-8")
+            args = ["--cases", str(cases), "--traces", str(traces),
+                    "--artifact-root", str(self.root), "--providers", "agy"]
+
+            def compare(argv, exit_code):
+                out, err = io.StringIO(), io.StringIO()
+                expected = eval_mod.main(argv, stdout=out, stderr=err)
+                native = subprocess.run(
+                    [str(NATIVE), "offline-eval", "--behavior-eval", *argv],
+                    env={**os.environ, "PATH": str(empty)}, capture_output=True, timeout=8)
+                self.assertEqual(exit_code, expected)
+                self.assertEqual((expected, out.getvalue().encode(), err.getvalue().encode()),
+                                 (native.returncode, native.stdout, native.stderr))
+
+            compare(args, 0)
+            compare([f"--cases={cases}", f"--traces={traces}",
+                     f"--artifact-root={self.root}", "--providers=agy"], 0)
+            other.unlink()
+            other.symlink_to(artifact)
+            compare(args, 1)
+            other.unlink()
+            compare(args, 1)
+            other.write_bytes(b"\xff")
+            compare(args, 1)
+            other.write_bytes(b"a" * eval_mod.MAX_ARTIFACT_BYTES)
+            self.cases_doc["cases"][0]["artifacts"]["docs/absent.txt"] = (
+                "a" * eval_mod.MAX_ARTIFACT_BYTES)
+            cases.write_text(json.dumps(self.cases_doc), encoding="utf-8")
+            compare(args, 0)
+            other.write_bytes(b"a" * (eval_mod.MAX_ARTIFACT_BYTES + 1))
+            compare(args, 1)
+            other.unlink()
+            os.mkfifo(other)
+            compare(args, 1)
+            (artifact.parent.parent / "alias").symlink_to(artifact.parent, target_is_directory=True)
+            self.cases_doc["cases"][0]["artifacts"]["alias/safe.txt"] = "ready\n"
+            cases.write_text(json.dumps(self.cases_doc), encoding="utf-8")
+            self.traces_doc["runs"][0]["events"] = _ev("after", "after", final="blocked")
+            traces.write_text(json.dumps(self.traces_doc), encoding="utf-8")
+            compare(args, 1)  # Ordered trace and artifact failures in the same report.
+            compare(args[:-1] + ["agy,agy"], 2)
+            compare(args[:3] + [str(folder / "missing.json")] + args[4:], 2)
+            traces.write_text('{"schema_version":1,"runs":[}', encoding="utf-8")
+            compare(args, 2)
+            traces.write_text('{"schema_version":1,"runs":[]}', encoding="utf-8")
+            compare(args, 2)
 
 
 if __name__ == "__main__":

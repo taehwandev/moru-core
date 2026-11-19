@@ -733,10 +733,12 @@
       "id": "scripts/agent_behavior_eval.py",
       "inventory_id": 57,
       "kind": "ancillary",
-      "status": "planned",
-      "entry_aliases": "Direct offline CLI",
-      "remaining": "Port offline cases/traces/artifact grading, file validation and exact stdout/error/exit behavior. Preserve the no-provider/no-subprocess boundary.",
-      "verification": {}
+      "status": "partial_native",
+      "entry_aliases": "Direct Python CLI and private native offline-eval --behavior-eval",
+      "remaining": "Route the ordinary public CLI through a source-bound native candidate, then retire Python CLI and library execution after covering argparse, unusual JSON numeric and encoding profiles, and filesystem permission/error parity. Complete both-host and installed acceptance. Preserve the no-provider/no-subprocess grading boundary.",
+      "verification": {
+        "offline_eval": "PASS:18 Python evaluator, trace-ingress and inventory tests with native probes enabled; 1 focused Rust scorer test. Private launcher matches Python output bytes and exit status on ordinary UTF-8 inputs, including concurrent grading failures, non-BMP text, intermediate and leaf symlinks, FIFO, 65536-byte bound, malformed input and provider errors. Empty PATH works. Local macOS debug conformance only."
+      }
     },
     {
       "id": "scripts/agent_behavior_trace.py",
