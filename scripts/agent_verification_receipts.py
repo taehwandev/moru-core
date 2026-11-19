@@ -80,17 +80,21 @@ def _ids(value):
     return value
 
 
-def _fact(row, preflight, reuse, *, live):
+def _fact(row, preflight, reuse, *, live, timeline=False):
     fields = row.get('fields') or {}
     raw = fields.get('execution', '') if isinstance(fields, dict) else ''
-    if row.get('source') != 'execution' or not isinstance(raw, str) or len(raw.encode()) > 262144:
+    pending = timeline and not raw and isinstance(fields, dict) and 'execution_started' in fields
+    if pending:
+        raw = fields['execution_started']
+    if row.get('source') != 'execution' or not isinstance(raw, str) or not raw or len(raw.encode()) > 262144:
         raise _ReceiptError('missing_execution_observation')
     data = json.loads(raw)
     if (not isinstance(data, dict) or data.get('schema_version') != 1
-            or not isinstance(data.get('id'), str) or not _ID.fullmatch(data['id'])
-            or type(data.get('exit_code')) is not int or type(data.get('tests_run')) is not int
-            or data['tests_run'] <= 0 or type(data.get('successful')) is not bool
-            or data.get('inputs_unchanged') is not True):
+            or not isinstance(data.get('id'), str) or not _ID.fullmatch(data['id'])):
+        raise _ReceiptError('incomplete_execution_observation')
+    if not pending and (type(data.get('exit_code')) is not int or type(data.get('tests_run')) is not int
+            or data['tests_run'] < (0 if timeline else 1) or type(data.get('successful')) is not bool
+            or (not timeline and data.get('inputs_unchanged') is not True)):
         raise _ReceiptError('incomplete_execution_observation')
     argv, snapshot = data.get('argv'), data.get('snapshot')
     if (not isinstance(argv, list) or len(argv) != 6 or not all(isinstance(s, str) for s in argv)
@@ -112,15 +116,16 @@ def _fact(row, preflight, reuse, *, live):
         current = reuse.prepare([candidate])[0].get('reuse_snapshot')
         if current != snapshot:
             raise _ReceiptError('stale_verification_snapshot')
-    successful = data['successful'] and data['exit_code'] == 0
+    successful = (not pending and data['successful'] and data['exit_code'] == 0
+                  and data['tests_run'] > 0 and data.get('inputs_unchanged') is True)
     if (row.get('status') != ('SUCCESS' if successful else 'FAIL')
-            or not successful and data['exit_code'] == 0):
+            or not timeline and not successful and data['exit_code'] == 0):
         raise _ReceiptError('inconsistent_execution_outcome')
     pattern = argv[5]
     selectors = json.loads(pattern[len('@selectors:'):]) if pattern.startswith('@selectors:') else []
     if not isinstance(selectors, list) or not all(isinstance(s, str) for s in selectors):
         raise _ReceiptError('malformed_verification_selectors')
-    passed, failed = _ids(data.get('passed_ids')), _ids(data.get('failed_ids'))
+    passed, failed = ([], []) if pending else (_ids(data.get('passed_ids')), _ids(data.get('failed_ids')))
     passed_labels = data.get('passed_selectors', [])
     failed_labels = data.get('failed_selectors', [])
     for labels in (passed_labels, failed_labels):
@@ -128,10 +133,11 @@ def _fact(row, preflight, reuse, *, live):
             raise _ReceiptError('invalid_observed_selectors')
     if successful and not passed and not passed_labels:
         raise _ReceiptError('missing_executed_test_ids')
-    return {'id': data['id'], 'successful': successful, 'exit_code': data['exit_code'],
-            'tests_run': data['tests_run'], 'passed_ids': passed, 'failed_ids': failed,
+    return {'id': data['id'], 'successful': successful, 'exit_code': data.get('exit_code'),
+            'tests_run': data.get('tests_run', 0), 'passed_ids': passed, 'failed_ids': failed,
             'passed_selectors': passed_labels, 'failed_selectors': failed_labels,
-            'selectors': selectors, 'pattern': pattern, 'test_directory': argv[4],
+            'selectors': selectors, 'pattern': pattern, 'test_directory': argv[4], 'pending': pending,
+            'ids_complete': data.get('ids_complete') is True,
             'inputs_sha256': hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()}
 
 
@@ -149,6 +155,44 @@ def _row_id(row):
         return data.get('id', '') if isinstance(data, dict) else ''
     except (ValueError, TypeError):
         return ''
+
+
+def _timeline(rows, preflight, reuse, *, live):
+    """Pair a start with its terminal result, retaining interrupted attempts."""
+    facts = []
+    completed = set()
+    for index in range(len(rows) - 1, -1, -1):
+        row = rows[index]
+        if row.get('gate') != 'tests' or row.get('source') != 'execution':
+            continue
+        try:
+            fact = _fact(row, preflight, reuse, live=live, timeline=True)
+        except _ReceiptError as error:
+            if str(error) == 'stale_verification_snapshot':
+                continue
+            fields = row.get('fields') or {}
+            # Older start rows have no ID. Only an adjacent, validated terminal
+            # result with the same recorded command closes such a row.
+            check = fields.get('check') if isinstance(fields, dict) else None
+            if (str(error) == 'missing_execution_observation' and row.get('status') == 'FAIL'
+                    and isinstance(check, str) and check and 'execution_started' not in fields
+                    and 'execution' not in fields and fields.get('result') == 'incomplete'
+                    and facts and facts[-1][0] == index + 1
+                    and facts[-1][1] and not facts[-1][1]['pending']
+                    and check == (rows[index + 1].get('fields') or {}).get('check')):
+                continue
+            facts.append((index, None))
+            continue
+        except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+            facts.append((index, None))
+            continue
+        key = (fact['id'], fact['inputs_sha256'], fact['test_directory'], fact['pattern'])
+        if not fact['pending']:
+            completed.add(key)
+        elif key in completed:
+            continue
+        facts.append((index, fact))
+    return reversed(facts)
 
 
 def _review_fact(reader, evidence, file_path):
@@ -208,11 +252,10 @@ class ExecutionReceipts:
             if test_directory is not None and Path(fact['test_directory']).resolve() != (self.project / test_directory).resolve():
                 raise _ReceiptError('mismatched_test_directory')
             later = rows[rows.index(row) + 1:]
-            for later_row in () if historical_failure else later:
-                subsequent = _fact(later_row, preflight, reuse, live=True)
-                if not subsequent['successful'] and (not selectors or
-                        any(_covers(subsequent['failed_ids'] + subsequent['failed_selectors'], [sel])
-                            for sel in selectors)):
+            for _, subsequent in () if historical_failure else _timeline(later, preflight, reuse, live=True):
+                if subsequent is None or (not subsequent['successful']
+                        and subsequent['test_directory'] == fact['test_directory']
+                        and self.failure_overlaps(subsequent, selectors)):
                     raise _ReceiptError('later_matching_verification_failed')
             return {'ok': True, 'reason': 'observed_verification_verified', **fact}
         except _ReceiptError as error:
@@ -225,15 +268,18 @@ class ExecutionReceipts:
             preflight, rows, reuse = self._load(evidence)
         except (OSError, ValueError, TypeError, KeyError, RuntimeError):
             return []
-        facts = []
-        for row in rows:
-            if row.get('gate') != 'tests':
-                continue
-            try:
-                facts.append(_fact(row, preflight, reuse, live=live))
-            except (OSError, ValueError, TypeError, KeyError, RuntimeError):
-                continue
-        return facts
+        tests = [row for row in rows if row.get('gate') == 'tests']
+        return [fact for _, fact in _timeline(tests, preflight, reuse, live=live)]
+
+    @staticmethod
+    def failure_overlaps(fact, selectors):
+        failed = [item.removeprefix('unittest.loader._FailedTest.') for item in fact['failed_ids']]
+        precise = fact['ids_complete'] and failed and all(
+            all(part.isidentifier() for part in item.split('.')) for item in failed)
+        affected = failed if precise else fact['selectors']
+        return (not selectors or not affected
+                or any(_covers(affected, [sel]) or any(sel.startswith(item + '.') for item in affected)
+                       for sel in selectors))
 
     def review(self, evidence, file_path):
         try:

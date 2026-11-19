@@ -199,23 +199,26 @@ def reconcile_verify_batches(verification, *, project, rules, evidence_path):
     from agent_verification_receipts import ExecutionReceipts
     reader = ExecutionReceipts(project, rules)
     tests_dir = str(Path(project).resolve() / 'tests')
-    if not any(fact['test_directory'] == tests_dir for fact in reader.history(evidence_path, live=False)):
+    if not any(fact is not None and fact['test_directory'] == tests_dir
+               for fact in reader.history(evidence_path, live=False)):
         return False  # Existing manually recorded checks retain their own scope.
     covered = set()
     for fact in reader.history(evidence_path):
+        if fact is None:
+            covered.clear()
+            continue
         if fact['test_directory'] != tests_dir:
             continue
-        prefix = 'passed' if fact['successful'] else 'failed'
-        ids = fact[prefix + '_ids'] + fact[prefix + '_selectors']
-        matched = {sel for sel in selectors if any(test_id == sel or test_id.startswith(sel + '.')
-                   or test_id.endswith('_FailedTest.' + sel) for test_id in ids)}
         if fact['successful']:
+            ids = fact['passed_ids'] + fact['passed_selectors']
+            matched = {sel for sel in selectors if any(test_id == sel or test_id.startswith(sel + '.')
+                       for test_id in ids)}
             if fact['selectors']:
                 matched = {sel for sel in matched if any(sel == name or sel.startswith(name + '.')
                            for name in fact['selectors'])}
             covered.update(matched)
         else:
-            covered.difference_update(matched)
+            covered = {sel for sel in covered if not reader.failure_overlaps(fact, [sel])}
     pending = [sel for sel in selectors if sel not in covered]
     verification['verified_test_selectors'] = sorted(covered)
     verification['next_verify_batch'] = pending[:RUNNER_SELECTOR_LIMIT]

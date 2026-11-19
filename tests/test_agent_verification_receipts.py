@@ -5,6 +5,7 @@ import contextlib
 import hashlib
 import io
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -169,6 +170,39 @@ class ExecutionReceiptTests(unittest.TestCase):
         self.assertFalse(result['ok'])
         self.assertEqual('unregistered_verification_run', result['reason'])
 
+    def test_unrelated_retry_preserves_linked_receipt_and_matching_timeout_revokes_it(self):
+        f = self.fixture()
+        f.write_test("import os, time\n        if os.environ.get('MORU_FIXTURE_HANG'): time.sleep(4)")
+        (f.project / 'tests' / 'test_other.py').write_text(
+            'import os, unittest\nclass Case(unittest.TestCase):\n    def test_ok(self):\n'
+            '        self.assertFalse(os.environ.get("MORU_FIXTURE_OTHER_FAIL"))\n')
+        selector = 'test_sample.Case.test_ok'
+        self.assertEqual(0, f.run([selector]))
+        earlier = f.execution()['id']
+        self.assertEqual(0, f.run(['test_other']))
+
+        def inspect():
+            return ExecutionReceipts(f.project).inspect(
+                f.path, selectors=[selector], execution_id=earlier)
+
+        self.assertTrue(inspect()['ok'])
+        # A pre-upgrade completed batch has only a plain "incomplete" start row.
+        ledger = f.ledger()
+        marker = ledger['entries'][-2]['fields']
+        marker['execution_started'] = '{'
+        gate_evidence_path_for_preflight(f.path).write_text(json.dumps(ledger))
+        self.assertEqual('later_matching_verification_failed', inspect()['reason'])
+        marker.pop('execution_started')
+        gate_evidence_path_for_preflight(f.path).write_text(json.dumps(ledger))
+        self.assertTrue(inspect()['ok'])
+        with patch.dict(os.environ, {'MORU_FIXTURE_OTHER_FAIL': '1'}):
+            self.assertEqual(1, f.run(['test_other']))
+        self.assertTrue(inspect()['ok'])
+        f.args.verify_timeout = 0.25
+        with patch.dict(os.environ, {'MORU_FIXTURE_HANG': '1'}):
+            self.assertEqual(1, f.run([selector]))
+        self.assertEqual('later_matching_verification_failed', inspect()['reason'])
+
     def test_65_targets_advance_after_actual_first_batch_without_false_completion(self):
         from agent_next_action import inspect_next_action
         from test_agent_review_attestation import load_finish_check_module
@@ -208,6 +242,24 @@ class ExecutionReceiptTests(unittest.TestCase):
         self.assertEqual('review', complete['next_step'])
         self.assertEqual([], complete['verification']['next_verify_batch'])
         self.assertIn('tests', gates()[0])
+        def interrupted(*args, **kwargs):
+            raise KeyboardInterrupt
+
+        with patch.object(verify, 'execute_unittest', side_effect=interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                f.run([selectors[0]])
+        self.assertEqual(0, f.run(selectors[64:]))
+        self.assertNotIn('tests', gates()[0])
+        advice = inspect_next_action(f.project, evidence=f.path)
+        self.assertEqual([selectors[0]], advice['verification']['next_verify_batch'])
+        # For old interruption records without structured scope, nothing
+        # identifies which earlier batch verification was invalidated.
+        ledger = f.ledger()
+        ledger['entries'][-3]['fields'].pop('execution_started')
+        gate_evidence_path_for_preflight(f.path).write_text(json.dumps(ledger))
+        self.assertNotIn('tests', gates()[0])
+        advice = inspect_next_action(f.project, evidence=f.path)
+        self.assertEqual(selectors[:64], advice['verification']['next_verify_batch'])
 
     def test_source_review_requires_scoped_canonical_attestation_validation(self):
         from agent_review_attestation import ReviewAttestation

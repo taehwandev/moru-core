@@ -51,14 +51,18 @@ def verification_hook(args) -> int:
 
 def _verify_selection(args, path, preflight, command):
     check = " ".join(command)
-    # Clear an older pass before execution, including interruption/timeout.
-    # The normal ledger writer enforces live ownership before any test runs.
-    record_hook_gate(args, "tests", "verification started; no completed result",
-                     {"check": check, "result": "incomplete"}, "execution", "FAIL")
     candidate = {"gate": "tests", "status": "SUCCESS", "source": "execution",
                  "evidence": "observed unittest process result",
                  "fields": {"check": check, "result": "pending"}}
     before = _snapshot(preflight, candidate)
+    execution_id = uuid.uuid4().hex
+    binding = {"schema_version": 1, "id": execution_id, "argv": command,
+               "snapshot": before["reuse_snapshot"]}
+    pending = {"check": check, "result": "incomplete",
+               "execution_started": json.dumps(binding, ensure_ascii=False, separators=(",", ":"))}
+    # A crash must leave scoped negative evidence. The ledger writer checks live ownership.
+    record_hook_gate(args, "tests", "verification started; no completed result",
+                     pending, "execution", "FAIL")
     identity = hashlib.sha256(json.dumps({
         "command": command, "timeout": args.verify_timeout,
         "inputs": {key: value for key, value in before["reuse_snapshot"].items() if key != "session"},
@@ -67,14 +71,13 @@ def _verify_selection(args, path, preflight, command):
     attempt = claim_verification_attempt(evidence_path=path, preflight=preflight, identity=identity)
     if not attempt:
         result = "no_progress: two attempts without a verified pass for unchanged inputs; no process started"
-        record_hook_gate(args, "tests", result, {"check": check, "result": result}, "execution", "FAIL")
+        record_hook_gate(args, "tests", result, {**pending, "result": result}, "execution", "FAIL")
         return finish_with_result(
             "verify", False, [result], getattr(args, "output", None), {}, getattr(args, "repair_cycle", 0),
             verification_failure="no_progress",
         )
     started = monotonic()
     observed = {}
-    execution_id = uuid.uuid4().hex
     code, count, passed = execute_unittest(command, args.project, args.verify_timeout, observed=observed)
     after = _snapshot(preflight, candidate)
     stable = before["reuse_snapshot"] == after["reuse_snapshot"]
@@ -83,9 +86,9 @@ def _verify_selection(args, path, preflight, command):
               f"inputs_unchanged={stable}")
     after["fields"]["result"] = result
     after["fields"]["execution"] = json.dumps({
-        "schema_version": 1, "id": execution_id, "argv": command,
+        **binding,
         "exit_code": code, "tests_run": count, "successful": passed,
-        "inputs_unchanged": stable, "snapshot": before["reuse_snapshot"],
+        "inputs_unchanged": stable,
         "passed_ids": observed.get("passed_ids", []),
         "failed_ids": observed.get("failed_ids", []),
         "passed_selectors": observed.get("passed_selectors", []),

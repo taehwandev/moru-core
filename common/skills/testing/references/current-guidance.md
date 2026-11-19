@@ -257,6 +257,12 @@ its established scope and does not become observed execution automatically.
 The runner records a local execution ID, actual argument vector, outcome,
 input snapshot and bounded successful/failed test IDs. It prints the run and
 execution references for a consumer to link without copying counts from logs.
+An observed attempt records its test scope before starting. A completed
+unrelated attempt preserves an earlier receipt. An interrupted or timed-out
+retry invalidates earlier coverage for the tests it attempted in that
+directory until those tests pass again. If a legacy or unreadable execution
+record gives no reliable scope, later batches cannot reuse coverage from
+before that record.
 Successful/failed selected-namespace summaries survive the detailed-ID limit;
 they prove only that selected namespace, never an unobserved child method.
 A narrower selected method cannot satisfy a broader required module. An
