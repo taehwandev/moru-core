@@ -9,13 +9,16 @@ use std::{
     path::Path,
 };
 
+#[path = "doc_delivery_text.rs"]
+mod delivery_text;
+
 pub(crate) struct DocTranscriptProcess;
 impl DocTranscriptProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
             || !matches!(
                 args[1].to_str(),
-                Some("compacted" | "aligned" | "due" | "agy-covered")
+                Some("compacted" | "aligned" | "due" | "agy-covered" | "render")
             )
             || CallbackGuard::root(launcher, "doc-transcript-probe").is_none()
         {
@@ -34,6 +37,10 @@ impl DocTranscriptProcess {
             .ok()
             .and_then(|payload| {
                 let object = payload.as_object()?;
+                if args[1] == "render" {
+                    return delivery_text::DocDeliveryText::render(&payload)
+                        .map(|value| json!(value));
+                }
                 let path = Path::new(object.get("path")?.as_str()?);
                 match args[1].to_str()? {
                     "compacted" if object.len() == 1 => {

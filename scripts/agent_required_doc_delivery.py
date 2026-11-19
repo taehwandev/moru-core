@@ -558,6 +558,15 @@ def _result_text(content) -> str:
 def _render(texts: dict[str, str], pending: list[str], rules: Path | None = None) -> str:
     if not pending:
         return ""
+    from support.native_doc_transcript import NativeDocTranscript
+
+    native = NativeDocTranscript.render(texts, pending, rules, MAX_INLINE_DOC_BYTES, MAX_DELIVERY_BYTES)
+    return native if native is not None else _render_python(texts, pending, rules)
+
+
+def _render_python(texts: dict[str, str], pending: list[str], rules: Path | None = None) -> str:
+    if not pending:
+        return ""
     inline, listed, used = [], [], 0
     for doc in pending:
         if doc not in texts:

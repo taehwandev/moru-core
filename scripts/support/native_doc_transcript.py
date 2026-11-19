@@ -17,6 +17,27 @@ def _integer(value):
 
 class NativeDocTranscript:
     @staticmethod
+    def render(texts, pending, rules, inline_limit, total_limit):
+        if rules is not None and type(rules) is not type(Path()):
+            return None
+        try:
+            if not NativeProbe.available():
+                return None
+            docs = [
+                {"name": doc, "text": texts[doc], "path": str(rules / doc if rules else doc)}
+                for doc in pending if doc in texts
+            ]
+            result = NativeProbe.request("--doc-transcript-probe", "render", {
+                "docs": docs, "inline_limit": inline_limit, "total_limit": total_limit,
+            })
+        except (OSError, ValueError, RuntimeError):
+            return None
+        if type(result) is not dict or set(result) != {"value"}:
+            return None
+        text = result["value"]
+        return text if type(text) is str else None
+
+    @staticmethod
     def agy_covered(path: Path, rules: Path, docs: list[str]) -> set[str] | None:
         try:
             result = NativeProbe.request("--doc-transcript-probe", "agy-covered",

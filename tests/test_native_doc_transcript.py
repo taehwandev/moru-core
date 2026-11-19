@@ -89,6 +89,29 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 self.assertEqual(agy._read_in_context_python(self.path, self.base, docs),
                                  agy.read_in_context(self.path, self.base, docs))
 
+    def test_native_delivery_text_matches_python_byte_limits_and_order(self):
+        texts = {
+            "first.md": "---\nmeta: yes\n---\n\x1c한글\u3000",
+            "large.md": "가" * 20,
+            "next.md": "123",
+            "later.md": "z",
+            "unclosed.md": "---\nmetadata: open",
+            "empty.md": "\x1f",
+        }
+        pending = ["first.md", "missing.md", "large.md", "next.md", "later.md",
+                   "unclosed.md", "empty.md", "next.md"]
+        for inline_limit, total_limit in ((6, 9), (0, 0), (64, 200)):
+            with self.subTest(inline=inline_limit, total=total_limit), patch.multiple(
+                    reference, MAX_INLINE_DOC_BYTES=inline_limit, MAX_DELIVERY_BYTES=total_limit):
+                expected = reference._render_python(texts, pending, self.base)
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                        reference, "_render_python", side_effect=AssertionError("Python fallback")):
+                    self.assertEqual(expected, reference._render(texts, pending, self.base))
+                    self.assertEqual("", reference._render(texts, ["missing.md"]))
+        self.assertEqual((125, b"", b""), result(self.raw("render", {
+            "docs": [{"name": "missing-text.md"}], "inline_limit": 6, "total_limit": 9,
+        })))
+
     def test_three_runtime_boundaries_and_partial_rows(self):
         for row in ({"type":"compacted"}, {"type":"system","subtype":"compact_boundary"},
                     {"type":"CHECKPOINT","content":"# Resuming from a compaction\nsummary"}):
