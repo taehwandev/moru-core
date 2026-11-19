@@ -361,10 +361,26 @@ def _pending_checkout_reason(project: Path, identity: dict[str, str]) -> str:
     return "\n".join(reasons)
 
 
-def _remote_head(project: Path, head: str) -> tuple[str, str]:
+def _upstream_config(project: Path) -> tuple[str, str]:
+    if _git is _LOCAL_DELIVERY_GIT and locale.getpreferredencoding(False).lower() == "utf-8":
+        result = NativeProbe.request("--completion-probe", "publication-upstream-config", {"project": str(project)})
+        if result is not None and set(result) == {"remote", "merge"}:
+            remote, merge = result["remote"], result["merge"]
+            if isinstance(remote, str) and isinstance(merge, str):
+                if not remote and not merge:
+                    return "", ""
+                if remote and not remote.startswith("-") and merge.startswith("refs/heads/"):
+                    return remote, merge
     branch = _git(project, "symbolic-ref", "--short", "HEAD")
-    remote = _git(project, "config", f"branch.{branch}.remote") if branch else None
-    merge = _git(project, "config", f"branch.{branch}.merge") if branch else None
+    if not branch:
+        return "", ""
+    remote = _git(project, "config", f"branch.{branch}.remote")
+    merge = _git(project, "config", f"branch.{branch}.merge")
+    return remote or "", merge or ""
+
+
+def _remote_head(project: Path, head: str) -> tuple[str, str]:
+    remote, merge = _upstream_config(project)
     if not (remote and merge and merge.startswith("refs/heads/")):
         return "", "the branch has no configured upstream to check"
     listed = _git(project, "ls-remote", "--exit-code", remote, merge)

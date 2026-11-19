@@ -8,6 +8,30 @@ use serde_json::{json, Value};
 pub(crate) struct LegacyPublicationHead;
 
 impl LegacyPublicationHead {
+    pub(crate) fn upstream(payload: &Value) -> Option<Value> {
+        let git = LocalDeliveryGit::new(payload.get("project")?.as_str()?)?;
+        let missing = || json!({"remote": "", "merge": ""});
+        let (status, branch) = git.run(&["symbolic-ref", "--short", "HEAD"], 64 * 1024)?;
+        if status != 0 || branch.is_empty() {
+            return Some(missing());
+        }
+        let remote_key = format!("branch.{branch}.remote");
+        let merge_key = format!("branch.{branch}.merge");
+        let (remote_status, remote) = git.run(&["config", &remote_key], 64 * 1024)?;
+        let (merge_status, merge) = git.run(&["config", &merge_key], 64 * 1024)?;
+        if remote_status != 0
+            || merge_status != 0
+            || remote.is_empty()
+            || !merge.starts_with("refs/heads/")
+        {
+            return Some(missing());
+        }
+        if remote.starts_with('-') {
+            return None;
+        }
+        Some(json!({"remote": remote, "merge": merge}))
+    }
+
     pub(crate) fn probe(payload: &Value) -> Option<Value> {
         let project = payload.get("project")?.as_str()?;
         let source = payload.get("source")?.as_str()?;

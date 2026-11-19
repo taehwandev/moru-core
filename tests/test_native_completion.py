@@ -13,7 +13,7 @@ from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from agent_pending_publication import (
     _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record, _store,
-    outstanding, pending_reason, record_pending, split_remaining,
+    _remote_head, outstanding, pending_reason, record_pending, split_remaining,
 )
 from agent_publication_status import _observe_pull_request_python, observe_pull_request, observe_upstream
 from native_pretool_support import environment, prepare
@@ -606,6 +606,60 @@ class NativeCompletionTests(unittest.TestCase):
             record["local_delivery"]["common"] = str(project / "foreign.git")
             self.assertEqual(("", "local delivery belongs to a different repository or checkout"),
                              _observe(project, record, {"checkpoint": args["checkpoint"]}))
+
+    def test_native_upstream_config_preserves_remote_query_boundary(self):
+        project = self.project
+        payload = {"project": str(project)}
+        head = "1" * 40
+        reference = "refs/heads/main"
+        env = {**self.env, "GIT_ALLOW_PROTOCOL": ""}
+
+        def git(*args):
+            return subprocess.run(["git", "-C", str(project), *args], check=True, capture_output=True,
+                                  text=True, env=env, timeout=5)
+
+        def config():
+            response = self.raw("publication-upstream-config", payload, PATH=os.environ["PATH"])
+            self.assertEqual((0, b""), (response.returncode, response.stderr), response)
+            return json.loads(response.stdout)["result"]
+
+        def read_git(path, *args):
+            if args[0] == "ls-remote":
+                return f"{head}\t{reference}" if remote_succeeds else None
+            return _git(path, *args)
+
+        def remote_calls(expected, calls):
+            with patch.dict(os.environ, env, clear=True), patch(
+                    "agent_pending_publication._git", side_effect=read_git) as reader, patch(
+                    "agent_pending_publication._LOCAL_DELIVERY_GIT", reader):
+                self.assertEqual(expected, _remote_head(project, head))
+                self.assertEqual(calls, [call.args[1:] for call in reader.call_args_list])
+
+        remote_succeeds = True
+        absent = ("", "the branch has no configured upstream to check")
+        self.assertEqual({"remote": "", "merge": ""}, config())
+        remote_calls(absent, [])
+        git("config", "--add", "branch.main.remote", "first")
+        git("config", "--add", "branch.main.remote", " final ")
+        git("config", "--add", "branch.main.merge", "refs/tags/no")
+        self.assertEqual({"remote": "", "merge": ""}, config())
+        remote_calls(absent, [])
+        git("config", "--add", "branch.main.merge", f" {reference}\n")
+        self.assertEqual({"remote": "final", "merge": reference}, config())
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = observe_upstream(f"{head}\t{reference}", "final", reference, head)
+            failed = observe_upstream(None, "final", reference, head)
+        query = ("ls-remote", "--exit-code", "final", reference)
+        remote_calls(expected, [query])
+        remote_succeeds = False
+        remote_calls(failed, [query])
+        git("config", "--replace-all", "branch.main.remote", "--upload-pack=ignored")
+        declined = self.raw("publication-upstream-config", payload, PATH=os.environ["PATH"])
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "--allow-empty", "-m", "base")
+        git("checkout", "--detach")
+        self.assertEqual({"remote": "", "merge": ""}, config())
+        remote_calls(absent, [])
 
     def test_publication_evidence_matches_existing_provider_and_upstream_checks(self):
         path = self.base / "provider-proof.json"

@@ -66,6 +66,7 @@ impl CompletionProcess {
             Some("staged-v1") => LocalDeliveryIdentity::capture(&payload),
             Some("staged-v1-observe") => LocalDeliveryObservation::probe(&payload),
             Some("legacy-publication-head") => LegacyPublicationHead::probe(&payload),
+            Some("publication-upstream-config") => LegacyPublicationHead::upstream(&payload),
             Some("publication-pr-proof") => PublicationEvidence::pull_request(&payload),
             Some("publication-upstream-proof") => PublicationEvidence::upstream(&payload),
             Some("staged-v1-prepare") => LocalDeliveryPrepare::probe(&payload),
