@@ -18,6 +18,8 @@ use std::{
 pub(crate) struct DocTranscript;
 #[path = "doc_transcript_agy.rs"]
 mod agy;
+#[path = "doc_delivery_plan.rs"]
+mod doc_delivery_plan;
 #[path = "doc_delivery_read.rs"]
 mod doc_delivery_read;
 

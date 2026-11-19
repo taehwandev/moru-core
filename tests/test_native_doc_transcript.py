@@ -140,6 +140,39 @@ class NativeDocTranscriptTests(unittest.TestCase):
             with self.assertRaises(UnicodeDecodeError):
                 reference._read_docs(self.base, ["second.md", "invalid.md"])
 
+    def test_native_delivery_plan_matches_marker_upgrade_and_compaction_cadence(self):
+        marker = self.base / reference.MARKER
+        compact = b'{"type":"compacted"}\n'
+        cases = [
+            (None, b"", 3, "deliver"),
+            (b'{"delivered":["a.md"]}', b"unfinished", 3, "upgrade"),
+            (b"{broken", b"", 3, "upgrade"),
+            (b'{"delivered":["a.md"]}', compact, 3, "deliver"),
+            (b'{"transcript_bytes":0}', compact[:-1], 3, "skip"),
+            (json.dumps({"transcript_bytes": len(compact)}).encode(), compact, 3, "skip"),
+            (b'{"transcript_bytes":999,"redeliveries":2}', compact, 3, "deliver"),
+            (b'{"transcript_bytes":0,"redeliveries":3}', compact, 3, "skip"),
+            (b'{"transcript_bytes":0,"redeliveries":3}', compact, 4, "deliver"),
+        ]
+        for record, transcript, limit, action in cases:
+            with self.subTest(record=record, transcript=transcript, limit=limit):
+                marker.unlink(missing_ok=True)
+                if record is not None:
+                    marker.write_bytes(record)
+                self.path.write_bytes(transcript)
+                expected = self.original("delivery_plan_python", marker, self.path, limit)
+                self.assertEqual(action, expected["action"])
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                        reference, "_delivery_plan_python", side_effect=AssertionError("Python fallback")):
+                    self.assertEqual(expected, reference._delivery_plan(marker, self.path, limit))
+                self.assertEqual(record, marker.read_bytes() if marker.exists() else None)
+                self.assertEqual(transcript, self.path.read_bytes())
+        marker.write_bytes(b'{"transcript_bytes":0,"redeliveries":"3"}')
+        self.assertIsNone(self.native("delivery_plan", marker, self.path, 4))
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(self.original("delivery_plan_python", marker, self.path, 4),
+                             reference._delivery_plan(marker, self.path, 4))
+
     def test_three_runtime_boundaries_and_partial_rows(self):
         for row in ({"type":"compacted"}, {"type":"system","subtype":"compact_boundary"},
                     {"type":"CHECKPOINT","content":"# Resuming from a compaction\nsummary"}):

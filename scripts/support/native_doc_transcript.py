@@ -17,6 +17,29 @@ def _integer(value):
 
 class NativeDocTranscript:
     @staticmethod
+    def delivery_plan(marker: Path, transcript: Path, limit: int) -> dict | None:
+        try:
+            result = NativeProbe.request("--doc-transcript-probe", "delivery-plan",
+                                         {"marker": str(marker), "path": str(transcript), "limit": limit})
+        except (OSError, ValueError, RuntimeError):
+            return None
+        state = result.get("value") if type(result) is dict and set(result) == {"value"} else None
+        if type(state) is not dict:
+            return None
+        if state == {"action": "skip"}:
+            return state
+        if type(state.get("offset")) is not int or state["offset"] < 0:
+            return None
+        if state.get("action") == "upgrade" and set(state) == {"action", "offset", "delivered"}:
+            delivered = state["delivered"]
+            if type(delivered) is list and all(type(doc) is str for doc in delivered):
+                return state
+        if state.get("action") == "deliver" and set(state) == {"action", "offset", "had_previous", "redeliveries"}:
+            if type(state["had_previous"]) is bool and _integer(state["redeliveries"]):
+                return state
+        return None
+
+    @staticmethod
     def read_docs(rules: Path, docs: list[str]) -> dict[str, str] | None:
         try:
             result = NativeProbe.request("--doc-transcript-probe", "read-docs",

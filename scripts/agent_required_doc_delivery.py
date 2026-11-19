@@ -147,27 +147,18 @@ def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> 
     try:
         marker = evidence.parent / MARKER
         transcript = Path(str(payload.get("transcript_path") or ""))
-        previous = _marker_state(marker)
-        previous_offset = previous.get("transcript_bytes")
-        if marker.exists():
-            if type(previous_offset) is not int:
-                if not _compacted_before(transcript):
-                    delivered = previous.get("delivered")
-                    _write_marker(marker, delivered if isinstance(delivered, list) else [],
-                                  _aligned_size(transcript), 0)
-                    return ""
-                # Unknown when the old marker was written, so a compaction in the
-                # transcript may be after it: deliver once and record the size.
-            elif not _due_after_compaction(
-                    previous, transcript, MAX_REDELIVERIES + (1 if closeout else 0)):
-                return ""
-        offset = _aligned_size(transcript, previous_offset if type(previous_offset) is int else 0)
+        plan = _delivery_plan(marker, transcript, MAX_REDELIVERIES + (1 if closeout else 0))
+        if plan["action"] == "skip":
+            return ""
+        if plan["action"] == "upgrade":
+            _write_marker(marker, plan["delivered"], plan["offset"], 0)
+            return ""
         preflight = json.loads(evidence.read_text(encoding="utf-8"))
         rules = Path(preflight["rules"])
         docs = list(dict.fromkeys(preflight["route"].get("required_docs") or []))
         # A reuse proof says an earlier run took the doc in, not that its text is
         # in this context; a compaction since the proof was made voids it.
-        reuse = {} if previous else required_doc_reuse(evidence)
+        reuse = {} if plan["had_previous"] else required_doc_reuse(evidence)
         reused = set(reuse.get("reused") or [])
         if reused and _compacted_before(transcript):
             # The reuse proof carries no time, so any compaction may have evicted the
@@ -177,11 +168,34 @@ def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> 
         texts = _read_docs(rules, docs)
         read = (read_in_context or _read_in_context)(transcript, rules, texts)
         pending = [doc for doc in docs if doc not in read]
-        redeliveries = int(previous.get("redeliveries", 0)) + (1 if previous and pending else 0)
-        _write_marker(marker, pending, offset, redeliveries)
+        redeliveries = int(plan["redeliveries"]) + (1 if plan["had_previous"] and pending else 0)
+        _write_marker(marker, pending, plan["offset"], redeliveries)
         return _render(texts, pending, rules)
     except (OSError, ValueError, KeyError, TypeError):
         return ""
+
+
+def _delivery_plan(marker: Path, transcript: Path, limit: int) -> dict:
+    from support.native_doc_transcript import NativeDocTranscript
+
+    native = NativeDocTranscript.delivery_plan(marker, transcript, limit)
+    return native if native is not None else _delivery_plan_python(marker, transcript, limit)
+
+
+def _delivery_plan_python(marker: Path, transcript: Path, limit: int) -> dict:
+    previous = _marker_state(marker)
+    offset = previous.get("transcript_bytes")
+    if marker.exists():
+        if type(offset) is not int:
+            if not _compacted_before(transcript):
+                delivered = previous.get("delivered")
+                return {"action": "upgrade", "offset": _aligned_size(transcript),
+                        "delivered": delivered if isinstance(delivered, list) else []}
+            # Unknown when the old marker was written. A compaction may be newer.
+        elif not _due_after_compaction(previous, transcript, limit):
+            return {"action": "skip"}
+    return {"action": "deliver", "offset": _aligned_size(transcript, offset if type(offset) is int else 0),
+            "had_previous": bool(previous), "redeliveries": previous.get("redeliveries", 0)}
 
 
 def _read_docs(rules: Path, docs: list[str]) -> dict[str, str]:

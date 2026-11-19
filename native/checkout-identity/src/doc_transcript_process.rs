@@ -18,7 +18,15 @@ impl DocTranscriptProcess {
         if args.len() != 2
             || !matches!(
                 args[1].to_str(),
-                Some("compacted" | "aligned" | "due" | "agy-covered" | "render" | "read-docs")
+                Some(
+                    "compacted"
+                        | "aligned"
+                        | "due"
+                        | "agy-covered"
+                        | "render"
+                        | "read-docs"
+                        | "delivery-plan"
+                )
             )
             || CallbackGuard::root(launcher, "doc-transcript-probe").is_none()
         {
@@ -53,6 +61,11 @@ impl DocTranscriptProcess {
                 }
                 let path = Path::new(object.get("path")?.as_str()?);
                 match args[1].to_str()? {
+                    "delivery-plan" if object.len() == 3 => DocTranscript::delivery_plan(
+                        Path::new(object.get("marker")?.as_str()?),
+                        path,
+                        object.get("limit")?.as_i64()?,
+                    ),
                     "compacted" if object.len() == 1 => {
                         DocTranscript::compacted(path).map(|v| json!(v))
                     }
