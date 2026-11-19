@@ -1205,3 +1205,35 @@ to print both error counts. This is a controlled policy comparison using
 constructed packets. It does not estimate how often current models make these
 mistakes, adoption, task quality, timing or cost. Keep the check opt-in and
 investigate any failed case before widening its default use.
+
+## Sample actual harness use before changing defaults
+
+The 2026-11-19 readback found five usable local test-route bindings, with
+three completed and two running. This was a partial sample. AGY Neon Medium's
+independent review flagged that sampling only completed runs would omit some
+of the failures and false blocks the audit needs to find.
+
+1. On the next audit, choose a cutoff and take the most recent ten real
+   Moru Core work runs with a tests gate, ordered by recorded start time.
+   Include every state, including failed, cancelled, interrupted and running.
+   Count a resumed run once. Exclude test fixtures and use the same cohort
+   for each metric. Note missing bindings and unavailable data separately,
+   and leave the sample short if fewer than ten usable records remain.
+2. Read the bound test rows and any corresponding finish or dispatch verdict.
+   Record aggregate counts only. Separate manual passes, observed executions,
+   and recorded refusals. Keep running work and cases with missing evidence
+   as unknown until their outcome is known. Do not backfill with synthetic
+   cases, retain worktrees solely for the sample, or add runtime collection.
+3. Classify a prevented false completion only when a recorded rejection
+   identifies a genuinely unmet requirement. A no-progress refusal proves a
+   repeated command was refused before a process started. The number of runs
+   that would have occurred without the guard remains unknown without a
+   matched replay. Classify a false block only after checking the same inputs
+   against the authorized acceptance criteria. A rejection alone proves
+   neither a false block nor a correct one.
+
+Report the cohort size, known denominator and unknown count for each result.
+Use the [offline comparison](../tests/compare_worker_completion.py) for
+controlled replay, reported separately from actual use. Keep current defaults
+unless repeated, reproducible misses or false blocks identify a specific rule
+worth changing. Fix that rule and rerun both the valid and incomplete cases.
