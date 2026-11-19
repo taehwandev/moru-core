@@ -76,8 +76,7 @@ class LocalDeliveryProof:
                     staged_sha256=staged, commit_declared=commit, targets=targets)
 
     @classmethod
-    def _committed(cls, project: Path, proof: dict, base: str, source: str, expected: str, git,
-                   *, native: bool = False) -> str:
+    def _committed(cls, project: Path, proof: dict, base: str, source: str, expected: str, git) -> str:
         head = git(project, 'rev-parse', '--verify', 'refs/heads/' + source)
         heads = [head] if head else [git(project, 'rev-parse', '--verify', 'refs/heads/' + target)
                                     for target in proof['targets']]
@@ -91,7 +90,7 @@ class LocalDeliveryProof:
                 and git(project, 'merge-base', '--is-ancestor', base, cached) is not None
                 and any(git(project, 'merge-base', '--is-ancestor', cached, h) is not None for h in heads)):
             cached = ""
-        return _search_commit(project, base, heads, cached, expected, git, native=native)
+        return _search_commit(project, base, heads, cached, expected, git)
 
     @classmethod
     def observe(cls, project: Path, record: dict, checkpoint: str, git, *, native: bool = False) -> tuple[str, str]:
@@ -102,7 +101,9 @@ class LocalDeliveryProof:
             expected, base, source = proof["staged_sha256"], record["base_head"], record["source_branch"]
             if not re.fullmatch(r"[0-9a-f]{64}", expected) or not re.fullmatch(r"[0-9a-f]{40,64}", base):
                 return "", "local delivery proof is malformed"
-            approved = cls._committed(project, proof, base, source, expected, git, native=native)
+            if native and (result := _observe_native(project, proof, base, source, expected, checkpoint)) is not None:
+                return result
+            approved = cls._committed(project, proof, base, source, expected, git)
             if not approved:
                 return "", "the reviewed staged content has not been observed in a commit"
             if checkpoint.startswith(cls.INTEGRATION + "/"):
@@ -132,16 +133,26 @@ def _capture_identities(index: str | None, base: str | None) -> tuple[str, str]:
     return LocalDeliveryProof._identity(index, index=True), LocalDeliveryProof._identity(base)
 
 
-def _search_commit(project, base, heads, cached, expected, git, *, native):
-    if native and locale.getpreferredencoding(False).lower() == "utf-8":
-        result = NativeProbe.request(
-            "--completion-probe", "staged-v1-search",
-            {"project": str(project), "base": base, "heads": heads, "cached": cached, "expected": expected},
-        )
-        if result is not None and set(result) == {"commit"}:
-            commit = result["commit"]
-            if isinstance(commit, str) and (not commit or re.fullmatch(r"[0-9a-f]{40,64}", commit)):
-                return commit
+def _observe_native(project, proof, base, source, expected, checkpoint):
+    targets = proof.get("targets")
+    declared = proof.get("commit_declared")
+    if (type(targets) is not dict or type(declared) is not bool
+            or locale.getpreferredencoding(False).lower() != "utf-8"):
+        return None
+    result = NativeProbe.request(
+        "--completion-probe", "staged-v1-observe",
+        {"project": str(project), "base": base, "source": source, "targets": list(targets),
+         "cached": proof.get("reviewed_commit") or "", "expected": expected,
+         "checkpoint": checkpoint, "commit_declared": declared},
+    )
+    if result is not None and set(result) == {"observation", "reason"}:
+        observation, reason = result["observation"], result["reason"]
+        if isinstance(observation, str) and isinstance(reason, str) and bool(observation) != bool(reason):
+            return observation, reason
+    return None
+
+
+def _search_commit(project, base, heads, cached, expected, git):
     if cached and LocalDeliveryProof._identity(git(project, 'ls-tree', '-r', '-z', cached)) == expected:
         return cached
     for head in heads:

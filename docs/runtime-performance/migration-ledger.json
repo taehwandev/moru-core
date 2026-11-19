@@ -771,10 +771,11 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct status/settle CLI",
-      "remaining": "Port Git repository/branch binding, pending-publication inspection, integration ancestry, receipt settlement and the status/settle CLI. Preserve Git/provider observations, exact failures, Finish and Stop imports, and no authority to publish. Verify both supported hosts and installed acceptance.",
+      "remaining": "Port checkout/common-directory binding, receipt preparation and settlement, pending-publication inspection and the status/settle CLI. Preserve Git/provider observations, exact failures, Finish and Stop imports, and no authority to publish. Verify both supported hosts and installed acceptance.",
       "verification": {
         "staged_v1_capture": "PASS: source-bound macOS debug capture uses one Rust probe for staged index and base tree identities. The probe runs with an empty PATH and matches Python hashes for reordered rows, empty trees, Unicode without normalization, duplicate rows and escaped path characters. Conflicting stages and malformed metadata retain Python errors. At this checkpoint the receipt format, Git reads, commit matching and settlement stayed with Python.",
-        "staged_v1_search": "PASS: source-bound macOS debug observer delegates ordered rev-list and tree matching to Rust for ordinary UTF-8 Git output. Real Git tests check cached-match precedence, a wrong cached digest, the first matching candidate, the 64th and 65th candidates, missing Git, and the injected Python reader. The native search is read-only and does not fetch. Source and target bindings, integration checks and writes remain Python-owned."
+        "staged_v1_search": "PASS: source-bound macOS debug observer delegates ordered rev-list and tree matching to Rust for ordinary UTF-8 Git output. Real Git tests check cached-match precedence, a wrong cached digest, the first matching candidate, the 64th and 65th candidates, missing Git, and the injected Python reader. The native search is read-only and does not fetch.",
+        "staged_v1_observe": "PASS: source-bound macOS debug observer checks source and target tips, ancestry, staged-commit search and exact integration messages in one Rust invocation. Real Git covers a source that still exists but no longer contains the base, a deleted source with prepared-target recovery, absent integration, unprepared targets, and integration without a new commit. Foreign checkout rejection precedes native selection. Receipt binding and state writes remain Python-owned."
       }
     },
     {

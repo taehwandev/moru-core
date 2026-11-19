@@ -88,33 +88,67 @@ class NativeCompletionTests(unittest.TestCase):
             commit("same tree")
         boundary = commit("64th commit", "inside limit")
         head = commit("65th commit", "outside limit")
-        payload = {"project": str(project), "base": base, "heads": [head]}
+        git("branch", "source", head)
+        git("branch", "integration", base)
+        payload = {"project": str(project), "base": base, "source": "source", "targets": ["integration"],
+                   "checkpoint": "publication.commit", "commit_declared": True}
+
+        def observe(**overrides):
+            result = self.raw("staged-v1-observe", {**payload, **overrides}, PATH=os.defpath)
+            self.assertEqual((0, b""), (result.returncode, result.stderr))
+            return json.loads(result.stdout)["result"]
+
         for target, cached, expected in (
             (first, "", first), (first, second, second), (first, different, first),
             (boundary, "", boundary), (head, "", ""),
         ):
             with self.subTest(target=target, cached=cached):
-                result = self.raw("staged-v1-search", {
-                    **payload, "cached": cached, "expected": digest(target),
-                }, PATH=os.defpath)
-                self.assertEqual((0, b""), (result.returncode, result.stderr))
-                self.assertEqual({"commit": expected}, json.loads(result.stdout)["result"])
+                result = observe(cached=cached, expected=digest(target))
+                if expected:
+                    self.assertEqual({"observation": f"reviewed staged content committed as {expected}",
+                                      "reason": ""}, result)
+                else:
+                    self.assertEqual({"observation": "",
+                                      "reason": "the reviewed staged content has not been observed in a commit"}, result)
 
         request = {**payload, "cached": "", "expected": digest(first)}
-        result = self.raw("staged-v1-search", request)
+        result = self.raw("staged-v1-observe", request)
         self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
 
         record = {"schema_version": 2, "base_head": base, "source_branch": "main",
                   "local_delivery": {"project": str(project), "common": str(project / ".git"),
                                      "commit_declared": True, "staged_sha256": digest(first), "targets": {}}}
         with patch.dict(os.environ, self.env, clear=True):
-            with patch.object(LocalDeliveryProof, "_identity", side_effect=AssertionError("Python fallback")):
+            with patch.object(LocalDeliveryProof, "_committed", side_effect=AssertionError("Python fallback")):
                 self.assertEqual((f"reviewed staged content committed as {first}", ""),
                                  _observe(project, record, {"checkpoint": "publication.commit"}))
             with patch("agent_pending_publication._git", wraps=_git) as reader:
                 self.assertEqual((f"reviewed staged content committed as {first}", ""),
                                  _observe(project, record, {"checkpoint": "publication.commit"}))
                 self.assertIn(("ls-tree", "-r", "-z", first), [call.args[1:] for call in reader.call_args_list])
+
+        args = {"checkpoint": "publication.integrate/integration", "cached": "", "expected": digest(first)}
+        self.assertEqual("target branch does not contain the reviewed commit", observe(**args)["reason"])
+        self.assertEqual("local integration target was not prepared", observe(**{**args, "targets": []})["reason"])
+        git("branch", "-f", "integration", head)
+        integrated = f"target integration contains reviewed commit {first}"
+        self.assertEqual(integrated, observe(**args)["observation"])
+        git("branch", "-f", "source", base)
+        self.assertEqual("local delivery proof cannot be verified", observe(**{**args, "base": first})["reason"])
+        git("branch", "-D", "source")
+        self.assertEqual(integrated, observe(**args)["observation"])
+        self.assertEqual(f"target integration contains reviewed commit {base}",
+                         observe(**{**args, "commit_declared": False})["observation"])
+        record["source_branch"] = "source"
+        record["local_delivery"]["targets"] = {"integration": base}
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                LocalDeliveryProof, "_committed", side_effect=AssertionError("Python fallback")):
+            self.assertEqual((integrated, ""), _observe(project, record, {"checkpoint": args["checkpoint"]}))
+            record["local_delivery"]["common"] = str(project / "foreign.git")
+            with patch("agent_local_delivery.NativeProbe.request") as native:
+                self.assertEqual(("", "local delivery belongs to a different repository or checkout"),
+                                 _observe(project, record, {"checkpoint": args["checkpoint"]}))
+                native.assert_not_called()
 
     def test_quality_warns_without_executing_commands_or_printing_command_content(self):
         marker = self.project / "never-created"

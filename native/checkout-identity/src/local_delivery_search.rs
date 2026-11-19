@@ -4,9 +4,8 @@
 
 use crate::{
     local_delivery_identity::LocalDeliveryIdentity, python_text::PythonText,
-    read_process::capture_raw, text::Text,
+    read_process::status::capture_status, text::Text,
 };
-use serde_json::{json, Value};
 use std::{
     path::Path,
     process::{Command, Stdio},
@@ -24,36 +23,19 @@ pub(crate) struct LocalDeliverySearch<'a> {
     deadline: Instant,
 }
 
-impl LocalDeliverySearch<'_> {
-    pub(crate) fn probe(payload: &Value) -> Option<Value> {
-        let project = payload.get("project")?.as_str()?;
-        let expected = payload.get("expected")?.as_str()?;
-        let base = payload.get("base")?.as_str()?;
-        let cached = payload.get("cached")?.as_str()?;
-        let heads = payload.get("heads")?.as_array()?;
-        if !Path::new(project).is_absolute()
-            || expected.len() != 64
-            || !Self::hex(expected)
-            || !Self::oid(base)
-            || (!cached.is_empty() && !Self::oid(cached))
-            || heads.is_empty()
-            || heads.len() > CANDIDATE_LIMIT
-        {
+impl<'a> LocalDeliverySearch<'a> {
+    pub(super) fn new(project: &'a str, expected: &'a str) -> Option<Self> {
+        if !Path::new(project).is_absolute() || expected.len() != 64 || !Self::hex(expected) {
             return None;
         }
-        let heads: Vec<&str> = heads.iter().map(Value::as_str).collect::<Option<_>>()?;
-        if heads.iter().any(|head| !Self::oid(head)) {
-            return None;
-        }
-        let search = LocalDeliverySearch {
+        Some(Self {
             project,
             expected,
             deadline: Instant::now() + SEARCH_TIMEOUT,
-        };
-        Some(json!({"commit": search.find(base, cached, &heads)?}))
+        })
     }
 
-    fn find(&self, base: &str, cached: &str, heads: &[&str]) -> Option<String> {
+    pub(super) fn find(&self, base: &str, cached: &str, heads: &[String]) -> Option<String> {
         if !cached.is_empty() && self.matches(cached)? {
             return Some(cached.to_owned());
         }
@@ -81,8 +63,37 @@ impl LocalDeliverySearch<'_> {
     }
 
     fn git(&self, args: &[&str], limit: usize) -> Option<String> {
+        let (status, text) = self.run(args, limit)?;
+        (status == 0).then_some(text)
+    }
+
+    pub(super) fn branch(&self, name: &str) -> Option<Option<String>> {
+        let reference = format!("refs/heads/{name}");
+        match self.run(&["rev-parse", "--verify", &reference], 4096)? {
+            (0, text) if Self::oid(&text) => Some(Some(text)),
+            (128, _) => {
+                let (status, _) =
+                    self.run(&["show-ref", "--verify", "--quiet", &reference], 4096)?;
+                (status == 1).then_some(None)
+            }
+            _ => None,
+        }
+    }
+
+    pub(super) fn ancestor(&self, commit: &str, head: &str) -> Option<bool> {
+        match self
+            .run(&["merge-base", "--is-ancestor", commit, head], 4096)?
+            .0
+        {
+            0 => Some(true),
+            1 => Some(false),
+            _ => None,
+        }
+    }
+
+    fn run(&self, args: &[&str], limit: usize) -> Option<(i32, String)> {
         let remaining = self.deadline.checked_duration_since(Instant::now())?;
-        let (stdout, stderr, success) = capture_raw(
+        let (stdout, stderr, status) = capture_status(
             Command::new("git")
                 .arg("-C")
                 .arg(self.project)
@@ -95,14 +106,17 @@ impl LocalDeliverySearch<'_> {
             remaining,
         )
         .ok()??;
-        if !success || stdout.len() > limit || std::str::from_utf8(&stderr).is_err() {
+        if stdout.len() > limit || std::str::from_utf8(&stderr).is_err() {
             return None;
         }
         let text = Text::universal_newlines(std::str::from_utf8(&stdout).ok()?);
-        Some(text.trim_matches(PythonText::whitespace).to_owned())
+        Some((
+            status.code()?,
+            text.trim_matches(PythonText::whitespace).to_owned(),
+        ))
     }
 
-    fn oid(value: &str) -> bool {
+    pub(super) fn oid(value: &str) -> bool {
         matches!(value.len(), 40 | 64) && Self::hex(value)
     }
 
