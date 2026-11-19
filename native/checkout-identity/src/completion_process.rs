@@ -5,7 +5,7 @@
 use crate::{
     completion_progress::Progress, completion_quality::Quality,
     completion_requirements::Requirements, local_delivery_identity::LocalDeliveryIdentity,
-    pretool_guard::CallbackGuard,
+    local_delivery_search::LocalDeliverySearch, pretool_guard::CallbackGuard,
 };
 use serde_json::{json, Value};
 use std::{
@@ -38,6 +38,7 @@ impl CompletionProcess {
             Some("coverage") => Requirements::coverage(&payload),
             Some("progress") => Progress::inspect(&payload),
             Some("staged-v1") => LocalDeliveryIdentity::capture(&payload),
+            Some("staged-v1-search") => LocalDeliverySearch::probe(&payload),
             _ => None,
         };
         let Some(result) = result else {

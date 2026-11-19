@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import locale
 import re
 from pathlib import Path
 
@@ -75,7 +76,8 @@ class LocalDeliveryProof:
                     staged_sha256=staged, commit_declared=commit, targets=targets)
 
     @classmethod
-    def _committed(cls, project: Path, proof: dict, base: str, source: str, expected: str, git) -> str:
+    def _committed(cls, project: Path, proof: dict, base: str, source: str, expected: str, git,
+                   *, native: bool = False) -> str:
         head = git(project, 'rev-parse', '--verify', 'refs/heads/' + source)
         heads = [head] if head else [git(project, 'rev-parse', '--verify', 'refs/heads/' + target)
                                     for target in proof['targets']]
@@ -85,23 +87,14 @@ class LocalDeliveryProof:
         if not proof['commit_declared']:
             return base
         cached = proof.get('reviewed_commit')
-        if cached:
-            if (re.fullmatch(r'[0-9a-f]{40,64}', cached)
-                    and git(project, 'merge-base', '--is-ancestor', base, cached) is not None
-                    and any(git(project, 'merge-base', '--is-ancestor', cached, h) is not None for h in heads)
-                    and cls._identity(git(project, 'ls-tree', '-r', '-z', cached)) == expected):
-                return cached
-        for head in heads:
-            candidates = git(project, 'rev-list', '--reverse', '--ancestry-path', base + '..' + head)
-            if candidates is None or len(candidates) > 4 * 1024 * 1024:
-                raise ValueError('local commit history exceeds the observation budget')
-            for candidate in candidates.splitlines()[:64]:
-                if cls._identity(git(project, 'ls-tree', '-r', '-z', candidate)) == expected:
-                    return candidate
-        return ''
+        if not (cached and re.fullmatch(r'[0-9a-f]{40,64}', cached)
+                and git(project, 'merge-base', '--is-ancestor', base, cached) is not None
+                and any(git(project, 'merge-base', '--is-ancestor', cached, h) is not None for h in heads)):
+            cached = ""
+        return _search_commit(project, base, heads, cached, expected, git, native=native)
 
     @classmethod
-    def observe(cls, project: Path, record: dict, checkpoint: str, git) -> tuple[str, str]:
+    def observe(cls, project: Path, record: dict, checkpoint: str, git, *, native: bool = False) -> tuple[str, str]:
         try:
             proof = record["local_delivery"]
             if proof["project"] != str(project.resolve()) or proof["common"] != cls._common(project, git):
@@ -109,7 +102,7 @@ class LocalDeliveryProof:
             expected, base, source = proof["staged_sha256"], record["base_head"], record["source_branch"]
             if not re.fullmatch(r"[0-9a-f]{64}", expected) or not re.fullmatch(r"[0-9a-f]{40,64}", base):
                 return "", "local delivery proof is malformed"
-            approved = cls._committed(project, proof, base, source, expected, git)
+            approved = cls._committed(project, proof, base, source, expected, git, native=native)
             if not approved:
                 return "", "the reviewed staged content has not been observed in a commit"
             if checkpoint.startswith(cls.INTEGRATION + "/"):
@@ -137,3 +130,25 @@ def _capture_identities(index: str | None, base: str | None) -> tuple[str, str]:
                         for value in result.values())):
             return result["staged"], result["base"]
     return LocalDeliveryProof._identity(index, index=True), LocalDeliveryProof._identity(base)
+
+
+def _search_commit(project, base, heads, cached, expected, git, *, native):
+    if native and locale.getpreferredencoding(False).lower() == "utf-8":
+        result = NativeProbe.request(
+            "--completion-probe", "staged-v1-search",
+            {"project": str(project), "base": base, "heads": heads, "cached": cached, "expected": expected},
+        )
+        if result is not None and set(result) == {"commit"}:
+            commit = result["commit"]
+            if isinstance(commit, str) and (not commit or re.fullmatch(r"[0-9a-f]{40,64}", commit)):
+                return commit
+    if cached and LocalDeliveryProof._identity(git(project, 'ls-tree', '-r', '-z', cached)) == expected:
+        return cached
+    for head in heads:
+        candidates = git(project, 'rev-list', '--reverse', '--ancestry-path', base + '..' + head)
+        if candidates is None or len(candidates) > 4 * 1024 * 1024:
+            raise ValueError('local commit history exceeds the observation budget')
+        for candidate in candidates.splitlines()[:64]:
+            if LocalDeliveryProof._identity(git(project, 'ls-tree', '-r', '-z', candidate)) == expected:
+                return candidate
+    return ''

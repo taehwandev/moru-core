@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
+from agent_pending_publication import _git, _observe
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 
@@ -59,6 +60,61 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
             with patch.dict(os.environ, self.env, clear=True), self.assertRaises(ValueError):
                 _capture_identities(bad, tree)
+
+    def test_local_delivery_search_keeps_cache_order_and_scan_limit(self):
+        project = self.project
+
+        def git(*args):
+            return subprocess.run(["git", "-C", str(project), *args], check=True,
+                                  capture_output=True, text=True, env=self.env, timeout=5).stdout.strip()
+
+        def commit(label, content=None):
+            if content is not None:
+                (project / "receipt.txt").write_text(content, encoding="utf-8")
+                git("add", "receipt.txt")
+            git("commit", "--allow-empty", "-qm", label)
+            return git("rev-parse", "HEAD")
+
+        def digest(oid):
+            return LocalDeliveryProof._identity(git("ls-tree", "-r", "-z", oid))
+
+        git("config", "user.email", "fixture@example.invalid")
+        git("config", "user.name", "Fixture")
+        base = commit("base")
+        first = commit("first match", "proof")
+        different = commit("different", "other")
+        second = commit("second match", "proof")
+        for _ in range(60):
+            commit("same tree")
+        boundary = commit("64th commit", "inside limit")
+        head = commit("65th commit", "outside limit")
+        payload = {"project": str(project), "base": base, "heads": [head]}
+        for target, cached, expected in (
+            (first, "", first), (first, second, second), (first, different, first),
+            (boundary, "", boundary), (head, "", ""),
+        ):
+            with self.subTest(target=target, cached=cached):
+                result = self.raw("staged-v1-search", {
+                    **payload, "cached": cached, "expected": digest(target),
+                }, PATH=os.defpath)
+                self.assertEqual((0, b""), (result.returncode, result.stderr))
+                self.assertEqual({"commit": expected}, json.loads(result.stdout)["result"])
+
+        request = {**payload, "cached": "", "expected": digest(first)}
+        result = self.raw("staged-v1-search", request)
+        self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+
+        record = {"schema_version": 2, "base_head": base, "source_branch": "main",
+                  "local_delivery": {"project": str(project), "common": str(project / ".git"),
+                                     "commit_declared": True, "staged_sha256": digest(first), "targets": {}}}
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(LocalDeliveryProof, "_identity", side_effect=AssertionError("Python fallback")):
+                self.assertEqual((f"reviewed staged content committed as {first}", ""),
+                                 _observe(project, record, {"checkpoint": "publication.commit"}))
+            with patch("agent_pending_publication._git", wraps=_git) as reader:
+                self.assertEqual((f"reviewed staged content committed as {first}", ""),
+                                 _observe(project, record, {"checkpoint": "publication.commit"}))
+                self.assertIn(("ls-tree", "-r", "-z", first), [call.args[1:] for call in reader.call_args_list])
 
     def test_quality_warns_without_executing_commands_or_printing_command_content(self):
         marker = self.project / "never-created"

@@ -15,7 +15,7 @@ impl LocalDeliveryIdentity {
         Some(json!({"staged": staged, "base": base}))
     }
 
-    fn digest(listing: &str, index: bool) -> Option<String> {
+    pub(crate) fn digest(listing: &str, index: bool) -> Option<String> {
         let mut entries = Vec::new();
         for entry in listing.split('\0').filter(|entry| !entry.is_empty()) {
             let (metadata, path) = entry.split_once('\t')?;

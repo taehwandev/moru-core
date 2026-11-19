@@ -141,6 +141,9 @@ def _git(project: Path, *arguments: str) -> str | None:
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+_LOCAL_DELIVERY_GIT = _git
+
+
 def record_pending(project: Path, evidence: Path, deferred: list) -> str:
     """Persist deferred items beside the run. Returns "" or why it could not be stored.
 
@@ -285,7 +288,8 @@ def _observe(project: Path, record: dict, item: dict, observation_path: Path | N
     if record.get("schema_version") == 2:
         local = checkpoint in ("publication.commit", LocalDeliveryProof.INTEGRATION)
         observation, refusal = LocalDeliveryProof.observe(
-            project, record, item["checkpoint"] if local else "publication.commit", _git)
+            project, record, item["checkpoint"] if local else "publication.commit", _git,
+            native=_git is _LOCAL_DELIVERY_GIT)
         if local or refusal:
             return observation, refusal
     if checkpoint == LocalDeliveryProof.INTEGRATION:
