@@ -12,6 +12,7 @@ from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from agent_pending_publication import (
     _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record,
+    outstanding, pending_reason,
 )
 from agent_publication_status import _observe_pull_request_python, observe_pull_request, observe_upstream
 from native_pretool_support import environment, prepare
@@ -166,6 +167,55 @@ class NativeCompletionTests(unittest.TestCase):
                     else:
                         cache = oid if checkpoint == "publication.commit" else None
                         self.assertEqual(cache, expected["local_delivery"].get("reviewed_commit"))
+
+    def test_pending_publication_status_preserves_debt_and_order_from_bound_receipts(self):
+        run = self.base / "status-run"
+        run.mkdir()
+        evidence = run / "preflight.json"
+        receipt = run / "pending-publication.json"
+        evidence.write_bytes(b"fixture")
+        names = ["publication.commit", "publication.push", "publication.integrate/main", "publication.push",
+                 "publication.pull-request/main"]
+        declared = [{"checkpoint": name} for name in names] + [{"checkpoint": "ignored"}, None]
+        fallback = {**self.env, "MORU_LAUNCHER_BACKEND": "python"}
+
+        def compare(wanted):
+            checkpoints = declared if wanted else []
+            with patch.dict(os.environ, fallback, clear=True), patch(
+                    "agent_pending_publication.declared_deferrable", return_value=checkpoints):
+                expected = outstanding(self.project, evidence, checkpoints), pending_reason(self.project, evidence)
+            self.assertEqual({"owed": expected[0], "reason": expected[1]},
+                             self.check("pending-publication-status", {
+                                 "evidence": str(evidence), "declared": names if wanted else [],
+                             }))
+            with patch.dict(os.environ, self.env, clear=True), patch(
+                    "agent_pending_publication._outstanding_python", side_effect=AssertionError("Python fallback")
+            ), patch("agent_pending_publication.declared_deferrable", return_value=checkpoints):
+                self.assertEqual(expected, (outstanding(self.project, evidence, checkpoints),
+                                            pending_reason(self.project, evidence)))
+            return expected[0]
+
+        self.assertEqual([], compare(False))
+        self.assertEqual(list(dict.fromkeys(names)), compare(True))
+        receipt.write_bytes(b"\xff")
+        self.assertEqual(["receipt (unreadable)"], compare(False))
+        self.assertEqual(list(dict.fromkeys(names)), compare(True))
+        receipt.write_bytes(b"")
+        result = self.raw("pending-publication-status", {"evidence": str(evidence), "declared": []})
+        self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(["receipt (unreadable)"], outstanding(self.project, evidence))
+        record = {"schema_version": 2, "run_id": run.name, "base_head": "base",
+                  "evidence_sha256": hashlib.sha256(evidence.read_bytes()).hexdigest(),
+                  "items": [{"checkpoint": "publication.integrate/main", "state": "pending"},
+                            {"checkpoint": "publication.commit", "state": "observed"},
+                            {"checkpoint": "publication.integrate/main", "state": "pending"}]}
+        receipt.write_text(json.dumps(record), encoding="utf-8")
+        self.assertEqual(["publication.integrate/main", "publication.integrate/main",
+                          "publication.push", "publication.pull-request/main"], compare(True))
+        evidence.write_bytes(b"changed")
+        self.assertEqual(["receipt (foreign or malformed)"], compare(False))
+        self.assertEqual(list(dict.fromkeys(names)), compare(True))
 
     def test_pending_publication_reads_verify_raw_evidence_and_keep_reference_fallback(self):
         run = self.base / "run-fixture"

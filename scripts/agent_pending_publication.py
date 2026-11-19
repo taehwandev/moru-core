@@ -233,8 +233,25 @@ def outstanding(project: Path, evidence: Path, declared: list | None = None) -> 
     without a receipt entry stays owed. Without it, only an existing receipt
     can speak.
     """
+    return _status(evidence, declared)[0]
+
+
+def _status(evidence: Path, declared: list | None) -> tuple[list[str], str]:
     names = [i["checkpoint"] for i in declared or [] if isinstance(i, dict) and kind(i.get("checkpoint"))]
-    record, problem = _load(evidence)
+    result = NativeProbe.request("--completion-probe", "pending-publication-status", {
+        "evidence": str(evidence), "declared": names,
+    })
+    if result is not None and set(result) == {"owed", "reason"}:
+        owed, reason = result["owed"], result["reason"]
+        if (isinstance(owed, list) and all(isinstance(name, str) for name in owed)
+                and isinstance(reason, str) and bool(owed) == bool(reason)):
+            return owed, reason
+    owed = _outstanding_python(evidence, names)
+    return owed, _status_reason_python(owed)
+
+
+def _outstanding_python(evidence: Path, names: list[str]) -> list[str]:
+    record, problem = _load_python(evidence)
     if record is None:
         if problem == "missing":
             return list(dict.fromkeys(names))
@@ -258,7 +275,10 @@ def declared_deferrable(project: Path, evidence: Path) -> list:
 
 
 def pending_reason(project: Path, evidence: Path) -> str:
-    owed = outstanding(project, evidence, declared_deferrable(project, evidence))
+    return _status(evidence, declared_deferrable(project, evidence))[1]
+
+
+def _status_reason_python(owed: list[str]) -> str:
     if not owed:
         return ""
     return (
