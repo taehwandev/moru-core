@@ -1,4 +1,4 @@
-//! owner: bounded required-document and delivery manifest reads;
+//! owner: bounded required-document and manifest reads, registry file discovery;
 //! allowed imports: guarded regular-file access, newline normalization and std;
 //! forbidden imports: evidence selection, writes, providers and delivery policy;
 //! callers/tests: doc-transcript probe and native required-doc parity fixtures;
@@ -16,6 +16,32 @@ use std::{
 const MAX_BYTES: u64 = 128 * 1024;
 
 impl DocTranscript {
+    pub(crate) fn nearest_registry_project(path: &Path) -> Option<Value> {
+        let text = path.to_str()?;
+        if !path.is_absolute()
+            || text.starts_with("//")
+            || text.len() > 4096
+            || path.components().any(|part| part == Component::ParentDir)
+        {
+            return None;
+        }
+        for (depth, project) in path.ancestors().enumerate() {
+            if depth == 128 {
+                return None;
+            }
+            match fs::metadata(project.join(".moru/run-registry.json")) {
+                Ok(metadata) if metadata.is_file() => {
+                    return Some(serde_json::json!([project.to_str()?]));
+                }
+                Ok(_) => {}
+                Err(error)
+                    if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {}
+                Err(_) => return None,
+            }
+        }
+        Some(serde_json::json!([]))
+    }
+
     pub(crate) fn read_delivery_manifest(path: &Path) -> Option<Value> {
         if path.file_name()?.to_str()? != "preflight.json" {
             return None;

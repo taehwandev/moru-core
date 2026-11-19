@@ -28,6 +28,7 @@ impl DocTranscriptProcess {
                         | "render"
                         | "read-docs"
                         | "read-delivery-manifest"
+                        | "nearest-registry-project"
                         | "delivery-plan"
                         | "write-marker"
                 )
@@ -68,6 +69,9 @@ impl DocTranscriptProcess {
                 }
                 let path = Path::new(object.get("path")?.as_str()?);
                 match args[1].to_str()? {
+                    "nearest-registry-project" if object.len() == 1 => {
+                        DocTranscript::nearest_registry_project(path)
+                    }
                     "read-delivery-manifest" if object.len() == 1 => {
                         DocTranscript::read_delivery_manifest(path)
                     }

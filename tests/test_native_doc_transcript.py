@@ -12,7 +12,7 @@ import agy_required_docs_hook as agy
 import test_agent_required_doc_delivery as delivery_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
-from support.native_doc_transcript import NativeDocTranscript, read_delivery_manifest
+from support.native_doc_transcript import NativeDocTranscript, nearest_registry_project, read_delivery_manifest
 
 
 class NativeDocTranscriptTests(unittest.TestCase):
@@ -172,6 +172,67 @@ class NativeDocTranscriptTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual(self.original("delivery_plan_python", marker, self.path, 4),
                              reference._delivery_plan(marker, self.path, 4))
+
+    def test_native_registry_discovery_follows_stat_but_preserves_lexical_path(self):
+        outer = self.base / "outer"
+        inner = outer / "nested"
+        alias = self.base / "alias"
+        state = inner / ".moru"
+        state.mkdir(parents=True)
+        alias.symlink_to(inner, target_is_directory=True)
+        (outer / ".moru").mkdir()
+        (outer / ".moru" / "run-registry.json").touch()
+        registry = state / "run-registry.json"
+        registry.symlink_to(outer / ".moru" / "run-registry.json")
+        file = inner / "existing"
+        file.touch()
+        with patch.dict(os.environ, self.env, clear=True):
+            for edited, expected in (
+                (file, (inner,)),
+                (inner, (inner,)),
+                (alias / "missing" / "file", (alias,)),
+                (self.empty, ()),
+            ):
+                with self.subTest(edited=edited):
+                    self.assertEqual(expected, reference._nearest_registry_project_python(edited))
+                    self.assertEqual(expected, nearest_registry_project(edited))
+            registry.unlink()
+            registry.symlink_to(self.base / "missing-registry")
+            self.assertEqual((outer,), nearest_registry_project(file))
+            registry.unlink()
+            registry.mkdir()
+            self.assertEqual((outer,), nearest_registry_project(file))
+            for unsupported in (Path("relative"), inner / ".." / "existing", Path("//volume")):
+                self.assertIsNone(nearest_registry_project(unsupported))
+
+    def test_session_binding_uses_nearest_root_once_per_edit_in_order(self):
+        outer = self.base / "outer"
+        inner = outer / "nested"
+        later = self.base / "later"
+        for root in (outer, inner, later):
+            (root / ".moru").mkdir(parents=True)
+        for root in (outer, inner):
+            (root / ".moru" / "run-registry.json").touch()
+        expected = later / "preflight.json"
+        payload = {"tool_input": {"file_path": str(inner / "one"),
+                                  "notebook_path": str(inner / "two"),
+                                  "path": str(later / "three"),
+                                  "patch": "*** Add File: /unvisited\n"}}
+        queries = []
+
+        def evidence_for(project):
+            queries.append(project)
+            if queries == [inner, inner]:
+                (later / ".moru" / "run-registry.json").touch()
+            return expected if project == later else None
+
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reference, "_nearest_registry_project_python", side_effect=AssertionError("Python fallback")), patch(
+                "support.native_doc_transcript.nearest_registry_project", wraps=nearest_registry_project) as probe:
+            self.assertEqual(expected, reference._session_run(payload, evidence_for))
+        self.assertEqual([(inner / "one",), (inner / "two",), (later / "three",)],
+                         [entry.args for entry in probe.call_args_list])
+        self.assertEqual([inner, inner, later], queries)
 
     def test_native_delivery_manifest_projection_and_fallback(self):
         evidence = self.base / "preflight.json"

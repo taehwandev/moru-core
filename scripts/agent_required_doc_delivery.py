@@ -357,14 +357,24 @@ def is_compaction(row: object) -> bool:
 
 
 def _session_run(payload: dict, evidence_for) -> Path | None:
+    from support.native_doc_transcript import nearest_registry_project
+
     for edited in edited_paths(payload):
-        for project in (edited, *edited.parents):
-            if (project_state_dir_target(project) / "run-registry.json").is_file():
-                evidence = evidence_for(project)
-                if evidence is not None:
-                    return evidence
-                break
+        projects = nearest_registry_project(edited)
+        if projects is None:
+            projects = _nearest_registry_project_python(edited)
+        if projects:
+            evidence = evidence_for(projects[0])
+            if evidence is not None:
+                return evidence
     return None
+
+
+def _nearest_registry_project_python(edited: Path) -> tuple[Path, ...]:
+    for project in (edited, *edited.parents):
+        if (project_state_dir_target(project) / "run-registry.json").is_file():
+            return (project,)
+    return ()
 
 
 def _read_in_context(transcript: Path, rules: Path, texts: dict[str, str]) -> set[str]:

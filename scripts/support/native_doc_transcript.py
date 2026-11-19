@@ -20,6 +20,21 @@ def _value(result):
     return result["value"] if type(result) is dict and set(result) == {"value"} else None
 
 
+def nearest_registry_project(edited: Path) -> tuple[Path, ...] | None:
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "nearest-registry-project",
+                                           {"path": str(edited)}))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if value == []:
+        return ()
+    if type(value) is list and len(value) == 1 and type(value[0]) is str:
+        project = Path(value[0])
+        if project == edited or project in edited.parents:
+            return (project,)
+    return None
+
+
 def read_delivery_manifest(path: Path) -> tuple[Path, list[str]] | None:
     try:
         value = _value(NativeProbe.request("--doc-transcript-probe", "read-delivery-manifest",
