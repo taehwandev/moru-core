@@ -39,9 +39,10 @@ impl BehaviorEvalCli {
     pub(crate) fn run(args: &[OsString]) -> i32 {
         let normalized;
         let args = if let Some(index) = args.iter().position(|arg| arg == "--public-args") {
-            let Some(public) = public_args::BehaviorEvalPublicArgs::normalize(&args[index + 1..])
-            else {
-                return DECLINED;
+            let public = match public_args::BehaviorEvalPublicArgs::normalize(&args[index + 1..]) {
+                Ok(Some(public)) => public,
+                Ok(None) => return DECLINED,
+                Err(error) => return Self::error(&error),
             };
             normalized = args[..index]
                 .iter()
@@ -75,12 +76,14 @@ impl BehaviorEvalCli {
                 BehaviorEvalError::Stable(error)
                 | BehaviorEvalError::Unicode(error)
                 | BehaviorEvalError::Reference(error),
-            )) => {
-                let _ = writeln!(io::stderr().lock(), "error: {error}");
-                2
-            }
+            )) => Self::error(&error),
             None => DECLINED,
         }
+    }
+
+    fn error(error: &str) -> i32 {
+        let _ = writeln!(io::stderr().lock(), "error: {error}");
+        2
     }
 
     fn arguments(args: &[OsString]) -> Option<Arguments> {

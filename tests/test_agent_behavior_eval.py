@@ -423,10 +423,8 @@ finally:
         args[:] = original_args
         args[5] += "/./"
         compare(0, "1,0")
-        # Public arguments cannot install private options, and malformed
-        # repeated nargs+ options keep the original parser's error.
-        for extra in (["--int-max-str-digits=0"], ["--public-args"],
-                      ["--"], ["--pro", "--pro=agy"]):
+        # Public arguments cannot install private runtime options.
+        for extra in (["--int-max-str-digits=0"], ["--public-args"], ["--"]):
             args[:] = [*original_args, *extra]
             reference = run("python", "0,0")
             actual = run("auto", "1,0", parses=1)
@@ -437,6 +435,25 @@ finally:
         actual = run("auto", "0,0")
         self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
                          (reference.returncode, reference.stdout, reference.stderr))
+        args[:] = original_args
+
+        # Known arity errors are handled before any input read or Python parse.
+        for argv in ([], ["--tr", "missing.json"],
+                     ["--cas"], ["--cas", "--traces=missing.json"],
+                     [*original_args, "--pro", "--pro=agy"], ["--pro"]):
+            with self.subTest(argv=argv):
+                args[:] = argv
+                reference = run("python", "0,0")
+                actual = run("auto", "1,0")
+                self.assertEqual(reference.returncode, 2)
+                self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                 (2, reference.stdout, reference.stderr))
+        # A dash-prefixed numeric value is a Python argparse value.
+        args[:] = [*original_args, "--pro", "-1"]
+        reference = run("python", "0,2")
+        actual = run("auto", "1,2")
+        self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                         (2, reference.stdout, reference.stderr))
         args[:] = original_args
 
         valid_cases = cases.read_bytes()
@@ -585,6 +602,14 @@ finally:
             ]}), encoding="utf-8")
             compare_native(1)
 
+            for argv in ([], ["--traces", "unused.json"], ["--providers", "--cases=unused.json"]):
+                with self.subTest(argv=argv):
+                    reference = run(argv, MORU_LAUNCHER_BACKEND="python")
+                    actual = run(argv, PATH=str(empty))
+                    self.assertEqual(reference.returncode, 2)
+                    self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                     (2, reference.stdout, reference.stderr))
+
             # Make any repeated child launch from the fallback a visible failure.
             observer = base / "observe-python.py"
             observed = base / "observed"
@@ -603,15 +628,16 @@ finally:
             shim.chmod(0o700)
             cases.write_text(json.dumps(_single_case_doc(max_prompts=10**650)),
                              encoding="utf-8")
-            for argv, env in [(["--help"], {}), (args, {}),
-                              (args, {"PYTHONIOENCODING": "utf-16-le"})]:
+            for argv, env, code in [(["--help"], {}, 0), (["--unknown", "--help"], {}, 0),
+                                    (["--cases", "--help"], {}, 2), (args, {}, 0),
+                                    (args, {"PYTHONIOENCODING": "utf-16-le"}, 0)]:
                 with self.subTest(argv=argv, env=env):
                     reference = run(argv, MORU_LAUNCHER_BACKEND="python", **env)
                     actual = run(argv, PATH=str(base), BEHAVIOR_OBSERVED=str(observed), **env)
-                    self.assertEqual(reference.returncode, 0)
+                    self.assertEqual(reference.returncode, code)
                     self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
-                                     (0, reference.stdout, reference.stderr))
-            self.assertEqual(observed.read_text(encoding="utf-8"), "1\n" * 3)
+                                     (code, reference.stdout, reference.stderr))
+            self.assertEqual(observed.read_text(encoding="utf-8"), "1\n" * 5)
 
 
 if __name__ == "__main__":
