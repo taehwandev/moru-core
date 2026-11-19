@@ -27,6 +27,7 @@ struct Arguments {
     artifact_root: String,
     providers: Vec<String>,
     digit_limit: Option<usize>,
+    integer_error_template: Option<String>,
     stable_errors_only: bool,
     matching_unicode: bool,
     modern_trailing_comma: Option<bool>,
@@ -73,6 +74,7 @@ impl BehaviorEvalCli {
         let mut words = words.into_iter().peekable();
         let (mut cases, mut traces, mut root, mut providers) = (None, None, None, None);
         let mut digit_limit = None;
+        let mut integer_error_template = None;
         let mut stable_errors_only = false;
         let mut matching_unicode = false;
         let mut modern_trailing_comma = None;
@@ -110,6 +112,18 @@ impl BehaviorEvalCli {
                     digit_limit = Some(usize::try_from(limit).ok()?);
                     continue;
                 }
+                "--json-integer-error" => {
+                    let template = inline.or_else(|| words.next_if(next_value))?;
+                    if template.len() > 512
+                        || !template.bytes().all(|byte| matches!(byte, b' '..=b'~'))
+                        || template.matches("{limit}").count() != 1
+                        || template.matches("{digits}").count() != 1
+                    {
+                        return None;
+                    }
+                    integer_error_template = Some(template.to_owned());
+                    continue;
+                }
                 "--providers" => {
                     let mut values = Vec::new();
                     if let Some(value) = inline {
@@ -135,6 +149,7 @@ impl BehaviorEvalCli {
             traces: traces?,
             artifact_root: root?,
             digit_limit,
+            integer_error_template,
             stable_errors_only,
             matching_unicode,
             modern_trailing_comma,
@@ -227,19 +242,35 @@ impl BehaviorEvalCli {
         let raw = PythonUtf8::decode(&bytes).map_err(|detail| {
             BehaviorEvalError::Stable(format!("invalid JSON input {path}: {detail}"))
         })?;
-        PythonJson::parse_with_diagnostic(raw, args.digit_limit, args.modern_trailing_comma)
-            .map_err(|diagnostic| match diagnostic {
+        match PythonJson::parse_with_diagnostic(raw, args.digit_limit, args.modern_trailing_comma) {
+            Ok(value) => Ok(value),
+            Err(diagnostic) => match diagnostic {
                 InputDiagnostic::Syntax(detail) => {
                     let error = format!("invalid JSON input {path}: {detail}");
-                    if args.modern_trailing_comma.is_some() {
+                    Err(if args.modern_trailing_comma.is_some() {
                         BehaviorEvalError::Stable(error)
                     } else {
                         BehaviorEvalError::Reference(error)
+                    })
+                }
+                InputDiagnostic::IntegerLimit {
+                    limit,
+                    digits,
+                    builder_text,
+                } => {
+                    if let Some(template) = &args.integer_error_template {
+                        let error = template
+                            .replace("{limit}", &limit.to_string())
+                            .replace("{digits}", &digits.to_string());
+                        Err(BehaviorEvalError::Stable(error))
+                    } else if let Some(detail) = builder_text {
+                        Err(BehaviorEvalError::Reference(detail))
+                    } else {
+                        Ok(None)
                     }
                 }
-                // Python reports the interpreter digit policy error directly.
-                InputDiagnostic::IntegerLimit(detail) => detail.into(),
-            })
+            },
+        }
     }
 
     fn encode(value: &Value) -> String {

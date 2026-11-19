@@ -1,15 +1,25 @@
 use super::*;
 #[test]
 fn integer_conversion_failure_does_not_reclassify_json_syntax() {
-    for text in ["9999", "-9999", r#"{"ignored":9999}"#] {
-        assert!(ManifestParser::inspect(text, 3).0.integer_failure);
+    for text in ["9999", "-9999", r#"{"ignored":9999,"ignored":1}"#] {
+        assert!(matches!(
+            ManifestParser::parse_with_diagnostic(text, Some(3), None),
+            Err(InputDiagnostic::IntegerLimit {
+                limit: 3,
+                digits: 4,
+                ..
+            })
+        ));
         assert!(matches!(
             ManifestParser::outcome_with_limit(text, 3),
             ParseOutcome::Invalid
         ));
     }
     for text in ["999", "[1,]", r#"{"ignored":}"#] {
-        assert!(!ManifestParser::inspect(text, 3).0.integer_failure);
+        assert!(ManifestParser::inspect(text, 3)
+            .0
+            .excessive_digits
+            .is_none());
     }
 }
 #[test]

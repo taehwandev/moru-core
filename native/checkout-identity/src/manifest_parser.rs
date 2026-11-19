@@ -13,7 +13,7 @@ pub(super) struct ManifestParser<'a> {
     digit_limit: usize,
     modern_trailing_comma: Option<bool>,
     unsupported: bool,
-    integer_failure: bool,
+    excessive_digits: Option<usize>,
     diagnostic: Option<String>,
 }
 impl<'a> ManifestParser<'a> {
@@ -36,7 +36,7 @@ impl<'a> ManifestParser<'a> {
         }
     }
     pub fn integer_conversion_failed(text: &'a str) -> bool {
-        Self::limit().is_some_and(|limit| Self::inspect(text, limit).0.integer_failure)
+        Self::limit().is_some_and(|limit| Self::inspect(text, limit).0.excessive_digits.is_some())
     }
     pub fn error(text: &'a str) -> Option<String> {
         let (parser, _) = Self::inspect(text, Self::limit()?);
@@ -58,14 +58,16 @@ impl<'a> ManifestParser<'a> {
         if parser.unsupported {
             return Ok(None);
         }
-        if let Some(detail) = parser.diagnostic {
-            return Err(if parser.integer_failure {
-                InputDiagnostic::IntegerLimit(detail)
-            } else {
-                InputDiagnostic::Syntax(detail)
+        if let Some(digits) = parser.excessive_digits {
+            return Err(InputDiagnostic::IntegerLimit {
+                limit,
+                digits,
+                builder_text: parser.diagnostic,
             });
         }
-        // Unsupported profiles include digit errors without a builder template.
+        if let Some(detail) = parser.diagnostic {
+            return Err(InputDiagnostic::Syntax(detail));
+        }
         Ok(value)
     }
     #[cfg(test)]
@@ -97,7 +99,7 @@ impl<'a> ManifestParser<'a> {
             digit_limit,
             modern_trailing_comma,
             unsupported: false,
-            integer_failure: false,
+            excessive_digits: None,
             diagnostic: None,
         };
         if text.starts_with('\u{feff}') {

@@ -246,6 +246,30 @@ def _native_json_trailing_comma() -> str | None:
     return None
 
 
+def _native_json_integer_error(limit: int) -> str | None:
+    """Bind the caller's error wording without passing any evidence to Python."""
+    if not 0 < limit <= 10_000:
+        return None
+    messages = []
+    for digits in (limit + 1, limit + 2):
+        try:
+            json.loads("9" * digits)
+        except json.JSONDecodeError:
+            return None
+        except ValueError as error:
+            messages.append(str(error))
+        else:
+            return None
+    template = messages[0].replace(str(limit + 1), "{digits}").replace(str(limit), "{limit}")
+    if len(template) > 512 or not template.isascii() or not template.isprintable():
+        return None
+    if template.count("{limit}") != 1 or template.count("{digits}") != 1:
+        return None
+    if template.replace("{limit}", str(limit)).replace("{digits}", str(limit + 2)) != messages[1]:
+        return None
+    return template
+
+
 def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[int, str] | None:
     """Use the verified candidate for reports and stable input diagnostics."""
     if os.environ.get("MORU_LAUNCHER_BACKEND", "auto") not in ("auto", "rust"):
@@ -269,11 +293,14 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
         plan = artifact_plan(entry.parent.parent, entry)
         if plan is None:
             return None
+        digit_limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
         command = [str(plan["source"]), str(entry), "--behavior-eval", "--stable-errors-only",
                    f"--cases={ns.cases}", f"--traces={ns.traces}",
                    f"--artifact-root={Path(ns.artifact_root)}",
                    f"--unicode-version={unicodedata.unidata_version}",
-                   f"--int-max-str-digits={getattr(sys, 'get_int_max_str_digits', lambda: 0)()}"]
+                   f"--int-max-str-digits={digit_limit}"]
+        if (integer_error := _native_json_integer_error(digit_limit)) is not None:
+            command.append(f"--json-integer-error={integer_error}")
         if (trailing_comma := _native_json_trailing_comma()) is not None:
             command.append(f"--json-trailing-comma={trailing_comma}")
         if providers:

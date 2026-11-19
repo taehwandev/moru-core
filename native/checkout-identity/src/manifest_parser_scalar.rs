@@ -100,9 +100,9 @@ impl ManifestParser<'_> {
             if token.contains(['.', 'e', 'E']) {
                 self.unsupported = true;
             } else {
-                self.integer_failure = true;
-                self.diagnostic =
-                    JsonDiagnostic::digits(self.digit_limit, token.trim_start_matches('-').len());
+                let digits = token.trim_start_matches('-').len();
+                self.excessive_digits = Some(digits);
+                self.diagnostic = JsonDiagnostic::digits(self.digit_limit, digits);
             }
         }
         value

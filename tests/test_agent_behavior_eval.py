@@ -382,8 +382,8 @@ finally:
         artifact = _write_artifact(self.root, "agy", "c1", "sub/ready.txt")
         folder = artifact.parent
 
-        def run(backend, counts, other_unicode=False):
-            return subprocess.run([sys.executable, "-S", "-B", "-X", "int_max_str_digits=640",
+        def run(backend, counts, other_unicode=False, digit_limit=640):
+            return subprocess.run([sys.executable, "-S", "-B", "-X", f"int_max_str_digits={digit_limit}",
                                    "-c", observe,
                                    str(SCRIPT_PATH), *args],
                                   env={**os.environ, "MORU_LAUNCHER_BACKEND": backend,
@@ -450,6 +450,18 @@ finally:
         args[-1] = "agy"
         traces.write_text('{"schema_version":1,"runs":[}', encoding="utf-8")
         compare_schema_error("invalid JSON input", "1,0")
+
+        if hasattr(sys, "get_int_max_str_digits"):
+            for limit, counts in [(640, "1,0"), (4300, "1,0"), (10001, "1,1")]:
+                signed = "-" + "9" * (limit + 1)
+                cases.write_text('{"schema_version":1,"cases":[{"max_prompts":'
+                                 + signed + ',"max_prompts":0}]}', encoding="utf-8")
+                reference = run("python", "0,1", digit_limit=limit)
+                actual = run("auto", counts, digit_limit=limit)
+                self.assertEqual((reference.returncode, reference.stdout), (2, b""))
+                self.assertIn(str(limit + 1), reference.stderr.decode("utf-16-le"))
+                self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                 (2, b"", reference.stderr))
 
         cases.write_text('{"schema_version":1,"cases":['
                          '{"id":"..","expected_status":"ok","max_prompts":0},'

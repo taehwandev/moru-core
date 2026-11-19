@@ -5,5 +5,9 @@
 #[derive(Debug)]
 pub(crate) enum InputDiagnostic {
     Syntax(String),
-    IntegerLimit(String),
+    IntegerLimit {
+        limit: usize,
+        digits: usize,
+        builder_text: Option<String>,
+    },
 }
