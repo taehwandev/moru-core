@@ -436,10 +436,9 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
     if record is None:
         return f"no usable pending publication record for this run ({problem})"
     if record.get("schema_version") == 2:
-        from agent_run_registry import active_run_bindings, evidence_binding_key
+        from agent_registry_read import completed_evidence_binding
 
-        completed = active_run_bindings(project, frozenset({"completed"}))
-        if evidence_binding_key(project, evidence) not in completed:
+        if not completed_evidence_binding(project, evidence):
             return "local delivery observation requires a completed bound run"
     for item in record["items"]:
         if item["checkpoint"] == checkpoint and item["state"] == "pending":

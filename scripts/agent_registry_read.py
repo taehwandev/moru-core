@@ -39,6 +39,16 @@ def active_run_bindings(project: Path, states: frozenset[str] = ACTIVE_RUN_STATE
     return legacy(project, states)
 
 
+def completed_evidence_binding(project: Path, evidence_path: Path) -> bool:
+    """Check one exact latest evidence binding without transporting other runs."""
+    key = evidence_binding_key(project, evidence_path)
+    result = _request(project, "completed-binding", evidence_key=key)
+    if result is not None and set(result) == {"value"} and type(result["value"]) is bool:
+        return result["value"]
+    from agent_run_registry import active_run_bindings as legacy
+    return key in legacy(project, frozenset({"completed"}))
+
+
 def latest_run_id(project: Path, evidence_path: Path) -> str | None:
     state = registry_path(project).parent
     result = _request(project, "latest", evidence_key=evidence_binding_key(project, evidence_path),

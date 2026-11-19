@@ -1,5 +1,6 @@
 """Real native prepared snapshots, canonical fallback and import boundaries."""
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import agent_pending_publication as publication
 import agent_registry_read as reads
 import agent_run_registry as legacy
 from agent_state_read import evidence_binding_key, registry_path
@@ -81,6 +83,60 @@ class NativeRegistryReadTests(unittest.TestCase):
         self.assertEqual(257, len(self.value("active")))
         self.assertEqual(257, len(self.value("bindings")))
         self.assertIsNone(self.value("latest"))
+
+    def test_completed_binding_uses_the_latest_exact_key_and_existing_locks(self):
+        legacy_evidence = self.path.parent / "preflight.json"
+        foreign = self.evidence.with_name("other.json")
+        rows = [{"run_id": "old", "state": "completed", "evidence_key": self.key},
+                {"run_id": "legacy", "state": "completed", "evidence_name": "preflight.json"},
+                {"run_id": "unrelated", "state": "completed", "evidence_key": "unrelated"}]
+        for latest in (None, "running", "cancelled", "failed", "claiming", "completed"):
+            with self.subTest(latest=latest):
+                self.write(rows + ([{"run_id": "new", "state": latest, "evidence_key": self.key}] if latest else []))
+                expected = legacy.active_run_bindings(self.project, frozenset({"completed"}))
+                self.assertEqual(latest in (None, "completed"), self.value("completed-binding"))
+                self.assertTrue(self.value("completed-binding", evidence_key=self.legacy_key))
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                        legacy, "active_run_bindings", side_effect=AssertionError("Python fallback")):
+                    for evidence in (self.evidence, legacy_evidence, foreign):
+                        self.assertEqual(evidence_binding_key(self.project, evidence) in expected,
+                                         reads.completed_evidence_binding(self.project, evidence))
+        with self.locks[1].open("rb") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            done = self.raw("completed-binding")
+            self.assertEqual((125, b"", b""), (done.returncode, done.stdout, done.stderr))
+        self.write(rows + [{"run_id": "other-profile", "state": "completed", "evidence_key": self.key,
+                            "opaque_counter": 2**100}])
+        self.assertEqual(125, self.raw("completed-binding").returncode)
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertTrue(reads.completed_evidence_binding(self.project, self.evidence))
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            self.assertTrue(reads.completed_evidence_binding(self.project, self.evidence))
+
+    def test_settlement_requires_native_completed_binding_before_observation(self):
+        self.evidence.parent.mkdir(parents=True)
+        self.evidence.write_bytes(b"bound preflight")
+        receipt = self.evidence.with_name("pending-publication.json")
+        checkpoint = "publication.commit"
+        receipt.write_text(json.dumps({
+            "schema_version": 2, "run_id": self.evidence.parent.name,
+            "evidence_sha256": hashlib.sha256(self.evidence.read_bytes()).hexdigest(),
+            "base_head": "a" * 40, "local_delivery": {},
+            "items": [{"checkpoint": checkpoint, "state": "pending"}],
+        }))
+        before = receipt.read_bytes()
+        rows = [{"run_id": "older", "state": "completed", "evidence_key": self.key}]
+        self.write(rows + [{"run_id": "newer", "state": "running", "evidence_key": self.key}])
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                legacy, "active_run_bindings", side_effect=AssertionError("Python fallback")
+        ), patch.object(publication, "_observe", return_value=("verified " + "b" * 40, "")) as observe:
+            self.assertIn("requires a completed bound run", publication.settle(self.project, self.evidence, checkpoint))
+            observe.assert_not_called()
+            self.assertEqual(before, receipt.read_bytes())
+            self.write(rows + [{"run_id": "newer", "state": "completed", "evidence_key": self.key}])
+            self.assertEqual("", publication.settle(self.project, self.evidence, checkpoint))
+            observe.assert_called_once()
+        self.assertEqual("observed", json.loads(receipt.read_bytes())["items"][0]["state"])
 
     def test_adapter_uses_native_and_python_rollback_keeps_canonical_results(self):
         self.write([{"run_id": "한글", "state": "running", "evidence_key": self.key}])

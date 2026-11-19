@@ -17,10 +17,10 @@ pub(crate) struct RegistryRead;
 mod identity;
 #[path = "retention/registry_retention.rs"]
 mod retention;
-#[path = "retention/registry_retention_plan.rs"]
-mod retention_plan;
 #[path = "retention/registry_retention_args.rs"]
 mod retention_args;
+#[path = "retention/registry_retention_plan.rs"]
+mod retention_plan;
 #[path = "retention/registry_retention_report.rs"]
 mod retention_report;
 
@@ -73,7 +73,7 @@ impl RegistryRead {
         if operation == "retention-states" {
             return Self::retention_states(payload);
         }
-        if !["active", "bindings", "latest"].contains(&operation) {
+        if !["active", "bindings", "latest", "completed-binding"].contains(&operation) {
             return None;
         }
         let dir = Path::new(payload.get("state_dir")?.as_str()?);
@@ -124,6 +124,20 @@ impl RegistryRead {
                     .map_or(Value::Null, |id| json!(id)),
             );
         }
+        if operation == "completed-binding" {
+            let key = payload.get("evidence_key")?.as_str()?;
+            let legacy = payload.get("legacy_key")?.as_str()?;
+            let latest = runs
+                .iter()
+                .rev()
+                .find(|run| binding_key(run, legacy) == Some(key));
+            return Some(json!(
+                latest
+                    .and_then(|run| run.get("state"))
+                    .and_then(Value::as_str)
+                    == Some("completed")
+            ));
+        }
         let states = payload
             .get("states")?
             .as_array()?
@@ -142,18 +156,9 @@ impl RegistryRead {
         let mut indexes = HashMap::new();
         let mut latest: Vec<(String, Value)> = Vec::new();
         for run in runs {
-            let mut key = run
-                .get("evidence_key")
-                .and_then(Value::as_str)
-                .unwrap_or("");
-            if key.is_empty()
-                && run.get("evidence_name").and_then(Value::as_str) == Some("preflight.json")
-            {
-                key = legacy;
-            }
-            if key.is_empty() {
+            let Some(key) = binding_key(&run, legacy) else {
                 continue;
-            }
+            };
             if let Some(index) = indexes.get(key).copied() {
                 latest[index] = (key.to_owned(), run);
             } else {
@@ -168,6 +173,18 @@ impl RegistryRead {
                 .map(|(key, run)| json!([key, run]))
                 .collect(),
         ))
+    }
+}
+
+fn binding_key<'a>(run: &'a Value, legacy: &'a str) -> Option<&'a str> {
+    match run.get("evidence_key").and_then(Value::as_str) {
+        Some(key) if !key.is_empty() => Some(key),
+        _ if !legacy.is_empty()
+            && run.get("evidence_name").and_then(Value::as_str) == Some("preflight.json") =>
+        {
+            Some(legacy)
+        }
+        _ => None,
     }
 }
 
