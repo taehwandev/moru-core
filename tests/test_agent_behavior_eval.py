@@ -282,6 +282,65 @@ class AgentBehaviorEvalTests(unittest.TestCase):
             traces.write_text('{"schema_version":1,"runs":[]}', encoding="utf-8")
             compare(args, 2)
 
+    @unittest.skipUnless(os.environ.get("MORU_TEST_BEHAVIOR_EVAL_NATIVE") == "1",
+                         "requires source-bound native debug fixture")
+    def test_public_cli_uses_native_report_and_preserves_legacy_profiles(self) -> None:
+        # Watch actual subprocess admission and Python grader calls in the
+        # script process without replacing its verified candidate.
+        observe = """
+import os, runpy, sys
+script = sys.argv.pop(1)
+sys.argv[0] = script
+sys.path.insert(0, os.path.dirname(script))
+counts = [0, 0]
+def audit(event, args):
+    if event == 'subprocess.Popen':
+        counts[0] += 1
+def profile(frame, event, arg):
+    if event == 'call' and frame.f_code.co_name == 'evaluate' and frame.f_code.co_filename == script:
+        counts[1] += 1
+sys.addaudithook(audit)
+sys.setprofile(profile)
+try:
+    runpy.run_path(script, run_name='__main__')
+finally:
+    assert counts == list(map(int, os.environ['EXPECTED_COUNTS'].split(','))), counts
+"""
+        args = ["--cas", str(self.root / "cases.json"), "--traces", str(self.root / "traces.json"),
+                "--artifact-root", str(self.root), "--providers", "agy"]
+        cases, traces = Path(args[1]), Path(args[3])
+        cases.write_text(json.dumps(_single_case_doc(
+            artifacts={"sub/ready.txt": "ready\n"})), encoding="utf-8")
+        traces.write_text(json.dumps({"schema_version": 1, "runs": [
+            {"provider": "agy", "case_id": "c1", "events": _ev()}
+        ]}), encoding="utf-8")
+        artifact = _write_artifact(self.root, "agy", "c1", "sub/ready.txt")
+        folder = artifact.parent
+
+        def run(backend, counts):
+            return subprocess.run([sys.executable, "-S", "-B", "-c", observe,
+                                   str(SCRIPT_PATH), *args],
+                                  env={**os.environ, "MORU_LAUNCHER_BACKEND": backend,
+                                       "EXPECTED_COUNTS": counts, "PYTHONIOENCODING": "utf-16-le"},
+                                  capture_output=True, timeout=12)
+
+        def compare(exit_code, native_counts):
+            reference = run("python", "0,1")
+            actual = run("auto", native_counts)
+            self.assertEqual((reference.returncode, reference.stderr), (exit_code, b""))
+            self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                             (exit_code, reference.stdout, b""))
+
+        folder.chmod(0o111)
+        try:
+            compare(0, "1,0")
+            artifact.write_text("mismatch", encoding="utf-8")
+            compare(1, "1,0")
+        finally:
+            folder.chmod(0o700)
+        cases.write_text(json.dumps(_single_case_doc(max_prompts=2**80)), encoding="utf-8")
+        compare(0, "1,1")
+
 
 if __name__ == "__main__":
     unittest.main()

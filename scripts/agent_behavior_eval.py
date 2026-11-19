@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Offline grader for normalized agent behavior traces and filesystem artifacts.
 Grades supplied evidence only; synthetic fixture results are not live-provider scores.
-owner: offline behavior grading; allowed imports: Python 3.9 stdlib only;
-forbidden imports: provider SDKs, network, subprocess, lifecycle mutators;
+owner: offline behavior grading; allowed imports: stdlib and verified launcher selection;
+forbidden imports: provider SDKs, network, lifecycle mutators;
 callers/tests: CLI and tests/test_agent_behavior_eval.py; verification: unittest."""
 from __future__ import annotations
 
@@ -225,6 +225,42 @@ def _read_json(path_str: str) -> Any:
         raise ValueError(f"invalid JSON input {path_str}: {exc}") from exc
 
 
+def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[int, str] | None:
+    """Use the verified candidate for authoritative reports; keep legacy error rendering."""
+    if os.environ.get("MORU_LAUNCHER_BACKEND", "auto") not in ("auto", "rust"):
+        return None
+    if any(name in sys.modules for name in ("sitecustomize", "usercustomize")):
+        return None
+    if not ns.artifact_root:
+        return None
+
+    import subprocess
+
+    try:
+        from support.native_launcher_install import artifact_plan
+
+        if any(os.fsencode(value) != value.encode("utf-8")
+               for value in (ns.cases, ns.traces, ns.artifact_root, *providers)):
+            return None
+        if not Path(ns.cases).is_file() or not Path(ns.traces).is_file():
+            return None
+        entry = Path(__file__).resolve()
+        plan = artifact_plan(entry.parent.parent, entry)
+        if plan is None:
+            return None
+        command = [str(plan["source"]), str(entry), "--behavior-eval",
+                   f"--cases={ns.cases}", f"--traces={ns.traces}",
+                   f"--artifact-root={Path(ns.artifact_root)}"]
+        if providers:
+            command.extend(["--providers", *providers])
+        result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True)
+        if result.returncode in (0, 1) and result.stdout and not result.stderr:
+            return result.returncode, result.stdout.decode("ascii")
+    except (OSError, ValueError, ImportError, RuntimeError):
+        pass
+    return None
+
+
 def main(argv: Sequence[str] | None = None, stdout: TextIO | None = None, stderr: TextIO | None = None) -> int:
     out, err = stdout or sys.stdout, stderr or sys.stderr
     p = _CliParser(description="Offline agent behavior grader (supplied evidence only, not live scores).")
@@ -236,10 +272,17 @@ def main(argv: Sequence[str] | None = None, stdout: TextIO | None = None, stderr
         toks = None if ns.providers is None else [x.strip() for a in ns.providers for x in a.split(",")]
         if toks is not None and any(not x for x in toks):
             raise ValueError("empty provider token in --providers")
-        report = evaluate(_read_json(ns.cases), _read_json(ns.traces), ns.artifact_root, SUPPORTED_PROVIDERS if toks is None else toks)
+        native = (_native_report(ns, toks or ())
+                  if __name__ == "__main__" and argv is stdout is stderr is None else None)
+        if native is None:
+            report = evaluate(_read_json(ns.cases), _read_json(ns.traces), ns.artifact_root, SUPPORTED_PROVIDERS if toks is None else toks)
     except ValueError as exc:
         err.write(f"error: {exc}\n")
         return 2
+    if native is not None:
+        code, output = native
+        out.write(output)
+        return code
     out.write(json.dumps(report, indent=2) + "\n")
     return 0 if report["failed"] == 0 and report["total"] > 0 else 1
 

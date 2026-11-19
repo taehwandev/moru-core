@@ -13,6 +13,13 @@ use std::{
 };
 
 const MAX_BYTES: u64 = 65536;
+// A directory search does not require permission to enumerate its entries.
+#[cfg(target_os = "linux")]
+const DIRECTORY_ACCESS: libc::c_int = libc::O_PATH;
+#[cfg(target_os = "macos")]
+const DIRECTORY_ACCESS: libc::c_int = libc::O_SEARCH;
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+const DIRECTORY_ACCESS: libc::c_int = libc::O_RDONLY;
 
 pub(crate) struct BehaviorEvalArtifacts(File);
 
@@ -29,7 +36,9 @@ impl BehaviorEvalArtifacts {
         }
         let dir = OpenOptions::new()
             .read(true)
-            .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_NONBLOCK)
+            .custom_flags(
+                DIRECTORY_ACCESS | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_NONBLOCK,
+            )
             .open(path)
             .map_err(|_| inaccessible())?;
         Ok(Self(dir))
@@ -102,10 +111,12 @@ impl BehaviorEvalArtifacts {
             (_, false) => return Err("artifact_missing"),
             (_, true) => return Err("artifact_unreadable"),
         }
-        let mut flags = libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC;
-        if !leaf {
-            flags |= libc::O_DIRECTORY;
-        }
+        let access = if leaf {
+            libc::O_RDONLY
+        } else {
+            DIRECTORY_ACCESS | libc::O_DIRECTORY
+        };
+        let flags = access | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC;
         let fd = unsafe { libc::openat(dir.as_raw_fd(), name.as_ptr(), flags) };
         if fd < 0 {
             return Err(Self::path_error());

@@ -734,10 +734,11 @@
       "inventory_id": 57,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Direct Python CLI and private native offline-eval --behavior-eval",
-      "remaining": "Route the ordinary public CLI through a source-bound native candidate, then retire Python CLI and library execution after covering argparse, unusual JSON numeric and encoding profiles, and filesystem permission/error parity. Complete both-host and installed acceptance. Preserve the no-provider/no-subprocess grading boundary.",
+      "entry_aliases": "Public offline CLI with a source-bound Rust grader and private offline-eval --behavior-eval",
+      "remaining": "Retire Python entry and library grading after covering argparse, native input error rendering, unusual JSON numeric and encoding profiles, and filesystem parity. Complete both-host and installed acceptance. Keep the Rust grader read-only, without provider calls or additional subprocesses.",
       "verification": {
-        "offline_eval": "PASS:18 Python evaluator, trace-ingress and inventory tests with native probes enabled; 1 focused Rust scorer test. Private launcher matches Python output bytes and exit status on ordinary UTF-8 inputs, including concurrent grading failures, non-BMP text, intermediate and leaf symlinks, FIFO, 65536-byte bound, malformed input and provider errors. Empty PATH works. Local macOS debug conformance only."
+        "offline_eval": "PASS:18 Python evaluator, trace-ingress and inventory tests with native probes enabled; 1 focused Rust scorer test. Private launcher matches Python output bytes and exit status on ordinary UTF-8 inputs, including combined grading failures, non-BMP text, intermediate and leaf symlinks, FIFO, 65536-byte bound, malformed input and provider errors. Empty PATH works. Local macOS debug conformance only.",
+        "public_entry": "PASS:19 Python tests with native probes and 1 Rust scorer test. The source-bound 640-input macOS debug fixture proves one native process and zero Python grading calls for both pass and fail. Argparse abbreviation, UTF-16 output, rollback and search-only artifact directories retain reference behavior. Wide integer profiles still use Python. No release, Linux or installed result."
       }
     },
     {
