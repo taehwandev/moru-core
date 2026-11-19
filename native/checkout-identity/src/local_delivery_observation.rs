@@ -12,6 +12,16 @@ pub(crate) struct LocalDeliveryObservation;
 impl LocalDeliveryObservation {
     pub(crate) fn probe(payload: &Value) -> Option<Value> {
         let project = payload.get("project")?.as_str()?;
+        let recorded_project = payload.get("recorded_project")?.as_str()?;
+        let recorded_common = payload.get("recorded_common")?.as_str()?;
+        let search = LocalDeliveryGit::new(project)?;
+        if search.project_path()?.to_str()? != recorded_project
+            || search.common_path()?.to_str()? != recorded_common
+        {
+            return Some(Self::refusal(
+                "local delivery belongs to a different repository or checkout",
+            ));
+        }
         let expected = payload.get("expected")?.as_str()?;
         let base = payload.get("base")?.as_str()?;
         let source = payload.get("source")?.as_str()?;
@@ -24,7 +34,6 @@ impl LocalDeliveryObservation {
             return None;
         }
         let targets: Vec<&str> = targets.iter().map(Value::as_str).collect::<Option<_>>()?;
-        let search = LocalDeliveryGit::new(project)?;
         let heads = Self::reachable_heads(&search, base, source, &targets)?;
         if heads.is_empty() {
             return Some(Self::refusal("local delivery proof cannot be verified"));

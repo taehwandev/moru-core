@@ -7,7 +7,6 @@ use crate::{
     local_delivery_search::{LocalDeliveryGit, MAX_TREE},
 };
 use serde_json::{json, Map, Value};
-use std::path::Path;
 
 const INTEGRATE: &str = "publication.integrate/";
 
@@ -91,12 +90,8 @@ impl LocalDeliveryPrepare {
         if git.git(&["rev-parse", "HEAD"], 4096)? != base {
             return Some(Self::refusal("HEAD changed while preparing local delivery"));
         }
-        let common = git.git(&["rev-parse", "--git-common-dir"], 64 * 1024)?;
-        if common.is_empty() {
-            return Some(Self::refusal("Git repository identity is unavailable"));
-        }
-        let common = Path::new(project).join(common).canonicalize().ok()?;
-        let project = Path::new(project).canonicalize().ok()?;
+        let common = git.common_path()?;
+        let project = git.project_path()?;
         Some(json!({"proof": {
             "project": project.to_str()?, "common": common.to_str()?, "staged_sha256": staged,
             "commit_declared": commit, "targets": targets,

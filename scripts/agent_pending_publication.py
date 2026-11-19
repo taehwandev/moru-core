@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import locale
 import os
 import re
 import subprocess
@@ -325,6 +326,36 @@ def _observe(project: Path, record: dict, item: dict, observation_path: Path | N
             return observation, refusal
     if checkpoint == LocalDeliveryProof.INTEGRATION:
         return "", "local integration requires a bound staged-content proof"
+    head, refusal = _legacy_local_head(project, record, checkpoint)
+    if refusal:
+        return "", refusal
+    if checkpoint == "publication.commit":
+        return f"HEAD {head} descends from {base_head}", ""
+    pushed, refusal = _remote_head(project, head)
+    if refusal or checkpoint == "publication.push":
+        return pushed, refusal
+    return observe_pull_request(project, head, item["checkpoint"].partition("/")[2], _git, observation_path)
+
+
+def _legacy_local_head(project: Path, record: dict, checkpoint: str) -> tuple[str, str]:
+    items = record.get("items")
+    if (_git is _LOCAL_DELIVERY_GIT and locale.getpreferredencoding(False).lower() == "utf-8"
+            and isinstance(items, list) and all(isinstance(item, dict) and "checkpoint" in item for item in items)):
+        requires_commit = checkpoint == "publication.commit" or any(
+            kind(item["checkpoint"]) == "publication.commit" for item in items)
+        result = NativeProbe.request("--completion-probe", "legacy-publication-head", {
+            "project": str(project), "source": record.get("source_branch") or "",
+            "base": record["base_head"], "requires_commit": requires_commit,
+        })
+        if result is not None and set(result) == {"head", "reason"}:
+            head, reason = result["head"], result["reason"]
+            if isinstance(head, str) and isinstance(reason, str) and bool(head) != bool(reason):
+                return head, reason
+    return _legacy_local_head_python(project, record, checkpoint)
+
+
+def _legacy_local_head_python(project: Path, record: dict, checkpoint: str) -> tuple[str, str]:
+    base_head = record["base_head"]
     branch = _git(project, "symbolic-ref", "--short", "HEAD")
     if not record.get("source_branch"):
         return "", "source branch was not recorded; re-prepare this publication under current authority"
@@ -342,12 +373,7 @@ def _observe(project: Path, record: dict, item: dict, observation_path: Path | N
         return "", "HEAD is not the reviewed finish commit and no declared commit covers it"
     if _git(project, "status", "--porcelain", "--untracked-files=no") != "":
         return "", "tracked changes remain uncommitted"
-    if checkpoint == "publication.commit":
-        return f"HEAD {head} descends from {base_head}", ""
-    pushed, refusal = _remote_head(project, head)
-    if refusal or checkpoint == "publication.push":
-        return pushed, refusal
-    return observe_pull_request(project, head, item["checkpoint"].partition("/")[2], _git, observation_path)
+    return head, ""
 
 
 def _observed_record(record: dict, item: dict, observation: str, observed_at: str) -> dict:

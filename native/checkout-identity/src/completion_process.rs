@@ -4,7 +4,8 @@
 //! Callers/tests: thin completion adapter; native completion and bundle tests.
 use crate::{
     completion_progress::Progress, completion_quality::Quality,
-    completion_requirements::Requirements, local_delivery_identity::LocalDeliveryIdentity,
+    completion_requirements::Requirements, legacy_publication_head::LegacyPublicationHead,
+    local_delivery_identity::LocalDeliveryIdentity,
     local_delivery_observation::LocalDeliveryObservation,
     local_delivery_prepare::LocalDeliveryPrepare,
     pending_publication_receipt::PendingPublicationReceipt,
@@ -61,6 +62,7 @@ impl CompletionProcess {
             Some("progress") => Progress::inspect(&payload),
             Some("staged-v1") => LocalDeliveryIdentity::capture(&payload),
             Some("staged-v1-observe") => LocalDeliveryObservation::probe(&payload),
+            Some("legacy-publication-head") => LegacyPublicationHead::probe(&payload),
             Some("staged-v1-prepare") => LocalDeliveryPrepare::probe(&payload),
             Some("pending-publication-read") => PendingPublicationReceipt::probe(&payload),
             Some("pending-publication-prepare") => PendingPublicationTransition::prepare(&payload),

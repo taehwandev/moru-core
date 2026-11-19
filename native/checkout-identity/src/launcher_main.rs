@@ -60,6 +60,7 @@ mod figma_validation_report;
 mod gitrun;
 mod launcher_backend;
 mod literal_args;
+mod legacy_publication_head;
 mod local_delivery_identity;
 mod local_delivery_observation;
 mod local_delivery_prepare;

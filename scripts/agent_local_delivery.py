@@ -98,13 +98,13 @@ class LocalDeliveryProof:
     def observe(cls, project: Path, record: dict, checkpoint: str, git, *, native: bool = False) -> tuple[str, str]:
         try:
             proof = record["local_delivery"]
+            if native and (result := _observe_native(project, proof, record, checkpoint)) is not None:
+                return result
             if proof["project"] != str(project.resolve()) or proof["common"] != cls._common(project, git):
                 return "", "local delivery belongs to a different repository or checkout"
             expected, base, source = proof["staged_sha256"], record["base_head"], record["source_branch"]
             if not re.fullmatch(r"[0-9a-f]{64}", expected) or not re.fullmatch(r"[0-9a-f]{40,64}", base):
                 return "", "local delivery proof is malformed"
-            if native and (result := _observe_native(project, proof, base, source, expected, checkpoint)) is not None:
-                return result
             approved = cls._committed(project, proof, base, source, expected, git)
             if not approved:
                 return "", "the reviewed staged content has not been observed in a commit"
@@ -135,7 +135,9 @@ def _capture_identities(index: str | None, base: str | None) -> tuple[str, str]:
     return LocalDeliveryProof._identity(index, index=True), LocalDeliveryProof._identity(base)
 
 
-def _observe_native(project, proof, base, source, expected, checkpoint):
+def _observe_native(project, proof, record, checkpoint):
+    if type(proof) is not dict:
+        return None
     targets = proof.get("targets")
     declared = proof.get("commit_declared")
     if (type(targets) is not dict or type(declared) is not bool
@@ -143,8 +145,9 @@ def _observe_native(project, proof, base, source, expected, checkpoint):
         return None
     result = NativeProbe.request(
         "--completion-probe", "staged-v1-observe",
-        {"project": str(project), "base": base, "source": source, "targets": list(targets),
-         "cached": proof.get("reviewed_commit") or "", "expected": expected,
+        {"project": str(project), "recorded_project": proof.get("project"), "recorded_common": proof.get("common"),
+         "base": record.get("base_head"), "source": record.get("source_branch"), "targets": list(targets),
+         "cached": proof.get("reviewed_commit") or "", "expected": proof.get("staged_sha256"),
          "checkpoint": checkpoint, "commit_declared": declared},
     )
     if result is not None and set(result) == {"observation", "reason"}:

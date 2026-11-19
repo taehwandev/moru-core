@@ -7,7 +7,7 @@ use crate::{
     read_process::status::capture_status, text::Text,
 };
 use std::{
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
     time::{Duration, Instant},
 };
@@ -69,6 +69,18 @@ impl<'a> LocalDeliveryGit<'a> {
     pub(super) fn git(&self, args: &[&str], limit: usize) -> Option<String> {
         let (status, text) = self.run(args, limit)?;
         (status == 0).then_some(text)
+    }
+
+    pub(super) fn project_path(&self) -> Option<PathBuf> {
+        Path::new(self.project).canonicalize().ok()
+    }
+
+    pub(super) fn common_path(&self) -> Option<PathBuf> {
+        let common = self.git(&["rev-parse", "--git-common-dir"], 64 * 1024)?;
+        if common.is_empty() {
+            return None;
+        }
+        Path::new(self.project).join(common).canonicalize().ok()
     }
 
     pub(super) fn branch(&self, name: &str) -> Option<Option<String>> {

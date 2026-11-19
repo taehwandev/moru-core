@@ -10,7 +10,9 @@ from unittest.mock import patch
 
 from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
-from agent_pending_publication import _git, _load, _load_python, _new_record, _observe, _observed_record
+from agent_pending_publication import (
+    _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record,
+)
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 from support.native_probe_transport import NativeProbe
@@ -262,6 +264,15 @@ class NativeCompletionTests(unittest.TestCase):
 
         (work / "untracked.txt").write_text("ignored by Git diff\n", encoding="utf-8")
         compare(checkpoints=items[1:])
+        git(work, "branch", "other-target", head)
+        checkpoint = "publication.integrate/other-target"
+        with patch.dict(os.environ, self.env, clear=True):
+            proof = LocalDeliveryProof.capture(alias, head, "delivery", [{"checkpoint": checkpoint}], _git)
+            record = {"base_head": head, "source_branch": "delivery", "local_delivery": proof}
+            self.assertEqual((f"target other-target contains reviewed commit {head}", ""),
+                             LocalDeliveryProof.observe(alias, record, checkpoint, unexpected_git, native=True))
+            self.assertEqual(("", "local delivery belongs to a different repository or checkout"),
+                             LocalDeliveryProof.observe(repo, record, checkpoint, unexpected_git, native=True))
         compare(reason="stage the reviewed changes")
         file.write_text("unstaged\n", encoding="utf-8")
         compare(reason="tracked worktree content")
@@ -314,7 +325,8 @@ class NativeCompletionTests(unittest.TestCase):
         head = commit("65th commit", "outside limit")
         git("branch", "source", head)
         git("branch", "integration", base)
-        payload = {"project": str(project), "base": base, "source": "source", "targets": ["integration"],
+        payload = {"project": str(project), "recorded_project": str(project),
+                   "recorded_common": str(project / ".git"), "base": base, "source": "source", "targets": ["integration"],
                    "checkpoint": "publication.commit", "commit_declared": True}
 
         def observe(**overrides):
@@ -343,7 +355,7 @@ class NativeCompletionTests(unittest.TestCase):
                   "local_delivery": {"project": str(project), "common": str(project / ".git"),
                                      "commit_declared": True, "staged_sha256": digest(first), "targets": {}}}
         with patch.dict(os.environ, self.env, clear=True):
-            with patch.object(LocalDeliveryProof, "_committed", side_effect=AssertionError("Python fallback")):
+            with patch.object(LocalDeliveryProof, "_common", side_effect=AssertionError("Python fallback")):
                 self.assertEqual((f"reviewed staged content committed as {first}", ""),
                                  _observe(project, record, {"checkpoint": "publication.commit"}))
             with patch("agent_pending_publication._git", wraps=_git) as reader:
@@ -366,13 +378,52 @@ class NativeCompletionTests(unittest.TestCase):
         record["source_branch"] = "source"
         record["local_delivery"]["targets"] = {"integration": base}
         with patch.dict(os.environ, self.env, clear=True), patch.object(
-                LocalDeliveryProof, "_committed", side_effect=AssertionError("Python fallback")):
+                LocalDeliveryProof, "_common", side_effect=AssertionError("Python fallback")):
             self.assertEqual((integrated, ""), _observe(project, record, {"checkpoint": args["checkpoint"]}))
             record["local_delivery"]["common"] = str(project / "foreign.git")
-            with patch("agent_local_delivery.NativeProbe.request") as native:
-                self.assertEqual(("", "local delivery belongs to a different repository or checkout"),
-                                 _observe(project, record, {"checkpoint": args["checkpoint"]}))
-                native.assert_not_called()
+            self.assertEqual(("", "local delivery belongs to a different repository or checkout"),
+                             _observe(project, record, {"checkpoint": args["checkpoint"]}))
+
+    def test_legacy_publication_head_matches_python_without_remote_checks(self):
+        project = self.project
+
+        def git(*args):
+            return subprocess.run(["git", "-C", str(project), *args], check=True, capture_output=True,
+                                  text=True, env=self.env, timeout=5).stdout.strip()
+
+        git("config", "user.email", "fixture@example.invalid")
+        git("config", "user.name", "Fixture")
+        file = project / "tracked.txt"
+        file.write_text("first", encoding="utf-8")
+        git("add", "tracked.txt")
+        git("commit", "-qm", "base")
+        base = git("rev-parse", "HEAD")
+        record = {"schema_version": 1, "source_branch": "main", "base_head": base, "items": []}
+
+        def compare(checkpoint, value=record):
+            with patch.dict(os.environ, self.env, clear=True):
+                expected = _legacy_local_head_python(project, value, checkpoint)
+                with patch("agent_pending_publication._legacy_local_head_python",
+                           side_effect=AssertionError("Python fallback")):
+                    self.assertEqual(expected, _legacy_local_head(project, value, checkpoint))
+            return expected
+
+        self.assertEqual((base, ""), compare("publication.push"))
+        self.assertEqual(("", "HEAD has not advanced from the finished commit base"), compare("publication.commit"))
+        git("commit", "--allow-empty", "-qm", "descendant with the same tree")
+        head = git("rev-parse", "HEAD")
+        self.assertEqual((head, ""), compare("publication.commit"))
+        self.assertEqual(("", "HEAD is not the reviewed finish commit and no declared commit covers it"),
+                         compare("publication.push"))
+        self.assertEqual((head, ""), compare("publication.push", {
+            **record, "items": [{"checkpoint": "publication.commit"}],
+        }))
+        file.write_text("dirty", encoding="utf-8")
+        self.assertEqual(("", "tracked changes remain uncommitted"), compare("publication.commit"))
+        git("add", "tracked.txt")
+        self.assertEqual(("", "tracked changes remain uncommitted"), compare("publication.commit"))
+        git("checkout", "--detach", "-q", head)
+        self.assertEqual(("", "source branch differs from the finished publication"), compare("publication.commit"))
 
     def test_quality_warns_without_executing_commands_or_printing_command_content(self):
         marker = self.project / "never-created"
