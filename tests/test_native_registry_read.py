@@ -14,6 +14,7 @@ import agent_pending_publication as publication
 import agent_registry_read as reads
 import agent_run_registry as legacy
 from agent_state_read import evidence_binding_key, registry_path
+from agent_local_delivery import LocalDeliveryProof
 from native_pretool_support import PROJECT, environment, prepare
 
 
@@ -137,6 +138,66 @@ class NativeRegistryReadTests(unittest.TestCase):
             self.assertEqual("", publication.settle(self.project, self.evidence, checkpoint))
             observe.assert_called_once()
         self.assertEqual("observed", json.loads(receipt.read_bytes())["items"][0]["state"])
+
+    def test_native_local_settlement_proves_git_then_prepares_only_the_pending_item(self):
+        def git(*args):
+            return subprocess.run(["git", "-C", str(self.project), *args], check=True,
+                                  capture_output=True, text=True, env=self.env, timeout=5).stdout
+
+        def commit(message):
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", message)
+            return git("rev-parse", "HEAD").strip()
+
+        source = self.project / "source.txt"
+        source.write_text("before\n")
+        git("add", "source.txt")
+        base = commit("base")
+        git("branch", "delivery", base)
+        source.write_text("after\n")
+        git("add", "source.txt")
+        reviewed = commit("reviewed")
+        self.evidence.parent.mkdir(parents=True)
+        self.evidence.write_bytes(b"bound preflight")
+        receipt = self.evidence.with_name("pending-publication.json")
+        checkpoint = "publication.integrate/delivery"
+        receipt.write_text(json.dumps({
+            "schema_version": 2, "run_id": self.evidence.parent.name,
+            "evidence_sha256": hashlib.sha256(self.evidence.read_bytes()).hexdigest(),
+            "base_head": base, "source_branch": "main", "local_delivery": {
+                "project": str(self.project), "common": str(self.project / ".git"),
+                "staged_sha256": LocalDeliveryProof._identity(git("ls-tree", "-r", "-z", reviewed)),
+                "commit_declared": True, "targets": {"delivery": base},
+            },
+            "items": [{"checkpoint": checkpoint, "state": "observed", "observation": "historical"},
+                      {"checkpoint": checkpoint, "state": "pending"}, {"checkpoint": "publication.push", "state": "pending"}],
+            "opaque": "한글",
+        }))
+        before = receipt.read_bytes()
+        rows = [{"run_id": "completed", "state": "completed", "evidence_key": self.key}]
+        self.write(rows + [{"run_id": "newer", "state": "running", "evidence_key": self.key}])
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reads, "completed_evidence_binding", side_effect=AssertionError("separate binding fallback")
+        ), patch.object(publication, "_observed_record", side_effect=AssertionError("separate transition fallback")):
+            self.assertIn("requires a completed bound run", publication.settle(self.project, self.evidence, checkpoint))
+            self.assertEqual(before, receipt.read_bytes())
+            self.write(rows)
+            self.assertIn("target branch does not contain the reviewed commit",
+                          publication.settle(self.project, self.evidence, checkpoint))
+            self.assertEqual(before, receipt.read_bytes())
+            git("branch", "-f", "delivery", reviewed)
+            record = json.loads(before)
+            prepared = publication._prepare_local_settlement(self.project, self.evidence, record, checkpoint)
+            self.assertIsNotNone(prepared)
+            self.assertEqual(before, receipt.read_bytes())
+            self.assertEqual("", publication.settle(self.project, self.evidence, checkpoint))
+            self.assertEqual("that checkpoint is not pending", publication.settle(self.project, self.evidence, checkpoint))
+        updated = json.loads(receipt.read_bytes())
+        self.assertEqual("한글", updated["opaque"])
+        self.assertEqual(reviewed, updated["local_delivery"]["reviewed_commit"])
+        self.assertEqual("historical", updated["items"][0]["observation"])
+        self.assertEqual(f"target delivery contains reviewed commit {reviewed}", updated["items"][1]["observation"])
+        self.assertRegex(updated["items"][1]["observed_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{6})?\+00:00$")
+        self.assertEqual("pending", updated["items"][2]["state"])
 
     def test_adapter_uses_native_and_python_rollback_keeps_canonical_results(self):
         self.write([{"run_id": "한글", "state": "running", "evidence_key": self.key}])

@@ -60,7 +60,7 @@ impl RegistryRead {
         }
     }
 
-    fn inspect(operation: &str, payload: &Value) -> Option<Value> {
+    pub(super) fn inspect(operation: &str, payload: &Value) -> Option<Value> {
         if operation == "retention-plan" {
             return Self::retention_plan(payload);
         }

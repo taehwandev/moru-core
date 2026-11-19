@@ -464,6 +464,36 @@ def _observed_record(record: dict, item: dict, observation: str, observed_at: st
     return record
 
 
+_LOCAL_SETTLEMENT_OBSERVE = _observe
+
+
+def _prepare_local_settlement(project: Path, evidence: Path, record: dict, checkpoint: str) -> tuple[dict | None, str] | None:
+    if (_git is not _LOCAL_DELIVERY_GIT or _observe is not _LOCAL_SETTLEMENT_OBSERVE
+            or locale.getpreferredencoding(False).lower() != "utf-8"
+            or kind(checkpoint) not in ("publication.commit", LocalDeliveryProof.INTEGRATION)
+            or not NativeProbe.available()):
+        return None
+    from agent_registry_read import prepared_evidence_binding
+
+    result = NativeProbe.request("--completion-probe", "pending-publication-local-settlement", {
+        "project": str(project), "checkpoint": checkpoint, "record": record,
+        "binding": prepared_evidence_binding(project, evidence),
+    })
+    if result is not None and set(result) == {"record", "reason"}:
+        updated, reason = result["record"], result["reason"]
+        if (isinstance(updated, dict) and reason == "") or (updated is None and isinstance(reason, str) and reason):
+            return updated, reason
+    return None
+
+
+def _store_observation(evidence: Path, record: dict) -> str:
+    try:
+        _store(evidence, record)
+    except (OSError, ValueError) as error:
+        return f"observation could not be stored ({type(error).__name__})"
+    return ""
+
+
 def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Path | None = None) -> str:
     """Mark one item observed only when Git shows it. Returns "" or the refusal."""
     record, problem = _load(evidence)
@@ -472,6 +502,10 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
     if record.get("schema_version") == 2:
         from agent_registry_read import completed_evidence_binding
 
+        prepared = _prepare_local_settlement(project, evidence, record, checkpoint)
+        if prepared is not None:
+            updated, reason = prepared
+            return reason if updated is None else _store_observation(evidence, updated)
         if not completed_evidence_binding(project, evidence):
             return "local delivery observation requires a completed bound run"
     for item in record["items"]:
@@ -480,11 +514,7 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
             if refusal:
                 return refusal
             record = _observed_record(record, item, observation, datetime.now(timezone.utc).isoformat())
-            try:
-                _store(evidence, record)
-            except (OSError, ValueError) as error:
-                return f"observation could not be stored ({type(error).__name__})"
-            return ""
+            return _store_observation(evidence, record)
     return "that checkpoint is not pending"
 
 

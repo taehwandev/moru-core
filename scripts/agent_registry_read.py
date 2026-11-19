@@ -15,12 +15,17 @@ from agent_state_read import evidence_binding_key, registry_path
 from support.native_probe_transport import NativeProbe
 
 
-def _request(project: Path, operation: str, **fields) -> dict | None:
+def _registry_fields(project: Path) -> dict:
     state = registry_path(project).parent
-    return NativeProbe.request("--registry-read-probe", operation, {
-        "state_dir": str(state), "legacy_key": evidence_binding_key(project, state / "preflight.json"),
-        **fields,
-    })
+    return {"state_dir": str(state), "legacy_key": evidence_binding_key(project, state / "preflight.json")}
+
+
+def _request(project: Path, operation: str, **fields) -> dict | None:
+    return NativeProbe.request("--registry-read-probe", operation, {**_registry_fields(project), **fields})
+
+
+def prepared_evidence_binding(project: Path, evidence_path: Path) -> dict:
+    return {**_registry_fields(project), "evidence_key": evidence_binding_key(project, evidence_path)}
 
 
 def active_runs(project: Path) -> list[dict]:
@@ -41,12 +46,12 @@ def active_run_bindings(project: Path, states: frozenset[str] = ACTIVE_RUN_STATE
 
 def completed_evidence_binding(project: Path, evidence_path: Path) -> bool:
     """Check one exact latest evidence binding without transporting other runs."""
-    key = evidence_binding_key(project, evidence_path)
-    result = _request(project, "completed-binding", evidence_key=key)
+    binding = prepared_evidence_binding(project, evidence_path)
+    result = NativeProbe.request("--registry-read-probe", "completed-binding", binding)
     if result is not None and set(result) == {"value"} and type(result["value"]) is bool:
         return result["value"]
     from agent_run_registry import active_run_bindings as legacy
-    return key in legacy(project, frozenset({"completed"}))
+    return binding["evidence_key"] in legacy(project, frozenset({"completed"}))
 
 
 def latest_run_id(project: Path, evidence_path: Path) -> str | None:

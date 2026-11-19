@@ -23,6 +23,9 @@ use std::{
 
 pub(crate) struct CompletionProcess;
 
+#[path = "pending_publication_settlement.rs"]
+mod pending_publication_settlement;
+
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2 || CallbackGuard::root(launcher, "completion-probe").is_none() {
@@ -76,6 +79,9 @@ impl CompletionProcess {
             Some("pending-publication-partition") => PendingPublicationPartition::probe(&payload),
             Some("pending-publication-prepare") => PendingPublicationTransition::prepare(&payload),
             Some("pending-publication-observe") => PendingPublicationTransition::observe(&payload),
+            Some("pending-publication-local-settlement") => {
+                pending_publication_settlement::LocalSettlement::prepare(&payload)
+            }
             _ => None,
         };
         let Some(result) = result else {
