@@ -18,6 +18,8 @@ use std::{
 pub(crate) struct DocTranscript;
 #[path = "doc_transcript_agy.rs"]
 mod agy;
+#[path = "doc_delivery_read.rs"]
+mod doc_delivery_read;
 
 impl DocTranscript {
     pub(crate) fn compacted(path: &Path) -> Option<bool> {

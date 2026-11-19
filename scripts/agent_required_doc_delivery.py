@@ -110,12 +110,7 @@ def compaction_text(payload: dict, evidence_for) -> str:
             preflight = json.loads(evidence.read_text(encoding="utf-8"))
             rules = Path(preflight["rules"])
             docs = list(dict.fromkeys(preflight["route"].get("required_docs") or []))
-            texts = {}
-            for doc in docs:
-                try:
-                    texts[doc] = (rules / doc).read_text(encoding="utf-8")
-                except OSError:
-                    continue
+            texts = _read_docs(rules, docs)
             pending = [doc for doc in docs if doc in texts]
             transcript = Path(str(payload.get("transcript_path") or ""))
             _write_marker(evidence.parent / MARKER, pending, _aligned_size(transcript), 0)
@@ -179,12 +174,7 @@ def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> 
             # docs it covers; delivering again is cheap, a missing doc is not.
             reused = set()
         docs = [doc for doc in docs if doc not in reused]
-        texts = {}
-        for doc in docs:
-            try:
-                texts[doc] = (rules / doc).read_text(encoding="utf-8")
-            except OSError:
-                continue
+        texts = _read_docs(rules, docs)
         read = (read_in_context or _read_in_context)(transcript, rules, texts)
         pending = [doc for doc in docs if doc not in read]
         redeliveries = int(previous.get("redeliveries", 0)) + (1 if previous and pending else 0)
@@ -192,6 +182,25 @@ def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> 
         return _render(texts, pending, rules)
     except (OSError, ValueError, KeyError, TypeError):
         return ""
+
+
+def _read_docs(rules: Path, docs: list[str]) -> dict[str, str]:
+    if not docs:
+        return {}
+    from support.native_doc_transcript import NativeDocTranscript
+
+    native = NativeDocTranscript.read_docs(rules, docs)
+    return native if native is not None else _read_docs_python(rules, docs)
+
+
+def _read_docs_python(rules: Path, docs: list[str]) -> dict[str, str]:
+    texts = {}
+    for doc in docs:
+        try:
+            texts[doc] = (rules / doc).read_text(encoding="utf-8")
+        except OSError:
+            continue
+    return texts
 
 
 def _write_marker(marker: Path, delivered: list, offset: int, redeliveries: int) -> None:

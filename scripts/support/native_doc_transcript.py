@@ -17,6 +17,20 @@ def _integer(value):
 
 class NativeDocTranscript:
     @staticmethod
+    def read_docs(rules: Path, docs: list[str]) -> dict[str, str] | None:
+        try:
+            result = NativeProbe.request("--doc-transcript-probe", "read-docs",
+                                         {"rules": str(rules), "docs": docs})
+        except (OSError, ValueError, RuntimeError):
+            return None
+        if type(result) is not dict or set(result) != {"value"}:
+            return None
+        texts = result["value"]
+        if type(texts) is dict and all(name in docs and type(text) is str for name, text in texts.items()):
+            return texts
+        return None
+
+    @staticmethod
     def render(texts, pending, rules, inline_limit, total_limit):
         if rules is not None and type(rules) is not type(Path()):
             return None

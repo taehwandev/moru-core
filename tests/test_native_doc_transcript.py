@@ -112,6 +112,34 @@ class NativeDocTranscriptTests(unittest.TestCase):
             "docs": [{"name": "missing-text.md"}], "inline_limit": 6, "total_limit": 9,
         })))
 
+    def test_native_document_batch_preserves_python_file_reads(self):
+        names = ["missing.md", "한글.md", "folder", "./second.md/", "한글.md", "empty.md"]
+        (self.base / "한글.md").write_bytes("\ufefffirst\r\n한글\rlast\n".encode())
+        (self.base / "folder").mkdir()
+        (self.base / "second.md").write_text("second")
+        (self.base / "empty.md").touch()
+        expected = reference._read_docs_python(self.base, names)
+        self.assertEqual(["한글.md", "./second.md/", "empty.md"], list(expected))
+        self.assertEqual("\ufefffirst\n한글\nlast\n", expected["한글.md"])
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reference, "_read_docs_python", side_effect=AssertionError("Python fallback")):
+            self.assertEqual(list(expected.items()), list(reference._read_docs(self.base, names).items()))
+        self.assertEqual("\ufefffirst\r\n한글\rlast\n".encode(), (self.base / "한글.md").read_bytes())
+
+        (self.base / "alias.md").symlink_to(self.base / "second.md")
+        (self.base / "large.md").write_bytes(b"x" * (128 * 1024 + 1))
+        (self.base / "limit.md").write_bytes(b"x" * (128 * 1024))
+        (self.base / "invalid.md").write_bytes(b"\xff")
+        os.mkfifo(self.base / "stream.md")
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual({"limit.md": "x" * (128 * 1024)},
+                             NativeDocTranscript.read_docs(self.base, ["limit.md"]))
+            for name in ("alias.md", "large.md", "invalid.md", "stream.md", "../outside.md"):
+                self.assertIsNone(NativeDocTranscript.read_docs(self.base, ["second.md", name]))
+            self.assertEqual({"alias.md": "second"}, reference._read_docs(self.base, ["alias.md"]))
+            with self.assertRaises(UnicodeDecodeError):
+                reference._read_docs(self.base, ["second.md", "invalid.md"])
+
     def test_three_runtime_boundaries_and_partial_rows(self):
         for row in ({"type":"compacted"}, {"type":"system","subtype":"compact_boundary"},
                     {"type":"CHECKPOINT","content":"# Resuming from a compaction\nsummary"}):

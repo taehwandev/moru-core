@@ -458,7 +458,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "agy-hook",
-      "remaining": "Shared doc-delivery compaction/alignment scans, AGY whole-file read coverage and bounded message rendering are native. Port both AGY adapter boundaries: event translation/dispatch, PreInvocation evidence/marker and injection flow, gate and stop/verifier state. Preserve exact IO/effects; unit31 is partial.",
+      "remaining": "Shared doc-delivery compaction/alignment scans, AGY whole-file read coverage, ordinary document reads and bounded message rendering are native. Port both AGY adapter boundaries: event translation/dispatch, PreInvocation evidence/marker and injection flow, gate and stop/verifier state. Preserve exact IO/effects; unit31 is partial.",
       "verification": {"doc_transcript": "Actual AGY CHECKPOINT delivery/whole-read marker flow compares source/native; native file scans and encoding/stream fallbacks are verified. See native-doc-transcript.md. No public adapter or marker-write cutover is claimed."},
       "supporting_entrypoints": [
         "scripts/agy_required_docs_hook.py"
@@ -814,7 +814,8 @@
       "remaining": "Port standalone stdin/stdout doc delivery, evidence and marker behavior with unit31 adapter callers and durable legacy registrations. Preserve unsupported transcript and timestamp profiles through compatibility, and verify both supported hosts and installed acceptance.",
       "verification": {
         "transcript_coverage": "PASS: source-bound macOS debug Rust scans bounded ordinary AGY transcripts for whole-file read calls after compaction, unwraps encoded paths, and checks document modification times against aware timestamps. Empty-PATH process fixtures match Python for CR-separated rows, quoted Unicode paths, a symlink alias, ranged reads and stale reads. Unsupported timestamps and read profiles retain Python compatibility. The caller owns evidence selection, injection and marker writes.",
-        "delivery_renderer": "PASS: source-bound macOS debug Rust renders bounded prepared required-document messages for AGY and shared delivery callers. Empty-PATH fixtures compare exact Python output for leading frontmatter, Unicode trimming, per-document and total UTF-8 byte limits, oversize path listing, duplicate ordering and missing texts. The existing caller owns document reads, authority, injection and marker writes."
+        "delivery_renderer": "PASS: source-bound macOS debug Rust renders bounded prepared required-document messages for AGY and shared delivery callers. Empty-PATH fixtures compare exact Python output for leading frontmatter, Unicode trimming, per-document and total UTF-8 byte limits, oversize path listing, duplicate ordering and missing texts.",
+        "document_reads": "PASS: source-bound macOS debug Rust reads ordinary required documents in edit and compaction delivery. Empty-PATH fixtures compare order, omissions, BOM retention, strict UTF-8 and universal newlines. Symlinks, exceptional paths, large batches and invalid UTF-8 retain compatibility. Evidence selection, delivery, and marker writes remain with the caller."
       }
     },
     {

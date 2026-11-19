@@ -18,7 +18,7 @@ impl DocTranscriptProcess {
         if args.len() != 2
             || !matches!(
                 args[1].to_str(),
-                Some("compacted" | "aligned" | "due" | "agy-covered" | "render")
+                Some("compacted" | "aligned" | "due" | "agy-covered" | "render" | "read-docs")
             )
             || CallbackGuard::root(launcher, "doc-transcript-probe").is_none()
         {
@@ -40,6 +40,16 @@ impl DocTranscriptProcess {
                 if args[1] == "render" {
                     return delivery_text::DocDeliveryText::render(&payload)
                         .map(|value| json!(value));
+                }
+                if args[1] == "read-docs" && object.len() == 2 {
+                    let rules = Path::new(object.get("rules")?.as_str()?);
+                    let docs = object
+                        .get("docs")?
+                        .as_array()?
+                        .iter()
+                        .map(Value::as_str)
+                        .collect::<Option<Vec<_>>>()?;
+                    return DocTranscript::read_documents(rules, &docs);
                 }
                 let path = Path::new(object.get("path")?.as_str()?);
                 match args[1].to_str()? {
@@ -77,6 +87,9 @@ impl DocTranscriptProcess {
         else {
             return 125;
         };
+        if args[1] == "read-docs" && out.len() >= 1024 * 1024 {
+            return 125;
+        }
         out.push(b'\n');
         if std::io::stdout().write_all(&out).is_ok() {
             0
