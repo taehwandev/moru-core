@@ -1,6 +1,8 @@
 //! owner: PythonJson; allowed imports: PythonText and private JSON parser/value modules;
 //! forbidden imports: process/network/runtime Python; callers/tests: manifests, statusline,
 //! callback profiling; verification: shared JSON/coercion and process parity tests.
+#[path = "python_json_input_diagnostic.rs"]
+mod input_diagnostic;
 #[path = "manifest_number.rs"]
 mod number;
 #[path = "manifest_object.rs"]
@@ -12,6 +14,7 @@ mod parser;
 #[path = "manifest_value.rs"]
 mod value;
 use crate::python_text::PythonText;
+pub(crate) use input_diagnostic::InputDiagnostic;
 pub(crate) use number::ManifestNumber as Number;
 pub(crate) use object::ManifestObject as Object;
 pub(crate) use outcome::ParseOutcome;
@@ -28,6 +31,12 @@ impl PythonJson {
     }
     pub(crate) fn parse_outcome(text: &str) -> ParseOutcome {
         parser::ManifestParser::parse_outcome(text)
+    }
+    pub(crate) fn parse_with_diagnostic(
+        text: &str,
+        digit_limit: Option<usize>,
+    ) -> Result<Option<Value>, InputDiagnostic> {
+        parser::ManifestParser::parse_with_diagnostic(text, digit_limit)
     }
     pub(crate) fn integer_conversion_failed(text: &str) -> bool {
         parser::ManifestParser::integer_conversion_failed(text)

@@ -239,11 +239,11 @@ class AgentBehaviorEvalTests(unittest.TestCase):
             args = ["--cases", str(cases), "--traces", str(traces),
                     "--artifact-root", str(self.root), "--providers", "agy"]
 
-            def compare(argv, exit_code):
+            def compare(argv, exit_code, native_flags=()):
                 out, err = io.StringIO(), io.StringIO()
                 expected = eval_mod.main(argv, stdout=out, stderr=err)
                 native = subprocess.run(
-                    [str(NATIVE), "offline-eval", "--behavior-eval", *argv],
+                    [str(NATIVE), "offline-eval", "--behavior-eval", *native_flags, *argv],
                     env={**os.environ, "PATH": str(empty)}, capture_output=True, timeout=8)
                 self.assertEqual(exit_code, expected)
                 self.assertEqual((expected, out.getvalue().encode(), err.getvalue().encode()),
@@ -302,9 +302,32 @@ class AgentBehaviorEvalTests(unittest.TestCase):
                 encoding="utf-8")
             compare(args, 1)
             declined = subprocess.run(
-                [str(NATIVE), "offline-eval", "--behavior-eval", "--int-max-str-digits=1", *args],
+                [str(NATIVE), "offline-eval", "--behavior-eval", "--int-max-str-digits=invalid", *args],
                 env={**os.environ, "PATH": str(empty)}, capture_output=True, timeout=8)
             self.assertEqual((declined.returncode, declined.stdout, declined.stderr), (78, b"", b""))
+            if hasattr(sys, "set_int_max_str_digits"):
+                minimum = sys.int_info.str_digits_check_threshold
+                original = sys.get_int_max_str_digits()
+                limit_flag = (f"--int-max-str-digits={minimum}",)
+                limit = "9" * minimum
+                too_wide = limit + "9"
+                try:
+                    sys.set_int_max_str_digits(minimum)
+                    cases.write_text(root_case % limit, encoding="utf-8")
+                    compare(args, 0, limit_flag)
+                    cases.write_text(root_case % too_wide, encoding="utf-8")
+                    compare(args, 2, limit_flag)
+                    cases.write_text((root_case % too_wide).replace(
+                        '"max_prompts":' + too_wide,
+                        f'"max_prompts":{too_wide},"max_prompts":0'), encoding="utf-8")
+                    compare(args, 2, limit_flag)
+                    sys.set_int_max_str_digits(0)
+                    compare(args, 0, ("--int-max-str-digits=0",))
+                    cases.write_text(root_case % ("9" * (sys.int_info.default_max_str_digits + 1)),
+                                     encoding="utf-8")
+                    compare(args, 0, ("--int-max-str-digits=0",))
+                finally:
+                    sys.set_int_max_str_digits(original)
 
     @unittest.skipUnless(os.environ.get("MORU_TEST_BEHAVIOR_EVAL_NATIVE") == "1",
                          "requires source-bound native debug fixture")
@@ -342,7 +365,8 @@ finally:
         folder = artifact.parent
 
         def run(backend, counts):
-            return subprocess.run([sys.executable, "-S", "-B", "-c", observe,
+            return subprocess.run([sys.executable, "-S", "-B", "-X", "int_max_str_digits=640",
+                                   "-c", observe,
                                    str(SCRIPT_PATH), *args],
                                   env={**os.environ, "MORU_LAUNCHER_BACKEND": backend,
                                        "EXPECTED_COUNTS": counts, "PYTHONIOENCODING": "utf-16-le"},

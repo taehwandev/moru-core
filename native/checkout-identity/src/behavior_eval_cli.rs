@@ -5,7 +5,7 @@ use crate::{
     behavior_eval::BehaviorEval,
     behavior_eval_artifact::BehaviorEvalArtifacts,
     behavior_eval_input::BehaviorEvalInput,
-    python_json::{ParseOutcome, PythonJson, Value as PythonValue},
+    python_json::{InputDiagnostic, PythonJson, Value as PythonValue},
     python_text::PythonText,
 };
 use serde_json::{json, Value};
@@ -19,10 +19,6 @@ use std::{
 
 const MAX_JSON_BYTES: u64 = 4 * 1024 * 1024;
 const DECLINED: i32 = 78;
-const INT_MAX_STR_DIGITS: &str = match option_env!("MORU_PYTHON_INT_MAX_STR_DIGITS") {
-    Some(value) => value,
-    None => "0",
-};
 
 pub(crate) struct BehaviorEvalCli;
 
@@ -31,6 +27,7 @@ struct Arguments {
     traces: String,
     artifact_root: String,
     providers: Vec<String>,
+    digit_limit: Option<usize>,
 }
 
 impl BehaviorEvalCli {
@@ -63,6 +60,7 @@ impl BehaviorEvalCli {
             .collect::<Option<Vec<_>>>()?;
         let mut words = words.into_iter().peekable();
         let (mut cases, mut traces, mut root, mut providers) = (None, None, None, None);
+        let mut digit_limit = None;
         while let Some(raw) = words.next() {
             let (flag, inline) = raw
                 .split_once('=')
@@ -73,9 +71,11 @@ impl BehaviorEvalCli {
                 "--traces" => &mut traces,
                 "--artifact-root" => &mut root,
                 "--int-max-str-digits" => {
-                    if inline.or_else(|| words.next_if(next_value))? != INT_MAX_STR_DIGITS {
-                        return None;
-                    }
+                    let limit = inline
+                        .or_else(|| words.next_if(next_value))?
+                        .parse::<u32>()
+                        .ok()?;
+                    digit_limit = Some(usize::try_from(limit).ok()?);
                     continue;
                 }
                 "--providers" => {
@@ -102,6 +102,7 @@ impl BehaviorEvalCli {
             cases: cases?,
             traces: traces?,
             artifact_root: root?,
+            digit_limit,
             providers: providers
                 .unwrap_or_else(|| BehaviorEvalInput::PROVIDERS.map(str::to_owned).to_vec()),
         })
@@ -117,10 +118,10 @@ impl BehaviorEvalCli {
             {
                 return Err("empty provider token in --providers".into());
             }
-            let Some(cases_doc) = Self::read_json(&args.cases)? else {
+            let Some(cases_doc) = Self::read_json(&args.cases, args.digit_limit)? else {
                 return Ok(None);
             };
-            let Some(runs_doc) = Self::read_json(&args.traces)? else {
+            let Some(runs_doc) = Self::read_json(&args.traces, args.digit_limit)? else {
                 return Ok(None);
             };
             let providers = BehaviorEvalInput::providers(&args.providers)?;
@@ -170,7 +171,7 @@ impl BehaviorEvalCli {
         run().transpose()
     }
 
-    fn read_json(path: &str) -> Result<Option<PythonValue>, String> {
+    fn read_json(path: &str, digit_limit: Option<usize>) -> Result<Option<PythonValue>, String> {
         let bad_input = |error: io::Error| {
             let detail = error.to_string();
             match error.raw_os_error() {
@@ -200,18 +201,11 @@ impl BehaviorEvalCli {
         let Ok(raw) = std::str::from_utf8(&bytes) else {
             return Ok(None);
         };
-        match PythonJson::parse_outcome(raw) {
-            ParseOutcome::Value(value) => Ok(Some(value)),
-            ParseOutcome::Unsupported => Ok(None),
-            ParseOutcome::Invalid => match PythonJson::error(raw) {
-                Some(detail) if !PythonJson::integer_conversion_failed(raw) => {
-                    Err(format!("invalid JSON input {path}: {detail}"))
-                }
-                // Python reports the interpreter digit policy error directly.
-                Some(detail) => Err(detail),
-                None => Ok(None),
-            },
-        }
+        PythonJson::parse_with_diagnostic(raw, digit_limit).map_err(|diagnostic| match diagnostic {
+            InputDiagnostic::Syntax(detail) => format!("invalid JSON input {path}: {detail}"),
+            // Python reports the interpreter digit policy error directly.
+            InputDiagnostic::IntegerLimit(detail) => detail,
+        })
     }
 
     fn encode(value: &Value) -> String {

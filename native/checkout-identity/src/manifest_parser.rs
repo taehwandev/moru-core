@@ -4,8 +4,8 @@
 mod diagnostic;
 #[path = "manifest_parser_scalar.rs"]
 mod scalar;
-use super::ParseOutcome;
 use super::{object::ManifestObject, value::ManifestValue as Value};
+use super::{InputDiagnostic, ParseOutcome};
 use diagnostic::JsonDiagnostic;
 pub(super) struct ManifestParser<'a> {
     text: &'a str,
@@ -44,6 +44,27 @@ impl<'a> ManifestParser<'a> {
         } else {
             parser.diagnostic
         }
+    }
+    pub fn parse_with_diagnostic(
+        text: &'a str,
+        digit_limit: Option<usize>,
+    ) -> Result<Option<Value>, InputDiagnostic> {
+        let Some(limit) = digit_limit.or_else(Self::limit) else {
+            return Ok(None);
+        };
+        let (parser, value) = Self::inspect(text, limit);
+        if parser.unsupported {
+            return Ok(None);
+        }
+        if let Some(detail) = parser.diagnostic {
+            return Err(if parser.integer_failure {
+                InputDiagnostic::IntegerLimit(detail)
+            } else {
+                InputDiagnostic::Syntax(detail)
+            });
+        }
+        // Unsupported profiles include digit errors without a builder template.
+        Ok(value)
     }
     #[cfg(test)]
     fn with_limit(text: &'a str, digit_limit: usize) -> Option<Value> {
