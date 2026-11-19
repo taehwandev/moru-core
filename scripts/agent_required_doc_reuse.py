@@ -254,6 +254,18 @@ def _credit(
         # Nothing new to prove: spending a display slot here is what left a
         # later run's documents unread once the cap filled.
         return False
+    from support.native_doc_transcript import reuse_credit
+
+    native = reuse_credit(prior_path, takeaways, MAX_TAKEAWAYS, MAX_TAKEAWAY_CHARS)
+    if native is None:
+        return _credit_takeaway_python(prior_path, takeaways)
+    credited, added = native
+    if added is not None:
+        takeaways.append(added)
+    return credited
+
+
+def _credit_takeaway_python(prior_path: Path, takeaways: list[str]) -> bool:
     parts = list(dict.fromkeys(
         text for text in (_source_docs_takeaway(prior_path), _review_takeaway(prior_path)) if text
     ))

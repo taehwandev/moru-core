@@ -22,6 +22,8 @@ mod agy;
 mod doc_delivery_plan;
 #[path = "doc_delivery_read.rs"]
 mod doc_delivery_read;
+#[path = "doc_reuse_credit.rs"]
+mod doc_reuse_credit;
 
 impl DocTranscript {
     pub(crate) fn compacted(path: &Path) -> Option<bool> {

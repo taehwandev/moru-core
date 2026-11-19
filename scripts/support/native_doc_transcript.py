@@ -20,6 +20,20 @@ def _value(result):
     return result["value"] if type(result) is dict and set(result) == {"value"} else None
 
 
+def reuse_credit(prior: Path, takeaways: list[str], slots: int, chars: int) -> tuple[bool, str | None] | None:
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "reuse-credit", {
+            "path": str(prior), "takeaways": takeaways, "slots": slots, "chars": chars,
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is list and len(value) == 2 and type(value[0]) is bool:
+        credited, added = value
+        if added is None or (credited and type(added) is str and added):
+            return credited, added
+    return None
+
+
 def agy_redelivery(evidence: Path, transcript: Path, limit: int, inline_limit: int, total_limit: int) -> str | None:
     return _agy_delivery("agy-redelivery", {
         "evidence": str(evidence), "transcript": str(transcript), "limit": limit,

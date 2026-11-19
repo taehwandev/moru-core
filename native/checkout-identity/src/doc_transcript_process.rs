@@ -32,6 +32,7 @@ impl DocTranscriptProcess {
                         | "render"
                         | "read-docs"
                         | "read-delivery-manifest"
+                        | "reuse-credit"
                         | "nearest-registry-project"
                         | "agy-delivery-request"
                         | "agy-redelivery"
@@ -57,6 +58,9 @@ impl DocTranscriptProcess {
             .ok()
             .and_then(|payload| {
                 let object = payload.as_object()?;
+                if args[1] == "reuse-credit" && object.len() == 4 {
+                    return DocTranscript::reuse_credit(&payload);
+                }
                 if args[1] == "agy-delivery-request" {
                     return agy_doc_request::decode(object);
                 }

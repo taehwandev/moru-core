@@ -120,7 +120,7 @@ class RequiredDocReuseTests(unittest.TestCase):
     def test_recent_complete_match_stops_history_reads_even_in_long_goals(self) -> None:
         for count in (8, 101):
             with self.subTest(count=count), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
+                root = Path(directory).resolve()
                 current = self._fixture(root)
                 payload = json.loads(current.read_text())
                 payload['route']['required_docs'] = payload['route']['required_docs'][:1]
@@ -140,7 +140,12 @@ class RequiredDocReuseTests(unittest.TestCase):
                 with patch.object(reuse_module, '_read', wraps=reuse_module._read) as reads:
                     result = required_doc_reuse(current)
                 self.assertEqual([], result['unread'])
-                self.assertEqual(5, reads.call_count, 'current, registry, latest match, its ledger and review takeaway')
+                latest = root / '.moru/runs' / recent['run_id'] / 'preflight.json'
+                visited = [call.args[0] for call in reads.call_args_list]
+                self.assertEqual([current, registry, latest], visited[:3])
+                self.assertTrue(set(visited[3:]) <= {
+                    latest.with_name('gate-evidence.json'), latest.with_name('doc-takeaway.json'),
+                })
 
     def test_history_scan_remains_bounded_without_a_match(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

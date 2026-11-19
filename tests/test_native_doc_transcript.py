@@ -13,14 +13,17 @@ import unittest
 from unittest.mock import patch
 
 import agent_required_doc_delivery as reference
+import agent_required_doc_reuse as reuse_reference
 import agent_runtime_session
 import agy_hook_adapter as adapter
 import agy_required_docs_hook as agy
 import test_agent_required_doc_delivery as delivery_fixtures
+import test_agent_required_doc_reuse as reuse_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_request, agy_redelivery, nearest_registry_project, read_delivery_manifest,
+    reuse_credit,
 )
 
 
@@ -87,6 +90,60 @@ class NativeDocTranscriptTests(unittest.TestCase):
             self.assertEqual(("session", ["a", "a"], "trace"), agy_delivery_request(
                 payload={"conversationId": "session", "workspacePaths": ["a", "a"],
                          "transcriptPath": "trace", "unrelated": object()}))
+
+    def test_native_reuse_credit_matches_latest_entry_normalization_and_cap(self):
+        current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project, takeaway="")
+        prior = current.parent.parent / ("a" * 32) / "preflight.json"
+        ledger = prior.with_name("gate-evidence.json")
+        review = prior.with_name("doc-takeaway.json")
+        good = {"gate": "source docs", "status": "SUCCESS",
+                "fields": {"takeaway": " first\u001c  근거 "}}
+        failed = {"gate": "source docs", "status": "FAIL"}
+        cases = (
+            ([good, failed], None, [], False, None),
+            ([good, failed], " reviewed\r\n again ", [], True, "reviewed again"),
+            ([failed, good], "first 근거", [], True, "first 근거"),
+            ([good], "  reviewed ", [], True, "first 근거 | reviewed"),
+            ([good], "  reviewed ", ["other", "unrelated", "prefix first 근거 | reviewed suffix"], True, None),
+            ([good], "  reviewed ", ["one", "two", "three"], False, None),
+            ([], "😀" * 401, [], True, "😀" * 400),
+        )
+        with patch.dict(os.environ, self.env, clear=True):
+            for entries, prior_review, previous, credited, added in cases:
+                with self.subTest(previous=previous, entries=len(entries), credited=credited):
+                    ledger.write_text(json.dumps({"entries": entries}), encoding="utf-8")
+                    review.unlink(missing_ok=True)
+                    if prior_review is not None:
+                        review.write_text(json.dumps({"takeaway": prior_review}, ensure_ascii=False),
+                                          encoding="utf-8")
+                    expected = list(previous)
+                    self.assertEqual(credited, reuse_reference._credit_takeaway_python(prior, expected))
+                    self.assertEqual((credited, added), reuse_credit(prior, previous, 3, 400))
+                    self.assertEqual(expected, previous + ([added] if added is not None else []))
+            ledger.write_text("{}", encoding="utf-8")
+            review.write_text('{"takeaway":23}', encoding="utf-8")
+            self.assertIsNone(reuse_credit(prior, [], 3, 400))
+            self.assertEqual(["23"], reuse_reference.required_doc_reuse(current)["takeaways"])
+
+    def test_both_native_reuse_callers_keep_session_and_snapshot_admission(self):
+        current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project)
+        prior = current.parent.parent / ("a" * 32) / "preflight.json"
+        for path in (current, prior):
+            manifest = json.loads(path.read_bytes())
+            manifest["project_route_docs"] = manifest["execution_snapshot"]["required_docs"]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+        callers = (reuse_reference.required_doc_reuse, reuse_reference.project_route_doc_reuse)
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [caller(current) for caller in callers]
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reuse_reference, "_credit_takeaway_python", side_effect=AssertionError("Python fallback")):
+            self.assertEqual(expected, [caller(current) for caller in callers])
+            foreign = json.loads(prior.read_bytes())
+            foreign["runtime_session"]["session_id"] = "foreign-session"
+            prior.write_text(json.dumps(foreign), encoding="utf-8")
+            with patch("support.native_doc_transcript.reuse_credit", side_effect=AssertionError("foreign proof")):
+                for caller in callers:
+                    self.assertEqual([], caller(current)["reused"])
 
     def test_agy_native_request_runs_through_stdin_and_adapter_callers(self):
         fixture = agy_fixtures.AgyHookTests()
