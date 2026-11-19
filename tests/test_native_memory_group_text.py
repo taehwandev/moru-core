@@ -192,8 +192,7 @@ class NativeMemoryGroupTextTests(unittest.TestCase):
         self.assertEqual(expected,actual)
         self.assertEqual([],calls)
         operations=[c.args[1] for c in requested.call_args_list]
-        self.assertIn("duplicate-text-groups",operations)
-        self.assertIn("shared-source-text-groups",operations)
+        self.assertEqual(["report-text-groups"],operations)
 
     def test_real_store_cli_uses_raw_grouping_and_preserves_store_bytes(self):
         from datetime import date
@@ -215,5 +214,5 @@ class NativeMemoryGroupTextTests(unittest.TestCase):
         self.assertEqual(0,result)
         self.assertEqual(expected,json.loads(output.getvalue()))
         self.assertEqual([],calls)
-        self.assertIn("duplicate-text-groups",[c.args[1] for c in requested.call_args_list])
+        self.assertEqual(["scan","report-text-groups"],[c.args[1] for c in requested.call_args_list])
         self.assertEqual(before,{p.name:p.read_bytes() for p in directory.iterdir()})

@@ -232,7 +232,17 @@ class NativeUnittestAdmissionTests(unittest.TestCase):
                 done = subprocess.run(bootstrap, cwd=self.project, input=b"\x01", capture_output=True,
                                       env={**os.environ, "MORU_UNITTEST_ADMISSION": "1"}, timeout=5)
                 self.assertEqual(0, done.returncode, done.stderr)
-                self.assertEqual({"tests_run": 0, "successful": False}, json.loads(destination.read_text()))
+                self.assertEqual({
+                    "tests_run": 0,
+                    "successful": False,
+                    "passed_count": 0,
+                    "skip_events": 0,
+                    "passed_ids": [],
+                    "failed_ids": [],
+                    "passed_selectors": [],
+                    "failed_selectors": [],
+                    "ids_complete": True,
+                }, json.loads(destination.read_text()))
                 self.assertFalse(marker.exists(), "no old-launcher capability probe is permitted")
 
     def test_denial_prevents_startup_and_kills_the_native_group(self):
