@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import agent_verification_hook as verify
-from agent_gate_evidence import gate_evidence_path_for_preflight
+from agent_gate_evidence import gate_evidence_path_for_preflight, record_gate_evidence
 from agent_run_registry import register_run
 from agent_verification_receipts import ExecutionReceipts
 
@@ -52,9 +52,10 @@ class ReceiptFixture:
 
     def run(self, selectors=()):
         self.args.test_selector = list(selectors)
+        self.output = io.StringIO()
         with patch.object(verify, 'runtime_session', return_value=self.session), \
                 patch.object(verify, 'resolve_runtime_evidence', return_value=self.path), \
-                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                contextlib.redirect_stdout(self.output), contextlib.redirect_stderr(io.StringIO()):
             return verify.verification_hook(self.args)
 
     def ledger(self):
@@ -215,6 +216,11 @@ class ExecutionReceiptTests(unittest.TestCase):
                 project=f.project, rules=f.project, evidence_path=f.path, failures=failures)
             return recorded, failures
 
+        def record_manual_tests():
+            record_gate_evidence(evidence_path=f.path, preflight=f.preflight, gate='tests',
+                evidence='manual test evidence', fields={'check': 'scope', 'result': '1 test passed'},
+                source='manual', status='SUCCESS')
+
         selectors = ['test_target_%02d' % n for n in range(65)]
         for name in selectors:
             (f.project / 'tests' / (name + '.py')).write_text(
@@ -223,7 +229,13 @@ class ExecutionReceiptTests(unittest.TestCase):
         other.mkdir()
         (other / (selectors[-1] + '.py')).write_bytes(
             (f.project / 'tests' / (selectors[-1] + '.py')).read_bytes())
+        record_manual_tests()
+        with patch('agent_next_action.suggest_verification_targets', side_effect=AssertionError(
+                'manual-only finish should not discover targets')):
+            self.assertIn('tests', gates()[0])
         self.assertEqual(0, f.run(selectors[:64]))
+        self.assertIn("Remaining route gates: ['tests', 'review hook']", f.output.getvalue())
+        self.assertIn(f"--test-selector {selectors[-1]}", f.output.getvalue())
         next_action = inspect_next_action(f.project, evidence=f.path)
         self.assertEqual('verify', next_action['next_step'])
         self.assertEqual(selectors[64:], next_action['verification']['next_verify_batch'])
@@ -231,6 +243,8 @@ class ExecutionReceiptTests(unittest.TestCase):
         self.assertNotIn('tests', recorded)
         self.assertTrue(any('1 pending targets' in failure and selectors[-1] in failure
                             for failure in failures), failures)
+        record_manual_tests()
+        self.assertNotIn('tests', gates()[0])
         self.assertEqual(0, f.run([selectors[-1] + '.Case.test_ok']))
         self.assertNotIn('tests', gates()[0])
         f.args.test_directory = 'checks'
@@ -239,6 +253,8 @@ class ExecutionReceiptTests(unittest.TestCase):
         f.args.test_directory = 'tests'
         self.assertEqual(0, f.run(selectors[64:]))
         complete = inspect_next_action(f.project, evidence=f.path)
+        self.assertIn("Remaining route gates: ['review hook']", f.output.getvalue())
+        self.assertNotIn('Next verification batch:', f.output.getvalue())
         self.assertEqual('review', complete['next_step'])
         self.assertEqual([], complete['verification']['next_verify_batch'])
         self.assertIn('tests', gates()[0])

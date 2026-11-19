@@ -61,6 +61,15 @@ def suggest_verification_targets(project: Path, changed_paths: list[str] | None 
     return discover_verification_targets(resolved, paths)
 
 
+def pending_observed_batch(project: Path, rules: Path, evidence_path: Path) -> tuple[int, list[str]]:
+    """Return the outstanding count and the next selectable batch, if any."""
+    verification = suggest_verification_targets(project)
+    if not reconcile_verify_batches(verification, project=project, rules=rules, evidence_path=evidence_path):
+        return 0, []
+    batch = verification["next_verify_batch"]
+    return len(batch) + len(verification["remaining_test_selectors"]), batch
+
+
 def _find_active_preflight(project: Path, explicit_evidence: Path | None = None) -> Path | None:
     if explicit_evidence is not None and explicit_evidence.is_file():
         return explicit_evidence.resolve()

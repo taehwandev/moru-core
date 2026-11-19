@@ -1159,3 +1159,21 @@ casing prevents case aliases from becoming separate pinned modules. The final
 success cases. Contracts and retention were accepted in the preceding focused
 review; the lead verified the remaining prescribed selector correction with the
 independent failure oracle and final source inspection.
+
+## Observed verification progress, 2026-11-19
+
+Baseline `8bbd0b79`, clean isolated checkout, macOS/Codex, scope H06/H08/H10.
+The final tests gates from four recent harness implementation runs were all
+recorded manually. That sample records the path used, with no estimate of
+time saved, general adoption, false-block rate or task-quality improvement.
+
+AGY Gemini 4 Neon Medium independently recommended retaining the optional
+batch check. The baseline fixture ran 64 of 65 targets and returned only the
+review gate as remaining, while finish correctly rejected the missing target.
+The same fixture now expects verification output to retain the tests gate
+and offer a command for the final target. Finish skips target discovery
+when the existing ledger contains only manual tests. A later manual pass
+still cannot hide unfinished observed batches. This removes needless discovery
+from manual-only finish and preserves evidence-based completion. Worker
+requirements and review findings remain available on request. The sample
+does not support expanding their default use or removing them.

@@ -480,6 +480,7 @@ def merge_gate_evidence_from_ledger(
         "sources": {},
         "capsule_bindings": {},
         "entry_fields": {},
+        "has_observed_test_attempt": False,
     }
     if not ledger:
         return {}, diagnostics
@@ -498,6 +499,10 @@ def merge_gate_evidence_from_ledger(
         gate = str(entry.get("gate") or "")
         if gate not in required_gates:
             continue
+        fields = entry.get("fields")
+        if (gate == "tests" and entry.get("source") == "execution" and isinstance(fields, dict)
+                and ("execution" in fields or "execution_started" in fields)):
+            diagnostics["has_observed_test_attempt"] = True
         status = str(entry.get("status") or "")
         if status == "FAIL":
             # Ledger order is authoritative.  A later structural failure must

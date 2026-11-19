@@ -107,10 +107,10 @@ def _verify_selection(args, path, preflight, command):
         signature = failure_signature([f"verify exit={code}; tests={count}; inputs_unchanged={stable}"])
         record_failure_checkpoints(evidence_path=path, preflight=preflight, checkpoints=["tests"],
                                    signature=signature, checkpoint_signatures={"tests": signature})
-    progress = _gate_progress(args)
+    progress, guidance = _verification_progress(args, path, preflight, success)
     return finish_with_result(
         "verify", success,
-        [result, "Tests gate recorded for this selection; do not repeat gate-batch. Final review still applies.",
+        [result, *guidance,
          f"Execution record: receipt_ref={preflight.get('agent_run_id', '')}; execution_id={execution_id}",
          f"Remaining route gates: {progress['remaining_gates']}"],
         getattr(args, "output", None), {"gate_evidence": after, "gate_progress": progress,
@@ -118,6 +118,31 @@ def _verify_selection(args, path, preflight, command):
         getattr(args, "repair_cycle", 0),
         verification_failure="" if success else "task_failure",
     )
+
+
+def _verification_progress(args, path, preflight, success):
+    progress = _gate_progress(args)
+    if not success:
+        return progress, ["This selection did not pass."]
+    from agent_next_action import pending_observed_batch
+    from agent_next_verification import build_verify_command
+    from support.stable_launcher import stable_launcher_path
+
+    try:
+        count, batch = pending_observed_batch(args.project, args.rules, path)
+    except (OSError, ValueError, RuntimeError):
+        return {"remaining_gates": None, "ledger_complete": False}, [
+            "This selection passed. Check the next action to confirm remaining verification."]
+    if not count:
+        return progress, ["Pass recorded for this selection. Final review still applies."]
+    remaining = set(progress["remaining_gates"] or []) | {"tests"}
+    if progress["remaining_gates"] is not None:
+        progress["remaining_gates"] = [gate for gate in preflight["route"]["gates"] if gate in remaining]
+    progress.update(ledger_complete=False, pending_test_targets=count)
+    command = build_verify_command(str(stable_launcher_path()), args.project, args.rules, path, batch)
+    progress["next_verify_command"] = command
+    return progress, [f"This selection passed. {count} test targets remain.",
+                      f"Next verification batch: {command}"]
 
 
 def _snapshot(preflight, candidate):
