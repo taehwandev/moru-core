@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -292,6 +293,67 @@ class NativeCompletionTests(unittest.TestCase):
         run.evidence.with_name("continuation.json").write_text("{")
         self.assertEqual(invoke("python"), invoke())
         self.assertEqual(127, invoke(empty=True)[0])
+
+    def test_legacy_local_settlement_launcher_needs_git_but_no_python_or_registry(self):
+        def git(*args):
+            return subprocess.run(["git", "-C", str(self.project), *args], check=True,
+                                  capture_output=True, text=True, env=self.env, timeout=5).stdout.strip()
+
+        def commit(message):
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", message)
+            return git("rev-parse", "HEAD")
+
+        file = self.project / "tracked.txt"
+        file.write_text("base\n")
+        git("add", file.name)
+        base = commit("base")
+        run = self.project / ".moru" / "runs" / ("a" * 32)
+        run.mkdir(parents=True)
+        evidence = run / "preflight.json"
+        evidence.write_bytes(b"{}\n")
+        receipt = run / "pending-publication.json"
+        checkpoint = "publication.commit"
+        integration = "publication.integrate/main"
+        receipt.write_text(json.dumps({
+            "schema_version": 1, "run_id": run.name, "base_head": base, "source_branch": "main",
+            "evidence_sha256": hashlib.sha256(evidence.read_bytes()).hexdigest(),
+            "items": [{"checkpoint": item, "state": "pending"} for item in (checkpoint, integration)],
+        }))
+        before = receipt.read_bytes()
+        (self.empty / "git").symlink_to(shutil.which("git"))
+
+        def launcher(action=checkpoint, *, legacy=False):
+            env = ({**self.env, "MORU_LAUNCHER_BACKEND": "python"} if legacy else
+                   {**self.env, "PATH": str(self.empty)})
+            args = [str(self.entry), "pending-publication", "settle", "--checkpoint", action,
+                    "--evidence", str(evidence), "--project", str(self.project)]
+            result = subprocess.run(args, env=env, capture_output=True, timeout=15)
+            return result.returncode, result.stdout, result.stderr
+
+        def refused(reason, action=checkpoint):
+            expected = (2, f"FAIL publication settle: {reason}\n".encode(), b"")
+            self.assertEqual(expected, launcher(action, legacy=True))
+            self.assertEqual(expected, launcher(action))
+            self.assertEqual(before, receipt.read_bytes())
+
+        refused("local integration requires a bound staged-content proof", integration)
+        refused("HEAD has not advanced from the finished commit base")
+        file.write_text("reviewed\n")
+        git("add", file.name)
+        head = commit("reviewed")
+        git("checkout", "--detach")
+        refused("source branch differs from the finished publication")
+        git("checkout", "main")
+        file.write_text("dirty\n")
+        refused("tracked changes remain uncommitted")
+        file.write_text("reviewed\n")
+        (self.project / "untracked.txt").write_text("ignored by legacy proof")
+        self.assertEqual((0, b"publication observation recorded\n", b""), launcher())
+        record = json.loads(receipt.read_bytes())
+        self.assertNotIn("local_delivery", record)
+        self.assertEqual(f"HEAD {head} descends from {base}", record["items"][0]["observation"])
+        self.assertEqual("pending", record["items"][1]["state"])
+        self.assertFalse((self.project / ".moru" / "run-registry.json").exists())
 
     def test_pending_publication_partition_preserves_admitted_effect_and_original_items(self):
         opaque = object()
