@@ -1177,3 +1177,31 @@ still cannot hide unfinished observed batches. This removes needless discovery
 from manual-only finish and preserves evidence-based completion. Worker
 requirements and review findings remain available on request. The sample
 does not support expanding their default use or removing them.
+
+## Offline worker completion comparison, 2026-11-19
+
+Baseline `b95b6297`, clean macOS checkout, scope H08. An
+[on-demand comparison](../tests/compare_worker_completion.py) submits identical
+worker packets and evidence to three settings of the existing dispatch evaluator.
+It uses the shared temporary-repository fixture and runs actual Python tests
+where a case calls for proof. The expected outcome is set from each scenario
+before checking the evaluator's answer.
+
+| Evidence policy | Incomplete cases accepted (of 5) | Valid completions blocked (of 3) |
+| --- | ---: | ---: |
+| Worker report without an execution requirement | 4 | 0 |
+| Require evidence when explicitly requested (current policy) | 0 | 0 |
+| Require evidence for every case (counterfactual) | 0 | 1 |
+
+The four missed cases report success with missing evidence, partial coverage,
+a later matching failure, or stale source. The honest blocked report is
+rejected under all three settings. The three valid cases are a real manual test
+pass on a route with no execution requirement, a complete split selection and
+a verified recovery. The forced setting blocks the manual pass because it has
+no bound receipt.
+
+Run `PYTHONPATH=tests:scripts python3 -B -m unittest compare_worker_completion`
+to print both error counts. This is a controlled policy comparison using
+constructed packets. It does not estimate how often current models make these
+mistakes, adoption, task quality, timing or cost. Keep the check opt-in and
+investigate any failed case before widening its default use.
