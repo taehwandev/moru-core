@@ -7,12 +7,16 @@ use crate::{
 };
 use std::collections::{HashMap, HashSet};
 
+#[path = "behavior_eval_error.rs"]
+mod error;
+pub(crate) use error::BehaviorEvalError;
+
 pub(crate) struct BehaviorEvalInput;
 
 impl BehaviorEvalInput {
     pub(crate) const PROVIDERS: [&'static str; 3] = ["codex", "claude", "agy"];
 
-    pub(crate) fn providers(value: &[String]) -> Result<Vec<&str>, String> {
+    pub(crate) fn providers(value: &[String]) -> Result<Vec<&str>, BehaviorEvalError> {
         let mut result = Vec::new();
         for token in value.iter().flat_map(|arg| arg.split(',')) {
             let token = token.trim_matches(PythonText::whitespace);
@@ -20,10 +24,9 @@ impl BehaviorEvalInput {
                 return Err("empty provider token in --providers".into());
             }
             if !Self::PROVIDERS.contains(&token) || result.contains(&token) {
-                return Err(format!(
-                    "invalid or duplicate provider: {}",
-                    PythonText::repr(token)
-                ));
+                return Err(
+                    format!("invalid or duplicate provider: {}", PythonText::repr(token)).into(),
+                );
             }
             result.push(token);
         }
@@ -33,7 +36,7 @@ impl BehaviorEvalInput {
         Ok(result)
     }
 
-    pub(crate) fn cases(doc: &Value) -> Result<Vec<Value>, String> {
+    pub(crate) fn cases(doc: &Value) -> Result<Vec<Value>, BehaviorEvalError> {
         let mut ids = HashSet::new();
         Self::envelope(doc, "cases")?
             .iter()
@@ -63,7 +66,7 @@ impl BehaviorEvalInput {
                 let cid = Self::identifier(id)
                     .filter(|s| !s.contains(['/', '\\']) && !matches!(*s, "." | ".."));
                 if !cid.is_some_and(|id| ids.insert(id)) {
-                    return Err(format!("invalid or duplicate case id: {}", PythonJson::repr(id)));
+                    return Err(format!("invalid or duplicate case id: {}", PythonJson::repr(id)).into());
                 }
                 if !Self::status(status)
                     || !matches!(max, Value::Number(Number::Integer(text)) if !text.starts_with('-'))
@@ -103,7 +106,7 @@ impl BehaviorEvalInput {
                         .as_array()
                         .is_some_and(|list| list.iter().all(|v| Self::identifier(v).is_some()))
                     {
-                        return Err(format!("{field} must be a list of non-empty strings"));
+                        return Err(BehaviorEvalError::Stable(format!("{field} must be a list of non-empty strings")));
                     }
                 }
                 Ok(result)
@@ -114,7 +117,7 @@ impl BehaviorEvalInput {
     pub(crate) fn runs<'a>(
         doc: &'a Value,
         cases: &[Value],
-    ) -> Result<HashMap<(&'a str, &'a str), &'a [Value]>, String> {
+    ) -> Result<HashMap<(&'a str, &'a str), &'a [Value]>, BehaviorEvalError> {
         let ids: HashSet<_> = cases
             .iter()
             .filter_map(|case| case["id"].as_str())
@@ -164,19 +167,23 @@ impl BehaviorEvalInput {
         Ok(runs)
     }
 
-    fn envelope<'a>(doc: &'a Value, name: &str) -> Result<&'a [Value], String> {
+    fn envelope<'a>(doc: &'a Value, name: &str) -> Result<&'a [Value], BehaviorEvalError> {
         doc.as_object()
             .filter(|o| o.len() == 2 && o.contains_key(name) && o.contains_key("schema_version"))
-            .ok_or_else(|| format!("malformed {name} document schema"))?;
+            .ok_or_else(|| {
+                BehaviorEvalError::Stable(format!("malformed {name} document schema"))
+            })?;
         if !matches!(doc["schema_version"], Value::Number(Number::Integer(ref text)) if text == "1")
         {
-            return Err(format!("unsupported {name} schema_version"));
+            return Err(BehaviorEvalError::Stable(format!(
+                "unsupported {name} schema_version"
+            )));
         }
         doc[name]
             .as_array()
             .filter(|list| !list.is_empty())
             .map(Vec::as_slice)
-            .ok_or_else(|| format!("{name} must be a non-empty list"))
+            .ok_or_else(|| BehaviorEvalError::Stable(format!("{name} must be a non-empty list")))
     }
 
     fn identifier(value: &Value) -> Option<&str> {

@@ -410,6 +410,37 @@ finally:
         self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
                          (2, b"", reference.stderr))
 
+        def compare_schema_error(message, native_counts):
+            reference = run("python", "0,2")
+            actual = run("auto", native_counts)
+            self.assertEqual((reference.returncode, reference.stdout), (2, b""))
+            self.assertIn(message, reference.stderr.decode("utf-16-le"))
+            self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                             (2, b"", reference.stderr))
+
+        cases.write_text('{"schema_version":true,"cases":[]}', encoding="utf-8")
+        traces.write_text('{"schema_version":1,"runs":[{}]}', encoding="utf-8")
+        compare_schema_error("unsupported cases schema_version", "1,0")
+        args[-1] = "unknown"
+        compare_schema_error("invalid or duplicate provider: 'unknown'", "1,2")
+        args[-1] = "agy"
+        traces.write_text('{"schema_version":1,"runs":[}', encoding="utf-8")
+        compare_schema_error("invalid JSON input", "1,2")
+
+        cases.write_text('{"schema_version":1,"cases":['
+                         '{"id":"..","expected_status":"ok","max_prompts":0},'
+                         '{"id":"c2","expected_status":"ok","max_prompts":true}]}',
+                         encoding="utf-8")
+        traces.write_text('{"schema_version":1,"runs":[{}]}', encoding="utf-8")
+        compare_schema_error("invalid or duplicate case id: '..'", "1,2")
+
+        cases.write_bytes(valid_cases)
+        compare_schema_error("malformed run entry", "1,0")
+        traces.write_text(json.dumps({"schema_version": 1, "runs": [
+            {"provider": "agy", "case_id": "c1", "events": [{"kind": "final"}]}
+        ]}), encoding="utf-8")
+        compare_schema_error("invalid final event", "1,0")
+
 
 if __name__ == "__main__":
     unittest.main()

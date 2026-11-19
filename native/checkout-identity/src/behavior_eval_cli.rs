@@ -4,7 +4,7 @@
 use crate::{
     behavior_eval::BehaviorEval,
     behavior_eval_artifact::BehaviorEvalArtifacts,
-    behavior_eval_input::BehaviorEvalInput,
+    behavior_eval_input::{BehaviorEvalError, BehaviorEvalInput},
     python_json::{InputDiagnostic, PythonJson, Value as PythonValue},
     python_text::{PythonText, PythonUtf8},
 };
@@ -31,17 +31,6 @@ struct Arguments {
     stable_errors_only: bool,
 }
 
-enum EvalError {
-    Stable(String),
-    Reference(String),
-}
-
-impl From<String> for EvalError {
-    fn from(detail: String) -> Self {
-        Self::Reference(detail)
-    }
-}
-
 impl BehaviorEvalCli {
     pub(crate) fn run(args: &[OsString]) -> i32 {
         let Some(args) = Self::arguments(args) else {
@@ -57,8 +46,8 @@ impl BehaviorEvalCli {
                     1
                 }
             }
-            Some(Err(EvalError::Reference(_))) if args.stable_errors_only => DECLINED,
-            Some(Err(EvalError::Stable(error) | EvalError::Reference(error))) => {
+            Some(Err(BehaviorEvalError::Reference(_))) if args.stable_errors_only => DECLINED,
+            Some(Err(BehaviorEvalError::Stable(error) | BehaviorEvalError::Reference(error))) => {
                 let _ = writeln!(io::stderr().lock(), "error: {error}");
                 2
             }
@@ -127,15 +116,15 @@ impl BehaviorEvalCli {
         })
     }
 
-    fn evaluate(args: &Arguments) -> Option<Result<Value, EvalError>> {
-        let run = || -> Result<Option<Value>, EvalError> {
+    fn evaluate(args: &Arguments) -> Option<Result<Value, BehaviorEvalError>> {
+        let run = || -> Result<Option<Value>, BehaviorEvalError> {
             if args
                 .providers
                 .iter()
                 .flat_map(|value| value.split(','))
                 .any(|token| token.trim_matches(PythonText::whitespace).is_empty())
             {
-                return Err("empty provider token in --providers".to_owned().into());
+                return Err("empty provider token in --providers".into());
             }
             let Some(cases_doc) = Self::read_json(&args.cases, args.digit_limit)? else {
                 return Ok(None);
@@ -190,7 +179,10 @@ impl BehaviorEvalCli {
         run().transpose()
     }
 
-    fn read_json(path: &str, digit_limit: Option<usize>) -> Result<Option<PythonValue>, EvalError> {
+    fn read_json(
+        path: &str,
+        digit_limit: Option<usize>,
+    ) -> Result<Option<PythonValue>, BehaviorEvalError> {
         let bad_input = |error: io::Error| {
             let detail = error.to_string();
             match error.raw_os_error() {
@@ -215,10 +207,13 @@ impl BehaviorEvalCli {
             .read_to_end(&mut bytes)
             .map_err(bad_input)?;
         if bytes.len() as u64 > MAX_JSON_BYTES {
-            return Err(EvalError::Stable(format!("input too large: {path}")));
+            return Err(BehaviorEvalError::Stable(format!(
+                "input too large: {path}"
+            )));
         }
-        let raw = PythonUtf8::decode(&bytes)
-            .map_err(|detail| EvalError::Stable(format!("invalid JSON input {path}: {detail}")))?;
+        let raw = PythonUtf8::decode(&bytes).map_err(|detail| {
+            BehaviorEvalError::Stable(format!("invalid JSON input {path}: {detail}"))
+        })?;
         PythonJson::parse_with_diagnostic(raw, digit_limit).map_err(|diagnostic| match diagnostic {
             InputDiagnostic::Syntax(detail) => {
                 format!("invalid JSON input {path}: {detail}").into()
