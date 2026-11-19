@@ -35,7 +35,7 @@ impl PendingPublicationPartition {
         Some(json!({"deferred": deferred}))
     }
 
-    pub(crate) fn can_defer(
+    fn can_defer(
         name: &str,
         commit_route: bool,
         local_delivery: bool,
@@ -48,5 +48,42 @@ impl PendingPublicationPartition {
             "publication.push" | "publication.pull-request" => external_write && commit_route,
             _ => false,
         }
+    }
+
+    pub(crate) fn might_defer<'a>(
+        preflight: &Value,
+        mut checkpoints: impl Iterator<Item = &'a str>,
+    ) -> Option<bool> {
+        let route = preflight.get("route")?.as_object()?;
+        let envelope = route
+            .get("request_classification")?
+            .get("intent_envelope")?;
+        if envelope.get("authority")?.as_str()? != "envelope"
+            || !envelope.get("schema_valid")?.as_bool()?
+            || !envelope.get("failures")?.as_array()?.is_empty()
+        {
+            return Some(false);
+        }
+        let (git_write, external_write) = match envelope.get("effective_effect")?.as_str()? {
+            "read" | "local_write" => (false, false),
+            "git_write" => (true, false),
+            "external_write" | "destructive" => (true, true),
+            _ => return None,
+        };
+        let commit_route = route.get("command")?.as_str()? == "commit";
+        // Treat any specified local contract as potentially eligible. Actual
+        // contract version, route floor and packet binding stay with admission.
+        let local_delivery = route
+            .get("local_delivery_contract")
+            .is_some_and(|value| !value.is_null());
+        Some(checkpoints.any(|name| {
+            Self::can_defer(
+                name,
+                commit_route,
+                local_delivery,
+                git_write,
+                external_write,
+            )
+        }))
     }
 }

@@ -294,16 +294,21 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(invoke("python"), invoke())
         self.assertEqual(127, invoke(empty=True)[0])
 
-    def test_pending_status_rules_out_unrecorded_debt_above_the_effect_ceiling(self):
+    def test_pending_status_rules_out_unrecorded_debt_without_eligible_authority(self):
         actions = [{"checkpoint": "publication.push", "action": "Observe upstream"},
                    {"checkpoint": "publication.pull-request/main", "action": "Observe PR"}]
-        for effect in ("git_write", "external_write"):
-            with self.subTest(effect=effect):
-                folder = self.base / effect
+        for command, effect, authority, expected_debt in (
+            ("commit", "git_write", "envelope", False),
+            ("commit", "external_write", "envelope", True),
+            ("refactor", "external_write", "envelope", False),
+            ("commit", "external_write", "assumed", False),
+        ):
+            with self.subTest(command=command, effect=effect, authority=authority):
+                folder = self.base / f"{command}-{effect}-{authority}"
                 folder.mkdir()
                 with patch.dict(os.environ, self.env, clear=True):
-                    run = Run(str(folder), packet=True, writable=True, command="commit",
-                              effect=effect, authority="envelope")
+                    run = Run(str(folder), packet=True, writable=True, command=command,
+                              effect=effect, authority=authority)
                     write_continuation_checkpoint(
                         project=run.project, rules=run.project, run_id=run.run["run_id"], kind="initial",
                         phase="acting", binding_path=run.evidence,
@@ -318,7 +323,7 @@ class NativeCompletionTests(unittest.TestCase):
                 self.assertEqual((0, b""), (reference.returncode, reference.stderr))
                 offline = subprocess.run(args, capture_output=True, timeout=15,
                                          env={**self.env, "PATH": str(self.empty)})
-                if effect == "git_write":
+                if not expected_debt:
                     self.assertEqual(b"no pending publication\n", reference.stdout)
                     self.assertEqual((0, reference.stdout, b""), (offline.returncode, offline.stdout, offline.stderr))
                 else:
