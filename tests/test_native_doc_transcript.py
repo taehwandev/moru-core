@@ -24,6 +24,7 @@ from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_request, agy_redelivery, nearest_registry_project, read_delivery_manifest,
     reuse_credit,
+    rank_reuse_roots, reuse_run_ids,
 )
 
 
@@ -144,6 +145,62 @@ class NativeDocTranscriptTests(unittest.TestCase):
             with patch("support.native_doc_transcript.reuse_credit", side_effect=AssertionError("foreign proof")):
                 for caller in callers:
                     self.assertEqual([], caller(current)["reused"])
+
+    def test_native_reuse_registry_window_preserves_ids_and_lazy_evidence_reads(self):
+        current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project)
+        registry = self.project / ".moru" / "run-registry.json"
+        prior_id = "a" * 32
+        current_id = current.parent.name
+        registry.write_text(json.dumps({"runs": [
+            {"run_id": "0" * 32, "state": "completed"},
+            *([None] * 96),
+            {"run_id": prior_id, "state": "completed"},
+            {"run_id": "c" * 32, "state": "completed", "evidence_name": "worker.json"},
+            {"run_id": current_id, "state": "completed"},
+            {"run_id": prior_id, "state": "completed", "evidence_name": "preflight.json"},
+        ]}), encoding="utf-8")
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual([prior_id, prior_id], reuse_run_ids(self.project, current_id, 100))
+            self.assertEqual([prior_id], reuse_run_ids(self.project, current_id, 3))
+            self.assertIsNone(reuse_run_ids(self.project, current_id, 101))
+            with patch.object(reuse_reference, "_completed_run_ids_python",
+                              side_effect=AssertionError("Python registry scan")), patch.object(
+                                  reuse_reference, "_read", wraps=reuse_reference._read) as reads:
+                lookup = reuse_reference._completed_runs(self.project, current_id, ("codex", "session-one"))
+                prior, _ = next(lookup)
+                lookup.close()
+                self.assertEqual(prior_id, prior.parent.name)
+                reads.assert_called_once_with(prior, reuse_reference.MAX_PREFLIGHT_BYTES)
+
+    def test_native_reuse_root_ranking_preserves_float_ties_exclusions_and_cap(self):
+        root = self.base / "roots"
+        epoch = 1_700_000_000_000_000_000
+        candidates = [root / f"project-{index}" for index in range(10)]
+        prefix = root / "a" / "child"
+        punctuation = root / "a.x"
+        for index, project in enumerate([*candidates, prefix, punctuation]):
+            state = project / ".moru"
+            state.mkdir(parents=True)
+            registry = state / "run-registry.json"
+            registry.write_text("{}", encoding="utf-8")
+            stamp = epoch + index if project in (prefix, punctuation) else epoch + index * 1_000_000
+            os.utime(registry, ns=(stamp, stamp))
+        alias = root / "alias"
+        alias.symlink_to(candidates[-1], target_is_directory=True)
+        directory = root / "not-registered" / ".moru" / "run-registry.json"
+        directory.mkdir(parents=True)
+        inputs = [prefix, punctuation, alias, *candidates, directory.parents[1], root / "missing"]
+        excluded = [candidates[7]]
+        expected = reuse_reference._recent_registered_roots_python(inputs, excluded)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reuse_reference, "_recent_registered_roots_python", side_effect=AssertionError("Python ranking")):
+            self.assertEqual(expected, reuse_reference._recent_registered_roots(inputs, excluded))
+            self.assertEqual([punctuation, prefix], rank_reuse_roots([prefix, punctuation], [], 8))
+            self.assertEqual((125, b"", b""), result(self.raw("rank-reuse-roots", {
+                "candidates": [str(prefix / "..")], "excluded": [], "limit": 8,
+            })))
+        self.assertEqual(8, len(expected))
+        self.assertEqual([candidates[-1], candidates[-1]], expected[:2])
 
     def test_agy_native_request_runs_through_stdin_and_adapter_callers(self):
         fixture = agy_fixtures.AgyHookTests()

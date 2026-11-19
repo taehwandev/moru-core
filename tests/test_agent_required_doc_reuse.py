@@ -142,10 +142,9 @@ class RequiredDocReuseTests(unittest.TestCase):
                 self.assertEqual([], result['unread'])
                 latest = root / '.moru/runs' / recent['run_id'] / 'preflight.json'
                 visited = [call.args[0] for call in reads.call_args_list]
-                self.assertEqual([current, registry, latest], visited[:3])
-                self.assertTrue(set(visited[3:]) <= {
-                    latest.with_name('gate-evidence.json'), latest.with_name('doc-takeaway.json'),
-                })
+                supporting = {registry, latest.with_name('gate-evidence.json'),
+                              latest.with_name('doc-takeaway.json')}
+                self.assertEqual([current, latest], [path for path in visited if path not in supporting])
 
     def test_history_scan_remains_bounded_without_a_match(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

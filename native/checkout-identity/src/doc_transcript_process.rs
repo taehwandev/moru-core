@@ -33,6 +33,8 @@ impl DocTranscriptProcess {
                         | "read-docs"
                         | "read-delivery-manifest"
                         | "reuse-credit"
+                        | "reuse-run-ids"
+                        | "rank-reuse-roots"
                         | "nearest-registry-project"
                         | "agy-delivery-request"
                         | "agy-redelivery"
@@ -58,6 +60,12 @@ impl DocTranscriptProcess {
             .ok()
             .and_then(|payload| {
                 let object = payload.as_object()?;
+                if args[1] == "reuse-run-ids" && object.len() == 3 {
+                    return DocTranscript::reuse_run_ids(&payload);
+                }
+                if args[1] == "rank-reuse-roots" && object.len() == 3 {
+                    return DocTranscript::rank_reuse_roots(&payload);
+                }
                 if args[1] == "reuse-credit" && object.len() == 4 {
                     return DocTranscript::reuse_credit(&payload);
                 }

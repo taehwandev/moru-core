@@ -53,7 +53,7 @@ impl DocTranscript {
         })
     }
 
-    fn read_reuse_evidence(path: &Path, limit: u64) -> Option<Value> {
+    pub(super) fn read_reuse_evidence(path: &Path, limit: u64) -> Option<Value> {
         let metadata = match fs::metadata(path) {
             Ok(metadata) if metadata.is_file() && metadata.len() <= limit => metadata,
             Err(error)

@@ -20,6 +20,43 @@ def _value(result):
     return result["value"] if type(result) is dict and set(result) == {"value"} else None
 
 
+def _reuse_history(operation, fields) -> list[str] | None:
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", operation, fields))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is list and all(type(item) is str for item in value):
+        return value
+    return None
+
+
+def reuse_run_ids(root: Path, current: str, limit: int) -> list[str] | None:
+    return _reuse_history("reuse-run-ids", {"path": str(root), "current": current, "limit": limit})
+
+
+def rank_reuse_roots(candidates: list[Path], excluded: list[Path], limit: int) -> list[Path] | None:
+    try:
+        if not NativeProbe.available():
+            return None
+    except (OSError, ValueError, RuntimeError):
+        return None
+    resolved = []
+    for candidate in candidates:
+        try:
+            # Preserve pathlib's spelling and symlink behavior on the host.
+            resolved.append(str(candidate.resolve()))
+        except OSError:
+            continue
+    value = _reuse_history("rank-reuse-roots", {
+        "candidates": resolved, "excluded": [str(path) for path in excluded],
+        "limit": limit,
+    })
+    if value is None or len(value) > limit:
+        return None
+    roots = [Path(path) for path in value]
+    return roots if all(root.is_absolute() for root in roots) else None
+
+
 def reuse_credit(prior: Path, takeaways: list[str], slots: int, chars: int) -> tuple[bool, str | None] | None:
     try:
         value = _value(NativeProbe.request("--doc-transcript-probe", "reuse-credit", {

@@ -136,6 +136,28 @@ def _same_session_priors(
 
 
 def _completed_runs(root: Path, current_run: str, session: tuple[str, str]):
+    from support.native_doc_transcript import reuse_run_ids
+
+    ids = reuse_run_ids(root, current_run, MAX_RUNS)
+    if (ids is None or len(ids) > MAX_RUNS
+            or any(run_id == current_run or not RUN_ID.fullmatch(run_id) for run_id in ids)):
+        ids = _completed_run_ids_python(root, current_run)
+    for run_id in ids:
+        prior_path = project_state_dir_target(root) / "runs" / run_id / "preflight.json"
+        try:
+            prior = _read(prior_path, MAX_PREFLIGHT_BYTES)
+            if (
+                prior.get("agent_run_id") != run_id
+                or Path(prior["project"]).resolve() != root
+                or _session(prior) != session
+            ):
+                continue
+        except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+            continue
+        yield prior_path, prior
+
+
+def _completed_run_ids_python(root: Path, current_run: str):
     try:
         registry = _read(project_state_dir_target(root) / "run-registry.json", MAX_REGISTRY_BYTES)
     except (OSError, ValueError, json.JSONDecodeError):
@@ -153,18 +175,7 @@ def _completed_runs(root: Path, current_run: str, session: tuple[str, str]):
         evidence_name = record.get("evidence_name", "preflight.json")
         if evidence_name != "preflight.json" or run_id == current_run:
             continue
-        prior_path = project_state_dir_target(root) / "runs" / run_id / evidence_name
-        try:
-            prior = _read(prior_path, MAX_PREFLIGHT_BYTES)
-            if (
-                prior.get("agent_run_id") != run_id
-                or Path(prior["project"]).resolve() != root
-                or _session(prior) != session
-            ):
-                continue
-        except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
-            continue
-        yield prior_path, prior
+        yield run_id
 
 
 def _repository_roots(project: Path, *, include_sibling_repos: bool = False):
@@ -206,6 +217,13 @@ def _repository_roots(project: Path, *, include_sibling_repos: bool = False):
 
 
 def _recent_registered_roots(candidates: list[Path], excluded: list[Path]) -> list[Path]:
+    from support.native_doc_transcript import rank_reuse_roots
+
+    native = rank_reuse_roots(candidates, excluded, MAX_SIBLING_WORKTREES)
+    return native if native is not None else _recent_registered_roots_python(candidates, excluded)
+
+
+def _recent_registered_roots_python(candidates: list[Path], excluded: list[Path]) -> list[Path]:
     ranked = []
     for candidate in candidates:
         try:
