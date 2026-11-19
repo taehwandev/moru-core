@@ -101,6 +101,7 @@ mod overhead_stamp;
 mod overhead_stats;
 mod overhead_text;
 mod overhead_timings;
+mod pending_publication_partition;
 mod pending_publication_receipt;
 mod pending_publication_status;
 mod pending_publication_transition;

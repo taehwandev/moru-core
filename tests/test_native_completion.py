@@ -12,7 +12,7 @@ from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from agent_pending_publication import (
     _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record,
-    outstanding, pending_reason,
+    outstanding, pending_reason, split_remaining,
 )
 from agent_publication_status import _observe_pull_request_python, observe_pull_request, observe_upstream
 from native_pretool_support import environment, prepare
@@ -167,6 +167,53 @@ class NativeCompletionTests(unittest.TestCase):
                     else:
                         cache = oid if checkpoint == "publication.commit" else None
                         self.assertEqual(cache, expected["local_delivery"].get("reviewed_commit"))
+
+    def test_pending_publication_partition_preserves_admitted_effect_and_original_items(self):
+        opaque = object()
+        commit = {"checkpoint": "publication.commit", "action": opaque}
+        integrate = {"checkpoint": "publication.integrate/main"}
+        push = {"checkpoint": "publication.push"}
+        pr = {"checkpoint": "publication.pull-request/develop"}
+        invalid = {"checkpoint": "publication.pull-request/-invalid"}
+        remaining = [pr, commit, invalid, None, integrate, push, commit, {"checkpoint": "publication.integrate"}]
+        fallback = {**self.env, "MORU_LAUNCHER_BACKEND": "python"}
+        original_request = NativeProbe.request
+        for command, effect, local, authority, schema, failures, positions in (
+            ("commit", "git_write", False, "envelope", True, [], [1, 6]),
+            ("commit", "external_write", False, "envelope", True, [], [0, 1, 5, 6]),
+            ("commit", "external_write", True, "envelope", True, [], [0, 1, 4, 5, 6]),
+            ("task", "git_write", True, "envelope", True, [], [1, 4, 6]),
+            ("task", "external_write", True, "envelope", True, [], [1, 4, 6]),
+            ("task", "local_write", True, "envelope", True, [], []),
+            ("task", "external_write", True, "assumed", True, [], []),
+            ("task", "external_write", True, "envelope", False, [], []),
+            ("task", "external_write", True, "envelope", True, ["invalid"], []),
+            ("review", "external_write", True, "envelope", True, [], []),
+        ):
+            with self.subTest(command=command, effect=effect, local=local, authority=authority, schema=schema,
+                              failures=failures):
+                envelope = {"effective_effect": effect, "authority": authority,
+                            "schema_valid": schema, "failures": failures}
+                route = {"command": command, "request_classification": {"intent_envelope": envelope}}
+                if local:
+                    route["local_delivery_contract"] = LocalDeliveryProof.CONTRACT
+                with patch.dict(os.environ, fallback, clear=True):
+                    expected = split_remaining({"route": route}, remaining)
+                seen = []
+
+                def request(*args):
+                    result = original_request(*args)
+                    seen.append(result)
+                    return result
+
+                with patch.dict(os.environ, self.env, clear=True), patch(
+                        "agent_pending_publication.NativeProbe.request", side_effect=request):
+                    actual = split_remaining({"route": route}, remaining)
+                self.assertEqual(expected, actual)
+                self.assertEqual([remaining[index] for index in positions], actual[1])
+                self.assertTrue(all(item is remaining[index] for item, index in zip(actual[1], positions)))
+                mask = [index in positions for index in range(len(remaining))]
+                self.assertEqual([] if command == "review" else [{"deferred": mask}], seen)
 
     def test_pending_publication_status_preserves_debt_and_order_from_bound_receipts(self):
         run = self.base / "status-run"

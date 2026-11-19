@@ -88,6 +88,11 @@ def split_remaining(preflight: dict, remaining: list, project: Path | None = Non
     from workflow_effect_policy import route_minimum_effect
     local = (route.get("local_delivery_contract") == LocalDeliveryProof.CONTRACT
              and route_minimum_effect(route.get("command", "")) in {"local_write", "git_write"})
+    if type(remaining) is list and remaining and (commit_route or local):
+        mask = _native_partition(remaining, commit_route, local, granted)
+        if mask is not None:
+            return ([item for item, deferred in zip(remaining, mask) if not deferred],
+                    [item for item, deferred in zip(remaining, mask) if deferred])
     blocking, deferred = [], []
     for item in remaining or []:
         needed = PUBLICATION_CHECKPOINTS.get(kind(item.get("checkpoint"))) if isinstance(item, dict) else None
@@ -98,6 +103,22 @@ def split_remaining(preflight: dict, remaining: list, project: Path | None = Non
         ok = eligible and needed and granted >= EFFECT_RANK[needed]
         (deferred if ok else blocking).append(item)
     return blocking, deferred
+
+
+def _native_partition(remaining: list, commit_route: bool, local: bool, granted: int) -> list[bool] | None:
+    checkpoints = [item.get("checkpoint") if isinstance(item, dict) else None for item in remaining]
+    if any(name is not None and type(name) is not str for name in checkpoints):
+        return None
+    result = NativeProbe.request("--completion-probe", "pending-publication-partition", {
+        "checkpoints": checkpoints, "commit_route": commit_route, "local_delivery": local,
+        "git_write": granted >= EFFECT_RANK["git_write"],
+        "external_write": granted >= EFFECT_RANK["external_write"],
+    })
+    if result is not None and set(result) == {"deferred"}:
+        mask = result["deferred"]
+        if isinstance(mask, list) and len(mask) == len(remaining) and all(type(entry) is bool for entry in mask):
+            return mask
+    return None
 
 
 def _path(evidence: Path) -> Path:
