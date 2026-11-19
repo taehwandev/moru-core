@@ -7,7 +7,7 @@ import json
 import os
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO, Callable
 
 from agent_continuation_outbound import assert_no_continuation_outbound
 from agent_directory_fingerprint import directory_state
@@ -280,7 +280,8 @@ def preflight_snapshot_binding_fingerprint(snapshot: dict[str, Any]) -> str | No
     return hashlib.sha256(encoded).hexdigest()
 
 
-def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+def atomic_write_json(path: Path, payload: dict[str, Any], *,
+                      write_payload: Callable[[dict[str, Any], BinaryIO], bool] | None = None) -> None:
     assert_no_continuation_outbound(
         {"path": path, "payload": payload},
         boundary="artifact",
@@ -289,14 +290,25 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
         raise OSError(f"Symbolic link detected in directory: {path.parent}")
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
     # The state already lives below an ignored/private runtime directory.
     # Keeping the sibling temporary file non-hidden preserves atomic replace
     # while remaining writable in sandboxes that reject newly created hidden
     # entries outside their primary workspace root.
     temporary_path = path.parent / f"{path.name}.{uuid.uuid4().hex}.tmp"
+    temporary_owned = False
     try:
-        temporary_path.write_bytes(encoded)
+        if write_payload is None:
+            encoded = _encoded_json(payload)
+            temporary_owned = True
+            temporary_path.write_bytes(encoded)
+        else:
+            descriptor = os.open(temporary_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            temporary_owned = True
+            with os.fdopen(descriptor, "wb") as output:
+                if not write_payload(payload, output):
+                    output.seek(0)
+                    output.truncate()
+                    output.write(_encoded_json(payload))
         try:
             os.chmod(temporary_path, 0o600)
         except OSError:
@@ -304,11 +316,15 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
         temporary_path.replace(path)
     except BaseException:
         try:
-            if temporary_path.exists():
+            if temporary_owned and temporary_path.exists():
                 temporary_path.unlink()
         except OSError:
             pass
         raise
+
+
+def _encoded_json(payload: dict[str, Any]) -> bytes:
+    return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
 def _sha256_and_size(path: Path) -> tuple[str, int]:

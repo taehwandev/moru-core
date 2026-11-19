@@ -2,7 +2,7 @@
 //! Allowed: regular-file reads, JSON and SHA-256. Forbidden: changes to state,
 //! Git/provider execution and publication decisions. Caller: completion probe.
 
-use crate::callback_state::LocalState;
+use crate::{callback_state::LocalState, python_text::PythonText};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -18,6 +18,17 @@ const MAX_EVIDENCE: u64 = 4 * 1024 * 1024;
 pub(crate) struct PendingPublicationReceipt;
 
 impl PendingPublicationReceipt {
+    pub(crate) fn encode(mut record: Value) -> Option<String> {
+        if !record.is_object() || !Self::lossless(&record) {
+            return None;
+        }
+        record.sort_all_objects();
+        let json = serde_json::to_string_pretty(&record).ok()?;
+        let mut encoded = PythonText::escape_json_unicode(&json);
+        encoded.push('\n');
+        (encoded.len() as u64 <= MAX_RECEIPT).then_some(encoded)
+    }
+
     pub(crate) fn probe(payload: &Value) -> Option<Value> {
         let evidence = Path::new(payload.get("evidence")?.as_str()?);
         let run_id = evidence.parent()?.file_name()?.to_str()?;

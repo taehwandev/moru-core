@@ -8,10 +8,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from agent_pending_publication import _git, _load, _load_python, _new_record, _observe, _observed_record
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
+from support.native_probe_transport import NativeProbe
 
 
 def contract(revision=1, **overrides):
@@ -61,6 +63,56 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
             with patch.dict(os.environ, self.env, clear=True), self.assertRaises(ValueError):
                 _capture_identities(bad, tree)
+
+    def test_pending_publication_encoder_preserves_atomic_write_and_exact_bytes(self):
+        path = self.base / "pending-publication.json"
+        payload = {"z": [{"b": "한글🐈", "a": []}], "A": {}, "가": None,
+                   "escape": '\x00\b\t\n\f\r\x1f\x7f"\\/', "count": 2**64 - 1}
+        expected = (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode()
+        result = self.raw("pending-publication-encode", payload)
+        self.assertEqual((0, expected, b""), (result.returncode, result.stdout, result.stderr))
+
+        path.write_bytes(b"previous\n")
+        with patch.dict(os.environ, self.env, clear=True), patch(
+                "agent_execution_capsule_state._encoded_json", side_effect=AssertionError("Python fallback")):
+            atomic_write_json(path, payload, write_payload=NativeProbe.encode_publication_receipt)
+        self.assertEqual(expected, path.read_bytes())
+        self.assertEqual(0o600, path.stat().st_mode & 0o777)
+        with patch.dict(os.environ, self.env, clear=True), path.open("rb") as read_only:
+            self.assertFalse(NativeProbe.encode_publication_receipt(payload, read_only))
+        self.assertEqual(expected, path.read_bytes())
+
+        def partial(_, stream):
+            self.assertEqual(expected, path.read_bytes())
+            stream.write(b"old oversized output" * 100)
+            return False
+
+        atomic_write_json(path, payload, write_payload=partial)
+        self.assertEqual(expected, path.read_bytes())
+
+        def failed(_, stream):
+            stream.write(b"partial")
+            raise OSError("write failed")
+
+        with self.assertRaisesRegex(OSError, "write failed"):
+            atomic_write_json(path, payload, write_payload=failed)
+        self.assertEqual(expected, path.read_bytes())
+        self.assertFalse(list(path.parent.glob(path.name + ".*.tmp")))
+        collision = path.with_name(path.name + ".existing.tmp")
+        collision.write_bytes(b"another writer's temporary file")
+        with patch("agent_execution_capsule_state.uuid.uuid4") as uuid:
+            uuid.return_value.hex = "existing"
+            with self.assertRaises(FileExistsError):
+                atomic_write_json(path, payload, write_payload=partial)
+        self.assertEqual(b"another writer's temporary file", collision.read_bytes())
+        self.assertEqual(expected, path.read_bytes())
+
+        unusual = {**payload, "decimal": 1e-5, "large": 2**100}
+        result = self.raw("pending-publication-encode", unusual)
+        self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+        with patch.dict(os.environ, self.env, clear=True):
+            atomic_write_json(path, unusual, write_payload=NativeProbe.encode_publication_receipt)
+        self.assertEqual((json.dumps(unusual, sort_keys=True, indent=2) + "\n").encode(), path.read_bytes())
 
     def test_pending_publication_transitions_preserve_receipt_order_and_metadata(self):
         fields = {"run_id": "test-run", "evidence_sha256": "1" * 64, "base_head": "2" * 40,

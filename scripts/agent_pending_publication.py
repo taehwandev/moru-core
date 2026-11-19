@@ -218,7 +218,7 @@ def record_pending(project: Path, evidence: Path, deferred: list) -> str:
             "base_head": head,
             "source_branch": branch,
         }, wanted, local_proof)
-        atomic_write_json(_path(evidence), record)
+        atomic_write_json(_path(evidence), record, write_payload=NativeProbe.encode_publication_receipt)
     except (OSError, ValueError) as error:
         return f"pending-publication record could not be written ({type(error).__name__})"
     stored, problem = _load(evidence)
@@ -383,7 +383,7 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
                 return refusal
             record = _observed_record(record, item, observation, datetime.now(timezone.utc).isoformat())
             try:
-                atomic_write_json(_path(evidence), record)
+                atomic_write_json(_path(evidence), record, write_payload=NativeProbe.encode_publication_receipt)
             except (OSError, ValueError) as error:
                 return f"observation could not be stored ({type(error).__name__})"
             return ""

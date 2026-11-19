@@ -14,6 +14,7 @@ use serde_json::{json, Value};
 use std::{
     ffi::OsString,
     io::{Read, Write},
+    os::fd::AsFd,
 };
 
 pub(crate) struct CompletionProcess;
@@ -35,6 +36,24 @@ impl CompletionProcess {
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
+        // This operation only writes stdout. The caller owns any file behind it.
+        if args[1] == "pending-publication-encode" {
+            let Some(encoded) = PendingPublicationReceipt::encode(payload) else {
+                return 125;
+            };
+            // Stdout's console wrapper can suppress EBADF. The underlying
+            // file descriptor must report errors to the atomic-write caller.
+            let Ok(descriptor) = std::io::stdout().as_fd().try_clone_to_owned() else {
+                return 1;
+            };
+            let mut output = std::fs::File::from(descriptor);
+            return i32::from(
+                output
+                    .write_all(encoded.as_bytes())
+                    .and_then(|_| output.flush())
+                    .is_err(),
+            );
+        }
         let result = match args[1].to_str() {
             Some("quality") => Quality::inspect(&payload),
             Some("requirements") => Requirements::validate(&payload),
