@@ -29,7 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from support.native_doc_transcript import NativeDocTranscript
+from support.native_doc_transcript import NativeDocTranscript, agy_delivery_request
 
 READ_TOOLS = {"read_file", "view_file"}
 
@@ -102,11 +102,18 @@ def _changed_since(path: Path, stamp: object) -> bool:
 def respond(payload: dict, evidence_for=None) -> dict:
     """The hook's stdout object for one PreInvocation payload."""
 
+    return _respond(payload, evidence_for, agy_delivery_request(payload=payload))
+
+
+def _respond(payload: dict, evidence_for, request: tuple[str, list[str], str] | None) -> dict:
     try:
         from agent_required_doc_delivery import delivery_text
 
-        conversation = str(payload.get("conversationId") or "")
-        workspaces = [str(path) for path in payload.get("workspacePaths") or []]
+        if request is None:
+            conversation = str(payload.get("conversationId") or "")
+            workspaces = [str(path) for path in payload.get("workspacePaths") or []]
+        else:
+            conversation, workspaces, transcript = request
         if not conversation or not workspaces:
             return {}
         if evidence_for is None:
@@ -116,8 +123,10 @@ def respond(payload: dict, evidence_for=None) -> dict:
             evidence_for = lambda project: agent_runtime_session.resolve_runtime_evidence(project, identity)  # noqa: E731
         text = ""
         for workspace in workspaces:
+            if request is None:
+                transcript = str(payload.get("transcriptPath") or "")
             edit = {"tool_name": "Edit", "cwd": workspace,
-                    "transcript_path": str(payload.get("transcriptPath") or ""),
+                    "transcript_path": transcript,
                     "tool_input": {"file_path": workspace}}
             text = delivery_text(edit, evidence_for, read_in_context)
             if text:
@@ -127,12 +136,19 @@ def respond(payload: dict, evidence_for=None) -> dict:
     return {"injectSteps": [{"systemMessage": {"systemMessage": text}}]} if text else {}
 
 
-def main() -> int:
+def _python_payload(raw: str) -> dict:
     try:
-        payload = json.loads(sys.stdin.read() or "{}")
+        payload = json.loads(raw or "{}")
     except ValueError:
         payload = {}
-    sys.stdout.write(json.dumps(respond(payload if isinstance(payload, dict) else {})))
+    return payload if isinstance(payload, dict) else {}
+
+
+def main() -> int:
+    raw = sys.stdin.read()
+    request = agy_delivery_request(raw=raw)
+    payload = _python_payload(raw) if request is None else {}
+    sys.stdout.write(json.dumps(_respond(payload, None, request)))
     return 0
 
 

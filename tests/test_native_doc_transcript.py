@@ -1,18 +1,24 @@
 """Source parity for native doc-delivery file scans and read-only boundaries."""
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 import agent_required_doc_delivery as reference
+import agent_runtime_session
+import agy_hook_adapter as adapter
 import agy_required_docs_hook as agy
 import test_agent_required_doc_delivery as delivery_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
-from support.native_doc_transcript import NativeDocTranscript, nearest_registry_project, read_delivery_manifest
+from support.native_doc_transcript import (
+    NativeDocTranscript, agy_delivery_request, nearest_registry_project, read_delivery_manifest,
+)
 
 
 class NativeDocTranscriptTests(unittest.TestCase):
@@ -54,6 +60,78 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 self.assertEqual(expected,actual)
                 self.assertIs(type(expected),type(actual))
         self.assertEqual(before,self.path.read_bytes())
+
+    def test_agy_native_request_preserves_defaults_order_and_legacy_fallback(self):
+        with patch.dict(os.environ, self.env, clear=True):
+            for raw, expected in (
+                ("", ("", [], "")),
+                ("[]", ("", [], "")),
+                ('{"conversationId":null,"workspacePaths":null}', ("", [], "")),
+                ('{"conversationId":"old","conversationId":"새","workspacePaths":["둘","첫","둘"]}',
+                 ("새", ["둘", "첫", "둘"], "")),
+                ('{"workspacePaths":["path"],"transcriptPath":1}', ("", ["path"], "")),
+            ):
+                with self.subTest(raw=raw):
+                    self.assertEqual(expected, agy_delivery_request(raw=raw))
+            for raw in ('{', '{"conversationId":1}', '{"workspacePaths":"ab"}',
+                        '{"unused":NaN}', '{"unused":"\\ud800"}', "{}" + " " * (128 * 1024)):
+                with self.subTest(raw=raw[:60]):
+                    self.assertIsNone(agy_delivery_request(raw=raw))
+            self.assertIsNone(agy_delivery_request(payload={"workspacePaths": ("a", "b")}))
+            at_limit = "{}" + " " * (128 * 1024 - 2)
+            self.assertEqual(("", [], ""), agy_delivery_request(raw=at_limit))
+            self.assertIsNone(agy_delivery_request(raw=at_limit + " "))
+            self.assertEqual(("session", ["a", "a"], "trace"), agy_delivery_request(
+                payload={"conversationId": "session", "workspacePaths": ["a", "a"],
+                         "transcriptPath": "trace", "unrelated": object()}))
+
+    def test_agy_native_request_runs_through_stdin_and_adapter_callers(self):
+        fixture = agy_fixtures.AgyHookTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        payload = {"conversationId": "한글", "workspacePaths": [str(fixture.rules), str(fixture.project)],
+                   "transcriptPath": str(fixture.transcript)}
+        raw = json.dumps(payload, ensure_ascii=False)
+        marker = fixture.evidence.parent / reference.MARKER
+
+        def run_stdin(text):
+            out = io.StringIO()
+            with patch.object(sys, "stdin", io.StringIO(text)), patch.object(sys, "stdout", out):
+                self.assertEqual(0, agy.main())
+            return out.getvalue()
+
+        def resolve(project, identity):
+            self.assertEqual({"runtime": "antigravity", "session_id": "한글"}, identity)
+            return fixture.evidence if project == fixture.project else None
+
+        with patch.object(agent_runtime_session, "resolve_runtime_evidence", side_effect=resolve):
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                expected = run_stdin(raw)
+                expected_marker = marker.read_bytes()
+            marker.unlink()
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    agy, "_python_payload", side_effect=AssertionError("standalone Python parser")):
+                self.assertEqual(expected, run_stdin(raw))
+            self.assertEqual(expected_marker, marker.read_bytes())
+            marker.unlink()
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    adapter, "_prompt_guidance_steps", return_value=[]), patch.object(
+                    agy, "_respond", wraps=agy._respond) as respond:
+                self.assertEqual(json.loads(expected), adapter.pre_invocation(payload))
+                self.assertEqual(("한글", payload["workspacePaths"], str(fixture.transcript)),
+                                 respond.call_args.args[2])
+            self.assertEqual(raw, json.dumps(payload, ensure_ascii=False))
+            self.assertEqual(expected_marker, marker.read_bytes())
+            marker.unlink()
+            legacy = {**payload, "workspacePaths": tuple(payload["workspacePaths"]),
+                      "transcriptPath": fixture.transcript}
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    adapter, "_prompt_guidance_steps", return_value=[]):
+                self.assertEqual(json.loads(expected), adapter.pre_invocation(legacy))
+            self.assertEqual(expected_marker, marker.read_bytes())
+            with patch.dict(os.environ, self.env, clear=True):
+                for invalid in ("{malformed", "{}{}", " \n", "\ufeff{}"):
+                    self.assertEqual("{}", run_stdin(invalid))
 
     def test_agy_whole_file_coverage_preserves_compaction_and_modification_time(self):
         docs = {"한글 guide.md": "test", "second.md": "test"}

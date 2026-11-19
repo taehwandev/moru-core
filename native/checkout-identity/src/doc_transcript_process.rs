@@ -9,6 +9,8 @@ use std::{
     path::Path,
 };
 
+#[path = "agy_doc_request.rs"]
+mod agy_doc_request;
 #[path = "doc_delivery_marker.rs"]
 mod delivery_marker;
 #[path = "doc_delivery_text.rs"]
@@ -29,6 +31,7 @@ impl DocTranscriptProcess {
                         | "read-docs"
                         | "read-delivery-manifest"
                         | "nearest-registry-project"
+                        | "agy-delivery-request"
                         | "delivery-plan"
                         | "write-marker"
                 )
@@ -50,6 +53,9 @@ impl DocTranscriptProcess {
             .ok()
             .and_then(|payload| {
                 let object = payload.as_object()?;
+                if args[1] == "agy-delivery-request" {
+                    return agy_doc_request::decode(object);
+                }
                 if args[1] == "write-marker" && object.len() == 5 {
                     return delivery_marker::write(&payload);
                 }

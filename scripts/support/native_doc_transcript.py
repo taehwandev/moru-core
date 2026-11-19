@@ -20,6 +20,35 @@ def _value(result):
     return result["value"] if type(result) is dict and set(result) == {"value"} else None
 
 
+def agy_delivery_request(*, payload=None, raw=None) -> tuple[str, list[str], str] | None:
+    try:
+        if raw is not None:
+            if len(raw) > 128 * 1024:
+                return None
+            args = {"raw": raw}
+        else:
+            if type(payload) is not dict or any(type(key) is not str for key in payload):
+                return None
+            fields = {key: payload.get(key) for key in ("conversationId", "workspacePaths", "transcriptPath")}
+            workspaces = fields["workspacePaths"]
+            if workspaces is not None and (type(workspaces) is not list
+                                           or any(type(path) is not str for path in workspaces)):
+                return None
+            if any(fields[key] is not None and type(fields[key]) is not str
+                   for key in ("conversationId", "transcriptPath")):
+                return None
+            args = {"payload": fields}
+        value = _value(NativeProbe.request("--doc-transcript-probe", "agy-delivery-request", args))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is list and len(value) == 3:
+        conversation, workspaces, transcript = value
+        if (type(conversation) is str and type(transcript) is str
+                and type(workspaces) is list and all(type(path) is str for path in workspaces)):
+            return conversation, workspaces, transcript
+    return None
+
+
 def nearest_registry_project(edited: Path) -> tuple[Path, ...] | None:
     try:
         value = _value(NativeProbe.request("--doc-transcript-probe", "nearest-registry-project",
