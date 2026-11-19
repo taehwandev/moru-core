@@ -1,4 +1,5 @@
 """Native completion policy through the actual private binary protocol."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
-from agent_pending_publication import _git, _observe
+from agent_pending_publication import _git, _load, _load_python, _observe
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 
@@ -60,6 +61,61 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
             with patch.dict(os.environ, self.env, clear=True), self.assertRaises(ValueError):
                 _capture_identities(bad, tree)
+
+    def test_pending_publication_reads_verify_raw_evidence_and_keep_reference_fallback(self):
+        run = self.base / "run-fixture"
+        run.mkdir()
+        evidence = run / "preflight.json"
+        receipt = run / "pending-publication.json"
+        payload = {"evidence": str(evidence)}
+        raw_evidence = b'{\r\n"source": "fixture"\r\n}\r\n'
+        evidence.write_bytes(raw_evidence)
+        record = {"schema_version": 2, "run_id": run.name,
+                  "evidence_sha256": hashlib.sha256(evidence.read_bytes()).hexdigest(), "base_head": "base",
+                  "items": [{"checkpoint": "publication.commit", "state": "observed"},
+                            {"checkpoint": "publication.integrate/" + "x" * 200, "state": "pending"}],
+                  "opaque": {"label": "한글🐈", "count": 2**64 - 1, "optional": None}}
+
+        def compare_native():
+            expected = _load_python(evidence)
+            self.assertEqual({"record": expected[0], "problem": expected[1]},
+                             self.check("pending-publication-read", payload))
+            with patch.dict(os.environ, self.env, clear=True), patch(
+                    "agent_pending_publication._load_python", side_effect=AssertionError("Python fallback")):
+                self.assertEqual(expected, _load(evidence))
+
+        compare_native()
+        for changes in ({}, {"schema_version": 1}, {"schema_version": True}, {"run_id": "foreign"},
+                        {"items": [{"checkpoint": "publication.integrate/" + "x" * 201, "state": "pending"}]},
+                        {"items": [{"checkpoint": "publication.push", "state": "unknown"}]}):
+            with self.subTest(changes=changes):
+                receipt.write_text(json.dumps({**record, **changes}), encoding="utf-8")
+                compare_native()
+        receipt.write_bytes(b"[]")
+        compare_native()
+        duplicate = json.dumps(record).replace('"schema_version": 2', '"schema_version": 3, "schema_version": 2')
+        receipt.write_text(duplicate, encoding="utf-8")
+        compare_native()
+        receipt.write_text(json.dumps(record), encoding="utf-8")
+        evidence.write_bytes(evidence.read_bytes().replace(b"\r\n", b"\n"))
+        compare_native()
+        evidence.unlink()
+        compare_native()
+        receipt.write_bytes(b"\xff")
+        compare_native()
+        evidence.write_bytes(raw_evidence)
+        for body in (b"{", json.dumps({**record, "schema_version": 1.0}).encode(),
+                     json.dumps({**record, "opaque": 2**100}).encode(),
+                     json.dumps({**record, "opaque": "\ud800"}).encode()):
+            receipt.write_bytes(body)
+            result = self.raw("pending-publication-read", payload)
+            self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+            with patch.dict(os.environ, self.env, clear=True):
+                self.assertEqual(_load_python(evidence), _load(evidence))
+        receipt.unlink()
+        os.mkfifo(receipt)
+        result = self.raw("pending-publication-read", payload)
+        self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
 
     def test_local_delivery_prepares_exact_receipt_from_linked_worktree(self):
         repo = self.project

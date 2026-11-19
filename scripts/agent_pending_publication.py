@@ -37,6 +37,7 @@ from agent_execution_capsule_state import atomic_write_json
 from agent_publication_status import observe_pull_request
 from workflow_intent_envelope import EFFECT_RANK
 from agent_local_delivery import LocalDeliveryProof
+from support.native_probe_transport import NativeProbe
 
 # checkpoint slug -> effect the run must already be admitted for.
 PUBLICATION_CHECKPOINTS = {
@@ -108,6 +109,17 @@ def _sha(evidence: Path) -> str:
 
 def _load(evidence: Path) -> tuple[dict | None, str]:
     """(record, "") when valid; (None, "missing") or (None, reason) otherwise."""
+    result = NativeProbe.request("--completion-probe", "pending-publication-read", {"evidence": str(evidence)})
+    if result is not None and set(result) == {"record", "problem"}:
+        record, problem = result["record"], result["problem"]
+        if isinstance(record, dict) and problem == "":
+            return record, ""
+        if record is None and problem in ("missing", "unreadable", "foreign or malformed"):
+            return None, problem
+    return _load_python(evidence)
+
+
+def _load_python(evidence: Path) -> tuple[dict | None, str]:
     try:
         record = json.loads(_path(evidence).read_text(encoding="utf-8"))
     except FileNotFoundError:

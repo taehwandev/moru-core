@@ -100,6 +100,7 @@ mod overhead_stamp;
 mod overhead_stats;
 mod overhead_text;
 mod overhead_timings;
+mod pending_publication_receipt;
 mod pretool_files;
 mod pretool_guard;
 mod pretool_process;
