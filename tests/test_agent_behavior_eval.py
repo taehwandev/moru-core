@@ -344,7 +344,7 @@ def audit(event, args):
     if event == 'subprocess.Popen':
         counts[0] += 1
 def profile(frame, event, arg):
-    if event == 'call' and frame.f_code.co_name == 'evaluate' and frame.f_code.co_filename == script:
+    if event == 'call' and frame.f_code.co_name == '_read_json' and frame.f_code.co_filename == script:
         counts[1] += 1
 sys.addaudithook(audit)
 sys.setprofile(profile)
@@ -353,7 +353,7 @@ try:
 finally:
     assert counts == list(map(int, os.environ['EXPECTED_COUNTS'].split(','))), counts
 """
-        args = ["--cas", str(self.root / "cases.json"), "--traces", str(self.root / "traces.json"),
+        args = ["--cas", str(self.root / "사례.json"), "--traces", str(self.root / "traces.json"),
                 "--artifact-root", str(self.root), "--providers", "agy"]
         cases, traces = Path(args[1]), Path(args[3])
         cases.write_text(json.dumps(_single_case_doc(
@@ -373,7 +373,7 @@ finally:
                                   capture_output=True, timeout=12)
 
         def compare(exit_code, native_counts):
-            reference = run("python", "0,1")
+            reference = run("python", "0,2")
             actual = run("auto", native_counts)
             self.assertEqual((reference.returncode, reference.stderr), (exit_code, b""))
             self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
@@ -388,6 +388,27 @@ finally:
             folder.chmod(0o700)
         cases.write_text(json.dumps(_single_case_doc(max_prompts=2**80)), encoding="utf-8")
         compare(0, "1,0")
+
+        valid_cases = cases.read_bytes()
+        cases.write_bytes(valid_cases.ljust(eval_mod.MAX_JSON_BYTES, b" "))
+        compare(0, "1,0")
+        for bad_bytes in [b"\xff", b"\xf4\x90\x80\x80", b"\xed\xa0\x80\xff",
+                          "한글\r\n".encode() + b"\xe2\x82A",
+                          valid_cases + b"\xf0\x9f\x92",
+                          valid_cases.ljust(eval_mod.MAX_JSON_BYTES, b" ") + b"\xff"]:
+            with self.subTest(suffix=bad_bytes[-8:]):
+                cases.write_bytes(bad_bytes)
+                reference = run("python", "0,1")
+                actual = run("auto", "1,0")
+                self.assertEqual((reference.returncode, reference.stdout), (2, b""))
+                self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                 (2, b"", reference.stderr))
+        # Syntax diagnostics still use the active Python parser version.
+        cases.write_bytes(b'{"cases": [}')
+        reference = run("python", "0,1")
+        actual = run("auto", "1,1")
+        self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                         (2, b"", reference.stderr))
 
 
 if __name__ == "__main__":

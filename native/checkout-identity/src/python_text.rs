@@ -2,6 +2,9 @@
 //! forbidden imports: runtime Python/process/network; callers/tests: manifest validators,
 //! CLI adapters and subject tests; verification: exhaustive scalar golden digest.
 use std::fmt::Write;
+#[path = "python_utf8.rs"]
+mod utf8;
+pub(crate) use utf8::PythonUtf8;
 include!(concat!(env!("OUT_DIR"), "/python_text_contract.rs"));
 
 pub(crate) struct PythonText;

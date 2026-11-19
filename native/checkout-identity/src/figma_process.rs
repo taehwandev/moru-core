@@ -5,9 +5,8 @@
 use crate::{
     figma_coverage::FigmaCoverage, figma_validation::FigmaValidation,
     figma_validation_report::FigmaReport, pretool_guard::CallbackGuard, python_json::PythonJson,
+    python_text::PythonUtf8, text::Text,
 };
-#[path = "figma_decode.rs"]
-mod decode;
 #[path = "figma_file.rs"]
 mod file;
 use std::{ffi::OsString, io::Write};
@@ -64,8 +63,8 @@ impl FigmaProcess {
                 })
             }
         };
-        let text = match decode::FigmaDecode::decode(&bytes) {
-            Ok(text) => text,
+        let text = match PythonUtf8::decode(&bytes) {
+            Ok(text) => Text::universal_newlines(text),
             Err(error) => return Some(Self::read_error(error)),
         };
         let summary = match PythonJson::parse(&text) {

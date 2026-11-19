@@ -226,7 +226,7 @@ def _read_json(path_str: str) -> Any:
 
 
 def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[int, str] | None:
-    """Use the verified candidate for authoritative reports; keep legacy error rendering."""
+    """Use the verified candidate for reports and stable input diagnostics."""
     if os.environ.get("MORU_LAUNCHER_BACKEND", "auto") not in ("auto", "rust"):
         return None
     if any(name in sys.modules for name in ("sitecustomize", "usercustomize")):
@@ -248,7 +248,7 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
         plan = artifact_plan(entry.parent.parent, entry)
         if plan is None:
             return None
-        command = [str(plan["source"]), str(entry), "--behavior-eval",
+        command = [str(plan["source"]), str(entry), "--behavior-eval", "--stable-errors-only",
                    f"--cases={ns.cases}", f"--traces={ns.traces}",
                    f"--artifact-root={Path(ns.artifact_root)}",
                    f"--int-max-str-digits={getattr(sys, 'get_int_max_str_digits', lambda: 0)()}"]
@@ -257,6 +257,8 @@ def _native_report(ns: argparse.Namespace, providers: Sequence[str]) -> tuple[in
         result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True)
         if result.returncode in (0, 1) and result.stdout and not result.stderr:
             return result.returncode, result.stdout.decode("ascii")
+        if result.returncode == 2 and result.stderr and not result.stdout:
+            return 2, result.stderr.decode("utf-8")
     except (OSError, ValueError, ImportError, RuntimeError):
         pass
     return None
@@ -282,7 +284,7 @@ def main(argv: Sequence[str] | None = None, stdout: TextIO | None = None, stderr
         return 2
     if native is not None:
         code, output = native
-        out.write(output)
+        (err if code == 2 else out).write(output)
         return code
     out.write(json.dumps(report, indent=2) + "\n")
     return 0 if report["failed"] == 0 and report["total"] > 0 else 1

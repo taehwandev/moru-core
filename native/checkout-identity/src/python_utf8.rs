@@ -1,13 +1,11 @@
-//! owner: FigmaDecode; allowed imports: std UTF8 validation and shared newline normalization;
-//! forbidden imports: IO/process/replacement decoding; callers/tests: FigmaProcess;
-//! verification: Python TextIOWrapper read-all byte offsets, ranges and reasons.
-use crate::text::Text;
-
-pub(super) struct FigmaDecode;
-impl FigmaDecode {
-    pub(super) fn decode(bytes: &[u8]) -> Result<String, String> {
+//! owner: PythonUtf8; allowed imports: std UTF-8 validation and formatting;
+//! forbidden imports: I/O, process and newline normalization; callers/tests:
+//! offline evaluator and Figma CLIs; verification: Python decoding byte offsets.
+pub(crate) struct PythonUtf8;
+impl PythonUtf8 {
+    pub(crate) fn decode(bytes: &[u8]) -> Result<&str, String> {
         match std::str::from_utf8(bytes) {
-            Ok(text) => Ok(Text::universal_newlines(text)),
+            Ok(text) => Ok(text),
             Err(error) => {
                 let start = error.valid_up_to();
                 let count = error.error_len().unwrap_or(bytes.len() - start);
@@ -67,7 +65,7 @@ mod tests {
             ),
         ] {
             assert_eq!(
-                FigmaDecode::decode(bytes),
+                PythonUtf8::decode(bytes),
                 Err(format!("'utf-8' codec can't decode {message}"))
             );
         }
@@ -78,19 +76,19 @@ mod tests {
         let mut bytes = vec![b' '; 16385];
         bytes.extend_from_slice(b"\xf0\x9f\x92");
         assert_eq!(
-            FigmaDecode::decode(&bytes),
+            PythonUtf8::decode(&bytes),
             Err(
                 "'utf-8' codec can't decode bytes in position 16385-16387: unexpected end of data"
                     .into()
             )
         );
         assert_eq!(
-            FigmaDecode::decode(b"\xef\xbb\xbf[\r\n1,\r2\n]"),
-            Ok("\u{feff}[\n1,\n2\n]".into())
+            PythonUtf8::decode(b"\xef\xbb\xbf[\r\n1,\r2\n]"),
+            Ok("\u{feff}[\r\n1,\r2\n]")
         );
         assert_eq!(
-            FigmaDecode::decode("한글\u{85}\r\n".as_bytes()),
-            Ok("한글\u{85}\n".into())
+            PythonUtf8::decode("한글\u{85}\r\n".as_bytes()),
+            Ok("한글\u{85}\r\n")
         );
     }
 }
