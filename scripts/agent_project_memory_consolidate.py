@@ -212,8 +212,15 @@ def _native_relation_profile():
         for name,(original,code,defaults) in _RELATION_CALLBACKS.items()))
 
 
-def _relation_entries(groups, replacements, *, rendered=None):
-    duplicates, shared = _group_entries(groups)
+def _relation_entries(groups, replacements, *, rendered=None, rendered_groups=None):
+    if rendered_groups is not None and _date_entry_profile() and _native_relation_profile():
+        duplicates, shared = tuple(
+            [{"ids": list(group["ids"]), "reason": group["reason"],
+              "records": _materialize_report_entries(records, group["records"])}
+             for records, group in zip(members, bucket)]
+            for members, bucket in zip(groups, rendered_groups))
+    else:
+        duplicates, shared = _group_entries(groups)
     if (rendered is not None and _date_entry_profile() and _native_relation_profile()
             and _context_bound(_replacement_entries, _REPLACEMENT_ENTRY_BINDING)):
         unfinished = _materialize_report_entries((record for record, _ in replacements), rendered)
@@ -331,12 +338,13 @@ def _materialize_report_entries(records, rendered):
     entries = []
     for record, row in zip(records, rendered):
         entry = dict(row)
-        native_reason = entry.pop("reason")
+        native_reason = entry.pop("reason", None)
         replacements = entry.pop("replaced_by", None)
         for key in _NATIVE_DECISION_FIELDS[5:]:
             if key in record:
                 entry[key] = record[key]
-        entry["reason"] = native_reason
+        if native_reason is not None:
+            entry["reason"] = native_reason
         if replacements is not None:
             entry["replaced_by"] = list(replacements)
         entries.append(entry)
@@ -359,9 +367,10 @@ def findings(records: list[dict[str, Any]], unreadable: int, *, today: date,
             within_days=within_days),
     }
     if relations is not None:
-        unfinished = entries.get("unfinished_replacements")
-        options = ({"rendered":unfinished} if unfinished is not None
-                   and _context_bound(_relation_entries, _RELATION_ENTRY_BINDING) else {})
+        options = {}
+        if entries and _context_bound(_relation_entries, _RELATION_ENTRY_BINDING):
+            options = {"rendered":entries.get("unfinished_replacements"),
+                       "rendered_groups":entries.get("groups")}
         report.update(_relation_entries(*relations, **options))
     else:
         report.update(_reference_relations(live) if reference else _report_relations(live))

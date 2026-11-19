@@ -33,13 +33,24 @@ fn complete_report_plan_keeps_original_and_live_relative_indices_separate() {
 #[test]
 fn complete_report_renders_review_entries_only_when_requested() {
     let mut input = plan_payload(json!([
-        {"id":"b","status":"active","scope":"task","body":"second","source":"S2",
+        {"id":"b","status":"active","scope":"task","body":"한글","source":"S1",
          "review":"2026-11-17","replaces":"a"},
         {"id":"a","status":"active","scope":"all","body":"한글","source":"S1",
          "review":"2026-11-16","replaces":null}
     ]));
     input["review"]["render_days"] = json!(14);
     let result = MemoryConsolidation::evaluate("report-text-groups", &input).unwrap();
+    for bucket in ["duplicate_groups", "shared_source_groups"] {
+        let group = &result["group_entries"][bucket][0];
+        assert_eq!(group["ids"], json!(["a", "b"]));
+        assert_eq!(
+            group["records"],
+            json!([
+                {"id":"a","scope":"all","body":"한글","source":"S1","review_on":"2026-11-16"},
+                {"id":"b","scope":"task","body":"한글","source":"S1","review_on":"2026-11-17"}
+            ])
+        );
+    }
     assert_eq!(
         result["replacement_entries"],
         json!([
@@ -53,7 +64,7 @@ fn complete_report_renders_review_entries_only_when_requested() {
         json!({
             "expired":[{"id":"a","scope":"all","body":"한글","source":"S1","review_on":"2026-11-16",
                 "reason":"review date reached; recheck the source, then renew with `capture --replaces` and a new date, or `retire`"}],
-            "expiring":[{"id":"b","scope":"task","body":"second","source":"S2","review_on":"2026-11-17",
+        "expiring":[{"id":"b","scope":"task","body":"한글","source":"S1","review_on":"2026-11-17",
                 "reason":"review date within 14 days; renew or retire ahead of time"}]
         })
     );

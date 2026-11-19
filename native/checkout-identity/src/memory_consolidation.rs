@@ -86,6 +86,7 @@ impl MemoryConsolidation {
             result["date_entries"] = Self::review_entries(records, &selected, days)?;
             result["replacement_entries"] =
                 Self::replacement_entries(records, &selected, &relations)?;
+            result["group_entries"] = Self::group_entries(records, &selected, &relations)?;
         }
         Some(result)
     }
@@ -110,9 +111,51 @@ impl MemoryConsolidation {
     }
 
     fn report_entry(row: &Value, reason: &str) -> Option<Value> {
-        Some(json!({"id":row.get("id")?, "scope":row.get("scope")?,
+        let mut entry = json!({"id":row.get("id")?, "scope":row.get("scope")?,
             "body":row.get("body")?, "source":row.get("source")?,
-            "review_on":row.get("review")?, "reason":reason}))
+            "review_on":row.get("review")?});
+        if !reason.is_empty() {
+            entry["reason"] = json!(reason);
+        }
+        Some(entry)
+    }
+
+    fn live_row<'a>(records: &'a [Value], live: &[Value], index: &Value) -> Option<&'a Value> {
+        let original = live.get(usize::try_from(index.as_u64()?).ok()?)?;
+        records.get(usize::try_from(original.as_u64()?).ok()?)
+    }
+
+    fn group_entries(records: &[Value], selected: &Value, relations: &Value) -> Option<Value> {
+        let live = selected.get("live")?.as_array()?;
+        let groups = |key, reason| {
+            relations
+                .get(key)?
+                .as_array()?
+                .iter()
+                .map(|group| {
+                    let members = group
+                        .as_array()?
+                        .iter()
+                        .map(|index| Self::live_row(records, live, index))
+                        .collect::<Option<Vec<_>>>()?;
+                    let ids = members
+                        .iter()
+                        .map(|row| row.get("id")?.as_str())
+                        .collect::<Option<Vec<_>>>()?;
+                    let entries = members
+                        .iter()
+                        .map(|row| Self::report_entry(row, ""))
+                        .collect::<Option<Vec<_>>>()?;
+                    Some(json!({"ids":ids,"reason":reason,"records":entries}))
+                })
+                .collect::<Option<Vec<_>>>()
+        };
+        Some(json!({
+            "duplicate_groups":groups("duplicates",
+                "bodies share at least 80% of their words in overlapping scopes; merge with `capture --replaces <one>`, then retire the others")?,
+            "shared_source_groups":groups("shared_sources",
+                "records cite the same source; open it and keep, merge or retire the ones that disagree")?
+        }))
     }
 
     fn replacement_entries(
@@ -121,10 +164,7 @@ impl MemoryConsolidation {
         relations: &Value,
     ) -> Option<Value> {
         let live = selected.get("live")?.as_array()?;
-        let row_at = |index: &Value| {
-            let original = live.get(usize::try_from(index.as_u64()?).ok()?)?;
-            records.get(usize::try_from(original.as_u64()?).ok()?)
-        };
+        let row_at = |index: &Value| Self::live_row(records, live, index);
         let reason =
             "a live record replaces this one; `retire` it to finish the interrupted replacement";
         let rows = relations

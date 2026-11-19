@@ -36,6 +36,7 @@ class ConsolidationReportGroupsTests(unittest.TestCase):
             return {"review":{"live":[1,0],"expired":[0],"expiring":[]},
                     "date_entries":{"expired":[{"id":"wrong"}],"expiring":[]},
                     "replacement_entries":[{"id":"wrong"}],
+                    "group_entries":{"duplicate_groups":[],"shared_source_groups":[]},
                     "relations":{"duplicates":[[0,1]],"shared_sources":[[0,1]],
                                  "findings":[{"index":0,"replacements":[1]}]}}
         with patch("support.native_memory_consolidation.NativeProbe.available",return_value=True), \
@@ -462,6 +463,37 @@ class NativeMemoryConsolidationTests(unittest.TestCase):
         self.assertEqual(["b", "c"], row["replaced_by"])
         self.assertEqual(list(expected["unfinished_replacements"][0]), list(row))
         self.assertIs(marker, row["applies_when"])
+
+    def test_native_groups_preserve_order_and_metadata_without_python_group_assembly(self):
+        from support.native_probe_transport import NativeProbe
+
+        marker = object()
+        records = [self.record("b", applies_when=marker), self.record("a", not_when=marker)]
+        today = date(2026, 11, 12)
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = source.findings(records, 0, today=today)
+        calls = []
+        code = source._group_entries.__code__
+        def observe(frame, event, arg):
+            if event == "call" and frame.f_code is code:
+                calls.append(True)
+        previous = sys.getprofile()
+        with patch.dict(os.environ, self.env, clear=True), \
+                patch.object(NativeProbe, "request", wraps=NativeProbe.request) as request:
+            try:
+                sys.setprofile(observe)
+                actual = source.findings(records, 0, today=today)
+            finally:
+                sys.setprofile(previous)
+        self.assertEqual([], calls)
+        self.assertEqual(1, request.call_count)
+        self.assertEqual(expected, actual)
+        for bucket in ("duplicate_groups", "shared_source_groups"):
+            group = actual[bucket][0]
+            self.assertEqual(["a", "b"], group["ids"])
+            self.assertEqual(list(expected[bucket][0]), list(group))
+            self.assertIs(marker, group["records"][0]["not_when"])
+            self.assertIs(marker, group["records"][1]["applies_when"])
 
     def test_real_store_cli_is_read_only_and_requires_native_grouping(self):
         directory = self.base / "records"

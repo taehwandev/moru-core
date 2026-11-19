@@ -117,7 +117,7 @@ class NativeMemoryConsolidation:
     def report_plan(records, today, within_days, statuses, threshold=0.8, *, render_dates=False):
         result, attempted = _plan_packet(records,today,within_days,statuses,threshold,render_dates=render_dates)
         fields = {"review", "relations"}
-        optional = {"date_entries", "replacement_entries"} if render_dates else set()
+        optional = {"date_entries", "replacement_entries", "group_entries"} if render_dates else set()
         if type(result) is not dict or not fields <= set(result) <= fields | optional:
             return None, attempted
         selected = review.NativeMemoryReview._decode(result["review"],records,statuses)
@@ -128,12 +128,7 @@ class NativeMemoryConsolidation:
             return None, attempted
         plan = (selected, relations)
         if render_dates:
-            entries = _date_entries(selected, result.get("date_entries")) or {}
-            replacements = result.get("replacement_entries")
-            if _valid_entries([record for record, _ in relations[1]], replacements,
-                              [links for _, links in relations[1]]):
-                entries = {**entries, "unfinished_replacements": replacements}
-            plan += (entries,)
+            plan += (_rendered_entries(selected, relations, result),)
         return plan, attempted
 
     @staticmethod
@@ -232,6 +227,18 @@ _REPORT_PLAN_BINDING = (NativeMemoryConsolidation.report_plan, NativeMemoryConso
     NativeMemoryConsolidation.report_plan.__defaults__, dict(NativeMemoryConsolidation.report_plan.__kwdefaults__))
 
 
+def _rendered_entries(selected, relations, result):
+    entries = dict(_date_entries(selected, result.get("date_entries")) or {})
+    replacements = result.get("replacement_entries")
+    if _valid_entries([record for record, _ in relations[1]], replacements,
+                      [links for _, links in relations[1]]):
+        entries["unfinished_replacements"] = replacements
+    groups = _group_entries(relations[0], result.get("group_entries"))
+    if groups is not None:
+        entries["groups"] = groups
+    return entries
+
+
 def _date_entries(selected, value):
     if type(value) is not dict or set(value) != {"expired", "expiring"}:
         return None
@@ -241,16 +248,36 @@ def _date_entries(selected, value):
     return value
 
 
-def _valid_entries(rows, entries, replacements=None):
+def _group_entries(groups, value):
+    if type(value) is not dict or set(value) != {"duplicate_groups", "shared_source_groups"}:
+        return None
+    buckets = (value["duplicate_groups"], value["shared_source_groups"])
+    for members, rendered in zip(groups, buckets):
+        if type(rendered) is not list or len(members) != len(rendered):
+            return None
+        for records, group in zip(members, rendered):
+            if (type(group) is not dict or tuple(group) != ("ids", "reason", "records")
+                    or type(group["ids"]) is not list
+                    or any(type(value) is not str for value in group["ids"])
+                    or group["ids"] != [record["id"] for record in records]
+                    or type(group["reason"]) is not str or not group["reason"]
+                    or not _valid_entries(records, group["records"], with_reason=False)):
+                return None
+    return buckets
+
+
+def _valid_entries(rows, entries, replacements=None, *, with_reason=True):
     if type(entries) is not list or len(entries) != len(rows):
         return False
     keys = ("id", "scope", "body", "source", "review_on")
-    order = (*keys, "reason", "replaced_by") if replacements is not None else (*keys, "reason")
+    order = (*keys, "reason") if with_reason else keys
+    if replacements is not None:
+        order = (*order, "replaced_by")
     for index, (row, entry) in enumerate(zip(rows, entries)):
         if (type(entry) is not dict or tuple(entry) != order
                 or any(type(entry[key]) is not str or type(row.get(key)) is not str
                        or entry[key] != row[key] for key in keys)
-                or type(entry["reason"]) is not str or not entry["reason"]):
+                or with_reason and (type(entry["reason"]) is not str or not entry["reason"])):
             return False
         if replacements is not None:
             links = entry["replaced_by"]
