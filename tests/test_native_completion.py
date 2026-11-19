@@ -294,6 +294,46 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(invoke("python"), invoke())
         self.assertEqual(127, invoke(empty=True)[0])
 
+    def test_pending_status_rules_out_unrecorded_debt_above_the_effect_ceiling(self):
+        actions = [{"checkpoint": "publication.push", "action": "Observe upstream"},
+                   {"checkpoint": "publication.pull-request/main", "action": "Observe PR"}]
+        for effect in ("git_write", "external_write"):
+            with self.subTest(effect=effect):
+                folder = self.base / effect
+                folder.mkdir()
+                with patch.dict(os.environ, self.env, clear=True):
+                    run = Run(str(folder), packet=True, writable=True, command="commit",
+                              effect=effect, authority="envelope")
+                    write_continuation_checkpoint(
+                        project=run.project, rules=run.project, run_id=run.run["run_id"], kind="initial",
+                        phase="acting", binding_path=run.evidence,
+                        work={"objective": "Observe published work", "remaining_work": actions},
+                    )
+                args = [str(self.entry), "pending-publication", "status", "--project",
+                        str(run.project), "--evidence", str(run.evidence)]
+                path = run.evidence.with_name("continuation.json")
+                before = run.evidence.read_bytes(), path.read_bytes()
+                reference = subprocess.run(args, capture_output=True, timeout=15,
+                                           env={**self.env, "MORU_LAUNCHER_BACKEND": "python"})
+                self.assertEqual((0, b""), (reference.returncode, reference.stderr))
+                offline = subprocess.run(args, capture_output=True, timeout=15,
+                                         env={**self.env, "PATH": str(self.empty)})
+                if effect == "git_write":
+                    self.assertEqual(b"no pending publication\n", reference.stdout)
+                    self.assertEqual((0, reference.stdout, b""), (offline.returncode, offline.stdout, offline.stderr))
+                else:
+                    self.assertIn(b"publication.push, publication.pull-request/main", reference.stdout)
+                    self.assertEqual(127, offline.returncode)
+                self.assertEqual(before, (run.evidence.read_bytes(), path.read_bytes()))
+                self.assertFalse(run.evidence.with_name("pending-publication.json").exists())
+                if effect == "git_write":
+                    run.evidence.write_bytes(b"{corrupt")
+                    declined = subprocess.run(args, capture_output=True, timeout=15,
+                                              env={**self.env, "PATH": str(self.empty)})
+                    self.assertEqual(127, declined.returncode)
+                    self.assertEqual(b"{corrupt", run.evidence.read_bytes())
+                    self.assertEqual(before[1], path.read_bytes())
+
     def test_legacy_local_settlement_launcher_needs_git_but_no_python_or_registry(self):
         def git(*args):
             return subprocess.run(["git", "-C", str(self.project), *args], check=True,

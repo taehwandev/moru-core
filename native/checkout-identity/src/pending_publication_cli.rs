@@ -4,6 +4,7 @@
 
 use crate::{
     completion_process::pending_publication_settlement::LocalSettlement,
+    pending_publication_partition::PendingPublicationPartition,
     pending_publication_receipt::PendingPublicationReceipt,
     pending_publication_status::PendingPublicationStatus, pretool_guard::CallbackGuard,
     python_encoding::PythonEncoding,
@@ -195,8 +196,19 @@ impl PendingPublicationCli {
             .flatten()
             .filter_map(|item| item.get("checkpoint")?.as_str())
             .collect();
-        if possible.iter().any(|name| !rows.contains(name.as_str())) {
-            return None;
+        let mut unrecorded = possible
+            .iter()
+            .filter(|name| !rows.contains(name.as_str()))
+            .peekable();
+        if unrecorded.peek().is_some() {
+            let (git_write, external_write) = Self::effect_ceiling(&evidence)?;
+            // Assume every route and binding requirement succeeds. The ceiling
+            // can rule a name out, but can never authorize adding a name.
+            if unrecorded.any(|name| {
+                PendingPublicationPartition::can_defer(name, true, true, git_write, external_write)
+            }) {
+                return None;
+            }
         }
 
         // Admitting any subset of already recorded names cannot change the
@@ -207,6 +219,23 @@ impl PendingPublicationCli {
         } else {
             PendingPublicationStatus::reason(&owed)
         })
+    }
+
+    fn effect_ceiling(evidence: &Path) -> Option<(bool, bool)> {
+        let bytes = PendingPublicationReceipt::read(evidence, 4 * 1024 * 1024)?.ok()?;
+        let preflight: Value = serde_json::from_slice(&bytes).ok()?;
+        let effect = preflight
+            .get("route")?
+            .get("request_classification")?
+            .get("intent_envelope")?
+            .get("effective_effect")?
+            .as_str()?;
+        match effect {
+            "read" | "local_write" => Some((false, false)),
+            "git_write" => Some((true, false)),
+            "external_write" | "destructive" => Some((true, true)),
+            _ => None,
+        }
     }
 
     fn possible_checkpoints(packet: &Path) -> Option<Vec<String>> {

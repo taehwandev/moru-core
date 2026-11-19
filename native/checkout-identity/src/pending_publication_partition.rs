@@ -23,16 +23,30 @@ impl PendingPublicationPartition {
                 else {
                     return false;
                 };
-                match name.split('/').next().unwrap_or("") {
-                    "publication.commit" => git_write && (commit_route || local_delivery),
-                    "publication.integrate" => git_write && local_delivery,
-                    "publication.push" | "publication.pull-request" => {
-                        external_write && commit_route
-                    }
-                    _ => false,
-                }
+                Self::can_defer(
+                    name,
+                    commit_route,
+                    local_delivery,
+                    git_write,
+                    external_write,
+                )
             })
             .collect();
         Some(json!({"deferred": deferred}))
+    }
+
+    pub(crate) fn can_defer(
+        name: &str,
+        commit_route: bool,
+        local_delivery: bool,
+        git_write: bool,
+        external_write: bool,
+    ) -> bool {
+        match name.split('/').next().unwrap_or("") {
+            "publication.commit" => git_write && (commit_route || local_delivery),
+            "publication.integrate" => git_write && local_delivery,
+            "publication.push" | "publication.pull-request" => external_write && commit_route,
+            _ => false,
+        }
     }
 }
