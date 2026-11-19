@@ -112,7 +112,7 @@ impl PendingPublicationReceipt {
                 })
     }
 
-    fn checkpoint(name: &str) -> bool {
+    pub(super) fn checkpoint(name: &str) -> bool {
         if matches!(name, "publication.commit" | "publication.push") {
             return true;
         }
@@ -127,7 +127,7 @@ impl PendingPublicationReceipt {
                 .all(|byte| byte.is_ascii_alphanumeric() || b"._/-".contains(&byte))
     }
 
-    fn lossless(value: &Value) -> bool {
+    pub(super) fn lossless(value: &Value) -> bool {
         match value {
             Value::Number(value) => !value.is_f64(),
             Value::Array(items) => items.iter().all(Self::lossless),

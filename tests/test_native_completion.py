@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
-from agent_pending_publication import _git, _load, _load_python, _observe
+from agent_pending_publication import _git, _load, _load_python, _new_record, _observe, _observed_record
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 
@@ -61,6 +61,56 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
             with patch.dict(os.environ, self.env, clear=True), self.assertRaises(ValueError):
                 _capture_identities(bad, tree)
+
+    def test_pending_publication_transitions_preserve_receipt_order_and_metadata(self):
+        fields = {"run_id": "test-run", "evidence_sha256": "1" * 64, "base_head": "2" * 40,
+                  "source_branch": "reviewed"}
+        checkpoints = ["publication.integrate/main", "publication.commit", "publication.integrate/main",
+                       "publication.push"]
+        local = {"targets": {"main": "2" * 40}, "extension": [None, True, 2**63]}
+        baseline = {**self.env, "MORU_LAUNCHER_BACKEND": "python"}
+        observed_at = "2026-05-28T00:00:00+00:00"
+        oid = "3" * 40
+        for proof in (None, local):
+            with patch.dict(os.environ, baseline, clear=True):
+                record = _new_record(fields, checkpoints, proof)
+            result = self.check("pending-publication-prepare", {
+                **fields, "checkpoints": checkpoints, "local_delivery": proof,
+            })
+            self.assertEqual({"record": record}, result)
+            with patch.dict(os.environ, self.env, clear=True):
+                self.assertEqual(record, _new_record(fields, checkpoints, proof))
+            self.assertEqual(list(dict.fromkeys(checkpoints)), [item["checkpoint"] for item in record["items"]])
+
+            record["extension"] = [None, {"漢字": "🎉"}]
+            commit = record["items"][1]
+            record["items"].insert(0, {**commit, "state": "observed", "observation": "prior"})
+            record["items"].append({**commit, "historical": True})
+            for checkpoint, observation in (("publication.commit", f"committed as {oid}"),
+                                            ("publication.push", f"pushed {oid}"),
+                                            ("publication.integrate/main", f"integrated {oid} ")):
+                with self.subTest(version=record["schema_version"], checkpoint=checkpoint):
+                    reference = json.loads(json.dumps(record))
+                    item = next(i for i in reference["items"]
+                                if i["checkpoint"] == checkpoint and i["state"] == "pending")
+                    with patch.dict(os.environ, baseline, clear=True):
+                        expected = _observed_record(reference, item, observation, observed_at)
+                    result = self.check("pending-publication-observe", {
+                        "record": record, "checkpoint": checkpoint, "observation": observation,
+                        "observed_at": observed_at,
+                    })
+                    self.assertEqual({"record": expected}, result)
+                    original = json.loads(json.dumps(record))
+                    item = next(i for i in record["items"]
+                                if i["checkpoint"] == checkpoint and i["state"] == "pending")
+                    with patch.dict(os.environ, self.env, clear=True):
+                        self.assertEqual(expected, _observed_record(record, item, observation, observed_at))
+                    self.assertEqual(original, record)
+                    if proof is None:
+                        self.assertNotIn("local_delivery", expected)
+                    else:
+                        cache = oid if checkpoint == "publication.commit" else None
+                        self.assertEqual(cache, expected["local_delivery"].get("reviewed_commit"))
 
     def test_pending_publication_reads_verify_raw_evidence_and_keep_reference_fallback(self):
         run = self.base / "run-fixture"

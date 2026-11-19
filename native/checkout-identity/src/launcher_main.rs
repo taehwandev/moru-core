@@ -101,6 +101,7 @@ mod overhead_stats;
 mod overhead_text;
 mod overhead_timings;
 mod pending_publication_receipt;
+mod pending_publication_transition;
 mod pretool_files;
 mod pretool_guard;
 mod pretool_process;

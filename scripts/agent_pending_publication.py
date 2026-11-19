@@ -156,6 +156,28 @@ def _git(project: Path, *arguments: str) -> str | None:
 _LOCAL_DELIVERY_GIT = _git
 
 
+def _native_record(operation: str, payload: dict) -> dict | None:
+    result = NativeProbe.request("--completion-probe", operation, payload)
+    if result is not None and set(result) == {"record"} and isinstance(result["record"], dict):
+        return result["record"]
+    return None
+
+
+def _new_record(fields: dict, wanted: list, local_proof: dict | None) -> dict:
+    native = _native_record("pending-publication-prepare", {
+        **fields, "checkpoints": wanted, "local_delivery": local_proof,
+    })
+    if native is not None:
+        return native
+    record = {
+        "schema_version": 1, **fields,
+        "items": [{"checkpoint": c, "state": "pending", "observation": ""} for c in dict.fromkeys(wanted)],
+    }
+    if local_proof is not None:
+        record.update(schema_version=2, local_delivery=local_proof)
+    return record
+
+
 def record_pending(project: Path, evidence: Path, deferred: list) -> str:
     """Persist deferred items beside the run. Returns "" or why it could not be stored.
 
@@ -190,16 +212,12 @@ def record_pending(project: Path, evidence: Path, deferred: list) -> str:
                     project, head, branch, deferred, _git, native=_git is _LOCAL_DELIVERY_GIT)
             except ValueError as error:
                 return f'local delivery preparation refused: {error}'
-        record = {
-            "schema_version": 1,
+        record = _new_record({
             "run_id": evidence.parent.name,
             "evidence_sha256": _sha(evidence),
             "base_head": head,
             "source_branch": branch,
-            "items": [{"checkpoint": c, "state": "pending", "observation": ""} for c in dict.fromkeys(wanted)],
-        }
-        if local_proof is not None:
-            record.update(schema_version=2, local_delivery=local_proof)
+        }, wanted, local_proof)
         atomic_write_json(_path(evidence), record)
     except (OSError, ValueError) as error:
         return f"pending-publication record could not be written ({type(error).__name__})"
@@ -332,6 +350,21 @@ def _observe(project: Path, record: dict, item: dict, observation_path: Path | N
     return observe_pull_request(project, head, item["checkpoint"].partition("/")[2], _git, observation_path)
 
 
+def _observed_record(record: dict, item: dict, observation: str, observed_at: str) -> dict:
+    checkpoint = item["checkpoint"]
+    native = _native_record("pending-publication-observe", {
+        "record": record, "checkpoint": checkpoint, "observation": observation, "observed_at": observed_at,
+    })
+    if native is not None:
+        return native
+    item.update(state="observed", observation=observation, observed_at=observed_at)
+    if record.get("schema_version") == 2 and kind(checkpoint) in ("publication.commit", LocalDeliveryProof.INTEGRATION):
+        candidate = observation.rsplit(" ", 1)[-1]
+        if re.fullmatch(r"[0-9a-f]{40,64}", candidate):
+            record["local_delivery"]["reviewed_commit"] = candidate
+    return record
+
+
 def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Path | None = None) -> str:
     """Mark one item observed only when Git shows it. Returns "" or the refusal."""
     record, problem = _load(evidence)
@@ -348,12 +381,7 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
             observation, refusal = _observe(project, record, item, observation_path)
             if refusal:
                 return refusal
-            item.update(state="observed", observation=observation,
-                        observed_at=datetime.now(timezone.utc).isoformat())
-            if record.get('schema_version') == 2 and kind(checkpoint) in ('publication.commit', LocalDeliveryProof.INTEGRATION):
-                candidate = observation.rsplit(' ', 1)[-1]
-                if re.fullmatch(r'[0-9a-f]{40,64}', candidate):
-                    record['local_delivery']['reviewed_commit'] = candidate
+            record = _observed_record(record, item, observation, datetime.now(timezone.utc).isoformat())
             try:
                 atomic_write_json(_path(evidence), record)
             except (OSError, ValueError) as error:
