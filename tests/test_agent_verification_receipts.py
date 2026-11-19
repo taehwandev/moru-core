@@ -7,6 +7,7 @@ import io
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -92,6 +93,69 @@ class ExecutionReceiptTests(unittest.TestCase):
         self.assertFalse(result['ok'])
         self.assertEqual('missing_required_selector', result['reason'])
 
+    def test_receipt_and_output_report_passed_and_skip_events_without_skip_only_pass(self):
+        f = self.fixture()
+        sample = f.project / 'tests' / 'test_sample.py'
+        skip_reason = 'do-not-record-this-skip-reason'
+        sample.write_text(sample.read_text().replace('"fixture"', repr(skip_reason)))
+        self.assertEqual(0, f.run(['test_sample']))
+        self.assertIn('exit=0; tests=2; passed=1; skip_events=1;', f.output.getvalue())
+        execution = f.execution()
+        self.assertEqual(2, execution['tests_run'])
+        self.assertEqual(1, execution['passed_count'])
+        self.assertEqual(1, execution['skip_events'])
+        self.assertNotIn(skip_reason, json.dumps(execution))
+        self.assertNotIn('test_skip', json.dumps(execution))
+        self.assertEqual(1, f.run(['test_sample.Case.test_skip']))
+        self.assertEqual('FAIL', f.ledger()['entries'][-1]['status'])
+        self.assertIn('exit=0; tests=1; passed=0; skip_events=1;', f.output.getvalue())
+        skip_only = f.execution()
+        self.assertFalse(skip_only['successful'])
+        self.assertEqual(0, skip_only['passed_count'])
+        self.assertEqual(1, skip_only['skip_events'])
+
+    def test_fixture_and_subtest_skip_events_can_exceed_started_methods(self):
+        f = self.fixture()
+        (f.project / 'tests' / 'test_sample.py').write_text(
+            "import unittest\n"
+            "class FixtureSkip(unittest.TestCase):\n"
+            "    @classmethod\n"
+            "    def setUpClass(cls):\n"
+            "        raise unittest.SkipTest('setup')\n"
+            "    def test_never_started(self):\n"
+            "        self.fail()\n"
+            "class Case(unittest.TestCase):\n"
+            "    def test_pass(self):\n"
+            "        pass\n"
+            "    def test_subtests(self):\n"
+            "        for value in range(3):\n"
+            "            with self.subTest(value=value):\n"
+            "                self.skipTest('subtest')\n"
+        )
+        self.assertEqual(0, f.run(['test_sample']))
+        self.assertIn('tests=2; passed=1; skip_events=4;', f.output.getvalue())
+        self.assertEqual(4, f.execution()['skip_events'])
+
+    def test_execute_unittest_ignores_missing_or_malformed_optional_counts(self):
+        with tempfile.TemporaryDirectory() as root:
+            project = Path(root)
+            for payload in (
+                {'tests_run': 1, 'successful': True},
+                {'tests_run': 1, 'successful': True, 'passed_count': True, 'skip_events': -1},
+                {'tests_run': 1, 'successful': True, 'passed_count': 2, 'skip_events': '1'},
+            ):
+                script = (
+                    "import json, sys; "
+                    f"open(sys.argv[1], 'w').write({json.dumps(json.dumps(payload))})"
+                )
+                observed = {}
+                with contextlib.redirect_stdout(io.StringIO()):
+                    result = verify.execute_unittest(
+                        [sys.executable, '-c', script], project, 5, observed=observed)
+                self.assertEqual((0, 1, True), result)
+                self.assertNotIn('passed_count', observed)
+                self.assertNotIn('skip_events', observed)
+
     def test_unexecuted_method_is_not_proven_by_discovery(self):
         f = self.fixture()
         self.assertEqual(0, f.run())
@@ -116,6 +180,8 @@ class ExecutionReceiptTests(unittest.TestCase):
         result = ExecutionReceipts(f.project).inspect(f.path, selectors=['test_many', 'test_sample'])
         self.assertTrue(result['ok'], result)
         self.assertEqual(1052, result['tests_run'])
+        self.assertEqual(1051, f.execution()['passed_count'])
+        self.assertEqual(1, f.execution()['skip_events'])
         self.assertEqual(1024, len(result['passed_ids']))
         self.assertFalse(f.execution()['ids_complete'])
         self.assertEqual(['test_many', 'test_sample'], result['passed_selectors'])

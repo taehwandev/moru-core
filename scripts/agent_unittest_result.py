@@ -15,6 +15,7 @@ class _ProofResult(unittest.TextTestResult):
         super().__init__(*args, **kwargs)
         self.current_test = None
         self.skipped_methods = 0
+        self.passed_count = 0
         self.passed_ids = []
         self.failed_ids = []
         self.recorded_id_bytes = 0
@@ -35,6 +36,7 @@ class _ProofResult(unittest.TextTestResult):
 
     def addSuccess(self, test):
         super().addSuccess(test)
+        self.passed_count += 1
         self._record_id(self.passed_ids, test)
 
     def addFailure(self, test, err):
@@ -100,6 +102,8 @@ def main() -> int:
     Path(receipt).write_text(
         json.dumps({"tests_run": result.testsRun,
                     "successful": result.wasSuccessful() and executed > 0,
+                    "passed_count": result.passed_count,
+                    "skip_events": len(result.skipped),
                     "passed_ids": result.passed_ids, "failed_ids": result.failed_ids,
                     "passed_selectors": sorted(result.passed_selectors),
                     "failed_selectors": sorted(result.failed_selectors),

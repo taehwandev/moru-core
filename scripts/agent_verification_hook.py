@@ -82,10 +82,15 @@ def _verify_selection(args, path, preflight, command):
     after = _snapshot(preflight, candidate)
     stable = before["reuse_snapshot"] == after["reuse_snapshot"]
     success = code == 0 and passed and count > 0 and stable
-    result = (f"exit={code}; tests={count}; elapsed={monotonic() - started:.3f}s; "
+    counts = "".join(
+        f"; {label}={observed[key]}"
+        for label, key in (("passed", "passed_count"), ("skip_events", "skip_events"))
+        if key in observed
+    )
+    result = (f"exit={code}; tests={count}{counts}; elapsed={monotonic() - started:.3f}s; "
               f"inputs_unchanged={stable}")
     after["fields"]["result"] = result
-    after["fields"]["execution"] = json.dumps({
+    execution = {
         **binding,
         "exit_code": code, "tests_run": count, "successful": passed,
         "inputs_unchanged": stable,
@@ -94,7 +99,11 @@ def _verify_selection(args, path, preflight, command):
         "passed_selectors": observed.get("passed_selectors", []),
         "failed_selectors": observed.get("failed_selectors", []),
         "ids_complete": observed.get("ids_complete", False),
-    }, ensure_ascii=False, separators=(",", ":"))
+    }
+    for key in ("passed_count", "skip_events"):
+        if key in observed:
+            execution[key] = observed[key]
+    after["fields"]["execution"] = json.dumps(execution, ensure_ascii=False, separators=(",", ":"))
     after["status"] = "SUCCESS" if success else "FAIL"
     if not success:
         after.pop("reuse_snapshot", None)
@@ -227,6 +236,12 @@ def execute_unittest(command: list[str], project: Path, timeout: float,
                     labels = result.get(key, [])
                     observed[key] = labels if (isinstance(labels, list) and len(labels) <= 64
                         and all(isinstance(label, str) and label in allowed for label in labels)) else []
+                for key in ('passed_count', 'skip_events'):
+                    value = result.get(key)
+                    if type(value) is int and value >= 0 and (key != 'passed_count' or value <= count):
+                        observed[key] = value
+                    else:
+                        observed.pop(key, None)
         except (OSError, ValueError, KeyError, TypeError):
             count, passed = 0, False
         return code, count, passed
