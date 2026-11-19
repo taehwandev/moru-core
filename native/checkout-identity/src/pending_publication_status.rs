@@ -23,7 +23,7 @@ impl PendingPublicationStatus {
         Some(json!({"owed": owed, "reason": reason}))
     }
 
-    fn outstanding(receipt: &Value, declared: &[&str]) -> Option<Vec<String>> {
+    pub(super) fn outstanding(receipt: &Value, declared: &[&str]) -> Option<Vec<String>> {
         let record = receipt.get("record")?;
         let mut owed = Vec::new();
         if record.is_null() {
@@ -51,7 +51,7 @@ impl PendingPublicationStatus {
         Some(owed)
     }
 
-    fn reason(owed: &[String]) -> String {
+    pub(super) fn reason(owed: &[String]) -> String {
         if owed.is_empty() {
             return String::new();
         }

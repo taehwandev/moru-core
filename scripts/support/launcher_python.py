@@ -32,6 +32,7 @@ SCRIPT_ALIASES = {
     "figma-validate": "figma-handoff/figma_validate.py",
     "behavior-eval": "agent_behavior_eval.py",
     "overhead-report": "moru_overhead_report.py",
+    "pending-publication": "agent_pending_publication.py",
     "runs-prune": "runs-prune.py",
     "loop": "agent_loop.py",
     "workflow-dispatch": "workflow_dispatch.py",

@@ -102,6 +102,7 @@ mod overhead_stats;
 mod overhead_text;
 mod overhead_timings;
 mod pending_publication_partition;
+mod pending_publication_cli;
 mod pending_publication_receipt;
 mod pending_publication_status;
 mod pending_publication_transition;
@@ -250,6 +251,9 @@ fn main() {
     }
     if args.first().is_some_and(|a| a == "behavior-eval") {
         finish(behavior_eval_process::BehaviorEvalProcess::run(&launcher, &args));
+    }
+    if args.first().is_some_and(|a| a == "pending-publication") {
+        exit(pending_publication_cli::PendingPublicationCli::run(&launcher, &args));
     }
     if args.first().is_some_and(|a| a == "overhead-report") {
         finish(overhead_command::OverheadCommand::run(&launcher, &args));

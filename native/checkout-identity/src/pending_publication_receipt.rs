@@ -70,7 +70,7 @@ impl PendingPublicationReceipt {
         Some(json!({"record": record, "problem": ""}))
     }
 
-    fn read(path: &Path, limit: u64) -> Option<Result<Vec<u8>, ErrorKind>> {
+    pub(super) fn read(path: &Path, limit: u64) -> Option<Result<Vec<u8>, ErrorKind>> {
         LocalState::safe_path(Path::new("/"), path)?;
         let file = match OpenOptions::new()
             .read(true)

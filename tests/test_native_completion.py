@@ -8,16 +8,18 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from agent_continuation_checkpoint import write_continuation_checkpoint
 from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from agent_pending_publication import (
     _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record,
-    outstanding, pending_reason, split_remaining,
+    outstanding, pending_reason, record_pending, split_remaining,
 )
 from agent_publication_status import _observe_pull_request_python, observe_pull_request, observe_upstream
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 from support.native_probe_transport import NativeProbe
+from test_agent_run_interruption import Run
 
 
 def contract(revision=1, **overrides):
@@ -167,6 +169,51 @@ class NativeCompletionTests(unittest.TestCase):
                     else:
                         cache = oid if checkpoint == "publication.commit" else None
                         self.assertEqual(cache, expected["local_delivery"].get("reviewed_commit"))
+
+    def test_pending_publication_launcher_uses_native_status_without_losing_bound_debt(self):
+        folder = self.base / "bound"
+        folder.mkdir()
+        with patch.dict(os.environ, self.env, clear=True):
+            run = Run(str(folder), packet=True, writable=True, command="commit",
+                      effect="git_write", authority="envelope")
+        status = [str(self.entry), "pending-publication", "status",
+                  "--evidence", str(run.evidence), "--project", str(run.project)]
+
+        def invoke(backend="auto", empty=False, args=status):
+            env = {**self.env, "MORU_LAUNCHER_BACKEND": backend}
+            if empty:
+                env["PATH"] = str(self.empty)
+            done = subprocess.run(args, cwd=run.project, env=env, capture_output=True, timeout=15)
+            return done.returncode, done.stdout, done.stderr
+
+        self.assertEqual((0, b"no pending publication\n", b""), invoke(empty=True))
+        items = [{"checkpoint": "publication.commit", "action": "Commit the reviewed files"}]
+        with patch.dict(os.environ, self.env, clear=True):
+            write_continuation_checkpoint(
+                project=run.project, rules=run.project, run_id=run.run["run_id"], kind="initial",
+                phase="acting", binding_path=run.evidence,
+                work={"objective": "Finish the reviewed local commit", "remaining_work": items},
+            )
+        owed = invoke("python")
+        self.assertEqual(0, owed[0])
+        self.assertIn(b"(publication.commit)", owed[1])
+        self.assertEqual(owed, invoke())
+        self.assertEqual(127, invoke(empty=True)[0])
+
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual("", record_pending(run.project, run.evidence, items))
+        self.assertEqual(owed, invoke(empty=True))
+        trailing_slash = [value + "/" if value == str(run.evidence) else value for value in status]
+        self.assertEqual(owed, invoke(empty=True, args=trailing_slash))
+        receipt = run.evidence.with_name("pending-publication.json")
+        record = json.loads(receipt.read_text())
+        record["items"][0]["state"] = "observed"
+        receipt.write_text(json.dumps(record))
+        self.assertEqual((0, b"no pending publication\n", b""), invoke(empty=True))
+        self.assertEqual(invoke("python"), invoke(empty=True))
+        run.evidence.with_name("continuation.json").write_text("{")
+        self.assertEqual(invoke("python"), invoke())
+        self.assertEqual(127, invoke(empty=True)[0])
 
     def test_pending_publication_partition_preserves_admitted_effect_and_original_items(self):
         opaque = object()
