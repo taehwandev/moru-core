@@ -72,7 +72,8 @@
       55,
       56,
       57,
-      58
+      58,
+      63
     ],
     "external_boundary": [
       53
@@ -734,7 +735,7 @@
       "inventory_id": 57,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Public offline CLI with a source-bound Rust grader and private offline-eval --behavior-eval",
+      "entry_aliases": "moru-hook behavior-eval, direct Python CLI with source-bound native selection, and private offline-eval --behavior-eval",
       "remaining": "Retire Python launcher and library grading after covering help and remaining argparse profiles, filesystem errors, special input streams and descriptor aliases, unrecognized JSON syntax and digit-error templates, finite-float repr, mismatched Unicode representation profiles, and unsupported surrogate/depth parsing profiles. Complete both-host and installed acceptance. Keep the Rust grader read-only, without provider calls or additional subprocesses.",
       "verification": {
         "offline_eval": "PASS:18 Python evaluator, trace-ingress and inventory tests with native probes enabled; 1 focused Rust scorer test. Private launcher matches Python output bytes and exit status on ordinary UTF-8 inputs, including combined grading failures, non-BMP text, intermediate and leaf symlinks, FIFO, 65536-byte bound, malformed input and provider errors. Empty PATH works. Local macOS debug conformance only.",
@@ -747,7 +748,8 @@
         "syntax_errors": "PASS:19 Python and 15 Rust tests on a source-bound macOS debug fixture. The same Rust executable exactly matched UTF-16 stderr and exit 2 for 11 public syntax failures each on CPython 3.9 and 3.14 with no rereads. Nested array/object comma errors, multibyte prefixes, line breaks, BOM, invalid escapes and error precedence are covered. Unrecognized parser profiles and digit-conversion errors retain Python compatibility.",
         "file_ingress": "PASS: public macOS debug CLI matches Python stderr and exit 2 on missing paths, dangling links, directories, trailing-slash errors and symlink loops without rereads. Figma and evaluator share bounded regular-file admission and preserve original filenames. Native FIFO and descriptor-alias probes decline before consuming input or advancing file offset. Unmodeled read errors, streams and artifact-root diagnostics retain Python compatibility.",
         "digit_limit_errors": "PASS:19 Python tests on macOS and 15 Rust parser tests each with CPython 3.9 and 3.14 builders. Public caller limits 640 and 4300 report identical digit errors and exit 2 without Python rereads, even with a signed oversized integer in an overwritten key. The caller probes only bounded synthetic inputs. Unrecognized templates and limits above the 10000-digit probe bound retain reference diagnostics.",
-        "public_argv": "PASS:19 Python and 12 focused Rust tests on a source-bound macOS debug fixture. Ordinary script calls pass raw argv to Rust before Python argparse. Unique abbreviations, inline and separated values, repeated scalar and provider options, nargs+, and lexical root normalization match the Python oracle without a Python parse. Help, malformed argv and attempted private flags retain the Python result."
+        "public_argv": "PASS:19 Python and 12 focused Rust tests on a source-bound macOS debug fixture. Ordinary script calls pass raw argv to Rust before Python argparse. Unique abbreviations, inline and separated values, repeated scalar and provider options, nargs+, and lexical root normalization match the Python oracle without a Python parse. Help, malformed argv and attempted private flags retain the Python result.",
+        "launcher_alias": "PASS: temporary macOS debug stable launcher runs behavior-eval with an empty PATH and byte-identical exit 0 and 1 reports. Help, integers beyond the native route's conservative 640-digit bound, and customized stream encoding use one Python process without native retry. No real installation, Linux or release evidence."
       }
     },
     {
@@ -802,6 +804,15 @@
         "portable": "PENDING supported two-host release/consumer acceptance;7 local transported debug cases are source/test evidence only.",
         "installed": "PENDING actual user runtime activation; four selected runtime/config hashes unchanged. No provider, push, release/profile build, archive or hosted dispatch."
       }
+    },
+    {
+      "id": "scripts/agent_review_packet.py",
+      "inventory_id": 63,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct source-only review packet CLI",
+      "remaining": "Port bounded source snapshots and packet rendering. Preserve fixed read-only Git queries, disclosure exclusions, lack of execution or verification authority, and exclusive local output creation.",
+      "verification": {}
     }
   ],
   "unmigrated_python_sources": [

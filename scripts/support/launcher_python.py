@@ -30,6 +30,7 @@ SCRIPT_ALIASES = {
     "check-android-skill-manifest": "check_android_external_skill_manifest.py",
     "check-react-rn-skill-manifest": "check_react_rn_external_skill_manifest.py",
     "figma-validate": "figma-handoff/figma_validate.py",
+    "behavior-eval": "agent_behavior_eval.py",
     "overhead-report": "moru_overhead_report.py",
     "runs-prune": "runs-prune.py",
     "loop": "agent_loop.py",
@@ -112,9 +113,9 @@ def main():
         )
 
     os.environ.setdefault("MORU_HOME", str(root))
-    return _run_in_process(script, passthrough_args)
+    return _run_in_process(script, passthrough_args, explicit_main=script_alias == "behavior-eval")
 
-def _run_in_process(script, passthrough_args):
+def _run_in_process(script, passthrough_args, explicit_main=False):
     # Every gated tool call, every prompt and every Stop pays for this launcher,
     # and spawning a second interpreter to reach the script cost 24 ms of the
     # 72 ms a PreToolUse gate took -- a third of it, before any policy ran. The
@@ -136,8 +137,13 @@ def _run_in_process(script, passthrough_args):
     # KeyboardInterrupt is deliberately not caught: an interrupt belongs to the
     # operator, not to the hook.
     try:
-        runpy.run_path(str(script), run_name="__main__")
-        code = 0
+        if explicit_main:
+            # The native alias already tried dispatch. A direct library call
+            # also keeps the declared Python backend from initiating a retry.
+            code = runpy.run_path(str(script))["main"](passthrough_args)
+        else:
+            runpy.run_path(str(script), run_name="__main__")
+            code = 0
     except SystemExit as requested:
         code = requested.code
         if code is None:

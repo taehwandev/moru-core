@@ -10,9 +10,9 @@ type: ai-generated
 
 On 2026-11-06 the user explicitly requested a Goal covering all remaining
 migration work. The [execution inventory](../native-runtime-migration.md)
-currently contains 62 units: 31 primary entry boundaries and 31 ancillary CLIs.
-An exact current main-guard check found six owners absent from the 56-row
-snapshot; they are appended as 57–62 without changing existing IDs or excluding
+currently contains 63 units: 31 primary entry boundaries and 32 ancillary CLIs.
+Exact main-guard checks found owners absent from the 56-row
+snapshot; they are appended as 57–63 without changing existing IDs or excluding
 their already-owned Python responsibilities.
 The [machine-readable ledger](migration-ledger.json) accounts for every unit
 and every Python source under the owned runtime/build roots. Its initial
@@ -67,7 +67,7 @@ the Wikimap search path still requires the upstream Python interpreter.
 | Frequent callbacks | 12 | Pretool, prompt/mailbox, Stop, continuation, renderer and ingress paths |
 | State and observability | 9 | Mailboxes, cards, memory, snapshots and recovery |
 | Lifecycle and dispatch | 14 | Admission, hooks, finish, loops, routing, discovery and setup |
-| Owned tooling | 26 | Remaining direct CLIs and their owned supporting code |
+| Owned tooling | 27 | Remaining direct CLIs and their owned supporting code |
 | External boundary | 1 | Wikimap ownership and native replacement/adapter decision |
 
 These waves partition the current inventory and order investigation; they do

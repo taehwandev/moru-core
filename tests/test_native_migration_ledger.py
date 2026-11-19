@@ -18,11 +18,11 @@ class NativeMigrationLedgerTests(unittest.TestCase):
             if len(cells) == 5 and cells[0].isdigit():
                 expected[int(cells[0])] = cells[1].strip("`")
         units = self.ledger["units"]
-        self.assertEqual(62, len(expected))
+        self.assertEqual(63, len(expected))
         self.assertEqual(expected, {row["inventory_id"]: row["id"] for row in units})
         self.assertEqual(len(units), len({row["id"] for row in units}))
         self.assertEqual(31, sum(row["kind"] == "primary" for row in units))
-        self.assertEqual(31, sum(row["kind"] == "ancillary" for row in units))
+        self.assertEqual(32, sum(row["kind"] == "ancillary" for row in units))
         self.assertEqual(sorted(expected), sorted(n for wave in self.ledger["waves"].values() for n in wave))
 
     def test_all_current_python_responsibilities_are_accounted_for_once(self):

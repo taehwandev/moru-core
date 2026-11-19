@@ -11,6 +11,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -545,6 +546,72 @@ finally:
                 self.assertIn(repr(spelling), diagnostic)
                 self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
                                  (2, b"", reference.stderr))
+
+
+    @unittest.skipUnless(os.environ.get("MORU_TEST_BEHAVIOR_EVAL_NATIVE") == "1",
+                         "requires source-bound native debug fixture")
+    def test_stable_launcher_behavior_alias_can_run_without_python(self) -> None:
+        from native_pretool_support import environment, prepare
+
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory).resolve()
+            launcher, project = prepare(base)
+            empty = base / "empty-path"
+            empty.mkdir()
+            cases, traces = base / "cases.json", base / "traces.json"
+            cases.write_text(json.dumps(_single_case_doc(req=["prompt_submitted"])),
+                             encoding="utf-8")
+            traces.write_text(json.dumps({"schema_version": 1, "runs": [
+                {"provider": "agy", "case_id": "c1", "events": _ev("prompt_submitted")}
+            ]}), encoding="utf-8")
+            args = ["--cas", str(cases), "--traces", str(traces),
+                    "--artifact-root", str(self.root), "--providers", "agy"]
+
+            def run(argv, **overrides):
+                return subprocess.run([str(launcher), "behavior-eval", *argv], cwd=project,
+                                      env={**environment(base), **overrides},
+                                      capture_output=True, timeout=10)
+
+            def compare_native(expected):
+                reference = run(args, MORU_LAUNCHER_BACKEND="python")
+                actual = run(args, PATH=str(empty))
+                self.assertEqual(reference.returncode, expected)
+                self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                 (expected, reference.stdout, reference.stderr))
+
+            compare_native(0)
+            traces.write_text(json.dumps({"schema_version": 1, "runs": [
+                {"provider": "agy", "case_id": "c1", "events": _ev()}
+            ]}), encoding="utf-8")
+            compare_native(1)
+
+            # Make any repeated child launch from the fallback a visible failure.
+            observer = base / "observe-python.py"
+            observed = base / "observed"
+            observer.write_text(
+                "import os, runpy, sys\n"
+                "with open(os.environ['BEHAVIOR_OBSERVED'], 'a') as log: log.write('1\\n')\n"
+                "def audit(event, args):\n"
+                "    if event == 'subprocess.Popen': raise AssertionError('unexpected native retry')\n"
+                "sys.addaudithook(audit)\n"
+                "sys.argv = sys.argv[1:]\n"
+                "runpy.run_path(sys.argv[0], run_name='__main__')\n",
+                encoding="utf-8")
+            shim = base / "python3"
+            shim.write_text(f"#!/bin/sh\nexec {shlex.quote(sys.executable)} -B "
+                            f"{shlex.quote(str(observer))} \"$@\"\n", encoding="utf-8")
+            shim.chmod(0o700)
+            cases.write_text(json.dumps(_single_case_doc(max_prompts=10**650)),
+                             encoding="utf-8")
+            for argv, env in [(["--help"], {}), (args, {}),
+                              (args, {"PYTHONIOENCODING": "utf-16-le"})]:
+                with self.subTest(argv=argv, env=env):
+                    reference = run(argv, MORU_LAUNCHER_BACKEND="python", **env)
+                    actual = run(argv, PATH=str(base), BEHAVIOR_OBSERVED=str(observed), **env)
+                    self.assertEqual(reference.returncode, 0)
+                    self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                     (0, reference.stdout, reference.stderr))
+            self.assertEqual(observed.read_text(encoding="utf-8"), "1\n" * 3)
 
 
 if __name__ == "__main__":
