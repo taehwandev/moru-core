@@ -257,6 +257,11 @@ its established scope and does not become observed execution automatically.
 The runner records a local execution ID, actual argument vector, outcome,
 input snapshot and bounded successful/failed test IDs. It prints the run and
 execution references for a consumer to link without copying counts from logs.
+Verification reports actual passing test methods separately from skip events.
+A skip event can refer to a test, subtest or setup fixture, so neither count
+is inferred from the number of methods started. Older records may have no
+separate counts. If a scenario must execute, require its exact test method;
+a module pass does not prove a skipped method ran.
 An observed attempt records its test scope before starting. A completed
 unrelated attempt preserves an earlier receipt. An interrupted or timed-out
 retry invalidates earlier coverage for the tests it attempted in that
