@@ -29,13 +29,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from support.native_doc_transcript import NativeDocTranscript
+
 READ_TOOLS = {"read_file", "view_file"}
 
 
 def read_in_context(transcript: Path, rules: Path, texts: dict[str, str]) -> set[str]:
     """Docs a whole-file read call named since the last compaction."""
+    if not texts:
+        return set()
+    native = NativeDocTranscript.agy_covered(transcript, rules, list(texts))
+    return native if native is not None else _read_in_context_python(transcript, rules, texts)
 
-    if not texts or not transcript.is_file():
+
+def _read_in_context_python(transcript: Path, rules: Path, texts: dict[str, str]) -> set[str]:
+    if not transcript.is_file():
         return set()
     from agent_required_doc_delivery import is_compaction
 

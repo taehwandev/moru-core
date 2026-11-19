@@ -235,7 +235,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 58 | `scripts/agent_behavior_trace.py` | Python argparse; source-bound private native export | Partial native | Fused bounded record IO, validation and normalization; direct library/alternate executable/raw profile and delivery closure remain |
 | 59 | `scripts/agent_pending_publication.py` | Direct CLI | Python retained | Pending-publication inspection/settlement, exact Git verification and effect boundaries |
 | 60 | `scripts/agent_review_acp.py` | Direct CLI | Python retained | Bounded local ACP review worker and child-process lifetime; no provider invocation authority implied |
-| 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI | Python retained | Required-doc delivery stdout/evidence contract; unit31 supporting overlap is not entry completion |
+| 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI and private native transcript probe | Partial native | Bounded whole-file read coverage and compaction; delivery stdout, evidence and marker handling remain with the hook |
 | 62 | `scripts/workflow_dispatch_guardian.py` | Private native guardian/gate; direct Python compatibility worker | Partial native | Gated exec, durable receipts, EOF/group cleanup and no replay; bootstrap/raw/direct/installed acceptance remain open |
 | 63 | `scripts/agent_review_packet.py` | Direct CLI | Python retained | Build source-only local review packets with bounded inputs, original disclosure checks and exclusive output creation |
 

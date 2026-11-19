@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 import agent_required_doc_delivery as reference
+import agy_required_docs_hook as agy
 import test_agent_required_doc_delivery as delivery_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
@@ -53,6 +54,40 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 self.assertEqual(expected,actual)
                 self.assertIs(type(expected),type(actual))
         self.assertEqual(before,self.path.read_bytes())
+
+    def test_agy_whole_file_coverage_preserves_compaction_and_modification_time(self):
+        docs = {"한글 guide.md": "test", "second.md": "test"}
+        for doc in docs:
+            path = self.base / doc
+            path.write_text("fixture")
+            os.utime(path, (1577836800, 1577836800))
+        alias = self.base / "alias.md"
+        alias.symlink_to(self.base / "second.md")
+
+        def read(path, stamp=None, tool="read_file", **extra):
+            return {"created_at": stamp, "tool_calls": [{"name": tool,
+                    "args": {"Path": json.dumps(str(path)), **extra}}]}
+
+        rows = [read(self.base / "한글 guide.md"),
+                {"type": "CHECKPOINT", "content": "# Resuming from a compaction"},
+                read(self.base / "한글 guide.md", "2999-01-01T00:00:00Z", StartLine=1),
+                read(self.base / "한글 guide.md", "2000-01-01T00:00:00Z"),
+                read(alias, "2021-01-01T01:00:00+01:00", tool="view_file")]
+        self.path.write_bytes(b'{invalid "tool_calls"}\r' + "\r".join(map(json.dumps, rows)).encode())
+        before = self.path.read_bytes()
+        expected = agy._read_in_context_python(self.path, self.base, docs)
+        self.assertEqual({"second.md"}, expected)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                agy, "_read_in_context_python", side_effect=AssertionError("Python fallback")):
+            self.assertEqual(expected, agy.read_in_context(self.path, self.base, docs))
+        self.assertEqual(before, self.path.read_bytes())
+
+        for stamp in ("2021-01-01T00:00:00", "2020-01-01T00:00:00Z"):
+            with self.subTest(stamp=stamp), patch.dict(os.environ, self.env, clear=True):
+                self.path.write_text(json.dumps(read(alias, stamp)))
+                self.assertIsNone(NativeDocTranscript.agy_covered(self.path, self.base, list(docs)))
+                self.assertEqual(agy._read_in_context_python(self.path, self.base, docs),
+                                 agy.read_in_context(self.path, self.base, docs))
 
     def test_three_runtime_boundaries_and_partial_rows(self):
         for row in ({"type":"compacted"}, {"type":"system","subtype":"compact_boundary"},

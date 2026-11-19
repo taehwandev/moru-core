@@ -13,7 +13,10 @@ pub(crate) struct DocTranscriptProcess;
 impl DocTranscriptProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || !matches!(args[1].to_str(), Some("compacted" | "aligned" | "due"))
+            || !matches!(
+                args[1].to_str(),
+                Some("compacted" | "aligned" | "due" | "agy-covered")
+            )
             || CallbackGuard::root(launcher, "doc-transcript-probe").is_none()
         {
             return 125;
@@ -47,6 +50,16 @@ impl DocTranscriptProcess {
                         object.get("limit")?.as_i64()?,
                     )
                     .map(|v| json!(v)),
+                    "agy-covered" if object.len() == 3 => {
+                        let rules = Path::new(object.get("rules")?.as_str()?);
+                        let docs = object
+                            .get("docs")?
+                            .as_array()?
+                            .iter()
+                            .map(Value::as_str)
+                            .collect::<Option<Vec<_>>>()?;
+                        DocTranscript::agy_covered(path, rules, &docs).map(|v| json!(v))
+                    }
                     _ => None,
                 }
             });

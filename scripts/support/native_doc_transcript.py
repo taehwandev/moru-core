@@ -17,6 +17,20 @@ def _integer(value):
 
 class NativeDocTranscript:
     @staticmethod
+    def agy_covered(path: Path, rules: Path, docs: list[str]) -> set[str] | None:
+        try:
+            result = NativeProbe.request("--doc-transcript-probe", "agy-covered",
+                                         {"path": str(path), "rules": str(rules), "docs": docs})
+        except (OSError, ValueError, RuntimeError):
+            return None
+        if type(result) is not dict or set(result) != {"value"}:
+            return None
+        value = result["value"]
+        if type(value) is not list or any(type(doc) is not str or doc not in docs for doc in value):
+            return None
+        return set(value)
+
+    @staticmethod
     def _query(operation, path, fields, expected):
         if type(path) is not type(Path()):
             return None

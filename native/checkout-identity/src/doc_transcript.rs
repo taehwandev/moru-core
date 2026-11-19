@@ -16,6 +16,9 @@ use std::{
 };
 
 pub(crate) struct DocTranscript;
+#[path = "doc_transcript_agy.rs"]
+mod agy;
+
 impl DocTranscript {
     pub(crate) fn compacted(path: &Path) -> Option<bool> {
         let (size, metadata) = Self::size(path);
