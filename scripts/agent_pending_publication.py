@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from agent_execution_capsule_state import atomic_write_json
-from agent_publication_status import observe_pull_request
+from agent_publication_status import observe_pull_request, observe_upstream
 from workflow_intent_envelope import EFFECT_RANK
 from agent_local_delivery import LocalDeliveryProof
 from support.native_probe_transport import NativeProbe
@@ -309,9 +309,7 @@ def _remote_head(project: Path, head: str) -> tuple[str, str]:
     if not (remote and merge and merge.startswith("refs/heads/")):
         return "", "the branch has no configured upstream to check"
     listed = _git(project, "ls-remote", "--exit-code", remote, merge)
-    if not listed or listed.split()[0] != head:
-        return "", "the upstream branch does not point at HEAD"
-    return f"{remote} {merge} is {head}", ""
+    return observe_upstream(listed, remote, merge, head)
 
 
 def _observe(project: Path, record: dict, item: dict, observation_path: Path | None = None) -> tuple[str, str]:

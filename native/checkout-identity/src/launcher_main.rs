@@ -109,6 +109,7 @@ mod pretool_process;
 mod pretool_query;
 mod pretool_scope;
 mod pretool_transcript;
+mod publication_evidence;
 mod python_encoding;
 mod python_float;
 mod python_input_file;

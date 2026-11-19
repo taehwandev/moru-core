@@ -13,6 +13,7 @@ from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from agent_pending_publication import (
     _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record,
 )
+from agent_publication_status import _observe_pull_request_python, observe_pull_request, observe_upstream
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 from support.native_probe_transport import NativeProbe
@@ -383,6 +384,49 @@ class NativeCompletionTests(unittest.TestCase):
             record["local_delivery"]["common"] = str(project / "foreign.git")
             self.assertEqual(("", "local delivery belongs to a different repository or checkout"),
                              _observe(project, record, {"checkpoint": args["checkpoint"]}))
+
+    def test_publication_evidence_matches_existing_provider_and_upstream_checks(self):
+        path = self.base / "provider-proof.json"
+        head, branch, target = "1" * 40, "feature", "main"
+        record = {"exists": True, "source_branch": branch, "source_commit": head, "target_branch": target,
+                  "state": "OPEN"}
+        payload = {"path": str(path), "branch": branch, "head": head, "target": target}
+
+        def compare():
+            expected = _observe_pull_request_python(path, branch, head, target)
+            self.assertEqual({"observation": expected[0], "reason": expected[1]},
+                             self.check("publication-pr-proof", payload))
+            with patch.dict(os.environ, self.env, clear=True), patch(
+                    "agent_publication_status._observe_pull_request_python", side_effect=AssertionError("Python fallback")):
+                self.assertEqual(expected, observe_pull_request(self.project, head, target, lambda *_: branch, path))
+
+        for change in ({}, {"state": "MERGED"}, {"exists": 1}, {"target_branch": "develop"},
+                       {"source_commit": head[:7]}, {"source_branch": "other"}, {"state": "CLOSED"},
+                       {"state": "open"}):
+            with self.subTest(change=change):
+                path.write_text(json.dumps({**record, **change}), encoding="utf-8")
+                compare()
+        raw = json.dumps(record).encode()
+        path.write_bytes(raw.ljust(65_536, b" "))
+        compare()
+        path.write_bytes(raw.ljust(65_537, b" "))
+        compare()
+        path.write_bytes(raw + b"{}")
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(("", "the provider observation could not be read as JSON"),
+                             observe_pull_request(self.project, head, target, lambda *_: branch, path))
+
+        reference = "refs/heads/main"
+        wrong = "2" * 40
+        for output in (f"{head}\t{reference}", f"{wrong}\t{reference}\n{head}\trefs/heads/other", "\u2003", None):
+            with self.subTest(output=output):
+                request = {"listed": output or "", "remote": "origin", "merge": reference, "head": head}
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    expected = observe_upstream(output, "origin", reference, head)
+                self.assertEqual({"observation": expected[0], "reason": expected[1]},
+                                 self.check("publication-upstream-proof", request))
+                with patch.dict(os.environ, self.env, clear=True):
+                    self.assertEqual(expected, observe_upstream(output, "origin", reference, head))
 
     def test_legacy_publication_head_matches_python_without_remote_checks(self):
         project = self.project

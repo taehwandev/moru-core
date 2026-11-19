@@ -2,6 +2,7 @@
 //! Allowed: existing source guard, completion owners, receipt identity, std/JSON.
 //! Forbidden: shells, providers, policy/state writes or public authority.
 //! Callers/tests: thin completion adapter; native completion and bundle tests.
+use crate::publication_evidence::PublicationEvidence;
 use crate::{
     completion_progress::Progress, completion_quality::Quality,
     completion_requirements::Requirements, legacy_publication_head::LegacyPublicationHead,
@@ -63,6 +64,8 @@ impl CompletionProcess {
             Some("staged-v1") => LocalDeliveryIdentity::capture(&payload),
             Some("staged-v1-observe") => LocalDeliveryObservation::probe(&payload),
             Some("legacy-publication-head") => LegacyPublicationHead::probe(&payload),
+            Some("publication-pr-proof") => PublicationEvidence::pull_request(&payload),
+            Some("publication-upstream-proof") => PublicationEvidence::upstream(&payload),
             Some("staged-v1-prepare") => LocalDeliveryPrepare::probe(&payload),
             Some("pending-publication-read") => PendingPublicationReceipt::probe(&payload),
             Some("pending-publication-prepare") => PendingPublicationTransition::prepare(&payload),
