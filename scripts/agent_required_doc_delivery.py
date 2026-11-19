@@ -85,14 +85,14 @@ def delivery_text(payload: dict, evidence_for, read_in_context=None, *,
         evidence = _session_run(payload, evidence_for)
         if evidence is None:
             return ""
-        with _serialized(evidence.parent / MARKER):
-            if agy:
-                from support.native_doc_transcript import agy_redelivery
+        if agy:
+            from support.native_doc_transcript import agy_redelivery
 
-                text = agy_redelivery(evidence, Path(str(payload.get("transcript_path") or "")),
-                                      MAX_REDELIVERIES + int(closeout), MAX_INLINE_DOC_BYTES, MAX_DELIVERY_BYTES)
-                if text is not None:
-                    return text
+            text = agy_redelivery(evidence, Path(str(payload.get("transcript_path") or "")),
+                                  MAX_REDELIVERIES + int(closeout), MAX_INLINE_DOC_BYTES, MAX_DELIVERY_BYTES)
+            if text is not None:
+                return text
+        with _serialized(evidence.parent / MARKER):
             return _deliver(payload, evidence, read_in_context, closeout)
     except (OSError, ValueError, KeyError, TypeError):
         return ""

@@ -38,9 +38,19 @@ impl AtomicSibling {
                 dir.as_raw_fd(),
                 path.as_ptr(),
                 flags | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC,
+                0o666 as libc::c_uint,
             )
         };
         (fd >= 0).then(|| unsafe { File::from_raw_fd(fd) })
+    }
+
+    pub(crate) fn try_append_lock(dir: &File, name: &CStr) -> Option<File> {
+        let file = Self::open_relative(dir, name, libc::O_WRONLY | libc::O_APPEND | libc::O_CREAT)?;
+        if !file.metadata().ok()?.is_file() {
+            return None;
+        }
+        (unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0)
+            .then_some(file)
     }
 
     pub(crate) fn replace(

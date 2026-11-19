@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from threading import Event
 import unittest
 from unittest.mock import patch
 
@@ -19,7 +20,7 @@ import test_agent_required_doc_delivery as delivery_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
-    NativeDocTranscript, agy_delivery_request, nearest_registry_project, read_delivery_manifest,
+    NativeDocTranscript, agy_delivery_request, agy_redelivery, nearest_registry_project, read_delivery_manifest,
 )
 
 
@@ -610,11 +611,9 @@ class NativeDocTranscriptTests(unittest.TestCase):
                     self.assertEqual({},fixture._hook())
                     fixture._append(agy_fixtures.CHECKPOINT,fixture._read_call(agy_fixtures.CORE))
                     if native:
-                        with patch.object(reference, "_deliver", side_effect=AssertionError("legacy delivery")) as fallback:
-                            with ThreadPoolExecutor(max_workers=2) as pool:
-                                results = [future.result(timeout=8) for future in
-                                           (pool.submit(fixture._hook), pool.submit(fixture._hook))]
-                        fallback.assert_not_called()
+                        with ThreadPoolExecutor(max_workers=2) as pool:
+                            results = [future.result(timeout=8) for future in
+                                       (pool.submit(fixture._hook), pool.submit(fixture._hook))]
                         self.assertEqual(1, sum(bool(answer) for answer in results))
                         after = next(answer for answer in results if answer)
                     else:
@@ -639,11 +638,25 @@ class NativeDocTranscriptTests(unittest.TestCase):
 
         self.assertEqual((125, b"", b""), result(probe()))
         self.assertFalse(marker.exists())
+        lock = marker.with_name(marker.name + ".lock")
+        self.assertFalse(lock.exists())
         old = json.dumps({"delivered": [agy_fixtures.CORE]}).encode()
         marker.write_bytes(old)
+        foreign_lock = self.base / "foreign.lock"
+        foreign_lock.write_bytes(b"external")
+        lock.symlink_to(foreign_lock)
+        self.assertEqual((125, b"", b""), result(probe()))
+        self.assertEqual(b"external", foreign_lock.read_bytes())
+        self.assertEqual(old, marker.read_bytes())
+        lock.unlink()
         temporary = marker.with_name(f"{marker.name}.{raw['temporary']}.tmp")
         temporary.write_bytes(b"another writer")
-        failed = probe()
+        previous_umask = os.umask(0o027)
+        try:
+            failed = probe()
+        finally:
+            os.umask(previous_umask)
+        self.assertEqual(0o640, lock.stat().st_mode & 0o777)
         self.assertEqual((0, b""), (failed.returncode, failed.stderr))
         self.assertEqual({"write_failed": True}, json.loads(failed.stdout)["result"]["value"])
         self.assertEqual(old, marker.read_bytes())
@@ -660,6 +673,37 @@ class NativeDocTranscriptTests(unittest.TestCase):
         before = marker.read_bytes()
         self.assertEqual((125, b"", b""), result(probe()))
         self.assertEqual(before, marker.read_bytes())
+
+    def test_agy_contended_native_lock_falls_back_and_rereads_after_python_writer(self):
+        fixture = agy_fixtures.AgyHookTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        marker = fixture.evidence.parent / reference.MARKER
+        lock = marker.with_name(marker.name + ".lock")
+        declined = Event()
+
+        def observe_decline(*args):
+            value = agy_redelivery(*args)
+            self.assertIsNone(value)
+            declined.set()
+            return value
+
+        with patch.dict(os.environ, self.env, clear=True), ThreadPoolExecutor(max_workers=1) as pool:
+            self.assertTrue(fixture._hook())
+            fixture._append(agy_fixtures.CHECKPOINT)
+            before = marker.read_bytes()
+            with patch("support.native_doc_transcript.agy_redelivery", side_effect=observe_decline), patch.object(
+                    reference, "_deliver", wraps=reference._deliver) as fallback:
+                with lock.open("a") as handle:
+                    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    follower = pool.submit(fixture._hook)
+                    self.assertTrue(declined.wait(5))
+                    self.assertEqual(before, marker.read_bytes())
+                    reference._write_marker_python(marker, [], fixture.transcript.stat().st_size, 1)
+                    after = marker.read_bytes()
+                self.assertEqual({}, follower.result(timeout=8))
+                fallback.assert_called_once()
+            self.assertEqual(after, marker.read_bytes())
 
     def test_agy_redelivery_acknowledgement_loss_never_retries_and_releases_lock(self):
         fixture = agy_fixtures.AgyHookTests()

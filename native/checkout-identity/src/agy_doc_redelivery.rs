@@ -1,9 +1,13 @@
 //! owner: AGY post-initial required-document transaction;
-//! allowed imports: existing document, transcript and atomic marker owners, JSON and std;
-//! forbidden imports: lock acquisition, session admission, providers and Git;
-//! callers/tests: private probe under the caller lock, AGY delivery parity fixtures;
+//! allowed imports: existing document, transcript, lock and atomic marker owners, JSON and std;
+//! forbidden imports: session admission, providers and Git;
+//! callers/tests: private probe and AGY delivery parity fixtures;
 //! verification: exact output/marker, ordered decisions and terminal write failure.
-use super::{delivery_marker, delivery_text::DocDeliveryText, DocTranscript};
+use super::{
+    delivery_marker::{DocDeliveryMarker, MARKER},
+    delivery_text::DocDeliveryText,
+    DocTranscript,
+};
 use serde_json::{json, Value};
 use std::{
     collections::HashSet,
@@ -25,7 +29,14 @@ pub(super) fn deliver(payload: &Value) -> Option<Value> {
         Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {}
         _ => return None,
     }
-    let marker = evidence.with_file_name("required-docs-delivered.json");
+    let marker = evidence.with_file_name(MARKER);
+    if !marker.symlink_metadata().ok()?.is_file() {
+        return None;
+    }
+    let destination = DocDeliveryMarker::open(&marker)?;
+    // Python keeps the bounded wait for contended and unsupported cases.
+    // Probe once so fallback does not spend two independent wait budgets.
+    let lock = destination.try_lock()?;
     let plan = DocTranscript::delivery_plan(&marker, transcript, payload.get("limit")?.as_i64()?)?;
     let (response, pending, count) = match plan.get("action")?.as_str()? {
         "skip" => return Some(json!({"text": ""})),
@@ -44,9 +55,11 @@ pub(super) fn deliver(payload: &Value) -> Option<Value> {
     if response.len() > 128 * 1024 {
         return None;
     }
+    if !destination.is_current(evidence.parent()?, &lock)? {
+        return None;
+    }
     let success = json!({"text": response});
-    let stored = delivery_marker::write(&json!({
-        "marker": marker.to_str()?,
+    let stored = destination.write(&json!({
         "temporary": payload.get("temporary")?.as_str()?,
         "delivered": pending,
         "offset": plan.get("offset")?.as_u64()?,

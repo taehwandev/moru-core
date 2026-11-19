@@ -63,7 +63,7 @@ impl DocTranscriptProcess {
                     return agy_doc_redelivery::deliver(&payload);
                 }
                 if args[1] == "write-marker" && object.len() == 5 {
-                    return delivery_marker::write(&payload);
+                    return delivery_marker::DocDeliveryMarker::write_payload(&payload);
                 }
                 if args[1] == "render" {
                     return delivery_text::DocDeliveryText::render(&payload)
