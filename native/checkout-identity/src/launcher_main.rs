@@ -7,6 +7,7 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod android_manifest;
+mod argparse_help;
 mod behavior_trace;
 mod behavior_eval;
 mod behavior_eval_artifact;

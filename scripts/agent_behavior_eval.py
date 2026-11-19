@@ -270,14 +270,36 @@ def _native_json_integer_error(limit: int) -> str | None:
     return template
 
 
+def _native_help_layout() -> str | None:
+    import gettext
+    import shutil
+
+    if (sys.implementation.name != "cpython" or sys.stdout.isatty()
+            or any(key in os.environ for key in ("FORCE_COLOR", "PYTHON_COLORS"))
+            or os.path.basename(sys.argv[0]) != "agent_behavior_eval.py"
+            or getattr(sys.modules.get("__main__"), "__spec__", None) is not None):
+        return None
+    if any(gettext.gettext(text) != text for text in ("usage: ", "show this help message and exit")):
+        return None
+    group = getattr(argparse.ArgumentParser(add_help=False), "_optionals", None)
+    title = {"optional arguments": "legacy", "options": "modern"}.get(getattr(group, "title", None))
+    if hasattr(argparse.HelpFormatter, "_get_actions_usage_parts"):
+        title = "grouped" if title == "modern" else None
+    width = shutil.get_terminal_size().columns - 2
+    return f"{title},{width}" if title is not None and 32 <= width <= 512 else None
+
+
 def _native_report(argv: Sequence[str]) -> tuple[int, str] | None:
     """Use the verified candidate for reports and stable input diagnostics."""
     if os.environ.get("MORU_LAUNCHER_BACKEND", "auto") not in ("auto", "rust"):
         return None
     if any(name in sys.modules for name in ("sitecustomize", "usercustomize")):
         return None
-    if any(flag in argv for flag in ("-h", "--help")):
-        return None
+    help_flags = ("-h", "--h", "--he", "--hel", "--help")
+    help_layout = None
+    if any(flag in help_flags for flag in argv):
+        if len(argv) != 1 or (help_layout := _native_help_layout()) is None:
+            return None
 
     import subprocess
 
@@ -292,14 +314,17 @@ def _native_report(argv: Sequence[str]) -> tuple[int, str] | None:
         plan = artifact_plan(entry.parent.parent, entry)
         if plan is None:
             return None
-        digit_limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
-        command = [str(plan["source"]), str(entry), "--behavior-eval", "--stable-errors-only",
-                   f"--unicode-version={unicodedata.unidata_version}",
-                   f"--int-max-str-digits={digit_limit}"]
-        if (integer_error := _native_json_integer_error(digit_limit)) is not None:
-            command.append(f"--json-integer-error={integer_error}")
-        if (trailing_comma := _native_json_trailing_comma()) is not None:
-            command.append(f"--json-trailing-comma={trailing_comma}")
+        command = [str(plan["source"]), str(entry), "--behavior-eval"]
+        if help_layout is not None:
+            command.append(f"--help-layout={help_layout}")
+        else:
+            digit_limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
+            command.extend(["--stable-errors-only", f"--unicode-version={unicodedata.unidata_version}",
+                            f"--int-max-str-digits={digit_limit}"])
+            if (integer_error := _native_json_integer_error(digit_limit)) is not None:
+                command.append(f"--json-integer-error={integer_error}")
+            if (trailing_comma := _native_json_trailing_comma()) is not None:
+                command.append(f"--json-trailing-comma={trailing_comma}")
         command.extend(["--public-args", *argv])
         result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True)
         if result.returncode in (0, 1) and result.stdout and not result.stderr:

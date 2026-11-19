@@ -432,7 +432,7 @@ finally:
                              (reference.returncode, reference.stdout, reference.stderr))
         args[:] = ["--help"]
         reference = run("python", "0,0")
-        actual = run("auto", "0,0")
+        actual = run("auto", "1,0")
         self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
                          (reference.returncode, reference.stdout, reference.stderr))
         args[:] = original_args
@@ -564,6 +564,31 @@ finally:
                 self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
                                  (2, b"", reference.stderr))
 
+
+    @unittest.skipUnless(os.environ.get("MORU_TEST_BEHAVIOR_EVAL_NATIVE") == "1",
+                         "requires source-bound native debug fixture")
+    def test_native_help_matches_python_at_explicit_widths(self) -> None:
+        import argparse
+
+        from native_launcher_support import NATIVE
+
+        for columns in (34, 40, 60, 80, 120, 512):
+            with self.subTest(columns=columns):
+                env = {**os.environ, "COLUMNS": str(columns), "PYTHONIOENCODING": "utf-8"}
+                env.pop("FORCE_COLOR", None)
+                env.pop("PYTHON_COLORS", None)
+                reference = subprocess.run([sys.executable, "-S", "-B", str(SCRIPT_PATH), "--help"],
+                                           env={**env, "MORU_LAUNCHER_BACKEND": "python"},
+                                           capture_output=True, timeout=8)
+                title = "legacy" if b"optional arguments:\n" in reference.stdout else "modern"
+                if hasattr(argparse.HelpFormatter, "_get_actions_usage_parts"):
+                    title = "grouped"
+                actual = subprocess.run([str(NATIVE), "offline-eval", "--behavior-eval",
+                                         f"--help-layout={title},{columns - 2}", "--public-args", "--hel"],
+                                        env={**env, "PATH": ""}, capture_output=True, timeout=8)
+                self.assertEqual((reference.returncode, reference.stderr), (0, b""))
+                self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                 (0, reference.stdout, b""))
 
     @unittest.skipUnless(os.environ.get("MORU_TEST_BEHAVIOR_EVAL_NATIVE") == "1",
                          "requires source-bound native debug fixture")

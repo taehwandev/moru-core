@@ -10,6 +10,8 @@ use crate::{
     python_text::{PythonText, PythonUtf8},
 };
 use serde_json::{json, Value};
+#[path = "behavior_eval_help.rs"]
+mod help;
 #[path = "behavior_eval_public_args.rs"]
 mod public_args;
 use std::{
@@ -37,6 +39,9 @@ struct Arguments {
 
 impl BehaviorEvalCli {
     pub(crate) fn run(args: &[OsString]) -> i32 {
+        if let Some(code) = help::BehaviorEvalHelp::run(args) {
+            return code;
+        }
         let normalized;
         let args = if let Some(index) = args.iter().position(|arg| arg == "--public-args") {
             let public = match public_args::BehaviorEvalPublicArgs::normalize(&args[index + 1..]) {
