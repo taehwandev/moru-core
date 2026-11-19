@@ -24,7 +24,11 @@ AUTHORITY_LEGACY = "legacy_classifier"
 WORK_ROUTE_ENVELOPE_REQUIRED = (
     "Work routes require a current, session-bound intent envelope. Without one, "
     "use `triage` or `ambiguity`; natural-language text and continuation scope "
-    "cannot authorize work."
+    "cannot authorize work. To open a work route, start it with the compact "
+    "authority arguments: --intent <SAFE_SLUG> --target-summary \"<BOUNDED_TARGET>\" "
+    "--requested-effect <effect> --approved-effect <effect> (effects: read, "
+    "local_write, git_write, external_write, destructive; approve only what the "
+    "user's request authorizes)."
 )
 
 # The legacy classifier answers in response modes; the envelope answers in

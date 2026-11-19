@@ -2647,6 +2647,16 @@ class ClaudePreToolGateTests(unittest.TestCase):
         self.assertNotIn("resume --last", reason)
         self.assertIn("No exact registered preflight evidence", reason)
 
+    def test_denial_start_command_carries_the_compact_authority_arguments(self) -> None:
+        """A start given only --request opens a read-only route, so the command
+        the denial suggests must name the arguments a work route needs."""
+        with tempfile.TemporaryDirectory() as raw:
+            reason = gate.deny_reason(Path(raw), "s1", "Write")
+
+        self.assertIn("--intent <SAFE_SLUG>", reason)
+        self.assertIn('--target-summary "<BOUNDED_TARGET>"', reason)
+        self.assertIn("--approved-effect local_write", reason)
+
     def test_own_paused_run_is_resumed_by_the_next_edit(self) -> None:
         """The same session continuing its own task is not an interruption, so
         the next turn's first edit reclaims the run instead of being refused."""
