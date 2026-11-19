@@ -20,6 +20,21 @@ def _value(result):
     return result["value"] if type(result) is dict and set(result) == {"value"} else None
 
 
+def agy_redelivery(evidence: Path, transcript: Path, limit: int, inline_limit: int, total_limit: int) -> str | None:
+    if not NativeProbe.available():
+        return None
+    result = NativeProbe.request("--doc-transcript-probe", "agy-redelivery", {
+        "evidence": str(evidence), "transcript": str(transcript), "limit": limit,
+        "inline_limit": inline_limit, "total_limit": total_limit, "temporary": uuid4().hex,
+    })
+    if result is None:
+        return None
+    value = _value(result)
+    if type(value) is dict and set(value) == {"text"} and type(value["text"]) is str:
+        return value["text"]
+    raise OSError("native redelivery marker could not be stored or confirmed")
+
+
 def agy_delivery_request(*, payload=None, raw=None) -> tuple[str, list[str], str] | None:
     try:
         if raw is not None:

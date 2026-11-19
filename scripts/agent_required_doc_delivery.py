@@ -68,7 +68,8 @@ def edited_paths(payload: dict) -> list[Path]:
     return [Path(p) if Path(p).is_absolute() else cwd / p for p in paths if isinstance(p, str) and p]
 
 
-def delivery_text(payload: dict, evidence_for, read_in_context=None, *, closeout: bool = False) -> str:
+def delivery_text(payload: dict, evidence_for, read_in_context=None, *,
+                  closeout: bool = False, agy: bool = False) -> str:
     """The unread required docs to show with this edit, or "" (also on any failure).
 
     `evidence_for(project)` returns this session's active run evidence for a
@@ -77,6 +78,7 @@ def delivery_text(payload: dict, evidence_for, read_in_context=None, *, closeout
     for a runtime whose transcript has another shape (agy). `closeout` marks a
     Moru closeout command: it may spend one redelivery beyond the edits' budget,
     which an edit-heavy run would otherwise have used up before its last step.
+    `agy` enables the post-initial transaction with AGY's coverage semantics.
     """
 
     try:
@@ -84,6 +86,13 @@ def delivery_text(payload: dict, evidence_for, read_in_context=None, *, closeout
         if evidence is None:
             return ""
         with _serialized(evidence.parent / MARKER):
+            if agy:
+                from support.native_doc_transcript import agy_redelivery
+
+                text = agy_redelivery(evidence, Path(str(payload.get("transcript_path") or "")),
+                                      MAX_REDELIVERIES + int(closeout), MAX_INLINE_DOC_BYTES, MAX_DELIVERY_BYTES)
+                if text is not None:
+                    return text
             return _deliver(payload, evidence, read_in_context, closeout)
     except (OSError, ValueError, KeyError, TypeError):
         return ""

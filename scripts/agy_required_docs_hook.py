@@ -128,7 +128,7 @@ def _respond(payload: dict, evidence_for, request: tuple[str, list[str], str] | 
             edit = {"tool_name": "Edit", "cwd": workspace,
                     "transcript_path": transcript,
                     "tool_input": {"file_path": workspace}}
-            text = delivery_text(edit, evidence_for, read_in_context)
+            text = delivery_text(edit, evidence_for, read_in_context, agy=True)
             if text:
                 break
     except Exception:  # noqa: BLE001 - delivery is advisory and must never block a turn

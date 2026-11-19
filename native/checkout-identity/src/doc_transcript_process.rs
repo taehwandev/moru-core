@@ -9,6 +9,8 @@ use std::{
     path::Path,
 };
 
+#[path = "agy_doc_redelivery.rs"]
+mod agy_doc_redelivery;
 #[path = "agy_doc_request.rs"]
 mod agy_doc_request;
 #[path = "doc_delivery_marker.rs"]
@@ -32,6 +34,7 @@ impl DocTranscriptProcess {
                         | "read-delivery-manifest"
                         | "nearest-registry-project"
                         | "agy-delivery-request"
+                        | "agy-redelivery"
                         | "delivery-plan"
                         | "write-marker"
                 )
@@ -55,6 +58,9 @@ impl DocTranscriptProcess {
                 let object = payload.as_object()?;
                 if args[1] == "agy-delivery-request" {
                     return agy_doc_request::decode(object);
+                }
+                if args[1] == "agy-redelivery" && object.len() == 6 {
+                    return agy_doc_redelivery::deliver(&payload);
                 }
                 if args[1] == "write-marker" && object.len() == 5 {
                     return delivery_marker::write(&payload);
@@ -118,7 +124,10 @@ impl DocTranscriptProcess {
         };
         let Ok(mut out) = serde_json::to_vec(&json!({"schema_version":1,"result":{"value":value}}))
         else {
-            return if args[1] == "write-marker" { 1 } else { 125 };
+            return match args[1].to_str() {
+                Some("write-marker" | "agy-redelivery") => 1,
+                _ => 125,
+            };
         };
         if args[1] == "read-docs" && out.len() >= 1024 * 1024 {
             return 125;

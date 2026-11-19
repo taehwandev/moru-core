@@ -26,6 +26,7 @@ class NativeProbe:
         write_failure = {
             ("--completion-probe", "pending-publication-replace"): "native receipt replacement outcome could not be determined",
             ("--doc-transcript-probe", "write-marker"): "native delivery marker outcome could not be determined",
+            ("--doc-transcript-probe", "agy-redelivery"): "native redelivery outcome could not be determined",
         }.get((protocol, operation))
         done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE, write_failure=write_failure)
         if done is None:

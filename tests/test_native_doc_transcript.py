@@ -1,4 +1,6 @@
 """Source parity for native doc-delivery file scans and read-only boundaries."""
+from concurrent.futures import ThreadPoolExecutor
+import fcntl
 import io
 import json
 import os
@@ -607,12 +609,84 @@ class NativeDocTranscriptTests(unittest.TestCase):
                     first=fixture._hook(); self.assertTrue(first)
                     self.assertEqual({},fixture._hook())
                     fixture._append(agy_fixtures.CHECKPOINT,fixture._read_call(agy_fixtures.CORE))
-                    after=fixture._hook(); self.assertTrue(after)
+                    if native:
+                        with patch.object(reference, "_deliver", side_effect=AssertionError("legacy delivery")) as fallback:
+                            with ThreadPoolExecutor(max_workers=2) as pool:
+                                results = [future.result(timeout=8) for future in
+                                           (pool.submit(fixture._hook), pool.submit(fixture._hook))]
+                        fallback.assert_not_called()
+                        self.assertEqual(1, sum(bool(answer) for answer in results))
+                        after = next(answer for answer in results if answer)
+                    else:
+                        after = fixture._hook()
+                    self.assertTrue(after)
                     self.assertEqual({},fixture._hook())
-                    marker=json.loads((fixture.evidence.parent/reference.MARKER).read_text())
+                    marker=(fixture.evidence.parent/reference.MARKER).read_bytes()
                     outcomes.append((first,after,marker))
             finally: fixture.doCleanups()
         self.assertEqual(outcomes[0],outcomes[1])
+
+    def test_agy_native_redelivery_declines_initial_and_upgrades_legacy_marker(self):
+        fixture = agy_fixtures.AgyHookTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        marker = fixture.evidence.parent / reference.MARKER
+        raw = {"evidence": str(fixture.evidence), "transcript": str(fixture.transcript),
+               "limit": 3, "inline_limit": 8192, "total_limit": 24576, "temporary": "d" * 32}
+
+        def probe():
+            return self.raw("agy-redelivery", raw)
+
+        self.assertEqual((125, b"", b""), result(probe()))
+        self.assertFalse(marker.exists())
+        old = json.dumps({"delivered": [agy_fixtures.CORE]}).encode()
+        marker.write_bytes(old)
+        temporary = marker.with_name(f"{marker.name}.{raw['temporary']}.tmp")
+        temporary.write_bytes(b"another writer")
+        failed = probe()
+        self.assertEqual((0, b""), (failed.returncode, failed.stderr))
+        self.assertEqual({"write_failed": True}, json.loads(failed.stdout)["result"]["value"])
+        self.assertEqual(old, marker.read_bytes())
+        self.assertEqual(b"another writer", temporary.read_bytes())
+        temporary.unlink()
+
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reference, "_deliver", side_effect=AssertionError("legacy delivery")):
+            self.assertEqual({}, fixture._hook())
+        self.assertEqual({"delivered": [agy_fixtures.CORE], "transcript_bytes": 0, "redeliveries": 0},
+                         json.loads(marker.read_bytes()))
+        with fixture.transcript.open("wb") as handle:
+            handle.truncate(4 * 1024 * 1024 + 1)
+        before = marker.read_bytes()
+        self.assertEqual((125, b"", b""), result(probe()))
+        self.assertEqual(before, marker.read_bytes())
+
+    def test_agy_redelivery_acknowledgement_loss_never_retries_and_releases_lock(self):
+        fixture = agy_fixtures.AgyHookTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertTrue(fixture._hook())
+            fixture._append(agy_fixtures.CHECKPOINT)
+            run = subprocess.run
+
+            def lose_acknowledgement(argv, *args, **kwargs):
+                completed = run(argv, *args, **kwargs)
+                if argv[-1] == "agy-redelivery":
+                    self.assertEqual(0, completed.returncode)
+                    self.assertTrue(json.loads(completed.stdout)["result"]["value"]["text"])
+                    raise subprocess.TimeoutExpired(argv, 10)
+                return completed
+
+            with patch("support.native_probe_transport.subprocess.run", side_effect=lose_acknowledgement), patch.object(
+                    reference, "_deliver", side_effect=AssertionError("unsafe compatibility retry")) as fallback:
+                self.assertEqual({}, fixture._hook())
+            fallback.assert_not_called()
+            marker = fixture.evidence.parent / reference.MARKER
+            self.assertEqual(1, json.loads(marker.read_bytes())["redeliveries"])
+            with marker.with_name(marker.name + ".lock").open("a") as handle:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.assertEqual({}, fixture._hook())
 
 
 if __name__=="__main__": unittest.main()
