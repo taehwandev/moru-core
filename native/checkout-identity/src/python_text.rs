@@ -1,4 +1,4 @@
-//! owner: PythonText; allowed imports: std and generated Unicode tables;
+//! owner: PythonText; allowed imports: std, serde JSON and generated Unicode tables;
 //! forbidden imports: runtime Python/process/network; callers/tests: manifest validators,
 //! CLI adapters and subject tests; verification: exhaustive scalar golden digest.
 use std::fmt::Write;
@@ -9,6 +9,21 @@ include!(concat!(env!("OUT_DIR"), "/python_text_contract.rs"));
 
 pub(crate) struct PythonText;
 impl PythonText {
+    pub(crate) fn json_ascii(text: &str) -> Option<String> {
+        let escaped = serde_json::to_string(text).ok()?;
+        let mut result = String::new();
+        for character in escaped.chars() {
+            if character >= '\u{7f}' {
+                for unit in character.encode_utf16(&mut [0; 2]) {
+                    write!(result, "\\u{unit:04x}").ok()?;
+                }
+            } else {
+                result.push(character);
+            }
+        }
+        Some(result)
+    }
+
     pub(crate) fn matches_unicode_version(version: &str) -> bool {
         version == UNICODE_VERSION
     }

@@ -60,6 +60,7 @@ mod figma_validation_report;
 mod gitrun;
 mod launcher_backend;
 mod literal_args;
+mod local_delivery_identity;
 mod mailbox_process;
 mod mailbox_state;
 mod mailbox_status_process;

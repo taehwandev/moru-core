@@ -1,7 +1,8 @@
-//! owner: OverheadReportText; allowed imports: serde_json, shared PythonJson values, std;
+//! owner: OverheadReportText; allowed imports: serde_json, shared Python text and JSON, std;
 //! forbidden imports: I/O, runtime Python, providers; callers/tests: overhead report CLI;
 //! verification: JSON/Markdown formatting parity with synthetic reports.
 use crate::python_json::{Number, PythonJson, Value};
+use crate::python_text::PythonText;
 
 pub(crate) struct OverheadReportText;
 
@@ -162,21 +163,11 @@ impl OverheadReportText {
     }
 
     fn quote(text: &str, ascii: bool) -> Option<String> {
-        let escaped = serde_json::to_string(text).ok()?;
-        if !ascii {
-            return Some(escaped);
+        if ascii {
+            PythonText::json_ascii(text)
+        } else {
+            serde_json::to_string(text).ok()
         }
-        let mut result = String::new();
-        for character in escaped.chars() {
-            if character >= '\u{7f}' {
-                for unit in character.encode_utf16(&mut [0; 2]) {
-                    result.push_str(&format!("\\u{unit:04x}"));
-                }
-            } else {
-                result.push(character);
-            }
-        }
-        Some(result)
     }
 
     fn write_json(

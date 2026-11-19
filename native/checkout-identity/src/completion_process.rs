@@ -1,10 +1,11 @@
 //! Owner: private bounded completion-policy JSON protocol.
-//! Allowed: existing source guard and three completion policy owners, std/JSON.
+//! Allowed: existing source guard, completion owners, receipt identity, std/JSON.
 //! Forbidden: shells, providers, policy/state writes or public authority.
 //! Callers/tests: thin completion adapter; native completion and bundle tests.
 use crate::{
     completion_progress::Progress, completion_quality::Quality,
-    completion_requirements::Requirements, pretool_guard::CallbackGuard,
+    completion_requirements::Requirements, local_delivery_identity::LocalDeliveryIdentity,
+    pretool_guard::CallbackGuard,
 };
 use serde_json::{json, Value};
 use std::{
@@ -36,6 +37,7 @@ impl CompletionProcess {
             Some("requirements") => Requirements::validate(&payload),
             Some("coverage") => Requirements::coverage(&payload),
             Some("progress") => Progress::inspect(&payload),
+            Some("staged-v1") => LocalDeliveryIdentity::capture(&payload),
             _ => None,
         };
         let Some(result) = result else {

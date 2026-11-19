@@ -769,10 +769,12 @@
       "id": "scripts/agent_pending_publication.py",
       "inventory_id": 59,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct status/settle CLI",
-      "remaining": "Port pending-publication inspection and local receipt settlement with original Git/provider observations, exact failures and no authority to publish. Preserve finish/Stop import callers.",
-      "verification": {}
+      "remaining": "Port Git discovery, pending-publication inspection and receipt settlement with original Git/provider observations, exact failures and no authority to publish. Move observer-side digest selection and the status/settle CLI. Preserve Finish and Stop import callers. Verify both supported hosts and installed acceptance.",
+      "verification": {
+        "staged_v1_capture": "PASS: source-bound macOS debug capture uses one Rust probe for staged index and base tree identities. The probe runs with an empty PATH and matches Python hashes for reordered rows, empty trees, Unicode without normalization, duplicate rows and escaped path characters. Conflicting stages and malformed metadata retain Python errors. The receipt format, Git reads, commit matching and settlement stay with the existing Python owner."
+      }
     },
     {
       "id": "scripts/agent_review_acp.py",

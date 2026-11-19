@@ -1,7 +1,7 @@
 """Read-only Git proof for a reviewed staged unit and its local integration.
 
-Owner: LocalDeliveryProof. Allowed imports: stdlib; Git is an injected reader.
-Forbidden: Git writes, subprocess/provider execution and inferred authority.
+Owner: LocalDeliveryProof. Allowed imports: stdlib and source-bound identity probe.
+Git is an injected reader. Forbidden: Git writes, providers and inferred authority.
 Callers/tests: pending publication; test_agent_local_delivery.
 Verification: unrelated commits, foreign repositories and absent target refs fail.
 """
@@ -13,14 +13,17 @@ import json
 import re
 from pathlib import Path
 
+from support.native_probe_transport import NativeProbe
+
 
 class LocalDeliveryProof:
     CONTRACT = "staged_v1"
     INTEGRATION = "publication.integrate"
+    _MAX_LISTING = 8 * 1024 * 1024
 
     @staticmethod
     def _identity(output: str | None, *, index: bool = False) -> str:
-        if output is None or len(output) > 8 * 1024 * 1024:
+        if output is None or len(output) > LocalDeliveryProof._MAX_LISTING:
             raise ValueError("Git tree cannot be read within the local proof budget")
         entries = []
         for entry in output.split("\0"):
@@ -46,8 +49,9 @@ class LocalDeliveryProof:
     def capture(cls, project: Path, base: str, source: str, items: list, git) -> dict:
         if git(project, 'diff', '--no-ext-diff', '--no-textconv', '--quiet', '--exit-code') is None:
             raise ValueError('tracked worktree content must match the reviewed index')
-        staged = cls._identity(git(project, "ls-files", "--stage", "-z"), index=True)
-        original = cls._identity(git(project, "ls-tree", "-r", "-z", base))
+        staged, original = _capture_identities(
+            git(project, "ls-files", "--stage", "-z"), git(project, "ls-tree", "-r", "-z", base),
+        )
         commit = any(item["checkpoint"] == "publication.commit" for item in items)
         if commit and staged == original:
             raise ValueError("stage the reviewed changes before declaring a post-finish commit")
@@ -121,3 +125,15 @@ class LocalDeliveryProof:
             return f"reviewed staged content committed as {approved}", ""
         except (OSError, ValueError, TypeError, KeyError):
             return "", "local delivery proof cannot be verified"
+
+
+def _capture_identities(index: str | None, base: str | None) -> tuple[str, str]:
+    if index is not None and base is not None and len(index) + len(base) <= 1024 * 1024:
+        result = NativeProbe.request(
+            "--completion-probe", "staged-v1", {"index": index, "base": base},
+        )
+        if (result is not None and set(result) == {"staged", "base"}
+                and all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
+                        for value in result.values())):
+            return result["staged"], result["base"]
+    return LocalDeliveryProof._identity(index, index=True), LocalDeliveryProof._identity(base)

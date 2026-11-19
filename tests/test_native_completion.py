@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 
@@ -37,6 +38,27 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
+        index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'
+        tree = '100644 blob ab\ta\tb\n\0' + '100755 blob ef\tz"\\악\x7f\U0001f408\0'
+        index += "160000 0123 0\te\u0301\0" + "120000 4567 0\té\0" * 2
+        tree += "120000 blob 4567\té\0" * 2 + "160000 commit 0123\te\u0301\0"
+        for staged, base in ((index, tree), ("", ""), ("", tree)):
+            with self.subTest(empty=not staged):
+                expected = (LocalDeliveryProof._identity(staged, index=True),
+                            LocalDeliveryProof._identity(base))
+                result = self.check("staged-v1", {"index": staged, "base": base})
+                self.assertEqual(result, dict(zip(("staged", "base"), expected)))
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                        LocalDeliveryProof, "_identity", side_effect=AssertionError("Python fallback")):
+                    self.assertEqual(expected, _capture_identities(staged, base))
+
+        for bad in ("100644 ab 2\tx\0", "missing tab", "100644 ab 0 extra\tx"):
+            result = self.raw("staged-v1", {"index": bad, "base": tree})
+            self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+            with patch.dict(os.environ, self.env, clear=True), self.assertRaises(ValueError):
+                _capture_identities(bad, tree)
 
     def test_quality_warns_without_executing_commands_or_printing_command_content(self):
         marker = self.project / "never-created"
