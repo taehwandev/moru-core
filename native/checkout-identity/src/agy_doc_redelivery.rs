@@ -1,4 +1,4 @@
-//! owner: AGY post-initial required-document transaction;
+//! owner: AGY required-document delivery and redelivery transactions;
 //! allowed imports: existing document, transcript, lock and atomic marker owners, JSON and std;
 //! forbidden imports: session admission, providers and Git;
 //! callers/tests: private probe and AGY delivery parity fixtures;
@@ -16,70 +16,118 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub(super) fn deliver(payload: &Value) -> Option<Value> {
-    let evidence = Path::new(payload.get("evidence")?.as_str()?);
-    if evidence.file_name()?.to_str()? != "preflight.json" {
-        return None;
-    }
-    let transcript = Path::new(payload.get("transcript")?.as_str()?);
-    // Leave large and special-file profiles with the existing read-only
-    // probes before this write-capable request starts a transcript scan.
-    match fs::metadata(transcript) {
-        Ok(meta) if meta.is_dir() || (meta.is_file() && meta.len() <= 4 * 1024 * 1024) => {}
-        Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {}
-        _ => return None,
-    }
-    let marker = evidence.with_file_name(MARKER);
-    if !marker.symlink_metadata().ok()?.is_file() {
-        return None;
-    }
-    let destination = DocDeliveryMarker::open(&marker)?;
-    // Python keeps the bounded wait for contended and unsupported cases.
-    // Probe once so fallback does not spend two independent wait budgets.
-    let lock = destination.try_lock()?;
-    let plan = DocTranscript::delivery_plan(&marker, transcript, payload.get("limit")?.as_i64()?)?;
-    let (response, pending, count) = match plan.get("action")?.as_str()? {
-        "skip" => return Some(json!({"text": ""})),
-        "upgrade" => (String::new(), plan.get("delivered")?.clone(), 0),
-        "deliver" if plan.get("had_previous")?.as_bool()? => {
-            let (text, pending) = prepare(evidence, transcript, payload)?;
-            let count = plan
-                .get("redeliveries")?
-                .as_i64()?
-                .checked_add(i64::from(!pending.is_empty()))?;
-            (text, json!(pending), count)
+pub(super) struct AgyDocDelivery;
+
+impl AgyDocDelivery {
+    pub(super) fn redeliver(payload: &Value) -> Option<Value> {
+        let evidence = Path::new(payload.get("evidence")?.as_str()?);
+        if evidence.file_name()?.to_str()? != "preflight.json" {
+            return None;
         }
-        _ => return None,
-    };
-    // Complete every eligibility check before entering the only mutation.
-    if response.len() > 128 * 1024 {
-        return None;
+        let transcript = Path::new(payload.get("transcript")?.as_str()?);
+        bounded_transcript(transcript)?;
+        let marker = evidence.with_file_name(MARKER);
+        if !marker.symlink_metadata().ok()?.is_file() {
+            return None;
+        }
+        let destination = DocDeliveryMarker::open(&marker)?;
+        // Python keeps the bounded wait for contended and unsupported cases.
+        // Probe once so fallback does not spend two independent wait budgets.
+        let lock = destination.try_lock()?;
+        let plan =
+            DocTranscript::delivery_plan(&marker, transcript, payload.get("limit")?.as_i64()?)?;
+        let (response, pending, count) = match plan.get("action")?.as_str()? {
+            "skip" => return Some(json!({"text": ""})),
+            "upgrade" => (String::new(), plan.get("delivered")?.clone(), 0),
+            "deliver" if plan.get("had_previous")?.as_bool()? => {
+                let manifest = DocTranscript::read_delivery_manifest(evidence)?;
+                prepare(
+                    manifest.get(0)?,
+                    manifest.get(1)?,
+                    transcript,
+                    payload,
+                    &plan,
+                )?
+            }
+            _ => return None,
+        };
+        if !destination.is_current(evidence.parent()?, &lock)? {
+            return None;
+        }
+        Self::finish(&destination, payload, &plan, response, pending, count)
     }
-    if !destination.is_current(evidence.parent()?, &lock)? {
-        return None;
+
+    pub(super) fn deliver_prepared(payload: &Value) -> Option<Value> {
+        let evidence = Path::new(payload.get("evidence")?.as_str()?);
+        if evidence.file_name()?.to_str()? != "preflight.json" {
+            return None;
+        }
+        let plan = payload.get("plan")?;
+        if plan.get("action")?.as_str()? != "deliver" {
+            return None;
+        }
+        let transcript = Path::new(payload.get("transcript")?.as_str()?);
+        bounded_transcript(transcript)?;
+        let destination = DocDeliveryMarker::open(&evidence.with_file_name(MARKER))?;
+        let (response, pending, count) = prepare(
+            payload.get("rules")?,
+            payload.get("docs")?,
+            transcript,
+            payload,
+            plan,
+        )?;
+        Self::finish(&destination, payload, plan, response, pending, count)
     }
-    let success = json!({"text": response});
-    let stored = destination.write(&json!({
-        "temporary": payload.get("temporary")?.as_str()?,
-        "delivered": pending,
-        "offset": plan.get("offset")?.as_u64()?,
-        "redeliveries": count,
-    }))?;
-    Some(if stored["stored"] == true {
-        success
-    } else {
-        json!({"write_failed": true})
-    })
+
+    fn finish(
+        destination: &DocDeliveryMarker,
+        payload: &Value,
+        plan: &Value,
+        response: String,
+        pending: Value,
+        count: i64,
+    ) -> Option<Value> {
+        // Complete every eligibility check before entering the only mutation.
+        if response.len() > 128 * 1024 {
+            return None;
+        }
+        let success = json!({"text": response});
+        let stored = destination.write(&json!({
+            "temporary": payload.get("temporary")?.as_str()?,
+            "delivered": pending,
+            "offset": plan.get("offset")?.as_u64()?,
+            "redeliveries": count,
+        }))?;
+        Some(if stored["stored"] == true {
+            success
+        } else {
+            json!({"write_failed": true})
+        })
+    }
 }
 
-fn prepare(evidence: &Path, transcript: &Path, payload: &Value) -> Option<(String, Vec<String>)> {
-    let manifest = DocTranscript::read_delivery_manifest(evidence)?;
-    let rules = Path::new(manifest.get(0)?.as_str()?);
+fn bounded_transcript(transcript: &Path) -> Option<()> {
+    match fs::metadata(transcript) {
+        Ok(meta) if meta.is_dir() || (meta.is_file() && meta.len() <= 4 * 1024 * 1024) => Some(()),
+        Err(error) if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {
+            Some(())
+        }
+        _ => None,
+    }
+}
+
+fn prepare(
+    rules: &Value,
+    docs: &Value,
+    transcript: &Path,
+    payload: &Value,
+    plan: &Value,
+) -> Option<(String, Value, i64)> {
+    let rules = Path::new(rules.as_str()?);
     if !rules.is_absolute() || rules.to_str()?.starts_with("//") {
         return None;
     }
-    let docs = manifest
-        .get(1)?
+    let docs = docs
         .as_array()?
         .iter()
         .map(Value::as_str)
@@ -117,5 +165,8 @@ fn prepare(evidence: &Path, transcript: &Path, payload: &Value) -> Option<(Strin
         "inline_limit": payload.get("inline_limit")?,
         "total_limit": payload.get("total_limit")?,
     }))?;
-    Some((text, pending.into_iter().map(str::to_owned).collect()))
+    let count = plan.get("redeliveries")?.as_i64()?.checked_add(i64::from(
+        plan.get("had_previous")?.as_bool()? && !pending.is_empty(),
+    ))?;
+    Some((text, json!(pending), count))
 }

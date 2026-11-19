@@ -78,7 +78,7 @@ def delivery_text(payload: dict, evidence_for, read_in_context=None, *,
     for a runtime whose transcript has another shape (agy). `closeout` marks a
     Moru closeout command: it may spend one redelivery beyond the edits' budget,
     which an edit-heavy run would otherwise have used up before its last step.
-    `agy` enables the post-initial transaction with AGY's coverage semantics.
+    `agy` enables the native transactions with AGY's coverage semantics.
     """
 
     try:
@@ -93,7 +93,7 @@ def delivery_text(payload: dict, evidence_for, read_in_context=None, *,
             if text is not None:
                 return text
         with _serialized(evidence.parent / MARKER):
-            return _deliver(payload, evidence, read_in_context, closeout)
+            return _deliver(payload, evidence, read_in_context, closeout, agy=agy)
     except (OSError, ValueError, KeyError, TypeError):
         return ""
 
@@ -150,7 +150,7 @@ def _serialized(marker: Path):
         yield
 
 
-def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> str:
+def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool, *, agy: bool = False) -> str:
     try:
         marker = evidence.parent / MARKER
         transcript = Path(str(payload.get("transcript_path") or ""))
@@ -170,6 +170,13 @@ def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool) -> 
             # docs it covers; delivering again is cheap, a missing doc is not.
             reused = set()
         docs = [doc for doc in docs if doc not in reused]
+        if agy:
+            from support.native_doc_transcript import agy_prepared_delivery
+
+            text = agy_prepared_delivery(evidence, transcript, rules, docs, plan,
+                                         MAX_INLINE_DOC_BYTES, MAX_DELIVERY_BYTES)
+            if text is not None:
+                return text
         texts = _read_docs(rules, docs)
         read = (read_in_context or _read_in_context)(transcript, rules, texts)
         pending = [doc for doc in docs if doc not in read]

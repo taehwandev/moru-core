@@ -35,6 +35,7 @@ impl DocTranscriptProcess {
                         | "nearest-registry-project"
                         | "agy-delivery-request"
                         | "agy-redelivery"
+                        | "agy-prepared-delivery"
                         | "delivery-plan"
                         | "write-marker"
                 )
@@ -60,7 +61,10 @@ impl DocTranscriptProcess {
                     return agy_doc_request::decode(object);
                 }
                 if args[1] == "agy-redelivery" && object.len() == 6 {
-                    return agy_doc_redelivery::deliver(&payload);
+                    return agy_doc_redelivery::AgyDocDelivery::redeliver(&payload);
+                }
+                if args[1] == "agy-prepared-delivery" && object.len() == 8 {
+                    return agy_doc_redelivery::AgyDocDelivery::deliver_prepared(&payload);
                 }
                 if args[1] == "write-marker" && object.len() == 5 {
                     return delivery_marker::DocDeliveryMarker::write_payload(&payload);
@@ -125,7 +129,7 @@ impl DocTranscriptProcess {
         let Ok(mut out) = serde_json::to_vec(&json!({"schema_version":1,"result":{"value":value}}))
         else {
             return match args[1].to_str() {
-                Some("write-marker" | "agy-redelivery") => 1,
+                Some("write-marker" | "agy-redelivery" | "agy-prepared-delivery") => 1,
                 _ => 125,
             };
         };

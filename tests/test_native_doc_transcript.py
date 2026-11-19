@@ -705,6 +705,60 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 fallback.assert_called_once()
             self.assertEqual(after, marker.read_bytes())
 
+    def test_agy_prepared_first_delivery_respects_reuse_and_compaction(self):
+        for reused, compacted, expected_docs in (
+            ([agy_fixtures.CORE], False, [agy_fixtures.OTHER]),
+            ([agy_fixtures.CORE], True, [agy_fixtures.CORE, agy_fixtures.OTHER]),
+            ([agy_fixtures.CORE, agy_fixtures.OTHER], False, []),
+        ):
+            with self.subTest(reused=reused, compacted=compacted):
+                fixture = agy_fixtures.AgyHookTests()
+                fixture.setUp()
+                self.addCleanup(fixture.doCleanups)
+                marker = fixture.evidence.parent / reference.MARKER
+                if compacted:
+                    fixture._append(agy_fixtures.CHECKPOINT)
+                else:
+                    # A proven reused document must not be read at all.
+                    (fixture.rules / agy_fixtures.CORE).write_bytes(b"\xff")
+                with patch.object(reference, "required_doc_reuse", return_value={"reused": reused}) as reuse:
+                    with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                        expected = fixture._hook()
+                        expected_marker = marker.read_bytes()
+                    marker.unlink()
+                    with patch.dict(os.environ, self.env, clear=True), patch.object(
+                            reference, "_read_docs", side_effect=AssertionError("legacy delivery")) as fallback:
+                        self.assertEqual(expected, fixture._hook())
+                        fallback.assert_not_called()
+                    self.assertEqual([fixture.evidence, fixture.evidence],
+                                     [call.args[0] for call in reuse.call_args_list])
+                self.assertEqual(expected_marker, marker.read_bytes())
+                stored = json.loads(expected_marker)
+                self.assertEqual(expected_docs, stored["delivered"])
+                self.assertEqual(0, stored["redeliveries"])
+
+    def test_agy_prepared_first_delivery_does_not_repeat_uncertain_write(self):
+        fixture = agy_fixtures.AgyHookTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        original = subprocess.run
+
+        def lose_reply(argv, *args, **kwargs):
+            completed = original(argv, *args, **kwargs)
+            if argv[-1] == "agy-prepared-delivery":
+                self.assertEqual(0, completed.returncode)
+                self.assertTrue(json.loads(completed.stdout)["result"]["value"]["text"])
+                raise subprocess.TimeoutExpired(argv, 10)
+            return completed
+
+        with patch.dict(os.environ, self.env, clear=True), patch(
+                "support.native_probe_transport.subprocess.run", side_effect=lose_reply), patch.object(
+                reference, "_read_docs", side_effect=AssertionError("unsafe compatibility retry")) as fallback:
+            self.assertEqual({}, fixture._hook())
+            fallback.assert_not_called()
+        marker = fixture.evidence.parent / reference.MARKER
+        self.assertEqual([agy_fixtures.CORE, agy_fixtures.OTHER], json.loads(marker.read_bytes())["delivered"])
+
     def test_agy_redelivery_acknowledgement_loss_never_retries_and_releases_lock(self):
         fixture = agy_fixtures.AgyHookTests()
         fixture.setUp()
