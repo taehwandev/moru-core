@@ -198,15 +198,21 @@ def reconcile_verify_batches(verification, *, project, rules, evidence_path):
         return False
     from agent_verification_receipts import ExecutionReceipts
     reader = ExecutionReceipts(project, rules)
-    if not reader.history(evidence_path, live=False):
+    tests_dir = str(Path(project).resolve() / 'tests')
+    if not any(fact['test_directory'] == tests_dir for fact in reader.history(evidence_path, live=False)):
         return False  # Existing manually recorded checks retain their own scope.
     covered = set()
     for fact in reader.history(evidence_path):
+        if fact['test_directory'] != tests_dir:
+            continue
         prefix = 'passed' if fact['successful'] else 'failed'
         ids = fact[prefix + '_ids'] + fact[prefix + '_selectors']
         matched = {sel for sel in selectors if any(test_id == sel or test_id.startswith(sel + '.')
                    or test_id.endswith('_FailedTest.' + sel) for test_id in ids)}
         if fact['successful']:
+            if fact['selectors']:
+                matched = {sel for sel in matched if any(sel == name or sel.startswith(name + '.')
+                           for name in fact['selectors'])}
             covered.update(matched)
         else:
             covered.difference_update(matched)

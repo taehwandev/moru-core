@@ -70,7 +70,9 @@ def assess_completion_verification(packet, *, prepared=None, required_verificati
         return {**result, "reason": "missing_handoff_evidence_context"}
     reader = ExecutionReceipts(working_dir, prepared["rules"])
     reason = "missing_canonical_preflight"
-    for key in ("worker_preflight_evidence", "preflight_evidence"):
+    evidence_keys = ("worker_preflight_evidence",) if prepared.get("worker_owned_verification") is True else (
+        "worker_preflight_evidence", "preflight_evidence")
+    for key in evidence_keys:
         if not prepared.get(key):
             continue
         # Keep the lexical path; resolving first would conceal a symlink.

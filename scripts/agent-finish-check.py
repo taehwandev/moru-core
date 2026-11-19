@@ -460,6 +460,18 @@ def _validated_gate_evidence(
         evidence_path=evidence_path,
     )
     failures.extend(incomplete_gate_evidence_failures(ledger))
+    if "tests" in gate_evidence:
+        from agent_next_action import suggest_verification_targets
+        from agent_next_verification import reconcile_verify_batches
+
+        verification = suggest_verification_targets(project)
+        if (reconcile_verify_batches(verification, project=project, rules=rules,
+                                     evidence_path=evidence_path)
+                and not verification["observed_selection_complete"]):
+            pending = verification["next_verify_batch"] + verification["remaining_test_selectors"]
+            gate_evidence.pop("tests")
+            failures.append(f"tests verification has {len(pending)} pending targets; "
+                            f"run the next verification batch (first: {pending[0]})")
     enforce_review_hook_attestation(
         route=route,
         project=project,

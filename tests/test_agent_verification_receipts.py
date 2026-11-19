@@ -28,15 +28,19 @@ class ReceiptFixture:
         subprocess.run(['git', '-C', str(self.project), 'add', '.'], check=True)
         subprocess.run(['git', '-C', str(self.project), '-c', 'user.name=Test',
                         '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'fixture'], check=True)
-        self.path = self.project / '.moru' / 'runs' / ('a' * 32) / 'preflight.json'
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        path = self.project / '.moru' / 'runs' / ('a' * 32) / 'preflight.json'
+        self.bind(path, self.project, gates=gates)
+
+    def bind(self, path, rules, *, gates=None):
+        self.path = path
+        path.parent.mkdir(parents=True, exist_ok=True)
         self.session = {'runtime': 'codex', 'session_id': 'receipt-fixture'}
         route = {'command': 'task', 'gates': gates or ['tests']}
         run = register_run(self.project, self.path, route, {'request': 'verify fixture'})
-        self.preflight = {'project': str(self.project), 'rules': str(self.project),
+        self.preflight = {'project': str(self.project), 'rules': str(rules),
             'runtime_session': self.session, 'agent_run_id': run['run_id'], 'route': route}
         self.path.write_text(json.dumps(self.preflight))
-        self.args = SimpleNamespace(project=self.project, rules=self.project, evidence=self.path,
+        self.args = SimpleNamespace(project=self.project, rules=rules, evidence=self.path,
             test_directory='tests', test_pattern='test_*.py', test_selector=[], verify_timeout=10)
 
     def write_test(self, body='self.assertTrue(True)'):
@@ -167,19 +171,43 @@ class ExecutionReceiptTests(unittest.TestCase):
 
     def test_65_targets_advance_after_actual_first_batch_without_false_completion(self):
         from agent_next_action import inspect_next_action
+        from test_agent_review_attestation import load_finish_check_module
         f = self.fixture(gates=['tests', 'review hook'])
+        finish = load_finish_check_module()
+
+        def gates():
+            failures = []
+            recorded, _ = finish._validated_gate_evidence(route=f.preflight['route'],
+                project=f.project, rules=f.project, evidence_path=f.path, failures=failures)
+            return recorded, failures
+
         selectors = ['test_target_%02d' % n for n in range(65)]
         for name in selectors:
             (f.project / 'tests' / (name + '.py')).write_text(
                 'import unittest\nclass Case(unittest.TestCase):\n    def test_ok(self):\n        pass\n')
+        other = f.project / 'checks'
+        other.mkdir()
+        (other / (selectors[-1] + '.py')).write_bytes(
+            (f.project / 'tests' / (selectors[-1] + '.py')).read_bytes())
         self.assertEqual(0, f.run(selectors[:64]))
         next_action = inspect_next_action(f.project, evidence=f.path)
         self.assertEqual('verify', next_action['next_step'])
         self.assertEqual(selectors[64:], next_action['verification']['next_verify_batch'])
+        recorded, failures = gates()
+        self.assertNotIn('tests', recorded)
+        self.assertTrue(any('1 pending targets' in failure and selectors[-1] in failure
+                            for failure in failures), failures)
+        self.assertEqual(0, f.run([selectors[-1] + '.Case.test_ok']))
+        self.assertNotIn('tests', gates()[0])
+        f.args.test_directory = 'checks'
+        self.assertEqual(0, f.run(selectors[64:]))
+        self.assertNotIn('tests', gates()[0])
+        f.args.test_directory = 'tests'
         self.assertEqual(0, f.run(selectors[64:]))
         complete = inspect_next_action(f.project, evidence=f.path)
         self.assertEqual('review', complete['next_step'])
         self.assertEqual([], complete['verification']['next_verify_batch'])
+        self.assertIn('tests', gates()[0])
 
     def test_source_review_requires_scoped_canonical_attestation_validation(self):
         from agent_review_attestation import ReviewAttestation

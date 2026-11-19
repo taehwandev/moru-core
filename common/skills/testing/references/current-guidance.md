@@ -247,7 +247,9 @@ The read-only next-action advisor connects eligible active Python tests to the
 verification runner. It lists unmatched or unsupported targets explicitly.
 For more than 64 named targets, current registered execution records advance
 the next batch without repeating covered targets or advising review after only
-the first batch. This large-batch path uses the canonical Python advisor; the
+the first batch. Finish also rejects partial observed coverage and identifies
+the first pending selector. A pass in a different directory or on a narrower
+method does not clear a pending module. This path uses the canonical Python advisor; the
 native advisor defers before emitting output. Filename matches are suggestions,
 not proof of complete behavior coverage. Existing manual gate evidence retains
 its established scope and does not become observed execution automatically.
@@ -271,6 +273,14 @@ project, rules, source and test scope. Worker checks are labeled
 A parent route's tests gate remains the lead's responsibility, so a legacy
 worker does not acquire parent-ledger write access or a new test obligation.
 Declaring required verification grants no execution or mutation authority.
+
+For the regular dispatch CLI, repeat `--require-test-selector test_owner.Case.test_behavior`
+for up to 64 named unittest selectors on a route with a tests gate. Use
+`--worker-test-directory` to override the default `tests`. The option selects
+an isolated worker checkout. With `--execute`, the launcher issues evidence
+inside that checkout and the worker runs verification in its own bound run.
+A missing or stale worker record rejects completion even when the process
+reports success. Inspecting the manifest creates no worktree or evidence.
 
 Review packets accept an optional `--findings-file` containing a finding list
 or a worker-result object. Keep each finding's unique `id` and original source

@@ -5,13 +5,16 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from agent_gate_evidence import gate_evidence_path_for_preflight
 from agent_state_read import read_json_object, scheduler_path
 from agent_scheduler import claim_task, enqueue_task
+from agent_worker_evidence import isolated_worker_evidence, claim_worker_reservation
+from agent_worktree_identity import new_worktree_path
 from workflow_dispatch_completion import evaluate_result
-from workflow_dispatch_handoff import build_worker_result_packet, worker_output_paths
-from workflow_dispatch_launch import _run_scheduled_worker, _run_spooled_worker
+from workflow_dispatch_handoff import build_handoff_prompt, build_worker_result_packet, worker_output_paths
+from workflow_dispatch_launch import execute_dispatch_manifest, _run_scheduled_worker, _run_spooled_worker
 from workflow_dispatch_verification import (CALLER_REPORT, OBSERVED_VERIFICATION,
     PROCESS_COMPLETION, assess_completion_verification, classify_worker_checks)
 from test_agent_verification_receipts import ReceiptFixture
@@ -73,6 +76,53 @@ class DispatchVerificationTests(unittest.TestCase):
         (self.project / 'changed.py').write_text('changed = True')
         self.assertFalse(assess_completion_verification(self.packet(), prepared=self.prepared,
                                                        working_dir=self.project)['satisfied'])
+
+    def test_isolated_dispatch_requires_fresh_evidence_from_issued_worker_path(self):
+        selector = 'test_sample.Case.test_ok'
+        self.assertEqual(0, self.f.run([selector]))
+        original = self.preflight_path.read_bytes()
+        for scenario, expected in [('pass', 0), ('missing', 1), ('stale', 1)]:
+            with self.subTest(scenario=scenario):
+                child = new_worktree_path(self.project)
+                parent_slot = self.project / '.moru' / 'workers' / scenario / 'preflight.json'
+                manifest = {
+                    'project': str(self.project), 'command': 'task', 'work_kind': 'implementation',
+                    'work_profile': {}, 'sandbox_mode': 'workspace-write', 'execution_mode': 'child',
+                    'isolation_required': True, 'worktree_path': str(child),
+                    'handoff_state': {**self.prepared, 'worker_preflight_evidence': str(parent_slot),
+                                      'required_docs': [], 'gates': ['tests'],
+                                      'gate_ledger': 'parent ledger', 'verification_plan': 'required'},
+                    'required_verification': {'selectors': [selector]},
+                    'worker_owned_verification': True,
+                }
+
+                def argv(*args, output_last_message, **kwargs):
+                    self.assertIn(selector, args[3])
+                    return [str(output_last_message)]
+
+                def process(command, *, env, **kwargs):
+                    self.assertEqual(str(child), env['MORU_WORKER_WORKTREE'])
+                    evidence = Path(env['MORU_WORKER_EVIDENCE'])
+                    self.assertTrue(evidence.is_relative_to(child))
+                    self.assertTrue(claim_worker_reservation(
+                        evidence.parent, env['MORU_WORKER_RESERVATION_TOKEN']))
+                    worker = ReceiptFixture.__new__(ReceiptFixture)
+                    worker.project = child
+                    worker.bind(evidence, self.project)
+                    if scenario != 'missing':
+                        self.assertEqual(0, worker.run([selector]))
+                    if scenario == 'stale':
+                        worker.write_test('self.assertTrue(False)')
+                    Path(command[0]).write_text('{"status":"ok"}')
+                    return subprocess.CompletedProcess(command, 0)
+
+                with patch('workflow_dispatch_launch.run_worker', side_effect=process):
+                    self.assertEqual(expected, execute_dispatch_manifest(
+                        manifest, runner=None, execution_capsule_state=lambda *a, **k: self.fail(
+                            "worker-owned verification must not reuse the parent capsule"),
+                        isolated_worker_evidence=isolated_worker_evidence, codex_argv=argv,
+                        build_handoff_prompt=build_handoff_prompt))
+                self.assertEqual(original, self.preflight_path.read_bytes())
 
     def test_skip_only_and_foreign_target_cannot_satisfy_requirement(self):
         self.assertEqual(1, self.f.run(['test_sample.Case.test_skip']))

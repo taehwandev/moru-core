@@ -17,6 +17,7 @@ from agent_gate_evidence import gate_evidence_path_for_preflight
 from agent_run_registry import latest_run_id
 from agent_ipc import emit_event, emit_heartbeat, emit_worker_failure, emit_worker_result
 from agent_scheduler import claim_task, choose_capacity, enqueue_task, heartbeat_task, retry_task, resume_task, transition_task
+from support.global_state import project_state_dir_target
 from agent_worker_evidence import create_worker_reservation, worker_reservation_matches
 from agent_worktree_identity import (
     new_worktree_path,
@@ -33,6 +34,7 @@ from workflow_dispatch_handoff import (
 from workflow_dispatch_retry import DEFAULT_MAX_RETRIES, WorkerOutcome, read_worker_outcome, recovery_message
 from workflow_dispatch_process import owns_task, run_worker
 from workflow_dispatch_completion import evaluate_result, read_result
+from workflow_dispatch_verification import requires_verification
 
 LEASE_RENEWAL_SECONDS = 600
 
@@ -67,11 +69,22 @@ def execute_dispatch_manifest(
     profile = manifest.get("work_profile")
     if not isinstance(handoff, Mapping) or not isinstance(profile, Mapping):
         raise ValueError("Dispatch manifest is missing handoff state or work profile")
+    project = Path(str(manifest["project"])).resolve()
+    worker_checkout = None
+    if manifest.get("worker_owned_verification") is True:
+        if not _is_worktree_isolated(manifest):
+            raise ValueError("Required worker verification needs an isolated checkout")
+        required, spec = requires_verification(None, required_verification=manifest.get("required_verification"))
+        if not required or spec.get("invalid") or not spec.get("selectors"):
+            raise ValueError("Worker-owned verification requires a valid named test selection")
+        worker_checkout = _bind_worker_working_dir(manifest, project)
     prepared = prepare_launch_handoff(
         manifest,
         handoff,
         execution_capsule_state=execution_capsule_state,
         isolated_worker_evidence=isolated_worker_evidence,
+        verification_checkout=worker_checkout[0] if worker_checkout else None,
+        verification=spec if worker_checkout else None,
     )
     prompt = build_handoff_prompt(
         str(manifest["command"]),
@@ -92,7 +105,6 @@ def execute_dispatch_manifest(
         prompt,
         output_last_message=last_message_path,
     )
-    project = Path(str(manifest["project"])).resolve()
     scheduler_task = _claim_scheduler_task(manifest, prepared, project)
     heartbeat_interval = float(manifest.get("heartbeat_interval_seconds") or 0)
     task_context = {
@@ -108,7 +120,7 @@ def execute_dispatch_manifest(
         return _run_scheduled_worker(argv, runner, project, scheduler_task, heartbeat_interval_seconds=heartbeat_interval,
                                      task_context=task_context)
     try:
-        working_dir, worktree_path = _bind_worker_working_dir(manifest, project)
+        working_dir, worktree_path = worker_checkout or _bind_worker_working_dir(manifest, project)
     except BaseException:
         # The scheduler task is already marked running; a worktree-creation
         # failure here must transition it to a terminal failed state rather than
@@ -260,6 +272,8 @@ def _run_scheduled_worker(
             )
             task_context["completion_assessment"] = assessment
             if not accepted:
+                if assessment.get("verification_required") and not assessment.get("satisfied"):
+                    print(f"Worker verification rejected: {assessment['reason']}", file=sys.stderr)
                 outcome = WorkerOutcome(1, "WORKER_RESULT_REJECTED")
         result = outcome.returncode
         # Events follow the guarded transition: an attempt that stale recovery
@@ -400,6 +414,8 @@ def prepare_launch_handoff(
     *,
     execution_capsule_state: Callable[..., dict[str, object]],
     isolated_worker_evidence: Callable[..., Path],
+    verification_checkout: Path | None = None,
+    verification: dict[str, object] | None = None,
 ) -> dict[str, object]:
     prepared = dict(handoff)
     project = Path(str(manifest["project"])).resolve()
@@ -408,6 +424,22 @@ def prepare_launch_handoff(
     route = prepared.get("route_manifest")
     if not isinstance(route, Mapping):
         raise ValueError("Dispatch manifest is missing the parent route manifest")
+    if verification_checkout is not None:
+        slot = Path(str(prepared["worker_preflight_evidence"])).parent.name
+        requested = project_state_dir_target(verification_checkout) / "workers" / slot / "preflight.json"
+        worker_evidence = isolated_worker_evidence(
+            verification_checkout, parent_evidence, requested, reserve=True
+        )
+        prepared.update(
+            execution_capsule={"reusable": False, "invalidation_reasons": ["worker-owned verification"]},
+            worker_preflight_evidence=str(worker_evidence),
+            worker_gate_ledger=str(gate_evidence_path_for_preflight(worker_evidence)),
+            worker_evidence_reserved=True,
+            worker_reservation_token=create_worker_reservation(worker_evidence.parent),
+            required_verification=verification,
+            worker_owned_verification=True,
+        )
+        return prepared
     prepared["execution_capsule"] = execution_capsule_state(
         project,
         rules,

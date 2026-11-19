@@ -240,6 +240,30 @@ class _IsolationDerivationTestCase(unittest.TestCase):
         )
 
 
+class RequiredVerificationCliTests(unittest.TestCase):
+    _dispatch = _IsolationDerivationTestCase._dispatch
+    _REQUEST = _IsolationDerivationTestCase._REQUEST
+
+    def test_options_bind_named_checks_to_an_isolated_worker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._dispatch(Path(tmp), "--require-test-selector", "test_a.Case.test_one",
+                                    "--require-test-selector", "test_b", "--worker-test-directory", "checks")
+            self.assertEqual(0, result.returncode, result.stderr)
+            manifest = json.loads(result.stdout)
+            self.assertTrue(manifest["worker_owned_verification"])
+            self.assertTrue(manifest["isolation_required"])
+            self.assertEqual({"selectors": ["test_a.Case.test_one", "test_b"],
+                              "test_directory": "checks"}, manifest["required_verification"])
+            self.assertFalse((Path(tmp) / ".moru").exists())
+
+    def test_cli_rejects_invalid_test_scope_before_launch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._dispatch(Path(tmp), "--execute", "--require-test-selector", "test_ok",
+                                    "--worker-test-directory", "../outside")
+            self.assertEqual(2, result.returncode, result.stderr)
+            self.assertIn("Invalid required verification", result.stderr)
+
+
 class MalformedPlanFailClosedTests(_IsolationDerivationTestCase):
     """A plan *file* that exists is delegation intent and must fail closed.
 

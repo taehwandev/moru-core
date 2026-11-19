@@ -29,6 +29,7 @@ from workflow_dispatch_cli import (
     parent_dispatch_route,
     preflight_identity_matches,
 )
+from workflow_dispatch_verification import requires_verification
 from workflow_classified_exemption import (
     classified_intake_decision,
     parent_evidence_path,
@@ -281,6 +282,10 @@ def _add_dispatch_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Delegation plan path (default: <project>/.moru/agent-delegation-plan.json).",
     )
     dispatch.add_argument("--heartbeat-interval-seconds", type=float, default=0)
+    dispatch.add_argument("--require-test-selector", action="append", default=[],
+                          help="Require an observed unittest selector in this worker's isolated checkout. Repeat up to 64 times.")
+    dispatch.add_argument("--worker-test-directory", default=None,
+                          help="Directory relative to the worker checkout (default: tests).")
     dispatch.add_argument("--execute", action="store_true")
 
 
@@ -634,6 +639,7 @@ def print_dispatch(args: argparse.Namespace) -> int:
             print(f"- {item}", file=sys.stderr)
         return 1
     try:
+        verification = _dispatch_worker_verification(args, route)
         isolation_required = dispatch_isolation_required(args, project)
     except ValueError as error:
         print(error, file=sys.stderr)
@@ -654,7 +660,7 @@ def print_dispatch(args: argparse.Namespace) -> int:
             parent_model=args.parent_model,
             parent_reasoning_effort=args.parent_reasoning_effort,
             parent_sandbox_mode=args.parent_sandbox_mode,
-            isolation_required=isolation_required,
+            isolation_required=isolation_required or bool(verification),
             heartbeat_interval_seconds=args.heartbeat_interval_seconds,
             rules=rules,
             evidence_path=evidence_path,
@@ -667,6 +673,9 @@ def print_dispatch(args: argparse.Namespace) -> int:
     except (OSError, RuntimeError, ValueError) as error:
         print(error, file=sys.stderr)
         return 2
+    if verification:
+        manifest["required_verification"] = verification
+        manifest["worker_owned_verification"] = True
     if args.execute:
         try:
             return execute_dispatch_manifest(manifest)
@@ -678,6 +687,25 @@ def print_dispatch(args: argparse.Namespace) -> int:
             return 1
     print_dispatch_manifest(manifest, args.format)
     return 0
+
+
+def _dispatch_worker_verification(args, route):
+    selectors = getattr(args, "require_test_selector", [])
+    directory = getattr(args, "worker_test_directory", None)
+    if not selectors:
+        if directory is not None:
+            raise ValueError("--worker-test-directory requires --require-test-selector")
+        return None
+    if "tests" not in route.get("gates", []):
+        raise ValueError("--require-test-selector requires a dispatch route with a tests gate")
+    if args.worker_evidence or args.worker_reservation_token:
+        raise ValueError("Required worker verification reserves evidence in its own checkout")
+    _, spec = requires_verification(None, required_verification={
+        "selectors": selectors, "test_directory": "tests" if directory is None else directory,
+    })
+    if spec.get("invalid"):
+        raise ValueError("Invalid required verification: use up to 64 dotted selectors and a relative test directory")
+    return spec
 
 
 def print_dispatch_finalize(args: argparse.Namespace) -> int:

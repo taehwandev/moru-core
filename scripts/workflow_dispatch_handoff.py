@@ -313,6 +313,13 @@ def build_handoff_prompt(
             "This is a read-only non-authoring stage. Do not modify files, write code, generate patches, or create tests."
         )
     _add_capsule_instructions(instructions, handoff_state)
+    if handoff_state.get("worker_owned_verification") is True:
+        spec = handoff_state["required_verification"]
+        instructions.append(
+            "After all edits, use the verification runner in your own bound run with "
+            f"--test-directory {spec['test_directory']!r} and these --test-selector values: "
+            f"{', '.join(spec['selectors'])}. An observed pass on the final inputs is required."
+        )
     reusable_capsule = _has_reusable_capsule(handoff_state)
     evidence_instruction = (
         "Do not read parent preflight.json, gate-evidence.json, AGENTS.md, or required_docs; use this bounded handoff view and do not overwrite parent gate-ledger entries."
