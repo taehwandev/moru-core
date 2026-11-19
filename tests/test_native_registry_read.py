@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -175,6 +176,24 @@ class NativeRegistryReadTests(unittest.TestCase):
         before = receipt.read_bytes()
         rows = [{"run_id": "completed", "state": "completed", "evidence_key": self.key}]
         self.write(rows + [{"run_id": "newer", "state": "running", "evidence_key": self.key}])
+        (self.empty / "git").symlink_to(shutil.which("git"))
+
+        def launcher(name=checkpoint, backend="auto", *, assignment=False):
+            option = ["--checkpoint=" + name] if assignment else ["--checkpoint", name]
+            done = subprocess.run([str(self.entry), "pending-publication", "settle",
+                *option, "--project", str(self.project),
+                "--evidence", str(self.evidence.relative_to(self.project))],
+                env={**self.env, "PATH": str(self.empty), "MORU_LAUNCHER_BACKEND": backend},
+                cwd=self.project, capture_output=True, timeout=15)
+            return done.returncode, done.stdout, done.stderr
+
+        self.assertEqual((2, b"FAIL publication settle: local delivery observation requires a completed bound run\n", b""),
+                         launcher())
+        self.assertEqual(before, receipt.read_bytes())
+        self.assertEqual(127, launcher("publication.push")[0])
+        self.assertEqual(127, launcher(backend="python")[0])
+        self.assertEqual(127, launcher(assignment=True)[0])
+        self.assertEqual(before, receipt.read_bytes())
         with patch.dict(os.environ, self.env, clear=True), patch.object(
                 reads, "completed_evidence_binding", side_effect=AssertionError("separate binding fallback")
         ), patch.object(publication, "_observed_record", side_effect=AssertionError("separate transition fallback")):
@@ -183,12 +202,20 @@ class NativeRegistryReadTests(unittest.TestCase):
             self.write(rows)
             self.assertIn("target branch does not contain the reviewed commit",
                           publication.settle(self.project, self.evidence, checkpoint))
+            self.assertEqual((2, b"FAIL publication settle: target branch does not contain the reviewed commit\n", b""),
+                             launcher())
             self.assertEqual(before, receipt.read_bytes())
             git("branch", "-f", "delivery", reviewed)
             record = json.loads(before)
             prepared = publication._prepare_local_settlement(self.project, self.evidence, record, checkpoint)
             self.assertIsNotNone(prepared)
             self.assertEqual(before, receipt.read_bytes())
+            self.assertEqual((0, b"publication observation recorded\n", b""), launcher())
+            written = receipt.read_bytes()
+            self.assertEqual((2, b"FAIL publication settle: that checkpoint is not pending\n", b""), launcher())
+            self.assertEqual(written, receipt.read_bytes())
+            self.assertEqual(0o600, receipt.stat().st_mode & 0o777)
+            receipt.write_bytes(before)
             self.assertEqual("", publication.settle(self.project, self.evidence, checkpoint))
             self.assertEqual("that checkpoint is not pending", publication.settle(self.project, self.evidence, checkpoint))
         updated = json.loads(receipt.read_bytes())

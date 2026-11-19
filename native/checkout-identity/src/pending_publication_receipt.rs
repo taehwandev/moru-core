@@ -100,7 +100,7 @@ impl PendingPublicationReceipt {
         })
     }
 
-    fn is_id(text: &str) -> bool {
+    pub(super) fn is_id(text: &str) -> bool {
         text.len() == 32
             && text
                 .bytes()

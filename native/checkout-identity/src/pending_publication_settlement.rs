@@ -12,17 +12,19 @@ use crate::{
 };
 use serde_json::{json, Value};
 
-pub(super) struct LocalSettlement;
+pub(crate) struct LocalSettlement;
 
 impl LocalSettlement {
-    pub(super) fn prepare(payload: &Value) -> Option<Value> {
+    pub(crate) fn supports(checkpoint: &str) -> bool {
+        PendingPublicationReceipt::checkpoint(checkpoint)
+            && (checkpoint == "publication.commit"
+                || checkpoint.starts_with("publication.integrate/"))
+    }
+
+    pub(crate) fn prepare(payload: &Value) -> Option<Value> {
         let record = payload.get("record")?;
         let checkpoint = payload.get("checkpoint")?.as_str()?;
-        if record.get("schema_version")?.as_u64()? != 2
-            || !PendingPublicationReceipt::checkpoint(checkpoint)
-            || !(checkpoint == "publication.commit"
-                || checkpoint.starts_with("publication.integrate/"))
-        {
+        if record.get("schema_version")?.as_u64()? != 2 || !Self::supports(checkpoint) {
             return None;
         }
         let completed = RegistryRead::inspect("completed-binding", payload.get("binding")?)?;

@@ -24,7 +24,7 @@ use std::{
 pub(crate) struct CompletionProcess;
 
 #[path = "pending_publication_settlement.rs"]
-mod pending_publication_settlement;
+pub(super) mod pending_publication_settlement;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
