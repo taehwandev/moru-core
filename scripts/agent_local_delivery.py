@@ -14,12 +14,14 @@ import locale
 import re
 from pathlib import Path
 
+from agent_worktree_fingerprint import git_output
 from support.native_probe_transport import NativeProbe
 
 
 class LocalDeliveryProof:
     CONTRACT = "staged_v1"
     INTEGRATION = "publication.integrate"
+    UNBORN = "unborn"
     _MAX_LISTING = 8 * 1024 * 1024
 
     @staticmethod
@@ -48,14 +50,16 @@ class LocalDeliveryProof:
 
     @classmethod
     def capture(cls, project: Path, base: str, source: str, items: list, git, *, native: bool = False) -> dict:
-        if native and (proof := _prepare_native(project, base, source, items)) is not None:
+        initial = base == cls.UNBORN
+        if not initial and native and (proof := _prepare_native(project, base, source, items)) is not None:
             return proof
         if git(project, 'diff', '--no-ext-diff', '--no-textconv', '--quiet', '--exit-code') is None:
             raise ValueError('tracked worktree content must match the reviewed index')
-        staged, original = _capture_identities(
-            git(project, "ls-files", "--stage", "-z"), git(project, "ls-tree", "-r", "-z", base),
-        )
+        original_listing = "" if initial else git(project, "ls-tree", "-r", "-z", base)
+        staged, original = _capture_identities(git(project, "ls-files", "--stage", "-z"), original_listing)
         commit = any(item["checkpoint"] == "publication.commit" for item in items)
+        if initial and (not commit or any(item["checkpoint"].startswith(cls.INTEGRATION + "/") for item in items)):
+            raise ValueError("unborn branch proof requires a first commit without local integration")
         if commit and staged == original:
             raise ValueError("stage the reviewed changes before declaring a post-finish commit")
         if not commit and staged != original:
@@ -72,7 +76,11 @@ class LocalDeliveryProof:
             if not head:
                 raise ValueError("local integration target must already exist")
             targets[target] = head
-        if git(project, "rev-parse", "HEAD") != base:
+        if initial:
+            unchanged = _is_unborn(project) and git(project, "symbolic-ref", "--short", "HEAD") == source
+        else:
+            unchanged = git(project, "rev-parse", "HEAD") == base
+        if not unchanged:
             raise ValueError("HEAD changed while preparing local delivery")
         return dict(project=str(project.resolve()), common=cls._common(project, git),
                     staged_sha256=staged, commit_declared=commit, targets=targets)
@@ -80,6 +88,8 @@ class LocalDeliveryProof:
     @classmethod
     def _committed(cls, project: Path, proof: dict, base: str, source: str, expected: str, git) -> str:
         head = git(project, 'rev-parse', '--verify', 'refs/heads/' + source)
+        if base == cls.UNBORN:
+            return _first_commit(project, head, proof, expected, git)
         heads = [head] if head else [git(project, 'rev-parse', '--verify', 'refs/heads/' + target)
                                     for target in proof['targets']]
         heads = [value for value in heads if value and git(project, 'merge-base', '--is-ancestor', base, value) is not None]
@@ -98,12 +108,14 @@ class LocalDeliveryProof:
     def observe(cls, project: Path, record: dict, checkpoint: str, git, *, native: bool = False) -> tuple[str, str]:
         try:
             proof = record["local_delivery"]
-            if native and (result := _observe_native(project, proof, record, checkpoint)) is not None:
+            initial = record["base_head"] == cls.UNBORN
+            if not initial and native and (result := _observe_native(project, proof, record, checkpoint)) is not None:
                 return result
             if proof["project"] != str(project.resolve()) or proof["common"] != cls._common(project, git):
                 return "", "local delivery belongs to a different repository or checkout"
             expected, base, source = proof["staged_sha256"], record["base_head"], record["source_branch"]
-            if not re.fullmatch(r"[0-9a-f]{64}", expected) or not re.fullmatch(r"[0-9a-f]{40,64}", base):
+            valid_base = initial or re.fullmatch(r"[0-9a-f]{40,64}", base)
+            if not re.fullmatch(r"[0-9a-f]{64}", expected) or not valid_base:
                 return "", "local delivery proof is malformed"
             approved = cls._committed(project, proof, base, source, expected, git)
             if not approved:
@@ -121,6 +133,30 @@ class LocalDeliveryProof:
             return f"reviewed staged content committed as {approved}", ""
         except (OSError, ValueError, TypeError, KeyError):
             return "", "local delivery proof cannot be verified"
+
+
+def _is_unborn(project: Path) -> bool:
+    try:
+        return git_output(project, "rev-parse", "--verify", "HEAD").strip() == LocalDeliveryProof.UNBORN
+    except RuntimeError:
+        return False
+
+
+def _is_root_commit(project: Path, head: str, git) -> bool:
+    commit = git(project, "--no-replace-objects", "cat-file", "commit", head)
+    if not commit:
+        return False
+    headers = commit.partition("\n\n")[0].splitlines()
+    return not any(line.startswith("parent ") for line in headers)
+
+
+def _first_commit(project: Path, head: str | None, proof: dict, expected: str, git) -> str:
+    if not head or not proof["commit_declared"] or proof["targets"]:
+        return ""
+    if not _is_root_commit(project, head, git):
+        return ""
+    committed = LocalDeliveryProof._identity(git(project, "--no-replace-objects", "ls-tree", "-r", "-z", head))
+    return head if committed == expected else ""
 
 
 def _capture_identities(index: str | None, base: str | None) -> tuple[str, str]:
