@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -405,7 +406,10 @@ def _run_review_checks(
                     _structure_review_paths(review_subject, review_paths),
                     max_added_lines=getattr(args, "max_added_lines", REVIEW_ADDED_LINE_LIMIT),
                     source_project=source_project,
-                    review_commits=_structure_review_commits(review_subject),
+                    review_commits=(
+                        checks.get("initial_import_comparison")
+                        or _structure_review_commits(review_subject)
+                    ),
                 )
     except (OSError, RuntimeError, ValueError) as error:
         failures.append(f"commit snapshot materialization failed: {error}")
@@ -417,28 +421,10 @@ def _run_review_checks(
     )
     failures.extend(documentation_reference_failures(source_project, structure, run_command))
 
-    if local_config_scope:
-        diff_check = local_config_diff_check(args.project, review_paths)
-    elif status_before.get("review_only"):
-        diff_check = {
-            "command": ["git", "diff", "--check"],
-            "cwd": str(args.project),
-            "returncode": 0,
-            "stdout": "",
-            "stderr": "",
-            "skipped": True,
-            "review_note": non_git_writing_workspace_note(args.project),
-        }
-    else:
-        diff_check = run_command(diff_check_command(review_paths, review_subject), args.project)
-    checks["diff_check"] = diff_check
-    if review_subject["kind"] == "working-tree" and not status_before.get("review_only"):
-        staged = run_command(["git", "diff", "--cached", "--check", "--", *review_paths], args.project)
-        checks["staged_diff_check"] = staged
-        if staged["returncode"] != 0:
-            failures.append("git diff --cached --check failed")
-    if diff_check["returncode"] != 0:
-        failures.append("git diff --check failed")
+    record_review_diff_checks(
+        args, checks, failures, run_command, review_paths, review_subject,
+        status_before=status_before, local_config_scope=local_config_scope,
+    )
 
     record_review_base_drift(
         args,
@@ -464,6 +450,14 @@ def _run_review_checks(
     )
     if snapshot is not None:
         snapshot.cleanup()
+    comparison = checks.get("initial_import_comparison")
+    if comparison:
+        try:
+            stable = comparison == initial_import_comparison(args, run_command, review_paths)
+        except ValueError:
+            stable = False
+        if not stable:
+            failures.append("first-import staged tree changed during review")
     record_review_worktree_stability(
         args,
         run_command,
@@ -476,6 +470,45 @@ def _run_review_checks(
         review_subject=review_subject,
     )
     return structure
+
+
+def record_review_diff_checks(
+    args: Any,
+    checks: dict[str, Any],
+    failures: list[str],
+    run_command: CommandRunner,
+    review_paths: list[str],
+    review_subject: dict[str, Any],
+    *,
+    status_before: dict[str, Any],
+    local_config_scope: bool,
+) -> None:
+    if local_config_scope:
+        diff_check = local_config_diff_check(args.project, review_paths)
+    elif status_before.get("review_only"):
+        diff_check = {
+            "command": ["git", "diff", "--check"],
+            "cwd": str(args.project),
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "",
+            "skipped": True,
+            "review_note": non_git_writing_workspace_note(args.project),
+        }
+    else:
+        diff_check = run_command(diff_check_command(review_paths, review_subject), args.project)
+    checks["diff_check"] = diff_check
+    if review_subject["kind"] == "working-tree" and not status_before.get("review_only"):
+        comparison = checks.get("initial_import_comparison")
+        base = [comparison[0]] if comparison else []
+        staged = run_command(
+            ["git", "diff", "--cached", "--check", *base, "--", *review_paths], args.project,
+        )
+        checks["staged_diff_check"] = staged
+        if staged["returncode"] != 0:
+            failures.append("git diff --cached --check failed")
+    if diff_check["returncode"] != 0:
+        failures.append("git diff --check failed")
 
 
 def _review_verdict(
@@ -584,6 +617,9 @@ def review_hook(
 
     requested_review_paths = review_pathspec(args)
     try:
+        comparison = initial_import_comparison(args, run_command, requested_review_paths)
+        if comparison:
+            checks["initial_import_comparison"] = comparison
         review_subject = resolve_review_subject(
             args,
             run_command,
@@ -643,7 +679,7 @@ def review_hook(
     record_review_input_evidence(args, checks, failures)
 
     reuse = ReviewReuse(args, review_paths, review_subject)
-    reused_checks = reuse.load()
+    reused_checks = None if comparison else reuse.load()
     structure = _run_review_checks(
         args,
         checks,
@@ -1471,6 +1507,39 @@ def review_route_gates(project: Path, evidence_path: Path | None) -> list[str]:
 
 def review_pathspec(args: Any) -> list[str]:
     return [path.strip() for path in getattr(args, "review_path", []) if path.strip()]
+
+
+def initial_import_comparison(
+    args: Any, run_command: CommandRunner, review_paths: list[str]
+) -> tuple[str, str] | None:
+    """Bind the comparison to an immutable upstream commit and a fully staged first tree."""
+    base = getattr(args, "initial_import_base", "").strip()
+    if not base:
+        return None
+    if review_paths or args.review_scope != "working-tree":
+        raise ValueError("initial import requires whole working-tree review")
+    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", base):
+        raise ValueError("initial import requires a full upstream commit SHA")
+    head = run_command(["git", "symbolic-ref", "--quiet", "HEAD"], args.project)
+    ref = head["stdout"].strip()
+    if head["returncode"] or not ref.startswith("refs/heads/"):
+        raise ValueError("initial import requires an unborn branch")
+    present = run_command(["git", "show-ref", "--verify", "--quiet", ref], args.project)
+    if present["returncode"] != 1:
+        raise ValueError("initial import requires an unborn branch")
+    resolved = run_command(["git", "rev-parse", "--verify", f"{base}^{{commit}}"], args.project)
+    if resolved["returncode"] or resolved["stdout"].strip() != base:
+        raise ValueError("initial import upstream commit is unavailable")
+    status = run_command(
+        ["git", "status", "--porcelain", "-z", "--untracked-files=all"], args.project,
+    )
+    entries = [entry for entry in status["stdout"].split("\0") if entry]
+    if status["returncode"] or not entries or any(not entry.startswith("A  ") for entry in entries):
+        raise ValueError("initial import requires all paths staged with no unstaged or untracked paths")
+    tree = run_command(["git", "write-tree"], args.project)
+    if tree["returncode"]:
+        raise ValueError("initial import could not materialize the index tree")
+    return base, tree["stdout"].strip()
 
 
 def resolve_review_subject(

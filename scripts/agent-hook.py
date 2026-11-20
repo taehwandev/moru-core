@@ -2023,6 +2023,14 @@ def _add_review_arguments(parser: argparse.ArgumentParser) -> None:
         help="head commit ref for --review-scope commit-range; resolved to an immutable commit SHA",
     )
     review.add_argument(
+        "--initial-import-base",
+        default="",
+        help=(
+            "full upstream commit SHA for a wholly staged first import with no HEAD; "
+            "check the imported delta without changing the full review and audit scope"
+        ),
+    )
+    review.add_argument(
         "--max-changed-paths",
         type=non_negative_int,
         default=REVIEW_CHANGED_PATH_LIMIT,
