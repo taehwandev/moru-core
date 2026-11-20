@@ -84,6 +84,15 @@ bounded inspection rather than prompt keywords or grammatical mood:
   evidence without re-asking settled questions. If an open decision surfaces
   inside an already-active tracked run (`triage`, `ambiguity`, or a work route),
   retain that run and use its `alignment brief` or blocker-question checkpoint.
+- **Headless runs (`claude -p`, `codex exec`, `agy -p`, scripted phases)**: the
+  prompt is the whole conversation and nobody will answer. Choices the prompt
+  explicitly delegates ("make every visual decision", "polish until done") are
+  settled: quote that sentence as the `request:` source. For any other open
+  choice take the least-destructive default, list it under "Assumed" in the
+  final report, and end the run finished or blocked — never on a question, and
+  never by skipping `start` because alignment was impossible. Stop the
+  servers, browsers and background commands it started before the final
+  report so the process can exit.
 
 Planning-only requests remain planning-only. Never infer approval from
 silence or extend permission to a deferred, prohibited or unrelated action.

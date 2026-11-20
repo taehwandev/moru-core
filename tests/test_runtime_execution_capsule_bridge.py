@@ -21,6 +21,7 @@ from support.runtime_bridge import (
     RUNTIME_BRIDGE_BEGIN,
     RUNTIME_BRIDGE_END,
     RUNTIME_BRIDGE_POINTER_PHRASE,
+    RUNTIME_BRIDGE_START_PHRASE,
     RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
     RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE,
     RUNTIME_CAPSULE_BRIDGE_PHRASES,
@@ -109,8 +110,11 @@ class RuntimeExecutionCapsuleBridgeTests(unittest.TestCase):
         for runtime, entry in (("Codex", "AGENTS.md"), ("Claude", "CLAUDE.md"), ("Antigravity", "AGENTS.md")):
             pointer_block = runtime_bridge_block(Path("/moru-core"), runtime, entry)
             # 450 plus the launcher path a hookless runtime needs to start the workflow,
-            # plus the research key location every project needs (RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE).
-            self.assertLess(len(pointer_block.encode()), 500 + len(RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE) + 1)
+            # plus the research key location every project needs (RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE),
+            # plus the absolute skill path and the headless start moment (RUNTIME_BRIDGE_START_PHRASE).
+            self.assertLess(len(pointer_block.encode()), 580 + len(RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE) + 1)
+            self.assertIn("/moru-core/common/skills/agent-operating-skill/SKILL.md", pointer_block)
+            self.assertIn(RUNTIME_BRIDGE_START_PHRASE, pointer_block)
             self.assertIn(RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE, pointer_block)
             self.assertIn("/moru-core/AGENTS.md", pointer_block)
             self.assertIn(RUNTIME_BRIDGE_POINTER_PHRASE, pointer_block)

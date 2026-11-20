@@ -224,8 +224,13 @@ RUNTIME_BRIDGE_COMMON_REQUIRED_PHRASES = [
 
 
 RUNTIME_BRIDGE_POINTER_PHRASE = (
-    "AGENTS.md` and `common/skills/agent-operating-skill/SKILL.md` before project work "
+    "common/skills/agent-operating-skill/SKILL.md` before project work "
     "when present; reuse unchanged guidance in this session."
+)
+# Headless runs (claude -p, codex exec, agy -p) skipped start when the bridge only said
+# "start tracked work with it"; name the moment and the headless case explicitly.
+RUNTIME_BRIDGE_START_PHRASE = (
+    "run its `start` before the first project file write, also in headless `-p`/`exec` runs."
 )
 RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE = (
     "This runtime bridge only points to Moru Core's shared entrypoint; do not copy full "
@@ -277,6 +282,7 @@ def runtime_canonical_contract_block(root: Path, runtime_name: str, instruction_
 def runtime_bridge_required_phrases(runtime_name: str, instruction_file: str) -> list[str]:
     return [
         RUNTIME_BRIDGE_POINTER_PHRASE,
+        RUNTIME_BRIDGE_START_PHRASE,
         RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
         f"{runtime_name} reads {instruction_file}.",
         RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE,
@@ -289,11 +295,10 @@ def runtime_bridge_block(root: Path, runtime_name: str, instruction_file: str) -
         RUNTIME_BRIDGE_BEGIN,
         "## Moru Core Runtime Bridge",
         (
-            f"Read and follow `{root / 'AGENTS.md'}` and "
-            "`common/skills/agent-operating-skill/SKILL.md` before project work "
-            "when present; reuse unchanged guidance in this session."
+            # Absolute paths: a relative skill path resolves against the target project, not Moru Core.
+            f"Read and follow `{root / 'AGENTS.md'}` and `{root}/{RUNTIME_BRIDGE_POINTER_PHRASE}"
         ),
-        f"`<MORU_LAUNCHER>` is `{stable_launcher_path()}`; start tracked work with it.",
+        f"`<MORU_LAUNCHER>` is `{stable_launcher_path()}`; {RUNTIME_BRIDGE_START_PHRASE}",
         # Every project sees this block, so the key location must live here, not only in AGENTS.md.
         RUNTIME_RESEARCH_KEY_BRIDGE_PHRASE,
         f"{runtime_name} reads {instruction_file}. {RUNTIME_BRIDGE_SINGLE_OWNERSHIP_PHRASE}",
