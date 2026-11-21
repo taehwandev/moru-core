@@ -12,6 +12,12 @@ Use before designing or changing an interactive browser 3D experience. Select
 this skill for actual scene/model interaction work, not ordinary CSS transforms,
 static illustrations, native/Blender modeling or a mention of 3D in prose.
 
+## Read On Demand
+
+For a mesh scan or reveal, lens raindrops or wet-glass refraction, or a 3D
+character selector, read the matching section of
+[Effects and character selection](references/effects-and-character-selection.md).
+
 ## Make The First Result Worth Using
 
 - Keep the user's chosen experience and creative ambition. Choose an intentional
