@@ -24,7 +24,7 @@ from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_request, agy_redelivery, nearest_registry_project, read_delivery_manifest,
     reuse_credit,
-    rank_reuse_roots, reuse_matches, reuse_run_ids,
+    rank_reuse_roots, reuse_current, reuse_matches, reuse_run_ids,
 )
 
 
@@ -172,6 +172,45 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 for duplicate, result in ((stale + records, expected[1]["reused"]), (records + stale, [])):
                     prior.write_text(json.dumps({**original, "project_route_docs": duplicate}), encoding="utf-8")
                     self.assertEqual(result, reuse_reference.project_route_doc_reuse(current)["reused"])
+
+    def test_native_current_reuse_preserves_order_and_legacy_admission(self):
+        current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project)
+        prior = current.parent.parent / ("a" * 32) / "preflight.json"
+        data = json.loads(current.read_bytes())
+        first, second = data["execution_snapshot"]["required_docs"]
+        a, b = first["path"], second["path"]
+        required = [b, "missing-one.md", a, "missing-two.md", b]
+        data["route"]["required_docs"] = required
+        rows = [{**first, "sha256": "0" * 64}, second, first]
+        data["project_route_docs"] = data["execution_snapshot"]["required_docs"] = rows
+        current.write_text(json.dumps(data), encoding="utf-8")
+        history = json.loads(prior.read_bytes())
+        history["project_route_docs"] = history["execution_snapshot"]["required_docs"] = [first, second]
+        prior.write_text(json.dumps(history), encoding="utf-8")
+        required_reuse = reuse_reference.required_doc_reuse
+        project_reuse = reuse_reference.project_route_doc_reuse
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(reuse_reference, "_read", side_effect=AssertionError("Python read")):
+                self.assertEqual([b, a], required_reuse(current)["reused"])
+                self.assertEqual(["missing-one.md", "missing-two.md"], required_reuse(current)["unread"])
+                self.assertEqual([a, b], project_reuse(current)["reused"])
+
+            alias = self.base / "alias.json"
+            alias.symlink_to(current)
+            self.assertIsNone(reuse_current(alias, project_docs=False))
+            self.assertEqual(required_reuse(current), required_reuse(alias))
+
+            foreign = self.project.with_name(self.project.name + "-other") / current.relative_to(self.project)
+            foreign.parent.mkdir(parents=True)
+            foreign.write_bytes(current.read_bytes())
+            self.assertIsNone(reuse_current(foreign, project_docs=False))
+            self.assertEqual({"reused": [], "unread": required[:-1]}, required_reuse(foreign))
+
+            unused = {"path": "unused.md", "sha256": "a" * 64, "size_bytes": True}
+            data["execution_snapshot"]["required_docs"] = rows + [unused]
+            current.write_text(json.dumps(data), encoding="utf-8")
+            self.assertIsNone(reuse_current(current, project_docs=False))
+            self.assertEqual({"reused": [], "unread": required[:-1]}, required_reuse(current))
 
     def test_native_reuse_registry_window_preserves_ids_and_lazy_evidence_reads(self):
         current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project)

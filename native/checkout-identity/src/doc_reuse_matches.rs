@@ -3,7 +3,7 @@
 //! forbidden imports: registry selection, takeaway credit, writes and providers;
 //! callers/tests: private transcript probe and native required/project reuse parity;
 //! verification: exact project/session/run binding, duplicate paths and lazy reads.
-use super::DocTranscript;
+use super::{doc_reuse_snapshot::ReuseSnapshot, DocTranscript};
 use crate::pending_publication_receipt::PendingPublicationReceipt;
 use serde_json::{json, Value};
 use std::{
@@ -97,31 +97,9 @@ impl<'a> ReuseSearch<'a> {
             // relative path. Let pathlib decide those cases.
             return None;
         }
-        let records = if self.project_docs {
-            prior.get("project_route_docs")
-        } else {
-            match prior.get("execution_snapshot") {
-                Some(Value::Object(snapshot)) => snapshot.get("required_docs"),
-                None | Some(Value::Null) => None,
-                _ => return None,
-            }
-        };
-        let records = match records {
-            None | Some(Value::Null) => return Some(Vec::new()),
-            Some(value) => value.as_array()?,
-        };
         let mut by_path = HashMap::new();
-        for record in records {
-            let path = record.get("path")?.as_str()?;
-            let hash = record.get("sha256")?.as_str()?;
-            let size = record.get("size_bytes")?.as_u64()?;
-            if hash.len() != 64
-                || !hash
-                    .bytes()
-                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-            {
-                return None;
-            }
+        for record in ReuseSnapshot::from_preflight(&prior, self.project_docs)?.records() {
+            let (path, hash, size) = record?;
             by_path.insert(path, (hash, size));
         }
         Some(

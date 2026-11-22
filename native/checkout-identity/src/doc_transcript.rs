@@ -24,12 +24,16 @@ mod doc_delivery_plan;
 mod doc_delivery_read;
 #[path = "doc_reuse_credit.rs"]
 mod doc_reuse_credit;
+#[path = "doc_reuse_current.rs"]
+mod doc_reuse_current;
 #[path = "doc_reuse_history.rs"]
 mod doc_reuse_history;
 #[path = "doc_reuse_matches.rs"]
 mod doc_reuse_matches;
 #[path = "doc_reuse_plan.rs"]
 mod doc_reuse_plan;
+#[path = "doc_reuse_snapshot.rs"]
+mod doc_reuse_snapshot;
 
 impl DocTranscript {
     pub(crate) fn compacted(path: &Path) -> Option<bool> {

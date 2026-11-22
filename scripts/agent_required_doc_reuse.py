@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from support.global_state import project_state_dir_target
+from support.native_doc_transcript import reuse_current
 
 
 RUN_ID = re.compile(r"^[0-9a-f]{32}$")
@@ -36,19 +37,24 @@ def required_doc_reuse(
 
     unread: list[str] = []
     try:
-        current = _read(preflight_path, MAX_PREFLIGHT_BYTES)
-        route = current.get("route") or {}
-        docs = _required_paths(route)
-        unread = list(docs)
-        if not docs:
-            return {"reused": [], "unread": unread}
-
-        current_records = _doc_records(current)
+        native = reuse_current(preflight_path, project_docs=False)
+        if native is None:
+            current = _read(preflight_path, MAX_PREFLIGHT_BYTES)
+            docs = _required_paths(current.get("route") or {})
+            unread = list(docs)
+            if not docs:
+                return {"reused": [], "unread": unread}
+            current_records = _doc_records(current)
+        else:
+            docs, current_records, binding = native
+            unread = list(docs)
         wanted = {current_records[doc] for doc in docs if doc in current_records}
         if not wanted:
             return {"reused": [], "unread": unread}
+        if native is None:
+            binding = _current_binding(preflight_path, current)
         reusable_records, takeaways = _same_session_proof(
-            preflight_path, current, wanted, project_docs=False, require_takeaway=require_takeaway
+            binding, wanted, project_docs=False, require_takeaway=require_takeaway
         )
 
         reused = [doc for doc in docs if current_records.get(doc) in reusable_records]
@@ -74,14 +80,20 @@ def project_route_doc_reuse(preflight_path: Path) -> dict[str, list[str]]:
 
     unread: list[str] = []
     try:
-        current = _read(preflight_path, MAX_PREFLIGHT_BYTES)
-        current_records = _project_records(current)
+        native = reuse_current(preflight_path, project_docs=True)
+        if native is None:
+            current = _read(preflight_path, MAX_PREFLIGHT_BYTES)
+            current_records = _project_records(current)
+        else:
+            _, current_records, binding = native
         unread = list(current_records)
         if not current_records:
             return {"reused": [], "unread": unread}
         wanted = set(current_records.values())
+        if native is None:
+            binding = _current_binding(preflight_path, current)
         reusable, takeaways = _same_session_proof(
-            preflight_path, current, wanted, project_docs=True, require_takeaway=True
+            binding, wanted, project_docs=True, require_takeaway=True
         )
         reused = [doc for doc, record in current_records.items() if record in reusable]
         reused_set = set(reused)
@@ -93,16 +105,7 @@ def project_route_doc_reuse(preflight_path: Path) -> dict[str, list[str]]:
         return {"reused": [], "unread": unread}
 
 
-def _same_session_proof(
-    preflight_path: Path, current: dict[str, Any], wanted: set[tuple[str, str, int]],
-    *, project_docs: bool, require_takeaway: bool,
-):
-    """Collect proof from completed same-session runs, newest checkout first."""
-
-    from support.native_doc_transcript import reuse_plan
-
-    reusable: set[tuple[str, str, int]] = set()
-    takeaways: list[str] = []
+def _current_binding(preflight_path: Path, current: dict[str, Any]):
     project = Path(current["project"]).resolve()
     run_dir = preflight_path.resolve().parent
     if (
@@ -110,22 +113,33 @@ def _same_session_proof(
         or run_dir.parent != project_state_dir_target(project) / "runs"
         or preflight_path.resolve() != run_dir / "preflight.json"
     ):
-        return reusable, takeaways
+        return None
     session = _session(current)
-    if session is None:
+    return (project, run_dir.name, session) if session is not None else None
+
+
+def _same_session_proof(binding, wanted, *, project_docs: bool, require_takeaway: bool):
+    """Collect proof from completed same-session runs, this checkout first."""
+
+    from support.native_doc_transcript import reuse_plan
+
+    reusable: set[tuple[str, str, int]] = set()
+    takeaways: list[str] = []
+    if binding is None:
         return reusable, takeaways
+    project, run_id, session = binding
     # Lazily, this checkout's newest runs first: callers stop at full coverage.
     query = list(wanted)
     for root in _repository_roots(project, include_sibling_repos=not project_docs):
         native = reuse_plan(
-            root, run_dir.name, session, query, reusable, takeaways, project_docs=project_docs,
+            root, run_id, session, query, reusable, takeaways, project_docs=project_docs,
             require_takeaway=require_takeaway, limits=(MAX_RUNS, MAX_TAKEAWAYS, MAX_TAKEAWAY_CHARS),
         )
         if native is None:
             # A declined plan returned no changes. Replay this checkout from
             # the same coverage and takeaway slots, including legacy records.
             for path, records in _completed_matches(
-                root, run_dir.name, session, wanted, project_docs=project_docs
+                root, run_id, session, wanted, project_docs=project_docs
             ):
                 if _credit(records, wanted, path, takeaways, reusable) or not require_takeaway:
                     reusable.update(records)

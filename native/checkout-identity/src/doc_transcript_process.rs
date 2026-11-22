@@ -33,6 +33,7 @@ impl DocTranscriptProcess {
                         | "read-docs"
                         | "read-delivery-manifest"
                         | "reuse-credit"
+                        | "reuse-current"
                         | "reuse-run-ids"
                         | "reuse-matches"
                         | "reuse-plan"
@@ -76,6 +77,9 @@ impl DocTranscriptProcess {
                 }
                 if args[1] == "reuse-credit" && object.len() == 4 {
                     return DocTranscript::reuse_credit(&payload);
+                }
+                if args[1] == "reuse-current" && object.len() == 2 {
+                    return DocTranscript::reuse_current(&payload);
                 }
                 if args[1] == "agy-delivery-request" {
                     return agy_doc_request::decode(object);
