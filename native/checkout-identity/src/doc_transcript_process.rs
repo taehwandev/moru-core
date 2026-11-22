@@ -35,6 +35,7 @@ impl DocTranscriptProcess {
                         | "reuse-credit"
                         | "reuse-run-ids"
                         | "reuse-matches"
+                        | "reuse-plan"
                         | "rank-reuse-roots"
                         | "nearest-registry-project"
                         | "agy-delivery-request"
@@ -66,6 +67,9 @@ impl DocTranscriptProcess {
                 }
                 if args[1] == "reuse-matches" && object.len() == 5 {
                     return DocTranscript::reuse_matches(&payload);
+                }
+                if args[1] == "reuse-plan" && object.len() == 9 {
+                    return DocTranscript::reuse_plan(&payload);
                 }
                 if args[1] == "rank-reuse-roots" && object.len() == 3 {
                     return DocTranscript::rank_reuse_roots(&payload);

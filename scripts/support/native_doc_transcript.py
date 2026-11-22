@@ -56,6 +56,31 @@ def reuse_matches(
     return None
 
 
+def reuse_plan(root, current, session, wanted, covered, takeaways, *,
+               project_docs, require_takeaway, limits):
+    covered_indices = [i for i, record in enumerate(wanted) if record in covered]
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "reuse-plan", {
+            "path": str(root), "current": current, "session": session, "wanted": wanted,
+            "covered": covered_indices, "takeaways": takeaways, "project_docs": project_docs,
+            "require_takeaway": require_takeaway, "limits": limits,
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is not list or len(value) != 2:
+        return None
+    indices, added = value
+    if (type(indices) is not list or type(added) is not list
+            or any(type(i) is not int or not 0 <= i < len(wanted) for i in indices)
+            or len(set(indices)) != len(indices)
+            or any(wanted[i] in covered for i in indices)
+            or len(added) > len(indices)
+            or len(added) + len(takeaways) > limits[1]
+            or any(type(text) is not str or not 0 < len(text) <= 2 * limits[2] + 3 for text in added)):
+        return None
+    return {wanted[i] for i in indices}, added
+
+
 def rank_reuse_roots(candidates: list[Path], excluded: list[Path], limit: int) -> list[Path] | None:
     try:
         if not NativeProbe.available():

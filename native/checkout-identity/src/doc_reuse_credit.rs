@@ -26,30 +26,40 @@ impl DocTranscript {
         let slots = usize::try_from(payload.get("slots")?.as_u64()?).ok()?;
         let chars = usize::try_from(payload.get("chars")?.as_u64()?).ok()?;
         let existing = payload.get("takeaways")?.as_array()?;
-        if slots > 3 || chars > 400 || existing.len() > 3 {
-            return None;
-        }
         let existing = existing
             .iter()
             .map(Value::as_str)
             .collect::<Option<Vec<_>>>()?;
+        Self::credit_reuse_run(run, &existing, slots, chars)
+            .map(|(credited, added)| json!([credited, added]))
+    }
+
+    pub(super) fn credit_reuse_run(
+        run: &Path,
+        existing: &[&str],
+        slots: usize,
+        chars: usize,
+    ) -> Option<(bool, Option<String>)> {
+        if slots > 3 || chars > 400 || existing.len() > 3 {
+            return None;
+        }
         let ledger = Self::read_reuse_evidence(&run.join("gate-evidence.json"), 8 * 1024 * 1024)?;
         let source = source_doc_takeaway(&ledger, chars)?;
         let review = Self::read_reuse_evidence(&run.join("doc-takeaway.json"), (chars * 8) as u64)?;
         let review = normalize(review.get("takeaway"), chars)?;
         let merged = match (source.is_empty(), review.is_empty()) {
-            (true, true) => return Some(json!([false, null])),
+            (true, true) => return Some((false, None)),
             (true, false) => review,
             (false, true) => source,
             (false, false) if source == review => source,
             (false, false) => format!("{source} | {review}"),
         };
         Some(if existing.iter().any(|text| text.contains(&merged)) {
-            json!([true, null])
+            (true, None)
         } else if existing.len() < slots {
-            json!([true, merged])
+            (true, Some(merged))
         } else {
-            json!([false, null])
+            (false, None)
         })
     }
 

@@ -28,6 +28,8 @@ mod doc_reuse_credit;
 mod doc_reuse_history;
 #[path = "doc_reuse_matches.rs"]
 mod doc_reuse_matches;
+#[path = "doc_reuse_plan.rs"]
+mod doc_reuse_plan;
 
 impl DocTranscript {
     pub(crate) fn compacted(path: &Path) -> Option<bool> {

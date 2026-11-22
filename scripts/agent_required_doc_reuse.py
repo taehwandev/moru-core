@@ -47,17 +47,9 @@ def required_doc_reuse(
         wanted = {current_records[doc] for doc in docs if doc in current_records}
         if not wanted:
             return {"reused": [], "unread": unread}
-        reusable_records: set[tuple[str, str, int]] = set()
-        takeaways: list[str] = []
-        for prior_path, prior_records in _same_session_matches(
-            preflight_path, current, wanted, project_docs=False
-        ):
-            credited = _credit(prior_records, wanted, prior_path, takeaways, reusable_records)
-            if not credited and (require_takeaway or not prior_records & wanted):
-                continue
-            reusable_records.update(prior_records)
-            if wanted <= reusable_records:
-                break
+        reusable_records, takeaways = _same_session_proof(
+            preflight_path, current, wanted, project_docs=False, require_takeaway=require_takeaway
+        )
 
         reused = [doc for doc in docs if current_records.get(doc) in reusable_records]
         reused_set = set(reused)
@@ -88,16 +80,9 @@ def project_route_doc_reuse(preflight_path: Path) -> dict[str, list[str]]:
         if not current_records:
             return {"reused": [], "unread": unread}
         wanted = set(current_records.values())
-        reusable: set[tuple[str, str, int]] = set()
-        takeaways: list[str] = []
-        for prior_path, prior_records in _same_session_matches(
-            preflight_path, current, wanted, project_docs=True
-        ):
-            if not _credit(prior_records, wanted, prior_path, takeaways, reusable):
-                continue
-            reusable.update(prior_records)
-            if wanted <= reusable:
-                break
+        reusable, takeaways = _same_session_proof(
+            preflight_path, current, wanted, project_docs=True, require_takeaway=True
+        )
         reused = [doc for doc, record in current_records.items() if record in reusable]
         reused_set = set(reused)
         result = {"reused": reused, "unread": [doc for doc in unread if doc not in reused_set]}
@@ -108,12 +93,16 @@ def project_route_doc_reuse(preflight_path: Path) -> dict[str, list[str]]:
         return {"reused": [], "unread": unread}
 
 
-def _same_session_matches(
+def _same_session_proof(
     preflight_path: Path, current: dict[str, Any], wanted: set[tuple[str, str, int]],
-    *, project_docs: bool,
+    *, project_docs: bool, require_takeaway: bool,
 ):
-    """Yield matching records from completed same-session runs, newest first."""
+    """Collect proof from completed same-session runs, newest checkout first."""
 
+    from support.native_doc_transcript import reuse_plan
+
+    reusable: set[tuple[str, str, int]] = set()
+    takeaways: list[str] = []
     project = Path(current["project"]).resolve()
     run_dir = preflight_path.resolve().parent
     if (
@@ -121,13 +110,34 @@ def _same_session_matches(
         or run_dir.parent != project_state_dir_target(project) / "runs"
         or preflight_path.resolve() != run_dir / "preflight.json"
     ):
-        return
+        return reusable, takeaways
     session = _session(current)
     if session is None:
-        return
+        return reusable, takeaways
     # Lazily, this checkout's newest runs first: callers stop at full coverage.
+    query = list(wanted)
     for root in _repository_roots(project, include_sibling_repos=not project_docs):
-        yield from _completed_matches(root, run_dir.name, session, wanted, project_docs=project_docs)
+        native = reuse_plan(
+            root, run_dir.name, session, query, reusable, takeaways, project_docs=project_docs,
+            require_takeaway=require_takeaway, limits=(MAX_RUNS, MAX_TAKEAWAYS, MAX_TAKEAWAY_CHARS),
+        )
+        if native is None:
+            # A declined plan returned no changes. Replay this checkout from
+            # the same coverage and takeaway slots, including legacy records.
+            for path, records in _completed_matches(
+                root, run_dir.name, session, wanted, project_docs=project_docs
+            ):
+                if _credit(records, wanted, path, takeaways, reusable) or not require_takeaway:
+                    reusable.update(records)
+                if wanted <= reusable:
+                    break
+        else:
+            covered, added = native
+            reusable.update(covered)
+            takeaways.extend(added)
+        if wanted <= reusable:
+            break
+    return reusable, takeaways
 
 
 def _completed_matches(
