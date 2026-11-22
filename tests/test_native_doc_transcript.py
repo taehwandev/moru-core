@@ -24,7 +24,7 @@ from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_request, agy_redelivery, nearest_registry_project, read_delivery_manifest,
     reuse_credit,
-    rank_reuse_roots, reuse_run_ids,
+    rank_reuse_roots, reuse_matches, reuse_run_ids,
 )
 
 
@@ -136,15 +136,42 @@ class NativeDocTranscriptTests(unittest.TestCase):
         callers = (reuse_reference.required_doc_reuse, reuse_reference.project_route_doc_reuse)
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             expected = [caller(current) for caller in callers]
-        with patch.dict(os.environ, self.env, clear=True), patch.object(
-                reuse_reference, "_credit_takeaway_python", side_effect=AssertionError("Python fallback")):
+        original = json.loads(prior.read_bytes())
+        read = reuse_reference._read
+
+        def read_current(path, limit):
+            self.assertEqual(current, path, "prior evidence should be read in Rust")
+            return read(path, limit)
+
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(reuse_reference, "_read", side_effect=read_current):
+                self.assertEqual(expected, [caller(current) for caller in callers])
+                for field, value in (
+                    ("runtime_session", {"runtime": "codex", "session_id": "foreign"}),
+                    ("runtime_session", {"runtime": "claude", "session_id": "session-one"}),
+                    ("agent_run_id", "f" * 32),
+                ):
+                    with self.subTest(field=field, value=value):
+                        prior.write_text(json.dumps({**original, field: value}), encoding="utf-8")
+                        for caller in callers:
+                            self.assertEqual([], caller(current)["reused"])
+
+            alias = self.base / "alias"
+            alias.symlink_to(self.project, target_is_directory=True)
+            prior.write_text(json.dumps({**original, "project": str(alias)}), encoding="utf-8")
             self.assertEqual(expected, [caller(current) for caller in callers])
-            foreign = json.loads(prior.read_bytes())
-            foreign["runtime_session"]["session_id"] = "foreign-session"
-            prior.write_text(json.dumps(foreign), encoding="utf-8")
-            with patch("support.native_doc_transcript.reuse_credit", side_effect=AssertionError("foreign proof")):
-                for caller in callers:
-                    self.assertEqual([], caller(current)["reused"])
+            for size in (True, 120.0, -1):
+                with self.subTest(size=size):
+                    records = [{**record, "size_bytes": size} for record in original["project_route_docs"]]
+                    prior.write_text(json.dumps({**original, "project_route_docs": records}), encoding="utf-8")
+                    self.assertEqual([], reuse_reference.project_route_doc_reuse(current)["reused"])
+
+            records = original["project_route_docs"]
+            stale = [{**record, "sha256": "0" * 64} for record in records]
+            with patch.object(reuse_reference, "_read", side_effect=read_current):
+                for duplicate, result in ((stale + records, expected[1]["reused"]), (records + stale, [])):
+                    prior.write_text(json.dumps({**original, "project_route_docs": duplicate}), encoding="utf-8")
+                    self.assertEqual(result, reuse_reference.project_route_doc_reuse(current)["reused"])
 
     def test_native_reuse_registry_window_preserves_ids_and_lazy_evidence_reads(self):
         current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project)
@@ -159,6 +186,10 @@ class NativeDocTranscriptTests(unittest.TestCase):
             {"run_id": current_id, "state": "completed"},
             {"run_id": prior_id, "state": "completed", "evidence_name": "preflight.json"},
         ]}), encoding="utf-8")
+        older_id = "d" * 32
+        older = current.parent.parent / older_id / "preflight.json"
+        older.parent.mkdir()
+        older.write_text("{", encoding="utf-8")
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual([prior_id, prior_id], reuse_run_ids(self.project, current_id, 100))
             self.assertEqual([prior_id], reuse_run_ids(self.project, current_id, 3))
@@ -166,11 +197,23 @@ class NativeDocTranscriptTests(unittest.TestCase):
             with patch.object(reuse_reference, "_completed_run_ids_python",
                               side_effect=AssertionError("Python registry scan")), patch.object(
                                   reuse_reference, "_read", wraps=reuse_reference._read) as reads:
-                lookup = reuse_reference._completed_runs(self.project, current_id, ("codex", "session-one"))
-                prior, _ = next(lookup)
+                prior_path = current.parent.parent / prior_id / "preflight.json"
+                records = reuse_reference._doc_records(json.loads(prior_path.read_bytes()))
+                wanted = set(records.values())
+                lookup = reuse_reference._completed_matches(
+                    self.project, current_id, ("codex", "session-one"), wanted, project_docs=False
+                )
+                prior, matches = next(lookup)
                 lookup.close()
                 self.assertEqual(prior_id, prior.parent.name)
-                reads.assert_called_once_with(prior, reuse_reference.MAX_PREFLIGHT_BYTES)
+                self.assertEqual(wanted, matches)
+                reads.assert_not_called()
+            # A malformed older candidate would decline the entire native
+            # request if it were read eagerly after the first match.
+            self.assertEqual((1, wanted), reuse_matches(
+                self.project, [prior_id, older_id], ("codex", "session-one"), list(wanted),
+                project_docs=False,
+            ))
 
     def test_native_reuse_root_ranking_preserves_float_ties_exclusions_and_cap(self):
         root = self.base / "roots"

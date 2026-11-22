@@ -34,6 +34,28 @@ def reuse_run_ids(root: Path, current: str, limit: int) -> list[str] | None:
     return _reuse_history("reuse-run-ids", {"path": str(root), "current": current, "limit": limit})
 
 
+def reuse_matches(
+    root: Path, ids: list[str], session: tuple[str, str], wanted: list[tuple[str, str, int]],
+    *, project_docs: bool,
+) -> tuple[int, set[tuple[str, str, int]]] | None:
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "reuse-matches", {
+            "path": str(root), "ids": ids, "session": session, "wanted": wanted,
+            "project_docs": project_docs,
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if value == []:
+        return len(ids), set()
+    if type(value) is list and len(value) == 2:
+        consumed, indices = value
+        if (type(consumed) is int and 1 <= consumed <= len(ids)
+                and type(indices) is list and indices
+                and all(type(i) is int and 0 <= i < len(wanted) for i in indices)):
+            return consumed, {wanted[i] for i in indices}
+    return None
+
+
 def rank_reuse_roots(candidates: list[Path], excluded: list[Path], limit: int) -> list[Path] | None:
     try:
         if not NativeProbe.available():
