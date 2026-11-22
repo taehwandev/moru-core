@@ -50,7 +50,9 @@ PUBLICATION_CHECKPOINTS = {
     LocalDeliveryProof.INTEGRATION: "git_write",
 }
 PULL_REQUEST = "publication.pull-request"
+PUSH = "publication.push"
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$")
+_REMOTE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 DEFERRING_ROUTE = "commit"
 _FILE = "pending-publication.json"
 _GIT_TIMEOUT = 30
@@ -68,13 +70,16 @@ def admitted_effect(preflight: dict) -> str:
 def kind(checkpoint: object) -> str:
     """Canonical publication kind of a checkpoint name; "" when it is not one.
 
-    A pull request must name its target branch: `publication.pull-request/<target>`.
+    A pull request names its base; a direct push can name its remote and branch.
     """
     if not isinstance(checkpoint, str):
         return ""
-    if checkpoint in ("publication.commit", "publication.push"):
+    if checkpoint in ("publication.commit", PUSH):
         return checkpoint
     head, _, target = checkpoint.partition("/")
+    if head == PUSH:
+        remote, _, branch = target.partition("/")
+        return head if _REMOTE_NAME.fullmatch(remote) and _NAME.fullmatch(branch) else ""
     return head if head in (PULL_REQUEST, LocalDeliveryProof.INTEGRATION) and _NAME.fullmatch(target) else ""
 
 
@@ -263,6 +268,15 @@ def record_pending(project: Path, evidence: Path, deferred: list) -> str:
             "base_head": head,
             "source_branch": branch,
         }, wanted, local_proof)
+        for checkpoint in wanted:
+            if not checkpoint.startswith(PUSH + "/"):
+                continue
+            _, remote, branch = checkpoint.split("/", 2)
+            ref = f"refs/heads/{branch}"
+            url = _direct_push_url(project, remote)
+            if not url or _git(project, "check-ref-format", ref) is None:
+                return "direct push requires one configured push URL and a valid destination branch"
+            record.setdefault("push_remotes", {})[checkpoint] = _url_digest(url)
         _store(evidence, record)
     except (OSError, ValueError) as error:
         return f"pending-publication record could not be written ({type(error).__name__})"
@@ -328,7 +342,7 @@ def _status_reason_python(owed: list[str]) -> str:
     return (
         f"Moru publication. finish passed, but declared publication is not yet observed ({', '.join(owed)}). "
         "Perform it only under the run's admitted effect and the publication gate, then run "
-        "agent_pending_publication.py settle for that checkpoint, which verifies the result in Git. "
+        "moru-hook pending-publication settle for that checkpoint, which verifies the result in Git. "
         "Never report it as published before then; if it cannot proceed, say it is NOT PUBLISHED and why."
     )
 
@@ -392,6 +406,26 @@ def _remote_head(project: Path, head: str) -> tuple[str, str]:
     return observe_upstream(listed, remote, merge, head)
 
 
+def _direct_push_url(project: Path, remote: str) -> str:
+    urls = (_git(project, "remote", "get-url", "--push", "--all", remote) or "").splitlines()
+    return urls[0] if len(urls) == 1 else ""
+
+
+def _url_digest(url: str) -> str:
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+
+def _observe_direct_push(project: Path, record: dict, name: str, head: str) -> tuple[str, str]:
+    _, remote, branch = name.split("/", 2)
+    url = _direct_push_url(project, remote)
+    destinations = record.get("push_remotes")
+    if not url or not isinstance(destinations, dict) or destinations.get(name) != _url_digest(url):
+        return "", "the configured push destination differs from the finished receipt"
+    ref = f"refs/heads/{branch}"
+    listed = _git(project, "ls-remote", "--exit-code", "--", url, ref)
+    return observe_upstream(listed, remote, ref, head)
+
+
 def _observe(project: Path, record: dict, item: dict, observation_path: Path | None = None) -> tuple[str, str]:
     """Check Git and the caller's provider observation against the reviewed unit."""
     checkpoint, base_head = kind(item["checkpoint"]), record["base_head"]
@@ -409,8 +443,10 @@ def _observe(project: Path, record: dict, item: dict, observation_path: Path | N
         return "", refusal
     if checkpoint == "publication.commit":
         return f"HEAD {head} descends from {base_head}", ""
+    if checkpoint == PUSH and item["checkpoint"] != PUSH:
+        return _observe_direct_push(project, record, item["checkpoint"], head)
     pushed, refusal = _remote_head(project, head)
-    if refusal or checkpoint == "publication.push":
+    if refusal or checkpoint == PUSH:
         return pushed, refusal
     return observe_pull_request(project, head, item["checkpoint"].partition("/")[2], _git, observation_path)
 
@@ -531,7 +567,7 @@ def settle(project: Path, evidence: Path, checkpoint: str, observation_path: Pat
 def main(argv: list[str]) -> int:
     import argparse
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("action", choices=("settle", "status"))
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
@@ -541,7 +577,21 @@ def main(argv: list[str]) -> int:
     if args.action == "status":
         print(pending_reason(args.project, args.evidence) or "no pending publication")
         return 0
-    failure = settle(args.project, args.evidence, args.checkpoint, args.observation_file)
+    from agent_registry_read import completed_evidence_binding
+
+    project, evidence = args.project.resolve(), args.evidence.resolve()
+    if not completed_evidence_binding(project, evidence):
+        failure = "publication settlement requires an exact completed run for this project"
+    else:
+        allowed = PUBLICATION_CHECKPOINTS.get(kind(args.checkpoint))
+        try:
+            effect = admitted_effect(json.loads(evidence.read_text(encoding="utf-8")))
+        except (OSError, ValueError, AttributeError, TypeError):
+            effect = ""
+        if not allowed or EFFECT_RANK.get(effect, -1) < EFFECT_RANK[allowed]:
+            failure = "publication checkpoint is outside the run's admitted effect"
+        else:
+            failure = settle(project, evidence, args.checkpoint, args.observation_file)
     print(f"FAIL publication settle: {failure}" if failure else "publication observation recorded")
     return 2 if failure else 0
 

@@ -59,7 +59,7 @@ impl PendingPublicationStatus {
             concat!(
                 "Moru publication. finish passed, but declared publication is not yet observed ({}). ",
                 "Perform it only under the run's admitted effect and the publication gate, then run ",
-                "agent_pending_publication.py settle for that checkpoint, which verifies the result in Git. ",
+                "moru-hook pending-publication settle for that checkpoint, which verifies the result in Git. ",
                 "Never report it as published before then; if it cannot proceed, say it is NOT PUBLISHED and why."
             ),
             owed.join(", "),

@@ -193,6 +193,24 @@ HOOKS_READING_RULES = frozenset(
 # unable to reach `finish`, `cancel`, or the `fingerprint` its own escalation
 # needs -- the remedy the refusal named required commands that refusal refused.
 RUNTIME_CONTROL_KIND = "runtime_control"
+
+
+def _pending_publication_kind(arguments: list[str]) -> str | None:
+    """Recognize only the receipt CLI's exact options, with no output path."""
+    if not arguments or arguments[0] not in {"status", "settle"} or len(arguments) % 2 == 0:
+        return None
+    options = dict(zip(arguments[1::2], arguments[2::2]))
+    if len(options) != len(arguments) // 2 or any(not value or value.startswith("-") for value in options.values()):
+        return None
+    required = {"--project", "--evidence"}
+    if arguments[0] == "status":
+        return "read_only" if options.keys() == required else None
+    required.add("--checkpoint")
+    if options.get("--checkpoint", "").startswith("publication.pull-request/") and "--observation-file" in options:
+        required.add("--observation-file")
+    return RUNTIME_CONTROL_KIND if options.keys() == required else None
+
+
 # The declaration is injected by the parent hook environment, rather than read
 # from agent-writable state. Each entry binds one canonical script path to its
 # exact content. An operator revokes it by removing the environment declaration
@@ -268,6 +286,8 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
             return "read_only"
         if tokens[1] == "operator-review":
             return RUNTIME_CONTROL_KIND
+        if tokens[1] == "pending-publication":
+            return _pending_publication_kind(tokens[2:])
         if tokens[1] == "agent-mailbox":
             return _mailbox_intake_kind(tokens[2:])
         if tokens[1] == "project-memory":
