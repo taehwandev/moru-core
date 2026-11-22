@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from agent_runtime_identity import detect_runtime
 from workflow_catalog import SPILL_ACTION_LABELS, SPILL_ROUTE_LABELS
 
 
@@ -23,14 +24,6 @@ DEFAULT_SPILL_SETUP_HELPER = (
 )
 SPILL_HELPER_PATH_ENV = "MORU_SPILL_HELPER_PATH"
 SPILL_ALLOWED_TOOLS = {"codex", "claude", "antigravity", "openai"}
-SPILL_TOOL_ALIASES = {"agy": "antigravity"}
-CODEX_RUNTIME_ENV_KEYS = ("CODEX_SANDBOX", "CODEX_THREAD_ID", "CODEX_CI")
-ANTIGRAVITY_RUNTIME_ENV_KEYS = (
-    "ANTIGRAVITY_CONVERSATION_ID",
-    "ANTIGRAVITY_AGENT",
-    "ANTIGRAVITY_CLI_ALIAS",
-    "ANTIGRAVITY_TRAJECTORY_ID",
-)
 SAFE_WORKFLOW_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
 REQUIRED_SPILL_ACTION_LABELS = {
     "classify",
@@ -43,28 +36,8 @@ REQUIRED_SPILL_ACTION_LABELS = {
 
 
 def spill_tool_label(env: dict[str, str] | None = None) -> str:
-    values = env if env is not None else os.environ
-
-    explicit_tool = _normal_tool_label(values.get("MORU_AI_TOOL", ""))
-    if explicit_tool:
-        return explicit_tool
-
-    if any(values.get(key) for key in CODEX_RUNTIME_ENV_KEYS):
-        return "codex"
-    if any(values.get(key) for key in ANTIGRAVITY_RUNTIME_ENV_KEYS):
-        return "antigravity"
-
-    for key in ("SPILL_TOKEN_USAGE_AI_TOOL", "SPILL_AI_TOOL"):
-        tool = _normal_tool_label(values.get(key, ""))
-        if tool:
-            return tool
-    return "codex"
-
-
-def _normal_tool_label(value: str) -> str:
-    tool = value.strip().lower()
-    tool = SPILL_TOOL_ALIASES.get(tool, tool)
-    return tool if tool in SPILL_ALLOWED_TOOLS else ""
+    tool, _ = detect_runtime(env)
+    return tool if tool in SPILL_ALLOWED_TOOLS else "codex"
 
 
 def spill_setup_helper_path() -> Path:
@@ -73,7 +46,11 @@ def spill_setup_helper_path() -> Path:
 
 
 def has_spill_setup_helper() -> bool:
-    return spill_setup_helper_path().is_file()
+    try:
+        return spill_setup_helper_path().is_file()
+    except OSError:
+        # A sandbox can deny even stat() on an optional user-level adapter.
+        return False
 
 
 def write_spill_label(task_type: str, stage: str, *, if_absent: bool = False) -> None:
@@ -85,14 +62,13 @@ def write_spill_label(task_type: str, stage: str, *, if_absent: bool = False) ->
     call this helper at all. stdin never inherits a runtime hook payload.
     """
 
-    helper = spill_setup_helper_path()
-    if not helper.is_file():
+    if not has_spill_setup_helper():
         return
     try:
         subprocess.run(
             [
                 "node",
-                str(helper),
+                str(spill_setup_helper_path()),
                 "--label",
                 spill_tool_label(),
                 "--task-type",

@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from agent_run_owner import process_owner
+from agent_runtime_identity import STRICT_SESSION_ENV_VARS, SESSION_ENV_VARS, detect_runtime
 from agent_repository_checkouts import (
     checkout_keeps_unfinished_work,
     checkouts_with_run_state,
@@ -37,14 +38,6 @@ from agent_state_read import evidence_binding_key
 from agent_worker_evidence import is_isolated_worker_evidence
 from support.global_state import project_state_dir_target
 
-STRICT_SESSION_ENV_VARS = (
-    ("claude", "CLAUDE_CODE_SESSION_ID"),
-    ("codex", "CODEX_THREAD_ID"),
-)
-SESSION_ENV_VARS = (
-    *STRICT_SESSION_ENV_VARS,
-    ("antigravity", "ANTIGRAVITY_CONVERSATION_ID"),
-)
 RUNTIME_ALIASES = {
     "agy": "antigravity",
 }
@@ -70,34 +63,20 @@ def _normalize_runtime_name(value: object) -> str:
     return RUNTIME_ALIASES.get(cleaned, cleaned)
 
 
-def _inferred_cli_runtime() -> str:
-    if (
-        os.environ.get("ANTIGRAVITY_CLI_ALIAS", "").strip()
-        or os.environ.get("ANTIGRAVITY_AGENT", "").strip()
-        or os.environ.get("ANTIGRAVITY_TRAJECTORY_ID", "").strip()
-    ):
-        return "antigravity"
-    if os.environ.get("GEMINI_CLI", "").strip():
-        return "gemini"
-    for key in ("MORU_AI_TOOL", "SPILL_AI_TOOL", "SPILL_TOKEN_USAGE_AI_TOOL"):
-        normalized = _normalize_runtime_name(os.environ.get(key, ""))
-        if normalized in {"antigravity", "gemini", "codex", "claude"}:
-            return normalized
-    return "cli"
-
-
 @contextmanager
 def cli_runtime_session_scope(session_id: str = "", runtime: str = "") -> Iterator[None]:
-    """Bind an explicit CLI `--runtime-session-id` when no strict hook session variable is set."""
+    """Accept a CLI ID for this runtime when it does not have a strict native ID."""
 
     global _CLI_SESSION_OVERRIDE
     cleaned_session_id = str(session_id or "").strip()
-    if not cleaned_session_id or any(
-        os.environ.get(variable, "").strip() for _, variable in STRICT_SESSION_ENV_VARS
-    ):
+    detected, native_id = detect_runtime()
+    requested_runtime = _normalize_runtime_name(runtime)
+    if not cleaned_session_id or (native_id and (
+        detected in {"codex", "claude"} or requested_runtime and requested_runtime != detected
+    )):
         yield
         return
-    cleaned_runtime = _normalize_runtime_name(runtime) or _inferred_cli_runtime()
+    cleaned_runtime = requested_runtime or detected or "cli"
     previous = _CLI_SESSION_OVERRIDE
     _CLI_SESSION_OVERRIDE = {
         "runtime": cleaned_runtime,
@@ -110,19 +89,10 @@ def cli_runtime_session_scope(session_id: str = "", runtime: str = "") -> Iterat
 
 
 def runtime_session() -> dict[str, str]:
-    for runtime, variable in STRICT_SESSION_ENV_VARS:
-        value = os.environ.get(variable, "").strip()
-        if value:
-            return {"runtime": runtime, "session_id": value}
-    if _CLI_SESSION_OVERRIDE is not None:
+    runtime, value = detect_runtime()
+    if _CLI_SESSION_OVERRIDE is not None and not (runtime in {"claude", "codex"} and value):
         return dict(_CLI_SESSION_OVERRIDE)
-    for runtime, variable in SESSION_ENV_VARS:
-        if (runtime, variable) in STRICT_SESSION_ENV_VARS:
-            continue
-        value = os.environ.get(variable, "").strip()
-        if value:
-            return {"runtime": runtime, "session_id": value}
-    return {}
+    return {"runtime": runtime, "session_id": value} if value else {}
 
 
 def same_runtime_session(
