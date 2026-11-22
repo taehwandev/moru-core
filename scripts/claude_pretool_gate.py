@@ -817,6 +817,18 @@ def governed_because(root: Path, cwd_roots: "list[Path] | None") -> str:
     )
 
 
+# A start given only `--request` is classified read-only, so the commands this
+# gate suggests must carry the compact authority arguments a work route needs.
+WORK_START_ARGS = (
+    '--intent <SAFE_SLUG> --target-summary "<BOUNDED_TARGET>"'
+)
+WORK_START_NOTE = (
+    " A start with only --request opens a read-only route; for a write add "
+    "--requested-effect local_write --approved-effect local_write when the "
+    "user's request authorizes it."
+)
+
+
 def paused_run_reason(
     root: Path, evidence: Path, tool: str, cwd_roots: "list[Path] | None"
 ) -> str:
@@ -840,8 +852,8 @@ def paused_run_reason(
             f"--project {root} --rules <MORU_ROOT>`, then {retry}; a new start "
             f"would supersede the paused run and drop its gates. For unrelated new "
             f"work, run `{launcher} start --project {root} --rules <MORU_ROOT> "
-            f"--command <route> --request \"<user request>\"`."
-            f"{governed_because(root, cwd_roots)}"
+            f"--command <route> --request \"<user request>\" {WORK_START_ARGS}`."
+            f"{WORK_START_NOTE}{governed_because(root, cwd_roots)}"
         )
     return (
         f"Moru Core: this session's run {run_id} was paused when its turn ended "
@@ -850,7 +862,8 @@ def paused_run_reason(
         f"<MORU_ROOT>`, then {retry}; a new start would supersede the paused run "
         f"and drop its gates. For unrelated new work, run `{launcher} start "
         f"--project {root} --rules <MORU_ROOT> --command <route> --request "
-        f"\"<user request>\"`.{governed_because(root, cwd_roots)}"
+        f"\"<user request>\" {WORK_START_ARGS}`."
+        f"{WORK_START_NOTE}{governed_because(root, cwd_roots)}"
     )
 
 
@@ -891,7 +904,8 @@ def deny_reason(
         f"Moru Core: run the workflow start hook before {action}. {cause} "
         f"Run `{stable_launcher_path()} start --project "
         f"{root} --rules <MORU_ROOT> --command <route> --request \"<user "
-        f"request>\"`, read the route required_docs, then {retry}. Set "
+        f"request>\" {WORK_START_ARGS}`.{WORK_START_NOTE} Read the route "
+        f"required_docs, then {retry}. Set "
         f"{runtime_setting('_MAX_AGE_SECONDS')} to tune the freshness window."
     )
 
@@ -1326,7 +1340,10 @@ def _read_run_mutation_denial(roots: list[Path], session_id: str, kind: str) -> 
         if explicit or route_minimum_effect(command) == "read":
             return (
                 f"Active route `{command}` is read-only; start an authorized writable "
-                "route for an approved write. This call was not verified read-only; "
+                "route for an approved write, e.g. `start --command <route> --request "
+                f"\"<user request>\" {WORK_START_ARGS} --requested-effect local_write "
+                "--approved-effect local_write` when the user's request authorizes it. "
+                "This call was not verified read-only; "
                 "that is not proof it changes data. For HTTP inspection, use explicit "
                 "curl -q with GET/HEAD and stdout, without config/output/upload options. "
                 "If the user already authorized a write, carry that exact scope into "

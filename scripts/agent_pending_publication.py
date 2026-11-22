@@ -39,7 +39,7 @@ from agent_continuation_outbound import assert_no_continuation_outbound
 from agent_execution_capsule_state import atomic_write_json
 from agent_publication_status import observe_pull_request, observe_upstream
 from workflow_intent_envelope import EFFECT_RANK
-from agent_local_delivery import LocalDeliveryProof
+from agent_local_delivery import LocalDeliveryProof, _is_root_commit, _is_unborn
 from support.native_probe_transport import NativeProbe
 
 # checkpoint slug -> effect the run must already be admitted for.
@@ -233,13 +233,18 @@ def record_pending(project: Path, evidence: Path, deferred: list) -> str:
         return "" if set(wanted) <= have else "existing pending-publication record misses declared items"
     if problem != "missing":
         return f"pending-publication record is {problem}"
-    head = _git(project, "rev-parse", "HEAD")
-    branch = _git(project, "symbolic-ref", "--short", "HEAD")
-    if not head or not branch:
-        return "project HEAD or source branch could not be read to anchor the pending publication"
     try:
         payload = json.loads(evidence.read_text(encoding="utf-8"))
         local_contract = (payload.get("route") or {}).get("local_delivery_contract")
+        head = _git(project, "rev-parse", "HEAD")
+        branch = _git(project, "symbolic-ref", "--short", "HEAD")
+        if (
+            not head and branch and local_contract == LocalDeliveryProof.CONTRACT
+            and "publication.commit" in wanted and _is_unborn(project)
+        ):
+            head = LocalDeliveryProof.UNBORN
+        if not head or not branch:
+            return "project HEAD or source branch could not be read to anchor the pending publication"
         local_proof = None
         if any(kind(c) == LocalDeliveryProof.INTEGRATION for c in wanted) and local_contract != LocalDeliveryProof.CONTRACT:
             return "local integration requires the current local delivery contract"
@@ -412,7 +417,8 @@ def _observe(project: Path, record: dict, item: dict, observation_path: Path | N
 
 def _legacy_local_head(project: Path, record: dict, checkpoint: str) -> tuple[str, str]:
     items = record.get("items")
-    if (_git is _LOCAL_DELIVERY_GIT and locale.getpreferredencoding(False).lower() == "utf-8"
+    if (record["base_head"] != LocalDeliveryProof.UNBORN and _git is _LOCAL_DELIVERY_GIT
+            and locale.getpreferredencoding(False).lower() == "utf-8"
             and isinstance(items, list) and all(isinstance(item, dict) and "checkpoint" in item for item in items)):
         requires_commit = checkpoint == "publication.commit" or any(
             kind(item["checkpoint"]) == "publication.commit" for item in items)
@@ -437,7 +443,10 @@ def _legacy_local_head_python(project: Path, record: dict, checkpoint: str) -> t
     head = _git(project, "rev-parse", "HEAD")
     if not head:
         return "", "HEAD could not be read"
-    advanced = head != base_head and _git(project, "merge-base", "--is-ancestor", base_head, head) is not None
+    if base_head == LocalDeliveryProof.UNBORN:
+        advanced = record.get("schema_version") == 2 and _is_root_commit(project, head, _git)
+    else:
+        advanced = head != base_head and _git(project, "merge-base", "--is-ancestor", base_head, head) is not None
     commit_declared = any(kind(i["checkpoint"]) == "publication.commit" for i in record["items"])
     if checkpoint == "publication.commit" or commit_declared:
         if not advanced:
@@ -468,7 +477,8 @@ _LOCAL_SETTLEMENT_OBSERVE = _observe
 
 
 def _prepare_local_settlement(project: Path, evidence: Path, record: dict, checkpoint: str) -> tuple[dict | None, str] | None:
-    if (_git is not _LOCAL_DELIVERY_GIT or _observe is not _LOCAL_SETTLEMENT_OBSERVE
+    if (record.get("base_head") == LocalDeliveryProof.UNBORN
+            or _git is not _LOCAL_DELIVERY_GIT or _observe is not _LOCAL_SETTLEMENT_OBSERVE
             or locale.getpreferredencoding(False).lower() != "utf-8"
             or kind(checkpoint) not in ("publication.commit", LocalDeliveryProof.INTEGRATION)
             or not NativeProbe.available()):

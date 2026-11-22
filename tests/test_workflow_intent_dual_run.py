@@ -505,6 +505,13 @@ class NoEnvelopeWorkRouteTests(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("intent envelope", result.stderr)
 
+    def test_refusal_names_the_compact_arguments_that_open_a_work_route(self) -> None:
+        result = self._route("bugfix", "Fix scripts/workflow.py line 10")
+
+        for argument in ("--intent", "--target-summary", "--approved-effect"):
+            with self.subTest(argument=argument):
+                self.assertIn(argument, result.stderr)
+
     def test_dispatch_cannot_bypass_the_route_contract(self) -> None:
         result = subprocess.run(
             [sys.executable, "scripts/workflow.py", "dispatch", "release",

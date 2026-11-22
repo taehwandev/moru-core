@@ -21,6 +21,7 @@ from support.bounded_git import run_git
 
 
 MAX_UNTRACKED_FILES = 5_000
+MAX_STAGED_INITIAL_FILES = 10_000
 MAX_UNTRACKED_BYTES = 256 * 1024 * 1024
 MAX_CAPTURE_ATTEMPTS = 2
 
@@ -206,6 +207,13 @@ def _capture_status(
         ("status", "--porcelain=v2", "-z", "--untracked-files=all"),
         visit,
     )
+
+    if (
+        len(entries) > budget.max_files
+        and all(_status_xy(record) == b"A." for _, _, _, record in entries)
+        and _unborn_head(path)
+    ):
+        budget.max_files = MAX_STAGED_INITIAL_FILES
 
     for relative_bytes in sorted(
         {relative for _kind, relative, _added, _record in entries}

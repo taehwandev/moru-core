@@ -191,6 +191,59 @@ class PublicationObservationTests(unittest.TestCase):
         self.assertTrue(pending.settle(self.project, self.evidence, "publication.pull-request/develop", self.project / "pr-state.json"))
 
 
+class InitialCommitPublicationTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        self.run = Run(temp.name, writable=True, command="commit", effect="external_write", authority="envelope")
+        self.project, self.evidence = self.run.project, self.run.evidence
+        git(self.project, "init", "--quiet", "--initial-branch=develop")
+        git(self.project, "config", "user.name", "test")
+        git(self.project, "config", "user.email", "test@example.invalid")
+        git(root, "init", "--bare", "--quiet", "remote")
+        git(self.project, "remote", "add", "origin", str(root / "remote"))
+        self.run.route["local_delivery_contract"] = pending.LocalDeliveryProof.CONTRACT
+        self.evidence.write_text(json.dumps(self.run.binding))
+        self.file = self.project / "source.txt"
+        self.file.write_text("reviewed\n")
+        git(self.project, "add", "source.txt")
+        self.commit = {"checkpoint": "publication.commit"}
+        self.push = {"checkpoint": "publication.push"}
+
+    def prepare(self):
+        self.assertEqual("", pending.record_pending(self.project, self.evidence, [self.commit, self.push]))
+        transition_run(self.project, self.evidence, "completed")
+
+    def test_parentless_commit_and_its_remote_ref_are_verified(self):
+        self.prepare()
+        self.assertTrue(pending.settle(self.project, self.evidence, "publication.commit"))
+        git(self.project, "commit", "--quiet", "-m", "initial")
+        self.assertEqual("", pending.settle(self.project, self.evidence, "publication.commit"))
+        self.assertIn("upstream", pending.settle(self.project, self.evidence, "publication.push"))
+        git(self.project, "push", "--quiet", "--set-upstream", "origin", "develop")
+        self.assertEqual("", pending.settle(self.project, self.evidence, "publication.push"))
+        self.assertEqual([], pending.outstanding(self.project, self.evidence))
+
+    def test_wrong_first_tree_never_satisfies_the_receipt(self):
+        self.assertTrue(pending.record_pending(self.project, self.evidence, [self.push]))
+        self.prepare()
+        self.file.write_text("unreviewed\n")
+        git(self.project, "commit", "--quiet", "-am", "different first")
+        self.assertTrue(pending.settle(self.project, self.evidence, "publication.commit"))
+        self.assertTrue(pending.settle(self.project, self.evidence, "publication.push"))
+
+    def test_a_shallow_child_with_the_right_tree_does_not_count_as_the_first_commit(self):
+        self.prepare()
+        self.file.write_text("unreviewed\n")
+        git(self.project, "commit", "--quiet", "-am", "different first")
+        self.file.write_text("reviewed\n")
+        git(self.project, "commit", "--quiet", "-am", "matching content, wrong ancestry")
+        head = git(self.project, "rev-parse", "HEAD")
+        (self.project / ".git" / "shallow").write_text(head + "\n")
+        self.assertTrue(pending.settle(self.project, self.evidence, "publication.commit"))
+
+
 class ReceiptTests(unittest.TestCase):
     def test_other_source_branch_cannot_settle_any_publication_item(self):
         original = git(self.project, "symbolic-ref", "--short", "HEAD")
