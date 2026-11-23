@@ -1,13 +1,11 @@
-//! owner: LedgerBinding; allowed imports: PythonJson, sha2, std, serde_json quoting;
+//! owner: LedgerBinding; allowed imports: route identity, PythonJson, sha2 and std;
 //! forbidden imports: state mutation, subprocess; callers/tests: NextLedger;
 //! verification: canonical route/preflight identity fixtures.
 use super::super::paths::NextPaths;
 use crate::python_json::{Object, PythonJson as Py, Value};
+use crate::route_identity::RouteIdentity;
 use sha2::{Digest, Sha256};
-use std::{
-    fs,
-    path::Path,
-};
+use std::{fs, path::Path};
 pub(super) struct LedgerBinding;
 impl LedgerBinding {
     pub fn matches(
@@ -44,7 +42,7 @@ impl LedgerBinding {
         {
             return Some(false);
         }
-        let fingerprint = Self::route_hash(route)?;
+        let fingerprint = RouteIdentity::route_hash(route)?;
         Some(ledger.get("route_fingerprint").and_then(Value::as_str) == Some(fingerprint.as_str()))
     }
     pub fn equals(value: Option<&Value>, expected: u64) -> bool {
@@ -52,95 +50,6 @@ impl LedgerBinding {
             Some(Value::Bool(v)) => u64::from(*v) == expected,
             Some(Value::Number(v)) => v.equals_u64(expected),
             _ => false,
-        }
-    }
-    fn route_hash(route: &Object) -> Option<String> {
-        let mut stable = Object::new();
-        for key in ["command", "platform"] {
-            stable.insert(key.into(), route.get(key).cloned().unwrap_or(Value::Null));
-        }
-        for key in [
-            "concerns",
-            "docs",
-            "required_docs",
-            "reference_docs",
-            "gates",
-        ] {
-            stable.insert(
-                key.into(),
-                route
-                    .get(key)
-                    .filter(|v| Py::truthy(v))
-                    .cloned()
-                    .unwrap_or_else(|| Value::Array(Vec::new())),
-            );
-        }
-        for key in ["lifecycle_version", "project_memory_contract"] {
-            if let Some(value) = route.get(key) {
-                stable.insert(key.into(), value.clone());
-            }
-        }
-        if let Some(org) = route.get("organization").filter(|v| Py::truthy(v)) {
-            let org = org.as_object()?;
-            let mut block = Object::new();
-            for key in ["id", "commit"] {
-                block.insert(key.into(), org.get(key).cloned().unwrap_or(Value::Null));
-            }
-            let mut docs = Vec::new();
-            if let Some(entries) = org.get("required_docs").filter(|v| Py::truthy(v)) {
-                for item in entries.as_array()? {
-                    let item = item.as_object()?;
-                    docs.push(Value::Array(
-                        ["path", "sha256"]
-                            .iter()
-                            .map(|key| item.get(key).cloned().unwrap_or(Value::Null))
-                            .collect(),
-                    ));
-                }
-            }
-            block.insert("required_docs".into(), Value::Array(docs));
-            stable.insert("organization".into(), Value::Object(block));
-        }
-        Some(format!(
-            "{:x}",
-            Sha256::digest(Self::canonical(&Value::Object(stable)).as_bytes())
-        ))
-    }
-    fn canonical(value: &Value) -> String {
-        match value {
-            Value::Null => "null".into(),
-            Value::Bool(v) => v.to_string(),
-            Value::String(s) => serde_json::to_string(s).unwrap(),
-            Value::Number(n) => match n.text().as_str() {
-                "nan" => "NaN".into(),
-                "inf" => "Infinity".into(),
-                "-inf" => "-Infinity".into(),
-                _ => n.text(),
-            },
-            Value::Array(items) => format!(
-                "[{}]",
-                items
-                    .iter()
-                    .map(Self::canonical)
-                    .collect::<Vec<_>>()
-                    .join(",")
-            ),
-            Value::Object(map) => {
-                let mut entries = map.iter().collect::<Vec<_>>();
-                entries.sort_by(|a, b| a.0.cmp(b.0));
-                format!(
-                    "{{{}}}",
-                    entries
-                        .iter()
-                        .map(|(k, v)| format!(
-                            "{}:{}",
-                            serde_json::to_string(k).unwrap(),
-                            Self::canonical(v)
-                        ))
-                        .collect::<Vec<_>>()
-                        .join(",")
-                )
-            }
         }
     }
 }

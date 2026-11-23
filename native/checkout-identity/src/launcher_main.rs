@@ -39,6 +39,7 @@ mod cards_store;
 mod cards_transaction;
 mod cards_write_process;
 mod completion_process;
+mod route_identity;
 mod completion_progress;
 mod completion_quality;
 mod completion_requirements;

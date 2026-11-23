@@ -18,6 +18,8 @@ from agent_execution_capsule_state import (
     capsule_path_for_evidence,
     file_hash_record,
     git_states_for_paths,
+    is_sha256,
+    native_capsule_probe,
     read_json_object,
 )
 from agent_execution_capsule_validation import (
@@ -79,10 +81,20 @@ def create_preflight_snapshot(
     """
 
     docs = current_required_docs(rules.resolve(), route)
+    identities = native_capsule_probe("capsule-identities", {"route": route, "intake": request_intake})
+    if identities is not None and (
+        set(identities) == {"route_fingerprint", "request_fingerprint"}
+        and all(is_sha256(value) for value in identities.values())
+    ):
+        route_hash = identities["route_fingerprint"]
+        request_hash = identities["request_fingerprint"]
+    else:
+        route_hash = route_fingerprint(route)
+        request_hash = request_fingerprint(request_intake)
     return {
         "schema_version": PREFLIGHT_SNAPSHOT_SCHEMA_VERSION,
-        "route_fingerprint": route_fingerprint(route),
-        "request_fingerprint": request_fingerprint(request_intake),
+        "route_fingerprint": route_hash,
+        "request_fingerprint": request_hash,
         "required_docs": docs or [],
     }
 

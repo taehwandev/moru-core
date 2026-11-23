@@ -7,9 +7,10 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import agent_execution_capsule_bindings as capsule_bindings
+import agent_execution_capsule as capsule
 import agent_execution_capsule_state as capsule_state
 import agent_execution_capsule_validation as capsule_validation
 from agent_continuation_checkpoint import write_continuation_checkpoint
@@ -195,6 +196,39 @@ class NativeCompletionTests(unittest.TestCase):
             ledger_path.write_text("{not json", encoding="utf-8")
             self.assertEqual(["execution capsule parent gate ledger is not valid JSON"],
                              capsule_bindings.gate_ledger_failures(ledger_path, evidence, route))
+
+    def test_native_preflight_route_and_request_digests_match_python(self):
+        routes = [
+            {},
+            {"command": "리팩터링", "platform": False, "concerns": 0, "docs": "",
+             "reference_docs": None, "gates": ["🐈"], "local_delivery_contract": "staged_v1",
+             "lifecycle_version": None, "project_memory_contract": {"z": 2**80, "a": "\x7f"}},
+            {"organization": {"id": "팀", "commit": "c", "required_docs": [
+                {"path": "문서", "sha256": "f", "ignored": 1}, {"path": "🐈"}, {"sha256": "g"},
+            ]}},
+            {"local_delivery_contract": None},
+        ]
+        for route in routes:
+            for intake in ({}, {"request": "경로\0🐈", "continuation_scope": False, "request_classified": [False],
+                                "classification_evidence": "e\x7f"}):
+                with self.subTest(route=route, intake=intake):
+                    with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                        expected = capsule.create_preflight_snapshot(self.project, route, intake)
+                    response = self.check("capsule-identities", {"route": route, "intake": intake})
+                    self.assertEqual(response, {key: expected[key] for key in response})
+                    with patch.dict(os.environ, self.env, clear=True), patch.multiple(
+                        capsule,
+                        route_fingerprint=Mock(side_effect=AssertionError("Python route")),
+                        request_fingerprint=Mock(side_effect=AssertionError("Python request")),
+                    ):
+                        self.assertEqual(expected, capsule.create_preflight_snapshot(self.project, route, intake))
+        legacy = {"request": ["coerced"], "request_classified": True}
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = capsule.create_preflight_snapshot(self.project, {}, legacy)
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(expected, capsule.create_preflight_snapshot(self.project, {}, legacy))
+        declined = self.raw("capsule-identities", {"route": {}, "intake": legacy})
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'

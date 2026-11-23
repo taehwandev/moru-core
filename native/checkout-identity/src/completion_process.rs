@@ -13,6 +13,7 @@ use crate::{
     local_delivery_prepare::LocalDeliveryPrepare,
     pending_publication_receipt::PendingPublicationReceipt,
     pending_publication_transition::PendingPublicationTransition, pretool_guard::CallbackGuard,
+    route_identity::RouteIdentity,
 };
 use serde_json::{json, Value};
 use std::{
@@ -48,6 +49,9 @@ impl CompletionProcess {
             || bytes.len() > 1024 * 1024
         {
             return 125;
+        }
+        if args[1] == "capsule-identities" {
+            return Self::respond(RouteIdentity::probe(&bytes));
         }
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
@@ -97,6 +101,10 @@ impl CompletionProcess {
             }
             _ => None,
         };
+        Self::respond(result)
+    }
+
+    fn respond(result: Option<Value>) -> i32 {
         let Some(result) = result else {
             return 125;
         };

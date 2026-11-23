@@ -110,6 +110,7 @@ class NativeNextLedgerTests(unittest.TestCase):
         from agent_route_state import preflight_evidence_sha256
         route = self.preflight["route"]
         route.update(lifecycle_version=3,
+            local_delivery_contract="staged_v1",
             project_memory_contract={"enabled": True, "version": 2, "scope": ["한글"]},
             organization={"id": "synthetic", "commit": "abc", "ignored_metadata": "original",
                           "required_docs": [{"path": "rules/한글.md", "sha256": "a" * 64}]})
