@@ -246,8 +246,8 @@ def structure_review(
                 project, relative, lines, metadata, subject_run_command,
             )
             if len(lines) > max_block_lines:
-                prepared = _prepare_block_spans(relative, lines)
-                if prepared["starts"]:
+                prepared = _block_span_input(relative, lines)
+                if "lines" in prepared or prepared["starts"]:
                     file_review["block_spans"] = {
                         **prepared, "limit": max_block_lines, "initial": bool(metadata.get("initial_full_build")),
                     }
@@ -1325,11 +1325,17 @@ def _previous_block_spans(
     previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
     if previous.get("returncode") != 0:
         return None
-    return _prepare_block_spans(path, str(previous.get("stdout") or "").splitlines())
+    return _block_span_input(path, str(previous.get("stdout") or "").splitlines())
 
 
 def oversized_blocks(path: Path, lines: list[str], max_block_lines: int) -> list[dict[str, Any]]:
     return _prepared_blocks(path, _prepare_block_spans(path, lines), max_block_lines)
+
+
+def _block_span_input(path: Path, lines: list[str]) -> dict[str, Any]:
+    if path.suffix.lower() == ".py":
+        return {"kind": "python-source", "lines": lines}
+    return _prepare_block_spans(path, lines)
 
 
 def _prepare_block_spans(path: Path, lines: list[str]) -> dict[str, Any]:
@@ -1360,6 +1366,8 @@ def _prepare_block_spans(path: Path, lines: list[str]) -> dict[str, Any]:
 
 
 def _prepared_blocks(path: Path | str, prepared: dict[str, Any], max_block_lines: int) -> list[dict[str, Any]]:
+    if prepared["kind"] == "python-source":
+        prepared = _prepare_block_spans(Path(path), prepared["lines"])
     blocks = []
     levels = prepared["levels"]
     for start, label in prepared["starts"]:

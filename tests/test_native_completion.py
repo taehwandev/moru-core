@@ -114,6 +114,33 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertIn("per-file addition limit is 6", reference["failures"][-1])
         self.assertTrue(reference["warnings"][0].startswith("b.py "))
 
+    def test_structure_python_declarations_match_regex_and_defer_unicode_words(self):
+        lines = [
+            "class Outer:", "\tasync\tdef inner(self):", "    pass", "  # 한국어",
+            "@decorator", "def\u00a0tail_2():", "    pass", "defx ignored():", "    pass",
+            "async def9 ignored():", "    pass",
+        ]
+        def prepared(source):
+            return {**structure._block_span_input(Path("source.py"), source), "limit": 1}
+
+        expected = [{
+            key: block[key] for key in ("line", "label", "span")
+        } for block in structure.oversized_blocks(Path("source.py"), lines, 1)]
+        self.assertEqual(["inner", "tail_2"], [block["label"] for block in expected])
+        self.assertEqual({"blocks": [expected]}, self.check("structure-block-spans", {"files": [prepared(lines)]}))
+
+        unicode_lines = ["def prefé():", "    pass"]
+        declined = self.raw("structure-block-spans", {"files": [prepared(unicode_lines)]})
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+        file = {"path": "source.py", "line_count": 2, "metadata": {"status": "A"}, "max_file_lines": 500,
+                "max_added_lines": 300, "review_warning_file_lines": 300,
+                "block_spans": {**prepared(unicode_lines), "initial": False}}
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            reference = structure._file_findings([file])
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(reference, structure._file_findings([file]))
+        self.assertIn("block `prefé`", reference[0][0][0])
+
     def test_structure_existing_block_spans_keep_baseline_reads_lazy(self):
         source = ["def example():", "    pass", "    pass", "    pass"]
         short = ["def tiny():", "    pass", "count = 1", "count = 2"]
@@ -122,7 +149,7 @@ class NativeCompletionTests(unittest.TestCase):
             files = [
                 {"path": name, "line_count": len(lines), "metadata": metadata,
                  "max_file_lines": 500, "max_added_lines": 300, "review_warning_file_lines": 300,
-                 "block_spans": {**structure._prepare_block_spans(Path(name), lines),
+                 "block_spans": {**structure._block_span_input(Path(name), lines),
                                  "limit": 2, "initial": False}}
                 for name, lines, metadata in (
                     ("short.py", short, {"status": "M"}),

@@ -3,6 +3,7 @@
 //! forbidden imports: source masking, filesystem, Git and approval decisions.
 //! callers/tests: file diagnostic batch and structural parity fixtures.
 //! verification: indentation, brace balance and strict length boundaries.
+use super::structure_python_blocks::StructurePythonBlocks;
 use serde_json::{json, Value};
 
 pub(super) struct StructureBlockSpans;
@@ -30,9 +31,16 @@ impl StructureBlockSpans {
     }
 
     pub(super) fn records(input: &Value) -> Option<Vec<Value>> {
+        let kind = input.get("kind")?.as_str()?;
+        let limit = input.get("limit")?.as_i64()?;
+        if kind == "python-source" {
+            let lines = input.get("lines")?.as_array()?;
+            let (levels, starts) = StructurePythonBlocks::prepare(lines)?;
+            return Self::measure(&levels, lines.len(), starts, limit);
+        }
         let raw = input.get("levels")?.as_array()?;
         let mut levels = Vec::with_capacity(raw.len() + 1);
-        match input.get("kind")?.as_str()? {
+        match kind {
             "indent" => {
                 for level in raw {
                     levels.push(if level.is_null() {
@@ -52,13 +60,25 @@ impl StructureBlockSpans {
             }
             _ => return None,
         }
-        let limit = input.get("limit")?.as_i64()?;
-        let spans = Self::spans(&levels, raw.len());
-        let mut current = Vec::new();
+        let mut starts = Vec::new();
         for start in input.get("starts")?.as_array()? {
             let index = usize::try_from(start.get(0)?.as_u64()?).ok()?;
             let label = start.get(1)?.as_str()?;
-            if index >= raw.len() || levels.get(index)?.is_none() {
+            starts.push((index, label));
+        }
+        Self::measure(&levels, raw.len(), starts, limit)
+    }
+
+    fn measure(
+        levels: &[Option<i64>],
+        line_count: usize,
+        starts: Vec<(usize, &str)>,
+        limit: i64,
+    ) -> Option<Vec<Value>> {
+        let spans = Self::spans(levels, line_count);
+        let mut current = Vec::new();
+        for (index, label) in starts {
+            if index >= line_count || levels.get(index)?.is_none() {
                 return None;
             }
             let span = spans.get(index).copied()?;
