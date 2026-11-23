@@ -70,6 +70,41 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 self.assertIs(type(expected),type(actual))
         self.assertEqual(before,self.path.read_bytes())
 
+    def test_agy_prompt_compaction_count_preserves_python_filter_and_fallback(self):
+        checkpoint = b'{"type":"CHECKPOINT","content":"# Resuming from a compaction summary"}'
+        escaped = checkpoint.replace(b'CHECKPOINT', br'\u0043HECKPOINT')
+        duplicate = checkpoint.replace(b'"type":', b'"type":"old","type":')
+        other_runtime = b'{"type":"compacted","tag":"CHECKPOINT","ignored": NaN}'
+        malformed = b'{"type":"CHECKPOINT","content":'
+        rows = [b'\xef\xbb\xbf' + checkpoint, escaped, duplicate, other_runtime,
+                malformed, b'["CHECKPOINT"]', checkpoint]
+        self.path.write_bytes(b'\r\n'.join(rows[:3]) + b'\r' + b'\n'.join(rows[3:]))
+        payload = {"transcriptPath": str(self.path)}
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            self.assertEqual(3, adapter._compaction_count(payload))
+        with patch.dict(os.environ, self.env, clear=True), patch.object(adapter, "parse_json") as parse:
+            self.assertEqual(3, adapter._compaction_count(payload))
+            parse.assert_not_called()
+
+        digits = checkpoint[:-1] + b',"ignored":' + b'1' * 641 + b'}'
+        self.path.write_bytes(digits)
+        for limit, expected in ((0, 1), (640, 0)):
+            with self.subTest(limit=limit):
+                probe = self.raw("agy-compaction-count", {"path": str(self.path), "digit_limit": limit})
+                self.assertEqual(0, probe.returncode, probe.stderr)
+                self.assertEqual(expected, json.loads(probe.stdout)["result"]["value"])
+
+        self.path.write_bytes(checkpoint.replace(b'summary', b'\xffsummary'))
+        self.assertIsNone(self.native("agy_compaction_count", self.path))
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(1, adapter._compaction_count(payload))
+        with self.path.open("wb") as stream:
+            stream.write(checkpoint + b'\n')
+            stream.truncate(16 * 1024 * 1024 + 1)
+        self.assertIsNone(self.native("agy_compaction_count", self.path))
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(1, adapter._compaction_count(payload))
+
     def test_agy_native_request_preserves_defaults_order_and_legacy_fallback(self):
         with patch.dict(os.environ, self.env, clear=True):
             for raw, expected in (

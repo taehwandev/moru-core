@@ -33,6 +33,7 @@ impl DocTranscriptProcess {
                         | "aligned"
                         | "due"
                         | "agy-covered"
+                        | "agy-compaction-count"
                         | "render"
                         | "read-docs"
                         | "read-delivery-manifest"
@@ -150,6 +151,10 @@ impl DocTranscriptProcess {
                     ),
                     "compacted" if object.len() == 1 => {
                         DocTranscript::compacted(path).map(|v| json!(v))
+                    }
+                    "agy-compaction-count" if object.len() == 2 => {
+                        let limit = usize::try_from(object.get("digit_limit")?.as_u64()?).ok()?;
+                        DocTranscript::agy_compaction_count(path, limit).map(|v| json!(v))
                     }
                     "aligned" if object.len() == 2 => {
                         DocTranscript::aligned(path, object.get("fallback")?.as_i64()?)

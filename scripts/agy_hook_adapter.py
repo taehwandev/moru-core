@@ -93,6 +93,11 @@ def _compaction_count(payload: dict) -> int:
     if not transcript.is_file():
         return 0
     try:
+        from support.native_doc_transcript import NativeDocTranscript
+
+        native_count = NativeDocTranscript.agy_compaction_count(transcript)
+        if native_count is not None:
+            return native_count
         from agent_required_doc_delivery import is_compaction
 
         with transcript.open(encoding="utf-8", errors="replace") as handle:

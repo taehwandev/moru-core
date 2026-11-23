@@ -462,7 +462,8 @@
       "verification": {
         "doc_transcript": "Actual AGY CHECKPOINT delivery/whole-read marker flow compares source/native; native file scans and encoding/stream fallbacks are verified. See native-doc-transcript.md.",
         "callback_ingress": "PASS: source-bound macOS debug Rust handles the installed agy-hook alias for bounded no-op pre-tool callbacks and malformed JSON with exact per-event fail-open bytes. Empty-PATH fixtures prove ordinary file reads need no Python. Gated calls, nonterminal events, and unsupported or oversized input use one Python invocation with the full original stream. No gate, stop or verifier authority moved.",
-        "skill_read_notice": "PASS: source-bound macOS debug Rust counts Python-compatible line boundaries from bounded UTF-8 skill files and formats the exact partial-read notice. Complete ordinary reads run on the durable hook with empty PATH. Partial native and Python notices share existing deduplication; unsupported inputs preserve the old path."
+        "skill_read_notice": "PASS: source-bound macOS debug Rust counts Python-compatible line boundaries from bounded UTF-8 skill files and formats the exact partial-read notice. Complete ordinary reads run on the durable hook with empty PATH. Partial native and Python notices share existing deduplication; unsupported inputs preserve the old path.",
+        "prompt_compaction_count": "PASS: the AGY prompt adapter uses the source-bound Rust transcript counter for bounded UTF-8 input. Tests compare Python's raw CHECKPOINT filter, universal line endings, duplicate keys, integer digit limits, and fallback for invalid UTF-8 and oversized transcripts. Existing Python state owns route delivery and deduplication."
       },
       "supporting_entrypoints": [
         "scripts/agy_required_docs_hook.py"

@@ -7,6 +7,7 @@ agent_required_doc_delivery; native source/stream/fallback and delivery tests.
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from uuid import uuid4
 
 from support.native_probe_transport import NativeProbe
@@ -412,6 +413,11 @@ class NativeDocTranscript:
     @staticmethod
     def compacted(path):
         return NativeDocTranscript._query("compacted", path, {}, bool)
+
+    @staticmethod
+    def agy_compaction_count(path: Path) -> int | None:
+        limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
+        return NativeDocTranscript._query("agy-compaction-count", path, {"digit_limit": limit}, int)
 
     @staticmethod
     def aligned(path, fallback):

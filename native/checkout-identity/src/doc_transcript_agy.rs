@@ -1,4 +1,4 @@
-//! owner: read-only AGY transcript coverage projection;
+//! owner: read-only AGY transcript coverage and prompt compaction facts;
 //! allowed imports: guarded transcript reader, JSON, timestamp parsing and file metadata;
 //! forbidden imports: marker/evidence writes, provider calls and delivery policy;
 //! callers/tests: private doc-transcript probe and AGY required-doc process parity;
@@ -18,8 +18,37 @@ use std::{
 
 const MAX_TRANSCRIPT: u64 = 16 * 1024 * 1024;
 const UNIX_EPOCH_TICKS: i64 = 719_163 * 86_400_000_000;
+const CHECKPOINT_TOKEN: &str = "\"CHECKPOINT\"";
 
 impl DocTranscript {
+    pub(crate) fn agy_compaction_count(path: &Path, digit_limit: usize) -> Option<usize> {
+        let (size, metadata) = Self::size(path);
+        if size > MAX_TRANSCRIPT {
+            return None;
+        }
+        let file = Self::open(path, &metadata?)?.ok()?;
+        let mut bytes = Vec::new();
+        file.take(MAX_TRANSCRIPT + 1).read_to_end(&mut bytes).ok()?;
+        if bytes.len() as u64 > MAX_TRANSCRIPT {
+            return None;
+        }
+        // Python iterates universal-newline records and decodes with replacement.
+        // Decline invalid UTF-8 so the caller preserves Python's decoding.
+        let text = std::str::from_utf8(&bytes).ok()?;
+        let mut count = 0;
+        for line in text
+            .split(['\r', '\n'])
+            .filter(|line| line.contains(CHECKPOINT_TOKEN))
+        {
+            match PythonJson::parse_with_diagnostic(line, Some(digit_limit), None) {
+                Ok(Some(row)) => count += usize::from(Self::is_compaction(&row)),
+                Err(_) => {} // The Python parser ignores a line on ValueError.
+                Ok(None) => return None,
+            }
+        }
+        Some(count)
+    }
+
     pub(crate) fn agy_covered<'a>(
         path: &Path,
         rules: &Path,
@@ -50,7 +79,7 @@ impl DocTranscript {
                 return None;
             }
             for text in std::str::from_utf8(&line).ok()?.split('\r') {
-                if !text.contains("\"tool_calls\"") && !text.contains("\"CHECKPOINT\"") {
+                if !text.contains("\"tool_calls\"") && !text.contains(CHECKPOINT_TOKEN) {
                     continue;
                 }
                 let row = match PythonJson::parse_outcome(text) {
