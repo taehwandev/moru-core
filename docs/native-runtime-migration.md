@@ -207,7 +207,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | ID | Source owner | Entry | State | Disposition |
 | --- | --- | --- | --- | --- |
 | 32 | `scripts/agent-structure-check.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
-| 33 | `scripts/agent_experience_eval.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 33 | `scripts/agent_experience_eval.py` | `experience-eval` and direct CLI | Partial native | Default source-bound evaluation runs in Rust. Historical, exceptional, and installed-platform acceptance remain. |
 | 34 | `scripts/agent_unittest_result.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
 | 35 | `scripts/build_native_runtime.py` | Direct CLI | Planned native | Port owned build orchestration; Rust SDK remains developer-only |
 | 36 | `scripts/check_android_external_skill_manifest.py` | check-android-skill-manifest | Partial native | Local snapshot comparison and bounded Git identity; exceptional inputs remain open |

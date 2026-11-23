@@ -31,6 +31,7 @@ SCRIPT_ALIASES = {
     "check-react-rn-skill-manifest": "check_react_rn_external_skill_manifest.py",
     "figma-validate": "figma-handoff/figma_validate.py",
     "behavior-eval": "agent_behavior_eval.py",
+    "experience-eval": "agent_experience_eval.py",
     "overhead-report": "moru_overhead_report.py",
     "pending-publication": "agent_pending_publication.py",
     "runs-prune": "runs-prune.py",

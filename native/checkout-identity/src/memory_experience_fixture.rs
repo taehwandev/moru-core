@@ -47,16 +47,20 @@ impl ExperienceFixture {
         }
         let path = OsStr::new(fields.get("path")?.as_str()?);
         let digit_limit = usize::try_from(fields.get("digit_limit")?.as_u64()?).ok()?;
+        Some(match Self::load(path, digit_limit)? {
+            Ok(fixture) => json!({"fixture": fixture}),
+            Err(error) => json!({"error": error}),
+        })
+    }
+
+    pub(super) fn load(path: &OsStr, digit_limit: usize) -> Option<Result<Value, String>> {
         let FileRead::Bytes(bytes) = PythonInputFile::read(path, MAX_FIXTURE_BYTES, false)? else {
             return None;
         };
         let text = Text::universal_newlines(std::str::from_utf8(&bytes).ok()?);
         let decoded = PythonJson::parse_with_diagnostic(&text, Some(digit_limit), None).ok()??;
         let fixture = wire_value(&decoded)?;
-        Some(match Self::validate(&fixture) {
-            Ok(()) => json!({"fixture": fixture}),
-            Err(error) => json!({"error": error}),
-        })
+        Some(Self::validate(&fixture).map(|()| fixture))
     }
 
     fn validate(fixture: &Value) -> Result<(), String> {

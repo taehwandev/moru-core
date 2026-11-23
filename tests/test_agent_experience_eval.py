@@ -8,6 +8,8 @@ import io
 import json
 import math
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -150,6 +152,53 @@ class ExperienceEvaluationTests(unittest.TestCase):
                   patch.object(evaluator, "_validate_fixture", side_effect=AssertionError("native validation missing"))):
                 self.assertEqual(0, evaluator.main([]))
         self.assertEqual(python_output.getvalue(), native_output.getvalue())
+
+    def test_stable_experience_cli_runs_without_python_and_preserves_reference_fallback(self):
+        from native_launcher_support import NATIVE
+        from native_pretool_support import environment, prepare, result
+
+        if not NATIVE.is_file():
+            self.skipTest("source-bound native fixture unavailable")
+        base = Path(self.directory.name)
+        entry, project = prepare(base)
+        empty = base / "empty-path"
+        empty.mkdir()
+        with_python = base / "python-path"
+        with_python.mkdir()
+        (with_python / "python3").symlink_to(sys.executable)
+
+        def invoke(args, *, selected_path, zone, backend="auto"):
+            env = {**environment(base), "PATH": str(selected_path), "TZ": zone, "MORU_LAUNCHER_BACKEND": backend}
+            return result(subprocess.run([str(entry), "experience-eval", *args], input=b"", cwd=project,
+                                         env=env, capture_output=True, timeout=10))
+
+        alias = project / "relative fixture.json"
+        alias.symlink_to(evaluator.DEFAULT_FIXTURE)
+        for zone, args in (("Pacific/Kiritimati", []), ("America/Los_Angeles", ["--fixture", alias.name])):
+            with self.subTest(zone=zone, args=args):
+                expected = invoke(args, selected_path=with_python, zone=zone, backend="python")
+                native = invoke(args, selected_path=empty, zone=zone)
+                self.assertEqual(0, native[0], native[2])
+                self.assertEqual(expected, native)
+                inputs = json.loads(native[1])["inputs"]
+                self.assertEqual(str(evaluator.DEFAULT_FIXTURE.resolve()), inputs["fixture"]["path"])
+        broken = project / "broken.json"
+        broken.symlink_to(project / "missing.json")
+        historic = project / "historical"
+        historic.mkdir()
+        (historic / "agent_project_memory.py").write_text(
+            "def _digest(record): return 'historical'\n"
+            "def _recall(*args, **kwargs): return []\n"
+            "def recall_lines(*args, **kwargs): return []\n", encoding="utf-8")
+        historic_args = ["--engine-root", str(historic)]
+        historic_report = invoke(historic_args, selected_path=with_python, zone="UTC0")
+        self.assertEqual(0, historic_report[0], historic_report[2])
+        self.assertEqual([], json.loads(historic_report[1])["cases"][0]["ranked_ids"])
+        self.assertEqual(historic_report, invoke(historic_args, selected_path=with_python, zone="UTC0", backend="python"))
+        for args in (["--help"], ["--unsupported"], ["--fixture=" + broken.name]):
+            with self.subTest(fallback=args):
+                expected = invoke(args, selected_path=with_python, zone="UTC0", backend="python")
+                self.assertEqual(expected, invoke(args, selected_path=with_python, zone="UTC0"))
 
     def test_native_records_match_python_order_digest_and_calendar_overflow(self):
         from native_launcher_support import NATIVE

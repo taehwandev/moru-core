@@ -3,12 +3,23 @@
 Owner: memory term contract. Allowed: stdlib. Forbidden: runtime policy/store
 imports. Caller: pretool_contract.py. Verification: source/native term corpus.
 """
+import ast
 import json
 from pathlib import Path
 import unicodedata
 
 
 def emit(output):
+    engine = Path(__file__).resolve().parents[2] / "scripts/agent_project_memory.py"
+    tree = ast.parse(engine.read_text(encoding="utf-8"))
+    for name in ("MAX_RECALL_ITEMS", "MAX_RECALL_CHARS", "MAX_PREVIOUS_CHARS"):
+        stores = [node for node in ast.walk(tree) if isinstance(node, ast.Name)
+                  and node.id == name and isinstance(node.ctx, ast.Store)]
+        literal = next((node.value for node in tree.body if isinstance(node, ast.Assign)
+                        and len(node.targets) == 1 and len(stores) == 1 and node.targets[0] is stores[0]), None)
+        value = literal.value if isinstance(literal, ast.Constant) and type(literal.value) is int else ""
+        print(f"cargo:rustc-env=MORU_EXPERIENCE_{name}={value}")
+
     ranges, folds, lower, cased, ignored, spaces, start = [], [], [], [], [], [], None
     for point in range(0x110000):
         char = chr(point)

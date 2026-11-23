@@ -15,6 +15,8 @@ use std::{
 };
 #[path = "memory_experience.rs"]
 mod experience;
+#[path = "memory_experience_cli.rs"]
+pub(crate) mod experience_cli;
 #[path = "memory_experience_fixture.rs"]
 mod experience_fixture;
 #[path = "memory_experience_records.rs"]
