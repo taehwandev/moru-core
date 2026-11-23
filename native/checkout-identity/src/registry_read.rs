@@ -13,6 +13,8 @@ use std::{
 
 pub(crate) struct RegistryRead;
 
+#[path = "registry_evidence_candidates.rs"]
+mod evidence_candidates;
 #[path = "retention/registry_identity.rs"]
 mod identity;
 #[path = "retention/registry_retention.rs"]
@@ -61,6 +63,9 @@ impl RegistryRead {
     }
 
     pub(super) fn inspect(operation: &str, payload: &Value) -> Option<Value> {
+        if operation == "evidence-candidates" {
+            return Self::evidence_candidates(payload);
+        }
         if operation == "retention-plan" {
             return Self::retention_plan(payload);
         }

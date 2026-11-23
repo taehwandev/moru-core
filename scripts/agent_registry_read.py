@@ -44,6 +44,24 @@ def active_run_bindings(project: Path, states: frozenset[str] = ACTIVE_RUN_STATE
     return legacy(project, states)
 
 
+def registered_evidence_candidates(
+    project: Path, bindings: dict[str, dict],
+) -> tuple[Path, ...] | None:
+    """Prepare canonical evidence paths from the caller's exact registry snapshot."""
+    if len(bindings) > 256:
+        return None
+    claims = [(key, run.get("run_id"), run.get("evidence_name")) for key, run in bindings.items()]
+    if any(type(value) is not str for claim in claims for value in claim):
+        return None
+    result = NativeProbe.request("--registry-read-probe", "evidence-candidates",
+                                 {"project": str(project), "claims": claims})
+    indices = result["value"] if type(result) is dict and set(result) == {"value"} else None
+    if (type(indices) is not list or any(type(index) is not int for index in indices)
+            or sorted(indices) != list(range(len(claims)))):
+        return None
+    return tuple(project / ".moru" / "runs" / claims[index][1] / claims[index][2] for index in indices)
+
+
 def completed_evidence_binding(project: Path, evidence_path: Path) -> bool:
     """Check one exact latest evidence binding without transporting other runs."""
     binding = prepared_evidence_binding(project, evidence_path)

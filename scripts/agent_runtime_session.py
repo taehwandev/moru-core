@@ -33,7 +33,7 @@ from agent_run_states import (
     SUPERSEDABLE_RUN_STATES,
     TRANSFER_CANCELLABLE_RUN_STATES,
 )
-from agent_registry_read import active_run_bindings, active_runs, latest_run_id
+from agent_registry_read import active_run_bindings, active_runs, latest_run_id, registered_evidence_candidates
 from agent_state_read import evidence_binding_key
 from agent_worker_evidence import is_isolated_worker_evidence
 from support.global_state import project_state_dir_target
@@ -768,7 +768,9 @@ def _safe_evidence_name(run: dict[str, Any]) -> bool:
 def _parent_evidence_candidates(
     project: Path, bindings: dict[str, dict[str, Any]]
 ) -> tuple[tuple[Path, ...], tuple[Path, ...], bool]:
-    candidates = _registered_evidence_candidates(project, bindings)
+    candidates = registered_evidence_candidates(project, bindings)
+    if candidates is None:
+        candidates = _registered_evidence_candidates(project, bindings)
     if candidates is not None:
         return candidates, (), True
     evidence_names = {

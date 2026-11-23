@@ -14,6 +14,9 @@ from unittest.mock import patch
 import agent_pending_publication as publication
 import agent_registry_read as reads
 import agent_run_registry as legacy
+import agent_runtime_session as runtime
+import agy_required_docs_hook as agy
+import test_agy_required_docs_hook as agy_fixtures
 from agent_state_read import evidence_binding_key, registry_path
 from agent_local_delivery import LocalDeliveryProof
 from native_pretool_support import PROJECT, environment, prepare
@@ -246,6 +249,74 @@ class NativeRegistryReadTests(unittest.TestCase):
                                             reads.latest_run_id(self.project, self.evidence)])
         self.assertIs(reads.ACTIVE_RUN_STATES, legacy.ACTIVE_RUN_STATES)
         self.assertEqual(legacy.evidence_binding_key(self.project, self.evidence), self.key)
+
+    def test_registered_evidence_discovery_requires_all_keys_and_readable_checkout_paths(self):
+        paths = [self.evidence.parent.parent / (letter * 32) / name
+                 for letter, name in (("b", "직접.json"), ("a", "preflight.json"))]
+        identities = [{"runtime": "antigravity", "session_id": "other"},
+                      {"runtime": "antigravity", "session_id": "current"}]
+        bindings = {}
+        for path, identity in zip(paths, identities):
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({"runtime_session": identity}), encoding="utf-8")
+            key = evidence_binding_key(self.project, path)
+            bindings[key] = {"run_id": path.parent.name, "state": "running",
+                             "evidence_name": path.name, "evidence_key": key}
+        self.write(list(bindings.values()))
+        expected = tuple(sorted(paths))
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty)}, clear=True):
+            self.assertEqual(expected, runtime._registered_evidence_candidates(self.project, bindings))
+            self.assertEqual(expected, reads.registered_evidence_candidates(self.project, bindings))
+            with patch.object(runtime, "_registered_evidence_candidates", side_effect=AssertionError("Python discovery")):
+                self.assertEqual(paths[1], runtime.resolve_runtime_evidence(self.project, identities[1]))
+
+            first_key = next(iter(bindings))
+            stale = {**bindings, first_key: {**bindings[first_key], "evidence_name": "elsewhere.json"}}
+            paths[0].with_name("elsewhere.json").write_text("{}", encoding="utf-8")
+            self.assertIsNone(reads.registered_evidence_candidates(self.project, stale))
+
+            git_marker = paths[1].parent / ".git"
+            git_marker.symlink_to(self.base / "missing")
+            self.assertIsNone(reads.registered_evidence_candidates(self.project, bindings))
+            self.assertIsNone(runtime.resolve_runtime_evidence(self.project, identities[1]))
+            git_marker.unlink()
+
+            paths[1].parent.chmod(0o111)
+            try:
+                if not os.access(paths[1].parent, os.R_OK):
+                    self.assertTrue(paths[1].is_file())
+                    self.assertIsNone(reads.registered_evidence_candidates(self.project, bindings))
+                    self.assertIsNone(runtime.resolve_runtime_evidence(self.project, identities[1]))
+            finally:
+                paths[1].parent.chmod(0o755)
+
+            target = self.base / "outside.json"
+            paths[1].rename(target)
+            paths[1].symlink_to(target)
+            self.assertIsNone(reads.registered_evidence_candidates(self.project, bindings))
+
+    def test_agy_injects_documents_only_for_the_registered_session(self):
+        fixture = agy_fixtures.AgyHookTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        evidence = fixture.evidence
+        manifest = json.loads(evidence.read_bytes())
+        manifest["runtime_session"] = {"runtime": "antigravity", "session_id": "registered"}
+        evidence.write_text(json.dumps(manifest), encoding="utf-8")
+        registry_path(fixture.project).write_text(json.dumps({"schema_version": 1, "runs": [{
+            "run_id": evidence.parent.name, "state": "running", "evidence_name": evidence.name,
+            "evidence_key": evidence_binding_key(fixture.project, evidence),
+        }]}), encoding="utf-8")
+        for lock in self.locks:
+            (fixture.project / ".moru" / lock.name).touch()
+        request = {"workspacePaths": [str(fixture.project)], "transcriptPath": str(fixture.transcript)}
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty)}, clear=True), patch.object(
+                runtime, "_registered_evidence_candidates", side_effect=AssertionError("Python discovery")):
+            self.assertEqual({}, agy.respond({**request, "conversationId": "another"}))
+            self.assertFalse(evidence.with_name("required-docs-delivered.json").exists())
+            answer = agy.respond({**request, "conversationId": "registered"})
+            self.assertIn("Keep state immutable.", fixture._text(answer))
+            self.assertEqual({}, agy.respond({**request, "conversationId": "registered"}))
 
     def test_missing_busy_symlink_and_special_locks_decline_without_initializing(self):
         self.write([])
