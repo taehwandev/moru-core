@@ -16,6 +16,8 @@ from pathlib import Path
 import re
 from typing import Any
 
+from support.native_probe_transport import NativeProbe
+
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
 
 PER_FILE_BYTE_LIMIT = 200_000
@@ -68,12 +70,51 @@ def classify_net_deletions(
         for item in findings:
             item["classification"] = "unavailable"
         return
+    native = _native_matches(findings, removed, added)
+    if native is not None:
+        for item, matched in zip(findings, native):
+            lines = removed.get(item["path"]) or []
+            unmatched = [lines[index] for index in matched["unmatched"]]
+            item.update(_describe_removal(lines, unmatched, matched["moved_to"]))
+        return
     index: dict[str, Counter[str]] = {}
     for path, lines in added.items():
         for line in lines:
             index.setdefault(line, Counter())[path] += 1
     for item in findings:
         item.update(classify_removal(item["path"], removed.get(item["path"]), index))
+
+
+def _native_matches(findings, removed, added) -> list[dict[str, Any]] | None:
+    if not NativeProbe.available():
+        return None
+    # Use per-request identities so source and potential secrets never enter
+    # the comparison protocol. Python still applies the existing sample rules.
+    identities: dict[str, int] = {}
+    def line_ids(lines):
+        return [identities.setdefault(line, len(identities)) for line in lines]
+
+    removals = [[item["path"], line_ids(removed.get(item["path"]) or [])] for item in findings]
+    additions = [[path, line_ids(lines)] for path, lines in added.items()]
+    native = NativeProbe.request("--completion-probe", "structure-removal-matching", {
+        "removed": removals, "added": additions,
+    })
+    if native is None or set(native) != {"matches"}:
+        return None
+    matches = native["matches"]
+    if not isinstance(matches, list) or len(matches) != len(removals):
+        return None
+    for (source, lines), row in zip(removals, matches):
+        if not isinstance(row, dict) or set(row) != {"unmatched", "moved_to"}:
+            return None
+        unmatched, destinations = row["unmatched"], row["moved_to"]
+        if (not isinstance(unmatched, list)
+                or not all(type(index) is int and 0 <= index < len(lines) for index in unmatched)
+                or any(current >= following for current, following in zip(unmatched, unmatched[1:]))
+                or not isinstance(destinations, list) or len(destinations) > 3
+                or not all(isinstance(path, str) and path != source and path in added for path in destinations)):
+            return None
+    return matches
 
 
 class _Budget:
@@ -165,7 +206,6 @@ def classify_removal(
 ) -> dict[str, Any]:
     if not removed_lines:
         return {"classification": "unavailable"}
-    meaningful = [line for line in removed_lines if len(line.strip()) >= MEANINGFUL_LINE_CHARS]
     destinations: Counter[str] = Counter()
     unmatched: list[str] = []
     for line in removed_lines:
@@ -179,19 +219,26 @@ def classify_removal(
             continue
         available[destination] -= 1
         destinations[destination] += 1
+    return _describe_removal(removed_lines, unmatched, [name for name, _count in destinations.most_common(3)])
+
+
+def _describe_removal(removed_lines: list[str], unmatched: list[str], moved_to: list[str]) -> dict[str, Any]:
+    if not removed_lines:
+        return {"classification": "unavailable"}
+    meaningful = any(len(line.strip()) >= MEANINGFUL_LINE_CHARS for line in removed_lines)
     matched = len(removed_lines) - len(unmatched)
     ratio = matched / len(removed_lines)
     if meaningful and not unmatched:
         return {
             "classification": "moved",
             "moved_ratio": round(ratio, 2),
-            "moved_to": [name for name, _count in destinations.most_common(3)],
+            "moved_to": moved_to,
         }
     return {
         "classification": "removed",
         "moved_ratio": round(ratio, 2),
         "unmatched_lines": len(unmatched),
-        "moved_to": [name for name, _count in destinations.most_common(3)],
+        "moved_to": moved_to,
         "sample_lines": removal_samples(unmatched or [line for line in removed_lines if line.strip()]),
     }
 

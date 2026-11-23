@@ -19,6 +19,7 @@ import agent_project_memory as project_memory
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_review_structure as structure
+import agent_review_removals as removals
 import agent_directory_fingerprint as directory_fingerprint
 import agent_worktree_fingerprint as worktree_fingerprint
 import agent_execution_capsule_state as capsule_state
@@ -67,6 +68,40 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_structure_removal_matching_preserves_consumption_ties_and_redaction(self):
+        sensitive = "def token_fixture():"
+        diff = "\n".join((
+            "diff --git a/0-first.py b/0-first.py", "--- a/0-first.py", "+++ b/0-first.py",
+            "-right body", "-shared body", "-" + sensitive, "+shared body",
+            "diff --git a/second.py b/second.py", "--- a/second.py", "+++ b/second.py",
+            "-shared body", "-shared body",
+            "diff --git a/z.py b/z.py", "--- a/z.py", "+++ b/z.py", "+right body",
+            "diff --git a/b.py b/b.py", "--- a/b.py", "+++ b/b.py", "+shared body",
+            "diff --git a/a.py b/a.py", "--- a/a.py", "+++ b/a.py", "+shared body",
+        ))
+        def classify():
+            result = [{"path": path} for path in ("0-first.py", "second.py", "missing.py")]
+            removals.classify_net_deletions(
+                result, project=self.project, run_command=lambda *_: {"returncode": 0, "stdout": diff},
+                review_paths=None, review_commits=("base", "head"), path_metadata={},
+            )
+            return result
+
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = classify()
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            removals, "classify_removal", side_effect=AssertionError("Python matched occurrences"),
+        ), patch.object(NativeProbe, "request", wraps=NativeProbe.request) as request:
+            self.assertEqual(expected, classify())
+            protocol, operation, payload = request.call_args.args
+            self.assertEqual(("--completion-probe", "structure-removal-matching"), (protocol, operation))
+            self.assertNotIn(sensitive, json.dumps(payload))
+            self.assertNotIn("shared body", json.dumps(payload))
+        self.assertEqual(["z.py", "a.py"], expected[0]["moved_to"])
+        self.assertEqual(["[sensitive-looking content omitted]"], expected[0]["sample_lines"])
+        self.assertEqual(["0-first.py", "b.py"], expected[1]["moved_to"])
+        self.assertEqual("unavailable", expected[2]["classification"])
 
     def test_structure_source_layout_keeps_counts_warning_order_and_path_prefix(self):
         limit = structure.REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT
