@@ -40,22 +40,18 @@ class AndroidActionBoundary:
     def failures(cls, path: Path, source: str) -> list[str]:
         if path.suffix != ".kt":
             return []
-        code, native_bodies, native_scopes = _kotlin_code_for_review(source)
+        code, native_bodies, native_scopes, native_viewmodels = _kotlin_code_for_review(source)
         bodies = native_bodies if native_bodies is not None else cls._bodies(code)
         findings = []
         for index, (signature, start, end) in enumerate(bodies):
             body = code[start:end]
             parameters = code[signature:start]
-            # Resolve explicit parameter types locally, never from another function.
-            vm_names = re.findall(r"\b(\w+)\s*:\s*(?:\w+\.)*\w*ViewModel\b", parameters)
-            receivers = r"(?:viewModel|\w+ViewModel" + "".join("|" + re.escape(name) for name in vm_names) + ")"
+            vm_names, receivers, collectors = _viewmodel_scopes(
+                cls, parameters, body, native_viewmodels[index] if native_viewmodels is not None else None,
+            )
             leaf_callbacks = set(re.findall(r"\b(on\w+)\s*:\s*\(\s*\)\s*->\s*Unit\b", parameters))
             callbacks, host_collectors = (native_scopes[index] if native_scopes is not None
                                           else _callback_scopes(cls, body))
-            collectors = cls._regions(body, re.compile(
-                r"\b" + receivers + r"\s*\.\s*(?:effects|uiEffects|sideEffects)\s*"
-                r"\.\s*(?:collect|collectLatest)\s*\{"
-            ))
             # A sealed effect type check consumes an effect; it does not create one.
             matches = [(m, "effect construction") for m in cls._event.finditer(body)
                        if not re.search(r"\b(?:is|as)\s*$", body[:m.start()])]
@@ -151,18 +147,31 @@ def _callback_scopes(cls, body: str):
     return cls._regions(body, cls._callback), cls._regions(body, _HOST_COLLECTOR)
 
 
+def _viewmodel_scopes(cls, parameters: str, body: str, native):
+    # Resolve explicit parameter types locally, never from another function.
+    vm_names = native["names"] if native is not None else re.findall(
+        r"\b(\w+)\s*:\s*(?:\w+\.)*\w*ViewModel\b", parameters,
+    )
+    receivers = r"(?:viewModel|\w+ViewModel" + "".join("|" + re.escape(name) for name in vm_names) + ")"
+    collectors = native["collectors"] if native is not None else cls._regions(body, re.compile(
+        r"\b" + receivers + r"\s*\.\s*(?:effects|uiEffects|sideEffects)\s*"
+        r"\.\s*(?:collect|collectLatest)\s*\{"
+    ))
+    return vm_names, receivers, collectors
+
+
 def _kotlin_code_for_review(source: str):
     native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {
         "source": source, "unicode": unicodedata.unidata_version, "normalize_aliases": True,
-        "callback_scopes": True,
+        "callback_scopes": True, "viewmodel_scopes": True,
     })
     masked = native.get("code") if native is not None else None
     if not isinstance(masked, str) or len(masked) != len(source):
-        return _normalize_aliases(_mask_kotlin_literals(source)), None, None
+        return _normalize_aliases(_mask_kotlin_literals(source)), None, None, None
     if native.get("aliases_normalized") is True:
         code = native.get("normalized_code", masked)
         if not isinstance(code, str):
-            return _normalize_aliases(masked), None, None
+            return _normalize_aliases(masked), None, None, None
         bodies = native.get("bodies")
     else:
         code = _normalize_aliases(masked)
@@ -171,22 +180,37 @@ def _kotlin_code_for_review(source: str):
         isinstance(span, list) and len(span) == 3 and all(type(offset) is int for offset in span)
         and 0 <= span[0] < span[1] < span[2] <= len(code) for span in bodies
     ):
-        return code, None, None
+        return code, None, None, None
     scopes = native.get("callback_scopes")
     if not isinstance(scopes, list) or len(scopes) != len(bodies) or not all(
         _valid_callback_scopes(row, end - start) for row, (_, start, end) in zip(scopes, bodies)
     ):
         scopes = None
-    return code, bodies, scopes
+    viewmodels = native.get("viewmodel_scopes")
+    if not isinstance(viewmodels, list) or len(viewmodels) != len(bodies) or not all(
+        _valid_viewmodel_scopes(row, end - start) for row, (_, start, end) in zip(viewmodels, bodies)
+    ):
+        viewmodels = None
+    return code, bodies, scopes, viewmodels
 
 
 def _valid_callback_scopes(row, length: int) -> bool:
-    return isinstance(row, list) and len(row) == 2 and all(
-        isinstance(group, list) and all(
-            isinstance(span, list) and len(span) == 2
-            and all(type(offset) is int for offset in span) and 0 <= span[0] < span[1] <= length
-            for span in group
-        ) for group in row
+    return isinstance(row, list) and len(row) == 2 and all(_valid_regions(group, length) for group in row)
+
+
+def _valid_viewmodel_scopes(row, length: int) -> bool:
+    return (
+        isinstance(row, dict) and isinstance(row.get("names"), list)
+        and all(isinstance(name, str) and re.fullmatch(r"\w+", name) for name in row["names"])
+        and _valid_regions(row.get("collectors"), length)
+    )
+
+
+def _valid_regions(group, length: int) -> bool:
+    return isinstance(group, list) and all(
+        isinstance(span, list) and len(span) == 2
+        and all(type(offset) is int for offset in span) and 0 <= span[0] < span[1] <= length
+        for span in group
     )
 
 

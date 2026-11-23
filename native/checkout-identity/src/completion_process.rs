@@ -98,6 +98,8 @@ mod kotlin_compose_bodies;
 mod kotlin_compose_aliases;
 #[path = "kotlin_compose_callbacks.rs"]
 mod kotlin_compose_callbacks;
+#[path = "kotlin_compose_viewmodels.rs"]
+mod kotlin_compose_viewmodels;
 #[path = "structure_net_deletions.rs"]
 mod structure_net_deletions;
 #[path = "structure_source_paths.rs"]

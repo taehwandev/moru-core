@@ -73,6 +73,52 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_compose_viewmodel_scopes_are_local_and_match_python(self):
+        cases = [
+            ("vm: app.ScreenViewModel?", "vm.uiEffects.collectLatest { inner { run() } }"),
+            ("vm: app.ViewModel.Inner", "other.vm.effects.collect { }"),
+            ("vm: ViewModel", "vm?.effects?.collect { }"),
+            ("vm: ScreenViewModel<T> = make()", "vm\n .sideEffects\n .collect\n { }"),
+            ("vm: ScreenViewModelSuffix", "vm.effects.collect { }"),
+            ("vm: app . ScreenViewModel", "vm.effects.collect { }"),
+            ("상태: 모델ViewModel", "상태\x1c.uiEffects.collect { }"),
+            ("vm: ViewModel", "othervm.effects.collect { }; vmβ.effects.collect { }"),
+            ("", "ViewModel.effects.collect { }; otherViewModel.effects.collect { }"),
+            ("", "viewModel.effects.collect { }; viewModel.effects.collector { }"),
+            ("other: Foo, foo: a.AViewModel.BViewModel", "foo.effects.collect {"),
+            ("a: AViewModel, a: BViewModel", "a.effects.collect { }; a.other.collect { }"),
+        ]
+        cls = android.AndroidActionBoundary
+        for parameters, body in cases:
+            source = f"@Composable fun Screen({parameters}) {{ {body} }}"
+            masked = android._mask_kotlin_literals(source)
+            expected = []
+            for signature, start, end in cls._bodies(masked):
+                names, _, collectors = android._viewmodel_scopes(cls, masked[signature:start], masked[start:end], None)
+                expected.append({"names": names, "collectors": [list(scope) for scope in collectors]})
+            native = self.check("kotlin-literal-mask", {
+                "source": source, "unicode": unicodedata.unidata_version, "viewmodel_scopes": True,
+            })
+            self.assertEqual(expected, native["viewmodel_scopes"], source)
+
+        source = (
+            "@Composable fun First(ui: a.ScreenViewModel) {\n"
+            "ui.effects.collect { nav.navigate(consumed) }\n}\n"
+            "@Composable fun Second() {\n"
+            "ui.effects.collect { nav.navigate(untyped) }\n}"
+        )
+        path = Path("Screen.kt")
+        invalid = {"code": source, "bodies": [list(span) for span in cls._bodies(source)],
+                   "viewmodel_scopes": [{"names": [False], "collectors": []}] * 2}
+        with patch.object(NativeProbe, "request", return_value=invalid):
+            expected = cls.failures(path, source)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            cls, "_regions", side_effect=AssertionError("Python determined collector scopes"),
+        ):
+            self.assertEqual(expected, cls.failures(path, source))
+        self.assertEqual(1, len(expected))
+        self.assertTrue(expected[0].startswith("Screen.kt:5:"))
+
     def test_structure_compose_callback_scopes_match_python(self):
         callbacks = [
             "", "on = { x }", "onClick={ onTap = { y } }", "on한\x1c=\n{ y }",

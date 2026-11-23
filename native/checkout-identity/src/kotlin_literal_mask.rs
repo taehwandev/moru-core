@@ -1,14 +1,16 @@
 //! owner: Kotlin literal and comment masking for Compose diagnostics.
-//! allowed imports: Compose aliases, body and callback ranges, JSON and standard-library strings.
+//! allowed imports: Compose aliases, ranges and receivers, JSON and standard-library collections.
 //! forbidden imports: source IO, Git execution, mutation and approval.
 //! callers/tests: Compose action scan through the private completion probe.
 //! verification: exact Python mask and diagnostic offset parity.
 use super::{
     kotlin_compose_aliases::KotlinComposeAliases, kotlin_compose_bodies::KotlinComposeBodies,
     kotlin_compose_callbacks::KotlinComposeCallbacks,
+    kotlin_compose_viewmodels::KotlinComposeViewModels,
 };
 use serde_json::{json, Value};
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 pub(super) struct KotlinLiteralMask;
 
@@ -59,16 +61,41 @@ impl KotlinLiteralMask {
             }
         }
         if let Some(bodies) = bodies {
-            if input.get("callback_scopes").and_then(Value::as_bool) == Some(true) {
-                let scopes: Vec<_> = bodies
-                    .iter()
-                    .map(|&[_, start, end]| KotlinComposeCallbacks::regions(&prepared[start..end]))
-                    .collect();
-                result["callback_scopes"] = json!(scopes);
-            }
+            Self::add_scopes(input, &mut result, prepared, &bodies);
             result["bodies"] = json!(bodies);
         }
         Some(result)
+    }
+
+    fn add_scopes(input: &Value, result: &mut Value, code: &[char], bodies: &[[usize; 3]]) {
+        let callbacks = input.get("callback_scopes").and_then(Value::as_bool) == Some(true);
+        let viewmodels = input.get("viewmodel_scopes").and_then(Value::as_bool) == Some(true);
+        if !callbacks && !viewmodels {
+            return;
+        }
+        let mut callback_scopes = Vec::new();
+        let mut viewmodel_scopes = Vec::new();
+        for &[signature, start, end] in bodies {
+            let names = viewmodels.then(|| KotlinComposeViewModels::names(&code[signature..start]));
+            let receivers = names
+                .as_ref()
+                .map(|names| names.iter().copied().collect::<HashSet<_>>());
+            let [events, hosts, collectors] =
+                KotlinComposeCallbacks::regions(&code[start..end], receivers.as_ref());
+            if callbacks {
+                callback_scopes.push([events, hosts]);
+            }
+            if let Some(names) = names {
+                let names: Vec<String> = names.iter().map(|name| name.iter().collect()).collect();
+                viewmodel_scopes.push(json!({"names": names, "collectors": collectors}));
+            }
+        }
+        if callbacks {
+            result["callback_scopes"] = json!(callback_scopes);
+        }
+        if viewmodels {
+            result["viewmodel_scopes"] = json!(viewmodel_scopes);
+        }
     }
 
     fn comment_end(code: &[char]) -> usize {

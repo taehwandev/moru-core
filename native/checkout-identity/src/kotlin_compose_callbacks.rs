@@ -1,14 +1,19 @@
-//! owner: Compose callback and lifecycle host scopes over prepared bodies.
-//! allowed imports: shared Python text classes and standard-library slices.
+//! owner: Compose callback, lifecycle host and effect collector scopes.
+//! allowed imports: ViewModel receiver names, Python text classes and standard-library collections.
 //! forbidden imports: filesystem, Git, mutation and approval.
 //! callers/tests: Kotlin mask response and Python regex/brace parity fixtures.
 //! verification: nested, malformed, Unicode and lifecycle host scopes.
+use super::kotlin_compose_viewmodels::KotlinComposeViewModels;
 use crate::python_text::PythonText;
+use std::collections::HashSet;
 
 pub(super) struct KotlinComposeCallbacks;
 
 impl KotlinComposeCallbacks {
-    pub(super) fn regions(body: &[char]) -> [Vec<[usize; 2]>; 2] {
+    pub(super) fn regions(
+        body: &[char],
+        receivers: Option<&HashSet<&[char]>>,
+    ) -> [Vec<[usize; 2]>; 3] {
         let mut ends = vec![body.len(); body.len()];
         let mut braces = Vec::new();
         let mut open = Vec::new();
@@ -34,6 +39,7 @@ impl KotlinComposeCallbacks {
 
         let mut callbacks = Vec::new();
         let mut hosts = Vec::new();
+        let mut collectors = Vec::new();
         let mut callback_cursor = 0;
         let mut index = 0;
         while index < body.len() {
@@ -67,9 +73,41 @@ impl KotlinComposeCallbacks {
                     hosts.push([start, ends[start]]);
                 }
             }
+            if let Some(names) = receivers {
+                if Self::equals(word, "viewModel")
+                    || (length > KotlinComposeViewModels::SUFFIX.len()
+                        && word.ends_with(&KotlinComposeViewModels::SUFFIX))
+                    || names.contains(word)
+                {
+                    if let Some(rest) = Self::collector(&body[end..]) {
+                        let start = body.len() - rest.len() - 1;
+                        collectors.push([start, ends[start]]);
+                    }
+                }
+            }
             index = end;
         }
-        [callbacks, hosts]
+        [callbacks, hosts, collectors]
+    }
+
+    fn collector(rest: &[char]) -> Option<&[char]> {
+        let rest = Self::trim(Self::after(rest, '.')?);
+        let end = Self::word_len(rest);
+        if !["effects", "uiEffects", "sideEffects"]
+            .iter()
+            .any(|word| Self::equals(&rest[..end], word))
+        {
+            return None;
+        }
+        let rest = Self::trim(Self::after(&rest[end..], '.')?);
+        let end = Self::word_len(rest);
+        if !["collect", "collectLatest"]
+            .iter()
+            .any(|word| Self::equals(&rest[..end], word))
+        {
+            return None;
+        }
+        Self::after(&rest[end..], '{')
     }
 
     fn clickable(body: &[char], end: usize, braces: &[(usize, Option<usize>)]) -> Option<usize> {
