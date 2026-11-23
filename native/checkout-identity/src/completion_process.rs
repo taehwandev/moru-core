@@ -25,6 +25,8 @@ use std::{
 mod capsule_binding;
 #[path = "capsule_doc_drift.rs"]
 mod capsule_doc_drift;
+#[path = "capsule_ledger.rs"]
+mod capsule_ledger;
 #[path = "capsule_shape.rs"]
 mod capsule_shape;
 
@@ -71,6 +73,7 @@ impl CompletionProcess {
         let result = match args[1].to_str() {
             Some("capsule-binding") => capsule_binding::CapsuleBinding::fingerprint(&payload),
             Some("capsule-doc-drift") => capsule_doc_drift::CapsuleDocDrift::compare(&payload),
+            Some("capsule-ledger") => capsule_ledger::CapsuleLedger::check(&payload),
             Some("capsule-shape") => capsule_shape::CapsuleShape::validate(&payload),
             Some("quality") => Quality::inspect(&payload),
             Some("requirements") => Requirements::validate(&payload),

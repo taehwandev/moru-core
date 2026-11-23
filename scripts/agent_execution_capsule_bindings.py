@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from agent_execution_capsule_state import git_state, sha256_file
+from agent_execution_capsule_state import git_state, native_capsule_probe, sha256_file
 from agent_gate_evidence import read_gate_evidence_ledger
 from agent_route_state import preflight_evidence_sha256, route_fingerprint
 
@@ -56,20 +56,33 @@ def gate_ledger_failures(
         return ["execution capsule parent gate ledger is malformed"]
     if ledger.get("invalid_json"):
         return ["execution capsule parent gate ledger is not valid JSON"]
-    failures: list[str] = []
-    if ledger.get("schema_version") != 1:
-        failures.append("execution capsule parent gate ledger schema does not match")
     canonical_evidence_path = str(evidence_path.resolve())
     recorded_evidence = ledger.get("preflight_evidence")
     try:
         recorded_evidence_path = str(Path(str(recorded_evidence)).expanduser().resolve())
     except (OSError, RuntimeError, ValueError):
         recorded_evidence_path = ""
+    observed_hash = preflight_evidence_sha256(evidence_path)
+    observed_route = route_fingerprint(route)
+    native = native_capsule_probe("capsule-ledger", {
+        "ledger": ledger,
+        "recorded_path": recorded_evidence_path,
+        "observed_path": canonical_evidence_path,
+        "observed_hash": observed_hash,
+        "observed_route": observed_route,
+    })
+    if native is not None:
+        failures = native.get("failures")
+        if type(failures) is list and all(type(item) is str for item in failures):
+            return failures
+    failures: list[str] = []
+    if ledger.get("schema_version") != 1:
+        failures.append("execution capsule parent gate ledger schema does not match")
     if recorded_evidence_path != canonical_evidence_path:
         failures.append("execution capsule parent gate ledger preflight path does not match")
-    if ledger.get("preflight_evidence_sha256") != preflight_evidence_sha256(evidence_path):
+    if ledger.get("preflight_evidence_sha256") != observed_hash:
         failures.append("execution capsule parent gate ledger preflight hash does not match")
-    if ledger.get("route_fingerprint") != route_fingerprint(route):
+    if ledger.get("route_fingerprint") != observed_route:
         failures.append("execution capsule parent gate ledger route does not match")
     entries = ledger.get("entries")
     if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):

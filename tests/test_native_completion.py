@@ -9,10 +9,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule_state as capsule_state
 import agent_execution_capsule_validation as capsule_validation
 from agent_continuation_checkpoint import write_continuation_checkpoint
 from agent_execution_capsule_state import atomic_write_json
+from agent_route_state import preflight_evidence_sha256, route_fingerprint
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
 from agent_pending_publication import (
     _git, _legacy_local_head, _legacy_local_head_python, _load, _load_python, _new_record, _observe, _observed_record, _store,
@@ -142,6 +144,57 @@ class NativeCompletionTests(unittest.TestCase):
                 self.assertEqual([], validator(legacy))
         with patch.dict(os.environ, self.env, clear=True), self.assertRaises(TypeError):
             capsule_validation._shape_failures({**capsule, "phase": []})
+
+    def test_capsule_parent_ledger_preserves_observed_identity_and_error_order(self):
+        evidence = self.project / "사전검증.json"
+        evidence.write_text("{}", encoding="utf-8")
+        alias = self.project / "parent.json"
+        alias.symlink_to(evidence)
+        ledger_path = self.project / "gate-evidence.json"
+        route = {"command": "refactor", "local_delivery_contract": "staged_v1"}
+        good = {"gate": "request intake", "status": "SUCCESS", "evidence": "seen"}
+        blank = {**good, "evidence": "\x1c\u00a0\u3000"}
+        zero_width = {**good, "evidence": "\u200b"}
+        base = {
+            "schema_version": True,
+            "preflight_evidence": str(alias),
+            "preflight_evidence_sha256": preflight_evidence_sha256(evidence),
+            "route_fingerprint": route_fingerprint(route),
+            "entries": [good],
+        }
+        cases = [
+            {},
+            {"entries": [blank, zero_width]},
+            {"entries": [good, {"gate": "request intake", "status": "FAIL"}]},
+            {"entries": [blank, {**good, "evidence": True}]},
+            {"entries": [good, None]},
+            {"schema_version": 2, "preflight_evidence": "wrong", "preflight_evidence_sha256": None,
+             "route_fingerprint": "wrong", "entries": "wrong"},
+        ]
+        original_probe = capsule_bindings.native_capsule_probe
+        for overrides in cases:
+            with self.subTest(overrides=overrides):
+                ledger_path.write_text(json.dumps({**base, **overrides}), encoding="utf-8")
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    expected = capsule_bindings.gate_ledger_failures(ledger_path, evidence, route)
+                results = []
+
+                def observe(operation, request):
+                    result = original_probe(operation, request)
+                    results.append(result)
+                    return result
+
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    capsule_bindings, "native_capsule_probe", side_effect=observe
+                ):
+                    self.assertEqual(expected, capsule_bindings.gate_ledger_failures(ledger_path, evidence, route))
+                    self.assertEqual([{"failures": expected}], results)
+        with patch.dict(os.environ, self.env, clear=True):
+            ledger_path.write_text(json.dumps({**base, "schema_version": 1.0}), encoding="utf-8")
+            self.assertEqual([], capsule_bindings.gate_ledger_failures(ledger_path, evidence, route))
+            ledger_path.write_text("{not json", encoding="utf-8")
+            self.assertEqual(["execution capsule parent gate ledger is not valid JSON"],
+                             capsule_bindings.gate_ledger_failures(ledger_path, evidence, route))
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'

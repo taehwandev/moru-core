@@ -219,7 +219,7 @@
       "entry_aliases": "execution-capsule",
       "remaining": "Port the owned CLI, capsule state, receipt and validation flows, and verify supported platforms. Python still owns decisions, writes and fallback.",
       "verification": {
-        "local": "Source-bound parity for ordered document observations and drift diagnostics, including matching versioned update receipts, canonical binding digests, and first-error capsule and preflight shape validation."
+        "local": "Source-bound parity for document drift and update receipts, canonical binding digests, capsule and preflight shapes, and ordered parent-ledger comparison and intake diagnostics."
       }
     },
     {
