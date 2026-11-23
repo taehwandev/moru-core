@@ -4,6 +4,7 @@
 //! callers/tests: structural review via the private completion probe.
 //! verification: exact threshold, rewrite and initial-build diagnostics.
 use super::structure_block_findings::StructureBlockFindings;
+use super::structure_block_spans::StructureBlockSpans;
 use serde_json::{json, Value};
 
 pub(super) struct StructureFileSize;
@@ -35,6 +36,15 @@ impl StructureFileSize {
             StructureBlockFindings::append(
                 row.get("path")?.as_str()?,
                 blocks,
+                &mut failures,
+                &mut warnings,
+            )?;
+        }
+        if let Some(prepared) = row.get("block_spans") {
+            let blocks = StructureBlockSpans::facts(prepared)?;
+            StructureBlockFindings::append(
+                row.get("path")?.as_str()?,
+                &blocks,
                 &mut failures,
                 &mut warnings,
             )?;

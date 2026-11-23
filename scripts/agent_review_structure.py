@@ -245,9 +245,18 @@ def structure_review(
             file_review["actions"] = android_action_delta_failures(
                 project, relative, lines, metadata, subject_run_command,
             )
-            blocks = _block_review_facts(source_root, relative, lines, max_block_lines, metadata, subject_run_command)
-            if blocks:
-                file_review["blocks"] = blocks
+            initial = bool(metadata.get("initial_full_build"))
+            if initial or metadata.get("status") == "A":
+                if len(lines) > max_block_lines:
+                    file_review["block_spans"] = {
+                        **_prepare_block_spans(relative, lines), "limit": max_block_lines, "initial": initial,
+                    }
+            else:
+                blocks = _block_review_facts(
+                    source_root, relative, lines, max_block_lines, metadata, subject_run_command,
+                )
+                if blocks:
+                    file_review["blocks"] = blocks
         file_checks.append((len(result["failures"]), len(result["warnings"]), file_review))
 
     file_findings = _file_findings([row for _, _, row in file_checks])
@@ -1128,13 +1137,22 @@ def _file_findings(rows: list[dict[str, Any]]) -> list:
     findings = []
     for row in rows:
         result: dict[str, list[str]] = {"failures": [], "warnings": []}
-        _check_file_size(**{key: value for key, value in row.items() if key not in {"actions", "blocks"}},
+        _check_file_size(**{key: value for key, value in row.items()
+                            if key not in {"actions", "blocks", "block_spans"}},
                          result=result)
         action_failures, action_warnings = row.get("actions", ([], []))
         result["failures"].extend(action_failures)
         result["warnings"].extend(action_warnings)
         if "blocks" in row:
             block_failures, block_warnings = _block_review_findings(row["path"], row["blocks"])
+            result["failures"].extend(block_failures)
+            result["warnings"].extend(block_warnings)
+        elif "block_spans" in row:
+            prepared = row["block_spans"]
+            current = _prepared_blocks(row["path"], prepared, prepared["limit"])
+            block_failures, block_warnings = _block_review_findings(row["path"], {
+                "limit": prepared["limit"], "initial": prepared["initial"], "current": current, "previous": [],
+            })
             result["failures"].extend(block_failures)
             result["warnings"].extend(block_warnings)
         findings.append((result["failures"], result["warnings"]))
@@ -1275,53 +1293,55 @@ def previous_oversized_blocks(
 
 
 def oversized_blocks(path: Path, lines: list[str], max_block_lines: int) -> list[dict[str, Any]]:
+    return _prepared_blocks(path, _prepare_block_spans(path, lines), max_block_lines)
+
+
+def _prepare_block_spans(path: Path, lines: list[str]) -> dict[str, Any]:
     if path.suffix.lower() == ".py":
-        return python_blocks(path, lines, max_block_lines)
-    return brace_blocks(path, lines, max_block_lines)
+        starts = []
+        levels = []
+        for index, line in enumerate(lines):
+            stripped = line.strip()
+            levels.append(
+                len(line) - len(line.lstrip(" ")) if stripped and not stripped.startswith(("#", "@"))
+                else None
+            )
+            match = PYTHON_BLOCK_RE.match(line)
+            if match:
+                starts.append((index, match.group(2)))
+        return {"kind": "indent", "levels": levels, "starts": starts}
 
-
-def python_blocks(path: Path, lines: list[str], max_block_lines: int) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-    starts: list[tuple[int, int, str]] = []
-    for index, line in enumerate(lines):
-        match = PYTHON_BLOCK_RE.match(line)
-        if match:
-            starts.append((index, count_line_indent(line), match.group(2)))
-
-    for start_index, start_indent, name in starts:
-        span = python_block_span(lines, start_index, start_indent)
-        if span > max_block_lines:
-            blocks.append(block_record(path, start_index, name, span))
-    return blocks
-
-
-def python_block_span(lines: list[str], start_index: int, start_indent: int) -> int:
-    end_index = len(lines) - 1
-    for index in range(start_index + 1, len(lines)):
-        stripped = lines[index].strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if count_line_indent(lines[index]) <= start_indent and not stripped.startswith("@"):
-            end_index = index - 1
-            break
-    return end_index - start_index + 1
-
-
-def count_line_indent(line: str) -> int:
-    return len(line) - len(line.lstrip(" "))
-
-
-def brace_blocks(path: Path, lines: list[str], max_block_lines: int) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
+    starts = []
     structural_lines = mask_brace_literals(lines)
     for index, line in enumerate(structural_lines):
         stripped = line.strip()
-        if "{" not in stripped or not starts_review_block(path, stripped):
-            continue
-        span = brace_block_span(structural_lines, index)
+        if "{" in stripped and starts_review_block(path, stripped):
+            starts.append((index, lines[index].strip()[:80].replace("`", "'")))
+    return {
+        "kind": "brace", "levels": [line.count("{") - line.count("}") for line in structural_lines],
+        "starts": starts,
+    }
+
+
+def _prepared_blocks(path: Path | str, prepared: dict[str, Any], max_block_lines: int) -> list[dict[str, Any]]:
+    blocks = []
+    levels = prepared["levels"]
+    for start, label in prepared["starts"]:
+        span = len(levels) - start
+        if prepared["kind"] == "indent":
+            for index in range(start + 1, len(levels)):
+                if levels[index] is not None and levels[index] <= levels[start]:
+                    span = index - start
+                    break
+        else:
+            balance = 0
+            for index in range(start, len(levels)):
+                balance += levels[index]
+                if balance <= 0:
+                    span = index - start + 1
+                    break
         if span > max_block_lines:
-            label = lines[index].strip()[:80].replace("`", "'")
-            blocks.append(block_record(path, index, label, span))
+            blocks.append(block_record(path, start, label, span))
     return blocks
 
 
@@ -1348,16 +1368,7 @@ def starts_review_block(path: Path, stripped_line: str) -> bool:
     return bool(BRACE_BLOCK_RE.match(stripped_line))
 
 
-def brace_block_span(lines: list[str], start_index: int) -> int:
-    balance = 0
-    for index in range(start_index, len(lines)):
-        balance += lines[index].count("{") - lines[index].count("}")
-        if balance <= 0:
-            return index - start_index + 1
-    return len(lines) - start_index
-
-
-def block_record(path: Path, start_index: int, label: str, span: int) -> dict[str, Any]:
+def block_record(path: Path | str, start_index: int, label: str, span: int) -> dict[str, Any]:
     return {
         "path": path,
         "line": start_index + 1,

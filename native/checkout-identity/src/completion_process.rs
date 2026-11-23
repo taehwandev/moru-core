@@ -68,6 +68,8 @@ mod preflight_failures;
 mod structure_diff;
 #[path = "structure_block_findings.rs"]
 mod structure_block_findings;
+#[path = "structure_block_spans.rs"]
+mod structure_block_spans;
 #[path = "structure_file_size.rs"]
 mod structure_file_size;
 #[path = "structure_source_paths.rs"]

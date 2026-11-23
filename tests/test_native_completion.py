@@ -105,12 +105,42 @@ class NativeCompletionTests(unittest.TestCase):
             reference = review()
         with patch.dict(os.environ, self.env, clear=True), patch.object(
             structure, "_check_file_size", side_effect=AssertionError("Python checked file size"),
+        ), patch.object(
+            structure, "_prepared_blocks", side_effect=AssertionError("Python computed new block spans"),
         ), patch.object(structure, "_block_review_findings", side_effect=AssertionError("Python checked blocks")):
             self.assertEqual(reference, review())
         self.assertEqual(["a.py", "a.py", "a.py:1", "tests/test_example.py"],
                          [message.split(" ", 1)[0] for message in reference["failures"]])
         self.assertIn("per-file addition limit is 6", reference["failures"][-1])
         self.assertTrue(reference["warnings"][0].startswith("b.py "))
+
+    def test_structure_block_spans_match_indentation_and_masked_brace_boundaries(self):
+        python_lines = [
+            "class Outer:", "    def inner(self):", "        pass", "# keep the comment in the span",
+            "", "    @decorator", "    def second(self):", "        pass", "async def tail():", "    pass",
+        ]
+        brace_lines = [
+            "function one() {", '  const text = "}";', "  /* } */", "  if (yes) {",
+            "    call();", "  }", "}", "function both() {}", "function unfinished() {", "  call();",
+        ]
+        rows = []
+        for filename, lines, initial in (
+            ("source.py", python_lines, True), ("source.ts", brace_lines, False),
+        ):
+            rows.append({
+                "path": filename, "line_count": len(lines), "metadata": {"status": "A"},
+                "max_file_lines": 500, "max_added_lines": 300, "review_warning_file_lines": 300,
+                "block_spans": {**structure._prepare_block_spans(Path(filename), lines),
+                                "limit": 2, "initial": initial},
+            })
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [list(row) for row in structure._file_findings(rows)]
+        self.assertEqual({"findings": expected}, self.check("structure-file-size", {"files": rows}))
+        self.assertEqual([], expected[0][0])
+        for warning, span in zip(expected[0][1], [8, 5], strict=True):
+            self.assertIn(f"spans {span} lines", warning)
+        self.assertEqual(1, len(expected[1][0]))
+        self.assertIn("spans 7 lines", expected[1][0][0])
 
     def test_structure_block_findings_match_baselines_and_initial_builds(self):
         facts = {
