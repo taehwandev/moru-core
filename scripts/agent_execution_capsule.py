@@ -11,6 +11,7 @@ from typing import Any
 
 from agent_continuation_outbound import assert_no_continuation_outbound
 from agent_execution_capsule_state import (
+    CAPSULE_FILENAME,
     PREFLIGHT_SNAPSHOT_SCHEMA_VERSION,
     REUSE_POLICY,
     SCHEMA_VERSION,
@@ -135,6 +136,10 @@ def _write_execution_capsule(path: Path, payload: dict[str, Any]) -> None:
 def read_execution_capsule(path: Path) -> dict[str, Any]:
     """Read a capsule without raising for a missing or malformed JSON file."""
 
+    if type(path) is type(Path()) and path.name == CAPSULE_FILENAME and path.parent.parent.name == "runs":
+        native = native_capsule_probe("capsule-read", {"path": str(path)})
+        if native is not None and type(native.get("record")) is dict:
+            return native["record"]
     return read_json_object(path)
 
 

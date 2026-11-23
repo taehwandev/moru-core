@@ -1,5 +1,5 @@
-//! owner: exact-byte atomic replacement of ordinary execution capsule files.
-//! allowed imports: guarded sibling writes, existing JSON codec and std.
+//! owner: bounded reads and exact-byte atomic replacement of execution capsules.
+//! allowed imports: guarded sibling file access, existing JSON codec and std.
 //! forbidden imports: lifecycle authority, ledger writes and providers.
 //! callers/tests: completion probe and native capsule persistence fixtures.
 //! verification: byte parity, private mode, collision and scope checks.
@@ -9,25 +9,61 @@ use crate::{
 use serde_json::{json, Value};
 use std::{
     ffi::CString,
+    io::{ErrorKind, Read},
     path::{Component, Path},
 };
 
 pub(super) struct CapsuleArtifact;
 
+const MAX_READ_BYTES: u64 = 256 * 1024;
+
 impl CapsuleArtifact {
+    pub(super) fn read(payload: &Value) -> Option<Value> {
+        let target = Path::new(payload.get("path")?.as_str()?);
+        let dir = AtomicSibling::open_directory(Self::run_parent(target)?)?;
+        let file = match AtomicSibling::open_relative_result(
+            &dir,
+            c"execution-capsule.json",
+            libc::O_RDONLY,
+        ) {
+            Ok(file) => file,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Some(json!({"record": {}}));
+            }
+            Err(_) => return None,
+        };
+        let meta = file.metadata().ok()?;
+        if meta.is_dir() {
+            return Some(json!({"record": {"invalid_json": true}}));
+        }
+        if !meta.is_file() || meta.len() > MAX_READ_BYTES {
+            return None;
+        }
+        let mut bytes = Vec::new();
+        file.take(MAX_READ_BYTES + 1).read_to_end(&mut bytes).ok()?;
+        if bytes.len() as u64 > MAX_READ_BYTES
+            || bytes
+                .split(|byte| !byte.is_ascii_digit())
+                .any(|digits| digits.len() > 640)
+        {
+            // Python can reject an oversized integer token even if a later
+            // duplicate key overwrites it. Preserve its runtime digit policy.
+            return None;
+        }
+        let record: Value = serde_json::from_slice(&bytes).ok()?;
+        if !record.is_object() {
+            return Some(json!({"record": {"invalid_json": true}}));
+        }
+        PendingPublicationReceipt::lossless(&record).then_some(json!({"record": record}))
+    }
+
     pub(super) fn replace(payload: &Value) -> Option<Value> {
         let text = payload.get("path")?.as_str()?;
         let target = Path::new(text);
-        let parent = target.parent()?;
-        let run = parent.file_name()?.to_str()?;
+        let parent = Self::run_parent(target)?;
         let temporary = payload.get("temporary")?.as_str()?;
         let record = payload.get("record")?;
-        if !target.is_absolute()
-            || target.file_name()?.to_str()? != "execution-capsule.json"
-            || !parent.parent()?.ends_with(".moru/runs")
-            || !PendingPublicationReceipt::is_id(run)
-            || !PendingPublicationReceipt::is_id(temporary)
-            || target.components().any(|part| part == Component::ParentDir)
+        if !PendingPublicationReceipt::is_id(temporary)
             || !PendingPublicationReceipt::artifact_safe(record)
             || !PendingPublicationReceipt::safe_artifact_text(text)
         {
@@ -50,5 +86,16 @@ impl CapsuleArtifact {
             .err()
             .map(|error| error.raw_os_error().unwrap_or(libc::EIO));
         Some(json!({"errno": errno}))
+    }
+
+    fn run_parent(target: &Path) -> Option<&Path> {
+        let parent = target.parent()?;
+        let run = parent.file_name()?.to_str()?;
+        (target.is_absolute()
+            && target.file_name()?.to_str()? == "execution-capsule.json"
+            && parent.parent()?.ends_with(".moru/runs")
+            && PendingPublicationReceipt::is_id(run)
+            && !target.components().any(|part| part == Component::ParentDir))
+        .then_some(parent)
     }
 }

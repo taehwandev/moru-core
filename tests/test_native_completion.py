@@ -276,6 +276,49 @@ class NativeCompletionTests(unittest.TestCase):
                     capsule._write_execution_capsule(destination, payload)
             self.assertEqual(legacy, json.loads(destination.read_bytes()))
 
+    def test_capsule_read_is_bounded_and_preserves_python_read_outcomes(self):
+        run = self.project / ".moru" / "runs" / ("a" * 32)
+        run.mkdir(parents=True)
+        path = run / "execution-capsule.json"
+        request = {"path": str(path)}
+        self.assertEqual({"record": {}}, self.check("capsule-read", request))
+
+        record = {"z": True, "a": "문서🐈", "count": 2**64 - 1}
+        path.write_bytes(br'{"z":false,"a":"\ud55c","z":true,"count":18446744073709551615}')
+        loaded = self.check("capsule-read", request)["record"]
+        self.assertEqual({**record, "a": "한"}, loaded)
+        self.assertEqual(list(record), list(loaded))
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            capsule, "read_json_object", side_effect=AssertionError("unexpected Python read")
+        ):
+            self.assertEqual(loaded, capsule.read_execution_capsule(path))
+
+        path.write_bytes(b"null")
+        self.assertEqual({"record": {"invalid_json": True}}, self.check("capsule-read", request))
+        for raw in (b"{broken", b'{"wide":18446744073709551616}', b'{"fraction":0.5}',
+                    br'{"s":"\ud800"}', b'{"long":"' + b"x" * (256 * 1024) + b'"}'):
+            with self.subTest(prefix=raw[:24]):
+                path.write_bytes(raw)
+                declined = self.raw("capsule-read", request)
+                self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+                with patch.dict(os.environ, self.env, clear=True):
+                    self.assertEqual(capsule.read_json_object(path), capsule.read_execution_capsule(path))
+        path.write_bytes(b'{"duplicate":' + b"9" * 650 + b',"duplicate":1}')
+        declined = self.raw("capsule-read", request)
+        self.assertEqual(125, declined.returncode)
+        path.write_bytes(b'{"s":"\xff"}')
+        with patch.dict(os.environ, self.env, clear=True), self.assertRaises(UnicodeDecodeError):
+            capsule.read_execution_capsule(path)
+
+        alternate = run / "alias-target.json"
+        alternate.write_text(json.dumps(record), encoding="utf-8")
+        path.unlink()
+        path.symlink_to(alternate)
+        declined = self.raw("capsule-read", request)
+        self.assertEqual(125, declined.returncode)
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(record, capsule.read_execution_capsule(path))
+
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'
         tree = '100644 blob ab\ta\tb\n\0' + '100755 blob ef\tz"\\악\x7f\U0001f408\0'

@@ -33,6 +33,14 @@ impl AtomicSibling {
     }
 
     pub(crate) fn open_relative(dir: &File, path: &CStr, flags: libc::c_int) -> Option<File> {
+        Self::open_relative_result(dir, path, flags).ok()
+    }
+
+    pub(crate) fn open_relative_result(
+        dir: &File,
+        path: &CStr,
+        flags: libc::c_int,
+    ) -> io::Result<File> {
         let fd = unsafe {
             libc::openat(
                 dir.as_raw_fd(),
@@ -41,7 +49,10 @@ impl AtomicSibling {
                 0o666 as libc::c_uint,
             )
         };
-        (fd >= 0).then(|| unsafe { File::from_raw_fd(fd) })
+        if fd < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(unsafe { File::from_raw_fd(fd) })
     }
 
     pub(crate) fn try_append_lock(dir: &File, name: &CStr) -> Option<File> {
