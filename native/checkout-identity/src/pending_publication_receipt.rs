@@ -64,7 +64,7 @@ impl PendingPublicationReceipt {
         Some(json!({"error": error}))
     }
 
-    fn artifact_safe(value: &Value) -> bool {
+    pub(crate) fn artifact_safe(value: &Value) -> bool {
         match value {
             Value::String(text) => Self::safe_artifact_text(text),
             Value::Array(items) => items.iter().all(Self::artifact_safe),
@@ -75,7 +75,7 @@ impl PendingPublicationReceipt {
         }
     }
 
-    fn safe_artifact_text(text: &str) -> bool {
+    pub(crate) fn safe_artifact_text(text: &str) -> bool {
         if text == "project_local_never_sync" {
             return false;
         }

@@ -129,7 +129,7 @@ def _write_execution_capsule(path: Path, payload: dict[str, Any]) -> None:
         {"path": path, "payload": payload},
         boundary="execution_capsule",
     )
-    atomic_write_json(path, payload)
+    atomic_write_json(path, payload, native_capsule=True)
 
 
 def read_execution_capsule(path: Path) -> dict[str, Any]:

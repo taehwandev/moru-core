@@ -1,4 +1,5 @@
 """Native completion policy through the actual private binary protocol."""
+import errno
 import hashlib
 import json
 import os
@@ -229,6 +230,51 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual(expected, capsule.create_preflight_snapshot(self.project, {}, legacy))
         declined = self.raw("capsule-identities", {"route": {}, "intake": legacy})
         self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+
+    def test_capsule_persistence_uses_private_atomic_replacement_and_safe_fallback(self):
+        run = self.project / ".moru" / "runs" / ("a" * 32)
+        run.mkdir(parents=True)
+        evidence = run / "preflight.json"
+        evidence.write_text("{}", encoding="utf-8")
+        destination = run / "execution-capsule.json"
+        destination.write_bytes(b"previous")
+        destination.chmod(0o644)
+        payload = {"z": ["문서\x7f🐈", 2**64 - 1], "a": {"done": True}}
+        expected = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            capsule_state, "_encoded_json", side_effect=AssertionError("unexpected Python write")
+        ):
+            capsule._write_execution_capsule(destination, payload)
+        self.assertEqual(expected, destination.read_bytes())
+        self.assertEqual(0o600, destination.stat().st_mode & 0o777)
+        self.assertEqual([], list(run.glob("*.tmp")))
+
+        suffix = "b" * 32
+        collision = run / f"{destination.name}.{suffix}.tmp"
+        collision.write_bytes(b"other producer")
+        request = {"path": str(destination), "temporary": suffix, "record": payload}
+        self.assertEqual({"errno": errno.EEXIST}, self.check("capsule-replace", request))
+        self.assertEqual(b"other producer", collision.read_bytes())
+        self.assertEqual(expected, destination.read_bytes())
+        for unsafe in (
+            {**request, "path": str(run / "continuation.json")},
+            {**request, "record": {"storage": "project_local_never_sync"}},
+            {**request, "temporary": "../escape"},
+        ):
+            result = self.raw("capsule-replace", unsafe)
+            self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+
+        with patch.dict(os.environ, self.env, clear=True):
+            legacy = {"wide": 2**80, "float": 0.5}
+            capsule._write_execution_capsule(destination, legacy)
+            self.assertEqual(legacy, json.loads(destination.read_bytes()))
+            custom = self.project / "custom" / "capsule.json"
+            capsule._write_execution_capsule(custom, payload)
+            self.assertEqual(expected, custom.read_bytes())
+            with patch("support.native_probe_transport.subprocess.run", side_effect=subprocess.TimeoutExpired("native", 10)):
+                with self.assertRaisesRegex(OSError, "replacement outcome could not be determined"):
+                    capsule._write_execution_capsule(destination, payload)
+            self.assertEqual(legacy, json.loads(destination.read_bytes()))
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'

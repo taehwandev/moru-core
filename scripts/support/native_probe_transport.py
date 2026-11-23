@@ -24,6 +24,7 @@ class NativeProbe:
         if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe"}:
             return None
         write_failure = {
+            ("--completion-probe", "capsule-replace"): "native execution capsule replacement outcome could not be determined",
             ("--completion-probe", "pending-publication-replace"): "native receipt replacement outcome could not be determined",
             ("--doc-transcript-probe", "write-marker"): "native delivery marker outcome could not be determined",
             ("--doc-transcript-probe", "agy-redelivery"): "native redelivery outcome could not be determined",
