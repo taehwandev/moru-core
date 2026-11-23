@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use std::{
     ffi::{CString, OsStr},
     fs::{self, File, Metadata},
-    io::Read,
+    io::{ErrorKind, Read},
     os::unix::{ffi::OsStrExt, fs::MetadataExt},
     path::Path,
 };
@@ -22,6 +22,29 @@ const HEAD: &str = "non-git-directory-v1";
 pub(super) struct CapsuleDirectory;
 
 impl CapsuleDirectory {
+    pub(super) fn matches_record(path: &Path, recorded: &Value) -> Option<()> {
+        if recorded.get("head")?.as_str()? != HEAD || !Self::no_git_marker(path) {
+            return None;
+        }
+        let capture = Self::capture(&json!({
+            "path": path.to_str()?,
+            "recorded_signature": recorded.get("worktree_signature")?.as_str()?,
+        }))?;
+        let matches = capture.get("reused").and_then(Value::as_bool) == Some(true)
+            || capture.get("state")?.get("worktree_fingerprint")?
+                == recorded.get("worktree_fingerprint")?;
+        (matches && Self::no_git_marker(path)).then_some(())
+    }
+
+    fn no_git_marker(path: &Path) -> bool {
+        path.ancestors().all(|ancestor| {
+            matches!(
+                fs::symlink_metadata(ancestor.join(".git")),
+                Err(error) if error.kind() == ErrorKind::NotFound
+            )
+        })
+    }
+
     pub(super) fn capture(payload: &Value) -> Option<Value> {
         let root = Path::new(payload.get("path")?.as_str()?);
         if !root.is_absolute() || root.canonicalize().ok()?.as_os_str() != root.as_os_str() {

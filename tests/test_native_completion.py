@@ -501,29 +501,7 @@ class NativeCompletionTests(unittest.TestCase):
         git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "base")
         untracked = self.project / "untracked.txt"
         untracked.write_text("original\n")
-        run = self.project / ".moru" / "runs" / ("a" * 32)
-        run.mkdir(parents=True)
-        evidence = run / "preflight.json"
-        route = {"command": "refactor", "required_docs": [doc.name]}
-        preflight = {"project": str(self.project), "rules": str(self.project), "route": route}
-        evidence.write_text(json.dumps(preflight))
-        ledger = run / "gate-evidence.json"
-        ledger.write_text(json.dumps({
-            "schema_version": 1, "preflight_evidence": str(evidence),
-            "preflight_evidence_sha256": preflight_evidence_sha256(evidence),
-            "route_fingerprint": route_fingerprint(route),
-            "entries": [{"gate": "request intake", "status": "SUCCESS", "evidence": "seen"}],
-        }))
-        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
-            refreshed = capsule.refresh_execution_capsule(self.project, self.project, evidence, route)
-        self.assertEqual("ready", refreshed["phase"])
-        args = [str(self.entry), "execution-capsule", "check", "--evidence", str(evidence),
-                "--rules", str(self.project), "--project", str(self.project)]
-        (self.empty / "git").symlink_to(shutil.which("git"))
-
-        def call(**env):
-            result = subprocess.run(args, cwd=self.project, env={**self.env, **env}, capture_output=True, timeout=20)
-            return result.returncode, result.stdout, result.stderr
+        call = self.capsule_check_runner(self.project, self.project, doc.name)
 
         reference = call(MORU_LAUNCHER_BACKEND="python")
         self.assertEqual(0, reference[0], reference)
@@ -548,6 +526,67 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertIn(b"execution capsule required doc hash changed", refused[1])
         self.assertEqual(refused, call())
         self.assertEqual(127, call(PATH=str(self.empty))[0])
+
+    def test_capsule_check_cli_validates_non_git_roots_without_python(self):
+        project = self.base / "plain-parent" / "plain-project"
+        rules = self.base / "plain-rules"
+        project.mkdir(parents=True)
+        rules.mkdir()
+        required = rules / "문서.md"
+        required.write_text("required\n")
+        content = project / "data.txt"
+        content.write_text("original\n")
+        call = self.capsule_check_runner(project, rules, required.name)
+
+        reference = call(MORU_LAUNCHER_BACKEND="python")
+        self.assertEqual(0, reference[0], reference)
+        self.assertEqual(reference, call(PATH=str(self.empty)))
+
+        metadata = content.stat()
+        os.utime(content, ns=(metadata.st_atime_ns, metadata.st_mtime_ns - 60_000_000_000))
+        self.assertEqual(reference, call(PATH=str(self.empty)))
+
+        content.write_text("modified\n")
+        changed = call(MORU_LAUNCHER_BACKEND="python")
+        self.assertEqual(1, changed[0], changed)
+        self.assertIn(b"execution capsule project worktree status changed", changed[1])
+        self.assertEqual(changed, call())
+        self.assertEqual(127, call(PATH=str(self.empty))[0])
+        content.write_text("original\n")
+
+        (project.parent / ".git").mkdir()
+        unavailable = call(MORU_LAUNCHER_BACKEND="python")
+        self.assertEqual(1, unavailable[0], unavailable)
+        self.assertIn(b"execution capsule project/rules git state is unavailable", unavailable[1])
+        self.assertEqual(unavailable, call())
+        self.assertEqual(127, call(PATH=str(self.empty))[0])
+
+    def capsule_check_runner(self, project, rules, required_doc):
+        run = project / ".moru" / "runs" / ("a" * 32)
+        run.mkdir(parents=True)
+        evidence = run / "preflight.json"
+        route = {"command": "refactor", "required_docs": [required_doc]}
+        preflight = {"project": str(project), "rules": str(rules), "route": route}
+        evidence.write_text(json.dumps(preflight))
+        ledger = run / "gate-evidence.json"
+        ledger.write_text(json.dumps({
+            "schema_version": 1, "preflight_evidence": str(evidence),
+            "preflight_evidence_sha256": preflight_evidence_sha256(evidence),
+            "route_fingerprint": route_fingerprint(route),
+            "entries": [{"gate": "request intake", "status": "SUCCESS", "evidence": "seen"}],
+        }))
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            refreshed = capsule.refresh_execution_capsule(project, rules, evidence, route)
+        self.assertEqual("ready", refreshed["phase"])
+        args = [str(self.entry), "execution-capsule", "check", "--evidence", str(evidence),
+                "--rules", str(rules), "--project", str(project)]
+        (self.empty / "git").symlink_to(shutil.which("git"))
+
+        def call(**env):
+            result = subprocess.run(args, cwd=project, env={**self.env, **env}, capture_output=True, timeout=20)
+            return result.returncode, result.stdout, result.stderr
+
+        return call
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'

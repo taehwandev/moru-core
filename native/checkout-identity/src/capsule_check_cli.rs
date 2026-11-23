@@ -1,12 +1,12 @@
-//! owner: read-only native execution-capsule check for standard Git runs.
+//! owner: read-only native execution-capsule check for Git and directory roots.
 //! allowed imports: existing capsule validators, guarded reads, JSON and SHA-256.
 //! forbidden imports: file writes, ledger issuance, providers and new authority.
 //! callers/tests: launcher dispatch and transported CLI parity fixtures.
 //! verification: native-only matched state and legacy diagnostics on decline.
 use super::{
-    capsule_artifact::CapsuleArtifact, capsule_doc_drift::CapsuleDocDrift, capsule_json_integers,
-    capsule_ledger::CapsuleLedger, capsule_shape::CapsuleShape,
-    capsule_worktree_signature::WorktreeSignature,
+    capsule_artifact::CapsuleArtifact, capsule_directory::CapsuleDirectory,
+    capsule_doc_drift::CapsuleDocDrift, capsule_json_integers, capsule_ledger::CapsuleLedger,
+    capsule_shape::CapsuleShape, capsule_worktree_signature::WorktreeSignature,
 };
 use crate::{
     atomic_sibling::AtomicSibling, pretool_guard::CallbackGuard, python_text::PythonText,
@@ -126,13 +126,13 @@ impl CapsuleCheck {
         }
         let project_state = capsule.get("project_git")?;
         let rules_state = capsule.get("rules_git")?;
-        Self::check_git(project, project_state)?;
+        Self::check_root(project, project_state)?;
         if project == rules {
             if project_state != rules_state {
                 return None;
             }
         } else {
-            Self::check_git(rules, rules_state)?;
+            Self::check_root(rules, rules_state)?;
         }
         if !Self::path_matches(ledger.get("preflight_evidence")?, evidence) {
             return None;
@@ -209,8 +209,11 @@ impl CapsuleCheck {
             .is_some_and(Vec::is_empty)
     }
 
-    fn check_git(path: &Path, recorded: &Value) -> Option<()> {
+    fn check_root(path: &Path, recorded: &Value) -> Option<()> {
         let (root, code) = WorktreeSignature::git(path, &["rev-parse", "--show-toplevel"], 4096)?;
+        if code == 128 && root.is_empty() {
+            return CapsuleDirectory::matches_record(path, recorded);
+        }
         if code != 0
             || Path::new(std::str::from_utf8(&root).ok()?.trim())
                 .canonicalize()
@@ -220,6 +223,10 @@ impl CapsuleCheck {
         {
             return None;
         }
+        Self::check_git(path, recorded)
+    }
+
+    fn check_git(path: &Path, recorded: &Value) -> Option<()> {
         let head_args = ["rev-parse", "--verify", "HEAD"];
         let (head, code) = WorktreeSignature::git(path, &head_args, 4096)?;
         if code != 0 || recorded.get("head")?.as_str()? != std::str::from_utf8(&head).ok()?.trim() {
