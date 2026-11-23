@@ -91,6 +91,13 @@ def _inspect_project_files(project: Path) -> tuple[list[str], bool, bool]:
 
 def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, Any]:
     """Collect a read-only diagnostic report for the project and user install."""
+    report, _ = _project_health_report(project, rules, markdown=False)
+    return report
+
+
+def _project_health_report(
+    project: Path, rules: Path, *, markdown: bool,
+) -> tuple[dict[str, Any], str | None]:
     resolved = project.expanduser().resolve()
     launcher_warning = stable_launcher_issue(rules)
     state_dir = project_state_dir_target(resolved)
@@ -111,21 +118,7 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
     except (OSError, ValueError):
         pass
 
-    recommendations: list[str] = []
-    if launcher_warning:
-        recommendations.append(launcher_warning)
-    if not has_agents:
-        recommendations.append(
-            f"No AGENTS.md; add the managed routing block from `{rules / 'templates' / 'repo-agents-routing.md'}`."
-        )
-    if memory_stats["expired_or_due"] > 0:
-        recommendations.append(
-            f"Project memory has {memory_stats['expired_or_due']} record(s) due for review; run "
-            f"`{stable_launcher_path()} project-memory consolidate --project {resolved}`."
-        )
-
-    return {
-        "status": "ok" if not launcher_warning else "attention",
+    facts = {
         "project": str(resolved),
         "rules": str(rules.resolve()),
         "stacks": stacks,
@@ -145,8 +138,33 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
             "moru_root_pointer": str(stable_root_pointer_path()),
             "launcher_issue": launcher_warning,
         },
-        "recommendations": recommendations,
     }
+    template = str(rules / "templates" / "repo-agents-routing.md")
+    native = NativeProbe.request("--completion-probe", "doctor-report", {
+        "facts": facts, "routing_template": template, "markdown": markdown,
+    })
+    if native is not None and set(native) == {"report", "markdown"}:
+        report, rendered = native["report"], native["markdown"]
+        if isinstance(report, dict) and (isinstance(rendered, str) if markdown else rendered is None):
+            return report, rendered
+    report = _assemble_report_python(facts, template)
+    return report, _render_markdown_doctor(report) if markdown else None
+
+
+def _assemble_report_python(facts: dict[str, Any], template: str) -> dict[str, Any]:
+    warning = facts["launchers"]["launcher_issue"]
+    due = facts["state"]["project_memory"]["expired_or_due"]
+    recommendations: list[str] = []
+    if warning:
+        recommendations.append(warning)
+    if not facts["instructions"]["agents_md_present"]:
+        recommendations.append(f"No AGENTS.md; add the managed routing block from `{template}`.")
+    if due > 0:
+        recommendations.append(
+            f"Project memory has {due} record(s) due for review; run "
+            f"`{facts['launchers']['moru_launcher']} project-memory consolidate --project {facts['project']}`."
+        )
+    return {"status": "attention" if warning else "ok", **facts, "recommendations": recommendations}
 
 
 def _render_markdown_doctor(report: dict[str, Any]) -> str:
@@ -176,11 +194,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project", type=Path, default=Path.cwd())
     parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
     args = parser.parse_args(argv)
-    report = inspect_project_health(args.project)
+    report, rendered = _project_health_report(args.project, ROOT, markdown=args.format == "markdown")
     if args.format == "json":
         print(json.dumps(report, ensure_ascii=False, sort_keys=True))
     else:
-        print(_render_markdown_doctor(report))
+        print(rendered)
     return 0
 
 

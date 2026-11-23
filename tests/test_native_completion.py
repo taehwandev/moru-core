@@ -1,6 +1,7 @@
 """Native completion policy through the actual private binary protocol."""
 import errno
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -102,6 +103,49 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             instructions = doctor.inspect_project_health(self.project)["instructions"]
         self.assertEqual({"agents_md_present": True, "managed_routing_block": True}, instructions)
+
+    def test_doctor_rust_report_preserves_cli_formats_and_recommendation_order(self):
+        agents = self.project / "AGENTS.md"
+
+        def cli(format_name, backend):
+            output = io.StringIO()
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": backend}, clear=True), patch(
+                "sys.stdout", output,
+            ):
+                code = doctor.main(["--project", str(self.project), "--format", format_name])
+            return code, output.getvalue()
+
+        for healthy in (False, True):
+            with self.subTest(healthy=healthy):
+                if not healthy:
+                    agents.unlink()
+                else:
+                    agents.write_text(f"{doctor.MANAGED_BEGIN}\n{doctor.MANAGED_END}\n")
+                warning = "" if healthy else "Launcher not ready — 상태 확인"
+                expired = [] if healthy else [object(), object()]
+                with patch.object(doctor, "stable_launcher_issue", return_value=warning), patch.object(
+                    doctor, "project_memory_scan", return_value=([object()], 0),
+                ), patch.object(
+                    doctor, "project_memory_findings", return_value={"expired": expired},
+                ):
+                    json_reference = cli("json", "python")
+                    markdown_reference = cli("markdown", "python")
+                    with patch.object(
+                        doctor, "_assemble_report_python", side_effect=AssertionError("Python fallback"),
+                    ), patch.object(
+                        doctor, "_render_markdown_doctor", side_effect=AssertionError("Python rendering"),
+                    ):
+                        self.assertEqual(json_reference, cli("json", "auto"))
+                        self.assertEqual(markdown_reference, cli("markdown", "auto"))
+                report = json.loads(json_reference[1])
+                if healthy:
+                    self.assertEqual([], report["recommendations"])
+                    self.assertIn("- recommendations: none (healthy)\n", markdown_reference[1])
+                else:
+                    first, second, third = report["recommendations"]
+                    self.assertEqual(warning, first)
+                    self.assertTrue(second.startswith("No AGENTS.md;"))
+                    self.assertTrue(third.startswith("Project memory has 2 record(s)"))
 
     def test_capsule_binding_matches_python_and_preserves_legacy_fallback(self):
         docs = [{"\U00010000": "😀", "\uffff": "한글\x7f\n\u2028", "a": [True, 0, 2**64 - 1, -2**63]}]

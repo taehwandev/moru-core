@@ -210,7 +210,7 @@
       "entry_aliases": "doctor",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
       "verification": {
-        "local": "Source-bound Rust inspection of stack markers and managed AGENTS.md in the doctor report. Python retains report orchestration, permissions, state and fallback."
+        "local": "Source-bound Rust project inspection, doctor report assembly and Markdown rendering. Python still collects permissions and runtime state, serializes JSON and handles fallback."
       }
     },
     {
