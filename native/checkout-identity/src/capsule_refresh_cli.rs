@@ -5,7 +5,7 @@
 //! verification: no-Python refresh, Python-compatible record and refusal behavior.
 use super::{
     capsule_artifact::CapsuleArtifact, capsule_check_cli::CapsuleCheck,
-    capsule_worktree_signature::WorktreeSignature,
+    capsule_directory::CapsuleDirectory, capsule_worktree_signature::WorktreeSignature,
 };
 use crate::{
     atomic_sibling::AtomicSibling, doc_transcript::DocTranscript, pretool_guard::CallbackGuard,
@@ -46,11 +46,11 @@ impl CapsuleRefresh {
         let (route, identities) = CapsuleCheck::route_identities(&preflight)?;
         let route_hash = identities.get("route_fingerprint")?;
         CapsuleCheck::validate_ledger(ledger, &evidence, &preflight_hash, route_hash)?;
-        let project_state = Self::observe_git(&project)?;
+        let project_state = Self::observe_root(&project)?;
         let rules_state = if project == rules {
             project_state.clone()
         } else {
-            Self::observe_git(&rules)?
+            Self::observe_root(&rules)?
         };
         let docs = DocTranscript::hash_documents(&rules, &CapsuleCheck::required_docs(route)?)?;
         let created_at = StatusSnapshot::capture_time()?;
@@ -88,11 +88,18 @@ impl CapsuleRefresh {
         Some(Self::report(&result, output_text, &path_json))
     }
 
-    fn observe_git(path: &Path) -> Option<Value> {
+    fn observe_root(path: &Path) -> Option<Value> {
         let (root, code) = WorktreeSignature::git(path, &["rev-parse", "--show-toplevel"], 4096)?;
+        if code == 128 && root.is_empty() {
+            return CapsuleDirectory::observe(path);
+        }
         if code != 0 || !CapsuleCheck::is_exact_git_root(path, &root)? {
             return None;
         }
+        Self::observe_git(path)
+    }
+
+    fn observe_git(path: &Path) -> Option<Value> {
         let args = ["rev-parse", "--verify", "HEAD"];
         let (head, code) = WorktreeSignature::git(path, &args, 4096)?;
         if code != 0 {

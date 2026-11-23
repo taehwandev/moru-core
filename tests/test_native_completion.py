@@ -562,18 +562,7 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(127, call(PATH=str(self.empty))[0])
 
     def test_capsule_refresh_cli_writes_matching_ready_record_without_python(self):
-        (self.project / ".gitignore").write_text(".moru/\n")
-        doc = self.project / "문서.md"
-        doc.write_text("required\n")
-        subprocess.run(
-            ["git", "-C", str(self.project), "add", ".gitignore", doc.name],
-            env=self.env, capture_output=True, check=True, timeout=8,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "-c", "user.name=Fixture",
-             "-c", "user.email=fixture@example.test", "commit", "-m", "base"],
-            env=self.env, capture_output=True, check=True, timeout=8,
-        )
+        doc = self.commit_capsule_rules()
         call = self.capsule_check_runner(self.project, self.project, doc.name)
         run = self.project / ".moru" / "runs" / ("a" * 32)
         target = run / "execution-capsule.json"
@@ -602,6 +591,61 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual("preflight", json.loads(fallback[1])["phase"])
         self.assertEqual("preflight", json.loads(target.read_bytes())["phase"])
 
+    def test_capsule_refresh_cli_writes_ready_directory_and_mixed_records_without_python(self):
+        git_doc = self.commit_capsule_rules()
+        plain_rules = self.base / "rules-parent" / "plain-rules"
+        plain_rules.mkdir(parents=True)
+        plain_doc = plain_rules / git_doc.name
+        plain_doc.write_text("required\n")
+        plain_project = self.base / "plain" / "project"
+        mixed_project = self.base / "mixed" / "project"
+        for project in (plain_project, mixed_project):
+            project.mkdir(parents=True)
+            (project / "content.txt").write_text("data\n")
+        for name, project, required, directory in (
+            ("plain", plain_project, plain_doc, plain_project),
+            ("git-rules", mixed_project, git_doc, mixed_project),
+            ("git-project", self.project, plain_doc, plain_rules),
+        ):
+            with self.subTest(roots=name):
+                call = self.capsule_check_runner(project, required.parent, required.name)
+                run = project / ".moru" / "runs" / ("a" * 32)
+                target = run / "execution-capsule.json"
+                reference = call(action="refresh", MORU_LAUNCHER_BACKEND="python")
+                self.assertEqual(0, reference[0], reference)
+                expected = json.loads(target.read_bytes())
+                self.assertEqual(name != "git-project",
+                                 expected["project_git"]["head"] == "non-git-directory-v1")
+                self.assertEqual(name != "git-rules",
+                                 expected["rules_git"]["head"] == "non-git-directory-v1")
+
+                self.assertEqual(reference, call(action="refresh", PATH=str(self.empty)))
+                native = json.loads(target.read_bytes())
+                native.pop("created_at")
+                expected.pop("created_at")
+                self.assertEqual(expected, native)
+                self.assertEqual(0, call(PATH=str(self.empty))[0])
+
+                previous = target.read_bytes()
+                (directory.parent / ".git").mkdir()
+                self.assertEqual(127, call(action="refresh", PATH=str(self.empty))[0])
+                self.assertEqual(previous, target.read_bytes())
+
+    def commit_capsule_rules(self):
+        (self.project / ".gitignore").write_text(".moru/\n")
+        doc = self.project / "문서.md"
+        doc.write_text("required\n")
+        subprocess.run(
+            ["git", "-C", str(self.project), "add", ".gitignore", doc.name],
+            env=self.env, capture_output=True, check=True, timeout=8,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "-c", "user.name=Fixture",
+             "-c", "user.email=fixture@example.test", "commit", "-m", "base"],
+            env=self.env, capture_output=True, check=True, timeout=8,
+        )
+        return doc
+
     def capsule_check_runner(self, project, rules, required_doc):
         run = project / ".moru" / "runs" / ("a" * 32)
         run.mkdir(parents=True)
@@ -621,7 +665,9 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual("ready", refreshed["phase"])
         args = ["--evidence", str(evidence),
                 "--rules", str(rules), "--project", str(project)]
-        (self.empty / "git").symlink_to(shutil.which("git"))
+        git = self.empty / "git"
+        if not git.is_symlink():
+            git.symlink_to(shutil.which("git"))
 
         def call(*, action="check", **env):
             result = subprocess.run(

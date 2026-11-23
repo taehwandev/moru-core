@@ -23,17 +23,30 @@ pub(super) struct CapsuleDirectory;
 
 impl CapsuleDirectory {
     pub(super) fn matches_record(path: &Path, recorded: &Value) -> Option<()> {
-        if recorded.get("head")?.as_str()? != HEAD || !Self::no_git_marker(path) {
+        if recorded.get("head")?.as_str()? != HEAD {
+            return None;
+        }
+        let signature = recorded.get("worktree_signature")?.as_str()?;
+        let capture = Self::capture_without_git(path, Some(signature))?;
+        let matches = capture.get("reused").and_then(Value::as_bool) == Some(true)
+            || capture.get("state")?.get("worktree_fingerprint")?
+                == recorded.get("worktree_fingerprint")?;
+        matches.then_some(())
+    }
+
+    pub(super) fn observe(path: &Path) -> Option<Value> {
+        Self::capture_without_git(path, None)?.get("state").cloned()
+    }
+
+    fn capture_without_git(path: &Path, signature: Option<&str>) -> Option<Value> {
+        if !Self::no_git_marker(path) {
             return None;
         }
         let capture = Self::capture(&json!({
             "path": path.to_str()?,
-            "recorded_signature": recorded.get("worktree_signature")?.as_str()?,
+            "recorded_signature": signature,
         }))?;
-        let matches = capture.get("reused").and_then(Value::as_bool) == Some(true)
-            || capture.get("state")?.get("worktree_fingerprint")?
-                == recorded.get("worktree_fingerprint")?;
-        (matches && Self::no_git_marker(path)).then_some(())
+        Self::no_git_marker(path).then_some(capture)
     }
 
     fn no_git_marker(path: &Path) -> bool {
@@ -50,10 +63,11 @@ impl CapsuleDirectory {
         if !root.is_absolute() || root.canonicalize().ok()?.as_os_str() != root.as_os_str() {
             return None;
         }
-        let initial = Walk::capture(root, false)?.signature.finalize();
-        let signature = format!("{initial:x}");
-        if payload.get("recorded_signature").and_then(Value::as_str) == Some(signature.as_str()) {
-            return Some(json!({"reused": true}));
+        if let Some(recorded) = payload.get("recorded_signature").and_then(Value::as_str) {
+            let initial = Walk::capture(root, false)?.signature.finalize();
+            if recorded == format!("{initial:x}") {
+                return Some(json!({"reused": true}));
+            }
         }
         for _ in 0..2 {
             let captured = Walk::capture(root, true)?;
