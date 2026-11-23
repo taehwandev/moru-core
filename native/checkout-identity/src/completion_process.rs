@@ -94,6 +94,8 @@ mod structure_action_delta;
 mod kotlin_literal_mask;
 #[path = "kotlin_compose_bodies.rs"]
 mod kotlin_compose_bodies;
+#[path = "kotlin_compose_aliases.rs"]
+mod kotlin_compose_aliases;
 #[path = "structure_net_deletions.rs"]
 mod structure_net_deletions;
 #[path = "structure_source_paths.rs"]

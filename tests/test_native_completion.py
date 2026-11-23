@@ -73,6 +73,51 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_compose_aliases_match_order_and_adjust_spans(self):
+        compose = "import androidx.compose.runtime.Composable as UI\n"
+        event = "import app.RouteEvent as E\n"
+        aliased = compose + event + "@UI fun Screen() {\nval e = E.Open\n}"
+        cases = [
+            aliased, compose + "@UIβ fun Screen() {} @UI\u0301 fun Next() {}",
+            event + "E Eβ βE E\u0301 _E E_ `E`",
+            event + "import app.NoticeEffect as E\nval e = E.Open",
+            compose + "import app.RouteEvent as Composable\n@UI fun Screen() {}",
+            "prefiximport\x1capp.InnerRouteEvent.Next as 경로\n경로.Open",
+            "import app.RouteEventIgnored as E\nE.Open",
+            "import app.SomeType as E\nE.Open",
+            '/* import app.RouteEvent as E */ val s = "E.Open"\nE.Open',
+            "import app.NavigationEvent as import import app.NoticeEffect as X\nX.Open",
+        ]
+        for source in cases:
+            masked = android._mask_kotlin_literals(source)
+            expected = android._normalize_aliases(masked)
+            native = self.check("kotlin-literal-mask", {
+                "source": source, "unicode": unicodedata.unidata_version, "normalize_aliases": True,
+            })
+            self.assertEqual(masked, native["code"])
+            self.assertIs(native["aliases_normalized"], True)
+            self.assertEqual(expected, native.get("normalized_code", masked))
+            self.assertEqual(
+                [list(span) for span in android.AndroidActionBoundary._bodies(expected)], native["bodies"],
+            )
+        for source, version in [(event + "한 E.Open", "unknown"), (event * 600, unicodedata.unidata_version)]:
+            native = self.check("kotlin-literal-mask", {
+                "source": source, "unicode": version, "normalize_aliases": True,
+            })
+            self.assertEqual(source, native["code"])
+            self.assertNotIn("aliases_normalized", native)
+
+        path = Path("Screen.kt")
+        scan = android.AndroidActionBoundary.failures
+        with patch.object(NativeProbe, "request", return_value=None):
+            expected = scan(path, aliased)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            android, "_normalize_aliases", side_effect=AssertionError("Python expanded aliases"),
+        ), patch.object(android.AndroidActionBoundary, "_bodies", side_effect=AssertionError("Python parsed body")):
+            self.assertEqual(expected, scan(path, aliased))
+        self.assertEqual(1, len(expected))
+        self.assertTrue(expected[0].startswith("Screen.kt:4:"))
+
     def test_structure_compose_body_spans_match_python(self):
         cases = [
             "", "@Composable fun Broken(", "@Composable fun Screen():",

@@ -147,13 +147,19 @@ def _is_lifecycle_notice_dispatch(
 
 def _kotlin_code_for_review(source: str) -> tuple[str, list[list[int]] | None]:
     native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {
-        "source": source, "unicode": unicodedata.unidata_version,
+        "source": source, "unicode": unicodedata.unidata_version, "normalize_aliases": True,
     })
     masked = native.get("code") if native is not None else None
     if not isinstance(masked, str) or len(masked) != len(source):
         return _normalize_aliases(_mask_kotlin_literals(source)), None
-    code = _normalize_aliases(masked)
-    bodies = native.get("bodies") if masked == code else None
+    if native.get("aliases_normalized") is True:
+        code = native.get("normalized_code", masked)
+        if not isinstance(code, str):
+            return _normalize_aliases(masked), None
+        bodies = native.get("bodies")
+    else:
+        code = _normalize_aliases(masked)
+        bodies = native.get("bodies") if masked == code else None
     if not isinstance(bodies, list) or not all(
         isinstance(span, list) and len(span) == 3 and all(type(offset) is int for offset in span)
         and 0 <= span[0] < span[1] < span[2] <= len(code) for span in bodies

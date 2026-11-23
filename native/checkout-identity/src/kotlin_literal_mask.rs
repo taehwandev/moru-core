@@ -1,10 +1,13 @@
 //! owner: Kotlin literal and comment masking for Compose diagnostics.
-//! allowed imports: Compose body ranges, JSON and standard-library string operations.
+//! allowed imports: Compose aliases and body ranges, JSON and standard-library strings.
 //! forbidden imports: source IO, Git execution, mutation and approval.
 //! callers/tests: Compose action scan through the private completion probe.
 //! verification: exact Python mask and diagnostic offset parity.
-use super::kotlin_compose_bodies::KotlinComposeBodies;
+use super::{
+    kotlin_compose_aliases::KotlinComposeAliases, kotlin_compose_bodies::KotlinComposeBodies,
+};
 use serde_json::{json, Value};
+use std::borrow::Cow;
 
 pub(super) struct KotlinLiteralMask;
 
@@ -36,11 +39,25 @@ impl KotlinLiteralMask {
             }
             start += end;
         }
-        let bodies = input
-            .get("unicode")
-            .and_then(Value::as_str)
-            .and_then(|version| KotlinComposeBodies::ranges(&code, version));
-        let mut result = json!({"code": code.into_iter().collect::<String>()});
+        let masked: String = code.iter().collect();
+        let version = input.get("unicode").and_then(Value::as_str);
+        let normalized = version
+            .filter(|_| input.get("normalize_aliases").and_then(Value::as_bool) == Some(true))
+            .and_then(|version| KotlinComposeAliases::normalize(&masked, version));
+        let normalized_chars = match &normalized {
+            Some(Cow::Owned(text)) => Some(text.chars().collect::<Vec<_>>()),
+            _ => None,
+        };
+        let bodies = version.and_then(|version| {
+            KotlinComposeBodies::ranges(normalized_chars.as_deref().unwrap_or(&code), version)
+        });
+        let mut result = json!({"code": masked});
+        if let Some(normalized) = normalized {
+            result["aliases_normalized"] = json!(true);
+            if let Cow::Owned(text) = normalized {
+                result["normalized_code"] = json!(text);
+            }
+        }
         if let Some(bodies) = bodies {
             result["bodies"] = json!(bodies);
         }
