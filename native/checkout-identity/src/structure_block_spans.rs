@@ -8,7 +8,28 @@ use serde_json::{json, Value};
 pub(super) struct StructureBlockSpans;
 
 impl StructureBlockSpans {
+    pub(super) fn batch(input: &Value) -> Option<Value> {
+        let files = input.get("files")?.as_array()?;
+        if files.len() > 4096 {
+            return None;
+        }
+        let blocks = files
+            .iter()
+            .map(Self::records)
+            .collect::<Option<Vec<_>>>()?;
+        Some(json!({"blocks": blocks}))
+    }
+
     pub(super) fn facts(input: &Value) -> Option<Value> {
+        Some(json!({
+            "limit": input.get("limit")?.as_i64()?,
+            "initial": input.get("initial")?.as_bool()?,
+            "current": Self::records(input)?,
+            "previous": [],
+        }))
+    }
+
+    pub(super) fn records(input: &Value) -> Option<Vec<Value>> {
         let raw = input.get("levels")?.as_array()?;
         let mut levels = Vec::with_capacity(raw.len() + 1);
         match input.get("kind")?.as_str()? {
@@ -45,12 +66,7 @@ impl StructureBlockSpans {
                 current.push(json!({"line": index + 1, "label": label, "span": span}));
             }
         }
-        Some(json!({
-            "limit": limit,
-            "initial": input.get("initial")?.as_bool()?,
-            "current": current,
-            "previous": [],
-        }))
+        Some(current)
     }
 
     // The first later level no higher than this one ends the block. For

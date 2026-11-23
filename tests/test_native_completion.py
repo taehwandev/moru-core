@@ -114,6 +114,43 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertIn("per-file addition limit is 6", reference["failures"][-1])
         self.assertTrue(reference["warnings"][0].startswith("b.py "))
 
+    def test_structure_existing_block_spans_keep_baseline_reads_lazy(self):
+        source = ["def example():", "    pass", "    pass", "    pass"]
+        short = ["def tiny():", "    pass", "count = 1", "count = 2"]
+        baseline = {"old.py": "\n".join(source), "origin.py": "def example():\n    pass\n"}
+        def review():
+            files = [
+                {"path": name, "line_count": len(lines), "metadata": metadata,
+                 "max_file_lines": 500, "max_added_lines": 300, "review_warning_file_lines": 300,
+                 "block_spans": {**structure._prepare_block_spans(Path(name), lines),
+                                 "limit": 2, "initial": False}}
+                for name, lines, metadata in (
+                    ("short.py", short, {"status": "M"}),
+                    ("renamed.py", source, {"status": "R", "previous_path": "old.py"}),
+                    ("copied.py", source, {"status": "C", "previous_path": "origin.py"}),
+                    ("missing.py", source, {"status": "M"}),
+                )
+            ]
+            reads = []
+            def run(command, _cwd):
+                reads.append(command)
+                name = command[-1].removeprefix("HEAD:")
+                return {"returncode": 0, "stdout": baseline[name]} if name in baseline else {"returncode": 1}
+            structure._attach_block_baselines(self.project, files, run)
+            return [list(row) for row in structure._file_findings(files)], reads
+
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected, reads = review()
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "_prepared_blocks", side_effect=AssertionError("Python computed block spans"),
+        ):
+            self.assertEqual((expected, reads), review())
+        self.assertEqual([["git", "show", f"HEAD:{name}"] for name in ("old.py", "origin.py", "missing.py")], reads)
+        self.assertEqual([[], []], expected[0])
+        self.assertIn("previously 4", expected[1][1][0])
+        self.assertIn("copied.py:1", expected[2][0][0])
+        self.assertIn("missing.py:1", expected[3][0][0])
+
     def test_structure_block_spans_match_indentation_and_masked_brace_boundaries(self):
         python_lines = [
             "class Outer:", "    def inner(self):", "        pass", "# keep the comment in the span",

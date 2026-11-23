@@ -116,6 +116,7 @@ impl CompletionProcess {
         let result = match args[1].to_str() {
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),
+            Some("structure-block-spans") => structure_block_spans::StructureBlockSpans::batch(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("preflight-failures") => preflight_failures::PreflightFailures::collect(&payload),
             Some("doctor-launcher") => doctor_launcher::DoctorLauncher::inspect(&payload),

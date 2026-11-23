@@ -245,21 +245,17 @@ def structure_review(
             file_review["actions"] = android_action_delta_failures(
                 project, relative, lines, metadata, subject_run_command,
             )
-            initial = bool(metadata.get("initial_full_build"))
-            if initial or metadata.get("status") == "A":
-                if len(lines) > max_block_lines:
+            if len(lines) > max_block_lines:
+                prepared = _prepare_block_spans(relative, lines)
+                if prepared["starts"]:
                     file_review["block_spans"] = {
-                        **_prepare_block_spans(relative, lines), "limit": max_block_lines, "initial": initial,
+                        **prepared, "limit": max_block_lines, "initial": bool(metadata.get("initial_full_build")),
                     }
-            else:
-                blocks = _block_review_facts(
-                    source_root, relative, lines, max_block_lines, metadata, subject_run_command,
-                )
-                if blocks:
-                    file_review["blocks"] = blocks
         file_checks.append((len(result["failures"]), len(result["warnings"]), file_review))
 
-    file_findings = _file_findings([row for _, _, row in file_checks])
+    files = [row for _, _, row in file_checks]
+    _attach_block_baselines(source_root, files, subject_run_command)
+    file_findings = _file_findings(files)
     # Preserve each file's position relative to encoding warnings.
     for kind, index in (("failures", 0), ("warnings", 1)):
         other_findings = result[kind]
@@ -1260,8 +1256,41 @@ def _block_review_facts(
     }
 
 
+def _attach_block_baselines(project: Path, files: list[dict[str, Any]], run_command: CommandRunner) -> None:
+    existing = [
+        row for row in files
+        if "block_spans" in row and not row["block_spans"]["initial"] and row["metadata"].get("status") != "A"
+    ]
+    if not existing:
+        return
+    inputs = [row.pop("block_spans") for row in existing]
+    native = NativeProbe.request("--completion-probe", "structure-block-spans", {"files": inputs})
+    spans = native.get("blocks") if native is not None and set(native) == {"blocks"} else None
+    if not (isinstance(spans, list) and len(spans) == len(inputs) and all(
+        isinstance(blocks, list) and all(
+            isinstance(block, dict) and set(block) == {"label", "line", "span"}
+            and isinstance(block["label"], str) and type(block["line"]) is int and block["line"] > 0
+            and type(block["span"]) is int and block["span"] > 0 for block in blocks
+        ) for blocks in spans
+    )):
+        spans = [_prepared_blocks(row["path"], prepared, prepared["limit"])
+                 for row, prepared in zip(existing, inputs)]
+    for row, prepared, current in zip(existing, inputs, spans):
+        if not current:
+            continue
+        limit = prepared["limit"]
+        baseline = _previous_block_spans(project, Path(row["path"]), row["metadata"], run_command)
+        facts = {"initial": False, "limit": limit, "current": current, "previous": []}
+        if baseline is not None:
+            facts["previous_spans"] = {**baseline, "limit": limit}
+        row["blocks"] = facts
+
+
 def _block_review_findings(path: str, facts: dict[str, Any]) -> tuple[list[str], list[str]]:
-    previous_by_label = {str(record["label"]): record for record in facts["previous"]}
+    previous = facts["previous"]
+    if "previous_spans" in facts:
+        previous = _prepared_blocks(path, facts["previous_spans"], facts["limit"])
+    previous_by_label = {str(record["label"]): record for record in previous}
     failures: list[str] = []
     warnings: list[str] = []
     for data in facts["current"]:
@@ -1283,13 +1312,20 @@ def previous_oversized_blocks(
     run_command: CommandRunner,
     max_block_lines: int,
 ) -> list[dict[str, Any]]:
+    prepared = _previous_block_spans(project, path, metadata, run_command)
+    return _prepared_blocks(path, prepared, max_block_lines) if prepared is not None else []
+
+
+def _previous_block_spans(
+    project: Path, path: Path, metadata: dict[str, Any], run_command: CommandRunner,
+) -> dict[str, Any] | None:
     if metadata.get("status") == "A":
-        return []
+        return None
     previous_path = str(metadata.get("previous_path") or path.as_posix())
     previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
     if previous.get("returncode") != 0:
-        return []
-    return oversized_blocks(path, str(previous.get("stdout") or "").splitlines(), max_block_lines)
+        return None
+    return _prepare_block_spans(path, str(previous.get("stdout") or "").splitlines())
 
 
 def oversized_blocks(path: Path, lines: list[str], max_block_lines: int) -> list[dict[str, Any]]:

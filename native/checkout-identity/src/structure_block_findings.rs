@@ -3,6 +3,7 @@
 //! forbidden imports: filesystem, Git invocations and approval decisions.
 //! callers/tests: file diagnostic batch and structural parity fixtures.
 //! verification: baseline label matching, initial builds and message order.
+use super::structure_block_spans::StructureBlockSpans;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -18,8 +19,15 @@ impl StructureBlockFindings {
         let limit = facts.get("limit")?.as_i64()?;
         let initial = facts.get("initial")?.as_bool()?;
         let current = facts.get("current")?.as_array()?;
+        let baseline;
+        let previous_blocks = if let Some(prepared) = facts.get("previous_spans") {
+            baseline = StructureBlockSpans::records(prepared)?;
+            &baseline
+        } else {
+            facts.get("previous")?.as_array()?
+        };
         let mut previous = HashMap::new();
-        for block in facts.get("previous")?.as_array()? {
+        for block in previous_blocks {
             previous.insert(block.get("label")?.as_str()?, block.get("span")?.as_u64()?);
         }
         for block in current {
