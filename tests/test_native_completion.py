@@ -1,11 +1,13 @@
 """Native completion policy through the actual private binary protocol."""
 from datetime import date
+from difflib import SequenceMatcher
 import errno
 import hashlib
 import io
 import json
 import os
 from pathlib import Path
+import random
 import shlex
 import shutil
 import subprocess
@@ -69,6 +71,33 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_structure_move_matching_matches_python_candidate_and_block_ties(self):
+        rng = random.Random(19)
+        cases = [
+            ([], [["x"], [], []]),
+            (list("tide"), [list("diet"), list("ted"), list("ted")]),
+            (list("diet"), [list("tide"), list("diex"), list("diet")]),
+            (["한", "", "}"] * 100, [["한", "", "}"] * 99 + ["다"], ["한"] * 300]),
+            (list("abcde"), [list("abxde"), list("abcye")]),
+        ]
+        alphabet = ["", "x", "y", "한"]
+        for _ in range(40):
+            current = rng.choices(alphabet, k=rng.randrange(20))
+            cases.append((current, [rng.choices(alphabet, k=rng.randrange(20)) for _ in range(5)]))
+        for current, sources in cases:
+            matchers = [SequenceMatcher(None, source, current, autojunk=False) for source in sources]
+            index = max(range(len(sources)), key=lambda i: matchers[i].ratio())
+            expected = (index, sum(block.size for block in matchers[index].get_matching_blocks()))
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                structure, "SequenceMatcher", side_effect=AssertionError("Python scored candidates"),
+            ):
+                self.assertEqual(expected, structure._best_source_match(current, sources))
+            with patch.object(NativeProbe, "request", return_value={"best": [len(sources), 0]}):
+                self.assertEqual(expected, structure._best_source_match(current, sources))
+        repeated = [""] * 2100
+        declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
+        self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
     def test_structure_owner_findings_keep_baseline_budgets_and_role_transitions(self):
         common = {

@@ -881,34 +881,10 @@ def reclassify_untracked_moves(
         if metadata.get("status") != "A" or metadata.get("untracked") is not True:
             continue
         candidates = deleted_by_filename.get(Path(current_path).name, [])
-        if not candidates:
+        match = _unstaged_source_match(project, current_path, candidates, run_command)
+        if match is None:
             continue
-        try:
-            current_lines = (project / current_path).read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeDecodeError):
-            continue
-
-        scored_candidates: list[tuple[float, str, list[str]]] = []
-        for previous_path in candidates:
-            previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
-            if previous["returncode"] != 0:
-                continue
-            previous_lines = previous["stdout"].splitlines()
-            similarity = SequenceMatcher(
-                None,
-                previous_lines,
-                current_lines,
-                autojunk=False,
-            ).ratio()
-            scored_candidates.append((similarity, previous_path, previous_lines))
-
-        if not scored_candidates:
-            continue
-        scored_candidates.sort(key=lambda candidate: candidate[0], reverse=True)
-        similarity, previous_path, previous_lines = scored_candidates[0]
-        if similarity < 0.8:
-            continue
-        additions, deletions = line_change_counts(previous_lines, current_lines)
+        previous_path, similarity, additions, deletions = match
         metadata.update(
             status="R",
             previous_path=previous_path,
@@ -964,34 +940,10 @@ def reclassify_untracked_copies(
             for previous_path in tracked_by_filename.get(Path(current_path).name, [])
             if previous_path != current_path
         ]
-        if not candidates:
+        match = _unstaged_source_match(project, current_path, candidates, run_command)
+        if match is None:
             continue
-        try:
-            current_lines = (project / current_path).read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeDecodeError):
-            continue
-
-        scored_candidates: list[tuple[float, str, list[str]]] = []
-        for previous_path in candidates:
-            previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
-            if previous["returncode"] != 0:
-                continue
-            previous_lines = previous["stdout"].splitlines()
-            similarity = SequenceMatcher(
-                None,
-                previous_lines,
-                current_lines,
-                autojunk=False,
-            ).ratio()
-            scored_candidates.append((similarity, previous_path, previous_lines))
-
-        if not scored_candidates:
-            continue
-        scored_candidates.sort(key=lambda candidate: candidate[0], reverse=True)
-        similarity, previous_path, previous_lines = scored_candidates[0]
-        if similarity < 0.8:
-            continue
-        additions, deletions = line_change_counts(previous_lines, current_lines)
+        previous_path, similarity, additions, deletions = match
         metadata.update(
             status="C",
             previous_path=previous_path,
@@ -1013,20 +965,51 @@ def reclassify_untracked_copies(
     }
 
 
-def line_change_counts(previous_lines: list[str], current_lines: list[str]) -> tuple[int, int]:
-    additions = 0
-    deletions = 0
-    for tag, previous_start, previous_end, current_start, current_end in SequenceMatcher(
-        None,
-        previous_lines,
-        current_lines,
-        autojunk=False,
-    ).get_opcodes():
-        if tag in {"insert", "replace"}:
-            additions += current_end - current_start
-        if tag in {"delete", "replace"}:
-            deletions += previous_end - previous_start
-    return additions, deletions
+def _unstaged_source_match(
+    project: Path, current_path: str, candidates: list[str], run_command: CommandRunner,
+) -> tuple[str, float, int, int] | None:
+    if not candidates:
+        return None
+    try:
+        current = (project / current_path).read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return None
+    paths, sources = [], []
+    for path in candidates:
+        previous = run_command(["git", "show", f"HEAD:{path}"], project)
+        if previous["returncode"] == 0:
+            paths.append(path)
+            sources.append(previous["stdout"].splitlines())
+    if not sources:
+        return None
+    index, matched = _best_source_match(current, sources)
+    additions, deletions = len(current) - matched, len(sources[index]) - matched
+    total = len(current) + len(sources[index])
+    similarity = 2.0 * matched / total if total else 1.0
+    if similarity < 0.8:
+        return None
+    return paths[index], similarity, additions, deletions
+
+
+def _best_source_match(current: list[str], sources: list[list[str]]) -> tuple[int, int]:
+    native = NativeProbe.request("--completion-probe", "structure-move-matching", {
+        "current": current, "candidates": sources,
+    })
+    best = native.get("best") if native is not None else None
+    if isinstance(best, list) and len(best) == 2:
+        index, matched = best
+        if (type(index) is int and 0 <= index < len(sources) and type(matched) is int
+                and 0 <= matched <= min(len(current), len(sources[index]))):
+            return index, matched
+    matcher = SequenceMatcher(None, [], current, autojunk=False)
+    best_index, best_matched, best_ratio = 0, 0, -1.0
+    for index, source in enumerate(sources):
+        matcher.set_seq1(source)
+        ratio = matcher.ratio()
+        if ratio > best_ratio:
+            best_index, best_ratio = index, ratio
+            best_matched = sum(block.size for block in matcher.get_matching_blocks())
+    return best_index, best_matched
 
 
 def record_path(

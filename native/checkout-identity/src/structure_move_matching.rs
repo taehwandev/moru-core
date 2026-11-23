@@ -1,0 +1,95 @@
+//! owner: ordered line similarity for unstaged source moves and copies.
+//! allowed imports: JSON and standard-library collections.
+//! forbidden imports: filesystem, Git execution, writes and approval.
+//! callers/tests: structural review through the private completion probe.
+//! verification: Python SequenceMatcher parity for candidates and line counts.
+use serde_json::{json, Value};
+use std::collections::HashMap;
+
+pub(super) struct StructureMoveMatching;
+
+impl StructureMoveMatching {
+    pub(super) fn compare(input: &Value) -> Option<Value> {
+        let current = Self::lines(input.get("current")?)?;
+        let candidates = input.get("candidates")?.as_array()?;
+        let mut positions: HashMap<&str, Vec<usize>> = HashMap::new();
+        for (index, line) in current.iter().enumerate() {
+            positions.entry(line).or_default().push(index);
+        }
+        // Bound repeated-line work in the probe; decline the whole request for Python replay.
+        let mut budget = 4_000_000usize;
+        let mut best = None;
+        let mut best_ratio = -1.0;
+        for (index, candidate) in candidates.iter().enumerate() {
+            let previous = Self::lines(candidate)?;
+            let matched = if previous == current {
+                current.len()
+            } else {
+                Self::matching_lines(&previous, current.len(), &positions, &mut budget)?
+            };
+            let total = previous.len() + current.len();
+            let ratio = if total == 0 {
+                1.0
+            } else {
+                2.0 * matched as f64 / total as f64
+            };
+            if ratio > best_ratio {
+                best_ratio = ratio;
+                best = Some([index, matched]);
+            }
+        }
+        Some(json!({"best": best}))
+    }
+
+    fn lines(value: &Value) -> Option<Vec<&str>> {
+        value.as_array()?.iter().map(Value::as_str).collect()
+    }
+
+    fn matching_lines(
+        previous: &[&str],
+        current_len: usize,
+        positions: &HashMap<&str, Vec<usize>>,
+        budget: &mut usize,
+    ) -> Option<usize> {
+        let mut total = 0;
+        let mut pending = vec![(0, previous.len(), 0, current_len)];
+        let mut prior_row = HashMap::new();
+        let mut row = HashMap::new();
+        // Split around each longest block as SequenceMatcher does with no junk/popular lines.
+        while let Some((left, left_end, right, right_end)) = pending.pop() {
+            *budget = budget.checked_sub(left_end - left)?;
+            let (mut best_left, mut best_right, mut best_size) = (left, right, 0);
+            prior_row.clear();
+            for (offset, line) in previous[left..left_end].iter().enumerate() {
+                row.clear();
+                if let Some(indices) = positions.get(line) {
+                    let start = indices.partition_point(|&index| index < right);
+                    let end = indices.partition_point(|&index| index < right_end);
+                    *budget = budget.checked_sub(end - start)?;
+                    for &index in &indices[start..end] {
+                        // Keys are one-based, so index zero has no prior diagonal.
+                        let size = prior_row.get(&index).copied().unwrap_or(0) + 1;
+                        row.insert(index + 1, size);
+                        if size > best_size {
+                            (best_left, best_right, best_size) =
+                                (left + offset + 1 - size, index + 1 - size, size);
+                        }
+                    }
+                }
+                std::mem::swap(&mut row, &mut prior_row);
+            }
+            if best_size == 0 {
+                continue;
+            }
+            total += best_size;
+            if left < best_left && right < best_right {
+                pending.push((left, best_left, right, best_right));
+            }
+            let (after_left, after_right) = (best_left + best_size, best_right + best_size);
+            if after_left < left_end && after_right < right_end {
+                pending.push((after_left, left_end, after_right, right_end));
+            }
+        }
+        Some(total)
+    }
+}
