@@ -106,6 +106,18 @@ class CompoundShellCommandTests(unittest.TestCase):
         self.assertEqual("read_only", self._kind(f"{launcher} work-cards list"))
         self.assertEqual("mutating", self._kind(f"{launcher} verify --project /tmp/project --rules {ROOT}"))
 
+    def test_publication_settlement_has_an_exact_runtime_control_contract(self) -> None:
+        options = "--project /tmp/project --evidence /tmp/project/.moru/runs/run/preflight.json"
+        launcher = stable_launcher_path()
+        entry = f"{launcher} pending-publication"
+        command = f"{entry} settle {options} --checkpoint publication.push"
+        self.assertEqual("runtime_control", self._kind(command))
+        self.assertEqual("read_only", self._kind(f"{entry} status {options}"))
+        self.assertEqual("mutating", self._kind(command + " --project /tmp/other"))
+        self.assertEqual("mutating", self._kind(command + " > out"))
+        self.assertEqual("mutating", self._kind(command + " && touch out"))
+        self.assertEqual("mutating", self._kind(f"/tmp/moru-hook pending-publication settle {options} --checkpoint publication.push"))
+
     def test_mailbox_intake_is_runtime_control_only_for_trusted_entrypoints(self) -> None:
         launcher = worktree_gate.stable_launcher_path()
         script = ROOT / "scripts/agent-mailbox.py"

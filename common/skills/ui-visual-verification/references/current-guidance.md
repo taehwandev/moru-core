@@ -254,6 +254,38 @@ Native: compare the bounds of sibling text nodes in the same coordinate space
 (Compose `getBoundsInRoot()` on the unmerged tree, Flutter `tester.getRect`,
 the SwiftUI view debugger) for every overlay or `ZStack`/`Box` layer.
 
+## Canvas, WebGL And Timeline Output
+
+Use when the result is drawn to a canvas, WebGL/3D scene, video, animation or
+any time-based output (a cinematic, a game demo, a seekable player). Zero page
+errors, a passing self-test and correct state flags prove none of the below.
+
+- Frames over time: capture through the project's deterministic seek or frame
+  hook, one frame per shot plus the first frame after every cut and each beat
+  the request names (night, blackout, impact, reveal). Review a contact sheet
+  first, then open single frames only for suspects; cap full re-reviews.
+- Exposure: fail a frame whose subject is not readable at delivery exposure,
+  for example a mostly black or crushed frame outside a requested fade or
+  blackout. Record a measured mean luma or a viewed frame, never a guess.
+- Required effects are visible, not just present: a beam, light, reflection or
+  particle effect the request names must read in the frame where it should
+  appear. A material or pass that bypasses the scene's custom lighting/fog path
+  is the usual cause of a present-but-invisible effect.
+- State against picture: when the scene reports state (`shot`, `inTunnel`,
+  `speed`, `phase`), take one true and one false sample and check each against
+  the frame at the same time. A flag computed separately from the drawn
+  geometry can pass while the picture contradicts it.
+- Input on the drawing surface: when the request names touch, dispatch tap and
+  swipe on the canvas or viewport itself (and keys when it names keyboard),
+  then check the resulting state and frame; DOM transport buttons alone do not
+  satisfy "works with touch". Check that a swipe does not swallow the next tap.
+- Terminal states from every path: reach the end by playing through and by
+  seeking to the end while paused; Replay or the end card must appear in both,
+  and Replay must restart from zero.
+- Placeholders: label any capture of stub, skeleton or placeholder output as
+  `PLACEHOLDER` in the filename and the report; never show it as progress
+  imagery for the subject being judged.
+
 ## Tools By Platform
 
 Use repo-local tooling first. Common evidence sources include:

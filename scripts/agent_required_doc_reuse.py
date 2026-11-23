@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from support.global_state import project_state_dir_target
+from support.native_doc_transcript import reuse_current
 
 
 RUN_ID = re.compile(r"^[0-9a-f]{32}$")
@@ -36,32 +37,25 @@ def required_doc_reuse(
 
     unread: list[str] = []
     try:
-        current = _read(preflight_path, MAX_PREFLIGHT_BYTES)
-        route = current.get("route") or {}
-        docs = _required_paths(route)
-        unread = list(docs)
-        if not docs:
-            return {"reused": [], "unread": unread}
-
-        current_records = _doc_records(current)
+        native = reuse_current(preflight_path, project_docs=False)
+        if native is None:
+            current = _read(preflight_path, MAX_PREFLIGHT_BYTES)
+            docs = _required_paths(current.get("route") or {})
+            unread = list(docs)
+            if not docs:
+                return {"reused": [], "unread": unread}
+            current_records = _doc_records(current)
+        else:
+            docs, current_records, binding = native
+            unread = list(docs)
         wanted = {current_records[doc] for doc in docs if doc in current_records}
         if not wanted:
             return {"reused": [], "unread": unread}
-        reusable_records: set[tuple[str, str, int]] = set()
-        takeaways: list[str] = []
-        for prior_path, prior in _same_session_priors(
-            preflight_path, current, include_sibling_repos=True
-        ):
-            try:
-                prior_records = set(_doc_records(prior).values())
-            except (ValueError, TypeError):
-                continue
-            credited = _credit(prior_records, wanted, prior_path, takeaways, reusable_records)
-            if not credited and (require_takeaway or not prior_records & wanted):
-                continue
-            reusable_records.update(prior_records)
-            if wanted <= reusable_records:
-                break
+        if native is None:
+            binding = _current_binding(preflight_path, current)
+        reusable_records, takeaways = _same_session_proof(
+            binding, wanted, project_docs=False, require_takeaway=require_takeaway
+        )
 
         reused = [doc for doc in docs if current_records.get(doc) in reusable_records]
         reused_set = set(reused)
@@ -86,24 +80,21 @@ def project_route_doc_reuse(preflight_path: Path) -> dict[str, list[str]]:
 
     unread: list[str] = []
     try:
-        current = _read(preflight_path, MAX_PREFLIGHT_BYTES)
-        current_records = _project_records(current)
+        native = reuse_current(preflight_path, project_docs=True)
+        if native is None:
+            current = _read(preflight_path, MAX_PREFLIGHT_BYTES)
+            current_records = _project_records(current)
+        else:
+            _, current_records, binding = native
         unread = list(current_records)
         if not current_records:
             return {"reused": [], "unread": unread}
         wanted = set(current_records.values())
-        reusable: set[tuple[str, str, int]] = set()
-        takeaways: list[str] = []
-        for prior_path, prior in _same_session_priors(preflight_path, current):
-            try:
-                prior_records = set(_project_records(prior).values())
-            except (ValueError, TypeError):
-                continue
-            if not _credit(prior_records, wanted, prior_path, takeaways, reusable):
-                continue
-            reusable.update(prior_records)
-            if wanted <= reusable:
-                break
+        if native is None:
+            binding = _current_binding(preflight_path, current)
+        reusable, takeaways = _same_session_proof(
+            binding, wanted, project_docs=True, require_takeaway=True
+        )
         reused = [doc for doc, record in current_records.items() if record in reusable]
         reused_set = set(reused)
         result = {"reused": reused, "unread": [doc for doc in unread if doc not in reused_set]}
@@ -114,11 +105,7 @@ def project_route_doc_reuse(preflight_path: Path) -> dict[str, list[str]]:
         return {"reused": [], "unread": unread}
 
 
-def _same_session_priors(
-    preflight_path: Path, current: dict[str, Any], *, include_sibling_repos: bool = False
-):
-    """Yield completed same-session runs of this repository (and optional sibling repos), newest first."""
-
+def _current_binding(preflight_path: Path, current: dict[str, Any]):
     project = Path(current["project"]).resolve()
     run_dir = preflight_path.resolve().parent
     if (
@@ -126,24 +113,72 @@ def _same_session_priors(
         or run_dir.parent != project_state_dir_target(project) / "runs"
         or preflight_path.resolve() != run_dir / "preflight.json"
     ):
-        return
+        return None
     session = _session(current)
-    if session is None:
-        return
+    return (project, run_dir.name, session) if session is not None else None
+
+
+def _same_session_proof(binding, wanted, *, project_docs: bool, require_takeaway: bool):
+    """Collect proof from completed same-session runs, this checkout first."""
+
+    from support.native_doc_transcript import reuse_plan
+
+    reusable: set[tuple[str, str, int]] = set()
+    takeaways: list[str] = []
+    if binding is None:
+        return reusable, takeaways
+    project, run_id, session = binding
     # Lazily, this checkout's newest runs first: callers stop at full coverage.
-    for root in _repository_roots(project, include_sibling_repos=include_sibling_repos):
-        yield from _completed_runs(root, run_dir.name, session)
+    query = list(wanted)
+    for root in _repository_roots(project, include_sibling_repos=not project_docs):
+        native = reuse_plan(
+            root, run_id, session, query, reusable, takeaways, project_docs=project_docs,
+            require_takeaway=require_takeaway, limits=(MAX_RUNS, MAX_TAKEAWAYS, MAX_TAKEAWAY_CHARS),
+        )
+        if native is None:
+            # A declined plan returned no changes. Replay this checkout from
+            # the same coverage and takeaway slots, including legacy records.
+            for path, records in _completed_matches(
+                root, run_id, session, wanted, project_docs=project_docs
+            ):
+                if _credit(records, wanted, path, takeaways, reusable) or not require_takeaway:
+                    reusable.update(records)
+                if wanted <= reusable:
+                    break
+        else:
+            covered, added = native
+            reusable.update(covered)
+            takeaways.extend(added)
+        if wanted <= reusable:
+            break
+    return reusable, takeaways
 
 
-def _completed_runs(root: Path, current_run: str, session: tuple[str, str]):
-    from support.native_doc_transcript import reuse_run_ids
+def _completed_matches(
+    root: Path, current_run: str, session: tuple[str, str], wanted: set[tuple[str, str, int]],
+    *, project_docs: bool,
+):
+    from support.native_doc_transcript import reuse_matches, reuse_run_ids
 
+    runs = project_state_dir_target(root) / "runs"
     ids = reuse_run_ids(root, current_run, MAX_RUNS)
-    if (ids is None or len(ids) > MAX_RUNS
-            or any(run_id == current_run or not RUN_ID.fullmatch(run_id) for run_id in ids)):
+    if (ids is not None and len(ids) <= MAX_RUNS
+            and all(run_id != current_run and RUN_ID.fullmatch(run_id) for run_id in ids)):
+        query = list(wanted)
+        while ids:
+            native = reuse_matches(root, ids, session, query, project_docs=project_docs)
+            if native is None:
+                # Resume from the first unconsumed candidate if native cannot
+                # represent a legacy record, without re-crediting a prior run.
+                break
+            consumed, matches = native
+            if matches:
+                yield runs / ids[consumed - 1] / "preflight.json", matches
+            ids = ids[consumed:]
+    else:
         ids = _completed_run_ids_python(root, current_run)
     for run_id in ids:
-        prior_path = project_state_dir_target(root) / "runs" / run_id / "preflight.json"
+        prior_path = runs / run_id / "preflight.json"
         try:
             prior = _read(prior_path, MAX_PREFLIGHT_BYTES)
             if (
@@ -152,9 +187,12 @@ def _completed_runs(root: Path, current_run: str, session: tuple[str, str]):
                 or _session(prior) != session
             ):
                 continue
+            records = _project_records(prior) if project_docs else _doc_records(prior)
+            matches = wanted.intersection(records.values())
         except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
             continue
-        yield prior_path, prior
+        if matches:
+            yield prior_path, matches
 
 
 def _completed_run_ids_python(root: Path, current_run: str):

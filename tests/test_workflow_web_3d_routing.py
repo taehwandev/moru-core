@@ -8,10 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from agent_project_discovery import build_entry_manifest
 from workflow_route import resolve_docs
 
 
 SKILL = "platforms/web/skills/web-3d-interaction/SKILL.md"
+EFFECTS = "platforms/web/skills/web-3d-interaction/references/effects-and-character-selection.md"
 FIRST_REQUEST = (
     "Build an interactive 3D webpage where users assemble a small spaceship "
     "from a hull, cockpit, wings, and engine, then launch the assembled ship "
@@ -90,6 +92,37 @@ class Web3DReadingTests(unittest.TestCase):
         route = self.route(FIRST_REQUEST)
         self.assertFalse(route["missing"])
         self.assertNotIn("common/skills/minimal-visual-design/SKILL.md", route["required_docs"])
+
+    def test_effect_guidance_reaches_the_entry_manifest_before_edits(self):
+        cases = (
+            ("웹에서 포인트 클라우드 스캔 효과를 추가해줘", "build"),
+            ("Add lens raindrops to the Three.js driving camera", "feature"),
+            ("브라우저에서 3D 캐릭터 선택기를 만들어줘", "task"),
+            ("Fix wet-glass refraction in the WebGL scene", "small-change"),
+        )
+        with tempfile.TemporaryDirectory() as workspace:
+            for request, command in cases:
+                with self.subTest(request=request, command=command):
+                    manifest = build_entry_manifest(
+                        request, Path(workspace), runtime="codex", command=command,
+                    )
+                    for route in (manifest["guidance"], self.route(request, command)):
+                        self.assertFalse(route["missing"])
+                        self.assertEqual(1, route["required_docs"].count(SKILL))
+                        self.assertEqual(1, route["required_docs"].count(EFFECTS))
+
+    def test_effect_reference_stays_out_of_unrelated_and_read_only_routes(self):
+        cases = (
+            (FIRST_REQUEST, "build"),
+            ("Build an account settings form", "build"),
+            ("Build a browser character selector using 2D portraits", "build"),
+            ("Create a point-cloud scan in Blender", "build"),
+            ("Explain how WebGL lens raindrops work", "analysis"),
+            ("Do not change the WebGL lens raindrops; fix the account form", "bugfix"),
+        )
+        for request, command in cases:
+            with self.subTest(request=request, command=command):
+                self.assertNotIn(EFFECTS, self.route(request, command)["required_docs"])
 
 
 STRUCTURE = "platforms/web/skills/web-code-structure/references/current-guidance.md"

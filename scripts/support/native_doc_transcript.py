@@ -34,6 +34,85 @@ def reuse_run_ids(root: Path, current: str, limit: int) -> list[str] | None:
     return _reuse_history("reuse-run-ids", {"path": str(root), "current": current, "limit": limit})
 
 
+def reuse_current(path: Path, *, project_docs: bool):
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "reuse-current", {
+            "path": str(path), "project_docs": project_docs,
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is not list or len(value) != 3:
+        return None
+    names, rows, binding = value
+    if (type(names) is not list or any(type(name) is not str for name in names)
+            or len(set(names)) != len(names) or (project_docs and names)
+            or type(rows) is not list
+            or type(binding) is not list or len(binding) != 4
+            or any(type(part) is not str or not part for part in binding)):
+        return None
+    project, run, runtime, session = binding
+    root = Path(project)
+    if (not root.is_absolute() or root / ".moru" / "runs" / run / "preflight.json" != path
+            or len(run) != 32 or any(ch not in "0123456789abcdef" for ch in run)):
+        return None
+    records = {}
+    for row in rows:
+        if type(row) is not list or len(row) != 3:
+            return None
+        name, digest, size = row
+        if type(name) is not str or type(digest) is not str or type(size) is not int or size < 0:
+            return None
+        records[name] = (name, digest, size)
+    return names, records, (root, run, (runtime, session))
+
+
+def reuse_matches(
+    root: Path, ids: list[str], session: tuple[str, str], wanted: list[tuple[str, str, int]],
+    *, project_docs: bool,
+) -> tuple[int, set[tuple[str, str, int]]] | None:
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "reuse-matches", {
+            "path": str(root), "ids": ids, "session": session, "wanted": wanted,
+            "project_docs": project_docs,
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if value == []:
+        return len(ids), set()
+    if type(value) is list and len(value) == 2:
+        consumed, indices = value
+        if (type(consumed) is int and 1 <= consumed <= len(ids)
+                and type(indices) is list and indices
+                and all(type(i) is int and 0 <= i < len(wanted) for i in indices)):
+            return consumed, {wanted[i] for i in indices}
+    return None
+
+
+def reuse_plan(root, current, session, wanted, covered, takeaways, *,
+               project_docs, require_takeaway, limits):
+    covered_indices = [i for i, record in enumerate(wanted) if record in covered]
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "reuse-plan", {
+            "path": str(root), "current": current, "session": session, "wanted": wanted,
+            "covered": covered_indices, "takeaways": takeaways, "project_docs": project_docs,
+            "require_takeaway": require_takeaway, "limits": limits,
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is not list or len(value) != 2:
+        return None
+    indices, added = value
+    if (type(indices) is not list or type(added) is not list
+            or any(type(i) is not int or not 0 <= i < len(wanted) for i in indices)
+            or len(set(indices)) != len(indices)
+            or any(wanted[i] in covered for i in indices)
+            or len(added) > len(indices)
+            or len(added) + len(takeaways) > limits[1]
+            or any(type(text) is not str or not 0 < len(text) <= 2 * limits[2] + 3 for text in added)):
+        return None
+    return {wanted[i] for i in indices}, added
+
+
 def rank_reuse_roots(candidates: list[Path], excluded: list[Path], limit: int) -> list[Path] | None:
     try:
         if not NativeProbe.available():

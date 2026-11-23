@@ -100,6 +100,11 @@ When a test touches UI:
 - For responsive or visual risk, pair the scenario test with screenshot,
   geometry, or manual browser evidence from `common/skills/ui-visual-verification/SKILL.md`
   or `common/skills/browser-runtime-testing/SKILL.md`.
+- For a player or timeline (start, pause, seek, mute, end, replay), cross every
+  transition with both the playing and the paused state: reach the end by
+  playing through and by seeking to the end while paused, unmute while paused,
+  and check that Replay appears and restarts from zero each way. End-state
+  handlers that run only inside the play loop are the usual miss.
 
 ## API And State Tests
 

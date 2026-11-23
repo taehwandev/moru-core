@@ -18,6 +18,10 @@ impl DocTranscript {
         let root = supported_path(payload.get("path")?)?;
         let current = payload.get("current")?.as_str()?;
         let limit = usize::try_from(payload.get("limit")?.as_u64()?).ok()?;
+        Self::reuse_ids(root, current, limit).map(|ids| json!(ids))
+    }
+
+    pub(super) fn reuse_ids(root: &Path, current: &str, limit: usize) -> Option<Vec<String>> {
         if limit == 0 || limit > 100 || !PendingPublicationReceipt::is_id(current) {
             return None;
         }
@@ -38,10 +42,10 @@ impl DocTranscript {
                     .get("evidence_name")
                     .is_none_or(|name| name.as_str() == Some("preflight.json"));
                 (canonical_name && id != current && PendingPublicationReceipt::is_id(id))
-                    .then_some(id)
+                    .then(|| id.to_owned())
             })
             .collect();
-        Some(json!(ids))
+        Some(ids)
     }
 
     pub(crate) fn rank_reuse_roots(payload: &Value) -> Option<Value> {

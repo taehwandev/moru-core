@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any
 
-from workflow_spill import (
-    ANTIGRAVITY_RUNTIME_ENV_KEYS,
-    CODEX_RUNTIME_ENV_KEYS,
-    has_spill_setup_helper,
-)
+from agent_runtime_identity import detect_runtime
+from workflow_spill import has_spill_setup_helper
 from support.permission_entries import (
     agy_permission_entries,
     claude_permission_entries,
@@ -54,29 +50,7 @@ def check_agent_hooks(moru_root: Path) -> tuple[list[str], list[str]]:
 
 
 def active_runtime_label(env: dict[str, str] | None = None) -> str:
-    values = env if env is not None else os.environ
-    explicit = values.get("MORU_AI_TOOL", "").strip().lower()
-    if explicit in {"agy", "antigravity"}:
-        return "antigravity"
-    if explicit in {"codex", "claude", "openai"}:
-        return explicit
-    if values.get("CLAUDE_CODE_SESSION_ID", "").strip():
-        return "claude"
-    if values.get("CODEX_THREAD_ID", "").strip():
-        return "codex"
-    if values.get("ANTIGRAVITY_CONVERSATION_ID", "").strip():
-        return "antigravity"
-    if any(values.get(key, "").strip() for key in CODEX_RUNTIME_ENV_KEYS):
-        return "codex"
-    if any(values.get(key, "").strip() for key in ANTIGRAVITY_RUNTIME_ENV_KEYS):
-        return "antigravity"
-    for key in ("SPILL_TOKEN_USAGE_AI_TOOL", "SPILL_AI_TOOL"):
-        value = values.get(key, "").strip().lower()
-        if value in {"agy", "antigravity"}:
-            return "antigravity"
-        if value in {"codex", "claude", "openai"}:
-            return value
-    return ""
+    return detect_runtime(env)[0]
 
 
 def agy_runtime_bridge_issue(moru_root: Path) -> str:
@@ -96,8 +70,6 @@ def agy_runtime_bridge_issue(moru_root: Path) -> str:
 
 def _codex_warnings(moru_root: Path) -> list[str]:
     target = Path.home() / ".codex" / "rules" / "default.rules"
-    if not target.exists():
-        return []
     try:
         missing_permissions = _missing_text_entries(
             target.read_text(),
@@ -115,8 +87,6 @@ def _codex_warnings(moru_root: Path) -> list[str]:
 
 def _claude_warnings(moru_root: Path, *, spill_available: bool) -> list[str]:
     target = Path.home() / ".claude" / "settings.json"
-    if not target.exists():
-        return []
     try:
         config = json.loads(target.read_text())
     except (json.JSONDecodeError, OSError):
@@ -194,8 +164,6 @@ def _agy_warnings(moru_root: Path, *, spill_available: bool) -> list[str]:
 
 
 def _read_json_object(path: Path) -> dict[str, Any] | None:
-    if not path.exists():
-        return None
     try:
         data = json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):

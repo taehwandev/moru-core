@@ -112,12 +112,29 @@ class CommitReadyExecutionTests(unittest.TestCase):
             "fields": {"check": "Fixture output assertion", "result": "1 test; 0 failures"}}),
             "--gate-record", json.dumps({"gate": "retrospective check",
                 "evidence": "Fixture lifecycle follows the existing bugfix contract without a guidance gap",
-                "fields": {"skills_checked": "bugfix-debugging", "outcome": "no_reusable_gap",
-                           "observation": "not_needed"}}))
+                "fields": {
+                    "skills_checked": "bugfix_debugging",
+                    "outcome": "no_reusable_gap",
+                    "observation": "not_needed",
+                    "alignment_evidence": "The disposable bugfix writes the agreed answer and the test reads it back.",
+                    "causal_assessment": "The answer assertion passed before review and commit-readiness preparation.",
+                    "learning_decision": "Keep existing fixture output assertion and staged-byte readiness check.",
+                    "memory_decision": "not_needed",
+                    "memory_reason": "The disposable fixture exercises the existing review contract.",
+                    "efficiency": "unmeasured",
+                    "efficiency_evidence": "The fixture measures lifecycle outcomes, without timing.",
+                }}))
         invoke("review", "--review-outcome", "pass",
                "--code-review-evidence", "Reviewed disposable answer file; no executable or external effects",
                "--docs-freshness-evidence", "Fixture has no changed public behavior or documentation contract",
                "--structure-review-evidence", "One text fixture; no runtime owner added")
+        work = evidence.with_name("fixture-work.json")
+        work.write_text(json.dumps({
+            "objective": "Correct and verify the disposable answer file.",
+            "remaining_work": [],
+        }), encoding="utf-8")
+        invoke("checkpoint", "--checkpoint-kind", "decision", "--phase", "verifying",
+               "--work-file", str(work))
         invoke("finish")
         fixture.run_command(["git", "add", "answer.txt"], check=True)
         head = fixture.run_command(["git", "rev-parse", "HEAD"], check=True).stdout

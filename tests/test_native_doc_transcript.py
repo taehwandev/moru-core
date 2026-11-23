@@ -24,7 +24,7 @@ from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_request, agy_redelivery, nearest_registry_project, read_delivery_manifest,
     reuse_credit,
-    rank_reuse_roots, reuse_run_ids,
+    rank_reuse_roots, reuse_current, reuse_matches, reuse_run_ids,
 )
 
 
@@ -136,15 +136,81 @@ class NativeDocTranscriptTests(unittest.TestCase):
         callers = (reuse_reference.required_doc_reuse, reuse_reference.project_route_doc_reuse)
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             expected = [caller(current) for caller in callers]
-        with patch.dict(os.environ, self.env, clear=True), patch.object(
-                reuse_reference, "_credit_takeaway_python", side_effect=AssertionError("Python fallback")):
+        original = json.loads(prior.read_bytes())
+        read = reuse_reference._read
+
+        def read_current(path, limit):
+            self.assertEqual(current, path, "prior evidence should be read in Rust")
+            return read(path, limit)
+
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(reuse_reference, "_read", side_effect=read_current):
+                self.assertEqual(expected, [caller(current) for caller in callers])
+                for field, value in (
+                    ("runtime_session", {"runtime": "codex", "session_id": "foreign"}),
+                    ("runtime_session", {"runtime": "claude", "session_id": "session-one"}),
+                    ("agent_run_id", "f" * 32),
+                ):
+                    with self.subTest(field=field, value=value):
+                        prior.write_text(json.dumps({**original, field: value}), encoding="utf-8")
+                        for caller in callers:
+                            self.assertEqual([], caller(current)["reused"])
+
+            alias = self.base / "alias"
+            alias.symlink_to(self.project, target_is_directory=True)
+            prior.write_text(json.dumps({**original, "project": str(alias)}), encoding="utf-8")
             self.assertEqual(expected, [caller(current) for caller in callers])
-            foreign = json.loads(prior.read_bytes())
-            foreign["runtime_session"]["session_id"] = "foreign-session"
-            prior.write_text(json.dumps(foreign), encoding="utf-8")
-            with patch("support.native_doc_transcript.reuse_credit", side_effect=AssertionError("foreign proof")):
-                for caller in callers:
-                    self.assertEqual([], caller(current)["reused"])
+            for size in (True, 120.0, -1):
+                with self.subTest(size=size):
+                    records = [{**record, "size_bytes": size} for record in original["project_route_docs"]]
+                    prior.write_text(json.dumps({**original, "project_route_docs": records}), encoding="utf-8")
+                    self.assertEqual([], reuse_reference.project_route_doc_reuse(current)["reused"])
+
+            records = original["project_route_docs"]
+            stale = [{**record, "sha256": "0" * 64} for record in records]
+            with patch.object(reuse_reference, "_read", side_effect=read_current):
+                for duplicate, result in ((stale + records, expected[1]["reused"]), (records + stale, [])):
+                    prior.write_text(json.dumps({**original, "project_route_docs": duplicate}), encoding="utf-8")
+                    self.assertEqual(result, reuse_reference.project_route_doc_reuse(current)["reused"])
+
+    def test_native_current_reuse_preserves_order_and_legacy_admission(self):
+        current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project)
+        prior = current.parent.parent / ("a" * 32) / "preflight.json"
+        data = json.loads(current.read_bytes())
+        first, second = data["execution_snapshot"]["required_docs"]
+        a, b = first["path"], second["path"]
+        required = [b, "missing-one.md", a, "missing-two.md", b]
+        data["route"]["required_docs"] = required
+        rows = [{**first, "sha256": "0" * 64}, second, first]
+        data["project_route_docs"] = data["execution_snapshot"]["required_docs"] = rows
+        current.write_text(json.dumps(data), encoding="utf-8")
+        history = json.loads(prior.read_bytes())
+        history["project_route_docs"] = history["execution_snapshot"]["required_docs"] = [first, second]
+        prior.write_text(json.dumps(history), encoding="utf-8")
+        required_reuse = reuse_reference.required_doc_reuse
+        project_reuse = reuse_reference.project_route_doc_reuse
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(reuse_reference, "_read", side_effect=AssertionError("Python read")):
+                self.assertEqual([b, a], required_reuse(current)["reused"])
+                self.assertEqual(["missing-one.md", "missing-two.md"], required_reuse(current)["unread"])
+                self.assertEqual([a, b], project_reuse(current)["reused"])
+
+            alias = self.base / "alias.json"
+            alias.symlink_to(current)
+            self.assertIsNone(reuse_current(alias, project_docs=False))
+            self.assertEqual(required_reuse(current), required_reuse(alias))
+
+            foreign = self.project.with_name(self.project.name + "-other") / current.relative_to(self.project)
+            foreign.parent.mkdir(parents=True)
+            foreign.write_bytes(current.read_bytes())
+            self.assertIsNone(reuse_current(foreign, project_docs=False))
+            self.assertEqual({"reused": [], "unread": required[:-1]}, required_reuse(foreign))
+
+            unused = {"path": "unused.md", "sha256": "a" * 64, "size_bytes": True}
+            data["execution_snapshot"]["required_docs"] = rows + [unused]
+            current.write_text(json.dumps(data), encoding="utf-8")
+            self.assertIsNone(reuse_current(current, project_docs=False))
+            self.assertEqual({"reused": [], "unread": required[:-1]}, required_reuse(current))
 
     def test_native_reuse_registry_window_preserves_ids_and_lazy_evidence_reads(self):
         current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project)
@@ -159,6 +225,10 @@ class NativeDocTranscriptTests(unittest.TestCase):
             {"run_id": current_id, "state": "completed"},
             {"run_id": prior_id, "state": "completed", "evidence_name": "preflight.json"},
         ]}), encoding="utf-8")
+        older_id = "d" * 32
+        older = current.parent.parent / older_id / "preflight.json"
+        older.parent.mkdir()
+        older.write_text("{", encoding="utf-8")
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual([prior_id, prior_id], reuse_run_ids(self.project, current_id, 100))
             self.assertEqual([prior_id], reuse_run_ids(self.project, current_id, 3))
@@ -166,11 +236,87 @@ class NativeDocTranscriptTests(unittest.TestCase):
             with patch.object(reuse_reference, "_completed_run_ids_python",
                               side_effect=AssertionError("Python registry scan")), patch.object(
                                   reuse_reference, "_read", wraps=reuse_reference._read) as reads:
-                lookup = reuse_reference._completed_runs(self.project, current_id, ("codex", "session-one"))
-                prior, _ = next(lookup)
+                prior_path = current.parent.parent / prior_id / "preflight.json"
+                records = reuse_reference._doc_records(json.loads(prior_path.read_bytes()))
+                wanted = set(records.values())
+                lookup = reuse_reference._completed_matches(
+                    self.project, current_id, ("codex", "session-one"), wanted, project_docs=False
+                )
+                prior, matches = next(lookup)
                 lookup.close()
                 self.assertEqual(prior_id, prior.parent.name)
-                reads.assert_called_once_with(prior, reuse_reference.MAX_PREFLIGHT_BYTES)
+                self.assertEqual(wanted, matches)
+                reads.assert_not_called()
+            # A malformed older candidate would decline the entire native
+            # request if it were read eagerly after the first match.
+            self.assertEqual((1, wanted), reuse_matches(
+                self.project, [prior_id, older_id], ("codex", "session-one"), list(wanted),
+                project_docs=False,
+            ))
+
+    def test_native_reuse_plan_preserves_order_cap_and_fallback(self):
+        fixture = reuse_fixtures.ReuseAcrossRunsTests()
+        docs = [f"docs/{name}.md" for name in "abcdef"]
+        current = fixture._run(self.project, "f" * 32, docs)
+        ids = [f"{index:032x}" for index in range(1, 8)]
+        rows = [(0, "first note"), (0, "unused"), (1, ""), (3, "third"),
+                (4, "fourth"), (5, "over the cap"), (2, "note")]
+        priors = [fixture._run(self.project, run_id, [docs[doc]], takeaway)
+                  for run_id, (doc, takeaway) in zip(ids, rows)]
+        fixture._registry(self.project, list(reversed(ids)))
+        for path in (current, *priors):
+            manifest = json.loads(path.read_bytes())
+            manifest["project_route_docs"] = manifest["execution_snapshot"]["required_docs"]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+        # The second run can add no coverage, so this legacy takeaway
+        # must be left unread even though the manifest matches.
+        priors[1].with_name("doc-takeaway.json").write_text('{"takeaway":23}', encoding="utf-8")
+        callers = (reuse_reference.required_doc_reuse, reuse_reference.project_route_doc_reuse)
+        strict = {"reused": [docs[i] for i in (0, 2, 3, 4)],
+                  "unread": [docs[1], docs[5]], "takeaways": ["first note", "third", "fourth"]}
+        relaxed = {**strict, "reused": docs, "unread": []}
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reuse_reference, "_completed_matches", side_effect=AssertionError("plan fell back")):
+            self.assertEqual([strict, strict], [caller(current) for caller in callers])
+            self.assertEqual(relaxed, reuse_reference.required_doc_reuse(current, require_takeaway=False))
+
+        # The declined native attempt has already found some coverage. The
+        # compatibility path must carry over none of that partial result.
+        priors[4].with_name("doc-takeaway.json").write_text('{"takeaway":23}', encoding="utf-8")
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [caller(current) for caller in callers]
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reuse_reference, "_completed_matches", wraps=reuse_reference._completed_matches) as fallback:
+            self.assertEqual(expected, [caller(current) for caller in callers])
+            self.assertGreaterEqual(fallback.call_count, len(callers))
+
+    def test_native_reuse_plan_carries_coverage_and_slots_between_roots(self):
+        fixture = reuse_fixtures.ReuseAcrossRunsTests()
+        docs = ["a.md", "b.md", "c.md", "d.md"]
+        current = fixture._run(self.project, "f" * 32, docs)
+        first, second = (self.base / name for name in ("first", "second"))
+        for root, rows in ((self.project, [(docs[0], "first note"), (docs[1], "second")]),
+                           (first, [(docs[0], "must not use a slot"), (docs[2], "third")]),
+                           (second, [(docs[3], "note")])):
+            ids = [f"{index:032x}" for index in range(1, len(rows) + 1)]
+            for run_id, (doc, takeaway) in zip(ids, rows):
+                fixture._run(root, run_id, [doc], takeaway)
+            fixture._registry(root, list(reversed(ids)))
+        older = fixture._run(second, "e" * 32, [docs[0]])
+        older.write_text("{", encoding="utf-8")
+        fixture._registry(second, [older.parent.name, f"{1:032x}"])
+
+        def roots(*args, **kwargs):
+            yield from (self.project, first, second)
+            self.fail("read another root after full coverage")
+
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reuse_reference, "_repository_roots", side_effect=roots), patch.object(
+                reuse_reference, "_completed_matches", side_effect=AssertionError("plan fell back")):
+            self.assertEqual(
+                {"reused": docs, "unread": [], "takeaways": ["first note", "second", "third"]},
+                reuse_reference.required_doc_reuse(current),
+            )
 
     def test_native_reuse_root_ranking_preserves_float_ties_exclusions_and_cap(self):
         root = self.base / "roots"

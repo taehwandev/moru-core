@@ -41,7 +41,8 @@ evidence does. Never rerun review merely because publication has succeeded.
 
 Commit/PR finish judges publication readiness, not implementation delivery.
 Retained implementation requirement maps are context, not a new set of commit
-gates. Only exact `publication.commit`, `publication.push`, and
+gates. Only exact `publication.commit`, `publication.push` (or
+`publication.push/<remote>/<branch>` for an explicit destination), and
 `publication.pull-request/<target>` checkpoints admitted by the current effect
 may be deferred; ordinary unfinished work still blocks. Finish retains those
 actions in a pending-publication receipt until observed, rather than erasing or
@@ -50,6 +51,14 @@ reminders without settling that debt. Current
 review, readiness, authority, input freshness, explicit blockers and unresolved
 operations still block unsafe publication. Observe recorded missing implementation
 coverage during ordinary work instead of postponing that check until commit.
+
+For a direct push to a branch other than the source branch's configured upstream,
+declare the named remote and destination branch in the checkpoint before finish.
+For example, `publication.push/origin/develop` binds the verified branch and push
+endpoint without changing tracking configuration. After the push, run
+`moru-hook pending-publication settle --project <checkout> --evidence <preflight.json> --checkpoint publication.push/origin/develop`.
+Settlement reads Git and writes only the completed run's receipt. Existing
+unqualified push receipts continue to check the source's configured upstream.
 
 ## Same-Run Local Commit Continuation
 

@@ -237,6 +237,20 @@ it is testing its neighbour, not its subject:
 - When a fix removes wording or behaviour, assert its absence too. An additive
   fix leaves the wrong thing sitting beside the new one.
 
+### A Reported State Proves Only The Report
+
+The same shape appears at runtime. A scene that exposes `inTunnel`, a
+timetable check that reads `speed`, a game that reports `phase` — each flag is
+computed by code that can disagree with what the renderer draws. A train scene
+passed its tunnel check while the captured frame at the same time showed the
+train on an open bridge, because the flag came from a timetable and the tunnel
+mesh was shorter than the train.
+
+Check one true and one false sample of every reported state against the output
+the user sees at the same moment — the frame, the screen, the file written.
+Better still, derive the flag from the geometry or data the output is drawn
+from, so the two cannot drift.
+
 ### A Sourced Fact Does Not Carry Its Inference
 
 The same shape appears in prose. A sentence often holds two claims: a fact read
@@ -336,6 +350,8 @@ only to make the check pass.
 Do not say a feature is complete when:
 
 - behavior is mocked or placeholder-only
+- the only images shown are of a skeleton, stub or placeholder; label such captures
+  `PLACEHOLDER` and never present them as progress on the subject being judged
 - the user path was not exercised
 - persistence or sync-back was not verified
 - auth, permissions, or data loss cases are untested

@@ -33,7 +33,10 @@ impl DocTranscriptProcess {
                         | "read-docs"
                         | "read-delivery-manifest"
                         | "reuse-credit"
+                        | "reuse-current"
                         | "reuse-run-ids"
+                        | "reuse-matches"
+                        | "reuse-plan"
                         | "rank-reuse-roots"
                         | "nearest-registry-project"
                         | "agy-delivery-request"
@@ -63,11 +66,20 @@ impl DocTranscriptProcess {
                 if args[1] == "reuse-run-ids" && object.len() == 3 {
                     return DocTranscript::reuse_run_ids(&payload);
                 }
+                if args[1] == "reuse-matches" && object.len() == 5 {
+                    return DocTranscript::reuse_matches(&payload);
+                }
+                if args[1] == "reuse-plan" && object.len() == 9 {
+                    return DocTranscript::reuse_plan(&payload);
+                }
                 if args[1] == "rank-reuse-roots" && object.len() == 3 {
                     return DocTranscript::rank_reuse_roots(&payload);
                 }
                 if args[1] == "reuse-credit" && object.len() == 4 {
                     return DocTranscript::reuse_credit(&payload);
+                }
+                if args[1] == "reuse-current" && object.len() == 2 {
+                    return DocTranscript::reuse_current(&payload);
                 }
                 if args[1] == "agy-delivery-request" {
                     return agy_doc_request::decode(object);

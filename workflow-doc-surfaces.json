@@ -1094,6 +1094,40 @@
       "reason": "Visible interface work needs rendered-state verification whatever the platform is or whether a project exists yet; selection follows the request, not a detected platform."
     },
     {
+      "name": "web_3d_effects_and_selection_change",
+      "commands": [
+        "feature",
+        "build",
+        "task",
+        "small-change",
+        "bugfix",
+        "refactor",
+        "review",
+        "test"
+      ],
+      "subject_exclusion": true,
+      "required_priority": 50,
+      "request_any": [
+        "\\b(?:point[- ]cloud|mesh|topolog(?:y|ical))\\s+(?:scan|reveal)\\b",
+        "\\b(?:lens raindrops?|wet[- ]glass refraction|rain on (?:the )?(?:lens|windshield))\\b",
+        "\\b3d\\s+character\\s+(?:selector|selection(?:\\s+screen)?)\\b",
+        "포인트\\s*클라우드\\s*스캔|메시\\s*(?:스캔|리빌)|렌즈.{0,10}(?:빗방울|물방울)|(?:젖은\\s*유리|빗방울).{0,10}굴절|(?:3d|3\\s*차원)\\s*캐릭터\\s*선택"
+      ],
+      "request_all": [
+        [
+          "\\b(?:three\\.?js|webgl|react[- ]three[- ]fiber|r3f|babylon\\.js|browser|web(?:\\s*page|\\s*site)?)\\b",
+          "웹|브라우저"
+        ]
+      ],
+      "docs": [
+        "platforms/web/skills/web-3d-interaction/SKILL.md",
+        "platforms/web/skills/web-3d-interaction/references/effects-and-character-selection.md",
+        "platforms/web/skills/web-code-structure/SKILL.md",
+        "common/skills/ui-visual-verification/SKILL.md"
+      ],
+      "reason": "A concrete browser mesh scan, lens rain effect, or character selector needs the matching implementation and verification guidance before edits."
+    },
+    {
       "name": "web_3d_interaction_change",
       "commands": ["feature", "build", "task", "small-change", "bugfix", "refactor", "review", "test"],
       "subject_exclusion": true,

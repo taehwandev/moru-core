@@ -168,10 +168,13 @@ def _parent_pid(pid: int) -> int:
 
 
 def _darwin_parent_pid(pid: int) -> int:
-    """Read a Darwin parent pid in-process so sandboxed hooks do not need ``ps``."""
+    return _darwin_process_info(pid)[0]
 
+
+def _darwin_process_info(pid: int) -> tuple[int, str, str]:
+    """Read process metadata without invoking ps, which tool sandboxes can deny."""
     if sys.platform != "darwin" or pid < 1:
-        return 0
+        return 0, "", ""
 
     import ctypes
 
@@ -216,8 +219,36 @@ def _darwin_parent_pid(pid: int) -> int:
         size = ctypes.sizeof(info)
         written = proc_pidinfo(pid, 3, 0, ctypes.byref(info), size)
     except (AttributeError, OSError, TypeError, ValueError):
-        return 0
-    return int(info.pbi_ppid) if written == size else 0
+        return 0, "", ""
+    if written != size:
+        return 0, "", ""
+    name = (info.pbi_name or info.pbi_comm).decode(errors="replace")
+    birth = f"{info.pbi_start_tvsec}-{info.pbi_start_tvusec}"
+    return int(info.pbi_ppid), name, birth
+
+
+@functools.lru_cache(maxsize=1)
+def runtime_ancestor() -> tuple[str, str]:
+    """Nearest recognized runtime executable and a hook-independent process identity."""
+    names = {"agy": "antigravity", "agy-real": "antigravity", "codex": "codex", "claude": "claude"}
+    pid = os.getppid()
+    for _ in range(32):
+        if pid <= 1:
+            break
+        if sys.platform == "darwin":
+            parent, name, birth = _darwin_process_info(pid)
+        else:
+            try:
+                stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+                name, _, tail = stat.partition("(")[2].rpartition(")")
+                fields = tail.split()
+                parent, birth = int(fields[1]), fields[19]
+            except (OSError, IndexError, ValueError):
+                break
+        if name in names:
+            return names[name], f"pid-{pid}-{birth}"
+        pid = parent
+    return "", ""
 
 
 def _pid_exists(pid: int) -> bool:

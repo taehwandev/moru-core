@@ -111,6 +111,7 @@ from agent_run_registry import (
 from agent_route_state import request_fingerprint, request_intake_from_args
 from agent_runtime_session import (
     cli_runtime_session_scope,
+    is_run_local_continuation_evidence,
     rebind_recorded_runtime_session,
     recorded_session_id,
     runtime_session,
@@ -257,7 +258,6 @@ def _start_admitted_action(args: argparse.Namespace, continuity: Any, request_in
     # pre-tool gate turned that refusal into a denial of every edit.
     ensure_local_only_state_dir(args.project)
     evidence_path = preflight_evidence_path(args)
-    prior_repair_binding = capture_failure_checkpoint_binding(evidence_path)
     # A run that was interrupted stays `running` forever unless the separate
     # maintenance entrypoint is invoked, and nothing in the lifecycle invokes
     # it. Without the sweep inside this claim one abandoned run permanently
@@ -286,13 +286,20 @@ def _start_admitted_action(args: argparse.Namespace, continuity: Any, request_in
     details: list[str] = list(getattr(args, "start_notes", []))
     success = False
     committed = False
+    owns_directory = False
     refresh_snapshot: dict[Path, bytes | None] = {}
     try:
-        refresh_snapshot = _capture_preflight_refresh_state(
-            args,
-            evidence_path,
-            claim.get("run") or {},
-        )
+        if getattr(args, "generated_start_evidence", False) or (
+            is_run_local_continuation_evidence(args.project, evidence_path) and not evidence_path.parent.exists()
+        ):
+            # Never remove a pre-existing directory. An explicit run path can
+            # also name a fresh directory that only this transient claim owns.
+            evidence_path.parent.mkdir(parents=True, exist_ok=False)
+            owns_directory = True
+        prior_repair_binding = {}
+        if not owns_directory:
+            prior_repair_binding = capture_failure_checkpoint_binding(evidence_path)
+            refresh_snapshot = _capture_preflight_refresh_state(args, evidence_path, claim["run"])
         command = _preflight_arguments(args)
         with stage("preflight"):
             result = run_script_main(ROOT / "scripts" / "agent-preflight.py", command, args.project)
@@ -301,7 +308,8 @@ def _start_admitted_action(args: argparse.Namespace, continuity: Any, request_in
         details.extend(_summary_lines(result))
         if success:
             try:
-                retained = json.loads(refresh_snapshot.get(evidence_path) or b"{}")
+                retained = (json.loads(refresh_snapshot.get(evidence_path) or b"{}")
+                            if claim["run"].get("refresh_previous_state") else {})
                 details.extend(continuity.apply(evidence_path, retained_work=retained.get("work")))
             except (OSError, ValueError, RuntimeError, KeyError, TypeError) as error:
                 details.append(f"work continuation failed: {error}")
@@ -332,15 +340,7 @@ def _start_admitted_action(args: argparse.Namespace, continuity: Any, request_in
                 details.extend(_start_reference_lines(args))
     finally:
         if not committed:
-            restore_errors = _restore_preflight_refresh_state(refresh_snapshot)
-            details.extend(restore_errors)
-            release_error = _release_claimed_run(
-                args,
-                claim["run"],
-                restore_refresh=not restore_errors,
-            )
-            if release_error:
-                details.append(release_error)
+            details.extend(_rollback_start(args, claim["run"], refresh_snapshot, owns_directory))
     if not success:
         _learn_start_block("start_preflight_failed")
     return finish_with_result(
@@ -354,6 +354,28 @@ def _start_admitted_action(args: argparse.Namespace, continuity: Any, request_in
             not success and result.get("returncode") == 0
         ),
     )
+
+
+def _rollback_start(
+    args: argparse.Namespace, run: dict[str, Any] | None,
+    snapshot: dict[Path, bytes | None], owns_directory: bool,
+) -> list[str]:
+    errors = _restore_preflight_refresh_state(snapshot)
+    if owns_directory:
+        evidence = preflight_evidence_path(args)
+        try:
+            evidence.unlink(missing_ok=True)
+            for ledger in (gate_evidence_path_for_preflight(evidence), repair_checkpoint_path_for_preflight(evidence)):
+                ledger.unlink(missing_ok=True)
+                ledger.with_name(f".{ledger.name}.lock").unlink(missing_ok=True)
+            # Preserve any files another caller added while preflight ran.
+            evidence.parent.rmdir()
+        except OSError as error:
+            errors.append(f"failed start directory cleanup: {error}")
+    release_error = _release_claimed_run(args, run, restore_refresh=not errors)
+    if release_error:
+        errors.append(release_error)
+    return errors
 
 
 def _learn_start_block(reason_code: str) -> None:
@@ -1433,14 +1455,13 @@ def _capture_preflight_refresh_state(
     evidence_path: Path,
     claimed: dict[str, Any],
 ) -> dict[Path, bytes | None]:
-    if not str(claimed.get("refresh_previous_state") or ""):
-        return {}
     paths = (
         evidence_path,
         gate_evidence_path_for_preflight(evidence_path),
-        context_snapshot_path(args.project),
         repair_checkpoint_path_for_preflight(evidence_path),
     )
+    if claimed.get("refresh_previous_state"):
+        paths += (context_snapshot_path(args.project),)
     snapshot: dict[Path, bytes | None] = {}
     for path in paths:
         try:
@@ -1529,8 +1550,8 @@ def _register_started_run(
             "later hooks in this runtime session find this run on their own; pass --evidence only for "
             "a worker's issued path or from another session, and then only this preflight.json"
         )
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        details.append("agent run registry: unavailable; start refused")
+    except (OSError, ValueError, TypeError) as error:
+        details.append(f"agent run registry: unavailable; start refused ({error})")
         return False
     # After promotion, never before: settling the earlier claims is only correct
     # once this run is the one that supersedes them. A failure here leaves extra
@@ -2723,7 +2744,8 @@ def _materialize_compact_start_authority(
     if not session_id:
         problems.append(
             "compact start authority requires a runtime session binding; the active "
-            "runtime did not expose one"
+            "runtime did not expose one; supply --runtime and --runtime-session-id "
+            "with the executing child's own session ID"
         )
 
     route_effect = route_minimum_effect(args.command)
@@ -2970,7 +2992,8 @@ def main() -> int:
         # An argparse refusal is not a hook result, and recording one would
         # put a usage error in the run's durations.
         raise
-    append_recorded_stages(args.hook, "SUCCESS" if code == 0 else "FAIL")
+    if not (code and args.hook == "start" and not preflight_evidence_path(args).is_file()):
+        append_recorded_stages(args.hook, "SUCCESS" if code == 0 else "FAIL")
     return code
 
 

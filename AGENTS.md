@@ -131,8 +131,8 @@ verified capture, recall, replacement or work-card operations, read
 
 Consume `parallel_execution.delegation_policy`; delegate only for concrete benefit
 with explicit ownership. The parent owns ledger, integration review and finish.
-Before handoff or for loop/goal/session-context guidance, read
-[collaboration details](common/skills/agent-operating-skill/references/collaboration-review.md#parallel-work-and-handoffs).
+Before handoff, scripted multi-runtime builds or loop/goal/session-context
+guidance, read [collaboration details](common/skills/agent-operating-skill/references/collaboration-review.md#parallel-work-and-handoffs).
 
 ## Review Boundaries
 

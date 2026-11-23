@@ -137,6 +137,7 @@ def preflight_evidence_path(args: argparse.Namespace) -> Path:
             project_state_dir_target(args.project) / "runs" / uuid.uuid4().hex / "preflight.json"
         )
         args.evidence = generated
+        args.generated_start_evidence = True
         return generated
     return project_state_dir_target(args.project) / "preflight.json"
 

@@ -580,6 +580,51 @@ class PublishToPullRequestTests(FinishBase):
         self.assertEqual({}, self.stop())
 
 
+class DirectPushSettlementTests(FinishBase):
+    RUNTIME = "codex"
+    CHECKPOINT = "publication.push/origin/develop"
+    REMAINING = [{"checkpoint": CHECKPOINT, "action": "Push reviewed commit to develop"}]
+
+    def prepare(self):
+        attach_remote(self.project, self.tmp.name)
+
+    def test_finished_push_is_settled_through_gate_without_source_upstream(self):
+        import shlex
+
+        from support.stable_launcher import stable_launcher_path
+        from test_claude_pretool_gate import _decide
+
+        argv = ["settle", "--project", str(self.project), "--evidence", str(self.evidence),
+                "--checkpoint", self.CHECKPOINT]
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(2, pending.main(argv))
+        self.assertEqual(0, self.finish()[0])
+        command = shlex.join([str(stable_launcher_path()), "pending-publication", *argv])
+        self.assertEqual((0, ""), _decide({
+            "tool_name": "Bash", "cwd": str(self.project),
+            "session_id": "bound-session", "tool_input": {"command": command},
+        }))
+        self.assertEqual("block", self.stop()["decision"])
+        git(self.project, "push", "-q", "origin", "HEAD:refs/heads/other")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(2, pending.main(argv))
+        self.assertEqual("block", self.stop()["decision"])
+        git(self.project, "push", "-q", "origin", "HEAD:refs/heads/develop")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, pending.main(argv))
+        self.assertEqual([], pending.outstanding(self.project, self.evidence))
+        self.assertEqual({}, self.stop())
+
+    def test_changed_push_url_cannot_settle_the_receipt(self):
+        self.assertEqual(0, self.finish()[0])
+        other = Path(self.tmp.name) / "other.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(other)], check=True)
+        git(self.project, "remote", "set-url", "--push", "origin", str(other))
+        git(self.project, "push", "-q", "origin", "HEAD:refs/heads/develop")
+        self.assertIn("destination differs", pending.settle(self.project, self.evidence, self.CHECKPOINT))
+        self.assertEqual([self.CHECKPOINT], pending.outstanding(self.project, self.evidence))
+
+
 class PullRequestWithoutTargetTests(FinishBase):
     prepare = PublishToPullRequestTests.prepare
     REMAINING = [{"checkpoint": "publication.pull-request", "action": "pr"}]

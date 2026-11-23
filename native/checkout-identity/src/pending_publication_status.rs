@@ -59,7 +59,7 @@ impl PendingPublicationStatus {
             concat!(
                 "Moru publication. finish passed, but declared publication is not yet observed ({}). ",
                 "Perform it only under the run's admitted effect and the publication gate, then run ",
-                "Use the installed launcher with pending-publication settle --run RUN_ID --checkpoint CHECKPOINT in the original checkout. Supply --observation-file PATH for a PR. ",
+                "moru-hook pending-publication settle --run RUN_ID --checkpoint CHECKPOINT in the original checkout. Supply --observation-file PATH for a PR. ",
                 "Never report it as published before then; if it cannot proceed, say it is NOT PUBLISHED and why."
             ),
             owed.join(", "),

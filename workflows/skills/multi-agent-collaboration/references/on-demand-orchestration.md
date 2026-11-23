@@ -135,6 +135,10 @@ using available evidence when this review is optional; a required review still
 needs actual findings or an explicit user waiver. Do not raise model budgets,
 change settings, or repeat equivalent model calls automatically.
 
+For scripted builds with several headless writers, follow
+`common/skills/agent-operating-skill/references/collaboration-review.md`
+`### Long-Running Multi-Runtime Builds`.
+
 ## Closeout And Verification
 
 Reuse checks only while their covered inputs and freshness remain valid. Add

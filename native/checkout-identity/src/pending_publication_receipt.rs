@@ -213,8 +213,25 @@ impl PendingPublicationReceipt {
         let Some((kind, target)) = name.split_once('/') else {
             return false;
         };
-        matches!(kind, "publication.pull-request" | "publication.integrate")
-            && (1..=200).contains(&target.len())
+        let target = if kind == "publication.push" {
+            let Some((remote, branch)) = target.split_once('/') else {
+                return false;
+            };
+            if !(1..=64).contains(&remote.len())
+                || !remote.as_bytes()[0].is_ascii_alphanumeric()
+                || !remote
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
+            {
+                return false;
+            }
+            branch
+        } else if matches!(kind, "publication.pull-request" | "publication.integrate") {
+            target
+        } else {
+            return false;
+        };
+        (1..=200).contains(&target.len())
             && target.as_bytes()[0].is_ascii_alphanumeric()
             && target
                 .bytes()
@@ -232,5 +249,28 @@ impl PendingPublicationReceipt {
 
     fn problem(problem: &str) -> Value {
         json!({"record": null, "problem": problem})
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PendingPublicationReceipt;
+
+    #[test]
+    fn qualified_push_checkpoints_require_both_remote_and_branch() {
+        for name in [
+            "publication.push",
+            "publication.push/origin/develop",
+            "publication.push/upstream/release/next",
+        ] {
+            assert!(PendingPublicationReceipt::checkpoint(name), "{name}");
+        }
+        for name in [
+            "publication.push/origin",
+            "publication.push/-origin/develop",
+            "publication.push/origin//develop",
+        ] {
+            assert!(!PendingPublicationReceipt::checkpoint(name), "{name}");
+        }
     }
 }

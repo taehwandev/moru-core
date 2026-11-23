@@ -21,6 +21,7 @@ The core below is the required contract. Open `references/current-guidance.md` o
 - `## Detail & Craft Gate` for micro-detail, inset, scaling, and layout-stability verification.
 - `## Content-To-Edge Padding Check` whenever a surface (card, button, badge, input, row, dialog, page) was built, restyled, polished or refactored.
 - `## Text Overlap Check` with it, and whenever a page places labels, captions or tooltips by script, canvas or 3D scene.
+- `## Canvas, WebGL And Timeline Output` whenever the result is drawn to a canvas, WebGL/3D scene, video or other time-based output.
 - `## Tools By Platform` for evidence tooling per platform and companion cards.
 - `## Comparison Oracle And Evidence Budget` for before/after, regression or motion claims.
 - `## Figma parity gate` for the parity measurement list when a design frame is the requirement.
@@ -44,6 +45,7 @@ The core below is the required contract. Open `references/current-guidance.md` o
 - Define the comparison oracle before operating the UI: requirement or state invariant, approved design frame, known-good build, or pre-change behavior. Current state alone cannot prove an improvement or a fixed regression.
 - Before/after: same bounded scenario, device, display, flavor, theme, data state and entry point; capture the baseline before replacing its build. Collect one baseline and one candidate observation; repeat only after a failure, instability or conflict, and say why. No recapturing for confidence.
 - Motion claims need matched temporal evidence; a single frame, pixel delta or hierarchy cannot prove them.
+- Canvas, WebGL and timeline output is verified on captured frames, never on page errors or state flags: per-shot and post-cut frames readable at delivery exposure, every requested effect visible, reported state matching the frame, requested touch dispatched on the drawing surface, the end state reached by play and by paused seek (`references/current-guidance.md` `## Canvas, WebGL And Timeline Output`).
 - Figma parity is blocking: capture the full, uncropped surface from the running app on the requested device and flavor; compare side by side or by overlay; check each variant independently. Source-computed geometry does not satisfy it. Text containers grow from content and padding; never force a sample height with `height()`/`size()` to hide clipping.
 
 ## Stop If
