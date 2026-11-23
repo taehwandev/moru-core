@@ -4,6 +4,7 @@
 //! callers/tests: file diagnostic batch and structural parity fixtures.
 //! verification: indentation, brace balance and strict length boundaries.
 use super::structure_python_blocks::StructurePythonBlocks;
+use super::structure_style_blocks::StructureStyleBlocks;
 use serde_json::{json, Value};
 
 pub(super) struct StructureBlockSpans;
@@ -38,6 +39,16 @@ impl StructureBlockSpans {
             let (levels, starts) = StructurePythonBlocks::prepare(lines)?;
             return Self::measure(&levels, lines.len(), starts, limit);
         }
+        if kind == "style-source" {
+            let lines = input.get("lines")?.as_array()?;
+            let (deltas, labels) = StructureStyleBlocks::prepare(lines)?;
+            let levels = Self::brace_levels(deltas.into_iter().map(Some))?;
+            let starts = labels
+                .iter()
+                .map(|(line, label)| (*line, label.as_str()))
+                .collect();
+            return Self::measure(&levels, lines.len(), starts, limit);
+        }
         let raw = input.get("levels")?.as_array()?;
         let mut levels = Vec::with_capacity(raw.len() + 1);
         match kind {
@@ -51,12 +62,7 @@ impl StructureBlockSpans {
                 }
             }
             "brace" => {
-                let mut balance = 0i64;
-                levels.push(Some(balance));
-                for delta in raw {
-                    balance = balance.checked_add(delta.as_i64()?)?;
-                    levels.push(Some(balance));
-                }
+                levels = Self::brace_levels(raw.iter().map(Value::as_i64))?;
             }
             _ => return None,
         }
@@ -67,6 +73,16 @@ impl StructureBlockSpans {
             starts.push((index, label));
         }
         Self::measure(&levels, raw.len(), starts, limit)
+    }
+
+    fn brace_levels(deltas: impl IntoIterator<Item = Option<i64>>) -> Option<Vec<Option<i64>>> {
+        let mut balance = 0i64;
+        let mut levels = vec![Some(balance)];
+        for delta in deltas {
+            balance = balance.checked_add(delta?)?;
+            levels.push(Some(balance));
+        }
+        Some(levels)
     }
 
     fn measure(

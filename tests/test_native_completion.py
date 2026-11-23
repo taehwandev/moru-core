@@ -114,6 +114,32 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertIn("per-file addition limit is 6", reference["failures"][-1])
         self.assertTrue(reference["warnings"][0].startswith("b.py "))
 
+    def test_structure_style_blocks_match_masking_and_selector_rules(self):
+        fixtures = [
+            [
+                "@media screen {", '  .한[data-text="}"] {', '    content: "a' + chr(92) + '"}b";',
+                "    /* }", "       { */", '    color: red; // }', "  }", "}",
+                ".inline { color: red; }", "/* selector { */",
+            ],
+            [
+                "." + "한" * 85 + " {", '  content: "continued' + chr(92),
+                '  }";', "}", ".unfinished {", "  // }", "  color: blue;",
+            ],
+            ["'unterminated", ".kept {", "  color: blue;", "}"],
+            [],
+        ]
+        for suffix in (".css", ".scss", ".sass"):
+            path = Path(f"source{suffix}")
+            inputs = [{**structure._block_span_input(path, lines), "limit": 1} for lines in fixtures]
+            self.assertTrue(all(item["kind"] == "style-source" for item in inputs))
+            expected = [[{
+                key: block[key] for key in ("line", "label", "span")
+            } for block in structure.oversized_blocks(path, lines, 1)] for lines in fixtures]
+            self.assertEqual({"blocks": expected}, self.check("structure-block-spans", {"files": inputs}))
+            self.assertEqual([6, 4, 3], [block["span"] for blocks in expected[:2] for block in blocks])
+            self.assertEqual(80, len(expected[1][0]["label"]))
+            self.assertEqual([2], [block["line"] for block in expected[2]])
+
     def test_structure_python_declarations_match_regex_and_defer_unicode_words(self):
         lines = [
             "class Outer:", "\tasync\tdef inner(self):", "    pass", "  # 한국어",

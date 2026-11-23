@@ -483,7 +483,7 @@
       "entry_aliases": "Direct CLI",
       "remaining": "Port Git acquisition, source and baseline inspection, structural analysis and CLI output. Preserve the structural review contract and Python compatibility for unsupported diff streams.",
       "verification": {
-        "local": "Source-bound Rust decodes Git NUL-framed name-status and numstat, selects ordinary source paths, and batches file-size, addition and oversized-block diagnostics. New, initial-build, modified and baseline files calculate indentation and brace spans natively. Ordinary Python declaration starts and indentation are also detected in Rust. Python retains brace masking and start detection, lazy Git baseline reads, Git attributes, vendor provenance and unsupported profiles."
+        "local": "Source-bound Rust decodes Git NUL-framed name-status and numstat, selects ordinary source paths, and batches file-size, addition and oversized-block diagnostics. It calculates indentation and brace spans, detects ordinary Python declaration starts, and masks comments and quotes to find CSS/Sass selector blocks. Python retains other brace-language preparation, lazy Git baseline reads, Git attributes, vendor provenance and unsupported profiles."
       }
     },
     {

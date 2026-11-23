@@ -72,6 +72,8 @@ mod structure_block_findings;
 mod structure_block_spans;
 #[path = "structure_python_blocks.rs"]
 mod structure_python_blocks;
+#[path = "structure_style_blocks.rs"]
+mod structure_style_blocks;
 #[path = "structure_file_size.rs"]
 mod structure_file_size;
 #[path = "structure_source_paths.rs"]
