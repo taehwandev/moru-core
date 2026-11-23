@@ -1,10 +1,19 @@
-//! owner: offline experience fixture schema; allowed imports: JSON, Unicode
-//! printability, shared scope grammar and sets; forbidden imports: filesystem,
-//! store writes, memory ranking and providers; callers/tests: private memory
-//! probe and Python validator parity.
-use crate::{memory_record::MemoryRecord, memory_terms::MemoryTerms, python_text::PythonText};
+//! owner: offline experience fixture loading and schema; allowed imports:
+//! bounded file read, JSON, Unicode printability and shared scope grammar;
+//! forbidden imports: writes, memory ranking and providers; callers/tests:
+//! private memory probe and Python fixture parity.
+use crate::{
+    memory_record::MemoryRecord,
+    memory_terms::MemoryTerms,
+    python_input_file::{FileRead, PythonInputFile},
+    python_json::{Number as PythonNumber, PythonJson, Value as PythonValue},
+    python_text::PythonText,
+    text::Text,
+};
 use serde_json::{json, Map, Value};
-use std::collections::HashSet;
+use std::{collections::HashSet, ffi::OsStr};
+
+const MAX_FIXTURE_BYTES: u64 = 512 * 1024;
 
 const RECORD_FIELDS: &[&str] = &[
     "id",
@@ -33,10 +42,21 @@ pub(super) struct ExperienceFixture;
 impl ExperienceFixture {
     pub(super) fn evaluate(payload: &Value) -> Option<Value> {
         let fields = payload.as_object()?;
-        if fields.len() != 2 || fields.get("unicode")?.as_str()? != MemoryTerms::version() {
+        if fields.len() != 3 || fields.get("unicode")?.as_str()? != MemoryTerms::version() {
             return None;
         }
-        Some(json!({"error": Self::validate(fields.get("fixture")?).err()}))
+        let path = OsStr::new(fields.get("path")?.as_str()?);
+        let digit_limit = usize::try_from(fields.get("digit_limit")?.as_u64()?).ok()?;
+        let FileRead::Bytes(bytes) = PythonInputFile::read(path, MAX_FIXTURE_BYTES, false)? else {
+            return None;
+        };
+        let text = Text::universal_newlines(std::str::from_utf8(&bytes).ok()?);
+        let decoded = PythonJson::parse_with_diagnostic(&text, Some(digit_limit), None).ok()??;
+        let fixture = wire_value(&decoded)?;
+        Some(match Self::validate(&fixture) {
+            Ok(()) => json!({"fixture": fixture}),
+            Err(error) => json!({"error": error}),
+        })
     }
 
     fn validate(fixture: &Value) -> Result<(), String> {
@@ -80,6 +100,35 @@ impl ExperienceFixture {
         }
         Ok(())
     }
+}
+
+fn wire_value(value: &PythonValue) -> Option<Value> {
+    // The existing JSON transport can round-trip finite floats and integers
+    // that fit its numeric envelope. Larger and nonfinite values stay in Python.
+    Some(match value {
+        PythonValue::Null => Value::Null,
+        PythonValue::Bool(value) => Value::Bool(*value),
+        PythonValue::String(value) => Value::String(value.clone()),
+        PythonValue::Number(PythonNumber::Integer(digits)) => Value::Number(
+            digits
+                .parse::<i64>()
+                .map(serde_json::Number::from)
+                .or_else(|_| digits.parse::<u64>().map(serde_json::Number::from))
+                .ok()?,
+        ),
+        PythonValue::Number(PythonNumber::Float(value)) => {
+            Value::Number(serde_json::Number::from_f64(*value)?)
+        }
+        PythonValue::Array(items) => {
+            Value::Array(items.iter().map(wire_value).collect::<Option<_>>()?)
+        }
+        PythonValue::Object(object) => Value::Object(
+            object
+                .iter()
+                .map(|(key, value)| Some((key.clone(), wire_value(value)?)))
+                .collect::<Option<_>>()?,
+        ),
+    })
 }
 
 fn validate_record<'a>(

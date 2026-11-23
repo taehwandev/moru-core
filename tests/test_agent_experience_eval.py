@@ -5,6 +5,7 @@ from contextlib import redirect_stdout
 import importlib.util
 import io
 import json
+import math
 import os
 import tempfile
 import unittest
@@ -226,6 +227,55 @@ class ExperienceEvaluationTests(unittest.TestCase):
         self.assertEqual(0, native["metrics"]["payload_characters"])
         self.assertIsNone(native["metrics"]["precision"])
         self.assertIsNone(native["metrics"]["recall"])
+
+    def test_native_loader_preserves_numeric_types_duplicate_order_and_python_file_errors(self):
+        from native_launcher_support import NATIVE
+        from native_pretool_support import environment, prepare
+
+        if not NATIVE.is_file():
+            self.skipTest("source-bound native fixture unavailable")
+        base = Path(self.directory.name)
+        prepare(base)
+        fixture_json = json.dumps(self.fixture, ensure_ascii=False)
+        raw = ('{\r\n"extra":{"first":1,"second":-0.0,"first":-0,'
+               '"max":18446744073709551615,"float":1.0},\r' + fixture_json[1:]).encode()
+        self.path.write_bytes(raw)
+        expected = evaluator.load_fixture(self.path)
+        with patch.dict(os.environ, environment(base), clear=True):
+            with patch.object(type(self.path), "read_text", side_effect=AssertionError("Python read")):
+                loaded = evaluator.load_fixture(self.path, native=True)
+            self.assertEqual(json.dumps(expected), json.dumps(loaded))
+            self.assertEqual(["first", "second", "max", "float"], list(loaded["extra"]))
+            self.assertIs(int, type(loaded["extra"]["first"]))
+            self.assertIs(float, type(loaded["extra"]["float"]))
+            self.assertEqual(-1.0, math.copysign(1.0, loaded["extra"]["second"]))
+
+            fallback_inputs = (
+                raw.replace(b"18446744073709551615", b"18446744073709551616"),
+                raw.replace(b"1.0", b"NaN"),
+                raw + b" " * (512 * 1024),
+            )
+            read_text = type(self.path).read_text
+            for data in fallback_inputs:
+                self.path.write_bytes(data)
+                expected = evaluator.load_fixture(self.path)
+                with patch.object(type(self.path), "read_text", autospec=True, side_effect=read_text) as fallback:
+                    loaded = evaluator.load_fixture(self.path, native=True)
+                    fallback.assert_called_once_with(self.path, encoding="utf-8")
+                self.assertEqual(json.dumps(expected), json.dumps(loaded))
+
+            cases = ((b"{", json.JSONDecodeError), (b"\xff", UnicodeDecodeError),
+                     (b"\xef\xbb\xbf" + raw, json.JSONDecodeError), (None, FileNotFoundError))
+            for data, error in cases:
+                if data is None:
+                    self.path.unlink()
+                else:
+                    self.path.write_bytes(data)
+                with self.subTest(error=error), self.assertRaises(error) as legacy:
+                    evaluator.load_fixture(self.path)
+                with self.assertRaises(error) as native:
+                    evaluator.load_fixture(self.path, native=True)
+                self.assertEqual(str(legacy.exception), str(native.exception))
 
 
 if __name__ == "__main__":

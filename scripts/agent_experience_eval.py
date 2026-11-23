@@ -44,24 +44,28 @@ def _scope(value: Any) -> str:
 
 
 def load_fixture(path: Path, *, native: bool = False) -> dict[str, Any]:
+    if native and type(path) is type(Path()):
+        fixture = _native_load_fixture(path)
+        if fixture is not None:
+            return fixture
     fixture = json.loads(path.read_text(encoding="utf-8"))
-    if not native or not _native_validate_fixture(fixture):
-        _validate_fixture(fixture)
+    _validate_fixture(fixture)
     return fixture
 
 
-def _native_validate_fixture(fixture: object) -> bool:
+def _native_load_fixture(path: Path) -> dict[str, Any] | None:
     from support.native_probe_transport import NativeProbe
 
     result = NativeProbe.request("--memory-probe", "experience-fixture", {
-        "fixture": fixture, "unicode": unicodedata.unidata_version,
+        "path": str(path), "unicode": unicodedata.unidata_version,
+        "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
     })
-    if not isinstance(result, dict) or set(result) != {"error"}:
-        return False
-    error = result["error"]
-    if type(error) is str:
-        raise ValueError(error)
-    return error is None
+    if type(result) is dict:
+        if set(result) == {"error"} and type(result["error"]) is str:
+            raise ValueError(result["error"])
+        if set(result) == {"fixture"} and type(result["fixture"]) is dict:
+            return result["fixture"]
+    return None
 
 
 def _validate_fixture(fixture: object) -> None:
