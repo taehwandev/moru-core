@@ -73,6 +73,50 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_compose_source_findings_match_python(self):
+        cases = [
+            "CustomRouteEvent.Open; RouteEvent.Close()",
+            "slot is RouteEvent.Open; slot as NoticeEffect.Close",
+            "slot as? NoticeEffect.Open; slot is app.RouteEvent.Close",
+            "island NavigationEvent.Foo; 가is NoticeEffect.Close",
+            "slot is\x1cRouteEvent.Open; RouteEvent.\n\nClose",
+            "RouteEvent.NoticeEffect.Open; RouteEvent.가; RouteEvent.A한",
+            "repository?.load(); dao(); api.reload()",
+            "app.ModelRepository.\n load(); customDataSource?.값()",
+            "repository? .load(); repository.load; repository?.load<T>()",
+            "LoadUseCase(); loadUseCase(); _readUseCase(); 한UseCase()",
+            "repository(dao()); app.UseCase.invoke()",
+            "ApiClient.repository(); myRepo.fetch(); LookalikeRepositoryX.call()",
+            '/* repository.load() */ "RouteEvent.Open"; repository /* note */ ?.load()',
+        ]
+        cls = android.AndroidActionBoundary
+        for body in cases:
+            source = f"@Composable fun Screen() {{ {body} }}"
+            masked = android._mask_kotlin_literals(source)
+            expected = [list(android._source_findings(cls, masked[start:end]))
+                        for _, start, end in cls._bodies(masked)]
+            native = self.check("kotlin-literal-mask", {
+                "source": source, "unicode": unicodedata.unidata_version, "source_findings": True,
+            })
+            self.assertEqual(expected, native["source_findings"], source)
+
+        source = (
+            "@Composable fun Screen() {\n"
+            "val type = model is RouteEvent.Open\n"
+            "val event = RouteEvent.Close\n"
+            "repository?.load()\n}"
+        )
+        path = Path("Screen.kt")
+        invalid = {"code": source, "bodies": [list(span) for span in cls._bodies(source)],
+                   "source_findings": [[[False], []]]}
+        with patch.object(NativeProbe, "request", return_value=invalid):
+            expected = cls.failures(path, source)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            android, "_source_findings", side_effect=AssertionError("Python searched source violations"),
+        ):
+            self.assertEqual(expected, cls.failures(path, source))
+        self.assertEqual(["3", "4"], [finding.split(":")[1] for finding in expected])
+
     def test_structure_compose_viewmodel_scopes_are_local_and_match_python(self):
         cases = [
             ("vm: app.ScreenViewModel?", "vm.uiEffects.collectLatest { inner { run() } }"),

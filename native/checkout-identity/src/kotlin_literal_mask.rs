@@ -1,11 +1,12 @@
 //! owner: Kotlin literal and comment masking for Compose diagnostics.
-//! allowed imports: Compose aliases, ranges and receivers, JSON and standard-library collections.
+//! allowed imports: Compose aliases, ranges, receivers, findings, JSON and standard-library collections.
 //! forbidden imports: source IO, Git execution, mutation and approval.
 //! callers/tests: Compose action scan through the private completion probe.
 //! verification: exact Python mask and diagnostic offset parity.
 use super::{
     kotlin_compose_aliases::KotlinComposeAliases, kotlin_compose_bodies::KotlinComposeBodies,
     kotlin_compose_callbacks::KotlinComposeCallbacks,
+    kotlin_compose_source_findings::KotlinComposeSourceFindings,
     kotlin_compose_viewmodels::KotlinComposeViewModels,
 };
 use serde_json::{json, Value};
@@ -62,6 +63,15 @@ impl KotlinLiteralMask {
         }
         if let Some(bodies) = bodies {
             Self::add_scopes(input, &mut result, prepared, &bodies);
+            if input.get("source_findings").and_then(Value::as_bool) == Some(true) {
+                let findings: Vec<_> = bodies
+                    .iter()
+                    .map(|&[_, start, end]| {
+                        KotlinComposeSourceFindings::positions(&prepared[start..end])
+                    })
+                    .collect();
+                result["source_findings"] = json!(findings);
+            }
             result["bodies"] = json!(bodies);
         }
         Some(result)

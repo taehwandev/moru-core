@@ -40,7 +40,7 @@ class AndroidActionBoundary:
     def failures(cls, path: Path, source: str) -> list[str]:
         if path.suffix != ".kt":
             return []
-        code, native_bodies, native_scopes, native_viewmodels = _kotlin_code_for_review(source)
+        code, native_bodies, native_scopes, native_viewmodels, native_findings = _kotlin_code_for_review(source)
         bodies = native_bodies if native_bodies is not None else cls._bodies(code)
         findings = []
         for index, (signature, start, end) in enumerate(bodies):
@@ -52,10 +52,9 @@ class AndroidActionBoundary:
             leaf_callbacks = set(re.findall(r"\b(on\w+)\s*:\s*\(\s*\)\s*->\s*Unit\b", parameters))
             callbacks, host_collectors = (native_scopes[index] if native_scopes is not None
                                           else _callback_scopes(cls, body))
-            # A sealed effect type check consumes an effect; it does not create one.
-            matches = [(m, "effect construction") for m in cls._event.finditer(body)
-                       if not re.search(r"\b(?:is|as)\s*$", body[:m.start()])]
-            matches += [(m, "data request") for m in cls._data.finditer(body)]
+            events, data = native_findings[index] if native_findings is not None else _source_findings(cls, body)
+            matches = [(position, "effect construction") for position in events]
+            matches += [(position, "data request") for position in data]
             for match in cls._effect.finditer(body):
                 if any(re.fullmatch(re.escape(name) + r"\s*\(", match[0])
                        for name in leaf_callbacks):
@@ -67,9 +66,9 @@ class AndroidActionBoundary:
                 in_callback = any(a <= match.start() < b for a, b in callbacks)
                 in_collector = any(a <= match.start() < b for a, b in collectors)
                 if in_callback or not in_collector:
-                    matches.append((match, "effect dispatch"))
+                    matches.append((match.start(), "effect dispatch"))
             # A business callback passed through unchanged still bypasses the VM.
-            matches += [(m, "effect callback forwarding") for m in re.finditer(
+            matches += [(m.start(), "effect callback forwarding") for m in re.finditer(
                 r"\bon\w+\s*=\s*(?:onStartThread|onRouteEvent|onNavigate\w*|onShowNotice|onShowToast|onShowAlert)\b(?!\s*\()",
                 body,
             ) if m[0].split("=", 1)[1].strip() not in leaf_callbacks]
@@ -79,9 +78,9 @@ class AndroidActionBoundary:
             ):
                 receiver = match.group().split("::", 1)[0].strip()
                 if receiver not in vm_names and receiver != "viewModel" and not receiver.endswith("ViewModel"):
-                    matches.append((match, "effect callback forwarding"))
-            for match, reason in matches:
-                line = code.count("\n", 0, start + match.start()) + 1
+                    matches.append((match.start(), "effect callback forwarding"))
+            for position, reason in matches:
+                line = code.count("\n", 0, start + position) + 1
                 findings.append(
                     f"{path}:{line}: Android action boundary: {reason} in Compose; "
                     "send a typed Action to ViewModel, let it invoke data/effect ports. "
@@ -147,6 +146,13 @@ def _callback_scopes(cls, body: str):
     return cls._regions(body, cls._callback), cls._regions(body, _HOST_COLLECTOR)
 
 
+def _source_findings(cls, body: str) -> tuple[list[int], list[int]]:
+    # A sealed effect type check consumes an effect; it does not create one.
+    events = [m.start() for m in cls._event.finditer(body)
+              if not re.search(r"\b(?:is|as)\s*$", body[:m.start()])]
+    return events, [m.start() for m in cls._data.finditer(body)]
+
+
 def _viewmodel_scopes(cls, parameters: str, body: str, native):
     # Resolve explicit parameter types locally, never from another function.
     vm_names = native["names"] if native is not None else re.findall(
@@ -163,15 +169,15 @@ def _viewmodel_scopes(cls, parameters: str, body: str, native):
 def _kotlin_code_for_review(source: str):
     native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {
         "source": source, "unicode": unicodedata.unidata_version, "normalize_aliases": True,
-        "callback_scopes": True, "viewmodel_scopes": True,
+        "callback_scopes": True, "viewmodel_scopes": True, "source_findings": True,
     })
     masked = native.get("code") if native is not None else None
     if not isinstance(masked, str) or len(masked) != len(source):
-        return _normalize_aliases(_mask_kotlin_literals(source)), None, None, None
+        return _normalize_aliases(_mask_kotlin_literals(source)), None, None, None, None
     if native.get("aliases_normalized") is True:
         code = native.get("normalized_code", masked)
         if not isinstance(code, str):
-            return _normalize_aliases(masked), None, None, None
+            return _normalize_aliases(masked), None, None, None, None
         bodies = native.get("bodies")
     else:
         code = _normalize_aliases(masked)
@@ -180,7 +186,7 @@ def _kotlin_code_for_review(source: str):
         isinstance(span, list) and len(span) == 3 and all(type(offset) is int for offset in span)
         and 0 <= span[0] < span[1] < span[2] <= len(code) for span in bodies
     ):
-        return code, None, None, None
+        return code, None, None, None, None
     scopes = native.get("callback_scopes")
     if not isinstance(scopes, list) or len(scopes) != len(bodies) or not all(
         _valid_callback_scopes(row, end - start) for row, (_, start, end) in zip(scopes, bodies)
@@ -191,7 +197,19 @@ def _kotlin_code_for_review(source: str):
         _valid_viewmodel_scopes(row, end - start) for row, (_, start, end) in zip(viewmodels, bodies)
     ):
         viewmodels = None
-    return code, bodies, scopes, viewmodels
+    findings = native.get("source_findings")
+    if not isinstance(findings, list) or len(findings) != len(bodies) or not all(
+        _valid_source_findings(row, end - start) for row, (_, start, end) in zip(findings, bodies)
+    ):
+        findings = None
+    return code, bodies, scopes, viewmodels, findings
+
+
+def _valid_source_findings(row, length: int) -> bool:
+    return isinstance(row, list) and len(row) == 2 and all(
+        isinstance(group, list) and all(type(index) is int and 0 <= index < length for index in group)
+        for group in row
+    )
 
 
 def _valid_callback_scopes(row, length: int) -> bool:
