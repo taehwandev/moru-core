@@ -3,6 +3,7 @@
 //! forbidden imports: filesystem, Git execution and authority.
 //! callers/tests: structural diagnostic batch and exact Python parity fixtures.
 //! verification: strict path order, pressure threshold and copy disclosure.
+use super::structure_package_roles::StructurePackageRoles;
 use serde_json::{json, Value};
 
 pub(super) struct StructureSourceLayout;
@@ -47,7 +48,13 @@ impl StructureSourceLayout {
                 copied.len()
             ));
         }
-        Some(json!({"added": added.len(), "copied": copied.len(), "warnings": warnings}))
+        let mut report =
+            json!({"added": added.len(), "copied": copied.len(), "warnings": warnings});
+        if let Some(generic) = input.get("generic_parts") {
+            report["package_failures"] =
+                StructurePackageRoles::failures(paths, generic).unwrap_or(Value::Null);
+        }
+        Some(report)
     }
 
     fn shown(paths: &[&str]) -> String {

@@ -20,6 +20,7 @@ import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_review_structure as structure
 import agent_review_removals as removals
+import agent_review_purpose as purpose
 import agent_directory_fingerprint as directory_fingerprint
 import agent_worktree_fingerprint as worktree_fingerprint
 import agent_execution_capsule_state as capsule_state
@@ -68,6 +69,39 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_structure_package_roles_match_grouped_language_roots_and_order(self):
+        paths = {
+            "plain/Services/util/Foo.kt": "A",
+            "shared/src/main/kotlin/Feature.kt": "A",
+            "shared/src/main/java/helpers/Feature.java": "A",
+            "shared/lib/src/Feature.dart": "A",
+            "shared/lib/src/Feature.swift": "M",
+            "shared/Sources/Feature.swift": "A",
+            "shared/Sources/UTIL/Feature.swift": "A",
+            ".agents/shared/task.py": "A",
+            ".agents/shared/manager/task.py": "A",
+            "src/service/existing.py": "M",
+            "a/util/file.py": "A",
+            "a-/helper/file.py": "A",
+        }
+        expected = purpose.package_role_failures(
+            self.project, [Path(path) for path in paths], {path: {"status": status} for path, status in paths.items()},
+            structure.review_source_path, structure.test_exempt_path,
+        )
+        payload = {"limit": 20, "paths": list(paths.items()), "generic_parts": sorted(purpose.GENERIC_PACKAGE_PARTS)}
+        with patch.dict(os.environ, self.env, clear=True):
+            _, layout = structure._file_findings([], source_layout=payload)
+        self.assertEqual(expected, layout["package_failures"])
+        self.assertEqual(
+            [".agents/shared/manager", "a/util", "a-/helper", "plain/Services/util",
+             "shared/Sources/UTIL", "shared/src/main/java/helpers"],
+            [failure.partition(" contains ")[0] for failure in expected],
+        )
+        payload["paths"].append(("한글/util/item.py", "A"))
+        with patch.dict(os.environ, self.env, clear=True):
+            _, layout = structure._file_findings([], source_layout=payload)
+        self.assertIsNone(layout["package_failures"])
 
     def test_structure_net_deletions_include_excluded_and_missing_paths(self):
         metadata = {

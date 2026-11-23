@@ -84,6 +84,8 @@ def purpose_failures(
     review_source_path: PathPredicate,
     test_exempt_path: TestPredicate,
     run_command: CommandRunner | None = None,
+    *,
+    package_findings: list[str] | None = None,
 ) -> list[str]:
     failures: list[str] = []
     for path in paths:
@@ -100,7 +102,9 @@ def purpose_failures(
                 previous_top_level_type_declarations(project, path, path_metadata, run_command),
             )
         )
-    failures.extend(package_role_failures(project, paths, path_metadata, review_source_path, test_exempt_path))
+    if package_findings is None:
+        package_findings = package_role_failures(project, paths, path_metadata, review_source_path, test_exempt_path)
+    failures.extend(package_findings)
     return failures
 
 

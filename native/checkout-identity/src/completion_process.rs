@@ -80,6 +80,8 @@ mod structure_code_blocks;
 mod structure_file_size;
 #[path = "structure_source_layout.rs"]
 mod structure_source_layout;
+#[path = "structure_package_roles.rs"]
+mod structure_package_roles;
 #[path = "structure_removal_matching.rs"]
 mod structure_removal_matching;
 #[path = "structure_net_deletions.rs"]

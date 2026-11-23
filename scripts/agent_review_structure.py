@@ -12,7 +12,7 @@ from typing import Any
 from agent_review_boundary import boundary_note_requirements
 from agent_review_generated_attrs import _declares_generated, linguist_generated_path
 from agent_android_action_boundary import AndroidActionBoundary
-from agent_review_purpose import purpose_failures
+from agent_review_purpose import GENERIC_PACKAGE_PARTS, purpose_failures
 from agent_review_removals import classify_net_deletions
 from agent_review_merge_baseline import inherited_merge_paths
 from agent_structure_rules import structure_rule_review
@@ -260,6 +260,7 @@ def structure_review(
     path_metadata = discovery["path_metadata"]
     file_findings, source_layout = _file_findings(files, source_layout={
         "limit": REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
+        "generic_parts": sorted(GENERIC_PACKAGE_PARTS),
         "paths": [[path, path_metadata.get(path, {}).get("status")] for path in result["strict_checked_paths"]],
     })
     # Preserve each file's position relative to encoding warnings.
@@ -363,6 +364,7 @@ def _add_cross_path_findings(
             review_source_path,
             test_exempt_path,
             subject_run_command,
+            package_findings=source_layout.get("package_failures") if source_layout is not None else None,
         )
     )
     structure_rules = structure_rule_review(
@@ -1172,10 +1174,13 @@ def _file_findings(
                         and all(isinstance(items, list) and all(isinstance(item, str) for item in items)
                                 for items in row) for row in findings)):
             layout = native.get("source_layout")
-            if isinstance(layout, dict) and set(layout) == {"added", "copied", "warnings"}:
+            if isinstance(layout, dict) and {"added", "copied", "warnings"} <= layout.keys():
+                package_findings = layout.get("package_failures")
                 if (all(type(layout[key]) is int and layout[key] >= 0 for key in ("added", "copied"))
                         and isinstance(layout["warnings"], list)
-                        and all(isinstance(warning, str) for warning in layout["warnings"])):
+                        and all(isinstance(warning, str) for warning in layout["warnings"])
+                        and (package_findings is None or isinstance(package_findings, list)
+                             and all(isinstance(finding, str) for finding in package_findings))):
                     return findings, layout
             return findings, None
     findings = []
