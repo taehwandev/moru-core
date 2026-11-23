@@ -114,6 +114,32 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertIn("per-file addition limit is 6", reference["failures"][-1])
         self.assertTrue(reference["warnings"][0].startswith("b.py "))
 
+    def test_structure_brace_declarations_match_legacy_grammar(self):
+        path = Path("source.ts")
+        headers = [
+            "public final class Excluded {", "export default class Excluded {", "enum Excluded {",
+            "sealed interface Excluded {", "abstract fun skipped() {", "publicish ignored() {",
+            "function f() {", "export async function f() {", "override fun f() {", "fn f() {",
+            "fun f() {", "public{", "export function {", "if (true) {",
+            "const x = p => {", "export const y: F = async <T>(f: (v: T) => T): R => {",
+            "let y = asyncname => {", "var y = <T>(value: T) => {",
+            "const y = (x = 1) => {", "const y = (f: ((v: X))) => {",
+            "const y = async () : => {", "const y = async () :  => {",
+            "const y = async => {", "const y = {", "  // function ignored() {",
+        ]
+        lines = [[header, '  use("한글 }"); /* { */', "}"] for header in headers]
+        expected = [[{key: block[key] for key in ("line", "label", "span")}
+                     for block in structure.oversized_blocks(path, body, 1)] for body in lines]
+        files = [{**structure._block_span_input(path, body), "limit": 1} for body in lines]
+        self.assertTrue(all(file["kind"] == "brace-source" for file in files))
+        result = self.check("structure-block-spans", {"files": files})
+        for header, legacy, native in zip(headers, expected, result["blocks"], strict=True):
+            with self.subTest(header=header):
+                self.assertEqual(legacy, native)
+        unicode_file = {**structure._block_span_input(path, ["export function 한() {", "  use();", "}"]),
+                        "limit": 1}
+        self.assertEqual(125, self.raw("structure-block-spans", {"files": [unicode_file]}).returncode)
+
     def test_structure_style_blocks_match_masking_and_selector_rules(self):
         fixtures = [
             [

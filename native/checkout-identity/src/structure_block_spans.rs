@@ -39,9 +39,9 @@ impl StructureBlockSpans {
             let (levels, starts) = StructurePythonBlocks::prepare(lines)?;
             return Self::measure(&levels, lines.len(), starts, limit);
         }
-        if kind == "style-source" {
+        if matches!(kind, "style-source" | "brace-source") {
             let lines = input.get("lines")?.as_array()?;
-            let (deltas, labels) = StructureStyleBlocks::prepare(lines)?;
+            let (deltas, labels) = StructureStyleBlocks::prepare(lines, kind == "style-source")?;
             let levels = Self::brace_levels(deltas.into_iter().map(Some))?;
             let starts = labels
                 .iter()

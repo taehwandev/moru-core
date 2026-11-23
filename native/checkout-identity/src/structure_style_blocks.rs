@@ -1,15 +1,19 @@
-//! owner: stylesheet selector starts and masked brace balance for structure review.
+//! owner: masked brace balance and selector starts for structure review.
 //! allowed imports: existing whitespace rules and in-memory JSON lines.
 //! forbidden imports: filesystem, Git execution, approval and mutation.
 //! callers/tests: block span batch and Python regex parity fixtures.
 //! verification: escaped quotations, comments, at-rules and line preservation.
+use super::structure_code_blocks::StructureCodeBlocks;
 use crate::text::Text;
 use serde_json::Value;
 
 pub(super) struct StructureStyleBlocks;
 
 impl StructureStyleBlocks {
-    pub(super) fn prepare(lines: &[Value]) -> Option<(Vec<i64>, Vec<(usize, String)>)> {
+    pub(super) fn prepare(
+        lines: &[Value],
+        styles: bool,
+    ) -> Option<(Vec<i64>, Vec<(usize, String)>)> {
         let source = lines
             .iter()
             .map(|value| value.as_str().filter(|line| !line.contains('\n')))
@@ -24,11 +28,18 @@ impl StructureStyleBlocks {
                 delta += i64::from(character == b'{') - i64::from(character == b'}');
             }
             deltas.push(delta);
-            if let Some(selector) = Text::py_strip(line).strip_suffix('{') {
-                if !selector.is_empty()
-                    && !selector.starts_with('@')
-                    && !selector.contains(['{', '}'])
-                {
+            let line = Text::py_strip(line);
+            if line.contains('{') {
+                let start = if styles {
+                    line.strip_suffix('{').is_some_and(|selector| {
+                        !selector.is_empty()
+                            && !selector.starts_with('@')
+                            && !selector.contains(['{', '}'])
+                    })
+                } else {
+                    StructureCodeBlocks::starts(line)?
+                };
+                if start {
                     let label: String = Text::py_strip(original)
                         .chars()
                         .take(80)
