@@ -219,7 +219,7 @@
       "entry_aliases": "execution-capsule",
       "remaining": "Port the owned CLI, Git and evidence observation, receipt and validation flows, and verify supported platforms. Python still owns orchestration, evidence authority and fallback.",
       "verification": {
-        "local": "Source-bound parity for native check on matched standard Git runs, document and parent-ledger validation, binding digests, worktree fingerprints and exclusions, and standard capsule persistence and refresh."
+        "local": "Source-bound parity for native check on standard Git runs, including content verification after metadata drift, document and parent-ledger validation, binding digests, worktree fingerprints and exclusions, and standard capsule persistence and refresh."
       }
     },
     {

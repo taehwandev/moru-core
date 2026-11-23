@@ -499,6 +499,8 @@ class NativeCompletionTests(unittest.TestCase):
         doc.write_text("required\n")
         git("add", ".gitignore", doc.name)
         git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "base")
+        untracked = self.project / "untracked.txt"
+        untracked.write_text("original\n")
         run = self.project / ".moru" / "runs" / ("a" * 32)
         run.mkdir(parents=True)
         evidence = run / "preflight.json"
@@ -526,6 +528,20 @@ class NativeCompletionTests(unittest.TestCase):
         reference = call(MORU_LAUNCHER_BACKEND="python")
         self.assertEqual(0, reference[0], reference)
         self.assertEqual(reference, call(PATH=str(self.empty)))
+
+        metadata = untracked.stat()
+        os.utime(untracked, ns=(metadata.st_atime_ns, metadata.st_mtime_ns - 60_000_000_000))
+        self.assertEqual(reference, call(MORU_LAUNCHER_BACKEND="python"))
+        self.assertEqual(reference, call(PATH=str(self.empty)))
+
+        untracked.write_text("modified\n")
+        changed = call(MORU_LAUNCHER_BACKEND="python")
+        self.assertEqual(1, changed[0], changed)
+        self.assertIn(b"execution capsule project worktree status changed", changed[1])
+        self.assertEqual(changed, call())
+        self.assertEqual(127, call(PATH=str(self.empty))[0])
+        untracked.write_text("original\n")
+
         doc.write_text("changed\n")
         refused = call(MORU_LAUNCHER_BACKEND="python")
         self.assertEqual(1, refused[0], refused)

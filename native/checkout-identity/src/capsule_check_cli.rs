@@ -225,13 +225,27 @@ impl CapsuleCheck {
         if code != 0 || recorded.get("head")?.as_str()? != std::str::from_utf8(&head).ok()?.trim() {
             return None;
         }
-        let observed = WorktreeSignature::capture(&json!({
-            "path": path.to_str()?, "max_files": 5_000, "max_bytes": 256 * 1024 * 1024,
-        }))?;
-        if observed.get("signature")? != recorded.get("worktree_signature")? {
-            return None;
-        }
+        Self::check_worktree(path, recorded)?;
         let (after, code) = WorktreeSignature::git(path, &head_args, 4096)?;
         (code == 0 && after == head).then_some(())
+    }
+
+    fn check_worktree(path: &Path, recorded: &Value) -> Option<()> {
+        let path = path.to_str()?;
+        let capture = |strong| {
+            WorktreeSignature::capture(&json!({
+                "path": path, "max_files": 5_000, "max_bytes": 256 * 1024 * 1024, "strong": strong,
+            }))
+        };
+        if capture(false)?.get("signature")? == recorded.get("worktree_signature")? {
+            return Some(());
+        }
+
+        // A metadata change invalidates the shortcut, not the content binding.
+        let snapshot = capture(true)?;
+        if snapshot.get("fingerprint")? != recorded.get("worktree_fingerprint")? {
+            return None;
+        }
+        (snapshot.get("signature")? == capture(false)?.get("signature")?).then_some(())
     }
 }
