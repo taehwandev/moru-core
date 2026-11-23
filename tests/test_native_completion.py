@@ -148,6 +148,58 @@ class NativeCompletionTests(unittest.TestCase):
                 with self.assertRaisesRegex(TypeError, "not iterable"):
                     doctor.inspect_project_health(self.project)
 
+    def test_doctor_permission_markers_match_legacy_commands(self):
+        for name in ("Package.swift", "Cargo.toml", "go.mod"):
+            (self.project / name).touch()
+        module = self.project / "modules" / "client"
+        module.mkdir(parents=True)
+        (module / "build.gradle.kts").touch()
+        scripts = self.project / "scripts"
+        scripts.mkdir()
+        (scripts / ".tool.py").touch()
+
+        payload = {"project": str(self.project)}
+        markers = self.check("doctor-permission-markers", payload)
+        self.assertEqual({
+            "swift": True, "gradle": True, "rust": True, "go": True,
+            "python_packaged": False, "python_scripts": True,
+        }, markers)
+        for packaged in (False, True):
+            if packaged:
+                (self.project / "pyproject.toml").touch()
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                reference = doctor.inspect_project_health(self.project)
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                project_type_detection, "_has_python_sources", side_effect=AssertionError("Python scanned markers"),
+            ):
+                self.assertEqual(reference, doctor.inspect_project_health(self.project))
+
+    def test_doctor_permission_markers_preserve_depth_and_symlink_fallback(self):
+        nested = self.project / "outer" / "deep"
+        nested.mkdir(parents=True)
+        (nested / "ignored.py").touch()
+        (nested / "build.gradle").touch()
+        hidden = self.project / ".hidden"
+        hidden.mkdir()
+        (hidden / "ignored.py").touch()
+        external = self.base / "external"
+        external.mkdir()
+        (external / "linked.py").touch()
+        (external / "build.gradle.kts").touch()
+        (self.project / ".linked").symlink_to(external, target_is_directory=True)
+        payload = {"project": str(self.project)}
+        markers = self.check("doctor-permission-markers", payload)
+        self.assertFalse(markers["gradle"])
+        self.assertFalse(markers["python_scripts"])
+
+        (self.project / "linked").symlink_to(external, target_is_directory=True)
+        self.assertEqual(125, self.raw("doctor-permission-markers", payload).returncode)
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(
+                ["Edit(**/*.py)"],
+                project_type_detection.detect_project_permissions(self.project, native_markers=True),
+            )
+
     def test_doctor_launcher_health_keeps_warning_order_and_uses_verified_binary(self):
         rules = Path(self.env["MORU_HOME"])
         pointer = self.entry.parent.parent / "moru-root"

@@ -10,26 +10,39 @@ from pathlib import Path
 from support.native_probe_transport import NativeProbe
 
 
-def detect_project_permissions(project_path: Path, *, native_node_scan: bool = False) -> list[str]:
+def detect_project_permissions(
+    project_path: Path, *, native_node_scan: bool = False, native_markers: bool = False,
+) -> list[str]:
     """Return permission entries for a project based on detected build tools.
 
     Covers parameter variations via the 'cmd *' wildcard form so one install
     handles any argument combination at runtime.
     """
+    markers = _native_permission_markers(project_path) if native_markers else {}
     entries: list[str] = []
-    entries += _swift_permissions(project_path)
+    entries += _swift_permissions(project_path, present=markers.get("swift"))
     entries += _node_permissions(project_path, native_scan=native_node_scan)
-    entries += _gradle_permissions(project_path)
-    entries += _rust_permissions(project_path)
-    entries += _go_permissions(project_path)
-    entries += _python_permissions(project_path)
+    entries += _gradle_permissions(project_path, present=markers.get("gradle"))
+    entries += _rust_permissions(project_path, present=markers.get("rust"))
+    entries += _go_permissions(project_path, present=markers.get("go"))
+    entries += _python_permissions(
+        project_path, packaged=markers.get("python_packaged"), scripts=markers.get("python_scripts"),
+    )
     return entries
+
+
+def _native_permission_markers(project_path: Path) -> dict[str, bool]:
+    markers = NativeProbe.request("--completion-probe", "doctor-permission-markers", {"project": str(project_path)})
+    keys = {"swift", "gradle", "rust", "go", "python_packaged", "python_scripts"}
+    if markers is not None and set(markers) == keys and all(isinstance(value, bool) for value in markers.values()):
+        return markers
+    return {}
 
 
 # ── Swift / Xcode ──────────────────────────────────────────────────────────
 
-def _swift_permissions(project_path: Path) -> list[str]:
-    is_swift = (
+def _swift_permissions(project_path: Path, *, present: bool | None = None) -> list[str]:
+    is_swift = present if present is not None else (
         (project_path / "Package.swift").exists()
         or any(project_path.glob("*.xcodeproj"))
         or any(project_path.glob("*.xcworkspace"))
@@ -104,8 +117,8 @@ def _entries_for_scripts(scripts: Iterable[str]) -> list[str]:
 
 # ── Gradle (Kotlin/Java) ───────────────────────────────────────────────────
 
-def _gradle_permissions(project_path: Path) -> list[str]:
-    has_gradle = (
+def _gradle_permissions(project_path: Path, *, present: bool | None = None) -> list[str]:
+    has_gradle = present if present is not None else (
         (project_path / "build.gradle.kts").exists()
         or (project_path / "build.gradle").exists()
         or (project_path / "settings.gradle.kts").exists()
@@ -121,8 +134,9 @@ def _gradle_permissions(project_path: Path) -> list[str]:
 
 # ── Rust / Cargo ───────────────────────────────────────────────────────────
 
-def _rust_permissions(project_path: Path) -> list[str]:
-    if not (project_path / "Cargo.toml").exists():
+def _rust_permissions(project_path: Path, *, present: bool | None = None) -> list[str]:
+    has_cargo = present if present is not None else (project_path / "Cargo.toml").exists()
+    if not has_cargo:
         return []
     entries: list[str] = []
     for base in ("cargo build", "cargo test", "cargo check", "cargo run", "cargo clippy"):
@@ -132,8 +146,9 @@ def _rust_permissions(project_path: Path) -> list[str]:
 
 # ── Go ─────────────────────────────────────────────────────────────────────
 
-def _go_permissions(project_path: Path) -> list[str]:
-    if not (project_path / "go.mod").exists():
+def _go_permissions(project_path: Path, *, present: bool | None = None) -> list[str]:
+    has_go = present if present is not None else (project_path / "go.mod").exists()
+    if not has_go:
         return []
     entries: list[str] = []
     for base in (
@@ -146,13 +161,15 @@ def _go_permissions(project_path: Path) -> list[str]:
 
 # ── Python ─────────────────────────────────────────────────────────────────
 
-def _python_permissions(project_path: Path) -> list[str]:
-    packaged = (
+def _python_permissions(
+    project_path: Path, *, packaged: bool | None = None, scripts: bool | None = None,
+) -> list[str]:
+    packaged = packaged if packaged is not None else (
         (project_path / "pyproject.toml").exists()
         or (project_path / "setup.py").exists()
         or (project_path / "requirements.txt").exists()
     )
-    if not (packaged or _has_python_sources(project_path)):
+    if not (packaged or (scripts if scripts is not None else _has_python_sources(project_path))):
         return []
     # Edit only. Claude Code matches file permissions against Edit(path) rules
     # and not Write(path) ones, so a Write rule approved nothing and printed a

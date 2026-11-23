@@ -210,7 +210,7 @@
       "entry_aliases": "doctor",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
       "verification": {
-        "local": "Source-bound Rust project and Node manifest inspection, prepared installed launcher diagnostics, project-memory, open-card and active-run counts, and JSON and Markdown rendering. Python still owns permission expansion, other permission inspection, artifact-plan verification and CLI orchestration."
+        "local": "Source-bound Rust project, permission marker and Node manifest inspection, prepared installed launcher diagnostics, project-memory, open-card and active-run counts, and JSON and Markdown rendering. Python still owns permission expansion, artifact-plan verification and CLI orchestration."
       }
     },
     {

@@ -103,6 +103,7 @@ impl CompletionProcess {
             Some("doctor-node-manifests") => doctor_node_manifests::DoctorNodeManifests::inspect(&payload),
             Some("doctor-active-runs") => crate::status_process::StatusProcess::active_runs(&payload),
             Some("doctor-project") => doctor_project::DoctorProject::inspect(&payload),
+            Some("doctor-permission-markers") => doctor_project::DoctorProject::permission_markers(&payload),
             Some("doctor-report") => doctor_report::DoctorReport::build(&payload),
             Some("capsule-binding") => capsule_binding::CapsuleBinding::fingerprint(&payload),
             Some("capsule-replace") => capsule_artifact::CapsuleArtifact::replace(&payload),
