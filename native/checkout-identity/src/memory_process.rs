@@ -13,6 +13,9 @@ use std::{
     ffi::OsString,
     io::{Read, Write},
 };
+#[path = "memory_experience.rs"]
+mod experience;
+
 pub(crate) struct MemoryProcess;
 impl MemoryProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -36,6 +39,8 @@ impl MemoryProcess {
             .and_then(|payload| {
                 if operation == "capture-inputs" {
                     MemoryRecord::capture_inputs(&payload)
+                } else if operation == "experience-metrics" {
+                    experience::ExperienceMetrics::evaluate(&payload)
                 } else if operation == "recall-context" {
                     MemoryContext::evaluate(&payload)
                 } else if matches!(operation, "review-partition" | "review-findings") {

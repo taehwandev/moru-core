@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import copy
+from contextlib import redirect_stdout
 import importlib.util
+import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -123,6 +127,50 @@ class ExperienceEvaluationTests(unittest.TestCase):
         engine_dir = Path(self.directory.name)
         (engine_dir / "agent_project_memory.py").write_text("MARKER = 'historical fixture'\n", encoding="utf-8")
         self.assertEqual(evaluator.load_engine(engine_dir).MARKER, "historical fixture")
+
+    def test_default_cli_native_metrics_match_python_report_bytes(self):
+        from native_launcher_support import NATIVE
+        from native_pretool_support import environment, prepare
+
+        if not NATIVE.is_file():
+            self.skipTest("source-bound native fixture unavailable")
+        base = Path(self.directory.name)
+        prepare(base)
+        env = environment(base)
+        python_output, native_output = io.StringIO(), io.StringIO()
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            with redirect_stdout(python_output):
+                self.assertEqual(0, evaluator.main([]))
+        with patch.dict(os.environ, env, clear=True), redirect_stdout(native_output):
+            with patch.object(evaluator, "_python_metrics", side_effect=AssertionError("native metrics missing")):
+                self.assertEqual(0, evaluator.main([]))
+        self.assertEqual(python_output.getvalue(), native_output.getvalue())
+
+    def test_native_metrics_count_raw_unicode_and_keep_empty_denominators(self):
+        from native_launcher_support import NATIVE
+        from native_pretool_support import environment, prepare
+
+        if not NATIVE.is_file():
+            self.skipTest("source-bound native fixture unavailable")
+        base = Path(self.directory.name)
+        prepare(base)
+        expected = "0000000000000001"
+        rendered = "0000000000000002"
+        raw = '{"id": "' + rendered + '", "text": "한국 🚀 é \\u0041"}'
+        observations = [
+            ({"id": "empty", "category": "retrieval", "expected_relevant": []}, [], [], []),
+            ({"id": "listing", "category": "listing", "expected_relevant": [expected]},
+             [expected, rendered], [rendered], [raw]),
+        ]
+        python = evaluator._python_metrics(observations)
+        with patch.dict(os.environ, environment(base), clear=True):
+            with patch.object(evaluator, "_python_metrics", side_effect=AssertionError("native metrics missing")):
+                native = evaluator._native_metrics(iter(observations))
+        self.assertEqual(python, native)
+        self.assertEqual(len(raw), native["total_payload_characters"])
+        self.assertEqual(0, native["metrics"]["payload_characters"])
+        self.assertIsNone(native["metrics"]["precision"])
+        self.assertIsNone(native["metrics"]["recall"])
 
 
 if __name__ == "__main__":

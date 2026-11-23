@@ -482,10 +482,12 @@
       "id": "scripts/agent_experience_eval.py",
       "inventory_id": 33,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port fixture validation, synthetic record preparation, default engine acquisition and CLI ownership. Keep the historical Python engine option and verify supported-host and installed acceptance.",
+      "verification": {
+        "metrics": "The default engine sends read-only synthetic observations through one guarded Rust request for per-case and aggregate metrics. Focused parity covers report order, raw Unicode character counts, listing exclusions, absent denominators, and existing Python fallback."
+      }
     },
     {
       "id": "scripts/agent_unittest_result.py",

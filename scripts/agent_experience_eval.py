@@ -116,8 +116,7 @@ def load_engine(root: Path) -> ModuleType:
     return module
 
 
-def evaluate(engine: ModuleType, fixture: dict[str, Any], project: Path) -> dict[str, Any]:
-    today = date.today()
+def _observe(engine, fixture, project, today):
     records = []
     for item in fixture["records"]:
         record = {key: value for key, value in item.items() if key != "review_in_days"}
@@ -126,9 +125,6 @@ def evaluate(engine: ModuleType, fixture: dict[str, Any], project: Path) -> dict
                       review_on=(today + timedelta(days=item.get("review_in_days", 30))).isoformat())
         record["digest"] = engine._digest(record)
         records.append(record)
-    results = []
-    totals = {"relevant_rendered": 0, "rendered": 0, "expected": 0,
-              "irrelevant_selections": 0, "misses": 0, "payload_characters": 0}
     for case in fixture["cases"]:
         context = {"records": records, "request": case.get("request", ""),
                    "target_summary": case.get("target_summary", ""),
@@ -140,10 +136,18 @@ def evaluate(engine: ModuleType, fixture: dict[str, Any], project: Path) -> dict
         rendered = [json.loads(payload)["id"] for payload in payloads]
         if len(rendered) != len(set(rendered)):
             raise ValueError("engine rendered duplicate ids")
+        if not set(rendered).issubset({record["id"] for record in records}):
+            raise ValueError("engine rendered an unknown fixture id")
+        yield case, [record["id"] for record in ranked], rendered, payloads
+
+
+def _python_metrics(observations):
+    results = []
+    totals = {"relevant_rendered": 0, "rendered": 0, "expected": 0,
+              "irrelevant_selections": 0, "misses": 0, "payload_characters": 0}
+    for case, ranked_ids, rendered, payloads in observations:
         expected = set(case["expected_relevant"])
         selected = set(rendered)
-        if not selected.issubset({record["id"] for record in records}):
-            raise ValueError("engine rendered an unknown fixture id")
         counts = {"relevant_rendered": len(selected & expected), "rendered": len(rendered),
                   "expected": len(expected), "irrelevant_selections": len(selected - expected),
                   "misses": len(expected - selected),
@@ -152,7 +156,7 @@ def evaluate(engine: ModuleType, fixture: dict[str, Any], project: Path) -> dict
             for key, value in counts.items():
                 totals[key] += value
         results.append({"id": case["id"], "category": case["category"],
-                        "ranked_ids": [record["id"] for record in ranked],
+                        "ranked_ids": ranked_ids,
                         "rendered_ids": rendered, "expected_relevant": case["expected_relevant"],
                         "false_inclusions": sorted(selected - expected),
                         "missed_ids": sorted(expected - selected), **counts,
@@ -162,12 +166,31 @@ def evaluate(engine: ModuleType, fixture: dict[str, Any], project: Path) -> dict
                              if totals["rendered"] else None),
                   recall=(totals["relevant_rendered"] / totals["expected"]
                           if totals["expected"] else None))
-    return {"schema_version": 1, "synthetic": True, "evaluation_date": today.isoformat(),
-            "measurement": "rendered retrieval only; listing cases and applicability judgments are excluded from retrieval metrics",
-            "case_count": len(results),
+    return {"case_count": len(results),
             "retrieval_case_count": sum(item["category"] != "listing" for item in results),
             "total_payload_characters": sum(item["payload_characters"] for item in results),
             "metrics": totals, "cases": results}
+
+
+def _native_metrics(observations):
+    from support.native_probe_transport import NativeProbe
+
+    if not NativeProbe.available():
+        return _python_metrics(observations)
+    observations = list(observations)
+    result = NativeProbe.request("--memory-probe", "experience-metrics", {"observations": observations})
+    fields = {"case_count", "retrieval_case_count", "total_payload_characters", "metrics", "cases"}
+    if isinstance(result, dict) and set(result) == fields and result["case_count"] == len(observations):
+        return result
+    return _python_metrics(observations)
+
+
+def evaluate(engine: ModuleType, fixture: dict[str, Any], project: Path, *, native: bool = False) -> dict[str, Any]:
+    today = date.today()
+    compute = _native_metrics if native else _python_metrics
+    return {"schema_version": 1, "synthetic": True, "evaluation_date": today.isoformat(),
+            "measurement": "rendered retrieval only; listing cases and applicability judgments are excluded from retrieval metrics",
+            **compute(_observe(engine, fixture, project, today))}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -178,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         fixture = load_fixture(args.fixture)
         engine = load_engine(args.engine_root)
-        report = evaluate(engine, fixture, SCRIPTS.parent)
+        report = evaluate(engine, fixture, SCRIPTS.parent, native=args.engine_root.resolve() == SCRIPTS)
         report["inputs"] = {name: {"path": str(path.resolve()),
                                     "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
                             for name, path in (("engine", args.engine_root / "agent_project_memory.py"),
