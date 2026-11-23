@@ -23,6 +23,7 @@ import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_preparation, agy_delivery_request, agy_delivery_stdout, agy_redelivery,
+    agy_skill_read_note,
     nearest_registry_project, read_delivery_manifest,
     reuse_credit,
     discover_reuse_roots, rank_reuse_roots, reuse_current, reuse_matches, reuse_run_ids,
@@ -153,6 +154,52 @@ class NativeDocTranscriptTests(unittest.TestCase):
         self.assertEqual((7, b'{"decision": "deny"}\n', b""), result(invoke(
             "pre-tool", b'{"toolCall":{"name":"edit_file"}}', replay, MORU_AGY_GATE="strict",
         )))
+
+    def test_native_agy_skill_notice_matches_ranges_and_keeps_deduplication(self):
+        skill = self.project / "한글" / "SKILL.md"
+        skill.parent.mkdir()
+        marker_directory = self.base / "marker-state"
+        with patch.dict(os.environ, self.env, clear=True):
+            for source in ("", "\n", "a\r\nb\r\nc\rd\u0085e\u2028f\u2029g\x1ch\x1di\x1ej\v\fk\n"):
+                skill.write_bytes(source.encode())
+                total = len(source.splitlines())
+                for start, end in ((None, None), (0, 0), (1, total), (0, total - 1), (2, -1), (2, 100)):
+                    with self.subTest(source=source, start=start, end=end):
+                        expected = adapter._partial_read_note_python(skill, {"StartLine": start, "EndLine": end})
+                        self.assertEqual(expected, agy_skill_read_note(skill, start, end))
+            span = {"Path": str(skill), "StartLine": "1", "EndLine": "1"}
+            alias = self.project / "lexical"
+            alias.symlink_to(skill.parent, target_is_directory=True)
+            aliased_skill = alias / skill.name
+            self.assertEqual(adapter._partial_read_note_python(aliased_skill, span),
+                             agy_skill_read_note(aliased_skill, 1, 1))
+            self.assertIsNone(agy_skill_read_note(skill, "1", "1"))
+            with patch("agy_hook_state.MARKER_DIR", marker_directory):
+                self.assertEqual(
+                    adapter._partial_read_note_python(skill, span), adapter.partial_read_note(span, "legacy"),
+                )
+                span.update(StartLine=1, EndLine=1)
+                expected = adapter._partial_read_note_python(skill, span)
+                with patch.object(adapter, "_partial_read_note_python", side_effect=AssertionError("Python notice")):
+                    self.assertEqual(expected, adapter.partial_read_note(span, "native"))
+                    self.assertEqual("", adapter.partial_read_note(span, "native"))
+                self.assertEqual("", adapter.partial_read_note({**span, "EndLine": "1"}, "native"))
+            self.assertTrue((marker_directory / "native.partial-read.digest").is_file())
+
+        payload = {"conversationId": "fresh", "toolCall": {"name": "read_file", "args": {
+            "Path": str(skill), "StartLine": 1, "EndLine": total,
+        }}}
+        completed = subprocess.run(
+            [str(self.entry.with_name("moru-hook-native")), str(self.entry), "agy-hook", "pre-tool"],
+            input=json.dumps(payload).encode(), cwd=self.project, env=self.env,
+            capture_output=True, timeout=8,
+        )
+        self.assertEqual((0, b'{"decision": "allow"}\n', b""), result(completed))
+        self.assertFalse((self.base / "home/.moru/agy-hook/fresh.partial-read.digest").exists())
+        skill.write_bytes(b"\xff")
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertIsNone(agy_skill_read_note(skill, 1, 1))
+            self.assertEqual("", adapter.partial_read_note(span, "invalid-utf8"))
 
     def test_native_reuse_credit_matches_latest_entry_normalization_and_cap(self):
         current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project, takeaway="")

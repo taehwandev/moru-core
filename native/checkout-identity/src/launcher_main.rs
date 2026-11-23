@@ -7,6 +7,7 @@ use std::process::{exit, Command};
 use moru_checkout_identity::CheckoutIdentity;
 
 mod agy_hook_process;
+mod agy_skill_read;
 mod android_manifest;
 mod argparse_help;
 mod atomic_sibling;
