@@ -17,21 +17,27 @@ impl MemoryRecall {
                 let (words, paths, modules) = MemoryTerms::terms(object.get("text")?.as_str()?);
                 Some(json!({"words":words,"paths":paths,"modules":modules}))
             }
-            "recall" if object.len() == 5 => Self::recall(payload),
+            "recall" if object.len() == 5 => {
+                let indices = Self::rank(
+                    object.get("scope")?.as_str()?,
+                    object.get("today")?.as_str()?,
+                    object.get("context")?.as_str()?,
+                    object.get("records")?.as_array()?,
+                )?;
+                Some(json!({"indices": indices}))
+            }
             _ => None,
         }
     }
-    fn recall(payload: &Value) -> Option<Value> {
-        let scope = payload.get("scope")?.as_str()?;
-        if !MemoryRecord::scope(scope) {
+    pub(crate) fn rank(
+        scope: &str,
+        today: &str,
+        context: &str,
+        records: &[Value],
+    ) -> Option<Vec<usize>> {
+        if !MemoryRecord::scope(scope) || !MemoryRecord::date(today) {
             return None;
         }
-        let today = payload.get("today")?.as_str()?;
-        if !MemoryRecord::date(today) {
-            return None;
-        }
-        let context = payload.get("context")?.as_str()?;
-        let records = payload.get("records")?.as_array()?;
         let mut replaced = BTreeSet::new();
         for record in records {
             record.as_object()?;
@@ -94,7 +100,7 @@ impl MemoryRecall {
                 *id,
             )
         });
-        Some(json!({"indices":eligible.into_iter().map(|(i,_,_,_)|i).collect::<Vec<_>>()}))
+        Some(eligible.into_iter().map(|(index, _, _, _)| index).collect())
     }
 }
 

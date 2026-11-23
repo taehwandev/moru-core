@@ -146,6 +146,7 @@ class ExperienceEvaluationTests(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True), redirect_stdout(native_output):
             with (patch.object(evaluator, "_python_metrics", side_effect=AssertionError("native metrics missing")),
                   patch.object(evaluator, "_python_records", side_effect=AssertionError("native records missing")),
+                  patch.object(evaluator, "_observe", side_effect=AssertionError("native batch missing")),
                   patch.object(evaluator, "_validate_fixture", side_effect=AssertionError("native validation missing"))):
                 self.assertEqual(0, evaluator.main([]))
         self.assertEqual(python_output.getvalue(), native_output.getvalue())
@@ -184,7 +185,43 @@ class ExperienceEvaluationTests(unittest.TestCase):
                 with self.subTest(today=today):
                     self.assertIsNone(evaluator._native_records(items, today))
                     with self.assertRaises(OverflowError):
-                        next(evaluator._observe(engine, self.fixture, ROOT, today, native=True))
+                        evaluator._evaluation_records(engine, items, today, native=True)
+
+    def test_native_recall_batch_keeps_ranked_ids_when_unicode_budget_skips_rows(self):
+        from native_launcher_support import NATIVE
+        from native_pretool_support import environment, prepare
+
+        if not NATIVE.is_file():
+            self.skipTest("source-bound native fixture unavailable")
+        base = Path(self.directory.name)
+        prepare(base)
+        engine = evaluator.load_engine(evaluator.SCRIPTS)
+        items = self.fixture["records"]
+        items[0]["body"] = "큰 기록 🚀 " * 12
+        items[1]["body"] = "짧은 기록 🚀"
+        case = self.fixture["cases"][0]
+        case["request"] = ""
+        records = evaluator._python_records(engine, items, date.today())
+        short = {key: records[1][key] for key in ("id", "body", "source", "review_on")}
+        budget = len(json.dumps(short, ensure_ascii=False))
+
+        env = environment(base)
+        with patch.object(engine, "MAX_RECALL_ITEMS", 1), patch.object(engine, "MAX_RECALL_CHARS", budget):
+            with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                expected = evaluator._python_metrics(evaluator._observe(engine, [case], ROOT, records))
+            with patch.dict(os.environ, env, clear=True):
+                native = evaluator._native_recall_metrics(engine, [case], records)
+                unsupported = dict(case, id="unsupported", scope=None)
+                self.assertIsNone(evaluator._native_recall_metrics(engine, [case, unsupported], records))
+                self.assertIsNone(evaluator._native_recall_metrics(engine, [case] * 200, records * 100))
+                with patch.object(evaluator, "date") as clock:
+                    clock.today.side_effect = [date(2024, 1, 1), date(2024, 1, 2)]
+                    self.assertIsNone(evaluator._native_recall_metrics(engine, [case], records))
+        self.assertEqual(json.dumps(expected), json.dumps(native))
+        self.assertEqual([record["id"] for record in records], native["cases"][0]["ranked_ids"])
+        self.assertEqual([short["id"]], native["cases"][0]["rendered_ids"])
+        self.assertEqual(budget, native["total_payload_characters"])
+        self.assertEqual(0.5, native["metrics"]["recall"])
 
     def test_native_validation_preserves_first_errors_and_unsupported_profile_fallback(self):
         from native_launcher_support import NATIVE

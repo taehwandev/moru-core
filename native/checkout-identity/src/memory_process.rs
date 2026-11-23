@@ -45,6 +45,8 @@ impl MemoryProcess {
                     MemoryRecord::capture_inputs(&payload)
                 } else if operation == "experience-metrics" {
                     experience::ExperienceMetrics::evaluate(&payload)
+                } else if operation == "experience-recall-metrics" {
+                    experience::ExperienceMetrics::recall(&payload)
                 } else if operation == "experience-fixture" {
                     experience_fixture::ExperienceFixture::evaluate(&payload)
                 } else if operation == "experience-records" {

@@ -1,7 +1,7 @@
-//! owner: MemoryContext; allowed imports: JSON/std/MemoryRecall;
+//! owner: MemoryContext; allowed imports: JSON, std, MemoryRecall and Unicode profile;
 //! forbidden imports: filesystem, processes, stores, writes, providers, authority;
-//! callers/tests: MemoryProcess recall-context; verification: Python output oracles.
-use crate::memory_recall::MemoryRecall;
+//! callers/tests: live recall and offline evaluation; verification: Python output oracles.
+use crate::{memory_recall::MemoryRecall, memory_terms::MemoryTerms};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 
@@ -12,10 +12,27 @@ const OPTIONAL: [&str; 2] = ["applies_when", "not_when"];
 impl MemoryContext {
     pub(crate) fn evaluate(payload: &Value) -> Option<Value> {
         let object = payload.as_object()?;
-        if object.len() != 6 {
+        if object.len() != 6 || object.get("unicode")?.as_str()? != MemoryTerms::version() {
             return None;
         }
-        let limits = object.get("limits")?.as_object()?;
+        let records = object.get("records")?.as_array()?;
+        let indices = MemoryRecall::rank(
+            object.get("scope")?.as_str()?,
+            object.get("today")?.as_str()?,
+            object.get("context")?.as_str()?,
+            records,
+        )?;
+        let projected = Self::project(records, &indices, object.get("limits")?)?;
+        let items: Vec<_> = projected.into_iter().map(|(fields, _)| fields).collect();
+        Some(json!({"items": items}))
+    }
+
+    pub(crate) fn project(
+        records: &[Value],
+        indices: &[usize],
+        limits: &Value,
+    ) -> Option<Vec<(Value, String)>> {
+        let limits = limits.as_object()?;
         if limits.len() != 3 {
             return None;
         }
@@ -25,7 +42,6 @@ impl MemoryContext {
         if previous == 0 {
             return None;
         }
-        let records = object.get("records")?.as_array()?;
         let mut by_id = HashMap::new();
         for row in records {
             let fields = row.as_object()?;
@@ -44,16 +60,13 @@ impl MemoryContext {
             }
             by_id.insert(fields.get("id")?.as_str()?, row);
         }
-        let mut recall = payload.clone();
-        recall.as_object_mut()?.remove("limits");
-        let selected = MemoryRecall::evaluate("recall", &recall)?;
         let mut result = Vec::new();
         let mut used = 0;
-        for value in selected.get("indices")?.as_array()? {
+        for &index in indices {
             if result.len() >= items {
                 break;
             }
-            let row = records.get(usize::try_from(value.as_u64()?).ok()?)?;
+            let row = records.get(index)?;
             let mut fields = Map::new();
             for key in REQUIRED.into_iter().chain(OPTIONAL) {
                 if let Some(value) = row.get(key) {
@@ -70,13 +83,14 @@ impl MemoryContext {
                 };
                 fields.insert("previously".to_owned(), json!(body));
             }
-            let size = Self::python_size(&fields)?;
+            let payload = Self::python_payload(&fields)?;
+            let size = payload.chars().count();
             if used + size <= budget {
                 used += size;
-                result.push(Value::Object(fields));
+                result.push((Value::Object(fields), payload));
             }
         }
-        Some(json!({"items":result}))
+        Some(result)
     }
 
     fn limit(value: &Value, max: usize) -> Option<usize> {
@@ -84,7 +98,7 @@ impl MemoryContext {
         (n <= max).then_some(n)
     }
 
-    fn python_size(fields: &Map<String, Value>) -> Option<usize> {
+    fn python_payload(fields: &Map<String, Value>) -> Option<String> {
         // Python's default JSON separators are ", " and ": "; only strings
         // enter this profile, so no float/encoder compatibility is assumed.
         let mut text = String::from("{");
@@ -97,7 +111,7 @@ impl MemoryContext {
             text.push_str(&serde_json::to_string(value.as_str()?).ok()?);
         }
         text.push('}');
-        Some(text.chars().count())
+        Some(text)
     }
 }
 

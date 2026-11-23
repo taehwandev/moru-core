@@ -1,8 +1,14 @@
-//! owner: offline memory evaluation report metrics; allowed imports: std and JSON;
-//! forbidden imports: memory storage, ranking, providers or state writes;
+//! owner: offline memory evaluation report; allowed imports: std, JSON and
+//! existing ranking and projection; forbidden imports: storage, providers or writes;
 //! callers/tests: private memory probe and CLI/native Python report parity.
+use crate::{
+    memory_context::MemoryContext, memory_recall::MemoryRecall, memory_terms::MemoryTerms,
+};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
+
+const MAX_BATCH_RECORD_VISITS: usize = 32 * 1024;
+const MAX_BATCH_OBSERVATION_BYTES: usize = 1024 * 1024;
 
 #[derive(Default)]
 struct Counts {
@@ -41,6 +47,54 @@ impl ExperienceMetrics {
             return None;
         }
         let observations = object.get("observations")?.as_array()?;
+        Self::score(observations)
+    }
+
+    pub(super) fn recall(payload: &Value) -> Option<Value> {
+        let fields = payload.as_object()?;
+        if fields.len() != 5 || fields.get("unicode")?.as_str()? != MemoryTerms::version() {
+            return None;
+        }
+        let today = fields.get("today")?.as_str()?;
+        let limits = fields.get("limits")?;
+        let records = fields.get("records")?.as_array()?;
+        let cases = fields.get("cases")?.as_array()?;
+        if cases.len().checked_mul(records.len().max(1))? > MAX_BATCH_RECORD_VISITS {
+            return None;
+        }
+        let mut observations = Vec::with_capacity(cases.len());
+        let mut observation_bytes = 0;
+        for case in cases {
+            let scope = string_or(case, "scope", "task")?;
+            let mut context = vec![
+                string_or(case, "request", "")?,
+                string_or(case, "target_summary", "")?,
+            ];
+            if let Some(paths) = case.get("target_paths") {
+                context.extend(strings(paths)?);
+            }
+            let indices = MemoryRecall::rank(scope, today, &context.join(" "), records)?;
+            let ranked: Vec<_> = indices
+                .iter()
+                .map(|&index| records.get(index)?.get("id")?.as_str())
+                .collect::<Option<_>>()?;
+            let projected = MemoryContext::project(records, &indices, limits)?;
+            let rendered: Vec<_> = projected
+                .iter()
+                .map(|(item, _)| item.get("id")?.as_str())
+                .collect::<Option<_>>()?;
+            let payloads: Vec<_> = projected.iter().map(|(_, text)| text).collect();
+            observation_bytes += ranked.iter().map(|id| id.len()).sum::<usize>()
+                + payloads.iter().map(|text| text.len()).sum::<usize>();
+            if observation_bytes > MAX_BATCH_OBSERVATION_BYTES {
+                return None;
+            }
+            observations.push(json!([case, ranked, rendered, payloads]));
+        }
+        Self::score(&observations)
+    }
+
+    fn score(observations: &[Value]) -> Option<Value> {
         let mut cases = Vec::with_capacity(observations.len());
         let mut totals = Counts::default();
         let mut total_characters = 0;
@@ -98,6 +152,10 @@ impl ExperienceMetrics {
             "total_payload_characters": total_characters, "metrics": metrics, "cases": cases,
         }))
     }
+}
+
+fn string_or<'a>(object: &'a Value, field: &str, default: &'a str) -> Option<&'a str> {
+    object.get(field).map_or(Some(default), Value::as_str)
 }
 
 fn strings(value: &Value) -> Option<Vec<&str>> {

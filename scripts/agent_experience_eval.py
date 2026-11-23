@@ -165,12 +165,13 @@ def _native_records(items, today):
     return None
 
 
-def _observe(engine, fixture, project, today, *, native):
-    items = fixture["records"]
+def _evaluation_records(engine, items, today, *, native):
     records = _native_records(items, today) if native else None
-    if records is None:
-        records = _python_records(engine, items, today)
-    for case in fixture["cases"]:
+    return records if records is not None else _python_records(engine, items, today)
+
+
+def _observe(engine, cases, project, records):
+    for case in cases:
         context = {"records": records, "request": case.get("request", ""),
                    "target_summary": case.get("target_summary", ""),
                    "target_paths": tuple(case.get("target_paths", []))}
@@ -224,18 +225,43 @@ def _native_metrics(observations):
         return _python_metrics(observations)
     observations = list(observations)
     result = NativeProbe.request("--memory-probe", "experience-metrics", {"observations": observations})
+    return _metrics_response(result, len(observations)) or _python_metrics(observations)
+
+
+def _metrics_response(result, count):
     fields = {"case_count", "retrieval_case_count", "total_payload_characters", "metrics", "cases"}
-    if isinstance(result, dict) and set(result) == fields and result["case_count"] == len(observations):
+    if type(result) is dict and set(result) == fields and result["case_count"] == count:
         return result
-    return _python_metrics(observations)
+    return None
+
+
+def _native_recall_metrics(engine, cases, records):
+    from support.native_probe_transport import NativeProbe
+
+    observed_on = date.today()
+    result = NativeProbe.request("--memory-probe", "experience-recall-metrics", {
+        "unicode": unicodedata.unidata_version, "today": observed_on.isoformat(),
+        "records": records, "cases": cases,
+        "limits": {"items": engine.MAX_RECALL_ITEMS, "chars": engine.MAX_RECALL_CHARS,
+                   "previous": engine.MAX_PREVIOUS_CHARS},
+    })
+    # The reference takes a fresh local date at each rank/render boundary.
+    if date.today() != observed_on:
+        return None
+    return _metrics_response(result, len(cases))
 
 
 def evaluate(engine: ModuleType, fixture: dict[str, Any], project: Path, *, native: bool = False) -> dict[str, Any]:
     today = date.today()
-    compute = _native_metrics if native else _python_metrics
+    records = _evaluation_records(engine, fixture["records"], today, native=native)
+    cases = fixture["cases"]
+    metrics = _native_recall_metrics(engine, cases, records) if native else None
+    if metrics is None:
+        compute = _native_metrics if native else _python_metrics
+        metrics = compute(_observe(engine, cases, project, records))
     return {"schema_version": 1, "synthetic": True, "evaluation_date": today.isoformat(),
             "measurement": "rendered retrieval only; listing cases and applicability judgments are excluded from retrieval metrics",
-            **compute(_observe(engine, fixture, project, today, native=native))}
+            **metrics}
 
 
 def main(argv: list[str] | None = None) -> int:
