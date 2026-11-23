@@ -95,6 +95,63 @@ class NativeDocTranscriptTests(unittest.TestCase):
             with patch("support.native_doc_transcript.NativeProbe.request", side_effect=AssertionError):
                 self.assertEqual(capsule_docs.current_required_docs(rules, {}), [])
 
+    def test_capsule_drift_compares_versioned_receipts_and_preserves_fallback(self):
+        rules = self.base / "rules"
+        rules.mkdir()
+        doc = rules / "doc.md"
+        doc.write_bytes(b"old")
+        baseline = capsule_docs.doc_hash_record(doc.name, doc)
+        original_hash = capsule_docs.doc_hash_record
+        doc.write_bytes(b"new bytes")
+        current = original_hash(doc.name, doc)
+        receipt = {
+            "artifact_receipt_version": "1", "baseline_sha256": baseline["sha256"],
+            "final_sha256": current["sha256"], "final_size_bytes": "0" + str(current["size_bytes"]),
+        }
+        recorded = [baseline, baseline]
+        route = {"required_docs": [doc.name, doc.name]}
+        changed_size = f"execution capsule required doc size changed: {doc.name}"
+        changed_hash = f"execution capsule required doc hash changed: {doc.name}"
+        changed_after = f"execution capsule required doc changed after documentation evidence: {doc.name}"
+        wrong_baseline = f"execution capsule required doc documentation baseline does not match: {doc.name}"
+        cases = [
+            ({}, [changed_size, changed_hash] * 2),
+            ({doc.name: receipt}, []),
+            ({doc.name: {**receipt, "baseline_sha256": "f" * 64, "final_size_bytes": "0"}},
+             [wrong_baseline, changed_size, changed_hash] * 2),
+            ({doc.name: {**receipt, "final_size_bytes": "0"}}, [changed_after] * 2),
+            ({doc.name: {**receipt, "final_sha256": "f" * 64}}, [changed_after] * 2),
+            ({doc.name: {**receipt, "artifact_receipt_version": "0"}}, [changed_size, changed_hash] * 2),
+            ({doc.name: {**receipt, "final_size_bytes": "+9"}}, [changed_size, changed_hash] * 2),
+        ]
+        for updates, expected in cases:
+            with self.subTest(updates=updates):
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    self.assertEqual(expected, capsule_docs.required_doc_failures(recorded, rules, route, updates))
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    capsule_docs, "doc_hash_record", side_effect=AssertionError("unexpected Python hash")
+                ), patch.object(
+                    capsule_docs, "validated_required_doc_update_receipt",
+                    side_effect=AssertionError("unexpected Python receipt comparison"),
+                ):
+                    self.assertEqual(expected, capsule_docs.required_doc_failures(recorded, rules, route, updates))
+
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(capsule_docs, "doc_hash_record", wraps=original_hash) as fallback:
+                arabic_size = {doc.name: {**receipt, "final_size_bytes": "٩"}}
+                self.assertEqual([], capsule_docs.required_doc_failures(recorded, rules, route, arabic_size))
+                self.assertEqual(2, fallback.call_count)
+            with self.assertRaises(ValueError):
+                superscript_size = {doc.name: {**receipt, "final_size_bytes": "²"}}
+                capsule_docs.required_doc_failures(recorded, rules, route, superscript_size)
+            missing = {**baseline, "path": "missing.md"}
+            mixed_route = {"required_docs": [doc.name, "missing.md", doc.name]}
+            expected = [changed_size, changed_hash, "execution capsule required doc is unavailable: missing.md",
+                        changed_size, changed_hash]
+            self.assertEqual(expected, capsule_docs.required_doc_failures(
+                [baseline, missing, baseline], rules, mixed_route
+            ))
+
     def parity(self, raw, fallback=0, offset=0, count=0, limit=3):
         self.path.write_bytes(raw)
         state = {"transcript_bytes":offset, "redeliveries":count}

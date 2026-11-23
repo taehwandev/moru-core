@@ -181,7 +181,7 @@ def validate_preflight_snapshot(
 
 
 def _native_shape(kind: str, record: Any) -> list[str] | None:
-    result = native_capsule_probe("capsule-shape", kind, record)
+    result = native_capsule_probe("capsule-shape", {"kind": kind, "record": record})
     failures = result.get("failures") if result is not None else None
     if type(failures) is list and len(failures) <= 1 and all(type(item) is str for item in failures):
         return failures

@@ -240,14 +240,14 @@ def _capsule_probe_json(value: Any, depth: int = 0) -> bool:
     return value is None or type(value) in (bool, int, str)
 
 
-def native_capsule_probe(operation: str, kind: str, payload: Any) -> dict | None:
+def native_capsule_probe(operation: str, payload: dict[str, Any]) -> dict | None:
     if not NativeProbe.available() or not _capsule_probe_json(payload):
         return None
-    return NativeProbe.request("--completion-probe", operation, {"kind": kind, "record": payload})
+    return NativeProbe.request("--completion-probe", operation, payload)
 
 
 def _native_binding(kind: str, payload: dict[str, Any]) -> str | None:
-    result = native_capsule_probe("capsule-binding", kind, payload)
+    result = native_capsule_probe("capsule-binding", {"kind": kind, "record": payload})
     digest = result.get("sha256") if result is not None else None
     return digest if is_sha256(digest) else None
 

@@ -11,6 +11,7 @@ from agent_execution_capsule_state import (
     doc_hash_record,
     execution_capsule_binding_fingerprint,
     is_sha256,
+    native_capsule_probe,
     preflight_snapshot_binding_fingerprint,
     read_json_object,
 )
@@ -230,16 +231,22 @@ def required_doc_failures(
     expected = required_docs_for_route(route)
     if [str(item.get("path")) for item in recorded] != expected:
         return ["execution capsule required-doc manifest does not match"]
-    failures: list[str] = []
+    if not recorded:
+        return []
     update_receipts = documented_updates or {}
-    native = hash_docs(rules, expected)
-    for index, item in enumerate(recorded):
+    if type(rules) is type(Path()) and all(type(item.get("path")) is str for item in recorded):
+        native = native_capsule_probe("capsule-doc-drift", {
+            "rules": str(rules), "recorded": recorded, "updates": update_receipts,
+        })
+        if native is not None:
+            observed = native.get("failures")
+            if type(observed) is list and all(type(item) is str for item in observed):
+                return observed
+    failures: list[str] = []
+    for item in recorded:
         relative = str(item["path"])
         try:
-            current = (
-                native[index] if native is not None
-                else doc_hash_record(relative, contained_doc_path(rules, relative))
-            )
+            current = doc_hash_record(relative, contained_doc_path(rules, relative))
         except (OSError, ValueError):
             failures.append(f"execution capsule required doc is unavailable: {relative}")
             continue
