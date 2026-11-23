@@ -15,6 +15,11 @@ from pathlib import Path
 
 from support.native_probe_transport import NativeProbe
 
+_HOST_COLLECTOR = re.compile(
+    r"\bNoticeEffectLifecycleCollector\s*\(\s*effects\s*=\s*\w+\s*,\s*onEffect\s*=\s*\{"
+)
+
+
 class AndroidActionBoundary:
     """Reject recognizable effect decisions in changed composable bodies."""
 
@@ -35,24 +40,21 @@ class AndroidActionBoundary:
     def failures(cls, path: Path, source: str) -> list[str]:
         if path.suffix != ".kt":
             return []
-        code, native_bodies = _kotlin_code_for_review(source)
+        code, native_bodies, native_scopes = _kotlin_code_for_review(source)
         bodies = native_bodies if native_bodies is not None else cls._bodies(code)
         findings = []
-        for signature, start, end in bodies:
+        for index, (signature, start, end) in enumerate(bodies):
             body = code[start:end]
             parameters = code[signature:start]
             # Resolve explicit parameter types locally, never from another function.
             vm_names = re.findall(r"\b(\w+)\s*:\s*(?:\w+\.)*\w*ViewModel\b", parameters)
             receivers = r"(?:viewModel|\w+ViewModel" + "".join("|" + re.escape(name) for name in vm_names) + ")"
             leaf_callbacks = set(re.findall(r"\b(on\w+)\s*:\s*\(\s*\)\s*->\s*Unit\b", parameters))
-            callbacks = cls._regions(body, cls._callback)
+            callbacks, host_collectors = (native_scopes[index] if native_scopes is not None
+                                          else _callback_scopes(cls, body))
             collectors = cls._regions(body, re.compile(
                 r"\b" + receivers + r"\s*\.\s*(?:effects|uiEffects|sideEffects)\s*"
                 r"\.\s*(?:collect|collectLatest)\s*\{"
-            ))
-            host_collectors = cls._regions(body, re.compile(
-                r"\bNoticeEffectLifecycleCollector\s*\(\s*effects\s*=\s*\w+\s*,\s*"
-                r"onEffect\s*=\s*\{"
             ))
             # A sealed effect type check consumes an effect; it does not create one.
             matches = [(m, "effect construction") for m in cls._event.finditer(body)
@@ -145,17 +147,22 @@ def _is_lifecycle_notice_dispatch(
     )
 
 
-def _kotlin_code_for_review(source: str) -> tuple[str, list[list[int]] | None]:
+def _callback_scopes(cls, body: str):
+    return cls._regions(body, cls._callback), cls._regions(body, _HOST_COLLECTOR)
+
+
+def _kotlin_code_for_review(source: str):
     native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {
         "source": source, "unicode": unicodedata.unidata_version, "normalize_aliases": True,
+        "callback_scopes": True,
     })
     masked = native.get("code") if native is not None else None
     if not isinstance(masked, str) or len(masked) != len(source):
-        return _normalize_aliases(_mask_kotlin_literals(source)), None
+        return _normalize_aliases(_mask_kotlin_literals(source)), None, None
     if native.get("aliases_normalized") is True:
         code = native.get("normalized_code", masked)
         if not isinstance(code, str):
-            return _normalize_aliases(masked), None
+            return _normalize_aliases(masked), None, None
         bodies = native.get("bodies")
     else:
         code = _normalize_aliases(masked)
@@ -164,8 +171,23 @@ def _kotlin_code_for_review(source: str) -> tuple[str, list[list[int]] | None]:
         isinstance(span, list) and len(span) == 3 and all(type(offset) is int for offset in span)
         and 0 <= span[0] < span[1] < span[2] <= len(code) for span in bodies
     ):
-        return code, None
-    return code, bodies
+        return code, None, None
+    scopes = native.get("callback_scopes")
+    if not isinstance(scopes, list) or len(scopes) != len(bodies) or not all(
+        _valid_callback_scopes(row, end - start) for row, (_, start, end) in zip(scopes, bodies)
+    ):
+        scopes = None
+    return code, bodies, scopes
+
+
+def _valid_callback_scopes(row, length: int) -> bool:
+    return isinstance(row, list) and len(row) == 2 and all(
+        isinstance(group, list) and all(
+            isinstance(span, list) and len(span) == 2
+            and all(type(offset) is int for offset in span) and 0 <= span[0] < span[1] <= length
+            for span in group
+        ) for group in row
+    )
 
 
 def _normalize_aliases(code: str) -> str:

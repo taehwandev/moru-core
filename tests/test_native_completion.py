@@ -73,6 +73,51 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_compose_callback_scopes_match_python(self):
+        callbacks = [
+            "", "on = { x }", "onClick={ onTap = { y } }", "on한\x1c=\n{ y }",
+            "xonClick={ x } onClickβ = { y }", 'clickable("}") { onTap={ y } }',
+            "combinedClickable(x(y)) { x }", "clickable((unbalanced) { x }",
+            "clickable(x = { onTap={x} }) { y }", "clickable(args) nope { x }",
+            "clickable() combinedClickable() { x }", "clickable { onClick={ missing",
+            "NoticeEffectLifecycleCollector ( effects = 흐름, onEffect = { onClick={x} } )",
+            "NoticeEffectLifecycleCollector(effects = vm.flow, onEffect = { x })",
+            "xNoticeEffectLifecycleCollector(effects=flow,onEffect={x})",
+        ]
+        for snippet in callbacks:
+            source = "@Composable fun Screen() {\n" + snippet + "\n}"
+            native = self.check("kotlin-literal-mask", {
+                "source": source, "unicode": unicodedata.unidata_version, "callback_scopes": True,
+            })
+            masked = android._mask_kotlin_literals(source)
+            cls = android.AndroidActionBoundary
+            expected = [
+                [[list(span) for span in group] for group in android._callback_scopes(cls, masked[start:end])]
+                for _, start, end in cls._bodies(masked)
+            ]
+            self.assertEqual(expected, native["callback_scopes"], snippet)
+
+        source = (
+            "@Composable fun Screen() {\n"
+            "NoticeEffectLifecycleCollector(effects = flow, onEffect = {\n"
+            "    nav.navigate(collected)\n"
+            "    clickable { nav.navigate(direct) }\n"
+            "})\n}"
+        )
+        scan = android.AndroidActionBoundary.failures
+        path = Path("Screen.kt")
+        with patch.object(NativeProbe, "request", return_value={
+            "code": source, "bodies": [list(span) for span in android.AndroidActionBoundary._bodies(source)],
+            "aliases_normalized": True, "callback_scopes": [[[[False, 2]], []]],
+        }):
+            expected = scan(path, source)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            android, "_callback_scopes", side_effect=AssertionError("Python found callback scopes"),
+        ):
+            self.assertEqual(expected, scan(path, source))
+        self.assertEqual(1, len(expected))
+        self.assertTrue(expected[0].startswith("Screen.kt:4:"))
+
     def test_structure_compose_aliases_match_order_and_adjust_spans(self):
         compose = "import androidx.compose.runtime.Composable as UI\n"
         event = "import app.RouteEvent as E\n"

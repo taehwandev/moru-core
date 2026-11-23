@@ -1,10 +1,11 @@
 //! owner: Kotlin literal and comment masking for Compose diagnostics.
-//! allowed imports: Compose aliases and body ranges, JSON and standard-library strings.
+//! allowed imports: Compose aliases, body and callback ranges, JSON and standard-library strings.
 //! forbidden imports: source IO, Git execution, mutation and approval.
 //! callers/tests: Compose action scan through the private completion probe.
 //! verification: exact Python mask and diagnostic offset parity.
 use super::{
     kotlin_compose_aliases::KotlinComposeAliases, kotlin_compose_bodies::KotlinComposeBodies,
+    kotlin_compose_callbacks::KotlinComposeCallbacks,
 };
 use serde_json::{json, Value};
 use std::borrow::Cow;
@@ -48,9 +49,8 @@ impl KotlinLiteralMask {
             Some(Cow::Owned(text)) => Some(text.chars().collect::<Vec<_>>()),
             _ => None,
         };
-        let bodies = version.and_then(|version| {
-            KotlinComposeBodies::ranges(normalized_chars.as_deref().unwrap_or(&code), version)
-        });
+        let prepared = normalized_chars.as_deref().unwrap_or(&code);
+        let bodies = version.and_then(|version| KotlinComposeBodies::ranges(prepared, version));
         let mut result = json!({"code": masked});
         if let Some(normalized) = normalized {
             result["aliases_normalized"] = json!(true);
@@ -59,6 +59,13 @@ impl KotlinLiteralMask {
             }
         }
         if let Some(bodies) = bodies {
+            if input.get("callback_scopes").and_then(Value::as_bool) == Some(true) {
+                let scopes: Vec<_> = bodies
+                    .iter()
+                    .map(|&[_, start, end]| KotlinComposeCallbacks::regions(&prepared[start..end]))
+                    .collect();
+                result["callback_scopes"] = json!(scopes);
+            }
             result["bodies"] = json!(bodies);
         }
         Some(result)
