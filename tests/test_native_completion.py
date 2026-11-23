@@ -70,6 +70,31 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_owner_findings_keep_baseline_budgets_and_role_transitions(self):
+        common = {
+            "public_count": 2, "previous_public_count": 2, "public_labels": "A@1, B@2",
+            "visible_count": 5, "previous_visible_count": 5, "visible_labels": "A@1, B@2, C@3",
+            "role_labels": "A@1, B@2", "roles": ["data", "ui"], "previous_roles": ["data", "ui"],
+        }
+        rows = [
+            {**common, "path": "legacy.py"},
+            {**common, "path": "growth.py", "previous_public_count": 1, "visible_count": 6,
+             "roles": ["data", "domain", "ui"]},
+            {**common, "path": "new-mix.py", "previous_roles": ["ui"]},
+            {**common, "path": "improving.py", "previous_roles": ["data", "domain", "ui"]},
+        ]
+        expected = [failure for row in rows for failure in purpose._owner_findings(row)]
+        request = {
+            "limit": 20, "paths": [[row["path"], "M"] for row in rows],
+            "owners": {"files": rows, "public_limit": purpose.MAX_PUBLIC_TOP_LEVEL_OWNERS,
+                       "visible_limit": purpose.MAX_TOP_LEVEL_OWNERS, "role_pairs": purpose.MIXED_ROLE_BLOCKS},
+        }
+        with patch.dict(os.environ, self.env, clear=True):
+            _, layout = structure._file_findings([], source_layout=request)
+        self.assertEqual(expected, layout["owner_failures"])
+        self.assertEqual(["growth.py", "growth.py", "growth.py", "new-mix.py"],
+                         [failure.split(" ", 1)[0] for failure in expected])
+
     def test_structure_package_roles_match_grouped_language_roots_and_order(self):
         paths = {
             "plain/Services/util/Foo.kt": "A",

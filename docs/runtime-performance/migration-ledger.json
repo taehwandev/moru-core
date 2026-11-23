@@ -483,7 +483,7 @@
       "entry_aliases": "Direct CLI",
       "remaining": "Port Git acquisition, source and baseline inspection, structural analysis and CLI output. Preserve the structural review contract and Python compatibility for unsupported diff streams.",
       "verification": {
-        "local": "Source-bound Rust decodes Git NUL-framed diff records, selects ordinary source paths, projects net-deletion thresholds, and batches file-size, addition, source count, copy, generic-package and oversized-block diagnostics. It also recognizes block starts and matches removed line identities to additions. Python retains Git and source reads, declaration owner analysis, removal sample redaction, Git attributes, vendor provenance and unsupported profiles."
+        "local": "Source-bound Rust decodes Git NUL-framed diff records, selects ordinary source paths, projects net-deletion thresholds, and batches size, addition, source count, copy, generic-package, declaration-owner and oversized-block diagnostics. It also recognizes block starts and matches removed line identities to additions. Python retains Git and source reads, declaration extraction and grouping, removal sample redaction, Git attributes, vendor provenance and unsupported profiles."
       }
     },
     {

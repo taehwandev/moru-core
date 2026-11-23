@@ -82,6 +82,8 @@ mod structure_file_size;
 mod structure_source_layout;
 #[path = "structure_package_roles.rs"]
 mod structure_package_roles;
+#[path = "structure_owner_findings.rs"]
+mod structure_owner_findings;
 #[path = "structure_removal_matching.rs"]
 mod structure_removal_matching;
 #[path = "structure_net_deletions.rs"]

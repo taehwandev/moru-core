@@ -86,22 +86,24 @@ def purpose_failures(
     run_command: CommandRunner | None = None,
     *,
     package_findings: list[str] | None = None,
+    owner_findings: list[str] | None = None,
 ) -> list[str]:
-    failures: list[str] = []
-    for path in paths:
-        if test_exempt_path(path):
-            continue
-        try:
-            lines = (project / path).read_text(encoding="utf-8").splitlines()
-        except UnicodeDecodeError:
-            continue
-        failures.extend(
-            top_level_declaration_failures(
-                path,
-                top_level_type_declarations(path, lines),
-                previous_top_level_type_declarations(project, path, path_metadata, run_command),
+    failures = list(owner_findings or [])
+    if owner_findings is None:
+        for path in paths:
+            if test_exempt_path(path):
+                continue
+            try:
+                lines = (project / path).read_text(encoding="utf-8").splitlines()
+            except UnicodeDecodeError:
+                continue
+            failures.extend(
+                top_level_declaration_failures(
+                    path,
+                    top_level_type_declarations(path, lines),
+                    previous_top_level_type_declarations(project, path, path_metadata, run_command),
+                )
             )
-        )
     if package_findings is None:
         package_findings = package_role_failures(project, paths, path_metadata, review_source_path, test_exempt_path)
     failures.extend(package_findings)
@@ -294,7 +296,14 @@ def top_level_declaration_failures(
     declarations: list[dict[str, Any]],
     previous_declarations: list[dict[str, Any]] | None = None,
 ) -> list[str]:
-    failures: list[str] = []
+    return _owner_findings(_owner_review_facts(path, declarations, previous_declarations))
+
+
+def _owner_review_facts(
+    path: Path,
+    declarations: list[dict[str, Any]],
+    previous_declarations: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     raw_declarations = coalesce_next_route_adapter(path, declarations)
     raw_previous_declarations = coalesce_next_route_adapter(path, previous_declarations or [])
     declarations = coalesce_typescript_support_types(path, raw_declarations)
@@ -329,27 +338,45 @@ def top_level_declaration_failures(
     previous_public_owners = coalesce_kotlin_extension_families(
         path, coalesce_dart_sealed_families(path, previous_public)
     )
-    if declaration_limit_failed(public_owners, previous_public_owners, MAX_PUBLIC_TOP_LEVEL_OWNERS):
+    return {
+        "path": str(path),
+        "public_count": len(public_owners),
+        "previous_public_count": len(previous_public_owners),
+        "public_labels": format_declarations(public_owners),
+        "visible_count": len(visible_owners),
+        "previous_visible_count": len(previous_visible_owners),
+        "visible_labels": format_declarations(visible_owners[:8]),
+        "roles": sorted({declaration["role"] for declaration in visible if declaration["role"]}),
+        "previous_roles": sorted({declaration["role"] for declaration in previous_visible if declaration["role"]}),
+        "role_labels": format_declarations(visible),
+    }
+
+
+def _owner_findings(facts: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    path = facts["path"]
+    public = facts["public_count"]
+    visible = facts["visible_count"]
+    if public > max(MAX_PUBLIC_TOP_LEVEL_OWNERS, facts["previous_public_count"]):
         failures.append(
-            f"{path} declares {len(public_owners)} public/exported top-level owners "
-            f"({format_declarations(public_owners)}); "
+            f"{path} declares {public} public/exported top-level owners "
+            f"({facts['public_labels']}); "
             f"limit is {MAX_PUBLIC_TOP_LEVEL_OWNERS}; split runtime files so one file owns one "
             "public contract, component, handler, service, or implementation; "
             "for a legacy multi-owner file, keep existing exports and place the new helper "
             "in a purpose-named module"
         )
-    if declaration_limit_failed(visible_owners, previous_visible_owners, MAX_TOP_LEVEL_OWNERS):
+    if visible > max(MAX_TOP_LEVEL_OWNERS, facts["previous_visible_count"]):
         failures.append(
-            f"{path} declares {len(visible_owners)} non-private top-level owners "
-            f"({format_declarations(visible_owners[:8])}); "
+            f"{path} declares {visible} non-private top-level owners "
+            f"({facts['visible_labels']}); "
             f"limit is {MAX_TOP_LEVEL_OWNERS}; move separate contracts, state, data, platform, and helpers "
             "into purpose-named files"
         )
-    roles = sorted({declaration["role"] for declaration in visible if declaration["role"]})
-    previous_roles = sorted({declaration["role"] for declaration in previous_visible if declaration["role"]})
+    roles, previous_roles = facts["roles"], facts["previous_roles"]
     if mixed_roles_blocked(roles) and role_mix_expanded(roles, previous_roles):
         failures.append(
-            f"{path} mixes top-level owner roles {', '.join(roles)} ({format_declarations(visible)}); "
+            f"{path} mixes top-level owner roles {', '.join(roles)} ({facts['role_labels']}); "
             "split by purpose before approval"
         )
     return failures
@@ -545,18 +572,6 @@ def coalesce_dart_sealed_families(
         if parent is None:
             owners.append(declaration)
     return owners
-
-
-def declaration_limit_failed(
-    declarations: list[dict[str, Any]],
-    previous_declarations: list[dict[str, Any]],
-    limit: int,
-) -> bool:
-    if len(declarations) <= limit:
-        return False
-    if len(previous_declarations) <= limit:
-        return True
-    return len(declarations) > len(previous_declarations)
 
 
 def role_mix_expanded(roles: list[str], previous_roles: list[str]) -> bool:

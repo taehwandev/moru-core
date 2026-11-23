@@ -12,7 +12,17 @@ from typing import Any
 from agent_review_boundary import boundary_note_requirements
 from agent_review_generated_attrs import _declares_generated, linguist_generated_path
 from agent_android_action_boundary import AndroidActionBoundary
-from agent_review_purpose import GENERIC_PACKAGE_PARTS, purpose_failures
+from agent_review_purpose import (
+    GENERIC_PACKAGE_PARTS,
+    MAX_PUBLIC_TOP_LEVEL_OWNERS,
+    MAX_TOP_LEVEL_OWNERS,
+    MIXED_ROLE_BLOCKS,
+    _owner_findings,
+    _owner_review_facts,
+    previous_top_level_type_declarations,
+    purpose_failures,
+    top_level_type_declarations,
+)
 from agent_review_removals import classify_net_deletions
 from agent_review_merge_baseline import inherited_merge_paths
 from agent_structure_rules import structure_rule_review
@@ -218,6 +228,7 @@ def structure_review(
         )
 
     file_checks = []
+    owner_checks = []
     for relative in active_paths:
         is_test_path = test_exempt_path(relative)
         if is_test_path:
@@ -244,6 +255,11 @@ def structure_review(
             else REVIEW_FILE_REVIEW_WARNING_LIMIT,
         }
         if not is_test_path:
+            owner_checks.append(_owner_review_facts(
+                relative,
+                top_level_type_declarations(relative, lines),
+                previous_top_level_type_declarations(source_root, relative, discovery["path_metadata"], subject_run_command),
+            ))
             file_review["actions"] = android_action_delta_failures(
                 project, relative, lines, metadata, subject_run_command,
             )
@@ -262,7 +278,16 @@ def structure_review(
         "limit": REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
         "generic_parts": sorted(GENERIC_PACKAGE_PARTS),
         "paths": [[path, path_metadata.get(path, {}).get("status")] for path in result["strict_checked_paths"]],
+        "owners": {
+            "files": owner_checks,
+            "public_limit": MAX_PUBLIC_TOP_LEVEL_OWNERS,
+            "visible_limit": MAX_TOP_LEVEL_OWNERS,
+            "role_pairs": MIXED_ROLE_BLOCKS,
+        },
     })
+    owner_findings = source_layout.get("owner_failures") if source_layout is not None else None
+    if owner_findings is None:
+        owner_findings = [finding for check in owner_checks for finding in _owner_findings(check)]
     # Preserve each file's position relative to encoding warnings.
     for kind, index in (("failures", 0), ("warnings", 1)):
         other_findings = result[kind]
@@ -286,6 +311,7 @@ def structure_review(
         }},
         subject_run_command=subject_run_command,
         source_layout=source_layout,
+        owner_findings=owner_findings,
     )
     return result
 
@@ -340,6 +366,7 @@ def _add_cross_path_findings(
     discovery: dict[str, Any],
     subject_run_command: CommandRunner,
     source_layout: dict[str, Any] | None,
+    owner_findings: list[str],
 ) -> None:
     """Everything that can only be seen with the whole changed set in view.
 
@@ -365,6 +392,7 @@ def _add_cross_path_findings(
             test_exempt_path,
             subject_run_command,
             package_findings=source_layout.get("package_failures") if source_layout is not None else None,
+            owner_findings=owner_findings,
         )
     )
     structure_rules = structure_rule_review(
@@ -1175,12 +1203,12 @@ def _file_findings(
                                 for items in row) for row in findings)):
             layout = native.get("source_layout")
             if isinstance(layout, dict) and {"added", "copied", "warnings"} <= layout.keys():
-                package_findings = layout.get("package_failures")
                 if (all(type(layout[key]) is int and layout[key] >= 0 for key in ("added", "copied"))
                         and isinstance(layout["warnings"], list)
                         and all(isinstance(warning, str) for warning in layout["warnings"])
-                        and (package_findings is None or isinstance(package_findings, list)
-                             and all(isinstance(finding, str) for finding in package_findings))):
+                        and all(value is None or isinstance(value, list)
+                                and all(isinstance(finding, str) for finding in value)
+                                for value in (layout.get("package_failures"), layout.get("owner_failures")))):
                     return findings, layout
             return findings, None
     findings = []

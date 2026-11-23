@@ -3,6 +3,7 @@
 //! forbidden imports: filesystem, Git execution and authority.
 //! callers/tests: structural diagnostic batch and exact Python parity fixtures.
 //! verification: strict path order, pressure threshold and copy disclosure.
+use super::structure_owner_findings::StructureOwnerFindings;
 use super::structure_package_roles::StructurePackageRoles;
 use serde_json::{json, Value};
 
@@ -53,6 +54,10 @@ impl StructureSourceLayout {
         if let Some(generic) = input.get("generic_parts") {
             report["package_failures"] =
                 StructurePackageRoles::failures(paths, generic).unwrap_or(Value::Null);
+        }
+        if let Some(owners) = input.get("owners") {
+            report["owner_failures"] =
+                StructureOwnerFindings::inspect(owners).unwrap_or(Value::Null);
         }
         Some(report)
     }
