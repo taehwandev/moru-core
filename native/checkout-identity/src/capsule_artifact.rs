@@ -107,7 +107,7 @@ impl CapsuleArtifact {
         }
     }
 
-    fn file_record(dir: &File, name: &CStr, optional: bool) -> Option<Option<Value>> {
+    pub(super) fn file_record(dir: &File, name: &CStr, optional: bool) -> Option<Option<Value>> {
         let file = match AtomicSibling::open_relative_result(dir, name, libc::O_RDONLY) {
             Ok(file) => file,
             Err(error) if optional && error.kind() == ErrorKind::NotFound => return Some(None),

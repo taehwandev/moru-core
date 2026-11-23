@@ -125,7 +125,7 @@ impl WorktreeSignature {
         }
     }
 
-    fn git(root: &Path, args: &[&str], bound: u64) -> Option<(Vec<u8>, i32)> {
+    pub(super) fn git(root: &Path, args: &[&str], bound: u64) -> Option<(Vec<u8>, i32)> {
         let (stdout, _, status) = capture_status(
             Command::new("git")
                 .current_dir(root)

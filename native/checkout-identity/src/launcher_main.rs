@@ -275,6 +275,11 @@ fn main() {
     if args.first().is_some_and(|a| a == "pending-publication") {
         exit(pending_publication_cli::PendingPublicationCli::run(&launcher, &args));
     }
+    if args.first().is_some_and(|a| a == "execution-capsule") {
+        if let Some(code) = completion_process::capsule_check_cli::CapsuleCheck::run(&launcher, &args) {
+            finish(code);
+        }
+    }
     if args.first().is_some_and(|a| a == "overhead-report") {
         finish(overhead_command::OverheadCommand::run(&launcher, &args));
     }
