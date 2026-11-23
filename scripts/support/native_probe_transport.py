@@ -20,8 +20,12 @@ class NativeProbe:
                 and (Path.home() / ".moru/bin/moru-hook-native").is_file())
 
     @staticmethod
-    def request(protocol: str, operation: str, payload: dict) -> dict | None:
+    def request(
+        protocol: str, operation: str, payload: dict, *, verified_launcher: Path | None = None,
+    ) -> dict | None:
         if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe"}:
+            return None
+        if verified_launcher is not None and (protocol, operation) != ("--completion-probe", "doctor-launcher"):
             return None
         write_failure = {
             ("--completion-probe", "capsule-refresh"): "native execution capsule refresh outcome could not be determined",
@@ -31,7 +35,8 @@ class NativeProbe:
             ("--doc-transcript-probe", "agy-redelivery"): "native redelivery outcome could not be determined",
             ("--doc-transcript-probe", "agy-prepared-delivery"): "native prepared delivery outcome could not be determined",
         }.get((protocol, operation))
-        done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE, write_failure=write_failure)
+        done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE,
+                                  write_failure=write_failure, verified_launcher=verified_launcher)
         if done is None:
             return None
         try:
@@ -53,10 +58,14 @@ class NativeProbe:
 
     @staticmethod
     def _invoke(protocol: str, operation: str, payload: dict, stdout, *,
-                write_failure: str | None = None) -> subprocess.CompletedProcess | None:
-        if not NativeProbe.available():
+                write_failure: str | None = None,
+                verified_launcher: Path | None = None) -> subprocess.CompletedProcess | None:
+        if os.environ.get("MORU_LAUNCHER_BACKEND") == "python":
+            return None
+        if verified_launcher is None and not NativeProbe.available():
             return None
         entry = Path.home() / ".moru/bin/moru-hook"
+        executable = verified_launcher if verified_launcher is not None else entry.with_name("moru-hook-native")
         try:
             raw = json.dumps(payload, ensure_ascii=True, allow_nan=False).encode()
         except (ValueError, TypeError):
@@ -64,7 +73,7 @@ class NativeProbe:
         if len(raw) > 1024 * 1024:
             return None
         try:
-            done = subprocess.run([str(entry.with_name("moru-hook-native")), str(entry), protocol, operation],
+            done = subprocess.run([str(executable), str(entry), protocol, operation],
                                   input=raw, stdout=stdout, stderr=subprocess.PIPE, timeout=10,
                                   env={**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])})
         except FileNotFoundError:

@@ -103,7 +103,7 @@ def _project_health_report(
     project: Path, rules: Path, *, output_format: str | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     resolved = project.expanduser().resolve()
-    launcher_warning = stable_launcher_issue(rules)
+    launcher_warning = stable_launcher_issue(rules, native_check=True)
     state_dir = project_state_dir_target(resolved)
     stacks, has_agents, has_managed_block = _inspect_project_files(resolved)
     permissions = detect_project_permissions(resolved)

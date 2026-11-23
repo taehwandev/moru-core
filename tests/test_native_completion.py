@@ -34,6 +34,7 @@ from agent_publication_status import _observe_pull_request_python, observe_pull_
 from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 from support.native_probe_transport import NativeProbe
+from support import stable_launcher
 from test_agent_run_interruption import Run
 
 
@@ -106,6 +107,42 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             instructions = doctor.inspect_project_health(self.project)["instructions"]
         self.assertEqual({"agents_md_present": True, "managed_routing_block": True}, instructions)
+
+    def test_doctor_launcher_health_keeps_warning_order_and_uses_verified_binary(self):
+        rules = Path(self.env["MORU_HOME"])
+        pointer = self.entry.parent.parent / "moru-root"
+        text = self.entry.read_bytes()
+        pointer_text = pointer.read_bytes()
+        self.entry.write_bytes(text.replace(b"\n", b"\r\n"))
+        pointer.write_bytes(pointer_text.replace(b"\n", b"\r\n"))
+
+        def compare(expected):
+            with patch.dict(os.environ, self.env, clear=True):
+                reference = stable_launcher.stable_launcher_issue(rules)
+                self.assertEqual(expected, reference.partition(" is missing")[0])
+                with patch.object(
+                    stable_launcher, "_read_text", side_effect=AssertionError("Python re-read"),
+                ):
+                    actual = doctor.inspect_project_health(self.project)
+                self.assertEqual(reference, actual["launchers"]["launcher_issue"])
+
+        compare("")
+        pointer.write_bytes(pointer_text + b"\n")
+        compare("Moru Core root pointer")
+        self.entry.chmod(0o644)
+        compare("Moru Core stable launcher")
+        self.entry.chmod(0o755)
+
+        # A diagnostic should never execute the installed binary it is checking.
+        binary = self.entry.with_name("moru-hook-native")
+        ran = self.base / "unchecked-binary-ran"
+        binary.write_text(f"#!/bin/sh\n: > {shlex.quote(str(ran))}\nexit 1\n")
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            stable_launcher, "_read_text", side_effect=AssertionError("Python re-read"),
+        ):
+            self.assertIn("stable launcher is missing or stale",
+                          stable_launcher.stable_launcher_issue(rules, native_check=True))
+        self.assertFalse(ran.exists())
 
     def test_doctor_rust_report_preserves_cli_formats_and_recommendation_order(self):
         agents = self.project / "AGENTS.md"

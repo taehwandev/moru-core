@@ -118,7 +118,7 @@ def ensure_stable_launcher(root: Path, dry_run: bool) -> list[dict]:
     ]
 
 
-def stable_launcher_issue(root: Path) -> str:
+def stable_launcher_issue(root: Path, *, native_check: bool = False) -> str:
     """Return a preflight warning when the stable launcher is absent or stale."""
     from support.native_launcher_install import artifact_plan, installed_matches
 
@@ -126,19 +126,38 @@ def stable_launcher_issue(root: Path) -> str:
     pointer_path = stable_root_pointer_path()
     native = artifact_plan(root, launcher_path)
     expected = _launcher_script_text(native=native is not None)
-    if (not launcher_path.exists() or _read_text(launcher_path) != expected
-            or not _is_executable(launcher_path)
-            or (native is not None and not installed_matches(native))):
-        return (
-            "Moru Core stable launcher is missing or stale. "
-            f"Run: python3 {root / 'scripts' / 'setup-agent-hooks.py'}"
-        )
-    if _read_text(pointer_path) != f"{root.resolve()}\n":
-        return (
-            "Moru Core root pointer is missing or stale. "
-            f"Run: python3 {root / 'scripts' / 'setup-agent-hooks.py'}"
-        )
-    return ""
+    issue = _native_launcher_issue(root, expected, native) if native_check and native else None
+    if issue is None:
+        if (not launcher_path.exists() or _read_text(launcher_path) != expected
+                or not _is_executable(launcher_path)
+                or (native is not None and not installed_matches(native))):
+            issue = "launcher"
+        elif _read_text(pointer_path) != f"{root.resolve()}\n":
+            issue = "pointer"
+    if not issue:
+        return ""
+    label = "stable launcher" if issue == "launcher" else "root pointer"
+    return f"Moru Core {label} is missing or stale. Run: python3 {root / 'scripts' / 'setup-agent-hooks.py'}"
+
+
+def _native_launcher_issue(root: Path, launcher_text: str, plan: dict) -> str | None:
+    import locale
+    from support.native_probe_transport import NativeProbe
+
+    if locale.getpreferredencoding(False).lower() != "utf-8":
+        return None
+    try:
+        pointer_text = f"{root.resolve()}\n"
+    except (OSError, RuntimeError):
+        return None
+    result = NativeProbe.request("--completion-probe", "doctor-launcher", {
+        "launcher_text": launcher_text,
+        "pointer_text": pointer_text,
+        "binary_sha256": plan["sha256"],
+    }, verified_launcher=plan["source"])
+    if result is not None and set(result) == {"issue"} and result["issue"] in ("", "launcher", "pointer"):
+        return result["issue"]
+    return None
 
 
 def _read_text(path: Path) -> str:
