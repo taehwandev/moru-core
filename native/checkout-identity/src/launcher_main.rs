@@ -279,6 +279,9 @@ fn main() {
         if let Some(code) = completion_process::capsule_check_cli::CapsuleCheck::run(&launcher, &args) {
             finish(code);
         }
+        if let Some(code) = completion_process::capsule_refresh_cli::CapsuleRefresh::run(&launcher, &args) {
+            finish(code);
+        }
     }
     if args.first().is_some_and(|a| a == "overhead-report") {
         finish(overhead_command::OverheadCommand::run(&launcher, &args));

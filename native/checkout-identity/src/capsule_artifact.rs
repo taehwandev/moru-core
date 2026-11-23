@@ -71,6 +71,16 @@ impl CapsuleArtifact {
     pub(super) fn refresh(payload: &Value) -> Option<Value> {
         let text = payload.get("path")?.as_str()?;
         let dir = AtomicSibling::open_directory(Self::run_parent(Path::new(text))?)?;
+        Self::refresh_observed(&dir, payload, None)
+    }
+
+    pub(super) fn refresh_observed(
+        dir: &File,
+        payload: &Value,
+        expected_hashes: Option<(&str, &str)>,
+    ) -> Option<Value> {
+        let text = payload.get("path")?.as_str()?;
+        Self::run_parent(Path::new(text))?;
         let observed = payload.get("observed")?.as_object()?;
         let docs = observed.get("required_docs")?;
         let ledger_valid = payload.get("ledger_valid")?.as_bool()?;
@@ -79,8 +89,15 @@ impl CapsuleArtifact {
         } else {
             "preflight"
         };
-        let preflight = Self::file_record(&dir, c"preflight.json", false)??;
-        let ledger = Self::file_record(&dir, c"gate-evidence.json", true)?;
+        let preflight = Self::file_record(dir, c"preflight.json", false)??;
+        let ledger = Self::file_record(dir, c"gate-evidence.json", true)?;
+        if let Some((preflight_hash, ledger_hash)) = expected_hashes {
+            if preflight["sha256"].as_str()? != preflight_hash
+                || ledger.as_ref()?.get("sha256")?.as_str()? != ledger_hash
+            {
+                return None;
+            }
+        }
         let mut record = json!({
             "schema_version": CAPSULE_VERSION,
             "created_at": observed.get("created_at")?,
@@ -99,7 +116,7 @@ impl CapsuleArtifact {
         if CapsuleShape::capsule(&record)?.is_some() {
             return None;
         }
-        let outcome = Self::write_record(&dir, text, payload.get("temporary")?.as_str()?, &record)?;
+        let outcome = Self::write_record(dir, text, payload.get("temporary")?.as_str()?, &record)?;
         if outcome.get("errno")?.is_null() {
             Some(json!({"errno": null, "record": record}))
         } else {

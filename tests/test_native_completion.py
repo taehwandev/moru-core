@@ -561,6 +561,47 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(unavailable, call())
         self.assertEqual(127, call(PATH=str(self.empty))[0])
 
+    def test_capsule_refresh_cli_writes_matching_ready_record_without_python(self):
+        (self.project / ".gitignore").write_text(".moru/\n")
+        doc = self.project / "문서.md"
+        doc.write_text("required\n")
+        subprocess.run(
+            ["git", "-C", str(self.project), "add", ".gitignore", doc.name],
+            env=self.env, capture_output=True, check=True, timeout=8,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "-c", "user.name=Fixture",
+             "-c", "user.email=fixture@example.test", "commit", "-m", "base"],
+            env=self.env, capture_output=True, check=True, timeout=8,
+        )
+        call = self.capsule_check_runner(self.project, self.project, doc.name)
+        run = self.project / ".moru" / "runs" / ("a" * 32)
+        target = run / "execution-capsule.json"
+        ledger = run / "gate-evidence.json"
+        original_ledger = ledger.read_bytes()
+
+        reference = call(action="refresh", MORU_LAUNCHER_BACKEND="python")
+        self.assertEqual(0, reference[0], reference)
+        expected = json.loads(target.read_bytes())
+        target.unlink()
+        self.assertEqual(reference, call(action="refresh", PATH=str(self.empty)))
+        native = json.loads(target.read_bytes())
+        self.assertTrue(native.pop("created_at").endswith("+00:00"))
+        expected.pop("created_at")
+        self.assertEqual(expected, native)
+        self.assertEqual(0o600, target.stat().st_mode & 0o777)
+        self.assertEqual(original_ledger, ledger.read_bytes())
+        self.assertEqual(0, call(PATH=str(self.empty))[0])
+
+        previous = target.read_bytes()
+        ledger.write_text("{}")
+        self.assertEqual(127, call(action="refresh", PATH=str(self.empty))[0])
+        self.assertEqual(previous, target.read_bytes())
+        fallback = call(action="refresh")
+        self.assertEqual(0, fallback[0], fallback)
+        self.assertEqual("preflight", json.loads(fallback[1])["phase"])
+        self.assertEqual("preflight", json.loads(target.read_bytes())["phase"])
+
     def capsule_check_runner(self, project, rules, required_doc):
         run = project / ".moru" / "runs" / ("a" * 32)
         run.mkdir(parents=True)
@@ -578,12 +619,15 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             refreshed = capsule.refresh_execution_capsule(project, rules, evidence, route)
         self.assertEqual("ready", refreshed["phase"])
-        args = [str(self.entry), "execution-capsule", "check", "--evidence", str(evidence),
+        args = ["--evidence", str(evidence),
                 "--rules", str(rules), "--project", str(project)]
         (self.empty / "git").symlink_to(shutil.which("git"))
 
-        def call(**env):
-            result = subprocess.run(args, cwd=project, env={**self.env, **env}, capture_output=True, timeout=20)
+        def call(*, action="check", **env):
+            result = subprocess.run(
+                [str(self.entry), "execution-capsule", action, *args], cwd=project,
+                env={**self.env, **env}, capture_output=True, timeout=20,
+            )
             return result.returncode, result.stdout, result.stderr
 
         return call

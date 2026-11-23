@@ -25,7 +25,7 @@ pub(crate) struct CapsuleCheck;
 
 impl CapsuleCheck {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> Option<i32> {
-        let (project, rules, evidence) = Self::arguments(args)?;
+        let (project, rules, evidence) = Self::arguments(args, "check")?;
         CallbackGuard::root(launcher, "execution-capsule")?;
         let output = evidence.with_file_name("execution-capsule.json");
         if evidence.file_name()?.to_str()? != "preflight.json"
@@ -53,8 +53,11 @@ impl CapsuleCheck {
         Some(i32::from(io::stdout().write_all(line.as_bytes()).is_err()))
     }
 
-    fn arguments(args: &[OsString]) -> Option<(PathBuf, PathBuf, PathBuf)> {
-        if args.get(1)? != "check" || args.len() != 8 {
+    pub(super) fn arguments(
+        args: &[OsString],
+        action: &str,
+    ) -> Option<(PathBuf, PathBuf, PathBuf)> {
+        if args.get(1)? != action || args.len() != 8 {
             return None;
         }
         let (mut project, mut rules, mut evidence) = (None, None, None);
@@ -91,17 +94,7 @@ impl CapsuleCheck {
         {
             return None;
         }
-        let route = preflight.get("route")?;
-        let empty = json!({});
-        let intake = preflight
-            .get("request_intake")
-            .filter(|value| value.is_object())
-            .unwrap_or(&empty);
-        if !capsule_json_integers(route) || !capsule_json_integers(intake) {
-            return None;
-        }
-        let inputs = serde_json::to_vec(&json!({"route": route, "intake": intake})).ok()?;
-        let identities = RouteIdentity::probe(&inputs)?;
+        let (route, identities) = Self::route_identities(&preflight)?;
         let route_hash = identities.get("route_fingerprint")?;
         if route_hash != capsule.get("route_fingerprint")?
             || identities.get("request_fingerprint")? != capsule.get("request_fingerprint")?
@@ -134,16 +127,7 @@ impl CapsuleCheck {
         } else {
             Self::check_root(rules, rules_state)?;
         }
-        if !Self::path_matches(ledger.get("preflight_evidence")?, evidence) {
-            return None;
-        }
-        let parent = CapsuleLedger::check(&json!({
-            "ledger": ledger, "recorded_path": evidence.to_str()?, "observed_path": evidence.to_str()?,
-            "observed_hash": preflight_hash, "observed_route": route_hash,
-        }))?;
-        if !Self::clean(&parent) {
-            return None;
-        }
+        Self::validate_ledger(ledger, evidence, &preflight_hash, route_hash)?;
         let current_preflight = CapsuleArtifact::file_record(dir, c"preflight.json", false)??;
         let current_ledger = CapsuleArtifact::file_record(dir, c"gate-evidence.json", false)??;
         (current_preflight["sha256"].as_str()? == preflight_hash
@@ -152,10 +136,14 @@ impl CapsuleCheck {
     }
 
     fn read_bound(dir: &File, name: &CStr, record: &Value) -> Option<(Value, String)> {
-        let filename = name.to_str().ok()?;
-        if record.get("filename")?.as_str()? != filename {
+        if record.get("filename")?.as_str()? != name.to_str().ok()? {
             return None;
         }
+        let (value, hash) = Self::read_json_file(dir, name)?;
+        (hash == record.get("sha256")?.as_str()?).then_some((value, hash))
+    }
+
+    pub(super) fn read_json_file(dir: &File, name: &CStr) -> Option<(Value, String)> {
         let file = AtomicSibling::open_relative(dir, name, libc::O_RDONLY)?;
         let meta = file.metadata().ok()?;
         let limit = 1024 * 1024;
@@ -172,20 +160,49 @@ impl CapsuleCheck {
             return None;
         }
         let hash = format!("{:x}", Sha256::digest(&bytes));
-        if hash != record.get("sha256")?.as_str()? {
-            return None;
-        }
         Some((serde_json::from_slice(&bytes).ok()?, hash))
     }
 
-    fn path_matches(value: &Value, expected: &Path) -> bool {
+    pub(super) fn route_identities(preflight: &Value) -> Option<(&Value, Value)> {
+        let route = preflight.get("route")?;
+        let empty = json!({});
+        let intake = preflight
+            .get("request_intake")
+            .filter(|value| value.is_object())
+            .unwrap_or(&empty);
+        if !capsule_json_integers(route) || !capsule_json_integers(intake) {
+            return None;
+        }
+        let inputs = serde_json::to_vec(&json!({"route": route, "intake": intake})).ok()?;
+        Some((route, RouteIdentity::probe(&inputs)?))
+    }
+
+    pub(super) fn validate_ledger(
+        ledger: Value,
+        evidence: &Path,
+        hash: &str,
+        route: &Value,
+    ) -> Option<()> {
+        if ledger.get("invalid_json").is_some()
+            || !Self::path_matches(ledger.get("preflight_evidence")?, evidence)
+        {
+            return None;
+        }
+        let parent = CapsuleLedger::check(&json!({
+            "ledger": ledger, "recorded_path": evidence.to_str()?, "observed_path": evidence.to_str()?,
+            "observed_hash": hash, "observed_route": route,
+        }))?;
+        Self::clean(&parent).then_some(())
+    }
+
+    pub(super) fn path_matches(value: &Value, expected: &Path) -> bool {
         value.as_str().is_some_and(|text| {
             let path = Path::new(text);
             path.is_absolute() && path.canonicalize().ok().as_deref() == Some(expected)
         })
     }
 
-    fn required_docs(route: &Value) -> Option<Vec<&str>> {
+    pub(super) fn required_docs(route: &Value) -> Option<Vec<&str>> {
         let values = match route.get("required_docs") {
             None | Some(Value::Null) => return Some(Vec::new()),
             Some(value) => value.as_array()?,
@@ -214,16 +231,19 @@ impl CapsuleCheck {
         if code == 128 && root.is_empty() {
             return CapsuleDirectory::matches_record(path, recorded);
         }
-        if code != 0
-            || Path::new(std::str::from_utf8(&root).ok()?.trim())
-                .canonicalize()
-                .ok()?
-                .as_path()
-                != path
-        {
+        if code != 0 || !Self::is_exact_git_root(path, &root)? {
             return None;
         }
         Self::check_git(path, recorded)
+    }
+
+    pub(super) fn is_exact_git_root(path: &Path, root: &[u8]) -> Option<bool> {
+        Some(
+            Path::new(std::str::from_utf8(root).ok()?.trim())
+                .canonicalize()
+                .ok()?
+                == path,
+        )
     }
 
     fn check_git(path: &Path, recorded: &Value) -> Option<()> {
@@ -238,12 +258,7 @@ impl CapsuleCheck {
     }
 
     fn check_worktree(path: &Path, recorded: &Value) -> Option<()> {
-        let path = path.to_str()?;
-        let capture = |strong| {
-            WorktreeSignature::capture(&json!({
-                "path": path, "max_files": 5_000, "max_bytes": 256 * 1024 * 1024, "strong": strong,
-            }))
-        };
+        let capture = |strong| Self::worktree_state(path, strong);
         if capture(false)?.get("signature")? == recorded.get("worktree_signature")? {
             return Some(());
         }
@@ -254,5 +269,11 @@ impl CapsuleCheck {
             return None;
         }
         (snapshot.get("signature")? == capture(false)?.get("signature")?).then_some(())
+    }
+
+    pub(super) fn worktree_state(path: &Path, strong: bool) -> Option<Value> {
+        WorktreeSignature::capture(&json!({
+            "path": path.to_str()?, "max_files": 5_000, "max_bytes": 256 * 1024 * 1024, "strong": strong,
+        }))
     }
 }
