@@ -12,7 +12,14 @@ use std::{
     path::Path,
 };
 
-pub(super) struct DoctorProject;
+pub(super) struct DoctorProject {
+    pub(super) swift: bool,
+    pub(super) gradle: bool,
+    pub(super) rust: bool,
+    pub(super) go: bool,
+    pub(super) python_packaged: bool,
+    pub(super) python_scripts: bool,
+}
 
 struct RootMarkers {
     swift: bool,
@@ -41,19 +48,31 @@ impl DoctorProject {
 
     pub(super) fn permission_markers(payload: &Value) -> Option<Value> {
         let project = Self::project(payload)?;
-        let markers = Self::root_markers(project)?;
+        let markers = Self::read_permission_markers(project)?;
         Some(json!({
             "swift": markers.swift,
-            "gradle": markers.gradle || Self::nested_gradle(project)?,
+            "gradle": markers.gradle,
             "rust": markers.rust,
             "go": markers.go,
             "python_packaged": markers.python_packaged,
-            "python_scripts": !markers.python_packaged
-                && (markers.python_source || Self::child_python(project)?),
+            "python_scripts": markers.python_scripts,
         }))
     }
 
-    fn project(payload: &Value) -> Option<&Path> {
+    pub(super) fn read_permission_markers(project: &Path) -> Option<Self> {
+        let markers = Self::root_markers(project)?;
+        Some(Self {
+            swift: markers.swift,
+            gradle: markers.gradle || Self::nested_gradle(project)?,
+            rust: markers.rust,
+            go: markers.go,
+            python_packaged: markers.python_packaged,
+            python_scripts: !markers.python_packaged
+                && (markers.python_source || Self::child_python(project)?),
+        })
+    }
+
+    pub(super) fn project(payload: &Value) -> Option<&Path> {
         let project = Path::new(payload.get("project")?.as_str()?);
         (project.is_absolute() && project.canonicalize().ok()? == project).then_some(project)
     }

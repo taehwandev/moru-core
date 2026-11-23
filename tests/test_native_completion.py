@@ -112,7 +112,7 @@ class NativeCompletionTests(unittest.TestCase):
     def test_doctor_node_manifest_scan_preserves_permission_deduplication_and_errors(self):
         (self.project / "package.json").write_text('{"scripts":{"test":"root","install":"other"}}')
         for folder, text in (
-            ("app", '{"scripts":{"test":"child","test *":"overlap","한글":"unicode"}}'),
+            ("app", '{"scripts":{"test":"child","test *":"overlap","test ":"space","한글":"unicode"}}'),
             ("empty", "{}"),
             ("broken", "{"),
             ("node_modules", '{"scripts":{"ignored":"excluded"}}'),
@@ -125,13 +125,14 @@ class NativeCompletionTests(unittest.TestCase):
         payload = {"project": str(self.project)}
         scripts = self.check("doctor-node-manifests", payload)["scripts"]
         self.assertEqual(["test", "install"], scripts[0])
-        self.assertCountEqual([["test", "test *", "한글"], []], scripts[1:])
+        self.assertCountEqual([["test", "test *", "test ", "한글"], []], scripts[1:])
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             permissions = project_type_detection.detect_project_permissions(self.project)
             reference = doctor.inspect_project_health(self.project)
         self.assertEqual(len(set(permissions)), len(permissions))
         self.assertIn("Bash(yarn install)", permissions)
         self.assertNotIn("Bash(npm run ignored)", permissions)
+        self.assertEqual({"count": len(permissions)}, self.check("doctor-permission-count", payload))
 
         with patch.dict(os.environ, self.env, clear=True), patch.object(
             project_type_detection, "_find_package_jsons", side_effect=AssertionError("Python scanned Node"),
@@ -139,16 +140,24 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual(permissions, project_type_detection.detect_project_permissions(
                 self.project, native_node_scan=True,
             ))
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            doctor, "detect_project_permissions", side_effect=AssertionError("Python expanded permissions"),
+        ):
             self.assertEqual(reference, doctor.inspect_project_health(self.project))
 
         (self.project / "empty" / "package.json").write_text('{"scripts":null}')
         self.assertEqual(125, self.raw("doctor-node-manifests", payload).returncode)
+        self.assertEqual(125, self.raw("doctor-permission-count", payload).returncode)
         for backend in ("python", "auto"):
             with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": backend}, clear=True):
                 with self.assertRaisesRegex(TypeError, "not iterable"):
                     doctor.inspect_project_health(self.project)
 
     def test_doctor_permission_markers_match_legacy_commands(self):
+        payload = {"project": str(self.project)}
+        self.assertEqual({"count": 0}, self.check("doctor-permission-count", payload))
+        (self.project / "package.json").write_text("{}")
+        self.assertEqual({"count": 18}, self.check("doctor-permission-count", payload))
         for name in ("Package.swift", "Cargo.toml", "go.mod"):
             (self.project / name).touch()
         module = self.project / "modules" / "client"
@@ -158,7 +167,6 @@ class NativeCompletionTests(unittest.TestCase):
         scripts.mkdir()
         (scripts / ".tool.py").touch()
 
-        payload = {"project": str(self.project)}
         markers = self.check("doctor-permission-markers", payload)
         self.assertEqual({
             "swift": True, "gradle": True, "rust": True, "go": True,
@@ -169,8 +177,10 @@ class NativeCompletionTests(unittest.TestCase):
                 (self.project / "pyproject.toml").touch()
             with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
                 reference = doctor.inspect_project_health(self.project)
+            self.assertEqual({"count": reference["detected_permission_count"]},
+                             self.check("doctor-permission-count", payload))
             with patch.dict(os.environ, self.env, clear=True), patch.object(
-                project_type_detection, "_has_python_sources", side_effect=AssertionError("Python scanned markers"),
+                doctor, "detect_project_permissions", side_effect=AssertionError("Python expanded permissions"),
             ):
                 self.assertEqual(reference, doctor.inspect_project_health(self.project))
 

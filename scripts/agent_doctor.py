@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import locale
 import unicodedata
 from datetime import date
 from pathlib import Path
@@ -99,6 +100,16 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
     return report
 
 
+def _permission_count(project: Path) -> int:
+    if locale.getpreferredencoding(False).lower() == "utf-8":
+        native = NativeProbe.request("--completion-probe", "doctor-permission-count", {"project": str(project)})
+        if native is not None and set(native) == {"count"}:
+            count = native["count"]
+            if type(count) is int and count >= 0:
+                return count
+    return len(detect_project_permissions(project, native_node_scan=True, native_markers=True))
+
+
 def _project_health_report(
     project: Path, rules: Path, *, output_format: str | None = None,
 ) -> tuple[dict[str, Any], str | None]:
@@ -106,7 +117,7 @@ def _project_health_report(
     launcher_warning = stable_launcher_issue(rules, native_check=True)
     state_dir = project_state_dir_target(resolved)
     stacks, has_agents, has_managed_block = _inspect_project_files(resolved)
-    permissions = detect_project_permissions(resolved, native_node_scan=True, native_markers=True)
+    permission_count = _permission_count(resolved)
     active_runs = _active_run_count(resolved)
     open_cards = NativeCards.count_open(resolved)
     if open_cards is None:
@@ -117,7 +128,7 @@ def _project_health_report(
         "project": str(resolved),
         "rules": str(rules.resolve()),
         "stacks": stacks,
-        "detected_permission_count": len(permissions),
+        "detected_permission_count": permission_count,
         "instructions": {
             "agents_md_present": has_agents,
             "managed_routing_block": has_managed_block,

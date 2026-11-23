@@ -51,6 +51,8 @@ mod doctor_launcher;
 mod doctor_memory;
 #[path = "doctor_node_manifests.rs"]
 mod doctor_node_manifests;
+#[path = "doctor_permission_count.rs"]
+mod doctor_permission_count;
 #[path = "doctor_project.rs"]
 mod doctor_project;
 #[path = "doctor_report.rs"]
@@ -104,6 +106,7 @@ impl CompletionProcess {
             Some("doctor-active-runs") => crate::status_process::StatusProcess::active_runs(&payload),
             Some("doctor-project") => doctor_project::DoctorProject::inspect(&payload),
             Some("doctor-permission-markers") => doctor_project::DoctorProject::permission_markers(&payload),
+            Some("doctor-permission-count") => doctor_permission_count::DoctorPermissionCount::inspect(&payload),
             Some("doctor-report") => doctor_report::DoctorReport::build(&payload),
             Some("capsule-binding") => capsule_binding::CapsuleBinding::fingerprint(&payload),
             Some("capsule-replace") => capsule_artifact::CapsuleArtifact::replace(&payload),

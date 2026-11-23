@@ -24,10 +24,11 @@ const EXCLUDED_NAMES: [&str; 5] = ["node_modules", ".git", "dist", ".next", "bui
 
 impl DoctorNodeManifests {
     pub(super) fn inspect(payload: &Value) -> Option<Value> {
-        let project = Path::new(payload.get("project")?.as_str()?);
-        if !project.is_absolute() || project.canonicalize().ok()? != project {
-            return None;
-        }
+        let project = super::doctor_project::DoctorProject::project(payload)?;
+        Some(json!({"scripts": Self::script_groups(project)?}))
+    }
+
+    pub(super) fn script_groups(project: &Path) -> Option<Vec<Vec<String>>> {
         let mut groups = Vec::new();
         let mut remaining = MAX_TOTAL;
         if let Some(names) = Self::read(project, &mut remaining)? {
@@ -51,7 +52,7 @@ impl DoctorNodeManifests {
                 }
             }
         }
-        Some(json!({"scripts": groups}))
+        Some(groups)
     }
 
     fn read(parent: &Path, remaining: &mut u64) -> Option<Option<Vec<String>>> {
