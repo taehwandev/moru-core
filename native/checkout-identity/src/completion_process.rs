@@ -28,6 +28,8 @@ mod capsule_artifact;
 mod capsule_binding;
 #[path = "capsule_check_cli.rs"]
 pub(crate) mod capsule_check_cli;
+#[path = "capsule_cli_args.rs"]
+mod capsule_cli_args;
 #[path = "capsule_refresh_cli.rs"]
 pub(crate) mod capsule_refresh_cli;
 #[path = "capsule_directory.rs"]

@@ -735,6 +735,48 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual("ready", json.loads(fallback[1])["phase"])
         self.assertEqual(byte_count, json.loads(target.read_bytes())["required_docs"][-1]["size_bytes"])
 
+    def test_capsule_cli_accepts_equals_options_and_explicit_standard_paths(self):
+        doc = self.commit_capsule_rules()
+        call = self.capsule_check_runner(self.project, self.project, doc.name)
+        relative = Path(".moru") / "runs" / ("a" * 32)
+        run = self.project / relative
+        target = run / "execution-capsule.json"
+        alias = self.project / ".moru" / "alias = capsule.json"
+        alias.symlink_to(target)
+        options = ["--project=.", "--rules", ".", f"--evidence={relative / 'preflight.json'}"]
+        check_options = [*options, "--capsule", str(alias.relative_to(self.project))]
+        reference = call(options=check_options, MORU_LAUNCHER_BACKEND="python")
+        self.assertEqual(0, reference[0], reference)
+        self.assertEqual(reference, call(options=check_options, PATH=str(self.empty)))
+
+        refresh_options = [f"--output={relative / target.name}", *options]
+        target.unlink()
+        reference = call(action="refresh", options=refresh_options, MORU_LAUNCHER_BACKEND="python")
+        self.assertEqual(0, reference[0], reference)
+        expected = json.loads(target.read_bytes())
+        target.unlink()
+        self.assertEqual(reference, call(action="refresh", options=refresh_options, PATH=str(self.empty)))
+        native = json.loads(target.read_bytes())
+        expected.pop("created_at")
+        native.pop("created_at")
+        self.assertEqual(expected, native)
+
+        original = target.read_bytes()
+        custom = run / "custom = capsule.json"
+        custom_options = [*options, f"--output={custom}"]
+        self.assertEqual(127, call(action="refresh", options=custom_options, PATH=str(self.empty))[0])
+        self.assertFalse(custom.exists())
+        self.assertEqual(original, target.read_bytes())
+        self.assertEqual(0, call(action="refresh", options=custom_options)[0])
+        self.assertTrue(custom.is_file())
+        self.assertEqual(original, target.read_bytes())
+
+        duplicate = [*options, "--project=."]
+        reference = call(options=duplicate, MORU_LAUNCHER_BACKEND="python")
+        self.assertEqual(0, reference[0], reference)
+        self.assertEqual(reference, call(options=duplicate))
+        self.assertEqual(127, call(options=duplicate, PATH=str(self.empty))[0])
+
     def capsule_check_runner(self, project, rules, *required_docs):
         run = project / ".moru" / "runs" / ("a" * 32)
         run.mkdir(parents=True)
@@ -758,9 +800,10 @@ class NativeCompletionTests(unittest.TestCase):
         if not git.is_symlink():
             git.symlink_to(shutil.which("git"))
 
-        def call(*, action="check", **env):
+        def call(*, action="check", options=None, **env):
             result = subprocess.run(
-                [str(self.entry), "execution-capsule", action, *args], cwd=project,
+                [str(self.entry), "execution-capsule", action, *(args if options is None else options)],
+                cwd=project,
                 env={**self.env, **env}, capture_output=True, timeout=20,
             )
             return result.returncode, result.stdout, result.stderr

@@ -4,9 +4,10 @@
 //! callers/tests: launcher dispatch and transported CLI parity fixtures.
 //! verification: native-only matched state and legacy diagnostics on decline.
 use super::{
-    capsule_artifact::CapsuleArtifact, capsule_directory::CapsuleDirectory,
-    capsule_doc_drift::CapsuleDocDrift, capsule_json_integers, capsule_ledger::CapsuleLedger,
-    capsule_shape::CapsuleShape, capsule_worktree_signature::WorktreeSignature,
+    capsule_artifact::CapsuleArtifact, capsule_cli_args::CapsuleArgs,
+    capsule_directory::CapsuleDirectory, capsule_doc_drift::CapsuleDocDrift, capsule_json_integers,
+    capsule_ledger::CapsuleLedger, capsule_shape::CapsuleShape,
+    capsule_worktree_signature::WorktreeSignature,
 };
 use crate::{
     atomic_sibling::AtomicSibling, pretool_guard::CallbackGuard, python_text::PythonText,
@@ -18,21 +19,20 @@ use std::{
     ffi::{CStr, OsString},
     fs::File,
     io::{self, ErrorKind, Read, Write},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 pub(crate) struct CapsuleCheck;
 
 impl CapsuleCheck {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> Option<i32> {
-        let (project, rules, evidence) = Self::arguments(args, "check")?;
+        let CapsuleArgs {
+            project,
+            rules,
+            evidence,
+            output,
+        } = CapsuleArgs::parse(args, "check")?;
         CallbackGuard::root(launcher, "execution-capsule")?;
-        let output = evidence.with_file_name("execution-capsule.json");
-        if evidence.file_name()?.to_str()? != "preflight.json"
-            || evidence.parent()?.parent()? != project.join(".moru/runs")
-        {
-            return None;
-        }
         let output_text = output.to_str()?;
         let resolved = output.canonicalize().ok()?;
         if resolved != output {
@@ -51,30 +51,6 @@ impl CapsuleCheck {
         let path_json = PythonText::json_ascii(output_text)?;
         let line = format!("{{\"capsule\": {path_json}, \"reasons\": [], \"reusable\": true}}\n");
         Some(i32::from(io::stdout().write_all(line.as_bytes()).is_err()))
-    }
-
-    pub(super) fn arguments(
-        args: &[OsString],
-        action: &str,
-    ) -> Option<(PathBuf, PathBuf, PathBuf)> {
-        if args.get(1)? != action || args.len() != 8 {
-            return None;
-        }
-        let (mut project, mut rules, mut evidence) = (None, None, None);
-        for pair in args[2..].chunks_exact(2) {
-            let slot = match pair[0].to_str()? {
-                "--project" => &mut project,
-                "--rules" => &mut rules,
-                "--evidence" => &mut evidence,
-                _ => return None,
-            };
-            let value = pair[1].to_str()?;
-            if slot.is_some() || value.is_empty() || value.starts_with('-') {
-                return None;
-            }
-            *slot = Some(Path::new(value).canonicalize().ok()?);
-        }
-        Some((project?, rules?, evidence?))
     }
 
     fn validate(

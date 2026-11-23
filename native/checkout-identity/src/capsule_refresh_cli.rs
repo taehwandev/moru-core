@@ -5,7 +5,8 @@
 //! verification: no-Python refresh, Python-compatible record and refusal behavior.
 use super::{
     capsule_artifact::CapsuleArtifact, capsule_check_cli::CapsuleCheck,
-    capsule_directory::CapsuleDirectory, capsule_worktree_signature::WorktreeSignature,
+    capsule_cli_args::CapsuleArgs, capsule_directory::CapsuleDirectory,
+    capsule_worktree_signature::WorktreeSignature,
 };
 use crate::{
     atomic_sibling::AtomicSibling, doc_transcript::DocTranscript, pretool_guard::CallbackGuard,
@@ -24,15 +25,14 @@ pub(crate) struct CapsuleRefresh;
 
 impl CapsuleRefresh {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> Option<i32> {
-        let (project, rules, evidence) = CapsuleCheck::arguments(args, "refresh")?;
+        let CapsuleArgs {
+            project,
+            rules,
+            evidence,
+            output,
+        } = CapsuleArgs::parse(args, "refresh")?;
         CallbackGuard::root(launcher, "execution-capsule")?;
         let parent = evidence.parent()?;
-        if evidence.file_name()?.to_str()? != "preflight.json"
-            || parent.parent()? != project.join(".moru/runs")
-        {
-            return None;
-        }
-        let output = parent.join("execution-capsule.json");
         let output_text = output.to_str()?;
         let path_json = PythonText::json_ascii(output_text)?;
         let dir = AtomicSibling::open_directory(parent)?;
