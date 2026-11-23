@@ -13,12 +13,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import unicodedata
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 from agent_observability import status_snapshot
-from agent_project_memory import scan_records as project_memory_scan
+from agent_project_memory import RECALLABLE_STATUSES, scan_records as project_memory_scan
+from agent_project_memory import store_dir as project_memory_store
 from agent_project_memory_consolidate import findings as project_memory_findings
 from agent_work_cards import list_cards
 from support.global_state import global_state_dir, project_state_dir_target
@@ -105,18 +107,7 @@ def _project_health_report(
     permissions = detect_project_permissions(resolved)
     snapshot = status_snapshot(resolved)
     open_cards = list_cards(resolved, include_settled=False)
-
-    memory_stats = {"active_records": 0, "expired_or_due": 0, "unreadable": 0}
-    try:
-        records, unreadable = project_memory_scan(resolved)
-        report = project_memory_findings(records, unreadable, today=date.today())
-        memory_stats = {
-            "active_records": len(records),
-            "expired_or_due": len(report.get("expired", [])) + len(report.get("due_for_review", [])),
-            "unreadable": unreadable,
-        }
-    except (OSError, ValueError):
-        pass
+    memory_stats = _project_memory_stats(resolved)
 
     facts = {
         "project": str(resolved),
@@ -149,6 +140,33 @@ def _project_health_report(
             return report, rendered
     report = _assemble_report_python(facts, template)
     return report, _render_markdown_doctor(report) if markdown else None
+
+
+def _project_memory_stats(project: Path) -> dict[str, int]:
+    empty = {"active_records": 0, "expired_or_due": 0, "unreadable": 0}
+    try:
+        if NativeProbe.available():
+            directory = project_memory_store(project)
+            today = date.today()
+            native = NativeProbe.request("--completion-probe", "doctor-memory", {
+                "path": str(directory), "today": today.isoformat(),
+                "unicode": unicodedata.unidata_version, "statuses": sorted(RECALLABLE_STATUSES),
+            })
+            if (
+                native is not None and set(native) == set(empty)
+                and all(type(count) is int and count >= 0 for count in native.values())
+                and date.today() == today
+            ):
+                return native
+        records, unreadable = project_memory_scan(project)
+        report = project_memory_findings(records, unreadable, today=date.today())
+        return {
+            "active_records": len(records),
+            "expired_or_due": len(report.get("expired", [])) + len(report.get("due_for_review", [])),
+            "unreadable": unreadable,
+        }
+    except (OSError, ValueError):
+        return empty
 
 
 def _assemble_report_python(facts: dict[str, Any], template: str) -> dict[str, Any]:

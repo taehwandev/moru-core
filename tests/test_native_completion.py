@@ -1,4 +1,5 @@
 """Native completion policy through the actual private binary protocol."""
+from datetime import date
 import errno
 import hashlib
 import io
@@ -9,10 +10,12 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import unicodedata
 import unittest
 from unittest.mock import Mock, patch
 
 import agent_doctor as doctor
+import agent_project_memory as project_memory
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_directory_fingerprint as directory_fingerprint
@@ -122,11 +125,9 @@ class NativeCompletionTests(unittest.TestCase):
                 else:
                     agents.write_text(f"{doctor.MANAGED_BEGIN}\n{doctor.MANAGED_END}\n")
                 warning = "" if healthy else "Launcher not ready — 상태 확인"
-                expired = [] if healthy else [object(), object()]
+                counts = {"active_records": 1, "expired_or_due": 0 if healthy else 2, "unreadable": 0}
                 with patch.object(doctor, "stable_launcher_issue", return_value=warning), patch.object(
-                    doctor, "project_memory_scan", return_value=([object()], 0),
-                ), patch.object(
-                    doctor, "project_memory_findings", return_value={"expired": expired},
+                    doctor, "_project_memory_stats", return_value=counts,
                 ):
                     json_reference = cli("json", "python")
                     markdown_reference = cli("markdown", "python")
@@ -146,6 +147,43 @@ class NativeCompletionTests(unittest.TestCase):
                     self.assertEqual(warning, first)
                     self.assertTrue(second.startswith("No AGENTS.md;"))
                     self.assertTrue(third.startswith("Project memory has 2 record(s)"))
+
+    def test_doctor_memory_counts_validated_rows_without_python_body_transport(self):
+        today = date(2026, 11, 23)
+        with patch.dict(os.environ, self.env, clear=True):
+            directory = project_memory.store_dir(self.project)
+        directory.mkdir(parents=True)
+        rows = (
+            ("active", "2026-11-22"), ("approved", "2026-11-23"),
+            ("pending", "2026-11-24"), ("retired", "2026-11-21"),
+        )
+        for number, (status, review_on) in enumerate(rows, start=1):
+            record = {
+                "schema_version": 1, "id": f"{number:016x}", "scope": "all",
+                "body": f"Local note {number}", "source": "Fixture",
+                "status": status, "review_on": review_on,
+            }
+            record["digest"] = project_memory._digest(record)
+            (directory / f"{record['id']}.json").write_text(json.dumps(record))
+        (directory / "broken.json").write_text("{")
+        payload = {
+            "path": str(directory), "today": today.isoformat(),
+            "unicode": unicodedata.unidata_version,
+            "statuses": sorted(project_memory.RECALLABLE_STATUSES),
+        }
+        expected = {"active_records": 4, "expired_or_due": 2, "unreadable": 1}
+        self.assertEqual(expected, self.check("doctor-memory", payload))
+        with patch.object(doctor, "date") as clock:
+            clock.today.return_value = today
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                reference = doctor.inspect_project_health(self.project)
+            self.assertEqual(expected, reference["state"]["project_memory"])
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                doctor, "project_memory_scan", side_effect=AssertionError("Python scan ran"),
+            ), patch.object(
+                doctor, "project_memory_findings", side_effect=AssertionError("Python findings ran"),
+            ):
+                self.assertEqual(reference, doctor.inspect_project_health(self.project))
 
     def test_capsule_binding_matches_python_and_preserves_legacy_fallback(self):
         docs = [{"\U00010000": "😀", "\uffff": "한글\x7f\n\u2028", "a": [True, 0, 2**64 - 1, -2**63]}]
