@@ -256,7 +256,11 @@ def structure_review(
 
     files = [row for _, _, row in file_checks]
     _attach_block_baselines(source_root, files, subject_run_command)
-    file_findings = _file_findings(files)
+    path_metadata = discovery["path_metadata"]
+    file_findings, source_layout = _file_findings(files, source_layout={
+        "limit": REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
+        "paths": [[path, path_metadata.get(path, {}).get("status")] for path in result["strict_checked_paths"]],
+    })
     # Preserve each file's position relative to encoding warnings.
     for kind, index in (("failures", 0), ("warnings", 1)):
         other_findings = result[kind]
@@ -279,6 +283,7 @@ def structure_review(
             if path not in inherited
         }},
         subject_run_command=subject_run_command,
+        source_layout=source_layout,
     )
     return result
 
@@ -329,6 +334,7 @@ def _add_cross_path_findings(
     paths: list[Path],
     discovery: dict[str, Any],
     subject_run_command: CommandRunner,
+    source_layout: dict[str, Any] | None,
 ) -> None:
     """Everything that can only be seen with the whole changed set in view.
 
@@ -337,8 +343,14 @@ def _add_cross_path_findings(
     them can be decided inside the per-file loop above.
     """
 
-    flag_new_source_file_sprawl(result, discovery["path_metadata"])
-    flag_content_preserving_source_copies(result, discovery["path_metadata"])
+    if source_layout is None:
+        flag_new_source_file_sprawl(result, discovery["path_metadata"])
+        flag_content_preserving_source_copies(result, discovery["path_metadata"])
+    else:
+        result["new_source_file_count"] = source_layout["added"]
+        result["new_source_file_pressure_limit"] = REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT
+        result["content_preserving_source_copy_count"] = source_layout["copied"]
+        result["warnings"].extend(source_layout["warnings"])
     result["failures"].extend(
         purpose_failures(
             source_root,
@@ -1120,17 +1132,29 @@ def check_file_size(
                      max_added_lines=max_added_lines, review_warning_file_lines=review_warning_file_lines)
 
 
-def _file_findings(rows: list[dict[str, Any]]) -> list:
-    if not rows:
-        return []
-    native = NativeProbe.request("--completion-probe", "structure-file-size", {"files": rows})
-    if native is not None and set(native) == {"findings"}:
+def _file_findings(
+    rows: list[dict[str, Any]], *, source_layout: dict[str, Any] | None = None,
+) -> tuple[list, dict[str, Any] | None]:
+    if not rows and (source_layout is None or not source_layout["paths"]):
+        return [], None
+    payload = {"files": rows}
+    if source_layout is not None:
+        payload["source_layout"] = source_layout
+    native = NativeProbe.request("--completion-probe", "structure-file-size", payload)
+    expected = {"findings", "source_layout"} if source_layout is not None else {"findings"}
+    if native is not None and set(native) == expected:
         findings = native["findings"]
         if (isinstance(findings, list) and len(findings) == len(rows)
                 and all(isinstance(row, list) and len(row) == 2
                         and all(isinstance(items, list) and all(isinstance(item, str) for item in items)
                                 for items in row) for row in findings)):
-            return findings
+            layout = native.get("source_layout")
+            if isinstance(layout, dict) and set(layout) == {"added", "copied", "warnings"}:
+                if (all(type(layout[key]) is int and layout[key] >= 0 for key in ("added", "copied"))
+                        and isinstance(layout["warnings"], list)
+                        and all(isinstance(warning, str) for warning in layout["warnings"])):
+                    return findings, layout
+            return findings, None
     findings = []
     for row in rows:
         result: dict[str, list[str]] = {"failures": [], "warnings": []}
@@ -1153,7 +1177,7 @@ def _file_findings(rows: list[dict[str, Any]]) -> list:
             result["failures"].extend(block_failures)
             result["warnings"].extend(block_warnings)
         findings.append((result["failures"], result["warnings"]))
-    return findings
+    return findings, None
 
 
 def _check_file_size(

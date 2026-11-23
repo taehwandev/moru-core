@@ -5,6 +5,7 @@
 //! verification: exact threshold, rewrite and initial-build diagnostics.
 use super::structure_block_findings::StructureBlockFindings;
 use super::structure_block_spans::StructureBlockSpans;
+use super::structure_source_layout::StructureSourceLayout;
 use serde_json::{json, Value};
 
 pub(super) struct StructureFileSize;
@@ -16,7 +17,11 @@ impl StructureFileSize {
             return None;
         }
         let findings = rows.iter().map(Self::review).collect::<Option<Vec<_>>>()?;
-        Some(json!({"findings": findings}))
+        let mut result = json!({"findings": findings});
+        if let Some(input) = payload.get("source_layout") {
+            result["source_layout"] = StructureSourceLayout::findings(input)?;
+        }
+        Some(result)
     }
 
     fn review(row: &Value) -> Option<(Vec<String>, Vec<String>)> {

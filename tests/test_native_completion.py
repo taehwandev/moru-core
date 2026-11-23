@@ -68,6 +68,29 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_source_layout_keeps_counts_warning_order_and_path_prefix(self):
+        limit = structure.REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT
+        additions = [f"src/새 파일-{index}.py" for index in reversed(range(limit + 1))]
+        copies = [f"src/copy-{index}.py" for index in reversed(range(9))]
+        for added in (additions, additions[:-1]):
+            with self.subTest(added=len(added)):
+                paths = [[path, "A"] for path in added] + [[path, "C"] for path in copies]
+                paths += [["renamed.py", "R"], ["unknown.py", None]]
+                legacy = {"strict_checked_paths": [path for path, _ in paths], "warnings": []}
+                metadata = {path: {"status": status} for path, status in paths}
+                structure.flag_new_source_file_sprawl(legacy, metadata)
+                structure.flag_content_preserving_source_copies(legacy, metadata)
+                with patch.dict(os.environ, self.env, clear=True):
+                    findings, layout = structure._file_findings([], source_layout={"limit": limit, "paths": paths})
+                self.assertEqual([], findings)
+                self.assertEqual({
+                    "added": legacy["new_source_file_count"],
+                    "copied": legacy["content_preserving_source_copy_count"],
+                    "warnings": legacy["warnings"],
+                }, layout)
+                self.assertEqual(2 if len(added) > limit else 1, len(layout["warnings"]))
+                self.assertIn(", ".join(copies[:8]) + "; ...", layout["warnings"][-1])
+
     def test_structure_file_size_batch_keeps_python_thresholds_and_order(self):
         files = [
             {"path": f"src/{index}.py", "line_count": lines, "metadata": metadata,
@@ -82,7 +105,7 @@ class NativeCompletionTests(unittest.TestCase):
             ))
         ]
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
-            expected = [list(row) for row in structure._file_findings(files)]
+            expected = [list(row) for row in structure._file_findings(files)[0]]
         self.assertEqual({"findings": expected}, self.check("structure-file-size", {"files": files}))
 
         paths = [Path("a.py"), Path("b.py"), Path("tests/test_example.py")]
@@ -203,7 +226,7 @@ class NativeCompletionTests(unittest.TestCase):
             reference = structure._file_findings([file])
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual(reference, structure._file_findings([file]))
-        self.assertIn("block `prefé²`", reference[0][0][0])
+        self.assertIn("block `prefé²`", reference[0][0][0][0])
 
     def test_structure_existing_block_spans_keep_baseline_reads_lazy(self):
         source = ["def example():", "    pass", "    pass", "    pass"]
@@ -228,7 +251,7 @@ class NativeCompletionTests(unittest.TestCase):
                 name = command[-1].removeprefix("HEAD:")
                 return {"returncode": 0, "stdout": baseline[name]} if name in baseline else {"returncode": 1}
             structure._attach_block_baselines(self.project, files, run)
-            return [list(row) for row in structure._file_findings(files)], reads
+            return [list(row) for row in structure._file_findings(files)[0]], reads
 
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             expected, reads = review()
@@ -262,7 +285,7 @@ class NativeCompletionTests(unittest.TestCase):
                                 "limit": 2, "initial": initial},
             })
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
-            expected = [list(row) for row in structure._file_findings(rows)]
+            expected = [list(row) for row in structure._file_findings(rows)[0]]
         self.assertEqual({"findings": expected}, self.check("structure-file-size", {"files": rows}))
         self.assertEqual([], expected[0][0])
         for warning, span in zip(expected[0][1], [8, 5], strict=True):
@@ -288,7 +311,7 @@ class NativeCompletionTests(unittest.TestCase):
              "blocks": {**facts, "initial": True, "previous": []}},
         ]
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
-            expected = [list(row) for row in structure._file_findings(files)]
+            expected = [list(row) for row in structure._file_findings(files)[0]]
         self.assertEqual({"findings": expected}, self.check("structure-file-size", {"files": files}))
         failures, warnings = expected[0]
         self.assertEqual("action failure", failures[1])

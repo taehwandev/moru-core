@@ -78,6 +78,8 @@ mod structure_style_blocks;
 mod structure_code_blocks;
 #[path = "structure_file_size.rs"]
 mod structure_file_size;
+#[path = "structure_source_layout.rs"]
+mod structure_source_layout;
 #[path = "structure_source_paths.rs"]
 mod structure_source_paths;
 
