@@ -88,6 +88,9 @@ def capture_worktree_state(path: Path) -> WorktreeSnapshot:
 def _capture_worktree_state_once(path: Path) -> WorktreeSnapshot:
     """Capture one bounded snapshot; the public wrapper verifies its stability."""
 
+    native = _native_worktree(path, strong=True)
+    if native is not None and _sha256(native.get("fingerprint")) and _sha256(native.get("signature")):
+        return WorktreeSnapshot(native["fingerprint"], native["signature"])
     fingerprint = hashlib.sha256()
     signature = hashlib.sha256()
     budget = _new_budget()
@@ -159,12 +162,9 @@ def worktree_signature(path: Path) -> str:
     both match that prior record.
     """
 
-    native = NativeProbe.request("--completion-probe", "capsule-worktree-signature", {
-        "path": str(path.absolute()), "max_files": MAX_UNTRACKED_FILES, "max_bytes": MAX_UNTRACKED_BYTES,
-    })
+    native = _native_worktree(path)
     observed = native.get("signature") if native is not None else None
-    if (type(observed) is str and len(observed) == 64
-            and all(char in "0123456789abcdef" for char in observed)):
+    if _sha256(observed):
         return observed
     signature = hashlib.sha256()
     _capture_status(
@@ -174,6 +174,17 @@ def worktree_signature(path: Path) -> str:
         budget=_new_budget(),
     )
     return signature.hexdigest()
+
+
+def _native_worktree(path: Path, *, strong: bool = False) -> dict | None:
+    return NativeProbe.request("--completion-probe", "capsule-worktree-signature", {
+        "path": str(path.absolute()), "max_files": MAX_UNTRACKED_FILES,
+        "max_bytes": MAX_UNTRACKED_BYTES, "strong": strong,
+    })
+
+
+def _sha256(value: Any) -> bool:
+    return type(value) is str and len(value) == 64 and all(char in "0123456789abcdef" for char in value)
 
 
 def _capture_status(

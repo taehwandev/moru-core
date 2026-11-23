@@ -1,14 +1,17 @@
-//! owner: read-only Git porcelain-v2 metadata signature for execution capsules.
+//! owner: read-only Git status scan for execution capsule worktree state.
 //! allowed imports: bounded read process, std, SHA-256 and JSON.
 //! forbidden imports: workspace mutation, provider calls and evidence authority.
 //! callers/tests: completion probe and source-bound Python parity.
 //! verification: byte paths, rename framing, partial staging and fallback.
 use crate::read_process::status::capture_status;
+#[path = "capsule_worktree_content.rs"]
+mod content;
+use content::WorktreeContent;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     ffi::OsStr,
-    fs,
+    fs::{self, Metadata},
     io::ErrorKind,
     os::unix::{ffi::OsStrExt, fs::MetadataExt},
     path::{Component, Path},
@@ -30,23 +33,20 @@ impl WorktreeSignature {
         let root = Path::new(payload.get("path")?.as_str()?);
         let max_files = usize::try_from(payload.get("max_files")?.as_u64()?).ok()?;
         let max_bytes = payload.get("max_bytes")?.as_u64()?;
+        let mut content = payload
+            .get("strong")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            .then(WorktreeContent::default);
         if !root.is_absolute() || root.canonicalize().ok()?.as_os_str() != root.as_os_str() {
             return None;
         }
-        let (stdout, _, status) = capture_status(
-            Command::new("git")
-                .current_dir(root)
-                .env("GIT_OPTIONAL_LOCKS", "0")
-                .env("GIT_TERMINAL_PROMPT", "0")
-                .env("GIT_NO_LAZY_FETCH", "1")
-                .env("GIT_ALLOW_PROTOCOL", "")
-                .args(["status", "--porcelain=v2", "-z", "--untracked-files=all"])
-                .stdin(Stdio::null()),
-            Duration::from_secs(6),
-            Some(4 * 1024 * 1024),
-        )
-        .ok()??;
-        if !status.success() {
+        let (stdout, status) = Self::git(
+            root,
+            &["status", "--porcelain=v2", "-z", "--untracked-files=all"],
+            4 * 1024 * 1024,
+        )?;
+        if status != 0 {
             return None;
         }
         let mut entries = Self::entries(&stdout)?;
@@ -61,6 +61,9 @@ impl WorktreeSignature {
         for entry in &entries {
             if last != Some(entry.path) {
                 Self::hash(&mut signature, b"status-path", entry.path);
+                if let Some(content) = &mut content {
+                    content.frame(b"status-path", entry.path);
+                }
                 last = Some(entry.path);
             }
         }
@@ -69,6 +72,9 @@ impl WorktreeSignature {
         for entry in entries {
             if entry.xy.len() == 2 && !entry.xy.contains(&b'.') {
                 Self::hash(&mut signature, b"partial-status", entry.record);
+                if let Some(content) = &mut content {
+                    content.frame(b"partial-status", entry.record);
+                }
             }
             let relative = Path::new(OsStr::from_bytes(entry.path));
             if entry.path.is_empty()
@@ -78,36 +84,72 @@ impl WorktreeSignature {
             {
                 return None;
             }
-            let metadata = match fs::symlink_metadata(root.join(relative)) {
+            let path = root.join(relative);
+            let metadata = match fs::symlink_metadata(&path) {
                 Ok(metadata) => metadata,
                 Err(err) if err.kind() == ErrorKind::NotFound => {
                     Self::hash(&mut signature, b"worktree-raced", entry.path);
+                    if let Some(content) = &mut content {
+                        content.frame(b"worktree-raced", entry.path);
+                    }
                     continue;
                 }
                 Err(_) => return None,
             };
-            let mtime =
-                i128::from(metadata.mtime()) * 1_000_000_000 + i128::from(metadata.mtime_nsec());
-            let ctime =
-                i128::from(metadata.ctime()) * 1_000_000_000 + i128::from(metadata.ctime_nsec());
-            let values = format!(
-                "{}\0{}\0{mtime}\0{ctime}\0{}\0{}",
-                metadata.mode(),
-                metadata.size(),
-                metadata.dev(),
-                metadata.ino(),
-            );
             Self::hash(&mut signature, b"worktree-path", entry.path);
-            Self::hash(&mut signature, b"worktree-metadata", values.as_bytes());
+            Self::hash(
+                &mut signature,
+                b"worktree-metadata",
+                Self::metadata_key(&metadata).as_bytes(),
+            );
             if entry.added {
                 files += 1;
                 bytes = bytes.checked_add(metadata.size())?;
                 if files > max_files || bytes > max_bytes {
                     return None;
                 }
+                if let Some(content) = &mut content {
+                    content.added(&path, entry.path, &metadata, max_bytes)?;
+                }
             }
         }
-        Some(json!({"signature": format!("{:x}", signature.finalize())}))
+        let signature = format!("{:x}", signature.finalize());
+        if let Some(content) = content {
+            Some(json!({"signature": signature, "fingerprint": content.finish(root)?}))
+        } else {
+            Some(json!({"signature": signature}))
+        }
+    }
+
+    fn git(root: &Path, args: &[&str], bound: u64) -> Option<(Vec<u8>, i32)> {
+        let (stdout, _, status) = capture_status(
+            Command::new("git")
+                .current_dir(root)
+                .env("GIT_OPTIONAL_LOCKS", "0")
+                .env("GIT_TERMINAL_PROMPT", "0")
+                .env("GIT_NO_LAZY_FETCH", "1")
+                .env("GIT_ALLOW_PROTOCOL", "")
+                .args(args)
+                .stdin(Stdio::null()),
+            Duration::from_secs(6),
+            Some(bound),
+        )
+        .ok()??;
+        Some((stdout, status.code()?))
+    }
+
+    fn metadata_key(metadata: &Metadata) -> String {
+        let mtime =
+            i128::from(metadata.mtime()) * 1_000_000_000 + i128::from(metadata.mtime_nsec());
+        let ctime =
+            i128::from(metadata.ctime()) * 1_000_000_000 + i128::from(metadata.ctime_nsec());
+        format!(
+            "{}\0{}\0{mtime}\0{ctime}\0{}\0{}",
+            metadata.mode(),
+            metadata.size(),
+            metadata.dev(),
+            metadata.ino()
+        )
     }
 
     fn entries(bytes: &[u8]) -> Option<Vec<Entry<'_>>> {

@@ -437,9 +437,9 @@ class NativeCompletionTests(unittest.TestCase):
         git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "base")
         renamed = self.project / "new\t이름.txt"
         git("mv", old.name, renamed.name)
-        changed.write_text("staged\n")
+        changed.write_bytes(b"staged\0")
         git("add", changed.name)
-        changed.write_text("unstaged\n")
+        changed.write_bytes(b"unstaged\0\xff")
         removed.unlink()
         (self.project / "link").symlink_to("missing")
         (self.project / "🐈").write_bytes(b"untracked\0")
@@ -447,18 +447,36 @@ class NativeCompletionTests(unittest.TestCase):
         request = {"path": str(self.project), "max_files": 5_000, "max_bytes": 256 * 1024 * 1024}
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             expected = worktree_fingerprint.worktree_signature(self.project)
+            reference = worktree_fingerprint.capture_worktree_state(self.project)
         index = self.project / ".git/index"
         index_before = index.read_bytes()
         raw = self.raw("capsule-worktree-signature", request, PATH=self.env["PATH"])
         self.assertEqual(0, raw.returncode, raw.stderr)
         self.assertEqual({"signature": expected}, json.loads(raw.stdout)["result"])
+        raw = self.raw("capsule-worktree-signature", {**request, "strong": True}, PATH=self.env["PATH"])
+        self.assertEqual(0, raw.returncode, raw.stderr)
+        self.assertEqual(reference._asdict(), json.loads(raw.stdout)["result"])
         with patch.dict(os.environ, self.env, clear=True), patch.object(
             worktree_fingerprint, "_capture_status", side_effect=AssertionError("unexpected Python scan")
         ):
             self.assertEqual(expected, worktree_fingerprint.worktree_signature(self.project))
+            self.assertEqual(reference, worktree_fingerprint.capture_worktree_state(self.project))
         self.assertEqual(index_before, index.read_bytes())
         declined = self.raw("capsule-worktree-signature", {**request, "max_files": 0}, PATH=self.env["PATH"])
         self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+
+    def test_capsule_native_worktree_fingerprint_handles_unborn_head(self):
+        file = self.project / "new.bin"
+        file.write_bytes(b"staged\0")
+        subprocess.run(["git", "-C", str(self.project), "add", file.name],
+                       env=self.env, capture_output=True, check=True, timeout=8)
+        file.write_bytes(b"unstaged\0\xff")
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = worktree_fingerprint.capture_worktree_state(self.project)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            worktree_fingerprint, "_capture_status", side_effect=AssertionError("unexpected Python scan")
+        ):
+            self.assertEqual(expected, worktree_fingerprint.capture_worktree_state(self.project))
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'
