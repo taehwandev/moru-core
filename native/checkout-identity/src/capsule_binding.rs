@@ -3,6 +3,7 @@
 //! forbidden imports: filesystem, gate decisions, writes and providers.
 //! callers/tests: completion probe and native capsule binding parity fixtures.
 //! verification: original Python digests and unsupported numeric fallback.
+use super::{capsule_json_integers, capsule_shape::PREFLIGHT_VERSION};
 use crate::python_text::PythonText;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -18,7 +19,7 @@ impl CapsuleBinding {
             }
             "preflight"
                 if matches!(source.get("schema_version")?, Value::Bool(true))
-                    || source.get("schema_version")?.as_u64() == Some(1) =>
+                    || source.get("schema_version")?.as_u64() == Some(PREFLIGHT_VERSION) =>
             {
                 &[]
             }
@@ -35,7 +36,7 @@ impl CapsuleBinding {
         .chain(extra_fields.iter().copied())
         {
             let value = source.get(key)?;
-            if !Self::lossless(value) {
+            if !capsule_json_integers(value) {
                 return None;
             }
             fields.insert(key.into(), value.clone());
@@ -44,16 +45,5 @@ impl CapsuleBinding {
         ordered.sort_all_objects();
         let encoded = PythonText::escape_json_unicode(&serde_json::to_string(&ordered).ok()?);
         Some(json!({"sha256": format!("{:x}", Sha256::digest(encoded.as_bytes()))}))
-    }
-
-    fn lossless(value: &Value) -> bool {
-        match value {
-            // serde_json can represent a large integer as a float. Both that
-            // case and float formatting belong to the reference implementation.
-            Value::Number(number) => number.is_i64() || number.is_u64(),
-            Value::Array(items) => items.iter().all(Self::lossless),
-            Value::Object(items) => items.values().all(Self::lossless),
-            _ => true,
-        }
     }
 }

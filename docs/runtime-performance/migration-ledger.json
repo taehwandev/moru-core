@@ -219,7 +219,7 @@
       "entry_aliases": "execution-capsule",
       "remaining": "Port the owned CLI, capsule state, receipt and validation flows, and verify supported platforms. Python still owns decisions, writes and fallback.",
       "verification": {
-        "local": "Source-bound parity for ordered raw SHA-256 and byte lengths at required-document snapshot and drift validation boundaries, plus canonical capsule and preflight binding digests."
+        "local": "Source-bound parity for ordered raw SHA-256 and byte lengths at required-document snapshot and drift validation boundaries, canonical binding digests, and first-error shape validation for capsules and preflight snapshots."
       }
     },
     {

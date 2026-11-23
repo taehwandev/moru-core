@@ -230,20 +230,24 @@ def is_sha256(value: Any) -> bool:
     )
 
 
-def _binding_json(value: Any, depth: int = 0) -> bool:
+def _capsule_probe_json(value: Any, depth: int = 0) -> bool:
     if depth == 64:
         return False
     if type(value) is dict:
-        return all(type(key) is str and _binding_json(item, depth + 1) for key, item in value.items())
+        return all(type(key) is str and _capsule_probe_json(item, depth + 1) for key, item in value.items())
     if type(value) is list:
-        return all(_binding_json(item, depth + 1) for item in value)
+        return all(_capsule_probe_json(item, depth + 1) for item in value)
     return value is None or type(value) in (bool, int, str)
 
 
-def _native_binding(kind: str, payload: dict[str, Any]) -> str | None:
-    if not NativeProbe.available() or not _binding_json(payload):
+def native_capsule_probe(operation: str, kind: str, payload: Any) -> dict | None:
+    if not NativeProbe.available() or not _capsule_probe_json(payload):
         return None
-    result = NativeProbe.request("--completion-probe", "capsule-binding", {"kind": kind, "record": payload})
+    return NativeProbe.request("--completion-probe", operation, {"kind": kind, "record": payload})
+
+
+def _native_binding(kind: str, payload: dict[str, Any]) -> str | None:
+    result = native_capsule_probe("capsule-binding", kind, payload)
     digest = result.get("sha256") if result is not None else None
     return digest if is_sha256(digest) else None
 

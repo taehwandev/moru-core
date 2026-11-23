@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import patch
 
 import agent_execution_capsule_state as capsule_state
+import agent_execution_capsule_validation as capsule_validation
 from agent_continuation_checkpoint import write_continuation_checkpoint
 from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
@@ -86,6 +87,61 @@ class NativeCompletionTests(unittest.TestCase):
                              ("preflight", {**snapshot, "schema_version": 2})):
             result = self.raw("capsule-binding", {"kind": kind, "record": record})
             self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+
+    def test_capsule_shape_preserves_first_failure_and_legacy_inputs(self):
+        digest = "a" * 64
+        snapshot = {"schema_version": True, "route_fingerprint": digest, "request_fingerprint": digest,
+                    "required_docs": [{"path": "문서", "size_bytes": False, "sha256": digest}]}
+        git_state = {"head": "head", "worktree_fingerprint": digest, "worktree_signature": digest}
+        capsule = {**snapshot, "schema_version": 4, "phase": "ready", "created_at": "time",
+                   "preflight_evidence": {"filename": "..", "sha256": digest},
+                   "project_git": git_state, "rules_git": git_state,
+                   "reuse_policy": dict(reversed(list(capsule_state.REUSE_POLICY.items())))}
+        capsule_cases = [
+            {},
+            {"invalid_json": [False], "schema_version": 0},
+            {**capsule, "invalid_json": [], "schema_version": 0},
+            {**capsule, "extra": True, "phase": []},
+            {**capsule, "phase": "invalid", "created_at": ""},
+            {**capsule, "created_at": "", "route_fingerprint": ""},
+            {**capsule, "route_fingerprint": "", "request_fingerprint": ""},
+            {**capsule, "request_fingerprint": "", "preflight_evidence": {}},
+            {**capsule, "rules_git": {}, "reuse_policy": {}},
+            {**capsule, "reuse_policy": {}, "required_docs": None},
+            {**capsule, "required_docs": {}, "gate_ledger": None},
+            {**capsule, "gate_ledger": None},
+            {**capsule, "phase": "preflight"},
+            capsule,
+        ]
+        for filename in (".", "..", "file/", "a/file", "a\\file", "\0"):
+            capsule_cases.append({**capsule, "preflight_evidence": {"filename": filename, "sha256": digest}})
+        snapshot_cases = [
+            [], {}, {**snapshot, "extra": True}, {**snapshot, "schema_version": False},
+            {**snapshot, "route_fingerprint": "A" * 64, "request_fingerprint": ""},
+            {**snapshot, "request_fingerprint": "", "required_docs": None},
+            {**snapshot, "required_docs": [{"path": "doc", "size_bytes": -1, "sha256": digest}]},
+            snapshot,
+        ]
+        for kind, valid, cases, validator in (
+            ("capsule", capsule, capsule_cases, capsule_validation._shape_failures),
+            ("preflight", snapshot, snapshot_cases, capsule_validation._preflight_snapshot_shape_failures),
+        ):
+            for record in cases:
+                with self.subTest(kind=kind, record=record):
+                    with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                        expected = validator(record)
+                    self.assertEqual({"failures": expected}, self.check("capsule-shape", {
+                        "kind": kind, "record": record,
+                    }))
+            with patch.dict(os.environ, self.env, clear=True):
+                with patch.object(capsule_validation, "_is_doc", side_effect=AssertionError("Python fallback")):
+                    self.assertEqual([], validator(valid))
+                legacy = {**capsule, "schema_version": 4.0} if kind == "capsule" else {
+                    **snapshot, "required_docs": [{"path": "doc", "size_bytes": 2**80, "sha256": digest}],
+                }
+                self.assertEqual([], validator(legacy))
+        with patch.dict(os.environ, self.env, clear=True), self.assertRaises(TypeError):
+            capsule_validation._shape_failures({**capsule, "phase": []})
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'

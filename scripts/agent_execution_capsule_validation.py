@@ -18,6 +18,7 @@ from agent_execution_capsule_state import (
     SCHEMA_VERSION,
     git_states_for_paths,
     is_sha256,
+    native_capsule_probe,
 )
 from agent_execution_capsule_docs import required_doc_failures
 from agent_gate_evidence import gate_evidence_path_for_preflight
@@ -179,7 +180,18 @@ def validate_preflight_snapshot(
     return list(dict.fromkeys(failures))
 
 
+def _native_shape(kind: str, record: Any) -> list[str] | None:
+    result = native_capsule_probe("capsule-shape", kind, record)
+    failures = result.get("failures") if result is not None else None
+    if type(failures) is list and len(failures) <= 1 and all(type(item) is str for item in failures):
+        return failures
+    return None
+
+
 def _shape_failures(capsule: dict[str, Any]) -> list[str]:
+    native = _native_shape("capsule", capsule)
+    if native is not None:
+        return native
     if not capsule:
         return ["execution capsule is missing"]
     if capsule.get("invalid_json"):
@@ -232,6 +244,9 @@ def _is_doc(value: Any) -> bool:
 
 
 def _preflight_snapshot_shape_failures(snapshot: dict[str, Any]) -> list[str]:
+    native = _native_shape("preflight", snapshot)
+    if native is not None:
+        return native
     expected = {
         "schema_version",
         "route_fingerprint",

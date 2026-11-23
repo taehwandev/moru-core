@@ -23,6 +23,8 @@ use std::{
 
 #[path = "capsule_binding.rs"]
 mod capsule_binding;
+#[path = "capsule_shape.rs"]
+mod capsule_shape;
 
 pub(crate) struct CompletionProcess;
 
@@ -66,6 +68,7 @@ impl CompletionProcess {
         }
         let result = match args[1].to_str() {
             Some("capsule-binding") => capsule_binding::CapsuleBinding::fingerprint(&payload),
+            Some("capsule-shape") => capsule_shape::CapsuleShape::validate(&payload),
             Some("quality") => Quality::inspect(&payload),
             Some("requirements") => Requirements::validate(&payload),
             Some("coverage") => Requirements::coverage(&payload),
@@ -101,5 +104,15 @@ impl CompletionProcess {
         } else {
             1
         }
+    }
+}
+
+fn capsule_json_integers(value: &Value) -> bool {
+    match value {
+        // serde_json can represent a large integer as a float.
+        Value::Number(number) => number.is_i64() || number.is_u64(),
+        Value::Array(items) => items.iter().all(capsule_json_integers),
+        Value::Object(items) => items.values().all(capsule_json_integers),
+        _ => true,
     }
 }
