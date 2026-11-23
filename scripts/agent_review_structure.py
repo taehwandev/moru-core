@@ -215,6 +215,7 @@ def structure_review(
             "structural baseline only, with full review/publication scope unchanged"
         )
 
+    size_checks = []
     for relative in active_paths:
         is_test_path = test_exempt_path(relative)
         if is_test_path:
@@ -230,29 +231,22 @@ def structure_review(
             continue
 
         metadata = discovery["path_metadata"].get(str(relative), {})
+        size_checks.append((
+            len(result["failures"]), len(result["warnings"]),
+            {
+                "path": str(relative),
+                "line_count": len(lines),
+                "metadata": metadata,
+                "max_file_lines": REVIEW_TEST_FILE_LINE_LIMIT if is_test_path else max_file_lines,
+                "max_added_lines": max_added_lines * REVIEW_TEST_FILE_LINE_LIMIT_MULTIPLIER if is_test_path
+                else max_added_lines,
+                "review_warning_file_lines": REVIEW_TEST_FILE_REVIEW_WARNING_LIMIT if is_test_path
+                else REVIEW_FILE_REVIEW_WARNING_LIMIT,
+            },
+        ))
         if is_test_path:
-            # Tests are exempt only from the oversized-block check below (a
-            # single long scenario/setup method is a normal test shape), not
-            # from a file-size ceiling -- see REVIEW_TEST_FILE_LINE_LIMIT.
-            check_file_size(
-                relative,
-                lines,
-                REVIEW_TEST_FILE_LINE_LIMIT,
-                metadata,
-                result,
-                max_added_lines=max_added_lines * REVIEW_TEST_FILE_LINE_LIMIT_MULTIPLIER,
-                review_warning_file_lines=REVIEW_TEST_FILE_REVIEW_WARNING_LIMIT,
-            )
             continue
 
-        check_file_size(
-            relative,
-            lines,
-            max_file_lines,
-            metadata,
-            result,
-            max_added_lines=max_added_lines,
-        )
         action_failures, action_warnings = android_action_delta_failures(
             project, relative, lines, metadata, subject_run_command,
         )
@@ -268,6 +262,20 @@ def structure_review(
         )
         result["failures"].extend(block_failures)
         result["warnings"].extend(block_warnings)
+
+    size_findings = _file_size_findings([row for _, _, row in size_checks])
+    # Interleave the batch results before the corresponding per-file findings.
+    for kind, index in (("failures", 0), ("warnings", 1)):
+        other_findings = result[kind]
+        combined = []
+        start = 0
+        for check, messages in zip(size_checks, size_findings):
+            end = check[index]
+            combined.extend(other_findings[start:end])
+            combined.extend(messages[index])
+            start = end
+        combined.extend(other_findings[start:])
+        result[kind] = combined
 
     _add_cross_path_findings(
         result,
@@ -1115,7 +1123,39 @@ def check_file_size(
     max_added_lines: int = REVIEW_ADDED_LINE_LIMIT,
     review_warning_file_lines: int = REVIEW_FILE_REVIEW_WARNING_LIMIT,
 ) -> None:
-    line_count = len(lines)
+    _check_file_size(path, len(lines), max_file_lines, metadata, result,
+                     max_added_lines=max_added_lines, review_warning_file_lines=review_warning_file_lines)
+
+
+def _file_size_findings(rows: list[dict[str, Any]]) -> list:
+    if not rows:
+        return []
+    native = NativeProbe.request("--completion-probe", "structure-file-size", {"files": rows})
+    if native is not None and set(native) == {"findings"}:
+        findings = native["findings"]
+        if (isinstance(findings, list) and len(findings) == len(rows)
+                and all(isinstance(row, list) and len(row) == 2
+                        and all(isinstance(items, list) and all(isinstance(item, str) for item in items)
+                                for items in row) for row in findings)):
+            return findings
+    findings = []
+    for row in rows:
+        result: dict[str, list[str]] = {"failures": [], "warnings": []}
+        _check_file_size(**row, result=result)
+        findings.append((result["failures"], result["warnings"]))
+    return findings
+
+
+def _check_file_size(
+    path: Path | str,
+    line_count: int,
+    max_file_lines: int,
+    metadata: dict[str, Any],
+    result: dict[str, Any],
+    *,
+    max_added_lines: int,
+    review_warning_file_lines: int,
+) -> None:
     if metadata.get("initial_full_build"):
         if line_count > review_warning_file_lines:
             result["warnings"].append(

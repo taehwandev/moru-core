@@ -68,6 +68,50 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_file_size_batch_keeps_python_thresholds_and_order(self):
+        files = [
+            {"path": f"src/{index}.py", "line_count": lines, "metadata": metadata,
+             "max_file_lines": 500, "max_added_lines": 300, "review_warning_file_lines": 300}
+            for index, (lines, metadata) in enumerate((
+                (500, {"status": "A", "additions": 300}),
+                (501, {"status": "A"}),
+                (600, {"status": "R", "additions": 302, "deletions": 303}),
+                (600, {"status": "C", "additions": 302, "deletions": 302}),
+                (600, {"status": "A", "initial_full_build": True}),
+                (650, {"status": "M"}),
+            ))
+        ]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [list(row) for row in structure._file_size_findings(files)]
+        self.assertEqual({"findings": expected}, self.check("structure-file-size", {"files": files}))
+
+        paths = [Path("a.py"), Path("b.py"), Path("tests/test_example.py")]
+        metadata = {str(path): {"status": "A"} for path in paths}
+        (self.project / paths[0]).write_text("def example():\n" + "    pass\n" * 5)
+        (self.project / paths[1]).write_bytes(b"\xff")
+        (self.project / paths[2]).parent.mkdir()
+        (self.project / paths[2]).write_bytes(b"\xef\xbb\xbf" + b"# test\r\n" * 7)
+
+        def review():
+            with patch.object(structure, "changed_source_paths", return_value=(
+                {"command_errors": [], "path_metadata": metadata}, paths,
+            )), patch.object(structure, "_add_cross_path_findings"):
+                return structure.structure_review(
+                    self.project, 5, 3, lambda *_: {"returncode": 1},
+                    max_added_lines=2, review_commits=("base", "head"),
+                )
+
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            reference = review()
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "_check_file_size", side_effect=AssertionError("Python checked file size"),
+        ):
+            self.assertEqual(reference, review())
+        self.assertEqual(["a.py", "a.py", "a.py:1", "tests/test_example.py"],
+                         [message.split(" ", 1)[0] for message in reference["failures"]])
+        self.assertIn("per-file addition limit is 6", reference["failures"][-1])
+        self.assertTrue(reference["warnings"][0].startswith("b.py "))
+
     def test_structure_source_paths_match_legacy_exclusions_and_file_types(self):
         names = [
             "src/File.RS", "build/ignored.rs", "Build/kept.rs", "Generated/ignored.rs",

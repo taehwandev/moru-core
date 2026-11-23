@@ -66,6 +66,8 @@ pub(super) mod pending_publication_settlement;
 mod preflight_failures;
 #[path = "structure_diff.rs"]
 mod structure_diff;
+#[path = "structure_file_size.rs"]
+mod structure_file_size;
 #[path = "structure_source_paths.rs"]
 mod structure_source_paths;
 
@@ -109,6 +111,7 @@ impl CompletionProcess {
         }
         let result = match args[1].to_str() {
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
+            Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("preflight-failures") => preflight_failures::PreflightFailures::collect(&payload),
             Some("doctor-launcher") => doctor_launcher::DoctorLauncher::inspect(&payload),
