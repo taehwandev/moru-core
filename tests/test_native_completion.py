@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -582,14 +583,59 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(original_ledger, ledger.read_bytes())
         self.assertEqual(0, call(PATH=str(self.empty))[0])
 
+    def test_capsule_refresh_cli_writes_preflight_for_missing_or_invalid_ledger(self):
+        doc = self.commit_capsule_rules()
+        call = self.capsule_check_runner(self.project, self.project, doc.name)
+        run = self.project / ".moru" / "runs" / ("a" * 32)
+        target = run / "execution-capsule.json"
+        ledger = run / "gate-evidence.json"
+        invalid_schema = {**json.loads(ledger.read_bytes()), "schema_version": 0}
+        for value in (None, {}, invalid_schema):
+            with self.subTest(ledger=value):
+                if value is None:
+                    ledger.unlink()
+                else:
+                    ledger.write_text(json.dumps(value))
+                reference = call(action="refresh", MORU_LAUNCHER_BACKEND="python")
+                self.assertEqual(0, reference[0], reference)
+                self.assertEqual("preflight", json.loads(reference[1])["phase"])
+                expected = json.loads(target.read_bytes())
+                self.assertEqual(value is not None, "gate_ledger" in expected)
+                self.assertEqual(reference, call(action="refresh", PATH=str(self.empty)))
+                native = json.loads(target.read_bytes())
+                native.pop("created_at")
+                expected.pop("created_at")
+                self.assertEqual(expected, native)
+
         previous = target.read_bytes()
-        ledger.write_text("{}")
+        ledger.write_text("{")
         self.assertEqual(127, call(action="refresh", PATH=str(self.empty))[0])
         self.assertEqual(previous, target.read_bytes())
-        fallback = call(action="refresh")
-        self.assertEqual(0, fallback[0], fallback)
-        self.assertEqual("preflight", json.loads(fallback[1])["phase"])
-        self.assertEqual("preflight", json.loads(target.read_bytes())["phase"])
+        self.assertEqual("preflight", json.loads(call(action="refresh")[1])["phase"])
+
+    def test_capsule_refresh_does_not_write_if_missing_ledger_appears(self):
+        doc = self.commit_capsule_rules()
+        call = self.capsule_check_runner(self.project, self.project, doc.name)
+        run = self.project / ".moru" / "runs" / ("a" * 32)
+        target = run / "execution-capsule.json"
+        ledger = run / "gate-evidence.json"
+        incoming = ledger.with_suffix(".incoming")
+        original_ledger = ledger.read_bytes()
+        previous = target.read_bytes()
+        ledger.rename(incoming)
+
+        # Inject the missing ledger during the first Git read after initial evidence observation.
+        shim_dir = self.base / "git-shim"
+        shim_dir.mkdir()
+        git = shim_dir / "git"
+        source, destination = (shlex.quote(str(path)) for path in (incoming, ledger))
+        real_git = shlex.quote(shutil.which("git"))
+        git.write_text(f"#!/bin/sh\nif [ -f {source} ]; then /bin/mv {source} {destination}; fi\n"
+                       f'exec {real_git} "$@"\n')
+        git.chmod(0o700)
+        self.assertEqual(127, call(action="refresh", PATH=str(shim_dir))[0])
+        self.assertEqual(original_ledger, ledger.read_bytes())
+        self.assertEqual(previous, target.read_bytes())
 
     def test_capsule_refresh_cli_writes_ready_directory_and_mixed_records_without_python(self):
         git_doc = self.commit_capsule_rules()

@@ -77,7 +77,7 @@ impl CapsuleArtifact {
     pub(super) fn refresh_observed(
         dir: &File,
         payload: &Value,
-        expected_hashes: Option<(&str, &str)>,
+        expected_hashes: Option<(&str, Option<&str>)>,
     ) -> Option<Value> {
         let text = payload.get("path")?.as_str()?;
         Self::run_parent(Path::new(text))?;
@@ -93,7 +93,7 @@ impl CapsuleArtifact {
         let ledger = Self::file_record(dir, c"gate-evidence.json", true)?;
         if let Some((preflight_hash, ledger_hash)) = expected_hashes {
             if preflight["sha256"].as_str()? != preflight_hash
-                || ledger.as_ref()?.get("sha256")?.as_str()? != ledger_hash
+                || ledger.as_ref().and_then(|record| record["sha256"].as_str()) != ledger_hash
             {
                 return None;
             }
@@ -132,7 +132,7 @@ impl CapsuleArtifact {
         };
         let meta = file.metadata().ok()?;
         if !meta.is_file() {
-            return optional.then_some(None);
+            return None;
         }
         if meta.len() > MAX_EVIDENCE_BYTES {
             return None;

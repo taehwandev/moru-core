@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use std::{
     ffi::{CStr, OsString},
     fs::File,
-    io::{self, Read, Write},
+    io::{self, ErrorKind, Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -144,7 +144,18 @@ impl CapsuleCheck {
     }
 
     pub(super) fn read_json_file(dir: &File, name: &CStr) -> Option<(Value, String)> {
-        let file = AtomicSibling::open_relative(dir, name, libc::O_RDONLY)?;
+        Self::read_optional_json_file(dir, name)?
+    }
+
+    pub(super) fn read_optional_json_file(
+        dir: &File,
+        name: &CStr,
+    ) -> Option<Option<(Value, String)>> {
+        let file = match AtomicSibling::open_relative_result(dir, name, libc::O_RDONLY) {
+            Ok(file) => file,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Some(None),
+            Err(_) => return None,
+        };
         let meta = file.metadata().ok()?;
         let limit = 1024 * 1024;
         if !meta.is_file() || meta.len() > limit {
@@ -160,7 +171,7 @@ impl CapsuleCheck {
             return None;
         }
         let hash = format!("{:x}", Sha256::digest(&bytes));
-        Some((serde_json::from_slice(&bytes).ok()?, hash))
+        Some(Some((serde_json::from_slice(&bytes).ok()?, hash)))
     }
 
     pub(super) fn route_identities(preflight: &Value) -> Option<(&Value, Value)> {
@@ -183,16 +194,31 @@ impl CapsuleCheck {
         hash: &str,
         route: &Value,
     ) -> Option<()> {
-        if ledger.get("invalid_json").is_some()
-            || !Self::path_matches(ledger.get("preflight_evidence")?, evidence)
-        {
+        Self::ledger_validity(ledger, evidence, hash, route)?.then_some(())
+    }
+
+    pub(super) fn ledger_validity(
+        ledger: Value,
+        evidence: &Path,
+        hash: &str,
+        route: &Value,
+    ) -> Option<bool> {
+        if ledger.get("invalid_json").is_some() {
             return None;
         }
+        let Some(recorded) = ledger.get("preflight_evidence") else {
+            return Some(false);
+        };
+        let path = Path::new(recorded.as_str()?);
+        if !path.is_absolute() {
+            return None;
+        }
+        let resolved = path.canonicalize().ok()?;
         let parent = CapsuleLedger::check(&json!({
-            "ledger": ledger, "recorded_path": evidence.to_str()?, "observed_path": evidence.to_str()?,
+            "ledger": ledger, "recorded_path": resolved.to_str()?, "observed_path": evidence.to_str()?,
             "observed_hash": hash, "observed_route": route,
         }))?;
-        Self::clean(&parent).then_some(())
+        Some(Self::clean(&parent))
     }
 
     pub(super) fn path_matches(value: &Value, expected: &Path) -> bool {

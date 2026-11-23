@@ -1,4 +1,4 @@
-//! owner: native CLI orchestration for a ready execution capsule refresh.
+//! owner: native CLI orchestration for execution capsule refresh.
 //! allowed imports: capsule observations and atomic persistence, guarded reads, UTC and JSON.
 //! forbidden imports: parent ledger mutation, gate issuance and providers.
 //! callers/tests: launcher dispatch and CLI parity fixtures.
@@ -37,7 +37,7 @@ impl CapsuleRefresh {
         let path_json = PythonText::json_ascii(output_text)?;
         let dir = AtomicSibling::open_directory(parent)?;
         let (preflight, preflight_hash) = CapsuleCheck::read_json_file(&dir, c"preflight.json")?;
-        let (ledger, ledger_hash) = CapsuleCheck::read_json_file(&dir, c"gate-evidence.json")?;
+        let ledger = CapsuleCheck::read_optional_json_file(&dir, c"gate-evidence.json")?;
         if !CapsuleCheck::path_matches(preflight.get("project")?, &project)
             || !CapsuleCheck::path_matches(preflight.get("rules")?, &rules)
         {
@@ -45,7 +45,13 @@ impl CapsuleRefresh {
         }
         let (route, identities) = CapsuleCheck::route_identities(&preflight)?;
         let route_hash = identities.get("route_fingerprint")?;
-        CapsuleCheck::validate_ledger(ledger, &evidence, &preflight_hash, route_hash)?;
+        let (ledger_valid, ledger_hash) = match ledger {
+            Some((ledger, hash)) => (
+                CapsuleCheck::ledger_validity(ledger, &evidence, &preflight_hash, route_hash)?,
+                Some(hash),
+            ),
+            None => (false, None),
+        };
         let project_state = Self::observe_root(&project)?;
         let rules_state = if project == rules {
             project_state.clone()
@@ -74,14 +80,14 @@ impl CapsuleRefresh {
         let result = CapsuleArtifact::refresh_observed(
             &dir,
             &json!({
-                "path": output_text, "temporary": temporary, "ledger_valid": true,
+                "path": output_text, "temporary": temporary, "ledger_valid": ledger_valid,
                 "observed": {
                     "created_at": created_at, "required_docs": docs, "project_git": project_state,
                     "rules_git": rules_state, "route_fingerprint": route_hash,
                     "request_fingerprint": identities.get("request_fingerprint")?,
                 },
             }),
-            Some((&preflight_hash, &ledger_hash)),
+            Some((&preflight_hash, ledger_hash.as_deref())),
         )?;
 
         // A returned result came from the atomic replacement attempt. Do not replay it.
@@ -123,8 +129,10 @@ impl CapsuleRefresh {
 
     fn report(result: &Value, output: &str, path_json: &str) -> i32 {
         if result.get("errno").is_some_and(Value::is_null) {
-            let line = format!("{{\"capsule\": {path_json}, \"phase\": \"ready\"}}\n");
-            return i32::from(io::stdout().write_all(line.as_bytes()).is_err());
+            if let Some(phase @ ("ready" | "preflight")) = result["record"]["phase"].as_str() {
+                let line = format!("{{\"capsule\": {path_json}, \"phase\": \"{phase}\"}}\n");
+                return i32::from(io::stdout().write_all(line.as_bytes()).is_err());
+            }
         }
         let reason = result["errno"]
             .as_i64()
