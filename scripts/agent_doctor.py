@@ -107,7 +107,7 @@ def _project_health_report(
     state_dir = project_state_dir_target(resolved)
     stacks, has_agents, has_managed_block = _inspect_project_files(resolved)
     permissions = detect_project_permissions(resolved)
-    snapshot = status_snapshot(resolved)
+    active_runs = _active_run_count(resolved)
     open_cards = NativeCards.count_open(resolved)
     if open_cards is None:
         open_cards = len(list_cards(resolved, include_settled=False))
@@ -124,7 +124,7 @@ def _project_health_report(
         },
         "state": {
             "active_state_dir": str(state_dir),
-            "active_runs": snapshot.get("active_runs", 0),
+            "active_runs": active_runs,
             "open_work_cards": open_cards,
             "project_memory": memory_stats,
         },
@@ -144,6 +144,15 @@ def _project_health_report(
             return report, rendered
     report = _assemble_report_python(facts, template)
     return report, _render_markdown_doctor(report) if markdown else None
+
+
+def _active_run_count(project: Path) -> int:
+    native = NativeProbe.request("--completion-probe", "doctor-active-runs", {"project": str(project)})
+    if native is not None and set(native) == {"active_runs"}:
+        count = native["active_runs"]
+        if type(count) is int and count >= 0:
+            return count
+    return status_snapshot(project).get("active_runs", 0)
 
 
 def _project_memory_stats(project: Path) -> dict[str, int]:

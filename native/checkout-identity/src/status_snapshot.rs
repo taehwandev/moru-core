@@ -56,6 +56,12 @@ impl StatusSnapshot {
         Self::aggregate(values).is_some()
     }
 
+    pub(crate) fn active_runs(values: &[Value; 3]) -> Option<usize> {
+        // Validate the complete snapshot because the reference can fail on
+        // scheduler or event data even when its caller uses only the count.
+        Self::aggregate(values).map(|(active, _, _)| active)
+    }
+
     fn aggregate(values: &[Value; 3]) -> Option<(usize, String, String)> {
         let mut active = 0;
         for run in rows(&values[0], "runs").iter().filter(|v| v.is_object()) {

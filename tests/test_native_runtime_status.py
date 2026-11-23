@@ -1,13 +1,16 @@
 """Native prepared status parity, initialization, source and concurrency bounds."""
 import fcntl
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import time
 import unittest
 import uuid
+from unittest.mock import patch
 
+import agent_doctor as doctor
 from agent_os_api import validate_status_snapshot
 from benchmark_native_sha import capture
 from native_launcher_support import install
@@ -32,6 +35,45 @@ class NativeRuntimeStatusTests(unittest.TestCase):
                         **({"PATH": str(self.empty)} if native_only else {}), **overrides)
         self.assertEqual(comparable(reference, validated), comparable(actual, validated))
         return actual
+
+    def raw_doctor_count(self):
+        return subprocess.run(
+            [str(self.entry.with_name("moru-hook-native")), str(self.entry),
+             "--completion-probe", "doctor-active-runs"],
+            input=json.dumps({"project": str(self.project)}).encode(),
+            env={**environment(self.base), "PATH": str(self.empty)},
+            cwd=self.project, capture_output=True, timeout=8,
+        )
+
+    def test_doctor_active_count_uses_prepared_snapshot_and_preserves_fallback(self):
+        env = environment(self.base)
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            reference = doctor.inspect_project_health(self.project)
+        self.assertEqual(2, reference["state"]["active_runs"])
+        before = state_hashes(self.project)
+        result = self.raw_doctor_count()
+        self.assertEqual((0, b""), (result.returncode, result.stderr))
+        self.assertEqual({"schema_version": 1, "result": {"active_runs": 2}}, json.loads(result.stdout))
+        with patch.dict(os.environ, env, clear=True), patch.object(
+            doctor, "status_snapshot", side_effect=AssertionError("Python snapshot ran"),
+        ):
+            self.assertEqual(reference, doctor.inspect_project_health(self.project))
+        self.assertEqual(before, state_hashes(self.project))
+
+        lock = self.local / ".events.json.lock"
+        lock.unlink()
+        self.assertEqual(125, self.raw_doctor_count().returncode)
+        self.assertFalse(lock.exists())
+        with patch.dict(os.environ, env, clear=True):
+            self.assertEqual(2, doctor.inspect_project_health(self.project)["state"]["active_runs"])
+        self.assertTrue(lock.is_file())
+
+        (self.local / "scheduler.json").write_text(json.dumps({"tasks": [None]}))
+        self.assertEqual(125, self.raw_doctor_count().returncode)
+        for backend in ("python", "auto"):
+            with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": backend}, clear=True):
+                with self.assertRaisesRegex(AttributeError, "get"):
+                    doctor.inspect_project_health(self.project)
 
     def test_basic_validated_and_default_cli_match_python_without_it(self):
         before = state_hashes(self.project)
@@ -147,6 +189,7 @@ class NativeRuntimeStatusTests(unittest.TestCase):
         self.addCleanup(lock.close)
         fcntl.flock(lock, fcntl.LOCK_EX)
         self.assertEqual(127, invoke(self.entry, self.base, self.project, PATH=str(self.empty)).returncode)
+        self.assertEqual(125, self.raw_doctor_count().returncode)
         child = subprocess.Popen([str(self.entry), "agent-os-status", "--project", str(self.project)],
             env=environment(self.base), cwd=self.project, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         try:

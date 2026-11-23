@@ -6,11 +6,26 @@
 use crate::{
     pretool_guard::CallbackGuard, status_snapshot::StatusSnapshot, status_state::StatusState,
 };
-use std::{env, ffi::OsString, io::Write, path::PathBuf};
+use serde_json::{json, Value};
+use std::{
+    env,
+    ffi::OsString,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 pub(crate) struct StatusProcess;
 
 impl StatusProcess {
+    pub(crate) fn active_runs(payload: &Value) -> Option<Value> {
+        let path = Path::new(payload.get("project")?.as_str()?);
+        if !path.is_absolute() || !path.is_dir() || path.canonicalize().ok()? != path {
+            return None;
+        }
+        let values = StatusState::read(path)?;
+        Some(json!({"active_runs": StatusSnapshot::active_runs(&values)?}))
+    }
+
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         let Some(text) = snapshot(launcher, &args[1..]) else {
             crate::exec_python(launcher, args);

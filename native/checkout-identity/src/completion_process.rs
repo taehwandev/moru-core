@@ -95,6 +95,7 @@ impl CompletionProcess {
         }
         let result = match args[1].to_str() {
             Some("doctor-memory") => doctor_memory::DoctorMemory::summarize(&payload),
+            Some("doctor-active-runs") => crate::status_process::StatusProcess::active_runs(&payload),
             Some("doctor-project") => doctor_project::DoctorProject::inspect(&payload),
             Some("doctor-report") => doctor_report::DoctorReport::build(&payload),
             Some("capsule-binding") => capsule_binding::CapsuleBinding::fingerprint(&payload),
