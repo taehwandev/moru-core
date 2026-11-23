@@ -21,6 +21,7 @@ from agent_route_state import (
 )
 from agent_repair_ledger import checkpoint_has_recorded_failure
 from agent_repair_receipt_validation import validate_repair_receipt
+from support.native_doc_transcript import hash_docs
 
 
 REQUIRED_DOC_RECEIPT_VERSION = "1"
@@ -32,7 +33,11 @@ def current_required_docs(
 ) -> list[dict[str, Any]] | None:
     records: list[dict[str, Any]] = []
     try:
-        for relative in required_docs_for_route(route):
+        expected = required_docs_for_route(route)
+        native = hash_docs(rules, expected)
+        if native is not None:
+            return native
+        for relative in expected:
             records.append(doc_hash_record(relative, contained_doc_path(rules, relative)))
     except (OSError, ValueError):
         return None
@@ -227,10 +232,14 @@ def required_doc_failures(
         return ["execution capsule required-doc manifest does not match"]
     failures: list[str] = []
     update_receipts = documented_updates or {}
-    for item in recorded:
+    native = hash_docs(rules, expected)
+    for index, item in enumerate(recorded):
         relative = str(item["path"])
         try:
-            current = doc_hash_record(relative, contained_doc_path(rules, relative))
+            current = (
+                native[index] if native is not None
+                else doc_hash_record(relative, contained_doc_path(rules, relative))
+            )
         except (OSError, ValueError):
             failures.append(f"execution capsule required doc is unavailable: {relative}")
             continue

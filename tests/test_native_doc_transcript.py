@@ -12,6 +12,7 @@ from threading import Event
 import unittest
 from unittest.mock import patch
 
+import agent_execution_capsule_docs as capsule_docs
 import agent_required_doc_delivery as reference
 import agent_required_doc_reuse as reuse_reference
 import agent_runtime_session
@@ -24,7 +25,7 @@ from native_pretool_support import environment, prepare, result
 from support.agy_setup import _agy_hooks_spec
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_preparation, agy_delivery_request, agy_delivery_stdout, agy_redelivery,
-    agy_skill_read_note,
+    agy_skill_read_note, hash_docs,
     nearest_registry_project, read_delivery_manifest,
     reuse_credit,
     discover_reuse_roots, rank_reuse_roots, reuse_current, reuse_matches, reuse_run_ids,
@@ -54,6 +55,45 @@ class NativeDocTranscriptTests(unittest.TestCase):
     def original(self, name, *args):
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND":"python"}, clear=True):
             return getattr(reference, "_" + name)(*args)
+
+    def test_capsule_document_hashes_preserve_raw_bytes_order_and_fallback(self):
+        rules = self.base / "rules"
+        rules.mkdir()
+        document = rules / "문서.md"
+        document.write_bytes(b"\xff\x00\r\n")
+        (rules / "alias.md").symlink_to(document)
+        outside = self.base / "outside.md"
+        outside.write_bytes(b"outside")
+        (rules / "outside.md").symlink_to(outside)
+        names = ["./문서.md", "alias.md", "./문서.md"]
+        route = {"required_docs": names}
+        expected = [capsule_docs.doc_hash_record(name, document) for name in names]
+
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            capsule_docs, "doc_hash_record", side_effect=AssertionError("unexpected Python hash")
+        ):
+            current = capsule_docs.current_required_docs(rules, route)
+            self.assertEqual(current, expected)
+            self.assertEqual([list(record) for record in current], [list(record) for record in expected])
+            self.assertEqual(capsule_docs.required_doc_failures(current, rules, route), [])
+            document.write_bytes(b"\xfe\x00\r\n")
+            self.assertEqual(capsule_docs.required_doc_failures(current, rules, route), [
+                f"execution capsule required doc hash changed: {name}" for name in names
+            ])
+            document.write_bytes(b"\xfe\x00\n")
+            self.assertEqual(capsule_docs.required_doc_failures(current, rules, route), [
+                f"execution capsule required doc {change} changed: {name}"
+                for name in names for change in ("size", "hash")
+            ])
+
+        with patch.dict(os.environ, self.env, clear=True):
+            for unavailable in ("missing.md", "outside.md"):
+                with self.subTest(unavailable=unavailable):
+                    unsupported = [names[0], unavailable]
+                    self.assertIsNone(hash_docs(rules, unsupported))
+                    self.assertIsNone(capsule_docs.current_required_docs(rules, {"required_docs": unsupported}))
+            with patch("support.native_doc_transcript.NativeProbe.request", side_effect=AssertionError):
+                self.assertEqual(capsule_docs.current_required_docs(rules, {}), [])
 
     def parity(self, raw, fallback=0, offset=0, count=0, limit=3):
         self.path.write_bytes(raw)

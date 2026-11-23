@@ -329,6 +329,36 @@ def agy_delivery_preparation(evidence: Path, transcript: Path, limit: int):
     return (plan, manifest) if manifest is not None else None
 
 
+def hash_docs(rules: Path, docs: list[str]) -> list[dict] | None:
+    if not docs:
+        return []
+    try:
+        result = NativeProbe.request(
+            "--doc-transcript-probe", "hash-docs", {"rules": str(rules), "docs": docs}
+        )
+    except (OSError, ValueError, RuntimeError):
+        return None
+    records = _value(result)
+    if type(records) is not list or len(records) != len(docs):
+        return None
+    for name, record in zip(docs, records):
+        if (
+            type(record) is not dict
+            or record.keys() != {"path", "size_bytes", "sha256"}
+            or record["path"] != name
+            or type(record["size_bytes"]) is not int
+            or record["size_bytes"] < 0
+            or type(record["sha256"]) is not str
+            or len(record["sha256"]) != 64
+            or any(char not in "0123456789abcdef" for char in record["sha256"])
+        ):
+            return None
+    return [
+        {"path": record["path"], "size_bytes": record["size_bytes"], "sha256": record["sha256"]}
+        for record in records
+    ]
+
+
 class NativeDocTranscript:
     @staticmethod
     def write_marker(marker: Path, delivered: list, offset: int, redeliveries: int) -> bool:

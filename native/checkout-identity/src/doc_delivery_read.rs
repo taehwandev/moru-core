@@ -1,11 +1,12 @@
 //! owner: bounded required-document and manifest reads, registry file discovery;
-//! allowed imports: guarded regular-file access, newline normalization and std;
+//! allowed imports: guarded regular-file access, newline normalization, SHA-256 and std;
 //! forbidden imports: evidence selection, writes, providers and delivery policy;
 //! callers/tests: doc-transcript probe and native required-doc parity fixtures;
-//! verification: UTF-8, newline normalization, omissions and unsupported paths.
+//! verification: UTF-8, newline normalization, raw hashes and contained regular files.
 use super::DocTranscript;
 use crate::text::Text;
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
     fs,
@@ -14,6 +15,8 @@ use std::{
 };
 
 const MAX_BYTES: u64 = 128 * 1024;
+const MAX_HASH_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_HASH_DOCS: usize = 256;
 
 impl DocTranscript {
     pub(crate) fn nearest_registry_project(path: &Path) -> Option<Value> {
@@ -116,5 +119,60 @@ impl DocTranscript {
             texts.insert(name.into(), Value::String(text));
         }
         Some(Value::Object(texts))
+    }
+
+    pub(crate) fn hash_documents(rules: &Path, docs: &[&str]) -> Option<Value> {
+        if docs.is_empty() {
+            return Some(json!([]));
+        }
+        if docs.len() > MAX_HASH_DOCS || !rules.is_absolute() {
+            return None;
+        }
+        let root = rules.canonicalize().ok()?;
+        if root.as_os_str() != rules.as_os_str() {
+            return None;
+        }
+        let mut remaining = MAX_HASH_BYTES;
+        let mut records = Vec::with_capacity(docs.len());
+        let mut buffer = [0; 32 * 1024];
+        for &name in docs {
+            let relative = Path::new(name);
+            if relative.is_absolute()
+                || relative
+                    .components()
+                    .any(|part| part == Component::ParentDir)
+            {
+                return None;
+            }
+            let normalized: PathBuf = relative.components().collect();
+            let path = root.join(normalized).canonicalize().ok()?;
+            if !path.starts_with(&root) {
+                return None;
+            }
+            let metadata = fs::metadata(&path).ok()?;
+            if !metadata.is_file() || metadata.len() > remaining {
+                return None;
+            }
+            let mut reader = Self::open_scoped(&path, &metadata, Some(&root))?
+                .ok()?
+                .take(remaining + 1);
+            let mut hasher = Sha256::new();
+            let mut size = 0_u64;
+            loop {
+                let read = reader.read(&mut buffer).ok()?;
+                if read == 0 {
+                    break;
+                }
+                size += read as u64;
+                hasher.update(&buffer[..read]);
+            }
+            remaining = remaining.checked_sub(size)?;
+            records.push(json!({
+                "path": name,
+                "size_bytes": size,
+                "sha256": format!("{:x}", hasher.finalize()),
+            }));
+        }
+        Some(Value::Array(records))
     }
 }

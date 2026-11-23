@@ -215,10 +215,12 @@
       "id": "scripts/agent_execution_capsule.py",
       "inventory_id": 12,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "execution-capsule",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port the owned CLI, capsule state, receipt and validation flows, and verify supported platforms. Python still owns decisions, writes and fallback.",
+      "verification": {
+        "local": "Source-bound parity for ordered raw SHA-256 and byte lengths at required-document snapshot and drift validation boundaries."
+      }
     },
     {
       "id": "scripts/agent_loop.py",

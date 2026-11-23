@@ -36,6 +36,7 @@ impl DocTranscriptProcess {
                         | "agy-compaction-count"
                         | "render"
                         | "read-docs"
+                        | "hash-docs"
                         | "read-delivery-manifest"
                         | "reuse-credit"
                         | "reuse-current"
@@ -126,7 +127,7 @@ impl DocTranscriptProcess {
                     return delivery_text::DocDeliveryText::render(&payload)
                         .map(|value| json!(value));
                 }
-                if args[1] == "read-docs" && object.len() == 2 {
+                if matches!(args[1].to_str()?, "read-docs" | "hash-docs") && object.len() == 2 {
                     let rules = Path::new(object.get("rules")?.as_str()?);
                     let docs = object
                         .get("docs")?
@@ -134,7 +135,11 @@ impl DocTranscriptProcess {
                         .iter()
                         .map(Value::as_str)
                         .collect::<Option<Vec<_>>>()?;
-                    return DocTranscript::read_documents(rules, &docs);
+                    return if args[1] == "hash-docs" {
+                        DocTranscript::hash_documents(rules, &docs)
+                    } else {
+                        DocTranscript::read_documents(rules, &docs)
+                    };
                 }
                 let path = Path::new(object.get("path")?.as_str()?);
                 match args[1].to_str()? {
@@ -190,7 +195,7 @@ impl DocTranscriptProcess {
                 _ => 125,
             };
         };
-        if args[1] == "read-docs" && out.len() >= 1024 * 1024 {
+        if matches!(args[1].to_str(), Some("read-docs" | "hash-docs")) && out.len() >= 1024 * 1024 {
             return 125;
         }
         out.push(b'\n');

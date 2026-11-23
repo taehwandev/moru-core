@@ -102,6 +102,14 @@ impl DocTranscript {
     }
 
     fn open(path: &Path, expected: &Metadata) -> Option<io::Result<File>> {
+        Self::open_scoped(path, expected, None)
+    }
+
+    fn open_scoped(
+        path: &Path,
+        expected: &Metadata,
+        root: Option<&Path>,
+    ) -> Option<io::Result<File>> {
         // Resolve ordinary links, then anchor each component to an owned directory
         // descriptor. NOFOLLOW avoids redirected ancestors; NONBLOCK prevents a
         // replacement FIFO from stalling before fstat can reject nonregular input.
@@ -109,6 +117,9 @@ impl DocTranscript {
             Ok(resolved) => resolved,
             Err(error) => return Some(Err(error)),
         };
+        if root.is_some_and(|root| !resolved.starts_with(root)) {
+            return None;
+        }
         let opened = (|| -> io::Result<File> {
             let mut file = File::open("/")?;
             let mut parts = resolved.components().peekable();
