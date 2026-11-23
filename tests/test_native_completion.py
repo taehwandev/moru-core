@@ -68,6 +68,46 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_source_paths_match_legacy_exclusions_and_file_types(self):
+        names = [
+            "src/File.RS", "build/ignored.rs", "Build/kept.rs", "Generated/ignored.rs",
+            "pigeons/schema.DART", "Pigeons/schema.dart", "vite.CONFIG.TS", "setup.PY",
+            "src/한.py", "third_party/example/file.py", "dir.rs", "missing.rs", "link.rs",
+            "src/.rs", "README.md",
+        ]
+        paths = [Path(name) for name in names]
+        for path in paths:
+            target = self.project / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if path.name == "dir.rs":
+                target.mkdir()
+            elif path.name == "link.rs":
+                target.symlink_to(self.project / "src" / "File.RS")
+            elif path.name != "missing.rs":
+                target.touch()
+        vendor = self.project / "third_party" / "example"
+        (vendor / "README.md").write_text("Upstream commit sha-256 license")
+        (vendor / "LICENSE").touch()
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = structure._review_sources(self.project, paths)
+        self.assertEqual([Path(name) for name in (
+            "src/File.RS", "Build/kept.rs", "Pigeons/schema.dart", "src/한.py", "link.rs",
+        )], expected)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "review_source_path", wraps=structure.review_source_path,
+        ) as fallback:
+            self.assertEqual(expected, structure._review_sources(self.project, paths))
+            self.assertEqual([Path("src/한.py"), Path("third_party/example/file.py")],
+                             [call.args[1] for call in fallback.call_args_list])
+        (self.project / ".gitattributes").write_text("src/File.RS linguist-generated\n")
+        structure._declares_generated.cache_clear()
+        structure.linguist_generated_path.cache_clear()
+        self.addCleanup(structure._declares_generated.cache_clear)
+        self.addCleanup(structure.linguist_generated_path.cache_clear)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(NativeProbe, "request") as request:
+            self.assertEqual([], structure._review_sources(self.project, [Path("src/File.RS")]))
+            request.assert_not_called()
+
     def test_structure_diff_preserves_paths_and_falls_back_on_truncation(self):
         status = "R100\0src/old\t.py\0src/new\n.py\0C75\0src/from.py\0src/한.py\0A\0 src/bin.py \0"
         counts = "1\t2\t\0src/old\t.py\0src/new\n.py\0"

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_review_boundary import boundary_note_requirements
-from agent_review_generated_attrs import linguist_generated_path
+from agent_review_generated_attrs import _declares_generated, linguist_generated_path
 from agent_android_action_boundary import AndroidActionBoundary
 from agent_review_purpose import purpose_failures
 from agent_review_removals import classify_net_deletions
@@ -472,7 +472,7 @@ def changed_source_paths(
         )
         paths = [Path(name) for name in sorted(names)]
         source_root = source_project or project
-        checked = [path for path in paths if review_source_path(source_root, path)]
+        checked = _review_sources(source_root, paths)
         return {
             "commands": commands,
             "command_errors": command_errors,
@@ -552,7 +552,7 @@ def changed_source_paths(
         )
 
     paths = [Path(name) for name in sorted(names)]
-    checked = [path for path in paths if review_source_path(project, path)]
+    checked = _review_sources(project, paths)
     return {
         "commands": commands,
         "command_errors": command_errors,
@@ -1017,6 +1017,30 @@ def net_deletion_findings(path_metadata: dict[str, dict[str, Any]]) -> list[dict
 def _pathspec_args(review_paths: list[str] | None) -> list[str]:
     paths = [path.strip() for path in (review_paths or []) if path.strip()]
     return ["--", *paths] if paths else ["--"]
+
+
+def _review_sources(project: Path, paths: list[Path]) -> list[Path]:
+    if paths and NativeProbe.available() and not _declares_generated(project):
+        native = NativeProbe.request("--completion-probe", "structure-source-paths", {
+            "project": str(project),
+            "paths": [{"path": str(path), "suffix": path.suffix.lower()} for path in paths],
+            "policy": {
+                "extensions": sorted(REVIEW_SOURCE_EXTENSIONS),
+                "skipped": sorted(REVIEW_SKIP_PARTS),
+                "generated": sorted(REVIEW_GENERATED_PARTS),
+                "config_names": sorted(REVIEW_CONFIG_FILE_NAMES),
+                "config_suffixes": REVIEW_CONFIG_SUFFIXES,
+            },
+        })
+        if native is not None and set(native) == {"selected"}:
+            selected = native["selected"]
+            if (isinstance(selected, list) and len(selected) == len(paths)
+                    and all(value is None or type(value) is bool for value in selected)):
+                return [
+                    path for path, keep in zip(paths, selected)
+                    if (review_source_path(project, path) if keep is None else keep)
+                ]
+    return [path for path in paths if review_source_path(project, path)]
 
 
 def review_source_path(project: Path, path: Path) -> bool:

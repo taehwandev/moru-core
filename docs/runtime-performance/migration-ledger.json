@@ -483,7 +483,7 @@
       "entry_aliases": "Direct CLI",
       "remaining": "Port Git acquisition, source and baseline inspection, structural analysis and CLI output. Preserve the structural review contract and Python compatibility for unsupported diff streams.",
       "verification": {
-        "local": "Source-bound Rust decodes Git NUL-framed name-status and numstat together for worktree and commit-range structural inspection. Parity covers literal tab and newline paths, rename and copy destinations, binary counts, and fallback on unsupported framing."
+        "local": "Source-bound Rust decodes Git NUL-framed name-status and numstat and selects ordinary eligible source paths for worktree and commit-range structural inspection. Python retains Git attributes, vendor provenance, Unicode path fallback and unsupported profiles."
       }
     },
     {
