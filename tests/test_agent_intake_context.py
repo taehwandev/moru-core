@@ -66,6 +66,8 @@ class IntakeContextTests(unittest.TestCase):
         self.assertIn("feature A and feature B", note)
         self.assertIn("Only A; cancel B and keyboard access.", note)
         self.assertIn("current user changes win", note)
+        self.assertIn("unattested consequential user-visible behavior", note)
+        self.assertIn("code-bias retconning", note)
 
     def test_original_source_symlink_is_not_quoted(self):
         backup = self.source.binding_path.with_name("saved-preflight.json")

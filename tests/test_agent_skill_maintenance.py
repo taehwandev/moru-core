@@ -45,6 +45,17 @@ class CanonicalWorktreeMaintenanceTests(unittest.TestCase):
     def test_canonical_linked_worktree_is_allowed(self):
         self.assertTrue(self.allowed())
 
+    def test_docs_skills_canonical_linked_worktree_is_allowed(self):
+        rel = "docs/skills/example/references/current-guidance.md"
+        for root in (self.rules, self.project):
+            target = root / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("guidance\n")
+            (target.parent.parent / "SKILL.md").write_text("skill\n")
+        self.assertTrue(self.allowed(relative=rel))
+        self.assertFalse(self.allowed(relative="docs/maintenance-audit.md"))
+        self.assertFalse(self.allowed(relative="docs/skills/example.md"))
+
     def test_foreign_repository_with_identical_bundle_is_refused(self):
         foreign = Path(self.temp.name) / "foreign"
         foreign.mkdir()
