@@ -4,6 +4,7 @@
 //! callers/tests: Compose action scan through the private completion probe.
 //! verification: exact Python mask and diagnostic offset parity.
 use super::{
+    kotlin_compose_action_findings::KotlinComposeActionFindings,
     kotlin_compose_aliases::KotlinComposeAliases, kotlin_compose_bodies::KotlinComposeBodies,
     kotlin_compose_callbacks::KotlinComposeCallbacks,
     kotlin_compose_source_findings::KotlinComposeSourceFindings,
@@ -54,6 +55,16 @@ impl KotlinLiteralMask {
         };
         let prepared = normalized_chars.as_deref().unwrap_or(&code);
         let bodies = version.and_then(|version| KotlinComposeBodies::ranges(prepared, version));
+        if normalized.is_some()
+            && input.get("action_findings").and_then(Value::as_bool) == Some(true)
+        {
+            if let Some(findings) = bodies
+                .as_deref()
+                .and_then(|bodies| KotlinComposeActionFindings::lines(prepared, bodies))
+            {
+                return Some(json!({"action_findings": findings}));
+            }
+        }
         let mut result = json!({"code": masked});
         if let Some(normalized) = normalized {
             result["aliases_normalized"] = json!(true);

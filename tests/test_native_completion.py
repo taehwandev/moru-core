@@ -73,6 +73,36 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_compose_action_findings_complete_native_and_match_python(self):
+        cases = [
+            "@Composable fun A() { }",
+            "fun A() { nav.navigate(route) }",
+            "@Composable fun A() {\nnav\n .navigate (route)\nToast . makeText(ctx)\n}",
+            "@Composable fun A() { viewModel.navigate(route); router?.navigate(route); navigate { } }",
+            "@Composable fun A(vm: MyViewModel) { vm.showToast(x); ViewModel.showToast(x); vm::navigate }",
+            "@Composable fun A(onNavigate: () -> Unit) { onNavigate(); Screen(onClick = onNavigate) }",
+            "@Composable fun A(onNavigate: () -> Unit?) { onNavigate(); Screen(onClick=onNavigateNext) }",
+            "@Composable fun A() { Screen(onClick = onShowNotice(), onTap = onShowToast) }",
+            "@Composable fun A() { onA=onShowToast=onShowNotice; nav::navigate::showToast; ::navigate }",
+            "@Composable fun A() { outer.navigate(navigate(route)); nav::navigateUp; nav::navigateUpMore }",
+            "@Composable fun A() { viewModel.effects.collect { nav.navigate(x); clickable { nav.navigate(y) } } }",
+            "@Composable fun A() { NoticeEffectLifecycleCollector(effects=flow,onEffect={\nnav.navigate(x)\nonTap={nav.navigate(y)}\n}) }",
+            '@Composable fun A() { "Toast.makeText(x)"; /* nav::navigate */ repoRepository?.load(); RouteEvent.Open }',
+            "import androidx.compose.runtime.Composable as UI\n@UI fun A(화면: VMViewModel) = 화면.navigate(x)",
+            "@Composable fun A() {\n" + "\n" * 8 + "nav.navigate(a); nav.navigate(b); repository.fetch()\n}",
+        ]
+        path = Path("Screen.kt")
+        scan = android.AndroidActionBoundary.failures
+        for source in cases:
+            with patch.object(NativeProbe, "request", return_value=None):
+                expected = scan(path, source)
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                android, "_kotlin_code_for_review", side_effect=AssertionError("Python evaluated Compose"),
+            ):
+                self.assertEqual(expected, scan(path, source), source)
+            with patch.object(NativeProbe, "request", return_value={"action_findings": [[True, 9]]}):
+                self.assertEqual(expected, scan(path, source))
+
     def test_structure_compose_source_findings_match_python(self):
         cases = [
             "CustomRouteEvent.Open; RouteEvent.Close()",

@@ -18,6 +18,7 @@ from support.native_probe_transport import NativeProbe
 _HOST_COLLECTOR = re.compile(
     r"\bNoticeEffectLifecycleCollector\s*\(\s*effects\s*=\s*\w+\s*,\s*onEffect\s*=\s*\{"
 )
+_ACTION_REASONS = ("effect construction", "data request", "effect dispatch", "effect callback forwarding")
 
 
 class AndroidActionBoundary:
@@ -40,7 +41,14 @@ class AndroidActionBoundary:
     def failures(cls, path: Path, source: str) -> list[str]:
         if path.suffix != ".kt":
             return []
-        code, native_bodies, native_scopes, native_viewmodels, native_findings = _kotlin_code_for_review(source)
+        native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {
+            "source": source, "unicode": unicodedata.unidata_version, "normalize_aliases": True,
+            "callback_scopes": True, "viewmodel_scopes": True, "source_findings": True, "action_findings": True,
+        })
+        action_findings = _native_action_findings(path, source, native)
+        if action_findings is not None:
+            return action_findings
+        code, native_bodies, native_scopes, native_viewmodels, native_findings = _kotlin_code_for_review(source, native)
         bodies = native_bodies if native_bodies is not None else cls._bodies(code)
         findings = []
         for index, (signature, start, end) in enumerate(bodies):
@@ -81,11 +89,7 @@ class AndroidActionBoundary:
                     matches.append((match.start(), "effect callback forwarding"))
             for position, reason in matches:
                 line = code.count("\n", 0, start + position) + 1
-                findings.append(
-                    f"{path}:{line}: Android action boundary: {reason} in Compose; "
-                    "send a typed Action to ViewModel, let it invoke data/effect ports. "
-                    "Only consume ViewModel effects in the lifecycle UI host."
-                )
+                findings.append(_format_action_finding(path, line, reason))
         return sorted(set(findings))
 
     @classmethod
@@ -166,11 +170,24 @@ def _viewmodel_scopes(cls, parameters: str, body: str, native):
     return vm_names, receivers, collectors
 
 
-def _kotlin_code_for_review(source: str):
-    native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {
-        "source": source, "unicode": unicodedata.unidata_version, "normalize_aliases": True,
-        "callback_scopes": True, "viewmodel_scopes": True, "source_findings": True,
-    })
+def _native_action_findings(path: Path, source: str, native) -> list[str] | None:
+    rows = native.get("action_findings") if native is not None else None
+    if not isinstance(rows, list):
+        return None
+    limit = source.count("\n") + 1
+    if not all(isinstance(row, list) and len(row) == 2 and all(type(value) is int for value in row)
+               and 1 <= row[0] <= limit and 0 <= row[1] < len(_ACTION_REASONS) for row in rows):
+        return None
+    return sorted({_format_action_finding(path, line, _ACTION_REASONS[kind]) for line, kind in rows})
+
+
+def _format_action_finding(path: Path, line: int, reason: str) -> str:
+    return (f"{path}:{line}: Android action boundary: {reason} in Compose; "
+            "send a typed Action to ViewModel, let it invoke data/effect ports. "
+            "Only consume ViewModel effects in the lifecycle UI host.")
+
+
+def _kotlin_code_for_review(source: str, native):
     masked = native.get("code") if native is not None else None
     if not isinstance(masked, str) or len(masked) != len(source):
         return _normalize_aliases(_mask_kotlin_literals(source)), None, None, None, None
