@@ -3,6 +3,7 @@
 //! forbidden imports: state writes, Git execution and vendor exclusion policy.
 //! callers/tests: structural review and preview via private completion probe.
 //! verification: configured source exclusions and per-path fallback.
+use super::structure_net_deletions::StructureNetDeletions;
 use serde_json::{json, Value};
 use std::{fs, io::ErrorKind, path::Path};
 
@@ -65,7 +66,11 @@ impl StructureSourcePaths {
                 }
             })
             .collect::<Vec<_>>();
-        Some(json!({"selected": selected}))
+        let mut result = json!({"selected": selected});
+        if let Some(counts) = payload.get("net_deletions") {
+            result["net_deletions"] = StructureNetDeletions::findings(counts)?;
+        }
+        Some(result)
     }
 
     fn strings<'a>(policy: &'a Value, key: &str) -> Option<Vec<&'a str>> {

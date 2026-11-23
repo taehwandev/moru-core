@@ -189,6 +189,7 @@ def structure_review(
         review_paths,
         review_commits=review_commits,
         source_project=source_root,
+        include_net_deletions=True,
     )
     subject_run_command = _subject_run_command(project, run_command, review_commits)
     result = _structure_result(
@@ -304,6 +305,9 @@ def _structure_result(
     not recoverable from the failure text alone.
     """
 
+    net_deletions = discovery.pop("_net_deletions", None)
+    if net_deletions is None:
+        net_deletions = net_deletion_findings(discovery["path_metadata"])
     return {
         "checked_paths": [str(path) for path in paths],
         "checked_path_count": len(paths),
@@ -322,7 +326,7 @@ def _structure_result(
         "failures": list(discovery["command_errors"]),
         "boundary_note_requirements": [],
         "net_deletion_limit": REVIEW_NET_DELETION_LIMIT,
-        "net_deletions": net_deletion_findings(discovery["path_metadata"]),
+        "net_deletions": net_deletions,
         "discovery": discovery,
     }
 
@@ -464,6 +468,7 @@ def changed_source_paths(
     *,
     review_commits: tuple[str, str] | None = None,
     source_project: Path | None = None,
+    include_net_deletions: bool = False,
 ) -> tuple[dict[str, Any], list[Path]]:
     commands: dict[str, Any] = {}
     names: set[str] = set()
@@ -485,13 +490,13 @@ def changed_source_paths(
         )
         paths = [Path(name) for name in sorted(names)]
         source_root = source_project or project
-        checked = _review_sources(source_root, paths)
-        return {
+        discovery = {
             "commands": commands,
             "command_errors": command_errors,
             "path_metadata": path_metadata,
             "review_commits": {"base_sha": base_sha, "head_sha": head_sha},
-        }, checked
+        }
+        return discovery, _review_sources(source_root, paths, discovery if include_net_deletions else None)
 
     head = run_command(["git", "rev-parse", "--verify", "HEAD"], project)
     commands["rev_parse_head"] = head
@@ -565,12 +570,12 @@ def changed_source_paths(
         )
 
     paths = [Path(name) for name in sorted(names)]
-    checked = _review_sources(project, paths)
-    return {
+    discovery = {
         "commands": commands,
         "command_errors": command_errors,
         "path_metadata": path_metadata,
-    }, checked
+    }
+    return discovery, _review_sources(project, paths, discovery if include_net_deletions else None)
 
 
 def collect_commit_diff(
@@ -1032,9 +1037,11 @@ def _pathspec_args(review_paths: list[str] | None) -> list[str]:
     return ["--", *paths] if paths else ["--"]
 
 
-def _review_sources(project: Path, paths: list[Path]) -> list[Path]:
+def _review_sources(
+    project: Path, paths: list[Path], discovery: dict[str, Any] | None = None,
+) -> list[Path]:
     if paths and NativeProbe.available() and not _declares_generated(project):
-        native = NativeProbe.request("--completion-probe", "structure-source-paths", {
+        payload = {
             "project": str(project),
             "paths": [{"path": str(path), "suffix": path.suffix.lower()} for path in paths],
             "policy": {
@@ -1044,11 +1051,27 @@ def _review_sources(project: Path, paths: list[Path]) -> list[Path]:
                 "config_names": sorted(REVIEW_CONFIG_FILE_NAMES),
                 "config_suffixes": REVIEW_CONFIG_SUFFIXES,
             },
-        })
-        if native is not None and set(native) == {"selected"}:
+        }
+        if discovery is not None:
+            counts = []
+            for path, metadata in discovery["path_metadata"].items():
+                additions, deletions = metadata.get("additions"), metadata.get("deletions")
+                if isinstance(additions, int) and isinstance(deletions, int):
+                    counts.append([path, additions, deletions])
+            payload["net_deletions"] = {"limit": REVIEW_NET_DELETION_LIMIT, "counts": counts}
+        native = NativeProbe.request("--completion-probe", "structure-source-paths", payload)
+        if native is not None and "selected" in native:
             selected = native["selected"]
             if (isinstance(selected, list) and len(selected) == len(paths)
                     and all(value is None or type(value) is bool for value in selected)):
+                deletions = native.get("net_deletions")
+                if discovery is not None and isinstance(deletions, list) and all(
+                    isinstance(row, dict) and set(row) == {"path", "additions", "deletions", "net"}
+                    and isinstance(row["path"], str) and row["path"] in discovery["path_metadata"]
+                    and all(type(row[key]) is int for key in ("additions", "deletions", "net"))
+                    for row in deletions
+                ):
+                    discovery["_net_deletions"] = deletions
                 return [
                     path for path, keep in zip(paths, selected)
                     if (review_source_path(project, path) if keep is None else keep)

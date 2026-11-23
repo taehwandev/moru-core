@@ -69,6 +69,42 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_net_deletions_include_excluded_and_missing_paths(self):
+        metadata = {
+            "zapped.py": {"additions": 0, "deletions": 80},
+            "src.py": {"additions": 5, "deletions": 54},
+            "docs/한글.md": {"additions": 2, "deletions": 52},
+            "tool.config.py": {"additions": 3, "deletions": 64},
+            "unknown.py": {"additions": None, "deletions": 99},
+        }
+        expected = structure.net_deletion_findings(metadata)
+        paths = [Path(path) for path in metadata]
+        (self.project / "src.py").touch()
+        (self.project / "tool.config.py").touch()
+        discovery = {"path_metadata": metadata, "command_errors": []}
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "net_deletion_findings", side_effect=AssertionError("Python calculated net deletions"),
+        ):
+            selected = structure._review_sources(self.project, paths, discovery)
+            report = structure._structure_result(
+                discovery, selected, max_file_lines=500, max_block_lines=120, max_added_lines=300,
+            )
+        self.assertEqual([Path("src.py")], selected)
+        self.assertEqual(expected, report["net_deletions"])
+        self.assertEqual(["docs/한글.md", "tool.config.py", "zapped.py"],
+                         [row["path"] for row in report["net_deletions"]])
+        self.assertNotIn("_net_deletions", report["discovery"])
+
+        oversized = {"path_metadata": {"src.py": {"additions": -(2 ** 63), "deletions": 0}},
+                     "command_errors": []}
+        with patch.dict(os.environ, self.env, clear=True):
+            selected = structure._review_sources(self.project, [Path("src.py")], oversized)
+        self.assertNotIn("_net_deletions", oversized)
+        report = structure._structure_result(
+            oversized, selected, max_file_lines=500, max_block_lines=120, max_added_lines=300,
+        )
+        self.assertEqual(2 ** 63, report["net_deletions"][0]["net"])
+
     def test_structure_removal_matching_preserves_consumption_ties_and_redaction(self):
         sensitive = "def token_fixture():"
         diff = "\n".join((

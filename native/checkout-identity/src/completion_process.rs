@@ -82,6 +82,8 @@ mod structure_file_size;
 mod structure_source_layout;
 #[path = "structure_removal_matching.rs"]
 mod structure_removal_matching;
+#[path = "structure_net_deletions.rs"]
+mod structure_net_deletions;
 #[path = "structure_source_paths.rs"]
 mod structure_source_paths;
 
