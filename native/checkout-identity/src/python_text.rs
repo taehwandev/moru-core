@@ -78,6 +78,13 @@ impl PythonText {
     pub(crate) fn whitespace(character: char) -> bool {
         Self::contains(WHITESPACE, character)
     }
+    pub(crate) fn word(character: char) -> bool {
+        if character.is_ascii() {
+            character.is_ascii_alphanumeric() || character == '_'
+        } else {
+            Self::contains(WORD, character)
+        }
+    }
     pub(crate) fn printable(character: char) -> bool {
         Self::contains(PRINTABLE, character)
     }

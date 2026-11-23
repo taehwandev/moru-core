@@ -3,15 +3,15 @@
 //! forbidden imports: source IO, mutation and approval decisions.
 //! callers/tests: shared brace masking and legacy declaration parity fixtures.
 //! verification: declaration exclusions, prefixes and typed arrow functions.
-use crate::text::Text;
+use crate::{python_text::PythonText, text::Text};
 
 pub(super) struct StructureCodeBlocks;
 
 impl StructureCodeBlocks {
-    pub(super) fn starts(line: &str) -> Option<bool> {
+    pub(super) fn starts(line: &str, unicode_matches: bool) -> Option<bool> {
         // Python's regex word class includes Unicode categories that differ
         // across interpreters. Keep those candidates in the original matcher.
-        if !line.is_ascii() {
+        if !unicode_matches && !line.is_ascii() {
             return None;
         }
         if Self::is_type(line) {
@@ -178,9 +178,8 @@ impl StructureCodeBlocks {
 
     fn word(line: &str) -> (&str, &str) {
         let length = line
-            .bytes()
-            .take_while(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
-            .count();
+            .find(|character| !PythonText::word(character))
+            .unwrap_or(line.len());
         line.split_at(length)
     }
 }

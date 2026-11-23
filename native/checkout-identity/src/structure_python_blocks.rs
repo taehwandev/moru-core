@@ -3,13 +3,16 @@
 //! forbidden imports: filesystem, subprocesses and review outcomes.
 //! callers/tests: native block spans, compared with the Python regex fallback.
 //! verification: exact indentation and ASCII declarations with Unicode fallback.
-use crate::text::Text;
+use crate::{python_text::PythonText, text::Text};
 use serde_json::Value;
 
 pub(super) struct StructurePythonBlocks;
 
 impl StructurePythonBlocks {
-    pub(super) fn prepare(lines: &[Value]) -> Option<(Vec<Option<i64>>, Vec<(usize, &str)>)> {
+    pub(super) fn prepare(
+        lines: &[Value],
+        unicode_matches: bool,
+    ) -> Option<(Vec<Option<i64>>, Vec<(usize, &str)>)> {
         let mut levels = Vec::with_capacity(lines.len());
         let mut starts = Vec::new();
         for (index, line) in lines.iter().enumerate() {
@@ -21,14 +24,14 @@ impl StructurePythonBlocks {
                 Some(i64::try_from(line.len() - line.trim_start_matches(' ').len()).ok()?)
             };
             levels.push(level);
-            if let Some(name) = Self::name(stripped)? {
+            if let Some(name) = Self::name(stripped, unicode_matches)? {
                 starts.push((index, name));
             }
         }
         Some((levels, starts))
     }
 
-    fn name(line: &str) -> Option<Option<&str>> {
+    fn name(line: &str, unicode_matches: bool) -> Option<Option<&str>> {
         let tail = Self::after_keyword(line, "def")
             .or_else(|| Self::after_keyword(line, "class"))
             .or_else(|| Self::after_keyword(Self::after_keyword(line, "async")?, "def"));
@@ -40,20 +43,15 @@ impl StructurePythonBlocks {
         {
             return Some(None);
         }
-        let length = tail
-            .bytes()
-            .take_while(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
-            .count();
-        // Python's word class is Unicode and varies with the interpreter.
-        // Let its original regex own uncertain characters at the name boundary.
-        if tail
-            .as_bytes()
-            .get(length)
-            .is_some_and(|byte| !byte.is_ascii())
-        {
-            return None;
+        for (index, character) in tail.char_indices() {
+            if !character.is_ascii() && !unicode_matches {
+                return None;
+            }
+            if !PythonText::word(character) {
+                return Some(tail.get(..index));
+            }
         }
-        Some(Some(tail.get(..length)?))
+        Some(Some(tail))
     }
 
     fn after_keyword<'a>(line: &'a str, keyword: &str) -> Option<&'a str> {

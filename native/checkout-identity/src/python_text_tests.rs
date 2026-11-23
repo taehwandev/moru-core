@@ -12,6 +12,7 @@ fn every_unicode_scalar_matches_builder_python() {
             u8::from(PythonText::printable(character)),
             u8::from(PythonText::decimal(character)),
             u8::from(PythonText::whitespace(character)),
+            u8::from(PythonText::word(character)),
             PythonText::decimal_value(character).unwrap_or(255),
         ]);
     }
@@ -41,6 +42,8 @@ fn quote_choice_and_multicharacter_escaping() {
 fn unicode_categories_keep_python_distinctions() {
     assert!(PythonText::decimal('٩'));
     assert!(!PythonText::decimal('²'));
+    assert!(PythonText::word('²'));
+    assert!(!PythonText::word('\u{301}'));
     assert!(PythonText::whitespace('\u{1c}'));
     assert!(!PythonText::whitespace('\u{200b}'));
     assert!(!PythonText::printable('\u{a0}'));

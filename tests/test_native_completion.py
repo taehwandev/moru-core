@@ -138,7 +138,12 @@ class NativeCompletionTests(unittest.TestCase):
                 self.assertEqual(legacy, native)
         unicode_file = {**structure._block_span_input(path, ["export function 한() {", "  use();", "}"]),
                         "limit": 1}
-        self.assertEqual(125, self.raw("structure-block-spans", {"files": [unicode_file]}).returncode)
+        expected_unicode = [[{"line": 1, "label": "export function 한() {", "span": 3}]]
+        self.assertEqual({"blocks": expected_unicode},
+                         self.check("structure-block-spans", {"files": [unicode_file]}))
+        self.assertEqual(125, self.raw("structure-block-spans", {
+            "files": [{**unicode_file, "unicode": "different"}],
+        }).returncode)
 
     def test_structure_style_blocks_match_masking_and_selector_rules(self):
         fixtures = [
@@ -166,7 +171,7 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual(80, len(expected[1][0]["label"]))
             self.assertEqual([2], [block["line"] for block in expected[2]])
 
-    def test_structure_python_declarations_match_regex_and_defer_unicode_words(self):
+    def test_structure_python_declarations_match_unicode_regex_profile(self):
         lines = [
             "class Outer:", "\tasync\tdef inner(self):", "    pass", "  # 한국어",
             "@decorator", "def\u00a0tail_2():", "    pass", "defx ignored():", "    pass",
@@ -181,17 +186,24 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(["inner", "tail_2"], [block["label"] for block in expected])
         self.assertEqual({"blocks": [expected]}, self.check("structure-block-spans", {"files": [prepared(lines)]}))
 
-        unicode_lines = ["def prefé():", "    pass"]
-        declined = self.raw("structure-block-spans", {"files": [prepared(unicode_lines)]})
+        unicode_lines = [
+            "def prefé²():", "    pass", "def a\u0301():", "    pass", "def 한():", "    pass",
+        ]
+        unicode_input = prepared(unicode_lines)
+        self.assertEqual({"blocks": [[
+            {"line": 1, "label": "prefé²", "span": 2}, {"line": 3, "label": "a", "span": 2},
+        ]]}, self.check("structure-block-spans", {"files": [unicode_input]}))
+        mismatch = {**unicode_input, "unicode": "different"}
+        declined = self.raw("structure-block-spans", {"files": [mismatch]})
         self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
         file = {"path": "source.py", "line_count": 2, "metadata": {"status": "A"}, "max_file_lines": 500,
                 "max_added_lines": 300, "review_warning_file_lines": 300,
-                "block_spans": {**prepared(unicode_lines), "initial": False}}
+                "block_spans": {**mismatch, "initial": False}}
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             reference = structure._file_findings([file])
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual(reference, structure._file_findings([file]))
-        self.assertIn("block `prefé`", reference[0][0][0])
+        self.assertIn("block `prefé²`", reference[0][0][0])
 
     def test_structure_existing_block_spans_keep_baseline_reads_lazy(self):
         source = ["def example():", "    pass", "    pass", "    pass"]

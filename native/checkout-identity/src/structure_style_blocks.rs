@@ -13,6 +13,7 @@ impl StructureStyleBlocks {
     pub(super) fn prepare(
         lines: &[Value],
         styles: bool,
+        unicode_matches: bool,
     ) -> Option<(Vec<i64>, Vec<(usize, String)>)> {
         let source = lines
             .iter()
@@ -37,7 +38,7 @@ impl StructureStyleBlocks {
                             && !selector.contains(['{', '}'])
                     })
                 } else {
-                    StructureCodeBlocks::starts(line)?
+                    StructureCodeBlocks::starts(line, unicode_matches)?
                 };
                 if start {
                     let label: String = Text::py_strip(original)

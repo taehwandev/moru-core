@@ -9,6 +9,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import unicodedata
@@ -199,19 +200,20 @@ def emit_argparse_contract():
 def emit_python_text(output):
     """Bind text semantics to the artifact builder's Unicode database.
 
-    Digest order per valid scalar: repr UTF-8, LF, then three raw boolean
-    bytes in printable/decimal/whitespace order, then decimal value or 255.
+    Digest order per valid scalar: repr UTF-8, LF, then four raw boolean
+    bytes in printable/decimal/whitespace/regex-word order, then decimal value or 255.
     Surrogates are excluded.
     """
-    ranges = [[], [], []]
-    starts = [None, None, None]
+    ranges = [[], [], [], []]
+    starts = [None, None, None, None]
+    word = re.compile(r"\w")
     digest = hashlib.sha256()
     for codepoint in range(0x110000):
         scalar = not 0xD800 <= codepoint <= 0xDFFF
         text = chr(codepoint)
         flags = (
-            (text.isprintable(), text.isdecimal(), text.isspace())
-            if scalar else (False, False, False)
+            (text.isprintable(), text.isdecimal(), text.isspace(), bool(word.fullmatch(text)))
+            if scalar else (False, False, False, False)
         )
         for index, enabled in enumerate(flags):
             if enabled and starts[index] is None:
@@ -235,7 +237,7 @@ def emit_python_text(output):
         f"const UNICODE_VERSION: &str = {json.dumps(unicodedata.unidata_version)};",
         f"#[cfg(test)] const SCALAR_GOLDEN_SHA256: &str = {json.dumps(digest.hexdigest())};",
     ]
-    for name, entries in zip(("PRINTABLE", "DECIMAL", "WHITESPACE"), ranges):
+    for name, entries in zip(("PRINTABLE", "DECIMAL", "WHITESPACE", "WORD"), ranges):
         rows.append(f"const {name}: &[(u32, u32)] = &[")
         rows.extend(f"    (0x{start:x}, 0x{end:x})," for start, end in entries)
         rows.append("];")

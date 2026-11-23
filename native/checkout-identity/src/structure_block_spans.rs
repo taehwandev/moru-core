@@ -5,6 +5,7 @@
 //! verification: indentation, brace balance and strict length boundaries.
 use super::structure_python_blocks::StructurePythonBlocks;
 use super::structure_style_blocks::StructureStyleBlocks;
+use crate::python_text::PythonText;
 use serde_json::{json, Value};
 
 pub(super) struct StructureBlockSpans;
@@ -34,14 +35,19 @@ impl StructureBlockSpans {
     pub(super) fn records(input: &Value) -> Option<Vec<Value>> {
         let kind = input.get("kind")?.as_str()?;
         let limit = input.get("limit")?.as_i64()?;
+        let unicode_matches = input
+            .get("unicode")
+            .and_then(Value::as_str)
+            .is_some_and(PythonText::matches_unicode_version);
         if kind == "python-source" {
             let lines = input.get("lines")?.as_array()?;
-            let (levels, starts) = StructurePythonBlocks::prepare(lines)?;
+            let (levels, starts) = StructurePythonBlocks::prepare(lines, unicode_matches)?;
             return Self::measure(&levels, lines.len(), starts, limit);
         }
         if matches!(kind, "style-source" | "brace-source") {
             let lines = input.get("lines")?.as_array()?;
-            let (deltas, labels) = StructureStyleBlocks::prepare(lines, kind == "style-source")?;
+            let (deltas, labels) =
+                StructureStyleBlocks::prepare(lines, kind == "style-source", unicode_matches)?;
             let levels = Self::brace_levels(deltas.into_iter().map(Some))?;
             let starts = labels
                 .iter()

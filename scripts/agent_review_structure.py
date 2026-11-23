@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Callable
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -1335,10 +1336,10 @@ def oversized_blocks(path: Path, lines: list[str], max_block_lines: int) -> list
 def _block_span_input(path: Path, lines: list[str]) -> dict[str, Any]:
     suffix = path.suffix.lower()
     if suffix == ".py":
-        return {"kind": "python-source", "lines": lines}
+        return {"kind": "python-source", "lines": lines, "unicode": unicodedata.unidata_version}
     if suffix in REVIEW_STYLE_EXTENSIONS:
         return {"kind": "style-source", "lines": lines}
-    return {"kind": "brace-source", "lines": lines}
+    return {"kind": "brace-source", "lines": lines, "unicode": unicodedata.unidata_version}
 
 
 def _prepare_block_spans(path: Path, lines: list[str]) -> dict[str, Any]:
