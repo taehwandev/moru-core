@@ -217,9 +217,9 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "execution-capsule",
-      "remaining": "Port the owned CLI, capsule state, receipt and validation flows, and verify supported platforms. Python still owns decisions, writes and fallback.",
+      "remaining": "Port the owned CLI, Git and evidence observation, receipt and validation flows, and verify supported platforms. Python still owns orchestration, evidence authority and fallback.",
       "verification": {
-        "local": "Source-bound parity for document drift, capsule and preflight shapes, binding and route/request digests, parent-ledger diagnostics, and native capsule reads and atomic replacement on standard run paths."
+        "local": "Source-bound parity for document drift, capsule and preflight shapes, binding and route/request digests, parent-ledger diagnostics, and native capsule reads, refresh assembly and atomic replacement on standard run paths."
       }
     },
     {

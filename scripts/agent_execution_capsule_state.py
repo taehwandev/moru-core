@@ -309,17 +309,17 @@ def preflight_snapshot_binding_fingerprint(snapshot: dict[str, Any]) -> str | No
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _replace_native_capsule(path: Path, payload: dict[str, Any]) -> bool:
+def write_native_capsule(path: Path, operation: str, fields: dict[str, Any]) -> dict | None:
     if path.name != CAPSULE_FILENAME or path.parent.parent.name != "runs":
-        return False
+        return None
     temporary = uuid.uuid4().hex
-    result = native_capsule_probe("capsule-replace", {
-        "path": str(path), "temporary": temporary, "record": payload,
+    result = native_capsule_probe(operation, {
+        "path": str(path), "temporary": temporary, **fields,
     })
     if result is None:
-        return False
-    if result == {"errno": None}:
-        return True
+        return None
+    if "errno" in result and result["errno"] is None:
+        return result
     error = result.get("errno")
     if set(result) == {"errno"} and type(error) is int and 0 < error < 4096:
         raise OSError(error, os.strerror(error), str(path))
@@ -337,8 +337,12 @@ def atomic_write_json(path: Path, payload: dict[str, Any], *,
         raise OSError(f"Symbolic link detected in directory: {path.parent}")
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    if native_capsule and _replace_native_capsule(path, payload):
-        return
+    if native_capsule:
+        result = write_native_capsule(path, "capsule-replace", {"record": payload})
+        if result is not None:
+            if set(result) != {"errno"}:
+                raise OSError("native execution capsule replacement outcome could not be determined")
+            return
     # The state already lives below an ignored/private runtime directory.
     # Keeping the sibling temporary file non-hidden preserves atomic replace
     # while remaining writable in sandboxes that reject newly created hidden

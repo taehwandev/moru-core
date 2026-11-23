@@ -26,7 +26,7 @@ const CAPSULE_FIELDS: [&str; 7] = [
 ];
 
 pub(super) const PREFLIGHT_VERSION: u64 = 1;
-const CAPSULE_VERSION: u64 = 4;
+pub(super) const CAPSULE_VERSION: u64 = 4;
 
 pub(super) struct CapsuleShape;
 
@@ -44,7 +44,7 @@ impl CapsuleShape {
         Some(json!({"failures": first.into_iter().collect::<Vec<_>>()}))
     }
 
-    fn capsule(value: &Value) -> Check {
+    pub(super) fn capsule(value: &Value) -> Check {
         let record = value.as_object()?;
         let failure = if record.is_empty() {
             "execution capsule is missing"
@@ -68,15 +68,7 @@ impl CapsuleShape {
             "execution capsule preflight evidence is malformed"
         } else if !Self::git(record.get("project_git")) || !Self::git(record.get("rules_git")) {
             "execution capsule git state is malformed"
-        } else if record.get("reuse_policy")
-            != Some(&json!({
-                "condition": "ready_and_valid",
-                "gate_effect": "none",
-                "ledger_owner": "parent",
-                "worker_may_skip": ["route", "preflight"],
-                "worker_may_reuse": ["required-doc-manifest"]
-            }))
-        {
+        } else if record.get("reuse_policy") != Some(&Self::reuse_policy()) {
             "execution capsule reuse policy does not match"
         } else if !Self::docs(record.get("required_docs")) {
             "execution capsule required docs are malformed"
@@ -87,6 +79,16 @@ impl CapsuleShape {
             return Some(None);
         };
         Some(Some(failure))
+    }
+
+    pub(super) fn reuse_policy() -> Value {
+        json!({
+            "condition": "ready_and_valid",
+            "gate_effect": "none",
+            "ledger_owner": "parent",
+            "worker_may_skip": ["route", "preflight"],
+            "worker_may_reuse": ["required-doc-manifest"]
+        })
     }
 
     fn preflight(value: &Value) -> Option<&'static str> {

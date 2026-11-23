@@ -319,6 +319,45 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual(record, capsule.read_execution_capsule(path))
 
+    def test_capsule_refresh_assembles_and_persists_native_phase_without_replay(self):
+        run = self.project / ".moru" / "runs" / ("a" * 32)
+        run.mkdir(parents=True)
+        evidence = run / "preflight.json"
+        route = {"command": "refactor"}
+        evidence.write_text(json.dumps({"route": route, "request_intake": {"request": "검증"}}))
+        ledger = run / "gate-evidence.json"
+        ledger.write_text("{}")
+        output = run / "execution-capsule.json"
+        digest = "a" * 64
+        git_state = {"head": "head", "worktree_fingerprint": digest, "worktree_signature": digest}
+        for docs, failures, phase in (([], [], "ready"), (None, [], "preflight"),
+                                      ([], ["not ready"], "preflight")):
+            with self.subTest(docs=docs, failures=failures), patch.multiple(
+                capsule,
+                git_states_for_paths=Mock(return_value=(git_state, git_state)),
+                current_required_docs=Mock(return_value=docs),
+                gate_ledger_failures=Mock(return_value=failures),
+            ):
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    reference = capsule.refresh_execution_capsule(self.project, self.project, evidence, route)
+                self.assertEqual(phase, reference["phase"])
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    capsule, "_write_execution_capsule", side_effect=AssertionError("unexpected separate write")
+                ):
+                    actual = capsule.refresh_execution_capsule(self.project, self.project, evidence, route)
+                self.assertEqual({**reference, "created_at": actual["created_at"]}, actual)
+                self.assertEqual(list(reference), list(actual))
+                self.assertEqual((json.dumps(actual, indent=2, sort_keys=True) + "\n").encode(), output.read_bytes())
+                self.assertEqual(0o600, output.stat().st_mode & 0o777)
+                with patch.dict(os.environ, self.env, clear=True), patch(
+                    "support.native_probe_transport.subprocess.run",
+                    side_effect=subprocess.TimeoutExpired("native", 10),
+                ), self.assertRaisesRegex(OSError, "refresh outcome could not be determined"):
+                    capsule.refresh_execution_capsule(self.project, self.project, evidence, route)
+                self.assertEqual(actual, json.loads(output.read_bytes()))
+
+        self.assertEqual([], list(run.glob("*.tmp")))
+
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'
         tree = '100644 blob ab\ta\tb\n\0' + '100755 blob ef\tz"\\악\x7f\U0001f408\0'

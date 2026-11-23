@@ -79,6 +79,7 @@ impl CompletionProcess {
         let result = match args[1].to_str() {
             Some("capsule-binding") => capsule_binding::CapsuleBinding::fingerprint(&payload),
             Some("capsule-replace") => capsule_artifact::CapsuleArtifact::replace(&payload),
+            Some("capsule-refresh") => capsule_artifact::CapsuleArtifact::refresh(&payload),
             Some("capsule-read") => capsule_artifact::CapsuleArtifact::read(&payload),
             Some("capsule-doc-drift") => capsule_doc_drift::CapsuleDocDrift::compare(&payload),
             Some("capsule-ledger") => capsule_ledger::CapsuleLedger::check(&payload),

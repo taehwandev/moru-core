@@ -3,6 +3,7 @@
 //! forbidden imports: lifecycle authority, ledger writes and providers.
 //! callers/tests: completion probe and native capsule persistence fixtures.
 //! verification: byte parity, private mode, collision and scope checks.
+use super::capsule_shape::{CapsuleShape, CAPSULE_VERSION};
 use crate::{
     atomic_sibling::AtomicSibling, pending_publication_receipt::PendingPublicationReceipt,
 };
@@ -59,10 +60,53 @@ impl CapsuleArtifact {
 
     pub(super) fn replace(payload: &Value) -> Option<Value> {
         let text = payload.get("path")?.as_str()?;
-        let target = Path::new(text);
-        let parent = Self::run_parent(target)?;
         let temporary = payload.get("temporary")?.as_str()?;
         let record = payload.get("record")?;
+        Self::replace_record(text, temporary, record)
+    }
+
+    pub(super) fn refresh(payload: &Value) -> Option<Value> {
+        let observed = payload.get("observed")?.as_object()?;
+        let docs = observed.get("required_docs")?;
+        let ledger_valid = payload.get("ledger_valid")?.as_bool()?;
+        let phase = if !docs.is_null() && ledger_valid {
+            "ready"
+        } else {
+            "preflight"
+        };
+        let mut record = json!({
+            "schema_version": CAPSULE_VERSION,
+            "created_at": observed.get("created_at")?,
+            "phase": phase,
+            "route_fingerprint": observed.get("route_fingerprint")?,
+            "request_fingerprint": observed.get("request_fingerprint")?,
+            "preflight_evidence": observed.get("preflight_evidence")?,
+            "required_docs": if docs.is_null() { json!([]) } else { docs.clone() },
+            "project_git": observed.get("project_git")?,
+            "rules_git": observed.get("rules_git")?,
+            "reuse_policy": CapsuleShape::reuse_policy(),
+        });
+        if let Some(ledger) = observed.get("gate_ledger") {
+            record["gate_ledger"] = ledger.clone();
+        }
+        if CapsuleShape::capsule(&record)?.is_some() {
+            return None;
+        }
+        let outcome = Self::replace_record(
+            payload.get("path")?.as_str()?,
+            payload.get("temporary")?.as_str()?,
+            &record,
+        )?;
+        if outcome.get("errno")?.is_null() {
+            Some(json!({"errno": null, "record": record}))
+        } else {
+            Some(outcome)
+        }
+    }
+
+    fn replace_record(text: &str, temporary: &str, record: &Value) -> Option<Value> {
+        let target = Path::new(text);
+        let parent = Self::run_parent(target)?;
         if !PendingPublicationReceipt::is_id(temporary)
             || !PendingPublicationReceipt::artifact_safe(record)
             || !PendingPublicationReceipt::safe_artifact_text(text)
