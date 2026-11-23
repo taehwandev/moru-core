@@ -68,9 +68,8 @@ def detect_project_stacks(project: Path) -> list[str]:
     return stacks
 
 
-def _inspect_project_files(project: Path) -> tuple[list[str], bool, bool]:
-    native = NativeProbe.request("--completion-probe", "doctor-project", {"project": str(project)})
-    if native is not None and set(native) == {"stacks", "instructions"}:
+def _decode_project_files(native: Any) -> tuple[list[str], bool, bool] | None:
+    if isinstance(native, dict) and set(native) == {"stacks", "instructions"}:
         stacks = native["stacks"]
         instructions = native["instructions"]
         if (
@@ -80,7 +79,15 @@ def _inspect_project_files(project: Path) -> tuple[list[str], bool, bool]:
             and all(type(value) is bool for value in instructions.values())
         ):
             return stacks, instructions["agents_md_present"], instructions["managed_routing_block"]
+    return None
 
+
+def _inspect_project_files(project: Path) -> tuple[list[str], bool, bool]:
+    native = _decode_project_files(NativeProbe.request(
+        "--completion-probe", "doctor-project", {"project": str(project)},
+    ))
+    if native is not None:
+        return native
     agents_file = project / "AGENTS.md"
     has_agents = agents_file.is_file()
     has_managed_block = False
@@ -110,15 +117,24 @@ def _permission_count(project: Path) -> int:
     return len(detect_project_permissions(project, native_node_scan=True, native_markers=True))
 
 
+def _project_facts(project: Path) -> tuple[tuple[list[str], bool, bool], int, int]:
+    if locale.getpreferredencoding(False).lower() == "utf-8":
+        native = NativeProbe.request("--completion-probe", "doctor-project-facts", {"project": str(project)})
+        if native is not None and set(native) == {"files", "permissions", "active_runs"}:
+            files = _decode_project_files(native["files"])
+            permissions, runs = native["permissions"], native["active_runs"]
+            if files is not None and all(type(count) is int and count >= 0 for count in (permissions, runs)):
+                return files, permissions, runs
+    return _inspect_project_files(project), _permission_count(project), _active_run_count(project)
+
+
 def _project_health_report(
     project: Path, rules: Path, *, output_format: str | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     resolved = project.expanduser().resolve()
     launcher_warning = stable_launcher_issue(rules, native_check=True)
     state_dir = project_state_dir_target(resolved)
-    stacks, has_agents, has_managed_block = _inspect_project_files(resolved)
-    permission_count = _permission_count(resolved)
-    active_runs = _active_run_count(resolved)
+    (stacks, has_agents, has_managed_block), permission_count, active_runs = _project_facts(resolved)
     open_cards = NativeCards.count_open(resolved)
     if open_cards is None:
         open_cards = len(list_cards(resolved, include_settled=False))

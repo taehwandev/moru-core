@@ -55,6 +55,8 @@ mod doctor_node_manifests;
 mod doctor_permission_count;
 #[path = "doctor_project.rs"]
 mod doctor_project;
+#[path = "doctor_project_facts.rs"]
+mod doctor_project_facts;
 #[path = "doctor_report.rs"]
 mod doctor_report;
 
@@ -105,6 +107,7 @@ impl CompletionProcess {
             Some("doctor-node-manifests") => doctor_node_manifests::DoctorNodeManifests::inspect(&payload),
             Some("doctor-active-runs") => crate::status_process::StatusProcess::active_runs(&payload),
             Some("doctor-project") => doctor_project::DoctorProject::inspect(&payload),
+            Some("doctor-project-facts") => doctor_project_facts::DoctorProjectFacts::collect(&payload),
             Some("doctor-permission-markers") => doctor_project::DoctorProject::permission_markers(&payload),
             Some("doctor-permission-count") => doctor_permission_count::DoctorPermissionCount::inspect(&payload),
             Some("doctor-report") => doctor_report::DoctorReport::build(&payload),

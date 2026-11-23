@@ -37,7 +37,10 @@ const MANAGED_END: &str = "<!-- END MANAGED MORU CORE ROUTING -->";
 
 impl DoctorProject {
     pub(super) fn inspect(payload: &Value) -> Option<Value> {
-        let project = Self::project(payload)?;
+        Self::inspect_path(Self::project(payload)?)
+    }
+
+    pub(super) fn inspect_path(project: &Path) -> Option<Value> {
         let stacks = Self::stacks(project)?;
         let (agents, managed) = Self::instructions(project)?;
         Some(json!({

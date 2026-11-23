@@ -6,12 +6,17 @@
 use super::{doctor_node_manifests::DoctorNodeManifests, doctor_project::DoctorProject};
 use serde_json::{json, Value};
 use std::collections::HashSet;
+use std::path::Path;
 
 pub(super) struct DoctorPermissionCount;
 
 impl DoctorPermissionCount {
     pub(super) fn inspect(payload: &Value) -> Option<Value> {
         let project = DoctorProject::project(payload)?;
+        Some(json!({"count": Self::count(project)?}))
+    }
+
+    pub(super) fn count(project: &Path) -> Option<usize> {
         let markers = DoctorProject::read_permission_markers(project)?;
         let scripts = DoctorNodeManifests::script_groups(project)?;
 
@@ -23,8 +28,7 @@ impl DoctorPermissionCount {
             + 7 * usize::from(markers.go)
             + 7 * usize::from(markers.python_packaged);
         let python_edit = usize::from(markers.python_packaged || markers.python_scripts);
-        let count = 2 * build_commands + python_edit + Self::node_count(&scripts);
-        Some(json!({"count": count}))
+        Some(2 * build_commands + python_edit + Self::node_count(&scripts))
     }
 
     fn node_count(groups: &[Vec<String>]) -> usize {

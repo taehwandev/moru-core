@@ -210,7 +210,7 @@
       "entry_aliases": "doctor",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
       "verification": {
-        "local": "Source-bound Rust project inspection and doctor permission counts (including Node command deduplication), prepared installed launcher diagnostics, project-memory, open-card and active-run counts, and JSON and Markdown rendering. Python still owns setup permission expansion, doctor fallback, artifact-plan verification and CLI orchestration."
+        "local": "Source-bound Rust collects project inspection, permission counts (including Node command deduplication), and active runs in one doctor request. Prepared installed launcher diagnostics, project-memory and open-card counts, and JSON and Markdown rendering also use Rust. Python still owns setup permission expansion, doctor fallback, artifact-plan verification and CLI orchestration."
       }
     },
     {

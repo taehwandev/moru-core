@@ -85,16 +85,26 @@ class NativeCompletionTests(unittest.TestCase):
                          report["instructions"])
         self.assertEqual({key: report[key] for key in ("stacks", "instructions")},
                          self.check("doctor-project", {"project": str(self.project)}))
-        with patch.dict(os.environ, self.env, clear=True), patch.object(
-            doctor, "detect_project_stacks", side_effect=AssertionError("unexpected Python inspection"),
+        self.assertEqual({
+            "files": {key: report[key] for key in ("stacks", "instructions")},
+            "permissions": report["detected_permission_count"],
+            "active_runs": report["state"]["active_runs"],
+        }, self.check("doctor-project-facts", {"project": str(self.project)}))
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = doctor.inspect_project_health(self.project)
+        separate = {"_inspect_project_files", "_permission_count", "_active_run_count"}
+        with patch.dict(os.environ, self.env, clear=True), patch.multiple(
+            doctor, **{name: unittest.mock.Mock(side_effect=AssertionError(name)) for name in separate},
         ):
-            self.assertEqual(report["stacks"], doctor.inspect_project_health(self.project)["stacks"])
+            self.assertEqual(expected, doctor.inspect_project_health(self.project))
 
     def test_doctor_preserves_unreadable_and_linked_instructions_behavior(self):
         agents = self.project / "AGENTS.md"
         payload = {"project": str(self.project)}
         agents.write_bytes(b"\xff")
         declined = self.raw("doctor-project", payload)
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+        declined = self.raw("doctor-project-facts", payload)
         self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
         with patch.dict(os.environ, self.env, clear=True), self.assertRaises(UnicodeDecodeError):
             doctor.inspect_project_health(self.project)
@@ -148,6 +158,7 @@ class NativeCompletionTests(unittest.TestCase):
         (self.project / "empty" / "package.json").write_text('{"scripts":null}')
         self.assertEqual(125, self.raw("doctor-node-manifests", payload).returncode)
         self.assertEqual(125, self.raw("doctor-permission-count", payload).returncode)
+        self.assertEqual(125, self.raw("doctor-project-facts", payload).returncode)
         for backend in ("python", "auto"):
             with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": backend}, clear=True):
                 with self.assertRaisesRegex(TypeError, "not iterable"):
@@ -288,7 +299,16 @@ class NativeCompletionTests(unittest.TestCase):
                     self.assertTrue(second.startswith("No AGENTS.md;"))
                     self.assertTrue(third.startswith("Project memory has 2 record(s)"))
 
-        with patch.object(doctor, "_active_run_count", return_value=1e-7):
+        native_request = NativeProbe.request
+
+        def decline_project_facts(protocol, operation, data, **kwargs):
+            if operation == "doctor-project-facts":
+                return None
+            return native_request(protocol, operation, data, **kwargs)
+
+        with patch.object(doctor, "_active_run_count", return_value=1e-7), patch.object(
+            NativeProbe, "request", side_effect=decline_project_facts,
+        ):
             reference = cli("json", "python")
             with patch.object(doctor, "json", wraps=json) as python_json:
                 self.assertEqual(reference, cli("json", "auto"))
