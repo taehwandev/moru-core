@@ -1,8 +1,8 @@
-//! owner: assembly and Markdown rendering of doctor reports from observed facts.
+//! owner: assembly and rendering of doctor reports from observed facts.
 //! allowed imports: JSON and standard-library formatting.
 //! forbidden imports: filesystem, process execution, providers and permission grants.
 //! callers/tests: completion probe, Python doctor CLI and output parity fixtures.
-//! verification: stable status, recommendations, UTF-8 and Markdown layout.
+//! verification: stable status, recommendations and exact JSON and Markdown.
 use serde_json::{json, Value};
 
 pub(super) struct DoctorReport;
@@ -11,7 +11,7 @@ impl DoctorReport {
     pub(super) fn build(payload: &Value) -> Option<Value> {
         let facts = payload.get("facts")?;
         let template = payload.get("routing_template")?.as_str()?;
-        let render_markdown = payload.get("markdown")?.as_bool()?;
+        let output_format = payload.get("format")?;
         let project = facts["project"].as_str()?;
         let launcher = facts["launchers"]["moru_launcher"].as_str()?;
         let warning = facts["launchers"]["launcher_issue"].as_str()?;
@@ -38,13 +38,52 @@ impl DoctorReport {
         };
         let mut report = json!({"status": status});
         report.as_object_mut()?.extend(facts.as_object()?.clone());
-        let markdown = if render_markdown {
-            Some(Self::markdown(&report, &recommendations)?)
-        } else {
-            None
+        report["recommendations"] = json!(&recommendations);
+        let rendered = match output_format.as_str() {
+            Some("markdown") => Some(Self::markdown(&report, &recommendations)?),
+            Some("json") => {
+                let mut output = String::new();
+                Self::append_json(&report, &mut output)?;
+                Some(output)
+            }
+            None if output_format.is_null() => None,
+            _ => return None,
         };
-        report["recommendations"] = json!(recommendations);
-        Some(json!({"report": report, "markdown": markdown}))
+        Some(json!({"report": report, "rendered": rendered}))
+    }
+
+    fn append_json(value: &Value, output: &mut String) -> Option<()> {
+        match value {
+            Value::Object(fields) => {
+                let mut fields: Vec<_> = fields.iter().collect();
+                fields.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
+                output.push('{');
+                for (index, (key, value)) in fields.into_iter().enumerate() {
+                    if index != 0 {
+                        output.push_str(", ");
+                    }
+                    output.push_str(&serde_json::to_string(key).ok()?);
+                    output.push_str(": ");
+                    Self::append_json(value, output)?;
+                }
+                output.push('}');
+            }
+            Value::Array(items) => {
+                output.push('[');
+                for (index, item) in items.iter().enumerate() {
+                    if index != 0 {
+                        output.push_str(", ");
+                    }
+                    Self::append_json(item, output)?;
+                }
+                output.push(']');
+            }
+            // Doctor counts are integers. Preserve the reference formatting for
+            // other numeric values without coercing them to integers.
+            Value::Number(number) if !number.is_i64() && !number.is_u64() => return None,
+            scalar => output.push_str(&serde_json::to_string(scalar).ok()?),
+        }
+        Some(())
     }
 
     fn markdown(report: &Value, recommendations: &[String]) -> Option<String> {

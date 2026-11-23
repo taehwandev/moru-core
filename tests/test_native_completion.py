@@ -124,7 +124,7 @@ class NativeCompletionTests(unittest.TestCase):
                     agents.unlink()
                 else:
                     agents.write_text(f"{doctor.MANAGED_BEGIN}\n{doctor.MANAGED_END}\n")
-                warning = "" if healthy else "Launcher not ready — 상태 확인"
+                warning = "" if healthy else 'Launcher not ready — 상태 🛠\u2028" \\ \t\n\x00\x7f'
                 counts = {"active_records": 1, "expired_or_due": 0 if healthy else 2, "unreadable": 0}
                 with patch.object(doctor, "stable_launcher_issue", return_value=warning), patch.object(
                     doctor, "_project_memory_stats", return_value=counts,
@@ -135,7 +135,8 @@ class NativeCompletionTests(unittest.TestCase):
                         doctor, "_assemble_report_python", side_effect=AssertionError("Python fallback"),
                     ), patch.object(
                         doctor, "_render_markdown_doctor", side_effect=AssertionError("Python rendering"),
-                    ):
+                    ), patch.object(doctor, "json", wraps=json) as python_json:
+                        python_json.dumps.side_effect = AssertionError("Python JSON encoding")
                         self.assertEqual(json_reference, cli("json", "auto"))
                         self.assertEqual(markdown_reference, cli("markdown", "auto"))
                 report = json.loads(json_reference[1])
@@ -147,6 +148,13 @@ class NativeCompletionTests(unittest.TestCase):
                     self.assertEqual(warning, first)
                     self.assertTrue(second.startswith("No AGENTS.md;"))
                     self.assertTrue(third.startswith("Project memory has 2 record(s)"))
+
+        with patch.object(doctor, "_active_run_count", return_value=1e-7):
+            reference = cli("json", "python")
+            with patch.object(doctor, "json", wraps=json) as python_json:
+                self.assertEqual(reference, cli("json", "auto"))
+                python_json.dumps.assert_called_once()
+        self.assertIn('"active_runs": 1e-07', reference[1])
 
     def test_doctor_memory_counts_validated_rows_without_python_body_transport(self):
         today = date(2026, 11, 23)

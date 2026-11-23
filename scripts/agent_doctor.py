@@ -95,12 +95,12 @@ def _inspect_project_files(project: Path) -> tuple[list[str], bool, bool]:
 
 def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, Any]:
     """Collect a read-only diagnostic report for the project and user install."""
-    report, _ = _project_health_report(project, rules, markdown=False)
+    report, _ = _project_health_report(project, rules)
     return report
 
 
 def _project_health_report(
-    project: Path, rules: Path, *, markdown: bool,
+    project: Path, rules: Path, *, output_format: str | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     resolved = project.expanduser().resolve()
     launcher_warning = stable_launcher_issue(rules)
@@ -136,14 +136,16 @@ def _project_health_report(
     }
     template = str(rules / "templates" / "repo-agents-routing.md")
     native = NativeProbe.request("--completion-probe", "doctor-report", {
-        "facts": facts, "routing_template": template, "markdown": markdown,
+        "facts": facts, "routing_template": template, "format": output_format,
     })
-    if native is not None and set(native) == {"report", "markdown"}:
-        report, rendered = native["report"], native["markdown"]
-        if isinstance(report, dict) and (isinstance(rendered, str) if markdown else rendered is None):
+    if native is not None and set(native) == {"report", "rendered"}:
+        report, rendered = native["report"], native["rendered"]
+        if isinstance(report, dict) and (isinstance(rendered, str) if output_format else rendered is None):
             return report, rendered
     report = _assemble_report_python(facts, template)
-    return report, _render_markdown_doctor(report) if markdown else None
+    if output_format == "json":
+        return report, json.dumps(report, ensure_ascii=False, sort_keys=True)
+    return report, _render_markdown_doctor(report) if output_format == "markdown" else None
 
 
 def _active_run_count(project: Path) -> int:
@@ -225,11 +227,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project", type=Path, default=Path.cwd())
     parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
     args = parser.parse_args(argv)
-    report, rendered = _project_health_report(args.project, ROOT, markdown=args.format == "markdown")
-    if args.format == "json":
-        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
-    else:
-        print(rendered)
+    _, rendered = _project_health_report(args.project, ROOT, output_format=args.format)
+    print(rendered)
     return 0
 
 
