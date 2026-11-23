@@ -103,6 +103,57 @@ class NativeDocTranscriptTests(unittest.TestCase):
             self.assertIsNone(agy_delivery_stdout("a" * (128 * 1024 + 1)))
             self.assertIsNone(agy_delivery_stdout("\ud800"))
 
+    def test_native_agy_ingress_preserves_public_noop_output_and_exact_replay(self):
+        def invoke(event, raw, path, **overrides):
+            return subprocess.run(
+                [str(self.entry.with_name("moru-hook-native")), str(self.entry), "agy-hook", event],
+                input=raw, cwd=self.project, env={**self.env, "PATH": str(path), **overrides},
+                capture_output=True, timeout=8,
+            )
+
+        allow = b'{"decision": "allow"}\n'
+        limit = 128 * 1024
+        for event, raw, expected in (
+            ("pre-tool", b'{"toolCall":{"name":"unknown"}}', allow),
+            ("pre-tool", b'{"toolCall":{"name":"read_file","args":{"Path":"src/ordinary.py"}}}', allow),
+            ("pre-tool", b'{"toolCall":{"name":"read_file","args":{"Path":"skill.md"}}}', allow),
+            ("pre-tool", b'{"toolCall":{"name":"read_file","args":{"Path":"","AbsolutePath":"src/a.py"}}}', allow),
+            ("pre-tool", b" " * (limit - 2) + b"{}", allow),
+            ("pre-tool", b'{"toolCall":{"name":"edit_file","name":"unknown"}}', allow),
+            ("pre-tool", b'{broken', allow),
+            ("pre-invocation", b'{broken', b'{}\n'),
+            ("stop", b'{broken', b'{}\n'),
+        ):
+            with self.subTest(event=event, raw=raw):
+                self.assertEqual((0, expected, b""), result(invoke(event, raw, self.empty)))
+
+        replay = self.base / "replay-bin"
+        replay.mkdir()
+        python = replay / "python3"
+        python.write_text("#!/bin/sh\nexec /bin/cat\n", encoding="utf-8")
+        python.chmod(0o755)
+        for event, raw in (
+            ("pre-tool", b'{"toolCall":{"name":"run_command"}}'),
+            ("pre-tool", b'{"toolCall":{"name":"unknown","name":"write_file"}}'),
+            ("pre-tool", b'{"toolCall":{"name":"edit_file"}}'),
+            ("pre-tool", b'{"toolCall":{"name":"read_file","args":{"Path":"","AbsolutePath":"docs/SKILL.md/."}}}'),
+            ("pre-tool", b'{"toolCall":{"name":"read_file","args":{"Path":"docs/SKILL.md"}}}'),
+            ("pre-invocation", b'{"conversationId":"current"}'),
+            ("stop", b'{}'),
+            ("pre-tool", b" " * (limit - 1) + b"{}"),
+            ("pre-tool", b'{"tail":"' + b" " * (limit - 11) + "한글".encode() + b'"}\r\n'),
+            ("pre-tool", b'{"raw":"\xff"}'),
+        ):
+            with self.subTest(event=event, length=len(raw), suffix=raw[-88:]):
+                self.assertEqual((0, raw, b""), result(invoke(event, raw, replay)))
+        raw = b'{"toolCall":{"name":"unknown"}}'
+        self.assertEqual((0, raw, b""), result(invoke("pre-tool", raw, replay, PYTHONIOENCODING="latin-1")))
+        python.write_text("#!/bin/sh\n/bin/cat >/dev/null\nprintf '{\"decision\": \"deny\"}\\n'\nexit 7\n",
+                          encoding="utf-8")
+        self.assertEqual((7, b'{"decision": "deny"}\n', b""), result(invoke(
+            "pre-tool", b'{"toolCall":{"name":"edit_file"}}', replay, MORU_AGY_GATE="strict",
+        )))
+
     def test_native_reuse_credit_matches_latest_entry_normalization_and_cap(self):
         current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project, takeaway="")
         prior = current.parent.parent / ("a" * 32) / "preflight.json"

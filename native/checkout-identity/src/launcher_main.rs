@@ -6,6 +6,7 @@ use std::process::{exit, Command};
 
 use moru_checkout_identity::CheckoutIdentity;
 
+mod agy_hook_process;
 mod android_manifest;
 mod argparse_help;
 mod atomic_sibling;
@@ -203,6 +204,19 @@ fn private_probe(launcher: &OsString, args: &[OsString]) -> Option<i32> {
     })
 }
 
+fn dispatch_callback(launcher: &OsString, args: &[OsString]) {
+    let code = match args.first().and_then(|arg| arg.to_str()) {
+        Some("claude-stop-gate" | "codex-stop-gate") => stop_process::StopProcess::run(launcher, args),
+        Some("mailbox-hook") => mailbox_process::MailboxProcess::run(launcher, args),
+        Some("agy-hook") => agy_hook_process::AgyHookProcess::run(launcher, args),
+        Some("claude-pretool-gate" | "codex-pretool-gate") => {
+            pretool_process::PretoolProcess::run(launcher, args)
+        }
+        _ => return,
+    };
+    finish(code)
+}
+
 fn main() {
     let mut argv = env::args_os().skip(1);
     let launcher = match argv.next() {
@@ -282,23 +296,7 @@ fn main() {
         finish(next_process::NextProcess::run(&launcher, &args));
     }
 
-    if args
-        .first()
-        .is_some_and(|a| a == "claude-stop-gate" || a == "codex-stop-gate")
-    {
-        finish(stop_process::StopProcess::run(&launcher, &args));
-    }
-
-    if args.first().is_some_and(|a| a == "mailbox-hook") {
-        finish(mailbox_process::MailboxProcess::run(&launcher, &args));
-    }
-
-    if args
-        .first()
-        .is_some_and(|a| a == "claude-pretool-gate" || a == "codex-pretool-gate")
-    {
-        finish(pretool_process::PretoolProcess::run(&launcher, &args));
-    }
+    dispatch_callback(&launcher, &args);
 
     if args
         .first()
