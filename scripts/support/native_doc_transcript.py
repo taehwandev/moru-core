@@ -235,6 +235,19 @@ def agy_delivery_request(*, payload=None, raw=None) -> tuple[str, list[str], str
     return None
 
 
+def agy_delivery_stdout(text: str) -> str | None:
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "agy-delivery-stdout", {"text": text}))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is not str or not value.isascii() or "\n" in value or "\r" in value:
+        return None
+    if not text:
+        return value if value == "{}" else None
+    prefix = '{"injectSteps": [{"systemMessage": {"systemMessage": "'
+    return value if value.startswith(prefix) and value.endswith('"}}]}') else None
+
+
 def nearest_registry_project(edited: Path) -> tuple[Path, ...] | None:
     try:
         value = _value(NativeProbe.request("--doc-transcript-probe", "nearest-registry-project",

@@ -22,7 +22,7 @@ import test_agent_required_doc_reuse as reuse_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
-    NativeDocTranscript, agy_delivery_preparation, agy_delivery_request, agy_redelivery,
+    NativeDocTranscript, agy_delivery_preparation, agy_delivery_request, agy_delivery_stdout, agy_redelivery,
     nearest_registry_project, read_delivery_manifest,
     reuse_credit,
     discover_reuse_roots, rank_reuse_roots, reuse_current, reuse_matches, reuse_run_ids,
@@ -92,6 +92,16 @@ class NativeDocTranscriptTests(unittest.TestCase):
             self.assertEqual(("session", ["a", "a"], "trace"), agy_delivery_request(
                 payload={"conversationId": "session", "workspacePaths": ["a", "a"],
                          "transcriptPath": "trace", "unrelated": object()}))
+
+    def test_native_agy_stdout_matches_python_byte_for_byte(self):
+        with patch.dict(os.environ, self.env, clear=True):
+            for text in ("", "literal", "한글 😀 \u007f \n\r\t\b\f\u0000 \\ \" ", "a" * (128 * 1024)):
+                with self.subTest(length=len(text)):
+                    expected = json.dumps(agy._injection(text))
+                    self.assertEqual(expected, agy_delivery_stdout(text))
+                    self.assertFalse(expected.endswith("\n"))
+            self.assertIsNone(agy_delivery_stdout("a" * (128 * 1024 + 1)))
+            self.assertIsNone(agy_delivery_stdout("\ud800"))
 
     def test_native_reuse_credit_matches_latest_entry_normalization_and_cap(self):
         current = reuse_fixtures.RequiredDocReuseTests()._fixture(self.project, takeaway="")
@@ -415,8 +425,27 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 expected_marker = marker.read_bytes()
             marker.unlink()
             with patch.dict(os.environ, self.env, clear=True), patch.object(
-                    agy, "_python_payload", side_effect=AssertionError("standalone Python parser")):
+                    agy, "_python_payload", side_effect=AssertionError("standalone Python parser")), patch.object(
+                    agy, "_injection", side_effect=AssertionError("standalone Python encoder")):
                 self.assertEqual(expected, run_stdin(raw))
+                self.assertEqual("{}", run_stdin(raw))
+            self.assertEqual(expected_marker, marker.read_bytes())
+            marker.unlink()
+            run = subprocess.run
+
+            def lose_stdout_encoding(argv, *args, **kwargs):
+                completed = run(argv, *args, **kwargs)
+                if argv[-1] == "agy-delivery-stdout":
+                    self.assertEqual(expected_marker, marker.read_bytes())
+                    self.assertEqual(0, completed.returncode)
+                    raise subprocess.TimeoutExpired(argv, 10)
+                return completed
+
+            with patch.dict(os.environ, self.env, clear=True), patch(
+                    "support.native_probe_transport.subprocess.run", side_effect=lose_stdout_encoding), patch.object(
+                    agy, "_delivered_text", wraps=agy._delivered_text) as deliver:
+                self.assertEqual(expected, run_stdin(raw))
+                deliver.assert_called_once()
             self.assertEqual(expected_marker, marker.read_bytes())
             marker.unlink()
             with patch.dict(os.environ, self.env, clear=True), patch.object(

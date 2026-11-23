@@ -13,6 +13,8 @@ use std::{
 mod agy_doc_redelivery;
 #[path = "agy_doc_request.rs"]
 mod agy_doc_request;
+#[path = "agy_doc_response.rs"]
+mod agy_doc_response;
 #[path = "doc_delivery_marker.rs"]
 mod delivery_marker;
 #[path = "doc_delivery_text.rs"]
@@ -41,6 +43,7 @@ impl DocTranscriptProcess {
                         | "discover-reuse-roots"
                         | "nearest-registry-project"
                         | "agy-delivery-request"
+                        | "agy-delivery-stdout"
                         | "agy-redelivery"
                         | "agy-prepared-delivery"
                         | "agy-delivery-preparation"
@@ -88,6 +91,10 @@ impl DocTranscriptProcess {
                 }
                 if args[1] == "agy-delivery-request" {
                     return agy_doc_request::decode(object);
+                }
+                if args[1] == "agy-delivery-stdout" && object.len() == 1 {
+                    return agy_doc_response::encode(object.get("text")?.as_str()?)
+                        .map(Value::String);
                 }
                 if args[1] == "agy-redelivery" && object.len() == 6 {
                     return agy_doc_redelivery::AgyDocDelivery::redeliver(&payload);

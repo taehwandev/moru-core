@@ -29,7 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from support.native_doc_transcript import NativeDocTranscript, agy_delivery_request
+from support.native_doc_transcript import NativeDocTranscript, agy_delivery_request, agy_delivery_stdout
 
 READ_TOOLS = {"read_file", "view_file"}
 
@@ -106,6 +106,14 @@ def respond(payload: dict, evidence_for=None) -> dict:
 
 
 def _respond(payload: dict, evidence_for, request: tuple[str, list[str], str] | None) -> dict:
+    return _injection(_delivered_text(payload, evidence_for, request))
+
+
+def _injection(text: str) -> dict:
+    return {"injectSteps": [{"systemMessage": {"systemMessage": text}}]} if text else {}
+
+
+def _delivered_text(payload: dict, evidence_for, request: tuple[str, list[str], str] | None) -> str:
     try:
         from agent_required_doc_delivery import delivery_text
 
@@ -115,7 +123,7 @@ def _respond(payload: dict, evidence_for, request: tuple[str, list[str], str] | 
         else:
             conversation, workspaces, transcript = request
         if not conversation or not workspaces:
-            return {}
+            return ""
         if evidence_for is None:
             import agent_runtime_session
 
@@ -132,8 +140,8 @@ def _respond(payload: dict, evidence_for, request: tuple[str, list[str], str] | 
             if text:
                 break
     except Exception:  # noqa: BLE001 - delivery is advisory and must never block a turn
-        return {}
-    return {"injectSteps": [{"systemMessage": {"systemMessage": text}}]} if text else {}
+        return ""
+    return text
 
 
 def _python_payload(raw: str) -> dict:
@@ -148,7 +156,10 @@ def main() -> int:
     raw = sys.stdin.read()
     request = agy_delivery_request(raw=raw)
     payload = _python_payload(raw) if request is None else {}
-    sys.stdout.write(json.dumps(_respond(payload, None, request)))
+    text = _delivered_text(payload, None, request)
+    output = agy_delivery_stdout(text)
+    # Retry encoding only. The delivery marker may already have been stored.
+    sys.stdout.write(output if output is not None else json.dumps(_injection(text)))
     return 0
 
 
