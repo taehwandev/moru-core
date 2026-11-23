@@ -48,16 +48,37 @@ def registered_evidence_candidates(
     project: Path, bindings: dict[str, dict],
 ) -> tuple[Path, ...] | None:
     """Prepare canonical evidence paths from the caller's exact registry snapshot."""
+    return _registered_evidence_paths(project, bindings)
+
+
+def registered_session_matches(
+    project: Path, bindings: dict[str, dict], *, runtime: str, session_id: str,
+) -> tuple[Path, ...] | None:
+    """Read exact session and generation matches from a canonical claim set."""
+    generations = [run.get("resume_generation", 0) for run in bindings.values()]
+    if any(type(gen) is not int or not -(1 << 63) <= gen < 1 << 63 for gen in generations):
+        return None
+    return _registered_evidence_paths(project, bindings, {
+        "runtime": runtime, "session": session_id, "generations": generations,
+    })
+
+
+def _registered_evidence_paths(
+    project: Path, bindings: dict[str, dict], session: dict | None = None,
+) -> tuple[Path, ...] | None:
     if len(bindings) > 256:
         return None
     claims = [(key, run.get("run_id"), run.get("evidence_name")) for key, run in bindings.items()]
     if any(type(value) is not str for claim in claims for value in claim):
         return None
-    result = NativeProbe.request("--registry-read-probe", "evidence-candidates",
-                                 {"project": str(project), "claims": claims})
+    operation = "evidence-candidates" if session is None else "evidence-session-matches"
+    result = NativeProbe.request("--registry-read-probe", operation,
+                                 {"project": str(project), "claims": claims, **(session or {})})
     indices = result["value"] if type(result) is dict and set(result) == {"value"} else None
-    if (type(indices) is not list or any(type(index) is not int for index in indices)
-            or sorted(indices) != list(range(len(claims)))):
+    if (type(indices) is not list or len(indices) > len(claims)
+            or any(type(index) is not int or not 0 <= index < len(claims) for index in indices)
+            or len(set(indices)) != len(indices)
+            or (session is None and len(indices) != len(claims))):
         return None
     return tuple(project / ".moru" / "runs" / claims[index][1] / claims[index][2] for index in indices)
 

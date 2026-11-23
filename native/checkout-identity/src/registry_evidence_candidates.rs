@@ -7,13 +7,24 @@ use super::RegistryRead;
 use crate::pending_publication_receipt::PendingPublicationReceipt;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::{fs, io::ErrorKind, path::Path};
+use std::{
+    fs,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
 
 impl RegistryRead {
     pub(super) fn evidence_candidates(payload: &Value) -> Option<Value> {
         if payload.as_object()?.len() != 2 {
             return None;
         }
+        Some(json!(Self::canonical_evidence_paths(payload)?
+            .into_iter()
+            .map(|(_, index)| index)
+            .collect::<Vec<_>>()))
+    }
+
+    pub(super) fn canonical_evidence_paths(payload: &Value) -> Option<Vec<(PathBuf, usize)>> {
         let project = Path::new(payload.get("project")?.as_str()?);
         let claims = payload.get("claims")?.as_array()?;
         if claims.len() > 256
@@ -55,10 +66,7 @@ impl RegistryRead {
             ranked.push((candidate, index));
         }
         ranked.sort_unstable();
-        Some(json!(ranked
-            .into_iter()
-            .map(|(_, index)| index)
-            .collect::<Vec<_>>()))
+        Some(ranked)
     }
 }
 

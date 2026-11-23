@@ -311,12 +311,73 @@ class NativeRegistryReadTests(unittest.TestCase):
             (fixture.project / ".moru" / lock.name).touch()
         request = {"workspacePaths": [str(fixture.project)], "transcriptPath": str(fixture.transcript)}
         with patch.dict(os.environ, {**self.env, "PATH": str(self.empty)}, clear=True), patch.object(
-                runtime, "_registered_evidence_candidates", side_effect=AssertionError("Python discovery")):
+                runtime, "_compatible_session_matches", side_effect=AssertionError("Python session matching")):
             self.assertEqual({}, agy.respond({**request, "conversationId": "another"}))
             self.assertFalse(evidence.with_name("required-docs-delivered.json").exists())
             answer = agy.respond({**request, "conversationId": "registered"})
             self.assertIn("Keep state immutable.", fixture._text(answer))
             self.assertEqual({}, agy.respond({**request, "conversationId": "registered"}))
+
+    def test_native_evidence_session_matches_python_generation_semantics(self):
+        self.evidence.parent.mkdir(parents=True)
+        base_run = {"run_id": self.evidence.parent.name, "evidence_key": self.key,
+                    "evidence_name": self.evidence.name, "state": "running"}
+        bound = {"runtime": "　AGY ", "session_id": "한글"}
+        cases = (
+            ("antigravity", bound, 0, True),
+            ("agy", {**bound, "resume_generation": None}, 0, False),
+            ("agy", {**bound, "resume_generation": True}, 1, True),
+            ("agy", {**bound, "resume_generation": True}, 0, False),
+            ("antigravity", {**bound, "runtime": " CLI "}, 0, True),
+            ("cli", {**bound, "runtime": "codex"}, 0, True),
+            ("antigravity", {**bound, "session_id": "foreign"}, 0, False),
+            ("antigravity", {**bound, "session_id": "한글 "}, 0, False),
+            ("codex", bound, 0, False),
+        )
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty)}, clear=True):
+            for name, stamp, generation, expected in cases:
+                with self.subTest(runtime=name, stamp=stamp, generation=generation):
+                    self.evidence.write_text(json.dumps({"runtime_session": stamp}), encoding="utf-8")
+                    run = {**base_run, "resume_generation": generation}
+                    self.write([run])
+                    identity = {"runtime": name, "session_id": "한글"}
+                    self.assertEqual(expected, runtime._session_binding_matches(self.evidence, run, **identity))
+                    with patch.object(runtime, "_compatible_session_matches",
+                                      side_effect=AssertionError("unexpected Python fallback")):
+                        self.assertEqual(self.evidence if expected else None,
+                                         runtime.resolve_runtime_evidence(self.project, identity))
+
+            identity = {"runtime": "agy", "session_id": "한글"}
+            for generation, stamp in ((1, 1.0), (10**25, 10**25), ("1", 1)):
+                with self.subTest(generation=generation, stamp=stamp):
+                    run = {**base_run, "resume_generation": generation}
+                    self.write([run])
+                    self.evidence.write_text(json.dumps({"runtime_session": {
+                        **bound, "resume_generation": stamp,
+                    }}), encoding="utf-8")
+                    self.assertIsNone(reads.registered_session_matches(self.project, {self.key: run}, **identity))
+                    self.assertEqual(self.evidence, runtime.resolve_runtime_evidence(self.project, identity))
+
+    def test_native_evidence_session_keeps_ambiguity_and_owner_selection(self):
+        identity = {"runtime": "agy", "session_id": "current"}
+        owner = {"pid": 42, "started_at": "fixture"}
+        other = self.evidence.parent.parent / ("b" * 32) / self.evidence.name
+        runs = []
+        for path, claim_owner in ((other, {"pid": 43, "started_at": "fixture"}), (self.evidence, owner)):
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({"runtime_session": identity}), encoding="utf-8")
+            runs.append({"run_id": path.parent.name, "evidence_name": path.name,
+                         "evidence_key": evidence_binding_key(self.project, path),
+                         "state": "running", "owner": claim_owner})
+        self.write(runs)
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty)}, clear=True), patch.object(
+                runtime, "_compatible_session_matches", side_effect=AssertionError("Python session matching")):
+            with patch.object(runtime, "process_owner", return_value=None):
+                self.assertIsNone(runtime.resolve_runtime_evidence(self.project, identity))
+            with patch.object(runtime, "process_owner", return_value=owner):
+                self.assertEqual(self.evidence, runtime.resolve_runtime_evidence(self.project, identity))
+                self.write([{**run, "owner": owner} for run in runs])
+                self.assertIsNone(runtime.resolve_runtime_evidence(self.project, identity))
 
     def test_missing_busy_symlink_and_special_locks_decline_without_initializing(self):
         self.write([])

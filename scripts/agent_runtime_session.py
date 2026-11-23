@@ -33,7 +33,9 @@ from agent_run_states import (
     SUPERSEDABLE_RUN_STATES,
     TRANSFER_CANCELLABLE_RUN_STATES,
 )
-from agent_registry_read import active_run_bindings, active_runs, latest_run_id, registered_evidence_candidates
+from agent_registry_read import (
+    active_run_bindings, active_runs, latest_run_id, registered_evidence_candidates, registered_session_matches,
+)
 from agent_state_read import evidence_binding_key
 from agent_worker_evidence import is_isolated_worker_evidence
 from support.global_state import project_state_dir_target
@@ -232,9 +234,34 @@ def resolve_runtime_evidence(
     if not bindings:
         return None
     worker_scope, worker_evidence = _worker_evidence_scope(project)
+    matches = None if worker_scope else registered_session_matches(
+        project, bindings, runtime=runtime, session_id=session_id,
+    )
+    if matches is None:
+        matches = _compatible_session_matches(
+            project, bindings, runtime, session_id, worker_scope, worker_evidence
+        )
+    if latest_of_several and matches:
+        return max(matches, key=_evidence_mtime)
+    if len(matches) > 1 and (states is None or states <= TRANSFER_CANCELLABLE_RUN_STATES):
+        # A shared runtime session id is not process ownership. Only an exact
+        # current owner can disambiguate concurrent active peers; duplicate
+        # claims of that same owner remain ambiguous.
+        owner = process_owner()
+        owned = [candidate for candidate in matches
+                 if owner and bindings[evidence_binding_key(project, candidate)].get("owner") == owner]
+        if len(owned) == 1:
+            return owned[0]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _compatible_session_matches(
+    project: Path, bindings: dict[str, dict], runtime: str, session_id: str,
+    worker_scope: bool, worker_evidence: Path | None,
+) -> tuple[Path, ...]:
     if worker_scope:
         if worker_evidence is None:
-            return None
+            return ()
         candidates: tuple[Path, ...] = (worker_evidence,)
         out_of_scope: tuple[Path, ...] = ()
         complete = True
@@ -270,19 +297,8 @@ def resolve_runtime_evidence(
     # skipped subtree cannot hide the second claim the single-match rule exists
     # to catch.
     if not complete and resolved_keys != set(bindings):
-        return None
-    if latest_of_several and matches:
-        return max(matches, key=_evidence_mtime)
-    if len(matches) > 1 and (states is None or states <= TRANSFER_CANCELLABLE_RUN_STATES):
-        # A shared runtime session id is not process ownership. Only an exact
-        # current owner can disambiguate concurrent active peers; duplicate
-        # claims of that same owner remain ambiguous.
-        owner = process_owner()
-        owned = [candidate for candidate in matches
-                 if owner and bindings[evidence_binding_key(project, candidate)].get("owner") == owner]
-        if len(owned) == 1:
-            return owned[0]
-    return matches[0] if len(matches) == 1 else None
+        return ()
+    return tuple(matches)
 
 
 def resolve_owned_runtime_evidence(
