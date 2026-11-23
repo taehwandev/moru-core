@@ -147,6 +147,26 @@ impl CardStore {
         Some(Value::Array(cards))
     }
 
+    pub(crate) fn count_open(&self, repo: &str) -> Option<u64> {
+        let mut statement = self.0.prepare(Self::list_sql(false)).ok()?;
+        let columns = statement.column_count();
+        let mut rows = statement.query([repo]).ok()?;
+        let mut next = rows.next().ok()?;
+        self.snapshot_names(columns)?;
+        let mut count = 0_u64;
+        while let Some(row) = next {
+            // Counting must not hide text that the original row read would reject.
+            for index in 0..columns {
+                if let ValueRef::Text(raw) = row.get_ref(index).ok()? {
+                    std::str::from_utf8(raw).ok()?;
+                }
+            }
+            count = count.checked_add(1)?;
+            next = rows.next().ok()?;
+        }
+        Some(count)
+    }
+
     fn snapshot_names(&self, columns: usize) -> Option<Vec<String>> {
         let mut statement = self
             .0

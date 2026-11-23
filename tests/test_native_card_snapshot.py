@@ -8,6 +8,7 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
+import agent_doctor as doctor
 import agent_work_cards as cards
 from support.native_cards import NativeCards
 from support.native_probe_transport import NativeProbe
@@ -44,10 +45,46 @@ class NativeCardSnapshotTests(unittest.TestCase):
             if type(expected) is float and expected == 0:
                 self.assertEqual(math.copysign(1, expected), math.copysign(1, actual))
 
-    def raw(self, payload):
+    def raw(self, payload, operation="list"):
         return subprocess.run([str(self.entry.with_name("moru-hook-native")), str(self.entry),
-            "--cards-probe", "list"], input=json.dumps(payload).encode(),
+            "--cards-probe", operation], input=json.dumps(payload).encode(),
             env={**self.env, "PATH": str(self.git_only)}, cwd=self.project, capture_output=True, timeout=8)
+
+    def test_doctor_counts_only_committed_open_cards_for_the_repository(self):
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(0, NativeCards.count_open(self.project))
+        self.assertFalse(self.database.parent.exists())
+        with closing(self.store(wal=True)) as connection:
+            self.insert(connection)
+            self.insert(connection, 2, state="done")
+            self.insert(connection, 3, repo="another-repository")
+            connection.commit()
+            self.insert(connection, 4)
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                reference = doctor.inspect_project_health(self.project)
+            self.assertEqual(1, reference["state"]["open_work_cards"])
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                doctor, "list_cards", side_effect=AssertionError("card rows escaped the native count"),
+            ):
+                self.assertEqual(reference, doctor.inspect_project_health(self.project))
+            result = self.raw({"repo": self.key()}, "count-open")
+            self.assertEqual((0, b""), (result.returncode, result.stderr))
+            self.assertEqual({"schema_version": 1, "result": {"count": 1}}, json.loads(result.stdout))
+            connection.rollback()
+
+    def test_doctor_card_count_declines_invalid_sqlite_text(self):
+        with closing(self.store()) as connection:
+            self.insert(connection)
+            connection.execute("UPDATE cards SET summary=CAST(x'FF' AS TEXT)")
+            connection.commit()
+        before = self.database.read_bytes()
+        result = self.raw({"repo": self.key()}, "count-open")
+        self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+        for backend in ("python", "auto"):
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": backend}, clear=True):
+                with self.assertRaisesRegex(sqlite3.OperationalError, "decode"):
+                    doctor.inspect_project_health(self.project)
+        self.assertEqual(before, self.database.read_bytes())
 
     def test_missing_store_and_table_do_not_create_state_or_use_python(self):
         self.assertEqual([], self.read(PATH=str(self.empty)))

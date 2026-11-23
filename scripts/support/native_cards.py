@@ -73,6 +73,15 @@ def _request(project, operation, fields):
 
 class NativeCards:
     @staticmethod
+    def count_open(project):
+        value = _request(project, "count-open", {})
+        if type(value) is dict and set(value) == {"count"}:
+            count = value["count"]
+            if type(count) is int and count >= 0:
+                return count
+        return None
+
+    @staticmethod
     def list(project, include_settled):
         if type(include_settled) is not bool:
             return None

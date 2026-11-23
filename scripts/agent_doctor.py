@@ -3,7 +3,8 @@
 
 Owner: developer-experience project diagnostics; it never writes project files.
 Allowed imports: standard library, support.global_state, support.stable_launcher,
-support.project_type_detection, support.native_probe_transport, agent_observability, agent_project_memory,
+support.project_type_detection, support.native_probe_transport, support.native_cards,
+agent_observability, agent_project_memory,
 agent_project_memory_consolidate, agent_work_cards.
 Forbidden imports: mutating lifecycle hooks, shell execution of arbitrary user code.
 Callers: stable launcher `doctor` alias; tests: test_agent_doctor.
@@ -24,6 +25,7 @@ from agent_project_memory import store_dir as project_memory_store
 from agent_project_memory_consolidate import findings as project_memory_findings
 from agent_work_cards import list_cards
 from support.global_state import global_state_dir, project_state_dir_target
+from support.native_cards import NativeCards
 from support.native_probe_transport import NativeProbe
 from support.project_type_detection import detect_project_permissions
 from support.stable_launcher import (
@@ -106,7 +108,9 @@ def _project_health_report(
     stacks, has_agents, has_managed_block = _inspect_project_files(resolved)
     permissions = detect_project_permissions(resolved)
     snapshot = status_snapshot(resolved)
-    open_cards = list_cards(resolved, include_settled=False)
+    open_cards = NativeCards.count_open(resolved)
+    if open_cards is None:
+        open_cards = len(list_cards(resolved, include_settled=False))
     memory_stats = _project_memory_stats(resolved)
 
     facts = {
@@ -121,7 +125,7 @@ def _project_health_report(
         "state": {
             "active_state_dir": str(state_dir),
             "active_runs": snapshot.get("active_runs", 0),
-            "open_work_cards": len(open_cards),
+            "open_work_cards": open_cards,
             "project_memory": memory_stats,
         },
         "launchers": {

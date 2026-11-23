@@ -30,7 +30,7 @@ impl CardsProcess {
 
     pub(crate) fn probe(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || !matches!(args[1].to_str(), Some("list" | "context"))
+            || !matches!(args[1].to_str(), Some("list" | "context" | "count-open"))
             || CallbackGuard::root(launcher, "git").is_none()
         {
             return 125;
@@ -46,7 +46,7 @@ impl CardsProcess {
         }
         let result = serde_json::from_slice::<Value>(&bytes)
             .ok()
-            .and_then(|payload| probe_result(&payload, args[1] == "context"));
+            .and_then(|payload| probe_result(&payload, args[1].to_str()?));
         let Some(result) = result else {
             return 125;
         };
@@ -90,7 +90,7 @@ impl CardsProcess {
     }
 }
 
-fn probe_result(payload: &Value, context: bool) -> Option<Value> {
+fn probe_result(payload: &Value, operation: &str) -> Option<Value> {
     let repo = payload.get("repo")?.as_str()?;
     if repo.len() != 24
         || !repo
@@ -99,6 +99,16 @@ fn probe_result(payload: &Value, context: bool) -> Option<Value> {
     {
         return None;
     }
+    let state = state_home()?;
+    let database = state.join("work-cards/cards.sqlite3");
+    if operation == "count-open" {
+        let count = match CardStore::open(&database)? {
+            Some(store) => store.count_open(repo)?,
+            None => 0,
+        };
+        return Some(json!({"count": count}));
+    }
+    let context = operation == "context";
     let current = if context {
         Some(payload.get("current_work_id")?.as_str()?)
     } else {
@@ -109,8 +119,7 @@ fn probe_result(payload: &Value, context: bool) -> Option<Value> {
     } else {
         payload.get("include_settled")?.as_bool()?
     };
-    let state = state_home()?;
-    let rows = match CardStore::open(&state.join("work-cards/cards.sqlite3"))? {
+    let rows = match CardStore::open(&database)? {
         Some(store) => store.snapshot(repo, all)?,
         None => json!([]),
     };
