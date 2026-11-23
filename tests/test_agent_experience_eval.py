@@ -142,9 +142,64 @@ class ExperienceEvaluationTests(unittest.TestCase):
             with redirect_stdout(python_output):
                 self.assertEqual(0, evaluator.main([]))
         with patch.dict(os.environ, env, clear=True), redirect_stdout(native_output):
-            with patch.object(evaluator, "_python_metrics", side_effect=AssertionError("native metrics missing")):
+            with (patch.object(evaluator, "_python_metrics", side_effect=AssertionError("native metrics missing")),
+                  patch.object(evaluator, "_validate_fixture", side_effect=AssertionError("native validation missing"))):
                 self.assertEqual(0, evaluator.main([]))
         self.assertEqual(python_output.getvalue(), native_output.getvalue())
+
+    def test_native_validation_preserves_first_errors_and_unsupported_profile_fallback(self):
+        from native_launcher_support import NATIVE
+        from native_pretool_support import environment, prepare
+
+        if not NATIVE.is_file():
+            self.skipTest("source-bound native fixture unavailable")
+        base = Path(self.directory.name)
+        prepare(base)
+        with patch.dict(os.environ, environment(base), clear=True):
+            valid = copy.deepcopy(self.fixture)
+            valid["records"][0].update(replaces=valid["records"][1]["id"], review_in_days=-365)
+            valid["cases"][0].update(request="", target_summary="한글 🚀 é")
+            self.path.write_text(json.dumps(valid), encoding="utf-8")
+            with patch.object(evaluator, "_validate_fixture", side_effect=AssertionError("native validation missing")):
+                self.assertEqual(valid, evaluator.load_fixture(self.path, native=True))
+
+            def second_record_invalid(fixture):
+                fixture["records"][0]["replaces"] = "ffffffffffffffff"
+                fixture["records"][1]["id"] = "000000000000000A"
+
+            def reference_before_case(fixture):
+                fixture["records"][0]["replaces"] = fixture["records"][0]["id"]
+                fixture["cases"][0]["target_paths"] = None
+
+            changes = (
+                lambda fixture: fixture.update(schema_version=True, description="\u00a0"),
+                lambda fixture: fixture.update(schema_version=1.0),
+                lambda fixture: fixture.update(description="\u00a0"),
+                lambda fixture: fixture["records"][0].update(status=None),
+                lambda fixture: fixture["records"][0].update(review_in_days=366),
+                lambda fixture: fixture["records"][0].update(review_in_days=-365.0),
+                second_record_invalid,
+                reference_before_case,
+                lambda fixture: fixture["cases"][0].update(request=None, target_paths=None),
+                lambda fixture: fixture["cases"][0].update(target_paths=None),
+                lambda fixture: fixture["cases"][0]["expected_relevant"].append(fixture["records"][0]["id"]),
+            )
+            for mutate in changes:
+                fixture = copy.deepcopy(valid)
+                mutate(fixture)
+                self.path.write_text(json.dumps(fixture), encoding="utf-8")
+                with self.subTest(mutation=mutate), self.assertRaises(ValueError) as python:
+                    evaluator.load_fixture(self.path)
+                with patch.object(evaluator, "_validate_fixture", side_effect=AssertionError("native validation missing")):
+                    with self.assertRaises(ValueError) as native:
+                        evaluator.load_fixture(self.path, native=True)
+                self.assertEqual(str(python.exception), str(native.exception))
+
+            self.path.write_text(json.dumps(valid), encoding="utf-8")
+            with (patch.object(evaluator.unicodedata, "unidata_version", "unsupported"),
+                  patch.object(evaluator, "_validate_fixture", wraps=evaluator._validate_fixture) as fallback):
+                self.assertEqual(valid, evaluator.load_fixture(self.path, native=True))
+                fallback.assert_called_once_with(valid)
 
     def test_native_metrics_count_raw_unicode_and_keep_empty_denominators(self):
         from native_launcher_support import NATIVE

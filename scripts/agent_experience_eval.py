@@ -14,6 +14,7 @@ import importlib.util
 import json
 import re
 import sys
+import unicodedata
 from datetime import date, timedelta
 from pathlib import Path
 from types import ModuleType
@@ -42,8 +43,28 @@ def _scope(value: Any) -> str:
     return value
 
 
-def load_fixture(path: Path) -> dict[str, Any]:
+def load_fixture(path: Path, *, native: bool = False) -> dict[str, Any]:
     fixture = json.loads(path.read_text(encoding="utf-8"))
+    if not native or not _native_validate_fixture(fixture):
+        _validate_fixture(fixture)
+    return fixture
+
+
+def _native_validate_fixture(fixture: object) -> bool:
+    from support.native_probe_transport import NativeProbe
+
+    result = NativeProbe.request("--memory-probe", "experience-fixture", {
+        "fixture": fixture, "unicode": unicodedata.unidata_version,
+    })
+    if not isinstance(result, dict) or set(result) != {"error"}:
+        return False
+    error = result["error"]
+    if type(error) is str:
+        raise ValueError(error)
+    return error is None
+
+
+def _validate_fixture(fixture: object) -> None:
     if not isinstance(fixture, dict) or type(fixture.get("schema_version")) is not int or fixture["schema_version"] != 1:
         raise ValueError("fixture schema_version must be 1")
     _line(fixture.get("description"), 1000, "description")
@@ -97,7 +118,6 @@ def load_fixture(path: Path) -> dict[str, Any]:
             raise ValueError("expected_relevant must contain unique fixture record ids")
         if "applicability_expectation" in case:
             _line(case["applicability_expectation"], 1000, "applicability_expectation")
-    return fixture
 
 
 def load_engine(root: Path) -> ModuleType:
@@ -199,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
     args = parser.parse_args(argv)
     try:
-        fixture = load_fixture(args.fixture)
+        fixture = load_fixture(args.fixture, native=args.engine_root == SCRIPTS)
         engine = load_engine(args.engine_root)
         report = evaluate(engine, fixture, SCRIPTS.parent, native=args.engine_root.resolve() == SCRIPTS)
         report["inputs"] = {name: {"path": str(path.resolve()),
