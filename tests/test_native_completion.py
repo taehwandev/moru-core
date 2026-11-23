@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
+import agent_directory_fingerprint as directory_fingerprint
 import agent_execution_capsule_state as capsule_state
 import agent_execution_capsule_validation as capsule_validation
 from agent_continuation_checkpoint import write_continuation_checkpoint
@@ -379,6 +380,47 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
         self.assertEqual(previous, output.read_bytes())
         self.assertEqual([], list(run.glob("*.tmp")))
+
+    def test_capsule_directory_state_matches_python_and_reuses_only_current_signature(self):
+        root = self.base / "디렉터리"
+        root.mkdir()
+        for name in ("local", ".moru", "nested", "nested/local"):
+            (root / name).mkdir()
+        (root / "local" / "ignored").write_text("root local")
+        (root / ".moru" / "ignored").write_text("runtime")
+        (root / "nested" / "local" / "included").write_text("nested local")
+        (root / "ignored.log").write_text("ignored")
+        (root / ".log").write_text("dotfile")
+        file = root / "자료🐈"
+        file.write_bytes(b"before\0\xff")
+        file.chmod(0o751)
+        (root / "link.log").symlink_to("missing")
+
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = directory_fingerprint.directory_state(root)
+        self.assertEqual({"state": expected}, self.check("capsule-directory", {"path": str(root)}))
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            directory_fingerprint, "directory_signature", side_effect=AssertionError("unexpected Python scan")
+        ):
+            self.assertEqual(expected, directory_fingerprint.directory_state(root))
+            record = {**expected, "retained_field": "legacy"}
+            self.assertEqual(record, directory_fingerprint.directory_state(root, record))
+            (root / "ignored.log").write_text("ignored change")
+            self.assertEqual(record, directory_fingerprint.directory_state(root, record))
+            file.write_bytes(b"changed\0\xff")
+            changed = directory_fingerprint.directory_state(root, record)
+        self.assertNotEqual(expected["worktree_signature"], changed["worktree_signature"])
+        self.assertNotEqual(expected["worktree_fingerprint"], changed["worktree_fingerprint"])
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            self.assertEqual(directory_fingerprint.directory_state(root), changed)
+        with (root / "oversized").open("wb") as stream:
+            stream.truncate(directory_fingerprint.MAX_DIRECTORY_BYTES + 1)
+        declined = self.raw("capsule-directory", {"path": str(root)})
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+        with patch.dict(os.environ, self.env, clear=True), self.assertRaisesRegex(
+            RuntimeError, "untracked byte size exceeds execution-capsule limit"
+        ):
+            directory_fingerprint.directory_state(root)
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'

@@ -26,6 +26,8 @@ use std::{
 mod capsule_artifact;
 #[path = "capsule_binding.rs"]
 mod capsule_binding;
+#[path = "capsule_directory.rs"]
+mod capsule_directory;
 #[path = "capsule_doc_drift.rs"]
 mod capsule_doc_drift;
 #[path = "capsule_ledger.rs"]
@@ -82,6 +84,7 @@ impl CompletionProcess {
             Some("capsule-refresh") => capsule_artifact::CapsuleArtifact::refresh(&payload),
             Some("capsule-read") => capsule_artifact::CapsuleArtifact::read(&payload),
             Some("capsule-doc-drift") => capsule_doc_drift::CapsuleDocDrift::compare(&payload),
+            Some("capsule-directory") => capsule_directory::CapsuleDirectory::capture(&payload),
             Some("capsule-ledger") => capsule_ledger::CapsuleLedger::check(&payload),
             Some("capsule-shape") => capsule_shape::CapsuleShape::validate(&payload),
             Some("quality") => Quality::inspect(&payload),

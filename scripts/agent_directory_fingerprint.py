@@ -14,6 +14,7 @@ from agent_worktree_scan import (
     hash_component,
     hash_file_component,
 )
+from support.native_probe_transport import NativeProbe
 
 
 DIRECTORY_STATE_HEAD = "non-git-directory-v1"
@@ -45,9 +46,19 @@ def directory_state(
     """Return a Git-shaped record for a bounded non-Git directory."""
 
     path = path.resolve()
+    reusable = _is_reusable_directory_state(recorded)
+    native = NativeProbe.request("--completion-probe", "capsule-directory", {
+        "path": str(path), "recorded_signature": recorded["worktree_signature"] if reusable else None,
+    })
+    if native == {"reused": True} and reusable:
+        return dict(recorded)
+    state = native.get("state") if native is not None else None
+    if type(state) is dict and set(state) == {"head", "worktree_fingerprint", "worktree_signature"}:
+        if _is_reusable_directory_state(state):
+            return state
     signature = directory_signature(path)
     if (
-        _is_reusable_directory_state(recorded)
+        reusable
         and recorded["worktree_signature"] == signature
     ):
         return dict(recorded)
