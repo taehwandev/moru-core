@@ -106,7 +106,7 @@ def _project_health_report(
     launcher_warning = stable_launcher_issue(rules, native_check=True)
     state_dir = project_state_dir_target(resolved)
     stacks, has_agents, has_managed_block = _inspect_project_files(resolved)
-    permissions = detect_project_permissions(resolved)
+    permissions = detect_project_permissions(resolved, native_node_scan=True)
     active_runs = _active_run_count(resolved)
     open_cards = NativeCards.count_open(resolved)
     if open_cards is None:

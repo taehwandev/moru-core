@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+import locale
+from collections.abc import Iterable
 from pathlib import Path
 
+from support.native_probe_transport import NativeProbe
 
-def detect_project_permissions(project_path: Path) -> list[str]:
+
+def detect_project_permissions(project_path: Path, *, native_node_scan: bool = False) -> list[str]:
     """Return permission entries for a project based on detected build tools.
 
     Covers parameter variations via the 'cmd *' wildcard form so one install
@@ -14,7 +18,7 @@ def detect_project_permissions(project_path: Path) -> list[str]:
     """
     entries: list[str] = []
     entries += _swift_permissions(project_path)
-    entries += _node_permissions(project_path)
+    entries += _node_permissions(project_path, native_scan=native_node_scan)
     entries += _gradle_permissions(project_path)
     entries += _rust_permissions(project_path)
     entries += _go_permissions(project_path)
@@ -40,7 +44,16 @@ def _swift_permissions(project_path: Path) -> list[str]:
 
 # ── Node.js / Bun / npm ────────────────────────────────────────────────────
 
-def _node_permissions(project_path: Path) -> list[str]:
+def _node_permissions(project_path: Path, *, native_scan: bool = False) -> list[str]:
+    if native_scan and locale.getpreferredencoding(False).lower() == "utf-8":
+        native = NativeProbe.request("--completion-probe", "doctor-node-manifests", {"project": str(project_path)})
+        if native is not None and set(native) == {"scripts"}:
+            groups = native["scripts"]
+            if isinstance(groups, list) and all(
+                isinstance(group, list) and all(isinstance(name, str) for name in group)
+                for group in groups
+            ):
+                return _dedupe([entry for group in groups for entry in _entries_for_scripts(group)])
     entries: list[str] = []
     for pkg_json in _find_package_jsons(project_path):
         entries += _entries_for_package_json(pkg_json)
@@ -63,13 +76,16 @@ def _find_package_jsons(project_path: Path) -> list[Path]:
 
 
 def _entries_for_package_json(pkg_json: Path) -> list[str]:
-    entries: list[str] = []
     try:
         data = json.loads(pkg_json.read_text())
     except Exception:
         return []
 
-    scripts = data.get("scripts", {})
+    return _entries_for_scripts(data.get("scripts", {}))
+
+
+def _entries_for_scripts(scripts: Iterable[str]) -> list[str]:
+    entries: list[str] = []
     for name in scripts:
         for runner in ("npm run", "bun run", "yarn", "pnpm run"):
             entries += _cmd_entries(f"{runner} {name}")

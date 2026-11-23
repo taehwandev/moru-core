@@ -35,6 +35,7 @@ from native_pretool_support import environment, prepare
 from support.completion_native import completion_native
 from support.native_probe_transport import NativeProbe
 from support import stable_launcher
+from support import project_type_detection
 from test_agent_run_interruption import Run
 
 
@@ -107,6 +108,45 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             instructions = doctor.inspect_project_health(self.project)["instructions"]
         self.assertEqual({"agents_md_present": True, "managed_routing_block": True}, instructions)
+
+    def test_doctor_node_manifest_scan_preserves_permission_deduplication_and_errors(self):
+        (self.project / "package.json").write_text('{"scripts":{"test":"root","install":"other"}}')
+        for folder, text in (
+            ("app", '{"scripts":{"test":"child","test *":"overlap","한글":"unicode"}}'),
+            ("empty", "{}"),
+            ("broken", "{"),
+            ("node_modules", '{"scripts":{"ignored":"excluded"}}'),
+            ("app/deep", '{"scripts":{"ignored":"too-deep"}}'),
+        ):
+            directory = self.project / folder
+            directory.mkdir()
+            (directory / "package.json").write_text(text)
+
+        payload = {"project": str(self.project)}
+        scripts = self.check("doctor-node-manifests", payload)["scripts"]
+        self.assertEqual(["test", "install"], scripts[0])
+        self.assertCountEqual([["test", "test *", "한글"], []], scripts[1:])
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            permissions = project_type_detection.detect_project_permissions(self.project)
+            reference = doctor.inspect_project_health(self.project)
+        self.assertEqual(len(set(permissions)), len(permissions))
+        self.assertIn("Bash(yarn install)", permissions)
+        self.assertNotIn("Bash(npm run ignored)", permissions)
+
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            project_type_detection, "_find_package_jsons", side_effect=AssertionError("Python scanned Node"),
+        ):
+            self.assertEqual(permissions, project_type_detection.detect_project_permissions(
+                self.project, native_node_scan=True,
+            ))
+            self.assertEqual(reference, doctor.inspect_project_health(self.project))
+
+        (self.project / "empty" / "package.json").write_text('{"scripts":null}')
+        self.assertEqual(125, self.raw("doctor-node-manifests", payload).returncode)
+        for backend in ("python", "auto"):
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": backend}, clear=True):
+                with self.assertRaisesRegex(TypeError, "not iterable"):
+                    doctor.inspect_project_health(self.project)
 
     def test_doctor_launcher_health_keeps_warning_order_and_uses_verified_binary(self):
         rules = Path(self.env["MORU_HOME"])
