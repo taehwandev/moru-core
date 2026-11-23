@@ -7,6 +7,7 @@ use super::{
     experience_records::ExperienceRecords,
 };
 use crate::{
+    argparse_help::ArgparseHelp,
     memory_terms::MemoryTerms,
     overhead_report_text::OverheadReportText,
     pretool_guard::CallbackGuard,
@@ -47,6 +48,11 @@ impl ExperienceCli {
             return None;
         }
         let root = CallbackGuard::root(launcher, ENTRY)?;
+        if let [arg] = args {
+            if matches!(arg.to_str()?, "-h" | "--h" | "--he" | "--hel" | "--help") {
+                return plain_help();
+            }
+        }
         let fixture_path = fixture_path(&root, args)?;
         // A conservative digit limit allows exact fallback for larger inputs.
         let fixture = ExperienceFixture::load(fixture_path.as_os_str(), 640)?.ok()?;
@@ -85,14 +91,65 @@ impl ExperienceCli {
 }
 
 fn fixture_path(root: &Path, args: &[OsString]) -> Option<PathBuf> {
-    match args {
-        [] => Some(root.join(DEFAULT_FIXTURE)),
-        [flag, path] if flag == "--fixture" && !path.to_str()?.starts_with('-') => {
-            Some(PathBuf::from(path))
+    let mut words = args.iter();
+    let (mut fixture, mut engine) = (None, None);
+    while let Some(raw) = words.next() {
+        let raw = raw.to_str()?;
+        let (flag, inline) = raw
+            .split_once('=')
+            .map_or((raw, None), |(flag, text)| (flag, Some(text)));
+        let destination = match flag {
+            flag if flag.len() > 2 && "--fixture".starts_with(flag) => &mut fixture,
+            flag if flag.len() > 2 && "--engine-root".starts_with(flag) => &mut engine,
+            _ => return None, // Unproven ordering and diagnostics stay with argparse.
+        };
+        let path = match inline {
+            Some(path) => path,
+            None => words
+                .next()?
+                .to_str()
+                .filter(|word| !word.starts_with('-'))?,
+        };
+        if path.starts_with("//") {
+            return None;
         }
-        [joined] => Some(PathBuf::from(joined.to_str()?.strip_prefix("--fixture=")?)),
-        _ => None, // Historical engines and unproven argparse forms go through Python.
+        *destination = Some(PathBuf::from(path));
     }
+    if let Some(engine) = engine {
+        if engine.canonicalize().ok()? != root.join("scripts").canonicalize().ok()? {
+            return None;
+        }
+    }
+    Some(fixture.unwrap_or_else(|| root.join(DEFAULT_FIXTURE)))
+}
+
+fn plain_help() -> Option<String> {
+    if std::env::var_os("FORCE_COLOR").is_some()
+        || unsafe { libc::isatty(1) != 0 || libc::isatty(2) != 0 }
+    {
+        return None;
+    }
+    let columns = match std::env::var("COLUMNS") {
+        Ok(value) if value.is_ascii() => value.trim().parse::<usize>().ok()?,
+        Err(std::env::VarError::NotPresent) => 80,
+        _ => return None,
+    };
+    let description = env!("MORU_EXPERIENCE_DESCRIPTION");
+    if description.is_empty() || !(32..=512).contains(&columns) {
+        return None;
+    }
+    Some(ArgparseHelp::help(
+        "agent_experience_eval.py",
+        &["[-h]", "[--engine-root ENGINE_ROOT]", "[--fixture FIXTURE]"],
+        description,
+        env!("MORU_ARGPARSE_OPTIONS_TITLE"),
+        &[
+            ("-h, --help", "show this help message and exit"),
+            ("--engine-root ENGINE_ROOT", ""),
+            ("--fixture FIXTURE", ""),
+        ],
+        columns - 2,
+    ))
 }
 
 fn portable_text(value: &Value) -> bool {

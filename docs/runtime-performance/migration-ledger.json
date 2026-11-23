@@ -484,13 +484,13 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "experience-eval and direct CLI",
-      "remaining": "Broaden reference-compatible argument, encoding and error handling and reconcile direct CLI callers. Keep the historical Python engine option. Verify Linux and actual installed acceptance.",
+      "remaining": "Broaden error and encoding handling beyond ordinary native options and plain help. Keep the direct Python reference path and historical engine option. Verify Linux and actual installed acceptance.",
       "verification": {
         "metrics": "The default engine sends read-only synthetic observations through one guarded Rust request for per-case and aggregate metrics. Focused parity covers report order, raw Unicode character counts, listing exclusions, absent denominators, and existing Python fallback.",
         "fixture_schema": "The default engine loads, parses and validates bounded fixture files in one guarded Rust request with the Python Unicode and integer limits. Parity covers duplicate key order, signed zero, exact first validation errors, and fallback for file, decoding, oversized and numerically unsupported cases.",
         "synthetic_records": "The default evaluator prepares synthetic records in Rust using the caller's civil date and existing canonical digests. Parity verifies output field order, leap and century boundaries, review-date overflow fallback, and the historical engine digest hook.",
         "recall_batch": "The default evaluator runs ranking, budgeted projection and metrics together in one guarded Rust request. Report parity preserves complete ranked IDs, rendered-only precision and recall, ordered raw Unicode payload accounting, and compatibility replay on unsupported input or a local date change.",
-        "launcher_cli": "Source-bound Rust stable experience-eval runs the default evaluator without Python and emits the same ordered report and raw input provenance hashes. Unsupported arguments, text profiles and file failures keep existing Python diagnostics and historical-engine behavior."
+        "launcher_cli": "Source-bound Rust stable experience-eval runs the default evaluator without Python and emits the same ordered report and raw input provenance hashes. It handles ordinary abbreviated, repeated and equals-form paths, explicit current engine roots and plain help. Unsupported arguments, colored help, text profiles and file failures keep existing Python diagnostics and historical-engine behavior."
       }
     },
     {

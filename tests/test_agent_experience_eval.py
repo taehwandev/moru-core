@@ -167,14 +167,23 @@ class ExperienceEvaluationTests(unittest.TestCase):
         with_python.mkdir()
         (with_python / "python3").symlink_to(sys.executable)
 
-        def invoke(args, *, selected_path, zone, backend="auto"):
-            env = {**environment(base), "PATH": str(selected_path), "TZ": zone, "MORU_LAUNCHER_BACKEND": backend}
+        def invoke(args, *, selected_path, zone, backend="auto", **overrides):
+            env = {**environment(base), "PATH": str(selected_path), "TZ": zone,
+                   "MORU_LAUNCHER_BACKEND": backend, **overrides}
             return result(subprocess.run([str(entry), "experience-eval", *args], input=b"", cwd=project,
                                          env=env, capture_output=True, timeout=10))
 
         alias = project / "relative fixture.json"
         alias.symlink_to(evaluator.DEFAULT_FIXTURE)
-        for zone, args in (("Pacific/Kiritimati", []), ("America/Los_Angeles", ["--fixture", alias.name])):
+        engine_link = project / "current engine"
+        engine_link.symlink_to(evaluator.SCRIPTS, target_is_directory=True)
+        normal = (
+            ("Pacific/Kiritimati", []),
+            ("America/Los_Angeles", ["--fixture", alias.name]),
+            ("UTC0", ["--f", "nonexistent.json", f"--fix={alias.name}", f"--e={engine_link}"]),
+            ("UTC0", ["--engine-root", "missing", "--engine-root", str(engine_link)]),
+        )
+        for zone, args in normal:
             with self.subTest(zone=zone, args=args):
                 expected = invoke(args, selected_path=with_python, zone=zone, backend="python")
                 native = invoke(args, selected_path=empty, zone=zone)
@@ -182,6 +191,17 @@ class ExperienceEvaluationTests(unittest.TestCase):
                 self.assertEqual(expected, native)
                 inputs = json.loads(native[1])["inputs"]
                 self.assertEqual(str(evaluator.DEFAULT_FIXTURE.resolve()), inputs["fixture"]["path"])
+        for columns, flag in (("80", "--help"), ("48", "-h"), ("120", "--hel")):
+            with self.subTest(columns=columns, flag=flag):
+                expected = invoke([flag], selected_path=with_python, zone="UTC0", backend="python", COLUMNS=columns)
+                native = invoke([flag], selected_path=empty, zone="UTC0", COLUMNS=columns)
+                self.assertEqual(0, native[0], native[2])
+                self.assertEqual(expected, native)
+        colored = {"FORCE_COLOR": "1"}
+        self.assertEqual(
+            invoke(["--help"], selected_path=with_python, zone="UTC0", backend="python", **colored),
+            invoke(["--help"], selected_path=with_python, zone="UTC0", **colored),
+        )
         broken = project / "broken.json"
         broken.symlink_to(project / "missing.json")
         historic = project / "historical"
@@ -195,7 +215,8 @@ class ExperienceEvaluationTests(unittest.TestCase):
         self.assertEqual(0, historic_report[0], historic_report[2])
         self.assertEqual([], json.loads(historic_report[1])["cases"][0]["ranked_ids"])
         self.assertEqual(historic_report, invoke(historic_args, selected_path=with_python, zone="UTC0", backend="python"))
-        for args in (["--help"], ["--unsupported"], ["--fixture=" + broken.name]):
+        for args in (["--unsupported"], ["--fixture=" + broken.name], ["--fi"], ["--fixture", "--help"],
+                     ["--help=1"], ["--"], ["--help", "--unsupported"]):
             with self.subTest(fallback=args):
                 expected = invoke(args, selected_path=with_python, zone="UTC0", backend="python")
                 self.assertEqual(expected, invoke(args, selected_path=with_python, zone="UTC0"))

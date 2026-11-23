@@ -64,8 +64,10 @@ recall or efficiency improvement is established.
 Reproduce candidate retrieval from the repository root:
 
 ```sh
-python3 -B scripts/agent_experience_eval.py
+moru-hook experience-eval
 ```
+
+On a checkout without the launcher, run `python3 -B scripts/agent_experience_eval.py`.
 
 For the historical comparison, export
 `git show 49fd9e95:scripts/agent_project_memory.py` to a scratch directory, then

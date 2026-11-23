@@ -10,6 +10,12 @@ import unicodedata
 
 
 def emit(output):
+    evaluator = Path(__file__).resolve().parents[2] / "scripts/agent_experience_eval.py"
+    evaluator_tree = ast.parse(evaluator.read_text(encoding="utf-8"))
+    description = " ".join((ast.get_docstring(evaluator_tree) or "").split())
+    if not description.isascii() or "%" in description:
+        description = ""
+    print("cargo:rustc-env=MORU_EXPERIENCE_DESCRIPTION=" + description)
     engine = Path(__file__).resolve().parents[2] / "scripts/agent_project_memory.py"
     tree = ast.parse(engine.read_text(encoding="utf-8"))
     for name in ("MAX_RECALL_ITEMS", "MAX_RECALL_CHARS", "MAX_PREVIOUS_CHARS"):
