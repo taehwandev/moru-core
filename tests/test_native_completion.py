@@ -18,6 +18,7 @@ import agent_doctor as doctor
 import agent_project_memory as project_memory
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
+import agent_review_structure as structure
 import agent_directory_fingerprint as directory_fingerprint
 import agent_worktree_fingerprint as worktree_fingerprint
 import agent_execution_capsule_state as capsule_state
@@ -66,6 +67,32 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_structure_diff_preserves_paths_and_falls_back_on_truncation(self):
+        status = "R100\0src/old\t.py\0src/new\n.py\0C75\0src/from.py\0src/한.py\0A\0 src/bin.py \0"
+        counts = "1\t2\t\0src/old\t.py\0src/new\n.py\0"
+        counts += "0\t3\t\0src/from.py\0src/한.py\0-\t-\t src/bin.py \0"
+        expected = {
+            "status": [list(row) for row in structure._parse_name_status(status)],
+            "numstat": [list(row) for row in structure._parse_numstat(counts)],
+        }
+        self.assertEqual(expected, self.check("structure-diff", {"status": status, "numstat": counts}))
+
+        def record(numstat):
+            metadata = {}
+            structure._record_diff({"returncode": 0, "stdout": status}, {"returncode": 0, "stdout": numstat},
+                                   set(), metadata, [], "git diff")
+            return metadata
+
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            reference = record(counts)
+            truncated_reference = record(counts[:-1])
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(structure, "_parse_name_status", side_effect=AssertionError("Python decoded paths")):
+                self.assertEqual(reference, record(counts))
+            declined = self.raw("structure-diff", {"status": status, "numstat": counts[:-1]})
+            self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+            self.assertEqual(truncated_reference, record(counts[:-1]))
 
     def test_preflight_failures_match_python_order_and_unicode_limit(self):
         collect = load_collect_failures()

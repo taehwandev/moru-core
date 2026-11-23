@@ -479,10 +479,12 @@
       "id": "scripts/agent-structure-check.py",
       "inventory_id": 32,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port Git acquisition, source and baseline inspection, structural analysis and CLI output. Preserve the structural review contract and Python compatibility for unsupported diff streams.",
+      "verification": {
+        "local": "Source-bound Rust decodes Git NUL-framed name-status and numstat together for worktree and commit-range structural inspection. Parity covers literal tab and newline paths, rename and copy destinations, binary counts, and fallback on unsupported framing."
+      }
     },
     {
       "id": "scripts/agent_experience_eval.py",

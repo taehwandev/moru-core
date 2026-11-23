@@ -16,6 +16,7 @@ from agent_review_removals import classify_net_deletions
 from agent_review_merge_baseline import inherited_merge_paths
 from agent_structure_rules import structure_rule_review
 from agent_workspace_policy import is_non_git_workspace, is_writing_workspace
+from support.native_probe_transport import NativeProbe
 
 
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
@@ -585,14 +586,6 @@ def collect_commit_diff(
         project,
     )
     commands["commit_diff_name_status"] = status
-    if status["returncode"] == 0:
-        for destination, status_code, previous in _parse_name_status(status["stdout"]):
-            updates: dict[str, Any] = {"status": status_code}
-            if previous:
-                updates["previous_path"] = previous
-            record_path(names, path_metadata, destination, **updates)
-    else:
-        command_errors.append("git commit-range changed source discovery failed")
 
     numstat = run_command(
         [
@@ -608,17 +601,7 @@ def collect_commit_diff(
         project,
     )
     commands["commit_diff_numstat"] = numstat
-    if numstat["returncode"] == 0:
-        for destination, additions, deletions in _parse_numstat(numstat["stdout"]):
-            record_path(
-                names,
-                path_metadata,
-                destination,
-                additions=additions,
-                deletions=deletions,
-            )
-    else:
-        command_errors.append("git commit-range line-count discovery failed")
+    _record_diff(status, numstat, names, path_metadata, command_errors, "git commit-range")
 
 
 def _subject_run_command(
@@ -657,31 +640,53 @@ def collect_head_diff(
         project,
     )
     commands["diff_name_status"] = status
-    if status["returncode"] == 0:
-        for destination, status_code, previous in _parse_name_status(status["stdout"]):
-            updates: dict[str, Any] = {"status": status_code}
-            if previous:
-                updates["previous_path"] = previous
-            record_path(names, path_metadata, destination, **updates)
-    else:
-        command_errors.append("git diff changed source discovery failed")
 
     numstat = run_command(
         ["git", "diff", "--numstat", "-z", "--diff-filter=ACDMRTUXB", "--relative", "HEAD", *pathspec],
         project,
     )
     commands["diff_numstat"] = numstat
-    if numstat["returncode"] == 0:
-        for destination, additions, deletions in _parse_numstat(numstat["stdout"]):
-            record_path(
-                names,
-                path_metadata,
-                destination,
-                additions=additions,
-                deletions=deletions,
-            )
-    else:
-        command_errors.append("git diff line-count discovery failed")
+    _record_diff(status, numstat, names, path_metadata, command_errors, "git diff")
+
+
+def _record_diff(status, numstat, names, path_metadata, command_errors, label):
+    status_ok = status["returncode"] == 0
+    counts_ok = numstat["returncode"] == 0
+    status_text = status["stdout"] if status_ok else ""
+    counts_text = numstat["stdout"] if counts_ok else ""
+    parsed = _native_diff_records(status_text, counts_text)
+    if parsed is None:
+        parsed = _parse_name_status(status_text), _parse_numstat(counts_text)
+    statuses, counts = parsed
+    if not status_ok:
+        command_errors.append(f"{label} changed source discovery failed")
+    if not counts_ok:
+        command_errors.append(f"{label} line-count discovery failed")
+    for destination, code, previous in statuses:
+        updates = {"status": code}
+        if previous:
+            updates["previous_path"] = previous
+        record_path(names, path_metadata, destination, **updates)
+    for destination, additions, deletions in counts:
+        record_path(names, path_metadata, destination, additions=additions, deletions=deletions)
+
+
+def _native_diff_records(status: str, numstat: str):
+    if "\0" not in status and "\0" not in numstat:
+        return None
+    decoded = NativeProbe.request("--completion-probe", "structure-diff", {"status": status, "numstat": numstat})
+    if decoded is None or set(decoded) != {"status", "numstat"}:
+        return None
+    statuses, counts = decoded["status"], decoded["numstat"]
+    if not isinstance(statuses, list) or not isinstance(counts, list):
+        return None
+    if not all(isinstance(row, list) and len(row) == 3 and all(isinstance(v, str) for v in row)
+               and row[0] and row[1] in "ACDMRTUXB" and len(row[1]) == 1 for row in statuses):
+        return None
+    if not all(isinstance(row, list) and len(row) == 3 and isinstance(row[0], str) and row[0]
+               and all(type(v) is int and v >= 0 for v in row[1:]) for row in counts):
+        return None
+    return statuses, counts
 
 
 def _listed_paths(stdout: str) -> list[str]:

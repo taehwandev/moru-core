@@ -64,6 +64,8 @@ mod doctor_report;
 pub(super) mod pending_publication_settlement;
 #[path = "preflight_failures.rs"]
 mod preflight_failures;
+#[path = "structure_diff.rs"]
+mod structure_diff;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -104,6 +106,7 @@ impl CompletionProcess {
             );
         }
         let result = match args[1].to_str() {
+            Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("preflight-failures") => preflight_failures::PreflightFailures::collect(&payload),
             Some("doctor-launcher") => doctor_launcher::DoctorLauncher::inspect(&payload),
             Some("doctor-memory") => doctor_memory::DoctorMemory::summarize(&payload),
