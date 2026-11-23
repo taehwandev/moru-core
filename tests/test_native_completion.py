@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import agent_execution_capsule_state as capsule_state
 from agent_continuation_checkpoint import write_continuation_checkpoint
 from agent_execution_capsule_state import atomic_write_json
 from agent_local_delivery import LocalDeliveryProof, _capture_identities
@@ -49,6 +50,42 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_capsule_binding_matches_python_and_preserves_legacy_fallback(self):
+        docs = [{"\U00010000": "😀", "\uffff": "한글\x7f\n\u2028", "a": [True, 0, 2**64 - 1, -2**63]}]
+        snapshot = {"required_docs": docs, "schema_version": True,
+                    "request_fingerprint": "request", "route_fingerprint": "route"}
+        capsule = {**snapshot, "schema_version": 4, "phase": "ready",
+                   "preflight_evidence": {"sha256": "hash", "filename": "preflight.json"},
+                   "reuse_policy": {"gate_effect": "none"}}
+        for kind, record, binding in (
+            ("preflight", snapshot, capsule_state.preflight_snapshot_binding_fingerprint),
+            ("capsule", capsule, capsule_state.execution_capsule_binding_fingerprint),
+        ):
+            with self.subTest(kind=kind):
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    expected = binding(record)
+                self.assertEqual({"sha256": expected}, self.check("capsule-binding", {
+                    "kind": kind, "record": {**record, "unbound": "ignored"},
+                }))
+                with patch.dict(os.environ, self.env, clear=True), patch.object(capsule_state, "json") as encoder:
+                    encoder.dumps.side_effect = AssertionError("unexpected Python serialization")
+                    self.assertEqual(expected, binding({**record, "unbound": object()}))
+
+                for value in (2**64, -2**63 - 1, -0.0, float("nan"), "\ud800", {0: "legacy"}):
+                    with self.subTest(value=repr(value)):
+                        legacy = {**record, "required_docs": [value]}
+                        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                            original = binding(legacy)
+                        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                            capsule_state, "json", wraps=json
+                        ) as encoder:
+                            self.assertEqual(original, binding(legacy))
+                            encoder.dumps.assert_called_once()
+        for kind, record in (("capsule", {**capsule, "phase": "preflight"}),
+                             ("preflight", {**snapshot, "schema_version": 2})):
+            result = self.raw("capsule-binding", {"kind": kind, "record": record})
+            self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'

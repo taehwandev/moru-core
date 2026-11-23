@@ -21,6 +21,9 @@ use std::{
     os::fd::AsFd,
 };
 
+#[path = "capsule_binding.rs"]
+mod capsule_binding;
+
 pub(crate) struct CompletionProcess;
 
 #[path = "pending_publication_settlement.rs"]
@@ -62,6 +65,7 @@ impl CompletionProcess {
             );
         }
         let result = match args[1].to_str() {
+            Some("capsule-binding") => capsule_binding::CapsuleBinding::fingerprint(&payload),
             Some("quality") => Quality::inspect(&payload),
             Some("requirements") => Requirements::validate(&payload),
             Some("coverage") => Requirements::coverage(&payload),

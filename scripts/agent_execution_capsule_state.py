@@ -19,6 +19,7 @@ from agent_worktree_fingerprint import (
 from agent_workspace_policy import is_non_git_workspace
 from support.git_read_scope import stable_read, worktree_entry
 from agent_state_read import read_json_object
+from support.native_probe_transport import NativeProbe
 
 
 SCHEMA_VERSION = 4
@@ -229,6 +230,24 @@ def is_sha256(value: Any) -> bool:
     )
 
 
+def _binding_json(value: Any, depth: int = 0) -> bool:
+    if depth == 64:
+        return False
+    if type(value) is dict:
+        return all(type(key) is str and _binding_json(item, depth + 1) for key, item in value.items())
+    if type(value) is list:
+        return all(_binding_json(item, depth + 1) for item in value)
+    return value is None or type(value) in (bool, int, str)
+
+
+def _native_binding(kind: str, payload: dict[str, Any]) -> str | None:
+    if not NativeProbe.available() or not _binding_json(payload):
+        return None
+    result = NativeProbe.request("--completion-probe", "capsule-binding", {"kind": kind, "record": payload})
+    digest = result.get("sha256") if result is not None else None
+    return digest if is_sha256(digest) else None
+
+
 def execution_capsule_binding_fingerprint(capsule: dict[str, Any]) -> str | None:
     """Return the stable route/doc identity that gate evidence may reference.
 
@@ -252,6 +271,9 @@ def execution_capsule_binding_fingerprint(capsule: dict[str, Any]) -> str | None
     if capsule.get("phase") != "ready":
         return None
     payload = {field: capsule[field] for field in required}
+    native = _native_binding("capsule", payload)
+    if native is not None:
+        return native
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
@@ -276,6 +298,9 @@ def preflight_snapshot_binding_fingerprint(snapshot: dict[str, Any]) -> str | No
     if snapshot.get("schema_version") != PREFLIGHT_SNAPSHOT_SCHEMA_VERSION:
         return None
     payload = {field: snapshot[field] for field in required}
+    native = _native_binding("preflight", payload)
+    if native is not None:
+        return native
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
