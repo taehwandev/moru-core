@@ -32,6 +32,8 @@ mod doc_reuse_history;
 mod doc_reuse_matches;
 #[path = "doc_reuse_plan.rs"]
 mod doc_reuse_plan;
+#[path = "doc_reuse_roots.rs"]
+mod doc_reuse_roots;
 #[path = "doc_reuse_snapshot.rs"]
 mod doc_reuse_snapshot;
 

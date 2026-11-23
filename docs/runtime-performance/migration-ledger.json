@@ -811,7 +811,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct PreInvocation compatibility hook and adapter; source-bound private AGY transcript probe",
-      "remaining": "Port standalone stdout, document reuse checkout traversal, cadence, session evidence selection and remaining lock profiles with unit31 adapter callers and durable legacy registrations. Preserve unsupported transcript, timestamp and request profiles through compatibility, and verify both supported hosts and installed acceptance.",
+      "remaining": "Port standalone stdout, remaining reuse caller coordination and cadence, session evidence selection and lock profiles with unit31 adapter callers and durable legacy registrations. Preserve unsupported transcript, timestamp and request profiles through compatibility, and verify both supported hosts and installed acceptance.",
       "verification": {
         "transcript_coverage": "PASS: source-bound macOS debug Rust scans bounded ordinary AGY transcripts for whole-file read calls after compaction, unwraps encoded paths, and checks document modification times against aware timestamps. Empty-PATH process fixtures match Python for CR-separated rows, quoted Unicode paths, a symlink alias, ranged reads and stale reads. Unsupported timestamps and read profiles retain Python compatibility. The caller owns evidence selection, injection and marker writes.",
         "delivery_renderer": "PASS: source-bound macOS debug Rust renders bounded prepared required-document messages for AGY and shared delivery callers. Empty-PATH fixtures compare exact Python output for leading frontmatter, Unicode trimming, per-document and total UTF-8 byte limits, oversize path listing, duplicate ordering and missing texts.",
@@ -828,7 +828,8 @@
         "reuse_history_candidates": "PASS: Rust scans the bounded registry tail in reverse append order and ranks eligible roots by Python-compatible registry modification time and componentwise path order. Empty-PATH fixtures verify bounds, duplicate run and root candidates, excluded/self candidates, unsupported paths, and lazy evidence access. The caller still owns root enumeration.",
         "reuse_snapshot_matches": "PASS: source-bound macOS debug Rust reads bounded prior evidence and returns exact path, SHA-256 and byte-size matches after project, runtime, session and run-ID binding. Empty-PATH fixtures cover both callers, lazy stopping before older evidence, duplicate paths, invalid sizes and legacy root aliases.",
         "reuse_plan": "PASS: source-bound macOS debug Rust scans the completed-run registry and collects new document coverage and takeaways in one request per supported checkout. Empty-PATH fixtures cover both proof modes, shared slots across roots, duplicate proof at the cap, early stop before malformed older evidence, and atomic decline before replaying a legacy checkout.",
-        "reuse_current": "PASS: source-bound macOS debug Rust validates ordinary current preflight path and runtime/session binding and projects ordered required names and document fingerprints. Empty-PATH fixtures cover both callers, duplicate paths, unread names without a snapshot, unrelated malformed rows, path-prefix collisions and Python compatibility for a legacy alias. Python retains checkout traversal and unsupported current evidence."
+        "reuse_current": "PASS: source-bound macOS debug Rust validates ordinary current preflight path and runtime/session binding and projects ordered required names and document fingerprints. Empty-PATH fixtures cover both callers, duplicate paths, unread names without a snapshot, unrelated malformed rows, path-prefix collisions and Python compatibility for a legacy alias.",
+        "reuse_roots": "PASS: source-bound macOS debug Rust discovers and ranks supported linked worktrees and sibling repositories in separate phases. The caller defers discovery until current proof is insufficient and allows the sibling phase only for the existing routes and workspace boundaries. Empty-PATH fixtures cover linked metadata, ordered proof, stop before discovery, sibling exclusion and stale metadata compatibility."
       }
     },
     {
@@ -1010,6 +1011,7 @@
     "scripts/agent_run_owner.py",
     "scripts/agent_run_registry.py",
     "scripts/agent_run_states.py",
+    "scripts/agent_runtime_identity.py",
     "scripts/agent_runtime_session.py",
     "scripts/agent_scheduler.py",
     "scripts/agent_skill_backlog.py",

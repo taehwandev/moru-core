@@ -136,6 +136,31 @@ def rank_reuse_roots(candidates: list[Path], excluded: list[Path], limit: int) -
     return roots if all(root.is_absolute() for root in roots) else None
 
 
+def discover_reuse_roots(
+    path: Path, excluded: list[Path], limit: int, *, phase: str,
+) -> tuple[Path | None, list[Path]] | None:
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "discover-reuse-roots", {
+            "path": str(path), "phase": phase, "excluded": [str(root) for root in excluded],
+            "limit": limit,
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is not list or len(value) != 2:
+        return None
+    workspace, roots = value
+    if ((workspace is not None and (phase != "worktrees" or type(workspace) is not str))
+            or type(roots) is not list or len(roots) > limit
+            or any(type(root) is not str for root in roots)):
+        return None
+    workspace = Path(workspace) if workspace is not None else None
+    candidates = [Path(root) for root in roots]
+    if ((workspace is not None and not workspace.is_absolute())
+            or any(not root.is_absolute() or root in excluded for root in candidates)):
+        return None
+    return workspace, candidates
+
+
 def reuse_credit(prior: Path, takeaways: list[str], slots: int, chars: int) -> tuple[bool, str | None] | None:
     try:
         value = _value(NativeProbe.request("--doc-transcript-probe", "reuse-credit", {

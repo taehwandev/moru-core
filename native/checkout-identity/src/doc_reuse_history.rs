@@ -59,9 +59,20 @@ impl DocTranscript {
             .iter()
             .map(supported_path)
             .collect::<Option<Vec<_>>>()?;
+        let candidates = candidates
+            .iter()
+            .map(supported_path)
+            .collect::<Option<Vec<_>>>()?;
+        Self::rank_roots(candidates, &excluded, limit).map(|roots| json!(roots))
+    }
+
+    pub(super) fn rank_roots<'a>(
+        candidates: impl IntoIterator<Item = &'a Path>,
+        excluded: &[&Path],
+        limit: usize,
+    ) -> Option<Vec<&'a str>> {
         let mut ranked = Vec::new();
-        for candidate in candidates {
-            let root = supported_path(candidate)?;
+        for root in candidates {
             if excluded.contains(&root) {
                 continue;
             }
@@ -77,12 +88,11 @@ impl DocTranscript {
             ranked.push((modified, root));
         }
         ranked.sort_by(|a, b| b.0.total_cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
-        let roots = ranked
-            .iter()
+        ranked
+            .into_iter()
             .take(limit)
             .map(|(_, root)| root.to_str())
-            .collect::<Option<Vec<_>>>()?;
-        Some(json!(roots))
+            .collect()
     }
 }
 

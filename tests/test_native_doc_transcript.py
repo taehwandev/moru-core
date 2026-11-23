@@ -24,7 +24,7 @@ from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_request, agy_redelivery, nearest_registry_project, read_delivery_manifest,
     reuse_credit,
-    rank_reuse_roots, reuse_current, reuse_matches, reuse_run_ids,
+    discover_reuse_roots, rank_reuse_roots, reuse_current, reuse_matches, reuse_run_ids,
 )
 
 
@@ -317,6 +317,47 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 {"reused": docs, "unread": [], "takeaways": ["first note", "second", "third"]},
                 reuse_reference.required_doc_reuse(current),
             )
+
+    def test_native_root_discovery_preserves_lazy_worktree_and_sibling_phases(self):
+        fixture = reuse_fixtures.ReuseAcrossRunsTests()
+        workspace = self.base / "workspace"
+        main, linked, sibling = (workspace / name for name in ("main", "linked", "sibling"))
+        admin = main / ".git" / "worktrees" / "linked"
+        admin.mkdir(parents=True)
+        linked.mkdir()
+        (sibling / ".git").mkdir(parents=True)
+        (linked / ".git").write_text("gitdir: ../main/.git/worktrees/linked\r\n", encoding="utf-8")
+        (admin / "commondir").write_text("../../\r\n", encoding="utf-8")
+        (admin / "gitdir").write_text(f"{linked}/.git\r\n", encoding="utf-8")
+        doc_a, doc_b = fixture.DOC_A, fixture.DOC_B
+        current = fixture._run(linked, "f" * 32, [doc_a, doc_b])
+        fixture._run(main, "a" * 32, [doc_a], "main proof")
+        fixture._run(sibling, "b" * 32, [doc_b], "sibling proof")
+        fixture._registry(main, ["a" * 32])
+        fixture._registry(sibling, ["b" * 32])
+
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reuse_reference, "_worktree_roots_python", side_effect=AssertionError("Python discovery")), patch(
+                "support.native_doc_transcript.discover_reuse_roots", wraps=discover_reuse_roots) as discovery:
+            self.assertEqual([doc_a, doc_b], reuse_reference.required_doc_reuse(current)["reused"])
+            self.assertEqual(["worktrees", "siblings"], [c.kwargs["phase"] for c in discovery.call_args_list])
+            discovery.reset_mock()
+            self.assertEqual([linked, main], list(reuse_reference._repository_roots(linked)))
+            self.assertEqual(["worktrees"], [c.kwargs["phase"] for c in discovery.call_args_list])
+            discovery.reset_mock()
+            fixture._run(linked, "c" * 32, [doc_a, doc_b], "current checkout proof")
+            fixture._registry(linked, ["c" * 32])
+            self.assertEqual([doc_a, doc_b], reuse_reference.required_doc_reuse(current)["reused"])
+            discovery.assert_not_called()
+
+        stale = main / ".git" / "worktrees" / "removed"
+        stale.mkdir()
+        (stale / "gitdir").write_text(f"{workspace}/missing/.git", encoding="utf-8")
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                reuse_reference, "_worktree_roots_python", wraps=reuse_reference._worktree_roots_python) as fallback:
+            self.assertEqual([linked, main, sibling],
+                             list(reuse_reference._repository_roots(linked, include_sibling_repos=True)))
+            fallback.assert_called_once_with(linked)
 
     def test_native_reuse_root_ranking_preserves_float_ties_exclusions_and_cap(self):
         root = self.base / "roots"

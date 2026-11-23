@@ -219,8 +219,36 @@ def _completed_run_ids_python(root: Path, current_run: str):
 def _repository_roots(project: Path, *, include_sibling_repos: bool = False):
     """Yield this checkout first, then the repository's other worktrees and lazy sibling repos."""
 
+    from support.native_doc_transcript import discover_reuse_roots
+
     roots = [project]
     yield project
+    native = discover_reuse_roots(project, roots, MAX_SIBLING_WORKTREES, phase="worktrees")
+    if native is None:
+        workspace, worktree_roots = _worktree_roots_python(project)
+    else:
+        workspace, worktree_roots = native
+    roots.extend(worktree_roots)
+    yield from worktree_roots
+    if (
+        include_sibling_repos
+        and workspace is not None
+        and workspace.is_dir()
+        and workspace != workspace.parent
+        and workspace != Path.home()
+    ):
+        native = discover_reuse_roots(workspace, roots, MAX_SIBLING_WORKTREES, phase="siblings")
+        if native is not None:
+            yield from native[1]
+        else:
+            try:
+                repo_candidates = [p for p in workspace.iterdir() if (p / ".git").exists()]
+            except OSError:
+                repo_candidates = []
+            yield from _recent_registered_roots(repo_candidates, roots)
+
+
+def _worktree_roots_python(project: Path) -> tuple[Path | None, list[Path]]:
     try:
         dot_git = project / ".git"
         if dot_git.is_file():
@@ -230,28 +258,14 @@ def _repository_roots(project: Path, *, include_sibling_repos: bool = False):
         elif dot_git.is_dir():
             common = dot_git.resolve()
         else:
-            return
+            return None, []
         candidates = [common.parent] if common.name == ".git" else []
         for link in sorted((common / "worktrees").glob("*/gitdir")):
             candidates.append(Path(link.read_text(encoding="utf-8").strip()).parent)
     except (OSError, IndexError):
-        return
-    worktree_roots = _recent_registered_roots(candidates, roots)
-    roots.extend(worktree_roots)
-    yield from worktree_roots
-    workspace = common.parent.parent
-    if (
-        include_sibling_repos
-        and common.name == ".git"
-        and workspace.is_dir()
-        and workspace != workspace.parent
-        and workspace != Path.home()
-    ):
-        try:
-            repo_candidates = [p for p in workspace.iterdir() if (p / ".git").exists()]
-        except OSError:
-            repo_candidates = []
-        yield from _recent_registered_roots(repo_candidates, roots)
+        return None, []
+    workspace = common.parent.parent if common.name == ".git" else None
+    return workspace, _recent_registered_roots(candidates, [project])
 
 
 def _recent_registered_roots(candidates: list[Path], excluded: list[Path]) -> list[Path]:
