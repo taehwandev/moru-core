@@ -66,6 +66,8 @@ pub(super) mod pending_publication_settlement;
 mod preflight_failures;
 #[path = "structure_diff.rs"]
 mod structure_diff;
+#[path = "structure_block_findings.rs"]
+mod structure_block_findings;
 #[path = "structure_file_size.rs"]
 mod structure_file_size;
 #[path = "structure_source_paths.rs"]

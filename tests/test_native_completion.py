@@ -82,7 +82,7 @@ class NativeCompletionTests(unittest.TestCase):
             ))
         ]
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
-            expected = [list(row) for row in structure._file_size_findings(files)]
+            expected = [list(row) for row in structure._file_findings(files)]
         self.assertEqual({"findings": expected}, self.check("structure-file-size", {"files": files}))
 
         paths = [Path("a.py"), Path("b.py"), Path("tests/test_example.py")]
@@ -105,12 +105,40 @@ class NativeCompletionTests(unittest.TestCase):
             reference = review()
         with patch.dict(os.environ, self.env, clear=True), patch.object(
             structure, "_check_file_size", side_effect=AssertionError("Python checked file size"),
-        ):
+        ), patch.object(structure, "_block_review_findings", side_effect=AssertionError("Python checked blocks")):
             self.assertEqual(reference, review())
         self.assertEqual(["a.py", "a.py", "a.py:1", "tests/test_example.py"],
                          [message.split(" ", 1)[0] for message in reference["failures"]])
         self.assertIn("per-file addition limit is 6", reference["failures"][-1])
         self.assertTrue(reference["warnings"][0].startswith("b.py "))
+
+    def test_structure_block_findings_match_baselines_and_initial_builds(self):
+        facts = {
+            "limit": 10, "initial": False,
+            "current": [
+                {"line": 1, "label": "repeat", "span": 20},
+                {"line": 22, "label": "repeat", "span": 21},
+                {"line": 44, "label": "새 함수", "span": 11},
+            ],
+            "previous": [{"label": "repeat", "span": 30}, {"label": "repeat", "span": 20}],
+        }
+        file = {"path": "src/file.py", "line_count": 54, "metadata": {"status": "A"},
+                "max_file_lines": 50, "max_added_lines": 60, "review_warning_file_lines": 50}
+        files = [
+            {**file, "actions": [["action failure"], ["action warning"]], "blocks": facts},
+            {**file, "path": "src/initial.py", "metadata": {"initial_full_build": True},
+             "blocks": {**facts, "initial": True, "previous": []}},
+        ]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [list(row) for row in structure._file_findings(files)]
+        self.assertEqual({"findings": expected}, self.check("structure-file-size", {"files": files}))
+        failures, warnings = expected[0]
+        self.assertEqual("action failure", failures[1])
+        self.assertIn("src/file.py:22", failures[2])
+        self.assertEqual("action warning", warnings[1])
+        self.assertIn("previously 20", warnings[2])
+        self.assertEqual([], expected[1][0])
+        self.assertEqual(4, len(expected[1][1]))
 
     def test_structure_source_paths_match_legacy_exclusions_and_file_types(self):
         names = [

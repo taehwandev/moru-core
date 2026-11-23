@@ -3,6 +3,7 @@
 //! forbidden imports: filesystem changes, Git execution and approval decisions.
 //! callers/tests: structural review via the private completion probe.
 //! verification: exact threshold, rewrite and initial-build diagnostics.
+use super::structure_block_findings::StructureBlockFindings;
 use serde_json::{json, Value};
 
 pub(super) struct StructureFileSize;
@@ -13,8 +14,32 @@ impl StructureFileSize {
         if rows.len() > 4096 {
             return None;
         }
-        let findings = rows.iter().map(Self::inspect).collect::<Option<Vec<_>>>()?;
+        let findings = rows.iter().map(Self::review).collect::<Option<Vec<_>>>()?;
         Some(json!({"findings": findings}))
+    }
+
+    fn review(row: &Value) -> Option<(Vec<String>, Vec<String>)> {
+        let (mut failures, mut warnings) = Self::inspect(row)?;
+        if let Some(actions) = row.get("actions") {
+            let actions = actions.as_array()?;
+            if actions.len() != 2 {
+                return None;
+            }
+            for (input, output) in actions.iter().zip([&mut failures, &mut warnings]) {
+                for message in input.as_array()? {
+                    output.push(message.as_str()?.to_owned());
+                }
+            }
+        }
+        if let Some(blocks) = row.get("blocks") {
+            StructureBlockFindings::append(
+                row.get("path")?.as_str()?,
+                blocks,
+                &mut failures,
+                &mut warnings,
+            )?;
+        }
+        Some((failures, warnings))
     }
 
     fn inspect(row: &Value) -> Option<(Vec<String>, Vec<String>)> {

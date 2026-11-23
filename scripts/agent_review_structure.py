@@ -215,7 +215,7 @@ def structure_review(
             "structural baseline only, with full review/publication scope unchanged"
         )
 
-    size_checks = []
+    file_checks = []
     for relative in active_paths:
         is_test_path = test_exempt_path(relative)
         if is_test_path:
@@ -231,45 +231,32 @@ def structure_review(
             continue
 
         metadata = discovery["path_metadata"].get(str(relative), {})
-        size_checks.append((
-            len(result["failures"]), len(result["warnings"]),
-            {
-                "path": str(relative),
-                "line_count": len(lines),
-                "metadata": metadata,
-                "max_file_lines": REVIEW_TEST_FILE_LINE_LIMIT if is_test_path else max_file_lines,
-                "max_added_lines": max_added_lines * REVIEW_TEST_FILE_LINE_LIMIT_MULTIPLIER if is_test_path
-                else max_added_lines,
-                "review_warning_file_lines": REVIEW_TEST_FILE_REVIEW_WARNING_LIMIT if is_test_path
-                else REVIEW_FILE_REVIEW_WARNING_LIMIT,
-            },
-        ))
-        if is_test_path:
-            continue
+        file_review = {
+            "path": str(relative),
+            "line_count": len(lines),
+            "metadata": metadata,
+            "max_file_lines": REVIEW_TEST_FILE_LINE_LIMIT if is_test_path else max_file_lines,
+            "max_added_lines": max_added_lines * REVIEW_TEST_FILE_LINE_LIMIT_MULTIPLIER if is_test_path
+            else max_added_lines,
+            "review_warning_file_lines": REVIEW_TEST_FILE_REVIEW_WARNING_LIMIT if is_test_path
+            else REVIEW_FILE_REVIEW_WARNING_LIMIT,
+        }
+        if not is_test_path:
+            file_review["actions"] = android_action_delta_failures(
+                project, relative, lines, metadata, subject_run_command,
+            )
+            blocks = _block_review_facts(source_root, relative, lines, max_block_lines, metadata, subject_run_command)
+            if blocks:
+                file_review["blocks"] = blocks
+        file_checks.append((len(result["failures"]), len(result["warnings"]), file_review))
 
-        action_failures, action_warnings = android_action_delta_failures(
-            project, relative, lines, metadata, subject_run_command,
-        )
-        result["failures"].extend(action_failures)
-        result["warnings"].extend(action_warnings)
-        block_failures, block_warnings = large_block_findings(
-            source_root,
-            relative,
-            lines,
-            max_block_lines,
-            metadata,
-            subject_run_command,
-        )
-        result["failures"].extend(block_failures)
-        result["warnings"].extend(block_warnings)
-
-    size_findings = _file_size_findings([row for _, _, row in size_checks])
-    # Interleave the batch results before the corresponding per-file findings.
+    file_findings = _file_findings([row for _, _, row in file_checks])
+    # Preserve each file's position relative to encoding warnings.
     for kind, index in (("failures", 0), ("warnings", 1)):
         other_findings = result[kind]
         combined = []
         start = 0
-        for check, messages in zip(size_checks, size_findings):
+        for check, messages in zip(file_checks, file_findings):
             end = check[index]
             combined.extend(other_findings[start:end])
             combined.extend(messages[index])
@@ -1127,7 +1114,7 @@ def check_file_size(
                      max_added_lines=max_added_lines, review_warning_file_lines=review_warning_file_lines)
 
 
-def _file_size_findings(rows: list[dict[str, Any]]) -> list:
+def _file_findings(rows: list[dict[str, Any]]) -> list:
     if not rows:
         return []
     native = NativeProbe.request("--completion-probe", "structure-file-size", {"files": rows})
@@ -1141,7 +1128,15 @@ def _file_size_findings(rows: list[dict[str, Any]]) -> list:
     findings = []
     for row in rows:
         result: dict[str, list[str]] = {"failures": [], "warnings": []}
-        _check_file_size(**row, result=result)
+        _check_file_size(**{key: value for key, value in row.items() if key not in {"actions", "blocks"}},
+                         result=result)
+        action_failures, action_warnings = row.get("actions", ([], []))
+        result["failures"].extend(action_failures)
+        result["warnings"].extend(action_warnings)
+        if "blocks" in row:
+            block_failures, block_warnings = _block_review_findings(row["path"], row["blocks"])
+            result["failures"].extend(block_failures)
+            result["warnings"].extend(block_warnings)
         findings.append((result["failures"], result["warnings"]))
     return findings
 
@@ -1222,22 +1217,44 @@ def large_block_findings(
     metadata: dict[str, Any],
     run_command: CommandRunner,
 ) -> tuple[list[str], list[str]]:
+    facts = _block_review_facts(project, path, lines, max_block_lines, metadata, run_command)
+    return _block_review_findings(str(path), facts) if facts else ([], [])
+
+
+def _block_review_facts(
+    project: Path,
+    path: Path,
+    lines: list[str],
+    max_block_lines: int,
+    metadata: dict[str, Any],
+    run_command: CommandRunner,
+) -> dict[str, Any] | None:
     current = oversized_blocks(path, lines, max_block_lines)
     if not current:
-        return [], []
-    if metadata.get("initial_full_build"):
-        return [], [initial_full_build_block_warning(record, max_block_lines) for record in current]
+        return None
+    initial = bool(metadata.get("initial_full_build"))
+    previous = [] if initial else previous_oversized_blocks(project, path, metadata, run_command, max_block_lines)
+    return {
+        "initial": initial,
+        "limit": max_block_lines,
+        "current": [{key: value for key, value in record.items() if key != "path"} for record in current],
+        "previous": [{"label": record["label"], "span": record["span"]} for record in previous],
+    }
 
-    previous = previous_oversized_blocks(project, path, metadata, run_command, max_block_lines)
-    previous_by_label = {str(record["label"]): record for record in previous}
+
+def _block_review_findings(path: str, facts: dict[str, Any]) -> tuple[list[str], list[str]]:
+    previous_by_label = {str(record["label"]): record for record in facts["previous"]}
     failures: list[str] = []
     warnings: list[str] = []
-    for record in current:
+    for data in facts["current"]:
+        record = {**data, "path": path}
         previous_record = previous_by_label.get(str(record["label"]))
-        if previous_record and int(record["span"]) <= int(previous_record["span"]):
-            warnings.append(preexisting_block_warning(record, int(previous_record["span"]), max_block_lines))
+        if facts["initial"]:
+            warnings.append(initial_full_build_block_warning(record, facts["limit"]))
+        elif previous_record and int(record["span"]) <= int(previous_record["span"]):
+            warnings.append(preexisting_block_warning(record, int(previous_record["span"]), facts["limit"]))
         else:
-            failures.append(block_failure(record, max_block_lines))
+            failures.append(block_failure(record, facts["limit"]))
     return failures, warnings
 
 
