@@ -90,6 +90,8 @@ mod structure_removal_matching;
 mod structure_move_matching;
 #[path = "structure_action_delta.rs"]
 mod structure_action_delta;
+#[path = "kotlin_literal_mask.rs"]
+mod kotlin_literal_mask;
 #[path = "structure_net_deletions.rs"]
 mod structure_net_deletions;
 #[path = "structure_source_paths.rs"]
@@ -139,6 +141,7 @@ impl CompletionProcess {
             Some("structure-removal-matching") => structure_removal_matching::StructureRemovalMatching::compare(&payload),
             Some("structure-move-matching") => structure_move_matching::StructureMoveMatching::compare(&payload),
             Some("structure-action-delta") => structure_action_delta::StructureActionDelta::classify(&payload),
+            Some("kotlin-literal-mask") => kotlin_literal_mask::KotlinLiteralMask::mask(&payload),
             Some("structure-block-spans") => structure_block_spans::StructureBlockSpans::batch(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("preflight-failures") => preflight_failures::PreflightFailures::collect(&payload),

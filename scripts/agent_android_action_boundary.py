@@ -1,7 +1,7 @@
 """Bounded Kotlin Compose action/effect ownership checks.
 
 Owner: source-level Android action boundary diagnostics.
-Allowed imports: standard library. Forbidden: execution, network, project writes.
+Allowed imports: standard library and the local native probe. Forbidden: network and project writes.
 Callers/tests: structure_review; test_agent_android_action_boundary.
 Verification: positive/negative Kotlin fixtures and real structure CLI tests.
 This is a lexical guard, not Kotlin type resolution or whole-program analysis.
@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from support.native_probe_transport import NativeProbe
 
 class AndroidActionBoundary:
     """Reject recognizable effect decisions in changed composable bodies."""
@@ -33,7 +34,7 @@ class AndroidActionBoundary:
     def failures(cls, path: Path, source: str) -> list[str]:
         if path.suffix != ".kt":
             return []
-        code = _mask_kotlin_literals(source)
+        code = _kotlin_code_for_review(source)
         for original, alias in re.findall(r"import\s+([\w.]+)\s+as\s+(\w+)", code):
             if original == "androidx.compose.runtime.Composable":
                 code = re.sub(r"@" + re.escape(alias) + r"\b", "@Composable", code)
@@ -145,6 +146,14 @@ def _is_lifecycle_notice_dispatch(
         start > host_region[0] and start <= position < end
         for start, end in callbacks
     )
+
+
+def _kotlin_code_for_review(source: str) -> str:
+    native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {"source": source})
+    code = native.get("code") if native is not None else None
+    if isinstance(code, str) and len(code) == len(source):
+        return code
+    return _mask_kotlin_literals(source)
 
 
 def _mask_kotlin_literals(source: str) -> str:

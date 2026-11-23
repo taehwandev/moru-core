@@ -21,6 +21,7 @@ import agent_project_memory as project_memory
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_review_structure as structure
+import agent_android_action_boundary as android
 import agent_review_removals as removals
 import agent_review_purpose as purpose
 import agent_directory_fingerprint as directory_fingerprint
@@ -71,6 +72,32 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_structure_kotlin_literal_mask_preserves_python_offsets(self):
+        cases = [
+            "", "plain 한🙂 e\u0301", "// 🙂\r\nvisible", "// EOF", "/",
+            "a/* 한 /* inner */ end */b", "a/* /* unterminated", "a/*/\nb",
+            'a""" 한\n// "" \'\n"""b', 'a"""unterminated\n"', 'a"x\\"🙂"b',
+            "a'\\''b", "\"trailing escape\\", '"\\\nnext"tail',
+            'a"é\u2028🙂\r"b', 'a"/* still string */"b',
+            'a"""$id ${call("/*🙂*/")}"""b', 'a"${call("x")}"b',
+        ]
+        for source in cases:
+            self.assertEqual(
+                {"code": android._mask_kotlin_literals(source)},
+                self.check("kotlin-literal-mask", {"source": source}),
+            )
+
+        source = '@Composable\nfun Screen() {\n/* 🙂 */ val s = "nav.navigate(fake)"\nnav.navigate(real)\n}'
+        path = Path("Screen.kt")
+        with patch.object(NativeProbe, "request", return_value={"code": "wrong length"}):
+            expected = android.AndroidActionBoundary.failures(path, source)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            android, "_mask_kotlin_literals", side_effect=AssertionError("Python masked Kotlin"),
+        ):
+            self.assertEqual(expected, android.AndroidActionBoundary.failures(path, source))
+        self.assertEqual(1, len(expected))
+        self.assertTrue(expected[0].startswith("Screen.kt:4:"))
 
     def test_structure_android_action_delta_preserves_shifted_findings_only(self):
         baseline = [
