@@ -342,7 +342,7 @@ def _status_reason_python(owed: list[str]) -> str:
     return (
         f"Moru publication. finish passed, but declared publication is not yet observed ({', '.join(owed)}). "
         "Perform it only under the run's admitted effect and the publication gate, then run "
-        "moru-hook pending-publication settle for that checkpoint, which verifies the result in Git. "
+        "moru-hook pending-publication settle --run RUN_ID --checkpoint CHECKPOINT in the original checkout. Supply --observation-file PATH for a PR. "
         "Never report it as published before then; if it cannot proceed, say it is NOT PUBLISHED and why."
     )
 
@@ -376,7 +376,7 @@ def _pending_checkout_reason(project: Path, identity: dict[str, str]) -> str:
                 reason = (f"Local delivery is still pending ({', '.join(local_owed)}); verification did not publish it. "
                           "Perform only the already authorized commit/integration. Closeout observes Git automatically. "
                           + observation_error)
-            reasons.append(reason)
+            reasons.append(f"{reason} Run {evidence.parent.name} in {project}.")
     return "\n".join(reasons)
 
 
@@ -438,7 +438,18 @@ def _observe(project: Path, record: dict, item: dict, observation_path: Path | N
             return observation, refusal
     if checkpoint == LocalDeliveryProof.INTEGRATION:
         return "", "local integration requires a bound staged-content proof"
-    head, refusal = _legacy_local_head(project, record, checkpoint)
+    reviewed = (record.get("local_delivery") or {}).get("reviewed_commit")
+    if record.get("schema_version") == 2 and reviewed:
+        branch = _git(project, "symbolic-ref", "--short", "HEAD")
+        if branch != record["source_branch"]:
+            return "", "source branch differs from the finished publication"
+        head = _git(project, "rev-parse", "--verify", "HEAD")
+        if (not head or not re.fullmatch(r"[0-9a-f]{40,64}", reviewed)
+                or _git(project, "--no-replace-objects", "merge-base", "--is-ancestor", reviewed, head) is None):
+            return "", "source branch no longer contains the reviewed commit"
+        refusal = ""
+    else:
+        head, refusal = _legacy_local_head(project, record, checkpoint)
     if refusal:
         return "", refusal
     if checkpoint == "publication.commit":
@@ -569,11 +580,33 @@ def main(argv: list[str]) -> int:
 
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("action", choices=("settle", "status"))
-    parser.add_argument("--project", type=Path, required=True)
-    parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--run")
+    parser.add_argument("--project", type=Path)
+    parser.add_argument("--evidence", type=Path)
     parser.add_argument("--checkpoint", default="")
     parser.add_argument("--observation-file", type=Path)
     args = parser.parse_args(argv)
+    if args.run is not None:
+        from agent_runtime_session import completed_session_evidence, runtime_session
+
+        if (args.action != "settle" or args.project or args.evidence
+                or not re.fullmatch(r"[0-9a-f]{32}", args.run)):
+            parser.error("--run requires settle in the original checkout")
+        args.project = Path.cwd().resolve()
+        args.evidence = args.project / ".moru" / "runs" / args.run / "preflight.json"
+        bound = completed_session_evidence(args.project, runtime_session())
+        if not any(path.resolve() == args.evidence for path in bound):
+            parser.error("run is not completed in this checkout and session")
+        if args.observation_file and not args.observation_file.is_file():
+            parser.error("provider observation must be a regular file")
+        preflight = json.loads(args.evidence.read_text(encoding="utf-8"))
+        if not any(item.get("checkpoint") == args.checkpoint
+                   for item in declared_deferrable(args.project, args.evidence)):
+            parser.error("checkpoint was not deferred by this run")
+        if admitted_effect(preflight) != "external_write" or kind(args.checkpoint) not in ("publication.push", PULL_REQUEST):
+            parser.error("external publication observation requires admitted external_write")
+    elif args.project is None or args.evidence is None:
+        parser.error("--project and --evidence are required without --run")
     if args.action == "status":
         print(pending_reason(args.project, args.evidence) or "no pending publication")
         return 0

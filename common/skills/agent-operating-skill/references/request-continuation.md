@@ -161,7 +161,11 @@ exact `publication.commit` (`git_write`) or `publication.push`
 finish stores it in `pending-publication.json` beside the run and fails if that
 receipt cannot be stored. A missing, corrupt or foreign receipt counts as still
 owed, and the Claude and Codex Stop gates keep blocking a completed run while
-any item is unobserved. `agent_pending_publication.py settle` clears an item
+any item is unobserved. In the original checkout use the installed launcher with
+`pending-publication settle --run RUN_ID --checkpoint CHECKPOINT`. For a PR,
+add `--observation-file ABS_PATH` from a provider lookup. Run selection requires
+an exact completed session binding and a declared external publication. The
+verifier checks the recorded staged commit even after the branch advances, and clears an item
 only after read-only Git shows it (HEAD descends from the finished base with a
 clean tracked tree for a commit; for a push, the upstream branch equals HEAD,
 which is the reviewed finish HEAD itself when the commit predates finish, or a

@@ -517,6 +517,13 @@ def _print_advisory_once(route: dict[str, object], root: Path, payload_text: str
 
     text = render_advisory_markdown(route)
     session_id = hook_session_id(payload_text)
+    try:
+        # The gate's automatic workflow entry starts from this turn's prompt.
+        from claude_pretool_auto_start import record_request
+
+        record_request(payload_text)
+    except Exception:  # noqa: BLE001 - the prompt hook must never fail on it
+        pass
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     if session_id and already_delivered(root, session_id, digest):
         # Named rather than silent: a session whose context was compacted has

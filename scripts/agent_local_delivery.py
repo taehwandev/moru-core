@@ -153,6 +153,12 @@ def _is_root_commit(project: Path, head: str, git) -> bool:
 def _first_commit(project: Path, head: str | None, proof: dict, expected: str, git) -> str:
     if not head or not proof["commit_declared"] or proof["targets"]:
         return ""
+    reviewed = proof.get("reviewed_commit")
+    if reviewed:
+        if (not re.fullmatch(r"[0-9a-f]{40,64}", reviewed)
+                or git(project, "--no-replace-objects", "merge-base", "--is-ancestor", reviewed, head) is None):
+            return ""
+        head = reviewed
     if not _is_root_commit(project, head, git):
         return ""
     committed = LocalDeliveryProof._identity(git(project, "--no-replace-objects", "ls-tree", "-r", "-z", head))

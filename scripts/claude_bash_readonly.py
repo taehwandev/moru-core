@@ -255,6 +255,16 @@ def strip_env_assignments(tokens: list[str]) -> list[str] | None:
 LAUNCHER_HELP_ARGUMENTS = (["--help"], ["-h"], ["help"])
 
 
+def _bound_publication_observation(tokens: list[str]) -> bool:
+    if (len(tokens) not in (7, 9) or tokens[1:4] != ["pending-publication", "settle", "--run"]
+            or not re.fullmatch(r"[0-9a-f]{32}", tokens[4]) or tokens[5] != "--checkpoint"):
+        return False
+    if len(tokens) == 7:
+        return tokens[6] == "publication.push"
+    return (re.fullmatch(r"publication[.]pull-request/[A-Za-z0-9][A-Za-z0-9._/-]{0,199}", tokens[6]) is not None
+            and tokens[7] == "--observation-file" and Path(tokens[8]).is_absolute())
+
+
 def runtime_control_kind(tokens: list[str]) -> str | None:
     if tokens and (tokens[0] == "node" or (
         Path(tokens[0]).name == "node" and _trusted_installed_executable(tokens[0])
@@ -287,7 +297,7 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
         if tokens[1] == "operator-review":
             return RUNTIME_CONTROL_KIND
         if tokens[1] == "pending-publication":
-            return _pending_publication_kind(tokens[2:])
+            return RUNTIME_CONTROL_KIND if _bound_publication_observation(tokens) else _pending_publication_kind(tokens[2:])
         if tokens[1] == "agent-mailbox":
             return _mailbox_intake_kind(tokens[2:])
         if tokens[1] == "project-memory":

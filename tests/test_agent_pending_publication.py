@@ -225,6 +225,46 @@ class InitialCommitPublicationTests(unittest.TestCase):
         self.assertEqual("", pending.settle(self.project, self.evidence, "publication.push"))
         self.assertEqual([], pending.outstanding(self.project, self.evidence))
 
+    def test_delayed_push_observation_after_branch_advances_with_local_edits(self):
+        self.prepare()
+        git(self.project, "commit", "-qm", "initial")
+        self.assertEqual("", pending.settle(self.project, self.evidence, "publication.commit"))
+        git(self.project, "commit", "--allow-empty", "-qm", "later work")
+        self.file.write_text("local edit")
+        self.assertTrue(pending.settle(self.project, self.evidence, "publication.push"))
+        git(self.project, "push", "-qu", "origin", "develop")
+        self.assertEqual("", pending.settle(self.project, self.evidence, "publication.push"))
+
+    def test_launcher_accepts_only_the_bound_observation_form(self):
+        from claude_bash_readonly import RUNTIME_CONTROL_KIND, runtime_control_kind
+        from support.stable_launcher import stable_launcher_path
+
+        argv = [str(stable_launcher_path()), "pending-publication", "settle", "--run",
+                self.evidence.parent.name, "--checkpoint", "publication.push"]
+        self.assertEqual(RUNTIME_CONTROL_KIND, runtime_control_kind(argv))
+        self.assertNotEqual(RUNTIME_CONTROL_KIND, runtime_control_kind(argv + ["--project", "/tmp"]))
+        self.assertNotEqual(RUNTIME_CONTROL_KIND, runtime_control_kind(argv[:-1] + ["publication.commit"]))
+
+    def test_run_selector_checks_session_and_declaration_before_remote_proof(self):
+        self.prepare()
+        git(self.project, "commit", "-qm", "initial")
+        self.assertEqual("", pending.settle(self.project, self.evidence, "publication.commit"))
+        git(self.project, "push", "-qu", "origin", "develop")
+        argv = ["settle", "--run", self.evidence.parent.name, "--checkpoint", "publication.push"]
+        with (patch.object(Path, "cwd", return_value=self.project),
+              patch("agent_runtime_session.completed_session_evidence") as bound,
+              patch.object(pending, "declared_deferrable") as declared,
+              contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO())):
+            bound.return_value = []
+            with self.assertRaises(SystemExit):
+                pending.main(argv)
+            bound.return_value = [self.evidence]
+            declared.return_value = []
+            with self.assertRaises(SystemExit):
+                pending.main(argv)
+            declared.return_value = [self.push]
+            self.assertEqual(0, pending.main(argv))
+
     def test_wrong_first_tree_never_satisfies_the_receipt(self):
         self.assertTrue(pending.record_pending(self.project, self.evidence, [self.push]))
         self.prepare()

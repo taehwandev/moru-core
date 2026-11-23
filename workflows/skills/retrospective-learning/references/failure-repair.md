@@ -33,13 +33,19 @@ a framework/enforcement defect, including one that permitted a wrong completion.
    downstream checks allowed it. Distinguish an authorized requirement change
    from mishandled ambiguity or lost agreement; do not choose a cause from a
    user word, the final success status, or who noticed the defect first.
-4. Select the canonical Moru Core owner. When the failure exposes a reusable
-   operating-rule gap, update the owning guidance directly under standing
-   self-evolution authority (without asking the user for permission) before
-   resuming executable work, then enforce it through the closest hook,
-   validator, or focused test. If the owning guidance already states the exact
-   rule, preserve it and repair the execution or verification surface instead of
-   duplicating prose. A note or queued lesson alone is not a repair.
+4. Select the canonical Moru Core owner. When evidence exposes a verified Moru
+   Core defect (skill/doc gap, routing miss, validator/hook bug, or
+   false-positive gate block), repair the owning file directly in a linked
+   worktree under standing self-repair authority (without asking the user for
+   permission) before resuming executable work, and pair it with a focused
+   regression test (plus a negative-control test proving a repaired gate still
+   blocks its intended hazards). Security/permission gate bug fixes are
+   permitted when core safety intent and negative controls remain intact, and
+   must be explicitly reported to the user in the final summary (what changed,
+   why it was a defect, and which negative control still blocks). If existing
+   guidance already states the exact rule, repair the execution or verification
+   surface instead of duplicating prose. A note or queued lesson alone is not a
+   repair.
 5. Verify the repair with the closest allowlisted documentation, workflow,
    hook, validator, or test check. Generate a structural repair receipt that
    binds the actual changed target hash, current preflight and route, recorded
@@ -154,8 +160,11 @@ Failure repair:
 
 ## Stop If
 
-- The repair needs product, security, release, data, or external-state authority
-  that the current task does not grant.
+- The repair needs product, release, data, or external-state authority that the
+  current task does not grant, or would wholesale disable or alter the core
+  intent of a security/permission gate (scoped false-positive gate bug fixes
+  that preserve negative controls are allowed with explicit user notice in the
+  final report).
 - Canonical ownership is uncertain.
 - The repair is unsafe, ambiguous, too broad, or cannot be verified.
 - The same failure recurs after the verified repair.
