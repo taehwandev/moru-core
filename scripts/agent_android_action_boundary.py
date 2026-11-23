@@ -10,6 +10,7 @@ This is a lexical guard, not Kotlin type resolution or whole-program analysis.
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 
 from support.native_probe_transport import NativeProbe
@@ -34,14 +35,10 @@ class AndroidActionBoundary:
     def failures(cls, path: Path, source: str) -> list[str]:
         if path.suffix != ".kt":
             return []
-        code = _kotlin_code_for_review(source)
-        for original, alias in re.findall(r"import\s+([\w.]+)\s+as\s+(\w+)", code):
-            if original == "androidx.compose.runtime.Composable":
-                code = re.sub(r"@" + re.escape(alias) + r"\b", "@Composable", code)
-            elif re.search(r"(?:RouteEvent|NavigationEvent|NoticeEffect)(?:\.|$)", original):
-                code = re.sub(r"\b" + re.escape(alias) + r"\b", original, code)
+        code, native_bodies = _kotlin_code_for_review(source)
+        bodies = native_bodies if native_bodies is not None else cls._bodies(code)
         findings = []
-        for signature, start, end in cls._bodies(code):
+        for signature, start, end in bodies:
             body = code[start:end]
             parameters = code[signature:start]
             # Resolve explicit parameter types locally, never from another function.
@@ -148,12 +145,30 @@ def _is_lifecycle_notice_dispatch(
     )
 
 
-def _kotlin_code_for_review(source: str) -> str:
-    native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {"source": source})
-    code = native.get("code") if native is not None else None
-    if isinstance(code, str) and len(code) == len(source):
-        return code
-    return _mask_kotlin_literals(source)
+def _kotlin_code_for_review(source: str) -> tuple[str, list[list[int]] | None]:
+    native = NativeProbe.request("--completion-probe", "kotlin-literal-mask", {
+        "source": source, "unicode": unicodedata.unidata_version,
+    })
+    masked = native.get("code") if native is not None else None
+    if not isinstance(masked, str) or len(masked) != len(source):
+        return _normalize_aliases(_mask_kotlin_literals(source)), None
+    code = _normalize_aliases(masked)
+    bodies = native.get("bodies") if masked == code else None
+    if not isinstance(bodies, list) or not all(
+        isinstance(span, list) and len(span) == 3 and all(type(offset) is int for offset in span)
+        and 0 <= span[0] < span[1] < span[2] <= len(code) for span in bodies
+    ):
+        return code, None
+    return code, bodies
+
+
+def _normalize_aliases(code: str) -> str:
+    for original, alias in re.findall(r"import\s+([\w.]+)\s+as\s+(\w+)", code):
+        if original == "androidx.compose.runtime.Composable":
+            code = re.sub(r"@" + re.escape(alias) + r"\b", "@Composable", code)
+        elif re.search(r"(?:RouteEvent|NavigationEvent|NoticeEffect)(?:\.|$)", original):
+            code = re.sub(r"\b" + re.escape(alias) + r"\b", original, code)
+    return code
 
 
 def _mask_kotlin_literals(source: str) -> str:

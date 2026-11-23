@@ -73,6 +73,45 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_compose_body_spans_match_python(self):
+        cases = [
+            "", "@Composable fun Broken(", "@Composable fun Screen():",
+            "@Composable fun Screen() { nested { }", "@Composable fun Screen() =",
+            "@ComposableX fun Screen() {}", "@Composableβ fun Screen() {}",
+            "@Composable fun\x1c이름.화면(x: (Int) -> Unit): State<T>? {}",
+            "@Composable fun Screen(a: @Composable () -> Unit) { a() }",
+            "@Composable\n@Composable\nfun Screen() {}",
+            "@androidx.compose.runtime.Composable fun Screen() = foo()\nprivate fun Next() {}",
+            "@Composable fun Screen() = foo()\ninternal funny()\n@Other fun Next() {}",
+            "@Composable fun Screen() = foo()\n  fun Indented() {}\nfun End() {}",
+            "@Composable ffun Screen() {}\nfun Next() {}", '@Composable fun Screen() = "{"',
+            "@Composable fun Screen(): T where T : Any {}",
+            '@Composable fun Screen(x: Int = f(g(")"))) { use(x) }',
+            '/* @Composable */ fun Fake() {} @Composable fun Real() = one(); two()',
+            "@Composable fun `Screen Name`() {}\nfun Next() {}",
+        ]
+        for source in cases:
+            code = android._mask_kotlin_literals(source)
+            expected = [list(span) for span in android.AndroidActionBoundary._bodies(code)]
+            self.assertEqual(
+                {"code": code, "bodies": expected},
+                self.check("kotlin-literal-mask", {"source": source, "unicode": unicodedata.unidata_version}),
+            )
+        source = "@Composable fun 이름() {}"
+        self.assertEqual({"code": source}, self.check("kotlin-literal-mask", {"source": source, "unicode": "unknown"}))
+
+        path = Path("Screen.kt")
+        plain = "@Composable fun Screen() {\nnav.navigate(route)\n}"
+        alias = "import androidx.compose.runtime.Composable as UI\n@UI fun Screen() {\nnav.navigate(route)\n}"
+        scan = android.AndroidActionBoundary.failures
+        with patch.object(NativeProbe, "request", return_value=None):
+            expected = scan(path, plain), scan(path, alias)
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(android.AndroidActionBoundary, "_bodies", side_effect=AssertionError("Python parsed body")):
+                self.assertEqual(expected[0], scan(path, plain))
+            self.assertEqual(expected[1], scan(path, alias))
+        self.assertEqual([1, 1], list(map(len, expected)))
+
     def test_structure_kotlin_literal_mask_preserves_python_offsets(self):
         cases = [
             "", "plain 한🙂 e\u0301", "// 🙂\r\nvisible", "// EOF", "/",

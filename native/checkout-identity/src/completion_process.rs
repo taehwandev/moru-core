@@ -92,6 +92,8 @@ mod structure_move_matching;
 mod structure_action_delta;
 #[path = "kotlin_literal_mask.rs"]
 mod kotlin_literal_mask;
+#[path = "kotlin_compose_bodies.rs"]
+mod kotlin_compose_bodies;
 #[path = "structure_net_deletions.rs"]
 mod structure_net_deletions;
 #[path = "structure_source_paths.rs"]

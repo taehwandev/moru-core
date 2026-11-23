@@ -1,8 +1,9 @@
 //! owner: Kotlin literal and comment masking for Compose diagnostics.
-//! allowed imports: JSON and standard-library string operations.
+//! allowed imports: Compose body ranges, JSON and standard-library string operations.
 //! forbidden imports: source IO, Git execution, mutation and approval.
 //! callers/tests: Compose action scan through the private completion probe.
 //! verification: exact Python mask and diagnostic offset parity.
+use super::kotlin_compose_bodies::KotlinComposeBodies;
 use serde_json::{json, Value};
 
 pub(super) struct KotlinLiteralMask;
@@ -35,7 +36,15 @@ impl KotlinLiteralMask {
             }
             start += end;
         }
-        Some(json!({"code": code.into_iter().collect::<String>()}))
+        let bodies = input
+            .get("unicode")
+            .and_then(Value::as_str)
+            .and_then(|version| KotlinComposeBodies::ranges(&code, version));
+        let mut result = json!({"code": code.into_iter().collect::<String>()});
+        if let Some(bodies) = bodies {
+            result["bodies"] = json!(bodies);
+        }
+        Some(result)
     }
 
     fn comment_end(code: &[char]) -> usize {
