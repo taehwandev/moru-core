@@ -37,6 +37,7 @@ from support.native_probe_transport import NativeProbe
 from support import stable_launcher
 from support import project_type_detection
 from test_agent_run_interruption import Run
+from test_agent_workspace_policy import load_collect_failures
 
 
 def contract(revision=1, **overrides):
@@ -65,6 +66,38 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_preflight_failures_match_python_order_and_unicode_limit(self):
+        collect = load_collect_failures()
+        cases = (
+            ({"returncode": 1, "stdout": "   A\x1cB\u0085", "stderr": "é" * 500},
+             {"missing": ["skill.md"]}, "ignored parse error", False),
+            ({"returncode": 1, "stderr": "\u3000\t"}, None, "", False),
+            ({"returncode": 0}, {"missing": ["skill.md"]}, "parse error", True),
+            ({"returncode": 0}, {"missing": ["skill.md"]}, "", True),
+            ({"returncode": 0}, {"missing": {"skill.md": True}}, "", False),
+        )
+        for route, payload, parse_error, review_only in cases:
+            with self.subTest(route_status=route["returncode"], parse_error=parse_error, review_only=review_only):
+                args = (route, payload, parse_error, {"returncode": 128, "review_only": review_only},
+                        {"returncode": 1}, ["hook failed", "hook failed"])
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    expected = collect(*args)
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    NativeProbe, "request", wraps=NativeProbe.request,
+                ) as request:
+                    self.assertEqual(expected, collect(*args))
+                    request.assert_called_once()
+                    protocol, operation, prepared = request.call_args.args
+                    self.assertEqual(("--completion-probe", "preflight-failures"), (protocol, operation))
+                if isinstance(prepared["route_missing"], dict):
+                    declined = self.raw(operation, prepared)
+                    self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+                else:
+                    self.assertEqual({"failures": expected}, self.check(operation, prepared))
+        with patch.dict(os.environ, self.env, clear=True), patch.object(NativeProbe, "request") as request:
+            self.assertEqual([], collect({"returncode": 0}, {}, "", {"returncode": 0}, {"returncode": 0}, []))
+            request.assert_not_called()
 
     def test_doctor_reads_project_stacks_and_managed_instructions_in_rust(self):
         agents = self.project / "AGENTS.md"

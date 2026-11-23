@@ -62,6 +62,8 @@ mod doctor_report;
 
 #[path = "pending_publication_settlement.rs"]
 pub(super) mod pending_publication_settlement;
+#[path = "preflight_failures.rs"]
+mod preflight_failures;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -102,6 +104,7 @@ impl CompletionProcess {
             );
         }
         let result = match args[1].to_str() {
+            Some("preflight-failures") => preflight_failures::PreflightFailures::collect(&payload),
             Some("doctor-launcher") => doctor_launcher::DoctorLauncher::inspect(&payload),
             Some("doctor-memory") => doctor_memory::DoctorMemory::summarize(&payload),
             Some("doctor-node-manifests") => doctor_node_manifests::DoctorNodeManifests::inspect(&payload),

@@ -34,6 +34,7 @@ from agent_worker_evidence import (
 )
 from agent_workspace_policy import is_git_status_review_only, non_git_writing_workspace_note
 from support.global_state import project_scoped_state_error, project_state_dir_target
+from support.native_probe_transport import NativeProbe
 from workflow_catalog import COMMANDS, CONCERNS, PLATFORM_CONCERNS, PLATFORMS, SPILL_ROUTE_LABELS
 from workflow_common import unique
 from workflow_doc_surfaces import extract_request_surface_paths, git_status_surface_paths
@@ -503,6 +504,38 @@ def route_command_record(
 
 
 def collect_failures(
+    route_result: dict[str, Any],
+    route_payload: dict[str, Any] | None,
+    route_parse_error: str,
+    git_status: dict[str, Any],
+    vibeguard: dict[str, Any],
+    hook_failures: list[str],
+) -> list[str]:
+    route_status = route_result.get("returncode")
+    git_code = git_status.get("returncode")
+    audit_code = vibeguard.get("returncode")
+    if route_payload is None or isinstance(route_payload, dict):
+        missing = route_payload.get("missing") if route_payload else None
+        if route_status or route_parse_error or missing or git_code or audit_code or hook_failures:
+            native = NativeProbe.request("--completion-probe", "preflight-failures", {
+                "route_status": route_status,
+                "route_stdout": route_result.get("stdout", "") if route_status else "",
+                "route_stderr": route_result.get("stderr", "") if route_status else "",
+                "route_parse_error": route_parse_error,
+                "route_missing": missing,
+                "git_status": git_code,
+                "git_review_only": git_status.get("review_only", False),
+                "audit_status": audit_code,
+                "hook_failures": hook_failures,
+            })
+            if native is not None and set(native) == {"failures"}:
+                result = native["failures"]
+                if isinstance(result, list) and all(isinstance(item, str) for item in result):
+                    return result
+    return _collect_failures_python(route_result, route_payload, route_parse_error, git_status, vibeguard, hook_failures)
+
+
+def _collect_failures_python(
     route_result: dict[str, Any],
     route_payload: dict[str, Any] | None,
     route_parse_error: str,

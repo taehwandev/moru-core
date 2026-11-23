@@ -197,10 +197,12 @@
       "id": "scripts/agent-preflight.py",
       "inventory_id": 10,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "agent-preflight",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port the CLI, route orchestration, evidence and authority boundaries. Python retains compatibility for unsupported diagnostics.",
+      "verification": {
+        "local": "Source-bound Rust projects ordered preflight failure diagnostics, preserves Unicode route-summary normalization and clipping, and declines unsupported payloads before emitting a result."
+      }
     },
     {
       "id": "scripts/agent_doctor.py",
