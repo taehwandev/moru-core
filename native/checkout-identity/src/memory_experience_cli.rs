@@ -19,10 +19,12 @@ use sha2::{Digest, Sha256};
 use std::{
     ffi::OsString,
     io::{self, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 const ENTRY: &str = "experience-eval";
+const PROG: &str = "agent_experience_eval.py";
+const USAGE: &[&str] = &["[-h]", "[--engine-root ENGINE_ROOT]", "[--fixture FIXTURE]"];
 const DEFAULT_FIXTURE: &str = "tests/fixtures/project-memory-experience-cases.json";
 const ENGINE: &str = "scripts/agent_project_memory.py";
 const MEASUREMENT: &str = "rendered retrieval only; listing cases and applicability judgments are excluded from retrieval metrics";
@@ -31,8 +33,17 @@ pub(crate) struct ExperienceCli;
 
 impl ExperienceCli {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
-        let Some(output) = Self::report(launcher, &args[1..]) else {
-            crate::exec_python(launcher, args);
+        let output = match Self::report(launcher, &args[1..]) {
+            Some(Ok(output)) => output,
+            Some(Err(error)) => {
+                let Some(width) = plain_width() else {
+                    crate::exec_python(launcher, args);
+                };
+                let usage = ArgparseHelp::usage(PROG, USAGE, width);
+                let _ = write!(io::stderr().lock(), "{usage}{PROG}: error: {error}\n");
+                return 2;
+            }
+            None => crate::exec_python(launcher, args),
         };
         let mut stdout = io::stdout().lock();
         i32::from(
@@ -43,22 +54,35 @@ impl ExperienceCli {
         )
     }
 
-    fn report(launcher: &OsString, args: &[OsString]) -> Option<String> {
+    fn report(launcher: &OsString, args: &[OsString]) -> Option<Result<String, String>> {
         if !PythonEncoding::utf8() {
             return None;
         }
         let root = CallbackGuard::root(launcher, ENTRY)?;
         if let [arg] = args {
             if matches!(arg.to_str()?, "-h" | "--h" | "--he" | "--hel" | "--help") {
-                return plain_help();
+                return plain_help().map(Ok);
             }
         }
-        let fixture_path = fixture_path(&root, args)?;
+        let fixture_path = match fixture_path(&root, args)? {
+            Ok(path) => path,
+            Err(error) => return Some(Err(error)),
+        };
         // A conservative digit limit allows exact fallback for larger inputs.
-        let fixture = ExperienceFixture::load(fixture_path.as_os_str(), 640)?.ok()?;
+        let fixture = match ExperienceFixture::decode(fixture_path.as_os_str(), 640, true)? {
+            Ok(fixture) => fixture,
+            Err(error) => return Some(Err(error)),
+        };
         if !portable_text(&fixture) {
             return None;
         }
+        if let Err(error) = ExperienceFixture::validate(&fixture) {
+            return Some(Err(error));
+        }
+        Self::render(&root, &fixture_path, &fixture).map(Ok)
+    }
+
+    fn render(root: &Path, fixture_path: &Path, fixture: &Value) -> Option<String> {
         let today = local_date()?;
         let prepared = ExperienceRecords::evaluate(&json!({
             "today": today, "records": fixture.get("records")?,
@@ -82,7 +106,7 @@ impl ExperienceCli {
         result.as_object_mut()?.extend(report.as_object()?.clone());
         result["inputs"] = json!({
             "engine": provenance(&root.join(ENGINE))?,
-            "fixture": provenance(&fixture_path)?,
+            "fixture": provenance(fixture_path)?,
         });
         let mut output = OverheadReportText::json(&result)?;
         output.push('\n');
@@ -90,7 +114,7 @@ impl ExperienceCli {
     }
 }
 
-fn fixture_path(root: &Path, args: &[OsString]) -> Option<PathBuf> {
+fn fixture_path(root: &Path, args: &[OsString]) -> Option<Result<PathBuf, String>> {
     let mut words = args.iter();
     let (mut fixture, mut engine) = (None, None);
     while let Some(raw) = words.next() {
@@ -98,32 +122,45 @@ fn fixture_path(root: &Path, args: &[OsString]) -> Option<PathBuf> {
         let (flag, inline) = raw
             .split_once('=')
             .map_or((raw, None), |(flag, text)| (flag, Some(text)));
-        let destination = match flag {
-            flag if flag.len() > 2 && "--fixture".starts_with(flag) => &mut fixture,
-            flag if flag.len() > 2 && "--engine-root".starts_with(flag) => &mut engine,
+        let (name, destination) = match flag {
+            flag if flag.len() > 2 && "--fixture".starts_with(flag) => ("--fixture", &mut fixture),
+            flag if flag.len() > 2 && "--engine-root".starts_with(flag) => {
+                ("--engine-root", &mut engine)
+            }
             _ => return None, // Unproven ordering and diagnostics stay with argparse.
         };
         let path = match inline {
             Some(path) => path,
-            None => words
-                .next()?
-                .to_str()
-                .filter(|word| !word.starts_with('-'))?,
+            None => {
+                let Some(value) = words.next() else {
+                    return Some(Err(format!("argument {name}: expected one argument")));
+                };
+                value.to_str().filter(|word| !word.starts_with('-'))?
+            }
         };
         if path.starts_with("//") {
             return None;
         }
-        *destination = Some(PathBuf::from(path));
+        // Match pathlib's lexical spelling before opening or reporting a path.
+        let normalized: PathBuf = Path::new(path)
+            .components()
+            .filter(|part| *part != Component::CurDir)
+            .collect();
+        *destination = Some(if normalized.as_os_str().is_empty() {
+            ".".into()
+        } else {
+            normalized
+        });
     }
     if let Some(engine) = engine {
         if engine.canonicalize().ok()? != root.join("scripts").canonicalize().ok()? {
             return None;
         }
     }
-    Some(fixture.unwrap_or_else(|| root.join(DEFAULT_FIXTURE)))
+    Some(Ok(fixture.unwrap_or_else(|| root.join(DEFAULT_FIXTURE))))
 }
 
-fn plain_help() -> Option<String> {
+fn plain_width() -> Option<usize> {
     if std::env::var_os("FORCE_COLOR").is_some()
         || unsafe { libc::isatty(1) != 0 || libc::isatty(2) != 0 }
     {
@@ -134,13 +171,18 @@ fn plain_help() -> Option<String> {
         Err(std::env::VarError::NotPresent) => 80,
         _ => return None,
     };
+    (32..=512).contains(&columns).then(|| columns - 2)
+}
+
+fn plain_help() -> Option<String> {
+    let width = plain_width()?;
     let description = env!("MORU_EXPERIENCE_DESCRIPTION");
-    if description.is_empty() || !(32..=512).contains(&columns) {
+    if description.is_empty() {
         return None;
     }
     Some(ArgparseHelp::help(
-        "agent_experience_eval.py",
-        &["[-h]", "[--engine-root ENGINE_ROOT]", "[--fixture FIXTURE]"],
+        PROG,
+        USAGE,
         description,
         env!("MORU_ARGPARSE_OPTIONS_TITLE"),
         &[
@@ -148,7 +190,7 @@ fn plain_help() -> Option<String> {
             ("--engine-root ENGINE_ROOT", ""),
             ("--fixture FIXTURE", ""),
         ],
-        columns - 2,
+        width,
     ))
 }
 

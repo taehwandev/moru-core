@@ -180,6 +180,7 @@ class ExperienceEvaluationTests(unittest.TestCase):
         normal = (
             ("Pacific/Kiritimati", []),
             ("America/Los_Angeles", ["--fixture", alias.name]),
+            ("UTC0", ["--fixture", alias.name + "/"]),
             ("UTC0", ["--f", "nonexistent.json", f"--fix={alias.name}", f"--e={engine_link}"]),
             ("UTC0", ["--engine-root", "missing", "--engine-root", str(engine_link)]),
         )
@@ -204,6 +205,29 @@ class ExperienceEvaluationTests(unittest.TestCase):
         )
         broken = project / "broken.json"
         broken.symlink_to(project / "missing.json")
+        directory = project / "fixture directory"
+        directory.mkdir()
+        wrong_schema = project / "schema.json"
+        wrong_schema.write_text('{"schema_version": true}', encoding="utf-8")
+        bad_json = project / "invalid.json"
+        bad_json.write_bytes('{"name": "한글",\r\n "value": }'.encode())
+        diagnostics = (
+            ["--fi"], ["--engine-root"],
+            ["--fixture=./missing//quote'file.json"],
+            ["--fixture", directory.name + "/"], ["--fixture="],
+            ["--fixture=" + broken.name], ["--fixture", wrong_schema.name], ["--fixture", bad_json.name],
+        )
+        for args in diagnostics:
+            with self.subTest(native_error=args):
+                expected = invoke(args, selected_path=with_python, zone="UTC0", backend="python", COLUMNS="48")
+                native = invoke(args, selected_path=empty, zone="UTC0", COLUMNS="48")
+                self.assertEqual((2, b""), native[:2], native[2])
+                self.assertEqual(expected, native)
+
+        trailing = project / "trailing.json"
+        trailing.write_text('{"schema_version":1,}', encoding="utf-8")
+        malformed = project / "invalid-utf8.json"
+        malformed.write_bytes(b'{"name":"\xff"}')
         historic = project / "historical"
         historic.mkdir()
         (historic / "agent_project_memory.py").write_text(
@@ -215,8 +239,8 @@ class ExperienceEvaluationTests(unittest.TestCase):
         self.assertEqual(0, historic_report[0], historic_report[2])
         self.assertEqual([], json.loads(historic_report[1])["cases"][0]["ranked_ids"])
         self.assertEqual(historic_report, invoke(historic_args, selected_path=with_python, zone="UTC0", backend="python"))
-        for args in (["--unsupported"], ["--fixture=" + broken.name], ["--fi"], ["--fixture", "--help"],
-                     ["--help=1"], ["--"], ["--help", "--unsupported"]):
+        for args in (["--unsupported"], ["--fixture", "--help"], ["--fixture", trailing.name],
+                     ["--fixture", malformed.name], ["--help=1"], ["--"], ["--help", "--unsupported"]):
             with self.subTest(fallback=args):
                 expected = invoke(args, selected_path=with_python, zone="UTC0", backend="python")
                 self.assertEqual(expected, invoke(args, selected_path=with_python, zone="UTC0"))

@@ -6,7 +6,7 @@ use crate::{
     memory_record::MemoryRecord,
     memory_terms::MemoryTerms,
     python_input_file::{FileRead, PythonInputFile},
-    python_json::{Number as PythonNumber, PythonJson, Value as PythonValue},
+    python_json::{InputDiagnostic, Number as PythonNumber, PythonJson, Value as PythonValue},
     python_text::PythonText,
     text::Text,
 };
@@ -54,16 +54,38 @@ impl ExperienceFixture {
     }
 
     pub(super) fn load(path: &OsStr, digit_limit: usize) -> Option<Result<Value, String>> {
-        let FileRead::Bytes(bytes) = PythonInputFile::read(path, MAX_FIXTURE_BYTES, false)? else {
-            return None;
-        };
-        let text = Text::universal_newlines(std::str::from_utf8(&bytes).ok()?);
-        let decoded = PythonJson::parse_with_diagnostic(&text, Some(digit_limit), None).ok()??;
-        let fixture = wire_value(&decoded)?;
+        let fixture = Self::decode(path, digit_limit, false)?.ok()?;
         Some(Self::validate(&fixture).map(|()| fixture))
     }
 
-    fn validate(fixture: &Value) -> Result<(), String> {
+    pub(super) fn decode(
+        path: &OsStr,
+        digit_limit: usize,
+        diagnostics: bool,
+    ) -> Option<Result<Value, String>> {
+        let bytes = match PythonInputFile::read(path, MAX_FIXTURE_BYTES, false)? {
+            FileRead::Bytes(bytes) => bytes,
+            FileRead::Error(error) if diagnostics && path.to_str()?.is_ascii() => {
+                return Some(Err(error));
+            }
+            _ => return None,
+        };
+        let text = Text::universal_newlines(std::str::from_utf8(&bytes).ok()?);
+        let digit_limit = Some(digit_limit);
+        match PythonJson::parse_with_diagnostic(&text, digit_limit, Some(false)) {
+            Ok(Some(decoded)) => wire_value(&decoded).map(Ok),
+            Err(InputDiagnostic::Syntax(error)) if diagnostics => {
+                // The launcher cannot assume the consumer's JSON diagnostic profile.
+                match PythonJson::parse_with_diagnostic(&text, digit_limit, Some(true)) {
+                    Err(InputDiagnostic::Syntax(other)) if other == error => Some(Err(error)),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub(super) fn validate(fixture: &Value) -> Result<(), String> {
         if fixture.get("schema_version").and_then(Value::as_i64) != Some(1) {
             return Err("fixture schema_version must be 1".into());
         }
