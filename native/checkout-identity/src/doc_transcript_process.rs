@@ -1,7 +1,9 @@
 //! owner: DocTranscriptProcess; allowed imports: source guard, file-scan owner,
 //! std/JSON; forbidden imports: writes, providers, marker/evidence authority;
 //! callers/tests: private native probe; actual file/source and transported tests.
-use crate::{doc_transcript::DocTranscript, pretool_guard::CallbackGuard};
+use crate::{
+    agy_skill_read::AgySkillRead, doc_transcript::DocTranscript, pretool_guard::CallbackGuard,
+};
 use serde_json::{json, Value};
 use std::{
     ffi::OsString,
@@ -44,6 +46,7 @@ impl DocTranscriptProcess {
                         | "nearest-registry-project"
                         | "agy-delivery-request"
                         | "agy-delivery-stdout"
+                        | "agy-skill-read-note"
                         | "agy-redelivery"
                         | "agy-prepared-delivery"
                         | "agy-delivery-preparation"
@@ -95,6 +98,14 @@ impl DocTranscriptProcess {
                 if args[1] == "agy-delivery-stdout" && object.len() == 1 {
                     return agy_doc_response::encode(object.get("text")?.as_str()?)
                         .map(Value::String);
+                }
+                if args[1] == "agy-skill-read-note" && object.len() == 3 {
+                    return AgySkillRead::note(
+                        object.get("path")?.as_str()?,
+                        object.get("start")?.as_i64()?,
+                        object.get("end")?.as_i64()?,
+                    )
+                    .map(Value::String);
                 }
                 if args[1] == "agy-redelivery" && object.len() == 6 {
                     return agy_doc_redelivery::AgyDocDelivery::redeliver(&payload);

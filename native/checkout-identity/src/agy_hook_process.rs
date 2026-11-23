@@ -4,9 +4,10 @@
 //! callers/tests: stable launcher agy-hook and generated callback conformance;
 //! verification: bytes, no-Python read decisions and complete compatibility replay.
 use crate::{
+    agy_skill_read::AgySkillRead,
     callback_replay::CallbackReplay,
     pretool_guard::CallbackGuard,
-    python_json::{ParseOutcome, PythonJson, Value},
+    python_json::{Number, ParseOutcome, PythonJson, Value},
     python_text::PythonText,
 };
 use std::{
@@ -104,12 +105,29 @@ fn no_tool_policy(payload: &Value) -> Option<bool> {
                 Some(value) => value.as_str()?,
                 None => "",
             };
+            if Path::new(path)
+                .file_name()
+                .is_none_or(|name| name != "SKILL.md")
+            {
+                return Some(true);
+            }
             Some(
-                Path::new(path)
-                    .file_name()
-                    .is_none_or(|name| name != "SKILL.md"),
+                AgySkillRead::note(
+                    path,
+                    bound(args.get("StartLine"))?,
+                    bound(args.get("EndLine"))?,
+                )?
+                .is_empty(),
             )
         }
         _ => Some(true),
+    }
+}
+
+fn bound(value: Option<&Value>) -> Option<i64> {
+    match value {
+        None | Some(Value::Null) => Some(0),
+        Some(Value::Number(Number::Integer(raw))) => raw.parse().ok(),
+        _ => None,
     }
 }

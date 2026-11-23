@@ -205,6 +205,15 @@ def partial_read_note(args: dict, conversation: str) -> str:
     path = Path(str(args.get("Path") or args.get("AbsolutePath") or ""))
     if path.name != "SKILL.md":
         return ""
+    from support.native_doc_transcript import agy_skill_read_note
+
+    note = agy_skill_read_note(path, args.get("StartLine"), args.get("EndLine"))
+    if note is None:
+        note = _partial_read_note_python(path, args)
+    return "" if not note or already_delivered(conversation, note, "partial-read") else note
+
+
+def _partial_read_note_python(path: Path, args: dict) -> str:
     try:
         total = len(path.read_text(encoding="utf-8").splitlines())
         first, last = int(args.get("StartLine") or 1), int(args.get("EndLine") or total)
@@ -212,9 +221,8 @@ def partial_read_note(args: dict, conversation: str) -> str:
         return ""
     if first <= 1 and last >= total:
         return ""
-    note = (f"{path.name} in {path.parent.name} has {total} lines and you asked for {first}-{last}. A skill is "
+    return (f"{path.name} in {path.parent.name} has {total} lines and you asked for {first}-{last}. A skill is "
             f"guidance to read to its end: read lines {last + 1}-{total} (or the whole file) before relying on it.")
-    return "" if already_delivered(conversation, note, "partial-read") else note
 
 
 def pre_tool(payload: dict) -> dict:

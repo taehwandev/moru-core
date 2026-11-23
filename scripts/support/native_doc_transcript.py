@@ -235,6 +235,19 @@ def agy_delivery_request(*, payload=None, raw=None) -> tuple[str, list[str], str
     return None
 
 
+def agy_skill_read_note(path: Path, start, end) -> str | None:
+    bounds = [0 if value is None else value for value in (start, end)]
+    if not all(_integer(value) for value in bounds):
+        return None
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "agy-skill-read-note", {
+            "path": str(path), "start": bounds[0], "end": bounds[1],
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    return value if type(value) is str else None
+
+
 def agy_delivery_stdout(text: str) -> str | None:
     try:
         value = _value(NativeProbe.request("--doc-transcript-probe", "agy-delivery-stdout", {"text": text}))
