@@ -21,6 +21,7 @@ import test_agent_required_doc_delivery as delivery_fixtures
 import test_agent_required_doc_reuse as reuse_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
+from support.agy_setup import _agy_hooks_spec
 from support.native_doc_transcript import (
     NativeDocTranscript, agy_delivery_preparation, agy_delivery_request, agy_delivery_stdout, agy_redelivery,
     agy_skill_read_note,
@@ -140,14 +141,23 @@ class NativeDocTranscriptTests(unittest.TestCase):
             self.assertIsNone(agy_delivery_stdout("\ud800"))
 
     def test_native_agy_ingress_preserves_public_noop_output_and_exact_replay(self):
-        def invoke(event, raw, path, **overrides):
+        def invoke(event, raw, path, *extra, **overrides):
+            argv = [str(self.entry)]
+            if event != "pre-tool":
+                argv.insert(0, str(self.entry.with_name("moru-hook-native")))
             return subprocess.run(
-                [str(self.entry.with_name("moru-hook-native")), str(self.entry), "agy-hook", event],
+                [*argv, "agy-hook", event, *extra],
                 input=raw, cwd=self.project, env={**self.env, "PATH": str(path), **overrides},
                 capture_output=True, timeout=8,
             )
 
         allow = b'{"decision": "allow"}\n'
+        command = _agy_hooks_spec(self.entry)["PreToolUse"][0]["hooks"][0]["command"]
+        raw = b'{"toolCall":{"name":"read_file","args":{"Path":"src/ordinary.py"}}}'
+        shell_env = {key: value for key, value in self.env.items() if key != "MORU_LAUNCHER_BACKEND"}
+        configured = subprocess.run(["/bin/sh", "-c", command], input=raw, cwd=self.project,
+                                    env=shell_env, capture_output=True, timeout=8)
+        self.assertEqual((0, allow, b""), result(configured))
         limit = 128 * 1024
         for event, raw, expected in (
             ("pre-tool", b'{"toolCall":{"name":"unknown"}}', allow),
@@ -184,11 +194,20 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 self.assertEqual((0, raw, b""), result(invoke(event, raw, replay)))
         raw = b'{"toolCall":{"name":"unknown"}}'
         self.assertEqual((0, raw, b""), result(invoke("pre-tool", raw, replay, PYTHONIOENCODING="latin-1")))
+        self.assertEqual((0, raw, b""), result(invoke("pre-tool", raw, replay, "extra")))
+        self.assertEqual((0, raw, b""), result(invoke("pre-tool", raw, replay, MORU_LAUNCHER_BACKEND="python")))
+        self.assertEqual((0, raw, b""), result(invoke("pre-tool", raw, replay, MORU_HOME=str(self.project))))
+        for event in ("pre-invocation", "stop"):
+            public = subprocess.run([str(self.entry), "agy-hook", event], input=b"{broken", cwd=self.project,
+                                    env={**self.env, "PATH": str(replay)}, capture_output=True, timeout=8)
+            self.assertEqual((0, b"{broken", b""), result(public))
         python.write_text("#!/bin/sh\n/bin/cat >/dev/null\nprintf '{\"decision\": \"deny\"}\\n'\nexit 7\n",
                           encoding="utf-8")
         self.assertEqual((7, b'{"decision": "deny"}\n', b""), result(invoke(
             "pre-tool", b'{"toolCall":{"name":"edit_file"}}', replay, MORU_AGY_GATE="strict",
         )))
+        self.entry.with_name("moru-hook-native").chmod(0o644)
+        self.assertEqual((7, b'{"decision": "deny"}\n', b""), result(invoke("pre-tool", raw, replay)))
 
     def test_native_agy_skill_notice_matches_ranges_and_keeps_deduplication(self):
         skill = self.project / "한글" / "SKILL.md"
