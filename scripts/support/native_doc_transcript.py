@@ -182,11 +182,16 @@ def agy_redelivery(evidence: Path, transcript: Path, limit: int, inline_limit: i
     })
 
 
-def agy_prepared_delivery(evidence, transcript, rules, docs, plan, inline_limit, total_limit) -> str | None:
-    return _agy_delivery("agy-prepared-delivery", {
+def agy_prepared_delivery(
+    evidence, transcript, rules, docs, plan, inline_limit, total_limit, *, reused=(),
+) -> str | None:
+    payload = {
         "evidence": str(evidence), "transcript": str(transcript), "rules": str(rules),
         "docs": docs, "plan": plan, "inline_limit": inline_limit, "total_limit": total_limit,
-    })
+    }
+    if reused:
+        payload["reused"] = list(reused)
+    return _agy_delivery("agy-prepared-delivery", payload)
 
 
 def _agy_delivery(operation, payload) -> str | None:
@@ -251,11 +256,50 @@ def read_delivery_manifest(path: Path) -> tuple[Path, list[str]] | None:
                                            {"path": str(path)}))
     except (OSError, ValueError, RuntimeError):
         return None
+    return _delivery_manifest(value)
+
+
+def _delivery_manifest(value) -> tuple[Path, list[str]] | None:
     if type(value) is list and len(value) == 2 and type(value[0]) is str:
         docs = value[1]
         if type(docs) is list and all(type(doc) is str for doc in docs) and len(set(docs)) == len(docs):
             return Path(value[0]), docs
     return None
+
+
+def _delivery_plan(state) -> dict | None:
+    if type(state) is not dict:
+        return None
+    if state == {"action": "skip"}:
+        return state
+    if type(state.get("offset")) is not int or state["offset"] < 0:
+        return None
+    if state.get("action") == "upgrade" and set(state) == {"action", "offset", "delivered"}:
+        delivered = state["delivered"]
+        if type(delivered) is list and all(type(doc) is str for doc in delivered):
+            return state
+    if state.get("action") == "deliver" and set(state) == {"action", "offset", "had_previous", "redeliveries"}:
+        if type(state["had_previous"]) is bool and _integer(state["redeliveries"]):
+            return state
+    return None
+
+
+def agy_delivery_preparation(evidence: Path, transcript: Path, limit: int):
+    try:
+        value = _value(NativeProbe.request("--doc-transcript-probe", "agy-delivery-preparation", {
+            "evidence": str(evidence), "transcript": str(transcript), "limit": limit,
+        }))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if type(value) is not list or len(value) != 2:
+        return None
+    plan = _delivery_plan(value[0])
+    if plan is None:
+        return None
+    if plan["action"] != "deliver":
+        return (plan, None) if value[1] is None else None
+    manifest = _delivery_manifest(value[1])
+    return (plan, manifest) if manifest is not None else None
 
 
 class NativeDocTranscript:
@@ -280,21 +324,7 @@ class NativeDocTranscript:
                                          {"marker": str(marker), "path": str(transcript), "limit": limit})
         except (OSError, ValueError, RuntimeError):
             return None
-        state = _value(result)
-        if type(state) is not dict:
-            return None
-        if state == {"action": "skip"}:
-            return state
-        if type(state.get("offset")) is not int or state["offset"] < 0:
-            return None
-        if state.get("action") == "upgrade" and set(state) == {"action", "offset", "delivered"}:
-            delivered = state["delivered"]
-            if type(delivered) is list and all(type(doc) is str for doc in delivered):
-                return state
-        if state.get("action") == "deliver" and set(state) == {"action", "offset", "had_previous", "redeliveries"}:
-            if type(state["had_previous"]) is bool and _integer(state["redeliveries"]):
-                return state
-        return None
+        return _delivery_plan(_value(result))
 
     @staticmethod
     def read_docs(rules: Path, docs: list[str]) -> dict[str, str] | None:

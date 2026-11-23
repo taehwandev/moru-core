@@ -43,6 +43,7 @@ impl DocTranscriptProcess {
                         | "agy-delivery-request"
                         | "agy-redelivery"
                         | "agy-prepared-delivery"
+                        | "agy-delivery-preparation"
                         | "delivery-plan"
                         | "write-marker"
                 )
@@ -91,7 +92,12 @@ impl DocTranscriptProcess {
                 if args[1] == "agy-redelivery" && object.len() == 6 {
                     return agy_doc_redelivery::AgyDocDelivery::redeliver(&payload);
                 }
-                if args[1] == "agy-prepared-delivery" && object.len() == 8 {
+                if args[1] == "agy-delivery-preparation" && object.len() == 3 {
+                    return agy_doc_redelivery::AgyDocDelivery::preparation(&payload);
+                }
+                if args[1] == "agy-prepared-delivery"
+                    && (object.len() == 8 || (object.len() == 9 && object.contains_key("reused")))
+                {
                     return agy_doc_redelivery::AgyDocDelivery::deliver_prepared(&payload);
                 }
                 if args[1] == "write-marker" && object.len() == 5 {

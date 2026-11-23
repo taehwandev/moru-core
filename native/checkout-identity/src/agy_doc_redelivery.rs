@@ -19,6 +19,24 @@ use std::{
 pub(super) struct AgyDocDelivery;
 
 impl AgyDocDelivery {
+    pub(super) fn preparation(payload: &Value) -> Option<Value> {
+        let evidence = Path::new(payload.get("evidence")?.as_str()?);
+        let transcript = Path::new(payload.get("transcript")?.as_str()?);
+        let plan = DocTranscript::delivery_plan(
+            &evidence.with_file_name(MARKER),
+            transcript,
+            payload.get("limit")?.as_i64()?,
+        )?;
+        // An acknowledged marker can settle the decision even when the
+        // preflight is missing or malformed.
+        let manifest = if plan.get("action")?.as_str()? == "deliver" {
+            DocTranscript::read_delivery_manifest(evidence)?
+        } else {
+            Value::Null
+        };
+        Some(json!([plan, manifest]))
+    }
+
     pub(super) fn redeliver(payload: &Value) -> Option<Value> {
         let evidence = Path::new(payload.get("evidence")?.as_str()?);
         if evidence.file_name()?.to_str()? != "preflight.json" {
@@ -69,13 +87,9 @@ impl AgyDocDelivery {
         let transcript = Path::new(payload.get("transcript")?.as_str()?);
         bounded_transcript(transcript)?;
         let destination = DocDeliveryMarker::open(&evidence.with_file_name(MARKER))?;
-        let (response, pending, count) = prepare(
-            payload.get("rules")?,
-            payload.get("docs")?,
-            transcript,
-            payload,
-            plan,
-        )?;
+        let docs = delivery_docs(payload, transcript, plan)?;
+        let (response, pending, count) =
+            prepare(payload.get("rules")?, &docs, transcript, payload, plan)?;
         Self::finish(&destination, payload, plan, response, pending, count)
     }
 
@@ -104,6 +118,36 @@ impl AgyDocDelivery {
             json!({"write_failed": true})
         })
     }
+}
+
+fn delivery_docs(payload: &Value, transcript: &Path, plan: &Value) -> Option<Value> {
+    let docs = payload.get("docs")?;
+    let Some(reused) = payload.get("reused") else {
+        return Some(docs.clone());
+    };
+    let reused = reused.as_array()?;
+    if reused.is_empty() {
+        return Some(docs.clone());
+    }
+    if plan.get("had_previous")?.as_bool()? {
+        return None;
+    }
+    let reused = reused
+        .iter()
+        .map(Value::as_str)
+        .collect::<Option<HashSet<_>>>()?;
+    if DocTranscript::compacted(transcript)? {
+        return Some(docs.clone());
+    }
+    let docs = docs
+        .as_array()?
+        .iter()
+        .map(Value::as_str)
+        .collect::<Option<Vec<_>>>()?;
+    Some(json!(docs
+        .into_iter()
+        .filter(|doc| !reused.contains(doc))
+        .collect::<Vec<_>>()))
 }
 
 fn bounded_transcript(transcript: &Path) -> Option<()> {

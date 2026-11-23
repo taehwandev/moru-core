@@ -154,29 +154,32 @@ def _deliver(payload: dict, evidence: Path, read_in_context, closeout: bool, *, 
     try:
         marker = evidence.parent / MARKER
         transcript = Path(str(payload.get("transcript_path") or ""))
-        plan = _delivery_plan(marker, transcript, MAX_REDELIVERIES + (1 if closeout else 0))
+        limit = MAX_REDELIVERIES + (1 if closeout else 0)
+        preparation = None
+        if agy:
+            from support.native_doc_transcript import agy_delivery_preparation
+
+            preparation = agy_delivery_preparation(evidence, transcript, limit)
+        plan, manifest = preparation if preparation is not None else (_delivery_plan(marker, transcript, limit), None)
         if plan["action"] == "skip":
             return ""
         if plan["action"] == "upgrade":
             _write_marker(marker, plan["delivered"], plan["offset"], 0)
             return ""
-        rules, docs = _delivery_manifest(evidence)
-        # A reuse proof says an earlier run took the doc in, not that its text is
-        # in this context; a compaction since the proof was made voids it.
+        rules, docs = manifest if manifest is not None else _delivery_manifest(evidence)
+        # A reuse proof carries no time; compaction may have evicted it.
         reuse = {} if plan["had_previous"] else required_doc_reuse(evidence)
         reused = set(reuse.get("reused") or [])
-        if reused and _compacted_before(transcript):
-            # The reuse proof carries no time, so any compaction may have evicted the
-            # docs it covers; delivering again is cheap, a missing doc is not.
-            reused = set()
-        docs = [doc for doc in docs if doc not in reused]
         if agy:
             from support.native_doc_transcript import agy_prepared_delivery
 
             text = agy_prepared_delivery(evidence, transcript, rules, docs, plan,
-                                         MAX_INLINE_DOC_BYTES, MAX_DELIVERY_BYTES)
+                                         MAX_INLINE_DOC_BYTES, MAX_DELIVERY_BYTES, reused=reused)
             if text is not None:
                 return text
+        if reused and _compacted_before(transcript):
+            reused = set()
+        docs = [doc for doc in docs if doc not in reused]
         texts = _read_docs(rules, docs)
         read = (read_in_context or _read_in_context)(transcript, rules, texts)
         pending = [doc for doc in docs if doc not in read]

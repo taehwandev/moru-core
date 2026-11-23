@@ -22,7 +22,8 @@ import test_agent_required_doc_reuse as reuse_fixtures
 import test_agy_required_docs_hook as agy_fixtures
 from native_pretool_support import environment, prepare, result
 from support.native_doc_transcript import (
-    NativeDocTranscript, agy_delivery_request, agy_redelivery, nearest_registry_project, read_delivery_manifest,
+    NativeDocTranscript, agy_delivery_preparation, agy_delivery_request, agy_redelivery,
+    nearest_registry_project, read_delivery_manifest,
     reuse_credit,
     discover_reuse_roots, rank_reuse_roots, reuse_current, reuse_matches, reuse_run_ids,
 )
@@ -1006,6 +1007,26 @@ class NativeDocTranscriptTests(unittest.TestCase):
                 fallback.assert_called_once()
             self.assertEqual(after, marker.read_bytes())
 
+    def test_agy_preparation_does_not_need_manifest_for_skip_or_upgrade(self):
+        fixture = agy_fixtures.AgyHookTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        evidence, transcript = fixture.evidence, fixture.transcript
+        marker = evidence.with_name(reference.MARKER)
+        evidence.write_text("{", encoding="utf-8")
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertIsNone(agy_delivery_preparation(evidence, transcript, 3))
+            self.assertFalse(marker.exists())
+            for original, action in (({"delivered": [], "transcript_bytes": 0}, "skip"),
+                                     ({"delivered": [agy_fixtures.CORE]}, "upgrade")):
+                with self.subTest(action=action):
+                    marker.write_text(json.dumps(original), encoding="utf-8")
+                    before = marker.read_bytes()
+                    expected = reference._delivery_plan_python(marker, transcript, 3)
+                    self.assertEqual(action, expected["action"])
+                    self.assertEqual((expected, None), agy_delivery_preparation(evidence, transcript, 3))
+                    self.assertEqual(before, marker.read_bytes())
+
     def test_agy_prepared_first_delivery_respects_reuse_and_compaction(self):
         for reused, compacted, expected_docs in (
             ([agy_fixtures.CORE], False, [agy_fixtures.OTHER]),
@@ -1027,10 +1048,14 @@ class NativeDocTranscriptTests(unittest.TestCase):
                         expected = fixture._hook()
                         expected_marker = marker.read_bytes()
                     marker.unlink()
-                    with patch.dict(os.environ, self.env, clear=True), patch.object(
-                            reference, "_read_docs", side_effect=AssertionError("legacy delivery")) as fallback:
+                    with patch.dict(os.environ, self.env, clear=True), patch.multiple(
+                            reference, _read_docs=unittest.mock.DEFAULT, _delivery_plan=unittest.mock.DEFAULT,
+                            _delivery_manifest=unittest.mock.DEFAULT, _compacted_before=unittest.mock.DEFAULT) as old:
+                        for call in old.values():
+                            call.side_effect = AssertionError("legacy preparation or delivery")
                         self.assertEqual(expected, fixture._hook())
-                        fallback.assert_not_called()
+                        for call in old.values():
+                            call.assert_not_called()
                     self.assertEqual([fixture.evidence, fixture.evidence],
                                      [call.args[0] for call in reuse.call_args_list])
                 self.assertEqual(expected_marker, marker.read_bytes())
