@@ -88,6 +88,8 @@ mod structure_owner_findings;
 mod structure_removal_matching;
 #[path = "structure_move_matching.rs"]
 mod structure_move_matching;
+#[path = "structure_action_delta.rs"]
+mod structure_action_delta;
 #[path = "structure_net_deletions.rs"]
 mod structure_net_deletions;
 #[path = "structure_source_paths.rs"]
@@ -136,6 +138,7 @@ impl CompletionProcess {
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),
             Some("structure-removal-matching") => structure_removal_matching::StructureRemovalMatching::compare(&payload),
             Some("structure-move-matching") => structure_move_matching::StructureMoveMatching::compare(&payload),
+            Some("structure-action-delta") => structure_action_delta::StructureActionDelta::classify(&payload),
             Some("structure-block-spans") => structure_block_spans::StructureBlockSpans::batch(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("preflight-failures") => preflight_failures::PreflightFailures::collect(&payload),

@@ -9,24 +9,28 @@ use std::collections::HashMap;
 pub(super) struct StructureMoveMatching;
 
 impl StructureMoveMatching {
+    pub(super) const WORK_BUDGET: usize = 4_000_000;
+
     pub(super) fn compare(input: &Value) -> Option<Value> {
         let current = Self::lines(input.get("current")?)?;
         let candidates = input.get("candidates")?.as_array()?;
-        let mut positions: HashMap<&str, Vec<usize>> = HashMap::new();
-        for (index, line) in current.iter().enumerate() {
-            positions.entry(line).or_default().push(index);
-        }
+        let positions = Self::positions(&current);
         // Bound repeated-line work in the probe; decline the whole request for Python replay.
-        let mut budget = 4_000_000usize;
+        let mut budget = Self::WORK_BUDGET;
         let mut best = None;
         let mut best_ratio = -1.0;
         for (index, candidate) in candidates.iter().enumerate() {
             let previous = Self::lines(candidate)?;
-            let matched = if previous == current {
-                current.len()
-            } else {
-                Self::matching_lines(&previous, current.len(), &positions, &mut budget)?
-            };
+            let mut matched = 0;
+            Self::matching_blocks(
+                &previous,
+                &current,
+                &positions,
+                &mut budget,
+                |_, _, size| {
+                    matched += size;
+                },
+            )?;
             let total = previous.len() + current.len();
             let ratio = if total == 0 {
                 1.0
@@ -41,18 +45,32 @@ impl StructureMoveMatching {
         Some(json!({"best": best}))
     }
 
-    fn lines(value: &Value) -> Option<Vec<&str>> {
+    pub(super) fn lines(value: &Value) -> Option<Vec<&str>> {
         value.as_array()?.iter().map(Value::as_str).collect()
     }
 
-    fn matching_lines(
+    pub(super) fn positions<'a>(lines: &[&'a str]) -> HashMap<&'a str, Vec<usize>> {
+        let mut positions: HashMap<&str, Vec<usize>> = HashMap::new();
+        for (index, line) in lines.iter().enumerate() {
+            positions.entry(line).or_default().push(index);
+        }
+        positions
+    }
+
+    pub(super) fn matching_blocks(
         previous: &[&str],
-        current_len: usize,
+        current: &[&str],
         positions: &HashMap<&str, Vec<usize>>,
         budget: &mut usize,
-    ) -> Option<usize> {
-        let mut total = 0;
-        let mut pending = vec![(0, previous.len(), 0, current_len)];
+        mut visit: impl FnMut(usize, usize, usize),
+    ) -> Option<()> {
+        if previous == current {
+            if !current.is_empty() {
+                visit(0, 0, current.len());
+            }
+            return Some(());
+        }
+        let mut pending = vec![(0, previous.len(), 0, current.len())];
         let mut prior_row = HashMap::new();
         let mut row = HashMap::new();
         // Split around each longest block as SequenceMatcher does with no junk/popular lines.
@@ -81,7 +99,7 @@ impl StructureMoveMatching {
             if best_size == 0 {
                 continue;
             }
-            total += best_size;
+            visit(best_left, best_right, best_size);
             if left < best_left && right < best_right {
                 pending.push((left, best_left, right, best_right));
             }
@@ -90,6 +108,6 @@ impl StructureMoveMatching {
                 pending.push((after_left, left_end, after_right, right_end));
             }
         }
-        Some(total)
+        Some(())
     }
 }

@@ -72,6 +72,36 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_android_action_delta_preserves_shifted_findings_only(self):
+        baseline = [
+            "@Composable", "fun Screen() {", "    nav.navigate(oldRoute)",
+            "    repository.load()", "}",
+        ]
+        current = ["// summary", *baseline[:3], "    repository.reload()", "}"]
+        run = Mock(return_value={"returncode": 0, "stdout": "\n".join(baseline)})
+        args = (self.project, Path("Screen.kt"), current, {"status": "R", "previous_path": "Old.kt"}, run)
+        with patch.object(NativeProbe, "request", return_value={"inherited": [1, 1]}):
+            expected = structure.android_action_delta_failures(*args)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "SequenceMatcher", side_effect=AssertionError("Python aligned baseline"),
+        ):
+            self.assertEqual(expected, structure.android_action_delta_failures(*args))
+        run.assert_called_with(["git", "show", "HEAD:Old.kt"], self.project)
+        self.assertEqual((1, 1), tuple(map(len, expected)))
+        self.assertIn("Screen.kt:5:", expected[0][0])
+        self.assertTrue(expected[1][0].startswith("unchanged baseline violation: Screen.kt:4:"))
+
+        previous = ["x", "", "x", "y"]
+        current = ["x", "x", "", "y", "x"]
+        prior_keys = [(1, "a"), (3, "a"), (3, "b"), (0, "a"), (12, "a")]
+        current_keys = [(line, reason) for line in range(1, 6) for reason in ("a", "b")] + [None]
+        self.assertEqual(
+            {"inherited": structure._inherited_action_findings(previous, current, prior_keys, current_keys)},
+            self.check("structure-action-delta", {
+                "previous": previous, "current": current, "prior_keys": prior_keys, "current_keys": current_keys,
+            }),
+        )
+
     def test_structure_move_matching_matches_python_candidate_and_block_ties(self):
         rng = random.Random(19)
         cases = [

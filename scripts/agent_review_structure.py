@@ -163,23 +163,40 @@ def android_action_delta_failures(project, path, lines, metadata, run_command):
         return current, []
     previous_lines = previous.get("stdout", "").splitlines()
     prior = AndroidActionBoundary.failures(path, "\n".join(previous_lines))
-    unchanged = {}
-    for block in SequenceMatcher(None, previous_lines, lines, autojunk=False).get_matching_blocks():
-        unchanged.update((block.a + offset + 1, block.b + offset + 1)
-                         for offset in range(block.size))
-    inherited = set()
-    for finding in prior:
-        match = re.match(r"^.*?:(\d+): (.*)$", finding)
-        if match and int(match[1]) in unchanged:
-            inherited.add((unchanged[int(match[1])], match[2]))
+    prior_keys = [_action_key(finding) for finding in prior]
+    current_keys = [_action_key(finding) for finding in current]
+    native = NativeProbe.request("--completion-probe", "structure-action-delta", {
+        "previous": previous_lines, "current": lines,
+        "prior_keys": prior_keys, "current_keys": current_keys,
+    })
+    flags = native.get("inherited") if native is not None else None
+    if (not isinstance(flags, list) or len(flags) != len(current)
+            or not all(type(flag) is bool for flag in flags)):
+        flags = _inherited_action_findings(previous_lines, lines, prior_keys, current_keys)
     failures, warnings = [], []
-    for finding in current:
-        match = re.match(r"^.*?:(\d+): (.*)$", finding)
-        if match and (int(match[1]), match[2]) in inherited:
+    for finding, inherited in zip(current, flags):
+        if inherited:
             warnings.append("unchanged baseline violation: " + finding)
         else:
             failures.append(finding)
     return failures, warnings
+
+
+def _action_key(finding: str) -> tuple[int, str] | None:
+    match = re.match(r"^.*?:(\d+): (.*)$", finding)
+    return (int(match[1]), match[2]) if match else None
+
+
+def _inherited_action_findings(
+    previous: list[str], current: list[str],
+    prior_keys: list[tuple[int, str] | None], current_keys: list[tuple[int, str] | None],
+) -> list[bool]:
+    unchanged = {}
+    for block in SequenceMatcher(None, previous, current, autojunk=False).get_matching_blocks():
+        unchanged.update((block.a + offset + 1, block.b + offset + 1)
+                         for offset in range(block.size))
+    inherited = {(unchanged[key[0]], key[1]) for key in prior_keys if key and key[0] in unchanged}
+    return [key in inherited for key in current_keys]
 
 
 def structure_review(
