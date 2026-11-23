@@ -17,6 +17,16 @@ pub(crate) struct OverheadClock {
 impl OverheadClock {
     const DAY: i64 = 86_400_000_000;
     const EPOCH: i64 = 719163;
+    /// Shift a caller-supplied civil date without consulting the clock or timezone.
+    pub(crate) fn date_plus_days(date: &str, days: i64) -> Option<String> {
+        if date.len() != 10 {
+            return None;
+        }
+        let midnight = OverheadStamp::parse(date)??;
+        let shifted = Self::shift_days(&midnight, days.checked_neg()?)?;
+        shifted.get(..10).map(str::to_owned)
+    }
+
     pub(crate) fn new(since: Option<&str>, until: Option<&str>, days: i64) -> Option<Self> {
         let duration = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
         let micros = i64::try_from(duration.as_secs())

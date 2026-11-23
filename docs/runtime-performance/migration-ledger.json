@@ -484,10 +484,11 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port synthetic record preparation, default engine acquisition and CLI ownership. Keep compatibility handling for unsupported fixture inputs and the historical Python engine option. Verify supported-host and installed acceptance.",
+      "remaining": "Port default engine acquisition and CLI ownership. Keep compatibility handling for unsupported fixture and calendar inputs and the historical Python engine option. Verify supported-host and installed acceptance.",
       "verification": {
         "metrics": "The default engine sends read-only synthetic observations through one guarded Rust request for per-case and aggregate metrics. Focused parity covers report order, raw Unicode character counts, listing exclusions, absent denominators, and existing Python fallback.",
-        "fixture_schema": "The default engine loads, parses and validates bounded fixture files in one guarded Rust request with the Python Unicode and integer limits. Parity covers duplicate key order, signed zero, exact first validation errors, and fallback for file, decoding, oversized and numerically unsupported cases."
+        "fixture_schema": "The default engine loads, parses and validates bounded fixture files in one guarded Rust request with the Python Unicode and integer limits. Parity covers duplicate key order, signed zero, exact first validation errors, and fallback for file, decoding, oversized and numerically unsupported cases.",
+        "synthetic_records": "The default evaluator prepares synthetic records in Rust using the caller's civil date and existing canonical digests. Parity verifies output field order, leap and century boundaries, review-date overflow fallback, and the historical engine digest hook."
       }
     },
     {

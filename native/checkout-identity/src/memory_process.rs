@@ -17,6 +17,8 @@ use std::{
 mod experience;
 #[path = "memory_experience_fixture.rs"]
 mod experience_fixture;
+#[path = "memory_experience_records.rs"]
+mod experience_records;
 
 pub(crate) struct MemoryProcess;
 impl MemoryProcess {
@@ -45,6 +47,8 @@ impl MemoryProcess {
                     experience::ExperienceMetrics::evaluate(&payload)
                 } else if operation == "experience-fixture" {
                     experience_fixture::ExperienceFixture::evaluate(&payload)
+                } else if operation == "experience-records" {
+                    experience_records::ExperienceRecords::evaluate(&payload)
                 } else if operation == "recall-context" {
                     MemoryContext::evaluate(&payload)
                 } else if matches!(operation, "review-partition" | "review-findings") {

@@ -140,15 +140,36 @@ def load_engine(root: Path) -> ModuleType:
     return module
 
 
-def _observe(engine, fixture, project, today):
+def _python_records(engine, items, today):
     records = []
-    for item in fixture["records"]:
+    for item in items:
         record = {key: value for key, value in item.items() if key != "review_in_days"}
         record.update(schema_version=1, status=item.get("status", "active"),
                       scope=item.get("scope", "task"), created_at=f"{today}T00:00:00+00:00",
                       review_on=(today + timedelta(days=item.get("review_in_days", 30))).isoformat())
         record["digest"] = engine._digest(record)
         records.append(record)
+    return records
+
+
+def _native_records(items, today):
+    from support.native_probe_transport import NativeProbe
+
+    result = NativeProbe.request("--memory-probe", "experience-records", {
+        "today": today.isoformat(), "records": items,
+    })
+    if type(result) is dict and set(result) == {"records"}:
+        records = result["records"]
+        if type(records) is list and len(records) == len(items) and all(type(row) is dict for row in records):
+            return records
+    return None
+
+
+def _observe(engine, fixture, project, today, *, native):
+    items = fixture["records"]
+    records = _native_records(items, today) if native else None
+    if records is None:
+        records = _python_records(engine, items, today)
     for case in fixture["cases"]:
         context = {"records": records, "request": case.get("request", ""),
                    "target_summary": case.get("target_summary", ""),
@@ -214,7 +235,7 @@ def evaluate(engine: ModuleType, fixture: dict[str, Any], project: Path, *, nati
     compute = _native_metrics if native else _python_metrics
     return {"schema_version": 1, "synthetic": True, "evaluation_date": today.isoformat(),
             "measurement": "rendered retrieval only; listing cases and applicability judgments are excluded from retrieval metrics",
-            **compute(_observe(engine, fixture, project, today))}
+            **compute(_observe(engine, fixture, project, today, native=native))}
 
 
 def main(argv: list[str] | None = None) -> int:

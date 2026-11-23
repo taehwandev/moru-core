@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from contextlib import redirect_stdout
+from datetime import date
 import importlib.util
 import io
 import json
@@ -144,9 +145,46 @@ class ExperienceEvaluationTests(unittest.TestCase):
                 self.assertEqual(0, evaluator.main([]))
         with patch.dict(os.environ, env, clear=True), redirect_stdout(native_output):
             with (patch.object(evaluator, "_python_metrics", side_effect=AssertionError("native metrics missing")),
+                  patch.object(evaluator, "_python_records", side_effect=AssertionError("native records missing")),
                   patch.object(evaluator, "_validate_fixture", side_effect=AssertionError("native validation missing"))):
                 self.assertEqual(0, evaluator.main([]))
         self.assertEqual(python_output.getvalue(), native_output.getvalue())
+
+    def test_native_records_match_python_order_digest_and_calendar_overflow(self):
+        from native_launcher_support import NATIVE
+        from native_pretool_support import environment, prepare
+
+        if not NATIVE.is_file():
+            self.skipTest("source-bound native fixture unavailable")
+        base = Path(self.directory.name)
+        prepare(base)
+        engine = evaluator.load_engine(evaluator.SCRIPTS)
+        items = self.fixture["records"]
+        items[0] = {"id": items[0]["id"], "review_in_days": 1,
+                    "body": '한글 "quote" \\ 🚀 é', "source": "synthetic fixture",
+                    "scope": "all", "status": "approved", "not_when": "예외"}
+        items[1]["review_in_days"] = -1
+        with patch.dict(os.environ, environment(base), clear=True):
+            for today, expected_date in (
+                (date(2000, 2, 28), "2000-02-29"),
+                (date(2100, 2, 28), "2100-03-01"),
+                (date(2024, 12, 31), "2025-01-01"),
+                (date(2024, 1, 1), "2024-01-02"),
+            ):
+                with self.subTest(today=today):
+                    expected = evaluator._python_records(engine, items, today)
+                    native = evaluator._native_records(items, today)
+                    self.assertEqual(json.dumps(expected, ensure_ascii=False),
+                                     json.dumps(native, ensure_ascii=False))
+                    self.assertEqual(expected_date, native[0]["review_on"])
+                    self.assertNotIn("review_in_days", native[0])
+                    self.assertEqual("active", native[1]["status"])
+                    self.assertEqual("task", native[1]["scope"])
+            for today in (date.min, date.max):
+                with self.subTest(today=today):
+                    self.assertIsNone(evaluator._native_records(items, today))
+                    with self.assertRaises(OverflowError):
+                        next(evaluator._observe(engine, self.fixture, ROOT, today, native=True))
 
     def test_native_validation_preserves_first_errors_and_unsupported_profile_fallback(self):
         from native_launcher_support import NATIVE
