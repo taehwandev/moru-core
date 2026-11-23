@@ -39,7 +39,9 @@ to turn the gate off there.
 from __future__ import annotations
 
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import re
@@ -521,6 +523,10 @@ def _approve(reason: str) -> int:
 
 
 _BLOCK_SESSION: dict[str, str] = {"session_id": ""}
+# Automatic workflow entry (claude_pretool_auto_start): while the first,
+# silent judgement runs, the denial code and project it names are kept here;
+# the started run's note is handed to the second judgement.
+_AUTO_START: dict = {"probing": False, "code": "", "root": None, "note": ""}
 
 
 def _learn_block(code: str) -> None:
@@ -532,6 +538,8 @@ def _learn_block(code: str) -> None:
     beyond one small file read and at most one write.
     """
 
+    if _AUTO_START["probing"]:
+        return  # The silent first judgement; the final verdict is the one learned.
     try:
         from agent_block_lessons import record_block
 
@@ -552,6 +560,8 @@ def deny(reason: str, code: str = "workflow_entry_missing") -> int:
     store; it never alters the decision printed here.
     """
 
+    if _AUTO_START["probing"] and not _AUTO_START["code"]:
+        _AUTO_START["code"] = code
     _emit({"permissionDecision": "deny", "permissionDecisionReason": reason})
     _learn_block(code)
     return 0
@@ -1061,6 +1071,8 @@ def entry_denial(
 ) -> int:
     """Refuse a call that has no workflow entry, or ask about a paused run."""
 
+    if _AUTO_START["probing"] and _AUTO_START["root"] is None:
+        _AUTO_START["root"] = root
     command = bash_command(payload) if tool in BASH_TOOLS else ""
     command_cwd = Path(str(payload.get("cwd") or root))
     if (
@@ -1338,6 +1350,8 @@ def _read_run_mutation_denial(roots: list[Path], session_id: str, kind: str) -> 
         except (OSError, ValueError, AttributeError, TypeError):
             return "Active run evidence cannot be read; refresh workflow entry before writing."
         if explicit or route_minimum_effect(command) == "read":
+            if _AUTO_START["probing"] and _AUTO_START["root"] is None:
+                _AUTO_START["root"] = root
             return (
                 f"Active route `{command}` is read-only; start an authorized writable "
                 "route for an approved write, e.g. `start --command <route> --request "
@@ -2923,6 +2937,9 @@ def decide(payload: dict) -> int:
     _PENDING_WARNINGS.clear()
     _PENDING_CONTEXT.clear()
     _PENDING_NOTES.clear()
+    if _AUTO_START["note"]:
+        _PENDING_NOTES.append(_AUTO_START["note"])
+        _AUTO_START["note"] = ""
     try:
         payload = _with_codex_exec_workdir(payload)
         _queue_unread_required_docs(payload)
@@ -3268,6 +3285,68 @@ def main() -> int:
     except Exception as error:  # noqa: BLE001 - an unreadable payload fails open, visibly
         _gate_internal_error(error, "the command was allowed")
         return allow()
+    return decide_with_auto_start(payload)
+
+
+def _auto_start_target(payload: dict) -> tuple[str, str]:
+    tool = str(payload.get("tool_name") or "")
+    if tool in BASH_TOOLS:
+        return tool, ""
+    cwd = Path(str(payload.get("cwd") or "."))
+    try:
+        target = write_target_path(payload, cwd)
+    except Exception:  # noqa: BLE001 - only a label
+        target = None
+    return tool, target.name if target is not None else ""
+
+
+def decide_with_auto_start(payload: dict) -> int:
+    """Judge the call; if only a missing writable run stops it, start one and judge again.
+
+    The first judgement is silent. Its verdict is printed unchanged unless its
+    denial code is one whose sole remedy is a writable start
+    (``claude_pretool_auto_start.AUTO_START_CODES``) and that start succeeds for
+    the session's recorded work request. The call is then judged again from the
+    beginning, so every other rule still applies to it.
+    """
+
+    try:
+        import claude_pretool_auto_start as auto
+    except Exception:  # noqa: BLE001 - automatic entry is optional
+        return decide(payload)
+    if not auto.enabled():
+        return decide(payload)
+    buffer = io.StringIO()
+    _AUTO_START.update(probing=True, code="", root=None, note="")
+    try:
+        with contextlib.redirect_stdout(buffer):
+            verdict = decide(payload)
+    finally:
+        _AUTO_START["probing"] = False
+    code, root = _AUTO_START["code"], _AUTO_START["root"]
+    session_id = str(payload.get("session_id") or "")
+    run_id = ""
+    if code in auto.AUTO_START_CODES and root is not None and session_id:
+        tool, target = _auto_start_target(payload)
+        command = bash_command(payload) if tool in BASH_TOOLS else ""
+        publishes = bool(command) and publication_hold(
+            command, root=root, cwd=Path(str(payload.get("cwd") or root))
+        ) == "publishes"
+        if not publishes:
+            try:
+                run_id = auto.start_run(root, session_id, runtime_name(), tool, target)
+            except Exception as error:  # noqa: BLE001 - fall back to the first verdict
+                _gate_internal_error(error, "the automatic workflow start was skipped")
+    if not run_id:
+        sys.stdout.write(buffer.getvalue())
+        sys.stdout.flush()
+        return verdict
+    _AUTO_START["note"] = (
+        f"Moru started `{auto.AUTO_ROUTE}` run {run_id} ({auto.AUTO_EFFECT}) automatically "
+        "for this session's work request. Record its gates and run review and finish "
+        "before reporting completion; commit, push and other effects above "
+        "local_write still need their own approval."
+    )
     return decide(payload)
 
 

@@ -77,6 +77,14 @@ For tracked work:
    `destructive`; `git_write` and above also require a separate matching
    approval record. Without a valid envelope, use only `triage` or
    `ambiguity`. Direct questions are answered before project work.
+   Automatic entry: when a Claude or Codex write is refused only because no
+   writable run exists (`workflow_entry_missing`, `read_only_run_mutation`),
+   the pretool gate starts `small-change` itself with the session's latest
+   prompt (recorded by the prompt hook), intent `auto_work` and effect
+   `local_write`, then judges the call again. Direct questions, effects above
+   `local_write`, publication, worktree, paused and failed runs are unchanged.
+   The run still needs its gates, review and finish. A failed start is not
+   retried for the same request; `MORU_AUTO_WORK_START=0` turns it off.
 3. Consume the returned route as the manifest. Stop if `missing` is non-empty.
    Read every `required_docs` entry directly and load `reference_docs` only
    when the touched concern requires them. Do not repeat route or preflight
