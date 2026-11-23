@@ -120,6 +120,7 @@ impl<'a> LocalDeliveryGit<'a> {
                 .env("GIT_ALLOW_PROTOCOL", "")
                 .stdin(Stdio::null()),
             remaining,
+            None,
         )
         .ok()??;
         if stdout.len() > limit || std::str::from_utf8(&stderr).is_err() {

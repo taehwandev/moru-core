@@ -13,6 +13,7 @@ const MAX_NAP: Duration = Duration::from_millis(2);
 pub(crate) fn capture_status(
     command: &mut Command,
     timeout: Duration,
+    limit: Option<u64>,
 ) -> Result<Option<(Vec<u8>, Vec<u8>, ExitStatus)>, ()> {
     let mut child = match command
         .stdout(Stdio::piped())
@@ -25,10 +26,10 @@ pub(crate) fn capture_status(
     let deadline = Instant::now() + timeout;
     let (sender, receiver) = mpsc::channel();
     if let Some(pipe) = child.stdout.take() {
-        read_pipe(pipe, true, sender.clone());
+        read_pipe(pipe, true, sender.clone(), limit);
     }
     if let Some(pipe) = child.stderr.take() {
-        read_pipe(pipe, false, sender.clone());
+        read_pipe(pipe, false, sender.clone(), limit);
     }
     drop(sender);
     let mut nap = Duration::from_micros(50);
@@ -68,10 +69,23 @@ fn read_pipe<R: Read + Send + 'static>(
     mut pipe: R,
     stdout: bool,
     sender: Sender<(bool, std::io::Result<Vec<u8>>)>,
+    limit: Option<u64>,
 ) {
     thread::spawn(move || {
         let mut bytes = Vec::new();
-        let result = pipe.read_to_end(&mut bytes).map(|_| bytes);
+        let result = match limit {
+            None => pipe.read_to_end(&mut bytes).map(|_| bytes),
+            Some(limit) => pipe
+                .take(limit + 1)
+                .read_to_end(&mut bytes)
+                .and_then(|size| {
+                    if size as u64 <= limit {
+                        Ok(bytes)
+                    } else {
+                        Err(std::io::ErrorKind::InvalidData.into())
+                    }
+                }),
+        };
         let _ = sender.send((stdout, result));
     });
 }

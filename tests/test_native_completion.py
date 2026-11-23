@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_directory_fingerprint as directory_fingerprint
+import agent_worktree_fingerprint as worktree_fingerprint
 import agent_execution_capsule_state as capsule_state
 import agent_execution_capsule_validation as capsule_validation
 from agent_continuation_checkpoint import write_continuation_checkpoint
@@ -421,6 +422,43 @@ class NativeCompletionTests(unittest.TestCase):
             RuntimeError, "untracked byte size exceeds execution-capsule limit"
         ):
             directory_fingerprint.directory_state(root)
+
+    def test_capsule_worktree_signature_matches_raw_git_status_reference(self):
+        def git(*args):
+            subprocess.run(["git", "-C", str(self.project), *args],
+                           env=self.env, capture_output=True, check=True, timeout=8)
+
+        old = self.project / "old\n이름.txt"
+        changed = self.project / "partial.txt"
+        removed = self.project / "removed"
+        for path in (old, changed, removed):
+            path.write_text("base\n")
+        git("add", ".")
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "base")
+        renamed = self.project / "new\t이름.txt"
+        git("mv", old.name, renamed.name)
+        changed.write_text("staged\n")
+        git("add", changed.name)
+        changed.write_text("unstaged\n")
+        removed.unlink()
+        (self.project / "link").symlink_to("missing")
+        (self.project / "🐈").write_bytes(b"untracked\0")
+
+        request = {"path": str(self.project), "max_files": 5_000, "max_bytes": 256 * 1024 * 1024}
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = worktree_fingerprint.worktree_signature(self.project)
+        index = self.project / ".git/index"
+        index_before = index.read_bytes()
+        raw = self.raw("capsule-worktree-signature", request, PATH=self.env["PATH"])
+        self.assertEqual(0, raw.returncode, raw.stderr)
+        self.assertEqual({"signature": expected}, json.loads(raw.stdout)["result"])
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            worktree_fingerprint, "_capture_status", side_effect=AssertionError("unexpected Python scan")
+        ):
+            self.assertEqual(expected, worktree_fingerprint.worktree_signature(self.project))
+        self.assertEqual(index_before, index.read_bytes())
+        declined = self.raw("capsule-worktree-signature", {**request, "max_files": 0}, PATH=self.env["PATH"])
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
         index = '100755 ef 0\tz"\\악\x7f\U0001f408\0\0' + '100644 ab 0\ta\tb\n\0'

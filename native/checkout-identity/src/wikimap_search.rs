@@ -101,9 +101,10 @@ impl WikimapSearch {
             .arg(root)
             .args(command_args)
             .current_dir(root);
-        let Some((stdout, stderr, status)) = capture_status(&mut command, Duration::from_secs(15))
-            .ok()
-            .flatten()
+        let Some((stdout, stderr, status)) =
+            capture_status(&mut command, Duration::from_secs(15), None)
+                .ok()
+                .flatten()
         else {
             return Some(json!({"failed": true}));
         };

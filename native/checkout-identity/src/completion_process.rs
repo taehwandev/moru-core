@@ -34,6 +34,8 @@ mod capsule_doc_drift;
 mod capsule_ledger;
 #[path = "capsule_shape.rs"]
 mod capsule_shape;
+#[path = "capsule_worktree_signature.rs"]
+mod capsule_worktree_signature;
 
 pub(crate) struct CompletionProcess;
 
@@ -85,6 +87,9 @@ impl CompletionProcess {
             Some("capsule-read") => capsule_artifact::CapsuleArtifact::read(&payload),
             Some("capsule-doc-drift") => capsule_doc_drift::CapsuleDocDrift::compare(&payload),
             Some("capsule-directory") => capsule_directory::CapsuleDirectory::capture(&payload),
+            Some("capsule-worktree-signature") => {
+                capsule_worktree_signature::WorktreeSignature::capture(&payload)
+            }
             Some("capsule-ledger") => capsule_ledger::CapsuleLedger::check(&payload),
             Some("capsule-shape") => capsule_shape::CapsuleShape::validate(&payload),
             Some("quality") => Quality::inspect(&payload),

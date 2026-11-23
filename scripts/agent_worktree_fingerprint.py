@@ -18,6 +18,7 @@ from agent_worktree_scan import (
     visit_git_null_records,
 )
 from support.bounded_git import run_git
+from support.native_probe_transport import NativeProbe
 
 
 MAX_UNTRACKED_FILES = 5_000
@@ -158,6 +159,13 @@ def worktree_signature(path: Path) -> str:
     both match that prior record.
     """
 
+    native = NativeProbe.request("--completion-probe", "capsule-worktree-signature", {
+        "path": str(path.absolute()), "max_files": MAX_UNTRACKED_FILES, "max_bytes": MAX_UNTRACKED_BYTES,
+    })
+    observed = native.get("signature") if native is not None else None
+    if (type(observed) is str and len(observed) == 64
+            and all(char in "0123456789abcdef" for char in observed)):
+        return observed
     signature = hashlib.sha256()
     _capture_status(
         path,
