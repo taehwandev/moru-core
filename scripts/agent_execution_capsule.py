@@ -54,36 +54,36 @@ def refresh_execution_capsule(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "route_fingerprint": route_fingerprint(route),
         "request_fingerprint": request_fingerprint(_request_intake(evidence_path)),
-        "preflight_evidence": file_hash_record(evidence_path),
         "required_docs": docs,
         "project_git": project_git,
         "rules_git": rules_git,
     }
-    if ledger_path.is_file():
-        observed["gate_ledger"] = file_hash_record(ledger_path)
-    outbound = {"path": selected_output, "payload": observed}
-    assert_no_continuation_outbound(outbound, boundary="execution_capsule")
-    assert_no_continuation_outbound(outbound, boundary="artifact")
-    result = write_native_capsule(selected_output, "capsule-refresh", {
-        "observed": observed, "ledger_valid": not ledger_failures,
-    })
-    if result is not None:
-        if set(result) != {"errno", "record"} or type(result["record"]) is not dict:
-            raise OSError("native execution capsule refresh outcome could not be determined")
-        return result["record"]
+    if evidence_path.name == "preflight.json" and selected_output == evidence_path.with_name(CAPSULE_FILENAME):
+        outbound = {"path": selected_output, "payload": observed}
+        assert_no_continuation_outbound(outbound, boundary="execution_capsule")
+        assert_no_continuation_outbound(outbound, boundary="artifact")
+        result = write_native_capsule(selected_output, "capsule-refresh", {
+            "observed": observed, "ledger_valid": not ledger_failures,
+        })
+        if result is not None:
+            if set(result) != {"errno", "record"} or type(result["record"]) is not dict:
+                raise OSError("native execution capsule refresh outcome could not be determined")
+            return result["record"]
 
-    ledger_seen = "gate_ledger" in observed
-    ledger = observed.pop("gate_ledger", None)
     capsule = {
         "schema_version": SCHEMA_VERSION,
-        "created_at": observed.pop("created_at"),
+        "created_at": observed["created_at"],
         "phase": "ready" if docs is not None and not ledger_failures else "preflight",
-        **observed,
+        "route_fingerprint": observed["route_fingerprint"],
+        "request_fingerprint": observed["request_fingerprint"],
+        "preflight_evidence": file_hash_record(evidence_path),
+        "required_docs": docs or [],
+        "project_git": project_git,
+        "rules_git": rules_git,
         "reuse_policy": REUSE_POLICY,
     }
-    capsule["required_docs"] = docs or []
-    if ledger_seen:
-        capsule["gate_ledger"] = ledger
+    if ledger_path.is_file():
+        capsule["gate_ledger"] = file_hash_record(ledger_path)
     _write_execution_capsule(selected_output, capsule)
     return capsule
 

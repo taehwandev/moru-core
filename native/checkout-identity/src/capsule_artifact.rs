@@ -1,5 +1,5 @@
 //! owner: bounded reads and exact-byte atomic replacement of execution capsules.
-//! allowed imports: guarded sibling file access, existing JSON codec and std.
+//! allowed imports: guarded sibling access, JSON codec, SHA-256 and std.
 //! forbidden imports: lifecycle authority, ledger writes and providers.
 //! callers/tests: completion probe and native capsule persistence fixtures.
 //! verification: byte parity, private mode, collision and scope checks.
@@ -8,8 +8,10 @@ use crate::{
     atomic_sibling::AtomicSibling, pending_publication_receipt::PendingPublicationReceipt,
 };
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::{
-    ffi::CString,
+    ffi::{CStr, CString},
+    fs::File,
     io::{ErrorKind, Read},
     path::{Component, Path},
 };
@@ -17,6 +19,7 @@ use std::{
 pub(super) struct CapsuleArtifact;
 
 const MAX_READ_BYTES: u64 = 256 * 1024;
+const MAX_EVIDENCE_BYTES: u64 = 4 * 1024 * 1024;
 
 impl CapsuleArtifact {
     pub(super) fn read(payload: &Value) -> Option<Value> {
@@ -66,6 +69,8 @@ impl CapsuleArtifact {
     }
 
     pub(super) fn refresh(payload: &Value) -> Option<Value> {
+        let text = payload.get("path")?.as_str()?;
+        let dir = AtomicSibling::open_directory(Self::run_parent(Path::new(text))?)?;
         let observed = payload.get("observed")?.as_object()?;
         let docs = observed.get("required_docs")?;
         let ledger_valid = payload.get("ledger_valid")?.as_bool()?;
@@ -74,29 +79,27 @@ impl CapsuleArtifact {
         } else {
             "preflight"
         };
+        let preflight = Self::file_record(&dir, c"preflight.json", false)??;
+        let ledger = Self::file_record(&dir, c"gate-evidence.json", true)?;
         let mut record = json!({
             "schema_version": CAPSULE_VERSION,
             "created_at": observed.get("created_at")?,
             "phase": phase,
             "route_fingerprint": observed.get("route_fingerprint")?,
             "request_fingerprint": observed.get("request_fingerprint")?,
-            "preflight_evidence": observed.get("preflight_evidence")?,
+            "preflight_evidence": preflight,
             "required_docs": if docs.is_null() { json!([]) } else { docs.clone() },
             "project_git": observed.get("project_git")?,
             "rules_git": observed.get("rules_git")?,
             "reuse_policy": CapsuleShape::reuse_policy(),
         });
-        if let Some(ledger) = observed.get("gate_ledger") {
-            record["gate_ledger"] = ledger.clone();
+        if let Some(ledger) = ledger {
+            record["gate_ledger"] = ledger;
         }
         if CapsuleShape::capsule(&record)?.is_some() {
             return None;
         }
-        let outcome = Self::replace_record(
-            payload.get("path")?.as_str()?,
-            payload.get("temporary")?.as_str()?,
-            &record,
-        )?;
+        let outcome = Self::write_record(&dir, text, payload.get("temporary")?.as_str()?, &record)?;
         if outcome.get("errno")?.is_null() {
             Some(json!({"errno": null, "record": record}))
         } else {
@@ -104,24 +107,60 @@ impl CapsuleArtifact {
         }
     }
 
+    fn file_record(dir: &File, name: &CStr, optional: bool) -> Option<Option<Value>> {
+        let file = match AtomicSibling::open_relative_result(dir, name, libc::O_RDONLY) {
+            Ok(file) => file,
+            Err(error) if optional && error.kind() == ErrorKind::NotFound => return Some(None),
+            Err(_) => return None,
+        };
+        let meta = file.metadata().ok()?;
+        if !meta.is_file() {
+            return optional.then_some(None);
+        }
+        if meta.len() > MAX_EVIDENCE_BYTES {
+            return None;
+        }
+        let mut file = file.take(MAX_EVIDENCE_BYTES + 1);
+        let mut hasher = Sha256::new();
+        let mut buffer = [0; 32 * 1024];
+        loop {
+            let count = file.read(&mut buffer).ok()?;
+            if count == 0 {
+                break;
+            }
+            hasher.update(&buffer[..count]);
+        }
+        if file.limit() == 0 {
+            return None;
+        }
+        Some(Some(json!({
+            "filename": name.to_str().ok()?,
+            "sha256": format!("{:x}", hasher.finalize()),
+        })))
+    }
+
     fn replace_record(text: &str, temporary: &str, record: &Value) -> Option<Value> {
         let target = Path::new(text);
         let parent = Self::run_parent(target)?;
+        let dir = AtomicSibling::open_directory(parent)?;
+        let evidence = AtomicSibling::open_relative(&dir, c"preflight.json", libc::O_RDONLY)?;
+        if !evidence.metadata().ok()?.is_file() {
+            return None;
+        }
+        Self::write_record(&dir, text, temporary, record)
+    }
+
+    fn write_record(dir: &File, text: &str, temporary: &str, record: &Value) -> Option<Value> {
         if !PendingPublicationReceipt::is_id(temporary)
             || !PendingPublicationReceipt::artifact_safe(record)
             || !PendingPublicationReceipt::safe_artifact_text(text)
         {
             return None;
         }
-        let dir = AtomicSibling::open_directory(parent)?;
-        let evidence = AtomicSibling::open_relative(&dir, c"preflight.json", libc::O_RDONLY)?;
-        if !evidence.metadata().ok()?.is_file() {
-            return None;
-        }
         let encoded = PendingPublicationReceipt::encode(record.clone())?;
         let temporary = CString::new(format!("execution-capsule.json.{temporary}.tmp")).ok()?;
         let result = AtomicSibling::Private.replace(
-            &dir,
+            dir,
             &temporary,
             c"execution-capsule.json",
             encoded.as_bytes(),

@@ -326,7 +326,7 @@ class NativeCompletionTests(unittest.TestCase):
         route = {"command": "refactor"}
         evidence.write_text(json.dumps({"route": route, "request_intake": {"request": "검증"}}))
         ledger = run / "gate-evidence.json"
-        ledger.write_text("{}")
+        ledger.write_bytes(b'{"evidence":"\xed\x95\x9c"}\r\n')
         output = run / "execution-capsule.json"
         digest = "a" * 64
         git_state = {"head": "head", "worktree_fingerprint": digest, "worktree_signature": digest}
@@ -341,8 +341,10 @@ class NativeCompletionTests(unittest.TestCase):
                 with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
                     reference = capsule.refresh_execution_capsule(self.project, self.project, evidence, route)
                 self.assertEqual(phase, reference["phase"])
-                with patch.dict(os.environ, self.env, clear=True), patch.object(
-                    capsule, "_write_execution_capsule", side_effect=AssertionError("unexpected separate write")
+                with patch.dict(os.environ, self.env, clear=True), patch.multiple(
+                    capsule,
+                    _write_execution_capsule=Mock(side_effect=AssertionError("unexpected separate write")),
+                    file_hash_record=Mock(side_effect=AssertionError("unexpected Python file hash")),
                 ):
                     actual = capsule.refresh_execution_capsule(self.project, self.project, evidence, route)
                 self.assertEqual({**reference, "created_at": actual["created_at"]}, actual)
@@ -356,6 +358,26 @@ class NativeCompletionTests(unittest.TestCase):
                     capsule.refresh_execution_capsule(self.project, self.project, evidence, route)
                 self.assertEqual(actual, json.loads(output.read_bytes()))
 
+        with patch.dict(os.environ, self.env, clear=True), patch.multiple(
+            capsule,
+            git_states_for_paths=Mock(return_value=(git_state, git_state)),
+            current_required_docs=Mock(return_value=[]),
+            gate_ledger_failures=Mock(return_value=["ledger missing"]),
+            file_hash_record=Mock(side_effect=AssertionError("unexpected Python file hash")),
+        ):
+            ledger.unlink()
+            without_ledger = capsule.refresh_execution_capsule(self.project, self.project, evidence, route)
+            self.assertNotIn("gate_ledger", without_ledger)
+            self.assertEqual("preflight", without_ledger["phase"])
+
+        previous = output.read_bytes()
+        evidence.unlink()
+        declined = self.raw("capsule-refresh", {
+            "path": str(output), "temporary": "b" * 32, "ledger_valid": False,
+            "observed": {"required_docs": []},
+        })
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+        self.assertEqual(previous, output.read_bytes())
         self.assertEqual([], list(run.glob("*.tmp")))
 
     def test_staged_receipt_hash_matches_python_for_index_and_tree(self):
