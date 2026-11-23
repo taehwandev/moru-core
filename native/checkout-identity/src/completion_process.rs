@@ -45,6 +45,9 @@ mod capsule_worktree_signature;
 
 pub(crate) struct CompletionProcess;
 
+#[path = "doctor_project.rs"]
+mod doctor_project;
+
 #[path = "pending_publication_settlement.rs"]
 pub(super) mod pending_publication_settlement;
 
@@ -87,6 +90,7 @@ impl CompletionProcess {
             );
         }
         let result = match args[1].to_str() {
+            Some("doctor-project") => doctor_project::DoctorProject::inspect(&payload),
             Some("capsule-binding") => capsule_binding::CapsuleBinding::fingerprint(&payload),
             Some("capsule-replace") => capsule_artifact::CapsuleArtifact::replace(&payload),
             Some("capsule-refresh") => capsule_artifact::CapsuleArtifact::refresh(&payload),

@@ -11,6 +11,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
+import agent_doctor as doctor
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_directory_fingerprint as directory_fingerprint
@@ -58,6 +59,49 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_doctor_reads_project_stacks_and_managed_instructions_in_rust(self):
+        agents = self.project / "AGENTS.md"
+        agents.write_bytes(f"한글\r\n{doctor.MANAGED_END}\r\n{doctor.MANAGED_BEGIN}\r\n".encode())
+        (self.project / "Demo.xcodeproj").mkdir()
+        (self.project / ".helper.py").symlink_to(self.project / "missing")
+        for name in ("package.json", "build.gradle", "Cargo.toml", "go.mod"):
+            (self.project / name).write_text("{}")
+        args = [str(self.entry), "doctor", "--project", str(self.project), "--format", "json"]
+        reference = subprocess.run(args, cwd=self.project, capture_output=True, timeout=20,
+                                   env={**self.env, "MORU_LAUNCHER_BACKEND": "python"})
+        native = subprocess.run(args, cwd=self.project, capture_output=True, timeout=20, env=self.env)
+        self.assertEqual((0, reference.stdout, reference.stderr),
+                         (native.returncode, native.stdout, native.stderr))
+        report = json.loads(native.stdout)
+        self.assertEqual(["swift", "node", "gradle", "rust", "go", "python"], report["stacks"])
+        self.assertEqual({"agents_md_present": True, "managed_routing_block": True},
+                         report["instructions"])
+        self.assertEqual({key: report[key] for key in ("stacks", "instructions")},
+                         self.check("doctor-project", {"project": str(self.project)}))
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            doctor, "detect_project_stacks", side_effect=AssertionError("unexpected Python inspection"),
+        ):
+            self.assertEqual(report["stacks"], doctor.inspect_project_health(self.project)["stacks"])
+
+    def test_doctor_preserves_unreadable_and_linked_instructions_behavior(self):
+        agents = self.project / "AGENTS.md"
+        payload = {"project": str(self.project)}
+        agents.write_bytes(b"\xff")
+        declined = self.raw("doctor-project", payload)
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+        with patch.dict(os.environ, self.env, clear=True), self.assertRaises(UnicodeDecodeError):
+            doctor.inspect_project_health(self.project)
+
+        other = self.base / "managed.md"
+        other.write_text(f"{doctor.MANAGED_BEGIN}\n{doctor.MANAGED_END}\n")
+        agents.unlink()
+        agents.symlink_to(other)
+        declined = self.raw("doctor-project", payload)
+        self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+        with patch.dict(os.environ, self.env, clear=True):
+            instructions = doctor.inspect_project_health(self.project)["instructions"]
+        self.assertEqual({"agents_md_present": True, "managed_routing_block": True}, instructions)
 
     def test_capsule_binding_matches_python_and_preserves_legacy_fallback(self):
         docs = [{"\U00010000": "😀", "\uffff": "한글\x7f\n\u2028", "a": [True, 0, 2**64 - 1, -2**63]}]

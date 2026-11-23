@@ -3,7 +3,7 @@
 
 Owner: developer-experience project diagnostics; it never writes project files.
 Allowed imports: standard library, support.global_state, support.stable_launcher,
-support.project_type_detection, agent_observability, agent_project_memory,
+support.project_type_detection, support.native_probe_transport, agent_observability, agent_project_memory,
 agent_project_memory_consolidate, agent_work_cards.
 Forbidden imports: mutating lifecycle hooks, shell execution of arbitrary user code.
 Callers: stable launcher `doctor` alias; tests: test_agent_doctor.
@@ -22,6 +22,7 @@ from agent_project_memory import scan_records as project_memory_scan
 from agent_project_memory_consolidate import findings as project_memory_findings
 from agent_work_cards import list_cards
 from support.global_state import global_state_dir, project_state_dir_target
+from support.native_probe_transport import NativeProbe
 from support.project_type_detection import detect_project_permissions
 from support.stable_launcher import (
     stable_launcher_issue,
@@ -62,12 +63,20 @@ def detect_project_stacks(project: Path) -> list[str]:
     return stacks
 
 
-def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, Any]:
-    """Collect a read-only diagnostic report for the project and user install."""
-    resolved = project.expanduser().resolve()
-    launcher_warning = stable_launcher_issue(rules)
-    state_dir = project_state_dir_target(resolved)
-    agents_file = resolved / "AGENTS.md"
+def _inspect_project_files(project: Path) -> tuple[list[str], bool, bool]:
+    native = NativeProbe.request("--completion-probe", "doctor-project", {"project": str(project)})
+    if native is not None and set(native) == {"stacks", "instructions"}:
+        stacks = native["stacks"]
+        instructions = native["instructions"]
+        if (
+            isinstance(stacks, list) and all(isinstance(stack, str) for stack in stacks)
+            and isinstance(instructions, dict)
+            and set(instructions) == {"agents_md_present", "managed_routing_block"}
+            and all(type(value) is bool for value in instructions.values())
+        ):
+            return stacks, instructions["agents_md_present"], instructions["managed_routing_block"]
+
+    agents_file = project / "AGENTS.md"
     has_agents = agents_file.is_file()
     has_managed_block = False
     if has_agents:
@@ -77,7 +86,15 @@ def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, An
         except OSError:
             has_managed_block = False
 
-    stacks = detect_project_stacks(resolved)
+    return detect_project_stacks(project), has_agents, has_managed_block
+
+
+def inspect_project_health(project: Path, *, rules: Path = ROOT) -> dict[str, Any]:
+    """Collect a read-only diagnostic report for the project and user install."""
+    resolved = project.expanduser().resolve()
+    launcher_warning = stable_launcher_issue(rules)
+    state_dir = project_state_dir_target(resolved)
+    stacks, has_agents, has_managed_block = _inspect_project_files(resolved)
     permissions = detect_project_permissions(resolved)
     snapshot = status_snapshot(resolved)
     open_cards = list_cards(resolved, include_settled=False)

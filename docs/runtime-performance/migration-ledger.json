@@ -206,10 +206,12 @@
       "id": "scripts/agent_doctor.py",
       "inventory_id": 11,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "doctor",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "verification": {
+        "local": "Source-bound Rust inspection of stack markers and managed AGENTS.md in the doctor report. Python retains report orchestration, permissions, state and fallback."
+      }
     },
     {
       "id": "scripts/agent_execution_capsule.py",
