@@ -33,6 +33,10 @@ impl WorktreeSignature {
         let root = Path::new(payload.get("path")?.as_str()?);
         let max_files = usize::try_from(payload.get("max_files")?.as_u64()?).ok()?;
         let max_bytes = payload.get("max_bytes")?.as_u64()?;
+        let excluded = match payload.get("excluded") {
+            None | Some(Value::Null) => None,
+            Some(value) => Some(value.as_str()?),
+        };
         let mut content = payload
             .get("strong")
             .and_then(Value::as_bool)
@@ -49,7 +53,7 @@ impl WorktreeSignature {
         if status != 0 {
             return None;
         }
-        let mut entries = Self::entries(&stdout)?;
+        let mut entries = Self::entries(&stdout, excluded.map(str::as_bytes))?;
         // The reference allows a larger budget for all-staged additions on
         // an unborn branch. Let it classify that exceptional case.
         if entries.len() > max_files && entries.iter().all(|entry| entry.xy == b"A.") {
@@ -115,7 +119,7 @@ impl WorktreeSignature {
         }
         let signature = format!("{:x}", signature.finalize());
         if let Some(content) = content {
-            Some(json!({"signature": signature, "fingerprint": content.finish(root)?}))
+            Some(json!({"signature": signature, "fingerprint": content.finish(root, excluded)?}))
         } else {
             Some(json!({"signature": signature}))
         }
@@ -152,7 +156,7 @@ impl WorktreeSignature {
         )
     }
 
-    fn entries(bytes: &[u8]) -> Option<Vec<Entry<'_>>> {
+    fn entries<'a>(bytes: &'a [u8], excluded: Option<&[u8]>) -> Option<Vec<Entry<'a>>> {
         let mut records = bytes
             .split(|byte| *byte == 0)
             .filter(|record| !record.is_empty());
@@ -160,12 +164,15 @@ impl WorktreeSignature {
         while let Some(record) = records.next() {
             let kind = *record.first()?;
             if kind == b'?' {
-                entries.push(Entry {
-                    path: record.get(2..)?,
-                    record,
-                    xy: b"",
-                    added: true,
-                });
+                let path = record.get(2..)?;
+                if Some(path) != excluded {
+                    entries.push(Entry {
+                        path,
+                        record,
+                        xy: b"",
+                        added: true,
+                    });
+                }
                 continue;
             }
             let field_count = match kind {
@@ -178,17 +185,22 @@ impl WorktreeSignature {
             if fields.len() != field_count {
                 return None;
             }
-            if kind != b'u' && fields[2].starts_with(b"S") && fields[2] != b"S..." {
-                return None;
+            let path = fields[field_count - 1];
+            if Some(path) != excluded {
+                if kind != b'u' && fields[2].starts_with(b"S") && fields[2] != b"S..." {
+                    return None;
+                }
+                let xy = fields[1];
+                entries.push(Entry {
+                    path,
+                    record,
+                    xy,
+                    added: kind == b'2' || xy.contains(&b'A'),
+                });
             }
-            let xy = fields[1];
-            entries.push(Entry {
-                path: fields[field_count - 1],
-                record,
-                xy,
-                added: kind == b'2' || xy.contains(&b'A'),
-            });
             if kind == b'2' {
+                // The original path is a distinct rename deletion observation,
+                // even when the destination record was excluded.
                 let source = records.next()?;
                 if fields[8].starts_with(b"R") {
                     entries.push(Entry {

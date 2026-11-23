@@ -74,7 +74,7 @@ impl WorktreeContent {
         Some(())
     }
 
-    pub(super) fn finish(mut self, root: &Path) -> Option<String> {
+    pub(super) fn finish(mut self, root: &Path, excluded: Option<&str>) -> Option<String> {
         let (_, head_status) = Worktree::git(root, &["rev-parse", "--verify", "HEAD"], 4096)?;
         let mut args = vec!["diff"];
         if head_status == 0 {
@@ -96,6 +96,10 @@ impl WorktreeContent {
             "--no-ext-diff",
             "--no-textconv",
         ]);
+        let exclude_pathspec = excluded.map(|path| format!(":(exclude){path}"));
+        if let Some(pathspec) = exclude_pathspec.as_deref() {
+            args.extend(["--", ".", pathspec]);
+        }
         let (diff, status) = Worktree::git(root, &args, 16 * 1024 * 1024)?;
         if status != 0 {
             return None;

@@ -125,6 +125,10 @@ def worktree_fingerprint(path: Path) -> str:
 def worktree_fingerprint_excluding_path(path: Path, excluded_relative: str) -> str:
     """Compute worktree_fingerprint as if excluded_relative were untouched at HEAD."""
 
+    if type(excluded_relative) is str:
+        native = _native_worktree(path, strong=True, excluded=excluded_relative)
+        if native is not None and _sha256(native.get("fingerprint")):
+            return native["fingerprint"]
     fingerprint = hashlib.sha256()
     signature = hashlib.sha256()
     budget = _new_budget()
@@ -176,10 +180,10 @@ def worktree_signature(path: Path) -> str:
     return signature.hexdigest()
 
 
-def _native_worktree(path: Path, *, strong: bool = False) -> dict | None:
+def _native_worktree(path: Path, *, strong: bool = False, excluded: str | None = None) -> dict | None:
     return NativeProbe.request("--completion-probe", "capsule-worktree-signature", {
         "path": str(path.absolute()), "max_files": MAX_UNTRACKED_FILES,
-        "max_bytes": MAX_UNTRACKED_BYTES, "strong": strong,
+        "max_bytes": MAX_UNTRACKED_BYTES, "strong": strong, "excluded": excluded,
     })
 
 

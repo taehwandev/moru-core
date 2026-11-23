@@ -464,6 +464,17 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(index_before, index.read_bytes())
         declined = self.raw("capsule-worktree-signature", {**request, "max_files": 0}, PATH=self.env["PATH"])
         self.assertEqual((125, b"", b""), (declined.returncode, declined.stdout, declined.stderr))
+        for excluded in (old.name, renamed.name, changed.name, "🐈", "*.txt", "not-present"):
+            with self.subTest(excluded=excluded):
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    python = worktree_fingerprint.worktree_fingerprint_excluding_path(self.project, excluded)
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    worktree_fingerprint, "_capture_status", side_effect=AssertionError("unexpected Python scan")
+                ):
+                    self.assertEqual(python, worktree_fingerprint.worktree_fingerprint_excluding_path(
+                        self.project, excluded
+                    ))
+        self.assertEqual(index_before, index.read_bytes())
 
     def test_capsule_native_worktree_fingerprint_handles_unborn_head(self):
         file = self.project / "new.bin"
