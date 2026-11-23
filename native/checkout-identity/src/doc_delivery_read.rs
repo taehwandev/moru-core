@@ -122,8 +122,14 @@ impl DocTranscript {
     }
 
     pub(crate) fn hash_documents(rules: &Path, docs: &[&str]) -> Option<Value> {
+        Self::observe_document_hashes(rules, docs)?
+    }
+
+    /// A known missing or unusable document yields no snapshot. An unsupported
+    /// observation declines so the caller can run the reference implementation.
+    pub(crate) fn observe_document_hashes(rules: &Path, docs: &[&str]) -> Option<Option<Value>> {
         if docs.is_empty() {
-            return Some(json!([]));
+            return Some(Some(json!([])));
         }
         if docs.len() > MAX_HASH_DOCS || !rules.is_absolute() {
             return None;
@@ -145,11 +151,18 @@ impl DocTranscript {
                 return None;
             }
             let normalized: PathBuf = relative.components().collect();
-            let path = root.join(normalized).canonicalize().ok()?;
+            let path = match root.join(normalized).canonicalize() {
+                Ok(path) => path,
+                Err(error) if error.kind() == ErrorKind::NotFound => return Some(None),
+                Err(_) => return None,
+            };
             if !path.starts_with(&root) {
-                return None;
+                return Some(None);
             }
             let metadata = fs::metadata(&path).ok()?;
+            if metadata.is_dir() {
+                return Some(None);
+            }
             if !metadata.is_file() || metadata.len() > remaining {
                 return None;
             }
@@ -173,6 +186,6 @@ impl DocTranscript {
                 "sha256": format!("{:x}", hasher.finalize()),
             }));
         }
-        Some(Value::Array(records))
+        Some(Some(Value::Array(records)))
     }
 }

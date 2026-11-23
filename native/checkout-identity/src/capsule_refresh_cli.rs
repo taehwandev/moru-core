@@ -58,7 +58,8 @@ impl CapsuleRefresh {
         } else {
             Self::observe_root(&rules)?
         };
-        let docs = DocTranscript::hash_documents(&rules, &CapsuleCheck::required_docs(route)?)?;
+        let docs =
+            DocTranscript::observe_document_hashes(&rules, &CapsuleCheck::required_docs(route)?)?;
         let created_at = StatusSnapshot::capture_time()?;
         let mut entropy = [0; 16];
         File::open("/dev/urandom")

@@ -692,11 +692,54 @@ class NativeCompletionTests(unittest.TestCase):
         )
         return doc
 
-    def capsule_check_runner(self, project, rules, required_doc):
+    def test_capsule_refresh_cli_distinguishes_unavailable_docs_from_read_limits(self):
+        doc = self.commit_capsule_rules()
+        extra = self.project / "extra.md"
+        extra.write_text("present\n")
+        call = self.capsule_check_runner(self.project, self.project, doc.name, extra.name)
+        target = self.project / ".moru" / "runs" / ("a" * 32) / "execution-capsule.json"
+        outside = self.base / "outside.md"
+        outside.write_text("outside\n")
+        extra.unlink()
+
+        for state in ("missing", "directory", "outside"):
+            with self.subTest(document=state):
+                if state == "directory":
+                    extra.mkdir()
+                elif state == "outside":
+                    extra.symlink_to(outside)
+                reference = call(action="refresh", MORU_LAUNCHER_BACKEND="python")
+                self.assertEqual(0, reference[0], reference)
+                self.assertEqual("preflight", json.loads(reference[1])["phase"])
+                expected = json.loads(target.read_bytes())
+                self.assertEqual([], expected["required_docs"])
+                self.assertIn("gate_ledger", expected)
+                self.assertEqual(reference, call(action="refresh", PATH=str(self.empty)))
+                native = json.loads(target.read_bytes())
+                native.pop("created_at")
+                expected.pop("created_at")
+                self.assertEqual(expected, native)
+                if state == "directory":
+                    extra.rmdir()
+                elif state == "outside":
+                    extra.unlink()
+
+        # A regular file above the native read budget is still a valid document.
+        byte_count = 4 * 1024 * 1024 + 1
+        extra.write_bytes(b"x" * byte_count)
+        previous = target.read_bytes()
+        self.assertEqual(127, call(action="refresh", PATH=str(self.empty))[0])
+        self.assertEqual(previous, target.read_bytes())
+        fallback = call(action="refresh")
+        self.assertEqual(0, fallback[0], fallback)
+        self.assertEqual("ready", json.loads(fallback[1])["phase"])
+        self.assertEqual(byte_count, json.loads(target.read_bytes())["required_docs"][-1]["size_bytes"])
+
+    def capsule_check_runner(self, project, rules, *required_docs):
         run = project / ".moru" / "runs" / ("a" * 32)
         run.mkdir(parents=True)
         evidence = run / "preflight.json"
-        route = {"command": "refactor", "required_docs": [required_doc]}
+        route = {"command": "refactor", "required_docs": list(required_docs)}
         preflight = {"project": str(project), "rules": str(rules), "route": route}
         evidence.write_text(json.dumps(preflight))
         ledger = run / "gate-evidence.json"
