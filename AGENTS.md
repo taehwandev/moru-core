@@ -148,19 +148,20 @@ budgets and migration exceptions, read
 
 ## Failure And Recovery
 
-Required gate failure is `🐱🔴 FAIL`, never completion. Diagnose and correct the
-owning task, missing evidence, invocation or environment first; failure alone
-does not require a Moru Core edit or a separate retrospective. Only an evidenced
-framework defect uses one `retrospective_repair_verify_resume` cycle:
-repair the canonical rule, hook, validator, or test; verify it; then resume the
-original task. Stop if the failure recurs, repair is unsafe/ambiguous, ownership
-is uncertain, or verification fails.
+Required gate failure is `🐱🔴 FAIL`, never completion. Fix task, evidence,
+invocation or environment causes first. For an evidenced Moru Core defect
+(skill/doc, routing, validator/hook, or false-positive gate), use
+`retrospective_repair_verify_resume`: fix it in a linked worktree, verify with
+the nearest test (plus a negative control for gate fixes) and
+`workflow validate`, then resume. Stop if it recurs, repair is
+unsafe/ambiguous, ownership is uncertain, or verification fails.
 
-In an active writable worktree, canonical skill/rule updates for a verified
-`reusable_gap` or failure-repair carry standing `local_write` authority: apply,
-verify and record them in the same closeout without asking (never overriding
+Verified `reusable_gap` or Moru Core defect fixes carry standing `local_write`
+authority in a linked worktree without asking (never overriding
 `--read-only`/`analysis`, protected checkouts, or user prohibitions, nor
-granting `git_write`/`external_write`).
+granting `git_write`/`external_write`). Security/permission gate bug fixes are
+allowed while preserving core intent and negative controls and must be called
+out in the final report; wholesale weakening needs prior approval.
 
 ## Release And Source Control
 

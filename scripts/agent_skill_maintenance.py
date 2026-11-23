@@ -249,7 +249,7 @@ def _canonical_rules_worktree(
 ) -> bool:
     """Trust only canonical bundles in a linked worktree of the rules repo."""
     parts = Path(relative).parts
-    if len(parts) >= 3 and parts[0] in {"common", "workflows"} and parts[1] == "skills":
+    if len(parts) >= 3 and parts[0] in {"common", "workflows", "docs"} and parts[1] == "skills":
         bundle = Path(*parts[:3])
     elif len(parts) >= 4 and parts[0] == "platforms" and parts[2] == "skills":
         bundle = Path(*parts[:4])

@@ -29,10 +29,9 @@ type: ai-generated
    sibling-page expansion—align pre-`start` with findings, a concrete sketch or
    2–3-line sample, full scope and focused questions. Change only the authorized
    outcome; incidental findings grant no cleanup authority. In an active
-   writable worktree, canonical skill/rule updates for a verified reusable_gap
-   or failure-repair are pre-authorized local_write edits: apply and verify
-   without asking. Existing pointers need no edit if they already load the
-   source.
+   linked worktree, verified Moru Core defect/`reusable_gap` fixes (false-positive
+   gate bugs: keep negative controls, note in report) carry standing `local_write`
+   authority without asking. Unchanged pointers need no edit.
 5. Stop after outcome/checks; extra checks need evidence.
 
 ## Live Session Continuity
