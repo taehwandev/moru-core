@@ -257,8 +257,8 @@ tasks visible across sessions. Both stay on your Mac. Details:
   on your Mac; setup connects task labels automatically without extra hooks.
 - **[Moru Narrow (`moru-narrow`)](https://github.com/taehwandev/moru-narrow)**
   is a zero-index Rust CLI (`moru-narrow` / `mnarrow`) that ranks `rg -w <Name>`
-  hits into real `TIER 1` callers for Kotlin (Gradle) and TypeScript contract
-  changes, refactors, and call-site blast-radius checks.
+  hits into real `TIER 1` callers for Kotlin (Gradle), TypeScript, Python, and
+  Rust contract changes, refactors, and call-site blast-radius checks.
 - **[Moru Artemis (`moru-artemis`)](https://github.com/taehwandev/moru-artemis)**
   is an open-source Android MCP server (Apache-2.0 fork of `google/artemis`)
   that lets your coding agent inspect and control connected Android devices and

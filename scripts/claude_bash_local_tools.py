@@ -48,7 +48,7 @@ MORU_NARROW_NAMES = frozenset({"moru-narrow", "mnarrow"})
 MORU_NARROW_HELP_FLAGS = frozenset({"-h", "--help", "-V", "--version"})
 MORU_NARROW_SWITCHES = frozenset({"--all", "--flow", "--json"})
 MORU_NARROW_VALUE_OPTIONS = frozenset({"--repo", "--decl", "--lang"})
-MORU_NARROW_LANGS = frozenset({"kotlin", "ts"})
+MORU_NARROW_LANGS = frozenset({"kotlin", "ts", "python", "rust"})
 
 
 def node_test_kind(command: list[str], cwd: Path | None) -> str | None:

@@ -85,7 +85,7 @@ cannot be split.
 ## Call-Site Blast Radius (`moru-narrow`)
 
 When `moru-narrow` (`mnarrow`) is installed on `PATH` and the target repository
-uses Kotlin (Gradle) or TypeScript, prefer `moru-narrow <Name> --repo <project>`
+uses Kotlin (Gradle), TypeScript, Python, or Rust, prefer `moru-narrow <Name> --repo <project>`
 over reading every `rg -w <Name>` hit when changing a function/constructor/method
 contract (parameters, return type, split, or deletion) or mapping real callers:
 

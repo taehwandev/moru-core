@@ -98,6 +98,8 @@ class NodeTestAndLookupClassification(_Fixture):
             "moru-narrow getGlobalTheme --repo .",
             f"moru-narrow Card --repo {self.other} --decl core/ui/Card.kt --all --json",
             "mnarrow load --repo=. --lang=ts --flow",
+            "mnarrow run_command --repo . --lang python",
+            "moru-narrow CheckoutIdentity --lang=rust",
             "moru-narrow --version",
             "npm view left-pad version | head -1",
         ):
@@ -126,7 +128,7 @@ class NodeTestAndLookupClassification(_Fixture):
             "moru-narrow --install",
             "moru-narrow --install --force",
             "moru-narrow --install --agents-md",
-            "mnarrow Card --lang python",
+            "mnarrow Card --lang ruby",
             "moru-narrow Card ExtraOperand",
             "moru-narrow Card --repo",
         ):
