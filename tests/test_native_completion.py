@@ -142,21 +142,23 @@ class NativeCompletionTests(unittest.TestCase):
         metadata = {str(current): {"status": "R", "previous_path": str(old)}}
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual({
-                current: ["class Before:", "    pass", ""], paths[1]: [], paths[4]: [],
-            }, purpose.native_owner_baselines(self.project, base, paths, metadata))
-            self.assertEqual({current: ["class After:", "    pass"]},
-                             purpose.native_owner_baselines(self.project, "HEAD", [current], {}))
-            self.assertEqual({}, purpose.native_owner_baselines(self.project, "main~1", paths, metadata))
-            with patch.object(structure, "native_owner_baselines", wraps=purpose.native_owner_baselines) as batch, (
+                current: "class Before:\n    pass\n\n", paths[1]: False, paths[4]: "",
+            }, purpose.native_review_baselines(self.project, base, paths, metadata))
+            baseline = "class After:\n    pass\n"
+            self.assertEqual({current: baseline},
+                             purpose.native_review_baselines(self.project, "HEAD", [current], {}))
+            self.assertEqual({}, purpose.native_review_baselines(self.project, "main~1", paths, metadata))
+            with patch.object(structure, "native_review_baselines", wraps=purpose.native_review_baselines) as batch, (
                 patch.object(structure, "previous_top_level_type_declarations",
                              wraps=purpose.previous_top_level_type_declarations)
-            ) as owners:
+            ) as owners, patch.object(structure, "_previous_block_spans", wraps=structure._previous_block_spans) as blocks:
                 (folder / "new.py").write_text("class ChangedAgain:\n    pass\n")
-                actual = structure.structure_review(self.project, 200, 100, structure.review_runtime_command)
+                actual = structure.structure_review(self.project, 200, 1, structure.review_runtime_command)
                 batch.assert_called_once()
-                self.assertEqual(["class After:", "    pass"], owners.call_args.kwargs["baseline_lines"])
+                self.assertEqual(baseline, owners.call_args.kwargs["baseline_text"])
+                self.assertEqual(baseline, blocks.call_args.kwargs["baseline_text"])
             with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
-                expected = structure.structure_review(self.project, 200, 100, structure.review_runtime_command)
+                expected = structure.structure_review(self.project, 200, 1, structure.review_runtime_command)
             self.assertEqual(expected, actual)
 
     def test_structure_test_flags_match_python_even_when_source_read_declines(self):
@@ -703,6 +705,13 @@ class NativeCompletionTests(unittest.TestCase):
         ):
             self.assertEqual(expected, structure.android_action_delta_failures(*args))
         run.assert_called_with(["git", "show", "HEAD:Old.kt"], self.project)
+        no_git = Mock(side_effect=AssertionError("shared Compose baseline was read again"))
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(expected, structure.android_action_delta_failures(
+                *args[:-1], no_git, baseline_text="\n".join(baseline),
+            ))
+            fresh, warnings = structure.android_action_delta_failures(*args[:-1], no_git, baseline_text=False)
+            self.assertEqual((2, []), (len(fresh), warnings))
         self.assertEqual((1, 1), tuple(map(len, expected)))
         self.assertIn("Screen.kt:5:", expected[0][0])
         self.assertTrue(expected[1][0].startswith("unchanged baseline violation: Screen.kt:4:"))
@@ -1551,8 +1560,14 @@ class NativeCompletionTests(unittest.TestCase):
                         "block_spans": {**structure._block_span_input(path, text.splitlines()),
                                         "limit": 2, "initial": False},
                     }
+                    shared_row = row.copy()
                     with patch.dict(os.environ, self.env, clear=True):
                         structure._attach_block_baselines(self.project, [row], run)
+                        structure._attach_block_baselines(
+                            self.project, [shared_row], Mock(side_effect=AssertionError("baseline was read again")),
+                            {path: prior if code == 0 else False},
+                        )
+                    self.assertEqual(row, shared_row)
                     git.assert_called_once_with(["git", "show", f"{base}:{old_path}"], self.project)
                     if code == 0:
                         self.assertEqual(prior, row["blocks"]["previous_spans"]["source_text"])

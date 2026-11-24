@@ -1,9 +1,9 @@
-//! owner: bounded Git blob reads for declaration baselines.
+//! owner: bounded Git blob reads for structural review baselines.
 //! allowed imports: read-only process capture, Python text boundaries and JSON.
 //! forbidden imports: worktree writes, arbitrary revision expressions and review decisions.
 //! callers/tests: structural review and real Git baseline parity fixtures.
 //! verification: framing, revision selection, rename paths and per-blob fallback.
-use crate::{python_text::PythonText, read_process::status::capture_status};
+use crate::{read_process::status::capture_status, text::Text};
 use serde_json::{json, Value};
 use std::{
     path::{Component, Path},
@@ -11,9 +11,9 @@ use std::{
     time::Duration,
 };
 
-pub(super) struct StructureOwnerBaseline;
+pub(super) struct StructureReviewBaseline;
 
-impl StructureOwnerBaseline {
+impl StructureReviewBaseline {
     pub(super) fn batch(payload: &Value) -> Option<Value> {
         let root = Path::new(payload.get("project")?.as_str()?);
         let revision = payload.get("revision")?.as_str()?;
@@ -81,7 +81,7 @@ impl StructureOwnerBaseline {
             let header = std::str::from_utf8(&bytes[..line_end]).ok()?;
             bytes = &bytes[line_end + 1..];
             if header.strip_suffix(" missing") == Some(query.as_str()) {
-                rows.push(json!([]));
+                rows.push(Value::Bool(false));
                 continue;
             }
             let (oid, info) = header.split_once(' ')?;
@@ -93,12 +93,12 @@ impl StructureOwnerBaseline {
             let body = &bytes[..length];
             bytes = &bytes[length + 1..];
             // The Python runner handles invalid UTF-8 and strips ANSI output.
-            let lines = if kind == "blob" && !body.contains(&0x1b) {
-                std::str::from_utf8(body).ok().map(PythonText::splitlines)
+            let text = if kind == "blob" && !body.contains(&0x1b) {
+                std::str::from_utf8(body).ok().map(Text::universal_newlines)
             } else {
                 None
             };
-            rows.push(json!(lines));
+            rows.push(json!(text));
         }
         bytes.is_empty().then(|| json!({"rows": rows}))
     }

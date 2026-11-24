@@ -132,8 +132,8 @@ mod structure_rust_declarations;
 mod structure_declaration_roles;
 #[path = "structure_declaration_records.rs"]
 mod structure_declaration_records;
-#[path = "structure_owner_baseline.rs"]
-mod structure_owner_baseline;
+#[path = "structure_review_baseline.rs"]
+mod structure_review_baseline;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -192,7 +192,7 @@ impl CompletionProcess {
             Some("structure-rust-declarations") => structure_rust_declarations::StructureRustDeclarations::scan(&payload),
             Some("structure-declaration-roles") => structure_declaration_roles::StructureDeclarationRoles::classify(&payload),
             Some("structure-declaration-records") => structure_declaration_records::StructureDeclarationRecords::scan(&payload),
-            Some("structure-owner-baseline") => structure_owner_baseline::StructureOwnerBaseline::batch(&payload),
+            Some("structure-review-baseline") => structure_review_baseline::StructureReviewBaseline::batch(&payload),
             Some("structure-boundary-reasons") => structure_declaration_roles::StructureDeclarationRoles::boundary_reasons(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("structure-source-read") => structure_source_read::StructureSourceRead::batch(&payload),

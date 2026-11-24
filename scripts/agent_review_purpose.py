@@ -6,7 +6,7 @@ import re
 import unicodedata
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from support.native_probe_transport import NativeProbe
 
@@ -120,13 +120,13 @@ def previous_top_level_type_declarations(
     path_metadata: dict[str, dict[str, Any]],
     run_command: CommandRunner | None,
     *,
-    baseline_lines: list[str] | None = None,
+    baseline_text: str | Literal[False] | None = None,
 ) -> list[dict[str, Any]]:
     metadata = path_metadata.get(str(path), {})
-    if run_command is None or metadata.get("status") == "A":
+    if run_command is None or metadata.get("status") == "A" or baseline_text is False:
         return []
-    if baseline_lines is not None:
-        return top_level_type_declarations(path, baseline_lines)
+    if baseline_text is not None:
+        return top_level_type_declarations(path, baseline_text.splitlines())
 
     previous_path = _owner_baseline_path(path, metadata)
     previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
@@ -140,21 +140,21 @@ def _owner_baseline_path(path: Path, metadata: dict[str, Any]) -> str:
     return str(metadata.get("previous_path") or path.as_posix())
 
 
-def native_owner_baselines(
+def native_review_baselines(
     project: Path, revision: str, paths: list[Path], path_metadata: dict[str, dict[str, Any]],
-) -> dict[Path, list[str]]:
+) -> dict[Path, str | Literal[False]]:
     existing = [path for path in paths if path_metadata.get(str(path), {}).get("status") != "A"]
     if not existing:
         return {}
-    result = NativeProbe.request("--completion-probe", "structure-owner-baseline", {
+    result = NativeProbe.request("--completion-probe", "structure-review-baseline", {
         "project": str(project.resolve()), "revision": revision,
         "paths": [_owner_baseline_path(path, path_metadata.get(str(path), {})) for path in existing],
     })
     rows = result.get("rows") if result is not None else None
     if not isinstance(rows, list) or len(rows) != len(existing):
         return {}
-    return {path: lines for path, lines in zip(existing, rows)
-            if isinstance(lines, list) and all(isinstance(line, str) for line in lines)}
+    # False is a confirmed missing object; an absent key requires the reference runner.
+    return {path: text for path, text in zip(existing, rows) if isinstance(text, str) or text is False}
 
 
 def _native_declaration_scan(suffix: str, lines: list[str]) -> dict[str, Any] | None:

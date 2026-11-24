@@ -24,7 +24,7 @@ from agent_review_purpose import (
     MIXED_ROLE_BLOCKS,
     _owner_input_findings,
     _owner_review_input,
-    native_owner_baselines,
+    native_review_baselines,
     previous_top_level_type_declarations,
     purpose_failures,
     top_level_type_declarations,
@@ -164,16 +164,18 @@ BRACE_TYPE_BLOCK_RE = re.compile(
 STYLE_BLOCK_RE = re.compile(r"^\s*[^@{}][^{}]*\{\s*$")
 
 
-def android_action_delta_failures(project, path, lines, metadata, run_command):
+def android_action_delta_failures(project, path, lines, metadata, run_command, *, baseline_text=None):
     """Block new violations; report violations on unchanged baseline lines."""
     current = AndroidActionBoundary.failures(path, "\n".join(lines))
-    if not current or metadata.get("status") == "A":
+    if not current or metadata.get("status") == "A" or baseline_text is False:
         return current, []
-    previous_path = str(metadata.get("previous_path") or path.as_posix())
-    previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
-    if previous.get("returncode") != 0:
-        return current, []
-    previous_lines = previous.get("stdout", "").splitlines()
+    if baseline_text is None:
+        previous_path = str(metadata.get("previous_path") or path.as_posix())
+        previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
+        if previous.get("returncode") != 0:
+            return current, []
+        baseline_text = previous.get("stdout", "")
+    previous_lines = baseline_text.splitlines()
     prior = AndroidActionBoundary.failures(path, "\n".join(previous_lines))
     prior_keys = [_action_key(finding) for finding in prior]
     current_keys = [_action_key(finding) for finding in current]
@@ -288,14 +290,14 @@ def structure_review(
     file_checks = []
     owner_checks = []
     source_rows = _review_source_batch(source_root, active_paths)
-    owner_baselines = {}
+    baselines = {}
     if run_command is review_runtime_command:
         baseline_paths = [
             path for path, (lines, is_test) in zip(active_paths, source_rows)
             if lines is not False and not (test_exempt_path(path) if is_test is None else is_test)
         ]
         revision = review_commits[0] if review_commits is not None else "HEAD"
-        owner_baselines = native_owner_baselines(project, revision, baseline_paths, discovery["path_metadata"])
+        baselines = native_review_baselines(project, revision, baseline_paths, discovery["path_metadata"])
     for relative, (lines, is_test_path) in zip(active_paths, source_rows):
         if is_test_path is None:
             is_test_path = test_exempt_path(relative)
@@ -325,16 +327,17 @@ def structure_review(
             else REVIEW_FILE_REVIEW_WARNING_LIMIT,
         }
         if not is_test_path:
+            baseline_text = baselines.get(relative)
             owner_checks.append(_owner_review_input(
                 relative,
                 top_level_type_declarations(relative, lines),
                 previous_top_level_type_declarations(
                     source_root, relative, discovery["path_metadata"], subject_run_command,
-                    baseline_lines=owner_baselines.get(relative),
+                    baseline_text=baseline_text,
                 ),
             ))
             file_review["actions"] = android_action_delta_failures(
-                project, relative, lines, metadata, subject_run_command,
+                project, relative, lines, metadata, subject_run_command, baseline_text=baseline_text,
             )
             if len(lines) > max_block_lines:
                 prepared = _block_span_input(relative, lines)
@@ -345,7 +348,7 @@ def structure_review(
         file_checks.append((len(result["failures"]), len(result["warnings"]), file_review))
 
     files = [row for _, _, row in file_checks]
-    _attach_block_baselines(source_root, files, subject_run_command)
+    _attach_block_baselines(source_root, files, subject_run_command, baselines)
     path_metadata = discovery["path_metadata"]
     file_findings, source_layout = _file_findings(files, source_layout={
         "limit": REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
@@ -1437,7 +1440,10 @@ def _block_review_facts(
     }
 
 
-def _attach_block_baselines(project: Path, files: list[dict[str, Any]], run_command: CommandRunner) -> None:
+def _attach_block_baselines(
+    project: Path, files: list[dict[str, Any]], run_command: CommandRunner,
+    baselines: dict[Path, str | Literal[False]] | None = None,
+) -> None:
     existing = [
         row for row in files
         if "block_spans" in row and not row["block_spans"]["initial"] and row["metadata"].get("status") != "A"
@@ -1460,7 +1466,10 @@ def _attach_block_baselines(project: Path, files: list[dict[str, Any]], run_comm
         if not current:
             continue
         limit = prepared["limit"]
-        baseline = _previous_block_spans(project, Path(row["path"]), row["metadata"], run_command)
+        path = Path(row["path"])
+        baseline = _previous_block_spans(
+            project, path, row["metadata"], run_command, baseline_text=(baselines or {}).get(path),
+        )
         facts = {"initial": False, "limit": limit, "current": current, "previous": []}
         if baseline is not None:
             facts["previous_spans"] = {**baseline, "limit": limit}
@@ -1499,9 +1508,12 @@ def previous_oversized_blocks(
 
 def _previous_block_spans(
     project: Path, path: Path, metadata: dict[str, Any], run_command: CommandRunner,
+    *, baseline_text: str | Literal[False] | None = None,
 ) -> dict[str, Any] | None:
-    if metadata.get("status") == "A":
+    if metadata.get("status") == "A" or baseline_text is False:
         return None
+    if baseline_text is not None:
+        return _block_span_input(path, baseline_text)
     previous_path = str(metadata.get("previous_path") or path.as_posix())
     previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
     if previous.get("returncode") != 0:
