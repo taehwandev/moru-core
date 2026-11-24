@@ -601,8 +601,10 @@ class NativeCompletionTests(unittest.TestCase):
             expected = classify()
         with patch.dict(os.environ, self.env, clear=True), patch.object(
             removals, "classify_removal", side_effect=AssertionError("Python matched occurrences"),
+        ), patch.object(
+            removals, "_describe_removal", side_effect=AssertionError("Python selected the removal summary"),
         ), patch.object(NativeProbe, "request", wraps=NativeProbe.request) as request:
-            self.assertEqual(expected, classify())
+            self.assertEqual(json.dumps(expected), json.dumps(classify()))
             protocol, operation, payload = request.call_args.args
             self.assertEqual(("--completion-probe", "structure-removal-matching"), (protocol, operation))
             self.assertNotIn(sensitive, json.dumps(payload))
@@ -611,6 +613,28 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(["[sensitive-looking content omitted]"], expected[0]["sample_lines"])
         self.assertEqual(["0-first.py", "b.py"], expected[1]["moved_to"])
         self.assertEqual("unavailable", expected[2]["classification"])
+
+    def test_structure_removal_summary_selects_samples_without_source_text(self):
+        removed = {
+            "short.py": [" \t ", "}", "#x"],
+            "blank.py": ["body line", " "],
+            "headings.py": ["body goes first", *[f"# heading {i}" for i in range(6)]],
+            "plain.py": [f"body {i}" for i in range(4)],
+        }
+        findings = [{"path": path} for path in removed]
+        added = {"dest.py": [" \t ", "}", "#x", "body line"]}
+        with patch.dict(os.environ, self.env, clear=True):
+            rows = removals._native_matches(findings, removed, added)
+        self.assertIsNotNone(rows)
+        for lines, row in zip(removed.values(), rows):
+            unmatched = [lines[index] for index in row["unmatched"]]
+            expected = removals._describe_removal(lines, unmatched, row["moved_to"])
+            with patch.object(removals, "_describe_removal", side_effect=AssertionError("Python picked samples")):
+                self.assertEqual(json.dumps(expected), json.dumps(removals._native_description(lines, row)))
+            self.assertEqual(expected, removals._native_description(
+                lines, {**row, "summary": {"classification": "removed", "samples": [len(lines)]}},
+            ))
+        self.assertEqual([[2], [], [1, 2, 3, 4, 5], [0, 1, 2]], [row["summary"]["samples"] for row in rows])
 
     def test_structure_source_layout_keeps_counts_warning_order_and_path_prefix(self):
         limit = structure.REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT
