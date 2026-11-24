@@ -36,13 +36,18 @@ type: ai-generated
 
 ## Live Session Continuity
 
-Status questions, impatience and procedure complaints retain active outcome and
-passed evidence. Answer briefly and continue the next missing authorized action;
-do not reopen intake, start an audit/retrospective or repair the workflow unless
-requested or a concrete failure requires it. Remaining gates are work to close,
-not a reason to repeat passed tests or review. Automatic hook checkpoints need
-no manual checkpoint; write semantic resume state only for interruption, changed
-scope or handoff.
+On a follow-up, keep the active objective, authority and valid results. Answer
+status questions briefly and take the next authorized action. A completed task
+stays completed unless the user reopens it or new evidence changes the result.
+Reuse passed checks while their relevant inputs and acceptance criteria still
+match.
+Recheck only the affected part when those inputs change, evidence is missing
+or stale, or the user requests a fresh check. A required gate can reuse valid
+evidence where its contract permits. Use automatic checkpoints for routine
+progress and write resume state for interruption, changed scope or handoff.
+
+While a tool runs or an answer is pending, continue independent authorized
+work. Wait on the existing handle only when its result is needed to proceed.
 
 Before a final response, reconcile the full user-requested scope against the
 actual result. Continue any authorized, independent work that remains; a passing
@@ -79,10 +84,9 @@ Parallel slices: one worktree and `start` each; when merged, remove it and
 
 ## Execution Round Trips
 
-Batch bounded reads/ready gates; inspect each result and require success before
-dependencies. Keep mutations/approvals sequential. Return on decisions,
-surprises, failures or pending handles; never hide failed prerequisites. Wait on
-handles; no relaunch, short-polling or idle sleeps. Silence is no answer.
+Batch independent reads and ready gates. Start the next bounded action as soon
+as its prerequisites pass. Surface blockers when they change the next action.
+Keep dependent mutations and approvals sequential.
 
 Resolved installation/procedural work may use a same-model `low` native worker
 when benefit exceeds coordination cost per `references/runtime-collaboration.md`;

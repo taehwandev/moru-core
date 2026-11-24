@@ -164,9 +164,10 @@ class SessionDeliveryTests(unittest.TestCase):
         with patch.object(hook, "_CONTINUITY_SOURCE", source):
             output = json.loads(self._deliver("s1"))["hookSpecificOutput"]["additionalContext"]
         output = " ".join(output.split())  # Markdown wrapping does not remove a safeguard.
-        self.assertIn("Status questions, impatience", output)
-        self.assertIn("Automatic hook checkpoints need no manual checkpoint", output)
-        self.assertIn("a completed task stays completed", output)
+        self.assertIn("A completed task stays completed", output)
+        self.assertIn("Reuse passed checks while their relevant inputs and acceptance criteria still match", output)
+        self.assertIn("Recheck only the affected part", output)
+        self.assertIn("Wait on the existing handle only when its result is needed", output)
         self.assertIn("reconcile the full user-requested scope", output)
         self.assertIn("Continue any authorized, independent work that remains", output)
         self.assertIn("do not narrow the original scope to the last approved subset", output)
