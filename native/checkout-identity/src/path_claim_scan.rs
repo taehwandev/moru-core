@@ -65,6 +65,15 @@ impl PathClaimScan {
             .filter(|_| rows.len() == claims.len())
             .and_then(|request| Self::conflicts(&claims, &rows, request))
             .map(|matches| json!({"matches": matches, "earliest": earliest}));
+        let conflict_key = if conflict
+            .and_then(|request| request.get("started"))
+            .and_then(Value::as_str)
+            .is_some()
+        {
+            "arbitration"
+        } else {
+            "conflicts"
+        };
         let release = release
             .filter(|_| rows.len() == claims.len())
             .and_then(|request| Self::release_plan(&claims, &rows, request))
@@ -73,7 +82,9 @@ impl PathClaimScan {
             .filter(|_| rows.len() == claims.len())
             .and_then(|as_json| Self::status(claims, as_json))
             .map(|output| json!({"output": output, "earliest": earliest}));
-        Some(json!({"rows": rows, "status": status, "conflicts": conflicts, "release": release}))
+        let mut result = json!({"rows": rows, "status": status, "release": release});
+        result[conflict_key] = conflicts.unwrap_or(Value::Null);
+        Some(result)
     }
 
     pub(super) fn parse(raw: &str, digit_limit: usize) -> Option<Option<(f64, Claim)>> {
@@ -138,17 +149,42 @@ impl PathClaimScan {
             .map(Value::as_str)
             .collect::<Option<Vec<_>>>()?;
         let holder = request.get("holder")?.as_str()?;
+        let started = request.get("started").and_then(Value::as_str);
         let mut matches = Vec::new();
         for (claim, row) in claims.iter().zip(rows) {
             if paths.is_empty() || claim.get("holder").and_then(Claim::as_str) == Some(holder) {
                 continue;
             }
             let path = claim.get("path")?.as_str()?;
-            if paths.iter().any(|wanted| Self::overlaps(path, wanted)) {
-                matches.push(row.get(2)?.clone());
+            if !paths.iter().any(|wanted| Self::overlaps(path, wanted)) {
+                continue;
             }
+            if let Some(started) = started {
+                if !Self::precedes(claim, started, holder)? {
+                    continue;
+                }
+            }
+            matches.push(row.get(2)?.clone());
         }
         Some(matches)
+    }
+
+    fn precedes(claim: &Claim, started: &str, holder: &str) -> Option<bool> {
+        let since = match claim.get("since") {
+            Some(value) => value.as_str()?,
+            None => "",
+        };
+        match since.cmp(started) {
+            std::cmp::Ordering::Less => Some(true),
+            std::cmp::Ordering::Greater => Some(false),
+            std::cmp::Ordering::Equal => {
+                let owner = match claim.get("holder") {
+                    Some(value) => value.as_str()?,
+                    None => "",
+                };
+                Some(owner < holder)
+            }
+        }
     }
 
     fn overlaps(first: &str, second: &str) -> bool {

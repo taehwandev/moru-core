@@ -162,20 +162,30 @@ def _recheck_active(entry: Path) -> Optional[dict]:
 
 
 def conflicts(project: Path, paths: Iterable[str], holder: str) -> list[dict]:
+    return _find_conflicts(project, paths, holder)
+
+
+def _find_conflicts(
+    project: Path, paths: Iterable[str], holder: str, *, started: Optional[str] = None,
+) -> list[dict]:
     wanted = list(paths)
     directory = claims_dir(project)
     query = None
     if type(holder) is str and all(type(path) is str for path in wanted):
-        query = {"paths": wanted, "holder": holder}
+        query = {"paths": wanted, "holder": holder, "started": started}
     result = _scan_claims(project, directory, conflict=query)
-    matches = _fresh_projection(result, "conflicts", "matches")
+    key = "conflicts" if started is None else "arbitration"
+    matches = _fresh_projection(result, key, "matches")
     if isinstance(matches, list) and all(isinstance(raw, str) for raw in matches):
         return [json.loads(raw) for raw in matches]
-    return [
+    blocking = [
         claim
         for claim in _active_claims(directory, result)
         if claim.get("holder") != holder and any(overlaps(claim["path"], p) for p in wanted)
     ]
+    if started is None:
+        return blocking
+    return [claim for claim in blocking if (claim.get("since", ""), claim.get("holder", "")) < (started, holder)]
 
 
 def _fresh_projection(result: Optional[dict], name: str, field: str):
@@ -236,11 +246,7 @@ def try_claim(project: Path, paths: list[str], holder: str, ttl: int) -> list[di
         written.append(path)
     # A concurrent claimer may have taken an overlapping path between the scan
     # and the create. The later (since, holder) backs off, so one side keeps it.
-    lost = [
-        claim
-        for claim in conflicts(project, paths, holder)
-        if (claim.get("since", ""), claim.get("holder", "")) < (started, holder)
-    ]
+    lost = _find_conflicts(project, paths, holder, started=started)
     if lost:
         release(project, written, holder)
     return lost

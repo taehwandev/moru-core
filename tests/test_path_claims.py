@@ -540,6 +540,54 @@ class PathClaimsTests(unittest.TestCase):
                                  ["path-claim-scan", "path-claim-expire"])
             self.assertEqual(sorted(p.name for p in directory.iterdir()), ["a.json", "b.json", "c.json", "d.json"])
 
+    def test_native_post_write_arbitration_rolls_back_only_owned_writes(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        paths = ["src", "lib"]
+        holder = "middle"
+        started = path_claims._iso(self.clock)
+        expiry = path_claims._iso(self.clock + 60)
+        earlier = {"path": "src/a", "holder": "older", "expires": expiry}
+        tie = {"path": "lib/b", "holder": "alpha", "since": started, "expires": expiry}
+        contenders = [
+            earlier, tie, {"path": "lib/c", "holder": "zulu", "since": started, "expires": expiry},
+            {"path": "src/d", "holder": "alpha", "since": path_claims._iso(self.clock + 1), "expires": expiry},
+            {"path": "unrelated", "holder": "other", "expires": expiry},
+        ]
+        directory = path_claims.claims_dir(self.project)
+        write = path_claims._write_claim
+
+        def write_with_race(project, path, owner, ttl):
+            self.assertTrue(write(project, path, owner, ttl))
+            if path == paths[-1]:
+                for index, claim in enumerate(contenders):
+                    (directory / f"race-{index}.json").write_text(json.dumps(claim), encoding="utf-8")
+            return True
+
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.object(path_claims, "_write_claim", side_effect=write_with_race), (
+                mock.patch.object(path_claims, "overlaps", side_effect=AssertionError("Python arbitrated claims"))
+            ):
+                self.assertEqual(path_claims.try_claim(self.project, paths, holder, 60), [earlier, tie])
+            self.assertEqual(sorted(entry.name for entry in directory.iterdir()),
+                             [f"race-{index}.json" for index in range(len(contenders))])
+
+            request = path_claims.NativeProbe.request
+
+            def old_launcher(protocol, operation, payload):
+                if operation == "path-claim-scan":
+                    payload = {**payload, "conflict": {**payload["conflict"], "started": None}}
+                return request(protocol, operation, payload)
+
+            with mock.patch.object(path_claims.NativeProbe, "request", side_effect=old_launcher):
+                self.assertEqual(path_claims._find_conflicts(self.project, paths, holder, started=started), [earlier, tie])
+
     def test_wait_gives_up_after_timeout(self) -> None:
         self.claim("a", "src/x.tsx")
 
