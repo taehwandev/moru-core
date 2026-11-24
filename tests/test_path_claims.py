@@ -413,6 +413,44 @@ class PathClaimsTests(unittest.TestCase):
                 self.assertEqual(path_claims.release(self.project, paths, holder), [])
             self.assertTrue(all(not target.exists() for target in targets))
 
+    def test_native_claim_ttl_matches_python_at_timestamp_boundaries(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        vectors = [
+            (-62135596800.0, 1), (-1.0000006, 1), (-0.9999995, 0),
+            (-0.0000005, 0), (0.9999995, -1), (172800.99999949, 0),
+            (1800000000.0000005, -60), (253402300799.0, -1),
+        ]
+        with mock.patch.dict(os.environ, {**environment(self.project, ROOT), "TZ": "Asia/Seoul"}, clear=True):
+            for index, (self.clock, ttl) in enumerate(vectors):
+                with self.subTest(now=self.clock, ttl=ttl):
+                    path = f"clock/{index}"
+                    expected = {
+                        "path": path, "holder": "clock",
+                        "since": path_claims._iso(self.clock), "expires": path_claims._iso(self.clock + ttl),
+                    }
+                    with mock.patch.object(path_claims, "_iso", side_effect=AssertionError("Python formatted time")):
+                        self.assertTrue(path_claims._write_claim(self.project, path, "clock", ttl))
+                    self.assertEqual(path_claims._claim_file(self.project, path).read_text(), json.dumps(expected))
+            self.clock = 253402300799.0
+            with self.assertRaises((OverflowError, OSError, ValueError)):
+                path_claims._write_claim(self.project, "invalid", "clock", 1)
+            self.assertFalse(path_claims._claim_file(self.project, "invalid").exists())
+
+            old = {"path": "legacy", "holder": "clock", "since": "old-since", "expires": "old-expiry"}
+            target = path_claims._claim_file(self.project, "legacy")
+            receipt = path_claims.NativeProbe.request("--completion-probe", "path-claim-write", {
+                "project": str(self.project), "name": target.name, "entry": old, "digit_limit": 0,
+            })
+            self.assertEqual(receipt, {"written": True})
+            self.assertEqual(target.read_text(), json.dumps(old))
+
     def test_native_status_matches_python_and_refreshes_expiry_at_output(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment

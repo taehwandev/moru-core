@@ -6,6 +6,7 @@
 use super::path_claim_filename::PathClaimFilename;
 use crate::{
     atomic_sibling::AtomicSibling,
+    overhead_clock::OverheadClock,
     python_json::{Object, PythonJson, Value},
 };
 use serde_json::Value as Json;
@@ -29,9 +30,24 @@ impl PathClaimWrite {
         };
         let holder = entry.get("holder")?.as_str()?;
         let mut claim = Object::new();
-        for key in ["path", "holder", "since", "expires"] {
+        for key in ["path", "holder"] {
             claim.insert(key.into(), Value::String(entry.get(key)?.as_str()?.into()));
         }
+        let (since, expires) = if let Some(now) = input.get("now") {
+            let now = now.as_f64()?;
+            let ttl = input.get("ttl")?.as_i64()?;
+            (
+                OverheadClock::utc_seconds(now)?,
+                OverheadClock::utc_seconds(now + ttl as f64)?,
+            )
+        } else {
+            (
+                entry.get("since")?.as_str()?.into(),
+                entry.get("expires")?.as_str()?.into(),
+            )
+        };
+        claim.insert("since".into(), Value::String(since));
+        claim.insert("expires".into(), Value::String(expires));
         let original = PythonJson::render(&Value::Object(claim.clone()), false, true)?;
         let digit_limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let root = AtomicSibling::open_directory(project)?;

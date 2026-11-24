@@ -42,10 +42,18 @@ impl OverheadClock {
             .duration_since(UNIX_EPOCH)
             .ok()?
             .as_secs_f64();
-        let whole = now.floor();
-        // Python rounds to microseconds before dropping the fractional part.
-        let carry = ((now - whole) * 1_000_000.0).round_ties_even() == 1_000_000.0;
-        let seconds = (whole as i64).checked_add(i64::from(carry))?;
+        Self::utc_seconds(now)
+    }
+
+    pub(crate) fn utc_seconds(timestamp: f64) -> Option<String> {
+        if !timestamp.is_finite() {
+            return None;
+        }
+        let whole = timestamp.trunc();
+        // CPython rounds the signed fraction to microseconds before
+        // normalizing it into the previous or next second.
+        let micros = ((timestamp - whole) * 1_000_000.0).round_ties_even() as i64;
+        let seconds = (whole as i64).checked_add(micros.div_euclid(1_000_000))?;
         Self::utc_iso(seconds.checked_mul(1_000_000)?)
     }
     fn at(now: String, since: Option<&str>, until: Option<&str>, days: i64) -> Option<Self> {

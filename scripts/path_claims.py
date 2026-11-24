@@ -191,15 +191,16 @@ def _fresh_projection(result: Optional[dict], name: str, field: str):
 def _write_claim(project: Path, path: str, holder: str, ttl: int) -> bool:
     """Create or renew ``path`` for ``holder``; False when another holder owns it."""
     now = _now()
-    body = {"path": path, "holder": holder, "since": _iso(now), "expires": _iso(now + ttl)}
+    body = {"path": path, "holder": holder}
     result = NativeProbe.request("--completion-probe", "path-claim-write", {
-        "project": str(project), "entry": body,
+        "project": str(project), "entry": body, "now": now, "ttl": ttl,
         "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
     })
     if result is not None:
         if result.keys() == {"written"} and type(result["written"]) is bool:
             return result["written"]
         raise OSError("invalid native path claim write receipt")
+    body.update(since=_iso(now), expires=_iso(now + ttl))
     target = _claim_file(project, path)
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
