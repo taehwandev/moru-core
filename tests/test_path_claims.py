@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
 
@@ -182,6 +183,56 @@ class PathClaimsTests(unittest.TestCase):
         self.assertEqual([e["session"] for e in edits], ["s1", "s2"])
         self.assertEqual(edits[0]["files"], ["src/a.tsx", "src/b.tsx"])
         self.assertEqual(set(edits[0]), {"session", "files", "time"})
+
+    def test_native_record_matches_python_and_does_not_replay_after_lost_reply(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        oracle = self.project / "oracle"
+        oracle.mkdir()
+        args = ("--holder", "세션😀", "--files", "src/편집.tsx")
+        hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": "src/편집.tsx"}})
+        log = path_claims.edits_log(self.project)
+        large_file = 'parallel"\n' * 800
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = self.run_cli("record", "--project", str(oracle), *args)
+            with mock.patch.object(path_claims, "edits_log", side_effect=AssertionError("Python append")):
+                self.assertEqual(expected, self.run_cli("record", "--project", str(self.project), *args))
+                self.assertEqual((0, ""), self.run_cli(
+                    "record", "--project", str(self.project), "--from-hook", "--holder", "세션😀", stdin=hook
+                ))
+                with ThreadPoolExecutor(max_workers=4) as workers:
+                    list(workers.map(lambda i: path_claims.record(self.project, [large_file], f"s{i}"), range(12)))
+
+            first = path_claims.edits_log(oracle).read_bytes()
+            lines = log.read_bytes().splitlines(keepends=True)
+            self.assertEqual(lines[:2], [first, first])
+            parallel = [json.loads(line) for line in lines[2:]]
+            self.assertCountEqual([entry["session"] for entry in parallel], [f"s{i}" for i in range(12)])
+            self.assertTrue(all(entry["files"] == [large_file] for entry in parallel))
+
+            invoke = subprocess.run
+
+            def lose_reply(*command, **kwargs):
+                result = invoke(*command, **kwargs)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+
+            with mock.patch.object(subprocess, "run", side_effect=lose_reply) as process:
+                with self.assertRaisesRegex(OSError, "outcome could not be determined"):
+                    self.run_cli("record", "--project", str(self.project), *args)
+                process.assert_called_once()
+                self.assertEqual((0, ""), self.run_cli(
+                    "record", "--project", str(self.project), "--from-hook", "--holder", "세션😀", stdin=hook
+                ))
+                self.assertEqual(process.call_count, 2)
+            self.assertEqual(log.read_bytes(), b"".join(lines) + first * 2)
 
     def test_record_from_hook_records_project_relative_path(self) -> None:
         payload = {

@@ -146,6 +146,8 @@ mod structure_unstaged_match;
 mod structure_diff_acquisition;
 #[path = "live_web_check_lookup.rs"]
 mod live_web_check_lookup;
+#[path = "live_web_edit_log.rs"]
+mod live_web_edit_log;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -167,6 +169,13 @@ impl CompletionProcess {
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
+        if args[1] == "live-web-edit-append" {
+            return match live_web_edit_log::LiveWebEditLog::append(&payload) {
+                Some(true) => Self::respond(Some(json!({"appended": true}))),
+                Some(false) => 1,
+                None => 125,
+            };
+        }
         // This operation only writes stdout. The caller owns any file behind it.
         if args[1] == "pending-publication-encode" {
             let Some(encoded) = PendingPublicationReceipt::encode(payload) else {

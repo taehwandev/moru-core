@@ -28,6 +28,7 @@ class NativeProbe:
         if verified_launcher is not None and (protocol, operation) != ("--completion-probe", "doctor-launcher"):
             return None
         write_failure = {
+            ("--completion-probe", "live-web-edit-append"): "native live-web edit append outcome could not be determined",
             ("--completion-probe", "capsule-refresh"): "native execution capsule refresh outcome could not be determined",
             ("--completion-probe", "capsule-replace"): "native execution capsule replacement outcome could not be determined",
             ("--completion-probe", "pending-publication-replace"): "native receipt replacement outcome could not be determined",

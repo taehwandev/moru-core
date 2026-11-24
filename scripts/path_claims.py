@@ -3,8 +3,8 @@
 Owner: the per-project path claim store under ``<project>/.moru/claims/`` and
 the live-web edit log ``<project>/.moru/live-web/edits.jsonl``. The ``check``
 subcommand delegates to ``live_web_checks``.
-Allowed imports: the standard library and the sibling ``live_web_checks``
-only, so any agent runtime or hook can run it without the Moru lifecycle.
+Allowed imports: the standard library, ``live_web_checks`` and the bounded
+native probe transport, so hooks can run without the Moru lifecycle.
 Forbidden imports: the workflow route, the agent lifecycle and hook installers;
 a claim is a courtesy lock between agents, never an authority decision.
 Callers/tests: agents following the ``live-web`` card, and an optional Claude
@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 import live_web_checks
+from support.native_probe_transport import NativeProbe
 
 CONFLICT_EXIT = 3
 DEFAULT_TTL_SECONDS = 1800
@@ -183,6 +184,13 @@ def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict
 
 def record(project: Path, files: Iterable[str], holder: str) -> dict:
     entry = {"session": holder, "files": list(files), "time": _iso(_now())}
+    result = NativeProbe.request("--completion-probe", "live-web-edit-append", {
+        "project": str(project), "entry": entry,
+    })
+    if result is not None:
+        if result.keys() == {"appended"} and result["appended"] is True:
+            return entry
+        raise OSError("invalid native live-web edit append receipt")
     log = edits_log(project)
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("a", encoding="utf-8") as handle:
