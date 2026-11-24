@@ -21,15 +21,20 @@ pub(crate) enum AtomicSibling {
 
 impl AtomicSibling {
     pub(crate) fn open_directory(path: &Path) -> Option<File> {
-        let mut dir = File::open("/").ok()?;
-        for part in path.strip_prefix("/").ok()?.components() {
+        Self::open_directory_result(path).ok()
+    }
+
+    pub(crate) fn open_directory_result(path: &Path) -> io::Result<File> {
+        let invalid = || io::Error::from(io::ErrorKind::InvalidInput);
+        let mut dir = File::open("/")?;
+        for part in path.strip_prefix("/").map_err(|_| invalid())?.components() {
             let Component::Normal(name) = part else {
-                return None;
+                return Err(invalid());
             };
-            let name = CString::new(name.as_bytes()).ok()?;
-            dir = Self::open_relative(&dir, &name, libc::O_RDONLY | libc::O_DIRECTORY)?;
+            let name = CString::new(name.as_bytes()).map_err(|_| invalid())?;
+            dir = Self::open_relative_result(&dir, &name, libc::O_RDONLY | libc::O_DIRECTORY)?;
         }
-        Some(dir)
+        Ok(dir)
     }
 
     pub(crate) fn open_relative(dir: &File, path: &CStr, flags: libc::c_int) -> Option<File> {

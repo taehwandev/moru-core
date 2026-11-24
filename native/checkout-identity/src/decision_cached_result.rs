@@ -19,11 +19,18 @@ pub(crate) struct DecisionCachedResult;
 
 impl DecisionCachedResult {
     pub(crate) fn read(payload: &Value) -> Option<Value> {
-        let (directory, name) = cache_target(payload)?;
-        let file = match AtomicSibling::open_relative_result(&directory, &name, libc::O_RDONLY) {
+        let directory =
+            AtomicSibling::open_directory(Path::new(payload.get("directory")?.as_str()?))?;
+        Self::read_in(&directory, payload.get("key")?.as_str()?, payload)
+            .map(|(verdict, _)| verdict)
+    }
+
+    pub(crate) fn read_in(directory: &File, key: &str, payload: &Value) -> Option<(Value, f64)> {
+        let name = cache_name(key)?;
+        let file = match AtomicSibling::open_relative_result(directory, &name, libc::O_RDONLY) {
             Ok(file) => file,
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                return Some(json!({"hit": false}))
+                return Some((json!({"hit": false}), 0.0))
             }
             Err(_) => return None,
         };
@@ -39,7 +46,9 @@ impl DecisionCachedResult {
         }
         let entry: Value = serde_json::from_str(&content).ok()?;
         let result = &entry["result"];
+        let relevance = result["answers"]["relevant"]["noul"].as_f64();
         let mut check = payload.as_object()?.clone();
+        check.insert("key".into(), json!(key));
         check.insert(
             "response".into(),
             json!({
@@ -53,8 +62,9 @@ impl DecisionCachedResult {
             verdict
                 .as_object_mut()?
                 .insert("content".into(), Value::String(content));
+            return Some((verdict, relevance?));
         }
-        Some(verdict)
+        Some((verdict, 0.0))
     }
 
     pub(crate) fn replace(payload: &Value) -> Option<Value> {
@@ -66,7 +76,9 @@ impl DecisionCachedResult {
         if entry.get("key")?.as_str()? != payload.get("key")?.as_str()? {
             return None;
         }
-        let (directory, target) = cache_target(payload)?;
+        let target = cache_name(payload.get("key")?.as_str()?)?;
+        let directory =
+            AtomicSibling::open_directory(Path::new(payload.get("directory")?.as_str()?))?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .ok()?
@@ -107,8 +119,7 @@ impl DecisionCachedResult {
     }
 }
 
-fn cache_target(payload: &Value) -> Option<(File, CString)> {
-    let key = payload.get("key")?.as_str()?;
+fn cache_name(key: &str) -> Option<CString> {
     if key.len() != 64
         || !key
             .bytes()
@@ -116,8 +127,7 @@ fn cache_target(payload: &Value) -> Option<(File, CString)> {
     {
         return None;
     }
-    let directory = AtomicSibling::open_directory(Path::new(payload.get("directory")?.as_str()?))?;
-    Some((directory, CString::new(format!("{key}.json")).ok()?))
+    CString::new(format!("{key}.json")).ok()
 }
 
 fn matches_schema(value: &Value, expected: i64) -> Option<bool> {

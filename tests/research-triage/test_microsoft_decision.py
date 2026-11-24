@@ -129,8 +129,71 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
         self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
-        self.assertEqual(["prepare", "read-prepare-input", "read-cached-file", "read-cached-file", "summarize"],
+        self.assertEqual(["prepare", "read-prepare-input", "read-only-report"],
                          observed.read_text().splitlines())
+
+    def test_native_read_only_report_matches_legacy_without_python_evaluation(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        python = {**env, "MORU_LAUNCHER_BACKEND": "python"}
+        repeated = source("one", "한글 😀")
+        self.payload["sources"] = [repeated, source("missing", "Different"),
+                                   {**repeated, "id": "required", "required": True}]
+        with patch.dict(os.environ, python, clear=True):
+            missing = self.run_cli()
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter, "evaluate", side_effect=AssertionError("Python evaluation")), \
+                patch.object(adapter, "openrouter_api_key", side_effect=AssertionError("credential read")):
+            self.assertEqual(self.run_cli(), missing)
+        self.assertFalse(self.cache.exists())
+        request = adapter.request_for(self.payload["query"], repeated, adapter.MODEL)
+        key = adapter.cache_key(request)
+        entry = adapter.validate_response({**response(-0.0), "usage": {"cost": 2**64 + 1}})
+        with patch.dict(os.environ, python, clear=True):
+            adapter.save_cached(self.cache / f"{key}.json", key, {**entry, "evaluated_at": time.time()})
+            cached = self.run_cli()
+            refreshed = self.run_cli("--refresh")
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter, "evaluate", side_effect=AssertionError("Python evaluation")), \
+                patch.object(adapter, "openrouter_api_key", side_effect=AssertionError("credential read")):
+            self.assertEqual(json.dumps(self.run_cli(), ensure_ascii=False),
+                             json.dumps(cached, ensure_ascii=False))
+            # A regular cache directory is unnecessary when refresh ignores it.
+            previous_cache = self.cache.with_name("previous-cache")
+            self.cache.rename(previous_cache)
+            self.cache.symlink_to(previous_cache, target_is_directory=True)
+            self.assertEqual(self.run_cli("--refresh"), refreshed)
+        self.assertEqual(cached[1]["cache_hits"], 2)
+        self.assertEqual(cached[1]["ranked_ids"], ["missing", "required", "one"])
+        with patch.dict(os.environ, env, clear=True), patch.object(adapter, "evaluate", wraps=adapter.evaluate) as fallback:
+            self.assertEqual(self.run_cli(), cached)
+        fallback.assert_called_once()
+
+    def test_native_read_only_report_restarts_in_python_if_cache_payload_exceeds_cap(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        repeated = source("one", "Same evidence")
+        self.payload["sources"] = [{**repeated, "id": str(index)} for index in range(5)]
+        key = adapter.cache_key(adapter.request_for(self.payload["query"], repeated, adapter.MODEL))
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            path = self.cache / f"{key}.json"
+            entry = {**adapter.validate_response(response()), "evaluated_at": time.time()}
+            adapter.save_cached(path, key, {**entry, "unused": "x" * (220 * 1024)})
+            expected = self.run_cli()
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter, "evaluate", wraps=adapter.evaluate) as fallback, \
+                patch.object(adapter, "send_request", side_effect=AssertionError("provider call")):
+            self.assertEqual(self.run_cli(), expected)
+        self.assertEqual(expected[1]["cache_hits"], 5)
+        fallback.assert_called_once()
 
     def test_native_cli_reads_input_without_python_and_preserves_source_order(self):
         if NATIVE is None or not NATIVE.is_file():

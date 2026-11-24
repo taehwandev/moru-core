@@ -430,8 +430,39 @@ def _decision_summary(results):
     return [item["id"] for item in ranked], sum(item["status"] == "unscored" for item in results)
 
 
-def evaluate(payload: dict, options: argparse.Namespace, *, plan: list | None = None) -> dict:
-    now = time.time()
+def _read_only_report(payload, options, plan, now) -> dict | None:
+    if options.execute or plan is None or not NativeProbe.available():
+        return None
+    kinds = _source_kind_options()
+    if kinds is None:
+        return None
+    prepared = NativeProbe.request("--decision-cache-probe", "read-only-report", {
+        "model": options.model, "refresh": options.refresh,
+        "sources": [(row["id"], row["url"], row.get("required", False), key)
+                    for row, (key, _) in zip(payload["sources"], plan, strict=True)],
+        "cache": {"directory": str(options.cache_dir.absolute()), "schema": CACHE_SCHEMA,
+                  "now": now, "ttl": options.ttl_hours * 3600, "options": kinds},
+    })
+    if prepared is None or set(prepared) != {"report", "cached"}:
+        return None
+    report, cached = prepared["report"], prepared["cached"]
+    results = report.get("results") if type(report) is dict else None
+    if (type(results) is not list or type(cached) is not list
+            or len(results) != len(plan) or len(cached) != len(plan)):
+        return None
+    try:
+        for item, verdict in zip(results, cached, strict=True):
+            if verdict is not None:
+                item.update(_cached_result(json.loads(verdict["content"]), verdict["keep_cost"]))
+    except (AttributeError, KeyError, ValueError, TypeError):
+        return None
+    return report
+
+
+def evaluate(payload: dict, options: argparse.Namespace, *, plan: list | None = None,
+             now: float | None = None) -> dict:
+    if now is None:
+        now = time.time()
     api_key = openrouter_api_key() if options.execute else ""
     results, evaluated, warnings = [], {}, []
     calls, hits, cost, known_costs = 0, 0, 0.0, 0
@@ -522,7 +553,11 @@ def main(argv: list[str] | None = None) -> int:
                 payload = validate_input(payload)
         else:
             payload, plan = prepared
-        print(json.dumps(evaluate(payload, options, plan=plan), ensure_ascii=False, allow_nan=False))
+        now = time.time()
+        report = _read_only_report(payload, options, plan, now)
+        if report is None:
+            report = evaluate(payload, options, plan=plan, now=now)
+        print(json.dumps(report, ensure_ascii=False, allow_nan=False))
     except (OSError, ValueError):
         print("Invalid or unreadable research input", file=sys.stderr)
         return 2

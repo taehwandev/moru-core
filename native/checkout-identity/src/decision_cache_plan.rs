@@ -4,6 +4,7 @@
 //! callers/tests: microsoft_decision.py; test_decision_cache_plan.
 //! verification: exact Python digest and byte length for existing caches.
 use crate::{
+    atomic_sibling::AtomicSibling,
     decision_cached_result::DecisionCachedResult,
     decision_input::DecisionInput,
     decision_report::DecisionReport,
@@ -33,6 +34,7 @@ impl DecisionCachePlan {
                     "prepare"
                         | "validate-prepare"
                         | "read-prepare-input"
+                        | "read-only-report"
                         | "summarize"
                         | "validate-response"
                         | "validate-cached"
@@ -76,6 +78,9 @@ impl DecisionCachePlan {
             if args[1] == "read-prepare-input" {
                 return Self::prepare_file(value);
             }
+            if args[1] == "read-only-report" {
+                return Self::read_only_report(&value);
+            }
             if args[1] == "validate-prepare" {
                 if let Err(error) = DecisionInput::validate(&value) {
                     return Some(json!({"error": error}));
@@ -110,6 +115,76 @@ impl DecisionCachePlan {
         request["sources"] = input["sources"].clone();
         let rows = Self::prepare(&request)?;
         Some(json!({"payload": input, "rows": rows}))
+    }
+
+    fn read_only_report(request: &Value) -> Option<Value> {
+        let sources = request.get("sources")?.as_array()?;
+        let model = request.get("model")?.as_str()?;
+        let refresh = request.get("refresh")?.as_bool()?;
+        let cache = request.get("cache")?.as_object()?;
+        let directory = if refresh || sources.is_empty() {
+            None
+        } else {
+            match AtomicSibling::open_directory_result(Path::new(cache.get("directory")?.as_str()?))
+            {
+                Ok(dir) => Some(dir),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+                Err(_) => return None,
+            }
+        };
+        let cache = Value::Object(cache.clone());
+        let mut results = Vec::with_capacity(sources.len());
+        let mut cached = Vec::with_capacity(sources.len());
+        let mut ranking = Vec::with_capacity(sources.len());
+        let mut cache_hits = 0;
+        let mut cache_bytes = 0;
+        for source in sources {
+            let [id, url, required, key] = source.as_array()?.as_slice() else {
+                return None;
+            };
+            let (id, url, required, key) = (
+                id.as_str()?,
+                url.as_str()?,
+                required.as_bool()?,
+                key.as_str()?,
+            );
+            let mut row = json!({"id": id, "url": url, "required": required});
+            let (verdict, relevance) = if let Some(directory) = &directory {
+                DecisionCachedResult::read_in(directory, key, &cache)?
+            } else {
+                (json!({"hit": false}), 0.0)
+            };
+            let hit = verdict["hit"].as_bool()?;
+            ranking.push(json!([required, !hit, relevance]));
+            if hit {
+                cache_bytes += serde_json::to_vec(&verdict).ok()?.len();
+                if cache_bytes > MAX_MESSAGE {
+                    return None;
+                }
+                cache_hits += 1;
+                row["status"] = json!("cached");
+                cached.push(verdict);
+            } else {
+                row["status"] = json!("unscored");
+                row["reason"] = json!("cache_miss");
+                cached.push(Value::Null);
+            }
+            results.push(row);
+        }
+        let summary = DecisionReport::summarize(&json!({"rows": ranking}))?;
+        let ranked_ids: Option<Vec<&str>> = summary["order"]
+            .as_array()?
+            .iter()
+            .map(|index| results.get(index.as_u64()? as usize)?.get("id")?.as_str())
+            .collect();
+        Some(json!({
+            "report": {
+                "model": model, "network_calls": 0, "cache_hits": cache_hits,
+                "unscored": summary["unscored"], "new_reported_cost_usd": null,
+                "cost_complete": true, "warnings": [], "results": results, "ranked_ids": ranked_ids?,
+            },
+            "cached": cached,
+        }))
     }
 
     fn prepare(input: &Value) -> Option<Vec<Value>> {
