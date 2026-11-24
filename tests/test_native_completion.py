@@ -221,6 +221,9 @@ class NativeCompletionTests(unittest.TestCase):
         previous_move.write_text("class MoveOwner:\n    pass\n")
         previous_copy = self.project / "legacy/Copy.py"
         previous_copy.write_text("class CopyOwner:\n    pass\n")
+        shutil.copyfile(previous_move, self.project / "legacy/Move.py")
+        (self.project / "legacy/second").mkdir()
+        shutil.copyfile(previous_copy, self.project / "legacy/second/Copy.py")
         git("add", "src", "legacy")
         git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "base")
         previous_move.rename(self.project / "src/new/Move.py")
@@ -232,15 +235,13 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
                 expected = discover()
-            with patch.object(structure, "reclassify_untracked_moves", wraps=structure.reclassify_untracked_moves) as moves, (
-                patch.object(structure, "reclassify_untracked_copies", wraps=structure.reclassify_untracked_copies)
-            ) as copies, patch.object(
-                structure, "_best_source_match", side_effect=AssertionError("Python acquired source text"),
+            with patch.object(structure, "reclassify_untracked_moves", side_effect=AssertionError("Python move pass")), (
+                patch.object(structure, "reclassify_untracked_copies", side_effect=AssertionError("Python copy pass"))
             ):
                 actual = discover()
-                self.assertEqual("src", moves.call_args.kwargs["observation"]["command"][-1])
-                self.assertEqual("--", copies.call_args.kwargs["observation"]["command"][-1])
             self.assertEqual(expected, actual)
+            self.assertEqual("src", actual[0]["commands"]["diff_deleted_paths"]["command"][-1])
+            self.assertEqual("--", actual[0]["commands"]["ls_files_copy_candidates"]["command"][-1])
             metadata = actual[0]["path_metadata"]
             self.assertEqual(("R", "src/old/Move.py"),
                              (metadata["src/new/Move.py"]["status"], metadata["src/new/Move.py"]["previous_path"]))
@@ -255,6 +256,32 @@ class NativeCompletionTests(unittest.TestCase):
 
             with patch.object(structure, "_native_diff", side_effect=without_native_moves):
                 self.assertEqual(expected, discover())
+
+            def failed_move_listing(*args, **kwargs):
+                observations, decoded = acquire(*args, **kwargs)
+                failed = {**observations["diff_deleted_paths"], "returncode": 1, "stdout": ""}
+                return {**observations, "diff_deleted_paths": failed}, decoded
+
+            with patch.object(structure, "_native_diff", side_effect=failed_move_listing):
+                failed = discover()[0]
+            self.assertIn("git diff deleted source discovery failed", failed["command_errors"])
+            self.assertEqual("legacy/Move.py", failed["path_metadata"]["src/new/Move.py"]["previous_path"])
+            self.assertEqual("C", failed["path_metadata"]["src/new/Move.py"]["status"])
+
+            same_path = self.raw("structure-unstaged-plan", {
+                "project": str(self.project), "added": ["legacy/Copy.py"], "deleted": "",
+                "tracked": "legacy/Copy.py\0",
+            }, PATH=self.env["PATH"])
+            self.assertEqual(0, same_path.returncode, same_path)
+            self.assertEqual({"moves": [], "copies": []}, json.loads(same_path.stdout)["result"])
+
+            (self.project / "src/second").mkdir()
+            shutil.copyfile(previous_copy, self.project / "src/second/Copy.py")
+            with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = discover()
+            self.assertEqual(expected, discover())
+            copies = expected[0]["commands"]["unstaged_copy_detection"]["matches"]
+            self.assertEqual(["legacy/Copy.py", "legacy/Copy.py"], [row["previous_path"] for row in copies])
 
     def test_structure_native_unstaged_match_preserves_order_and_threshold(self):
         def git(*args):

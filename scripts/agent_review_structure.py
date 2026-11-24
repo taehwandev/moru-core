@@ -637,7 +637,7 @@ def changed_source_paths(
         collect_head_diff(project, run_command, commands, names, path_metadata, command_errors, review_paths,
                           include_untracked=True)
 
-    if not initial:
+    if not initial and not _apply_unstaged_plan(project, run_command, observations, commands, path_metadata):
         reclassify_untracked_moves(
             project,
             run_command,
@@ -1014,6 +1014,68 @@ def _numstat_count(value: str) -> int:
     return int(value) if value.isdigit() else 0
 
 
+def _apply_unstaged_plan(
+    project: Path,
+    run_command: CommandRunner,
+    observations: dict[str, Any],
+    commands: dict[str, Any],
+    path_metadata: dict[str, dict[str, Any]],
+) -> bool:
+    if run_command is not review_runtime_command:
+        return False
+    deleted = observations.get("diff_deleted_paths")
+    tracked = observations.get("ls_files_copy_candidates")
+    if not deleted or not tracked or deleted["returncode"] != 0 or tracked["returncode"] != 0:
+        return False
+    added = [path for path, metadata in path_metadata.items()
+             if metadata.get("status") == "A" and metadata.get("untracked") is True]
+    result = NativeProbe.request("--completion-probe", "structure-unstaged-plan", {
+        "project": str(project), "added": added,
+        "deleted": deleted["stdout"], "tracked": tracked["stdout"],
+    })
+    if result is None:
+        return False
+    unmatched = set(added)
+    planned = []
+    for observation_key, observation, label, detection_key, status in (
+        ("diff_deleted_paths", deleted, "moves", "unstaged_move_detection", "R"),
+        ("ls_files_copy_candidates", tracked, "copies", "unstaged_copy_detection", "C"),
+    ):
+        rows = result.get(label)
+        if not isinstance(rows, list):
+            return False
+        matches = []
+        for row in rows:
+            if not (isinstance(row, list) and len(row) == 2
+                    and isinstance(row[0], str) and row[0] in unmatched):
+                return False
+            current, raw_match = row
+            match = _decode_unstaged_match(raw_match)
+            if match is None:
+                return False
+            unmatched.remove(current)
+            matches.append((current, match))
+        planned.append((observation_key, observation, detection_key, status, matches))
+    for observation_key, observation, detection_key, status, matches in planned:
+        commands[observation_key] = observation
+        commands[detection_key] = {
+            "similarity_threshold": 0.8,
+            "matches": [_record_unstaged_match(path_metadata[path], path, status, match)
+                        for path, match in matches],
+        }
+    return True
+
+
+def _record_unstaged_match(
+    metadata: dict[str, Any], current: str, status: str, match: tuple[str, float, int, int],
+) -> dict[str, Any]:
+    previous, similarity, additions, deletions = match
+    similarity = round(similarity, 4)
+    metadata.update(status=status, previous_path=previous, additions=additions,
+                    deletions=deletions, similarity=similarity)
+    return {"current_path": current, "previous_path": previous, "similarity": similarity}
+
+
 def reclassify_untracked_moves(
     project: Path,
     run_command: CommandRunner,
@@ -1053,21 +1115,7 @@ def reclassify_untracked_moves(
         match = _unstaged_source_match(project, current_path, candidates, run_command)
         if match is None:
             continue
-        previous_path, similarity, additions, deletions = match
-        metadata.update(
-            status="R",
-            previous_path=previous_path,
-            additions=additions,
-            deletions=deletions,
-            similarity=round(similarity, 4),
-        )
-        matches.append(
-            {
-                "current_path": current_path,
-                "previous_path": previous_path,
-                "similarity": round(similarity, 4),
-            }
-        )
+        matches.append(_record_unstaged_match(metadata, current_path, "R", match))
 
     commands["unstaged_move_detection"] = {
         "similarity_threshold": 0.8,
@@ -1116,26 +1164,23 @@ def reclassify_untracked_copies(
         match = _unstaged_source_match(project, current_path, candidates, run_command)
         if match is None:
             continue
-        previous_path, similarity, additions, deletions = match
-        metadata.update(
-            status="C",
-            previous_path=previous_path,
-            additions=additions,
-            deletions=deletions,
-            similarity=round(similarity, 4),
-        )
-        matches.append(
-            {
-                "current_path": current_path,
-                "previous_path": previous_path,
-                "similarity": round(similarity, 4),
-            }
-        )
+        matches.append(_record_unstaged_match(metadata, current_path, "C", match))
 
     commands["unstaged_copy_detection"] = {
         "similarity_threshold": 0.8,
         "matches": matches,
     }
+
+
+def _decode_unstaged_match(value: Any) -> tuple[str, float, int, int] | None:
+    if isinstance(value, list) and len(value) == 4:
+        path, similarity, additions, deletions = value
+        if (isinstance(path, str) and type(similarity) in (int, float)
+                and 0.8 <= similarity <= 1.0
+                and type(additions) is int and additions >= 0
+                and type(deletions) is int and deletions >= 0):
+            return path, similarity, additions, deletions
+    return None
 
 
 def _unstaged_source_match(
@@ -1151,13 +1196,9 @@ def _unstaged_source_match(
             match = native["match"]
             if match is None:
                 return None
-            if isinstance(match, list) and len(match) == 4:
-                path, similarity, additions, deletions = match
-                if (path in candidates and type(similarity) in (int, float)
-                        and 0.8 <= similarity <= 1.0
-                        and type(additions) is int and additions >= 0
-                        and type(deletions) is int and deletions >= 0):
-                    return path, similarity, additions, deletions
+            decoded = _decode_unstaged_match(match)
+            if decoded is not None and decoded[0] in candidates:
+                return decoded
     try:
         current = (project / current_path).read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError):

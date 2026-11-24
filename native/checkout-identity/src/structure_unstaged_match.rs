@@ -9,11 +9,77 @@ use super::{
 };
 use crate::python_text::PythonText;
 use serde_json::{json, Value};
-use std::path::{Component, Path};
+use std::{
+    collections::HashMap,
+    path::{Component, Path},
+};
 
 pub(super) struct StructureUnstagedMatch;
 
 impl StructureUnstagedMatch {
+    pub(super) fn plan(payload: &Value) -> Option<Value> {
+        let project = payload.get("project")?.as_str()?;
+        let added = payload.get("added")?.as_array()?;
+        if added.len() > 32 {
+            return None;
+        }
+        let deleted = Self::by_name(payload.get("deleted")?.as_str()?)?;
+        let tracked = Self::by_name(payload.get("tracked")?.as_str()?)?;
+        let mut moves = Vec::new();
+        let mut copies = Vec::new();
+        let mut unmatched = Vec::new();
+        for path in added {
+            let path = path.as_str()?;
+            if let Some(result) = Self::planned_match(project, path, &deleted, false)? {
+                moves.push(result);
+            } else {
+                unmatched.push(path);
+            }
+        }
+        for path in unmatched {
+            if let Some(result) = Self::planned_match(project, path, &tracked, true)? {
+                copies.push(result);
+            }
+        }
+        Some(json!({"moves": moves, "copies": copies}))
+    }
+
+    fn by_name(listing: &str) -> Option<HashMap<&str, Vec<&str>>> {
+        if !listing.is_empty() && !listing.ends_with('\0') {
+            return None;
+        }
+        let mut groups = HashMap::<_, Vec<_>>::new();
+        for path in listing.split('\0').filter(|path| !path.is_empty()) {
+            let name = path.trim_end_matches('/').rsplit('/').next().unwrap_or("");
+            groups.entry(name).or_default().push(path);
+        }
+        Some(groups)
+    }
+
+    fn planned_match(
+        project: &str,
+        path: &str,
+        grouped: &HashMap<&str, Vec<&str>>,
+        exclude_current: bool,
+    ) -> Option<Option<Value>> {
+        let name = path.rsplit('/').next()?;
+        let candidates: Vec<&str> = grouped
+            .get(name)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|candidate| !exclude_current || *candidate != path)
+            .collect();
+        if candidates.is_empty() {
+            return Some(None);
+        }
+        let result = Self::probe(&json!({
+            "project": project, "current_path": path, "candidates": candidates,
+        }))?;
+        let matched = result.get("match")?;
+        Some((!matched.is_null()).then(|| json!([path, matched])))
+    }
+
     pub(super) fn probe(payload: &Value) -> Option<Value> {
         let project = Path::new(payload.get("project")?.as_str()?);
         let current = Path::new(payload.get("current_path")?.as_str()?);

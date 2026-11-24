@@ -199,6 +199,7 @@ impl CompletionProcess {
             Some("structure-declaration-records") => structure_declaration_records::StructureDeclarationRecords::scan(&payload),
             Some("structure-review-baseline") => structure_review_baseline::StructureReviewBaseline::batch(&payload),
             Some("structure-unstaged-match") => structure_unstaged_match::StructureUnstagedMatch::probe(&payload),
+            Some("structure-unstaged-plan") => structure_unstaged_match::StructureUnstagedMatch::plan(&payload),
             Some("structure-boundary-reasons") => structure_declaration_roles::StructureDeclarationRoles::boundary_reasons(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("structure-source-read") => structure_source_read::StructureSourceRead::batch(&payload),
