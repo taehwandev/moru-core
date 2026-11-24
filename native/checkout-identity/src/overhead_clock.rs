@@ -36,6 +36,18 @@ impl OverheadClock {
         let now = Self::utc_iso(micros)?;
         Self::at(now, since, until, days)
     }
+
+    pub(crate) fn utc_now_seconds() -> Option<String> {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()?
+            .as_secs_f64();
+        let whole = now.floor();
+        // Python rounds to microseconds before dropping the fractional part.
+        let carry = ((now - whole) * 1_000_000.0).round_ties_even() == 1_000_000.0;
+        let seconds = (whole as i64).checked_add(i64::from(carry))?;
+        Self::utc_iso(seconds.checked_mul(1_000_000)?)
+    }
     fn at(now: String, since: Option<&str>, until: Option<&str>, days: i64) -> Option<Self> {
         let until = OverheadStamp::parse(until.filter(|s| !s.is_empty()).unwrap_or(&now))??;
         let since = if let Some(since) = since.filter(|s| !s.is_empty()) {

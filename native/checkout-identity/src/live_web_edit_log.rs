@@ -5,16 +5,20 @@
 //! verification: byte parity, append integrity and no fallback after a write attempt.
 use crate::{
     atomic_sibling::AtomicSibling,
+    overhead_clock::OverheadClock,
     python_json::{Object, PythonJson, Value},
 };
-use serde_json::Value as Json;
-use std::{io::Write, path::Path};
+use serde_json::{json, Value as Json};
+use std::{
+    io::{self, Write},
+    path::Path,
+};
 
 pub(super) struct LiveWebEditLog;
 
 impl LiveWebEditLog {
     // None is safe to replay because no append has been attempted.
-    pub(super) fn append(input: &Json) -> Option<bool> {
+    pub(super) fn append(input: &Json) -> Option<io::Result<Json>> {
         let project = Path::new(input.get("project")?.as_str()?);
         let entry = input.get("entry")?;
         let mut record = Object::new();
@@ -29,11 +33,17 @@ impl LiveWebEditLog {
             .map(|file| Some(Value::String(file.as_str()?.into())))
             .collect::<Option<Vec<_>>>()?;
         record.insert("files".into(), Value::Array(files));
-        record.insert(
-            "time".into(),
-            Value::String(entry.get("time")?.as_str()?.into()),
-        );
+        let provided = entry.get("time");
+        let time = match provided {
+            Some(value) => value.as_str()?.into(),
+            None => OverheadClock::utc_now_seconds()?,
+        };
+        record.insert("time".into(), Value::String(time));
         let mut line = PythonJson::render(&Value::Object(record), false, true)?;
+        // The ASCII line can at most double in size when quoted in the receipt.
+        if provided.is_none() && line.len() > 512 * 1024 - 64 {
+            return None;
+        }
         line.push('\n');
 
         let root = AtomicSibling::open_directory(project)?;
@@ -49,9 +59,16 @@ impl LiveWebEditLog {
         }
         // A single append keeps records contiguous with other appenders.
         // A partial write must surface as an error, never as a replay.
-        Some(
-            log.write(line.as_bytes())
-                .is_ok_and(|size| size == line.len()),
-        )
+        Some(log.write(line.as_bytes()).and_then(|size| {
+            if size != line.len() {
+                return Err(io::ErrorKind::WriteZero.into());
+            }
+            line.pop();
+            Ok(if provided.is_some() {
+                json!({"appended": true})
+            } else {
+                json!({"appended": true, "line": line})
+            })
+        }))
     }
 }

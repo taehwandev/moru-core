@@ -521,20 +521,35 @@ class PathClaimsTests(unittest.TestCase):
         hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": "src/편집.tsx"}})
         log = path_claims.edits_log(self.project)
         large_file = 'parallel"\n' * 800
-        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+        with mock.patch.dict(os.environ, {**environment(self.project, ROOT), "TZ": "Asia/Seoul"}, clear=True):
             with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
                 expected = self.run_cli("record", "--project", str(oracle), *args)
-            with mock.patch.object(path_claims, "edits_log", side_effect=AssertionError("Python append")):
-                self.assertEqual(expected, self.run_cli("record", "--project", str(self.project), *args))
+            before = int(path_claims.time.time())
+            with mock.patch.object(path_claims, "edits_log", side_effect=AssertionError("Python append")), (
+                mock.patch.object(path_claims, "_now", side_effect=AssertionError("Python sampled the clock"))
+            ):
+                code, shown = self.run_cli("record", "--project", str(self.project), *args)
+                self.assertEqual(code, expected[0])
                 self.assertEqual((0, ""), self.run_cli(
                     "record", "--project", str(self.project), "--from-hook", "--holder", "세션😀", stdin=hook
                 ))
                 with ThreadPoolExecutor(max_workers=4) as workers:
                     list(workers.map(lambda i: path_claims.record(self.project, [large_file], f"s{i}"), range(12)))
 
-            first = path_claims.edits_log(oracle).read_bytes()
+            reference = json.loads(expected[1])
+
+            def assert_record(line):
+                entry = json.loads(line)
+                moment = path_claims._epoch(entry["time"])
+                self.assertGreaterEqual(moment, before)
+                self.assertLessEqual(moment, int(path_claims.time.time()) + 1)
+                self.assertEqual(entry["time"], path_claims._iso(moment))
+                self.assertEqual(line, (json.dumps(reference | {"time": entry["time"]}) + "\n").encode())
+
             lines = log.read_bytes().splitlines(keepends=True)
-            self.assertEqual(lines[:2], [first, first])
+            self.assertEqual(shown.encode(), lines[0])
+            for line in lines[:2]:
+                assert_record(line)
             parallel = [json.loads(line) for line in lines[2:]]
             self.assertCountEqual([entry["session"] for entry in parallel], [f"s{i}" for i in range(12)])
             self.assertTrue(all(entry["files"] == [large_file] for entry in parallel))
@@ -554,7 +569,23 @@ class PathClaimsTests(unittest.TestCase):
                     "record", "--project", str(self.project), "--from-hook", "--holder", "세션😀", stdin=hook
                 ))
                 self.assertEqual(process.call_count, 2)
-            self.assertEqual(log.read_bytes(), b"".join(lines) + first * 2)
+            after = log.read_bytes().splitlines(keepends=True)
+            self.assertEqual(after[:-2], lines)
+            for line in after[-2:]:
+                assert_record(line)
+
+            oversized = "\\" * 270000
+            with mock.patch.object(path_claims, "edits_log", wraps=path_claims.edits_log) as fallback:
+                entry = path_claims.record(self.project, [oversized], "large")
+                fallback.assert_called_once()
+            self.assertEqual(entry["time"], path_claims._iso(self.clock))
+            self.assertEqual(log.read_bytes(), b"".join(after) + (json.dumps(entry) + "\n").encode())
+
+            receipt = path_claims.NativeProbe.request("--completion-probe", "live-web-edit-append", {
+                "project": str(oracle), "entry": reference,
+            })
+            self.assertEqual(receipt, {"appended": True})
+            self.assertEqual(path_claims.edits_log(oracle).read_bytes(), expected[1].encode() * 2)
 
     def test_record_from_hook_records_project_relative_path(self) -> None:
         payload = {

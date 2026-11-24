@@ -295,19 +295,25 @@ def _native_release(project: Path, names: list[str], holder: str) -> bool:
 
 
 def record(project: Path, files: Iterable[str], holder: str) -> dict:
-    entry = {"session": holder, "files": list(files), "time": _iso(_now())}
+    return _record(project, files, holder)[0]
+
+
+def _record(project: Path, files: Iterable[str], holder: str) -> tuple[dict, str]:
+    entry = {"session": holder, "files": list(files)}
     result = NativeProbe.request("--completion-probe", "live-web-edit-append", {
         "project": str(project), "entry": entry,
     })
     if result is not None:
-        if result.keys() == {"appended"} and result["appended"] is True:
-            return entry
+        if result.keys() == {"appended", "line"} and result["appended"] is True and isinstance(result["line"], str):
+            return json.loads(result["line"]), result["line"]
         raise OSError("invalid native live-web edit append receipt")
+    entry["time"] = _iso(_now())
     log = edits_log(project)
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry) + "\n")
-    return entry
+        line = json.dumps(entry)
+        handle.write(line + "\n")
+    return entry, line
 
 
 def record_from_hook(stream, project: Optional[Path], holder: str) -> None:
@@ -383,7 +389,8 @@ def _cmd_record(project: Optional[Path], args: argparse.Namespace) -> int:
     if project is None or not args.files:
         print("record needs --project and --files, or --from-hook", file=sys.stderr)
         return 2
-    print(json.dumps(record(project, [normalize(project, raw) for raw in args.files], args.holder)))
+    _, line = _record(project, [normalize(project, raw) for raw in args.files], args.holder)
+    print(line)
     return 0
 
 

@@ -198,8 +198,8 @@ impl CompletionProcess {
         }
         if args[1] == "live-web-edit-append" {
             return match live_web_edit_log::LiveWebEditLog::append(&payload) {
-                Some(true) => Self::respond(Some(json!({"appended": true}))),
-                Some(false) => 1,
+                Some(Ok(receipt)) => Self::respond(Some(receipt)),
+                Some(Err(_)) => 1,
                 None => 125,
             };
         }
