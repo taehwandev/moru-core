@@ -1474,20 +1474,21 @@ def _previous_block_spans(
     previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
     if previous.get("returncode") != 0:
         return None
-    return _block_span_input(path, str(previous.get("stdout") or "").splitlines())
+    return _block_span_input(path, str(previous.get("stdout") or ""))
 
 
 def oversized_blocks(path: Path, lines: list[str], max_block_lines: int) -> list[dict[str, Any]]:
     return _prepared_blocks(path, _prepare_block_spans(path, lines), max_block_lines)
 
 
-def _block_span_input(path: Path, lines: list[str]) -> dict[str, Any]:
+def _block_span_input(path: Path, source: list[str] | str) -> dict[str, Any]:
+    text = {"source_text": source} if isinstance(source, str) else {"lines": source}
     suffix = path.suffix.lower()
     if suffix == ".py":
-        return {"kind": "python-source", "lines": lines, "unicode": unicodedata.unidata_version}
+        return {"kind": "python-source", **text, "unicode": unicodedata.unidata_version}
     if suffix in REVIEW_STYLE_EXTENSIONS:
-        return {"kind": "style-source", "lines": lines}
-    return {"kind": "brace-source", "lines": lines, "unicode": unicodedata.unidata_version}
+        return {"kind": "style-source", **text}
+    return {"kind": "brace-source", **text, "unicode": unicodedata.unidata_version}
 
 
 def _prepare_block_spans(path: Path, lines: list[str]) -> dict[str, Any]:
@@ -1518,7 +1519,9 @@ def _prepare_block_spans(path: Path, lines: list[str]) -> dict[str, Any]:
 
 
 def _prepared_blocks(path: Path | str, prepared: dict[str, Any], max_block_lines: int) -> list[dict[str, Any]]:
-    if "lines" in prepared:
+    if "source_text" in prepared:
+        prepared = _prepare_block_spans(Path(path), prepared["source_text"].splitlines())
+    elif "lines" in prepared:
         prepared = _prepare_block_spans(Path(path), prepared["lines"])
     blocks = []
     levels = prepared["levels"]

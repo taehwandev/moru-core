@@ -3,6 +3,7 @@
 //! forbidden imports: writes, Git execution and review policy.
 //! callers/tests: structural review through the private completion protocol.
 //! verification: compare with Python UTF-8 universal newlines and splitlines.
+use crate::python_text::PythonText;
 use serde_json::{json, Value};
 use std::{
     fs::{self, File},
@@ -58,38 +59,8 @@ impl StructureSourceRead {
             return None;
         }
         Some(match std::str::from_utf8(&bytes) {
-            Ok(text) => json!(Self::lines(text)),
+            Ok(text) => json!(PythonText::splitlines(text)),
             Err(_) => Value::Bool(false),
         })
-    }
-
-    fn lines(text: &str) -> Vec<&str> {
-        let mut lines = Vec::new();
-        let mut chars = text.char_indices().peekable();
-        let mut start = 0;
-        while let Some((index, ch)) = chars.next() {
-            if matches!(
-                ch,
-                '\n' | '\r'
-                    | '\u{b}'
-                    | '\u{c}'
-                    | '\u{1c}'
-                    | '\u{1d}'
-                    | '\u{1e}'
-                    | '\u{85}'
-                    | '\u{2028}'
-                    | '\u{2029}'
-            ) {
-                lines.push(&text[start..index]);
-                start = index + ch.len_utf8();
-                if ch == '\r' && chars.next_if(|&(_, next)| next == '\n').is_some() {
-                    start += 1;
-                }
-            }
-        }
-        if start < text.len() {
-            lines.push(&text[start..]);
-        }
-        lines
     }
 }

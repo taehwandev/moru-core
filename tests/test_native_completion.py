@@ -959,6 +959,44 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual([], expected[1][0])
         self.assertEqual(4, len(expected[1][1]))
 
+    def test_structure_block_baseline_text_preserves_renamed_blob_verdicts(self):
+        base = "a" * 40
+        head = "b" * 40
+        for suffix, text in (
+            (".py", "def keep():\r\n    first = 1\u2028    second = 2\r"),
+            (".kt", "private fun keep() {\r\n    consume() // comment\u2028}\r"),
+        ):
+            path = Path("src/current" + suffix)
+            for code, prior in ((0, text), (0, ""), (1, text)):
+                with self.subTest(path=path, code=code, empty=not prior):
+                    git = Mock(return_value={"returncode": code, "stdout": prior})
+                    run = structure._subject_run_command(self.project, git, (base, head))
+                    old_path = "old/previous" + suffix
+                    row = {
+                        "path": str(path), "line_count": 3,
+                        "metadata": {"status": "R", "previous_path": old_path},
+                        "max_file_lines": 500, "max_added_lines": 300, "review_warning_file_lines": 300,
+                        "block_spans": {**structure._block_span_input(path, text.splitlines()),
+                                        "limit": 2, "initial": False},
+                    }
+                    with patch.dict(os.environ, self.env, clear=True):
+                        structure._attach_block_baselines(self.project, [row], run)
+                    git.assert_called_once_with(["git", "show", f"{base}:{old_path}"], self.project)
+                    if code == 0:
+                        self.assertEqual(prior, row["blocks"]["previous_spans"]["source_text"])
+                    else:
+                        self.assertNotIn("previous_spans", row["blocks"])
+                    with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                        expected = [list(pair) for pair in structure._file_findings([row])[0]]
+                    self.assertEqual({"findings": expected}, self.check("structure-file-size", {"files": [row]}))
+                    failures, warnings = expected[0]
+                    if code == 0 and prior:
+                        self.assertFalse(failures)
+                        self.assertIn("previously 3", warnings[-1])
+                    else:
+                        self.assertTrue(failures)
+                        self.assertFalse(warnings)
+
     def test_structure_source_paths_match_legacy_exclusions_and_file_types(self):
         names = [
             "src/File.RS", "build/ignored.rs", "Build/kept.rs", "Generated/ignored.rs",

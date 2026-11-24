@@ -39,21 +39,20 @@ impl StructureBlockSpans {
             .get("unicode")
             .and_then(Value::as_str)
             .is_some_and(PythonText::matches_unicode_version);
-        if kind == "python-source" {
-            let lines = input.get("lines")?.as_array()?;
-            let (levels, starts) = StructurePythonBlocks::prepare(lines, unicode_matches)?;
-            return Self::measure(&levels, lines.len(), starts, limit);
-        }
-        if matches!(kind, "style-source" | "brace-source") {
-            let lines = input.get("lines")?.as_array()?;
-            let (deltas, labels) =
-                StructureStyleBlocks::prepare(lines, kind == "style-source", unicode_matches)?;
-            let levels = Self::brace_levels(deltas.into_iter().map(Some))?;
-            let starts = labels
-                .iter()
-                .map(|(line, label)| (*line, label.as_str()))
-                .collect();
-            return Self::measure(&levels, lines.len(), starts, limit);
+        if matches!(kind, "python-source" | "style-source" | "brace-source") {
+            let split;
+            let lines = match (input.get("lines"), input.get("source_text")) {
+                (Some(lines), None) => lines.as_array()?,
+                (None, Some(text)) => {
+                    split = PythonText::splitlines(text.as_str()?)
+                        .into_iter()
+                        .map(Value::from)
+                        .collect::<Vec<_>>();
+                    &split
+                }
+                _ => return None,
+            };
+            return Self::source_records(kind, lines, unicode_matches, limit);
         }
         let raw = input.get("levels")?.as_array()?;
         let mut levels = Vec::with_capacity(raw.len() + 1);
@@ -79,6 +78,26 @@ impl StructureBlockSpans {
             starts.push((index, label));
         }
         Self::measure(&levels, raw.len(), starts, limit)
+    }
+
+    fn source_records(
+        kind: &str,
+        lines: &[Value],
+        unicode_matches: bool,
+        limit: i64,
+    ) -> Option<Vec<Value>> {
+        if kind == "python-source" {
+            let (levels, starts) = StructurePythonBlocks::prepare(lines, unicode_matches)?;
+            return Self::measure(&levels, lines.len(), starts, limit);
+        }
+        let (deltas, labels) =
+            StructureStyleBlocks::prepare(lines, kind == "style-source", unicode_matches)?;
+        let levels = Self::brace_levels(deltas.into_iter().map(Some))?;
+        let starts = labels
+            .iter()
+            .map(|(line, label)| (*line, label.as_str()))
+            .collect();
+        Self::measure(&levels, lines.len(), starts, limit)
     }
 
     fn brace_levels(deltas: impl IntoIterator<Item = Option<i64>>) -> Option<Vec<Option<i64>>> {

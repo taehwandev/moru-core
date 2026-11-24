@@ -75,6 +75,36 @@ impl PythonText {
         let (start, _) = DECIMAL.get(index)?;
         (cp >= *start).then(|| ((cp - start) % 10) as u8)
     }
+    pub(crate) fn splitlines(text: &str) -> Vec<&str> {
+        let mut lines = Vec::new();
+        let mut chars = text.char_indices().peekable();
+        let mut start = 0;
+        while let Some((index, ch)) = chars.next() {
+            if matches!(
+                ch,
+                '\n' | '\r'
+                    | '\u{b}'
+                    | '\u{c}'
+                    | '\u{1c}'
+                    | '\u{1d}'
+                    | '\u{1e}'
+                    | '\u{85}'
+                    | '\u{2028}'
+                    | '\u{2029}'
+            ) {
+                lines.push(&text[start..index]);
+                start = index + ch.len_utf8();
+                if ch == '\r' && chars.next_if(|&(_, next)| next == '\n').is_some() {
+                    start += 1;
+                }
+            }
+        }
+        if start < text.len() {
+            lines.push(&text[start..]);
+        }
+        lines
+    }
+
     pub(crate) fn whitespace(character: char) -> bool {
         Self::contains(WHITESPACE, character)
     }
