@@ -29,11 +29,24 @@ impl LiveWebCheckLookup {
     // compares seconds since 1970, treating naive stamps in this caller as UTC.
     const EPOCH: i64 = 719163 * 86_400_000_000;
 
-    pub(super) fn probe(input: &Value) -> Option<Value> {
-        let project = Path::new(input.get("project")?.as_str()?);
-        if !project.is_absolute() || project.canonicalize().ok()? != project {
+    pub(super) fn history(input: &Value) -> Option<Value> {
+        let project = Self::project(input)?;
+        let limit = input.get("tail_bytes")?.as_u64()?;
+        if limit > Self::LIMIT {
             return None;
         }
+        let data = Self::tail(project, limit)?;
+        let text = String::from_utf8_lossy(&data);
+        let lines = Self::entries(&text)?
+            .into_iter()
+            .map(|(line, _)| line)
+            .collect::<Vec<_>>();
+        // Return original lines as one array to preserve Python's numeric values.
+        Some(json!({"checks_json": format!("[{}]", lines.join(","))}))
+    }
+
+    pub(super) fn probe(input: &Value) -> Option<Value> {
+        let project = Self::project(input)?;
         let files = input
             .get("files")?
             .as_array()?
@@ -59,17 +72,9 @@ impl LiveWebCheckLookup {
             },
             None => return None,
         };
-        let data = Self::tail(project)?;
+        let data = Self::tail(project, Self::LIMIT)?;
         let text = String::from_utf8_lossy(&data);
-        let mut entries = Vec::new();
-        for line in PythonText::splitlines(&text) {
-            match PythonJson::parse_with_diagnostic(line, Some(640), None) {
-                Ok(Some(entry)) if entry.is_object() => entries.push((line, entry)),
-                Ok(Some(_)) | Err(InputDiagnostic::Syntax(_)) => {}
-                _ => return None,
-            }
-        }
-        for (line, entry) in entries.into_iter().rev() {
+        for (line, entry) in Self::entries(&text)?.into_iter().rev() {
             if let Some(floor) = floor {
                 let time = entry
                     .get("time")
@@ -104,6 +109,23 @@ impl LiveWebCheckLookup {
             return report::LiveWebCheckReport::render(None, options);
         }
         Some(json!({"line": null}))
+    }
+
+    fn project(input: &Value) -> Option<&Path> {
+        let project = Path::new(input.get("project")?.as_str()?);
+        (project.is_absolute() && project.canonicalize().ok()? == project).then_some(project)
+    }
+
+    fn entries(text: &str) -> Option<Vec<(&str, PythonValue)>> {
+        let mut entries = Vec::new();
+        for line in PythonText::splitlines(text) {
+            match PythonJson::parse_with_diagnostic(line, Some(640), None) {
+                Ok(Some(entry)) if entry.is_object() => entries.push((line, entry)),
+                Ok(Some(_)) | Err(InputDiagnostic::Syntax(_)) => {}
+                _ => return None,
+            }
+        }
+        Some(entries)
     }
 
     fn python_string(value: &PythonValue) -> Cow<'_, str> {
@@ -152,7 +174,7 @@ impl LiveWebCheckLookup {
                     .is_some_and(|prefix| prefix.ends_with('/')))
     }
 
-    fn tail(project: &Path) -> Option<Vec<u8>> {
+    fn tail(project: &Path, limit: u64) -> Option<Vec<u8>> {
         let path = project.join(".moru/live-web/checks.jsonl");
         match path.canonicalize() {
             Ok(resolved) if resolved == path => {}
@@ -168,10 +190,10 @@ impl LiveWebCheckLookup {
             return None;
         }
         let size = file.seek(SeekFrom::End(0)).ok()?;
-        let start = size.saturating_sub(Self::LIMIT);
+        let start = size.saturating_sub(limit);
         file.seek(SeekFrom::Start(start)).ok()?;
         let mut data = Vec::new();
-        file.take(Self::LIMIT + 1).read_to_end(&mut data).ok()?;
+        file.take(limit + 1).read_to_end(&mut data).ok()?;
         if data.len() as u64 != size - start {
             return None;
         }

@@ -272,6 +272,7 @@ impl CompletionProcess {
             Some("structure-removal-inputs") => structure_removal_inputs::StructureRemovalInputs::probe(&payload),
             Some("structure-removal-analysis") => structure_removal_analysis::StructureRemovalAnalysis::probe(&payload),
             Some("live-web-check") => live_web_check_lookup::LiveWebCheckLookup::probe(&payload),
+            Some("live-web-check-history") => live_web_check_lookup::LiveWebCheckLookup::history(&payload),
             Some("path-claim-arguments") => project_relative_path::ProjectRelativePath::claim_arguments(&payload),
             Some("path-claim-scan") => path_claim_scan::PathClaimScan::probe(&payload),
             Some("path-claim-wait") => path_claim_wait::PathClaimWait::probe(&payload),

@@ -1181,6 +1181,40 @@ class PathClaimsCheckTests(unittest.TestCase):
         self.write_checks(problem, clean)
         self.assertEqual(json.loads(self.check("--json")[1]), {"status": "ok", "check": clean})
 
+    def test_native_read_checks_preserves_byte_boundaries_and_history_order(self) -> None:
+        import math
+
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        log = live_web_checks.checks_log(self.project)
+        log.parent.mkdir(parents=True)
+        first = b'{"id":1}\n'
+        second = b'{"id":2,"text":"malformed \xff byte","integer":' + str(10 ** 40).encode() + b'}\n'
+        rest = b'["ignored"]\n{"invalid":\n{"id":3,"negative":-0.0,"overflow":1e400}'
+        log.write_bytes(first + second + rest)
+        boundary = len(second) + len(rest)
+        limits = [0, boundary - 1, boundary, boundary + 1, len(first + second + rest)]
+        empty = self.project / "empty"
+        empty.mkdir()
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = [live_web_checks.read_checks(self.project, limit) for limit in limits]
+            self.assertEqual([[row["id"] for row in batch] for batch in expected], [[], [3], [3], [2, 3], [1, 2, 3]])
+            with mock.patch.object(Path, "open", side_effect=AssertionError("Python opened the log")):
+                actual = [live_web_checks.read_checks(self.project, limit) for limit in limits]
+                self.assertEqual(live_web_checks.read_checks(empty), [])
+            self.assertEqual(actual, expected)
+            self.assertEqual(actual[-1][1]["text"], "malformed � byte")
+            self.assertEqual(math.copysign(1.0, actual[-1][-1]["negative"]), -1.0)
+            with mock.patch.object(live_web_checks.NativeProbe, "request", side_effect=AssertionError("oversize probe")):
+                self.assertEqual(live_web_checks.read_checks(self.project, live_web_checks.CHECK_TAIL_BYTES + 1), expected[-1])
+
     def test_native_check_matches_python_tail_timestamp_and_path_selection(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment

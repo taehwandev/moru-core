@@ -39,6 +39,17 @@ def checks_log(project: Path) -> Path:
 
 def read_checks(project: Path, tail_bytes: int = CHECK_TAIL_BYTES) -> list[dict]:
     """Return the well-formed checks in the last ``tail_bytes`` of the log, oldest first."""
+    if type(tail_bytes) is int and 0 <= tail_bytes <= CHECK_TAIL_BYTES:
+        result = NativeProbe.request("--completion-probe", "live-web-check-history", {
+            "project": str(project), "tail_bytes": tail_bytes,
+        })
+        if result is not None and result.keys() == {"checks_json"} and isinstance(result["checks_json"], str):
+            try:
+                checks = json.loads(result["checks_json"])
+            except ValueError:
+                checks = None
+            if isinstance(checks, list) and all(isinstance(check, dict) for check in checks):
+                return checks
     log = checks_log(project)
     try:
         with log.open("rb") as handle:
