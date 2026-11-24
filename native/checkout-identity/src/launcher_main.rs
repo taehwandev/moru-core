@@ -40,6 +40,8 @@ mod cards_transaction;
 mod cards_write_process;
 mod completion_process;
 mod smoke_hook_suite;
+#[cfg(unix)]
+mod smoke_workspace;
 mod mutation_check;
 mod mutation_check_command;
 mod route_identity;

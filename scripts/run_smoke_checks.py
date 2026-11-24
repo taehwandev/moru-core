@@ -207,16 +207,16 @@ def test_workflow_query() -> None:
     print("SUCCESS: Search query returned results correctly.")
 
 
-def _native_suite(temp_dir: str) -> int | None:
+def _native_suite() -> int | None:
     if not NativeProbe.available():
         return None
     launcher = Path.home() / ".moru/bin/moru-hook"
-    # A native suite that started cannot be replayed against the same repository.
+    # Only a decline before scratch setup permits replay through Python.
     sys.stdout.flush()
     try:
         result = subprocess.run(
             [str(launcher.with_name("moru-hook-native")), str(launcher), "--smoke-hook-suite",
-             sys.executable, temp_dir],
+             sys.executable],
             input=json.dumps(_gate_records()).encode("utf-8"),
             env={**os.environ, "MORU_HOME": str(ROOT)},
         )
@@ -226,6 +226,10 @@ def _native_suite(temp_dir: str) -> int | None:
 
 
 def main() -> int:
+    native = _native_suite()
+    if native is not None:
+        return native if native >= 0 else 1
+
     print("==================================================")
     print("Starting E2E Hook Smoke Checks")
     print("==================================================")
@@ -245,15 +249,11 @@ def main() -> int:
         )
 
         try:
-            native = _native_suite(temp_dir)
-            if native is None:
-                test_start_hook(temp_dir)
-                test_gate_validation_failures(temp_dir)
-                test_gate_validation_success(temp_dir)
-                test_finish_hook(temp_dir)
-                test_workflow_query()
-            elif native != 0:
-                return native if native > 0 else 1
+            test_start_hook(temp_dir)
+            test_gate_validation_failures(temp_dir)
+            test_gate_validation_success(temp_dir)
+            test_finish_hook(temp_dir)
+            test_workflow_query()
             print("\n==================================================")
             print("✅ All E2E smoke checks passed successfully!")
             print("==================================================")

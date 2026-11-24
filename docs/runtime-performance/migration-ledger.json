@@ -676,9 +676,9 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port scratch fixture setup, direct CLI orchestration and unsupported environments. Verify portable and installed execution.",
+      "remaining": "Port Python hook/search subprocesses and gate fixture input, preserve unsupported environment behavior, and verify portable and installed execution.",
       "verification": {
-        "local": "Rust drives the five ordered hook and search subprocesses for an admitted scratch repository, preserves positive and negative assertions, and declines before starting when the fixture or sources are unsupported."
+        "local": "Source-bound Rust CLI owns disposable Git fixture setup and cleanup and drives the ordered hook and search subprocesses. Python remains the direct compatibility launcher and feeds test gate records."
       }
     },
     {

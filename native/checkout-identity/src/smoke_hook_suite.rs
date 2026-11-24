@@ -3,6 +3,8 @@
 //! forbidden imports: mutation of a real project, workflow authority, network clients.
 //! callers/tests: run_smoke_checks and process parity fixtures.
 //! verification: exact order, positive and negative assertions, and scratch admission.
+#[cfg(unix)]
+use crate::smoke_workspace::SmokeWorkspace;
 use crate::{
     callback_state::LocalState, pretool_guard::CallbackGuard, python_encoding::PythonEncoding,
 };
@@ -24,10 +26,18 @@ pub(crate) struct SmokeHookSuite {
 
 impl SmokeHookSuite {
     pub(crate) fn run(launcher: &OsStr, args: &[OsString]) -> i32 {
+        #[cfg(unix)]
+        if let [python] = args {
+            return Self::cli(launcher, python);
+        }
         let Some((suite, records, data)) = Self::admit(launcher, args) else {
             return 125;
         };
-        match suite.checks(&records, &data) {
+        Self::status(suite.checks(&records, &data))
+    }
+
+    fn status(result: Result<(), String>) -> i32 {
+        match result {
             Ok(()) => 0,
             Err(error) => {
                 println!("\n❌ Smoke check failed: {error}");
@@ -36,19 +46,67 @@ impl SmokeHookSuite {
         }
     }
 
+    #[cfg(unix)]
+    fn cli(launcher: &OsStr, python: &OsStr) -> i32 {
+        let temp = env::temp_dir();
+        let Some(root) = Self::source(launcher, python) else {
+            return 125;
+        };
+        if !temp.is_absolute()
+            || temp.to_str().is_none()
+            || env::vars_os().any(|(key, _)| {
+                let key = key.to_string_lossy();
+                key.starts_with("GIT_")
+                    && !matches!(
+                        key.as_ref(),
+                        "GIT_CONFIG_GLOBAL"
+                            | "GIT_CONFIG_NOSYSTEM"
+                            | "GIT_OPTIONAL_LOCKS"
+                            | "GIT_TERMINAL_PROMPT"
+                    )
+            })
+        {
+            return 125;
+        }
+        let Some((records, data)) = Self::records() else {
+            return 125;
+        };
+        println!("==================================================");
+        println!("Starting E2E Hook Smoke Checks");
+        println!("==================================================");
+        let result = SmokeWorkspace::allocate(&temp).and_then(|workspace| {
+            workspace.prepare(&root)?;
+            let suite = Self {
+                root,
+                project: workspace.path().to_owned(),
+                python: python.to_owned(),
+            };
+            suite.checks(&records, &data).map_err(io::Error::other)
+        });
+        if result.is_ok() {
+            println!("\n==================================================");
+            println!("✅ All E2E smoke checks passed successfully!");
+            println!("==================================================");
+        }
+        Self::status(result.map_err(|error| error.to_string()))
+    }
+
+    fn source(launcher: &OsStr, python: &OsStr) -> Option<PathBuf> {
+        let root = CallbackGuard::root(launcher, "run_smoke_checks.py")?;
+        root.to_str()?;
+        python.to_str()?;
+        (PythonEncoding::utf8() && Path::new(python).is_absolute() && Path::new(python).is_file())
+            .then_some(root)
+    }
+
     fn admit(launcher: &OsStr, args: &[OsString]) -> Option<(Self, Vec<String>, Vec<u8>)> {
         let [python, project] = args else { return None };
         let project = PathBuf::from(project);
         let physical = project.canonicalize().ok()?;
         let scratch = env::temp_dir().canonicalize().ok()?;
-        let root = CallbackGuard::root(launcher, "run_smoke_checks.py")?;
+        let root = Self::source(launcher, python)?;
         project.to_str()?;
-        python.to_str()?;
-        root.to_str()?;
-        if !PythonEncoding::utf8()
-            || !Path::new(python).is_absolute()
-            || !Path::new(python).is_file()
-            || !project.is_absolute()
+        if !project.is_absolute()
             || physical.parent()? != scratch
             || physical == root
             || !fs::symlink_metadata(project.join(".git")).ok()?.is_dir()
@@ -60,6 +118,19 @@ impl SmokeHookSuite {
         {
             return None;
         }
+        let (gates, data) = Self::records()?;
+        Some((
+            Self {
+                root,
+                project,
+                python: python.clone(),
+            },
+            gates,
+            data,
+        ))
+    }
+
+    fn records() -> Option<(Vec<String>, Vec<u8>)> {
         let mut data = Vec::new();
         io::stdin()
             .take(64 * 1024 + 1)
@@ -74,15 +145,7 @@ impl SmokeHookSuite {
             .iter()
             .map(|item| Some(item.get("gate")?.as_str()?.to_owned()))
             .collect::<Option<Vec<_>>>()?;
-        (!gates.is_empty()).then_some((
-            Self {
-                root,
-                project,
-                python: python.clone(),
-            },
-            gates,
-            data,
-        ))
+        (!gates.is_empty()).then_some((gates, data))
     }
 
     fn checks(&self, gates: &[String], data: &[u8]) -> Result<(), String> {
