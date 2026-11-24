@@ -129,7 +129,45 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
         self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
-        self.assertEqual(["prepare", "validate-prepare"], observed.read_text().splitlines())
+        self.assertEqual(["prepare", "validate-prepare", "summarize"], observed.read_text().splitlines())
+
+    def test_native_decision_order_is_stable_and_fallback_never_replays_provider(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = {**environment(self.root, ROOT), "OPENROUTER_API_KEY": "fixture-only"}
+        self.payload["sources"] = [
+            source("optional-high", "Optional high"),
+            source("unscored-first", "Unavailable first"),
+            {**source("required-zero", "Required zero"), "required": True},
+            {**source("required-high", "Required high"), "required": True},
+            source("unscored-last", "Unavailable last"),
+            source("optional-tie", "Optional tie"),
+        ]
+        scenarios = [response(.9), ValueError("offline"), response(-0.0),
+                     response(.2), ValueError("offline"), response(.9)]
+        decisions = ["required-high", "unscored-first", "required-zero", "unscored-last",
+                     "optional-high", "optional-tie"]
+        original = adapter.NativeProbe.request
+        for reject in (False, True):
+            observed = []
+            def observe(protocol, action, payload):
+                result = original(protocol, action, payload)
+                observed.append((action, result is not None))
+                return {"order": [0, 0], "unscored": 1} if reject and action == "summarize" else result
+            with self.subTest(reject=reject), patch.dict(os.environ, env, clear=True), \
+                    patch.object(adapter.NativeProbe, "request", side_effect=observe), \
+                    patch.object(adapter, "send_request", side_effect=scenarios) as provider:
+                status, result, _ = self.run_cli("--execute", "--refresh")
+            self.assertEqual(status, 0)
+            self.assertEqual(provider.call_count, len(scenarios))
+            self.assertEqual(observed, [("validate-prepare", True), ("summarize", True)])
+            self.assertEqual(result["ranked_ids"], decisions)
+            self.assertEqual(result["unscored"], 2)
+            self.assertEqual([row["id"] for row in result["results"]],
+                             [row["id"] for row in self.payload["sources"]])
 
     def test_native_input_preserves_first_error_before_any_effect(self):
         if NATIVE is None or not NATIVE.is_file():

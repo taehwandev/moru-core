@@ -5,6 +5,7 @@
 //! verification: exact Python digest and byte length for existing caches.
 use crate::{
     decision_input::DecisionInput,
+    decision_report::DecisionReport,
     pretool_guard::CallbackGuard,
     python_json::{Number, Object, PythonJson, Value as PythonValue},
 };
@@ -23,7 +24,10 @@ pub(crate) struct DecisionCachePlan;
 impl DecisionCachePlan {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || !matches!(args[1].to_str(), Some("prepare" | "validate-prepare"))
+            || !matches!(
+                args[1].to_str(),
+                Some("prepare" | "validate-prepare" | "summarize")
+            )
             || CallbackGuard::root(launcher, "decision-cache-plan").is_none()
         {
             return 125;
@@ -38,6 +42,9 @@ impl DecisionCachePlan {
             return 125;
         }
         let Some(result) = serde_json::from_slice(&raw).ok().and_then(|value| {
+            if args[1] == "summarize" {
+                return DecisionReport::summarize(&value);
+            }
             if args[1] == "validate-prepare" {
                 if let Err(error) = DecisionInput::validate(&value) {
                     return Some(json!({"error": error}));

@@ -148,6 +148,7 @@ mod workflow_query_process;
 mod workflow_index_descriptions;
 mod decision_cache_plan;
 mod decision_input;
+mod decision_report;
 mod workflow_offline_score;
 mod workflow_wikimap_rank;
 mod unittest_admission;

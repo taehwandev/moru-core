@@ -248,6 +248,29 @@ def openrouter_api_key(files: tuple[Path, ...] | None = None) -> str:
     return ""
 
 
+def _relevance(item):
+    return item.get("answers", {}).get("relevant", {}).get("noul", 0)
+
+
+def _decision_summary(results):
+    if results and NativeProbe.available():
+        report = NativeProbe.request("--decision-cache-probe", "summarize", {
+            "rows": [(item["required"], item["status"] == "unscored", _relevance(item))
+                     for item in results],
+        })
+        if report is not None and set(report) == {"order", "unscored"}:
+            order, unscored = report["order"], report["unscored"]
+            if (type(unscored) is int and 0 <= unscored <= len(results)
+                    and type(order) is list and len(order) == len(results)
+                    and all(type(index) is int and 0 <= index < len(results) for index in order)
+                    and len(set(order)) == len(results)):
+                return [results[index]["id"] for index in order], unscored
+    ranked = sorted(results, key=lambda item: (
+        not (item["required"] or item["status"] == "unscored"), -_relevance(item),
+    ))
+    return [item["id"] for item in ranked], sum(item["status"] == "unscored" for item in results)
+
+
 def evaluate(payload: dict, options: argparse.Namespace, *, plan: list | None = None) -> dict:
     now = time.time()
     api_key = openrouter_api_key() if options.execute else ""
@@ -308,16 +331,13 @@ def evaluate(payload: dict, options: argparse.Namespace, *, plan: list | None = 
             except ValueError:
                 item.update(status="unscored", reason="invalid_response")
         results.append(item)
-    ranked = sorted(results, key=lambda item: (
-        not (item["required"] or item["status"] == "unscored"),
-        -item.get("answers", {}).get("relevant", {}).get("noul", 0),
-    ))
+    ranked_ids, unscored = _decision_summary(results)
     return {
         "model": options.model, "network_calls": calls, "cache_hits": hits,
-        "unscored": sum(item["status"] == "unscored" for item in results),
+        "unscored": unscored,
         "new_reported_cost_usd": cost if known_costs else None,
         "cost_complete": known_costs == calls, "warnings": warnings,
-        "results": results, "ranked_ids": [item["id"] for item in ranked],
+        "results": results, "ranked_ids": ranked_ids,
     }
 
 
