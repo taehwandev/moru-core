@@ -8,6 +8,7 @@ import io
 import json
 import os
 import shlex
+import subprocess
 import tempfile
 import time
 import unittest
@@ -422,20 +423,68 @@ class OpenRouterDecisionTests(unittest.TestCase):
         home = self.root / "home"
         home.mkdir()
         install(home, ROOT)
-        base = source("exact", "한😀")
+        base = source("exact", '한😀\u2028\n\x00"\\')
         request = adapter.request_for(self.payload["query"], base, adapter.MODEL)
         size = len(json.dumps(request, ensure_ascii=False, sort_keys=True, allow_nan=False).encode())
         base["text"] += "x" * (adapter.MAX_REQUEST_BYTES - size)
         self.payload["sources"] = [base, source("over", base["text"] + "한")]
-        env = {**environment(self.root, ROOT), "OPENROUTER_API_KEY": "fixture-only"}
+        env = {**environment(self.root, ROOT), "OPENROUTER_API_KEY": "fixture-only",
+               "MORU_FIXTURE_CREDENTIAL": "ambient-fixture-only"}
+        expected = json.dumps(adapter.request_for(self.payload["query"], base, adapter.MODEL),
+                              ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
+        reply = io.BytesIO(json.dumps(response()).encode())
+        dumps = json.dumps
+        run = subprocess.run
+        encoded = []
+
+        def forbid_python_body(value, *args, **kwargs):
+            if isinstance(value, dict) and "provider" in value and "state" in value and kwargs.get("sort_keys"):
+                self.fail("Python request body encoding")
+            return dumps(value, *args, **kwargs)
+
+        def inspect_child(argv, **kwargs):
+            if argv[-1] == "encode-request":
+                self.assertNotIn("OPENROUTER_API_KEY", kwargs["env"])
+                self.assertNotIn("MORU_FIXTURE_CREDENTIAL", kwargs["env"])
+                self.assertNotIn(b"fixture-only", kwargs["input"])
+                encoded.append(True)
+            return run(argv, **kwargs)
+
         with patch.dict(os.environ, env, clear=True), \
                 patch.object(adapter, "cache_key", side_effect=AssertionError("Python hashing")), \
-                patch.object(adapter, "send_request", return_value=response()) as call:
+                patch.object(json, "dumps", side_effect=forbid_python_body), \
+                patch.object(subprocess, "run", side_effect=inspect_child), \
+                patch.object(adapter, "open_provider_request", return_value=reply) as call:
             status, result, _ = self.run_cli("--execute")
         self.assertEqual(0, status)
-        self.assertEqual(1, call.call_count)
+        call.assert_called_once()
+        self.assertEqual(encoded, [True])
+        request = call.call_args.args[0]
+        self.assertEqual(request.data, expected)
+        self.assertEqual(len(request.data), adapter.MAX_REQUEST_BYTES)
+        self.assertEqual(request.get_header("Authorization"), "Bearer fixture-only")
         self.assertEqual("scored", result["results"][0]["status"])
         self.assertEqual("request_too_large", result["results"][1]["reason"])
+
+    def test_request_body_decline_falls_back_before_one_provider_call(self):
+        request = adapter.request_for("한😀", source(), adapter.MODEL)
+        expected = json.dumps(request, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
+        reply = io.BytesIO(json.dumps(response()).encode())
+        with patch.object(adapter.NativeProbe, "available", return_value=True), \
+                patch.object(adapter.NativeProbe, "request", return_value={"unexpected": True}) as probe, \
+                patch.object(adapter, "open_provider_request", return_value=reply) as http:
+            adapter.send_request(request, "fixture-only")
+        probe.assert_called_once_with("--decision-cache-probe", "encode-request", {"request": request})
+        http.assert_called_once()
+        self.assertEqual(http.call_args.args[0].data, expected)
+
+        with patch.object(adapter.NativeProbe, "available", return_value=True), \
+                patch.object(adapter.NativeProbe, "request") as probe, \
+                patch.object(adapter, "open_provider_request") as http:
+            with self.assertRaises(TypeError):
+                adapter.send_request({"host": "fixture", 1: "mixed keys"}, "fixture-only")
+        probe.assert_not_called()
+        http.assert_not_called()
 
     def test_execute_without_key_preserves_sources_without_calls(self):
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}):

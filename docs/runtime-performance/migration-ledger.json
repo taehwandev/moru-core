@@ -671,7 +671,7 @@
       "entry_aliases": "microsoft-decision; direct CLI",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
       "verification": {
-        "local": "The microsoft-decision stable launcher runs the source-bound ordinary cache-only CLI without Python using the shared model and question contract. Rust also validates responses, creates guarded directories and atomically writes bounded cache files. Python owns the existing direct entry, compatibility for unsupported inputs and arguments, cache serialization, credentials and provider execution."
+        "local": "The microsoft-decision stable launcher runs the source-bound ordinary cache-only CLI without Python using the shared model and question contract. Rust encodes ordinary provider request bodies, validates responses, creates guarded directories and atomically writes bounded cache files. Python owns the direct entry, compatibility, cache serialization, credentials and HTTP execution."
       }
     },
     {

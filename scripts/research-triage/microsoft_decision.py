@@ -353,8 +353,25 @@ def save_cached(path: Path, key: str, result: dict) -> None:
         Path(temporary).unlink(missing_ok=True)
 
 
+def _ordinary_request_value(value, depth: int = 0) -> bool:
+    if type(value) in (str, bool):
+        return True
+    return depth < 8 and type(value) is dict and all(
+        type(key) is str and _ordinary_request_value(item, depth + 1)
+        for key, item in value.items()
+    )
+
+
+def _request_body(request: dict) -> bytes:
+    if NativeProbe.available() and type(request) is dict and _ordinary_request_value(request):
+        encoded = NativeProbe.request("--decision-cache-probe", "encode-request", {"request": request})
+        if encoded is not None and set(encoded) == {"text"} and type(encoded["text"]) is str:
+            return encoded["text"].encode("utf-8")
+    return json.dumps(request, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")
+
+
 def send_request(request: dict, api_key: str) -> dict:
-    body = json.dumps(request, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
+    body = _request_body(request)
     call = urllib.request.Request(ENDPOINT, data=body, headers={
         "Authorization": "Bearer " + api_key, "Content-Type": "application/json",
     })

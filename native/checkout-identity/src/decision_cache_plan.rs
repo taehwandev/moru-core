@@ -66,6 +66,7 @@ impl DecisionCachePlan {
                         | "read-prepare-input"
                         | "read-only-report"
                         | "read-only-cli"
+                        | "encode-request"
                         | "summarize"
                         | "validate-response"
                         | "validate-cached"
@@ -87,41 +88,48 @@ impl DecisionCachePlan {
         {
             return 125;
         }
-        let Some(result) = serde_json::from_slice(&raw).ok().and_then(|value| {
-            if args[1] == "summarize" {
-                return DecisionReport::summarize(&value);
-            }
-            if args[1] == "validate-response" {
-                return DecisionResponse::verdict(&value);
-            }
-            if args[1] == "validate-cached" {
-                return DecisionCachedResult::verdict(&value);
-            }
-            if args[1] == "read-cached-file" {
-                return DecisionCachedResult::read(&value);
-            }
-            if args[1] == "cache-write-support" {
-                return Some(json!({"supported": true, "create_directory": true}));
-            }
-            if args[1] == "write-cached-file" {
-                return DecisionCachedResult::replace(&value);
-            }
-            if args[1] == "read-prepare-input" {
-                return Self::prepare_file(value);
-            }
-            if args[1] == "read-only-report" {
-                return Self::read_only_report(&value);
-            }
-            if args[1] == "read-only-cli" {
-                return Self::read_only_cli(value);
-            }
-            if args[1] == "validate-prepare" {
-                if let Err(error) = DecisionInput::validate(&value) {
-                    return Some(json!({"error": error}));
+        let Some(result) = serde_json::from_slice::<Value>(&raw)
+            .ok()
+            .and_then(|value| {
+                if args[1] == "encode-request" {
+                    let request = value.get("request").filter(|request| request.is_object())?;
+                    return Some(json!({"text": encode(request)?}));
                 }
-            }
-            Self::prepare(&value).map(|rows| json!({"rows": rows}))
-        }) else {
+                if args[1] == "summarize" {
+                    return DecisionReport::summarize(&value);
+                }
+                if args[1] == "validate-response" {
+                    return DecisionResponse::verdict(&value);
+                }
+                if args[1] == "validate-cached" {
+                    return DecisionCachedResult::verdict(&value);
+                }
+                if args[1] == "read-cached-file" {
+                    return DecisionCachedResult::read(&value);
+                }
+                if args[1] == "cache-write-support" {
+                    return Some(json!({"supported": true, "create_directory": true}));
+                }
+                if args[1] == "write-cached-file" {
+                    return DecisionCachedResult::replace(&value);
+                }
+                if args[1] == "read-prepare-input" {
+                    return Self::prepare_file(value);
+                }
+                if args[1] == "read-only-report" {
+                    return Self::read_only_report(&value);
+                }
+                if args[1] == "read-only-cli" {
+                    return Self::read_only_cli(value);
+                }
+                if args[1] == "validate-prepare" {
+                    if let Err(error) = DecisionInput::validate(&value) {
+                        return Some(json!({"error": error}));
+                    }
+                }
+                Self::prepare(&value).map(|rows| json!({"rows": rows}))
+            })
+        else {
             return 125;
         };
         let reply_failure = if args[1] == "write-cached-file" {

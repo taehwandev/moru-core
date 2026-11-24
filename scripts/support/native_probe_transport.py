@@ -87,7 +87,16 @@ class NativeProbe:
             return None
         env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
         if protocol == "--decision-cache-probe":
-            env.pop("OPENROUTER_API_KEY", None)
+            if operation == "encode-request":
+                # Keep the source and environment guard inputs but omit ambient credentials.
+                python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
+                if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):
+                    return None
+                env = {key: value for key, value in env.items() if key in {
+                    "HOME", "MORU_HOME", "MORU_STATE_HOME", "CLAUDE_PROJECT_DIR", "CODEX_PROJECT_DIR",
+                } or key in python_env}
+            else:
+                env.pop("OPENROUTER_API_KEY", None)
         try:
             done = subprocess.run([str(executable), str(entry), protocol, operation],
                                   input=raw, stdout=stdout, stderr=subprocess.PIPE, timeout=10,
