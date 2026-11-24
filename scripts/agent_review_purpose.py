@@ -191,24 +191,35 @@ def _javascript_scan(lines: list[str], *, typescript: bool) -> tuple[list[str], 
         if not isinstance(masked, list) or not all(isinstance(line, str) for line in masked):
             return _python_typescript_lines(lines), None
         lines = masked
+    return lines, _native_named_declarations(lines, native)
+
+
+def _native_named_declarations(
+    lines: list[str], native: dict[str, Any] | None, *, kotlin: bool = False,
+) -> list[dict[str, Any]] | None:
     rows = native.get("declarations") if native is not None else None
     if not isinstance(rows, list):
-        return lines, None
+        return None
+    matches = []
     last = -1
     for row in rows:
-        if not isinstance(row, list) or len(row) != 4:
-            return lines, None
-        index, kind, name, modifiers = row
+        if not isinstance(row, list) or len(row) != (5 if kotlin else 4):
+            return None
+        index, kind, name, modifiers = row[:4]
+        receiver = row[4] if kotlin else None
         if (type(index) is not int or not last < index < len(lines)
-                or not all(isinstance(value, str) for value in (kind, name, modifiers))):
-            return lines, None
+                or not all(isinstance(value, str) for value in (kind, name, modifiers))
+                or receiver is not None and not isinstance(receiver, str)):
+            return None
         last = index
-    roles = _native_declaration_roles([(kind, name) for _, kind, name, _ in rows])
+        matches.append((index, kind, name, modifiers, receiver))
+    roles = _native_declaration_roles([(kind, name) for _, kind, name, _, _ in matches])
     declarations = [
-        type_declaration(kind, name, lines[index], index, modifiers=modifiers, roles=roles)
-        for index, kind, name, modifiers in rows
+        type_declaration(kind, name, lines[index], index, receiver=receiver,
+                         default_public=kotlin, modifiers=modifiers, roles=roles)
+        for index, kind, name, modifiers, receiver in matches
     ]
-    return lines, [row for row in declarations if row["owner"]]
+    return [row for row in declarations if row["owner"]]
 
 
 def _python_typescript_lines(lines: list[str]) -> list[str]:
@@ -232,6 +243,13 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
             return native
     elif suffix == ".go":
         native = _native_go_declarations(lines)
+        if native is not None:
+            return native
+    elif suffix in {".kt", ".kts"}:
+        reply = NativeProbe.request("--completion-probe", "structure-kotlin-declarations", {
+            "lines": lines, "unicode": unicodedata.unidata_version,
+        })
+        native = _native_named_declarations(lines, reply, kotlin=True)
         if native is not None:
             return native
     is_typescript = suffix in {".ts", ".tsx"}

@@ -702,6 +702,47 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_kotlin_declarations_preserve_receivers_and_visibility(self):
+        path = Path("src/Extensions.KTS")
+        ordinary = [
+            "package fixture.sample",
+            "import kotlin.collections.List",
+            '@JvmName("f") private suspend inline fun pkg.Outer?.firstMapper() = Unit',
+            "internal fun <T> List<T>.second() = Unit",
+            "public annotation class Mark(val name: String)",
+            "internal enum class Status {",
+            "  ENTRY { override fun nested() = 1 }",
+            "}",
+            "sealed interface Contract",
+            "data object Empty",
+            '@public fun plain() = "{"',
+            "fun hiddenByBrace() = Unit",
+            "// }",
+            "fun visible() = Unit",
+        ]
+        unusual = ["@file:JvmName(\"Kit\")", "fun <T : Comparable<T>> List<T>.nested() = Unit",
+                   "fun Simple?.retained() = Unit"]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [purpose.top_level_type_declarations(path, lines) for lines in (ordinary, unusual)]
+        self.assertEqual(
+            [("fun", "firstMapper", "pkg.Outer?"), ("fun", "second", "List<T>"),
+             ("type", "Mark", None), ("type", "Status", None), ("interface", "Contract", None),
+             ("object", "Empty", None), ("fun", "plain", None), ("fun", "visible", None)],
+            [(row["kind"], row["name"], row["receiver"]) for row in expected[0]],
+        )
+        self.assertTrue(expected[0][0]["private"])
+        self.assertTrue(expected[0][1]["internal"])
+        self.assertFalse(expected[0][-2]["exported"])
+        recognizer = Mock()
+        recognizer.match.side_effect = AssertionError("legacy Kotlin declaration scan used")
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
+                self.assertEqual(expected[0], purpose.top_level_type_declarations(path, ordinary))
+            self.assertEqual(125, self.raw("structure-kotlin-declarations", {
+                "lines": unusual, "unicode": unicodedata.unidata_version,
+            }).returncode)
+            self.assertEqual(expected[1], purpose.top_level_type_declarations(path, unusual))
+
     def test_structure_native_javascript_declarations_preserve_raw_depth_and_arrow_kind(self):
         path = Path("app/page.JSX")
         lines = [
