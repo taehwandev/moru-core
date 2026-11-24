@@ -14,6 +14,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from agent_review_packet import ReviewPacket, _main  # noqa: E402
+from support.native_probe_transport import NativeProbe
 
 SECRET = "supersecretvalue"
 DATE = "2000-01-01T00:00:00+0000"
@@ -104,6 +105,63 @@ class ReviewPacketTest(unittest.TestCase):
     def test_source_sentinel_is_never_executed(self):
         ReviewPacket.render(ReviewPacket.build(self.root, ["app.py"], contexts=["app.py:helper"]))
         self.assertFalse((self.root / "EXECUTED").exists())
+
+    def test_native_snapshots_match_exact_packets_for_bom_and_binary_sources(self):
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.base / "home"
+        home.mkdir()
+        install(home)
+        (self.root / "notes.txt").write_bytes(b"\xef\xbb\xbffirst\r\n" + "한글😀\r\n".encode())
+        (self.root / "binary.dat").write_bytes(b"bad\xff\x00data")
+        git(self.root, "add", "binary.dat")
+        paths = ["notes.txt", "binary.dat", "fixtures.py"]
+        env = environment(self.base)
+        original = NativeProbe.snapshot_review_source
+        observed = []
+
+        def inspect(handle):
+            reply = original(handle)
+            self.assertIsNotNone(reply)
+            self.assertEqual(handle.tell(), 0)
+            observed.append(reply["kind"])
+            return reply
+
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = ReviewPacket.render(ReviewPacket.build(self.root, paths))
+        with patch.dict(os.environ, env, clear=True), patch.object(NativeProbe, "snapshot_review_source", side_effect=inspect):
+            packet = ReviewPacket.build(self.root, paths)
+        self.assertEqual(ReviewPacket.render(packet), expected)
+        self.assertEqual(observed, ["text", "binary", "text"])
+        self.assertEqual(packet["files"][2]["status"], "unchanged")
+        self.assertTrue(any(item["reason"] == "binary" for item in packet["omissions"]))
+
+    def test_snapshot_uses_only_the_admitted_regular_descriptor(self):
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.base / "home"
+        home.mkdir()
+        install(home)
+        env = environment(self.base)
+        selected = self.root / "notes.txt"
+        with patch.dict(os.environ, env, clear=True), selected.open("rb") as handle:
+            handle.seek(3)
+            selected.rename(self.root / "moved.txt")
+            self.write("notes.txt", "replacement\n")
+            reply = NativeProbe.snapshot_review_source(handle)
+            self.assertEqual(reply["data"], "first\nsecond\n")
+            self.assertEqual(handle.tell(), 3)
+        selected.write_bytes(b"x" * (256 * 1024 + 1))
+        with patch.dict(os.environ, env, clear=True), selected.open("rb") as handle:
+            self.assertEqual(NativeProbe.snapshot_review_source(handle), {"kind": "oversize"})
+        with patch.dict(os.environ, env, clear=True), open(os.devnull, "rb") as device:
+            self.assertIsNone(NativeProbe.snapshot_review_source(device))
 
     def test_changed_duplicate_setter_reports_unindexed_context(self):
         before = 'class C:\n    @property\n    def x(self):\n        return 1\n    @x.setter\n    def x(self, value):\n        self.value = value\n'

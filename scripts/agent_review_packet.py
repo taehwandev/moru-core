@@ -21,6 +21,7 @@ from agent_review_findings import collect_packet_findings
 from agent_review_packet_context import ReviewContext as _Context
 from agent_review_packet_contracts import ReviewContracts as _Contracts
 from agent_review_packet_assembly import ReviewAssembly as _Assembly
+from support.native_probe_transport import NativeProbe
 
 _SCHEMA_VERSION, _MAX_SOURCE_BYTES = 1, 256 * 1024
 _MAX_FILES, _MAX_CHECKS, _MAX_FIELD, _MIN_BYTES, _MAX_BYTES = 25, 50, 300, 2048, 1024 * 1024
@@ -88,23 +89,57 @@ def _guard(root, label, rel):
         raise _PacketError(f"{label}: path is not a Git-tracked regular file")
 
 
+def _snapshot_values(reply):
+    if reply == {"kind": "oversize"}:
+        return None, None, "oversize", None
+    if reply is None or set(reply) != {"kind", "data", "sha256"}:
+        return None
+    kind, data, digest = reply["kind"], reply["data"], reply["sha256"]
+    if (type(data) is not str or type(digest) is not str or len(digest) != 64
+            or any(char not in "0123456789abcdef" for char in digest)):
+        return None
+    try:
+        if kind == "text":
+            raw, text, reason = data.encode("utf-8"), data.removeprefix("\ufeff"), None
+        elif kind == "binary":
+            raw, text, reason = bytes.fromhex(data), None, "binary"
+        else:
+            return None
+    except ValueError:
+        return None
+    if len(raw) > _MAX_SOURCE_BYTES:
+        return None
+    return raw, text, reason, digest
+
+
+def _read_selected(full):
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    with os.fdopen(os.open(full, flags), "rb") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise OSError("selected file is no longer regular")
+        native = _snapshot_values(NativeProbe.snapshot_review_source(handle))
+        if native is not None:
+            return native
+        handle.seek(0)
+        data = handle.read(_MAX_SOURCE_BYTES + 1)
+    if len(data) > _MAX_SOURCE_BYTES:
+        return None, None, "oversize", None
+    text = _decode(data)
+    return data, text, "binary" if text is None else None, hashlib.sha256(data).hexdigest()
+
+
 def _load(root, rel, head):
-    full, reason, blob, previous = os.path.join(root, rel), None, None, ""
+    full, blob, previous = os.path.join(root, rel), None, ""
     entry = {"path": rel, "status": "modified", "bytes": None, "sha256": None, "head_sha256": None}
     exists = os.path.lexists(full)
-    data = None if exists else b""
+    data, current, reason, digest = (None, None, "oversize", None) if exists else (b"", "", None, None)
     try:
         if exists and os.lstat(full).st_size <= _MAX_SOURCE_BYTES:
-            with os.fdopen(os.open(full, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)), "rb") as handle:
-                data = handle.read(_MAX_SOURCE_BYTES + 1)
+            data, current, reason, digest = _read_selected(full)
     except OSError:
         raise _PacketError("a selected file could not be read") from None
-    if data is None or len(data) > _MAX_SOURCE_BYTES:
-        data, reason = None, "oversize"
-    elif exists:
-        entry.update(bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
-    current = _decode(data)
-    reason = "binary" if data is not None and current is None else reason
+    if data is not None and exists:
+        entry.update(bytes=len(data), sha256=digest)
     size = _git(root, ["cat-file", "-s", f"HEAD:./{rel}"], ok=(0, 1, 128)) if head else None
     in_head = size is not None and size.returncode == 0
     if in_head and int(size.stdout or b"0") > _MAX_SOURCE_BYTES:

@@ -52,17 +52,28 @@ class NativeProbe:
                                   write_failure=write_failure, verified_launcher=verified_launcher)
         if done is None:
             return None
+        result = NativeProbe._result(done.stdout)
+        if result is None and write_failure:
+            raise OSError(write_failure)
+        return result
+
+    @staticmethod
+    def snapshot_review_source(source: BinaryIO) -> dict | None:
+        done = NativeProbe._invoke("--review-packet-probe", "snapshot", None, subprocess.PIPE,
+                                   source=source)
+        return None if done is None else NativeProbe._result(done.stdout)
+
+    @staticmethod
+    def _result(output: bytes) -> dict | None:
         try:
-            if len(done.stdout) <= 1024 * 1024:
-                value = json.loads(done.stdout)
+            if len(output) <= 1024 * 1024:
+                value = json.loads(output)
                 if (isinstance(value, dict) and set(value) == {"schema_version", "result"}
                         and type(value["schema_version"]) is int and value["schema_version"] == 1
                         and isinstance(value["result"], dict)):
                     return value["result"]
         except (ValueError, TypeError):
             pass
-        if write_failure:
-            raise OSError(write_failure)
         return None
 
     @staticmethod
@@ -70,24 +81,30 @@ class NativeProbe:
         return NativeProbe._invoke("--completion-probe", "pending-publication-encode", payload, output) is not None
 
     @staticmethod
-    def _invoke(protocol: str, operation: str, payload: dict, stdout, *,
+    def _invoke(protocol: str, operation: str, payload: dict | None, stdout, *,
                 write_failure: str | None = None,
-                verified_launcher: Path | None = None) -> subprocess.CompletedProcess | None:
+                verified_launcher: Path | None = None,
+                source: BinaryIO | None = None) -> subprocess.CompletedProcess | None:
         if os.environ.get("MORU_LAUNCHER_BACKEND") == "python":
             return None
         if verified_launcher is None and not NativeProbe.available():
             return None
         entry = Path.home() / ".moru/bin/moru-hook"
         executable = verified_launcher if verified_launcher is not None else entry.with_name("moru-hook-native")
-        try:
-            raw = json.dumps(payload, ensure_ascii=True, allow_nan=False).encode()
-        except (ValueError, TypeError):
-            return None
-        if len(raw) > 1024 * 1024:
-            return None
+        if source is None:
+            try:
+                raw = json.dumps(payload, ensure_ascii=True, allow_nan=False).encode()
+            except (ValueError, TypeError):
+                return None
+            if len(raw) > 1024 * 1024:
+                return None
+            stdin = {"input": raw}
+        else:
+            stdin = {"stdin": source}
         env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
         if (protocol, operation) in {("--decision-cache-probe", "encode-request"),
-                                     ("--review-packet-probe", "assemble")}:
+                                     ("--review-packet-probe", "assemble"),
+                                     ("--review-packet-probe", "snapshot")}:
             # Keep the source and environment guard inputs but omit ambient credentials.
             python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
             if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):
@@ -99,8 +116,7 @@ class NativeProbe:
             env.pop("OPENROUTER_API_KEY", None)
         try:
             done = subprocess.run([str(executable), str(entry), protocol, operation],
-                                  input=raw, stdout=stdout, stderr=subprocess.PIPE, timeout=10,
-                                  env=env)
+                                  stdout=stdout, stderr=subprocess.PIPE, timeout=10, env=env, **stdin)
         except FileNotFoundError:
             return None
         except (OSError, ValueError, TypeError, subprocess.TimeoutExpired):

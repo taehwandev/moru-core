@@ -1,9 +1,9 @@
 //! owner: deterministic review-packet section budgeting and digest.
-//! allowed imports: source-bound stdin/stdout, ordered JSON and SHA-256.
-//! forbidden imports: source reads, Git, provider calls and review verdicts.
+//! allowed imports: source-bound transport, ordered JSON, SHA-256 and admitted snapshot dispatch.
+//! forbidden imports: pathname reads, Git, provider calls and review verdicts.
 //! callers/tests: ReviewAssembly and native packet parity fixtures.
 //! verification: exact bytes, whole sections and omissions in priority order.
-use crate::pretool_guard::CallbackGuard;
+use crate::{pretool_guard::CallbackGuard, review_packet_snapshot::ReviewPacketSnapshot};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -27,25 +27,17 @@ pub(crate) struct ReviewPacketAssembly;
 impl ReviewPacketAssembly {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || args[1] != "assemble"
+            || !matches!(args[1].to_str(), Some("assemble" | "snapshot"))
             || CallbackGuard::root(launcher, "review-packet").is_none()
         {
             return 125;
         }
-        let mut raw = Vec::new();
-        if io::stdin()
-            .take((MAX_MESSAGE + 1) as u64)
-            .read_to_end(&mut raw)
-            .is_err()
-            || raw.len() > MAX_MESSAGE
-        {
-            return 125;
-        }
-        let Some(result) = serde_json::from_slice::<Value>(&raw)
-            .ok()
-            .filter(integral_json)
-            .and_then(Self::build)
-        else {
+        let result = if args[1] == "snapshot" {
+            ReviewPacketSnapshot::read_stdin()
+        } else {
+            Self::assemble_stdin()
+        };
+        let Some(result) = result else {
             return 125;
         };
         let Ok(reply) = serde_json::to_vec(&json!({"schema_version": 1, "result": result})) else {
@@ -55,6 +47,21 @@ impl ReviewPacketAssembly {
             return 125;
         }
         i32::from(io::stdout().write_all(&reply).is_err())
+    }
+
+    fn assemble_stdin() -> Option<Value> {
+        let mut raw = Vec::new();
+        io::stdin()
+            .take((MAX_MESSAGE + 1) as u64)
+            .read_to_end(&mut raw)
+            .ok()?;
+        if raw.len() > MAX_MESSAGE {
+            return None;
+        }
+        serde_json::from_slice::<Value>(&raw)
+            .ok()
+            .filter(integral_json)
+            .and_then(Self::build)
     }
 
     fn build(mut input: Value) -> Option<Value> {
