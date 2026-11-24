@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from agent_required_doc_delivery import (
-    MARKER, MAX_REDELIVERIES, _contains_run, compaction_text, _read_spans, delivery_text, edited_paths,
+    MARKER, MAX_REDELIVERIES, _contains_run, _read_spans, delivery_text, edited_paths,
 )
 from agent_closeout_command import closeout_project
 
@@ -118,39 +118,56 @@ class DeliveryTests(unittest.TestCase):
         found = self.evidence if evidence is None else evidence
         return delivery_text(payload, lambda project: found if project == self.project else None)
 
-    def _compaction(self, evidence: Path | None = None, cwd: Path | None = None) -> str:
-        payload = {"cwd": str(self.project if cwd is None else cwd), "transcript_path": str(self.transcript)}
-        found = self.evidence if evidence is None else evidence
-        return compaction_text(payload, lambda project: found if project == self.project else None)
+    def test_work_loop_delivers_missing_documents_after_compaction_without_user_input(self) -> None:
+        import agy_hook_adapter
+        import claude_pretool_gate as gate
 
-    def test_a_compaction_event_hands_back_every_required_doc(self) -> None:
-        self._transcript((STARTED, CORE))
-        text = self._compaction()
-        self.assertIn("Keep state immutable.", text)
-        self.assertIn("Run the tests.", text)
+        class Reader:
+            def resolve_runtime_evidence(reader, project, identity):
+                return self.evidence if project == self.project else None
 
-    def test_a_compaction_event_is_not_delivered_again_by_the_edit_check(self) -> None:
-        self._transcript((STARTED, CORE))
-        self._compaction()
-        self.assertEqual("", self._deliver())
-        self.assertEqual("", self._deliver())
+        reader = Reader()
+        agy_payload = {
+            "conversationId": "session",
+            "workspacePaths": [str(self.project)],
+            "transcriptPath": str(self.transcript),
+            "lastUserInput": "Implement the fix",
+        }
+        edit_payload = {
+            "session_id": "session", "tool_name": "Edit",
+            "cwd": str(self.project), "transcript_path": str(self.transcript),
+            "tool_input": {"file_path": str(self.project / "src" / "Screen.kt")},
+        }
 
-    def test_a_later_compaction_still_reaches_the_edit_check_once_event_was_missed(self) -> None:
-        self._transcript((STARTED, CORE))
-        self._compaction()
-        self._append({"type": "system", "subtype": "compact_boundary"})
-        self.assertIn("Keep state immutable.", self._deliver())
+        def work_step(runtime):
+            if runtime == "antigravity":
+                output = agy_hook_adapter.pre_invocation(agy_payload)
+                return "\n".join(step["systemMessage"]["systemMessage"]
+                                 for step in output.get("injectSteps", []))
+            gate._PENDING_CONTEXT.clear()
+            with patch.dict(os.environ, {"MORU_PRETOOL_RUNTIME": runtime}):
+                gate._queue_unread_required_docs(edit_payload)
+            return "\n".join(gate._PENDING_CONTEXT)
 
-    def test_a_compaction_event_names_an_oversized_doc_instead_of_inlining_it(self) -> None:
-        self._preflight([CORE, BIG])
-        text = self._compaction()
-        self.assertIn("Keep state immutable.", text)
-        self.assertIn(f"{self.rules}/{BIG}", text)
-        self.assertNotIn("x" * 100, text)
-
-    def test_a_compaction_event_without_a_run_or_a_cwd_is_silent(self) -> None:
-        self.assertEqual("", compaction_text({"transcript_path": str(self.transcript)}, lambda p: self.evidence))
-        self.assertEqual("", self._compaction(cwd=self.project.parent / "elsewhere"))
+        cases = {
+            "claude": {"type": "system", "subtype": "compact_boundary"},
+            "codex": {"type": "compacted"},
+            "antigravity": {"type": "CHECKPOINT", "content": "# Resuming from a compaction"},
+        }
+        with patch.object(gate, "_run_evidence_reader", return_value=reader), \
+                patch.object(gate, "gate_enabled", return_value=True), \
+                patch("agent_runtime_session.resolve_runtime_evidence", reader.resolve_runtime_evidence), \
+                patch.object(agy_hook_adapter, "_prompt_guidance_steps", return_value=[]):
+            for runtime, boundary in cases.items():
+                with self.subTest(runtime=runtime):
+                    (self.evidence.parent / MARKER).unlink(missing_ok=True)
+                    self.transcript.write_text("", encoding="utf-8")
+                    self.assertIn(f"=== {CORE} ===", work_step(runtime))
+                    self.assertEqual("", work_step(runtime))
+                    self._append(boundary)
+                    self.assertIn(f"=== {CORE} ===", work_step(runtime))
+                    self.assertEqual("", work_step(runtime))
+        gate._PENDING_CONTEXT.clear()
 
     def _count_document_reads(self):
         counts = {CORE: 0, OTHER: 0}
