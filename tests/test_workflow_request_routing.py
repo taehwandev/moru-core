@@ -454,6 +454,31 @@ class DeviceMcpRoutingTests(unittest.TestCase):
         )
 
 
+class BlenderAssetRoutingTests(unittest.TestCase):
+    """Blender and glTF asset work loads the Blender asset pipeline card."""
+
+    def test_blender_requests_select_the_asset_pipeline_card(self):
+        from workflow_route import resolve_docs
+
+        for request in (
+            "Blender로 차 모델 만들어줘",
+            "블렌더로 경찰차 다시 만들어",
+            "re-export the hero.glb with named anchors",
+            "3D 모델 품질 올려줘",
+        ):
+            with self.subTest(request=request):
+                concerns = infer_concerns_from_request(request)
+                self.assertIn("blender", concerns)
+                route = resolve_docs("feature", None, concerns, request_classified=True,
+                                     inferred_concerns=concerns, request_text=request)
+                self.assertIn("common/skills/blender-asset-pipeline/references/current-guidance.md", route["required_docs"])
+
+    def test_negative_control_similar_words_do_not_select_blender(self):
+        for request in ("blend the two colours", "gltfx parser 고쳐", "3d secure 결제 붙여줘"):
+            with self.subTest(request=request):
+                self.assertNotIn("blender", infer_concerns_from_request(request))
+
+
 class LookupShapeSurvivesIntakeTests(unittest.TestCase):
     """A read-only question must not be shaped as general multi-step work.
 

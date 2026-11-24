@@ -67,6 +67,7 @@ catalog itself only when that is the task.
 - Completion checklist and Definition of Done: `common/skills/definition-of-done/SKILL.md`
 - Tool, compiler, lint, test, and command failure recovery: `common/skills/tool-failure-recovery/SKILL.md`
 - Local tools, AI CLIs, runtime, usage telemetry: `common/skills/local-tools/SKILL.md`
+- Blender 3D assets, glTF/GLB export and wiring: `common/skills/blender-asset-pipeline/SKILL.md`
 - File editing safety, secrets, external state: `common/skills/agent-editing-safety/SKILL.md`
 - Design system or shared UI rules: `common/skills/design-system/SKILL.md`
 - Refined minimal visual design (type, spacing, color, depth, motion): `common/skills/minimal-visual-design/SKILL.md`

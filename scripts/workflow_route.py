@@ -13,6 +13,7 @@ from workflow_catalog import (
     CONCERNS,
     PLATFORM_CONCERNS,
     PLATFORMS,
+    EXECUTION_CONCERNS_REQUIRED_WHEN_INFERRED,
     RISK_CONCERNS_REQUIRED_WHEN_INFERRED,
 )
 from agent_skill_catalog import FEEDBACK_SIGNALS
@@ -697,9 +698,9 @@ def resolve_docs(
         # concerns are on that list and why release is not.
         if concern not in inferred
         or concern in RISK_CONCERNS_REQUIRED_WHEN_INFERRED
-        # This narrowly matched explicit execution request needs the scenario
-        # contract during the run, not merely in the reference catalog.
-        or concern == "device-scenario-qa"
+        # Narrowly matched execution requests need their card during the run,
+        # not merely in the reference catalog.
+        or concern in EXECUTION_CONCERNS_REQUIRED_WHEN_INFERRED
     ]
     organization, organization_missing = (
         organization_route(

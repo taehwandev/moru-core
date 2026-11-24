@@ -6,6 +6,7 @@ import re
 from typing import Optional
 
 from workflow_catalog import (
+    EXECUTION_CONCERNS_REQUIRED_WHEN_INFERRED,
     REQUEST_CONCERN_HINTS,
     RISK_CONCERNS_REQUIRED_WHEN_INFERRED,
 )
@@ -126,10 +127,15 @@ def inferred_concern_note(concerns: list[str]) -> str:
     """Name keyword-inferred concerns and say which of them became required."""
 
     risk = [c for c in concerns if c in RISK_CONCERNS_REQUIRED_WHEN_INFERRED]
-    optional = [c for c in concerns if c not in RISK_CONCERNS_REQUIRED_WHEN_INFERRED and c != "device-scenario-qa"]
+    optional = [
+        c for c in concerns
+        if c not in RISK_CONCERNS_REQUIRED_WHEN_INFERRED and c not in EXECUTION_CONCERNS_REQUIRED_WHEN_INFERRED
+    ]
     notes: list[str] = []
     if "device-scenario-qa" in concerns:
         notes.append("The requested device scenario execution requires the device scenario QA contract.")
+    if "blender" in concerns:
+        notes.append("The requested Blender asset work requires the Blender asset pipeline card.")
     if optional:
         notes.append(
             f"Inferred concern(s) from request keywords: {_joined(optional)}. Their documents "
