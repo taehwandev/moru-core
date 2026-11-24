@@ -1,12 +1,32 @@
 """Owner: deterministic review section packing and source deduplication.
-Allowed imports: hashlib only; rendering is injected. Forbidden: I/O/execution.
+Allowed imports: hashlib and the private native transport. Forbidden: source I/O, Git and provider execution.
 Callers/tests: ReviewPacket; test_agent_review_packet_assembly.
 Verification: whole sections, explicit omissions, added-source fallback.
 """
 import hashlib
+from support.native_probe_transport import NativeProbe
 
 
 class ReviewAssembly:
+    @staticmethod
+    def build_native(packet, pending, fixed):
+        result = NativeProbe.request("--review-packet-probe", "assemble", {
+            "packet": packet, "pending": pending, "fixed": fixed,
+        })
+        if result is None:
+            return None
+        if set(result) == {"error"} and type(result["error"]) is str:
+            raise ValueError(result["error"])
+        if set(result) == {"packet"} and isinstance(result["packet"], dict):
+            output = result["packet"]
+            digest = output.get("packet_sha256")
+            if (output.get("schema_version") == packet["schema_version"]
+                    and output.get("context_only") is True and output.get("no_execution") is True
+                    and type(digest) is str and len(digest) == 64
+                    and all(char in "0123456789abcdef" for char in digest)):
+                return output
+        return None
+
     @staticmethod
     def build(packet, pending, fixed, render):
         kept = set()

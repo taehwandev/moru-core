@@ -23,7 +23,7 @@ class NativeProbe:
     def request(
         protocol: str, operation: str, payload: dict, *, verified_launcher: Path | None = None,
     ) -> dict | None:
-        if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe", "--workflow-query-probe", "--decision-cache-probe"}:
+        if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe", "--workflow-query-probe", "--decision-cache-probe", "--review-packet-probe"}:
             return None
         if verified_launcher is not None and (protocol, operation) != ("--completion-probe", "doctor-launcher"):
             return None
@@ -86,17 +86,17 @@ class NativeProbe:
         if len(raw) > 1024 * 1024:
             return None
         env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
-        if protocol == "--decision-cache-probe":
-            if operation == "encode-request":
-                # Keep the source and environment guard inputs but omit ambient credentials.
-                python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
-                if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):
-                    return None
-                env = {key: value for key, value in env.items() if key in {
-                    "HOME", "MORU_HOME", "MORU_STATE_HOME", "CLAUDE_PROJECT_DIR", "CODEX_PROJECT_DIR",
-                } or key in python_env}
-            else:
-                env.pop("OPENROUTER_API_KEY", None)
+        if (protocol, operation) in {("--decision-cache-probe", "encode-request"),
+                                     ("--review-packet-probe", "assemble")}:
+            # Keep the source and environment guard inputs but omit ambient credentials.
+            python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
+            if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):
+                return None
+            env = {key: value for key, value in env.items() if key in {
+                "HOME", "MORU_HOME", "MORU_STATE_HOME", "CLAUDE_PROJECT_DIR", "CODEX_PROJECT_DIR",
+            } or key in python_env}
+        elif protocol == "--decision-cache-probe":
+            env.pop("OPENROUTER_API_KEY", None)
         try:
             done = subprocess.run([str(executable), str(entry), protocol, operation],
                                   input=raw, stdout=stdout, stderr=subprocess.PIPE, timeout=10,

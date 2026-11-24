@@ -886,10 +886,12 @@
       "id": "scripts/agent_review_packet.py",
       "inventory_id": 63,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct source-only review packet CLI",
-      "remaining": "Port bounded source snapshots and packet rendering. Preserve fixed read-only Git queries, disclosure exclusions, lack of execution or verification authority, and exclusive local output creation.",
-      "verification": {}
+      "remaining": "Port bounded source snapshots, contract collection, CLI output and exceptional assembly. Preserve fixed read-only Git queries, disclosure exclusions, lack of execution or verification authority, and exclusive local output creation.",
+      "verification": {
+        "local": "Source-bound Rust assembles ordinary selected review sections under the same UTF-8 budget, preserves omission priority, and computes the exact Python packet digest. Python owns source admission and reading, context extraction, final rendering and writes."
+      }
     }
   ],
   "unmigrated_python_sources": [

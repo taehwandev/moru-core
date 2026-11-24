@@ -228,6 +228,9 @@ class ReviewPacket:
             packet["re_review"] = re_review
 
         try:
+            native = _Assembly.build_native(packet, pending, fixed)
+            if native is not None:
+                return native
             return _Assembly.build(packet, pending, fixed, ReviewPacket.render)
         except ValueError as error:
             raise _PacketError(str(error)) from None

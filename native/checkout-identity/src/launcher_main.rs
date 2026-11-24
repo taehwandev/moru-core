@@ -151,6 +151,7 @@ mod decision_cached_result;
 mod decision_cli;
 mod decision_input;
 mod decision_report;
+mod review_packet_assembly;
 mod decision_response;
 mod workflow_offline_score;
 mod workflow_wikimap_rank;
@@ -220,6 +221,7 @@ fn direct_dispatch(launcher: &OsString, args: &[OsString]) -> Option<i32> {
         "--smoke-hook-suite" => smoke_hook_suite::SmokeHookSuite::run(launcher, &args[1..]),
         "--workflow-query-probe" => workflow_query_process::WorkflowQueryProcess::run(launcher, args),
         "--decision-cache-probe" => decision_cache_plan::DecisionCachePlan::run(launcher, args),
+        "--review-packet-probe" => review_packet_assembly::ReviewPacketAssembly::run(launcher, args),
         "microsoft-decision" => finish(decision_cache_plan::DecisionCachePlan::alias(launcher, &args[1..])?),
         "smoke-checks" => finish(smoke_hook_suite::SmokeHookSuite::alias(launcher, args)),
         _ => return None,
