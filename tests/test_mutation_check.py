@@ -302,8 +302,16 @@ class NativeMutationCheckTests(unittest.TestCase):
 
         self._spec(("caught", "VALUE = 1", "VALUE = 20"), ("ignored", "'same same'", "'different'"))
         ordinary = ["--spec=unused.json", f"--spec={self.spec.name}", "--test=test_subject", "--root=."]
-        for args, soft in ((ordinary, "0"), (ordinary, "1"), (["--help"], "0"),
-                           (["--spec"], "0"), (["--unknown"], "0"),
+        abbreviated = [f"--sp={self.spec.name}", "--te=test_subject", "--r=."]
+        diagnostics = (
+            (["--help"], "0"), (["-h"], "0"), (["--unknown", "--he"], "0"),
+            (["--he=explicit"], "0"), (["--spec"], "0"), (["--unknown"], "0"),
+            (["--spec", "--", "--test", "test_subject"], "0"),
+            ([*ordinary, "--", "--root", "other"], "0"),
+            ([*ordinary, "--unknown"], "1"), (["--", *ordinary], "0"),
+        )
+        references = []
+        for args, soft in ((ordinary, "0"), (ordinary, "1"), (abbreviated, "0"), *diagnostics,
                            (["--spec", "missing", "--test", "test_subject"], "1")):
             with self.subTest(args=args, soft=soft):
                 reference = invoke(args, "python", soft)
@@ -311,6 +319,8 @@ class NativeMutationCheckTests(unittest.TestCase):
                 self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
                                  (actual.returncode, actual.stdout, actual.stderr))
                 self.assertEqual(self.original, self.target.read_bytes())
+                if (args, soft) in diagnostics:
+                    references.append((args, soft, reference))
 
         python.unlink()
         python.write_text("#!/bin/sh\n"
@@ -323,6 +333,13 @@ class NativeMutationCheckTests(unittest.TestCase):
         self.assertTrue(actual.stdout.startswith(b"check: python3 -m unittest test_subject\n"))
         self.assertIn(b"1/2 killed", actual.stdout)
         self.assertEqual(self.original, self.target.read_bytes())
+        calls = (self.root / "calls").read_bytes()
+        for args, soft, reference in references:
+            with self.subTest(native_diagnostic=args):
+                actual = invoke(args, soft=soft)
+                self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                                 (actual.returncode, actual.stdout, actual.stderr))
+        self.assertEqual(calls, (self.root / "calls").read_bytes())
         self._spec()
         empty = invoke([f"--spec={self.spec.name}", "--test=test_subject"])
         self.assertEqual((0, b""), (empty.returncode, empty.stderr))

@@ -6,20 +6,17 @@
 use crate::{
     mutation_check::MutationCheck, pretool_guard::CallbackGuard, python_encoding::PythonEncoding,
 };
+#[path = "mutation_check_args.rs"]
+mod arguments;
+use arguments::Parsed;
 use std::{
     env,
     ffi::{CString, OsString},
     os::unix::ffi::OsStrExt,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 pub(crate) struct MutationCheckCommand;
-
-struct Arguments<'a> {
-    spec: &'a Path,
-    selector: &'a str,
-    root: &'a Path,
-}
 
 impl MutationCheckCommand {
     pub(crate) fn dispatch(launcher: &OsString, args: &[OsString]) {
@@ -47,45 +44,18 @@ impl MutationCheckCommand {
             return None;
         }
         let source = CallbackGuard::root(launcher, "mutation-check")?;
-        let args = Self::arguments(args, &source)?;
-        let python = Self::python()?;
-        MutationCheck::try_run(
-            args.spec,
-            args.root,
-            python.to_str()?,
-            args.selector,
-            Some(&source),
-        )
-    }
-
-    fn arguments<'a>(args: &'a [OsString], source: &'a Path) -> Option<Arguments<'a>> {
-        let (mut spec, mut selector, mut root) = (None, None, source);
-        let mut args = args.iter();
-        while let Some(token) = args.next() {
-            let token = token.to_str()?;
-            let (option, value) = match token.split_once('=') {
-                Some(pair) => pair,
-                None => {
-                    let value = args.next()?.to_str()?;
-                    // Let argparse decide optional-looking values and ambiguous flags.
-                    if value.starts_with('-') {
-                        return None;
-                    }
-                    (token, value)
-                }
-            };
-            match option {
-                "--spec" if !value.is_empty() => spec = Some(Path::new(value)),
-                "--test" => selector = Some(value),
-                "--root" if !value.is_empty() => root = Path::new(value),
-                _ => return None,
+        match Parsed::parse(args, &source)? {
+            Parsed::Help => Parsed::show_help(),
+            Parsed::Error(message) => Parsed::show_error(message),
+            Parsed::Run {
+                spec,
+                selector,
+                root,
+            } => {
+                let python = Self::python()?;
+                MutationCheck::try_run(spec, root, python.to_str()?, selector, Some(&source))
             }
         }
-        Some(Arguments {
-            spec: spec?,
-            selector: selector?,
-            root,
-        })
     }
 
     fn python() -> Option<PathBuf> {

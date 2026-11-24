@@ -643,9 +643,9 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "mutation-check alias and direct CLI",
-      "remaining": "Port help, argparse abbreviation and exceptional argument diagnostics, interpreter selection and filesystem profiles beyond source-bound supported regular UTF-8 targets. Python unittest still runs the explicitly requested selector; Python also retains its library and reference CLI. Prove portable and installed acceptance before retiring compatibility.",
+      "remaining": "Port exceptional argument and diagnostic profiles, including grouped short help, localized or colored output and unsupported terminal widths, plus interpreter selection and filesystem profiles beyond source-bound supported regular UTF-8 targets. Python unittest still runs the explicitly requested selector; Python also retains its library and reference CLI. Prove portable and installed acceptance before retiring compatibility.",
       "verification": {
-        "local": "The mutation-check launcher parses ordinary options natively and starts Python only for the explicit unittest child. The alias displays python3 as the command name in either backend. The direct CLI selects a source-bound Rust runner after argparse and continues to display sys.executable. Native handles regular text validation, exactly one replacement, fixed unittest dispatch, exit-status verdicts and original-byte restoration. Unsupported inputs replay only before mutation."
+        "local": "The mutation-check launcher parses ordinary options and unique abbreviations natively, including plain standard help and common argparse diagnostics. Ordinary execution starts Python only for the explicit unittest child. The alias displays python3 as the command name in either backend. The direct CLI selects a source-bound Rust runner after argparse and continues to display sys.executable. Native handles regular text validation, exactly one replacement, fixed unittest dispatch, exit-status verdicts and original-byte restoration. Unsupported inputs replay only before mutation."
       }
     },
     {
