@@ -634,5 +634,207 @@ class AgentRepairVerificationTests(unittest.TestCase):
             self.assertTrue(any("target_sha256" in f for f in failures))
 
 
+class RepairVerifyRequiredDocReceiptTests(unittest.TestCase):
+    def _setup_run(self, temp_dir: str) -> tuple[Path, Path, Path, dict, dict]:
+        from agent_execution_capsule import create_preflight_snapshot
+        from agent_gate_evidence import reset_gate_evidence_ledger
+
+        base = Path(temp_dir).resolve()
+        project = base / "project"
+        rules = base / "rules"
+        project.mkdir()
+        rules.mkdir()
+        _init_repo(project)
+        _init_repo(rules)
+        (rules / "guide.md").write_text("# Original Guide\n", encoding="utf-8")
+        (rules / "test_repair.py").write_text(
+            "import unittest\n\n"
+            "class RepairTest(unittest.TestCase):\n"
+            "    def test_ok(self):\n"
+            "        self.assertTrue(True)\n"
+            "    def test_fail(self):\n"
+            "        self.assertTrue(False)\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "guide.md", "test_repair.py"], cwd=str(rules), check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "add guide"], cwd=str(rules), check=True)
+
+        route = {
+            "command": "small-change",
+            "docs": ["guide.md"],
+            "required_docs": ["guide.md"],
+            "gates": ["tests", "review hook", "retrospective check"],
+            "required_hooks": ["start", "review", "finish"],
+            "repair_policy": "retrospective_repair_verify_resume",
+        }
+        evidence_path = project / ".moru" / "preflight.json"
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot = create_preflight_snapshot(rules, route, {"request": "repair guide"})
+        preflight = {
+            "project": str(project),
+            "rules": str(rules),
+            "route": route,
+            "execution_snapshot": snapshot,
+        }
+        evidence_path.write_text(json.dumps(preflight), encoding="utf-8")
+        reset_gate_evidence_ledger(evidence_path, preflight)
+        record_failure_checkpoints(
+            evidence_path=evidence_path,
+            preflight=preflight,
+            checkpoints=["tests"],
+            signature="required-doc-defect",
+            checkpoint_signatures={"tests": "required-doc-defect"},
+        )
+        return project, rules, evidence_path, preflight, snapshot
+
+    def test_successful_repair_verify_auto_records_required_doc_receipt_and_passes_binding(self) -> None:
+        from agent_execution_capsule_docs import required_doc_failures
+        from agent_finish_documentation import documented_required_doc_updates
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project, rules, evidence_path, preflight, capsule = self._setup_run(temp_dir)
+            original_sha = capsule["required_docs"][0]["sha256"]
+            (rules / "guide.md").write_text("# Repaired Guide\n", encoding="utf-8")
+
+            receipt = create_repair_receipt(
+                project=project,
+                rules=rules,
+                evidence_path=evidence_path,
+                preflight=preflight,
+                target=str(rules / "guide.md"),
+                checkpoint="tests",
+                verification_kind="unittest",
+                test_selector="test_repair.RepairTest.test_ok",
+            )
+            self.assertTrue(receipt["created"])
+            self.assertEqual("SUCCESS", receipt["status"])
+            self.assertTrue(receipt["documentation_receipt"]["recorded"])
+            self.assertEqual("guide.md", receipt["documentation_receipt"]["target"])
+            self.assertEqual(original_sha, receipt["documentation_receipt"]["baseline_sha256"])
+
+            updates = documented_required_doc_updates(
+                evidence_path=evidence_path,
+                route=preflight["route"],
+            )
+            self.assertEqual({"guide.md"}, set(updates))
+            self.assertEqual(
+                [],
+                required_doc_failures(
+                    capsule["required_docs"],
+                    rules,
+                    preflight["route"],
+                    documented_updates=updates,
+                ),
+            )
+
+            # A subsequent edit invalidates the bound receipt bytes.
+            (rules / "guide.md").write_text("# Tampered After Repair\n", encoding="utf-8")
+            failures = required_doc_failures(
+                capsule["required_docs"],
+                rules,
+                preflight["route"],
+                documented_updates=updates,
+            )
+            self.assertTrue(
+                any("changed after documentation evidence" in item for item in failures),
+                failures,
+            )
+
+    def test_failed_verification_does_not_record_required_doc_receipt(self) -> None:
+        from agent_finish_documentation import documented_required_doc_updates
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project, rules, evidence_path, preflight, _ = self._setup_run(temp_dir)
+            (rules / "guide.md").write_text("# Broken Repair\n", encoding="utf-8")
+
+            receipt = create_repair_receipt(
+                project=project,
+                rules=rules,
+                evidence_path=evidence_path,
+                preflight=preflight,
+                target=str(rules / "guide.md"),
+                checkpoint="tests",
+                verification_kind="unittest",
+                test_selector="test_repair.RepairTest.test_fail",
+            )
+            self.assertTrue(receipt["created"])
+            self.assertEqual("FAIL", receipt["status"])
+            self.assertNotIn("documentation_receipt", receipt)
+            self.assertEqual(
+                {},
+                documented_required_doc_updates(
+                    evidence_path=evidence_path,
+                    route=preflight["route"],
+                ),
+            )
+
+    def test_wrong_root_target_does_not_record_required_doc_receipt(self) -> None:
+        from agent_finish_documentation import documented_required_doc_updates
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project, rules, evidence_path, preflight, _ = self._setup_run(temp_dir)
+            # Same relative path under project/, not under rules/.
+            (project / "guide.md").write_text("# Project Guide\n", encoding="utf-8")
+            (project / "test_project.py").write_text(
+                "import unittest\n\n"
+                "class ProjectTest(unittest.TestCase):\n"
+                "    def test_ok(self):\n"
+                "        self.assertTrue(True)\n",
+                encoding="utf-8",
+            )
+
+            receipt = create_repair_receipt(
+                project=project,
+                rules=rules,
+                evidence_path=evidence_path,
+                preflight=preflight,
+                target=str(project / "guide.md"),
+                checkpoint="tests",
+                verification_kind="unittest",
+                test_selector="test_project.ProjectTest.test_ok",
+            )
+            self.assertTrue(receipt["created"])
+            self.assertEqual("SUCCESS", receipt["status"])
+            self.assertNotIn("documentation_receipt", receipt)
+            self.assertEqual(
+                {},
+                documented_required_doc_updates(
+                    evidence_path=evidence_path,
+                    route=preflight["route"],
+                ),
+            )
+
+    def test_stale_run_evidence_does_not_mint_valid_required_doc_receipt(self) -> None:
+        from agent_finish_documentation import documented_required_doc_updates
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project, rules, evidence_path, preflight, _ = self._setup_run(temp_dir)
+            (rules / "guide.md").write_text("# Repaired Guide\n", encoding="utf-8")
+            # Mutate on-disk preflight evidence after capsule creation so the run evidence is stale.
+            stale_preflight = {**preflight, "stale_marker": "changed"}
+            evidence_path.write_text(json.dumps(stale_preflight), encoding="utf-8")
+
+            receipt = create_repair_receipt(
+                project=project,
+                rules=rules,
+                evidence_path=evidence_path,
+                preflight=preflight,
+                target=str(rules / "guide.md"),
+                checkpoint="tests",
+                verification_kind="unittest",
+                test_selector="test_repair.RepairTest.test_ok",
+            )
+            self.assertFalse(receipt["created"])
+            self.assertEqual("checkpoint_not_failed", receipt["reason"])
+            self.assertNotIn("documentation_receipt", receipt)
+            self.assertEqual(
+                {},
+                documented_required_doc_updates(
+                    evidence_path=evidence_path,
+                    route=preflight["route"],
+                ),
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

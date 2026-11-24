@@ -36,6 +36,31 @@ class RepairVerifyCliTests(unittest.TestCase):
         self.assertFalse(finish.call_args.args[1])
         self.assertIn(result["diagnostic"], "\n".join(finish.call_args.args[2]))
 
+    def test_successful_verification_reports_auto_recorded_documentation_receipt(self):
+        args = HOOK.build_parser().parse_args(["repair-verify"])
+        result = {
+            "created": True,
+            "status": "SUCCESS",
+            "returncode": 0,
+            "receipt_id": "a" * 24,
+            "receipt_path": "/tmp/receipt.json",
+            "documentation_receipt": {
+                "recorded": True,
+                "target": "common/skills/agent-operating-skill/SKILL.md",
+            },
+        }
+        with patch.object(HOOK, "preflight_evidence_path", return_value=Path("/nonexistent/preflight.json")), \
+             patch.object(HOOK, "create_repair_receipt", return_value=result), \
+             patch.object(HOOK, "promote_lessons_for_repair", return_value={"promoted": []}), \
+             patch.object(HOOK, "finish_with_result", return_value=0) as finish:
+            code = HOOK._run_repair_verify_hook(args)
+        self.assertEqual(0, code)
+        self.assertTrue(finish.call_args.args[1])
+        self.assertIn(
+            "documentation drift receipt recorded: common/skills/agent-operating-skill/SKILL.md",
+            finish.call_args.args[2],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

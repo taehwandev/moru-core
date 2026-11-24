@@ -11,8 +11,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from agent_execution_capsule_docs import required_doc_baseline_sha256
 from agent_execution_capsule_state import atomic_write_json, read_json_object, sha256_file
-from agent_gate_evidence import merge_gate_evidence_from_ledger
+from agent_gate_evidence import (
+    GateEvidenceAccessError,
+    merge_gate_evidence_from_ledger,
+    record_gate_evidence,
+)
 from agent_repair_ledger import (
     checkpoint_failure_signature,
     checkpoint_has_recorded_failure,
@@ -20,7 +25,7 @@ from agent_repair_ledger import (
     record_failure_checkpoints,
     repair_checkpoint_path_for_preflight,
 )
-from agent_route_state import preflight_evidence_sha256, route_fingerprint
+from agent_route_state import preflight_evidence_sha256, required_docs_for_route, route_fingerprint
 from agent_repair_receipt_validation import validate_repair_receipt
 from agent_verification_command import (
     Runner,
@@ -141,7 +146,25 @@ def create_repair_receipt(
         "status": status,
         "returncode": returncode,
     }
-    if returncode != 0:
+    if returncode == 0:
+        doc_receipt = _record_repaired_required_doc_receipt(
+            rules=rules,
+            evidence_path=evidence_path,
+            preflight=preflight,
+            route=route,
+            target_path=target_path,
+            target_scope=target_scope,
+            target_relative=target_relative,
+            target_root=target_root,
+            verified_sha256=core["target_sha256"],
+            checkpoint=checkpoint_text,
+            verification_kind=verification_kind,
+            receipt_id=receipt_id,
+            receipt_path=destination,
+        )
+        if doc_receipt is not None:
+            response["documentation_receipt"] = doc_receipt
+    else:
         response["diagnostic"] = f"verification command failed with exit {returncode}"
         if (
             verification_kind == "unittest"
@@ -154,6 +177,80 @@ def create_repair_receipt(
                 "no alternate tests were run."
             )
     return response
+
+
+def _record_repaired_required_doc_receipt(
+    *,
+    rules: Path,
+    evidence_path: Path,
+    preflight: dict[str, Any],
+    route: dict[str, Any],
+    target_path: Path,
+    target_scope: str,
+    target_relative: str,
+    target_root: Path,
+    verified_sha256: str,
+    checkpoint: str,
+    verification_kind: str,
+    receipt_id: str,
+    receipt_path: Path,
+) -> dict[str, Any] | None:
+    """Bind a documentation drift receipt when repair-verify checks one exact rules-root required doc."""
+    if target_scope != "rules":
+        return None
+    try:
+        if target_root.resolve() != rules.resolve():
+            return None
+    except OSError:
+        return None
+    if target_relative not in set(required_docs_for_route(route)):
+        return None
+    if required_doc_baseline_sha256(evidence_path, preflight, target_relative) is None:
+        return None
+    if sha256_file(target_path) != verified_sha256:
+        return {
+            "recorded": False,
+            "target": target_relative,
+            "reason": "target_changed_after_verification",
+        }
+    try:
+        entry = record_gate_evidence(
+            evidence_path=evidence_path,
+            preflight=preflight,
+            gate="documentation",
+            status="SUCCESS",
+            source="repair-verify",
+            fields={
+                "decision": "updated",
+                "target": target_relative,
+                "reason": (
+                    f"verified rules-root required-doc repair at checkpoint "
+                    f"{checkpoint} ({verification_kind}, receipt {receipt_id})"
+                ),
+                "resume_checkpoint": checkpoint,
+                "repair_evidence": str(receipt_path),
+            },
+        )
+    except (GateEvidenceAccessError, OSError, ValueError) as exc:
+        return {
+            "recorded": False,
+            "target": target_relative,
+            "reason": str(exc),
+        }
+    fields = entry.get("fields") or {}
+    if fields.get("final_sha256") != verified_sha256:
+        return {
+            "recorded": False,
+            "target": target_relative,
+            "reason": "recorded_receipt_hash_mismatch",
+        }
+    return {
+        "recorded": True,
+        "target": target_relative,
+        "baseline_sha256": str(fields.get("baseline_sha256") or ""),
+        "final_sha256": str(fields.get("final_sha256") or ""),
+        "final_size_bytes": str(fields.get("final_size_bytes") or ""),
+    }
 
 
 def _record_structural_preflight_failure(

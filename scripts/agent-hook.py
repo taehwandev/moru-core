@@ -2519,6 +2519,9 @@ def _run_repair_verify_hook(args: argparse.Namespace) -> int:
     if result.get("diagnostic"):
         details.append(str(result["diagnostic"]))
     if success:
+        doc_receipt = result.get("documentation_receipt") or {}
+        if doc_receipt.get("recorded"):
+            details.append(f"documentation drift receipt recorded: {doc_receipt['target']}")
         # A verified repair is the only thing that retires a lesson. Without
         # this the inbox was write-only, so a signature kept counting up
         # (89 at the worst) with no way to ever record that it was fixed.
