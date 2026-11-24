@@ -43,7 +43,7 @@ from agent_review_subjects import (  # noqa: F401
     settled_review_run_state,
     unavailable_structure_review,
 )
-from agent_vibeguard_cache import cached_vibeguard
+from agent_vibeguard_cache import cached_vibeguard, cached_vibeguard_path_support
 from agent_workspace_policy import is_git_status_review_only, is_writing_workspace, non_git_writing_workspace_note
 from support.git_read_scope import invalidate_worktree_reads
 from support.stage_timing import stage
@@ -1702,10 +1702,12 @@ def vibeguard_supports_path_option(
         return False
     command = _vibeguard_help_command(base_command)
     with stage("vibeguard_capability"):
-        result = run_command(command, project)
-    if result.get("returncode") != 0:
-        return False
-    return "--path" in f"{result.get('stdout', '')}\n{result.get('stderr', '')}"
+        return cached_vibeguard_path_support(
+            project=project,
+            base_command=base_command,
+            help_command=command,
+            run_command=run_command,
+        )
 
 
 def _vibeguard_help_command(base_command: list[str]) -> list[str]:
