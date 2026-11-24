@@ -228,6 +228,13 @@ impl CompletionProcess {
                 None => 125,
             };
         }
+        if args[1] == "lesson-compaction-write-batch" {
+            return match lesson_compaction_apply::LessonCompactionApply::batch(&payload) {
+                Some(Ok(receipt)) => Self::respond(Some(receipt)),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "lesson-compaction-mark-stale" {
             return match lesson_compaction_apply::LessonCompactionApply::mark_stale(&payload) {
                 Some(Ok(marked)) => Self::respond(Some(json!({"marked": marked}))),

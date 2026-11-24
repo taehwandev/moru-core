@@ -192,6 +192,27 @@ def plan(inbox: Path, now: datetime | None = None) -> dict:
     }
 
 
+def _native_write_batch(inbox: Path, phase: str, items: list, **policy) -> tuple[int, int]:
+    processed = changed = 0
+    while len(items) - processed >= 2:
+        chunk = items[processed:processed + 128]
+        result = NativeProbe.request("--completion-probe", "lesson-compaction-write-batch", {
+            "inbox": str(inbox), "phase": phase, "items": chunk,
+            "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(), **policy,
+        })
+        if result is None:
+            break
+        count, written = result.get("processed"), result.get("changed")
+        if (result.keys() != {"processed", "changed"} or type(count) is not int or type(written) is not int
+                or not 0 <= written <= count <= len(chunk)):
+            raise OSError("invalid native lesson compaction batch receipt")
+        processed += count
+        changed += written
+        if count < len(chunk):
+            break
+    return processed, changed
+
+
 def mark_stale(inbox: Path, lesson_ids: list[str], now: datetime) -> int:
     """Mark lessons unseen for the stale window, re-checked under their lock.
 
@@ -200,6 +221,12 @@ def mark_stale(inbox: Path, lesson_ids: list[str], now: datetime) -> int:
     """
 
     marked = 0
+    if (type(lesson_ids) is list and len(lesson_ids) >= 2
+            and type(now) is datetime and now.utcoffset() is not None):
+        processed, marked = _native_write_batch(
+            inbox, "mark", lesson_ids, now=now.isoformat(), stale_days=STALE_AFTER.days,
+        )
+        lesson_ids = lesson_ids[processed:]
     for lesson_id in lesson_ids:
         if type(now) is datetime and now.utcoffset() is not None:
             native = NativeProbe.request("--completion-probe", "lesson-compaction-mark-stale", {
@@ -271,6 +298,21 @@ def apply_plan(inbox: Path, folds: list[dict]) -> int:
     """
 
     written = 0
+    if type(folds) is list and len(folds) >= 2:
+        try:
+            queued = [
+                {"lesson_id": fold["lesson_id"],
+                 "known": [path.name for path in fold["paths"]]}
+                if all(path.parent == inbox for path in fold["paths"]) else None
+                for fold in folds
+            ]
+        except (KeyError, TypeError, AttributeError):
+            queued = []
+        processed, written = _native_write_batch(
+            inbox, "fold", queued, key_limit=OCCURRENCE_KEY_HISTORY_LIMIT,
+            recent_days=RECENT_OCCURRENCE_DAYS,
+        )
+        folds = folds[processed:]
     for fold in folds:
         lesson_id = fold["lesson_id"]
         if all(path.parent == inbox for path in fold["paths"]):

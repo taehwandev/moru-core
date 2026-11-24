@@ -39,6 +39,7 @@ class NativeProbe:
             ("--completion-probe", "path-claim-expire-batch"): "native path claim expiry outcome could not be determined",
             ("--completion-probe", "lesson-compaction-apply"): "native lesson compaction outcome could not be determined",
             ("--completion-probe", "lesson-compaction-mark-stale"): "native lesson stale marking outcome could not be determined",
+            ("--completion-probe", "lesson-compaction-write-batch"): "native lesson compaction batch outcome could not be determined",
             ("--completion-probe", "capsule-refresh"): "native execution capsule refresh outcome could not be determined",
             ("--completion-probe", "capsule-replace"): "native execution capsule replacement outcome could not be determined",
             ("--completion-probe", "pending-publication-replace"): "native receipt replacement outcome could not be determined",

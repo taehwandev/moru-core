@@ -480,6 +480,63 @@ class CompactionTests(unittest.TestCase):
             self.assertEqual(self._files(), {"lesson.json", "b-lesson.json"})
             self.assertTrue((self.inbox / ".lesson.json.lock").is_file())
 
+    def test_native_write_batch_counts_noops_and_resumes_only_untouched_suffix(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        date = "2026-01-01T00:00:00Z"
+        for lesson in ("a", "b", "c", "d"):
+            self._write(f"first-{lesson}.json", _candidate(lesson, date))
+            if lesson != "c":
+                with state_lock(self.inbox / f"{lesson}.json"):
+                    pass
+        request = compact.NativeProbe.request
+        batches = []
+        singles = []
+
+        def probe(protocol, operation, payload):
+            result = request(protocol, operation, payload)
+            if operation == "lesson-compaction-write-batch":
+                batches.append(result)
+            if operation == "lesson-compaction-apply":
+                singles.append(payload["lesson_id"])
+            return result
+
+        with mock.patch.dict(os.environ, environment(self.state, ROOT), clear=True):
+            folds = compact.plan(self.inbox)["folds"]
+            (self.inbox / "first-b.json").unlink()
+            with mock.patch.object(compact.NativeProbe, "request", side_effect=probe):
+                self.assertEqual(compact.apply_plan(self.inbox, folds), 3)
+            self.assertEqual(batches, [{"processed": 2, "changed": 1}])
+            self.assertEqual(singles, ["c", "d"])
+            self.assertEqual(self._files(), {"a.json", "c.json", "d.json"})
+
+            for lesson in ("a", "d"):
+                self._write(f"again-{lesson}.json", _candidate(lesson, date))
+            folds = compact.plan(self.inbox)["folds"]
+            invoke = subprocess.run
+
+            def lose_reply(command, **kwargs):
+                result = invoke(command, **kwargs)
+                if command[-1] == "lesson-compaction-write-batch":
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+                self.assertNotEqual(command[-1], "lesson-compaction-apply")
+                return result
+
+            with mock.patch.object(subprocess, "run", side_effect=lose_reply):
+                with self.assertRaisesRegex(OSError, "lesson compaction batch outcome could not be determined"):
+                    compact.apply_plan(self.inbox, folds)
+            self.assertEqual(self._files(), {"a.json", "c.json", "d.json"})
+            self.assertEqual(json.loads((self.inbox / "a.json").read_text())["occurrence_count"], 2)
+
     def test_native_stale_mark_rechecks_snapshot_and_never_replays_write(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment

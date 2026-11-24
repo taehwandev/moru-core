@@ -8,7 +8,7 @@ use crate::{
     atomic_sibling::AtomicSibling,
     python_json::{InputDiagnostic, Object, PythonJson, Value},
 };
-use serde_json::Value as Json;
+use serde_json::{json, Value as Json};
 use std::{
     collections::{BTreeSet, HashSet},
     ffi::{CStr, CString},
@@ -16,11 +16,55 @@ use std::{
     io::{self, Read},
     os::{fd::AsRawFd, unix::fs::MetadataExt},
     path::Path,
+    time::{Duration, Instant},
 };
 
 pub(super) struct LessonCompactionApply;
 
 impl LessonCompactionApply {
+    pub(super) fn batch(input: &Json) -> Option<io::Result<Json>> {
+        let (run, is_fold): (fn(&Json) -> Option<io::Result<bool>>, _) =
+            match input.get("phase")?.as_str()? {
+                "fold" => (Self::apply, true),
+                "mark" => (Self::mark_stale, false),
+                _ => return None,
+            };
+        let items = input.get("items")?.as_array()?;
+        if !(2..=128).contains(&items.len()) {
+            return None;
+        }
+        let mut request = input.as_object()?.clone();
+        request.remove("items");
+        let mut request = Json::Object(request);
+        let mut processed = 0;
+        let mut changed = 0;
+        let started = Instant::now();
+        for item in items {
+            if started.elapsed() >= Duration::from_secs(8) {
+                break;
+            }
+            if is_fold {
+                let Some(fold) = item.as_object() else { break };
+                let (Some(lesson), Some(known)) = (fold.get("lesson_id"), fold.get("known")) else {
+                    break;
+                };
+                request["lesson_id"] = lesson.clone();
+                request["known"] = known.clone();
+            } else {
+                request["lesson_id"] = item.clone();
+            }
+            match run(&request) {
+                Some(Ok(updated)) => {
+                    processed += 1;
+                    changed += usize::from(updated);
+                }
+                Some(Err(error)) => return Some(Err(error)),
+                None => break,
+            }
+        }
+        Some(Ok(json!({"processed": processed, "changed": changed})))
+    }
+
     pub(super) fn apply(input: &Json) -> Option<io::Result<bool>> {
         let (inbox, lesson) = Self::location(input)?;
         let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
