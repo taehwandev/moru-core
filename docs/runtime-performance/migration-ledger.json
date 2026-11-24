@@ -432,10 +432,12 @@
       "id": "scripts/workflow.py",
       "inventory_id": 28,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "workflow",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "verification": {
+        "local": "Rust renders ordinary query text from ordered result rows. Python retains CLI parsing, retrieval, organization output, JSON reporting and exceptional renderer behavior."
+      }
     },
     {
       "id": "scripts/workflow_dispatch.py",

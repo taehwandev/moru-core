@@ -23,7 +23,7 @@ class NativeProbe:
     def request(
         protocol: str, operation: str, payload: dict, *, verified_launcher: Path | None = None,
     ) -> dict | None:
-        if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe"}:
+        if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe", "--workflow-query-probe"}:
             return None
         if verified_launcher is not None and (protocol, operation) != ("--completion-probe", "doctor-launcher"):
             return None

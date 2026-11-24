@@ -14,6 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Sequence
 
+from support.native_probe_transport import NativeProbe
 from support.project_tree import PRUNED_DIRECTORIES, git_ignored, iter_project_files
 from support.stage_timing import stage
 from workflow_catalog import CONCERNS
@@ -349,6 +350,20 @@ def _score_terms(
 
 
 def print_query_results(query: str, results: List[Dict[str, object]]) -> None:
+    if type(query) is str and type(results) is list and NativeProbe.available() and all(
+        type(item) is dict and all(
+            item.get(key) is None or type(item[key]) is list
+            for key in ("matched_facets", "graph_reasons")
+        )
+        for item in results
+    ):
+        native = NativeProbe.request("--workflow-query-probe", "render-text", {
+            "query": query,
+            "results": results,
+        })
+        if native is not None and set(native) == {"text"} and isinstance(native["text"], str):
+            print(native["text"], end="")
+            return
     print(f'# Moru Core Document Query: "{query}"')
     print()
     if not results:
