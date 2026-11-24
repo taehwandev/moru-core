@@ -702,6 +702,43 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_owner_facts_group_kotlin_by_visibility_and_baseline(self):
+        path = Path("src/Extensions.KT")
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            current = purpose.top_level_type_declarations(path, [
+                "internal fun Z.firstController() = Unit",
+                "private fun A.hiddenRepo() = Unit",
+                "fun A.secondRepo() = Unit",
+                "fun Z.thirdScreen() = Unit",
+                "fun A?.optional() = Unit",
+                *(f"fun ordinary{index}() = Unit" for index in range(8)),
+            ])
+            previous = purpose.top_level_type_declarations(path, [
+                "fun A.secondRepo() = Unit", "fun A.anotherRepo() = Unit", "fun Z.thirdScreen() = Unit",
+            ])
+        row = purpose._owner_review_input(path, current, previous)
+        expected = purpose._owner_review_facts(path, current, previous)
+        self.assertEqual(2, expected["previous_public_count"])
+        self.assertTrue(expected["public_labels"].startswith(
+            "A extension family[1]@3, Z extension family[1]@4, A? extension family[1]@5",
+        ))
+        self.assertTrue(expected["visible_labels"].startswith("Z extension family[2]@1, A extension family[1]@3"))
+        self.assertEqual(8, len(expected["visible_labels"].split(", ")))
+        self.assertIn("firstController@1, secondRepo@3, thirdScreen@4", expected["role_labels"])
+        self.assertNotIn("hiddenRepo", expected["role_labels"])
+        failures = purpose._owner_findings(expected)
+        self.assertEqual(failures, purpose._owner_input_findings(row))
+        self.assertNotIn("declarations", purpose._owner_review_input(Path("app/page.jsx"), [], []))
+        owners = {
+            "files": [row], "public_limit": purpose.MAX_PUBLIC_TOP_LEVEL_OWNERS,
+            "visible_limit": purpose.MAX_TOP_LEVEL_OWNERS, "role_pairs": purpose.MIXED_ROLE_BLOCKS,
+        }
+        with patch.dict(os.environ, self.env, clear=True):
+            _, layout = structure._file_findings([], source_layout={
+                "limit": 20, "paths": [[str(path), "M"]], "owners": owners,
+            })
+        self.assertEqual(failures, layout["owner_failures"])
+
     def test_structure_owner_findings_keep_baseline_budgets_and_role_transitions(self):
         common = {
             "public_count": 2, "previous_public_count": 2, "public_labels": "A@1, B@2",

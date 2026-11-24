@@ -84,6 +84,8 @@ mod structure_source_layout;
 mod structure_package_roles;
 #[path = "structure_owner_findings.rs"]
 mod structure_owner_findings;
+#[path = "structure_owner_facts.rs"]
+mod structure_owner_facts;
 #[path = "structure_removal_matching.rs"]
 mod structure_removal_matching;
 #[path = "structure_move_matching.rs"]

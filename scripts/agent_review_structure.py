@@ -21,8 +21,8 @@ from agent_review_purpose import (
     MAX_PUBLIC_TOP_LEVEL_OWNERS,
     MAX_TOP_LEVEL_OWNERS,
     MIXED_ROLE_BLOCKS,
-    _owner_findings,
-    _owner_review_facts,
+    _owner_input_findings,
+    _owner_review_input,
     previous_top_level_type_declarations,
     purpose_failures,
     top_level_type_declarations,
@@ -314,7 +314,7 @@ def structure_review(
             else REVIEW_FILE_REVIEW_WARNING_LIMIT,
         }
         if not is_test_path:
-            owner_checks.append(_owner_review_facts(
+            owner_checks.append(_owner_review_input(
                 relative,
                 top_level_type_declarations(relative, lines),
                 previous_top_level_type_declarations(source_root, relative, discovery["path_metadata"], subject_run_command),
@@ -346,7 +346,7 @@ def structure_review(
     })
     owner_findings = source_layout.get("owner_failures") if source_layout is not None else None
     if owner_findings is None:
-        owner_findings = [finding for check in owner_checks for finding in _owner_findings(check)]
+        owner_findings = [finding for check in owner_checks for finding in _owner_input_findings(check)]
     # Preserve each file's position relative to encoding warnings.
     for kind, index in (("failures", 0), ("warnings", 1)):
         other_findings = result[kind]

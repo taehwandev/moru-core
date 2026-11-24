@@ -3,6 +3,7 @@
 //! forbidden imports: source reads, Git execution, writes and approval.
 //! callers/tests: structural diagnostic batch and prepared declaration parity.
 //! verification: baseline budgets, blocked role expansion and exact order.
+use super::structure_owner_facts::StructureOwnerFacts;
 use serde_json::{json, Value};
 
 pub(super) struct StructureOwnerFindings;
@@ -20,6 +21,13 @@ impl StructureOwnerFindings {
             .collect::<Option<Vec<_>>>()?;
         let mut findings = Vec::new();
         for row in rows {
+            let measured;
+            let row = if row.get("declarations").is_some() {
+                measured = StructureOwnerFacts::measure(row)?;
+                &measured
+            } else {
+                row
+            };
             let path = row.get("path")?.as_str()?;
             let public = row.get("public_count")?.as_u64()?;
             let visible = row.get("visible_count")?.as_u64()?;
