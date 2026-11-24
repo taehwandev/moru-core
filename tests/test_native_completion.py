@@ -857,6 +857,36 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual([], structure._review_sources(self.project, [Path("src/File.RS")]))
             request.assert_not_called()
 
+    def test_structure_diff_metadata_merges_initial_and_untracked_listings(self):
+        empty = {"returncode": 0, "stdout": ""}
+        diff = {"returncode": 0, "stdout": "R100\0src/old.py\0src/한\n.py\0"}
+        legacy_listing = " src/한\n.py \0tracked.py\0"
+        cases = [
+            (empty, (legacy_listing, "tracked.py\0later.py\0")),
+            (empty, ("", "new.py\0")),  # Untracked remains initial if cached listing failed.
+            (diff, (None, "src/한\n.py\0other\t.py\0")),
+        ]
+
+        def project(status, listings):
+            metadata = {}
+            structure._record_diff(status, empty, set(), metadata, [], "git diff", listings=listings)
+            return list(metadata.items())
+
+        for status, listings in cases:
+            with patch.object(NativeProbe, "request", return_value=None):
+                expected = project(status, listings)
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                structure, "_record_listings", side_effect=AssertionError("Python projected listings"),
+            ):
+                self.assertEqual(expected, project(status, listings))
+        with patch.object(NativeProbe, "request", return_value={"metadata": {"src/한\n.py": {
+            "status": "R", "previous_path": "src/old.py",
+        }}}):
+            self.assertEqual(expected, project(*cases[-1]))
+        row = dict(expected)["src/한\n.py"]
+        self.assertEqual({"status": "A", "previous_path": "src/old.py", "untracked": True,
+                          "initial_full_build": False}, row)
+
     def test_structure_diff_metadata_merges_order_and_preserves_legacy_packets(self):
         status = "R75\0old\t.py\0한\n.py\0A\0later.py\0M\0한\n.py\0"
         counts = "1\t2\t한\n.py\0-\t-\tcount-only.py\0" "3\t4\t한\n.py\0"

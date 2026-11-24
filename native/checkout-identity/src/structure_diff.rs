@@ -12,9 +12,33 @@ impl StructureDiff {
         let status = Self::name_status(payload.get("status")?.as_str()?)?;
         let counts = Self::numstat(payload.get("numstat")?.as_str()?)?;
         if payload.get("metadata").and_then(Value::as_bool) == Some(true) {
-            return Some(json!({"metadata": Self::metadata(status, counts)}));
+            let mut metadata = Self::metadata(status, counts);
+            if let Some(listings) = payload.get("listings") {
+                Self::add_listings(&mut metadata, listings)?;
+                return Some(json!({"metadata": metadata, "listings_applied": true}));
+            }
+            return Some(json!({"metadata": metadata}));
         }
         Some(json!({"status": status, "numstat": counts}))
+    }
+
+    fn add_listings(metadata: &mut Map<String, Value>, listings: &Value) -> Option<()> {
+        let [initial, untracked] = listings.as_array()?.as_slice() else {
+            return None;
+        };
+        let initial_build = !initial.is_null();
+        let initial = if initial_build { initial.as_str()? } else { "" };
+        for (text, is_untracked) in [(initial, false), (untracked.as_str()?, true)] {
+            for path in Self::fields(text)?.filter(|path| !path.is_empty()) {
+                let entry = metadata.entry(path).or_insert_with(|| json!({}));
+                entry["status"] = json!("A");
+                if is_untracked {
+                    entry["untracked"] = json!(true);
+                }
+                entry["initial_full_build"] = json!(initial_build);
+            }
+        }
+        Some(())
     }
 
     fn metadata(

@@ -560,44 +560,15 @@ def changed_source_paths(
             "path_metadata": path_metadata,
             "review_only": "non_git_workspace",
         }, []
-    is_initial_full_build = head["returncode"] != 0
     if head["returncode"] == 0:
-        collect_head_diff(project, run_command, commands, names, path_metadata, command_errors, review_paths)
+        collect_head_diff(project, run_command, commands, names, path_metadata, command_errors, review_paths,
+                          include_untracked=True)
     else:
-        tracked = run_command(
-            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", *_pathspec_args(review_paths)],
-            project,
+        listings = _read_listings(project, run_command, commands, command_errors, review_paths, initial=True)
+        empty_diff = {"returncode": 0, "stdout": ""}
+        _record_diff(
+            empty_diff, empty_diff, names, path_metadata, command_errors, "git diff", listings=listings,
         )
-        commands["ls_files_initial"] = tracked
-        if tracked["returncode"] == 0:
-            for name in _listed_paths(tracked["stdout"]):
-                record_path(
-                    names,
-                    path_metadata,
-                    name,
-                    status="A",
-                    initial_full_build=True,
-                )
-        else:
-            command_errors.append("git ls-files changed source discovery failed")
-
-    untracked = run_command(
-        ["git", "ls-files", "-z", "--others", "--exclude-standard", *_pathspec_args(review_paths)],
-        project,
-    )
-    commands["ls_files_untracked"] = untracked
-    if untracked["returncode"] == 0:
-        for name in _listed_paths(untracked["stdout"]):
-            record_path(
-                names,
-                path_metadata,
-                name,
-                status="A",
-                untracked=True,
-                initial_full_build=is_initial_full_build,
-            )
-    else:
-        command_errors.append("git ls-files untracked source discovery failed")
 
     if head["returncode"] == 0:
         reclassify_untracked_moves(
@@ -698,6 +669,8 @@ def collect_head_diff(
     path_metadata: dict[str, dict[str, Any]],
     command_errors: list[str],
     review_paths: list[str] | None = None,
+    *,
+    include_untracked: bool = False,
 ) -> None:
     pathspec = _pathspec_args(review_paths)
     status = run_command(
@@ -711,10 +684,31 @@ def collect_head_diff(
         project,
     )
     commands["diff_numstat"] = numstat
-    _record_diff(status, numstat, names, path_metadata, command_errors, "git diff")
+    listing_errors = []
+    listings = (_read_listings(project, run_command, commands, listing_errors, review_paths, initial=False)
+                if include_untracked else None)
+    _record_diff(status, numstat, names, path_metadata, command_errors, "git diff", listings=listings)
+    command_errors.extend(listing_errors)
 
 
-def _record_diff(status, numstat, names, path_metadata, command_errors, label):
+def _read_listings(project, run_command, commands, errors, review_paths, *, initial: bool):
+    initial_text = None
+    pathspec = _pathspec_args(review_paths)
+    if initial:
+        tracked = run_command(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", *pathspec], project)
+        commands["ls_files_initial"] = tracked
+        initial_text = tracked["stdout"] if tracked["returncode"] == 0 else ""
+        if tracked["returncode"] != 0:
+            errors.append("git ls-files changed source discovery failed")
+    untracked = run_command(["git", "ls-files", "-z", "--others", "--exclude-standard", *pathspec], project)
+    commands["ls_files_untracked"] = untracked
+    if untracked["returncode"] != 0:
+        errors.append("git ls-files untracked source discovery failed")
+        return initial_text, ""
+    return initial_text, untracked["stdout"]
+
+
+def _record_diff(status, numstat, names, path_metadata, command_errors, label, *, listings=None):
     status_ok = status["returncode"] == 0
     counts_ok = numstat["returncode"] == 0
     status_text = status["stdout"] if status_ok else ""
@@ -724,16 +718,20 @@ def _record_diff(status, numstat, names, path_metadata, command_errors, label):
     if not counts_ok:
         command_errors.append(f"{label} line-count discovery failed")
     decoded = None
-    if "\0" in status_text or "\0" in counts_text:
-        decoded = NativeProbe.request("--completion-probe", "structure-diff", {
-            "status": status_text, "numstat": counts_text, "metadata": True,
-        })
+    if any("\0" in text for text in (status_text, counts_text, *(listings or ())) if text is not None):
+        payload = {"status": status_text, "numstat": counts_text, "metadata": True}
+        if listings is not None:
+            payload["listings"] = listings
+        decoded = NativeProbe.request("--completion-probe", "structure-diff", payload)
     metadata = decoded.get("metadata") if decoded is not None else None
+    listings_applied = listings is not None and decoded is not None and decoded.get("listings_applied") is True
     if isinstance(metadata, dict) and metadata and all(
-        _valid_diff_metadata(path, row) for path, row in metadata.items()
+        _valid_diff_metadata(path, row, listings_applied) for path, row in metadata.items()
     ):
         for path, row in metadata.items():
             record_path(names, path_metadata, path, **row)
+        if listings is not None and not listings_applied:
+            _record_listings(names, path_metadata, listings)
         return
     parsed = _validated_diff_records(decoded)
     if parsed is None:
@@ -746,11 +744,22 @@ def _record_diff(status, numstat, names, path_metadata, command_errors, label):
         record_path(names, path_metadata, destination, **updates)
     for destination, additions, deletions in counts:
         record_path(names, path_metadata, destination, additions=additions, deletions=deletions)
+    if listings is not None:
+        _record_listings(names, path_metadata, listings)
 
 
-def _valid_diff_metadata(path: str, row) -> bool:
+def _record_listings(names, path_metadata, listings):
+    initial, untracked = listings
+    if initial is not None:
+        for path in _listed_paths(initial):
+            record_path(names, path_metadata, path, status="A", initial_full_build=True)
+    for path in _listed_paths(untracked):
+        record_path(names, path_metadata, path, status="A", untracked=True, initial_full_build=initial is not None)
+
+
+def _valid_diff_metadata(path: str, row, listings_applied: bool) -> bool:
     if not path or not isinstance(row, dict) or not row or row.keys() - {
-        "status", "previous_path", "additions", "deletions",
+        "status", "previous_path", "additions", "deletions", "untracked", "initial_full_build",
     }:
         return False
     status = row.get("status", "")
@@ -761,6 +770,12 @@ def _valid_diff_metadata(path: str, row) -> bool:
         if not status or not isinstance(previous, str) or not previous:
             return False
     counts = {"additions", "deletions"} & row.keys()
+    if "initial_full_build" in row and (
+        not listings_applied or status != "A" or type(row["initial_full_build"]) is not bool
+    ):
+        return False
+    if "untracked" in row and (row["untracked"] is not True or "initial_full_build" not in row):
+        return False
     return len(counts) != 1 and all(type(row[key]) is int and row[key] >= 0 for key in counts)
 
 
