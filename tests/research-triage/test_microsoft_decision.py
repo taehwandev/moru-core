@@ -74,13 +74,17 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.addCleanup(network.stop)
 
     def run_cli(self, *flags):
+        status, output, errors = self.run_cli_output(*flags)
+        return status, json.loads(output) if output else None, errors
+
+    def run_cli_output(self, *flags):
         self.input.write_text(json.dumps(self.payload), encoding="utf-8")
         output, errors = io.StringIO(), io.StringIO()
         with redirect_stdout(output), redirect_stderr(errors):
             status = adapter.main([
                 "--input", str(self.input), "--cache-dir", str(self.cache), *flags,
             ])
-        return status, json.loads(output.getvalue()) if output.getvalue() else None, errors.getvalue()
+        return status, output.getvalue(), errors.getvalue()
 
     def test_default_has_no_network_or_writes_even_with_a_key(self):
         with patch.object(adapter, "send_request", side_effect=AssertionError("paid call")), \
@@ -196,6 +200,38 @@ class OpenRouterDecisionTests(unittest.TestCase):
             self.assertEqual(self.run_cli(), expected)
         self.assertEqual(expected[1]["cache_hits"], 5)
         fallback.assert_called_once()
+
+    def test_native_read_only_report_stdout_preserves_python_numeric_and_unicode_bytes(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        costs = [1466481018931781.25, 1e-7, 1e20, 5e-324, 2**128 + 1, -0.0]
+        self.payload["sources"] = [source(str(index), f"Evidence {index}") for index in range(len(costs))]
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            for row, cost in zip(self.payload["sources"], costs, strict=True):
+                key = adapter.cache_key(adapter.request_for(self.payload["query"], row, adapter.MODEL))
+                reply = {**response(-0.0, cost=cost), "provider": '한글😀\u2028\n\x00"\\'}
+                result = adapter.validate_response(reply)
+                adapter.save_cached(self.cache / f"{key}.json", key, {**result, "evaluated_at": time.time()})
+            expected = self.run_cli_output()
+        dumps = json.dumps
+
+        def refuse_report_encoding(value, *args, **kwargs):
+            if isinstance(value, dict) and "ranked_ids" in value:
+                self.fail("Python report JSON encoding")
+            return dumps(value, *args, **kwargs)
+
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter, "evaluate", side_effect=AssertionError("Python evaluation")), \
+                patch.object(adapter, "_cached_result", side_effect=AssertionError("Python projection")), \
+                patch.object(json, "dumps", side_effect=refuse_report_encoding):
+            actual = self.run_cli_output()
+        self.assertEqual(actual, expected)
+        self.assertIn('"reported_cost_usd": 1466481018931781.2', actual[1])
+        self.assertTrue(actual[1].endswith("}\n"))
 
     def test_native_cli_reads_input_without_python_and_preserves_source_order(self):
         if NATIVE is None or not NATIVE.is_file():

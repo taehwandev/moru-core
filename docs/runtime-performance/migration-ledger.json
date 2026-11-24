@@ -671,7 +671,7 @@
       "entry_aliases": "Direct CLI",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
       "verification": {
-        "local": "Rust opens bounded regular CLI inputs, parses and validates JSON, projects request fields, validates responses, creates guarded cache directories, reads and atomically writes bounded regular cache files, prepares cache identities and UTF-8 request lengths, and assembles cache-only reports with stable ranking. Python owns exact cached value projection, CLI arguments and output, compatibility parsing and file operations, cache serialization, credentials and provider execution."
+        "local": "Rust opens bounded regular CLI inputs, parses and validates JSON, projects request fields, validates responses, creates guarded cache directories, reads and atomically writes bounded regular cache files, prepares cache identities and UTF-8 request lengths, and renders cache-only JSON reports with exact cached integer values, stable ranking and Python-compatible formatting. Python owns CLI arguments and stdout, compatibility parsing and file operations, cache serialization, credentials and provider execution."
       }
     },
     {

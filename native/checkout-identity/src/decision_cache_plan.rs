@@ -120,6 +120,7 @@ impl DecisionCachePlan {
     fn read_only_report(request: &Value) -> Option<Value> {
         let sources = request.get("sources")?.as_array()?;
         let model = request.get("model")?.as_str()?;
+        let digit_limit = usize::try_from(request.get("digit_limit")?.as_u64()?).ok()?;
         let refresh = request.get("refresh")?.as_bool()?;
         let cache = request.get("cache")?.as_object()?;
         let directory = if refresh || sources.is_empty() {
@@ -177,14 +178,13 @@ impl DecisionCachePlan {
             .iter()
             .map(|index| results.get(index.as_u64()? as usize)?.get("id")?.as_str())
             .collect();
-        Some(json!({
-            "report": {
-                "model": model, "network_calls": 0, "cache_hits": cache_hits,
-                "unscored": summary["unscored"], "new_reported_cost_usd": null,
-                "cost_complete": true, "warnings": [], "results": results, "ranked_ids": ranked_ids?,
-            },
-            "cached": cached,
-        }))
+        let report = json!({
+            "model": model, "network_calls": 0, "cache_hits": cache_hits,
+            "unscored": summary["unscored"], "new_reported_cost_usd": null,
+            "cost_complete": true, "warnings": [], "results": results, "ranked_ids": ranked_ids?,
+        });
+        let text = DecisionReport::encode_cache_only(&report, &cached, digit_limit)?;
+        Some(json!({"text": text}))
     }
 
     fn prepare(input: &Value) -> Option<Vec<Value>> {

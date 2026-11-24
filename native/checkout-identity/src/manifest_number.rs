@@ -65,10 +65,20 @@ impl ManifestNumber {
         if v == f64::NEG_INFINITY {
             return "-inf".into();
         }
-        let raw = format!("{v:?}");
-        let Some((mantissa, exponent)) = raw.split_once('e') else {
-            return raw;
+        let shortest = format!("{v:e}");
+        let (mantissa, _) = shortest.split_once('e').expect("finite scientific format");
+        let precision = mantissa.bytes().filter(u8::is_ascii_digit).count() - 1;
+        // Rust's shortest representation and Python choose different decimal
+        // ties. Precision formatting rounds ties to even, as Python does.
+        let rounded = format!("{v:.precision$e}");
+        let raw = if rounded.parse::<f64>().ok() == Some(v) {
+            rounded
+        } else {
+            // At a binary power, the interval can be asymmetric. Keep the
+            // shortest representation when the nearest decimal misses it.
+            shortest
         };
+        let (mantissa, exponent) = raw.split_once('e').expect("finite scientific format");
         let exponent: i32 = exponent.parse().expect("Rust float exponent");
         if !(-4..16).contains(&exponent) {
             return format!(

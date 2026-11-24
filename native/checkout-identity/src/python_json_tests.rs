@@ -37,6 +37,16 @@ fn integers_and_floats_preserve_conversion_exceptions() {
     assert_eq!(integer.as_float(), Some(18446744073709551616.0));
 }
 #[test]
+fn float_json_uses_python_decimal_ties_and_exponents() {
+    let value =
+        PythonJson::parse("[1466481018931781.25,-1466481018931781.25,1e-7,1e20,5e-324,-0.0]")
+            .unwrap();
+    assert_eq!(
+        PythonJson::render(&value, false, false).unwrap(),
+        "[1466481018931781.2, -1466481018931781.2, 1e-07, 1e+20, 5e-324, -0.0]"
+    );
+}
+#[test]
 fn truth_and_parser_declines_remain_explicit() {
     for text in ["false", "null", "0", "-0", "-0.0", "[]", "{}", r#""""#] {
         assert!(!PythonJson::truthy(&PythonJson::parse(text).unwrap()));
