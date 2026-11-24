@@ -161,6 +161,56 @@ class NativeCompletionTests(unittest.TestCase):
                 expected = structure.structure_review(self.project, 200, 1, structure.review_runtime_command)
             self.assertEqual(expected, actual)
 
+    def test_structure_diff_acquisition_matches_real_git_and_legacy_evidence(self):
+        def git(*args):
+            return subprocess.check_output(["git", *args], cwd=self.project, env=self.env)
+
+        source = self.project / "src"
+        source.mkdir()
+        (source / "old name.py").write_text("class Result:\n    pass\n")
+        (source / "asset.bin").write_bytes(b"\x00old\n")
+        git("add", "src")
+        identity = ("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test")
+        git(*identity, "commit", "-qm", "before")
+        base = git("rev-parse", "HEAD").decode().strip()
+        git("mv", "src/old name.py", "src/new name.py")
+        (source / "asset.bin").write_bytes(b"\x00new\n")
+        git("add", "src/asset.bin")
+        (source / "untracked.py").write_text("class Added:\n    pass\n")
+        (self.project / "outside.py").write_text("class Outside:\n    pass\n")
+
+        def discover(commits=None):
+            return structure.changed_source_paths(
+                self.project, structure.review_runtime_command, ["src"], review_commits=commits,
+            )
+
+        with patch.dict(os.environ, self.env, clear=True):
+            for commit_range in (False, True):
+                if commit_range:
+                    git(*identity, "commit", "-qm", "after")
+                commits = (base, git("rev-parse", "HEAD").decode().strip()) if commit_range else None
+                with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                    expected = discover(commits)
+                with patch.object(structure, "_native_diff", wraps=structure._native_diff) as acquisition:
+                    self.assertEqual(expected, discover(commits))
+                    acquisition.assert_called_once()
+                result = structure._native_diff(
+                    self.project, structure.review_runtime_command, ["--", "src"],
+                    commits=commits, untracked=not commit_range,
+                )
+                self.assertIsNotNone(result)
+                self.assertEqual("src/old name.py", result[1]["metadata"]["src/new name.py"]["previous_path"])
+                self.assertEqual(0, result[1]["metadata"]["src/asset.bin"]["additions"])
+                self.assertEqual(not commit_range, "src/untracked.py" in result[1]["metadata"])
+            invalid = ("0" * 40, base)
+            self.assertIsNone(structure._native_diff(
+                self.project, structure.review_runtime_command, ["--"], commits=invalid,
+            ))
+            with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                failure = discover(invalid)
+            self.assertEqual(2, len(failure[0]["command_errors"]))
+            self.assertEqual(failure, discover(invalid))
+
     def test_structure_test_flags_match_python_even_when_source_read_declines(self):
         paths = [Path(name) for name in (
             "src/TeStS/helper.py", "src/testing/helper.py", "src/TEST_App.py",

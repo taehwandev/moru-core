@@ -134,6 +134,8 @@ mod structure_declaration_roles;
 mod structure_declaration_records;
 #[path = "structure_review_baseline.rs"]
 mod structure_review_baseline;
+#[path = "structure_diff_acquisition.rs"]
+mod structure_diff_acquisition;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -175,6 +177,7 @@ impl CompletionProcess {
         }
         let result = match args[1].to_str() {
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
+            Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),
             Some("structure-removal-matching") => structure_removal_matching::StructureRemovalMatching::compare(&payload),
             Some("structure-move-matching") => structure_move_matching::StructureMoveMatching::compare(&payload),

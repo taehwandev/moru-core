@@ -667,6 +667,13 @@ def collect_commit_diff(
     review_paths: list[str] | None = None,
 ) -> None:
     pathspec = _pathspec_args(review_paths)
+    acquired = _native_diff(project, run_command, pathspec, commits=(base_sha, head_sha))
+    if acquired is not None:
+        observations, decoded = acquired
+        commands.update(observations)
+        _record_diff(observations["commit_diff_name_status"], observations["commit_diff_numstat"],
+                     names, path_metadata, command_errors, "git commit-range", decoded=decoded)
+        return
     status = run_command(
         [
             "git",
@@ -732,6 +739,14 @@ def collect_head_diff(
     include_untracked: bool = False,
 ) -> None:
     pathspec = _pathspec_args(review_paths)
+    acquired = _native_diff(project, run_command, pathspec, untracked=include_untracked)
+    if acquired is not None:
+        observations, decoded = acquired
+        commands.update(observations)
+        listings = (None, observations["ls_files_untracked"]["stdout"]) if include_untracked else None
+        _record_diff(observations["diff_name_status"], observations["diff_numstat"],
+                     names, path_metadata, command_errors, "git diff", listings=listings, decoded=decoded)
+        return
     status = run_command(
         ["git", "diff", "--name-status", "-z", "--diff-filter=ACDMRTUXB", "--relative", "HEAD", *pathspec],
         project,
@@ -748,6 +763,27 @@ def collect_head_diff(
                 if include_untracked else None)
     _record_diff(status, numstat, names, path_metadata, command_errors, "git diff", listings=listings)
     command_errors.extend(listing_errors)
+
+
+def _native_diff(project, run_command, pathspec, *, commits=None, untracked=False):
+    if run_command is not review_runtime_command:
+        return None
+    reply = NativeProbe.request("--completion-probe", "structure-diff-acquisition", {
+        "project": str(project), "paths": pathspec[1:], "commits": commits, "untracked": untracked,
+    })
+    if reply is None:
+        return None
+    prefix = "commit_diff" if commits is not None else "diff"
+    expected = {f"{prefix}_name_status", f"{prefix}_numstat"}
+    if untracked:
+        expected.add("ls_files_untracked")
+    observations, decoded = reply.get("commands"), reply.get("decoded")
+    if not isinstance(decoded, dict) or not isinstance(observations, dict) or set(observations) != expected:
+        return None
+    if not all(isinstance(row, dict) and type(row.get("returncode")) is int and row["returncode"] == 0
+               and isinstance(row.get("stdout"), str) for row in observations.values()):
+        return None
+    return observations, decoded
 
 
 def _read_listings(project, run_command, commands, errors, review_paths, *, initial: bool):
@@ -767,7 +803,7 @@ def _read_listings(project, run_command, commands, errors, review_paths, *, init
     return initial_text, untracked["stdout"]
 
 
-def _record_diff(status, numstat, names, path_metadata, command_errors, label, *, listings=None):
+def _record_diff(status, numstat, names, path_metadata, command_errors, label, *, listings=None, decoded=None):
     status_ok = status["returncode"] == 0
     counts_ok = numstat["returncode"] == 0
     status_text = status["stdout"] if status_ok else ""
@@ -776,8 +812,7 @@ def _record_diff(status, numstat, names, path_metadata, command_errors, label, *
         command_errors.append(f"{label} changed source discovery failed")
     if not counts_ok:
         command_errors.append(f"{label} line-count discovery failed")
-    decoded = None
-    if any("\0" in text for text in (status_text, counts_text, *(listings or ())) if text is not None):
+    if decoded is None and any("\0" in text for text in (status_text, counts_text, *(listings or ())) if text is not None):
         payload = {"status": status_text, "numstat": counts_text, "metadata": True}
         if listings is not None:
             payload["listings"] = listings
