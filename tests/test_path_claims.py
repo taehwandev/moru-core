@@ -348,20 +348,33 @@ class PathClaimsCheckTests(unittest.TestCase):
                   b'["ignored"]\n{"partial":')
         padding = b"x" * (live_web_checks.CHECK_TAIL_BYTES - len(old) - len(recent) - 1)
         log.write_bytes(b"anchor\n" + old + padding + b"\n" + recent)
+        source = self.project / "src" / "ui"
+        source.mkdir(parents=True)
+        (source / "Header.tsx").touch()
+        alias = self.project / "alias.tsx"
+        alias.symlink_to(source / "Header.tsx")
+        (home / "alias.tsx").symlink_to(source / "Header.tsx")
         args = (
             ("--json", "--files", "Header.tsx", "--since", "2026-10-15T09:16:12Z"),
             ("--json", "--files", "web/src/ui/Header.tsx", "--since", "2026-10-15T09:16:12"),
             ("--json", "--files", "eader.tsx"),
             ("--json", "--files", "cut.tsx"),
+            ("--json", "--files", "src//unused/../ui/./Header.tsx", "--since", "invalid"),
+            ("--json", "--files", str(alias), "--since", "2026-10-15T09:16:12+00:00"),
+            ("--json", "--files", "~//alias.tsx"),
         )
         with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
             with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
                 expected = [self.check(*argv) for argv in args]
             with mock.patch.object(live_web_checks, "read_checks", side_effect=AssertionError("Python read the log")), (
                 mock.patch.object(live_web_checks, "check_problems", side_effect=AssertionError("Python classified the check"))
+            ), (
+                mock.patch.object(live_web_checks, "_relative", side_effect=AssertionError("Python normalized the path"))
+            ), (
+                mock.patch.object(live_web_checks, "_since_epoch", side_effect=AssertionError("Python parsed the timestamp"))
             ):
                 self.assertEqual(expected, [self.check(*argv) for argv in args])
-            self.assertEqual([4, 4, 5, 5], [code for code, _ in expected])
+            self.assertEqual([4, 4, 5, 5, 0, 4, 0], [code for code, _ in expected])
             payload = json.loads(expected[0][1])["check"]
             self.assertEqual(["bad � byte"], payload["errors"])
             self.assertEqual(float("inf"), payload["extra"])
@@ -382,6 +395,13 @@ class PathClaimsCheckTests(unittest.TestCase):
             self.assertIn("? True element (2x4), Wide 0 elements (0x4)", expected[0][1])
             self.assertTrue(expected[0][1].endswith("errors 2: True; reload ok"))
             self.assertIn("\\ud55c.js", expected[1][1])
+
+            unsupported = ("--json", "--files", "Header.tsx", "--since", "20261015T091612")
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = self.check(*unsupported)
+            with mock.patch.object(live_web_checks, "read_checks", wraps=live_web_checks.read_checks) as read:
+                self.assertEqual(expected, self.check(*unsupported))
+                read.assert_called_once()
 
             log.write_bytes(b'{"files":["Header.tsx"],"time":"20261015T091612"}\n')
             with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):

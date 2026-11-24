@@ -1,12 +1,14 @@
 //! owner: bounded local live-web check lookup.
-//! allowed imports: read-only regular files and shared Python text, JSON and date parsing.
+//! allowed imports: read-only filesystem probes and shared Python text, JSON and date parsing.
 //! forbidden imports: claims state, log writes, authority decisions and network.
 //! callers/tests: path-claims check and differential log fixtures.
 //! verification: truncated tails, file suffixes, inclusive timestamps and malformed rows.
 use crate::{
+    discovery_fs::DiscoveryFs,
     overhead_stamp::OverheadStamp,
     python_json::{InputDiagnostic, PythonJson},
     python_text::PythonText,
+    text::Text,
 };
 use serde_json::{json, Value};
 #[path = "live_web_check_report.rs"]
@@ -31,15 +33,29 @@ impl LiveWebCheckLookup {
         if !project.is_absolute() || project.canonicalize().ok()? != project {
             return None;
         }
-        let wanted = input
+        let files = input
             .get("files")?
             .as_array()?
             .iter()
             .map(Value::as_str)
             .collect::<Option<Vec<_>>>()?;
-        let floor = match input.get("floor")? {
-            Value::Null => None,
-            value => Some(value.as_f64()?),
+        let options = input.get("report");
+        let (wanted, floor) = if options.is_some() {
+            let wanted = files
+                .into_iter()
+                .map(|raw| Self::file_filter(project, raw))
+                .collect::<Option<Vec<_>>>()?;
+            let floor = match input.get("since")? {
+                Value::Null => None,
+                value => Self::epoch(value.as_str()?)?,
+            };
+            (wanted, floor)
+        } else {
+            let floor = match input.get("floor")? {
+                Value::Null => None,
+                value => Some(value.as_f64()?),
+            };
+            (files.into_iter().map(str::to_owned).collect(), floor)
         };
         let data = Self::tail(project)?;
         let text = String::from_utf8_lossy(&data);
@@ -57,15 +73,10 @@ impl LiveWebCheckLookup {
                     Some(value) => value.as_str()?,
                     None => "",
                 };
-                let Some(stamp) = OverheadStamp::parse(time)? else {
+                let Some(epoch) = Self::epoch(time)? else {
                     continue;
                 };
-                let ticks = stamp.ticks() - Self::EPOCH;
-                // A larger integer could round once on conversion and again on division.
-                if ticks.unsigned_abs() > (1 << 53) {
-                    return None;
-                }
-                if (ticks as f64) / 1_000_000.0 < floor {
+                if epoch < floor {
                     continue;
                 }
             }
@@ -84,17 +95,44 @@ impl LiveWebCheckLookup {
                     continue;
                 }
             }
-            if let Some(options) = input.get("report") {
+            if let Some(options) = options {
                 return report::LiveWebCheckReport::render(Some(&entry), options);
             }
             // Return one original JSON line, so Python can retain numeric and
             // serialization behavior without reparsing the unselected rows.
             return Some(json!({"line": line}));
         }
-        if let Some(options) = input.get("report") {
+        if let Some(options) = options {
             return report::LiveWebCheckReport::render(None, options);
         }
         Some(json!({"line": null}))
+    }
+
+    fn file_filter(project: &Path, raw: &str) -> Option<String> {
+        // Named homes and uncertain filesystem resolution use pathlib.
+        let path = if raw.starts_with('~') {
+            DiscoveryFs::expand(Path::new(&Text::norm_path(raw)))?
+        } else {
+            Path::new(raw).to_owned()
+        };
+        if !path.is_absolute() {
+            return Some(Text::lexical_clean(raw));
+        }
+        let resolved = DiscoveryFs::resolve(&path)?;
+        let Ok(relative) = resolved.strip_prefix(project) else {
+            return Some(raw.to_owned());
+        };
+        let relative = relative.to_str()?;
+        Some(if relative.is_empty() { "." } else { relative }.to_owned())
+    }
+
+    fn epoch(raw: &str) -> Option<Option<f64>> {
+        let Some(stamp) = OverheadStamp::parse(raw)? else {
+            return Some(None);
+        };
+        let ticks = stamp.ticks() - Self::EPOCH;
+        // A larger integer could round once on conversion and again on division.
+        (ticks.unsigned_abs() <= 1 << 53).then_some(Some(ticks as f64 / 1_000_000.0))
     }
 
     fn same_file(first: &str, second: &str) -> bool {

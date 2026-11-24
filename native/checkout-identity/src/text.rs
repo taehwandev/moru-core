@@ -52,7 +52,7 @@ impl Text {
         }
     }
 
-    fn lexical_clean(p: &str) -> String {
+    pub(crate) fn lexical_clean(p: &str) -> String {
         let rooted = p.starts_with('/');
         let mut stack: Vec<&str> = Vec::new();
         for seg in p.split('/') {

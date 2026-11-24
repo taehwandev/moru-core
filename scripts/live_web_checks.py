@@ -163,10 +163,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 
 def run(project: Path, args: argparse.Namespace) -> int:
     """Print the latest matching check and return the ``check`` exit code."""
-    wanted = [_relative(project, raw) for raw in args.files]
-    floor = _since_epoch(args.since) if args.since else None
     native = NativeProbe.request("--completion-probe", "live-web-check", {
-        "project": str(project), "files": wanted, "floor": floor,
+        "project": str(project), "files": args.files, "since": args.since,
         "report": {"files": args.files, "json": args.json},
     })
     if native is not None and set(native) == {"code", "output"}:
@@ -174,6 +172,8 @@ def run(project: Path, args: argparse.Namespace) -> int:
         if type(code) is int and code in (0, CHECK_PROBLEM_EXIT, CHECK_MISSING_EXIT) and isinstance(output, str):
             print(output)
             return code
+    wanted = [_relative(project, raw) for raw in args.files]
+    floor = _since_epoch(args.since) if args.since else None
     check = _latest_python(project, wanted, floor)
     if check is None:
         status, code = "none", CHECK_MISSING_EXIT

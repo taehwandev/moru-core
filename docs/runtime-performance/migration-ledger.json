@@ -654,9 +654,9 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port claim storage, overlap, wait, release, expiry and edit records while preserving courtesy-lock semantics. Port live-web argument normalization and unsupported JSON, timestamp and formatting profiles, and verify supported platforms and installed runtime.",
+      "remaining": "Port claim storage, overlap, wait, release, expiry and edit records while preserving courtesy-lock semantics. Port unsupported live-web path, JSON, timestamp and formatting profiles, and verify supported platforms and installed runtime.",
       "verification": {
-        "local": "The existing check command selects recent live-web entries using a bounded native log tail, Python-compatible JSON parsing, whole path suffixes and an inclusive timestamp floor. Native renders ordinary status and Python-compatible text and JSON together with the lookup. Python keeps argument normalization, library record materialization and unsupported input or formatting replay."
+        "local": "The existing check command selects recent live-web entries using a bounded native log tail, Python-compatible JSON parsing, whole path suffixes and an inclusive timestamp floor. Native handles ordinary file and since arguments, status and Python-compatible text and JSON together with the lookup. Python keeps CLI dispatch, library record materialization and unsupported input or formatting replay."
       }
     },
     {
