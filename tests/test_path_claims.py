@@ -403,6 +403,16 @@ class PathClaimsTests(unittest.TestCase):
                 process.assert_called_once()
             self.assertEqual(json.loads(path_claims._claim_file(self.project, "uncertain").read_text())["holder"], holder)
 
+            paths = [".", "é", "e\u0301", "nested/" + "한글" * 75]
+            targets = [path_claims._claim_file(self.project, path) for path in paths]
+            self.assertEqual(len(set(targets)), len(paths))
+            with mock.patch.object(path_claims, "_claim_file", side_effect=AssertionError("Python hashed a path")):
+                for item in paths:
+                    self.assertTrue(write(self.project, item, holder, 60))
+                self.assertEqual([json.loads(target.read_text())["path"] for target in targets], paths)
+                self.assertEqual(path_claims.release(self.project, paths, holder), [])
+            self.assertTrue(all(not target.exists() for target in targets))
+
     def test_native_status_matches_python_and_refreshes_expiry_at_output(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment

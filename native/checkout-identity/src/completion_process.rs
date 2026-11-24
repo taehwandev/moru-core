@@ -156,6 +156,8 @@ mod project_relative_path;
 mod path_claim_scan;
 #[path = "path_claim_release.rs"]
 mod path_claim_release;
+#[path = "path_claim_filename.rs"]
+mod path_claim_filename;
 #[path = "path_claim_write.rs"]
 mod path_claim_write;
 

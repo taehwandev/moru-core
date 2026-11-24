@@ -190,17 +190,17 @@ def _fresh_projection(result: Optional[dict], name: str, field: str):
 
 def _write_claim(project: Path, path: str, holder: str, ttl: int) -> bool:
     """Create or renew ``path`` for ``holder``; False when another holder owns it."""
-    target = _claim_file(project, path)
     now = _now()
     body = {"path": path, "holder": holder, "since": _iso(now), "expires": _iso(now + ttl)}
     result = NativeProbe.request("--completion-probe", "path-claim-write", {
-        "project": str(project), "name": target.name, "entry": body,
+        "project": str(project), "entry": body,
         "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
     })
     if result is not None:
         if result.keys() == {"written"} and type(result["written"]) is bool:
             return result["written"]
         raise OSError("invalid native path claim write receipt")
+    target = _claim_file(project, path)
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         descriptor = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
@@ -256,19 +256,16 @@ def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict
         isinstance(values, list) and all(isinstance(value, str) for value in values) for values in plan.values()
     ):
         refused = [json.loads(raw) for raw in plan["refused"]]
-        targets = [_claim_file(project, path) for path in plan["owned"]]
-        if targets and not _native_release(project, [target.name for target in targets], holder):
-            for target in targets:
-                target.unlink(missing_ok=True)
+        owned = plan["owned"]
+        if owned and not _native_release(project, owned, holder):
+            for path in owned:
+                _claim_file(project, path).unlink(missing_ok=True)
         return refused
     claims = _active_claims(directory, scan)
     if type(holder) is str and ordinary_paths and all(type(claim.get("path")) is str for claim in claims):
         selected = [claim for claim in claims if paths is None or claim["path"] in paths]
-        try:
-            names = [_claim_file(project, claim["path"]).name for claim in selected if claim.get("holder") == holder]
-        except UnicodeError:
-            names = []
-        if names and _native_release(project, names, holder):
+        owned = [claim["path"] for claim in selected if claim.get("holder") == holder]
+        if owned and _native_release(project, owned, holder):
             return [claim for claim in selected if claim.get("holder") != holder] if paths is not None else []
     refused = []
     for claim in claims:
@@ -282,9 +279,9 @@ def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict
     return refused
 
 
-def _native_release(project: Path, names: list[str], holder: str) -> bool:
+def _native_release(project: Path, paths: list[str], holder: str) -> bool:
     result = NativeProbe.request("--completion-probe", "path-claim-release", {
-        "project": str(project), "names": names, "holder": holder,
+        "project": str(project), "paths": paths, "holder": holder,
         "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
     })
     if result is None:

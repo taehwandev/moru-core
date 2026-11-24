@@ -3,6 +3,7 @@
 //! forbidden imports: multi-claim scheduling, authority decisions and network.
 //! callers/tests: path_claims._write_claim, test_path_claims.
 //! verification: byte/mode parity, collision handling and write receipt contract.
+use super::path_claim_filename::PathClaimFilename;
 use crate::{
     atomic_sibling::AtomicSibling,
     python_json::{Object, PythonJson, Value},
@@ -21,16 +22,11 @@ impl PathClaimWrite {
     // None means that no claim file was created or replaced.
     pub(super) fn write(input: &Json) -> Option<io::Result<bool>> {
         let project = Path::new(input.get("project")?.as_str()?);
-        let stem = input.get("name")?.as_str()?.strip_suffix(".json")?;
-        if stem.len() != 40
-            || !stem
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-        {
-            return None;
-        }
-        let target = CString::new(format!("{stem}.json")).ok()?;
         let entry = input.get("entry")?;
+        let target = match input.get("name") {
+            Some(name) => PathClaimFilename::legacy(name.as_str()?)?,
+            None => PathClaimFilename::derive(entry.get("path")?.as_str()?)?,
+        };
         let holder = entry.get("holder")?.as_str()?;
         let mut claim = Object::new();
         for key in ["path", "holder", "since", "expires"] {
@@ -45,7 +41,7 @@ impl PathClaimWrite {
         match AtomicSibling::open_relative_with_mode(&directory, &target, flags, 0o644) {
             Ok(mut file) => Some(file.write_all(original.as_bytes()).map(|_| true)),
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-                Self::renew(&directory, &target, stem, holder, claim, digit_limit)
+                Self::renew(&directory, &target, holder, claim, digit_limit)
             }
             Err(_) => None,
         }
@@ -54,7 +50,6 @@ impl PathClaimWrite {
     fn renew(
         directory: &File,
         target: &CStr,
-        stem: &str,
         holder: &str,
         mut claim: Object,
         digit_limit: usize,
@@ -79,6 +74,7 @@ impl PathClaimWrite {
             claim.insert("since".into(), since.clone());
         }
         let updated = PythonJson::render(&Value::Object(claim), false, true)?;
+        let stem = target.to_str().ok()?.strip_suffix(".json")?;
         let temporary = CString::new(format!("{stem}.{}.tmp", std::process::id())).ok()?;
         Some(
             AtomicSibling::InheritUmask

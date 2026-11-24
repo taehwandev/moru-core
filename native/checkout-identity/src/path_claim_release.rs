@@ -3,7 +3,7 @@
 //! forbidden imports: path selection, lifecycle policy and network.
 //! callers/tests: path_claims.release and test_path_claims.
 //! verification: holder recheck, missing entries and no replay after mutation.
-use super::path_claim_scan::PathClaimScan;
+use super::{path_claim_filename::PathClaimFilename, path_claim_scan::PathClaimScan};
 use crate::{atomic_sibling::AtomicSibling, python_json::PythonJson};
 use serde_json::Value;
 use std::{
@@ -46,11 +46,22 @@ impl PathClaimRelease {
         let project = Path::new(input.get("project")?.as_str()?);
         let holder = input.get("holder")?.as_str()?;
         let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
-        let names = input.get("names")?.as_array()?;
-        if names.len() > 1024 {
+        let legacy = input.get("names");
+        let values = legacy.or_else(|| input.get("paths"))?.as_array()?;
+        if values.len() > 1024 {
             return None;
         }
-        let names = names.iter().map(Self::name).collect::<Option<Vec<_>>>()?;
+        let names = values
+            .iter()
+            .map(|value| {
+                let value = value.as_str()?;
+                if legacy.is_some() {
+                    PathClaimFilename::legacy(value)
+                } else {
+                    PathClaimFilename::derive(value)
+                }
+            })
+            .collect::<Option<Vec<_>>>()?;
         let directory = AtomicSibling::open_directory(&project.join(".moru/claims"))?;
         let mut pending = Vec::new();
         for name in names {
@@ -79,17 +90,6 @@ impl PathClaimRelease {
         let mut raw = String::new();
         file.take(64 * 1024 + 1).read_to_string(&mut raw).ok()?;
         (raw.len() <= 64 * 1024).then_some((before, raw))
-    }
-
-    fn name(value: &Value) -> Option<CString> {
-        let name = value.as_str()?;
-        let hash = name.strip_suffix(".json")?;
-        (hash.len() == 40
-            && hash
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)))
-        .then(|| CString::new(name).ok())
-        .flatten()
     }
 
     fn open(directory: &File, name: &CStr) -> io::Result<Option<File>> {

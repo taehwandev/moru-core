@@ -20,6 +20,7 @@ path = "src/launcher_main.rs"
 rusqlite = { version = "=0.41.1", default-features = false, features = ["bundled"] }
 libc = "=0.2.183"
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+sha1 = { version = "=0.10.7", default-features = false }
 sha2 = "0.10.9"
 
 # Runtime CPU detection keeps the software backend on ARM64 without SHA support.
