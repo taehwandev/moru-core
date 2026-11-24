@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
+import agent_review_packet as packet_module
 from agent_review_packet import ReviewPacket, _main  # noqa: E402
 from support.native_probe_transport import NativeProbe
 
@@ -162,6 +163,61 @@ class ReviewPacketTest(unittest.TestCase):
             self.assertEqual(NativeProbe.snapshot_review_source(handle), {"kind": "oversize"})
         with patch.dict(os.environ, env, clear=True), open(os.devnull, "rb") as device:
             self.assertIsNone(NativeProbe.snapshot_review_source(device))
+
+    def test_native_git_snapshots_follow_captured_commit_when_head_moves(self):
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.base / "home"
+        home.mkdir()
+        install(home)
+        before = b"\xef\xbb\xbf" + "한글\r\n".encode()
+        binary = b"raw\xff\x00"
+        (self.root / "notes.txt").write_bytes(before)
+        (self.root / "history.bin").write_bytes(binary)
+        git(self.root, "add", "notes.txt", "history.bin")
+        git(self.root, "commit", "-q", "-m", "baseline snapshot")
+        baseline = git(self.root, "rev-parse", "HEAD")
+        self.write("notes.txt", "later version\n")
+        git(self.root, "add", "notes.txt")
+        git(self.root, "commit", "-q", "-m", "moved snapshot")
+        newer = git(self.root, "rev-parse", "HEAD")
+        git(self.root, "update-ref", "HEAD", baseline)
+        env = environment(self.base)
+        paths = ["notes.txt", "history.bin"]
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = ReviewPacket.render(ReviewPacket.build(self.root, paths))
+        git_call = packet_module._git
+        snapshot = NativeProbe.snapshot_review_blob
+        refs, kinds = [], []
+
+        def move_during_read(root, args, **kwargs):
+            if args[0] == "cat-file":
+                if args[1] == "blob" and len(refs) == 1:
+                    git(self.root, "update-ref", "HEAD", newer)
+                refs.append(args[2])
+            return git_call(root, args, **kwargs)
+
+        def inspect(data):
+            description = snapshot(data)
+            self.assertIsNotNone(description)
+            kinds.append(description["kind"])
+            return description
+
+        with patch.dict(os.environ, env, clear=True):
+            self.assertEqual(snapshot(b"x" * (256 * 1024 + 1)), {"kind": "oversize"})
+            with patch.object(packet_module, "_git", side_effect=move_during_read), \
+                    patch.object(NativeProbe, "snapshot_review_blob", side_effect=inspect):
+                actual = ReviewPacket.build(self.root, paths)
+        self.assertEqual(actual["head"], baseline)
+        self.assertEqual(git(self.root, "rev-parse", "HEAD"), newer)
+        self.assertEqual(ReviewPacket.render(actual), expected)
+        self.assertEqual(kinds, ["text", "binary"])
+        self.assertEqual(refs, [f"{baseline}:./{path}" for path in paths for _ in range(2)])
+        self.assertEqual(actual["files"][0]["head_sha256"], hashlib.sha256(before).hexdigest())
+        self.assertEqual(actual["files"][1]["head_sha256"], hashlib.sha256(binary).hexdigest())
 
     def test_native_cli_assembles_and_renders_exact_output_without_overwriting(self):
         from native_launcher_support import NATIVE, install

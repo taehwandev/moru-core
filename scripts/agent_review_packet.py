@@ -140,14 +140,22 @@ def _load(root, rel, head):
         raise _PacketError("a selected file could not be read") from None
     if data is not None and exists:
         entry.update(bytes=len(data), sha256=digest)
-    size = _git(root, ["cat-file", "-s", f"HEAD:./{rel}"], ok=(0, 1, 128)) if head else None
+    baseline = f"{head}:./{rel}"
+    size = _git(root, ["cat-file", "-s", baseline], ok=(0, 1, 128)) if head else None
     in_head = size is not None and size.returncode == 0
     if in_head and int(size.stdout or b"0") > _MAX_SOURCE_BYTES:
         previous, reason = None, reason or "head_oversize"
     elif in_head:
-        blob = _git(root, ["cat-file", "blob", f"HEAD:./{rel}"]).stdout
-        entry["head_sha256"], previous = hashlib.sha256(blob).hexdigest(), _decode(blob)
-        reason = reason or (None if previous is not None else "head_binary")
+        blob = _git(root, ["cat-file", "blob", baseline]).stdout
+        if len(blob) > _MAX_SOURCE_BYTES:
+            blob, previous, reason = None, None, reason or "head_oversize"
+        else:
+            native = _snapshot_values(NativeProbe.snapshot_review_blob(blob))
+            if native is not None and native[0] == blob:
+                _, previous, _, entry["head_sha256"] = native
+            else:
+                entry["head_sha256"], previous = hashlib.sha256(blob).hexdigest(), _decode(blob)
+            reason = reason or (None if previous is not None else "head_binary")
     if not exists:
         entry["status"], reason = ("deleted", reason) if in_head else ("missing", "missing_in_worktree_and_head")
     elif not in_head:
@@ -209,6 +217,8 @@ class ReviewPacket:
             _guard(root, label, rel)
         found = _git(root, ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], ok=(0, 1, 128))
         head = found.stdout.decode("ascii", "replace").strip() if found.returncode == 0 else None
+        if head is not None and (len(head) not in (40, 64) or any(char not in "0123456789abcdef" for char in head)):
+            raise _PacketError("git rev-parse failed; project must be a readable Git work tree")
         loaded = {rel: _load(root, rel, head) for rel in dict.fromkeys(rel for _, rel in targets)}
         files, fixed, diffs, changed, helpers, extra, seen, selections = [], [], [], [], [], [], set(), {}
         for rel in paths:

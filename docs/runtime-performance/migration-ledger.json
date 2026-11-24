@@ -888,9 +888,9 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct source-only review packet CLI",
-      "remaining": "Port Git snapshots, source disclosure and context collection, and exceptional assembly and output paths. Preserve fixed read-only Git queries, disclosure exclusions, exclusive output creation, and lack of execution or verification authority.",
+      "remaining": "Port fixed read-only Git calls, source disclosure and context collection, and exceptional assembly and output paths. Preserve disclosure exclusions, exclusive output creation, and lack of execution or verification authority.",
       "verification": {
-        "local": "Source-bound Rust reads admitted regular descriptors, assembles and renders the canonical review packet under the exact byte budget, and creates an explicit ordinary output exclusively using the inherited umask. A lost write reply has no automatic replay. Python owns source admission and Git reads, context extraction, and older or unsupported input and output compatibility."
+        "local": "Source-bound Rust reads admitted regular descriptors and decodes and hashes bounded Git blobs. Python pins size and blob queries to the recorded baseline commit. Rust assembles and renders the canonical packet under the exact byte budget and creates explicit outputs exclusively with inherited umask and no replay. Python owns source admission, Git subprocesses, context extraction and compatibility."
       }
     }
   ],

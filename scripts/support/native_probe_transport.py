@@ -13,6 +13,21 @@ import subprocess
 from typing import BinaryIO
 
 
+def _process_environment(protocol, operation):
+    env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
+    if protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
+        # Keep source and environment guard inputs but omit ambient credentials.
+        python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
+        if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):
+            return None
+        return {key: value for key, value in env.items() if key in {
+            "HOME", "MORU_HOME", "MORU_STATE_HOME", "CLAUDE_PROJECT_DIR", "CODEX_PROJECT_DIR",
+        } or key in python_env}
+    if protocol == "--decision-cache-probe":
+        env.pop("OPENROUTER_API_KEY", None)
+    return env
+
+
 class NativeProbe:
     @staticmethod
     def available() -> bool:
@@ -65,6 +80,11 @@ class NativeProbe:
         return None if done is None else NativeProbe._result(done.stdout)
 
     @staticmethod
+    def snapshot_review_blob(data: bytes) -> dict | None:
+        done = NativeProbe._invoke("--review-packet-probe", "snapshot-blob", data, subprocess.PIPE)
+        return None if done is None else NativeProbe._result(done.stdout)
+
+    @staticmethod
     def _result(output: bytes) -> dict | None:
         try:
             if len(output) <= 1024 * 1024:
@@ -82,7 +102,7 @@ class NativeProbe:
         return NativeProbe._invoke("--completion-probe", "pending-publication-encode", payload, output) is not None
 
     @staticmethod
-    def _invoke(protocol: str, operation: str, payload: dict | None, stdout, *,
+    def _invoke(protocol: str, operation: str, payload: dict | bytes | None, stdout, *,
                 write_failure: str | None = None,
                 verified_launcher: Path | None = None,
                 source: BinaryIO | None = None) -> subprocess.CompletedProcess | None:
@@ -94,7 +114,10 @@ class NativeProbe:
         executable = verified_launcher if verified_launcher is not None else entry.with_name("moru-hook-native")
         if source is None:
             try:
-                raw = json.dumps(payload, ensure_ascii=True, allow_nan=False).encode()
+                if (protocol, operation) == ("--review-packet-probe", "snapshot-blob") and type(payload) is bytes:
+                    raw = payload
+                else:
+                    raw = json.dumps(payload, ensure_ascii=True, allow_nan=False).encode()
             except (ValueError, TypeError):
                 return None
             if len(raw) > 1024 * 1024:
@@ -102,17 +125,9 @@ class NativeProbe:
             stdin = {"input": raw}
         else:
             stdin = {"stdin": source}
-        env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
-        if protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
-            # Keep the source and environment guard inputs but omit ambient credentials.
-            python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
-            if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):
-                return None
-            env = {key: value for key, value in env.items() if key in {
-                "HOME", "MORU_HOME", "MORU_STATE_HOME", "CLAUDE_PROJECT_DIR", "CODEX_PROJECT_DIR",
-            } or key in python_env}
-        elif protocol == "--decision-cache-probe":
-            env.pop("OPENROUTER_API_KEY", None)
+        env = _process_environment(protocol, operation)
+        if env is None:
+            return None
         try:
             done = subprocess.run([str(executable), str(entry), protocol, operation],
                                   stdout=stdout, stderr=subprocess.PIPE, timeout=10, env=env, **stdin)

@@ -237,7 +237,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 60 | `scripts/agent_review_acp.py` | Direct CLI | Python retained | Bounded local ACP review worker and child-process lifetime; no provider invocation authority implied |
 | 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI and private native transcript probe | Partial native | Bounded whole-file read coverage and compaction; delivery stdout, evidence and marker handling remain with the hook |
 | 62 | `scripts/workflow_dispatch_guardian.py` | Private native guardian/gate; direct Python compatibility worker | Partial native | Gated exec, durable receipts, EOF/group cleanup and no replay; bootstrap/raw/direct/installed acceptance remain open |
-| 63 | `scripts/agent_review_packet.py` | Direct CLI | Partial native | Rust reads admitted descriptors, packs and renders the canonical packet, and exclusively creates an explicit ordinary output path. Python owns disclosure, Git snapshots, source selection and compatibility |
+| 63 | `scripts/agent_review_packet.py` | Direct CLI | Partial native | Rust reads admitted descriptors, decodes and hashes captured Git blobs, packs the packet, and exclusively creates explicit ordinary outputs. Python owns disclosure, Git commands, source selection and compatibility |
 
 ## Delivery order
 

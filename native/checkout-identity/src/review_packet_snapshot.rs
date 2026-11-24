@@ -1,5 +1,5 @@
-//! owner: bounded snapshot of a regular descriptor admitted by the review caller.
-//! allowed imports: positional reads, UTF-8 classification and SHA-256.
+//! owner: bounded worktree descriptors and captured Git blob snapshots.
+//! allowed imports: positional reads, bounded piped bytes, UTF-8 and SHA-256.
 //! forbidden imports: pathname opens, Git, provider calls and authority decisions.
 //! callers/tests: review packet probe; native snapshot and packet parity fixtures.
 //! verification: offset preservation, original bytes, size cap and binary/BOM handling.
@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     fs::File,
-    io::{self, ErrorKind},
+    io::{self, ErrorKind, Read},
     os::{fd::AsFd, unix::fs::FileExt},
 };
 
@@ -32,17 +32,30 @@ impl ReviewPacketSnapshot {
                 Err(_) => return None,
             }
         }
-        if data.len() > MAX_SOURCE_BYTES {
-            return Some(json!({"kind": "oversize"}));
-        }
-        let digest = format!("{:x}", Sha256::digest(&data));
-        if let Ok(text) = std::str::from_utf8(&data) {
-            if !data.contains(&0) {
-                return Some(json!({"kind": "text", "data": text, "sha256": digest}));
-            }
-        }
-        Some(json!({"kind": "binary", "data": hexadecimal(&data), "sha256": digest}))
+        Some(describe(&data))
     }
+
+    pub(crate) fn read_blob() -> Option<Value> {
+        let mut data = Vec::new();
+        io::stdin()
+            .take((MAX_SOURCE_BYTES + 1) as u64)
+            .read_to_end(&mut data)
+            .ok()?;
+        Some(describe(&data))
+    }
+}
+
+fn describe(data: &[u8]) -> Value {
+    if data.len() > MAX_SOURCE_BYTES {
+        return json!({"kind": "oversize"});
+    }
+    let digest = format!("{:x}", Sha256::digest(data));
+    if let Ok(text) = std::str::from_utf8(data) {
+        if !data.contains(&0) {
+            return json!({"kind": "text", "data": text, "sha256": digest});
+        }
+    }
+    json!({"kind": "binary", "data": hexadecimal(data), "sha256": digest})
 }
 
 fn hexadecimal(data: &[u8]) -> String {

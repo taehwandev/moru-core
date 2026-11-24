@@ -32,7 +32,7 @@ impl ReviewPacketAssembly {
         if args.len() != 2
             || !matches!(
                 args[1].to_str(),
-                Some("assemble" | "snapshot" | "output-support" | "write-output")
+                Some("assemble" | "snapshot" | "snapshot-blob" | "output-support" | "write-output")
             )
             || CallbackGuard::root(launcher, "review-packet").is_none()
         {
@@ -40,6 +40,7 @@ impl ReviewPacketAssembly {
         }
         let result = match args[1].to_str() {
             Some("snapshot") => ReviewPacketSnapshot::read_stdin(),
+            Some("snapshot-blob") => ReviewPacketSnapshot::read_blob(),
             Some("output-support") => Some(json!({"supported": true})),
             Some("write-output") => Self::read_json()
                 .as_ref()
