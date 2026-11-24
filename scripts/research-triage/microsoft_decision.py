@@ -90,7 +90,7 @@ def _response_fields(value, *names):
     return {name: value.get(name) for name in names}
 
 
-def _response_verdict(response: dict, cost) -> bool | None:
+def _response_probe_payload(response: dict, cost) -> dict | None:
     if type(cost) is int and cost.bit_length() > 64:
         return None
     try:
@@ -101,10 +101,17 @@ def _response_verdict(response: dict, cost) -> bool | None:
     if answers is not None:
         answers["relevant"] = _response_fields(answers["relevant"], "type", "noul")
         answers["source_kind"] = _response_fields(answers["source_kind"], "type", "choice", "probabilities")
-    native = NativeProbe.request("--decision-cache-probe", "validate-response", {
+    return {
         "response": {"model": response.get("model"), "answers": answers, "cost": cost},
         "options": options,
-    })
+    }
+
+
+def _response_verdict(response: dict, cost) -> bool | None:
+    payload = _response_probe_payload(response, cost)
+    if payload is None:
+        return None
+    native = NativeProbe.request("--decision-cache-probe", "validate-response", payload)
     if native is not None and set(native) == {"error"} and type(native["error"]) is str:
         raise ValueError(native["error"])
     if native is not None and set(native) == {"keep_cost"} and type(native["keep_cost"]) is bool:
@@ -224,9 +231,39 @@ def _project_sources(sources, fields):
     ]
 
 
+def _read_cached_native(entry, key, now, ttl) -> dict | None:
+    if type(entry) is not dict or not NativeProbe.available():
+        return None
+    result = entry.get("result")
+    result = result if type(result) is dict else {}
+    response = {"model": result.get("response_model"), "answers": result.get("answers")}
+    cost = result.get("reported_cost_usd")
+    payload = _response_probe_payload(response, cost)
+    if payload is None:
+        return None
+    payload.update(entry={field: entry.get(field) for field in ("schema", "key", "evaluated_at")},
+                   schema=CACHE_SCHEMA, key=key, now=now, ttl=ttl)
+    verdict = NativeProbe.request("--decision-cache-probe", "validate-cached", payload)
+    if verdict is None:
+        return None
+    if set(verdict) == {"hit"} and verdict["hit"] is False:
+        return {}
+    if set(verdict) == {"hit", "keep_cost"} and verdict["hit"] is True and type(verdict["keep_cost"]) is bool:
+        answers = result["answers"]
+        response["provider"] = result.get("provider")
+        validated = _normalized_response(response,
+                                         answers["relevant"], answers["source_kind"],
+                                         cost if verdict["keep_cost"] else None)
+        return {"evaluated_at": entry["evaluated_at"], **validated}
+    return None
+
+
 def read_cached(path: Path, key: str, now: float, ttl: float) -> dict | None:
     try:
         entry = json.loads(path.read_text(encoding="utf-8"))
+        cached = _read_cached_native(entry, key, now, ttl)
+        if cached is not None:
+            return cached or None
         if entry["schema"] != CACHE_SCHEMA or entry["key"] != key:
             return None
         created = entry["evaluated_at"]

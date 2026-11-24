@@ -4,6 +4,7 @@
 //! callers/tests: microsoft_decision.py; test_decision_cache_plan.
 //! verification: exact Python digest and byte length for existing caches.
 use crate::{
+    decision_cached_result::DecisionCachedResult,
     decision_input::DecisionInput,
     decision_report::DecisionReport,
     decision_response::DecisionResponse,
@@ -27,7 +28,13 @@ impl DecisionCachePlan {
         if args.len() != 2
             || !matches!(
                 args[1].to_str(),
-                Some("prepare" | "validate-prepare" | "summarize" | "validate-response")
+                Some(
+                    "prepare"
+                        | "validate-prepare"
+                        | "summarize"
+                        | "validate-response"
+                        | "validate-cached"
+                )
             )
             || CallbackGuard::root(launcher, "decision-cache-plan").is_none()
         {
@@ -48,6 +55,9 @@ impl DecisionCachePlan {
             }
             if args[1] == "validate-response" {
                 return DecisionResponse::verdict(&value);
+            }
+            if args[1] == "validate-cached" {
+                return DecisionCachedResult::verdict(&value);
             }
             if args[1] == "validate-prepare" {
                 if let Err(error) = DecisionInput::validate(&value) {

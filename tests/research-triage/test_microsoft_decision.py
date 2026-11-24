@@ -129,7 +129,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
         self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
-        self.assertEqual(["prepare", "validate-prepare", "validate-response", "summarize"],
+        self.assertEqual(["prepare", "validate-prepare", "validate-cached", "summarize"],
                          observed.read_text().splitlines())
 
     def test_native_decision_order_is_stable_and_fallback_never_replays_provider(self):
@@ -544,6 +544,54 @@ class OpenRouterDecisionTests(unittest.TestCase):
             _, result, _ = self.run_cli("--execute")
         self.assertIsNone(result["new_reported_cost_usd"])
         self.assertFalse(result["cost_complete"])
+
+    def test_native_cache_reuse_matches_schema_and_expiry_boundaries(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        original = adapter.NativeProbe.request
+        entry = {"schema": adapter.CACHE_SCHEMA, "key": "sample", "evaluated_at": 90,
+                 "result": {"response_model": "fixture", "reported_cost_usd": 0,
+                            "answers": response(relevance=-0.0)["answers"]}}
+        path = self.root / "cache-fixture.json"
+        cases = (
+            ({}, 100, 11, True, True),
+            ({}, 90, 1, True, True),
+            ({}, 100, 10, False, True),
+            ({}, 89.9, 11, False, True),
+            ({"key": "different"}, 100, 11, False, True),
+            ({"schema": 2}, 100, 11, False, True),
+            ({"schema": True}, 100, 11, True, True),
+            ({"schema": 1.0}, 100, 11, True, True),
+            ({"evaluated_at": True}, 100, 11, False, True),
+            ({"result": {}}, 100, 11, False, True),
+            ({"evaluated_at": 2**53}, 2**53 + 1, 2, True, False),
+        )
+        for updates, now, ttl, hit, supported in cases:
+            with self.subTest(updates=updates, now=now, ttl=ttl):
+                raw = json.dumps({**entry, **updates})
+                path.write_text(raw, encoding="utf-8")
+                modified = path.stat().st_mtime_ns
+                observed = []
+                def observe(protocol, action, payload):
+                    verdict = original(protocol, action, payload)
+                    observed.append((action, verdict is not None))
+                    return verdict
+                with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    expected = adapter.read_cached(path, "sample", now, ttl)
+                with patch.dict(os.environ, env, clear=True), \
+                        patch.object(adapter.NativeProbe, "request", side_effect=observe):
+                    actual = adapter.read_cached(path, "sample", now, ttl)
+                self.assertEqual(actual is not None, hit)
+                self.assertEqual(json.dumps(actual), json.dumps(expected))
+                self.assertEqual(observed[0], ("validate-cached", supported))
+                if supported:
+                    self.assertEqual(len(observed), 1)
+                self.assertEqual(path.read_text(encoding="utf-8"), raw)
+                self.assertEqual(path.stat().st_mtime_ns, modified)
 
 
 if __name__ == "__main__":
