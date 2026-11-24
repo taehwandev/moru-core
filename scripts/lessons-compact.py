@@ -35,7 +35,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -358,21 +358,52 @@ def _read_native_apply_report(inbox: Path, native: dict) -> tuple[list[dict], li
     if native.keys() != {"output", "folds", "stale", "removed"}:
         return None
     stale, removed = native["stale"], native["removed"]
-    if (not isinstance(native["folds"], list)
-            or not isinstance(stale, list) or not all(isinstance(lesson, str) for lesson in stale)
+    if (not isinstance(stale, list) or not all(isinstance(lesson, str) for lesson in stale)
             or type(removed) is not int or removed < 0):
+        return None
+    folds = _read_native_folds(inbox, native["folds"])
+    if folds is None or sum(len(fold["paths"]) - 1 for fold in folds) != removed:
+        return None
+    return folds, stale, removed
+
+
+def _read_native_folds(inbox: Path, rows) -> list[dict] | None:
+    if not isinstance(rows, list):
         return None
     folds = []
     try:
-        for lesson, names in native["folds"]:
+        for lesson, names in rows:
             if not isinstance(lesson, str) or not isinstance(names, list) or not names:
                 return None
             folds.append({"lesson_id": lesson, "paths": [_record_path(inbox, name) for name in names]})
     except (TypeError, ValueError):
         return None
-    if sum(len(fold["paths"]) - 1 for fold in folds) != removed:
-        return None
-    return folds, stale, removed
+    return folds
+
+
+def _resume_compaction() -> None:
+    """Receive only the unprocessed suffix of an explicit launcher apply."""
+    data = sys.stdin.buffer.read(1024 * 1024 + 1)
+    if len(data) > 1024 * 1024:
+        raise ValueError("oversized compaction continuation")
+    job = json.loads(data)
+    inbox = Path(job["inbox"])
+    rows, stale = job["folds"], job["stale"]
+    counts = (job["written"], job["marked"], job["removed"])
+    if (not inbox.is_absolute() or inbox.parts[-2:] != ("lessons", "inbox")
+            or not isinstance(stale, list) or not all(isinstance(lesson, str) for lesson in stale)
+            or not all(type(count) is int and count >= 0 for count in counts)
+            or type(job["micros"]) is not int):
+        raise ValueError("invalid compaction continuation")
+    now = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=job["micros"])
+    if rows is not None:
+        folds = _read_native_folds(inbox, rows)
+        if folds is None:
+            raise ValueError("invalid compaction continuation paths")
+        written = job["written"] + apply_plan(inbox, folds)
+        print(f"folded {written} lessons; {job['removed']} files removed")
+    marked = job["marked"] + mark_stale(inbox, stale, now)
+    print(f"marked {marked} lessons stale")
 
 
 def main(argv: list[str] | None = None) -> int:

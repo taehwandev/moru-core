@@ -108,7 +108,8 @@ class CompactionTests(unittest.TestCase):
                                  (oracle.returncode, oracle.stdout, oracle.stderr))
                 self.assertEqual(actual.returncode, 0)
                 self.assertIn(b"nothing written", actual.stdout)
-        for args in (["--apply", "--state-home", str(self.state)], ["--help"], ["--state-home", "."]):
+        for args in (["--state-home", "--apply", str(self.state)], ["--apply=false"],
+                     ["--help"], ["--state-home", "."]):
             with self.subTest(args=args):
                 result = run(args, PATH=str(shim))
                 self.assertEqual(result.returncode, 37)
@@ -118,6 +119,82 @@ class CompactionTests(unittest.TestCase):
         declined = run([], PATH=str(shim))
         self.assertEqual(declined.returncode, 37)
         self.assertEqual(declined.stdout.decode().splitlines(), [str(entry), "lessons-compact"])
+
+    def test_installed_apply_runs_natively_and_hands_off_only_untouched_folds(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        root = self.state.resolve()
+        home = root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        entry = home / ".moru/bin/moru-hook"
+        shim = root / "shim"
+        shim.mkdir()
+        trace = root / "continuation.json"
+        python = shim / "python3"
+        python.write_text(
+            f"#!{sys.executable}\nimport pathlib, subprocess, sys\n"
+            f"data = sys.stdin.buffer.read()\npathlib.Path({str(trace)!r}).write_bytes(data)\n"
+            f"raise SystemExit(subprocess.run([{sys.executable!r}, *sys.argv[1:]], input=data).returncode)\n",
+            encoding="utf-8",
+        )
+        python.chmod(0o755)
+        stamp = "2026-01-01T00:00:00Z"
+        for state_name in ("native", "mixed", "reference"):
+            inbox = compact.inbox_path(root / state_name)
+            inbox.mkdir(parents=True)
+            for lesson in ("a", "b"):
+                (inbox / f"old-{lesson}.json").write_text(json.dumps(_candidate(lesson, stamp)), encoding="utf-8")
+                if state_name != "mixed" or lesson == "a":
+                    with state_lock(inbox / f"{lesson}.json"):
+                        pass
+
+        def run(state, env):
+            result = subprocess.run(
+                [str(entry), "lessons-compact", "--apply", "--state-home", str(root / state)],
+                env=env, capture_output=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, b"")
+            return result.stdout.splitlines()[1:]
+
+        env = environment(root, ROOT)
+        expected = run("reference", {**env, "MORU_LAUNCHER_BACKEND": "python"})
+        self.assertEqual(run("native", {**env, "PATH": str(shim)}), expected)
+        self.assertFalse(trace.exists(), "native apply unexpectedly started Python")
+        self.assertEqual(run("mixed", {**env, "PATH": str(shim)}), expected)
+        continued = json.loads(trace.read_bytes())
+        self.assertEqual(continued["folds"], [["b", ["old-b.json"]]])
+        self.assertEqual(continued["written"], 1)
+        for state in ("native", "mixed"):
+            inbox = compact.inbox_path(root / state)
+            self.assertEqual(sorted(path.name for path in inbox.glob("*.json")), ["a.json", "b.json"])
+            for path in inbox.glob("*.json"):
+                self.assertEqual(path.read_bytes(), (compact.inbox_path(root / "reference") / path.name).read_bytes())
+
+        if os.geteuid() != 0:
+            trace.unlink()
+            inbox = compact.inbox_path(root / "denied")
+            inbox.mkdir(parents=True)
+            legacy = inbox / "old-a.json"
+            legacy.write_text(json.dumps(_candidate("a", stamp)), encoding="utf-8")
+            with state_lock(inbox / "a.json"):
+                pass
+            inbox.chmod(0o555)
+            try:
+                failed = subprocess.run(
+                    [str(entry), "lessons-compact", "--apply", "--state-home", str(root / "denied")],
+                    env={**env, "PATH": str(shim)}, capture_output=True, timeout=10,
+                )
+            finally:
+                inbox.chmod(0o755)
+            self.assertEqual(failed.returncode, 1)
+            self.assertIn(b"Permission denied", failed.stderr)
+            self.assertFalse(trace.exists(), "native write error invoked the continuation")
+            self.assertEqual(list(inbox.glob("*.json")), [legacy])
 
     def test_native_inbox_matches_plan_and_leaves_files_untouched(self) -> None:
         from native_launcher_support import NATIVE, install

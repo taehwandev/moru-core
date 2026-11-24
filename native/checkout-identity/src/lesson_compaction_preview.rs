@@ -36,17 +36,7 @@ impl LessonCompactionPreview {
         Self::report_at(inbox, limit, keys, days, cutoff, apply)
     }
 
-    pub(super) fn dry_run(
-        inbox: &str,
-        limit: usize,
-        keys: usize,
-        days: i64,
-        cutoff: i64,
-    ) -> Option<Json> {
-        Self::report_at(inbox, limit, keys, days, cutoff, false)
-    }
-
-    fn report_at(
+    pub(super) fn report_at(
         inbox: &str,
         limit: usize,
         keys: usize,

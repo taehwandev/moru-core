@@ -157,12 +157,16 @@ impl LessonCompactionApply {
     }
 
     pub(super) fn mark_stale(input: &Json) -> Option<io::Result<bool>> {
-        let (inbox, lesson) = Self::location(input)?;
-        let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let cutoff = LessonCompactionMerge::stale_cutoff(
             input.get("now")?.as_str()?,
             input.get("stale_days")?.as_i64()?,
         )?;
+        Self::mark_at(input, cutoff)
+    }
+
+    pub(super) fn mark_at(input: &Json, cutoff: i64) -> Option<io::Result<bool>> {
+        let (inbox, lesson) = Self::location(input)?;
+        let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let directory = AtomicSibling::open_directory(inbox)?;
         let canonical = format!("{lesson}.json");
         let target = CString::new(canonical.as_str()).ok()?;
