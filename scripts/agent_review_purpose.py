@@ -195,7 +195,7 @@ def _javascript_scan(lines: list[str], *, typescript: bool) -> tuple[list[str], 
 
 
 def _native_named_declarations(
-    lines: list[str], native: dict[str, Any] | None, *, kotlin: bool = False,
+    lines: list[str], native: dict[str, Any] | None, *, kotlin: bool = False, rust: bool = False,
 ) -> list[dict[str, Any]] | None:
     rows = native.get("declarations") if native is not None else None
     if not isinstance(rows, list):
@@ -209,7 +209,8 @@ def _native_named_declarations(
         receiver = row[4] if kotlin else None
         if (type(index) is not int or not last < index < len(lines)
                 or not all(isinstance(value, str) for value in (kind, name, modifiers))
-                or receiver is not None and not isinstance(receiver, str)):
+                or receiver is not None and not isinstance(receiver, str)
+                or rust and modifiers not in {"", "pub"}):
             return None
         last = index
         matches.append((index, kind, name, modifiers, receiver))
@@ -219,6 +220,9 @@ def _native_named_declarations(
                          default_public=kotlin, modifiers=modifiers, roles=roles)
         for index, kind, name, modifiers, receiver in matches
     ]
+    if rust:
+        for row, (_, _, _, modifiers, _) in zip(declarations, matches):
+            row.update(private=not modifiers, exported=bool(modifiers))
     return [row for row in declarations if row["owner"]]
 
 
@@ -250,6 +254,13 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
             "lines": lines, "unicode": unicodedata.unidata_version,
         })
         native = _native_named_declarations(lines, reply, kotlin=True)
+        if native is not None:
+            return native
+    elif suffix == ".rs":
+        reply = NativeProbe.request("--completion-probe", "structure-rust-declarations", {
+            "lines": lines, "unicode": unicodedata.unidata_version,
+        })
+        native = _native_named_declarations(lines, reply, rust=True)
         if native is not None:
             return native
     is_typescript = suffix in {".ts", ".tsx"}

@@ -702,6 +702,48 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_rust_declarations_preserve_explicit_visibility_and_fallback(self):
+        path = Path("src/fixture.RS")
+        ordinary = [
+            "#![allow(unused)]",
+            "use crate::input::{a, b};",
+            "static SIZE: usize = 1;",
+            "struct Private { pub field: u8 }",
+            "#[derive(Clone)]",
+            "pub struct _Visible;",
+            "pub(crate) enum Choice {}",
+            "pub(super) trait Source {}",
+            "pub(self) type Index = usize;",
+            "pub(in crate::inner) async fn run() {}",
+            "fn helper() {}",
+            "#[inline] pub fn same_line() {}",
+            "impl Private {",
+            "    pub fn nested() {}",
+            "}",
+            '// {',
+            "pub struct Skipped;",
+            "// }",
+            "pub fn recovered() {}",
+        ]
+        unusual = ["pub struct Before;", "pub fn r#type() {}", "pub struct After;"]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [purpose.top_level_type_declarations(path, lines) for lines in (ordinary, unusual)]
+        self.assertEqual(
+            ["Private", "_Visible", "Choice", "Source", "Index", "run", "recovered"],
+            [row["name"] for row in expected[0]],
+        )
+        self.assertTrue(expected[0][0]["private"])
+        self.assertTrue(all(row["exported"] and not row["private"] for row in expected[0][1:]))
+        recognizer = Mock()
+        recognizer.match.side_effect = AssertionError("legacy Rust declaration scan used")
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
+                self.assertEqual(expected[0], purpose.top_level_type_declarations(path, ordinary))
+            self.assertEqual(125, self.raw("structure-rust-declarations", {
+                "lines": unusual, "unicode": unicodedata.unidata_version,
+            }).returncode)
+            self.assertEqual(expected[1], purpose.top_level_type_declarations(path, unusual))
+
     def test_structure_native_kotlin_declarations_preserve_receivers_and_visibility(self):
         path = Path("src/Extensions.KTS")
         ordinary = [
