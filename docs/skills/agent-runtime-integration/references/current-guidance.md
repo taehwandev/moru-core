@@ -522,6 +522,13 @@ Gemini/Antigravity/AGY:
   detection prefers `ANTIGRAVITY_CONVERSATION_ID`, `ANTIGRAVITY_AGENT`,
   `ANTIGRAVITY_CLI_ALIAS`, and `ANTIGRAVITY_TRAJECTORY_ID` over a stale fallback
   `SPILL_AI_TOOL` environment variable.
+- Do not open binary assets (`.glb`, `.blend`, `.fbx`, `.pyc`, `.wasm`,
+  archives, fonts) or empty/malformed media files with `read_file`: AGY attaches
+  non-text reads as multimodal media and aborts the turn with HTTP 400
+  `INVALID_ARGUMENT` when the payload is unsupported, empty, or corrupted.
+  Inspect binary metadata via shell tools (`ls`, `file`, `python3`);
+  `agy_hook_adapter.py` enforces this guard in `PreToolUse` while allowing valid
+  non-empty images and text files.
 
 Generic agents:
 

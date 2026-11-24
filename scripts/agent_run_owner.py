@@ -264,14 +264,19 @@ def _pid_exists(pid: int) -> bool:
 def _process_start_token(pid: int) -> str:
     """Bind a recorded pid to one process so pid reuse cannot fake liveness.
 
-    Only ``/proc`` exposes this without a dependency. Where it is missing the
-    empty token simply drops the reuse check, which keeps a run alive rather
-    than failing one that might be working.
+    Linux exposes the boot-relative start time in ``/proc/<pid>/stat``, and
+    macOS exposes it through ``libproc.proc_pidinfo``. Where neither is
+    available, the empty token drops the reuse check so live work is never
+    failed on missing metadata.
     """
 
     try:
         stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+        fields = stat.rpartition(")")[2].split()
+        if len(fields) > 19:
+            return fields[19]
     except OSError:
-        return ""
-    fields = stat.rpartition(")")[2].split()
-    return fields[19] if len(fields) > 19 else ""
+        pass
+    if sys.platform == "darwin":
+        return _darwin_process_info(pid)[2]
+    return ""

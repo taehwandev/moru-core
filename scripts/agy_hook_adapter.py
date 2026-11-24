@@ -42,6 +42,17 @@ import agy_required_docs_hook
 SCRIPTS = Path(__file__).resolve().parent
 RUNTIME = "antigravity"
 EDIT_TOOLS = {"write_file": "Write", "edit_file": "Edit"}
+READ_TOOLS = {"read_file", "view_file"}
+_BINARY_READ_EXTENSIONS = frozenset({
+    ".glb", ".blend", ".fbx", ".usdz", ".usd", ".stl", ".3ds",
+    ".pyc", ".pyo", ".so", ".dylib", ".dll", ".exe", ".o", ".a", ".wasm", ".bin",
+    ".zip", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".7z", ".jar", ".class",
+    ".ttf", ".otf", ".woff", ".woff2", ".sqlite", ".sqlite3", ".db", ".icns", ".ico",
+})
+_MEDIA_READ_EXTENSIONS = frozenset({
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf",
+    ".wav", ".mp3", ".mp4", ".mov", ".webm", ".ogg", ".flac", ".m4a",
+})
 UNCHANGED_NOTE = "unchanged since this session already received it"
 TIMEOUT_SECONDS = 25
 
@@ -230,11 +241,70 @@ def _partial_read_note_python(path: Path, args: dict) -> str:
             f"guidance to read to its end: read lines {last + 1}-{total} (or the whole file) before relying on it.")
 
 
+def _media_header_valid(suffix: str, head: bytes) -> bool:
+    if suffix == ".png":
+        return head.startswith(b"\x89PNG\r\n\x1a\n")
+    if suffix in {".jpg", ".jpeg"}:
+        return head.startswith(b"\xff\xd8\xff")
+    if suffix == ".gif":
+        return head.startswith((b"GIF87a", b"GIF89a"))
+    if suffix == ".webp":
+        return len(head) >= 12 and head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+    if suffix == ".pdf":
+        return head.startswith(b"%PDF-")
+    if suffix == ".wav":
+        return len(head) >= 12 and head[:4] == b"RIFF" and head[8:12] == b"WAVE"
+    return True
+
+
+def binary_read_denial(args: dict, cwd: str) -> str:
+    """Deny read_file on binary assets or empty/malformed media that crash AGY with HTTP 400."""
+
+    raw = str(args.get("Path") or args.get("AbsolutePath") or "").strip()
+    if not raw:
+        return ""
+    path = Path(raw)
+    if not path.is_absolute() and cwd:
+        path = Path(cwd) / path
+    suffix = path.suffix.lower()
+    if suffix in _BINARY_READ_EXTENSIONS:
+        return (
+            f"Do not open binary asset {path.name} ({suffix}) with read_file: "
+            "AGY treats unsupported binary payloads as media and can abort with HTTP 400 INVALID_ARGUMENT. "
+            "Inspect metadata with shell tools (ls -lh, file, python3) instead."
+        )
+    if suffix not in _MEDIA_READ_EXTENSIONS:
+        return ""
+    try:
+        if not path.is_file():
+            return ""
+        size = path.stat().st_size
+        if size == 0:
+            return (
+                f"Do not open empty media file {path.name} (0 bytes) with read_file: "
+                "empty media data aborts AGY with HTTP 400 INVALID_ARGUMENT."
+            )
+        with path.open("rb") as handle:
+            head = handle.read(16)
+    except OSError:
+        return ""
+    if not _media_header_valid(suffix, head):
+        return (
+            f"Do not open malformed media file {path.name} ({suffix} header mismatch) with read_file: "
+            "corrupted media data aborts AGY with HTTP 400 INVALID_ARGUMENT. Inspect it with shell tools instead."
+        )
+    return ""
+
+
 def pre_tool(payload: dict) -> dict:
     call = payload.get("toolCall") if isinstance(payload.get("toolCall"), dict) else {}
     name = str(call.get("name") or "")
     args = call.get("args") if isinstance(call.get("args"), dict) else {}
-    if name == "read_file":
+    cwd = workspace(payload)
+    if name in READ_TOOLS:
+        denial = binary_read_denial(args, cwd)
+        if denial:
+            return {"decision": "deny", "reason": denial}
         note = partial_read_note(args, session_id(payload))
         return {"decision": "allow", "reason": note} if note else {"decision": "allow"}
     if name == "run_command":
@@ -244,7 +314,6 @@ def pre_tool(payload: dict) -> dict:
         tool, tool_input = EDIT_TOOLS[name], {"file_path": str(path)}
     else:
         return {"decision": "allow"}
-    cwd = workspace(payload)
     claude = {"session_id": session_id(payload), "cwd": cwd, "tool_name": tool, "tool_input": tool_input,
               "hook_event_name": "PreToolUse"}
     out = parse_json(run_script("claude_pretool_gate.py", [], claude, cwd, {"MORU_PRETOOL_RUNTIME": RUNTIME}))
@@ -272,7 +341,7 @@ def stop(payload: dict) -> dict:
     counter_path, counter = continuations_for(payload)
     claude = {"session_id": session_id(payload), "cwd": cwd, "hook_event_name": "Stop",
               "stop_hook_active": execution >= 1 or int(counter.get("continuations", 0)) >= 1}
-    out = parse_json(run_script("claude_stop_gate.py", [], claude, cwd))
+    out = parse_json(run_script("claude_stop_gate.py", [], claude, cwd, {"MORU_STOP_RUNTIME": RUNTIME}))
     if out.get("decision") == "block":
         count_continuation(counter_path, counter)
         return {"decision": "continue", "reason": str(out.get("reason") or "")}

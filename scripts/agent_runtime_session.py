@@ -367,6 +367,31 @@ def _evidence_mtime(path: Path) -> float:
         return float("-inf")
 
 
+def same_checkout_failed_run_with_work(project: Path) -> str | None:
+    """Return this session's latest failed run in ``project`` if unfinished work remains.
+
+    A fresh unlinked ``start`` in the same dirty checkout must not silently
+    supersede a failed run and adopt its diff without preserving the failure
+    record or re-verifying; recovery belongs in the failed run itself or an
+    explicit ``--continue-from`` continuation.
+    """
+
+    identity = runtime_session()
+    runtime = str(identity.get("runtime") or "")
+    session_id = str(identity.get("session_id") or "")
+    if not runtime or not session_id or os.environ.get(WORKER_EVIDENCE_ENV, "").strip():
+        return None
+    own = project.resolve()
+    matches = _session_runs_in(own, frozenset({"failed"}), runtime=runtime, session_id=session_id)
+    if not matches:
+        return None
+    _latest_path, latest_run = max(matches, key=lambda pair: _evidence_mtime(pair[0]))
+    run_id = str(latest_run.get("run_id") or "")
+    if not run_id:
+        return None
+    return run_id if checkout_keeps_unfinished_work(own, run_id, include_untracked=True) else None
+
+
 def settle_superseded_session_runs(
     project: Path,
     *,
@@ -440,6 +465,7 @@ def settle_superseded_session_runs(
             checkout, keep, checkout_states, runtime=runtime, session_id=session_id,
             superseded_by=keep_run_id,
             transfer_fingerprint=transfer if checkout != own else "",
+            preserve_dirty_failed=(checkout == own),
         ):
             settled.append(run_id)
             if failed is not None and prior_state == "failed":
@@ -465,6 +491,7 @@ def _settle_session_runs_in(
     session_id: str,
     superseded_by: str,
     transfer_fingerprint: str = "",
+    preserve_dirty_failed: bool = False,
 ) -> list[tuple[str, str]]:
     """Settle this session's runs in ``states`` recorded in one checkout.
 
@@ -479,6 +506,12 @@ def _settle_session_runs_in(
         if not run_id or run_id in keep:
             continue
         if transfer_fingerprint and run.get("request_fingerprint") == transfer_fingerprint:
+            continue
+        if (
+            preserve_dirty_failed
+            and run.get("state") == "failed"
+            and checkout_keeps_unfinished_work(project, run_id, include_untracked=True)
+        ):
             continue
         try:
             cancelled = cancel_active_run_if_current(

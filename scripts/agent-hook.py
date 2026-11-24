@@ -115,6 +115,7 @@ from agent_runtime_session import (
     rebind_recorded_runtime_session,
     recorded_session_id,
     runtime_session,
+    same_checkout_failed_run_with_work,
     settle_superseded_session_runs,
 )
 from agent_transfer_cancel import (
@@ -248,6 +249,32 @@ def start_hook(args: argparse.Namespace) -> int:
             args.repair_cycle,
             invocation_error=True,
         )
+    if (
+        writable_route
+        and not str(getattr(args, "continue_from", "") or "").strip()
+        and (not getattr(args, "evidence", None) or getattr(args, "generated_start_evidence", False))
+    ):
+        failed_id = same_checkout_failed_run_with_work(args.project)
+        if failed_id:
+            _learn_start_block("failed_run_supersede_refused")
+            return finish_with_result(
+                "start",
+                False,
+                [
+                    f"failed run {failed_id} in this checkout still holds uncommitted work; "
+                    "a fresh unlinked start cannot supersede a failed run carrying its diff",
+                    "recover in the same run (fix the failing gate or checkpoint, rerun review "
+                    "if stale, then rerun finish; post-start hooks resolve this failed run "
+                    "automatically), or start an explicit continuation with "
+                    f"--continue-from {failed_id} (preserving the failure record and "
+                    "re-verifying affected gates)",
+                    "clean, commit, or transfer the uncommitted diff before starting unrelated work here",
+                ],
+                args.output,
+                {},
+                args.repair_cycle,
+                invocation_error=True,
+            )
     return _start_admitted_action(args, continuity, request_intake)
 
 
@@ -284,6 +311,11 @@ def _start_admitted_action(args: argparse.Namespace, continuity: Any, request_in
             invocation_error=True,
         )
     details: list[str] = list(getattr(args, "start_notes", []))
+    if claim.get("recovered"):
+        details.append(
+            f"agent run registry: marked {len(claim['recovered'])} abandoned run(s) "
+            "with dead owner process as failed"
+        )
     success = False
     committed = False
     owns_directory = False

@@ -70,18 +70,22 @@ def checkouts_with_run_state(project: Path) -> list[Path]:
     return found
 
 
-def checkout_keeps_unfinished_work(checkout: Path, run_id: str) -> bool:
+def checkout_keeps_unfinished_work(
+    checkout: Path, run_id: str, *, include_untracked: bool = False
+) -> bool:
     """Whether settling ``run_id`` leaves work behind that someone must see.
 
-    True when the checkout has uncommitted tracked changes, or the run's
+    True when the checkout has uncommitted tracked changes (or non-ignored
+    untracked files when ``include_untracked`` is set), or the run's
     continuation packet records changed scope, remaining work or a pending
     mutation. An unreadable status counts as work kept: the answer only
     decides whether to say so, and saying so needlessly costs one line.
     """
 
+    untracked_flag = "--untracked-files=normal" if include_untracked else "--untracked-files=no"
     try:
         status = subprocess.run(
-            ["git", "-C", str(checkout), "status", "--porcelain=v1", "--untracked-files=no"],
+            ["git", "-C", str(checkout), "status", "--porcelain=v1", untracked_flag],
             check=False,
             capture_output=True,
             text=True,

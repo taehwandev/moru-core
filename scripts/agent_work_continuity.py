@@ -69,7 +69,7 @@ class WorkContinuity:
         registry_path = project_state_dir_target(args.project) / "run-registry.json"
         registry = self._read(registry_path) if registry_path.exists() else {}
         records = [run for run in registry.get("runs", []) if run.get("run_id") == self.source_id]
-        if len(records) != 1 or records[0].get("state") not in {"completed", "running", "blocked", "interrupted"}:
+        if len(records) != 1 or records[0].get("state") not in {"completed", "running", "paused", "resuming", "blocked", "interrupted", "failed"}:
             return "it is cancelled or not retained; started as new work with no carried evidence"
         # A resumed source records its resume generation beside the session;
         # it is still this session's work, so compare the session, not the dict.
@@ -198,7 +198,7 @@ def retained_work_summary(project: Path, binding_path: Path) -> dict | None:
         records = [record for record in runs
                    if isinstance(record, dict) and record.get("run_id") == source_id]
         if (len(records) != 1
-                or records[0].get("state") not in {"completed", "running", "blocked", "interrupted"}
+                or records[0].get("state") not in {"completed", "running", "paused", "resuming", "blocked", "interrupted", "failed"}
                 or records[0].get("evidence_name", "preflight.json") != "preflight.json"):
             return None
         source_path = state / "runs" / source_id / "preflight.json"

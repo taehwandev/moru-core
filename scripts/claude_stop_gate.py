@@ -315,11 +315,18 @@ def block_reason(root: Path) -> str:
     )
 
 
-def _pending_publication(root: Path, session_id: str) -> str:
+def _stop_runtime() -> str:
+    value = os.environ.get("MORU_STOP_RUNTIME", "").strip().lower()
+    if value == "agy":
+        return "antigravity"
+    return value or "claude"
+
+
+def _pending_publication(root: Path, session_id: str, runtime: str = "claude") -> str:
     """Declared publication that finish deferred and nobody has observed yet."""
     from agent_pending_publication import pending_session_reason
 
-    return pending_session_reason(root, {"runtime": "claude", "session_id": session_id})
+    return pending_session_reason(root, {"runtime": runtime, "session_id": session_id})
 
 
 def gate_enabled() -> bool:
@@ -336,21 +343,22 @@ def decide(payload: dict) -> int:
     session_id = str(payload.get("session_id") or "")
     if not session_id:
         return allow()
+    runtime = _stop_runtime()
     from agent_mailbox_task import continuation_reason
-    reason = continuation_reason(payload, "claude")
+    reason = continuation_reason(payload, runtime)
     if reason:
         return block(reason)
     for root in session_projects(session_id, find_project_root(cwd)):
         from agent_stop_continuation import continuation_reason as work_continuation
 
-        if reason := work_continuation(payload, "claude", root):
+        if reason := work_continuation(payload, runtime, root):
             return block(reason)
         from agent_mailbox_task_binding import stop_signal_ready
-        if (stop_signal_ready(payload, {"runtime": "claude", "session_id": session_id})
-                and (reason := _pending_publication(root, session_id))):
+        if (stop_signal_ready(payload, {"runtime": runtime, "session_id": session_id})
+                and (reason := _pending_publication(root, session_id, runtime))):
             return block(reason)
         from agent_run_interruption import record_turn_boundary
-        if record_turn_boundary(root, "claude", session_id):
+        if record_turn_boundary(root, runtime, session_id):
             continue
         # Preserve the legacy once-per-stop guard after versioned handling.
         if payload.get("stop_hook_active"):
@@ -381,10 +389,13 @@ def main() -> int:
 
 def _acknowledge_mailbox(payload: dict) -> None:
     """Commit mailbox messages this turn was shown; never affects the verdict."""
+    runtime = _stop_runtime()
+    if runtime not in {"claude", "codex"}:
+        return
     try:
         from agent_mailbox_hook import acknowledge
 
-        acknowledge(payload, "claude")
+        acknowledge(payload, runtime)
     except Exception:  # noqa: BLE001 - an unacknowledged message is offered again
         pass
 

@@ -197,9 +197,10 @@ def hook_failure_policy(
             "resume_scope": "failed hook",
         }, [
             "refresh request: the worktree or rules changed after start or a successful review. "
-            "Wait for concurrent writers to settle, reconcile the intended change, start a fresh "
-            "lifecycle, and rerun the affected analysis or review before finish. This is stale "
-            "workspace evidence, not a Moru Core repair; do not run repair-verify",
+            "Wait for concurrent writers to settle and reconcile the intended change; for stale "
+            "review drift on a writable run, rerun review and finish in this same unsettled run "
+            "(or start a fresh lifecycle with --continue-from <run_id> and re-verify before finish). "
+            "This is stale workspace evidence, not a Moru Core repair; do not run repair-verify",
         ]
     if verification_failure and repair_cycle < REPAIR_CYCLE_LIMIT:
         stopped = verification_failure == "no_progress"

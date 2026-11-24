@@ -100,6 +100,7 @@ def claim_run(
             project,
             stale_after_seconds=stale_after_seconds,
             evidence_path=evidence_path,
+            sweep_dead_owners=True,
         )
         refresh = _refreshable_active_run(
             payload,
@@ -1301,6 +1302,7 @@ def _sweep_stale_runs(
     *,
     stale_after_seconds: int,
     evidence_path: Path | None,
+    sweep_dead_owners: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Split silent runs into abandoned ones and ones a live owner still holds.
 
@@ -1309,6 +1311,9 @@ def _sweep_stale_runs(
     crashed agent whose owning process happens to outlive it cannot hold the
     shared evidence path forever. Proof of a dead owner needs no window at all;
     exclusive claims would otherwise strand an agent retrying its own request.
+    When ``sweep_dead_owners`` is true, runs on other isolated evidence paths
+    whose recorded owner process is provably dead are also marked ``failed``
+    while live and ownerless peers remain untouched.
     """
 
     now = datetime.now(timezone.utc)
@@ -1318,16 +1323,20 @@ def _sweep_stale_runs(
     for run in payload["runs"]:
         if run.get("state") not in CLAIM_HOLDING_RUN_STATES:
             continue
-        if evidence_path is not None and not _matches_evidence(
+        same_path = evidence_path is None or _matches_evidence(
             run, project, evidence_path
-        ):
+        )
+        if not same_path and not sweep_dead_owners:
             continue
         holder = resume_holder_state(
             run,
             stale_after_seconds=stale_after_seconds,
             now=now,
         )
-        if holder not in {"dead_proven", "unproven_expired"}:
+        if not same_path:
+            if holder != "dead_proven":
+                continue
+        elif holder not in {"dead_proven", "unproven_expired"}:
             try:
                 updated = datetime.fromisoformat(str(run["updated_at"]))
             except (KeyError, TypeError, ValueError):
