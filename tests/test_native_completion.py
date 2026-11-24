@@ -1650,6 +1650,42 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual("한" * 100, expected[-3])
         self.assertEqual("[sensitive-looking content omitted]", expected[-2])
 
+    def test_structure_removal_native_reports_python_rounding_and_field_shapes(self):
+        ratios = [(0, 1), (1, 8), (3, 8), (1, 40), (3, 40), (7, 40),
+                  (39, 40), (1, 200), (3, 200), (1, 1)]
+        removed = {f"fixture-{i}.txt": [f"review body {i}"] * total
+                   for i, (_matched, total) in enumerate(ratios)}
+        added = [f"review body {i}" for i, (matched, _total) in enumerate(ratios) for _ in range(matched)]
+        removed["short.txt"] = ["}"]
+        added.append("}")
+        diff = []
+        for path, lines in removed.items():
+            diff.extend((f"diff --git a/{path} b/{path}", f"--- a/{path}", "+++ /dev/null"))
+            diff.extend("-" + line for line in lines)
+        diff.extend(("diff --git a/dest.txt b/dest.txt", "--- /dev/null", "+++ b/dest.txt"))
+        diff.extend("+" + line for line in added)
+        text = "\n".join(diff)
+        paths = [*removed, "missing.txt"]
+
+        result = self.check("structure-removal-analysis", {
+            "diff": text, "project": str(self.project), "untracked": [], "findings": paths,
+            "per_file": 200000, "total": 1000000, "summary": {"headings": 5, "fallback": 3},
+        })
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [{"path": path} for path in paths]
+            removals.classify_net_deletions(
+                expected, project=self.project, run_command=lambda *_: {"returncode": 0, "stdout": text},
+                review_paths=None, review_commits=None, path_metadata={},
+            )
+        for row in expected:
+            del row["path"]
+        self.assertEqual(json.dumps(expected), json.dumps(result["findings"]))
+        self.assertEqual([0.0, 0.12, 0.38, 0.03, 0.07, 0.17, 0.97, 0.01, 0.01, 1.0],
+                         [row["moved_ratio"] for row in result["findings"][:len(ratios)]])
+        self.assertEqual({"classification": "removed", "moved_ratio": 1.0, "unmatched_lines": 0,
+                          "moved_to": ["dest.txt"], "sample_lines": ["}"]}, result["findings"][-2])
+        self.assertEqual({"classification": "unavailable"}, result["findings"][-1])
+
     def test_structure_source_layout_keeps_counts_warning_order_and_path_prefix(self):
         limit = structure.REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT
         additions = [f"src/새 파일-{index}.py" for index in reversed(range(limit + 1))]

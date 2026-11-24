@@ -63,29 +63,46 @@ impl StructureRemovalAnalysis {
             .into_iter()
             .zip(matched.get("matches")?.as_array()?)
         {
-            if lines.is_empty() {
-                findings.push(json!({"classification": "unavailable"}));
-                continue;
-            }
-            let summary = row.get("summary")?;
-            let mut samples = Vec::new();
-            for index in summary.get("samples")?.as_array()? {
-                let index = usize::try_from(index.as_u64()?).ok()?;
-                let line = lines
-                    .get(index)?
-                    .as_str()?
-                    .trim_matches(PythonText::whitespace);
-                samples.push(StructureRemovalRedaction::sample(line));
-            }
-            findings.push(json!({
-                "classification": summary.get("classification")?,
-                "line_count": lines.len(),
-                "unmatched_count": row.get("unmatched")?.as_array()?.len(),
-                "moved_to": row.get("moved_to")?,
-                "sample_lines": samples,
-            }));
+            findings.push(Self::finding(lines, row)?);
         }
         Some(json!({"findings": findings}))
+    }
+
+    fn finding(lines: &[Value], row: &Value) -> Option<Value> {
+        if lines.is_empty() {
+            return Some(json!({"classification": "unavailable"}));
+        }
+        let unmatched = row.get("unmatched")?.as_array()?.len();
+        // Round the binary64 ratio directly to two decimal places like Python.
+        // Scaling the ratio first can round a near-half value onto the tie.
+        let ratio = lines.len().checked_sub(unmatched)? as f64 / lines.len() as f64;
+        let moved_ratio: f64 = format!("{ratio:.2}").parse().ok()?;
+        let moved_to = row.get("moved_to")?;
+        let summary = row.get("summary")?;
+        match summary.get("classification")?.as_str()? {
+            "moved" => Some(json!({
+                "classification": "moved", "moved_ratio": moved_ratio, "moved_to": moved_to,
+            })),
+            "removed" => {
+                let mut samples = Vec::new();
+                for index in summary.get("samples")?.as_array()? {
+                    let index = usize::try_from(index.as_u64()?).ok()?;
+                    let line = lines
+                        .get(index)?
+                        .as_str()?
+                        .trim_matches(PythonText::whitespace);
+                    samples.push(StructureRemovalRedaction::sample(line));
+                }
+                Some(json!({
+                    "classification": "removed",
+                    "moved_ratio": moved_ratio,
+                    "unmatched_lines": unmatched,
+                    "moved_to": moved_to,
+                    "sample_lines": samples,
+                }))
+            }
+            _ => None,
+        }
     }
 
     fn identities<'a>(

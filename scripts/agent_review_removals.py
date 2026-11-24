@@ -121,31 +121,24 @@ def _native_removal_analysis(
 def _native_removal_result(path: str, row: Any) -> dict[str, Any] | None:
     if row == {"classification": "unavailable"}:
         return row
-    if not isinstance(row, dict) or set(row) != {
-        "classification", "line_count", "unmatched_count", "moved_to", "sample_lines",
-    }:
+    if not isinstance(row, dict):
         return None
-    classification, count, unmatched = row["classification"], row["line_count"], row["unmatched_count"]
-    destinations, samples = row["moved_to"], row["sample_lines"]
-    if (classification not in ("moved", "removed")
-            or type(count) is not int or count <= 0
-            or type(unmatched) is not int or not 0 <= unmatched <= count
+    ratio, destinations = row.get("moved_ratio"), row.get("moved_to")
+    if (type(ratio) is not float or not 0.0 <= ratio <= 1.0
             or not isinstance(destinations, list) or len(destinations) > 3
-            or not all(isinstance(target, str) and target != path for target in destinations)
-            or not isinstance(samples, list) or len(samples) > max(HEADING_SAMPLE_LIMIT, FALLBACK_SAMPLE_LIMIT)
-            or not all(isinstance(line, str) and len(line) <= SAMPLE_CHARS for line in samples)
-            or (classification == "moved" and (unmatched or samples))):
+            or not all(isinstance(target, str) and target != path for target in destinations)):
         return None
-    result = {
-        "classification": classification,
-        "moved_ratio": round((count - unmatched) / count, 2),
-    }
-    if classification == "removed":
-        result["unmatched_lines"] = unmatched
-    result["moved_to"] = destinations
-    if classification == "removed":
-        result["sample_lines"] = samples
-    return result
+    fields = {"classification", "moved_ratio", "moved_to"}
+    if row.get("classification") == "moved":
+        return row if set(row) == fields and ratio == 1.0 else None
+    if row.get("classification") != "removed" or set(row) != fields | {"unmatched_lines", "sample_lines"}:
+        return None
+    unmatched, samples = row["unmatched_lines"], row["sample_lines"]
+    if (type(unmatched) is not int or unmatched < 0
+            or not isinstance(samples, list) or len(samples) > max(HEADING_SAMPLE_LIMIT, FALLBACK_SAMPLE_LIMIT)
+            or not all(isinstance(line, str) and len(line) <= SAMPLE_CHARS for line in samples)):
+        return None
+    return row
 
 
 class _Budget:
