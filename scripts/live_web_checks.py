@@ -86,10 +86,9 @@ def _since_epoch(text: str) -> Optional[float]:
 def latest_check(project: Path, files: Optional[list[str]] = None, since: Optional[str] = None) -> Optional[dict]:
     """The newest check touching any of ``files`` (any check when empty), at or after ``since``."""
     wanted = list(files or [])
-    floor = _since_epoch(since) if since else None
-    if all(isinstance(path, str) for path in wanted):
+    if (since is None or type(since) is str) and all(isinstance(path, str) for path in wanted):
         result = NativeProbe.request("--completion-probe", "live-web-check", {
-            "project": str(project), "files": wanted, "floor": floor,
+            "project": str(project), "files": wanted, "since": since,
         })
         if result is not None and set(result) == {"line"}:
             line = result["line"]
@@ -102,7 +101,7 @@ def latest_check(project: Path, files: Optional[list[str]] = None, since: Option
                     check = None
                 if isinstance(check, dict):
                     return check
-    return _latest_python(project, wanted, floor)
+    return _latest_python(project, wanted, _since_epoch(since) if since else None)
 
 
 def _latest_python(project: Path, wanted: list[str], floor: float | None) -> Optional[dict]:

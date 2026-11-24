@@ -6,7 +6,7 @@
 use crate::{
     discovery_fs::DiscoveryFs,
     overhead_stamp::OverheadStamp,
-    python_json::{InputDiagnostic, PythonJson},
+    python_json::{InputDiagnostic, PythonJson, Value as PythonValue},
     python_text::PythonText,
     text::Text,
 };
@@ -14,6 +14,7 @@ use serde_json::{json, Value};
 #[path = "live_web_check_report.rs"]
 mod report;
 use std::{
+    borrow::Cow,
     fs::OpenOptions,
     io::{self, Read, Seek, SeekFrom},
     os::unix::fs::OpenOptionsExt,
@@ -40,22 +41,23 @@ impl LiveWebCheckLookup {
             .map(Value::as_str)
             .collect::<Option<Vec<_>>>()?;
         let options = input.get("report");
-        let (wanted, floor) = if options.is_some() {
-            let wanted = files
+        let wanted = if options.is_some() {
+            files
                 .into_iter()
                 .map(|raw| Self::file_filter(project, raw))
-                .collect::<Option<Vec<_>>>()?;
-            let floor = match input.get("since")? {
-                Value::Null => None,
-                value => Self::epoch(value.as_str()?)?,
-            };
-            (wanted, floor)
+                .collect::<Option<Vec<_>>>()?
         } else {
-            let floor = match input.get("floor")? {
+            files.into_iter().map(str::to_owned).collect()
+        };
+        let floor = match input.get("since") {
+            Some(Value::Null) => None,
+            Some(value) => Self::epoch(value.as_str()?)?,
+            // Keep accepting an epoch from earlier library clients.
+            None if options.is_none() => match input.get("floor")? {
                 Value::Null => None,
                 value => Some(value.as_f64()?),
-            };
-            (files.into_iter().map(str::to_owned).collect(), floor)
+            },
+            None => return None,
         };
         let data = Self::tail(project)?;
         let text = String::from_utf8_lossy(&data);
@@ -69,11 +71,11 @@ impl LiveWebCheckLookup {
         }
         for (line, entry) in entries.into_iter().rev() {
             if let Some(floor) = floor {
-                let time = match entry.get("time") {
-                    Some(value) => value.as_str()?,
-                    None => "",
-                };
-                let Some(epoch) = Self::epoch(time)? else {
+                let time = entry
+                    .get("time")
+                    .map(Self::python_string)
+                    .unwrap_or_default();
+                let Some(epoch) = Self::epoch(&time)? else {
                     continue;
                 };
                 if epoch < floor {
@@ -84,14 +86,10 @@ impl LiveWebCheckLookup {
                 let Some(files) = entry.get("files").and_then(|value| value.as_array()) else {
                     continue;
                 };
-                let files = files
-                    .iter()
-                    .map(|value| value.as_str())
-                    .collect::<Option<Vec<_>>>()?;
-                if !files
-                    .iter()
-                    .any(|file| wanted.iter().any(|want| Self::same_file(file, want)))
-                {
+                if !files.iter().any(|file| {
+                    let file = Self::python_string(file);
+                    wanted.iter().any(|want| Self::same_file(&file, want))
+                }) {
                     continue;
                 }
             }
@@ -106,6 +104,12 @@ impl LiveWebCheckLookup {
             return report::LiveWebCheckReport::render(None, options);
         }
         Some(json!({"line": null}))
+    }
+
+    fn python_string(value: &PythonValue) -> Cow<'_, str> {
+        value
+            .as_str()
+            .map_or_else(|| Cow::Owned(PythonJson::string(value)), Cow::Borrowed)
     }
 
     fn file_filter(project: &Path, raw: &str) -> Option<String> {

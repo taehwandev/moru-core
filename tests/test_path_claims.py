@@ -1262,6 +1262,32 @@ class PathClaimsCheckTests(unittest.TestCase):
                 self.assertEqual(expected, self.check(*args[0]))
                 read.assert_called_once()
 
+            moment = "2026-10-15T09:16:12Z"
+            mixed = {"files": [True, 42, None, ["alpha"], {"x": "src"}], "time": moment, "errors": ["selected"]}
+            log.write_text(
+                "\n".join(map(json.dumps, [
+                    mixed,
+                    {"files": [42], "time": "2026-10-15T09:16:11.999999Z"},
+                    {"files": [42], "time": None},
+                ])) + "\n",
+                encoding="utf-8",
+            )
+            filters = ["archive/True", "42", "None", "['alpha']", "{'x': 'src'}", "rue", "42suffix"]
+            cli = [("--json", "--files", path, "--since", moment) for path in filters]
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = [self.check(*argv) for argv in cli]
+                expected_latest = [live_web_checks.latest_check(self.project, [path], moment) for path in filters]
+            self.assertEqual(expected_latest, [mixed] * 5 + [None, None])
+            self.assertEqual([code for code, _ in expected], [4] * 5 + [5, 5])
+            with (
+                mock.patch.object(live_web_checks, "_since_epoch", side_effect=AssertionError("Python parsed cutoff")),
+                mock.patch.object(live_web_checks, "read_checks", side_effect=AssertionError("Python read the log")),
+            ):
+                self.assertEqual(expected, [self.check(*argv) for argv in cli])
+                self.assertEqual(expected_latest, [
+                    live_web_checks.latest_check(self.project, [path], moment) for path in filters
+                ])
+
 
 class PathClaimsProcessTests(unittest.TestCase):
     """The hook and agents run the file as a script, not through ``main``."""
