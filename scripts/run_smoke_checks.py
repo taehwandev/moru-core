@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Run automated smoke checks to verify Moru Core hooks and search library E2E."""
 
+from __future__ import annotations
+
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -11,6 +14,7 @@ from typing import List, Union
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from support.global_state import project_state_dir_target  # noqa: E402
+from support.native_probe_transport import NativeProbe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,6 +28,14 @@ def run_command(cmd: List[str], cwd: Union[Path, str] = ROOT) -> subprocess.Comp
         stderr=subprocess.PIPE,
         text=True,
     )
+
+
+def _preflight(temp_dir: str) -> Path:
+    state = project_state_dir_target(Path(temp_dir))
+    candidates = [state / "preflight.json", *sorted(state.glob("runs/*/preflight.json"))]
+    found = next((path for path in candidates if path.is_file()), None)
+    assert found is not None, "preflight.json was not created!"
+    return found
 
 
 def test_start_hook(temp_dir: str) -> None:
@@ -49,9 +61,7 @@ def test_start_hook(temp_dir: str) -> None:
 
     # Start now claims a run-scoped evidence path; the legacy flat path remains
     # valid for direct preflight callers, so accept either location.
-    state_dir = project_state_dir_target(Path(temp_dir))
-    candidates = [state_dir / "preflight.json", *state_dir.glob("runs/*/preflight.json")]
-    assert any(path.exists() for path in candidates), "preflight.json was not created!"
+    _preflight(temp_dir)
     print("SUCCESS: preflight.json exists.")
 
 
@@ -65,6 +75,8 @@ def test_gate_validation_failures(temp_dir: str) -> None:
         temp_dir,
         "--rules",
         str(ROOT),
+        "--evidence",
+        str(_preflight(temp_dir)),
         "--gate-name",
         "alignment brief",
         "--status",
@@ -79,8 +91,7 @@ def test_gate_validation_failures(temp_dir: str) -> None:
     print("SUCCESS: Gate validation correctly rejected weak alignment brief.")
 
 
-def test_gate_validation_success(temp_dir: str) -> None:
-    print("\n--- Test 3: Gate validation success ---")
+def _gate_records() -> list[dict]:
     gates_data = [
         {
             "gate": "source docs",
@@ -108,6 +119,11 @@ def test_gate_validation_success(temp_dir: str) -> None:
                 "skills_checked": "request-triage, retrospective-learning",
                 "outcome": "no_reusable_gap",
                 "observation": "not_needed",
+                "alignment_evidence": "The scratch triage request and the batch record both identify a re-verification request.",
+                "causal_assessment": "The alignment gate rejects the incomplete brief before the valid batch records all required gates.",
+                "learning_decision": "Keep existing triage alignment brief validation; no reusable gap.",
+                "memory_decision": "not_needed",
+                "memory_reason": "The negative and positive checks already cover the shared triage gate.",
             },
             "evidence": "skills checked: request-triage, retrospective-learning; outcome: no_reusable_gap; observation: not_needed",
         },
@@ -116,7 +132,7 @@ def test_gate_validation_success(temp_dir: str) -> None:
     # agents to record simultaneously-ready gates together, and this check ran
     # eight separate interpreters instead -- so it was slower than it needed to
     # be and, worse, it smoke-tested a path the guidance tells nobody to use.
-    records = [
+    return [
         {
             "gate": data["gate"],
             "status": "SUCCESS",
@@ -125,6 +141,11 @@ def test_gate_validation_success(temp_dir: str) -> None:
         }
         for data in gates_data
     ]
+
+
+def test_gate_validation_success(temp_dir: str) -> None:
+    print("\n--- Test 3: Gate validation success ---")
+    records = _gate_records()
     batch = project_state_dir_target(Path(temp_dir)) / "smoke-gates.json"
     batch.write_text(json.dumps(records), encoding="utf-8")
     result = run_command(
@@ -136,12 +157,16 @@ def test_gate_validation_success(temp_dir: str) -> None:
             temp_dir,
             "--rules",
             str(ROOT),
+            "--evidence",
+            str(_preflight(temp_dir)),
             "--gate-json",
             str(batch),
         ]
     )
-    assert result.returncode == 0, f"Failed to record the gate batch:\n{result.stderr}"
-    for data in gates_data:
+    assert result.returncode == 0, (
+        f"Failed to record the gate batch:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+    )
+    for data in records:
         assert data["gate"] in result.stdout or "truncated" in result.stdout, (
             f"Gate {data['gate']} is missing from the batch result:\n{result.stdout}"
         )
@@ -158,6 +183,8 @@ def test_finish_hook(temp_dir: str) -> None:
         temp_dir,
         "--rules",
         str(ROOT),
+        "--evidence",
+        str(_preflight(temp_dir)),
         "--allow-vibeguard-review",
         "E2E testing in temporary directory",
     ]
@@ -180,6 +207,24 @@ def test_workflow_query() -> None:
     print("SUCCESS: Search query returned results correctly.")
 
 
+def _native_suite(temp_dir: str) -> int | None:
+    if not NativeProbe.available():
+        return None
+    launcher = Path.home() / ".moru/bin/moru-hook"
+    # A native suite that started cannot be replayed against the same repository.
+    sys.stdout.flush()
+    try:
+        result = subprocess.run(
+            [str(launcher.with_name("moru-hook-native")), str(launcher), "--smoke-hook-suite",
+             sys.executable, temp_dir],
+            input=json.dumps(_gate_records()).encode("utf-8"),
+            env={**os.environ, "MORU_HOME": str(ROOT)},
+        )
+    except FileNotFoundError:
+        return None
+    return None if result.returncode == 125 else result.returncode
+
+
 def main() -> int:
     print("==================================================")
     print("Starting E2E Hook Smoke Checks")
@@ -200,11 +245,15 @@ def main() -> int:
         )
 
         try:
-            test_start_hook(temp_dir)
-            test_gate_validation_failures(temp_dir)
-            test_gate_validation_success(temp_dir)
-            test_finish_hook(temp_dir)
-            test_workflow_query()
+            native = _native_suite(temp_dir)
+            if native is None:
+                test_start_hook(temp_dir)
+                test_gate_validation_failures(temp_dir)
+                test_gate_validation_success(temp_dir)
+                test_finish_hook(temp_dir)
+                test_workflow_query()
+            elif native != 0:
+                return native if native > 0 else 1
             print("\n==================================================")
             print("✅ All E2E smoke checks passed successfully!")
             print("==================================================")

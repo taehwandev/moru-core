@@ -674,10 +674,12 @@
       "id": "scripts/run_smoke_checks.py",
       "inventory_id": 50,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port scratch fixture setup, direct CLI orchestration and unsupported environments. Verify portable and installed execution.",
+      "verification": {
+        "local": "Rust drives the five ordered hook and search subprocesses for an admitted scratch repository, preserves positive and negative assertions, and declines before starting when the fixture or sources are unsupported."
+      }
     },
     {
       "id": "scripts/runs-prune.py",
