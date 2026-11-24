@@ -102,6 +102,10 @@ def latest_check(project: Path, files: Optional[list[str]] = None, since: Option
                     check = None
                 if isinstance(check, dict):
                     return check
+    return _latest_python(project, wanted, floor)
+
+
+def _latest_python(project: Path, wanted: list[str], floor: float | None) -> Optional[dict]:
     for check in reversed(read_checks(project)):
         if floor is not None:
             moment = _since_epoch(check.get("time", ""))
@@ -159,7 +163,18 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 
 def run(project: Path, args: argparse.Namespace) -> int:
     """Print the latest matching check and return the ``check`` exit code."""
-    check = latest_check(project, [_relative(project, raw) for raw in args.files], args.since)
+    wanted = [_relative(project, raw) for raw in args.files]
+    floor = _since_epoch(args.since) if args.since else None
+    native = NativeProbe.request("--completion-probe", "live-web-check", {
+        "project": str(project), "files": wanted, "floor": floor,
+        "report": {"files": args.files, "json": args.json},
+    })
+    if native is not None and set(native) == {"code", "output"}:
+        code, output = native["code"], native["output"]
+        if type(code) is int and code in (0, CHECK_PROBLEM_EXIT, CHECK_MISSING_EXIT) and isinstance(output, str):
+            print(output)
+            return code
+    check = _latest_python(project, wanted, floor)
     if check is None:
         status, code = "none", CHECK_MISSING_EXIT
     elif check_problems(check):

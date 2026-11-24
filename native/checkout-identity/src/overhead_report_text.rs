@@ -1,8 +1,7 @@
 //! owner: OverheadReportText; allowed imports: serde_json, shared Python text and JSON, std;
 //! forbidden imports: I/O, runtime Python, providers; callers/tests: overhead report CLI;
 //! verification: JSON/Markdown formatting parity with synthetic reports.
-use crate::python_json::{Number, PythonJson, Value};
-use crate::python_text::PythonText;
+use crate::python_json::{PythonJson, Value};
 
 pub(crate) struct OverheadReportText;
 
@@ -12,9 +11,7 @@ impl OverheadReportText {
     }
 
     pub(crate) fn json_value(report: &Value) -> Option<String> {
-        let mut text = String::new();
-        Self::write_json(report, 0, true, false, &mut text)?;
-        Some(text)
+        PythonJson::render(report, true, false)
     }
 
     pub(crate) fn markdown(report: &serde_json::Value) -> Option<String> {
@@ -123,14 +120,11 @@ impl OverheadReportText {
                     .unwrap_or_else(|| "0".into())
             ));
         }
-        let mut lifecycle = String::new();
-        Self::write_json(
+        let lifecycle = PythonJson::render(
             data.get("lifecycle_calls_by_subcommand_total")
                 .unwrap_or(&Value::Null),
-            0,
             false,
             true,
-            &mut lifecycle,
         )?;
         lines.extend([
             String::new(),
@@ -150,82 +144,6 @@ impl OverheadReportText {
 
     fn display(value: Option<&Value>) -> String {
         PythonJson::string(value.unwrap_or(&Value::Null))
-    }
-
-    fn number(value: &Number) -> String {
-        match value {
-            Number::Integer(value) => value.clone(),
-            Number::Float(value) if value.is_nan() => "NaN".into(),
-            Number::Float(value) if *value == f64::INFINITY => "Infinity".into(),
-            Number::Float(value) if *value == f64::NEG_INFINITY => "-Infinity".into(),
-            Number::Float(value) => Number::float(*value),
-        }
-    }
-
-    fn quote(text: &str, ascii: bool) -> Option<String> {
-        if ascii {
-            PythonText::json_ascii(text)
-        } else {
-            serde_json::to_string(text).ok()
-        }
-    }
-
-    fn write_json(
-        value: &Value,
-        level: usize,
-        pretty: bool,
-        ascii: bool,
-        out: &mut String,
-    ) -> Option<()> {
-        if level > 128 {
-            return None;
-        }
-        match value {
-            Value::Null => out.push_str("null"),
-            Value::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
-            Value::Number(value) => out.push_str(&Self::number(value)),
-            Value::String(value) => out.push_str(&Self::quote(value, ascii)?),
-            Value::Array(values) => {
-                out.push('[');
-                for (index, value) in values.iter().enumerate() {
-                    Self::item_prefix(out, index, level, pretty);
-                    Self::write_json(value, level + 1, pretty, ascii, out)?;
-                }
-                Self::closing(out, values.is_empty(), level, pretty, ']');
-            }
-            Value::Object(values) => {
-                out.push('{');
-                for (index, (key, value)) in values.iter().enumerate() {
-                    Self::item_prefix(out, index, level, pretty);
-                    out.push_str(&Self::quote(key, ascii)?);
-                    out.push_str(": ");
-                    Self::write_json(value, level + 1, pretty, ascii, out)?;
-                }
-                Self::closing(out, values.is_empty(), level, pretty, '}');
-            }
-        }
-        Some(())
-    }
-
-    fn item_prefix(out: &mut String, index: usize, level: usize, pretty: bool) {
-        if index != 0 {
-            out.push(',');
-            if !pretty {
-                out.push(' ');
-            }
-        }
-        if pretty {
-            out.push('\n');
-            out.push_str(&"  ".repeat(level + 1));
-        }
-    }
-
-    fn closing(out: &mut String, empty: bool, level: usize, pretty: bool, character: char) {
-        if pretty && !empty {
-            out.push('\n');
-            out.push_str(&"  ".repeat(level));
-        }
-        out.push(character);
     }
 }
 

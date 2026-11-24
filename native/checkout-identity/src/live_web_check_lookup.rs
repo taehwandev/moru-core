@@ -9,6 +9,8 @@ use crate::{
     python_text::PythonText,
 };
 use serde_json::{json, Value};
+#[path = "live_web_check_report.rs"]
+mod report;
 use std::{
     fs::OpenOptions,
     io::{self, Read, Seek, SeekFrom},
@@ -82,9 +84,15 @@ impl LiveWebCheckLookup {
                     continue;
                 }
             }
+            if let Some(options) = input.get("report") {
+                return report::LiveWebCheckReport::render(Some(&entry), options);
+            }
             // Return one original JSON line, so Python can retain numeric and
             // serialization behavior without reparsing the unselected rows.
             return Some(json!({"line": line}));
+        }
+        if let Some(options) = input.get("report") {
+            return report::LiveWebCheckReport::render(None, options);
         }
         Some(json!({"line": null}))
     }

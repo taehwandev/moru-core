@@ -357,12 +357,31 @@ class PathClaimsCheckTests(unittest.TestCase):
         with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
             with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
                 expected = [self.check(*argv) for argv in args]
-            with mock.patch.object(live_web_checks, "read_checks", side_effect=AssertionError("Python read the log")):
+            with mock.patch.object(live_web_checks, "read_checks", side_effect=AssertionError("Python read the log")), (
+                mock.patch.object(live_web_checks, "check_problems", side_effect=AssertionError("Python classified the check"))
+            ):
                 self.assertEqual(expected, [self.check(*argv) for argv in args])
             self.assertEqual([4, 4, 5, 5], [code for code, _ in expected])
             payload = json.loads(expected[0][1])["check"]
             self.assertEqual(["bad � byte"], payload["errors"])
             self.assertEqual(float("inf"), payload["extra"])
+
+            self.write_checks({
+                "files": ["한.js"], "time": None, "reloadFailed": 1, "errors": [True, 7],
+                "extra": [-0.0, float("inf"), float("-inf"), float("nan"), 10 ** 30],
+                "views": [None, {"viewport": "", "elements": True, "boxes": [[0, 0, 2.5, 3.5]]},
+                          {"viewport": "Wide", "elements": 1.0, "boxes": [[0, 0, -0.5, 4.5]]},
+                          {"viewport": "Other", "elements": False, "boxes": [[0, 0, 10 ** 30, True]]}],
+            })
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = [self.check(), self.check("--json")]
+            with mock.patch.object(live_web_checks, "describe_check", side_effect=AssertionError("Python rendered text")), (
+                mock.patch.object(live_web_checks, "read_checks", side_effect=AssertionError("Python read the log"))
+            ):
+                self.assertEqual(expected, [self.check(), self.check("--json")])
+            self.assertIn("? True element (2x4), Wide 0 elements (0x4)", expected[0][1])
+            self.assertTrue(expected[0][1].endswith("errors 2: True; reload ok"))
+            self.assertIn("\\ud55c.js", expected[1][1])
 
             log.write_bytes(b'{"files":["Header.tsx"],"time":"20261015T091612"}\n')
             with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
