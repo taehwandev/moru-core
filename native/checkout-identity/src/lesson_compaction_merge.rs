@@ -19,11 +19,20 @@ impl LessonCompactionMerge {
         let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let keys: usize = input.get("key_limit")?.as_u64()?.try_into().ok()?;
         let recent = input.get("recent_days")?.as_i64()?.checked_sub(1)?;
-        let stale = input.get("stale_days")?.as_i64()?.checked_mul(Self::DAY)?;
-        let now = OverheadStamp::parse(input.get("now")?.as_str()?)??;
-        if !now.aware() || keys == 0 || recent < 0 || stale < 0 {
+        if keys == 0 || recent < 0 {
             return None;
         }
+        let cutoff = match input.get("now")? {
+            Json::Null => None,
+            value => {
+                let now = OverheadStamp::parse(value.as_str()?)??;
+                let stale = input.get("stale_days")?.as_i64()?.checked_mul(Self::DAY)?;
+                if !now.aware() || stale < 0 {
+                    return None;
+                }
+                Some(now.ticks().checked_sub(stale)?)
+            }
+        };
         let groups = PythonJson::parse_with_diagnostic(
             input.get("groups_json")?.as_str()?,
             Some(limit),
@@ -34,11 +43,12 @@ impl LessonCompactionMerge {
         for group in groups.as_array()? {
             let records = group.as_array()?;
             let merged = Self::merge(records, keys, recent)?;
-            let is_stale = if merged["status"].as_str() == Some("stale") {
-                false
-            } else {
-                OverheadStamp::parse(&Self::text(&merged, &["last_seen_at", "created_at"]))?
-                    .is_some_and(|seen| now.ticks() - seen.ticks() > stale)
+            let is_stale = match cutoff {
+                Some(cutoff) if merged["status"].as_str() != Some("stale") => {
+                    OverheadStamp::parse(&Self::text(&merged, &["last_seen_at", "created_at"]))?
+                        .is_some_and(|seen| seen.ticks() < cutoff)
+                }
+                _ => false,
             };
             plans.push((PythonJson::render(&merged, false, true)?, is_stale));
         }

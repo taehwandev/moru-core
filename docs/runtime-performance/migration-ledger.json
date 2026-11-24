@@ -585,9 +585,9 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port report and CLI rendering, merge and apply under the writer lock, and unsupported inbox and merge profiles. Verify portable and installed execution.",
+      "remaining": "Port report and CLI rendering, locked persistence and stale rechecks, and unsupported inbox and merge profiles. Verify portable and installed execution.",
       "verification": {
-        "local": "Rust reads and groups bounded regular-file inbox snapshots by the payload lesson ID in filename order. The reader preserves original JSON values, unreadable entries and pre-write decline. One read-only Rust batch merges occurrence totals, keys and day buckets and selects stale lessons using the strict cutoff. Compaction writes still reread and merge under the existing writer lock."
+        "local": "Rust reads and groups bounded regular-file inbox snapshots by the payload lesson ID in filename order. The reader preserves original JSON values, unreadable entries and pre-write decline. One read-only Rust batch merges occurrence totals, keys and day buckets and selects stale lessons using the strict cutoff. Compaction applies the same Rust merge to fresh records reread under the existing writer lock, with Python persistence and compatibility fallback."
       }
     },
     {

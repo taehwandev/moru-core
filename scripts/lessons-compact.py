@@ -136,13 +136,16 @@ def merge_group(records: list[dict]) -> dict:
     }
 
 
-def _native_merges(groups, now: datetime) -> list[tuple[dict, bool]] | None:
-    if not groups or not NativeProbe.available() or type(now) is not datetime or now.utcoffset() is None:
+def _native_merges(groups, now: datetime | None) -> list[tuple[dict, bool]] | None:
+    if not groups or not NativeProbe.available():
+        return None
+    if now is not None and (type(now) is not datetime or now.utcoffset() is None):
         return None
     try:
         groups_json = json.dumps(groups, separators=(",", ":"))
         result = NativeProbe.request("--completion-probe", "lesson-compaction-merge", {
-            "groups_json": groups_json, "now": now.isoformat(), "stale_days": STALE_AFTER.days,
+            "groups_json": groups_json, "now": now.isoformat() if now is not None else None,
+            "stale_days": STALE_AFTER.days,
             "key_limit": OCCURRENCE_KEY_HISTORY_LIMIT, "recent_days": RECENT_OCCURRENCE_DAYS,
             "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
         })
@@ -265,9 +268,11 @@ def apply_plan(inbox: Path, folds: list[dict]) -> int:
             records, paths = _lesson_records_now(inbox, lesson_id, fold["paths"])
             if not records:
                 continue
+            merges = _native_merges([records], None)
+            merged = merges[0][0] if merges is not None else merge_group(records)
             temporary = target.with_suffix(".compact.tmp")
             temporary.write_text(
-                json.dumps(merge_group(records), indent=1, sort_keys=True),
+                json.dumps(merged, indent=1, sort_keys=True),
                 encoding="utf-8",
             )
             temporary.replace(target)

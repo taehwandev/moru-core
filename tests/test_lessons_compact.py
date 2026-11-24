@@ -21,6 +21,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
@@ -238,12 +239,66 @@ class CompactionTests(unittest.TestCase):
             _candidate("lesson", "2026-01-09T00:00:00+00:00"),
         )
 
-        compact.apply_plan(self.inbox, folds)
+        with mock.patch.object(compact, "_native_merges", return_value=None) as native:
+            compact.apply_plan(self.inbox, folds)
+            self.assertEqual(len(native.call_args.args[0][0]), 3)
 
         merged = json.loads((self.inbox / "lesson.json").read_text(encoding="utf-8"))
         self.assertEqual(3, merged["occurrence_count"])
         self.assertIn("key-2026-01-09T00:00:00+00:00", merged["occurrence_keys"])
         self.assertEqual("2026-01-09T00:00:00+00:00", merged["last_seen_at"])
+
+    def test_native_apply_merges_records_arriving_under_the_writer_lock(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        for day in ("01", "02"):
+            self._write(
+                f"2026-01-{day}T00-00-00-lesson.json",
+                _candidate("lesson", f"2026-01-{day}T00:00:00Z"),
+            )
+        canonical = self.inbox / "lesson.json"
+        entered = threading.Event()
+        merging = threading.Event()
+        request = compact.NativeProbe.request
+
+        def apply(folds):
+            entered.set()
+            return compact.apply_plan(self.inbox, folds)
+
+        def probe(protocol, operation, payload):
+            if operation == "lesson-compaction-merge":
+                self.assertIsNone(payload["now"])
+                self.assertEqual(len(json.loads(payload["groups_json"])[0]), 3)
+                merging.set()
+            return request(protocol, operation, payload)
+
+        with mock.patch.dict(os.environ, environment(self.state, ROOT), clear=True):
+            folds = compact.plan(self.inbox)["folds"]
+            with (
+                ThreadPoolExecutor(max_workers=1) as worker,
+                mock.patch.object(compact.NativeProbe, "request", side_effect=probe),
+                mock.patch.object(compact, "merge_group", side_effect=AssertionError("Python merged the locked records")),
+            ):
+                with state_lock(canonical):
+                    future = worker.submit(apply, folds)
+                    self.assertTrue(entered.wait(5))
+                    self.assertFalse(merging.wait(0.2))
+                    self._write("2026-01-09T00-00-00-lesson.json", _candidate("lesson", "2026-01-09T00:00:00Z"))
+                    self.assertFalse(canonical.exists())
+                self.assertEqual(future.result(timeout=5), 1)
+            self.assertTrue(merging.is_set())
+            merged = json.loads(canonical.read_text(encoding="utf-8"))
+            self.assertEqual(merged["occurrence_count"], 3)
+            self.assertIn("key-2026-01-09T00:00:00Z", merged["occurrence_keys"])
+            self.assertEqual(self._files(), {"lesson.json"})
 
     def test_a_legacy_name_the_store_cannot_find_is_still_merged(self) -> None:
         """The two readers disagree by design, so the apply reads both.
