@@ -604,13 +604,16 @@ def changed_source_paths(
         }
         return discovery, _review_sources(source_root, paths, discovery if include_net_deletions else None)
 
-    head = run_command(["git", "rev-parse", "--verify", "HEAD"], project)
+    acquired = _native_diff(project, run_command, _pathspec_args(review_paths), untracked=True, inspect_head=True)
+    if acquired is None:
+        head = run_command(["git", "rev-parse", "--verify", "HEAD"], project)
+        initial = head["returncode"] != 0 or _head_tree_is_empty(project, run_command)
+    else:
+        observations, decoded = acquired
+        head = observations["rev_parse_head"]
+        initial = "ls_files_initial" in observations
     commands["rev_parse_head"] = head
-    if head["returncode"] == 0 and _head_tree_is_empty(project, run_command):
-        # A commit with an empty tree gives nothing to diff against, so it is no baseline: the work
-        # is still an initial full build, exactly as if HEAD did not exist yet.
-        head = {**head, "returncode": 1, "stderr": "HEAD has an empty tree"}
-    if head["returncode"] != 0 and (
+    if initial and (
         is_writing_workspace(project) or is_non_git_workspace(project)
     ):
         return {
@@ -619,25 +622,21 @@ def changed_source_paths(
             "path_metadata": path_metadata,
             "review_only": "non_git_workspace",
         }, []
-    if head["returncode"] == 0:
+    empty_diff = {"returncode": 0, "stdout": ""}
+    if acquired is not None:
+        commands.update(observations)
+        listings = (observations["ls_files_initial"]["stdout"] if initial else None,
+                    observations["ls_files_untracked"]["stdout"])
+        _record_diff(observations.get("diff_name_status", empty_diff), observations.get("diff_numstat", empty_diff),
+                     names, path_metadata, command_errors, "git diff", listings=listings, decoded=decoded)
+    elif initial:
+        listings = _read_listings(project, run_command, commands, command_errors, review_paths, initial=True)
+        _record_diff(empty_diff, empty_diff, names, path_metadata, command_errors, "git diff", listings=listings)
+    else:
         collect_head_diff(project, run_command, commands, names, path_metadata, command_errors, review_paths,
                           include_untracked=True)
-    else:
-        acquired = _native_diff(project, run_command, _pathspec_args(review_paths), untracked=True, initial=True)
-        decoded = None
-        if acquired is None:
-            listings = _read_listings(project, run_command, commands, command_errors, review_paths, initial=True)
-        else:
-            observations, decoded = acquired
-            commands.update(observations)
-            listings = observations["ls_files_initial"]["stdout"], observations["ls_files_untracked"]["stdout"]
-        empty_diff = {"returncode": 0, "stdout": ""}
-        _record_diff(
-            empty_diff, empty_diff, names, path_metadata, command_errors, "git diff",
-            listings=listings, decoded=decoded,
-        )
 
-    if head["returncode"] == 0:
+    if not initial:
         reclassify_untracked_moves(
             project,
             run_command,
@@ -747,14 +746,6 @@ def collect_head_diff(
     include_untracked: bool = False,
 ) -> None:
     pathspec = _pathspec_args(review_paths)
-    acquired = _native_diff(project, run_command, pathspec, untracked=include_untracked)
-    if acquired is not None:
-        observations, decoded = acquired
-        commands.update(observations)
-        listings = (None, observations["ls_files_untracked"]["stdout"]) if include_untracked else None
-        _record_diff(observations["diff_name_status"], observations["diff_numstat"],
-                     names, path_metadata, command_errors, "git diff", listings=listings, decoded=decoded)
-        return
     status = run_command(
         ["git", "diff", "--name-status", "-z", "--diff-filter=ACDMRTUXB", "--relative", "HEAD", *pathspec],
         project,
@@ -773,25 +764,36 @@ def collect_head_diff(
     command_errors.extend(listing_errors)
 
 
-def _native_diff(project, run_command, pathspec, *, commits=None, untracked=False, initial=False):
+def _native_diff(project, run_command, pathspec, *, commits=None, untracked=False, inspect_head=False):
     if run_command is not review_runtime_command:
         return None
     reply = NativeProbe.request("--completion-probe", "structure-diff-acquisition", {
         "project": str(project), "paths": pathspec[1:], "commits": commits, "untracked": untracked,
-        "initial": initial,
+        "inspect_head": inspect_head,
     })
     if reply is None:
         return None
+    observations, decoded = reply.get("commands"), reply.get("decoded")
+    if not isinstance(decoded, dict) or not isinstance(observations, dict):
+        return None
     prefix = "commit_diff" if commits is not None else "diff"
+    initial = inspect_head and "ls_files_initial" in observations
     expected = {"ls_files_initial"} if initial else {f"{prefix}_name_status", f"{prefix}_numstat"}
     if untracked:
         expected.add("ls_files_untracked")
-    observations, decoded = reply.get("commands"), reply.get("decoded")
-    if not isinstance(decoded, dict) or not isinstance(observations, dict) or set(observations) != expected:
+    if inspect_head:
+        expected.add("rev_parse_head")
+    if set(observations) != expected:
         return None
     if not all(isinstance(row, dict) and type(row.get("returncode")) is int and row["returncode"] == 0
-               and isinstance(row.get("stdout"), str) for row in observations.values()):
+               and isinstance(row.get("stdout"), str) for key, row in observations.items() if key != "rev_parse_head"):
         return None
+    if inspect_head:
+        head = observations["rev_parse_head"]
+        if not isinstance(head, dict) or type(head.get("returncode")) is not int or (
+            not initial and head["returncode"] != 0
+        ):
+            return None
     return observations, decoded
 
 

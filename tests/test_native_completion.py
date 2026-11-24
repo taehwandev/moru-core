@@ -236,16 +236,28 @@ class NativeCompletionTests(unittest.TestCase):
                         git("add", "src/staged.py")
                     with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
                         expected = discover()
-                    with patch.object(structure, "_read_listings", side_effect=AssertionError("Python listed Git paths")):
+                    with patch.object(
+                        structure, "_read_listings", side_effect=AssertionError("Python listed Git paths"),
+                    ), patch.object(
+                        structure, "_head_tree_is_empty", side_effect=AssertionError("Python inspected HEAD"),
+                    ):
                         actual = discover()
                     self.assertEqual(expected, actual)
                     commands = actual[0]["commands"]
                     self.assertEqual(stage != "later empty", "ls_files_initial" in commands)
+                    self.assertEqual(stage != "unborn", commands["rev_parse_head"]["returncode"] == 0)
                     metadata = actual[0]["path_metadata"]
                     self.assertEqual({"src/staged.py", "src/untracked.py"}, set(metadata))
                     self.assertNotIn("untracked", metadata["src/staged.py"])
                     self.assertTrue(metadata["src/untracked.py"]["untracked"])
                     self.assertEqual(stage != "later empty", metadata["src/untracked.py"]["initial_full_build"])
+
+            outside = self.base / "not-a-repository"
+            outside.mkdir()
+            with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = structure.changed_source_paths(outside, structure.review_runtime_command)
+            self.assertEqual("non_git_workspace", expected[0]["review_only"])
+            self.assertEqual(expected, structure.changed_source_paths(outside, structure.review_runtime_command))
 
     def test_structure_test_flags_match_python_even_when_source_read_declines(self):
         paths = [Path(name) for name in (
