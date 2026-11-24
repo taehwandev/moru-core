@@ -702,6 +702,47 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_owner_facts_group_dart_sealed_members_by_header(self):
+        path = Path("lib/events.DART")
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            current = purpose.top_level_type_declarations(path, [
+                "class Forward extends Event {}",
+                "abstract\u00a0sealed class Event {}",
+                "sealed class SubEvent extends Event {}",
+                "class Repo implements Box<Event> {}",
+                "class WithOnly with Event {}",
+                "class RepoClient extends EventBase {}",
+                "class Body { /* extends Event */ }",
+                "class Multi extends\nEvent {}",
+                "sealed class _Hidden {}",
+                "class PublicChild extends _Hidden {}",
+                "sealed class Event {}",
+            ])
+            previous = purpose.top_level_type_declarations(path, [
+                "sealed class Event {}", "class Forward extends Event {}",
+            ])
+        expected = purpose._owner_review_facts(path, current, previous)
+        self.assertEqual(
+            "Event sealed family@2, SubEvent sealed family@3, WithOnly@5, RepoClient@6, "
+            "Body@7, Multi@8, PublicChild@10, Event sealed family@11",
+            expected["public_labels"],
+        )
+        self.assertEqual(1, expected["previous_public_count"])
+        failures = purpose._owner_findings(expected)
+        row = purpose._owner_review_input(path, current, previous)
+        self.assertEqual(failures, purpose._owner_input_findings(row))
+        request = {
+            "limit": 20, "paths": [[str(path), "M"]],
+            "owners": {"files": [row], "public_limit": purpose.MAX_PUBLIC_TOP_LEVEL_OWNERS,
+                       "visible_limit": purpose.MAX_TOP_LEVEL_OWNERS, "role_pairs": purpose.MIXED_ROLE_BLOCKS},
+        }
+        with patch.dict(os.environ, self.env, clear=True):
+            _, layout = structure._file_findings([], source_layout=request)
+            self.assertEqual(failures, layout["owner_failures"])
+            row["unicode"] = "0.0.0"
+            _, layout = structure._file_findings([], source_layout=request)
+            self.assertIsNone(layout["owner_failures"])
+
     def test_structure_native_owner_facts_group_kotlin_by_visibility_and_baseline(self):
         path = Path("src/Extensions.KT")
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):

@@ -370,12 +370,16 @@ def _owner_review_input(
     path: Path, declarations: list[dict[str, Any]], previous_declarations: list[dict[str, Any]],
 ) -> dict[str, Any]:
     suffix = path.suffix.lower()
-    if suffix == ".dart" or suffix in NEXT_ENTRY_SUFFIXES:
+    if suffix in NEXT_ENTRY_SUFFIXES:
         return _owner_review_facts(path, declarations, previous_declarations)
     fields = ("kind", "name", "line", "receiver", "role", "private", "internal", "exported")
+    dart = suffix == ".dart"
+    if dart:
+        fields += ("source",)
     return {
         "path": str(path), "group_extensions": suffix in {".kt", ".kts"},
-        "default_export": exported_by_default(path),
+        "default_export": exported_by_default(path), "group_sealed": dart,
+        "unicode": unicodedata.unidata_version,
         "declarations": [{key: row[key] for key in fields} for row in declarations],
         "previous_declarations": [{key: row[key] for key in fields} for row in previous_declarations],
     }
