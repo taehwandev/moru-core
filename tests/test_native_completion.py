@@ -702,6 +702,52 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_swift_and_dart_declarations_match_legacy_rows(self):
+        profiles = (
+            (Path("Sources/Profile/Screen.SWIFT"), [
+                "import Foundation",
+                "@available(macOS 10.15, *) public struct ProfileScreen {",
+                "    public struct Nested {}",
+                "}",
+                "package nonisolated(unsafe) func fetch() {}",
+                "@public fileprivate struct _Row {}",
+                "let marker = \"{\"",
+                "public struct Hidden {}",
+                "// }",
+                "open class Controller {}",
+            ], ["ProfileScreen", "fetch", "_Row", "Controller"]),
+            (Path("lib/src/result.DART"), [
+                "import 'data.dart';",
+                "@immutable sealed class Result {}",
+                "final class Found extends Result {}",
+                "@deprecated abstract class _Private extends Result {}",
+                "enum State { accepted, rejected }",
+                "enum class CompatibilityKind {}",
+            ], ["Result", "Found", "_Private", "State", "CompatibilityKind"]),
+        )
+        recognizer = Mock()
+        recognizer.match.side_effect = AssertionError("legacy brace declaration scan used")
+        for path, lines, names in profiles:
+            with self.subTest(path=path):
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    expected = purpose.top_level_type_declarations(path, lines)
+                self.assertEqual(names, [row["name"] for row in expected])
+                if path.suffix == ".SWIFT":
+                    self.assertTrue(expected[1]["internal"])
+                    self.assertTrue(expected[2]["private"])
+                    self.assertFalse(expected[2]["exported"])
+                with patch.dict(os.environ, self.env, clear=True):
+                    with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
+                        self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
+        fallback = ["public struct Before {}", "export default class Legacy {}"]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = purpose.top_level_type_declarations(profiles[0][0], fallback)
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(125, self.raw("structure-brace-declarations", {
+                "lines": fallback, "unicode": unicodedata.unidata_version,
+            }).returncode)
+            self.assertEqual(expected, purpose.top_level_type_declarations(profiles[0][0], fallback))
+
     def test_structure_native_rust_declarations_preserve_explicit_visibility_and_fallback(self):
         path = Path("src/fixture.RS")
         ordinary = [

@@ -54,6 +54,13 @@ BRACE_TOP_LEVEL_CONST_FUNCTION_RE = re.compile(
     r"^\s*(?:export\s+)?(?:const|let|var)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*="
     r"\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)\s*=>"
 )
+NATIVE_BRACE_DECLARATION_PROBES = {
+    ".kt": "structure-kotlin-declarations",
+    ".kts": "structure-kotlin-declarations",
+    ".rs": "structure-rust-declarations",
+    ".swift": "structure-brace-declarations",
+    ".dart": "structure-brace-declarations",
+}
 TYPE_OWNER_KINDS = {"actor", "class", "enum", "interface", "object", "protocol", "record", "struct", "trait", "type", "typealias"}
 MAX_TOP_LEVEL_OWNERS = 4
 MAX_PUBLIC_TOP_LEVEL_OWNERS = 1
@@ -195,8 +202,10 @@ def _javascript_scan(lines: list[str], *, typescript: bool) -> tuple[list[str], 
 
 
 def _native_named_declarations(
-    lines: list[str], native: dict[str, Any] | None, *, kotlin: bool = False, rust: bool = False,
+    lines: list[str], native: dict[str, Any] | None, *, suffix: str = "",
 ) -> list[dict[str, Any]] | None:
+    kotlin = suffix in {".kt", ".kts"}
+    rust = suffix == ".rs"
     rows = native.get("declarations") if native is not None else None
     if not isinstance(rows, list):
         return None
@@ -217,7 +226,8 @@ def _native_named_declarations(
     roles = _native_declaration_roles([(kind, name) for _, kind, name, _, _ in matches])
     declarations = [
         type_declaration(kind, name, lines[index], index, receiver=receiver,
-                         default_public=kotlin, modifiers=modifiers, roles=roles)
+                         default_public=kotlin, is_swift=suffix == ".swift",
+                         modifiers=modifiers, roles=roles)
         for index, kind, name, modifiers, receiver in matches
     ]
     if rust:
@@ -249,18 +259,11 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
         native = _native_go_declarations(lines)
         if native is not None:
             return native
-    elif suffix in {".kt", ".kts"}:
-        reply = NativeProbe.request("--completion-probe", "structure-kotlin-declarations", {
+    elif operation := NATIVE_BRACE_DECLARATION_PROBES.get(suffix):
+        reply = NativeProbe.request("--completion-probe", operation, {
             "lines": lines, "unicode": unicodedata.unidata_version,
         })
-        native = _native_named_declarations(lines, reply, kotlin=True)
-        if native is not None:
-            return native
-    elif suffix == ".rs":
-        reply = NativeProbe.request("--completion-probe", "structure-rust-declarations", {
-            "lines": lines, "unicode": unicodedata.unidata_version,
-        })
-        native = _native_named_declarations(lines, reply, rust=True)
+        native = _native_named_declarations(lines, reply, suffix=suffix)
         if native is not None:
             return native
     is_typescript = suffix in {".ts", ".tsx"}

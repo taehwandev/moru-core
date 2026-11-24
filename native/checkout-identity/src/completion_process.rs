@@ -124,6 +124,8 @@ mod structure_ts_text;
 mod structure_js_declarations;
 #[path = "structure_kotlin_declarations.rs"]
 mod structure_kotlin_declarations;
+#[path = "structure_brace_declarations.rs"]
+mod structure_brace_declarations;
 #[path = "structure_rust_declarations.rs"]
 mod structure_rust_declarations;
 #[path = "structure_declaration_roles.rs"]
@@ -182,6 +184,7 @@ impl CompletionProcess {
             Some("structure-ts-text") => structure_ts_text::StructureTsText::process(&payload),
             Some("structure-js-declarations") => structure_js_declarations::StructureJsDeclarations::request(&payload),
             Some("structure-kotlin-declarations") => structure_kotlin_declarations::StructureKotlinDeclarations::scan(&payload),
+            Some("structure-brace-declarations") => structure_brace_declarations::StructureBraceDeclarations::scan(&payload),
             Some("structure-rust-declarations") => structure_rust_declarations::StructureRustDeclarations::scan(&payload),
             Some("structure-declaration-roles") => structure_declaration_roles::StructureDeclarationRoles::classify(&payload),
             Some("structure-boundary-reasons") => structure_declaration_roles::StructureDeclarationRoles::boundary_reasons(&payload),

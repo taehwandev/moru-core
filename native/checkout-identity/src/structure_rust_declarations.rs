@@ -3,6 +3,7 @@
 //! forbidden imports: filesystem, Git, and ownership policy.
 //! callers/tests: completion probe and forced-Python structural review parity.
 //! verification: visibility prefixes, source order, raw braces, and fallback.
+use super::structure_brace_declarations::StructureBraceDeclarations;
 use crate::{python_text::PythonText, text::Text};
 use serde_json::{json, Value};
 
@@ -31,7 +32,7 @@ impl StructureRustDeclarations {
     }
 
     fn declaration(line: &str) -> Option<Option<(&str, &str, &'static str)>> {
-        if !Self::can_start_legacy_declaration(line) {
+        if !StructureBraceDeclarations::can_start_legacy_declaration(line) {
             return Some(None);
         }
         let (line, modifiers) = Self::visibility(line)?;
@@ -68,62 +69,6 @@ impl StructureRustDeclarations {
             return None;
         }
         Some(Some((kind, name, modifiers)))
-    }
-
-    fn can_start_legacy_declaration(line: &str) -> bool {
-        // The reference expressions are line-anchored and require whitespace
-        // after the first keyword or modifier. A tuple, continuation, generic
-        // impl, or macro call cannot match unless it starts with one of these
-        // prefixes. Keep legacy-only prefixes eligible for fallback.
-        let (first, _) = Self::split(line);
-        line.starts_with('@')
-            || line.starts_with("pub(")
-            || line.starts_with("nonisolated(")
-            || matches!(
-                first,
-                "export"
-                    | "public"
-                    | "package"
-                    | "private"
-                    | "fileprivate"
-                    | "protected"
-                    | "internal"
-                    | "open"
-                    | "final"
-                    | "sealed"
-                    | "abstract"
-                    | "data"
-                    | "value"
-                    | "inline"
-                    | "indirect"
-                    | "nonisolated"
-                    | "distributed"
-                    | "static"
-                    | "readonly"
-                    | "expect"
-                    | "actual"
-                    | "pub"
-                    | "enum"
-                    | "annotation"
-                    | "class"
-                    | "interface"
-                    | "struct"
-                    | "record"
-                    | "object"
-                    | "protocol"
-                    | "actor"
-                    | "typealias"
-                    | "type"
-                    | "trait"
-                    | "async"
-                    | "function"
-                    | "func"
-                    | "fun"
-                    | "fn"
-                    | "const"
-                    | "let"
-                    | "var"
-            )
     }
 
     fn visibility(line: &str) -> Option<(&str, &'static str)> {
