@@ -1,6 +1,6 @@
 //! owner: bounded decision cache file access and reuse validation.
 //! allowed imports: bounded JSON, guarded cache file operations and timestamp arithmetic.
-//! forbidden imports: credentials, provider effects and directory creation.
+//! forbidden imports: credentials, provider effects and unguarded filesystem operations.
 //! callers/tests: DecisionCachePlan and test_microsoft_decision.
 //! verification: schema, exact key, TTL edges and Python fallback.
 use crate::{atomic_sibling::AtomicSibling, decision_response::DecisionResponse};
@@ -77,13 +77,27 @@ impl DecisionCachedResult {
             return None;
         }
         let target = cache_name(payload.get("key")?.as_str()?)?;
-        let directory =
-            AtomicSibling::open_directory(Path::new(payload.get("directory")?.as_str()?))?;
+        let path = payload.get("directory")?.as_str()?;
+        let create = match payload.get("create_directory") {
+            Some(value) => value.as_bool()?,
+            None => false,
+        };
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .ok()?
             .as_nanos();
         let staging = CString::new(format!(".decision-{}-{now}", std::process::id())).ok()?;
+        let directory = if create {
+            if path.len() + target.to_bytes().len() + 1 >= libc::PATH_MAX as usize {
+                return None;
+            }
+            match AtomicSibling::open_or_create_directory(Path::new(path), 0o700)? {
+                Ok(dir) => dir,
+                Err(_) => return Some(json!({"written": false})),
+            }
+        } else {
+            AtomicSibling::open_directory(Path::new(path))?
+        };
         let written = AtomicSibling::Private
             .replace(&directory, &staging, &target, content.as_bytes())
             .is_ok();

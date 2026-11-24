@@ -70,7 +70,7 @@ impl DecisionCachePlan {
                 return DecisionCachedResult::read(&value);
             }
             if args[1] == "cache-write-support" {
-                return Some(json!({"supported": true}));
+                return Some(json!({"supported": true, "create_directory": true}));
             }
             if args[1] == "write-cached-file" {
                 return DecisionCachedResult::replace(&value);

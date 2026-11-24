@@ -37,6 +37,65 @@ impl AtomicSibling {
         Ok(dir)
     }
 
+    // None is reserved for pre-effect compatibility declines.
+    pub(crate) fn open_or_create_directory(
+        path: &Path,
+        mode: libc::mode_t,
+    ) -> Option<io::Result<File>> {
+        let names = path
+            .strip_prefix("/")
+            .ok()?
+            .components()
+            .map(|part| {
+                let Component::Normal(name) = part else {
+                    return None;
+                };
+                let name = name.as_bytes();
+                if name.len() > 255 {
+                    return None;
+                }
+                CString::new(name).ok()
+            })
+            .collect::<Option<Vec<_>>>()?;
+        // The launcher serves one request per process. A restrictive owner umask
+        // can make an O_RDONLY directory open diverge from pathname-based mkdir.
+        let mask = unsafe { libc::umask(0o777) };
+        unsafe { libc::umask(mask) };
+        if mask & mode != 0 {
+            return None;
+        }
+        let flags = libc::O_RDONLY | libc::O_DIRECTORY;
+        let mut directory = File::open("/").ok()?;
+        let mut attempted = false;
+        for (index, name) in names.iter().enumerate() {
+            match Self::open_relative_result(&directory, name, flags) {
+                Ok(child) => directory = child,
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                    let child_mode = if index + 1 == names.len() {
+                        mode
+                    } else {
+                        0o777
+                    };
+                    attempted = true;
+                    let result =
+                        unsafe { libc::mkdirat(directory.as_raw_fd(), name.as_ptr(), child_mode) };
+                    if result < 0 {
+                        let error = io::Error::last_os_error();
+                        if error.kind() != io::ErrorKind::AlreadyExists {
+                            return Some(Err(error));
+                        }
+                    }
+                    match Self::open_relative_result(&directory, name, flags) {
+                        Ok(child) => directory = child,
+                        Err(error) => return Some(Err(error)),
+                    }
+                }
+                Err(error) => return attempted.then_some(Err(error)),
+            }
+        }
+        Some(Ok(directory))
+    }
+
     pub(crate) fn open_relative(dir: &File, path: &CStr, flags: libc::c_int) -> Option<File> {
         Self::open_relative_result(dir, path, flags).ok()
     }

@@ -348,9 +348,16 @@ def _write_cache_file_native(path: Path, key: str, entry: dict) -> bool:
     capability = NativeProbe.request("--decision-cache-probe", "cache-write-support", {})
     if not capability or capability.get("supported") is not True:
         return False
-    content = json.dumps(entry, ensure_ascii=False, allow_nan=False)
+    try:
+        content = json.dumps(entry, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError):
+        return False
+    create = capability.get("create_directory") is True
+    if not create:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     verdict = NativeProbe.request("--decision-cache-probe", "write-cached-file", {
         "directory": str(path.parent.absolute()), "key": key, "content": content,
+        "create_directory": create,
     })
     if verdict is None:
         return False
@@ -360,11 +367,11 @@ def _write_cache_file_native(path: Path, key: str, entry: dict) -> bool:
 
 
 def save_cached(path: Path, key: str, result: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     entry = {"schema": CACHE_SCHEMA, "key": key, "evaluated_at": result["evaluated_at"]}
     entry["result"] = {k: v for k, v in result.items() if k != "evaluated_at"}
     if _write_cache_file_native(path, key, entry):
         return
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=".decision-")
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:

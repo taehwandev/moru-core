@@ -12,8 +12,10 @@ import tempfile
 import time
 import unittest
 import urllib.error
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from threading import Barrier
 from unittest.mock import patch
 
 try:
@@ -804,6 +806,90 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(observed.read_text().splitlines(), ["cache-write-support"])
         self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["key"], key)
 
+    def test_native_cache_directory_modes_and_concurrent_creation(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        base = self.root / "existing"
+        base.mkdir()
+        base.chmod(0o750)
+        parent = base / "intermediate"
+        leaf = parent / "cache"
+        key = "d" * 64
+        path = leaf / f"{key}.json"
+        barrier = Barrier(2, timeout=10)
+
+        def save(item):
+            barrier.wait()
+            adapter.save_cached(path, key, item)
+
+        items = [{"evaluated_at": 12, "response_model": name} for name in ("first", "second")]
+        mask = os.umask(0o027)
+        try:
+            with patch.dict(os.environ, environment(self.root, ROOT), clear=True), \
+                    patch.object(Path, "mkdir", side_effect=AssertionError("Python mkdir")), \
+                    patch.object(adapter.tempfile, "mkstemp", side_effect=AssertionError("Python writer")), \
+                    ThreadPoolExecutor(max_workers=2) as pool:
+                list(pool.map(save, items))
+        finally:
+            os.umask(mask)
+        self.assertEqual([part.stat().st_mode & 0o777 for part in (base, parent, leaf, path)],
+                         [0o750, 0o750, 0o700, 0o600])
+        content = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(content["key"], key)
+        self.assertEqual(content["evaluated_at"], 12)
+        self.assertIn(content["result"], [{"response_model": "first"}, {"response_model": "second"}])
+        self.assertEqual(list(leaf.glob(".decision-*")), [])
+
+    def test_cache_writer_without_directory_capability_still_creates_parent_in_python(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        key = "e" * 64
+        path = self.cache / f"{key}.json"
+        request = adapter.NativeProbe.request
+
+        def old_protocol(protocol, operation, payload):
+            if operation == "cache-write-support":
+                return {"supported": True}
+            self.assertFalse(payload["create_directory"])
+            self.assertTrue(path.parent.is_dir())
+            return request(protocol, operation, payload)
+
+        with patch.dict(os.environ, environment(self.root, ROOT), clear=True), \
+                patch.object(adapter.NativeProbe, "request", side_effect=old_protocol), \
+                patch.object(adapter.tempfile, "mkstemp", side_effect=AssertionError("Python writer")):
+            adapter.save_cached(path, key, {"evaluated_at": 12, "response_model": "fixture"})
+        self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["key"], key)
+
+    def test_native_cache_directory_declines_unsupported_path_before_creation(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        target = self.root / "target"
+        target.mkdir()
+        alias = self.root / "alias"
+        alias.symlink_to(target, target_is_directory=True)
+        key = "f" * 64
+        with patch.dict(os.environ, environment(self.root, ROOT), clear=True):
+            for directory in (self.cache / ".." / "elsewhere", alias / "cache"):
+                self.assertIsNone(adapter.NativeProbe.request("--decision-cache-probe", "write-cached-file", {
+                    "directory": str(directory), "key": key, "content": json.dumps({"key": key}),
+                    "create_directory": True,
+                }))
+            self.assertFalse(self.cache.exists())
+            self.assertFalse((self.root / "elsewhere").exists())
+            self.assertEqual(list(target.iterdir()), [])
+            adapter.save_cached(alias / "cache" / f"{key}.json", key,
+                                {"evaluated_at": 12, "response_model": "fixture"})
+        self.assertEqual(json.loads((target / "cache" / f"{key}.json").read_text())["key"], key)
+
     def test_native_cache_unknown_write_result_never_replays(self):
         if NATIVE is None or not NATIVE.is_file():
             self.skipTest("native test artifact unavailable")
@@ -827,6 +913,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
         key = "b" * 64
         path = self.cache / f"{key}.json"
         with patch.dict(os.environ, env, clear=True), \
+                patch.object(Path, "mkdir", side_effect=AssertionError("Python mkdir replay")), \
                 patch.object(adapter.tempfile, "mkstemp", side_effect=AssertionError("Python write replay")):
             with self.assertRaisesRegex(OSError, "write outcome could not be determined"):
                 adapter.save_cached(path, key, {"evaluated_at": 12, "response_model": "fixture"})
