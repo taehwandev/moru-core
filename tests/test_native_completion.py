@@ -21,6 +21,7 @@ import agent_project_memory as project_memory
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_review_structure as structure
+import agent_review_merge_baseline as merge_baseline
 import agent_android_action_boundary as android
 import agent_review_removals as removals
 import agent_review_purpose as purpose
@@ -72,6 +73,36 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_structure_merge_baseline_matches_native_parent_precedence(self):
+        parent = "a" * 64
+        selected = ["same\n한.py", "head.py", "incoming.py", "mode.py", "absent.py"]
+        refs = [
+            ("incoming.py\0mode.py\0", "same\n한.py\0head.py\0incoming.py\0mode.py\0"),
+            ("head.py\0mode.py\0", "same\n한.py\0head.py\0incoming.py\0mode.py\0outside.py\0"),
+        ]
+
+        def review(**overrides):
+            responses = [(0, parent + "\n"), (0, ""), (0, ""), *[(0, value) for row in refs for value in row]]
+            for key, response in overrides.items():
+                responses[int(key.removeprefix("r"))] = response
+            runner = Mock(side_effect=[{"returncode": status, "stdout": stdout} for status, stdout in responses])
+            result = merge_baseline.inherited_merge_paths(self.project, [Path(path) for path in selected], runner)
+            return result, runner.call_count
+
+        expected = {"same\n한.py": parent, "head.py": "HEAD", "incoming.py": parent}
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            merge_baseline, "_python_inherited_paths", side_effect=AssertionError("Python classified parents"),
+        ):
+            self.assertEqual((expected, 7), review())
+        with patch.object(NativeProbe, "request", return_value={"inherited": {"outside.py": parent}}):
+            self.assertEqual((expected, 7), review())
+        with patch.object(NativeProbe, "request", side_effect=AssertionError("Native saw uncertain Git state")):
+            self.assertEqual(({}, 3), review(r1=(1, "")))
+            self.assertEqual(({}, 3), review(r2=(0, "unmerged\0")))
+            self.assertEqual(({}, 7), review(r6=(1, "")))
+        malformed = {"parent": parent, "selected": selected, "refs": [["", "head.py"], refs[1]]}
+        self.assertEqual(125, self.raw("structure-merge-baseline", malformed).returncode)
 
     def test_structure_compose_action_findings_complete_native_and_match_python(self):
         cases = [
