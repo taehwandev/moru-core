@@ -98,34 +98,6 @@ def delivery_text(payload: dict, evidence_for, read_in_context=None, *,
         return ""
 
 
-def compaction_text(payload: dict, evidence_for) -> str:
-    """Every required doc of this session's run, right after its compaction.
-
-    The runtime announces the compaction itself (Claude's SessionStart with
-    source "compact"), so nothing is guessed from the transcript: a compaction
-    drops all of the context, and every doc is owed again. The marker is moved
-    to the current transcript size so the edit-time check does not deliver the
-    same compaction a second time. Any failure returns "".
-    """
-
-    try:
-        cwd = str(payload.get("cwd") or "")
-        if not cwd:
-            return ""
-        evidence = _session_run({**payload, "tool_input": {"file_path": cwd}}, evidence_for)
-        if evidence is None:
-            return ""
-        with _serialized(evidence.parent / MARKER):
-            rules, docs = _delivery_manifest(evidence)
-            texts = _read_docs(rules, docs)
-            pending = [doc for doc in docs if doc in texts]
-            transcript = Path(str(payload.get("transcript_path") or ""))
-            _write_marker(evidence.parent / MARKER, pending, _aligned_size(transcript), 0)
-            return _render(texts, pending, rules)
-    except (OSError, ValueError, KeyError, TypeError):
-        return ""
-
-
 @contextlib.contextmanager
 def _serialized(marker: Path):
     """Hold one lock over read-decide-write so two hooks cannot spend the same redelivery."""
