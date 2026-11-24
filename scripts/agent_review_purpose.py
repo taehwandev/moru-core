@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from support.native_probe_transport import NativeProbe
 
 
 PathPredicate = Callable[[Path, Path], bool]
@@ -128,9 +131,35 @@ def previous_top_level_type_declarations(
     return top_level_type_declarations(path, previous["stdout"].splitlines())
 
 
+def _native_python_classes(lines: list[str]) -> list[dict[str, Any]] | None:
+    native = NativeProbe.request("--completion-probe", "structure-python-classes", {
+        "lines": lines, "unicode": unicodedata.unidata_version,
+    })
+    classes = native.get("classes") if native is not None else None
+    if not isinstance(classes, list):
+        return None
+    declarations = []
+    last_index = -1
+    for row in classes:
+        if not isinstance(row, list) or len(row) != 2:
+            return None
+        index, name = row
+        if (type(index) is not int or not last_index < index < len(lines)
+                or not isinstance(name, str) or not name):
+            return None
+        last_index = index
+        declarations.append(type_declaration("type", name, lines[index], index, modifiers=""))
+    return declarations
+
+
 def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, Any]]:
     declarations: list[dict[str, Any]] = []
-    is_typescript = path.suffix.lower() in {".ts", ".tsx"}
+    suffix = path.suffix.lower()
+    if suffix == ".py":
+        native = _native_python_classes(lines)
+        if native is not None:
+            return native
+    is_typescript = suffix in {".ts", ".tsx"}
     if is_typescript:
         # Mask assignment/arrow regex literals before their quotes can be mistaken for strings.
         # Preserve line numbers for diagnostics while ignoring prose and literals.
@@ -144,7 +173,7 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
     brace_depth = 0
     for index, line in enumerate(lines):
         stripped = line.strip()
-        if path.suffix.lower() == ".py":
+        if suffix == ".py":
             if line == line.lstrip(" "):
                 match = PYTHON_TOP_LEVEL_TYPE_RE.match(line)
             else:

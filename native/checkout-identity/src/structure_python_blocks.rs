@@ -1,14 +1,30 @@
-//! owner: Python declaration starts and indentation for structural review.
+//! owner: Python class and block declaration starts and indentation for structural review.
 //! allowed imports: shared Python whitespace rules and JSON input.
 //! forbidden imports: filesystem, subprocesses and review outcomes.
 //! callers/tests: native block spans, compared with the Python regex fallback.
 //! verification: exact indentation and ASCII declarations with Unicode fallback.
 use crate::{python_text::PythonText, text::Text};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 pub(super) struct StructurePythonBlocks;
 
 impl StructurePythonBlocks {
+    pub(super) fn top_level_classes(payload: &Value) -> Option<Value> {
+        let lines = payload.get("lines")?.as_array()?;
+        let unicode_matches =
+            PythonText::matches_unicode_version(payload.get("unicode")?.as_str()?);
+        let mut classes = Vec::new();
+        for (index, line) in lines.iter().enumerate() {
+            // The legacy owner rule only recognizes a literal class header at column zero.
+            if let Some(tail) = Self::after_keyword(line.as_str()?, "class") {
+                if let Some(name) = Self::identifier(tail, unicode_matches)? {
+                    classes.push((index, name));
+                }
+            }
+        }
+        Some(json!({"classes": classes}))
+    }
+
     pub(super) fn prepare(
         lines: &[Value],
         unicode_matches: bool,
@@ -36,6 +52,10 @@ impl StructurePythonBlocks {
             .or_else(|| Self::after_keyword(line, "class"))
             .or_else(|| Self::after_keyword(Self::after_keyword(line, "async")?, "def"));
         let Some(tail) = tail else { return Some(None) };
+        Self::identifier(tail, unicode_matches)
+    }
+
+    fn identifier(tail: &str, unicode_matches: bool) -> Option<Option<&str>> {
         if !tail
             .as_bytes()
             .first()

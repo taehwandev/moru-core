@@ -116,6 +116,33 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual(expected_review, structure.structure_review(self.project, 1, 100, git))
 
+    def test_structure_python_classes_preserve_column_boundaries_names_and_roles(self):
+        path = Path("src/review.PY")
+        lines = [
+            "class PublicState:", " class Indented:", "\tclass Tabbed:", "classDelta:",
+            "class Δelta:", "class 1Invalid:", "class\u00a0\u3000A²é:", "class Foo\u0301:",
+            "class _private:", '"""', "class PublicState:", '"""',
+            "class\u001fLast-ignored:", "def NotAClass():",
+        ]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = purpose.top_level_type_declarations(path, lines)
+        self.assertEqual(
+            ["PublicState", "A²é", "Foo", "_private", "PublicState", "Last"],
+            [row["name"] for row in expected],
+        )
+        recognizer = Mock()
+        recognizer.match.side_effect = AssertionError("Python recognized a class on the native path")
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            purpose, "PYTHON_TOP_LEVEL_TYPE_RE", recognizer,
+        ):
+            self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
+            self.assertEqual([], purpose.top_level_type_declarations(path, ["not a class"]))
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            purpose.unicodedata, "unidata_version", "0.0.0",
+        ):
+            self.assertIsNone(purpose._native_python_classes(lines))
+            self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
+
     def test_structure_removal_report_preserves_character_budget_and_ratio_text(self):
         findings = [
             {"path": "한🙂.py", "net": 51, "classification": "moved", "moved_to": ["새.py"]},
