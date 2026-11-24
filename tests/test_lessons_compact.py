@@ -22,6 +22,7 @@ import tempfile
 import threading
 import unittest
 from contextlib import redirect_stdout
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -117,6 +118,52 @@ class CompactionTests(unittest.TestCase):
                 "inbox": str(self.inbox), "digit_limit": 0,
             }))
             self.assertEqual(compact.read_records(self.inbox)[0]["한글"][-1][0], link)
+
+    def test_native_plan_preserves_keys_calendar_and_strict_staleness(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        created = "2026-03-01T00:00:00Z"
+        now = datetime(2026, 3, 15, tzinfo=timezone.utc)
+        keys = [f"key-{index}" for index in range(22)]
+        self._write("a-legacy.json", _candidate(
+            "boundary", created, occurrence_count=-2, occurrence_keys=keys,
+            recent_occurrences={"2026-03-01": 7, "2026-03-02": 2, "2026-03-15": 1},
+            marker="first",
+        ))
+        self._write("b-legacy.json", _candidate(
+            "boundary", created, occurrence_count=True, occurrence_keys=[keys[0], "fresh"],
+            recent_occurrences={"2026-03-02": 3, "2026-03-15": True},
+            marker="last",
+        ))
+        self._write("stale.json", _candidate("stale", "2026-02-28T23:59:59.999999Z"))
+        self._write("already.json", _candidate("already", "2026-02-01T00:00:00Z", status="stale"))
+        with mock.patch.dict(os.environ, environment(self.state, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = compact.plan(self.inbox, now)
+            with (
+                mock.patch.object(compact, "merge_group", side_effect=AssertionError("Python merged the plan")),
+                mock.patch.object(compact, "is_stale", side_effect=AssertionError("Python classified the plan")),
+            ):
+                self.assertEqual(compact.plan(self.inbox, now), expected)
+            self.assertEqual(expected["stale"], ["stale"])
+            merged = expected["folds"][0]["merged"]
+            self.assertEqual(merged["marker"], "last")
+            self.assertEqual(merged["occurrence_count"], 1)
+            self.assertEqual(merged["occurrence_keys"], keys[3:] + ["fresh"])
+            self.assertEqual(merged["recent_occurrences"], {"2026-03-02": 5, "2026-03-15": 1})
+
+            self._write("a-legacy.json", _candidate("boundary", created, occurrence_count=10 ** 40))
+            with mock.patch.object(compact, "merge_group", wraps=compact.merge_group) as fallback:
+                self.assertEqual(compact.plan(self.inbox, now)["folds"][0]["merged"]["occurrence_count"], 10 ** 40)
+                self.assertTrue(fallback.called)
 
     def test_the_merged_count_is_the_sum_the_store_reads(self) -> None:
         for day in ("01", "02", "03"):

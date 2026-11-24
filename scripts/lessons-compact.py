@@ -42,9 +42,14 @@ SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from agent_block_lessons import is_stale  # noqa: E402
+from agent_block_lessons import STALE_AFTER, is_stale  # noqa: E402
 from agent_lesson_files import _read_lesson_records  # noqa: E402
-from agent_lesson_store import _merged_occurrence_keys, merged_recent_occurrences  # noqa: E402
+from agent_lesson_store import (  # noqa: E402
+    OCCURRENCE_KEY_HISTORY_LIMIT,
+    RECENT_OCCURRENCE_DAYS,
+    _merged_occurrence_keys,
+    merged_recent_occurrences,
+)
 from agent_state_lock import state_lock  # noqa: E402
 from support.global_state import global_state_dir  # noqa: E402
 from support.native_probe_transport import NativeProbe  # noqa: E402
@@ -131,14 +136,40 @@ def merge_group(records: list[dict]) -> dict:
     }
 
 
+def _native_merges(groups, now: datetime) -> list[tuple[dict, bool]] | None:
+    if not groups or not NativeProbe.available() or type(now) is not datetime or now.utcoffset() is None:
+        return None
+    try:
+        groups_json = json.dumps(groups, separators=(",", ":"))
+        result = NativeProbe.request("--completion-probe", "lesson-compaction-merge", {
+            "groups_json": groups_json, "now": now.isoformat(), "stale_days": STALE_AFTER.days,
+            "key_limit": OCCURRENCE_KEY_HISTORY_LIMIT, "recent_days": RECENT_OCCURRENCE_DAYS,
+            "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+        })
+        if result is not None and result.keys() == {"plans"} and len(result["plans"]) == len(groups):
+            plans = [(json.loads(merged), stale) for merged, stale in result["plans"]]
+            if all(isinstance(merged, dict) and type(stale) is bool for merged, stale in plans):
+                return plans
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
 def plan(inbox: Path, now: datetime | None = None) -> dict:
     groups, unreadable = read_records(inbox)
     current = now or datetime.now(timezone.utc)
+    ordered = sorted(groups.items())
+    records = [[record for _, record in items] for _, items in ordered]
+    merges = _native_merges(records, current)
     folds = []
     stale = []
-    for lesson_id, items in sorted(groups.items()):
-        merged = merge_group([record for _, record in items])
-        if merged.get("status") != "stale" and is_stale(merged, current):
+    for index, (lesson_id, items) in enumerate(ordered):
+        if merges is None:
+            merged = merge_group(records[index])
+            newly_stale = merged.get("status") != "stale" and is_stale(merged, current)
+        else:
+            merged, newly_stale = merges[index]
+        if newly_stale:
             stale.append(lesson_id)
         if len(items) == 1 and items[0][0].name == f"{lesson_id}.json":
             continue
