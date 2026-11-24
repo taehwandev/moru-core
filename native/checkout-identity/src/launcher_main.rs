@@ -152,6 +152,7 @@ mod decision_cli;
 mod decision_input;
 mod decision_report;
 mod review_packet_assembly;
+mod review_packet_output;
 mod review_packet_snapshot;
 mod decision_response;
 mod workflow_offline_score;

@@ -1,9 +1,12 @@
 //! owner: deterministic review-packet section budgeting and digest.
-//! allowed imports: source-bound transport, ordered JSON, SHA-256 and admitted snapshot dispatch.
+//! allowed imports: source-bound transport, ordered JSON, SHA-256 and admitted snapshot/output dispatch.
 //! forbidden imports: pathname reads, Git, provider calls and review verdicts.
 //! callers/tests: ReviewAssembly and native packet parity fixtures.
 //! verification: exact bytes, whole sections and omissions in priority order.
-use crate::{pretool_guard::CallbackGuard, review_packet_snapshot::ReviewPacketSnapshot};
+use crate::{
+    pretool_guard::CallbackGuard, review_packet_output::ReviewPacketOutput,
+    review_packet_snapshot::ReviewPacketSnapshot,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -27,29 +30,38 @@ pub(crate) struct ReviewPacketAssembly;
 impl ReviewPacketAssembly {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || !matches!(args[1].to_str(), Some("assemble" | "snapshot"))
+            || !matches!(
+                args[1].to_str(),
+                Some("assemble" | "snapshot" | "output-support" | "write-output")
+            )
             || CallbackGuard::root(launcher, "review-packet").is_none()
         {
             return 125;
         }
-        let result = if args[1] == "snapshot" {
-            ReviewPacketSnapshot::read_stdin()
-        } else {
-            Self::assemble_stdin()
+        let result = match args[1].to_str() {
+            Some("snapshot") => ReviewPacketSnapshot::read_stdin(),
+            Some("output-support") => Some(json!({"supported": true})),
+            Some("write-output") => Self::read_json()
+                .as_ref()
+                .and_then(ReviewPacketOutput::create),
+            _ => Self::read_json()
+                .filter(integral_json)
+                .and_then(Self::build),
         };
         let Some(result) = result else {
             return 125;
         };
+        let failure = if args[1] == "write-output" { 1 } else { 125 };
         let Ok(reply) = serde_json::to_vec(&json!({"schema_version": 1, "result": result})) else {
-            return 125;
+            return failure;
         };
         if reply.len() > MAX_MESSAGE {
-            return 125;
+            return failure;
         }
         i32::from(io::stdout().write_all(&reply).is_err())
     }
 
-    fn assemble_stdin() -> Option<Value> {
+    fn read_json() -> Option<Value> {
         let mut raw = Vec::new();
         io::stdin()
             .take((MAX_MESSAGE + 1) as u64)
@@ -58,10 +70,7 @@ impl ReviewPacketAssembly {
         if raw.len() > MAX_MESSAGE {
             return None;
         }
-        serde_json::from_slice::<Value>(&raw)
-            .ok()
-            .filter(integral_json)
-            .and_then(Self::build)
+        serde_json::from_slice::<Value>(&raw).ok()
     }
 
     fn build(mut input: Value) -> Option<Value> {

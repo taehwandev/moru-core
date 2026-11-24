@@ -354,6 +354,18 @@ def _read_bounded_json(path_str: str):
         return json.loads(handle.read(65537))
 
 
+def _write_output(path, text):
+    if path and NativeProbe.request("--review-packet-probe", "output-support", {}) == {"supported": True}:
+        target = path if os.path.isabs(path) else os.path.join(os.getcwd(), path)
+        reply = NativeProbe.request("--review-packet-probe", "write-output", {"path": target, "text": text})
+        if reply is not None:
+            if set(reply) == {"written"} and reply["written"] is True:
+                return
+            raise OSError("native review packet write failed")
+    with open(path, "x", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def _main(argv=None):
     parser = argparse.ArgumentParser(description="Write a source-only review packet to a local file; runs nothing.")
     parser.add_argument("--project", default=".")
@@ -372,8 +384,7 @@ def _main(argv=None):
             findings = raw_findings["findings"] if isinstance(raw_findings, dict) and "findings" in raw_findings else raw_findings
         output = ReviewPacket._build(Path(args.project), args.paths, contexts=args.contexts, checks=checks,
                                      findings=findings, max_bytes=args.max_bytes, render_output=True)
-        with open(args.output, "x", encoding="utf-8", newline="\n") as handle:
-            handle.write(output)
+        _write_output(args.output, output)
     except (OSError, ValueError) as error:
         safe = str(error) if isinstance(error, _PacketError) else "a local file could not be read, parsed or written"
         print(f"error: {safe}", file=sys.stderr)

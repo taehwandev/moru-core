@@ -183,18 +183,31 @@ class ReviewPacketTest(unittest.TestCase):
         actions = []
 
         def observe(protocol, action, payload):
-            actions.append((protocol, action, payload.get("render_output")))
-            self.assertNotIn(str(target), str(payload))
-            return request(protocol, action, payload)
+            result = request(protocol, action, payload)
+            if action == "assemble":
+                self.assertEqual(protocol, "--review-packet-probe")
+                self.assertIs(payload["render_output"], True)
+                self.assertNotIn(str(target), str(payload))
+            elif action == "write-output":
+                self.assertEqual(payload["path"], str(target))
+            actions.append((action, result))
+            return result
 
-        with patch.dict(os.environ, env, clear=True), \
-                patch.object(NativeProbe, "request", side_effect=observe), \
-                patch.object(ReviewPacket, "render", side_effect=AssertionError("Python rendering")):
-            self.assertEqual(_main([*args, "--output", str(target)]), 0)
-            self.assertEqual(actions, [("--review-packet-probe", "assemble", True)])
-            with contextlib.redirect_stderr(io.StringIO()) as errors:
-                self.assertEqual(_main([*args, "--output", str(target)]), 2)
-            self.assertIn("a local file could not be read, parsed or written", errors.getvalue())
+        mask = os.umask(0o027)
+        try:
+            with patch.dict(os.environ, env, clear=True), \
+                    patch.object(NativeProbe, "request", side_effect=observe), \
+                    patch.object(ReviewPacket, "render", side_effect=AssertionError("Python rendering")):
+                self.assertEqual(_main([*args, "--output", str(target)]), 0)
+                self.assertEqual([action for action, _ in actions], ["assemble", "output-support", "write-output"])
+                self.assertEqual(actions[-1][1], {"written": True})
+                with contextlib.redirect_stderr(io.StringIO()) as errors:
+                    self.assertEqual(_main([*args, "--output", str(target)]), 2)
+                self.assertEqual(actions[-1], ("write-output", {"written": False}))
+                self.assertIn("a local file could not be read, parsed or written", errors.getvalue())
+        finally:
+            os.umask(mask)
+        self.assertEqual(target.stat().st_mode & 0o777, 0o640)
         self.assertEqual(target.read_bytes(), reference.read_bytes())
         self.assertTrue(target.read_bytes().endswith(b"}\n"))
 
@@ -212,6 +225,9 @@ class ReviewPacketTest(unittest.TestCase):
         request = NativeProbe.request
 
         def old_protocol(protocol, action, payload):
+            if action == "output-support":
+                return None
+            self.assertEqual(action, "assemble")
             reply = request(protocol, action, {key: value for key, value in payload.items() if key != "render_output"})
             self.assertEqual(set(reply), {"packet"})
             return reply
@@ -221,6 +237,41 @@ class ReviewPacketTest(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True), patch.object(NativeProbe, "request", side_effect=old_protocol):
             self.assertEqual(_main(["--project", str(self.root), "--path", "notes.txt", "--output", str(target)]), 0)
         self.assertEqual(target.read_bytes(), expected)
+
+    def test_review_cli_does_not_replay_native_write_after_response_loss(self):
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.base / "home"
+        home.mkdir()
+        install(home)
+        target = self.base / "native.json"
+        run = subprocess.run
+        original_open = open
+        completed_writes = []
+
+        def lose_response(argv, **kwargs):
+            result = run(argv, **kwargs)
+            if argv[-2:] == ["--review-packet-probe", "write-output"]:
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(json.loads(result.stdout)["result"], {"written": True})
+                completed_writes.append(True)
+                return subprocess.CompletedProcess(argv, 1, b"", b"")
+            return result
+
+        def forbid_output_replay(path, mode="r", **kwargs):
+            self.assertFalse("x" in mode and Path(path) == target, "Python write replay")
+            return original_open(path, mode, **kwargs)
+
+        with patch.dict(os.environ, environment(self.base), clear=True), \
+                patch.object(subprocess, "run", side_effect=lose_response), \
+                patch("builtins.open", side_effect=forbid_output_replay), \
+                contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(_main(["--project", str(self.root), "--path", "notes.txt", "--output", str(target)]), 2)
+        self.assertEqual(completed_writes, [True])
+        self.assertEqual(json.loads(target.read_bytes())["kind"], "review_packet")
 
     def test_changed_duplicate_setter_reports_unindexed_context(self):
         before = 'class C:\n    @property\n    def x(self):\n        return 1\n    @x.setter\n    def x(self, value):\n        self.value = value\n'

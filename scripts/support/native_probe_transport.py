@@ -47,6 +47,7 @@ class NativeProbe:
             ("--doc-transcript-probe", "agy-redelivery"): "native redelivery outcome could not be determined",
             ("--doc-transcript-probe", "agy-prepared-delivery"): "native prepared delivery outcome could not be determined",
             ("--decision-cache-probe", "write-cached-file"): "native decision cache write outcome could not be determined",
+            ("--review-packet-probe", "write-output"): "native review packet write outcome could not be determined",
         }.get((protocol, operation))
         done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE,
                                   write_failure=write_failure, verified_launcher=verified_launcher)
@@ -102,9 +103,7 @@ class NativeProbe:
         else:
             stdin = {"stdin": source}
         env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
-        if (protocol, operation) in {("--decision-cache-probe", "encode-request"),
-                                     ("--review-packet-probe", "assemble"),
-                                     ("--review-packet-probe", "snapshot")}:
+        if protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
             # Keep the source and environment guard inputs but omit ambient credentials.
             python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
             if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):
