@@ -94,11 +94,19 @@ def _claim_file(project: Path, path: str) -> Path:
 def active_claims(project: Path) -> list[dict]:
     """Read every unexpired claim, removing expired or unreadable ones."""
     directory = claims_dir(project)
+    return _active_claims(directory, _scan_claims(project, directory))
+
+
+def _scan_claims(project: Path, directory: Path, status_json: Optional[bool] = None) -> Optional[dict]:
     if not directory.is_dir():
-        return []
-    result = NativeProbe.request("--completion-probe", "path-claim-scan", {
+        return None
+    return NativeProbe.request("--completion-probe", "path-claim-scan", {
         "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+        "status_json": status_json,
     })
+
+
+def _active_claims(directory: Path, result: Optional[dict]) -> list[dict]:
     rows = result.get("rows") if result is not None else None
     if isinstance(rows, list) and all(_valid_scan_row(row) for row in rows):
         claims = []
@@ -109,6 +117,8 @@ def active_claims(project: Path) -> list[dict]:
             if claim is not None:
                 claims.append(claim)
         return claims
+    if not directory.is_dir():
+        return []
     return [claim for entry in sorted(directory.glob("*.json")) if (claim := _read_active(entry)) is not None]
 
 
@@ -269,7 +279,15 @@ def _cmd_release(project: Path, args: argparse.Namespace) -> int:
 
 
 def _cmd_status(project: Path, args: argparse.Namespace) -> int:
-    claims = sorted(active_claims(project), key=lambda claim: claim["path"])
+    directory = claims_dir(project)
+    result = _scan_claims(project, directory, args.json)
+    status = result.get("status") if result is not None else None
+    if isinstance(status, dict) and status.keys() == {"output", "earliest"} and isinstance(status["output"], str):
+        earliest = status["earliest"]
+        if earliest is None or (type(earliest) in (float, int) and earliest > _now()):
+            print(status["output"])
+            return 0
+    claims = sorted(_active_claims(directory, result), key=lambda claim: claim["path"])
     if args.json:
         print(json.dumps(claims, indent=2))
     elif not claims:

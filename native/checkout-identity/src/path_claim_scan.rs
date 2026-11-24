@@ -6,7 +6,7 @@
 use crate::{
     callback_state::LocalState,
     overhead_stamp::OverheadStamp,
-    python_json::{InputDiagnostic, PythonJson},
+    python_json::{InputDiagnostic, PythonJson, Value as Claim},
 };
 use serde_json::{json, Value};
 use std::{fs, path::Path};
@@ -20,6 +20,7 @@ impl PathClaimScan {
             return None;
         }
         let digit_limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
+        let status_json = input.get("status_json").and_then(Value::as_bool);
         let dir = project.join(".moru/claims");
         LocalState::safe_path(project, &dir)?;
         if LocalState::absent_dir(&dir)? {
@@ -38,6 +39,8 @@ impl PathClaimScan {
         }
         names.sort_unstable();
         let mut rows = Vec::new();
+        let mut claims = Vec::new();
+        let mut earliest = None;
         let mut bytes = 0;
         for name in names {
             let raw = LocalState::read(&dir.join(&name), 64 * 1024)?;
@@ -45,13 +48,25 @@ impl PathClaimScan {
             if bytes > 128 * 1024 {
                 return None;
             }
-            let expiry = Self::expiry(&raw, digit_limit)?;
-            rows.push(json!([name, expiry, expiry.map(|_| raw)]));
+            let parsed = Self::parse(&raw, digit_limit)?;
+            if let Some((expiry, claim)) = parsed {
+                rows.push(json!([name, expiry, raw]));
+                if status_json.is_some() {
+                    claims.push(claim);
+                    earliest = Some(earliest.map_or(expiry, |previous: f64| previous.min(expiry)));
+                }
+            } else {
+                rows.push(json!([name, null, null]));
+            }
         }
-        Some(json!({"rows": rows}))
+        let status = status_json
+            .filter(|_| rows.len() == claims.len())
+            .and_then(|as_json| Self::status(claims, as_json))
+            .map(|output| json!({"output": output, "earliest": earliest}));
+        Some(json!({"rows": rows, "status": status}))
     }
 
-    fn expiry(raw: &str, digit_limit: usize) -> Option<Option<f64>> {
+    fn parse(raw: &str, digit_limit: usize) -> Option<Option<(f64, Claim)>> {
         let record = match PythonJson::parse_with_diagnostic(raw, Some(digit_limit), None) {
             Ok(Some(record)) => record,
             Err(InputDiagnostic::Syntax(_)) => return Some(None),
@@ -68,6 +83,38 @@ impl PathClaimScan {
         let stamp = OverheadStamp::parse(expiry)??;
         let ticks = stamp.ticks() - 719163 * 86_400_000_000;
         (stamp.aware() && ticks.unsigned_abs() <= 1 << 53)
-            .then_some(Some(ticks as f64 / 1_000_000.0))
+            .then_some(Some((ticks as f64 / 1_000_000.0, record)))
+    }
+
+    fn status(claims: Vec<Claim>, as_json: bool) -> Option<String> {
+        let mut claims = claims
+            .into_iter()
+            .map(|claim| Some((claim.get("path")?.as_str()?.to_owned(), claim)))
+            .collect::<Option<Vec<_>>>()?;
+        // Match Python's stable order for distinct records with the same path.
+        claims.sort_by(|a, b| a.0.cmp(&b.0));
+        if as_json {
+            let value = Claim::Array(claims.into_iter().map(|(_, claim)| claim).collect());
+            return PythonJson::render(&value, true, true);
+        }
+        if claims.is_empty() {
+            return Some("no active claims".into());
+        }
+        let lines = claims
+            .into_iter()
+            .map(|(path, claim)| {
+                let field = |key| match claim.get(key) {
+                    None | Some(Claim::Null) => Some("None"),
+                    Some(value) => value.as_str(),
+                };
+                Some(format!(
+                    "held by {} since {}: {path} (expires {})",
+                    field("holder")?,
+                    field("since")?,
+                    field("expires")?
+                ))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(lines.join("\n"))
     }
 }

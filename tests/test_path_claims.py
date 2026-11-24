@@ -195,6 +195,45 @@ class PathClaimsTests(unittest.TestCase):
         self.clock += 30
         self.assertEqual(len(self.status()), 1, "renewal must outlive the original expiry")
 
+    def test_native_status_matches_python_and_refreshes_expiry_at_output(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        directory = path_claims.claims_dir(self.project)
+        directory.mkdir(parents=True)
+        expiry = path_claims._iso(self.clock + 1)
+        for name, path, holder in (("a", "same", "첫째"), ("b", "same", "둘째"), ("c", "aaa", "third")):
+            (directory / f"{name}.json").write_text(json.dumps({
+                "path": path, "holder": holder, "expires": expiry, "large": 10 ** 40,
+            }), encoding="utf-8")
+        args = ("status", "--project", str(self.project))
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = [self.run_cli(*args), self.run_cli(*args, "--json")]
+            with mock.patch.object(path_claims, "_active_claims", side_effect=AssertionError("Python rendered status")):
+                self.assertEqual(expected, [self.run_cli(*args), self.run_cli(*args, "--json")])
+            self.assertEqual([entry["holder"] for entry in json.loads(expected[1][1])], ["third", "첫째", "둘째"])
+
+            request = path_claims.NativeProbe.request
+
+            def expire_after_scan(*args):
+                result = request(*args)
+                self.assertIsNotNone(result["status"])
+                self.clock += 1
+                return result
+
+            with mock.patch.object(path_claims.NativeProbe, "request", side_effect=expire_after_scan) as scan:
+                self.assertEqual((0, "[]\n"), self.run_cli(*args, "--json"))
+                scan.assert_called_once()
+            self.assertEqual(list(directory.iterdir()), [])
+            with mock.patch.object(path_claims, "_active_claims", side_effect=AssertionError("Python rendered empty status")):
+                self.assertEqual((0, "no active claims\n"), self.run_cli(*args))
+
     def test_wait_gives_up_after_timeout(self) -> None:
         self.claim("a", "src/x.tsx")
 
