@@ -951,14 +951,48 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual(expected, structure._review_sources(self.project, paths))
             self.assertEqual([Path("src/한.py"), Path("third_party/example/file.py")],
                              [call.args[1] for call in fallback.call_args_list])
-        (self.project / ".gitattributes").write_text("src/File.RS linguist-generated\n")
+    def test_structure_generated_attributes_batch_matches_git_and_preserves_fallback(self):
+        paths = [Path(name) for name in (
+            "src/generated.rs", "src/keep: space\n.rs", "src/value.rs",
+            "src/false.rs", "elsewhere.rs", "src/generated.rs",
+        )]
+        (self.project / "src").mkdir()
+        for path in paths:
+            (self.project / path).touch()
+        (self.project / ".gitattributes").write_text(
+            "src/** linguist-generated\n"
+            "src/value.rs linguist-generated=prefix:true\n"
+            "src/false.rs linguist-generated=false\n"
+        )
+        (self.project / "src/.gitattributes").write_text("*.rs -linguist-generated\n"
+            "generated.rs linguist-generated=true\n"
+            "value.rs linguist-generated=prefix:true\n")
         structure._declares_generated.cache_clear()
         structure.linguist_generated_path.cache_clear()
         self.addCleanup(structure._declares_generated.cache_clear)
         self.addCleanup(structure.linguist_generated_path.cache_clear)
-        with patch.dict(os.environ, self.env, clear=True), patch.object(NativeProbe, "request") as request:
-            self.assertEqual([], structure._review_sources(self.project, [Path("src/File.RS")]))
-            request.assert_not_called()
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = structure._review_sources(self.project, paths)
+        self.assertEqual([paths[1], paths[3], paths[4]], expected)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "review_source_path", side_effect=AssertionError("per-path fallback"),
+        ):
+            self.assertEqual(expected, structure._review_sources(self.project, paths))
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "generated_attribute_records", return_value="wrong.rs\0linguist-generated\0true\0",
+        ), patch.object(structure, "review_source_path", wraps=structure.review_source_path) as fallback:
+            self.assertEqual(expected, structure._review_sources(self.project, paths))
+            self.assertEqual(paths, [call.args[1] for call in fallback.call_args_list])
+
+        snapshot = self.base / "snapshot"
+        snapshot.mkdir()
+        (snapshot / "generated.rs").touch()
+        (snapshot / "kept.rs").touch()
+        (snapshot / ".gitattributes").write_text("generated.rs linguist-generated\n")
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual([Path("kept.rs")], structure._review_sources(
+                snapshot, [Path("generated.rs"), Path("kept.rs")],
+            ))
 
     def test_structure_diff_metadata_merges_initial_and_untracked_listings(self):
         empty = {"returncode": 0, "stdout": ""}

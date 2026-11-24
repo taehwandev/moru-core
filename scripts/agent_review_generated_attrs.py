@@ -21,6 +21,24 @@ def _declares_generated(project: Path) -> bool:
         return False
 
 
+def generated_attribute_records(project: Path, paths: list[Path]) -> str | None:
+    if len(paths) > 4096:
+        return None
+    names = "\0".join(map(str, paths)) + "\0"
+    if len(names) > 128 * 1024:
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(project), "check-attr", "-z", "--stdin", "linguist-generated"],
+            input=names.encode("utf-8"), capture_output=True, timeout=10, check=False,
+        )
+        if result.returncode == 0 and len(result.stdout) <= 256 * 1024:
+            return result.stdout.decode("utf-8")
+    except (OSError, subprocess.SubprocessError, UnicodeError):
+        pass
+    return None
+
+
 @lru_cache(maxsize=4096)
 def linguist_generated_path(project: Path, path: Path) -> bool:
     if not _declares_generated(project):

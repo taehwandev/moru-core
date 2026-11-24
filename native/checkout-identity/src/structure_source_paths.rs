@@ -1,5 +1,5 @@
 //! owner: batch eligibility of ordinary source paths for structural review.
-//! allowed imports: read-only filesystem metadata and JSON.
+//! allowed imports: read-only filesystem metadata, Git attribute records and JSON.
 //! forbidden imports: state writes, Git execution and vendor exclusion policy.
 //! callers/tests: structural review and preview via private completion probe.
 //! verification: configured source exclusions and per-path fallback.
@@ -25,9 +25,14 @@ impl StructureSourcePaths {
         if paths.len() > 4096 {
             return None;
         }
+        let attributes = match payload.get("git_attributes") {
+            Some(records) => Self::generated_flags(records.as_str()?, paths)?,
+            None => vec![false; paths.len()],
+        };
         let selected = paths
             .iter()
-            .map(|entry| {
+            .zip(attributes)
+            .map(|(entry, git_generated)| {
                 let (raw, suffix) = (entry.get("path")?.as_str()?, entry.get("suffix")?.as_str()?);
                 if !extensions.contains(&suffix) {
                     return Some(false);
@@ -59,6 +64,9 @@ impl StructureSourcePaths {
                 {
                     return None;
                 }
+                if git_generated {
+                    return Some(false);
+                }
                 match fs::metadata(project.join(raw)) {
                     Ok(metadata) => Some(metadata.is_file()),
                     Err(error) if error.kind() == ErrorKind::NotFound => Some(false),
@@ -71,6 +79,26 @@ impl StructureSourcePaths {
             result["net_deletions"] = StructureNetDeletions::findings(counts)?;
         }
         Some(result)
+    }
+
+    fn generated_flags(records: &str, paths: &[Value]) -> Option<Vec<bool>> {
+        let mut fields = records.strip_suffix('\0')?.split('\0');
+        let mut flags = Vec::with_capacity(paths.len());
+        for entry in paths {
+            if fields.next()? != entry.get("path")?.as_str()?
+                || fields.next()? != "linguist-generated"
+            {
+                return None;
+            }
+            let value = fields.next()?;
+            // The single-path reader splits on the last colon and uses Python str.strip().
+            let value = value
+                .rsplit(':')
+                .next()?
+                .trim_matches(|ch: char| ch.is_whitespace() || matches!(ch, '\u{1c}'..='\u{1f}'));
+            flags.push(matches!(value, "set" | "true"));
+        }
+        fields.next().is_none().then_some(flags)
     }
 
     fn strings<'a>(policy: &'a Value, key: &str) -> Option<Vec<&'a str>> {

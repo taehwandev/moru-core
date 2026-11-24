@@ -10,7 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from agent_review_boundary import boundary_note_requirements
-from agent_review_generated_attrs import _declares_generated, linguist_generated_path
+from agent_review_generated_attrs import (
+    _declares_generated,
+    generated_attribute_records,
+    linguist_generated_path,
+)
 from agent_android_action_boundary import AndroidActionBoundary
 from agent_review_purpose import (
     GENERIC_PACKAGE_PARTS,
@@ -1110,7 +1114,10 @@ def _pathspec_args(review_paths: list[str] | None) -> list[str]:
 def _review_sources(
     project: Path, paths: list[Path], discovery: dict[str, Any] | None = None,
 ) -> list[Path]:
-    if paths and NativeProbe.available() and not _declares_generated(project):
+    native_enabled = bool(paths) and NativeProbe.available()
+    has_attributes = native_enabled and _declares_generated(project)
+    attributes = generated_attribute_records(project, paths) if has_attributes else None
+    if native_enabled and (not has_attributes or attributes is not None):
         payload = {
             "project": str(project),
             "paths": [{"path": str(path), "suffix": path.suffix.lower()} for path in paths],
@@ -1122,6 +1129,8 @@ def _review_sources(
                 "config_suffixes": REVIEW_CONFIG_SUFFIXES,
             },
         }
+        if attributes is not None:
+            payload["git_attributes"] = attributes
         if discovery is not None:
             counts = []
             for path, metadata in discovery["path_metadata"].items():
