@@ -47,22 +47,78 @@ impl PathClaimRelease {
     pub(super) fn expire(input: &Value) -> Option<io::Result<Option<String>>> {
         let project = Path::new(input.get("project")?.as_str()?);
         let name = input.get("name")?.as_str()?;
-        if !name.ends_with(".json") || Path::new(name).file_name()?.to_str()? != name {
-            return None;
-        }
-        let name = CString::new(name).ok()?;
+        let name = Self::expiry_name(name)?;
         let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let now = input.get("now")?.as_f64()?;
         let directory = AtomicSibling::open_directory(&project.join(".moru/claims"))?;
-        let Some(file) = Self::open(&directory, &name).ok()? else {
+        let modern_iso = input.get("modern_iso").and_then(Value::as_bool) == Some(true);
+        Self::expire_entry(&directory, &name, limit, now, modern_iso)
+    }
+
+    pub(super) fn expire_batch(input: &Value) -> Option<io::Result<Value>> {
+        let project = Path::new(input.get("project")?.as_str()?);
+        let names = input.get("names")?.as_array()?;
+        if !(2..=128).contains(&names.len()) {
+            return None;
+        }
+        let names = names
+            .iter()
+            .map(|name| Self::expiry_name(name.as_str()?))
+            .collect::<Option<Vec<_>>>()?;
+        let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
+        let offset = input.get("clock_offset")?.as_f64()?;
+        let modern_iso = input.get("modern_iso").and_then(Value::as_bool) == Some(true);
+        let directory = AtomicSibling::open_directory(&project.join(".moru/claims"))?;
+        let mut lines = Vec::new();
+        let mut bytes = 0;
+        for name in names {
+            let Some(now) = SystemTime::now().duration_since(UNIX_EPOCH).ok() else {
+                break;
+            };
+            match Self::expire_entry(
+                &directory,
+                &name,
+                limit,
+                now.as_secs_f64() + offset,
+                modern_iso,
+            ) {
+                Some(Ok(line)) => {
+                    bytes += line.as_ref().map_or(0, String::len);
+                    // The oversized item is active, so it was read but never mutated.
+                    if bytes > 128 * 1024 {
+                        break;
+                    }
+                    lines.push(line);
+                }
+                Some(Err(error)) => return Some(Err(error)),
+                None => break,
+            }
+        }
+        Some(Ok(json!({"lines": lines})))
+    }
+
+    fn expiry_name(name: &str) -> Option<CString> {
+        if !name.ends_with(".json") || Path::new(name).file_name()?.to_str()? != name {
+            return None;
+        }
+        CString::new(name).ok()
+    }
+
+    fn expire_entry(
+        directory: &File,
+        name: &CStr,
+        limit: usize,
+        now: f64,
+        modern_iso: bool,
+    ) -> Option<io::Result<Option<String>>> {
+        let Some(file) = Self::open(directory, name).ok()? else {
             return Some(Ok(None));
         };
         let (before, raw) = Self::read(&file)?;
-        let modern_iso = input.get("modern_iso").and_then(Value::as_bool) == Some(true);
         if PathClaimScan::parse(&raw, limit, modern_iso)?.is_some_and(|(expiry, _)| expiry > now) {
             return Some(Ok(Some(raw)));
         }
-        match Self::unlink(&directory, &name, &before) {
+        match Self::unlink(directory, name, &before) {
             Ok(true) => Some(Ok(None)),
             // Nothing was removed because the name now resolves to another file.
             Ok(false) => None,

@@ -369,6 +369,48 @@ class PathClaimsTests(unittest.TestCase):
                     path_claims.active_claims(self.project)
             self.assertFalse(candidate.exists())
 
+    def test_native_expiry_batch_resumes_only_suffix_and_never_replays_lost_response(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        directory = path_claims.claims_dir(self.project)
+        directory.mkdir(parents=True)
+        names = ["expired.json", "legacy.json", "last.json"]
+        expired = json.dumps({"path": "expired", "expires": path_claims._iso(self.clock - 1)})
+        legacy = {"path": "legacy", "expires": "2035-01-01T00:00:00"}
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            (directory / names[0]).write_text(expired, encoding="utf-8")
+            (directory / names[1]).write_text(json.dumps(legacy), encoding="utf-8")
+            (directory / names[2]).write_text(expired, encoding="utf-8")
+            with mock.patch.object(path_claims, "_recheck_active", wraps=path_claims._recheck_active) as fallback:
+                self.assertEqual(path_claims._recheck_claims(directory, names), [legacy])
+                self.assertEqual([call.args[0].name for call in fallback.call_args_list], names[1:])
+            self.assertEqual([path.name for path in directory.iterdir()], [names[1]])
+
+            for name in names:
+                (directory / name).write_text(expired, encoding="utf-8")
+            invoke = subprocess.run
+
+            def lose_batch_response(command, **kwargs):
+                result = invoke(command, **kwargs)
+                if command[-1] == "path-claim-expire-batch":
+                    self.assertEqual(result.returncode, 0)
+                    return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+                return result
+
+            with (
+                mock.patch.object(subprocess, "run", side_effect=lose_batch_response),
+                mock.patch.object(path_claims, "_recheck_active", side_effect=AssertionError("Python replayed expiry")),
+            ):
+                with self.assertRaisesRegex(OSError, "expiry outcome could not be determined"):
+                    path_claims._recheck_claims(directory, names)
+            self.assertEqual(list(directory.iterdir()), [])
+
     def test_native_modern_iso_expiry_matches_python_at_the_boundary(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment
@@ -556,7 +598,7 @@ class PathClaimsTests(unittest.TestCase):
             with mock.patch.object(path_claims.NativeProbe, "request", side_effect=expire_after_scan) as scan:
                 self.assertEqual((0, "[]\n"), self.run_cli(*args, "--json"))
                 self.assertEqual([call.args[1] for call in scan.call_args_list],
-                                 ["path-claim-scan"] + ["path-claim-expire"] * 3)
+                                 ["path-claim-scan", "path-claim-expire-batch"])
             self.assertEqual(list(directory.iterdir()), [])
             with mock.patch.object(path_claims, "_active_claims", side_effect=AssertionError("Python rendered empty status")):
                 self.assertEqual((0, "no active claims\n"), self.run_cli(*args))

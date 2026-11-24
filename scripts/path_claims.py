@@ -115,12 +115,21 @@ def _active_claims(directory: Path, result: Optional[dict]) -> list[dict]:
     rows = result.get("rows") if result is not None else None
     if isinstance(rows, list) and all(_valid_scan_row(row) for row in rows):
         claims = []
+        pending = []
         for name, expiry, raw in rows:
-            # Recheck deletion candidates in case a concurrent writer renewed
-            # or replaced a claim after Rust read it.
-            claim = json.loads(raw) if expiry is not None and expiry > _now() else _recheck_active(directory / name)
-            if claim is not None:
-                claims.append(claim)
+            if expiry is not None and expiry > _now():
+                if pending:
+                    claims.extend(_recheck_claims(directory, pending))
+                    pending.clear()
+                if expiry > _now():
+                    claims.append(json.loads(raw))
+                    continue
+            pending.append(name)
+            if len(pending) == 128:
+                claims.extend(_recheck_claims(directory, pending))
+                pending.clear()
+        if pending:
+            claims.extend(_recheck_claims(directory, pending))
         return claims
     if not directory.is_dir():
         return []
@@ -162,6 +171,27 @@ def _recheck_active(entry: Path) -> Optional[dict]:
         if isinstance(raw, str):
             return json.loads(raw)
     raise OSError("invalid native path claim expiry receipt")
+
+
+def _recheck_claims(directory: Path, names: list[str]) -> list[dict]:
+    """Reopen deletion candidates, including any claims renewed since the scan."""
+    claims = []
+    if len(names) > 1:
+        clock_offset = _now() - time.time()
+        result = NativeProbe.request("--completion-probe", "path-claim-expire-batch", {
+            "project": str(directory.parents[1]), "names": names, "clock_offset": clock_offset,
+            "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+            "modern_iso": MODERN_ISO_EXPIRY,
+        })
+        if result is not None:
+            lines = result.get("lines")
+            if (result.keys() != {"lines"} or not isinstance(lines, list) or len(lines) > len(names)
+                    or not all(raw is None or isinstance(raw, str) for raw in lines)):
+                raise OSError("invalid native path claim expiry batch receipt")
+            claims.extend(json.loads(raw) for raw in lines if raw is not None)
+            names = names[len(lines):]
+    claims.extend(claim for name in names if (claim := _recheck_active(directory / name)) is not None)
+    return claims
 
 
 def conflicts(project: Path, paths: Iterable[str], holder: str) -> list[dict]:

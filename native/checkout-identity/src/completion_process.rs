@@ -197,6 +197,13 @@ impl CompletionProcess {
                 None => 125,
             };
         }
+        if args[1] == "path-claim-expire-batch" {
+            return match path_claim_release::PathClaimRelease::expire_batch(&payload) {
+                Some(Ok(receipt)) => Self::respond(Some(receipt)),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "path-claim-release" {
             return match path_claim_release::PathClaimRelease::release(&payload) {
                 Some(Ok(())) => Self::respond(Some(json!({"handled": true}))),
