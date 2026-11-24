@@ -5,8 +5,10 @@
 //! verification: byte parity, append integrity and no fallback after a write attempt.
 use crate::{
     atomic_sibling::AtomicSibling,
+    discovery_fs::DiscoveryFs,
     overhead_clock::OverheadClock,
     python_json::{Object, PythonJson, Value},
+    text::Text,
 };
 use serde_json::{json, Value as Json};
 use std::{
@@ -17,6 +19,41 @@ use std::{
 pub(super) struct LiveWebEditLog;
 
 impl LiveWebEditLog {
+    pub(super) fn record(input: &Json) -> Option<io::Result<Json>> {
+        let project = Path::new(input.get("project")?.as_str()?);
+        let entry = input.get("entry")?;
+        let holder = entry.get("session")?.as_str()?;
+        let mut files = Vec::new();
+        for raw in entry.get("files")?.as_array()? {
+            let raw = raw.as_str()?;
+            let Some(relative) = Self::relative_path(project, raw)? else {
+                return Some(Ok(json!({"outside": raw})));
+            };
+            files.push(relative);
+        }
+        Self::append(&json!({
+            "project": project.to_str()?,
+            "entry": {"session": holder, "files": files},
+        }))
+    }
+
+    // Outer None is unsupported resolution, inner None is a known outside path.
+    pub(super) fn relative_path(project: &Path, raw: &str) -> Option<Option<String>> {
+        let path = if raw.starts_with('~') {
+            DiscoveryFs::expand(Path::new(&Text::norm_path(raw)))?
+        } else {
+            Path::new(raw).to_owned()
+        };
+        let resolved = DiscoveryFs::resolve(&project.join(path))?;
+        let Ok(relative) = resolved.strip_prefix(project) else {
+            return Some(None);
+        };
+        let relative = relative.to_str()?;
+        Some(Some(
+            if relative.is_empty() { "." } else { relative }.into(),
+        ))
+    }
+
     // None is safe to replay because no append has been attempted.
     pub(super) fn append(input: &Json) -> Option<io::Result<Json>> {
         let project = Path::new(input.get("project")?.as_str()?);

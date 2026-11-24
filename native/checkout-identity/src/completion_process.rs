@@ -212,6 +212,13 @@ impl CompletionProcess {
                 None => 125,
             };
         }
+        if args[1] == "live-web-edit-record" {
+            return match live_web_edit_log::LiveWebEditLog::record(&payload) {
+                Some(Ok(receipt)) => Self::respond(Some(receipt)),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         // This operation only writes stdout. The caller owns any file behind it.
         if args[1] == "pending-publication-encode" {
             let Some(encoded) = PendingPublicationReceipt::encode(payload) else {

@@ -7,7 +7,6 @@ use super::live_web_edit_log::LiveWebEditLog;
 use crate::{
     discovery_fs::DiscoveryFs,
     python_json::{InputDiagnostic, PythonJson},
-    text::Text,
 };
 use serde_json::{json, Value};
 use std::{env, io, path::Path};
@@ -57,17 +56,9 @@ impl LiveWebEditHook {
             },
             value => DiscoveryFs::resolve(Path::new(value.as_str()?))?,
         };
-        let path = if path.starts_with('~') {
-            DiscoveryFs::expand(Path::new(&Text::norm_path(path)))?
-        } else {
-            Path::new(path).to_owned()
-        };
-        let path = DiscoveryFs::resolve(&project.join(path))?;
-        let Ok(relative) = path.strip_prefix(&project) else {
+        let Some(relative) = LiveWebEditLog::relative_path(&project, path)? else {
             return handled();
         };
-        let relative = relative.to_str()?;
-        let relative = if relative.is_empty() { "." } else { relative };
         LiveWebEditLog::append(&json!({
             "project": project.to_str()?,
             "entry": {"session": holder, "files": [relative]},

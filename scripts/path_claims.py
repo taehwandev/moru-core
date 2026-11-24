@@ -298,11 +298,17 @@ def record(project: Path, files: Iterable[str], holder: str) -> dict:
     return _record(project, files, holder)[0]
 
 
-def _record(project: Path, files: Iterable[str], holder: str) -> tuple[dict, str]:
+def _record(project: Path, files: Iterable[str], holder: str, *, resolve_paths: bool = False) -> tuple[dict, str]:
     entry = {"session": holder, "files": list(files)}
-    result = NativeProbe.request("--completion-probe", "live-web-edit-append", {
+    operation = "live-web-edit-record" if resolve_paths else "live-web-edit-append"
+    result = NativeProbe.request("--completion-probe", operation, {
         "project": str(project), "entry": entry,
     })
+    if resolve_paths:
+        if result is None:
+            return _record(project, [normalize(project, raw) for raw in entry["files"]], holder)
+        if result.keys() == {"outside"} and isinstance(result["outside"], str):
+            raise PathError(f"outside the project: {result['outside']}")
     if result is not None:
         if result.keys() == {"appended", "line"} and result["appended"] is True and isinstance(result["line"], str):
             return json.loads(result["line"]), result["line"]
@@ -396,7 +402,7 @@ def _cmd_record(project: Optional[Path], args: argparse.Namespace) -> int:
     if project is None or not args.files:
         print("record needs --project and --files, or --from-hook", file=sys.stderr)
         return 2
-    _, line = _record(project, [normalize(project, raw) for raw in args.files], args.holder)
+    _, line = _record(project, args.files, args.holder, resolve_paths=True)
     print(line)
     return 0
 

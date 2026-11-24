@@ -601,6 +601,60 @@ class PathClaimsTests(unittest.TestCase):
         self.run_cli("record", "--from-hook", "--holder", "s1", stdin=json.dumps(notebook))
         self.assertEqual(self.read_edits()[1]["files"], ["n.ipynb"])
 
+    def test_native_direct_record_resolves_all_files_before_append(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        scope = self.project / "scope"
+        scope.mkdir()
+        actual = scope / "한글.ts"
+        actual.touch()
+        (scope / "alias.ts").symlink_to(actual)
+        outside = self.project / "outside.ts"
+        outside.touch()
+        (scope / "escape.ts").symlink_to(outside)
+        args = ("record", "--project", str(scope), "--holder", "editor", "--files")
+        log = path_claims.edits_log(scope)
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.object(path_claims, "normalize", side_effect=AssertionError("Python normalized record")):
+                code, output = self.run_cli(*args, "alias.ts", ".", str(actual), "alias.ts")
+                self.assertEqual(code, 0)
+                self.assertEqual(json.loads(output)["files"], ["한글.ts", ".", "한글.ts", "한글.ts"])
+                stderr, stdout = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(stdout):
+                    self.assertEqual(path_claims.main([*args, "alias.ts", "./escape.ts"]), 1)
+                self.assertEqual(stdout.getvalue(), "")
+                self.assertEqual(stderr.getvalue(), "outside the project: ./escape.ts\n")
+            self.assertEqual(log.read_bytes(), output.encode())
+
+            request = path_claims.NativeProbe.request
+
+            def old_launcher(protocol, operation, payload):
+                if operation == "live-web-edit-record":
+                    return None
+                return request(protocol, operation, payload)
+
+            with mock.patch.object(path_claims.NativeProbe, "request", side_effect=old_launcher) as probe:
+                code, output = self.run_cli(*args, "alias.ts", "new.ts")
+                self.assertEqual(code, 0)
+                self.assertEqual(json.loads(output)["files"], ["한글.ts", "new.ts"])
+                self.assertEqual([call.args[1] for call in probe.call_args_list],
+                                 ["live-web-edit-record", "live-web-edit-append"])
+            self.assertEqual(log.read_bytes().splitlines()[-1], output.strip().encode())
+
+            dangling = scope / "dangling.ts"
+            dangling.symlink_to(self.project / "missing.ts")
+            before = log.read_bytes()
+            with mock.patch.object(path_claims, "normalize", wraps=path_claims.normalize) as normalize:
+                self.assertEqual(self.run_cli(*args, "alias.ts", "dangling.ts"), (1, ""))
+                self.assertEqual(normalize.call_count, 2)
+            self.assertEqual(log.read_bytes(), before)
+
     def test_native_hook_binds_project_and_falls_back_for_missing_targets(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment
