@@ -304,6 +304,35 @@ def apply_plan(inbox: Path, folds: list[dict]) -> int:
     return written
 
 
+def _apply_report(inbox: Path, folds: list[dict], stale: list[str], removed: int, now: datetime) -> int:
+    written = apply_plan(inbox, folds)
+    print(f"folded {written} lessons; {removed} files removed")
+    marked = mark_stale(inbox, stale, now)
+    print(f"marked {marked} lessons stale")
+    return 0
+
+
+def _read_native_apply_report(inbox: Path, native: dict) -> tuple[list[dict], list[str], int] | None:
+    if native.keys() != {"output", "folds", "stale", "removed"}:
+        return None
+    stale, removed = native["stale"], native["removed"]
+    if (not isinstance(native["folds"], list)
+            or not isinstance(stale, list) or not all(isinstance(lesson, str) for lesson in stale)
+            or type(removed) is not int or removed < 0):
+        return None
+    folds = []
+    try:
+        for lesson, names in native["folds"]:
+            if not isinstance(lesson, str) or not isinstance(names, list) or not names:
+                return None
+            folds.append({"lesson_id": lesson, "paths": [_record_path(inbox, name) for name in names]})
+    except (TypeError, ValueError):
+        return None
+    if sum(len(fold["paths"]) - 1 for fold in folds) != removed:
+        return None
+    return folds, stale, removed
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--state-home", type=Path, default=None)
@@ -321,13 +350,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     now = datetime.now(timezone.utc)
-    if not args.apply:
-        native = NativeProbe.request("--completion-probe", "lesson-compaction-preview", {
-            "inbox": str(inbox), "now": now.isoformat(), "stale_days": STALE_AFTER.days,
-            "key_limit": OCCURRENCE_KEY_HISTORY_LIMIT, "recent_days": RECENT_OCCURRENCE_DAYS,
-            "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
-        })
-        if native is not None and native.keys() == {"output"} and isinstance(native["output"], str):
+    operation = "lesson-compaction-apply-report" if args.apply else "lesson-compaction-preview"
+    native = NativeProbe.request("--completion-probe", operation, {
+        "inbox": str(inbox), "now": now.isoformat(), "stale_days": STALE_AFTER.days,
+        "key_limit": OCCURRENCE_KEY_HISTORY_LIMIT, "recent_days": RECENT_OCCURRENCE_DAYS,
+        "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+    })
+    if native is not None and isinstance(native.get("output"), str):
+        if args.apply:
+            actions = _read_native_apply_report(inbox, native)
+            if actions is not None:
+                folds, stale, removed = actions
+                print(native["output"], end="")
+                return _apply_report(inbox, folds, stale, removed, now)
+        elif native.keys() == {"output"}:
             print(native["output"], end="")
             return 0
     report = plan(inbox, now)
@@ -348,11 +384,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.apply:
         print("nothing written; pass --apply to fold")
         return 0
-    written = apply_plan(inbox, report["folds"])
-    print(f"folded {written} lessons; {removed} files removed")
-    marked = mark_stale(inbox, report["stale"], now)
-    print(f"marked {marked} lessons stale")
-    return 0
+    return _apply_report(inbox, report["folds"], report["stale"], removed, now)
 
 
 main_with_arguments = main

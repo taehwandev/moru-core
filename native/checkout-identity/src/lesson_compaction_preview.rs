@@ -1,4 +1,4 @@
-//! owner: read-only dry-run report for lesson compaction.
+//! owner: read-only report and advisory selection for lesson compaction.
 //! allowed imports: bounded lesson inbox, deterministic merge, and text formatting.
 //! forbidden imports: writer locks, mutations and workflow authority.
 //! callers/tests: lessons-compact dry run and test_lessons_compact.
@@ -14,6 +14,14 @@ pub(super) struct LessonCompactionPreview;
 
 impl LessonCompactionPreview {
     pub(super) fn probe(input: &Json) -> Option<Json> {
+        Self::report(input, false)
+    }
+
+    pub(super) fn apply_report(input: &Json) -> Option<Json> {
+        Self::report(input, true)
+    }
+
+    fn report(input: &Json, apply: bool) -> Option<Json> {
         let inbox = input.get("inbox")?.as_str()?;
         let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let keys = input.get("key_limit")?.as_u64()?.try_into().ok()?;
@@ -29,27 +37,29 @@ impl LessonCompactionPreview {
         let lessons = snapshot.groups.len();
         let records: usize = snapshot.groups.iter().map(|(_, group)| group.len()).sum();
         let mut folds = Vec::new();
-        let mut stale = 0;
+        let mut stale = Vec::new();
         snapshot.groups.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
         for (lesson, group) in snapshot.groups {
-            let length = group.len();
-            let needs_fold = length != 1 || group.first()?.0 != format!("{lesson}.json");
-            let group: Vec<_> = group.into_iter().map(|(_, record, _)| record).collect();
-            let merged = LessonCompactionMerge::merge(&group, keys, days)?;
+            let (names, records): (Vec<_>, Vec<_>) = group
+                .into_iter()
+                .map(|(name, record, _)| (name, record))
+                .unzip();
+            let needs_fold = names.len() != 1 || names.first()? != &format!("{lesson}.json");
+            let merged = LessonCompactionMerge::merge(&records, keys, days)?;
             if LessonCompactionMerge::newly_stale(&merged, cutoff)? {
-                stale += 1;
+                stale.push(lesson.clone());
             }
             if needs_fold {
                 let Value::Number(Number::Integer(count)) = &merged["occurrence_count"] else {
                     return None;
                 };
-                folds.push((lesson, length, count.clone()));
+                folds.push((lesson, names, count.clone()));
             }
         }
-        let removed: usize = folds.iter().map(|(_, length, _)| length - 1).sum();
+        let removed: usize = folds.iter().map(|(_, names, _)| names.len() - 1).sum();
         let mut output = format!(
-            "inbox: {inbox}\nrecords: {records}  lessons: {lessons}\nlessons to fold: {}  files to remove: {removed}\nlessons to mark stale (unseen 14+ days): {stale}\n",
-            folds.len()
+            "inbox: {inbox}\nrecords: {records}  lessons: {lessons}\nlessons to fold: {}  files to remove: {removed}\nlessons to mark stale (unseen 14+ days): {}\n",
+            folds.len(), stale.len()
         );
         if !snapshot.unreadable.is_empty() {
             writeln!(
@@ -62,13 +72,24 @@ impl LessonCompactionPreview {
                 writeln!(output, "    {name}").ok()?;
             }
         }
-        folds.sort_by_key(|(_, length, _)| Reverse(*length));
-        for (lesson, length, count) in folds.iter().take(5) {
+        let mut displayed: Vec<_> = folds.iter().collect();
+        displayed.sort_by_key(|(_, names, _)| Reverse(names.len()));
+        for (lesson, names, count) in displayed.into_iter().take(5) {
             writeln!(
                 output,
-                "    {lesson}: {length} files -> 1, occurrences {count}"
+                "    {lesson}: {} files -> 1, occurrences {count}",
+                names.len()
             )
             .ok()?;
+        }
+        if apply {
+            let folds: Vec<_> = folds
+                .into_iter()
+                .map(|(lesson, names, _)| (lesson, names))
+                .collect();
+            return Some(
+                json!({"output": output, "folds": folds, "stale": stale, "removed": removed}),
+            );
         }
         output.push_str("nothing written; pass --apply to fold\n");
         Some(json!({"output": output}))

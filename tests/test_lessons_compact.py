@@ -161,6 +161,58 @@ class CompactionTests(unittest.TestCase):
                 self.assertIn("folded 0 lessons", run("--apply"))
                 self.assertNotIn("lesson-compaction-preview", [call.args[1] for call in request.call_args_list])
 
+    def test_native_apply_report_matches_python_and_keeps_guarded_writes(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        reference = self.state / "reference"
+        for root in (self.state, reference):
+            inbox = compact.inbox_path(root)
+            inbox.mkdir(parents=True, exist_ok=True)
+            for index in (1, 2):
+                record = _candidate("lesson", f"2026-01-0{index}T00:00:00Z", occurrence_count=index)
+                (inbox / f"{index}-lesson.json").write_text(json.dumps(record), encoding="utf-8")
+            (inbox / "broken.json").write_text("{broken", encoding="utf-8")
+            with state_lock(inbox / "lesson.json"):
+                pass
+
+        def run(root):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(compact.main(["--state-home", str(root), "--apply"]), 0)
+            return out.getvalue().splitlines()[1:]
+
+        with mock.patch.dict(os.environ, environment(self.state, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = run(reference)
+            with mock.patch.object(compact, "plan", side_effect=AssertionError("Python assembled apply report")):
+                self.assertEqual(run(self.state), expected)
+            request = compact.NativeProbe.request
+
+            def malformed(protocol, operation, payload):
+                if operation == "lesson-compaction-apply-report":
+                    return {"output": "unexpected\n", "folds": [["lesson", ["../outside.json"]]],
+                            "stale": [], "removed": 0}
+                return request(protocol, operation, payload)
+
+            with (
+                mock.patch.object(compact.NativeProbe, "request", side_effect=malformed),
+                mock.patch.object(compact, "plan", wraps=compact.plan) as fallback,
+            ):
+                self.assertEqual(run(self.state)[-2:], ["folded 0 lessons; 0 files removed", "marked 0 lessons stale"])
+                fallback.assert_called_once()
+        self.assertEqual(expected[-2:], ["folded 1 lessons; 1 files removed", "marked 1 lessons stale"])
+        self.assertEqual(self._files(), {"lesson.json", "broken.json"})
+        self.assertEqual((self.inbox / "lesson.json").read_bytes(),
+                         (compact.inbox_path(reference) / "lesson.json").read_bytes())
+
     def test_native_plan_preserves_keys_calendar_and_strict_staleness(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment
