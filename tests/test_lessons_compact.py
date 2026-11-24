@@ -14,12 +14,16 @@ it would have counted before.
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
+import os
 import sys
 import tempfile
 import threading
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -67,6 +71,52 @@ class CompactionTests(unittest.TestCase):
 
     def _files(self) -> set[str]:
         return {path.name for path in self.inbox.glob("*.json")}
+
+    def test_native_inbox_matches_plan_and_leaves_files_untouched(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        date = "2026-01-01T00:00:00Z"
+        self._write("a-legacy.json", _candidate("한글", date, extra=10 ** 40))
+        self._write("b-numeric.json", _candidate(12, date))
+        self._write("c-legacy.json", _candidate("한글", date))
+        self._write("ignored.txt", _candidate("ignored", date))
+        self._write("empty-id.json", _candidate(False, date))
+        (self.inbox / "broken.json").write_text("{broken", encoding="utf-8")
+        (self.inbox / "list.json").write_text("[]", encoding="utf-8")
+        before = {path.name: path.read_bytes() for path in self.inbox.iterdir()}
+
+        def dry_run():
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(compact.main(["--state-home", str(self.state)]), 0)
+            return out.getvalue()
+
+        with mock.patch.dict(os.environ, environment(self.state, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = compact.read_records(self.inbox)
+                report = dry_run()
+            with mock.patch.object(Path, "read_text", side_effect=AssertionError("Python read the candidate")):
+                actual = compact.read_records(self.inbox)
+                self.assertEqual(dry_run(), report)
+            self.assertEqual(actual, expected)
+            self.assertEqual(list(actual[0]), ["한글", "12"])
+            self.assertEqual([path.name for path in actual[1]], ["broken.json", "empty-id.json", "list.json"])
+            self.assertEqual({path.name: path.read_bytes() for path in self.inbox.iterdir()}, before)
+
+            link = self.inbox / "z-link.json"
+            link.symlink_to(self.inbox / "a-legacy.json")
+            self.assertIsNone(compact.NativeProbe.request("--completion-probe", "lesson-compaction-inbox", {
+                "inbox": str(self.inbox), "digit_limit": 0,
+            }))
+            self.assertEqual(compact.read_records(self.inbox)[0]["한글"][-1][0], link)
 
     def test_the_merged_count_is_the_sum_the_store_reads(self) -> None:
         for day in ("01", "02", "03"):

@@ -47,6 +47,7 @@ from agent_lesson_files import _read_lesson_records  # noqa: E402
 from agent_lesson_store import _merged_occurrence_keys, merged_recent_occurrences  # noqa: E402
 from agent_state_lock import state_lock  # noqa: E402
 from support.global_state import global_state_dir  # noqa: E402
+from support.native_probe_transport import NativeProbe  # noqa: E402
 
 
 def inbox_path(state_home: Path) -> Path:
@@ -55,6 +56,19 @@ def inbox_path(state_home: Path) -> Path:
 
 def read_records(inbox: Path) -> tuple[dict[str, list[tuple[Path, dict]]], list[Path]]:
     """Group readable records by lesson id, and report the ones that are not."""
+
+    result = NativeProbe.request("--completion-probe", "lesson-compaction-inbox", {
+        "inbox": str(inbox), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+    })
+    if result is not None and result.keys() == {"groups", "unreadable"}:
+        try:
+            groups = {
+                lesson: [(_record_path(inbox, name), json.loads(raw)) for name, raw in items]
+                for lesson, items in result["groups"]
+            }
+            return groups, [_record_path(inbox, name) for name in result["unreadable"]]
+        except (TypeError, ValueError):
+            pass
 
     groups: dict[str, list[tuple[Path, dict]]] = {}
     unreadable: list[Path] = []
@@ -73,6 +87,12 @@ def read_records(inbox: Path) -> tuple[dict[str, list[tuple[Path, dict]]], list[
             continue
         groups.setdefault(lesson_id, []).append((path, record))
     return groups, unreadable
+
+
+def _record_path(inbox: Path, name: str) -> Path:
+    if not isinstance(name, str) or Path(name).name != name or not name.endswith(".json"):
+        raise ValueError("invalid lesson inbox record name")
+    return inbox / name
 
 
 def merge_group(records: list[dict]) -> dict:

@@ -583,10 +583,12 @@
       "id": "scripts/lessons-compact.py",
       "inventory_id": 42,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port merge and stale classification, report and CLI rendering, apply under the writer lock, and unsupported inbox profiles. Verify portable and installed execution.",
+      "verification": {
+        "local": "Rust reads and groups bounded regular-file inbox snapshots by the payload lesson ID in filename order. The reader preserves original JSON values, unreadable entries and pre-write decline. Compaction writes still reread under the existing writer lock."
+      }
     },
     {
       "id": "scripts/live_device.py",
