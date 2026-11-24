@@ -9,17 +9,48 @@ use crate::{
     overhead_clock::OverheadClock,
     python_json::{Object, PythonJson, Value},
 };
-use serde_json::Value as Json;
+use serde_json::{json, Value as Json};
 use std::{
     ffi::{CStr, CString},
     fs::File,
     io::{self, Read, Write},
     path::Path,
+    time::Instant,
 };
 
 pub(super) struct PathClaimWrite;
 
 impl PathClaimWrite {
+    pub(super) fn batch(input: &Json) -> Option<io::Result<Json>> {
+        let project = input.get("project")?.as_str()?;
+        let holder = input.get("holder")?.as_str()?;
+        let ttl = input.get("ttl")?.as_i64()?;
+        let now = input.get("now")?.as_f64()?;
+        let digit_limit = input.get("digit_limit")?.as_u64()?;
+        let paths = input.get("paths")?.as_array()?;
+        if paths.is_empty() || paths.len() > 128 {
+            return None;
+        }
+        let paths = paths.iter().map(Json::as_str).collect::<Option<Vec<_>>>()?;
+        // Advance the caller's wall-clock sample between writes using elapsed time.
+        let started = Instant::now();
+        for (index, path) in paths.iter().enumerate() {
+            let result = Self::write(&json!({
+                "project": project, "digit_limit": digit_limit,
+                "now": now + started.elapsed().as_secs_f64(), "ttl": ttl,
+                "entry": {"path": path, "holder": holder},
+            }));
+            match result {
+                Some(Ok(true)) => {}
+                Some(Ok(false)) => return Some(Ok(json!({"written": index, "blocked": true}))),
+                Some(Err(error)) => return Some(Err(error)),
+                None if index == 0 => return None,
+                None => return Some(Ok(json!({"written": index, "blocked": false}))),
+            }
+        }
+        Some(Ok(json!({"written": paths.len(), "blocked": false})))
+    }
+
     // None means that no claim file was created or replaced.
     pub(super) fn write(input: &Json) -> Option<io::Result<bool>> {
         let project = Path::new(input.get("project")?.as_str()?);

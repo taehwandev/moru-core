@@ -238,18 +238,40 @@ def try_claim(project: Path, paths: list[str], holder: str, ttl: int) -> list[di
     if blocking:
         return blocking
     started = _iso(_now())
-    written = []
-    for path in paths:
-        if not _write_claim(project, path, holder, ttl):
-            release(project, written, holder)
-            return conflicts(project, [path], holder) or [{"path": path, "holder": "?", "since": "?"}]
-        written.append(path)
+    written, blocked = _write_claims(project, paths, holder, ttl)
+    if blocked is not None:
+        release(project, written, holder)
+        return conflicts(project, [blocked], holder) or [{"path": blocked, "holder": "?", "since": "?"}]
     # A concurrent claimer may have taken an overlapping path between the scan
     # and the create. The later (since, holder) backs off, so one side keeps it.
     lost = _find_conflicts(project, paths, holder, started=started)
     if lost:
         release(project, written, holder)
     return lost
+
+
+def _write_claims(project: Path, paths: list[str], holder: str, ttl: int) -> tuple[list[str], Optional[str]]:
+    written = []
+    remaining = paths
+    if type(paths) is list and 2 <= len(paths) <= 128 and all(type(path) is str for path in paths):
+        result = NativeProbe.request("--completion-probe", "path-claim-write-batch", {
+            "project": str(project), "paths": paths, "holder": holder, "now": _now(), "ttl": ttl,
+            "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+        })
+        if result is not None:
+            count, blocked = result.get("written"), result.get("blocked")
+            if (result.keys() != {"written", "blocked"} or type(count) is not int or type(blocked) is not bool
+                    or not 0 <= count <= len(paths) or (blocked and count == len(paths))):
+                raise OSError("invalid native path claim batch receipt")
+            written = paths[:count]
+            if blocked:
+                return written, paths[count]
+            remaining = paths[count:]
+    for path in remaining:
+        if not _write_claim(project, path, holder, ttl):
+            return written, path
+        written.append(path)
+    return written, None
 
 
 def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict]:

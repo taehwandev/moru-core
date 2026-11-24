@@ -561,24 +561,23 @@ class PathClaimsTests(unittest.TestCase):
             {"path": "unrelated", "holder": "other", "expires": expiry},
         ]
         directory = path_claims.claims_dir(self.project)
-        write = path_claims._write_claim
+        request = path_claims.NativeProbe.request
 
-        def write_with_race(project, path, owner, ttl):
-            self.assertTrue(write(project, path, owner, ttl))
-            if path == paths[-1]:
+        def write_with_race(protocol, operation, payload):
+            result = request(protocol, operation, payload)
+            if operation == "path-claim-write-batch":
+                self.assertEqual(result, {"written": len(paths), "blocked": False})
                 for index, claim in enumerate(contenders):
                     (directory / f"race-{index}.json").write_text(json.dumps(claim), encoding="utf-8")
-            return True
+            return result
 
         with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
-            with mock.patch.object(path_claims, "_write_claim", side_effect=write_with_race), (
+            with mock.patch.object(path_claims.NativeProbe, "request", side_effect=write_with_race), (
                 mock.patch.object(path_claims, "overlaps", side_effect=AssertionError("Python arbitrated claims"))
             ):
                 self.assertEqual(path_claims.try_claim(self.project, paths, holder, 60), [earlier, tie])
             self.assertEqual(sorted(entry.name for entry in directory.iterdir()),
                              [f"race-{index}.json" for index in range(len(contenders))])
-
-            request = path_claims.NativeProbe.request
 
             def old_launcher(protocol, operation, payload):
                 if operation == "path-claim-scan":
@@ -587,6 +586,59 @@ class PathClaimsTests(unittest.TestCase):
 
             with mock.patch.object(path_claims.NativeProbe, "request", side_effect=old_launcher):
                 self.assertEqual(path_claims._find_conflicts(self.project, paths, holder, started=started), [earlier, tie])
+
+    def test_native_batch_resumes_partial_prefix_and_does_not_replay_lost_reply(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        directory = path_claims.claims_dir(self.project)
+        directory.mkdir(parents=True)
+        paths = ["one", "broken", "untouched"]
+        broken = path_claims._claim_file(self.project, "broken")
+        broken.write_text("{broken", encoding="utf-8")
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.object(path_claims, "_write_claim", wraps=path_claims._write_claim) as write:
+                self.assertEqual(path_claims._write_claims(self.project, paths, "editor", 60), (["one"], "broken"))
+                write.assert_called_once_with(self.project, "broken", "editor", 60)
+            self.assertTrue(path_claims._claim_file(self.project, "one").exists())
+            self.assertFalse(path_claims._claim_file(self.project, "untouched").exists())
+            self.assertEqual(broken.read_text(), "{broken")
+
+            self.assertTrue(path_claims._write_claim(self.project, "foreign", "other", 60))
+            with mock.patch.object(path_claims, "_write_claim", side_effect=AssertionError("Python retried contention")):
+                self.assertEqual(path_claims._write_claims(
+                    self.project, ["four", "foreign", "untouched"], "editor", 60
+                ), (["four"], "foreign"))
+            self.assertEqual(json.loads(path_claims._claim_file(self.project, "foreign").read_text())["holder"], "other")
+            self.assertFalse(path_claims._claim_file(self.project, "untouched").exists())
+
+            with mock.patch.object(path_claims.NativeProbe, "request", return_value={"written": 3, "blocked": False}), (
+                mock.patch.object(path_claims, "_write_claim", side_effect=AssertionError("Python trusted invalid count"))
+            ):
+                with self.assertRaisesRegex(OSError, "invalid native path claim batch receipt"):
+                    path_claims._write_claims(self.project, ["five", "six"], "editor", 60)
+
+            invoke = subprocess.run
+
+            def lose_batch_reply(command, **kwargs):
+                result = invoke(command, **kwargs)
+                self.assertEqual(command[-1], "path-claim-write-batch")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+
+            with mock.patch.object(subprocess, "run", side_effect=lose_batch_reply) as process, (
+                mock.patch.object(path_claims, "_write_claim", side_effect=AssertionError("Python replayed batch"))
+            ):
+                with self.assertRaisesRegex(OSError, "batch outcome could not be determined"):
+                    path_claims._write_claims(self.project, ["two", "three"], "editor", 60)
+                process.assert_called_once()
+            for path in ("two", "three"):
+                self.assertEqual(json.loads(path_claims._claim_file(self.project, path).read_text())["path"], path)
 
     def test_wait_gives_up_after_timeout(self) -> None:
         self.claim("a", "src/x.tsx")

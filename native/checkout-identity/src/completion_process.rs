@@ -209,6 +209,13 @@ impl CompletionProcess {
                 None => 125,
             };
         }
+        if args[1] == "path-claim-write-batch" {
+            return match path_claim_write::PathClaimWrite::batch(&payload) {
+                Some(Ok(receipt)) => Self::respond(Some(receipt)),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "live-web-edit-append" {
             return match live_web_edit_log::LiveWebEditLog::append(&payload) {
                 Some(Ok(receipt)) => Self::respond(Some(receipt)),
