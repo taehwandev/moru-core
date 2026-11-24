@@ -370,19 +370,33 @@ def _owner_review_input(
     path: Path, declarations: list[dict[str, Any]], previous_declarations: list[dict[str, Any]],
 ) -> dict[str, Any]:
     suffix = path.suffix.lower()
-    if suffix in NEXT_ENTRY_SUFFIXES:
-        return _owner_review_facts(path, declarations, previous_declarations)
     fields = ("kind", "name", "line", "receiver", "role", "private", "internal", "exported")
     dart = suffix == ".dart"
-    if dart:
+    javascript = suffix in NEXT_ENTRY_SUFFIXES
+    if dart or javascript:
         fields += ("source",)
-    return {
+
+    def project(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {**{key: row[key] for key in fields},
+             **({"references": sorted(row.get("references", ()))} if javascript else {})}
+            for row in rows
+        ]
+
+    result: dict[str, Any] = {
         "path": str(path), "group_extensions": suffix in {".kt", ".kts"},
         "default_export": exported_by_default(path), "group_sealed": dart,
         "unicode": unicodedata.unidata_version,
-        "declarations": [{key: row[key] for key in fields} for row in declarations],
-        "previous_declarations": [{key: row[key] for key in fields} for row in previous_declarations],
+        "declarations": project(declarations),
+        "previous_declarations": project(previous_declarations),
     }
+    if javascript:
+        result["javascript"] = {
+            "typescript": suffix in {".ts", ".tsx"}, "mode": _next_adapter_mode(path),
+            "methods": sorted(NEXT_ROUTE_METHODS), "segment": sorted(NEXT_SEGMENT_CONFIG),
+            "hooks": sorted(NEXT_PAGE_HOOKS),
+        }
+    return result
 
 
 def _owner_input_findings(row: dict[str, Any]) -> list[str]:
@@ -474,31 +488,41 @@ def _owner_findings(facts: dict[str, Any]) -> list[str]:
     return failures
 
 
+def _next_adapter_mode(path: Path) -> str:
+    in_app_router = path.parts[:2] == ("src", "app") or path.parts[:1] == ("app",)
+    if in_app_router and path.suffix in NEXT_ENTRY_SUFFIXES:
+        if path.stem in NEXT_PAGE_FILE_STEMS:
+            return "page"
+        if path.stem == "route":
+            return "route"
+    return "none"
+
+
 def coalesce_next_route_adapter(path: Path, declarations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Keep App Router method/config exports in their framework entrypoint family.
 
     This does not admit an additional public helper or relax block/import checks.
     Class and type declarations remain ordinary owners even with reserved names.
     """
-    in_app_router = path.parts[:2] == ("src", "app") or path.parts[:1] == ("app",)
-    if in_app_router and path.stem in NEXT_PAGE_FILE_STEMS and path.suffix in NEXT_ENTRY_SUFFIXES:
+    mode = _next_adapter_mode(path)
+    if mode == "page":
         # A page/layout must export its segment config and metadata hooks beside the default component.
         page = [item for item in declarations if item["source"].startswith("export default ")
                 and item["kind"] in {"function", "const"}]
         reserved = [item for item in declarations if item["exported"] and item["kind"] in {"function", "const"}
                     and item["name"] in NEXT_SEGMENT_CONFIG | NEXT_PAGE_HOOKS]
         return next_adapter_family(declarations, page + reserved, "NextPageAdapter") if page and reserved else declarations
-    if not (in_app_router and path.stem == "route" and path.suffix in NEXT_ENTRY_SUFFIXES):
+    if mode != "route":
         return declarations
-    methods = {"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}
     adapter = [item for item in declarations if item["exported"] and item["kind"] in {"function", "const"}
-               and item["name"] in methods | NEXT_SEGMENT_CONFIG]
-    if len(adapter) < 2 or not any(item["name"] in methods for item in adapter):
+               and item["name"] in NEXT_ROUTE_METHODS | NEXT_SEGMENT_CONFIG]
+    if len(adapter) < 2 or not any(item["name"] in NEXT_ROUTE_METHODS for item in adapter):
         return declarations
     return next_adapter_family(declarations, adapter, "NextRouteAdapter")
 
 
 NEXT_ENTRY_SUFFIXES = {".ts", ".tsx", ".js", ".jsx"}
+NEXT_ROUTE_METHODS = {"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}
 NEXT_PAGE_FILE_STEMS = {"page", "layout", "template", "default"}
 NEXT_SEGMENT_CONFIG = {"dynamic", "dynamicParams", "revalidate", "fetchCache", "runtime", "preferredRegion", "maxDuration"}
 NEXT_PAGE_HOOKS = {"generateMetadata", "generateStaticParams", "generateViewport", "metadata", "viewport"}

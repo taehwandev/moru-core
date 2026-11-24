@@ -702,6 +702,55 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_owner_facts_group_js_adapters_and_typescript_baselines(self):
+        cases = [
+            ("src/app/route.ts", [
+                "export const runtime = 'edge';",
+                "export class runtime {}",
+                "export function GET() {}",
+            ], [], ["runtime@2, NextRouteAdapter@1"]),
+            ("src/app/model/route.ts", [
+                "export const runtime = 'edge';",
+                "export type ResponseModel = { value: string };",
+                "export function GET(): ResponseModel {}",
+            ], [], []),
+            ("app/page.jsx", [
+                "export function generateMetadata() {}",
+                "export function Extra() {}",
+                "export default function Page() {}",
+            ], [], ["Extra@2, NextPageAdapter@1"]),
+            ("src/cycle.ts", ["export type Alpha = Beta;", "export type Beta = Alpha;"], [],
+             ["Alpha@1, Beta@2"]),
+            ("src/kept.ts", ["export function Endpoint() {}", "export type Input = string;"],
+             ["export function Endpoint(input: Input) {}", "export type Input = string;"], []),
+            ("src/export-change.ts", ["export function Endpoint() {}", "export type Input = string;"],
+             ["export function Endpoint(input: Input) {}", "type Input = string;"], ["Endpoint@1, Input@2"]),
+        ]
+        rows = []
+        expected = []
+        for name, source, baseline, labels in cases:
+            path = Path(name)
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                current = purpose.top_level_type_declarations(path, source)
+                previous = purpose.top_level_type_declarations(path, baseline)
+            row = purpose._owner_review_input(path, current, previous)
+            faults = purpose._owner_findings(purpose._owner_review_facts(path, current, previous))
+            self.assertEqual(faults, purpose._owner_input_findings(row))
+            if labels:
+                for label in labels:
+                    self.assertIn(label, "\n".join(faults))
+            else:
+                self.assertEqual([], faults)
+            rows.append(row)
+            expected.extend(faults)
+        with patch.dict(os.environ, self.env, clear=True):
+            _, layout = structure._file_findings([], source_layout={
+                "limit": 20, "paths": [[row["path"], "M"] for row in rows],
+                "owners": {"files": rows, "public_limit": purpose.MAX_PUBLIC_TOP_LEVEL_OWNERS,
+                           "visible_limit": purpose.MAX_TOP_LEVEL_OWNERS, "role_pairs": purpose.MIXED_ROLE_BLOCKS},
+            })
+        self.assertEqual(expected, layout["owner_failures"])
+
     def test_structure_native_owner_facts_group_dart_sealed_members_by_header(self):
         path = Path("lib/events.DART")
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
@@ -769,7 +818,7 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertNotIn("hiddenRepo", expected["role_labels"])
         failures = purpose._owner_findings(expected)
         self.assertEqual(failures, purpose._owner_input_findings(row))
-        self.assertNotIn("declarations", purpose._owner_review_input(Path("app/page.jsx"), [], []))
+        self.assertEqual("page", purpose._owner_review_input(Path("app/page.jsx"), [], [])["javascript"]["mode"])
         owners = {
             "files": [row], "public_limit": purpose.MAX_PUBLIC_TOP_LEVEL_OWNERS,
             "visible_limit": purpose.MAX_TOP_LEVEL_OWNERS, "role_pairs": purpose.MIXED_ROLE_BLOCKS,

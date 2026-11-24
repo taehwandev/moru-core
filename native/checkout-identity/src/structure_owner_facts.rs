@@ -6,6 +6,9 @@
 use crate::{python_text::PythonText, text::Text};
 use serde_json::{json, Value};
 use std::collections::{BTreeSet, HashMap, HashSet};
+#[path = "structure_js_families.rs"]
+mod structure_js_families;
+use structure_js_families::StructureJsFamilies;
 
 pub(super) struct StructureOwnerFacts;
 
@@ -23,13 +26,18 @@ impl StructureOwnerFacts {
         let kotlin = input.get("group_extensions")?.as_bool()?;
         let dart = input.get("group_sealed")?.as_bool()?;
         let default_export = input.get("default_export")?.as_bool()?;
-        let current = Self::visible(input.get("declarations")?, kotlin, dart, default_export)?;
-        let previous = Self::visible(
-            input.get("previous_declarations")?,
-            kotlin,
-            dart,
-            default_export,
-        )?;
+        let grouped;
+        let (raw_current, raw_previous) = if let Some(policy) = input.get("javascript") {
+            grouped = StructureJsFamilies::prepare(input, policy)?;
+            (&grouped.0, &grouped.1)
+        } else {
+            (
+                input.get("declarations")?,
+                input.get("previous_declarations")?,
+            )
+        };
+        let current = Self::visible(raw_current, kotlin, dart, default_export)?;
+        let previous = Self::visible(raw_previous, kotlin, dart, default_export)?;
         if dart
             && !PythonText::matches_unicode_version(input.get("unicode")?.as_str()?)
             && current
