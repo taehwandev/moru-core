@@ -19,12 +19,14 @@ _SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 from support.provider_http import open_provider_request
+from support.native_probe_transport import NativeProbe
 
 ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 MODEL = "inception/mercury-decide:free"
 PAID_MODEL = "microsoft/microsoft-decision-1"
 CACHE_SCHEMA = 1
 MAX_REQUEST_BYTES = 24_000
+_SOURCE_FIELDS = ("url", "title", "text", "published_at")
 QUESTIONS = {
     "relevant": {
         "type": "noul",
@@ -125,10 +127,9 @@ def validate_response(response: object) -> dict:
 
 
 def request_for(query: str, source: dict, model: str) -> dict:
-    fields = ("url", "title", "text", "published_at")
     return {
         "model": model,
-        "state": {"query": query, "source": {k: source[k] for k in fields if k in source}},
+        "state": {"query": query, "source": {k: source[k] for k in _SOURCE_FIELDS if k in source}},
         "questions": QUESTIONS,
         "provider": {"allow_fallbacks": False},
     }
@@ -138,6 +139,29 @@ def cache_key(request: dict) -> str:
     contents = {"schema": CACHE_SCHEMA, "endpoint": ENDPOINT, "request": request}
     encoded = json.dumps(contents, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _cache_plan(payload: dict, model: str) -> list | None:
+    if not payload["sources"] or not NativeProbe.available():
+        return None
+    prepare = NativeProbe.request("--decision-cache-probe", "prepare", {
+        "schema": CACHE_SCHEMA, "endpoint": ENDPOINT, "questions": QUESTIONS,
+        "query": payload["query"], "model": model,
+        "sources": [{k: source[k] for k in _SOURCE_FIELDS if k in source} for source in payload["sources"]],
+    })
+    if prepare is None or set(prepare) != {"rows"}:
+        return None
+    rows = prepare["rows"]
+    if type(rows) is not list or len(rows) != len(payload["sources"]):
+        return None
+    for row in rows:
+        if type(row) is not list or len(row) != 2:
+            return None
+        key, size = row
+        if (type(key) is not str or len(key) != 64 or any(c not in "0123456789abcdef" for c in key)
+                or type(size) is not int or size <= 0):
+            return None
+    return rows
 
 
 def read_cached(path: Path, key: str, now: float, ttl: float) -> dict | None:
@@ -210,9 +234,15 @@ def evaluate(payload: dict, options: argparse.Namespace) -> dict:
     results, evaluated, warnings = [], {}, []
     calls, hits, cost, known_costs = 0, 0, 0.0, 0
     can_call = options.execute and bool(api_key)
-    for source in payload["sources"]:
-        request = request_for(payload["query"], source, options.model)
-        key = cache_key(request)
+    plan = _cache_plan(payload, options.model)
+    for index, source in enumerate(payload["sources"]):
+        request = None
+        if plan is None:
+            request = request_for(payload["query"], source, options.model)
+            key = cache_key(request)
+            size = None
+        else:
+            key, size = plan[index]
         path = options.cache_dir / (key + ".json")
         result = evaluated.get(key)
         if result is None and not options.refresh:
@@ -226,9 +256,13 @@ def evaluate(payload: dict, options: argparse.Namespace) -> dict:
             if options.execute and api_key:
                 reason = "call_limit" if calls >= options.max_calls else "provider_unavailable"
             item.update(status="unscored", reason=reason)
-        elif len(json.dumps(request, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()) > MAX_REQUEST_BYTES:
+        elif (size if size is not None else len(
+            json.dumps(request, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
+        )) > MAX_REQUEST_BYTES:
             item.update(status="unscored", reason="request_too_large")
         else:
+            if request is None:
+                request = request_for(payload["query"], source, options.model)
             calls += 1
             try:
                 result = validate_response(send_request(request, api_key))

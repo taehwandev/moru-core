@@ -23,7 +23,7 @@ class NativeProbe:
     def request(
         protocol: str, operation: str, payload: dict, *, verified_launcher: Path | None = None,
     ) -> dict | None:
-        if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe", "--workflow-query-probe"}:
+        if protocol not in {"--completion-probe", "--registry-read-probe", "--overhead-probe", "--cards-probe", "--doc-transcript-probe", "--memory-probe", "--setup-probe", "--workflow-query-probe", "--decision-cache-probe"}:
             return None
         if verified_launcher is not None and (protocol, operation) != ("--completion-probe", "doctor-launcher"):
             return None
@@ -84,10 +84,13 @@ class NativeProbe:
             return None
         if len(raw) > 1024 * 1024:
             return None
+        env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
+        if protocol == "--decision-cache-probe":
+            env.pop("OPENROUTER_API_KEY", None)
         try:
             done = subprocess.run([str(executable), str(entry), protocol, operation],
                                   input=raw, stdout=stdout, stderr=subprocess.PIPE, timeout=10,
-                                  env={**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])})
+                                  env=env)
         except FileNotFoundError:
             return None
         except (OSError, ValueError, TypeError, subprocess.TimeoutExpired):

@@ -7,12 +7,23 @@ import importlib.util
 import io
 import json
 import os
+import shlex
 import tempfile
+import time
 import unittest
 import urllib.error
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
+
+try:
+    from native_launcher_support import NATIVE, install
+except ModuleNotFoundError as error:
+    if error.name != "native_launcher_support":
+        raise
+    NATIVE = None
+else:
+    from native_pretool_support import environment
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "research-triage" / "microsoft_decision.py"
@@ -77,6 +88,69 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, result["network_calls"])
         self.assertEqual("unscored", result["results"][0]["status"])
         self.assertFalse(self.cache.exists())
+
+    def test_native_cache_plan_reuses_existing_hash_and_scrubs_child_credentials(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        native = home / ".moru/bin/moru-hook-native"
+        binary = native.with_name("native-fixture")
+        native.rename(binary)
+        observed = self.root / "decision-calls"
+        native.write_text(
+            "#!/bin/sh\n"
+            'if [ "${2-}" = --decision-cache-probe ]; then\n'
+            '    [ -z "${OPENROUTER_API_KEY+x}" ] || exit 80\n'
+            f"    printf '%s\\n' prepare >> {shlex.quote(str(observed))}\n"
+            "fi\n"
+            f'exec {shlex.quote(str(binary))} "$@"\n',
+            encoding="utf-8",
+        )
+        native.chmod(0o755)
+        self.payload = {"query": '검색 "질문" 😀', "sources": [
+            {**source("one", "한글\n짝수\t😀"), "published_at": "2026-01-01", "required": True},
+            source("two", "另一个"),
+        ]}
+        requests = [adapter.request_for(self.payload["query"], row, adapter.MODEL)
+                    for row in self.payload["sources"]]
+        expected = [[adapter.cache_key(request), len(json.dumps(
+            request, ensure_ascii=False, sort_keys=True, allow_nan=False,
+        ).encode())] for request in requests]
+        saved = {**adapter.validate_response(response()), "evaluated_at": time.time()}
+        adapter.save_cached(self.cache / (expected[0][0] + ".json"), expected[0][0], saved)
+        env = {**environment(self.root, ROOT), "OPENROUTER_API_KEY": "fixture-only"}
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter, "openrouter_api_key", side_effect=AssertionError("credential read")), \
+                patch.object(adapter, "cache_key", side_effect=AssertionError("Python hashing")):
+            self.assertEqual(expected, adapter._cache_plan(self.payload, adapter.MODEL))
+            status, result, _ = self.run_cli()
+        self.assertEqual(0, status)
+        self.assertEqual(0, result["network_calls"])
+        self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
+        self.assertEqual(["prepare", "prepare"], observed.read_text().splitlines())
+
+    def test_native_request_size_preserves_inclusive_utf8_boundary(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        base = source("exact", "한😀")
+        request = adapter.request_for(self.payload["query"], base, adapter.MODEL)
+        size = len(json.dumps(request, ensure_ascii=False, sort_keys=True, allow_nan=False).encode())
+        base["text"] += "x" * (adapter.MAX_REQUEST_BYTES - size)
+        self.payload["sources"] = [base, source("over", base["text"] + "한")]
+        env = {**environment(self.root, ROOT), "OPENROUTER_API_KEY": "fixture-only"}
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter, "cache_key", side_effect=AssertionError("Python hashing")), \
+                patch.object(adapter, "send_request", return_value=response()) as call:
+            status, result, _ = self.run_cli("--execute")
+        self.assertEqual(0, status)
+        self.assertEqual(1, call.call_count)
+        self.assertEqual("scored", result["results"][0]["status"])
+        self.assertEqual("request_too_large", result["results"][1]["reason"])
 
     def test_execute_without_key_preserves_sources_without_calls(self):
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}):

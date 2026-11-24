@@ -146,6 +146,7 @@ mod worker_completion;
 mod worker_completion_process;
 mod workflow_query_process;
 mod workflow_index_descriptions;
+mod decision_cache_plan;
 mod workflow_offline_score;
 mod workflow_wikimap_rank;
 mod unittest_admission;
@@ -213,6 +214,7 @@ fn direct_dispatch(launcher: &OsString, args: &[OsString]) -> Option<i32> {
         "--completion-probe" => completion_process::CompletionProcess::run(launcher, args),
         "--smoke-hook-suite" => smoke_hook_suite::SmokeHookSuite::run(launcher, &args[1..]),
         "--workflow-query-probe" => workflow_query_process::WorkflowQueryProcess::run(launcher, args),
+        "--decision-cache-probe" => decision_cache_plan::DecisionCachePlan::run(launcher, args),
         "smoke-checks" => finish(smoke_hook_suite::SmokeHookSuite::alias(launcher, args)),
         _ => return None,
     })

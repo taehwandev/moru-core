@@ -667,10 +667,12 @@
       "id": "scripts/research-triage/microsoft_decision.py",
       "inventory_id": 49,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "verification": {
+        "local": "Rust prepares bounded cache identity and UTF-8 request lengths in batches. Python owns input validation, cache files, response policy, credential access, provider execution and the CLI."
+      }
     },
     {
       "id": "scripts/run_smoke_checks.py",
