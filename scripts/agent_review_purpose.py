@@ -54,7 +54,7 @@ BRACE_TOP_LEVEL_CONST_FUNCTION_RE = re.compile(
     r"^\s*(?:export\s+)?(?:const|let|var)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*="
     r"\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)\s*=>"
 )
-NATIVE_BRACE_DECLARATION_SUFFIXES = {".kt", ".kts", ".rs", ".swift", ".dart"}
+NATIVE_DECLARATION_SUFFIXES = {".py", ".go", ".kt", ".kts", ".rs", ".swift", ".dart"}
 TYPE_OWNER_KINDS = {"actor", "class", "enum", "interface", "object", "protocol", "record", "struct", "trait", "type", "typealias"}
 MAX_TOP_LEVEL_OWNERS = 4
 MAX_PUBLIC_TOP_LEVEL_OWNERS = 1
@@ -132,56 +132,6 @@ def previous_top_level_type_declarations(
     return top_level_type_declarations(path, previous["stdout"].splitlines())
 
 
-def _native_python_classes(lines: list[str]) -> list[dict[str, Any]] | None:
-    native = NativeProbe.request("--completion-probe", "structure-python-classes", {
-        "lines": lines, "unicode": unicodedata.unidata_version,
-    })
-    classes = native.get("classes") if native is not None else None
-    if not isinstance(classes, list):
-        return None
-    matches = []
-    last_index = -1
-    for row in classes:
-        if not isinstance(row, list) or len(row) != 2:
-            return None
-        index, name = row
-        if (type(index) is not int or not last_index < index < len(lines)
-                or not isinstance(name, str) or not name):
-            return None
-        last_index = index
-        matches.append((index, name))
-    roles = _native_declaration_roles([("type", name) for _, name in matches])
-    return [type_declaration("type", name, lines[index], index, modifiers="", roles=roles)
-            for index, name in matches]
-
-
-def _native_go_declarations(lines: list[str]) -> list[dict[str, Any]] | None:
-    native = NativeProbe.request("--completion-probe", "structure-go-declarations", {
-        "lines": lines, "unicode": unicodedata.unidata_version,
-    })
-    rows = native.get("declarations") if native is not None else None
-    if not isinstance(rows, list):
-        return None
-    matches = []
-    last_index = -1
-    for row in rows:
-        if not isinstance(row, list) or len(row) != 3:
-            return None
-        index, kind, name = row
-        if (type(index) is not int or not last_index < index < len(lines)
-                or kind not in ("type", "func") or not isinstance(name, str) or not name):
-            return None
-        last_index = index
-        matches.append((index, kind, name))
-    roles = _native_declaration_roles([(kind, name) for _, kind, name in matches])
-    declarations = []
-    for index, kind, name in matches:
-        declaration = type_declaration(kind, name, lines[index], index, modifiers="", roles=roles)
-        if declaration["owner"]:
-            declarations.append(declaration)
-    return declarations
-
-
 def _native_declaration_scan(suffix: str, lines: list[str]) -> dict[str, Any] | None:
     return NativeProbe.request("--completion-probe", "structure-declaration-records", {
         "suffix": suffix, "mode": "declarations", "lines": lines,
@@ -243,15 +193,7 @@ def _python_typescript_lines(lines: list[str]) -> list[str]:
 def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, Any]]:
     declarations: list[dict[str, Any]] = []
     suffix = path.suffix.lower()
-    if suffix == ".py":
-        native = _native_python_classes(lines)
-        if native is not None:
-            return native
-    elif suffix == ".go":
-        native = _native_go_declarations(lines)
-        if native is not None:
-            return native
-    elif suffix in NATIVE_BRACE_DECLARATION_SUFFIXES:
+    if suffix in NATIVE_DECLARATION_SUFFIXES:
         native = _native_declaration_records(_native_declaration_scan(suffix, lines), len(lines))
         if native is not None:
             return native

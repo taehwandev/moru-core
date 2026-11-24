@@ -146,26 +146,27 @@ class NativeCompletionTests(unittest.TestCase):
         lines = [
             "class PublicState:", " class Indented:", "\tclass Tabbed:", "classDelta:",
             "class Δelta:", "class 1Invalid:", "class\u00a0\u3000A²é:", "class Foo\u0301:",
-            "class _private:", '"""', "class PublicState:", '"""',
+            "class _private:", "class _KeyChain:", '"""', "class PublicState:", '"""',
             "class\u001fLast-ignored:", "def NotAClass():",
         ]
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             expected = purpose.top_level_type_declarations(path, lines)
         self.assertEqual(
-            ["PublicState", "A²é", "Foo", "_private", "PublicState", "Last"],
+            ["PublicState", "A²é", "Foo", "_private", "_KeyChain", "PublicState", "Last"],
             [row["name"] for row in expected],
         )
+        self.assertEqual(("platform", True), (expected[4]["role"], expected[4]["private"]))
         recognizer = Mock()
         recognizer.match.side_effect = AssertionError("Python recognized a class on the native path")
         with patch.dict(os.environ, self.env, clear=True), patch.object(
             purpose, "PYTHON_TOP_LEVEL_TYPE_RE", recognizer,
-        ):
+        ), patch.object(purpose, "type_declaration", side_effect=AssertionError("Python rebuilt a class row")):
             self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
             self.assertEqual([], purpose.top_level_type_declarations(path, ["not a class"]))
         with patch.dict(os.environ, self.env, clear=True), patch.object(
             purpose.unicodedata, "unidata_version", "0.0.0",
         ):
-            self.assertIsNone(purpose._native_python_classes(lines))
+            self.assertIsNone(purpose._native_declaration_scan(".py", lines))
             self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
 
     def test_structure_package_boundary_roles_preserve_groups_and_legacy_fallback(self):
@@ -259,9 +260,10 @@ class NativeCompletionTests(unittest.TestCase):
         recognizer.match.side_effect = AssertionError("legacy scanner used on native Go input")
         with patch.dict(os.environ, self.env, clear=True):
             with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
-                self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
+                with patch.object(purpose, "type_declaration", side_effect=AssertionError("Python rebuilt a Go row")):
+                    self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
             for source, previous in zip((unusual, arrow), fallback):
-                self.assertIsNone(purpose._native_go_declarations(source))
+                self.assertIsNone(purpose._native_declaration_scan(".go", source))
                 self.assertEqual(previous, purpose.top_level_type_declarations(path, source))
 
     def test_structure_removal_report_preserves_character_budget_and_ratio_text(self):

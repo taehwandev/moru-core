@@ -6,8 +6,10 @@
 use super::{
     structure_brace_declarations::StructureBraceDeclarations,
     structure_declaration_roles::StructureDeclarationRoles,
+    structure_go_declarations::StructureGoDeclarations,
     structure_js_declarations::StructureJsDeclarations,
     structure_kotlin_declarations::StructureKotlinDeclarations,
+    structure_python_blocks::StructurePythonBlocks,
     structure_rust_declarations::StructureRustDeclarations, structure_ts_text::StructureTsText,
 };
 use crate::{python_text::PythonText, text::Text};
@@ -34,6 +36,8 @@ impl StructureDeclarationRecords {
             ".kt" | ".kts" => StructureKotlinDeclarations::scan(input),
             ".rs" => StructureRustDeclarations::scan(input),
             ".swift" | ".dart" => StructureBraceDeclarations::scan(input),
+            ".py" => StructurePythonBlocks::top_level_classes(input),
+            ".go" => StructureGoDeclarations::scan(input),
             _ => None,
         }?;
         let lines = if typescript {
@@ -42,17 +46,31 @@ impl StructureDeclarationRecords {
             input.get("lines")?
         }
         .as_array()?;
-        let Some(declarations) = scan.get("declarations").and_then(Value::as_array) else {
+        let field = if suffix == ".py" {
+            "classes"
+        } else {
+            "declarations"
+        };
+        let Some(declarations) = scan.get(field).and_then(Value::as_array) else {
             return typescript.then(|| json!({"lines": lines, "records": null}));
         };
         let headers = declarations
             .iter()
             .map(|row| {
+                let (kind, name, modifiers) = match suffix {
+                    ".py" => ("type", row.get(1)?.as_str()?, ""),
+                    ".go" => (row.get(1)?.as_str()?, row.get(2)?.as_str()?, ""),
+                    _ => (
+                        row.get(1)?.as_str()?,
+                        row.get(2)?.as_str()?,
+                        row.get(3)?.as_str()?,
+                    ),
+                };
                 Some(Header {
                     index: usize::try_from(row.get(0)?.as_u64()?).ok()?,
-                    kind: row.get(1)?.as_str()?,
-                    name: row.get(2)?.as_str()?,
-                    modifiers: row.get(3)?.as_str()?,
+                    kind,
+                    name,
+                    modifiers,
                     receiver: if kotlin { row.get(4)? } else { &Value::Null },
                 })
             })
