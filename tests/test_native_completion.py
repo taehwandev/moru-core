@@ -143,6 +143,37 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertIsNone(purpose._native_python_classes(lines))
             self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
 
+    def test_structure_go_declarations_preserve_generic_priority_and_depth(self):
+        path = Path("src/example.GO")
+        lines = [
+            "package sample // go", 'import "fmt"', "var Limit = 1",
+            "\ttype Box[T any] struct {", "\t\tValue T", "}",
+            "type Reader interface{}", "type A int; type Another int",
+            "type Café string", "type A\u0301 string", "type /* inline */ Hidden string",
+            "func (b Box[T]) Method() {}", "func Top[T any]() {}", "func worker() {}", "func quiet() {}",
+            "// raw brace depth is preserved {", "func Hidden() {}", "// }",
+            'const opens = "{"', "type HiddenAgain int", "// }",
+            "func Visible() {}",
+        ]
+        unusual = ["package sample", "type (", "    Nested struct {}", ")", "export class Legacy {}"]
+        arrow = ["package sample", "const Component = () => {}"]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = purpose.top_level_type_declarations(path, lines)
+            fallback = [purpose.top_level_type_declarations(path, source) for source in (unusual, arrow)]
+        self.assertEqual(
+            [("type", "Box"), ("type", "Reader"), ("type", "A"), ("type", "A"),
+             ("func", "Top"), ("func", "worker"), ("func", "Visible")],
+            [(row["kind"], row["name"]) for row in expected],
+        )
+        recognizer = Mock()
+        recognizer.match.side_effect = AssertionError("legacy scanner used on native Go input")
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
+                self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
+            for source, previous in zip((unusual, arrow), fallback):
+                self.assertIsNone(purpose._native_go_declarations(source))
+                self.assertEqual(previous, purpose.top_level_type_declarations(path, source))
+
     def test_structure_removal_report_preserves_character_budget_and_ratio_text(self):
         findings = [
             {"path": "한🙂.py", "net": 51, "classification": "moved", "moved_to": ["새.py"]},

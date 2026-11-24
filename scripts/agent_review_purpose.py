@@ -152,11 +152,38 @@ def _native_python_classes(lines: list[str]) -> list[dict[str, Any]] | None:
     return declarations
 
 
+def _native_go_declarations(lines: list[str]) -> list[dict[str, Any]] | None:
+    native = NativeProbe.request("--completion-probe", "structure-go-declarations", {
+        "lines": lines, "unicode": unicodedata.unidata_version,
+    })
+    rows = native.get("declarations") if native is not None else None
+    if not isinstance(rows, list):
+        return None
+    declarations = []
+    last_index = -1
+    for row in rows:
+        if not isinstance(row, list) or len(row) != 3:
+            return None
+        index, kind, name = row
+        if (type(index) is not int or not last_index < index < len(lines)
+                or kind not in ("type", "func") or not isinstance(name, str) or not name):
+            return None
+        last_index = index
+        declaration = type_declaration(kind, name, lines[index], index, modifiers="")
+        if declaration["owner"]:
+            declarations.append(declaration)
+    return declarations
+
+
 def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, Any]]:
     declarations: list[dict[str, Any]] = []
     suffix = path.suffix.lower()
     if suffix == ".py":
         native = _native_python_classes(lines)
+        if native is not None:
+            return native
+    elif suffix == ".go":
+        native = _native_go_declarations(lines)
         if native is not None:
             return native
     is_typescript = suffix in {".ts", ".tsx"}
