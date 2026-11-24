@@ -707,6 +707,10 @@ class NativeCompletionTests(unittest.TestCase):
         ordinary = [
             "#![allow(unused)]",
             "use crate::input::{a, b};",
+            'include!(concat!(env!("OUT_DIR"), "/contract.rs"));',
+            "const PAIRS: &[(&str, u8)] = &[",
+            '    ("sample", 1),',
+            "];",
             "static SIZE: usize = 1;",
             "struct Private { pub field: u8 }",
             "#[derive(Clone)]",
@@ -717,7 +721,7 @@ class NativeCompletionTests(unittest.TestCase):
             "pub(in crate::inner) async fn run() {}",
             "fn helper() {}",
             "#[inline] pub fn same_line() {}",
-            "impl Private {",
+            "impl<'a> Reader<'a> {",
             "    pub fn nested() {}",
             "}",
             '// {',
@@ -726,23 +730,28 @@ class NativeCompletionTests(unittest.TestCase):
             "pub fn recovered() {}",
         ]
         unusual = ["pub struct Before;", "pub fn r#type() {}", "pub struct After;"]
+        legacy_modifiers = ["@Marker nonisolated(unsafe) pub fn bridged() {}"]
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
-            expected = [purpose.top_level_type_declarations(path, lines) for lines in (ordinary, unusual)]
+            expected = purpose.top_level_type_declarations(path, ordinary)
+            fallback = [(lines, purpose.top_level_type_declarations(path, lines))
+                        for lines in (unusual, legacy_modifiers)]
+        self.assertEqual(["bridged"], [row["name"] for row in fallback[1][1]])
         self.assertEqual(
             ["Private", "_Visible", "Choice", "Source", "Index", "run", "recovered"],
-            [row["name"] for row in expected[0]],
+            [row["name"] for row in expected],
         )
-        self.assertTrue(expected[0][0]["private"])
-        self.assertTrue(all(row["exported"] and not row["private"] for row in expected[0][1:]))
+        self.assertTrue(expected[0]["private"])
+        self.assertTrue(all(row["exported"] and not row["private"] for row in expected[1:]))
         recognizer = Mock()
         recognizer.match.side_effect = AssertionError("legacy Rust declaration scan used")
         with patch.dict(os.environ, self.env, clear=True):
             with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
-                self.assertEqual(expected[0], purpose.top_level_type_declarations(path, ordinary))
-            self.assertEqual(125, self.raw("structure-rust-declarations", {
-                "lines": unusual, "unicode": unicodedata.unidata_version,
-            }).returncode)
-            self.assertEqual(expected[1], purpose.top_level_type_declarations(path, unusual))
+                self.assertEqual(expected, purpose.top_level_type_declarations(path, ordinary))
+            for lines, legacy in fallback:
+                self.assertEqual(125, self.raw("structure-rust-declarations", {
+                    "lines": lines, "unicode": unicodedata.unidata_version,
+                }).returncode)
+                self.assertEqual(legacy, purpose.top_level_type_declarations(path, lines))
 
     def test_structure_native_kotlin_declarations_preserve_receivers_and_visibility(self):
         path = Path("src/Extensions.KTS")
