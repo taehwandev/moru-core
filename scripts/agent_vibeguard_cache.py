@@ -316,3 +316,80 @@ def _result_with_overall(result: dict[str, Any], parse_overall: OverallParser) -
     copied = dict(result)
     copied["overall"] = parse_overall(copied.get("stdout", "") + "\n" + copied.get("stderr", ""))
     return copied
+
+
+CAPABILITY_CACHE_SCHEMA_VERSION = 1
+
+
+def cached_vibeguard_path_support(
+    *,
+    project: Path,
+    base_command: list[str],
+    help_command: list[str],
+    run_command: CommandRunner,
+) -> bool:
+    """Cache VibeGuard `--path` capability per resolved absolute executable digest."""
+
+    signature = _capability_signature(base_command)
+    if signature:
+        cached = _read_capability_cache(project)
+        if cached.get("signature") == signature and isinstance(cached.get("supports_path"), bool):
+            return bool(cached["supports_path"])
+
+    result = run_command(help_command, project)
+    if result.get("returncode") != 0:
+        return False
+    supported = "--path" in f"{result.get('stdout', '')}\n{result.get('stderr', '')}"
+    if signature:
+        try:
+            _write_capability_cache(project, signature, supported)
+        except OSError:
+            pass
+    return supported
+
+
+def _capability_signature(base_command: list[str]) -> str | None:
+    if not base_command or base_command[0] == "npx":
+        return None
+    candidate = Path(base_command[0])
+    if not candidate.is_absolute():
+        return None
+    try:
+        resolved = candidate.resolve(strict=True)
+        if not resolved.is_file():
+            return None
+        digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+    except OSError:
+        return None
+    payload = {
+        "schema_version": CAPABILITY_CACHE_SCHEMA_VERSION,
+        "executable": str(resolved),
+        "sha256": digest,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _capability_cache_path(project: Path) -> Path:
+    return project_state_dir_target(project) / "vibeguard-capability-cache.json"
+
+
+def _read_capability_cache(project: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(_capability_cache_path(project).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if payload.get("schema_version") != CAPABILITY_CACHE_SCHEMA_VERSION:
+        return {}
+    return payload
+
+
+def _write_capability_cache(project: Path, signature: str, supports_path: bool) -> None:
+    path = _capability_cache_path(project)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": CAPABILITY_CACHE_SCHEMA_VERSION,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "signature": signature,
+        "supports_path": supports_path,
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

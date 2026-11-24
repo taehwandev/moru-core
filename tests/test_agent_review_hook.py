@@ -982,6 +982,76 @@ class ReviewHookTests(unittest.TestCase):
             command(ROOT, ROOT),
         )
 
+    def test_review_vibeguard_capability_caches_resolved_executable_and_reprobes_on_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            project.mkdir()
+            exe = Path(tmp) / "vibeguard"
+            exe.write_text("#!/bin/sh\necho v1\n", encoding="utf-8")
+            calls: list[list[str]] = []
+            help_stdout = "usage: vibeguard audit [project] [--path <path>]\n"
+
+            def run_command(command: list[str], cwd: Path) -> dict[str, object]:
+                calls.append(command)
+                return {"command": command, "cwd": str(cwd), "returncode": 0, "stdout": help_stdout, "stderr": ""}
+
+            factory = lambda _p, _r: [str(exe), "audit", ".", "--rules", "."]
+            first = review_vibeguard_command(project, ROOT, run_command, factory, ["a.py", "b.py"])
+            second = review_vibeguard_command(project, ROOT, run_command, factory, ["a.py"])
+            self.assertEqual(1, len(calls))
+            self.assertEqual(
+                [str(exe), "audit", ".", "--rules", ".", "--changed-only", "--path", "a.py", "--path", "b.py"],
+                first(project, ROOT),
+            )
+            self.assertEqual(
+                [str(exe), "audit", ".", "--rules", ".", "--changed-only", "--path", "a.py"],
+                second(project, ROOT),
+            )
+
+            # Replacing executable bytes invalidates cache and re-probes.
+            exe.write_text("#!/bin/sh\necho v2\n", encoding="utf-8")
+            help_stdout = "usage: vibeguard audit [project] [--changed-only]\n"
+            third = review_vibeguard_command(project, ROOT, run_command, factory, ["a.py"])
+            self.assertEqual(2, len(calls))
+            self.assertEqual([str(exe), "audit", ".", "--rules", ".", "--changed-only"], third(project, ROOT))
+
+            # Unscoped review skips probing altogether.
+            unscoped = review_vibeguard_command(project, ROOT, run_command, factory, [])
+            self.assertEqual(2, len(calls))
+            self.assertEqual([str(exe), "audit", ".", "--rules", "."], unscoped(project, ROOT))
+
+    def test_review_vibeguard_capability_skips_cache_for_npx_and_failed_probes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            project.mkdir()
+            exe = Path(tmp) / "vibeguard"
+            exe.write_text("#!/bin/sh\necho v1\n", encoding="utf-8")
+            calls: list[list[str]] = []
+            rc = 1
+
+            def run_command(command: list[str], cwd: Path) -> dict[str, object]:
+                calls.append(command)
+                return {
+                    "command": command,
+                    "cwd": str(cwd),
+                    "returncode": rc,
+                    "stdout": "usage: vibeguard audit [--path <path>]\n" if rc == 0 else "",
+                    "stderr": "boom" if rc != 0 else "",
+                }
+
+            factory = lambda _p, _r: [str(exe), "audit", ".", "--rules", "."]
+            review_vibeguard_command(project, ROOT, run_command, factory, ["a.py"])
+            rc = 0
+            recovered = review_vibeguard_command(project, ROOT, run_command, factory, ["a.py"])
+            self.assertEqual(2, len(calls))
+            self.assertIn("--path", recovered(project, ROOT))
+
+            npx_calls = len(calls)
+            npx_factory = lambda _p, _r: ["npx", "--yes", "@taehwandev/vibeguard@latest", "audit", ".", "--rules", "."]
+            review_vibeguard_command(project, ROOT, run_command, npx_factory, ["a.py"])
+            review_vibeguard_command(project, ROOT, run_command, npx_factory, ["a.py"])
+            self.assertEqual(npx_calls + 2, len(calls))
+
     def test_vibeguard_review_accepts_explicit_review_reason(self) -> None:
         self.assertEqual(
             "",
