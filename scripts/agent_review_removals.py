@@ -64,23 +64,17 @@ def classify_net_deletions(
         return
     text = str(diff.get("stdout") or "")
     untracked = path_metadata if review_commits is None else {}
-    parsed = _native_removal_inputs(text, project, untracked)
-    if parsed is None:
-        budget = _Budget()
-        removed, added = parse_diff_lines(text, budget)
-        _add_untracked_lines(added, project, untracked, budget)
-        truncated = budget.truncated
-    else:
-        removed, added, truncated = parsed
-    if truncated:
+    native = _native_removal_analysis(findings, text, project, untracked)
+    if native is not None:
+        for item, result in zip(findings, native):
+            item.update(result)
+        return
+    budget = _Budget()
+    removed, added = parse_diff_lines(text, budget)
+    _add_untracked_lines(added, project, untracked, budget)
+    if budget.truncated:
         for item in findings:
             item["classification"] = "unavailable"
-        return
-    native = _native_matches(findings, removed, added)
-    if native is not None:
-        for item, matched in zip(findings, native):
-            lines = removed.get(item["path"]) or []
-            item.update(_native_description(lines, matched))
         return
     index: dict[str, Counter[str]] = {}
     for path, lines in added.items():
@@ -90,107 +84,63 @@ def classify_net_deletions(
         item.update(classify_removal(item["path"], removed.get(item["path"]), index))
 
 
-def _native_removal_inputs(
-    text: str, project: Path, path_metadata: dict[str, dict[str, Any]],
-) -> tuple[dict[str, list[str]], dict[str, list[str]], bool] | None:
+def _native_removal_analysis(
+    findings: list[dict[str, Any]], text: str, project: Path, path_metadata: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]] | None:
     if not NativeProbe.available():
         return None
-    result = NativeProbe.request("--completion-probe", "structure-removal-inputs", {
-        "diff": text, "project": str(project),
+    paths = [item["path"] for item in findings]
+    native = NativeProbe.request("--completion-probe", "structure-removal-analysis", {
+        "diff": text, "project": str(project), "findings": paths,
         "untracked": [path for path in sorted(path_metadata)
                       if (path_metadata[path] or {}).get("untracked") is True],
         "per_file": PER_FILE_BYTE_LIMIT, "total": TOTAL_BYTE_LIMIT,
-    })
-    if result is not None and set(result) == {"truncated"} and result["truncated"] is True:
-        return {}, {}, True
-    if result is not None and set(result) == {"removed", "added"}:
-        if all(isinstance(rows, dict) and all(
-            isinstance(lines, list) and all(isinstance(line, str) for line in lines)
-            for lines in rows.values()
-        ) for rows in result.values()):
-            return result["removed"], result["added"], False
-    return None
-
-
-def _native_matches(findings, removed, added) -> list[dict[str, Any]] | None:
-    if not NativeProbe.available():
-        return None
-    # Use per-request identities so source and potential secrets never enter
-    # the comparison protocol. Python still applies the existing sample rules.
-    identities: dict[str, int] = {}
-    def line_ids(lines):
-        return [identities.setdefault(line, len(identities)) for line in lines]
-
-    removals = []
-    for item in findings:
-        lines = removed.get(item["path"]) or []
-        removals.append([item["path"], line_ids(lines), [_removal_flags(line.strip()) for line in lines]])
-    additions = [[path, line_ids(lines)] for path, lines in added.items()]
-    native = NativeProbe.request("--completion-probe", "structure-removal-matching", {
-        "removed": removals, "added": additions,
         "summary": {"headings": HEADING_SAMPLE_LIMIT, "fallback": FALLBACK_SAMPLE_LIMIT},
     })
-    if native is None or set(native) != {"matches"}:
+    if native is None:
         return None
-    matches = native["matches"]
-    if not isinstance(matches, list) or len(matches) != len(removals):
+    if set(native) == {"truncated"} and native["truncated"] is True:
+        return [{"classification": "unavailable"} for _ in findings]
+    rows = native.get("findings")
+    if not isinstance(rows, list) or len(rows) != len(paths):
         return None
-    for (source, lines, _), row in zip(removals, matches):
-        if not isinstance(row, dict) or set(row) - {"unmatched", "moved_to", "summary"}:
+    results = []
+    for path, row in zip(paths, rows):
+        result = _native_removal_result(path, row)
+        if result is None:
             return None
-        unmatched, destinations = row.get("unmatched"), row.get("moved_to")
-        if (not isinstance(unmatched, list)
-                or not all(type(index) is int and 0 <= index < len(lines) for index in unmatched)
-                or any(current >= following for current, following in zip(unmatched, unmatched[1:]))
-                or not isinstance(destinations, list) or len(destinations) > 3
-                or not all(isinstance(path, str) and path != source and path in added for path in destinations)):
-            return None
-    return matches
+        results.append(result)
+    return results
 
 
-def _removal_flags(stripped: str) -> int:
-    # Only booleans packed into three bits leave the Python source boundary.
-    return int(bool(stripped)) | (int(_heading_like(stripped)) << 1) | (
-        int(len(stripped) >= MEANINGFUL_LINE_CHARS) << 2
-    )
-
-
-def _native_description(lines: list[str], matched: dict[str, Any]) -> dict[str, Any]:
-    if not lines:
-        return {"classification": "unavailable"}
-    summary = matched.get("summary")
-    unmatched = matched["unmatched"]
-    moved_to = matched["moved_to"]
-    if not _valid_native_summary(summary, lines, unmatched):
-        return _describe_removal(lines, [lines[index] for index in unmatched], moved_to)
-    classification = summary["classification"]
+def _native_removal_result(path: str, row: Any) -> dict[str, Any] | None:
+    if row == {"classification": "unavailable"}:
+        return row
+    if not isinstance(row, dict) or set(row) != {
+        "classification", "line_count", "unmatched_count", "moved_to", "samples",
+    }:
+        return None
+    classification, count, unmatched = row["classification"], row["line_count"], row["unmatched_count"]
+    destinations, samples = row["moved_to"], row["samples"]
+    if (classification not in ("moved", "removed")
+            or type(count) is not int or count <= 0
+            or type(unmatched) is not int or not 0 <= unmatched <= count
+            or not isinstance(destinations, list) or len(destinations) > 3
+            or not all(isinstance(target, str) and target != path for target in destinations)
+            or not isinstance(samples, list) or len(samples) > max(HEADING_SAMPLE_LIMIT, FALLBACK_SAMPLE_LIMIT)
+            or not all(isinstance(line, str) for line in samples)
+            or (classification == "moved" and (unmatched or samples))):
+        return None
     result = {
         "classification": classification,
-        "moved_ratio": round((len(lines) - len(unmatched)) / len(lines), 2),
+        "moved_ratio": round((count - unmatched) / count, 2),
     }
     if classification == "removed":
-        result["unmatched_lines"] = len(unmatched)
-    result["moved_to"] = moved_to
+        result["unmatched_lines"] = unmatched
+    result["moved_to"] = destinations
     if classification == "removed":
-        result["sample_lines"] = [_redact_sample(lines[index].strip()) for index in summary["samples"]]
+        result["sample_lines"] = [_redact_sample(line) for line in samples]
     return result
-
-
-def _valid_native_summary(summary, lines, unmatched) -> bool:
-    if not isinstance(summary, dict) or set(summary) != {"classification", "samples"}:
-        return False
-    samples = summary["samples"]
-    if not isinstance(samples, list) or len(samples) > max(HEADING_SAMPLE_LIMIT, FALLBACK_SAMPLE_LIMIT):
-        return False
-    if summary["classification"] == "moved":
-        return not samples and not unmatched
-    if summary["classification"] != "removed":
-        return False
-    return (
-        all(type(index) is int and 0 <= index < len(lines) for index in samples)
-        and all(left < right for left, right in zip(samples, samples[1:]))
-        and (not unmatched or all(index in unmatched for index in samples))
-    )
 
 
 class _Budget:

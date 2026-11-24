@@ -1466,31 +1466,34 @@ class NativeCompletionTests(unittest.TestCase):
             )
             return findings
 
+        payload = {"diff": diff, "project": str(self.project), "untracked": ["untracked.txt"],
+                   "per_file": removals.PER_FILE_BYTE_LIMIT, "total": removals.TOTAL_BYTE_LIMIT}
         with patch.dict(os.environ, self.env, clear=True):
-            self.assertEqual((expected_removed, expected_added, False),
-                             removals._native_removal_inputs(diff, self.project, path_metadata))
+            self.assertEqual({"removed": expected_removed, "added": expected_added},
+                             self.check("structure-removal-inputs", payload))
             with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
                 expected = explain()
             with patch.object(removals, "parse_diff_lines", side_effect=AssertionError("Python parsed patch")):
                 self.assertEqual(expected, explain())
             self.assertEqual(["moved", "removed"], [row["classification"] for row in expected])
-            for limit in ("PER_FILE_BYTE_LIMIT", "TOTAL_BYTE_LIMIT"):
-                with self.subTest(limit=limit), patch.object(removals, limit, 30):
-                    self.assertEqual(({}, {}, True),
-                                     removals._native_removal_inputs(diff, self.project, path_metadata))
+            for limit in ("per_file", "total"):
+                with self.subTest(limit=limit):
+                    self.assertEqual({"truncated": True},
+                                     self.check("structure-removal-inputs", {**payload, limit: 30}))
             (self.project / "link.txt").symlink_to(self.project / "untracked.txt")
-            self.assertEqual(({}, {}, True), removals._native_removal_inputs(
-                diff, self.project, {"link.txt": {"untracked": True}},
+            self.assertEqual({"truncated": True}, self.check(
+                "structure-removal-inputs", {**payload, "untracked": ["link.txt"]},
             ))
 
     def test_structure_removal_matching_preserves_consumption_ties_and_redaction(self):
         sensitive = "def token_fixture():"
+        unselected = "token_unselected_fixture"
         diff = "\n".join((
             "diff --git a/0-first.py b/0-first.py", "--- a/0-first.py", "+++ b/0-first.py",
             "-right body", "-shared body", "-" + sensitive, "+shared body",
             "diff --git a/second.py b/second.py", "--- a/second.py", "+++ b/second.py",
             "-shared body", "-shared body",
-            "diff --git a/z.py b/z.py", "--- a/z.py", "+++ b/z.py", "+right body",
+            "diff --git a/z.py b/z.py", "--- a/z.py", "+++ b/z.py", "+right body", "+" + unselected,
             "diff --git a/b.py b/b.py", "--- a/b.py", "+++ b/b.py", "+shared body",
             "diff --git a/a.py b/a.py", "--- a/a.py", "+++ b/a.py", "+shared body",
         ))
@@ -1508,38 +1511,50 @@ class NativeCompletionTests(unittest.TestCase):
             removals, "classify_removal", side_effect=AssertionError("Python matched occurrences"),
         ), patch.object(
             removals, "_describe_removal", side_effect=AssertionError("Python selected the removal summary"),
-        ), patch.object(NativeProbe, "request", wraps=NativeProbe.request) as request:
+        ), patch.object(removals, "_native_removal_result", wraps=removals._native_removal_result) as decoded, (
+            patch.object(NativeProbe, "request", wraps=NativeProbe.request)
+        ) as request:
             self.assertEqual(json.dumps(expected), json.dumps(classify()))
-            protocol, operation, payload = request.call_args.args
-            self.assertEqual(("--completion-probe", "structure-removal-matching"), (protocol, operation))
-            self.assertNotIn(sensitive, json.dumps(payload))
-            self.assertNotIn("shared body", json.dumps(payload))
+            request.assert_called_once()
+            protocol, operation, _payload = request.call_args.args
+            self.assertEqual(("--completion-probe", "structure-removal-analysis"), (protocol, operation))
+            returned = json.dumps([call.args[1] for call in decoded.call_args_list])
+            self.assertNotIn("shared body", returned)
+            self.assertNotIn("right body", returned)
+            self.assertNotIn(unselected, returned)
+            self.assertIn(sensitive, returned)
+            self.assertNotIn(sensitive, json.dumps(expected))
         self.assertEqual(["z.py", "a.py"], expected[0]["moved_to"])
         self.assertEqual(["[sensitive-looking content omitted]"], expected[0]["sample_lines"])
         self.assertEqual(["0-first.py", "b.py"], expected[1]["moved_to"])
         self.assertEqual("unavailable", expected[2]["classification"])
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            NativeProbe, "request", return_value={"findings": [
+                {"classification": "unavailable"}, {"classification": "removed"}, {},
+            ]},
+        ):
+            self.assertEqual(expected, classify())
 
-    def test_structure_removal_summary_selects_samples_without_source_text(self):
+    def test_structure_removal_summary_returns_only_selected_samples(self):
         removed = {
-            "short.py": [" \t ", "}", "#x"],
+            "short.py": [" \t ", "}", "\u2003#x\u2003"],
             "blank.py": ["body line", " "],
             "headings.py": ["body goes first", *[f"# heading {i}" for i in range(6)]],
             "plain.py": [f"body {i}" for i in range(4)],
         }
-        findings = [{"path": path} for path in removed]
-        added = {"dest.py": [" \t ", "}", "#x", "body line"]}
-        with patch.dict(os.environ, self.env, clear=True):
-            rows = removals._native_matches(findings, removed, added)
-        self.assertIsNotNone(rows)
-        for lines, row in zip(removed.values(), rows):
-            unmatched = [lines[index] for index in row["unmatched"]]
-            expected = removals._describe_removal(lines, unmatched, row["moved_to"])
-            with patch.object(removals, "_describe_removal", side_effect=AssertionError("Python picked samples")):
-                self.assertEqual(json.dumps(expected), json.dumps(removals._native_description(lines, row)))
-            self.assertEqual(expected, removals._native_description(
-                lines, {**row, "summary": {"classification": "removed", "samples": [len(lines)]}},
-            ))
-        self.assertEqual([[2], [], [1, 2, 3, 4, 5], [0, 1, 2]], [row["summary"]["samples"] for row in rows])
+        diff = []
+        for path, lines in removed.items():
+            diff.extend([f"diff --git a/{path} b/{path}", f"--- a/{path}", f"+++ b/{path}"])
+            diff.extend("-" + line for line in lines)
+        diff.extend(("diff --git a/dest.py b/dest.py", "--- a/dest.py", "+++ b/dest.py",
+                     "+ \t ", "+}", "+\u2003#x\u2003", "+body line"))
+        result = self.check("structure-removal-analysis", {
+            "diff": "\n".join(diff), "project": str(self.project), "untracked": [],
+            "findings": list(removed), "per_file": 200000, "total": 1000000,
+            "summary": {"headings": 5, "fallback": 3},
+        })
+        self.assertEqual([["#x"], [], [f"# heading {i}" for i in range(5)], [f"body {i}" for i in range(3)]],
+                         [row["samples"] for row in result["findings"]])
 
     def test_structure_source_layout_keeps_counts_warning_order_and_path_prefix(self):
         limit = structure.REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT
