@@ -1,14 +1,16 @@
-//! owner: validate an already-read decision cache entry without changing its values.
-//! allowed imports: bounded JSON, guarded cache reads and timestamp arithmetic.
-//! forbidden imports: cache writes, credentials and provider effects.
+//! owner: bounded decision cache file access and reuse validation.
+//! allowed imports: bounded JSON, guarded cache file operations and timestamp arithmetic.
+//! forbidden imports: credentials, provider effects and directory creation.
 //! callers/tests: DecisionCachePlan and test_microsoft_decision.
 //! verification: schema, exact key, TTL edges and Python fallback.
 use crate::{atomic_sibling::AtomicSibling, decision_response::DecisionResponse};
 use serde_json::{json, Value};
 use std::{
     ffi::CString,
+    fs::File,
     io::{self, Read},
     path::Path,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 const MAX_CACHE_BYTES: u64 = 256 * 1024;
@@ -17,17 +19,7 @@ pub(crate) struct DecisionCachedResult;
 
 impl DecisionCachedResult {
     pub(crate) fn read(payload: &Value) -> Option<Value> {
-        let key = payload.get("key")?.as_str()?;
-        if key.len() != 64
-            || !key
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
-        {
-            return None;
-        }
-        let directory =
-            AtomicSibling::open_directory(Path::new(payload.get("directory")?.as_str()?))?;
-        let name = CString::new(format!("{key}.json")).ok()?;
+        let (directory, name) = cache_target(payload)?;
         let file = match AtomicSibling::open_relative_result(&directory, &name, libc::O_RDONLY) {
             Ok(file) => file,
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
@@ -65,6 +57,27 @@ impl DecisionCachedResult {
         Some(verdict)
     }
 
+    pub(crate) fn replace(payload: &Value) -> Option<Value> {
+        let content = payload.get("content")?.as_str()?;
+        if content.len() as u64 > MAX_CACHE_BYTES {
+            return None;
+        }
+        let entry: Value = serde_json::from_str(content).ok()?;
+        if entry.get("key")?.as_str()? != payload.get("key")?.as_str()? {
+            return None;
+        }
+        let (directory, target) = cache_target(payload)?;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()?
+            .as_nanos();
+        let staging = CString::new(format!(".decision-{}-{now}", std::process::id())).ok()?;
+        let written = AtomicSibling::Private
+            .replace(&directory, &staging, &target, content.as_bytes())
+            .is_ok();
+        Some(json!({"written": written}))
+    }
+
     pub(crate) fn verdict(payload: &Value) -> Option<Value> {
         let entry = payload.get("entry")?.as_object()?;
         let schema = payload.get("schema")?.as_i64()?;
@@ -92,6 +105,19 @@ impl DecisionCachedResult {
             None
         }
     }
+}
+
+fn cache_target(payload: &Value) -> Option<(File, CString)> {
+    let key = payload.get("key")?.as_str()?;
+    if key.len() != 64
+        || !key
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return None;
+    }
+    let directory = AtomicSibling::open_directory(Path::new(payload.get("directory")?.as_str()?))?;
+    Some((directory, CString::new(format!("{key}.json")).ok()?))
 }
 
 fn matches_schema(value: &Value, expected: i64) -> Option<bool> {

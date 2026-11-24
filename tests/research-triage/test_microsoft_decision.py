@@ -164,7 +164,9 @@ class OpenRouterDecisionTests(unittest.TestCase):
                 status, result, _ = self.run_cli("--execute", "--refresh")
             self.assertEqual(status, 0)
             self.assertEqual(provider.call_count, len(scenarios))
-            self.assertEqual(observed, [("validate-prepare", True)] + [("validate-response", True)] * 4
+            self.assertEqual(observed, [("validate-prepare", True)]
+                             + [("validate-response", True), ("cache-write-support", True),
+                                ("write-cached-file", True)] * 4
                              + [("summarize", True)])
             self.assertEqual(result["ranked_ids"], decisions)
             self.assertEqual(result["unscored"], 2)
@@ -635,6 +637,81 @@ class OpenRouterDecisionTests(unittest.TestCase):
             self.assertIsNone(adapter._read_cache_file_native(path, key, 100, 20))
             self.assertEqual(adapter.read_cached(path, key, 100, 20), expected)
         self.assertEqual(path.read_text(encoding="utf-8"), large)
+
+    def test_native_cache_replace_matches_bytes_mode_and_failed_cleanup(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        key = "a" * 64
+        path = self.cache / f"{key}.json"
+        item = {"response_model": "한글😀", "evaluated_at": 12, "reported_cost_usd": -0.0}
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            adapter.save_cached(path, key, item)
+        expected = path.read_bytes()
+        path.write_text("previous", encoding="utf-8")
+        path.chmod(0o644)
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter.tempfile, "mkstemp", side_effect=AssertionError("Python write replay")):
+            adapter.save_cached(path, key, item)
+            self.assertEqual(path.read_bytes(), expected)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            path.unlink()
+            path.mkdir()
+            with self.assertRaises(OSError):
+                adapter.save_cached(path, key, item)
+            self.assertTrue(path.is_dir())
+        self.assertEqual(list(self.cache.glob(".decision-*")), [])
+
+    def test_legacy_launcher_without_cache_write_uses_python(self):
+        native = self.root / "home/.moru/bin/moru-hook-native"
+        native.parent.mkdir(parents=True)
+        observed = self.root / "legacy-probes"
+        native.write_text(
+            "#!/bin/sh\n"
+            f"printf '%s\\n' \"$3\" >> {shlex.quote(str(observed))}\n"
+            "printf '%s\\n' 'unsupported alias' >&2\n"
+            "exit 1\n",
+            encoding="utf-8",
+        )
+        native.chmod(0o755)
+        key = "c" * 64
+        path = self.cache / f"{key}.json"
+        with patch.dict(os.environ, environment(self.root, ROOT), clear=True):
+            adapter.save_cached(path, key, {"evaluated_at": 12, "response_model": "fixture"})
+        self.assertEqual(observed.read_text().splitlines(), ["cache-write-support"])
+        self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["key"], key)
+
+    def test_native_cache_unknown_write_result_never_replays(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        native = home / ".moru/bin/moru-hook-native"
+        binary = native.with_name("native-fixture")
+        native.rename(binary)
+        native.write_text(
+            "#!/bin/sh\n"
+            'if [ "${3-}" = write-cached-file ]; then\n'
+            f'    {shlex.quote(str(binary))} "$@" >/dev/null\n'
+            "    exit 1\n"
+            "fi\n"
+            f'exec {shlex.quote(str(binary))} "$@"\n',
+            encoding="utf-8",
+        )
+        native.chmod(0o755)
+        env = environment(self.root, ROOT)
+        key = "b" * 64
+        path = self.cache / f"{key}.json"
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter.tempfile, "mkstemp", side_effect=AssertionError("Python write replay")):
+            with self.assertRaisesRegex(OSError, "write outcome could not be determined"):
+                adapter.save_cached(path, key, {"evaluated_at": 12, "response_model": "fixture"})
+        self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["key"], key)
+        self.assertEqual(list(self.cache.glob(".decision-*")), [])
 
 
 if __name__ == "__main__":

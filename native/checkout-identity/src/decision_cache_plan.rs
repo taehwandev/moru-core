@@ -1,6 +1,6 @@
 //! owner: canonical research decision request sizing and cache identity.
-//! allowed imports: bounded JSON, Python JSON serialization and SHA-256.
-//! forbidden imports: provider calls, credentials, cache and filesystem writes.
+//! allowed imports: bounded JSON, Python JSON serialization, SHA-256 and decision cache operations.
+//! forbidden imports: provider calls, credentials and direct filesystem writes.
 //! callers/tests: microsoft_decision.py; test_decision_cache_plan.
 //! verification: exact Python digest and byte length for existing caches.
 use crate::{
@@ -35,6 +35,8 @@ impl DecisionCachePlan {
                         | "validate-response"
                         | "validate-cached"
                         | "read-cached-file"
+                        | "cache-write-support"
+                        | "write-cached-file"
                 )
             )
             || CallbackGuard::root(launcher, "decision-cache-plan").is_none()
@@ -63,6 +65,12 @@ impl DecisionCachePlan {
             if args[1] == "read-cached-file" {
                 return DecisionCachedResult::read(&value);
             }
+            if args[1] == "cache-write-support" {
+                return Some(json!({"supported": true}));
+            }
+            if args[1] == "write-cached-file" {
+                return DecisionCachedResult::replace(&value);
+            }
             if args[1] == "validate-prepare" {
                 if let Err(error) = DecisionInput::validate(&value) {
                     return Some(json!({"error": error}));
@@ -72,11 +80,16 @@ impl DecisionCachePlan {
         }) else {
             return 125;
         };
+        let reply_failure = if args[1] == "write-cached-file" {
+            1
+        } else {
+            125
+        };
         let Ok(reply) = serde_json::to_vec(&json!({"schema_version": 1, "result": result})) else {
-            return 125;
+            return reply_failure;
         };
         if reply.len() > MAX_MESSAGE {
-            return 125;
+            return reply_failure;
         }
         i32::from(io::stdout().write_all(&reply).is_err())
     }

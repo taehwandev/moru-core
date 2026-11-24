@@ -313,13 +313,33 @@ def read_cached(path: Path, key: str, now: float, ttl: float) -> dict | None:
         return None
 
 
+def _write_cache_file_native(path: Path, key: str, entry: dict) -> bool:
+    if (type(key) is not str or len(key) != 64 or path.name != f"{key}.json"
+            or not NativeProbe.available()):
+        return False
+    capability = NativeProbe.request("--decision-cache-probe", "cache-write-support", {})
+    if not capability or capability.get("supported") is not True:
+        return False
+    content = json.dumps(entry, ensure_ascii=False, allow_nan=False)
+    verdict = NativeProbe.request("--decision-cache-probe", "write-cached-file", {
+        "directory": str(path.parent.absolute()), "key": key, "content": content,
+    })
+    if verdict is None:
+        return False
+    if set(verdict) != {"written"} or verdict["written"] is not True:
+        raise OSError("native decision cache write failed")
+    return True
+
+
 def save_cached(path: Path, key: str, result: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    entry = {"schema": CACHE_SCHEMA, "key": key, "evaluated_at": result["evaluated_at"]}
+    entry["result"] = {k: v for k, v in result.items() if k != "evaluated_at"}
+    if _write_cache_file_native(path, key, entry):
+        return
     descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=".decision-")
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            entry = {"schema": CACHE_SCHEMA, "key": key, "evaluated_at": result["evaluated_at"]}
-            entry["result"] = {k: v for k, v in result.items() if k != "evaluated_at"}
             json.dump(entry, stream, ensure_ascii=False, allow_nan=False)
         os.replace(temporary, path)
     finally:

@@ -46,6 +46,7 @@ class NativeProbe:
             ("--doc-transcript-probe", "write-marker"): "native delivery marker outcome could not be determined",
             ("--doc-transcript-probe", "agy-redelivery"): "native redelivery outcome could not be determined",
             ("--doc-transcript-probe", "agy-prepared-delivery"): "native prepared delivery outcome could not be determined",
+            ("--decision-cache-probe", "write-cached-file"): "native decision cache write outcome could not be determined",
         }.get((protocol, operation))
         done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE,
                                   write_failure=write_failure, verified_launcher=verified_launcher)
