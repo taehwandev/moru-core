@@ -403,11 +403,12 @@ def _cmd_claim(project: Path, args: argparse.Namespace) -> int:
             for claim in blocking:
                 print(_describe(claim))
             return CONFLICT_EXIT
-        remaining = deadline - _now()
-        if 0 < remaining <= 8:
+        observed_at = _now()
+        if 0 < deadline - observed_at < float("inf"):
             waited = NativeProbe.request("--completion-probe", "path-claim-wait", {
                 "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
-                "conflict": {"paths": paths, "holder": args.holder}, "deadline": deadline,
+                "conflict": {"paths": paths, "holder": args.holder},
+                "deadline": deadline, "observed_at": observed_at,
             })
             if waited == {"waited": True}:
                 continue

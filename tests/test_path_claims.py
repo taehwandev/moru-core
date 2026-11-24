@@ -707,7 +707,7 @@ class PathClaimsTests(unittest.TestCase):
                 timer.start()
             try:
                 result = request(flag, operation, payload)
-                wait_results.append(result)
+                wait_results.append((payload["deadline"], result))
                 return result
             finally:
                 if timer is not None:
@@ -725,12 +725,20 @@ class PathClaimsTests(unittest.TestCase):
             self.assertEqual(code, path_claims.CONFLICT_EXIT)
             self.assertIn("held by a", output)
             self.assertEqual(attempt.call_count, 2)
-            self.assertEqual(wait_results, [{"waited": True}])
+            self.assertEqual([result for _, result in wait_results], [{"waited": True}])
             self.assertTrue(claim_file.exists())
 
+            wait_results.clear()
+            with mock.patch.object(path_claims, "try_claim", wraps=path_claims.try_claim) as attempt:
+                self.assertEqual(self.claim("b", "src/x.tsx", extra=("--wait", "9"))[0], path_claims.CONFLICT_EXIT)
+            self.assertEqual(attempt.call_count, 3)
+            self.assertEqual([result for _, result in wait_results], [{"waited": True}] * 2)
+            self.assertEqual(wait_results[0][0], wait_results[1][0])
+
+            wait_results.clear()
             release = True
-            self.assertEqual(self.claim("b", "src/x.tsx", extra=("--wait", "3"))[0], 0)
-            self.assertEqual(wait_results, [{"waited": True}, {"waited": True}])
+            self.assertEqual(self.claim("b", "src/x.tsx", extra=("--wait", "30"))[0], 0)
+            self.assertEqual([result for _, result in wait_results], [{"waited": True}])
             self.assertEqual(self.status()[0]["holder"], "b")
 
     def test_wait_succeeds_once_claim_expires(self) -> None:
