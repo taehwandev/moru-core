@@ -3,10 +3,11 @@
 //! forbidden imports: workflow authority, provider calls and output-based verdicts.
 //! callers/tests: direct mutation-check CLI and temporary restoration fixtures.
 //! verification: exactly one text match, status-based verdicts and no post-write replay.
-use crate::cards_resume_signal::ResumeInterrupt;
+use crate::{cards_resume_signal::ResumeInterrupt, text::Text};
 #[path = "mutation_check_spec.rs"]
 mod spec;
 use std::{
+    borrow::Cow,
     ffi::{OsStr, OsString},
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, Write},
@@ -113,7 +114,7 @@ impl MutationCheck {
                     return None;
                 }
                 let source = Self::read_limited(Self::open(&target, false))?;
-                if source.contains(&b'\r') || std::str::from_utf8(&source).is_err() {
+                if std::str::from_utf8(&source).is_err() {
                     return None;
                 }
                 Some(Mutant { target, entry })
@@ -189,12 +190,17 @@ impl MutationCheck {
         let mut file = Self::open(&mutant.target, false)?;
         let mut original = String::new();
         (&mut file).take(LIMIT + 1).read_to_string(&mut original)?;
-        if original.len() as u64 > LIMIT || original.contains('\r') {
+        if original.len() as u64 > LIMIT {
             return Err(io::Error::other(
                 "mutation target text profile changed after preflight",
             ));
         }
-        if original.matches(mutant.entry.old.as_str()).count() != 1 {
+        let source = if original.contains('\r') {
+            Cow::Owned(Text::universal_newlines(&original))
+        } else {
+            Cow::Borrowed(original.as_str())
+        };
+        if source.matches(mutant.entry.old.as_str()).count() != 1 {
             return Ok(None);
         }
         let identity = file.metadata()?;
@@ -205,7 +211,7 @@ impl MutationCheck {
                 "mutation target identity changed after preflight",
             ));
         }
-        let mutated = original.replacen(mutant.entry.old.as_str(), &mutant.entry.new, 1);
+        let mutated = source.replacen(mutant.entry.old.as_str(), &mutant.entry.new, 1);
         let result = Self::replace(&mut writable, &mutated).and_then(|()| {
             if ResumeInterrupt::interrupted() {
                 return Ok(false);

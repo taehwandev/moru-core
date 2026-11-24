@@ -64,10 +64,15 @@ def apply_mutant(path: Path, old: str, new: str) -> str | None:
     """
 
     original = path.read_text(encoding="utf-8")
-    if original.count(old) != 1:
+    mutated = _replacement(original, old, new)
+    if mutated is None:
         return None
-    path.write_text(original.replace(old, new), encoding="utf-8")
+    path.write_text(mutated, encoding="utf-8")
     return original
+
+
+def _replacement(source: str, old: str, new: str) -> str | None:
+    return source.replace(old, new) if source.count(old) == 1 else None
 
 
 def run_check(command: list[str], cwd: Path) -> int:
@@ -85,16 +90,19 @@ def run_check(command: list[str], cwd: Path) -> int:
 
 def judge(mutant: dict[str, Any], command: list[str], root: Path) -> str:
     path = root / mutant["file"]
-    original = apply_mutant(path, mutant["old"], mutant["new"])
-    if original is None:
+    original = path.read_bytes()
+    source = original.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    mutated = _replacement(source, mutant["old"], mutant["new"])
+    if mutated is None:
         return UNAPPLIED
+    path.write_text(mutated, encoding="utf-8")
     try:
         return KILLED if run_check(command, root) != 0 else SURVIVED
     finally:
         # Restoration is not optional. A mutant left in the tree is a defect
         # this tool introduced, so it is written back even when the run above
         # raised rather than returned.
-        path.write_text(original, encoding="utf-8")
+        path.write_bytes(original)
 
 
 def check_command(test: str) -> list[str]:

@@ -261,6 +261,37 @@ class NativeMutationCheckTests(unittest.TestCase):
         self.assertNotIn(b"fallback", actual.stderr)
         self.assertEqual(self.original, self.target.read_bytes())
 
+    def test_newline_matching_restores_crlf_and_lone_cr_bytes(self):
+        (self.root / "test_subject.py").write_text(
+            "import pathlib, subject, unittest\n"
+            "class SubjectTest(unittest.TestCase):\n"
+            "    def test_value(self):\n"
+            "        pathlib.Path('observed').write_bytes(pathlib.Path('subject.py').read_bytes())\n"
+            "        self.assertEqual(subject.VALUE, 1)\n",
+        )
+        for first, second in ((b"\r\n", b"\r\n"), (b"\r", b"\r"), (b"\r\n", b"\r")):
+            original = b"VALUE = 1" + first + b"COMMENT = 'same same'" + second + "# 한".encode()
+            with self.subTest(first=first, second=second):
+                self.target.write_bytes(original)
+                self._spec(("caught", "VALUE = 1\nCOMMENT", "VALUE = 20\nCOMMENT"),
+                           ("duplicate", "same", "changed"), ("absent", "missing", "changed"))
+                expected = self._reference()
+                self.assertEqual(original, self.target.read_bytes())
+                self.assertEqual(b"VALUE = 20\nCOMMENT = 'same same'\n" + "# 한".encode(),
+                                 (self.root / "observed").read_bytes())
+                (self.root / "observed").unlink()
+                actual = self._native(sys.executable)
+                self.assertEqual((expected.returncode, expected.stdout, expected.stderr),
+                                 (actual.returncode, actual.stdout, actual.stderr))
+                self.assertIn(b"KILLED  caught", actual.stdout)
+                self.assertEqual(2, actual.stdout.count(b"NOT APPLIED"))
+                self.assertTrue((self.root / "observed").is_file())
+                self.assertEqual(original, self.target.read_bytes())
+                failure = self._native(str(self.root / "missing-python"))
+                self.assertIn(b"mutation check failed:", failure.stderr)
+                self.assertNotIn(b"fallback", failure.stderr)
+                self.assertEqual(original, self.target.read_bytes())
+
     def test_deleted_target_is_restored_before_the_next_mutation(self):
         (self.root / "test_subject.py").write_text(
             "import pathlib, unittest\n"
