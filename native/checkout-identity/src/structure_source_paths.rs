@@ -1,11 +1,15 @@
 //! owner: batch eligibility of ordinary source paths for structural review.
-//! allowed imports: read-only filesystem metadata, Git attribute records and JSON.
-//! forbidden imports: state writes, Git execution and vendor exclusion policy.
+//! allowed imports: read-only filesystem metadata and vendor README, Git attribute records and JSON.
+//! forbidden imports: state writes and Git execution.
 //! callers/tests: structural review and preview via private completion probe.
 //! verification: configured source exclusions and per-path fallback.
 use super::structure_net_deletions::StructureNetDeletions;
 use serde_json::{json, Value};
-use std::{fs, io::ErrorKind, path::Path};
+use std::{
+    fs,
+    io::{ErrorKind, Read},
+    path::Path,
+};
 
 pub(super) struct StructureSourcePaths;
 
@@ -58,13 +62,7 @@ impl StructureSourcePaths {
                 {
                     return Some(false);
                 }
-                if parts
-                    .iter()
-                    .any(|part| part.eq_ignore_ascii_case("third_party"))
-                {
-                    return None;
-                }
-                if git_generated {
+                if Self::pinned_vendor(project, &parts)? || git_generated {
                     return Some(false);
                 }
                 match fs::metadata(project.join(raw)) {
@@ -79,6 +77,46 @@ impl StructureSourcePaths {
             result["net_deletions"] = StructureNetDeletions::findings(counts)?;
         }
         Some(result)
+    }
+
+    fn pinned_vendor(project: &Path, parts: &[&str]) -> Option<bool> {
+        const MAX_README_BYTES: u64 = 128 * 1024;
+        let Some(package) = parts
+            .iter()
+            .position(|part| part.eq_ignore_ascii_case("third_party"))
+            .and_then(|boundary| parts.get(..boundary + 2))
+        else {
+            return Some(false);
+        };
+        let package = project.join(package.join("/"));
+        let readme = package.join("README.md");
+        for file in [&readme, &package.join("LICENSE")] {
+            match fs::metadata(file) {
+                Ok(metadata) if metadata.is_file() => {}
+                Ok(_) => return Some(false),
+                Err(error)
+                    if matches!(error.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) =>
+                {
+                    return Some(false);
+                }
+                Err(_) => return None,
+            }
+        }
+        let mut bytes = Vec::new();
+        fs::File::open(readme)
+            .ok()?
+            .take(MAX_README_BYTES + 1)
+            .read_to_end(&mut bytes)
+            .ok()?;
+        if bytes.len() as u64 > MAX_README_BYTES {
+            return None;
+        }
+        let provenance = std::str::from_utf8(&bytes).ok()?.to_lowercase();
+        Some(
+            ["upstream", "commit", "sha-256", "license"]
+                .iter()
+                .all(|marker| provenance.contains(marker)),
+        )
     }
 
     fn generated_flags(records: &str, paths: &[Value]) -> Option<Vec<bool>> {

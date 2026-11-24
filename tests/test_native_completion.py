@@ -949,8 +949,40 @@ class NativeCompletionTests(unittest.TestCase):
             structure, "review_source_path", wraps=structure.review_source_path,
         ) as fallback:
             self.assertEqual(expected, structure._review_sources(self.project, paths))
-            self.assertEqual([Path("src/한.py"), Path("third_party/example/file.py")],
+            self.assertEqual([Path("src/한.py")],
                              [call.args[1] for call in fallback.call_args_list])
+
+    def test_structure_vendor_provenance_preserves_boundary_and_encoding(self):
+        provenance = "출처\nUPSTREAM commit sha-256 license".encode("utf-8")
+        packages = {
+            "src/Third_Party/pinned": provenance,
+            "third_party/unmarked/third_party/nested": provenance,
+            "third_party/no_license": provenance,
+            "third_party/no_marker": b"upstream commit license",
+            "third_party/legacy": b"up\xffstream commit sha-256 license",
+            "third_party/large": b"upstream commit sha-256 " + b" " * (128 * 1024) + b"license",
+        }
+        paths = []
+        for package, readme in packages.items():
+            directory = self.project / package
+            directory.mkdir(parents=True)
+            (directory / "README.md").write_bytes(readme)
+            license_file = directory / "LICENSE"
+            if package.endswith("/no_license"):
+                license_file.mkdir()
+            else:
+                license_file.touch()
+            (directory / "module.py").touch()
+            paths.append(Path(package) / "module.py")
+
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = structure._review_sources(self.project, paths)
+        self.assertEqual(paths[1:4], expected)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "review_source_path", wraps=structure.review_source_path,
+        ) as fallback:
+            self.assertEqual(expected, structure._review_sources(self.project, paths))
+            self.assertEqual(paths[4:], [call.args[1] for call in fallback.call_args_list])
     def test_structure_generated_attributes_batch_matches_git_and_preserves_fallback(self):
         paths = [Path(name) for name in (
             "src/generated.rs", "src/keep: space\n.rs", "src/value.rs",
