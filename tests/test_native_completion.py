@@ -702,6 +702,44 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_typescript_text_matches_legacy_mask_and_references(self):
+        cases = [
+            ["export function Factory() {", r"const r = /[\x27\/]Hidden/gi;",
+             'return "StringReference" + Actual;', "}", "export type Actual = Helper;"],
+            ["export const x = /[/]/;", "export const r = () => /RegexName/giu;", "return /NotMasked/;"],
+            ["/* comment\u2028only */", "export type Joined = foo/* gap */bar;"],
+            ["/* no close", 'export const Keep = "hidden";', "export type Another = Kept;"],
+            ['const raw = "unterminated /* discarded */', "export type Owner = Real;"],
+            ['const s = "continued \\', 'following";', "export type Owner = Real;"],
+            ["const raw = " + chr(96) + "start $" "{Hidden}", "another line" + chr(96) + ";",
+             "export type Owner = Real;"],
+            ["export type Owner = Owner | Aα | αA | cafe\u0301 | a$b;",
+             "export interface Next { value: FinalType }"],
+        ]
+        path = Path("app/page.tsx")
+        masked = [purpose._python_typescript_lines(lines) for lines in cases]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [purpose.top_level_type_declarations(path, lines) for lines in cases]
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            purpose, "_python_typescript_lines", side_effect=AssertionError("legacy masking was invoked"),
+        ):
+            for lines, baseline, declarations in zip(cases, masked, expected):
+                native = self.check("structure-ts-text", {"mode": "mask", "lines": lines})
+                self.assertEqual(baseline, native["lines"])
+                self.assertEqual(declarations, purpose.top_level_type_declarations(path, lines))
+                references = self.check("structure-ts-text", {
+                    "mode": "references", "lines": native["lines"],
+                    "unicode": unicodedata.unidata_version,
+                    "owners": [[row["line"], row["name"]] for row in declarations],
+                })
+                self.assertEqual([row["references"] for row in declarations],
+                                 [set(names) for names in references["references"]])
+        self.assertTrue({"Aα", "cafe", "a", "b"} <= expected[-1][0]["references"])
+        self.assertFalse({"αA", "Owner", "FinalType"} & expected[-1][0]["references"])
+        self.assertEqual(125, self.raw("structure-ts-text", {
+            "mode": "mask", "lines": ["/* x" * 200],
+        }).returncode)
+
     def test_structure_native_owner_facts_group_js_adapters_and_typescript_baselines(self):
         cases = [
             ("src/app/route.ts", [

@@ -181,6 +181,28 @@ def _native_go_declarations(lines: list[str]) -> list[dict[str, Any]] | None:
     return declarations
 
 
+def _typescript_lines(lines: list[str]) -> list[str]:
+    native = NativeProbe.request("--completion-probe", "structure-ts-text", {
+        "mode": "mask", "lines": lines,
+    })
+    masked = native.get("lines") if native is not None else None
+    if isinstance(masked, list) and all(isinstance(line, str) for line in masked):
+        return masked
+    return _python_typescript_lines(lines)
+
+
+def _python_typescript_lines(lines: list[str]) -> list[str]:
+    # Mask assignment/arrow regex literals before their quotes can be mistaken for strings.
+    # Preserve line numbers for diagnostics while ignoring prose and literals.
+    source = re.sub(
+        r"(?<=[=>])[ \t]*/(?![/*])(?:\\.|[^/\\\n])+/[a-z]*"
+        r"|//[^\n]*|/\*[\s\S]*?\*/|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"|`(?:\\.|[^`\\])*`",
+        lambda match: "\n" * match.group().count("\n"),
+        "\n".join(lines),
+    )
+    return source.splitlines()
+
+
 def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, Any]]:
     declarations: list[dict[str, Any]] = []
     suffix = path.suffix.lower()
@@ -194,15 +216,7 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
             return native
     is_typescript = suffix in {".ts", ".tsx"}
     if is_typescript:
-        # Mask assignment/arrow regex literals before their quotes can be mistaken for strings.
-        # Preserve line numbers for diagnostics while ignoring prose and literals.
-        source = re.sub(
-            r"(?<=[=>])[ \t]*/(?![/*])(?:\\.|[^/\\\n])+/[a-z]*"
-            r"|//[^\n]*|/\*[\s\S]*?\*/|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"|`(?:\\.|[^`\\])*`",
-            lambda match: "\n" * match.group().count("\n"),
-            "\n".join(lines),
-        )
-        lines = source.splitlines()
+        lines = _typescript_lines(lines)
     brace_depth = 0
     matches = []
     for index, line in enumerate(lines):
@@ -249,13 +263,29 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
             declaration.update(private=not exported, exported=exported)
         if declaration["owner"]:
             declarations.append(declaration)
-    if is_typescript:
-        for index, declaration in enumerate(declarations):
-            end = declarations[index + 1]["line"] - 1 if index + 1 < len(declarations) else len(lines)
-            declaration["references"] = set(re.findall(
-                r"\b[A-Za-z_]\w*\b", "\n".join(lines[declaration["line"] - 1:end]),
-            )) - {declaration["name"]}
+    if is_typescript and declarations:
+        _attach_typescript_references(lines, declarations)
     return declarations
+
+
+def _attach_typescript_references(lines: list[str], declarations: list[dict[str, Any]]) -> None:
+    native = NativeProbe.request("--completion-probe", "structure-ts-text", {
+        "mode": "references", "lines": lines, "unicode": unicodedata.unidata_version,
+        "owners": [[row["line"], row["name"]] for row in declarations],
+    })
+    references = native.get("references") if native is not None else None
+    if isinstance(references, list) and len(references) == len(declarations) and all(
+        isinstance(names, list) and all(isinstance(name, str) for name in names)
+        for names in references
+    ):
+        for declaration, names in zip(declarations, references):
+            declaration["references"] = set(names)
+        return
+    for index, declaration in enumerate(declarations):
+        end = declarations[index + 1]["line"] - 1 if index + 1 < len(declarations) else len(lines)
+        declaration["references"] = set(re.findall(
+            r"\b[A-Za-z_]\w*\b", "\n".join(lines[declaration["line"] - 1:end]),
+        )) - {declaration["name"]}
 
 
 def match_kind(match: re.Match[str]) -> str:
