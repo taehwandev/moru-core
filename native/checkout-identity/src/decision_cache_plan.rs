@@ -6,6 +6,7 @@
 use crate::{
     decision_input::DecisionInput,
     decision_report::DecisionReport,
+    decision_response::DecisionResponse,
     pretool_guard::CallbackGuard,
     python_json::{Number, Object, PythonJson, Value as PythonValue},
 };
@@ -26,7 +27,7 @@ impl DecisionCachePlan {
         if args.len() != 2
             || !matches!(
                 args[1].to_str(),
-                Some("prepare" | "validate-prepare" | "summarize")
+                Some("prepare" | "validate-prepare" | "summarize" | "validate-response")
             )
             || CallbackGuard::root(launcher, "decision-cache-plan").is_none()
         {
@@ -44,6 +45,9 @@ impl DecisionCachePlan {
         let Some(result) = serde_json::from_slice(&raw).ok().and_then(|value| {
             if args[1] == "summarize" {
                 return DecisionReport::summarize(&value);
+            }
+            if args[1] == "validate-response" {
+                return DecisionResponse::verdict(&value);
             }
             if args[1] == "validate-prepare" {
                 if let Err(error) = DecisionInput::validate(&value) {

@@ -129,7 +129,8 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
         self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
-        self.assertEqual(["prepare", "validate-prepare", "summarize"], observed.read_text().splitlines())
+        self.assertEqual(["prepare", "validate-prepare", "validate-response", "summarize"],
+                         observed.read_text().splitlines())
 
     def test_native_decision_order_is_stable_and_fallback_never_replays_provider(self):
         if NATIVE is None or not NATIVE.is_file():
@@ -163,7 +164,8 @@ class OpenRouterDecisionTests(unittest.TestCase):
                 status, result, _ = self.run_cli("--execute", "--refresh")
             self.assertEqual(status, 0)
             self.assertEqual(provider.call_count, len(scenarios))
-            self.assertEqual(observed, [("validate-prepare", True), ("summarize", True)])
+            self.assertEqual(observed, [("validate-prepare", True)] + [("validate-response", True)] * 4
+                             + [("summarize", True)])
             self.assertEqual(result["ranked_ids"], decisions)
             self.assertEqual(result["unscored"], 2)
             self.assertEqual([row["id"] for row in result["results"]],
@@ -502,6 +504,40 @@ class OpenRouterDecisionTests(unittest.TestCase):
             self.assertIsNone(result)
             self.assertIn("Invalid", errors)
             call.assert_not_called()
+
+    def test_native_response_verdict_preserves_original_numbers_and_threshold(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        accepted = response(relevance=-0.0, cost=0)
+        distribution = accepted["answers"]["source_kind"]["probabilities"]
+        distribution["review"] = 1
+        rejected = response(relevance=True)
+        near = response()
+        near["answers"]["source_kind"]["probabilities"]["review"] = 0.975
+        nonfinite = response(cost=float("inf"))
+        for item, available in ((accepted, True), (rejected, True), (near, False), (nonfinite, False)):
+            def normalize():
+                try:
+                    return json.dumps(adapter.validate_response(item), allow_nan=False)
+                except ValueError as error:
+                    return str(error)
+            with self.subTest(available=available):
+                with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    expected = normalize()
+                with patch.dict(os.environ, env, clear=True), \
+                        patch.object(adapter, "_response_verdict", wraps=adapter._response_verdict) as check, \
+                        patch.object(adapter.NativeProbe, "request", wraps=adapter.NativeProbe.request) as probe:
+                    actual = normalize()
+                self.assertEqual(actual, expected)
+                self.assertEqual(check.call_count, 1)
+                self.assertEqual(probe.call_args.args[1], "validate-response")
+                with patch.dict(os.environ, env, clear=True):
+                    result = adapter.NativeProbe.request(*probe.call_args.args)
+                self.assertEqual(result is not None, available)
 
     def test_unknown_cost_is_reported_without_an_estimate(self):
         with patch.object(adapter, "send_request", return_value=response(cost=None)):

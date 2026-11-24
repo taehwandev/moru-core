@@ -84,7 +84,43 @@ def probability(value: object) -> bool:
     return type(value) in (int, float) and 0 <= value <= 1 and math.isfinite(value)
 
 
+def _response_fields(value, *names):
+    if not isinstance(value, dict):
+        return None
+    return {name: value.get(name) for name in names}
+
+
+def _response_verdict(response: dict, cost) -> bool | None:
+    if type(cost) is int and cost.bit_length() > 64:
+        return None
+    try:
+        options = list(QUESTIONS["source_kind"]["criteria"])
+    except (KeyError, TypeError):
+        return None
+    answers = _response_fields(response.get("answers"), "relevant", "source_kind")
+    if answers is not None:
+        answers["relevant"] = _response_fields(answers["relevant"], "type", "noul")
+        answers["source_kind"] = _response_fields(answers["source_kind"], "type", "choice", "probabilities")
+    native = NativeProbe.request("--decision-cache-probe", "validate-response", {
+        "response": {"model": response.get("model"), "answers": answers, "cost": cost},
+        "options": options,
+    })
+    if native is not None and set(native) == {"error"} and type(native["error"]) is str:
+        raise ValueError(native["error"])
+    if native is not None and set(native) == {"keep_cost"} and type(native["keep_cost"]) is bool:
+        return native["keep_cost"]
+    return None
+
+
 def validate_response(response: object) -> dict:
+    if type(response) is dict and NativeProbe.available():
+        usage = response.get("usage")
+        cost = usage.get("cost") if isinstance(usage, dict) else None
+        native = _response_verdict(response, cost)
+        if native is not None:
+            answers = response["answers"]
+            return _normalized_response(response, answers["relevant"], answers["source_kind"],
+                                        cost if native else None)
     if not isinstance(response, dict) or not isinstance(response.get("model"), str):
         raise ValueError("Invalid decision response")
     if not response["model"].strip():
@@ -113,13 +149,17 @@ def validate_response(response: object) -> dict:
     usage = usage if isinstance(usage, dict) else {}
     cost = usage.get("cost")
     cost = cost if type(cost) in (int, float) and math.isfinite(cost) and cost >= 0 else None
+    return _normalized_response(response, relevant, kind, cost)
+
+
+def _normalized_response(response, relevant, kind, cost):
     return {
         "response_model": response["model"],
         "provider": response.get("provider") if isinstance(response.get("provider"), str) else None,
         "answers": {
             "relevant": {"type": "noul", "noul": relevant["noul"]},
             "source_kind": {
-                "type": "choice", "choice": kind["choice"], "probabilities": distribution,
+                "type": "choice", "choice": kind["choice"], "probabilities": kind["probabilities"],
             },
         },
         "reported_cost_usd": cost,
