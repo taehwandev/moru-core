@@ -90,7 +90,10 @@ class CompactionTests(unittest.TestCase):
         entry = home / ".moru/bin/moru-hook"
         self._write("legacy.json", _candidate("lesson", "2026-01-01T00:00:00Z"))
         before = {path.name: path.read_bytes() for path in self.inbox.iterdir()}
-        env = {**environment(self.state, ROOT), "MORU_STATE_HOME": str(self.state)}
+        env = {**environment(self.state, ROOT), "MORU_STATE_HOME": str(self.state),
+               "LC_ALL": "C.UTF-8", "LC_MESSAGES": "C.UTF-8", "LANG": "C.UTF-8"}
+        env.pop("LANGUAGE", None)
+        env.pop("FORCE_COLOR", None)
         shim = self.state / "shim"
         shim.mkdir()
         python = shim / "python3"
@@ -101,7 +104,8 @@ class CompactionTests(unittest.TestCase):
             return subprocess.run([str(entry), "lessons-compact", *args], env={**env, **overrides},
                                   capture_output=True, timeout=10)
 
-        for args in ([], ["--state-home", str(self.state)], [f"--state-home={self.state}"]):
+        for args in ([], ["--state-home", str(self.state)], [f"--state-home={self.state}"],
+                     ["--state-home", str(self.state / "unused"), f"--sta={self.state}"]):
             with self.subTest(args=args):
                 oracle = run(args, MORU_LAUNCHER_BACKEND="python")
                 actual = run(args, PATH=str(shim))
@@ -109,12 +113,28 @@ class CompactionTests(unittest.TestCase):
                                  (oracle.returncode, oracle.stdout, oracle.stderr))
                 self.assertEqual(actual.returncode, 0)
                 self.assertIn(b"nothing written", actual.stdout)
+        for args in (["-h"], ["--a", "--hel"], [f"--sta={self.state}", "--apply", "--help"]):
+            for columns in ("76", "110"):
+                with self.subTest(args=args, columns=columns):
+                    oracle = run(args, MORU_LAUNCHER_BACKEND="python", COLUMNS=columns)
+                    result = run(args, PATH=str(shim), COLUMNS=columns)
+                    self.assertEqual(result.returncode, 0)
+                    self.assertEqual((result.stdout, result.stderr), (oracle.stdout, oracle.stderr))
+                    self.assertIn(b"usage: lessons-compact.py", result.stdout)
         for args in (["--state-home", "--apply", str(self.state)], ["--apply=false"],
-                     ["--help"], ["--state-home", "."]):
+                     ["--state-home=--apply"], ["--state-home", "."], ["--state-home", "--help"],
+                     ["--", "--apply"], ["--he=bad", "--apply"]):
             with self.subTest(args=args):
                 result = run(args, PATH=str(shim))
                 self.assertEqual(result.returncode, 37)
                 self.assertEqual(result.stdout.decode().splitlines(), [str(entry), "lessons-compact", *args])
+        literal = self.state / "--apply"
+        args = [f"--state-home={literal}"]
+        self.assertEqual(run(args, PATH=str(shim)).stdout, run(args, MORU_LAUNCHER_BACKEND="python").stdout)
+        self.assertFalse(literal.exists())
+        colored = run(["--help", "--apply"], PATH=str(shim), FORCE_COLOR="1")
+        self.assertEqual(colored.returncode, 37)
+        self.assertEqual(colored.stdout.decode().splitlines(), [str(entry), "lessons-compact", "--help", "--apply"])
         self.assertEqual({path.name: path.read_bytes() for path in self.inbox.iterdir()}, before)
         (self.inbox / "linked.json").symlink_to(self.inbox / "legacy.json")
         declined = run([], PATH=str(shim))
@@ -153,8 +173,11 @@ class CompactionTests(unittest.TestCase):
                 (inbox / "b.compact.tmp").write_text("legacy scratch", encoding="utf-8")
 
         def run(state, env):
+            args = ["--a", f"--sta={root / state}", "--apply"] if state == "native" else [
+                "--apply", "--state-home", str(root / state),
+            ]
             result = subprocess.run(
-                [str(entry), "lessons-compact", "--apply", "--state-home", str(root / state)],
+                [str(entry), "lessons-compact", *args],
                 env=env, capture_output=True, timeout=10,
             )
             self.assertEqual(result.returncode, 0, result.stderr)

@@ -7,13 +7,16 @@ use super::{
     lesson_compaction_apply::LessonCompactionApply,
     lesson_compaction_preview::LessonCompactionPreview,
 };
-use crate::{pretool_guard::CallbackGuard, python_encoding::PythonEncoding, statusline::Renderer};
+use crate::{
+    argparse_help::ArgparseHelp, pretool_guard::CallbackGuard, python_encoding::PythonEncoding,
+    statusline::Renderer,
+};
 use serde_json::{json, Value};
 use std::{
     env,
     ffi::OsString,
     fs,
-    io::{self, Write},
+    io::{self, IsTerminal, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::{SystemTime, UNIX_EPOCH},
@@ -28,20 +31,29 @@ struct Run {
     micros: i64,
 }
 
+enum Options {
+    Help,
+    Run { state: PathBuf, apply: bool },
+}
+
 impl LessonCompactionCli {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
-        let (apply, state_args) = match &args[1..] {
-            [flag, rest @ ..] if flag == "--apply" => (true, rest),
-            [rest @ .., flag] if flag == "--apply" => (true, rest),
-            rest => (false, rest),
-        };
-        let Some(state) = Self::state_home(state_args) else {
+        let Some(options) = Self::parse(&args[1..]) else {
             crate::exec_python(launcher, args)
         };
         let Some(root) =
             CallbackGuard::root(launcher, "lessons-compact").filter(|_| PythonEncoding::utf8())
         else {
             crate::exec_python(launcher, args);
+        };
+        let (state, apply) = match options {
+            Options::Help => {
+                let Some(help) = Self::help() else {
+                    crate::exec_python(launcher, args)
+                };
+                return i32::from(Self::write(&help).is_err());
+            }
+            Options::Run { state, apply } => (state, apply),
         };
         let Some(run) = Self::prepare(&state, apply) else {
             crate::exec_python(launcher, args)
@@ -138,23 +150,91 @@ impl LessonCompactionCli {
         Ok(status.code().unwrap_or(1))
     }
 
-    fn state_home(args: &[OsString]) -> Option<PathBuf> {
-        let state = match args {
-            [] => {
-                let state = env::var("MORU_STATE_HOME").unwrap_or_default();
-                let state = Renderer::strip(&state);
-                if state.is_empty() {
-                    PathBuf::from(env::var("HOME").ok()?).join(".moru")
-                } else {
-                    PathBuf::from(state)
-                }
+    fn parse(args: &[OsString]) -> Option<Options> {
+        let mut args = args.iter();
+        let mut state = None;
+        let mut apply = false;
+        while let Some(arg) = args.next() {
+            let arg = arg.to_str()?;
+            let (flag, inline) = arg
+                .split_once('=')
+                .map_or((arg, None), |(flag, value)| (flag, Some(value)));
+            let long = flag.strip_prefix("--").filter(|flag| !flag.is_empty());
+            if flag == "-h" || long.is_some_and(|prefix| "help".starts_with(prefix)) {
+                return inline.is_none().then_some(Options::Help);
             }
-            [flag, state] if flag == "--state-home" => PathBuf::from(state),
-            [flag] => PathBuf::from(flag.to_str()?.strip_prefix("--state-home=")?),
-            _ => return None,
+            let long = long?;
+            if "state-home".starts_with(long) {
+                let value = match inline {
+                    Some(value) => value,
+                    None => args
+                        .next()?
+                        .to_str()
+                        .filter(|value| !value.starts_with('-'))?,
+                };
+                state = Some(PathBuf::from(value));
+            } else if "apply".starts_with(long) && inline.is_none() {
+                apply = true;
+            } else {
+                return None;
+            }
+        }
+        let state = if let Some(state) = state {
+            state
+        } else {
+            let default = env::var("MORU_STATE_HOME").unwrap_or_default();
+            let default = Renderer::strip(&default);
+            if default.is_empty() {
+                PathBuf::from(env::var("HOME").ok()?).join(".moru")
+            } else {
+                PathBuf::from(default)
+            }
         };
         let normalized: PathBuf = state.components().collect();
-        (state.is_absolute() && state.as_os_str() == normalized.as_os_str()).then_some(state)
+        (state.is_absolute() && state.as_os_str() == normalized.as_os_str())
+            .then_some(Options::Run { state, apply })
+    }
+
+    fn help() -> Option<String> {
+        if io::stdout().is_terminal()
+            || io::stderr().is_terminal()
+            || env::var_os("FORCE_COLOR").is_some()
+            || env::var_os("LANGUAGE").is_some()
+        {
+            return None;
+        }
+        for key in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+            if let Some(locale) = env::var_os(key) {
+                let locale = locale.to_str()?;
+                if !locale.is_empty()
+                    && !matches!(locale, "C" | "POSIX" | "C.UTF-8" | "en_US.UTF-8")
+                {
+                    return None;
+                }
+            }
+        }
+        let columns = match env::var_os("COLUMNS") {
+            Some(value) => value.to_str()?.parse::<usize>().ok()?,
+            None => 80,
+        };
+        if !(72..=512).contains(&columns) {
+            return None;
+        }
+        let script = include_str!("../../../scripts/lessons-compact.py");
+        let description = script.lines().next()?.strip_prefix("\"\"\"")?;
+        let rows = [
+            ("-h, --help", "show this help message and exit"),
+            ("--state-home STATE_HOME", ""),
+            ("--apply", "write the merged records and remove the files they replace; without it, only report what would change"),
+        ];
+        Some(ArgparseHelp::help(
+            "lessons-compact.py",
+            &["[-h]", "[--state-home STATE_HOME]", "[--apply]"],
+            description,
+            env!("MORU_ARGPARSE_OPTIONS_TITLE"),
+            &rows,
+            columns - 2,
+        ))
     }
 
     fn prepare(state: &Path, apply: bool) -> Option<Run> {
