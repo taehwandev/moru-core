@@ -145,6 +145,7 @@ mod text;
 mod worker_completion;
 mod worker_completion_process;
 mod workflow_query_process;
+mod workflow_offline_score;
 mod workflow_wikimap_rank;
 mod unittest_admission;
 use launcher_backend::Backend;

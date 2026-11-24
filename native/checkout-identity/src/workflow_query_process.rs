@@ -3,7 +3,10 @@
 //! forbidden imports: retrieval, project writes and vendor source.
 //! callers/tests: workflow_search.py and workflow query process parity.
 //! verification: empty, ordinary, decorated and unsupported report inputs.
-use crate::{pretool_guard::CallbackGuard, workflow_wikimap_rank::WikimapRank};
+use crate::{
+    pretool_guard::CallbackGuard, workflow_offline_score::OfflineScore,
+    workflow_wikimap_rank::WikimapRank,
+};
 use serde_json::{json, Value};
 use std::{
     ffi::OsString,
@@ -18,7 +21,10 @@ pub(crate) struct WorkflowQueryProcess;
 impl WorkflowQueryProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || !matches!(args[1].to_str(), Some("render-text" | "rank-wikimap"))
+            || !matches!(
+                args[1].to_str(),
+                Some("render-text" | "rank-wikimap" | "score-offline")
+            )
             || CallbackGuard::root(launcher, "workflow-query-text").is_none()
         {
             return 125;
@@ -39,6 +45,9 @@ impl WorkflowQueryProcess {
                     "render-text" => Self::format(&payload).map(|text| json!({"text": text})),
                     "rank-wikimap" => {
                         WikimapRank::rank(&payload).map(|results| json!({"results": results}))
+                    }
+                    "score-offline" => {
+                        OfflineScore::batch(&payload).map(|scores| json!({"scores": scores}))
                     }
                     _ => None,
                 })

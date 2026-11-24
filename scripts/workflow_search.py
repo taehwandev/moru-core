@@ -27,6 +27,7 @@ RAW_TERM_WEIGHT = 2
 EXPANDED_TERM_WEIGHT = 1
 POLICY_FACET_BASE_SCORE = 1_000
 WIKIMAP_RANK_BASE_SCORE = 500
+_OFFLINE_BATCH_CHARS = 256 * 1024
 _SEARCH_PRUNED_DIRECTORIES = frozenset({
     *PRUNED_DIRECTORIES,
     ".wikimap",
@@ -183,8 +184,17 @@ def _legacy_search_docs(
 ) -> List[Dict[str, object]]:
     """Preserve the previous in-process scorer as an offline recovery path."""
 
+    rows = _legacy_search_rows(root, matched_facets, doc_boosts)
+    results = [
+        item for item in _scored_offline_rows(rows, raw_terms, expanded_terms)
+        if item["score"] > 0
+    ]
+    results.sort(key=lambda x: (-int(x["score"]), str(x["path"])))
+    return results[:max_results]
+
+
+def _legacy_search_rows(root, matched_facets, doc_boosts):
     descriptions = _parse_index_descriptions(root)
-    results: List[Dict[str, object]] = []
 
     for rel, path in _searchable_markdown_paths(root):
         try:
@@ -213,31 +223,61 @@ def _legacy_search_docs(
                 body_lines.append(line)
 
         index_desc = descriptions.get(rel, "")
-        lower_desc = index_desc.lower()
-        lower_title = title.lower()
-        lower_headings = " ".join(headings).lower()
-        lower_body = " ".join(body_lines)[:2000].lower()
-
-        score = doc_boosts.get(rel, 0)
-        score += _score_terms(raw_terms, RAW_TERM_WEIGHT, lower_desc, lower_title, lower_headings, lower_body)
-        score += _score_terms(expanded_terms, EXPANDED_TERM_WEIGHT, lower_desc, lower_title, lower_headings, lower_body)
-
-        item: Dict[str, object] = {
+        item = {
             "path": rel,
             "title": title,
             "description": index_desc,
-            "score": score,
+            "score": doc_boosts.get(rel, 0),
             "matched_facets": [
                 facet
                 for facet in matched_facets
                 if rel in facet_docs(facet) or rel in CONCERNS.get(facet, ())
             ],
         }
-        if score > 0:
-            results.append(item)
+        fields = (index_desc.lower(), title.lower(), " ".join(headings).lower(),
+                  " ".join(body_lines)[:2000].lower())
+        yield item, fields
 
-    results.sort(key=lambda x: (-int(x["score"]), str(x["path"])))
-    return results[:max_results]
+
+def _scored_offline_rows(rows, raw_terms, expanded_terms):
+    native = NativeProbe.available()
+    batch = []
+    size = 0
+    for item, fields in rows:
+        row_size = sum(map(len, fields)) + 32
+        if batch and size + row_size > _OFFLINE_BATCH_CHARS:
+            yield from _score_offline_batch(batch, raw_terms, expanded_terms, native)
+            batch = []
+            size = 0
+        batch.append((item, fields))
+        size += row_size
+        if not native:
+            yield from _score_offline_batch(batch, raw_terms, expanded_terms, False)
+            batch = []
+            size = 0
+    if batch:
+        yield from _score_offline_batch(batch, raw_terms, expanded_terms, native)
+
+
+def _score_offline_batch(batch, raw_terms, expanded_terms, native):
+    scores = None
+    if native:
+        response = NativeProbe.request("--workflow-query-probe", "score-offline", {
+            "rows": [(item["score"], fields) for item, fields in batch],
+            "raw": [raw_terms, RAW_TERM_WEIGHT],
+            "expanded": [expanded_terms, EXPANDED_TERM_WEIGHT],
+        })
+        if response is not None and set(response) == {"scores"}:
+            values = response["scores"]
+            if type(values) is list and len(values) == len(batch) and all(type(value) is int for value in values):
+                scores = values
+    for index, (item, fields) in enumerate(batch):
+        if scores is None:
+            item["score"] += _score_terms(raw_terms, RAW_TERM_WEIGHT, *fields)
+            item["score"] += _score_terms(expanded_terms, EXPANDED_TERM_WEIGHT, *fields)
+        else:
+            item["score"] = scores[index]
+        yield item
 
 
 def _wikimap_results(

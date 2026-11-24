@@ -149,3 +149,55 @@ class WorkflowQueryTextTests(unittest.TestCase):
                                          [("a.md", 1040), ("가.md", 1040), ("b.md", 499),
                                           ("z.md", -4 if negative_rank else 496)])
                         self.assertEqual((rows[2]["heading"], rows[2]["line"]), ("First", 7))
+
+    def test_offline_score_preserves_weights_unicode_cutoff_and_batch_fallback(self):
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            (base / "home").mkdir()
+            install(base / "home", PROJECT)
+            corpus = base / "corpus"
+            corpus.mkdir()
+            files = {
+                "index.md": "- `positive.md` Repeat\n",
+                "positive.md": "# REPEAT\n## Repeat\n한 repeat repeat\n",
+                "cutoff.md": "가" * 1999 + "한",
+                "beyond.md": "가" * 2000 + "한",
+                "negative.md": "# Repeat\n",
+            }
+            for path, content in files.items():
+                (corpus / path).write_text(content, encoding="utf-8")
+            env = environment(base, PROJECT)
+            process = (
+                "import json,os,sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]);\n"
+                "import workflow_search as search\n"
+                "search._OFFLINE_BATCH_CHARS = 2048\n"
+                "probe=search.NativeProbe.request\n"
+                "def observe(*args, **kwargs):\n"
+                "    result=probe(*args, **kwargs)\n"
+                "    body=args[2]['rows']\n"
+                "    if os.environ.get('REJECT_BATCH') and any('한' in row[1][3] for row in body):\n"
+                "        result={'scores': []}\n"
+                "    print(args[1], len(body), len(result['scores']) if result else -1, file=sys.stderr)\n"
+                "    return result\n"
+                "search.NativeProbe.request=observe\n"
+                "search.search_wikimap=lambda *a: type('Unavailable', (), {'available': False, 'error': 'offline'})()\n"
+                "search.query_terms=lambda query: (['한', 'repeat'], ['repeat'], [], {'positive.md': 7, 'negative.md': -50})\n"
+                "search.infer_concerns_from_request=lambda query: []\n"
+                "print(json.dumps(search.search_docs_outcome(Path(sys.argv[2]), 'offline').results))\n"
+            )
+            command = [sys.executable, "-c", process, str(PROJECT / "scripts"), str(corpus)]
+            expected = subprocess.run(command, env={**env, "MORU_LAUNCHER_BACKEND": "python"},
+                                      capture_output=True, timeout=10, check=True)
+            rows = {row["path"]: row["score"] for row in json.loads(expected.stdout)}
+            self.assertEqual(rows, {"positive.md": 39, "index.md": 3, "cutoff.md": 2})
+            for override in ({}, {"REJECT_BATCH": "1"}):
+                actual = subprocess.run(command, env={**env, **override},
+                                        capture_output=True, timeout=10, check=True)
+                self.assertEqual(actual.stdout, expected.stdout)
+                batches = [line.split() for line in actual.stderr.decode().splitlines()]
+                self.assertGreater(len(batches), 1)
+                self.assertTrue(all(operation == "score-offline" for operation, _, _ in batches))
+                self.assertTrue(any(count == scored for _, count, scored in batches))
+                self.assertEqual(any(scored == "0" for _, _, scored in batches), bool(override))
