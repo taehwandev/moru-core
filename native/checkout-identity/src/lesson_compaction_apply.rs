@@ -1,4 +1,4 @@
-//! owner: locked persistence of one supported lesson compaction fold.
+//! owner: locked persistence of lesson compaction and stale marking.
 //! allowed imports: anchored file primitives, the shared merge, and Python JSON.
 //! forbidden imports: workflow authority, network, and unlocked writes.
 //! callers/tests: lessons-compact apply_plan and test_lessons_compact.
@@ -22,17 +22,7 @@ pub(super) struct LessonCompactionApply;
 
 impl LessonCompactionApply {
     pub(super) fn apply(input: &Json) -> Option<io::Result<bool>> {
-        let inbox = Path::new(input.get("inbox")?.as_str()?);
-        let lesson = input.get("lesson_id")?.as_str()?;
-        if !inbox.ends_with("lessons/inbox")
-            || lesson.is_empty()
-            || lesson.len() > 128
-            || !lesson
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
-        {
-            return None;
-        }
+        let (inbox, lesson) = Self::location(input)?;
         let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let keys = input.get("key_limit")?.as_u64()?.try_into().ok()?;
         let days = input.get("recent_days")?.as_i64()?.checked_sub(1)?;
@@ -55,14 +45,7 @@ impl LessonCompactionApply {
         let directory = AtomicSibling::open_directory(inbox)?;
         let canonical = format!("{lesson}.json");
         let target = CString::new(canonical.as_str()).ok()?;
-        let lock_name = CString::new(format!(".{canonical}.lock")).ok()?;
-        // Only an existing lock is needed. Python can establish it on first use.
-        let lock = AtomicSibling::open_relative(&directory, &lock_name, libc::O_RDWR)?;
-        if !lock.metadata().ok()?.is_file()
-            || unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0
-        {
-            return None;
-        }
+        let _lock = Self::lock(&directory, &canonical)?;
         let suffix = format!("-{canonical}");
         let mut names = BTreeSet::from([canonical.clone()]);
         for (index, entry) in fs::read_dir(inbox).ok()?.enumerate() {
@@ -118,7 +101,89 @@ impl LessonCompactionApply {
             return Some(Ok(false));
         }
         let merged = LessonCompactionMerge::merge(&records, keys, days)?;
-        let pretty = PythonJson::render(&Self::sorted(merged), true, true)?;
+        Some(
+            Self::replace(inbox, lesson, &directory, &target, merged)?
+                .and_then(|()| {
+                    remove
+                        .into_iter()
+                        .try_for_each(|(name, before)| Self::unlink(&directory, &name, &before))
+                })
+                .map(|()| true),
+        )
+    }
+
+    pub(super) fn mark_stale(input: &Json) -> Option<io::Result<bool>> {
+        let (inbox, lesson) = Self::location(input)?;
+        let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
+        let cutoff = LessonCompactionMerge::stale_cutoff(
+            input.get("now")?.as_str()?,
+            input.get("stale_days")?.as_i64()?,
+        )?;
+        let directory = AtomicSibling::open_directory(inbox)?;
+        let canonical = format!("{lesson}.json");
+        let target = CString::new(canonical.as_str()).ok()?;
+        let _lock = Self::lock(&directory, &canonical)?;
+        let Some(file) = Self::open(&directory, &target).ok()? else {
+            return Some(Ok(false));
+        };
+        if !file.metadata().ok()?.is_file() {
+            return None;
+        }
+        let mut raw = String::new();
+        file.take(64 * 1024 + 1).read_to_string(&mut raw).ok()?;
+        if raw.len() > 64 * 1024 {
+            return None;
+        }
+        let record = match PythonJson::parse_with_diagnostic(&raw, Some(limit), None) {
+            Ok(Some(record)) if record.is_object() => record,
+            Ok(Some(_)) | Err(InputDiagnostic::Syntax(_)) => return Some(Ok(false)),
+            _ => return None,
+        };
+        if record["lesson_id"].as_str() != Some(lesson) {
+            return None;
+        }
+        if !LessonCompactionMerge::newly_stale(&record, cutoff)? {
+            return Some(Ok(false));
+        }
+        let Value::Object(mut record) = record else {
+            return None;
+        };
+        record.insert("status".into(), Value::String("stale".into()));
+        Some(
+            Self::replace(inbox, lesson, &directory, &target, Value::Object(record))?
+                .map(|()| true),
+        )
+    }
+
+    fn location(input: &Json) -> Option<(&Path, &str)> {
+        let inbox = Path::new(input.get("inbox")?.as_str()?);
+        let lesson = input.get("lesson_id")?.as_str()?;
+        (inbox.ends_with("lessons/inbox")
+            && !lesson.is_empty()
+            && lesson.len() <= 128
+            && lesson
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-')))
+        .then_some((inbox, lesson))
+    }
+
+    fn lock(directory: &File, canonical: &str) -> Option<File> {
+        let name = CString::new(format!(".{canonical}.lock")).ok()?;
+        // Python can establish a missing lock on first use.
+        let lock = AtomicSibling::open_relative(directory, &name, libc::O_RDWR)?;
+        (lock.metadata().ok()?.is_file()
+            && unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0)
+            .then_some(lock)
+    }
+
+    fn replace(
+        inbox: &Path,
+        lesson: &str,
+        directory: &File,
+        target: &CStr,
+        record: Value,
+    ) -> Option<io::Result<()>> {
+        let pretty = PythonJson::render(&Self::sorted(record), true, true)?;
         // Python historically writes indented JSON with one space per level.
         let text = pretty
             .lines()
@@ -129,7 +194,7 @@ impl LessonCompactionApply {
             .collect::<Vec<_>>()
             .join("\n");
         let temporary = CString::new(format!("{lesson}.compact.tmp")).ok()?;
-        if Self::open(&directory, &temporary).ok()?.is_some() {
+        if Self::open(directory, &temporary).ok()?.is_some() {
             return None;
         }
         let original = directory.metadata().ok()?;
@@ -139,16 +204,7 @@ impl LessonCompactionApply {
         }
 
         // Once replacement has started the result can never be a replayable decline.
-        Some(
-            AtomicSibling::InheritUmask
-                .replace(&directory, &temporary, &target, text.as_bytes())
-                .and_then(|()| {
-                    remove
-                        .into_iter()
-                        .try_for_each(|(name, before)| Self::unlink(&directory, &name, &before))
-                })
-                .map(|()| true),
-        )
+        Some(AtomicSibling::InheritUmask.replace(directory, &temporary, target, text.as_bytes()))
     }
 
     fn open(directory: &File, name: &CStr) -> io::Result<Option<File>> {

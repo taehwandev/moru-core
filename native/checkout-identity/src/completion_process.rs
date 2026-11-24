@@ -224,6 +224,13 @@ impl CompletionProcess {
                 None => 125,
             };
         }
+        if args[1] == "lesson-compaction-mark-stale" {
+            return match lesson_compaction_apply::LessonCompactionApply::mark_stale(&payload) {
+                Some(Ok(marked)) => Self::respond(Some(json!({"marked": marked}))),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "path-claim-release-selected" {
             return match path_claim_release::PathClaimRelease::release_selected(&payload) {
                 Some(Ok(receipt)) => Self::respond(Some(receipt)),

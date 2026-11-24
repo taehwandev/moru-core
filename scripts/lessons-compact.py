@@ -201,6 +201,16 @@ def mark_stale(inbox: Path, lesson_ids: list[str], now: datetime) -> int:
 
     marked = 0
     for lesson_id in lesson_ids:
+        if type(now) is datetime and now.utcoffset() is not None:
+            native = NativeProbe.request("--completion-probe", "lesson-compaction-mark-stale", {
+                "inbox": str(inbox), "lesson_id": lesson_id, "now": now.isoformat(), "stale_days": STALE_AFTER.days,
+                "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+            })
+            if native is not None:
+                if native.keys() != {"marked"} or type(native["marked"]) is not bool:
+                    raise OSError("invalid native lesson stale marking receipt")
+                marked += int(native["marked"])
+                continue
         target = inbox / f"{lesson_id}.json"
         with state_lock(target):
             try:

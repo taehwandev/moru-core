@@ -24,14 +24,10 @@ impl LessonCompactionMerge {
         }
         let cutoff = match input.get("now")? {
             Json::Null => None,
-            value => {
-                let now = OverheadStamp::parse(value.as_str()?)??;
-                let stale = input.get("stale_days")?.as_i64()?.checked_mul(Self::DAY)?;
-                if !now.aware() || stale < 0 {
-                    return None;
-                }
-                Some(now.ticks().checked_sub(stale)?)
-            }
+            value => Some(Self::stale_cutoff(
+                value.as_str()?,
+                input.get("stale_days")?.as_i64()?,
+            )?),
         };
         let groups = PythonJson::parse_with_diagnostic(
             input.get("groups_json")?.as_str()?,
@@ -44,15 +40,28 @@ impl LessonCompactionMerge {
             let records = group.as_array()?;
             let merged = Self::merge(records, keys, recent)?;
             let is_stale = match cutoff {
-                Some(cutoff) if merged["status"].as_str() != Some("stale") => {
-                    OverheadStamp::parse(&Self::text(&merged, &["last_seen_at", "created_at"]))?
-                        .is_some_and(|seen| seen.ticks() < cutoff)
-                }
-                _ => false,
+                Some(cutoff) => Self::newly_stale(&merged, cutoff)?,
+                None => false,
             };
             plans.push((PythonJson::render(&merged, false, true)?, is_stale));
         }
         Some(json!({"plans": plans}))
+    }
+
+    pub(super) fn stale_cutoff(now: &str, days: i64) -> Option<i64> {
+        let now = OverheadStamp::parse(now)??;
+        if !now.aware() || days < 0 {
+            return None;
+        }
+        now.ticks().checked_sub(days.checked_mul(Self::DAY)?)
+    }
+
+    pub(super) fn newly_stale(record: &Value, cutoff: i64) -> Option<bool> {
+        if record["status"].as_str() == Some("stale") {
+            return Some(false);
+        }
+        let seen = Self::text(record, &["last_seen_at", "created_at"]);
+        Some(OverheadStamp::parse(&seen)?.is_some_and(|seen| seen.ticks() < cutoff))
     }
 
     pub(super) fn merge(records: &[Value], limit: usize, recent_days: i64) -> Option<Value> {

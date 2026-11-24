@@ -344,6 +344,63 @@ class CompactionTests(unittest.TestCase):
             self.assertEqual(self._files(), {"lesson.json", "b-lesson.json"})
             self.assertTrue((self.inbox / ".lesson.json.lock").is_file())
 
+    def test_native_stale_mark_rechecks_snapshot_and_never_replays_write(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        now = datetime(2026, 3, 15, tzinfo=timezone.utc)
+        old = "2026-02-28T23:59:59.999999Z"
+        stale = _candidate("old", old, occurrence_count=7, extra={"z": "한글", "a": -0.0})
+        old_path = self._write("old.json", stale)
+        refreshed = self._write("refreshed.json", _candidate("refreshed", old))
+        missing = self._write("missing.json", _candidate("missing", old))
+        for path in (old_path, refreshed, missing):
+            with state_lock(path):
+                pass
+        with mock.patch.dict(os.environ, environment(self.state, ROOT), clear=True):
+            stale_ids = compact.plan(self.inbox, now)["stale"]
+            self.assertEqual(stale_ids, ["missing", "old", "refreshed"])
+            with state_lock(refreshed):
+                self.assertIsNone(compact.NativeProbe.request("--completion-probe", "lesson-compaction-mark-stale", {
+                    "inbox": str(self.inbox), "lesson_id": "refreshed", "now": now.isoformat(),
+                    "stale_days": 14, "digit_limit": 0,
+                }))
+                self._write("refreshed.json", _candidate("refreshed", "2026-03-01T00:00:00Z"))
+            missing.unlink()
+            before = refreshed.read_bytes()
+            expected = json.dumps({**stale, "status": "stale"}, indent=1, sort_keys=True)
+            with mock.patch.object(compact, "state_lock", side_effect=AssertionError("Python acquired the lock")):
+                self.assertEqual(compact.mark_stale(self.inbox, stale_ids, now), 1)
+                self.assertEqual(compact.mark_stale(self.inbox, stale_ids, now), 0)
+            self.assertEqual(old_path.read_text(encoding="utf-8"), expected)
+            self.assertEqual(refreshed.read_bytes(), before)
+            self.assertFalse(missing.exists())
+
+            self._write("old.json", stale)
+            invoke = subprocess.run
+
+            def lose_reply(command, **kwargs):
+                result = invoke(command, **kwargs)
+                if command[-1] == "lesson-compaction-mark-stale":
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+                return result
+
+            with (
+                mock.patch.object(subprocess, "run", side_effect=lose_reply),
+                mock.patch.object(compact, "state_lock", side_effect=AssertionError("Python replayed the write")),
+            ):
+                with self.assertRaisesRegex(OSError, "lesson stale marking outcome could not be determined"):
+                    compact.mark_stale(self.inbox, ["old"], now)
+            self.assertEqual(old_path.read_text(encoding="utf-8"), expected)
+
     def test_a_legacy_name_the_store_cannot_find_is_still_merged(self) -> None:
         """The two readers disagree by design, so the apply reads both.
 
