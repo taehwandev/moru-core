@@ -138,6 +138,12 @@ TEST_PATH_PARTS = {
     "test",
     "tests",
 }
+TEST_STEM_PREFIXES = ("test_", "test-")
+TEST_STEM_SUFFIXES = (
+    "_test", "-test", ".test", "_tests", "-tests", ".tests",
+    "_spec", "-spec", ".spec", "_specs", "-specs", ".specs",
+)
+TEST_CLASS_SUFFIXES = ("Test", "Tests", "Spec", "Specs")
 PYTHON_BLOCK_RE = re.compile(r"^(\s*)(?:async\s+def|def|class)\s+([A-Za-z_]\w*)\b")
 BRACE_BLOCK_RE = re.compile(
     r"^\s*(?:"
@@ -203,21 +209,33 @@ def _inherited_action_findings(
     return [key in inherited for key in current_keys]
 
 
-def _review_source_lines(
+def _review_source_batch(
     source: Path, paths: list[Path],
-) -> list[list[str] | Literal[False] | None]:
+) -> list[tuple[list[str] | Literal[False] | None, bool | None]]:
     if paths and NativeProbe.available():
         reply = NativeProbe.request("--completion-probe", "structure-source-read", {
-            "source": str(source), "paths": [str(path) for path in paths],
+            "source": str(source), "paths": [[str(path), path.stem] for path in paths],
+            "test_policy": {
+                "parts": sorted(TEST_PATH_PARTS), "prefixes": TEST_STEM_PREFIXES,
+                "suffixes": TEST_STEM_SUFFIXES, "case_suffixes": TEST_CLASS_SUFFIXES,
+            },
         })
         rows = reply.get("rows") if reply is not None else None
-        if isinstance(rows, list) and len(rows) == len(paths) and all(
-            row is None or row is False or
-            (isinstance(row, list) and all(isinstance(line, str) for line in row))
-            for row in rows
-        ):
-            return rows
-    return [None] * len(paths)
+        if isinstance(rows, list) and len(rows) == len(paths):
+            checked = []
+            for row in rows:
+                if not isinstance(row, list) or len(row) != 2:
+                    break
+                lines, test_path = row
+                if not (lines is None or lines is False
+                        or isinstance(lines, list) and all(isinstance(line, str) for line in lines)):
+                    break
+                if test_path is not None and type(test_path) is not bool:
+                    break
+                checked.append((lines, test_path))
+            else:
+                return checked
+    return [(None, None)] * len(paths)
 
 
 def structure_review(
@@ -267,8 +285,9 @@ def structure_review(
 
     file_checks = []
     owner_checks = []
-    for relative, lines in zip(active_paths, _review_source_lines(source_root, active_paths)):
-        is_test_path = test_exempt_path(relative)
+    for relative, (lines, is_test_path) in zip(active_paths, _review_source_batch(source_root, active_paths)):
+        if is_test_path is None:
+            is_test_path = test_exempt_path(relative)
         if is_test_path:
             result["test_exempt_paths"].append(str(relative))
         else:
@@ -1232,10 +1251,9 @@ def test_exempt_path(path: Path) -> bool:
     stem = path.stem
     lower_stem = stem.lower()
     return (
-        lower_stem.startswith(("test_", "test-"))
-        or lower_stem.endswith(("_test", "-test", ".test", "_tests", "-tests", ".tests"))
-        or lower_stem.endswith(("_spec", "-spec", ".spec", "_specs", "-specs", ".specs"))
-        or stem.endswith(("Test", "Tests", "Spec", "Specs"))
+        lower_stem.startswith(TEST_STEM_PREFIXES)
+        or lower_stem.endswith(TEST_STEM_SUFFIXES)
+        or stem.endswith(TEST_CLASS_SUFFIXES)
     )
 
 

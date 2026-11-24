@@ -97,14 +97,15 @@ class NativeCompletionTests(unittest.TestCase):
         ]
         request_paths = [*paths, Path("missing.py"), Path("../outside.py")]
         with patch.dict(os.environ, self.env, clear=True):
-            self.assertEqual(expected_rows, structure._review_source_lines(self.project, request_paths))
+            batch = structure._review_source_batch(self.project, request_paths)
+            self.assertEqual(expected_rows, [lines for lines, _ in batch])
             with patch.object(NativeProbe, "request", return_value={"rows": [True]}):
-                self.assertEqual([None], structure._review_source_lines(self.project, paths[:1]))
+                self.assertEqual([(None, None)], structure._review_source_batch(self.project, paths[:1]))
             snapshot = self.base / "snapshot"
             snapshot.mkdir()
             exact_budget = "x" * (128 * 1024 - 3) + "€"
             (snapshot / "a.py").write_text(exact_budget, encoding="utf-8")
-            self.assertEqual([[exact_budget]], structure._review_source_lines(snapshot, paths[:1]))
+            self.assertEqual([([exact_budget], False)], structure._review_source_batch(snapshot, paths[:1]))
 
         def git(argv, cwd):
             done = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, timeout=5)
@@ -116,6 +117,29 @@ class NativeCompletionTests(unittest.TestCase):
                       expected_review["warnings"])
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual(expected_review, structure.structure_review(self.project, 1, 100, git))
+
+    def test_structure_test_flags_match_python_even_when_source_read_declines(self):
+        paths = [Path(name) for name in (
+            "src/TeStS/helper.py", "src/testing/helper.py", "src/TEST_App.py",
+            "src/fixture.test.ts", "src/fixture.test", "src/FileSpec.kt",
+            "src/FileSPEC.kt", "src/tests", "src/large-test.py",
+            "src/normal.py", "src/tests/한.py", "src/app_test.",
+        )]
+        expected = [structure.test_exempt_path(path) for path in paths]
+        self.assertEqual([True, False, True, True, False, True, False, True, True, False, True], expected[:-1])
+        for path, body in (
+            (paths[0], b"\xff"), (paths[8], b"x" * (128 * 1024 + 1)),
+            (paths[9], b"def test_something(): pass\n"),
+        ):
+            absolute = self.project / path
+            absolute.parent.mkdir(parents=True, exist_ok=True)
+            absolute.write_bytes(body)
+        with patch.dict(os.environ, self.env, clear=True):
+            rows = structure._review_source_batch(self.project, paths)
+        self.assertEqual(expected[:10] + [None, expected[-1]], [flag for _, flag in rows])
+        self.assertEqual((False, True), rows[0])
+        self.assertEqual((None, True), rows[8])
+        self.assertEqual((["def test_something(): pass"], False), rows[9])
 
     def test_structure_python_classes_preserve_column_boundaries_names_and_roles(self):
         path = Path("src/review.PY")

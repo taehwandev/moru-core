@@ -1,6 +1,6 @@
-//! owner: bounded working-tree and snapshot source reads for structural review.
-//! allowed imports: read-only filesystem access, UTF-8 and JSON.
-//! forbidden imports: writes, Git execution and review policy.
+//! owner: bounded source reads and path facts for structural review.
+//! allowed imports: read-only filesystem access, UTF-8, supplied path rules and JSON.
+//! forbidden imports: writes, Git execution and review outcomes.
 //! callers/tests: structural review through the private completion protocol.
 //! verification: compare with Python UTF-8 universal newlines and splitlines.
 use crate::python_text::PythonText;
@@ -13,6 +13,42 @@ use std::{
 
 pub(super) struct StructureSourceRead;
 
+struct TestPathRules<'a> {
+    parts: Vec<&'a str>,
+    prefixes: Vec<&'a str>,
+    suffixes: Vec<&'a str>,
+    case_suffixes: Vec<&'a str>,
+}
+
+impl TestPathRules<'_> {
+    fn matches(&self, path: &Path, stem: &str) -> Option<bool> {
+        if !stem.is_ascii() || !path.to_str()?.is_ascii() {
+            return None;
+        }
+        let lower_stem = stem.to_ascii_lowercase();
+        Some(
+            path.components().any(|part| {
+                part.as_os_str().to_str().is_some_and(|name| {
+                    self.parts
+                        .iter()
+                        .any(|probe| name.eq_ignore_ascii_case(probe))
+                })
+            }) || self
+                .prefixes
+                .iter()
+                .any(|prefix| lower_stem.starts_with(*prefix))
+                || self
+                    .suffixes
+                    .iter()
+                    .any(|suffix| lower_stem.ends_with(*suffix))
+                || self
+                    .case_suffixes
+                    .iter()
+                    .any(|suffix| stem.ends_with(*suffix)),
+        )
+    }
+}
+
 impl StructureSourceRead {
     pub(super) fn batch(payload: &Value) -> Option<Value> {
         let source = Path::new(payload.get("source")?.as_str()?);
@@ -23,25 +59,46 @@ impl StructureSourceRead {
         if paths.len() > 256 {
             return None;
         }
+        let policy = payload.get("test_policy")?;
+        let read_rule = |key| -> Option<Vec<&str>> {
+            policy
+                .get(key)?
+                .as_array()?
+                .iter()
+                .map(Value::as_str)
+                .collect()
+        };
+        let test_rules = TestPathRules {
+            parts: read_rule("parts")?,
+            prefixes: read_rule("prefixes")?,
+            suffixes: read_rule("suffixes")?,
+            case_suffixes: read_rule("case_suffixes")?,
+        };
         // Leave room for worst-case JSON control-character escaping.
         let mut remaining = 128 * 1024;
-        let rows: Vec<_> = paths
-            .iter()
-            .map(|path| Self::read(source, path.as_str()?, &mut remaining))
-            .collect();
+        let mut rows = Vec::with_capacity(paths.len());
+        for entry in paths {
+            let name = entry.get(0)?.as_str()?;
+            let stem = entry.get(1)?.as_str()?;
+            let relative = Path::new(name);
+            if name.is_empty()
+                || name.contains('\0')
+                || !relative
+                    .components()
+                    .all(|part| matches!(part, Component::Normal(_)))
+            {
+                rows.push((None, None));
+                continue;
+            }
+            rows.push((
+                Self::read(source, relative, &mut remaining),
+                test_rules.matches(relative, stem),
+            ));
+        }
         Some(json!({ "rows": rows }))
     }
 
-    fn read(source: &Path, name: &str, remaining: &mut u64) -> Option<Value> {
-        let relative = Path::new(name);
-        if name.is_empty()
-            || name.contains('\0')
-            || !relative
-                .components()
-                .all(|part| matches!(part, Component::Normal(_)))
-        {
-            return None;
-        }
+    fn read(source: &Path, relative: &Path, remaining: &mut u64) -> Option<Value> {
         let path = source.join(relative);
         let metadata = fs::metadata(&path).ok()?;
         if !metadata.is_file() || metadata.len() > *remaining {
