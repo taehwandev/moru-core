@@ -857,6 +857,42 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual([], structure._review_sources(self.project, [Path("src/File.RS")]))
             request.assert_not_called()
 
+    def test_structure_diff_metadata_merges_order_and_preserves_legacy_packets(self):
+        status = "R75\0old\t.py\0한\n.py\0A\0later.py\0M\0한\n.py\0"
+        counts = "1\t2\t한\n.py\0-\t-\tcount-only.py\0" "3\t4\t한\n.py\0"
+        expected = {
+            "한\n.py": {"status": "M", "previous_path": "old\t.py", "additions": 3, "deletions": 4},
+            "later.py": {"status": "A"},
+            "count-only.py": {"additions": 0, "deletions": 0},
+        }
+        self.assertEqual(list(expected.items()), list(self.check("structure-diff", {
+            "status": status, "numstat": counts, "metadata": True,
+        })["metadata"].items()))
+
+        def record(status_code=0):
+            metadata = {"한\n.py": {"caller_owned": True}}
+            names, errors = set(metadata), []
+            structure._record_diff({"returncode": status_code, "stdout": status}, {"returncode": 0, "stdout": counts},
+                                   names, metadata, errors, "git diff")
+            return list(metadata.items()), names, errors
+
+        with patch.object(NativeProbe, "request", return_value=None):
+            legacy = record()
+            partial = record(1)
+        old_packet = {
+            "status": [list(row) for row in structure._parse_name_status(status)],
+            "numstat": [list(row) for row in structure._parse_numstat(counts)],
+        }
+        with patch.object(NativeProbe, "request", return_value=old_packet):
+            self.assertEqual(legacy, record())
+        with patch.object(NativeProbe, "request", return_value={"metadata": {"bad": {"additions": True}}}):
+            self.assertEqual(legacy, record())
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure, "_validated_diff_records", side_effect=AssertionError("Python reconciled diff rows"),
+        ):
+            self.assertEqual(legacy, record())
+            self.assertEqual(partial, record(1))
+
     def test_structure_diff_preserves_paths_and_falls_back_on_truncation(self):
         status = "R100\0src/old\t.py\0src/new\n.py\0C75\0src/from.py\0src/한.py\0A\0 src/bin.py \0"
         counts = "1\t2\t\0src/old\t.py\0src/new\n.py\0"

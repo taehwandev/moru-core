@@ -1,9 +1,9 @@
-//! owner: decoding NUL-framed Git diff observations for structural checks.
+//! owner: decoding and reconciling NUL-framed Git diff observations for structural checks.
 //! allowed imports: JSON and std string parsing.
 //! forbidden imports: Git execution, filesystem, writes and review decisions.
 //! callers/tests: structural review and preview via private completion probe.
 //! verification: literal paths, renames, copies, binary counts and decline.
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 pub(super) struct StructureDiff;
 
@@ -11,7 +11,30 @@ impl StructureDiff {
     pub(super) fn decode(payload: &Value) -> Option<Value> {
         let status = Self::name_status(payload.get("status")?.as_str()?)?;
         let counts = Self::numstat(payload.get("numstat")?.as_str()?)?;
+        if payload.get("metadata").and_then(Value::as_bool) == Some(true) {
+            return Some(json!({"metadata": Self::metadata(status, counts)}));
+        }
         Some(json!({"status": status, "numstat": counts}))
+    }
+
+    fn metadata(
+        status: Vec<(&str, &str, &str)>,
+        counts: Vec<(&str, u64, u64)>,
+    ) -> Map<String, Value> {
+        let mut metadata = Map::new();
+        for (path, code, previous) in status {
+            let entry = metadata.entry(path).or_insert_with(|| json!({}));
+            entry["status"] = json!(code);
+            if !previous.is_empty() {
+                entry["previous_path"] = json!(previous);
+            }
+        }
+        for (path, added, deleted) in counts {
+            let entry = metadata.entry(path).or_insert_with(|| json!({}));
+            entry["additions"] = json!(added);
+            entry["deletions"] = json!(deleted);
+        }
+        metadata
     }
 
     fn name_status(text: &str) -> Option<Vec<(&str, &str, &str)>> {

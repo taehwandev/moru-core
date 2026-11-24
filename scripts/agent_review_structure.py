@@ -719,14 +719,26 @@ def _record_diff(status, numstat, names, path_metadata, command_errors, label):
     counts_ok = numstat["returncode"] == 0
     status_text = status["stdout"] if status_ok else ""
     counts_text = numstat["stdout"] if counts_ok else ""
-    parsed = _native_diff_records(status_text, counts_text)
-    if parsed is None:
-        parsed = _parse_name_status(status_text), _parse_numstat(counts_text)
-    statuses, counts = parsed
     if not status_ok:
         command_errors.append(f"{label} changed source discovery failed")
     if not counts_ok:
         command_errors.append(f"{label} line-count discovery failed")
+    decoded = None
+    if "\0" in status_text or "\0" in counts_text:
+        decoded = NativeProbe.request("--completion-probe", "structure-diff", {
+            "status": status_text, "numstat": counts_text, "metadata": True,
+        })
+    metadata = decoded.get("metadata") if decoded is not None else None
+    if isinstance(metadata, dict) and metadata and all(
+        _valid_diff_metadata(path, row) for path, row in metadata.items()
+    ):
+        for path, row in metadata.items():
+            record_path(names, path_metadata, path, **row)
+        return
+    parsed = _validated_diff_records(decoded)
+    if parsed is None:
+        parsed = _parse_name_status(status_text), _parse_numstat(counts_text)
+    statuses, counts = parsed
     for destination, code, previous in statuses:
         updates = {"status": code}
         if previous:
@@ -736,10 +748,23 @@ def _record_diff(status, numstat, names, path_metadata, command_errors, label):
         record_path(names, path_metadata, destination, additions=additions, deletions=deletions)
 
 
-def _native_diff_records(status: str, numstat: str):
-    if "\0" not in status and "\0" not in numstat:
-        return None
-    decoded = NativeProbe.request("--completion-probe", "structure-diff", {"status": status, "numstat": numstat})
+def _valid_diff_metadata(path: str, row) -> bool:
+    if not path or not isinstance(row, dict) or not row or row.keys() - {
+        "status", "previous_path", "additions", "deletions",
+    }:
+        return False
+    status = row.get("status", "")
+    if "status" in row and (not isinstance(status, str) or len(status) != 1 or status not in "ACDMRTUXB"):
+        return False
+    if "previous_path" in row:
+        previous = row["previous_path"]
+        if not status or not isinstance(previous, str) or not previous:
+            return False
+    counts = {"additions", "deletions"} & row.keys()
+    return len(counts) != 1 and all(type(row[key]) is int and row[key] >= 0 for key in counts)
+
+
+def _validated_diff_records(decoded):
     if decoded is None or set(decoded) != {"status", "numstat"}:
         return None
     statuses, counts = decoded["status"], decoded["numstat"]
