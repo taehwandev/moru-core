@@ -130,6 +130,8 @@ mod structure_brace_declarations;
 mod structure_rust_declarations;
 #[path = "structure_declaration_roles.rs"]
 mod structure_declaration_roles;
+#[path = "structure_declaration_records.rs"]
+mod structure_declaration_records;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -187,6 +189,7 @@ impl CompletionProcess {
             Some("structure-brace-declarations") => structure_brace_declarations::StructureBraceDeclarations::scan(&payload),
             Some("structure-rust-declarations") => structure_rust_declarations::StructureRustDeclarations::scan(&payload),
             Some("structure-declaration-roles") => structure_declaration_roles::StructureDeclarationRoles::classify(&payload),
+            Some("structure-declaration-records") => structure_declaration_records::StructureDeclarationRecords::scan(&payload),
             Some("structure-boundary-reasons") => structure_declaration_roles::StructureDeclarationRoles::boundary_reasons(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("structure-source-read") => structure_source_read::StructureSourceRead::batch(&payload),

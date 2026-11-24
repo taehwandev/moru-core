@@ -738,7 +738,9 @@ class NativeCompletionTests(unittest.TestCase):
                     self.assertFalse(expected[2]["exported"])
                 with patch.dict(os.environ, self.env, clear=True):
                     with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
-                        self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
+                        with patch.object(purpose, "type_declaration",
+                                          side_effect=AssertionError("Python rebuilt a native owner row")):
+                            self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
         fallback = ["public struct Before {}", "export default class Legacy {}"]
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             expected = purpose.top_level_type_declarations(profiles[0][0], fallback)
@@ -902,7 +904,9 @@ class NativeCompletionTests(unittest.TestCase):
             purpose, "_python_typescript_lines", side_effect=AssertionError("legacy masking was used"),
         ):
             with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
-                self.assertEqual(expected[0], purpose.top_level_type_declarations(path, ordinary))
+                with patch.object(purpose, "type_declaration",
+                                  side_effect=AssertionError("Python rebuilt a native owner row")):
+                    self.assertEqual(expected[0], purpose.top_level_type_declarations(path, ordinary))
             native_mask, declarations = purpose._javascript_scan(unusual, typescript=True)
             self.assertIsNone(declarations)
             self.assertEqual(" export type A = B;", native_mask[0])

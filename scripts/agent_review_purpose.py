@@ -54,13 +54,7 @@ BRACE_TOP_LEVEL_CONST_FUNCTION_RE = re.compile(
     r"^\s*(?:export\s+)?(?:const|let|var)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*="
     r"\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)\s*=>"
 )
-NATIVE_BRACE_DECLARATION_PROBES = {
-    ".kt": "structure-kotlin-declarations",
-    ".kts": "structure-kotlin-declarations",
-    ".rs": "structure-rust-declarations",
-    ".swift": "structure-brace-declarations",
-    ".dart": "structure-brace-declarations",
-}
+NATIVE_BRACE_DECLARATION_SUFFIXES = {".kt", ".kts", ".rs", ".swift", ".dart"}
 TYPE_OWNER_KINDS = {"actor", "class", "enum", "interface", "object", "protocol", "record", "struct", "trait", "type", "typealias"}
 MAX_TOP_LEVEL_OWNERS = 4
 MAX_PUBLIC_TOP_LEVEL_OWNERS = 1
@@ -188,52 +182,50 @@ def _native_go_declarations(lines: list[str]) -> list[dict[str, Any]] | None:
     return declarations
 
 
-def _javascript_scan(lines: list[str], *, typescript: bool) -> tuple[list[str], list[dict[str, Any]] | None]:
-    operation = "structure-ts-text" if typescript else "structure-js-declarations"
-    native = NativeProbe.request("--completion-probe", operation, {
-        "mode": "declarations", "lines": lines, "unicode": unicodedata.unidata_version,
+def _native_declaration_scan(suffix: str, lines: list[str]) -> dict[str, Any] | None:
+    return NativeProbe.request("--completion-probe", "structure-declaration-records", {
+        "suffix": suffix, "mode": "declarations", "lines": lines,
+        "unicode": unicodedata.unidata_version, "rules": ROLE_PATTERNS,
+        "function_excluded": sorted(FUNCTION_ROLE_EXCLUDED_PATTERNS),
     })
+
+
+def _javascript_scan(lines: list[str], *, typescript: bool) -> tuple[list[str], list[dict[str, Any]] | None]:
+    native = _native_declaration_scan(".ts" if typescript else ".js", lines)
     if typescript:
         masked = native.get("lines") if native is not None else None
         if not isinstance(masked, list) or not all(isinstance(line, str) for line in masked):
             return _python_typescript_lines(lines), None
         lines = masked
-    return lines, _native_named_declarations(lines, native)
+    return lines, _native_declaration_records(native, len(lines))
 
 
-def _native_named_declarations(
-    lines: list[str], native: dict[str, Any] | None, *, suffix: str = "",
-) -> list[dict[str, Any]] | None:
-    kotlin = suffix in {".kt", ".kts"}
-    rust = suffix == ".rs"
-    rows = native.get("declarations") if native is not None else None
-    if not isinstance(rows, list):
+def _native_declaration_records(native: dict[str, Any] | None, line_count: int) -> list[dict[str, Any]] | None:
+    records = native.get("records") if native is not None else None
+    if not isinstance(records, list):
         return None
-    matches = []
-    last = -1
-    for row in rows:
-        if not isinstance(row, list) or len(row) != (5 if kotlin else 4):
+    owners = []
+    last = 0
+    for record in records:
+        if not isinstance(record, dict) or set(record) != {
+            "kind", "name", "line", "receiver", "role", "private", "internal", "exported", "owner", "source",
+        }:
             return None
-        index, kind, name, modifiers = row[:4]
-        receiver = row[4] if kotlin else None
-        if (type(index) is not int or not last < index < len(lines)
-                or not all(isinstance(value, str) for value in (kind, name, modifiers))
-                or receiver is not None and not isinstance(receiver, str)
-                or rust and modifiers not in {"", "pub"}):
+        line = record["line"]
+        role = record["role"]
+        if (type(line) is not int or not last < line <= line_count
+                or not all(isinstance(record[key], str) for key in ("kind", "name", "source"))
+                or not all(type(record[key]) is bool for key in ("private", "internal", "exported", "owner"))
+                or record["receiver"] is not None and not isinstance(record["receiver"], str)
+                or role is not None and role is not False and not isinstance(role, str)):
             return None
-        last = index
-        matches.append((index, kind, name, modifiers, receiver))
-    roles = _native_declaration_roles([(kind, name) for _, kind, name, _, _ in matches])
-    declarations = [
-        type_declaration(kind, name, lines[index], index, receiver=receiver,
-                         default_public=kotlin, is_swift=suffix == ".swift",
-                         modifiers=modifiers, roles=roles)
-        for index, kind, name, modifiers, receiver in matches
-    ]
-    if rust:
-        for row, (_, _, _, modifiers, _) in zip(declarations, matches):
-            row.update(private=not modifiers, exported=bool(modifiers))
-    return [row for row in declarations if row["owner"]]
+        last = line
+        if role is False:
+            record["role"] = role_for_declaration(record["kind"], record["name"])
+            record["owner"] = record["owner"] or record["role"] is not None
+        if record["owner"]:
+            owners.append(record)
+    return owners
 
 
 def _python_typescript_lines(lines: list[str]) -> list[str]:
@@ -259,11 +251,8 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
         native = _native_go_declarations(lines)
         if native is not None:
             return native
-    elif operation := NATIVE_BRACE_DECLARATION_PROBES.get(suffix):
-        reply = NativeProbe.request("--completion-probe", operation, {
-            "lines": lines, "unicode": unicodedata.unidata_version,
-        })
-        native = _native_named_declarations(lines, reply, suffix=suffix)
+    elif suffix in NATIVE_BRACE_DECLARATION_SUFFIXES:
+        native = _native_declaration_records(_native_declaration_scan(suffix, lines), len(lines))
         if native is not None:
             return native
     is_typescript = suffix in {".ts", ".tsx"}

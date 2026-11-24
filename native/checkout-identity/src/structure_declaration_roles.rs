@@ -12,12 +12,23 @@ pub(super) struct StructureDeclarationRoles;
 
 impl StructureDeclarationRoles {
     pub(super) fn classify(input: &Value) -> Option<Value> {
+        let declarations = input
+            .get("declarations")?
+            .as_array()?
+            .iter()
+            .map(|entry| Some((entry.get(0)?.as_str()?, entry.get(1)?.as_str()?)))
+            .collect::<Option<Vec<_>>>()?;
+        Some(json!({"roles": Self::classify_names(input, declarations)?}))
+    }
+
+    pub(super) fn classify_names<'a>(
+        input: &Value,
+        declarations: impl IntoIterator<Item = (&'a str, &'a str)>,
+    ) -> Option<Vec<Value>> {
         let rules = Self::rules(input)?;
         let excluded = Self::patterns(input.get("function_excluded")?)?;
         let mut roles = Vec::new();
-        for entry in input.get("declarations")?.as_array()? {
-            let kind = entry.get(0)?.as_str()?;
-            let name = entry.get(1)?.as_str()?;
+        for (kind, name) in declarations {
             if !name.is_ascii() {
                 roles.push(Value::Bool(false));
                 continue;
@@ -29,7 +40,7 @@ impl StructureDeclarationRoles {
             };
             roles.push(json!(Self::role(name, &rules, skip)));
         }
-        Some(json!({"roles": roles}))
+        Some(roles)
     }
 
     pub(super) fn boundary_reasons(input: &Value) -> Option<Value> {
