@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -184,6 +186,98 @@ class LoadSpecTests(unittest.TestCase):
             with self.subTest(payload=payload):
                 with self.assertRaises(ValueError):
                     mutation_check.load_spec(self._write(payload))
+
+
+class NativeMutationCheckTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.launcher = ROOT / ".moru/native/bin/moru-native-launcher"
+        if not self.launcher.is_file():
+            self.skipTest("native test artifact unavailable")
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name)
+        self.target = self.root / "subject.py"
+        self.original = b"VALUE = 1\nCOMMENT = 'same same'\n"
+        self.target.write_bytes(self.original)
+        (self.root / "test_subject.py").write_text(
+            "import pathlib, subject, unittest\n"
+            "class SubjectTest(unittest.TestCase):\n"
+            "    def test_value(self):\n"
+            "        with pathlib.Path('calls').open('a') as log:\n"
+            "            log.write(str(subject.VALUE) + '\\n')\n"
+            "        self.assertEqual(subject.VALUE, 1)\n",
+        )
+        self.spec = self.root / "spec.json"
+        self.script = SCRIPTS / "mutation-check.py"
+        self.args = ["--spec", str(self.spec), "--test", "test_subject", "--root", str(self.root)]
+        self.env = {**os.environ, "PYTHONUTF8": "1", "PYTHONDONTWRITEBYTECODE": "1"}
+
+    def _spec(self, *changes):
+        self.spec.write_text(json.dumps([
+            {"label": label, "file": "subject.py", "old": old, "new": new}
+            for label, old, new in changes
+        ]))
+
+    def _native(self, python):
+        return subprocess.run([str(self.launcher), str(self.script), "--mutation-check",
+                               python, str(self.spec), str(self.root), "test_subject", *self.args],
+                              cwd=self.root, env=self.env, capture_output=True, timeout=10)
+
+    def test_native_and_direct_cli_preserve_verdicts_and_restore_between_mutations(self):
+        self._spec(("caught", "VALUE = 1", "VALUE = 20"),
+                   ("ignored", "'same same'", "'different'"),
+                   ("absent", "VALUE = 20", "VALUE = 3"), ("duplicate", "same", "changed"))
+        reference = subprocess.run([sys.executable, str(self.script), *self.args], cwd=self.root,
+                                   env={**self.env, "MORU_LAUNCHER_BACKEND": "python"},
+                                   capture_output=True, timeout=10)
+        self.assertEqual(1, reference.returncode)
+        self.assertIn(b"KILLED  caught", reference.stdout)
+        self.assertIn(b"SURVIVED  ignored", reference.stdout)
+        self.assertEqual(2, reference.stdout.count(b"NOT APPLIED"))
+        commands = (
+            lambda: self._native(sys.executable),
+            lambda: subprocess.run([sys.executable, str(self.script), *self.args], cwd=self.root,
+                                   env={**self.env, "MORU_LAUNCHER_BACKEND": "auto"},
+                                   capture_output=True, timeout=10),
+        )
+        for run in commands:
+            calls = self.root / "calls"
+            calls.unlink()
+            actual = run()
+            self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                             (actual.returncode, actual.stdout, actual.stderr))
+            self.assertEqual("20\n1\n", calls.read_text())
+            self.assertEqual(self.original, self.target.read_bytes())
+
+    def test_spawn_failure_restores_without_python_replay(self):
+        self._spec(("caught", "VALUE = 1", "VALUE = 20"))
+        actual = self._native(str(self.root / "missing-python"))
+        self.assertEqual(1, actual.returncode)
+        self.assertIn(b"check: ", actual.stdout)
+        self.assertIn(b"mutation check failed:", actual.stderr)
+        self.assertNotIn(b"fallback", actual.stderr)
+        self.assertEqual(self.original, self.target.read_bytes())
+
+    def test_deleted_target_is_restored_before_the_next_mutation(self):
+        (self.root / "test_subject.py").write_text(
+            "import pathlib, unittest\n"
+            "class SubjectTest(unittest.TestCase):\n"
+            "    def test_cleanup(self):\n"
+            "        pathlib.Path('subject.py').unlink()\n"
+            "        self.fail('fixture cleanup')\n",
+        )
+        self._spec(("first", "VALUE = 1", "VALUE = 20"), ("second", "VALUE = 1", "VALUE = 30"))
+        actual = self._native(sys.executable)
+        self.assertEqual(0, actual.returncode, actual.stderr)
+        self.assertIn(b"2/2 killed", actual.stdout)
+        self.assertEqual(self.original, self.target.read_bytes())
+
+    def test_invalid_spec_declines_before_output_and_uses_reference_diagnostics(self):
+        self.spec.write_text('[{"label":"fixture"}]')
+        actual = self._native(sys.executable)
+        self.assertEqual((2, b"unusable spec: mutant 0 is missing file\n", b""),
+                         (actual.returncode, actual.stdout, actual.stderr))
+        self.assertEqual(self.original, self.target.read_bytes())
 
 
 class ExitCodeTests(unittest.TestCase):

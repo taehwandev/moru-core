@@ -641,10 +641,12 @@
       "id": "scripts/mutation-check.py",
       "inventory_id": 47,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port original argument parsing and exceptional, encoding and filesystem profiles beyond source-bound supported regular UTF-8 targets. Python unittest still runs the explicitly requested selector; Python also retains its library and reference CLI. Prove portable and installed acceptance before retiring compatibility.",
+      "verification": {
+        "local": "The direct CLI selects a source-bound Rust runner before effects. Native handles regular text validation, exactly one replacement, fixed unittest dispatch, exit-status verdicts and original-byte restoration. Unsupported inputs replay only before mutation."
+      }
     },
     {
       "id": "scripts/path_claims.py",

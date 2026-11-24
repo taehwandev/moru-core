@@ -3,8 +3,9 @@
 Owner: the hand-run verification boundary -- proving a test can fail.
 Allowed imports: the standard library only. A tool that decides whether a check
 is trustworthy must not depend on the code it is checking.
-Forbidden imports: the workflow route, the agent lifecycle, and anything under
-``scripts`` that a mutation could break.
+Forbidden imports for the judge: the workflow route, the agent lifecycle, and
+anything under ``scripts`` that a mutation could break. The direct CLI may
+verify a source-bound Rust artifact before starting any mutation.
 Callers/tests: run by hand; coverage lives in ``tests/test_mutation_check.py``.
 Verification: run that module, then this script against a spec whose mutants are
 known dead and known alive.
@@ -28,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -99,12 +101,35 @@ def check_command(test: str) -> list[str]:
     return [sys.executable, "-m", "unittest", test]
 
 
+def _exec_native(args) -> None:
+    if os.environ.pop("MORU_MUTATION_REFERENCE_REPLAY", "") == "1":
+        return
+    if os.environ.get("MORU_LAUNCHER_BACKEND") == "python" or sys.stdout.encoding != "utf-8":
+        return
+    try:
+        from support.native_launcher_install import artifact_plan
+
+        script = Path(__file__).resolve()
+        plan = artifact_plan(script.parent.parent, script)
+        if plan is not None:
+            launcher = str(plan["source"])
+            os.execv(launcher, [
+                launcher, str(script), "--mutation-check", sys.executable,
+                str(args.spec), str(args.root), args.test, *sys.argv[1:],
+            ])
+    except (OSError, ImportError, ValueError):
+        return
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--test", required=True, help="unittest selector to run")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent)
     args = parser.parse_args(argv)
+
+    if __name__ == "__main__" and argv is None:
+        _exec_native(args)
 
     try:
         mutants = load_spec(args.spec)

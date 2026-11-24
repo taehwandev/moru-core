@@ -39,6 +39,7 @@ mod cards_store;
 mod cards_transaction;
 mod cards_write_process;
 mod completion_process;
+mod mutation_check;
 mod route_identity;
 mod completion_progress;
 mod completion_quality;
@@ -229,6 +230,9 @@ fn main() {
         }
     };
     let args: Vec<OsString> = argv.collect();
+    if args.first().is_some_and(|arg| arg == "--mutation-check") {
+        exit(mutation_check::MutationCheck::run(&launcher, &args[1..]));
+    }
     if args.first().is_some_and(|arg| arg == "--behavior-eval") {
         exit(behavior_eval_cli::BehaviorEvalCli::run(&args[1..]));
     }
