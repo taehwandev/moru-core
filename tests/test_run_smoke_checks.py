@@ -1,9 +1,7 @@
 """Differential subprocess checks for native smoke suite admission and ordering."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
-import runpy
 import shutil
 import subprocess
 import sys
@@ -12,6 +10,10 @@ import unittest
 
 from native_launcher_support import NATIVE, PROJECT, install
 from native_pretool_support import environment
+from support.native_source_inputs import source_inputs
+
+
+GATE_FIXTURE = Path("native/checkout-identity/smoke-gate-records.json")
 
 
 class NativeSmokeSuiteTests(unittest.TestCase):
@@ -48,8 +50,6 @@ class NativeSmokeSuiteTests(unittest.TestCase):
             scratch = base / "scratch"
             env = {**environment(base, PROJECT), "TMPDIR": str(scratch)}
             script = PROJECT / "scripts/run_smoke_checks.py"
-            registry = runpy.run_path(str(script))
-            data = json.dumps(registry["_gate_records"]()).encode("utf-8")
             args = [str(entry.with_name("moru-hook-native")), str(entry), "--smoke-hook-suite", str(shim)]
             cli = (
                 "import runpy,sys,tempfile; suite=runpy.run_path(sys.argv[1]); "
@@ -67,7 +67,7 @@ class NativeSmokeSuiteTests(unittest.TestCase):
             ):
                 with self.subTest(status=expected, overrides=overrides):
                     command = args if expected == 125 else [sys.executable, "-c", cli, str(script), str(shim)]
-                    done = subprocess.run(command, input=data, env={**env, **overrides},
+                    done = subprocess.run(command, stdin=subprocess.DEVNULL, env={**env, **overrides},
                                           capture_output=True, timeout=15)
                     self.assertEqual(done.returncode, expected, (done.stdout, done.stderr))
                     self.assertEqual(list(scratch.glob("tmp*")), [])
@@ -113,7 +113,7 @@ class NativeSmokeSuiteTests(unittest.TestCase):
             shim.chmod(0o755)
             env = {**environment(base, PROJECT), "TMPDIR": str(base)}
             script = PROJECT / "scripts/run_smoke_checks.py"
-            data = json.dumps(runpy.run_path(str(script))["_gate_records"]()).encode("utf-8")
+            data = (PROJECT / GATE_FIXTURE).read_bytes()
             oracle = (
                 "import runpy,sys; suite=runpy.run_path(sys.argv[1]); "
                 "sys.executable=sys.argv[2]; project=sys.argv[3]\n"
@@ -139,7 +139,8 @@ class NativeSmokeSuiteTests(unittest.TestCase):
                     self.assertEqual(steps, expected_steps)
                     trace.unlink()
                     shutil.rmtree(project / ".moru")
-                    actual = subprocess.run(native_args, input=data, env=task_env, capture_output=True, timeout=10)
+                    actual = subprocess.run(native_args, stdin=subprocess.DEVNULL, env=task_env,
+                                            capture_output=True, timeout=10)
                     self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
                                      (expected.returncode, expected.stdout, expected.stderr))
                     self.assertEqual(trace.read_text().splitlines(), steps)
@@ -148,7 +149,42 @@ class NativeSmokeSuiteTests(unittest.TestCase):
                     trace.unlink()
                     shutil.rmtree(project / ".moru")
 
-            denied = subprocess.run([*native_args[:-1], str(PROJECT)], input=data,
+            denied = subprocess.run([*native_args[:-1], str(PROJECT)], stdin=subprocess.DEVNULL,
                                     env=env, capture_output=True, timeout=10)
             self.assertEqual((denied.returncode, denied.stdout, denied.stderr), (125, b"", b""))
             self.assertFalse(trace.exists())
+
+    def test_gate_fixture_is_receipted_and_source_drift_declines(self) -> None:
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.assertIn(PROJECT / GATE_FIXTURE, source_inputs(PROJECT))
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            home = base / "home"
+            home.mkdir()
+            install(home, PROJECT)
+            entry = home / ".moru/bin/moru-hook"
+            root = base / "source"
+            root.mkdir()
+            (root / "scripts").symlink_to(PROJECT / "scripts", target_is_directory=True)
+            for filename in ("AGENTS.md", "index.md", ".vibeguard.json"):
+                shutil.copyfile(PROJECT / filename, root / filename)
+            fixture = root / GATE_FIXTURE
+            fixture.parent.mkdir(parents=True)
+            content = (PROJECT / GATE_FIXTURE).read_bytes()
+            (home / ".moru/moru-root").write_text(str(root), encoding="utf-8")
+            env = {**environment(base, root), "TMPDIR": str(base)}
+            shim = base / "start-failure"
+            shim.write_text("#!/bin/sh\nexit 37\n", encoding="utf-8")
+            shim.chmod(0o755)
+            args = [str(entry.with_name("moru-hook-native")), str(entry), "--smoke-hook-suite", str(shim)]
+            for data, status in ((content, 1), (content.replace(b"quick", b"other", 1), 125)):
+                fixture.write_bytes(data)
+                done = subprocess.run(args, stdin=subprocess.DEVNULL, env=env, cwd=base,
+                                      capture_output=True, timeout=25)
+                self.assertEqual(done.returncode, status, (done.stdout, done.stderr))
+                if status == 125:
+                    self.assertEqual((done.stdout, done.stderr), (b"", b""))
+                else:
+                    self.assertIn(b"Start hook failed", done.stdout)
+                self.assertEqual(list(base.glob("tmp*")), [])

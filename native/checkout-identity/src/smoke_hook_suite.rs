@@ -13,10 +13,12 @@ use std::{
     env,
     ffi::{OsStr, OsString},
     fs,
-    io::{self, Read, Write},
+    io::{self, Write},
     path::{Path, PathBuf},
     process::Command,
 };
+
+const GATE_FIXTURE: &str = include_str!("../smoke-gate-records.json");
 
 pub(crate) struct SmokeHookSuite {
     root: PathBuf,
@@ -30,10 +32,10 @@ impl SmokeHookSuite {
         if let [python] = args {
             return Self::cli(launcher, python);
         }
-        let Some((suite, records, data)) = Self::admit(launcher, args) else {
+        let Some((suite, records)) = Self::admit(launcher, args) else {
             return 125;
         };
-        Self::status(suite.checks(&records, &data))
+        Self::status(suite.checks(&records))
     }
 
     fn status(result: Result<(), String>) -> i32 {
@@ -68,7 +70,7 @@ impl SmokeHookSuite {
         {
             return 125;
         }
-        let Some((records, data)) = Self::records() else {
+        let Some(records) = Self::records() else {
             return 125;
         };
         println!("==================================================");
@@ -81,7 +83,7 @@ impl SmokeHookSuite {
                 project: workspace.path().to_owned(),
                 python: python.to_owned(),
             };
-            suite.checks(&records, &data).map_err(io::Error::other)
+            suite.checks(&records).map_err(io::Error::other)
         });
         if result.is_ok() {
             println!("\n==================================================");
@@ -95,11 +97,15 @@ impl SmokeHookSuite {
         let root = CallbackGuard::root(launcher, "run_smoke_checks.py")?;
         root.to_str()?;
         python.to_str()?;
+        let fixture = root.join("native/checkout-identity/smoke-gate-records.json");
+        if LocalState::read(&fixture, GATE_FIXTURE.len() as u64)? != GATE_FIXTURE {
+            return None;
+        }
         (PythonEncoding::utf8() && Path::new(python).is_absolute() && Path::new(python).is_file())
             .then_some(root)
     }
 
-    fn admit(launcher: &OsStr, args: &[OsString]) -> Option<(Self, Vec<String>, Vec<u8>)> {
+    fn admit(launcher: &OsStr, args: &[OsString]) -> Option<(Self, Vec<String>)> {
         let [python, project] = args else { return None };
         let project = PathBuf::from(project);
         let physical = project.canonicalize().ok()?;
@@ -118,7 +124,7 @@ impl SmokeHookSuite {
         {
             return None;
         }
-        let (gates, data) = Self::records()?;
+        let gates = Self::records()?;
         Some((
             Self {
                 root,
@@ -126,29 +132,20 @@ impl SmokeHookSuite {
                 python: python.clone(),
             },
             gates,
-            data,
         ))
     }
 
-    fn records() -> Option<(Vec<String>, Vec<u8>)> {
-        let mut data = Vec::new();
-        io::stdin()
-            .take(64 * 1024 + 1)
-            .read_to_end(&mut data)
-            .ok()?;
-        if data.len() > 64 * 1024 {
-            return None;
-        }
-        let records: Value = serde_json::from_slice(&data).ok()?;
+    fn records() -> Option<Vec<String>> {
+        let records: Value = serde_json::from_str(GATE_FIXTURE).ok()?;
         let gates = records
             .as_array()?
             .iter()
             .map(|item| Some(item.get("gate")?.as_str()?.to_owned()))
             .collect::<Option<Vec<_>>>()?;
-        (!gates.is_empty()).then_some((gates, data))
+        (!gates.is_empty()).then_some(gates)
     }
 
-    fn checks(&self, gates: &[String], data: &[u8]) -> Result<(), String> {
+    fn checks(&self, gates: &[String]) -> Result<(), String> {
         println!("\n--- Test 1: Start hook (triage command) ---");
         let (success, stdout, stderr) = self.hook(
             "start",
@@ -212,7 +209,7 @@ impl SmokeHookSuite {
             .write(true)
             .create_new(true)
             .open(&batch)
-            .and_then(|mut file| file.write_all(data))
+            .and_then(|mut file| file.write_all(GATE_FIXTURE.as_bytes()))
             .map_err(|error| error.to_string())?;
         let (success, stdout, stderr) = self.hook(
             "gate-batch",

@@ -676,9 +676,9 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port Python hook/search subprocesses and gate fixture input, preserve unsupported environment behavior, and verify portable and installed execution.",
+      "remaining": "Port the direct Python entry and hook/search subprocesses, preserve unsupported environment behavior, and verify portable and installed execution.",
       "verification": {
-        "local": "Source-bound Rust CLI owns disposable Git fixture setup and cleanup and drives the ordered hook and search subprocesses. Python remains the direct compatibility launcher and feeds test gate records."
+        "local": "Source-bound Rust owns disposable Git fixture setup and cleanup and uses a built-in gate fixture while driving the ordered hook and search subprocesses. The direct Python compatibility launcher uses the same checked-in gate fixture for rollback."
       }
     },
     {

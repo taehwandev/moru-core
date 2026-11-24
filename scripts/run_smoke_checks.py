@@ -17,6 +17,7 @@ from support.global_state import project_state_dir_target  # noqa: E402
 from support.native_probe_transport import NativeProbe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
+GATE_FIXTURE = ROOT / "native/checkout-identity/smoke-gate-records.json"
 
 
 def run_command(cmd: List[str], cwd: Union[Path, str] = ROOT) -> subprocess.CompletedProcess:
@@ -91,63 +92,12 @@ def test_gate_validation_failures(temp_dir: str) -> None:
     print("SUCCESS: Gate validation correctly rejected weak alignment brief.")
 
 
-def _gate_records() -> list[dict]:
-    gates_data = [
-        {
-            "gate": "source docs",
-            "fields": {
-                "source": "workflows/skills/request-triage/SKILL.md, references/current-guidance.md",
-                "takeaway": "Identified inspection verb target rule.",
-            },
-            "evidence": "Checked request triage workflow rules.",
-        },
-        {"gate": "classify request", "evidence": "vague-action: no named target."},
-        {"gate": "select effort", "evidence": "quick: short validation."},
-        {
-            "gate": "alignment brief",
-            "evidence": "Shared understanding: Codex completed. Possible differences: none. Unsupported assumptions: none. User-visible checkpoint: pytest."
-        },
-        {
-            "gate": "grill-me if needed",
-            "evidence": "Grill-Me protocol /grilling session output: question=re-verify?, recommended answer=run pytest, user decision=execute, resolved/no-blocker outcome=passed."
-        },
-        {"gate": "product route re-entry", "evidence": "no new product work and no implementation proposed; triage only."},
-        {"gate": "route recommendation", "evidence": "test"},
-        {
-            "gate": "retrospective check",
-            "fields": {
-                "skills_checked": "request-triage, retrospective-learning",
-                "outcome": "no_reusable_gap",
-                "observation": "not_needed",
-                "alignment_evidence": "The scratch triage request and the batch record both identify a re-verification request.",
-                "causal_assessment": "The alignment gate rejects the incomplete brief before the valid batch records all required gates.",
-                "learning_decision": "Keep existing triage alignment brief validation; no reusable gap.",
-                "memory_decision": "not_needed",
-                "memory_reason": "The negative and positive checks already cover the shared triage gate.",
-            },
-            "evidence": "skills checked: request-triage, retrospective-learning; outcome: no_reusable_gap; observation: not_needed",
-        },
-    ]
-    # One batch, not one process per gate. The route's own start output tells
-    # agents to record simultaneously-ready gates together, and this check ran
-    # eight separate interpreters instead -- so it was slower than it needed to
-    # be and, worse, it smoke-tested a path the guidance tells nobody to use.
-    return [
-        {
-            "gate": data["gate"],
-            "status": "SUCCESS",
-            "evidence": data["evidence"],
-            "fields": data.get("fields", {}),
-        }
-        for data in gates_data
-    ]
-
-
 def test_gate_validation_success(temp_dir: str) -> None:
     print("\n--- Test 3: Gate validation success ---")
-    records = _gate_records()
+    data = GATE_FIXTURE.read_bytes()
+    records = json.loads(data)
     batch = project_state_dir_target(Path(temp_dir)) / "smoke-gates.json"
-    batch.write_text(json.dumps(records), encoding="utf-8")
+    batch.write_bytes(data)
     result = run_command(
         [
             sys.executable,
@@ -217,7 +167,7 @@ def _native_suite() -> int | None:
         result = subprocess.run(
             [str(launcher.with_name("moru-hook-native")), str(launcher), "--smoke-hook-suite",
              sys.executable],
-            input=json.dumps(_gate_records()).encode("utf-8"),
+            stdin=subprocess.DEVNULL,
             env={**os.environ, "MORU_HOME": str(ROOT)},
         )
     except FileNotFoundError:
