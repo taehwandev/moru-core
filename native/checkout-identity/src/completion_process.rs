@@ -204,6 +204,13 @@ impl CompletionProcess {
                 None => 125,
             };
         }
+        if args[1] == "path-claim-release-selected" {
+            return match path_claim_release::PathClaimRelease::release_selected(&payload) {
+                Some(Ok(receipt)) => Self::respond(Some(receipt)),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "path-claim-write" {
             return match path_claim_write::PathClaimWrite::write(&payload) {
                 Some(Ok(written)) => Self::respond(Some(json!({"written": written}))),

@@ -163,7 +163,10 @@ class PathClaimsTests(unittest.TestCase):
             self.assertEqual(self.claim("a", "mine", "replace", "uncertain")[0], 0)
             self.assertEqual(self.claim("b", "foreign")[0], 0)
             args = ("release", "--project", str(self.project), "--holder", "a")
-            with mock.patch.object(Path, "unlink", side_effect=AssertionError("Python removed claim")):
+            with (
+                mock.patch.object(Path, "unlink", side_effect=AssertionError("Python removed claim")),
+                mock.patch.object(path_claims, "_scan_claims", side_effect=AssertionError("Python selected release")),
+            ):
                 code, output = self.run_cli(*args, "--path", "mine", "--path", "foreign")
             self.assertEqual(code, path_claims.CONFLICT_EXIT)
             self.assertIn("held by b", output)
@@ -178,6 +181,8 @@ class PathClaimsTests(unittest.TestCase):
             self.assertTrue(target.is_file())
 
             def replace_before_release(protocol, operation, payload):
+                if operation == "path-claim-release-selected":
+                    return None
                 if operation == "path-claim-release":
                     claim = json.loads(target.read_text())
                     claim["holder"] = "new owner"
@@ -194,7 +199,7 @@ class PathClaimsTests(unittest.TestCase):
 
             def lose_release_reply(command, **kwargs):
                 result = invoke(command, **kwargs)
-                if command[-1] == "path-claim-release":
+                if command[-1] == "path-claim-release-selected":
                     self.assertEqual(result.returncode, 0, result.stderr)
                     return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
                 return result
@@ -204,7 +209,23 @@ class PathClaimsTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(OSError, "release outcome could not be determined"):
                     self.run_cli(*args, "--all")
-                self.assertEqual(sum(call.args[0][-1] == "path-claim-release" for call in process.call_args_list), 1)
+                self.assertEqual(sum(call.args[0][-1] == "path-claim-release-selected" for call in process.call_args_list), 1)
+            self.assertEqual([claim["path"] for claim in self.status()], ["foreign", "replace"])
+
+            def partial_write(project, paths, holder, ttl):
+                self.assertTrue(path_claims._write_claim(project, paths[0], holder, ttl))
+                return paths[:1], paths[1]
+
+            def native_rollback(protocol, operation, payload):
+                if operation == "path-claim-scan" and payload.get("release") is not None:
+                    self.fail("rollback fell back to separate release selection")
+                return request(protocol, operation, payload)
+
+            with (
+                mock.patch.object(path_claims, "_write_claims", side_effect=partial_write),
+                mock.patch.object(path_claims.NativeProbe, "request", side_effect=native_rollback),
+            ):
+                self.assertEqual(self.claim("a", "rollback", "unavailable")[0], path_claims.CONFLICT_EXIT)
             self.assertEqual([claim["path"] for claim in self.status()], ["foreign", "replace"])
 
     def test_native_release_selection_matches_reference_and_rechecks_expiry(self) -> None:
@@ -238,8 +259,18 @@ class PathClaimsTests(unittest.TestCase):
             self.assertEqual(expected[1].splitlines(), ["held by 한글 since None: z", "held by other since None: a"])
 
             request = path_claims.NativeProbe.request
+            expired = path_claims.claims_dir(self.project) / "00.json"
+            with mock.patch.object(path_claims, "_now", return_value=self.clock + 1.1):
+                clock_offset = path_claims._now() - path_claims.time.time()
+                self.assertIsNone(request("--completion-probe", "path-claim-release-selected", {
+                    "project": str(self.project), "digit_limit": 0, "clock_offset": clock_offset,
+                    "release": {"paths": ["z"], "holder": "한글"},
+                }))
+            self.assertTrue(expired.is_file())
 
             def expire_after_scan(*call):
+                if call[1] == "path-claim-release-selected":
+                    return None
                 result = request(*call)
                 if call[1] == "path-claim-scan":
                     self.assertIsNotNone(result["release"])

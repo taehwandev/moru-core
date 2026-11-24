@@ -279,6 +279,20 @@ def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict
     directory = claims_dir(project)
     ordinary_paths = paths is None or (type(paths) is list and all(type(path) is str for path in paths))
     query = {"paths": paths, "holder": holder} if type(holder) is str and ordinary_paths else None
+    if query is not None and directory.is_dir():
+        # Preserve the caller clock while measuring expiry at the end of the native scan.
+        clock_offset = _now() - time.time()
+        result = NativeProbe.request("--completion-probe", "path-claim-release-selected", {
+            "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+            "release": query, "clock_offset": clock_offset,
+        })
+        if result is not None:
+            refused = result.get("refused")
+            if result.keys() != {"refused"} or not isinstance(refused, list) or not all(
+                isinstance(raw, str) for raw in refused
+            ):
+                raise OSError("invalid native path claim release selection receipt")
+            return [json.loads(raw) for raw in refused]
     scan = _scan_claims(project, directory, release=query)
     plan = _fresh_projection(scan, "release", "plan")
     if isinstance(plan, dict) and plan.keys() == {"owned", "refused"} and all(

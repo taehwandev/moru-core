@@ -1,22 +1,49 @@
-//! owner: guarded removal of released or expired path claim files.
+//! owner: release selection and guarded removal of released or expired claims.
 //! allowed imports: descriptor-relative reads, removals and Python JSON parsing.
-//! forbidden imports: path selection, lifecycle policy and network.
+//! forbidden imports: claim acquisition, lifecycle policy and network.
 //! callers/tests: path_claims.release and test_path_claims.
 //! verification: holder recheck, missing entries and no replay after mutation.
 use super::{path_claim_filename::PathClaimFilename, path_claim_scan::PathClaimScan};
 use crate::{atomic_sibling::AtomicSibling, python_json::PythonJson};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::{
     ffi::{CStr, CString},
     fs::{File, Metadata},
     io::{self, Read},
     os::{fd::AsRawFd, unix::fs::MetadataExt},
     path::Path,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 pub(super) struct PathClaimRelease;
 
 impl PathClaimRelease {
+    pub(super) fn release_selected(input: &Value) -> Option<io::Result<Value>> {
+        let result = PathClaimScan::probe(input)?;
+        let release = result.get("release")?;
+        let wall_clock = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
+        let now = wall_clock.as_secs_f64() + input.get("clock_offset")?.as_f64()?;
+        let plan = release.get("plan")?;
+        let owned = plan.get("owned")?.as_array()?;
+        let receipt = json!({"refused": plan.get("refused")?});
+        if release["earliest"]
+            .as_f64()
+            .is_some_and(|expiry| expiry <= now)
+        {
+            return None;
+        }
+        if owned.is_empty() {
+            return Some(Ok(receipt));
+        }
+        let request = json!({
+            "project": input.get("project")?,
+            "holder": input.get("release")?.get("holder")?,
+            "digit_limit": input.get("digit_limit")?,
+            "paths": owned,
+        });
+        Some(Self::release(&request)?.map(|()| receipt))
+    }
+
     pub(super) fn expire(input: &Value) -> Option<io::Result<Option<String>>> {
         let project = Path::new(input.get("project")?.as_str()?);
         let name = input.get("name")?.as_str()?;
