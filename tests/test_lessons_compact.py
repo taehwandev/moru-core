@@ -17,6 +17,7 @@ import importlib.util
 import io
 import json
 import os
+import select
 import subprocess
 import sys
 import tempfile
@@ -148,9 +149,8 @@ class CompactionTests(unittest.TestCase):
             inbox.mkdir(parents=True)
             for lesson in ("a", "b"):
                 (inbox / f"old-{lesson}.json").write_text(json.dumps(_candidate(lesson, stamp)), encoding="utf-8")
-                if state_name != "mixed" or lesson == "a":
-                    with state_lock(inbox / f"{lesson}.json"):
-                        pass
+            if state_name == "mixed":
+                (inbox / "b.compact.tmp").write_text("legacy scratch", encoding="utf-8")
 
         def run(state, env):
             result = subprocess.run(
@@ -174,9 +174,42 @@ class CompactionTests(unittest.TestCase):
             self.assertEqual(sorted(path.name for path in inbox.glob("*.json")), ["a.json", "b.json"])
             for path in inbox.glob("*.json"):
                 self.assertEqual(path.read_bytes(), (compact.inbox_path(root / "reference") / path.name).read_bytes())
+                lock = path.with_name(f".{path.name}.lock")
+                self.assertEqual(lock.read_bytes(), b"")
+                inode = lock.stat().st_ino
+                with state_lock(path):
+                    self.assertEqual(lock.stat().st_ino, inode)
+
+        trace.unlink()
+        inbox = compact.inbox_path(root / "contended")
+        inbox.mkdir(parents=True)
+        (inbox / "old-a.json").write_text(json.dumps(_candidate("a", stamp)), encoding="utf-8")
+        target = inbox / "a.json"
+        lock = inbox / ".a.json.lock"
+        child = None
+        try:
+            with state_lock(target):
+                inode = lock.stat().st_ino
+                child = subprocess.Popen(
+                    [str(entry), "lessons-compact", "--apply", "--state-home", str(root / "contended")],
+                    env={**env, "PATH": str(shim)}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
+                )
+                self.assertTrue(select.select([child.stdout], [], [], 5)[0], "missing native plan")
+                self.assertTrue(child.stdout.readline().startswith(b"inbox: "))
+                self.assertFalse(target.exists())
+                self.assertIsNone(child.poll())
+                (inbox / "late-a.json").write_text(json.dumps(_candidate("a", stamp)), encoding="utf-8")
+            _, errors = child.communicate(timeout=10)
+        finally:
+            if child is not None and child.poll() is None:
+                child.kill()
+                child.communicate()
+        self.assertEqual(child.returncode, 0, errors)
+        self.assertFalse(trace.exists(), "lock contention invoked Python")
+        self.assertEqual(lock.stat().st_ino, inode)
+        self.assertEqual(json.loads(target.read_bytes())["occurrence_count"], 2)
 
         if os.geteuid() != 0:
-            trace.unlink()
             inbox = compact.inbox_path(root / "denied")
             inbox.mkdir(parents=True)
             legacy = inbox / "old-a.json"
@@ -571,9 +604,7 @@ class CompactionTests(unittest.TestCase):
         date = "2026-01-01T00:00:00Z"
         for lesson in ("a", "b", "c", "d"):
             self._write(f"first-{lesson}.json", _candidate(lesson, date))
-            if lesson != "c":
-                with state_lock(self.inbox / f"{lesson}.json"):
-                    pass
+        (self.inbox / "c.compact.tmp").write_text("legacy scratch", encoding="utf-8")
         request = compact.NativeProbe.request
         batches = []
         singles = []

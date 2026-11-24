@@ -81,7 +81,7 @@ impl LessonCompactionCli {
         for (index, fold) in folds.iter().enumerate() {
             run.policy["lesson_id"] = fold[0].clone();
             run.policy["known"] = fold[1].clone();
-            match LessonCompactionApply::apply(&run.policy) {
+            match LessonCompactionApply::fold(&run.policy, true) {
                 Some(result) => written += usize::from(result?),
                 None => {
                     return Self::resume(
@@ -100,7 +100,7 @@ impl LessonCompactionCli {
         let mut marked = 0;
         for (index, lesson) in stale.iter().enumerate() {
             run.policy["lesson_id"] = lesson.clone();
-            match LessonCompactionApply::mark_at(&run.policy, run.cutoff) {
+            match LessonCompactionApply::mark_at(&run.policy, run.cutoff, true) {
                 Some(result) => marked += usize::from(result?),
                 None => {
                     return Self::resume(

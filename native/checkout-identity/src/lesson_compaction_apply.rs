@@ -66,6 +66,10 @@ impl LessonCompactionApply {
     }
 
     pub(super) fn apply(input: &Json) -> Option<io::Result<bool>> {
+        Self::fold(input, false)
+    }
+
+    pub(super) fn fold(input: &Json, wait: bool) -> Option<io::Result<bool>> {
         let (inbox, lesson) = Self::location(input)?;
         let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let keys = input.get("key_limit")?.as_u64()?.try_into().ok()?;
@@ -89,7 +93,7 @@ impl LessonCompactionApply {
         let directory = AtomicSibling::open_directory(inbox)?;
         let canonical = format!("{lesson}.json");
         let target = CString::new(canonical.as_str()).ok()?;
-        let _lock = Self::lock(&directory, &canonical)?;
+        let _lock = Self::lock(&directory, &canonical, wait)?;
         let suffix = format!("-{canonical}");
         let mut names = BTreeSet::from([canonical.clone()]);
         for (index, entry) in fs::read_dir(inbox).ok()?.enumerate() {
@@ -161,16 +165,16 @@ impl LessonCompactionApply {
             input.get("now")?.as_str()?,
             input.get("stale_days")?.as_i64()?,
         )?;
-        Self::mark_at(input, cutoff)
+        Self::mark_at(input, cutoff, false)
     }
 
-    pub(super) fn mark_at(input: &Json, cutoff: i64) -> Option<io::Result<bool>> {
+    pub(super) fn mark_at(input: &Json, cutoff: i64, wait: bool) -> Option<io::Result<bool>> {
         let (inbox, lesson) = Self::location(input)?;
         let limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let directory = AtomicSibling::open_directory(inbox)?;
         let canonical = format!("{lesson}.json");
         let target = CString::new(canonical.as_str()).ok()?;
-        let _lock = Self::lock(&directory, &canonical)?;
+        let _lock = Self::lock(&directory, &canonical, wait)?;
         let Some(file) = Self::open(&directory, &target).ok()? else {
             return Some(Ok(false));
         };
@@ -215,13 +219,30 @@ impl LessonCompactionApply {
         .then_some((inbox, lesson))
     }
 
-    fn lock(directory: &File, canonical: &str) -> Option<File> {
+    fn lock(directory: &File, canonical: &str, wait: bool) -> Option<File> {
         let name = CString::new(format!(".{canonical}.lock")).ok()?;
-        // Python can establish a missing lock on first use.
-        let lock = AtomicSibling::open_relative(directory, &name, libc::O_RDWR)?;
-        (lock.metadata().ok()?.is_file()
-            && unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0)
-            .then_some(lock)
+        // Match Python state_lock's persistent, append-open sibling.
+        let lock = AtomicSibling::open_relative(
+            directory,
+            &name,
+            libc::O_RDWR | libc::O_APPEND | libc::O_CREAT,
+        )?;
+        if !lock.metadata().ok()?.is_file() {
+            return None;
+        }
+        let flags = if wait {
+            libc::LOCK_EX
+        } else {
+            libc::LOCK_EX | libc::LOCK_NB
+        };
+        loop {
+            if unsafe { libc::flock(lock.as_raw_fd(), flags) } == 0 {
+                return Some(lock);
+            }
+            if !wait || io::Error::last_os_error().kind() != io::ErrorKind::Interrupted {
+                return None;
+            }
+        }
     }
 
     fn replace(
