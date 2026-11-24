@@ -321,6 +321,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     now = datetime.now(timezone.utc)
+    if not args.apply:
+        native = NativeProbe.request("--completion-probe", "lesson-compaction-preview", {
+            "inbox": str(inbox), "now": now.isoformat(), "stale_days": STALE_AFTER.days,
+            "key_limit": OCCURRENCE_KEY_HISTORY_LIMIT, "recent_days": RECENT_OCCURRENCE_DAYS,
+            "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+        })
+        if native is not None and native.keys() == {"output"} and isinstance(native["output"], str):
+            print(native["output"], end="")
+            return 0
     report = plan(inbox, now)
     removed = sum(len(fold["paths"]) for fold in report["folds"]) - len(report["folds"])
     print(f"inbox: {inbox}")

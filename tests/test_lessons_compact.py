@@ -121,6 +121,46 @@ class CompactionTests(unittest.TestCase):
             }))
             self.assertEqual(compact.read_records(self.inbox)[0]["한글"][-1][0], link)
 
+    def test_native_dry_run_keeps_report_caps_and_tie_order(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        for index in reversed(range(7)):
+            lesson = f"lesson-{index}"
+            for part in range(3 if index == 6 else 2):
+                self._write(f"{part}-{lesson}.json", _candidate(lesson, "2026-01-01T00:00:00Z"))
+            (self.inbox / f"broken-{index}.json").write_text("{broken", encoding="utf-8")
+
+        def run(*args):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.assertEqual(compact.main(["--state-home", str(self.state), *args]), 0)
+            return out.getvalue()
+
+        with mock.patch.dict(os.environ, environment(self.state, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = run()
+            with mock.patch.object(compact, "plan", side_effect=AssertionError("Python assembled dry-run plan")):
+                self.assertEqual(run(), expected)
+            lines = expected.splitlines()
+            self.assertEqual(lines[5:10], [f"    broken-{index}.json" for index in range(5)])
+            self.assertEqual([line.split(":")[0].strip() for line in lines[10:15]],
+                             ["lesson-6", "lesson-0", "lesson-1", "lesson-2", "lesson-3"])
+            with (
+                mock.patch.object(compact.NativeProbe, "request", wraps=compact.NativeProbe.request) as request,
+                mock.patch.object(compact, "apply_plan", return_value=0),
+                mock.patch.object(compact, "mark_stale", return_value=0),
+            ):
+                self.assertIn("folded 0 lessons", run("--apply"))
+                self.assertNotIn("lesson-compaction-preview", [call.args[1] for call in request.call_args_list])
+
     def test_native_plan_preserves_keys_calendar_and_strict_staleness(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment

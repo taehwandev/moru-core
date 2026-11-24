@@ -152,6 +152,8 @@ mod lesson_compaction_inbox;
 mod lesson_compaction_apply;
 #[path = "lesson_compaction_merge.rs"]
 mod lesson_compaction_merge;
+#[path = "lesson_compaction_preview.rs"]
+mod lesson_compaction_preview;
 #[path = "live_web_edit_log.rs"]
 mod live_web_edit_log;
 #[path = "live_web_edit_hook.rs"]
@@ -294,6 +296,7 @@ impl CompletionProcess {
             Some("live-web-check") => live_web_check_lookup::LiveWebCheckLookup::probe(&payload),
             Some("lesson-compaction-inbox") => lesson_compaction_inbox::LessonCompactionInbox::probe(&payload),
             Some("lesson-compaction-merge") => lesson_compaction_merge::LessonCompactionMerge::probe(&payload),
+            Some("lesson-compaction-preview") => lesson_compaction_preview::LessonCompactionPreview::probe(&payload),
             Some("live-web-check-history") => live_web_check_lookup::LiveWebCheckLookup::history(&payload),
             Some("path-claim-arguments") => project_relative_path::ProjectRelativePath::claim_arguments(&payload),
             Some("path-claim-scan") => path_claim_scan::PathClaimScan::probe(&payload),
