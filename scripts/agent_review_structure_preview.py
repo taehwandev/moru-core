@@ -1,8 +1,8 @@
 """Preview, before review, what the structure review will ask of the working tree.
 
 Owner: the pre-review structure notice that gate-batch prints while the review
-hook is still outstanding. Allowed imports: the structure review and the command
-runner it already uses. Forbidden: gate records, review state and any write.
+hook is still outstanding. Allowed imports: structure review, its command
+runner and the local native probe. Forbidden: gate records, review state and any write.
 Callers/tests: agent_hook_gate_records.gate_batch_hook,
 tests/test_agent_review_structure_preview.py.
 
@@ -24,6 +24,7 @@ from agent_review_structure import (
     REVIEW_SOURCE_FILE_LINE_LIMIT,
     structure_review,
 )
+from support.native_probe_transport import NativeProbe
 
 PREVIEW_ITEM_LIMIT = 3
 DEFAULT_CHANGED_PATH_LIMIT = 25
@@ -38,18 +39,33 @@ def structure_review_preview(project: Path) -> list[str]:
         )
     except (OSError, RuntimeError, ValueError):
         return []
-    lines: list[str] = []
     changed_count = len((structure.get("discovery") or {}).get("path_metadata") or {})
+    failures = structure.get("failures") or []
+    warnings = structure.get("warnings") or []
+    if not failures and not warnings and changed_count <= DEFAULT_CHANGED_PATH_LIMIT:
+        return []
+    native = NativeProbe.request("--completion-probe", "structure-report", {
+        "mode": "advisory", "changed_count": changed_count,
+        "path_limit": DEFAULT_CHANGED_PATH_LIMIT, "item_limit": PREVIEW_ITEM_LIMIT,
+        "failures": failures, "warnings": warnings,
+    })
+    lines = native.get("lines") if native is not None else None
+    expected = (int(bool(failures)) + int(bool(warnings)) + int(changed_count > DEFAULT_CHANGED_PATH_LIMIT))
+    if isinstance(lines, list) and len(lines) == expected and all(isinstance(line, str) for line in lines):
+        return lines
+    return _advisory_lines(changed_count, failures, warnings)
+
+
+def _advisory_lines(changed_count: int, failures: list[str], warnings: list[str]) -> list[str]:
+    lines: list[str] = []
     if changed_count > DEFAULT_CHANGED_PATH_LIMIT:
         lines.append(
             f"Review preview: working tree has {changed_count} changed paths "
             f"(default limit {DEFAULT_CHANGED_PATH_LIMIT}); pass --max-changed-paths {changed_count} "
             "(or narrow scope with --review-scope pathspec --review-path <owned-path>) on review."
         )
-    failures = structure.get("failures") or []
     if failures:
         lines.append(f"Review preview: structure review will fail on {_summary(failures)}; fix before review.")
-    warnings = structure.get("warnings") or []
     if warnings:
         lines.append(
             "Review preview: review will require --structure-review-evidence because "

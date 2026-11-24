@@ -90,6 +90,8 @@ mod structure_removal_matching;
 mod structure_move_matching;
 #[path = "structure_merge_baseline.rs"]
 mod structure_merge_baseline;
+#[path = "structure_report.rs"]
+mod structure_report;
 #[path = "structure_action_delta.rs"]
 mod structure_action_delta;
 #[path = "kotlin_literal_mask.rs"]
@@ -155,6 +157,7 @@ impl CompletionProcess {
             Some("structure-removal-matching") => structure_removal_matching::StructureRemovalMatching::compare(&payload),
             Some("structure-move-matching") => structure_move_matching::StructureMoveMatching::compare(&payload),
             Some("structure-merge-baseline") => structure_merge_baseline::StructureMergeBaseline::classify(&payload),
+            Some("structure-report") => structure_report::StructureReport::render(&payload),
             Some("structure-action-delta") => structure_action_delta::StructureActionDelta::classify(&payload),
             Some("kotlin-literal-mask") => kotlin_literal_mask::KotlinLiteralMask::mask(&payload),
             Some("structure-block-spans") => structure_block_spans::StructureBlockSpans::batch(&payload),

@@ -8,6 +8,8 @@ import json
 import os
 from pathlib import Path
 import random
+import runpy
+from contextlib import redirect_stdout
 import shlex
 import shutil
 import subprocess
@@ -21,6 +23,7 @@ import agent_project_memory as project_memory
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_review_structure as structure
+import agent_review_structure_preview as structure_preview
 import agent_review_merge_baseline as merge_baseline
 import agent_android_action_boundary as android
 import agent_review_removals as removals
@@ -73,6 +76,51 @@ class NativeCompletionTests(unittest.TestCase):
         envelope = json.loads(result.stdout)
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
+
+    def test_structure_report_native_text_status_and_advisories_match_python(self):
+        root = Path(__file__).resolve().parents[1]
+        main = runpy.run_path(str(root / "scripts" / "agent-structure-check.py"))["main"]
+        report = {
+            "checked_paths": ["한🙂\n.py"], "failures": [], "warnings": ["경고"],
+            "boundary_note_requirements": [{"package": "src", "reason": "mixed"}],
+            "net_deletions": [{"net": 51, "removed": ["line\t\u007f"]}],
+        }
+
+        def cli(fields, error=None):
+            output = io.StringIO()
+            with patch.dict(main.__globals__, {"structure_review": Mock(return_value=fields, side_effect=error)}):
+                with redirect_stdout(output):
+                    status = main(["--project", str(self.project)])
+            return status, output.getvalue()
+
+        request = NativeProbe.request
+
+        def require_native(*args, **kwargs):
+            result = request(*args, **kwargs)
+            self.assertIsNotNone(result)
+            return result
+
+        for fields, error in [(report, None), ({**report, "failures": ["broken"]}, None),
+                              ({}, ValueError("한🙂\n\u007f"))]:
+            with patch.object(NativeProbe, "request", return_value=None):
+                expected = cli(fields, error)
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                NativeProbe, "request", side_effect=require_native,
+            ) as probe:
+                self.assertEqual(expected, cli(fields, error))
+                probe.assert_called_once()
+                self.assertEqual("structure-report", probe.call_args.args[1])
+            with patch.object(NativeProbe, "request", return_value={"text": "", "exit_code": True}):
+                self.assertEqual(expected, cli(fields, error))
+
+        overview = {"discovery": {"path_metadata": {str(i): {} for i in range(27)}},
+                    "failures": ["한", "two", "three", "four", "five"], "warnings": ["warn"]}
+        expected = structure_preview._advisory_lines(27, overview["failures"], overview["warnings"])
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            structure_preview, "structure_review", return_value=overview,
+        ), patch.object(structure_preview, "_advisory_lines", side_effect=AssertionError("Python rendered notice")):
+            self.assertEqual(expected, structure_preview.structure_review_preview(self.project))
+        self.assertIn("; and 2 more", expected[1])
 
     def test_structure_merge_baseline_matches_native_parent_precedence(self):
         parent = "a" * 64

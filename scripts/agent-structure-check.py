@@ -2,7 +2,7 @@
 """Stateless preview of the final review's structural checks.
 
 Owner: changed-source structural preview CLI.
-Allowed imports: standard library and agent_review_structure.
+Allowed imports: standard library, agent_review_structure and the local native probe.
 Forbidden imports: lifecycle writers, gates, provider runtimes.
 Callers/tests: refactor workflow; test_agent_structure_check.py.
 Verification: CLI tests against temporary Git projects.
@@ -23,6 +23,9 @@ from agent_review_structure import (
     REVIEW_SOURCE_FILE_LINE_LIMIT,
     structure_review,
 )
+from support.native_probe_transport import NativeProbe
+
+_REPORT_FIELDS = ("checked_paths", "failures", "warnings", "boundary_note_requirements", "net_deletions")
 
 
 def _run(command: list[str], cwd: Path) -> dict:
@@ -41,18 +44,27 @@ def main(argv: list[str] | None = None) -> int:
             REVIEW_FUNCTION_LINE_LIMIT, _run, args.review_path or None,
         )
     except (OSError, RuntimeError, ValueError) as error:
-        print(json.dumps({"status": "FAIL", "error": str(error)}))
-        return 1
+        text = str(error)
+        return _print_report({"mode": "error", "error": text}, 1, {"status": "FAIL", "error": text})
+    fields = {key: report[key] for key in _REPORT_FIELDS}
+    return _print_report({"mode": "cli", "fields": fields}, int(bool(fields["failures"])), fields)
+
+
+def _print_report(payload: dict, status: int, fields: dict) -> int:
+    native = NativeProbe.request("--completion-probe", "structure-report", payload)
+    if (native is not None and isinstance(native.get("text"), str)
+            and type(native.get("exit_code")) is int and native["exit_code"] == status):
+        print(native["text"])
+        return status
+    if payload["mode"] == "error":
+        print(json.dumps(fields))
+        return status
     print(json.dumps({
-        "status": "FAIL" if report["failures"] else "SUCCESS",
+        "status": "FAIL" if status else "SUCCESS",
         "scope": "Structural preview only; not behavior verification or review approval",
-        "checked_paths": report["checked_paths"],
-        "failures": report["failures"],
-        "warnings": report["warnings"],
-        "boundary_note_requirements": report["boundary_note_requirements"],
-        "net_deletions": report["net_deletions"],
+        **fields,
     }, indent=2, ensure_ascii=False))
-    return 1 if report["failures"] else 0
+    return status
 
 
 if __name__ == "__main__":
