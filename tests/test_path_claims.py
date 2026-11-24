@@ -125,6 +125,64 @@ class PathClaimsTests(unittest.TestCase):
         code, _ = self.claim("b", "src/x.tsx")
         self.assertEqual(code, 0)
 
+    def test_native_claim_scan_preserves_values_and_rechecks_cleanup_candidates(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        oracle = self.project / "oracle"
+        expiry = path_claims._iso(self.clock)
+        later = path_claims._iso(self.clock + 60)
+        rows = {
+            "a.json": json.dumps({"path": "z", "holder": "한글", "expires": later, "extra": 10 ** 40}),
+            "b.json": json.dumps({"path": "a", "holder": "h", "expires": later}),
+            "c.json": json.dumps({"path": "expired", "holder": "h", "expires": expiry}),
+            "d.json": "{broken",
+        }
+        for project in (self.project, oracle):
+            directory = path_claims.claims_dir(project)
+            directory.mkdir(parents=True)
+            for name, raw in rows.items():
+                (directory / name).write_text(raw, encoding="utf-8")
+        directory = path_claims.claims_dir(self.project)
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = path_claims.active_claims(oracle)
+            with mock.patch.object(path_claims, "_read_active", wraps=path_claims._read_active) as reread:
+                self.assertEqual(expected, path_claims.active_claims(self.project))
+                self.assertEqual(reread.call_args_list, [mock.call(directory / name) for name in ("c.json", "d.json")])
+            self.assertEqual(sorted(p.name for p in directory.iterdir()), ["a.json", "b.json"])
+            self.assertEqual([row["path"] for row in self.status()], ["a", "z"])
+
+            candidate = directory / "c.json"
+            candidate.write_text(rows[candidate.name], encoding="utf-8")
+            request = path_claims.NativeProbe.request
+
+            def renew_after_scan(*args):
+                result = request(*args)
+                self.assertIsNotNone(result)
+                replacement = candidate.with_suffix(".tmp")
+                replacement.write_text(json.dumps({"path": "renewed", "expires": later}), encoding="utf-8")
+                replacement.replace(candidate)
+                return result
+
+            with mock.patch.object(path_claims.NativeProbe, "request", side_effect=renew_after_scan):
+                self.assertEqual([row["path"] for row in path_claims.active_claims(self.project)], ["z", "a", "renewed"])
+            self.assertTrue(candidate.exists())
+
+            for exceptional in (
+                {"path": "legacy", "expires": "2030-01-01T01:00:00"},
+                {"path": "legacy", "expires": later, "extra": "x" * (64 * 1024)},
+            ):
+                candidate.write_text(json.dumps(exceptional), encoding="utf-8")
+                with mock.patch.object(path_claims, "_read_active", wraps=path_claims._read_active) as reread:
+                    self.assertEqual(path_claims.active_claims(self.project), expected + [exceptional])
+                    self.assertEqual(reread.call_count, 3)
+
     def test_same_holder_reclaim_renews(self) -> None:
         self.claim("a", "src/x.tsx", extra=("--ttl", "60"))
         first = self.status()[0]

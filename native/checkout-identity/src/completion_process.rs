@@ -148,6 +148,8 @@ mod structure_diff_acquisition;
 mod live_web_check_lookup;
 #[path = "live_web_edit_log.rs"]
 mod live_web_edit_log;
+#[path = "path_claim_scan.rs"]
+mod path_claim_scan;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -202,6 +204,7 @@ impl CompletionProcess {
             Some("structure-removal-inputs") => structure_removal_inputs::StructureRemovalInputs::probe(&payload),
             Some("structure-removal-analysis") => structure_removal_analysis::StructureRemovalAnalysis::probe(&payload),
             Some("live-web-check") => live_web_check_lookup::LiveWebCheckLookup::probe(&payload),
+            Some("path-claim-scan") => path_claim_scan::PathClaimScan::probe(&payload),
             Some("structure-move-matching") => structure_move_matching::StructureMoveMatching::compare(&payload),
             Some("structure-merge-baseline") => structure_merge_baseline::StructureMergeBaseline::classify(&payload),
             Some("structure-report") => structure_report::StructureReport::render(&payload),

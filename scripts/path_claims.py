@@ -96,18 +96,40 @@ def active_claims(project: Path) -> list[dict]:
     directory = claims_dir(project)
     if not directory.is_dir():
         return []
-    claims = []
-    for entry in sorted(directory.glob("*.json")):
-        try:
-            claim = json.loads(entry.read_text(encoding="utf-8"))
-            expired = _epoch(claim["expires"]) <= _now()
-        except (OSError, ValueError, KeyError, TypeError):
-            expired = True
-        if expired:
-            entry.unlink(missing_ok=True)
-            continue
-        claims.append(claim)
-    return claims
+    result = NativeProbe.request("--completion-probe", "path-claim-scan", {
+        "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+    })
+    rows = result.get("rows") if result is not None else None
+    if isinstance(rows, list) and all(_valid_scan_row(row) for row in rows):
+        claims = []
+        for name, expiry, raw in rows:
+            # Recheck deletion candidates in case a concurrent writer renewed
+            # or replaced a claim after Rust read it.
+            claim = json.loads(raw) if expiry is not None and expiry > _now() else _read_active(directory / name)
+            if claim is not None:
+                claims.append(claim)
+        return claims
+    return [claim for entry in sorted(directory.glob("*.json")) if (claim := _read_active(entry)) is not None]
+
+
+def _valid_scan_row(row) -> bool:
+    if not isinstance(row, list) or len(row) != 3:
+        return False
+    name, expiry, raw = row
+    return (isinstance(name, str) and Path(name).name == name and name.endswith(".json")
+            and ((expiry is None and raw is None) or (type(expiry) in (int, float) and isinstance(raw, str))))
+
+
+def _read_active(entry: Path) -> Optional[dict]:
+    try:
+        claim = json.loads(entry.read_text(encoding="utf-8"))
+        expired = _epoch(claim["expires"]) <= _now()
+        if not expired:
+            return claim
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    entry.unlink(missing_ok=True)
+    return None
 
 
 def conflicts(project: Path, paths: Iterable[str], holder: str) -> list[dict]:
