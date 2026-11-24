@@ -86,7 +86,33 @@ impl StructureDeclarationRecords {
                 records.push(row);
             }
         }
-        Some(json!({"records": records, "lines": scan.get("lines")}))
+        let references = if typescript {
+            Self::typescript_references(lines, &records)
+        } else {
+            None
+        };
+        Some(json!({"records": records, "lines": scan.get("lines"), "references": references}))
+    }
+
+    fn typescript_references(lines: &[Value], records: &[Value]) -> Option<Value> {
+        let owners = records
+            .iter()
+            .map(|record| {
+                // Ownership can still change when Python resolves a Unicode role.
+                if !record.get("owner")?.as_bool()? {
+                    return None;
+                }
+                Some((
+                    usize::try_from(record.get("line")?.as_u64()?).ok()?,
+                    record.get("name")?.as_str()?,
+                ))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let text = lines
+            .iter()
+            .map(Value::as_str)
+            .collect::<Option<Vec<_>>>()?;
+        Some(json!(StructureTsText::reference_sets(&text, &owners)))
     }
 
     fn record(

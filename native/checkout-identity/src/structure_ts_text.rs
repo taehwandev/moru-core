@@ -137,6 +137,13 @@ impl StructureTsText {
             prior = line;
             owners.push((line, entry.get(1)?.as_str()?));
         }
+        Some(json!({"references": Self::reference_sets(lines, &owners)}))
+    }
+
+    pub(super) fn reference_sets<'a>(
+        lines: &[&'a str],
+        owners: &[(usize, &str)],
+    ) -> Vec<BTreeSet<&'a str>> {
         let mut references = Vec::with_capacity(owners.len());
         for (index, &(start, name)) in owners.iter().enumerate() {
             let end = owners
@@ -155,6 +162,6 @@ impl StructureTsText {
                 .collect();
             references.push(names);
         }
-        Some(json!({"references": references}))
+        references
     }
 }

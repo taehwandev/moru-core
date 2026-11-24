@@ -147,7 +147,10 @@ def _javascript_scan(lines: list[str], *, typescript: bool) -> tuple[list[str], 
         if not isinstance(masked, list) or not all(isinstance(line, str) for line in masked):
             return _python_typescript_lines(lines), None
         lines = masked
-    return lines, _native_declaration_records(native, len(lines))
+    records = _native_declaration_records(native, len(lines))
+    if typescript and records and not _store_typescript_references(native, records):
+        _attach_typescript_references(lines, records)
+    return lines, records
 
 
 def _native_declaration_records(native: dict[str, Any] | None, line_count: int) -> list[dict[str, Any]] | None:
@@ -201,8 +204,6 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
     if is_typescript or suffix in {".js", ".jsx"}:
         lines, native = _javascript_scan(lines, typescript=is_typescript)
         if native is not None:
-            if is_typescript and native:
-                _attach_typescript_references(lines, native)
             return native
     brace_depth = 0
     matches = []
@@ -260,19 +261,25 @@ def _attach_typescript_references(lines: list[str], declarations: list[dict[str,
         "mode": "references", "lines": lines, "unicode": unicodedata.unidata_version,
         "owners": [[row["line"], row["name"]] for row in declarations],
     })
-    references = native.get("references") if native is not None else None
-    if isinstance(references, list) and len(references) == len(declarations) and all(
-        isinstance(names, list) and all(isinstance(name, str) for name in names)
-        for names in references
-    ):
-        for declaration, names in zip(declarations, references):
-            declaration["references"] = set(names)
+    if _store_typescript_references(native, declarations):
         return
     for index, declaration in enumerate(declarations):
         end = declarations[index + 1]["line"] - 1 if index + 1 < len(declarations) else len(lines)
         declaration["references"] = set(re.findall(
             r"\b[A-Za-z_]\w*\b", "\n".join(lines[declaration["line"] - 1:end]),
         )) - {declaration["name"]}
+
+
+def _store_typescript_references(native: dict[str, Any] | None, declarations: list[dict[str, Any]]) -> bool:
+    references = native.get("references") if native is not None else None
+    if not (isinstance(references, list) and len(references) == len(declarations) and all(
+        isinstance(names, list) and all(isinstance(name, str) for name in names)
+        for names in references
+    )):
+        return False
+    for declaration, names in zip(declarations, references):
+        declaration["references"] = set(names)
+    return True
 
 
 def match_kind(match: re.Match[str]) -> str:

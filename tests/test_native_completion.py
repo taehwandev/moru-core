@@ -889,6 +889,7 @@ class NativeCompletionTests(unittest.TestCase):
             "const plain = 1;",
             "export default async function render<T>(input: T) {",
             '  const x = "unmatched brace {";', "}",
+            'function quiet() { return Carry; } // IgnoreComment',
             "export { Shape };",
         ]
         unusual = ["/* hidden */ export type A = B;",
@@ -902,12 +903,17 @@ class NativeCompletionTests(unittest.TestCase):
         )
         recognizer = Mock()
         recognizer.match.side_effect = AssertionError("legacy TypeScript declarations were used")
+        self.assertTrue({"quiet", "Carry", "Shape"} <= expected[0][-1]["references"])
+        self.assertTrue({"render", "unmatched", "IgnoreComment"}.isdisjoint(expected[0][-1]["references"]))
         with patch.dict(os.environ, self.env, clear=True), patch.object(
             purpose, "_python_typescript_lines", side_effect=AssertionError("legacy masking was used"),
         ):
             with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
                 with patch.object(purpose, "type_declaration",
-                                  side_effect=AssertionError("Python rebuilt a native owner row")):
+                                  side_effect=AssertionError("Python rebuilt a native owner row")), patch.object(
+                    purpose, "_attach_typescript_references",
+                    side_effect=AssertionError("TypeScript made a separate references call"),
+                ):
                     self.assertEqual(expected[0], purpose.top_level_type_declarations(path, ordinary))
             native_mask, declarations = purpose._javascript_scan(unusual, typescript=True)
             self.assertIsNone(declarations)
