@@ -1143,6 +1143,21 @@ def _unstaged_source_match(
 ) -> tuple[str, float, int, int] | None:
     if not candidates:
         return None
+    if run_command is review_runtime_command:
+        native = NativeProbe.request("--completion-probe", "structure-unstaged-match", {
+            "project": str(project), "current_path": current_path, "candidates": candidates,
+        })
+        if native is not None and "match" in native:
+            match = native["match"]
+            if match is None:
+                return None
+            if isinstance(match, list) and len(match) == 4:
+                path, similarity, additions, deletions = match
+                if (path in candidates and type(similarity) in (int, float)
+                        and 0.8 <= similarity <= 1.0
+                        and type(additions) is int and additions >= 0
+                        and type(deletions) is int and deletions >= 0):
+                    return path, similarity, additions, deletions
     try:
         current = (project / current_path).read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError):

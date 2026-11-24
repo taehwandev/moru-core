@@ -13,24 +13,29 @@ impl StructureMoveMatching {
 
     pub(super) fn compare(input: &Value) -> Option<Value> {
         let current = Self::lines(input.get("current")?)?;
-        let candidates = input.get("candidates")?.as_array()?;
-        let positions = Self::positions(&current);
+        let candidates = input
+            .get("candidates")?
+            .as_array()?
+            .iter()
+            .map(Self::lines)
+            .collect::<Option<Vec<_>>>()?;
+        Some(json!({"best": Self::best(&current, &candidates)?}))
+    }
+
+    pub(super) fn best(
+        current: &[&str],
+        candidates: &[Vec<&str>],
+    ) -> Option<Option<(usize, usize)>> {
+        let positions = Self::positions(current);
         // Bound repeated-line work in the probe; decline the whole request for Python replay.
         let mut budget = Self::WORK_BUDGET;
         let mut best = None;
         let mut best_ratio = -1.0;
-        for (index, candidate) in candidates.iter().enumerate() {
-            let previous = Self::lines(candidate)?;
+        for (index, previous) in candidates.iter().enumerate() {
             let mut matched = 0;
-            Self::matching_blocks(
-                &previous,
-                &current,
-                &positions,
-                &mut budget,
-                |_, _, size| {
-                    matched += size;
-                },
-            )?;
+            Self::matching_blocks(previous, current, &positions, &mut budget, |_, _, size| {
+                matched += size;
+            })?;
             let total = previous.len() + current.len();
             let ratio = if total == 0 {
                 1.0
@@ -39,10 +44,10 @@ impl StructureMoveMatching {
             };
             if ratio > best_ratio {
                 best_ratio = ratio;
-                best = Some([index, matched]);
+                best = Some((index, matched));
             }
         }
-        Some(json!({"best": best}))
+        Some(best)
     }
 
     pub(super) fn lines(value: &Value) -> Option<Vec<&str>> {

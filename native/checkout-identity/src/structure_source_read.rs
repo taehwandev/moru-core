@@ -98,7 +98,7 @@ impl StructureSourceRead {
         Some(json!({ "rows": rows }))
     }
 
-    fn read(source: &Path, relative: &Path, remaining: &mut u64) -> Option<Value> {
+    pub(super) fn read(source: &Path, relative: &Path, remaining: &mut u64) -> Option<Value> {
         let path = source.join(relative);
         let metadata = fs::metadata(&path).ok()?;
         if !metadata.is_file() || metadata.len() > *remaining {

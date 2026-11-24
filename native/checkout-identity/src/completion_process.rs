@@ -134,6 +134,8 @@ mod structure_declaration_roles;
 mod structure_declaration_records;
 #[path = "structure_review_baseline.rs"]
 mod structure_review_baseline;
+#[path = "structure_unstaged_match.rs"]
+mod structure_unstaged_match;
 #[path = "structure_diff_acquisition.rs"]
 mod structure_diff_acquisition;
 
@@ -196,6 +198,7 @@ impl CompletionProcess {
             Some("structure-declaration-roles") => structure_declaration_roles::StructureDeclarationRoles::classify(&payload),
             Some("structure-declaration-records") => structure_declaration_records::StructureDeclarationRecords::scan(&payload),
             Some("structure-review-baseline") => structure_review_baseline::StructureReviewBaseline::batch(&payload),
+            Some("structure-unstaged-match") => structure_unstaged_match::StructureUnstagedMatch::probe(&payload),
             Some("structure-boundary-reasons") => structure_declaration_roles::StructureDeclarationRoles::boundary_reasons(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("structure-source-read") => structure_source_read::StructureSourceRead::batch(&payload),

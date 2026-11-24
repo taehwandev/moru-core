@@ -234,7 +234,9 @@ class NativeCompletionTests(unittest.TestCase):
                 expected = discover()
             with patch.object(structure, "reclassify_untracked_moves", wraps=structure.reclassify_untracked_moves) as moves, (
                 patch.object(structure, "reclassify_untracked_copies", wraps=structure.reclassify_untracked_copies)
-            ) as copies:
+            ) as copies, patch.object(
+                structure, "_best_source_match", side_effect=AssertionError("Python acquired source text"),
+            ):
                 actual = discover()
                 self.assertEqual("src", moves.call_args.kwargs["observation"]["command"][-1])
                 self.assertEqual("--", copies.call_args.kwargs["observation"]["command"][-1])
@@ -253,6 +255,38 @@ class NativeCompletionTests(unittest.TestCase):
 
             with patch.object(structure, "_native_diff", side_effect=without_native_moves):
                 self.assertEqual(expected, discover())
+
+    def test_structure_native_unstaged_match_preserves_order_and_threshold(self):
+        def git(*args):
+            subprocess.check_output(["git", *args], cwd=self.project, env=self.env)
+
+        for path, contents in {
+            "first.py": b"A\nB\nC\nD\nX\n",
+            "second.py": b"A\nB\nC\nD\nY\n",
+            "empty.py": b"",
+            "ansi.py": b"\x1b[31mA\x1b[0m\nB\nC\nD\nE\n",
+        }.items():
+            (self.project / path).write_bytes(contents)
+        git("add", ".")
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "base")
+
+        current = self.project / "current.py"
+        cases = (
+            (b"A\r\nB\r\nC\r\nD\r\nE\r\n", ["missing.py", "second.py", "first.py"], ("second.py", 0.8, 1, 1)),
+            (b"A\nB\nC\nD\nE\nF\n", ["first.py", "second.py"], None),
+            (b"", ["first.py", "empty.py"], ("empty.py", 1.0, 0, 0)),
+            (b"A\nB\nC\nD\nE\n", ["ansi.py", "first.py"], ("ansi.py", 1.0, 0, 0)),
+        )
+        with patch.dict(os.environ, self.env, clear=True):
+            for contents, candidates, expected in cases:
+                with self.subTest(candidates=candidates):
+                    current.write_bytes(contents)
+                    args = (self.project, current.name, candidates, structure.review_runtime_command)
+                    with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                        self.assertEqual(expected, structure._unstaged_source_match(*args))
+                    with patch.object(structure, "_best_source_match", wraps=structure._best_source_match) as fallback:
+                        self.assertEqual(expected, structure._unstaged_source_match(*args))
+                    self.assertEqual(int("ansi.py" in candidates), fallback.call_count)
 
     def test_structure_initial_discovery_matches_unborn_and_empty_tree_builds(self):
         def git(*args):
