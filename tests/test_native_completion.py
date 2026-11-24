@@ -23,6 +23,7 @@ import agent_project_memory as project_memory
 import agent_execution_capsule_bindings as capsule_bindings
 import agent_execution_capsule as capsule
 import agent_review_structure as structure
+import agent_review_boundary as boundary
 import agent_review_structure_preview as structure_preview
 import agent_review_merge_baseline as merge_baseline
 import agent_android_action_boundary as android
@@ -142,6 +143,44 @@ class NativeCompletionTests(unittest.TestCase):
         ):
             self.assertIsNone(purpose._native_python_classes(lines))
             self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
+
+    def test_structure_package_boundary_roles_preserve_groups_and_legacy_fallback(self):
+        parent = Path("패키지")
+        package_dir = self.project / parent
+        package_dir.mkdir()
+        added = [parent / "zWorker.go", parent / "aRequest.ts", parent / "mHandler.go"]
+        for path in added:
+            (self.project / path).touch()
+        (package_dir / ".screen.settings").touch()
+        (package_dir / "LinkController.txt").symlink_to(self.project / added[0])
+        (package_dir / "ignoredPolicy.py").mkdir()
+        missing = Mock(return_value={"returncode": 128})
+        existing = Mock(return_value={"returncode": 0})
+
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = boundary.boundary_reasons(self.project, parent, added, missing)
+        self.assertEqual([
+            "new runtime package/folder",
+            "new files introduce multiple roles: data, impl",
+            "package now contains multiple roles: data, impl, state, ui",
+        ], expected)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            boundary, "role_for_name", side_effect=AssertionError("Python filename role lookup"),
+        ):
+            self.assertEqual(expected, boundary.boundary_reasons(self.project, parent, added, missing))
+            self.assertEqual(expected[2:], boundary.boundary_reasons(self.project, parent, added[::2], existing))
+        self.assertEqual([
+            ["git", "rev-parse", "--verify", "HEAD"],
+            ["git", "cat-file", "-e", f"HEAD:{parent.as_posix()}"],
+        ], [call.args[0] for call in existing.call_args_list])
+
+        (package_dir / "KeyChain.py").touch()
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            boundary, "role_for_name", wraps=boundary.role_for_name,
+        ) as fallback:
+            actual = boundary.boundary_reasons(self.project, parent, added, missing)
+            self.assertEqual(expected[:2] + ["package now contains multiple roles: data, impl, platform, state, ui"], actual)
+            self.assertIn("KeyChain", [call.args[0] for call in fallback.call_args_list])
 
     def test_structure_declaration_roles_preserve_priority_tokens_and_unicode_fallback(self):
         pairs = [

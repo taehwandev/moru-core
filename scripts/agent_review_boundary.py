@@ -6,7 +6,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from agent_review_purpose import role_for_name
+from agent_review_purpose import ROLE_PATTERNS, role_for_name
+from support.native_probe_transport import NativeProbe
 
 
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
@@ -99,15 +100,28 @@ def boundary_reasons(
     added: list[Path],
     run_command: CommandRunner,
 ) -> list[str]:
+    missing_in_head = package_missing_in_head(project, parent, run_command)
+    added_names = [path.stem for path in added]
+    sibling_names = [path.stem for path in (project / parent).iterdir() if path.is_file()]
+    native = NativeProbe.request("--completion-probe", "structure-boundary-reasons", {
+        "missing_in_head": missing_in_head, "added": added_names,
+        "siblings": sibling_names, "rules": ROLE_PATTERNS,
+    })
+    if native is not None and set(native) == {"reasons"}:
+        reasons = native["reasons"]
+        if (isinstance(reasons, list) and len(reasons) <= 3
+                and all(isinstance(reason, str) for reason in reasons)):
+            return reasons
+
     reasons: list[str] = []
-    if package_missing_in_head(project, parent, run_command):
+    if missing_in_head:
         reasons.append("new runtime package/folder")
 
-    added_roles = sorted({role for role in (role_for_name(path.stem) for path in added) if role})
+    added_roles = sorted({role for role in map(role_for_name, added_names) if role})
     if len(added_roles) > 1:
         reasons.append(f"new files introduce multiple roles: {', '.join(added_roles)}")
 
-    sibling_roles = sorted({role for role in (role_for_name(path.stem) for path in (project / parent).iterdir() if path.is_file()) if role})
+    sibling_roles = sorted({role for role in map(role_for_name, sibling_names) if role})
     if len(sibling_roles) > 1:
         reasons.append(f"package now contains multiple roles: {', '.join(sibling_roles)}")
     return reasons

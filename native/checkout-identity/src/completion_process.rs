@@ -170,6 +170,7 @@ impl CompletionProcess {
             Some("structure-python-classes") => structure_python_blocks::StructurePythonBlocks::top_level_classes(&payload),
             Some("structure-go-declarations") => structure_go_declarations::StructureGoDeclarations::scan(&payload),
             Some("structure-declaration-roles") => structure_declaration_roles::StructureDeclarationRoles::classify(&payload),
+            Some("structure-boundary-reasons") => structure_declaration_roles::StructureDeclarationRoles::boundary_reasons(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
             Some("structure-source-read") => structure_source_read::StructureSourceRead::batch(&payload),
             Some("preflight-failures") => preflight_failures::PreflightFailures::collect(&payload),
