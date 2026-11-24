@@ -230,8 +230,25 @@ def try_claim(project: Path, paths: list[str], holder: str, ttl: int) -> list[di
 
 def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict]:
     """Remove ``holder``'s claims (all of them when ``paths`` is None)."""
+    claims = active_claims(project)
+    ordinary_paths = paths is None or (type(paths) is list and all(type(path) is str for path in paths))
+    if type(holder) is str and ordinary_paths and all(type(claim.get("path")) is str for claim in claims):
+        selected = [claim for claim in claims if paths is None or claim["path"] in paths]
+        try:
+            names = [_claim_file(project, claim["path"]).name for claim in selected if claim.get("holder") == holder]
+        except UnicodeError:
+            names = []
+        if names:
+            result = NativeProbe.request("--completion-probe", "path-claim-release", {
+                "project": str(project), "names": names, "holder": holder,
+                "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+            })
+            if result is not None:
+                if result.keys() == {"handled"} and result["handled"] is True:
+                    return [claim for claim in selected if claim.get("holder") != holder] if paths is not None else []
+                raise OSError("invalid native path claim release receipt")
     refused = []
-    for claim in active_claims(project):
+    for claim in claims:
         if paths is not None and claim["path"] not in paths:
             continue
         if claim.get("holder") != holder:

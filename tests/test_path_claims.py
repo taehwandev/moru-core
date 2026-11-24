@@ -117,6 +117,63 @@ class PathClaimsTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual([(c["path"], c["holder"]) for c in self.status()], [("lib", "b")])
 
+    def test_native_release_preserves_foreign_and_replaced_claims(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            self.assertEqual(self.claim("a", "mine", "replace", "uncertain")[0], 0)
+            self.assertEqual(self.claim("b", "foreign")[0], 0)
+            args = ("release", "--project", str(self.project), "--holder", "a")
+            with mock.patch.object(Path, "unlink", side_effect=AssertionError("Python removed claim")):
+                code, output = self.run_cli(*args, "--path", "mine", "--path", "foreign")
+            self.assertEqual(code, path_claims.CONFLICT_EXIT)
+            self.assertIn("held by b", output)
+            self.assertEqual([claim["path"] for claim in self.status()], ["foreign", "replace", "uncertain"])
+
+            target = path_claims._claim_file(self.project, "replace")
+            request = path_claims.NativeProbe.request
+            self.assertIsNone(request("--completion-probe", "path-claim-release", {
+                "project": str(self.project), "holder": "a", "digit_limit": 0,
+                "names": [target.name, "../outside.json"],
+            }))
+            self.assertTrue(target.is_file())
+
+            def replace_before_release(protocol, operation, payload):
+                if operation == "path-claim-release":
+                    claim = json.loads(target.read_text())
+                    claim["holder"] = "new owner"
+                    replacement = target.with_suffix(".tmp")
+                    replacement.write_text(json.dumps(claim), encoding="utf-8")
+                    replacement.replace(target)
+                return request(protocol, operation, payload)
+
+            with mock.patch.object(path_claims.NativeProbe, "request", side_effect=replace_before_release):
+                self.assertEqual(self.run_cli(*args, "--path", "replace"), (0, ""))
+            self.assertEqual(json.loads(target.read_text())["holder"], "new owner")
+
+            invoke = subprocess.run
+
+            def lose_release_reply(command, **kwargs):
+                result = invoke(command, **kwargs)
+                if command[-1] == "path-claim-release":
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+                return result
+
+            with mock.patch.object(subprocess, "run", side_effect=lose_release_reply) as process, (
+                mock.patch.object(Path, "unlink", side_effect=AssertionError("Python replayed release"))
+            ):
+                with self.assertRaisesRegex(OSError, "release outcome could not be determined"):
+                    self.run_cli(*args, "--all")
+                self.assertEqual(sum(call.args[0][-1] == "path-claim-release" for call in process.call_args_list), 1)
+            self.assertEqual([claim["path"] for claim in self.status()], ["foreign", "replace"])
+
     def test_expired_claim_is_cleaned_and_freed(self) -> None:
         self.claim("a", "src/x.tsx", extra=("--ttl", "60"))
         self.clock += 61

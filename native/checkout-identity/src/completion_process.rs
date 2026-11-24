@@ -150,6 +150,8 @@ mod live_web_check_lookup;
 mod live_web_edit_log;
 #[path = "path_claim_scan.rs"]
 mod path_claim_scan;
+#[path = "path_claim_release.rs"]
+mod path_claim_release;
 #[path = "path_claim_write.rs"]
 mod path_claim_write;
 
@@ -173,6 +175,13 @@ impl CompletionProcess {
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
+        if args[1] == "path-claim-release" {
+            return match path_claim_release::PathClaimRelease::release(&payload) {
+                Some(Ok(())) => Self::respond(Some(json!({"handled": true}))),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "path-claim-write" {
             return match path_claim_write::PathClaimWrite::write(&payload) {
                 Some(Ok(written)) => Self::respond(Some(json!({"written": written}))),
