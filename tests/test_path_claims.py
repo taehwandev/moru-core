@@ -329,6 +329,48 @@ class PathClaimsCheckTests(unittest.TestCase):
         self.write_checks(problem, clean)
         self.assertEqual(json.loads(self.check("--json")[1]), {"status": "ok", "check": clean})
 
+    def test_native_check_matches_python_tail_timestamp_and_path_selection(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        log = live_web_checks.checks_log(self.project)
+        log.parent.mkdir(parents=True)
+        old = b'{"files":["cut.tsx"],"time":"2026-10-15T09:16:12Z"}\n'
+        recent = (b'{"files":["/src/ui/Header.tsx/"],"time":"2026-10-15T11:16:12+02:00",'
+                  b'"errors":["bad \xff byte"],"extra":1e400}\n'
+                  b'{"files":["Header.tsx"],"time":"2026-10-15T09:16:11.999999Z","errors":[]}\n'
+                  b'{"files":["src/elsewhere.tsx"],"time":"2026-10-15T09:20:00Z"}\n'
+                  b'["ignored"]\n{"partial":')
+        padding = b"x" * (live_web_checks.CHECK_TAIL_BYTES - len(old) - len(recent) - 1)
+        log.write_bytes(b"anchor\n" + old + padding + b"\n" + recent)
+        args = (
+            ("--json", "--files", "Header.tsx", "--since", "2026-10-15T09:16:12Z"),
+            ("--json", "--files", "web/src/ui/Header.tsx", "--since", "2026-10-15T09:16:12"),
+            ("--json", "--files", "eader.tsx"),
+            ("--json", "--files", "cut.tsx"),
+        )
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = [self.check(*argv) for argv in args]
+            with mock.patch.object(live_web_checks, "read_checks", side_effect=AssertionError("Python read the log")):
+                self.assertEqual(expected, [self.check(*argv) for argv in args])
+            self.assertEqual([4, 4, 5, 5], [code for code, _ in expected])
+            payload = json.loads(expected[0][1])["check"]
+            self.assertEqual(["bad � byte"], payload["errors"])
+            self.assertEqual(float("inf"), payload["extra"])
+
+            log.write_bytes(b'{"files":["Header.tsx"],"time":"20261015T091612"}\n')
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = self.check(*args[0])
+            with mock.patch.object(live_web_checks, "read_checks", wraps=live_web_checks.read_checks) as read:
+                self.assertEqual(expected, self.check(*args[0]))
+                read.assert_called_once()
+
 
 class PathClaimsProcessTests(unittest.TestCase):
     """The hook and agents run the file as a script, not through ``main``."""

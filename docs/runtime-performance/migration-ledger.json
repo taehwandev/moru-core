@@ -652,10 +652,12 @@
       "id": "scripts/path_claims.py",
       "inventory_id": 48,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Port claim storage, overlap, wait, release, expiry and edit records while preserving courtesy-lock semantics. Port live-web argument normalization, output, unsupported JSON and timestamp profiles, and verify supported platforms and installed runtime.",
+      "verification": {
+        "local": "The existing check command selects recent live-web entries using a bounded native log tail, Python-compatible JSON parsing, whole path suffixes and an inclusive timestamp floor. Python renders the selected original JSON record and replays unsupported input profiles."
+      }
     },
     {
       "id": "scripts/research-triage/microsoft_decision.py",

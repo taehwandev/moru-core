@@ -144,6 +144,8 @@ mod structure_review_baseline;
 mod structure_unstaged_match;
 #[path = "structure_diff_acquisition.rs"]
 mod structure_diff_acquisition;
+#[path = "live_web_check_lookup.rs"]
+mod live_web_check_lookup;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -190,6 +192,7 @@ impl CompletionProcess {
             Some("structure-removal-matching") => structure_removal_matching::StructureRemovalMatching::compare(&payload),
             Some("structure-removal-inputs") => structure_removal_inputs::StructureRemovalInputs::probe(&payload),
             Some("structure-removal-analysis") => structure_removal_analysis::StructureRemovalAnalysis::probe(&payload),
+            Some("live-web-check") => live_web_check_lookup::LiveWebCheckLookup::probe(&payload),
             Some("structure-move-matching") => structure_move_matching::StructureMoveMatching::compare(&payload),
             Some("structure-merge-baseline") => structure_merge_baseline::StructureMergeBaseline::classify(&payload),
             Some("structure-report") => structure_report::StructureReport::render(&payload),

@@ -2,7 +2,7 @@
 
 Owner: reading ``<project>/.moru/live-web/checks.jsonl``; the Moru app is the
 only writer and appends one line per save.
-Allowed imports: the standard library only.
+Allowed imports: the standard library and bounded read-only native probe transport.
 Forbidden imports: the workflow route, the agent lifecycle and hook installers.
 Callers/tests: ``path_claims.py check`` (``add_arguments`` and ``run``); coverage lives in
 ``tests/test_path_claims.py``.
@@ -25,6 +25,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+from support.native_probe_transport import NativeProbe
 
 CHECK_PROBLEM_EXIT = 4
 CHECK_MISSING_EXIT = 5
@@ -85,6 +87,21 @@ def latest_check(project: Path, files: Optional[list[str]] = None, since: Option
     """The newest check touching any of ``files`` (any check when empty), at or after ``since``."""
     wanted = list(files or [])
     floor = _since_epoch(since) if since else None
+    if all(isinstance(path, str) for path in wanted):
+        result = NativeProbe.request("--completion-probe", "live-web-check", {
+            "project": str(project), "files": wanted, "floor": floor,
+        })
+        if result is not None and set(result) == {"line"}:
+            line = result["line"]
+            if line is None:
+                return None
+            if isinstance(line, str):
+                try:
+                    check = json.loads(line)
+                except ValueError:
+                    check = None
+                if isinstance(check, dict):
+                    return check
     for check in reversed(read_checks(project)):
         if floor is not None:
             moment = _since_epoch(check.get("time", ""))
