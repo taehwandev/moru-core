@@ -93,4 +93,59 @@ class WorkflowQueryTextTests(unittest.TestCase):
             self.assertFalse(trace.exists())
             actual = subprocess.run(args, env=env, capture_output=True, timeout=15, check=True)
             self.assertEqual((actual.stdout, actual.stderr), (expected.stdout, expected.stderr))
-            self.assertEqual(trace.read_text().splitlines(), ["render-text 0"])
+            self.assertEqual(trace.read_text().splitlines(), ["rank-wikimap 0", "render-text 0"])
+
+    def test_rank_preserves_first_match_positions_and_policy_ties(self):
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            (base / "home").mkdir()
+            install(base / "home", PROJECT)
+            corpus = base / "corpus"
+            corpus.mkdir()
+            for path in ("a.md", "b.md", "가.md", "z.md"):
+                (corpus / path).write_text(f"# {path}\n", encoding="utf-8")
+            (corpus / "scripts").mkdir()
+            (corpus / "scripts/hidden.md").write_text("# Hidden\n", encoding="utf-8")
+            env = environment(base, PROJECT)
+            process = (
+                "import json,sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); "
+                "import workflow_search as search; payload=json.load(sys.stdin); "
+                "probe=search.NativeProbe.request\n"
+                "def observe(*args, **kwargs):\n"
+                "    result=probe(*args, **kwargs)\n"
+                "    print(args[1], bool(result), file=sys.stderr)\n"
+                "    return result\n"
+                "search.NativeProbe.request=observe\n"
+                "print(json.dumps(search._wikimap_results(Path(sys.argv[2]), **payload)))"
+            )
+            command = [sys.executable, "-c", process, str(PROJECT / "scripts"), str(corpus)]
+            matches = [
+                {"path": "missing.md", "line": 99},
+                {"path": "b.md", "line": 7, "heading": "First", "matched": ["text"], "sources": "original"},
+                {"path": "b.md", "line": 8, "heading": "Ignored"},
+                {"path": "scripts/hidden.md", "line": 19},
+                {"path": "z.md", "line": 4},
+            ]
+            boosts = {"가.md": 40, "missing.md": 10000, "a.md": 40, "b.md": -1000, "scripts/hidden.md": 500}
+            cases = ((8, False, False), (2, False, False), (0, False, False),
+                     (-1, False, False), (8, True, False), (8, False, True))
+            for limit, unsupported, negative_rank in cases:
+                with self.subTest(limit=limit, unsupported=unsupported, negative_rank=negative_rank):
+                    hits = [*matches, {"path": "a.md", "line": "11"}] if unsupported else matches
+                    if negative_rank:
+                        hits = [*matches[:-1], *([matches[1]] * 500), matches[-1]]
+                    data = json.dumps({"matches": hits, "doc_boosts": boosts,
+                                       "matched_facets": [], "max_results": limit}).encode()
+                    expected = subprocess.run(command, input=data, env={**env, "MORU_LAUNCHER_BACKEND": "python"},
+                                              capture_output=True, timeout=10, check=True)
+                    actual = subprocess.run(command, input=data, env=env, capture_output=True, timeout=10, check=True)
+                    self.assertEqual(actual.stdout, expected.stdout)
+                    self.assertEqual(actual.stderr, f"rank-wikimap {not unsupported}\n".encode())
+                    if limit == 8 and not unsupported:
+                        rows = json.loads(actual.stdout)
+                        self.assertEqual([(row["path"], row["score"]) for row in rows],
+                                         [("a.md", 1040), ("가.md", 1040), ("b.md", 499),
+                                          ("z.md", -4 if negative_rank else 496)])
+                        self.assertEqual((rows[2]["heading"], rows[2]["line"]), ("First", 7))

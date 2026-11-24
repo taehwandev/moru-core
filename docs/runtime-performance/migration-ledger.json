@@ -436,7 +436,7 @@
       "entry_aliases": "workflow",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
       "verification": {
-        "local": "Rust renders ordinary query text from ordered result rows. Python retains CLI parsing, retrieval, organization output, JSON reporting and exceptional renderer behavior."
+        "local": "Rust fuses ordinary Wikimap matches with Moru policy weights, keeps first-match metadata, orders and slices result rows, and renders ordinary query text. Python retains authorized document reads, CLI parsing, retrieval, offline scoring, organization output, JSON reporting and exceptional behavior."
       }
     },
     {

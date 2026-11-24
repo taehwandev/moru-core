@@ -144,7 +144,8 @@ mod stop_state;
 mod text;
 mod worker_completion;
 mod worker_completion_process;
-mod workflow_query_text;
+mod workflow_query_process;
+mod workflow_wikimap_rank;
 mod unittest_admission;
 use launcher_backend::Backend;
 
@@ -209,7 +210,7 @@ fn direct_dispatch(launcher: &OsString, args: &[OsString]) -> Option<i32> {
         "--registry-read-probe" => registry_read::RegistryRead::run(launcher, args),
         "--completion-probe" => completion_process::CompletionProcess::run(launcher, args),
         "--smoke-hook-suite" => smoke_hook_suite::SmokeHookSuite::run(launcher, &args[1..]),
-        "--workflow-query-probe" => workflow_query_text::WorkflowQueryText::run(launcher, args),
+        "--workflow-query-probe" => workflow_query_process::WorkflowQueryProcess::run(launcher, args),
         "smoke-checks" => finish(smoke_hook_suite::SmokeHookSuite::alias(launcher, args)),
         _ => return None,
     })

@@ -248,6 +248,9 @@ def _wikimap_results(
     max_results: int,
 ) -> List[Dict[str, object]]:
     descriptions = _parse_index_descriptions(root)
+    native = _native_wikimap_results(root, matches, matched_facets, doc_boosts, max_results, descriptions)
+    if native is not None:
+        return native
     documents: dict[str, Dict[str, object]] = {}
     results: List[Dict[str, object]] = []
 
@@ -283,6 +286,30 @@ def _wikimap_results(
 
     results.sort(key=lambda item: (-int(item["score"]), str(item["path"])))
     return results[:max_results]
+
+
+def _native_wikimap_results(root, matches, matched_facets, doc_boosts, max_results, descriptions):
+    if not NativeProbe.available() or type(matches) not in (list, tuple) or any(
+        type(match) is not dict or type(match.get("path")) is not str for match in matches
+    ):
+        return None
+    paths = dict.fromkeys([*(match["path"] for match in matches), *doc_boosts])
+    documents = {}
+    for path in paths:
+        item = _document_item(root, path, descriptions, matched_facets)
+        if item is not None:
+            documents[path] = item
+    native = NativeProbe.request("--workflow-query-probe", "rank-wikimap", {
+        "matches": matches,
+        "documents": documents,
+        "boosts": doc_boosts,
+        "rank_base": WIKIMAP_RANK_BASE_SCORE,
+        "policy_base": POLICY_FACET_BASE_SCORE,
+        "limit": max_results,
+    })
+    if native is not None and set(native) == {"results"} and isinstance(native["results"], list):
+        return native["results"]
+    return None
 
 
 def _document_item(

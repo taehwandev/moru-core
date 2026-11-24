@@ -1,9 +1,9 @@
-//! owner: plain-text reports from caller-prepared workflow search results.
+//! owner: prepared workflow search probes and plain-text reports.
 //! allowed imports: bounded JSON transport, source guards and string formatting.
-//! forbidden imports: retrieval, policy ranking, files, and vendor source.
+//! forbidden imports: retrieval, project writes and vendor source.
 //! callers/tests: workflow_search.py and workflow query process parity.
 //! verification: empty, ordinary, decorated and unsupported report inputs.
-use crate::pretool_guard::CallbackGuard;
+use crate::{pretool_guard::CallbackGuard, workflow_wikimap_rank::WikimapRank};
 use serde_json::{json, Value};
 use std::{
     ffi::OsString,
@@ -13,12 +13,12 @@ use std::{
 
 const MAX_MESSAGE: usize = 1024 * 1024;
 
-pub(crate) struct WorkflowQueryText;
+pub(crate) struct WorkflowQueryProcess;
 
-impl WorkflowQueryText {
+impl WorkflowQueryProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || args[1] != "render-text"
+            || !matches!(args[1].to_str(), Some("render-text" | "rank-wikimap"))
             || CallbackGuard::root(launcher, "workflow-query-text").is_none()
         {
             return 125;
@@ -32,14 +32,20 @@ impl WorkflowQueryText {
         {
             return 125;
         }
-        let Some(text) = serde_json::from_slice(&message)
-            .ok()
-            .and_then(|payload| Self::format(&payload))
+        let Some(result) =
+            serde_json::from_slice(&message)
+                .ok()
+                .and_then(|payload| match args[1].to_str()? {
+                    "render-text" => Self::format(&payload).map(|text| json!({"text": text})),
+                    "rank-wikimap" => {
+                        WikimapRank::rank(&payload).map(|results| json!({"results": results}))
+                    }
+                    _ => None,
+                })
         else {
             return 125;
         };
-        let Ok(response) =
-            serde_json::to_vec(&json!({"schema_version": 1, "result": {"text": text}}))
+        let Ok(response) = serde_json::to_vec(&json!({"schema_version": 1, "result": result}))
         else {
             return 125;
         };
