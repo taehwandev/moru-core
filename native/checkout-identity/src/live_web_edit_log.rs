@@ -3,12 +3,11 @@
 //! forbidden imports: path claim ownership, lifecycle decisions or network.
 //! callers/tests: path_claims record CLI and hook; test_path_claims.
 //! verification: byte parity, append integrity and no fallback after a write attempt.
+use super::project_relative_path::ProjectRelativePath;
 use crate::{
     atomic_sibling::AtomicSibling,
-    discovery_fs::DiscoveryFs,
     overhead_clock::OverheadClock,
     python_json::{Object, PythonJson, Value},
-    text::Text,
 };
 use serde_json::{json, Value as Json};
 use std::{
@@ -26,7 +25,7 @@ impl LiveWebEditLog {
         let mut files = Vec::new();
         for raw in entry.get("files")?.as_array()? {
             let raw = raw.as_str()?;
-            let Some(relative) = Self::relative_path(project, raw)? else {
+            let Some(relative) = ProjectRelativePath::resolve(project, raw)? else {
                 return Some(Ok(json!({"outside": raw})));
             };
             files.push(relative);
@@ -35,23 +34,6 @@ impl LiveWebEditLog {
             "project": project.to_str()?,
             "entry": {"session": holder, "files": files},
         }))
-    }
-
-    // Outer None is unsupported resolution, inner None is a known outside path.
-    pub(super) fn relative_path(project: &Path, raw: &str) -> Option<Option<String>> {
-        let path = if raw.starts_with('~') {
-            DiscoveryFs::expand(Path::new(&Text::norm_path(raw)))?
-        } else {
-            Path::new(raw).to_owned()
-        };
-        let resolved = DiscoveryFs::resolve(&project.join(path))?;
-        let Ok(relative) = resolved.strip_prefix(project) else {
-            return Some(None);
-        };
-        let relative = relative.to_str()?;
-        Some(Some(
-            if relative.is_empty() { "." } else { relative }.into(),
-        ))
     }
 
     // None is safe to replay because no append has been attempted.

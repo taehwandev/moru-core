@@ -72,9 +72,17 @@ impl DiscoveryFs {
     }
 
     pub(crate) fn resolve(path: &Path) -> Option<PathBuf> {
+        Self::resolve_components(path, false)
+    }
+
+    pub(crate) fn resolve_allow_missing(path: &Path) -> Option<PathBuf> {
+        Self::resolve_components(path, true)
+    }
+
+    fn resolve_components(path: &Path, allow_missing: bool) -> Option<PathBuf> {
         // Darwin realpath canonicalizes case; Python's resolver preserves the
         // supplied component spelling. Resolve links component by component.
-        // Missing, excessive-link and uncertain inputs retain Python handling.
+        // An opt-in preserves a missing suffix, as pathlib does in non-strict mode.
         let absolute = if path.is_absolute() {
             path.to_owned()
         } else {
@@ -95,7 +103,20 @@ impl DiscoveryFs {
                 }
                 Component::Normal(name) => {
                     let next = resolved.join(name);
-                    if fs::symlink_metadata(&next).ok()?.is_symlink() {
+                    let symlink = match fs::symlink_metadata(&next) {
+                        Ok(metadata) => metadata.is_symlink(),
+                        Err(error)
+                            if allow_missing
+                                && matches!(
+                                    error.raw_os_error(),
+                                    Some(libc::ENOENT | libc::ENOTDIR)
+                                ) =>
+                        {
+                            false
+                        }
+                        Err(_) => return None,
+                    };
+                    if symlink {
                         links += 1;
                         if links > 40 {
                             return None;

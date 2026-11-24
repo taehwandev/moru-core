@@ -73,6 +73,39 @@ class PathClaimsTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(self.status()[0]["path"], "src/x.tsx")
 
+    def test_native_claim_arguments_sort_deduplicate_and_resolve_missing_paths(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        scope = self.project / "scope"
+        (scope / "nested" / "child").mkdir(parents=True)
+        (scope / "alias").symlink_to("nested/child")
+        (scope / "escape").symlink_to(self.project / "absent")
+        (scope / "loop").symlink_to("loop")
+        raw = ["z", "alias/../한글.ts", "nested/한글.ts", "absent/../a", "absent/../alias/../한글.ts"]
+        expected = sorted({path_claims.normalize(scope, path) for path in raw})
+        self.assertEqual(expected, ["a", "nested/한글.ts", "z"])
+        args = ("--project", str(scope), "--holder", "editor")
+        options = [option for path in raw for option in ("--path", path)]
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            self.assertIsNone(path_claims.NativeProbe.request("--completion-probe", "path-claim-arguments", {
+                "project": str(scope), "paths": ["loop"],
+            }))
+            with mock.patch.object(path_claims, "normalize", side_effect=AssertionError("Python normalized a claim")):
+                self.assertEqual(self.run_cli("claim", *args, *options),
+                                 (0, "".join(f"claimed by editor: {path}\n" for path in expected)))
+                directory = path_claims.claims_dir(scope)
+                before = sorted(entry.name for entry in directory.iterdir())
+                self.assertEqual(self.run_cli("release", *args, "--path", "z", "--path", "escape"), (1, ""))
+                self.assertEqual(sorted(entry.name for entry in directory.iterdir()), before)
+                self.assertEqual(self.run_cli("release", *args, *options), (0, ""))
+                self.assertEqual(list(directory.iterdir()), [])
+
     def test_other_holder_on_same_path_conflicts(self) -> None:
         self.claim("a", "src/x.tsx")
         code, output = self.claim("b", "src/x.tsx")
@@ -650,12 +683,11 @@ class PathClaimsTests(unittest.TestCase):
             dangling = scope / "dangling.ts"
             dangling.symlink_to(self.project / "missing.ts")
             before = log.read_bytes()
-            with mock.patch.object(path_claims, "normalize", wraps=path_claims.normalize) as normalize:
+            with mock.patch.object(path_claims, "normalize", side_effect=AssertionError("Python resolved dangling path")):
                 self.assertEqual(self.run_cli(*args, "alias.ts", "dangling.ts"), (1, ""))
-                self.assertEqual(normalize.call_count, 2)
             self.assertEqual(log.read_bytes(), before)
 
-    def test_native_hook_binds_project_and_falls_back_for_missing_targets(self) -> None:
+    def test_native_hook_binds_project_and_handles_missing_targets(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment
 
@@ -689,11 +721,11 @@ class PathClaimsTests(unittest.TestCase):
                 self.assertEqual(self.run_cli(*args, stdin=payload("Bash", file_path="한글.ipynb")), (0, ""))
                 self.assertEqual(self.run_cli(*args, stdin="{broken"), (0, ""))
                 normalize.assert_not_called()
-            with mock.patch.object(path_claims, "normalize", wraps=path_claims.normalize) as normalize:
+            with mock.patch.object(path_claims, "normalize", side_effect=AssertionError("Python resolved missing hook path")) as normalize:
                 self.assertEqual(self.run_cli(*args, "--project", str(scope), stdin=payload(
                     "Write", file_path="not-yet-created.ts"
                 )), (0, ""))
-                normalize.assert_called_once_with(scope, "not-yet-created.ts")
+                normalize.assert_not_called()
         log = path_claims.edits_log(scope)
         self.assertEqual([json.loads(row)["files"] for row in log.read_text().splitlines()],
                          [["한글.ipynb"], ["한글.ipynb"], ["not-yet-created.ts"]])

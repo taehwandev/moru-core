@@ -351,7 +351,7 @@ def _describe(claim: dict) -> str:
 
 
 def _cmd_claim(project: Path, args: argparse.Namespace) -> int:
-    paths = sorted({normalize(project, raw) for raw in args.path})
+    paths = _claim_paths(project, args.path)
     deadline = _now() + max(args.wait, 0)
     while True:
         blocking = try_claim(project, paths, args.holder, args.ttl)
@@ -367,7 +367,7 @@ def _cmd_claim(project: Path, args: argparse.Namespace) -> int:
 
 
 def _cmd_release(project: Path, args: argparse.Namespace) -> int:
-    paths = None if args.all else sorted({normalize(project, raw) for raw in args.path or []})
+    paths = None if args.all else _claim_paths(project, args.path or [])
     if paths == []:
         print("release needs --path or --all", file=sys.stderr)
         return 2
@@ -375,6 +375,19 @@ def _cmd_release(project: Path, args: argparse.Namespace) -> int:
     for claim in refused:
         print(_describe(claim))
     return CONFLICT_EXIT if refused else 0
+
+
+def _claim_paths(project: Path, raw_paths: list[str]) -> list[str]:
+    result = NativeProbe.request("--completion-probe", "path-claim-arguments", {
+        "project": str(project), "paths": raw_paths,
+    })
+    if result is not None:
+        if result.keys() == {"outside"} and isinstance(result["outside"], str):
+            raise PathError(f"outside the project: {result['outside']}")
+        paths = result.get("paths")
+        if isinstance(paths, list) and all(isinstance(path, str) for path in paths):
+            return paths
+    return sorted({normalize(project, raw) for raw in raw_paths})
 
 
 def _cmd_status(project: Path, args: argparse.Namespace) -> int:

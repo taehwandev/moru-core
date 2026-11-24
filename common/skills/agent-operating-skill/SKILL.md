@@ -36,18 +36,14 @@ type: ai-generated
 
 ## Live Session Continuity
 
-On a follow-up, keep the active objective, authority and valid results. Answer
-status questions briefly and take the next authorized action. A completed task
-stays completed unless the user reopens it or new evidence changes the result.
-Reuse passed checks while their relevant inputs and acceptance criteria still
-match.
-Recheck only the affected part when those inputs change, evidence is missing
-or stale, or the user requests a fresh check. A required gate can reuse valid
-evidence where its contract permits. Use automatic checkpoints for routine
-progress and write resume state for interruption, changed scope or handoff.
-
-While a tool runs or an answer is pending, continue independent authorized
-work. Wait on the existing handle only when its result is needed to proceed.
+On follow-up, keep the objective, authority and valid evidence. Answer status
+briefly and continue. A completed task stays completed unless reopened by the
+user or new evidence. Reuse passed checks while their relevant inputs and
+acceptance criteria still match and gate contracts permit.
+Recheck only the affected part on change, staleness, gaps or request. Use automatic
+checkpoints for routine progress and resume state for interruption, changed
+scope or handoff. Continue independent work while waiting.
+Wait on the existing handle only when its result is needed.
 
 Before a final response, reconcile the full user-requested scope against the
 actual result. Continue any authorized, independent work that remains; a passing

@@ -4,6 +4,7 @@
 //! callers/tests: path_claims.record_from_hook and live-web edit fixtures.
 //! verification: event selection, project containment and native append receipt.
 use super::live_web_edit_log::LiveWebEditLog;
+use super::project_relative_path::ProjectRelativePath;
 use crate::{
     discovery_fs::DiscoveryFs,
     python_json::{InputDiagnostic, PythonJson},
@@ -56,7 +57,7 @@ impl LiveWebEditHook {
             },
             value => DiscoveryFs::resolve(Path::new(value.as_str()?))?,
         };
-        let Some(relative) = LiveWebEditLog::relative_path(&project, path)? else {
+        let Some(relative) = ProjectRelativePath::resolve(&project, path)? else {
             return handled();
         };
         LiveWebEditLog::append(&json!({
