@@ -6,6 +6,9 @@
 use crate::python_text::PythonText;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
+#[path = "structure_ts_declarations.rs"]
+mod structure_ts_declarations;
+use structure_ts_declarations::StructureTsDeclarations;
 
 pub(super) struct StructureTsText;
 
@@ -21,6 +24,13 @@ impl StructureTsText {
             "mask" => {
                 let masked = Self::mask(&lines.join("\n"))?;
                 Some(json!({"lines": PythonText::splitlines(&masked)}))
+            }
+            "declarations" => {
+                let masked = Self::mask(&lines.join("\n"))?;
+                let lines = PythonText::splitlines(&masked);
+                let matches =
+                    StructureTsDeclarations::scan(&lines, input.get("unicode")?.as_str()?);
+                Some(json!({"lines": lines, "declarations": matches}))
             }
             "references" => Self::references(input, &lines),
             _ => None,

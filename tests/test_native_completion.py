@@ -702,6 +702,41 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_typescript_declarations_preserve_precedence_and_fallback(self):
+        path = Path("app/page.TSX")
+        ordinary = [
+            'import type { Shape } from "./types";',
+            "export abstract class A<T> {", "  const Nested = () => 1;", "}",
+            "export type T<U> = U;",
+            "export const aα = <T>(value: T) => value;",
+            "export const α = 1;", "type Aα<T> = T;",
+            "const g = async (arg: Shape) => arg;",
+            "const plain = 1;",
+            "export default async function render<T>(input: T) {",
+            '  const x = "unmatched brace {";', "}",
+            "export { Shape };",
+        ]
+        unusual = ["/* hidden */ export type A = B;",
+                   "@sealed export class Adapter {}", "export const Tail = 'masked';"]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [purpose.top_level_type_declarations(path, lines) for lines in (ordinary, unusual)]
+        self.assertEqual(
+            [("class", "A", 2), ("type", "T", 5), ("const", "aα", 6),
+             ("type", "g", 9), ("function", "render", 11)],
+            [(row["kind"], row["name"], row["line"]) for row in expected[0]],
+        )
+        recognizer = Mock()
+        recognizer.match.side_effect = AssertionError("legacy TypeScript declarations were used")
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            purpose, "_python_typescript_lines", side_effect=AssertionError("legacy masking was used"),
+        ):
+            with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
+                self.assertEqual(expected[0], purpose.top_level_type_declarations(path, ordinary))
+            native_mask, declarations = purpose._typescript_scan(unusual)
+            self.assertIsNone(declarations)
+            self.assertEqual(" export type A = B;", native_mask[0])
+            self.assertEqual(expected[1], purpose.top_level_type_declarations(path, unusual))
+
     def test_structure_native_typescript_text_matches_legacy_mask_and_references(self):
         cases = [
             ["export function Factory() {", r"const r = /[\x27\/]Hidden/gi;",
