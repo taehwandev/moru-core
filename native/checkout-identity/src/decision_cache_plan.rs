@@ -11,6 +11,7 @@ use crate::{
     decision_report::DecisionReport,
     decision_response::DecisionResponse,
     pretool_guard::CallbackGuard,
+    python_encoding::PythonEncoding,
     python_json::{Number, Object, PythonJson, Value as PythonValue},
 };
 use serde_json::{json, Value};
@@ -24,10 +25,37 @@ use std::{
 
 const MAX_MESSAGE: usize = 1024 * 1024;
 const MAX_CANONICAL_BYTES: usize = 4 * MAX_MESSAGE;
+const CLI_CONTRACT: &str = include_str!("../../../scripts/research-triage/decision_contract.json");
 
 pub(crate) struct DecisionCachePlan;
 
 impl DecisionCachePlan {
+    pub(crate) fn alias(launcher: &OsString, args: &[OsString]) -> Option<i32> {
+        if !PythonEncoding::utf8() || CallbackGuard::root(launcher, "microsoft-decision").is_none()
+        {
+            return None;
+        }
+        let argv: Vec<_> = args.iter().map(|arg| arg.to_str()).collect::<Option<_>>()?;
+        if argv.iter().map(|arg| arg.len() + 1).sum::<usize>() > MAX_MESSAGE {
+            return None;
+        }
+        let mut request: Value = serde_json::from_str(CLI_CONTRACT).ok()?;
+        request["argv"] = json!(argv);
+        // Defer larger integers to the Python caller, which owns its runtime limit.
+        request["digit_limit"] = json!(640);
+        let reply = Self::read_only_cli(request)?;
+        let text = reply["text"].as_str()?;
+        if text.len() > MAX_MESSAGE {
+            return None;
+        }
+        let mut output = io::stdout().lock();
+        Some(i32::from(
+            writeln!(output, "{text}")
+                .and_then(|_| output.flush())
+                .is_err(),
+        ))
+    }
+
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
             || !matches!(

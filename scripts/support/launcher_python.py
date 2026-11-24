@@ -38,6 +38,7 @@ SCRIPT_ALIASES = {
     "lessons-compact": "lessons-compact.py",
     "smoke-checks": "run_smoke_checks.py",
     "mutation-check": "mutation-check.py",
+    "microsoft-decision": "research-triage/microsoft_decision.py",
     "loop": "agent_loop.py",
     "workflow-dispatch": "workflow_dispatch.py",
     "workflow-dispatch-launch": "workflow_dispatch_launch.py",

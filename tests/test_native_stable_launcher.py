@@ -12,10 +12,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from checkout_identity_support import PROJECT, PYTHON, CheckoutFixtures, invoke, request, rows
 from native_launcher_support import NATIVE, copied_build_root, fixture_root, install, run_launcher
+from native_pretool_support import environment as pretool_environment
 from support.native_launcher_install import artifact_plan
+from support.native_source_inputs import pretool_contract
 from support.stable_launcher import _launcher_script_text
 from support.stable_launcher import stable_launcher_path
 import claude_worktree_gate as gate
@@ -60,6 +63,60 @@ class NativeStableLauncherTests(unittest.TestCase):
         empty.mkdir()
         expected = rows(invoke(PYTHON, request(self.git.main)))
         self.assertEqual(expected, rows(self.run_cli("checkout-identity", data=request(self.git.main), path=empty)))
+
+    def test_microsoft_decision_alias_runs_without_python_and_delegates_execute(self):
+        empty = self.base / "empty-path"
+        empty.mkdir()
+        path = self.base.resolve() / "evidence 한글.json"
+        path.write_text(json.dumps({"query": "Research?", "sources": [{
+            "id": "한글", "url": "https://example.com", "title": "Fixture", "text": "Fixture content",
+        }]}), encoding="utf-8")
+        cache = self.base.resolve() / "missing-cache"
+        args = ("microsoft-decision", "--input", str(path), "--cache-dir", str(cache))
+        env = {**pretool_environment(self.base), "OPENROUTER_API_KEY": ""}
+        with patch.dict(os.environ, env, clear=True):
+            reference = self.run_cli(*args, backend="python", cwd=self.base)
+            native = self.run_cli(*args, path=empty, cwd=self.base)
+            self.assertEqual((native.returncode, native.stdout, native.stderr),
+                             (0, reference.stdout, b""))
+            self.assertEqual(reference.returncode, 0)
+            self.assertEqual(json.loads(native.stdout)["results"][0]["reason"], "cache_miss")
+            self.assertFalse(cache.exists())
+            for flags in (("--help",), ("--execute",), ("--max-calls=-1",)):
+                with self.subTest(flags=flags):
+                    reference = self.run_cli(*args, *flags, backend="python", cwd=self.base)
+                    fallback = self.run_cli(*args, *flags, cwd=self.base)
+                    self.assertEqual((fallback.returncode, fallback.stdout, fallback.stderr),
+                                     (reference.returncode, reference.stdout, reference.stderr))
+            execute = self.run_cli(*args, "--execute", path=empty, cwd=self.base)
+        self.assertEqual((execute.returncode, execute.stdout), (127, b""))
+        self.assertFalse(cache.exists())
+
+    def test_microsoft_decision_alias_refuses_stale_shared_contract(self):
+        root = copied_build_root(self.base / "source-copy")
+        _, directories = pretool_contract(PROJECT)
+        for relative in directories:
+            (root / relative).mkdir(parents=True, exist_ok=True)
+        for marker in ("AGENTS.md", "index.md"):
+            (root / marker).write_bytes((PROJECT / marker).read_bytes())
+        home = self.base / "copied-home"
+        install(home, root)
+        launcher = home / ".moru/bin/moru-hook"
+        empty = self.base / "empty-path"
+        empty.mkdir()
+        path = self.base.resolve() / "input.json"
+        path.write_text('{"query": "Fixture", "sources": []}', encoding="utf-8")
+        args = ("microsoft-decision", "--input", str(path))
+        env = {"path": empty, "cwd": self.base, "MORU_HOME": str(root), "PYTHONUTF8": "1"}
+        with patch.dict(os.environ, pretool_environment(self.base, root), clear=True):
+            valid = run_launcher(launcher, home, *args, **env)
+            self.assertEqual(valid.returncode, 0, valid.stderr)
+            self.assertEqual(json.loads(valid.stdout)["network_calls"], 0)
+            contract = root / "scripts/research-triage/decision_contract.json"
+            contract.write_bytes(contract.read_bytes() + b"\n")
+            stale = run_launcher(launcher, home, *args, **env)
+        self.assertEqual((stale.returncode, stale.stdout), (127, b""))
+        self.assertIn(b"failed to exec python3", stale.stderr)
 
     def test_legacy_stdio_argv_cwd_env_and_process_parent_are_preserved(self):
         root = fixture_root(self.base / "fixture root", "import json,os,sys\n"

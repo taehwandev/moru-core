@@ -36,7 +36,7 @@ def pretool_contract(root):
         if path.is_dir():
             directories.add(relative)
             continue
-        if path.suffix != ".py":
+        if path.suffix != ".py" and relative != "scripts/research-triage/decision_contract.json":
             continue
         raw = path.read_bytes()
         sources[relative] = (hashlib.sha256(raw).digest(), len(raw))

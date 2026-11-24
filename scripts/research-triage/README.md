@@ -52,6 +52,13 @@ From the Moru checkout, inspect reusable decisions without network calls or
 cache writes:
 
 ```sh
+~/.moru/bin/moru-hook microsoft-decision \
+  --input .moru/research-input.json --cache-dir .moru/research-cache/ms
+```
+
+The direct Python entrypoint is also supported:
+
+```sh
 python3 scripts/research-triage/microsoft_decision.py \
   --input .moru/research-input.json --cache-dir .moru/research-cache/ms
 ```
