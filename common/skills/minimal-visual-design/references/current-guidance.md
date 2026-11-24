@@ -15,6 +15,11 @@ map them to the platform's units (pt, dp) and token holders.
 
 - Derive the look from the subject: who uses it, for what job, in what
   setting. "Clean and modern" is not a direction.
+- When polishing a product introduction or showcase, check whether its most
+  prominent visual conveys a concrete capability or outcome. If the focal
+  visual could fit an unrelated product, use an existing product view or
+  interaction that demonstrates the user's job. Adapted from
+  [Damir Sokolovsky's Unslop (CC BY 4.0)](https://github.com/heydamir/unslop/blob/main/skills/unslop/SKILL.md#direction).
 - Minimal means fewer, better decisions, not fewer affordances. Every
   remaining element should be legible, aligned, and clearly interactive when it
   is interactive.
