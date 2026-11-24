@@ -4,6 +4,7 @@
 //! callers/tests: microsoft_decision.py; test_decision_cache_plan.
 //! verification: exact Python digest and byte length for existing caches.
 use crate::{
+    decision_input::DecisionInput,
     pretool_guard::CallbackGuard,
     python_json::{Number, Object, PythonJson, Value as PythonValue},
 };
@@ -22,7 +23,7 @@ pub(crate) struct DecisionCachePlan;
 impl DecisionCachePlan {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2
-            || args[1] != "prepare"
+            || !matches!(args[1].to_str(), Some("prepare" | "validate-prepare"))
             || CallbackGuard::root(launcher, "decision-cache-plan").is_none()
         {
             return 125;
@@ -36,14 +37,17 @@ impl DecisionCachePlan {
         {
             return 125;
         }
-        let Some(rows) = serde_json::from_slice(&raw)
-            .ok()
-            .and_then(|value| Self::prepare(&value))
-        else {
+        let Some(result) = serde_json::from_slice(&raw).ok().and_then(|value| {
+            if args[1] == "validate-prepare" {
+                if let Err(error) = DecisionInput::validate(&value) {
+                    return Some(json!({"error": error}));
+                }
+            }
+            Self::prepare(&value).map(|rows| json!({"rows": rows}))
+        }) else {
             return 125;
         };
-        let Ok(reply) = serde_json::to_vec(&json!({"schema_version": 1, "result": {"rows": rows}}))
-        else {
+        let Ok(reply) = serde_json::to_vec(&json!({"schema_version": 1, "result": result})) else {
             return 125;
         };
         if reply.len() > MAX_MESSAGE {
@@ -64,7 +68,15 @@ impl DecisionCachePlan {
             .as_array()?
             .iter()
             .map(|source| {
-                if !source.as_object()?.values().all(Value::is_string) {
+                let source: serde_json::Map<_, _> = source
+                    .as_object()?
+                    .iter()
+                    .filter(|(key, _)| {
+                        ["url", "title", "text", "published_at"].contains(&key.as_str())
+                    })
+                    .map(|(key, value)| (key.clone(), value.clone()))
+                    .collect();
+                if !source.values().all(Value::is_string) {
                     return None;
                 }
                 let request = json!({

@@ -103,7 +103,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
             "#!/bin/sh\n"
             'if [ "${2-}" = --decision-cache-probe ]; then\n'
             '    [ -z "${OPENROUTER_API_KEY+x}" ] || exit 80\n'
-            f"    printf '%s\\n' prepare >> {shlex.quote(str(observed))}\n"
+            f"    printf '%s\\n' \"$3\" >> {shlex.quote(str(observed))}\n"
             "fi\n"
             f'exec {shlex.quote(str(binary))} "$@"\n',
             encoding="utf-8",
@@ -129,7 +129,45 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
         self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
-        self.assertEqual(["prepare", "prepare"], observed.read_text().splitlines())
+        self.assertEqual(["prepare", "validate-prepare"], observed.read_text().splitlines())
+
+    def test_native_input_preserves_first_error_before_any_effect(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        cases = [
+            ([], "Input needs a query and sources"),
+            ({"query": " \x1c\u2003", "sources": [0]}, "Input needs a nonempty query and a sources array"),
+            ({"query": "Notes", "sources": {}}, "Input needs a nonempty query and a sources array"),
+            ({"query": "Notes", "sources": [False]}, "Each source must be an object"),
+            ({"query": "Notes", "sources": [source(), {**source(), "text": "\x1c", "required": 1}]},
+             "Each source needs id, url, title, and text"),
+            ({"query": "Notes", "sources": [source(), {**source(), "required": 1}]},
+             "Source ids must be unique"),
+            ({"query": "Notes", "sources": [{**source(), "required": 1, "published_at": False}]},
+             "required must be a boolean"),
+            ({"query": "Notes", "sources": [{**source(), "published_at": None}]},
+             "published_at must be a string"),
+        ]
+        for payload, message in cases:
+            with self.subTest(message=message), patch.dict(os.environ, env, clear=True), \
+                    patch.object(adapter, "openrouter_api_key", side_effect=AssertionError("credential read")), \
+                    patch.object(adapter, "read_cached", side_effect=AssertionError("cache read")):
+                with self.assertRaises(ValueError) as baseline:
+                    adapter.validate_input(payload)
+                with self.assertRaises(ValueError) as native:
+                    adapter._cache_plan(payload, adapter.MODEL, validate=True)
+                self.assertEqual(str(baseline.exception), message)
+                self.assertEqual(str(native.exception), message)
+                self.payload = payload
+                result = self.run_cli("--execute")
+                with patch.object(adapter.NativeProbe, "request", return_value=None):
+                    self.assertEqual(self.run_cli("--execute"), result)
+                self.assertEqual(result, (2, None, "Invalid or unreadable research input\n"))
+        self.assertFalse(self.cache.exists())
 
     def test_native_request_size_preserves_inclusive_utf8_boundary(self):
         if NATIVE is None or not NATIVE.is_file():

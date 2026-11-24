@@ -671,7 +671,7 @@
       "entry_aliases": "Direct CLI",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
       "verification": {
-        "local": "Rust prepares bounded cache identity and UTF-8 request lengths in batches. Python owns input validation, cache files, response policy, credential access, provider execution and the CLI."
+        "local": "Rust validates ordinary parsed CLI inputs and prepares bounded cache identities and UTF-8 request lengths in the same call. Python owns parsing, validation rollback, cache files, response policy, credential access, provider execution and the CLI."
       }
     },
     {

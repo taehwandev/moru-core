@@ -141,18 +141,28 @@ def cache_key(request: dict) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _cache_plan(payload: dict, model: str) -> list | None:
-    if not payload["sources"] or not NativeProbe.available():
+def _cache_plan(payload: object, model: str, *, validate: bool = False) -> list | None:
+    if not NativeProbe.available():
         return None
-    prepare = NativeProbe.request("--decision-cache-probe", "prepare", {
+    if not isinstance(payload, dict):
+        payload = {}
+    query = payload.get("query")
+    sources = payload.get("sources")
+    if not validate and not sources:
+        return None
+    operation = "validate-prepare" if validate else "prepare"
+    fields = ("id", "required", *_SOURCE_FIELDS) if validate else _SOURCE_FIELDS
+    prepare = NativeProbe.request("--decision-cache-probe", operation, {
         "schema": CACHE_SCHEMA, "endpoint": ENDPOINT, "questions": QUESTIONS,
-        "query": payload["query"], "model": model,
-        "sources": [{k: source[k] for k in _SOURCE_FIELDS if k in source} for source in payload["sources"]],
+        "query": query if isinstance(query, str) else None, "model": model,
+        "sources": _project_sources(sources, fields),
     })
+    if validate and prepare is not None and set(prepare) == {"error"} and type(prepare["error"]) is str:
+        raise ValueError(prepare["error"])
     if prepare is None or set(prepare) != {"rows"}:
         return None
     rows = prepare["rows"]
-    if type(rows) is not list or len(rows) != len(payload["sources"]):
+    if type(rows) is not list or type(sources) is not list or len(rows) != len(sources):
         return None
     for row in rows:
         if type(row) is not list or len(row) != 2:
@@ -162,6 +172,16 @@ def _cache_plan(payload: dict, model: str) -> list | None:
                 or type(size) is not int or size <= 0):
             return None
     return rows
+
+
+def _project_sources(sources, fields):
+    if not isinstance(sources, list):
+        return None
+    return [
+        {key: source[key] if type(source[key]) in (str, bool) else None for key in fields if key in source}
+        if isinstance(source, dict) else None
+        for source in sources
+    ]
 
 
 def read_cached(path: Path, key: str, now: float, ttl: float) -> dict | None:
@@ -228,13 +248,14 @@ def openrouter_api_key(files: tuple[Path, ...] | None = None) -> str:
     return ""
 
 
-def evaluate(payload: dict, options: argparse.Namespace) -> dict:
+def evaluate(payload: dict, options: argparse.Namespace, *, plan: list | None = None) -> dict:
     now = time.time()
     api_key = openrouter_api_key() if options.execute else ""
     results, evaluated, warnings = [], {}, []
     calls, hits, cost, known_costs = 0, 0, 0.0, 0
     can_call = options.execute and bool(api_key)
-    plan = _cache_plan(payload, options.model)
+    if plan is None:
+        plan = _cache_plan(payload, options.model)
     for index, source in enumerate(payload["sources"]):
         request = None
         if plan is None:
@@ -314,8 +335,11 @@ def main(argv: list[str] | None = None) -> int:
     if options.max_calls < 0 or not math.isfinite(options.ttl_hours) or options.ttl_hours <= 0:
         parser.error("max-calls must be nonnegative and ttl-hours must be positive and finite")
     try:
-        payload = validate_input(json.loads(options.input.read_text(encoding="utf-8")))
-        print(json.dumps(evaluate(payload, options), ensure_ascii=False, allow_nan=False))
+        payload = json.loads(options.input.read_text(encoding="utf-8"))
+        plan = _cache_plan(payload, options.model, validate=True)
+        if plan is None:
+            payload = validate_input(payload)
+        print(json.dumps(evaluate(payload, options, plan=plan), ensure_ascii=False, allow_nan=False))
     except (OSError, ValueError):
         print("Invalid or unreadable research input", file=sys.stderr)
         return 2
