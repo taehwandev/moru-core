@@ -119,17 +119,42 @@ def previous_top_level_type_declarations(
     path: Path,
     path_metadata: dict[str, dict[str, Any]],
     run_command: CommandRunner | None,
+    *,
+    baseline_lines: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     metadata = path_metadata.get(str(path), {})
     if run_command is None or metadata.get("status") == "A":
         return []
+    if baseline_lines is not None:
+        return top_level_type_declarations(path, baseline_lines)
 
-    previous_path = str(metadata.get("previous_path") or path.as_posix())
+    previous_path = _owner_baseline_path(path, metadata)
     previous = run_command(["git", "show", f"HEAD:{previous_path}"], project)
     if previous["returncode"] != 0:
         return []
 
     return top_level_type_declarations(path, previous["stdout"].splitlines())
+
+
+def _owner_baseline_path(path: Path, metadata: dict[str, Any]) -> str:
+    return str(metadata.get("previous_path") or path.as_posix())
+
+
+def native_owner_baselines(
+    project: Path, revision: str, paths: list[Path], path_metadata: dict[str, dict[str, Any]],
+) -> dict[Path, list[str]]:
+    existing = [path for path in paths if path_metadata.get(str(path), {}).get("status") != "A"]
+    if not existing:
+        return {}
+    result = NativeProbe.request("--completion-probe", "structure-owner-baseline", {
+        "project": str(project.resolve()), "revision": revision,
+        "paths": [_owner_baseline_path(path, path_metadata.get(str(path), {})) for path in existing],
+    })
+    rows = result.get("rows") if result is not None else None
+    if not isinstance(rows, list) or len(rows) != len(existing):
+        return {}
+    return {path: lines for path, lines in zip(existing, rows)
+            if isinstance(lines, list) and all(isinstance(line, str) for line in lines)}
 
 
 def _native_declaration_scan(suffix: str, lines: list[str]) -> dict[str, Any] | None:

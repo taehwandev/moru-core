@@ -118,6 +118,47 @@ class NativeCompletionTests(unittest.TestCase):
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual(expected_review, structure.structure_review(self.project, 1, 100, git))
 
+    def test_structure_owner_baseline_batches_git_blobs_and_preserves_fallback(self):
+        def git(*args):
+            return subprocess.check_output(["git", *args], cwd=self.project, env=self.env)
+
+        folder = self.project / "src"
+        folder.mkdir()
+        old = Path("src/old name.py")
+        (self.project / old).write_bytes(b"class Before:\r\n    pass\r\n\r")
+        (folder / "odd.py").write_bytes(b"\x1b[31mclass Colored:\x1b[0m\n")
+        (folder / "invalid.py").write_bytes(b"\xff\n")
+        (folder / "empty.py").touch()
+        git("add", "src")
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "base")
+        base = git("rev-parse", "HEAD").decode().strip()
+        (self.project / old).rename(folder / "new.py")
+        (folder / "new.py").write_text("class After:\n    pass\n")
+        git("add", "-A", "src")
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "new")
+        current = Path("src/new.py")
+        paths = [current, Path("src/missing.py"), Path("src"), Path("src/odd.py"), Path("src/empty.py"),
+                 Path("src/invalid.py"), Path("src/new.py\nHEAD:src/empty.py")]
+        metadata = {str(current): {"status": "R", "previous_path": str(old)}}
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual({
+                current: ["class Before:", "    pass", ""], paths[1]: [], paths[4]: [],
+            }, purpose.native_owner_baselines(self.project, base, paths, metadata))
+            self.assertEqual({current: ["class After:", "    pass"]},
+                             purpose.native_owner_baselines(self.project, "HEAD", [current], {}))
+            self.assertEqual({}, purpose.native_owner_baselines(self.project, "main~1", paths, metadata))
+            with patch.object(structure, "native_owner_baselines", wraps=purpose.native_owner_baselines) as batch, (
+                patch.object(structure, "previous_top_level_type_declarations",
+                             wraps=purpose.previous_top_level_type_declarations)
+            ) as owners:
+                (folder / "new.py").write_text("class ChangedAgain:\n    pass\n")
+                actual = structure.structure_review(self.project, 200, 100, structure.review_runtime_command)
+                batch.assert_called_once()
+                self.assertEqual(["class After:", "    pass"], owners.call_args.kwargs["baseline_lines"])
+            with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = structure.structure_review(self.project, 200, 100, structure.review_runtime_command)
+            self.assertEqual(expected, actual)
+
     def test_structure_test_flags_match_python_even_when_source_read_declines(self):
         paths = [Path(name) for name in (
             "src/TeStS/helper.py", "src/testing/helper.py", "src/TEST_App.py",

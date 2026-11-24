@@ -16,6 +16,7 @@ from agent_review_generated_attrs import (
     linguist_generated_path,
 )
 from agent_android_action_boundary import AndroidActionBoundary
+from agent_command_runtime import run_command as review_runtime_command
 from agent_review_purpose import (
     GENERIC_PACKAGE_PARTS,
     MAX_PUBLIC_TOP_LEVEL_OWNERS,
@@ -23,6 +24,7 @@ from agent_review_purpose import (
     MIXED_ROLE_BLOCKS,
     _owner_input_findings,
     _owner_review_input,
+    native_owner_baselines,
     previous_top_level_type_declarations,
     purpose_failures,
     top_level_type_declarations,
@@ -285,7 +287,16 @@ def structure_review(
 
     file_checks = []
     owner_checks = []
-    for relative, (lines, is_test_path) in zip(active_paths, _review_source_batch(source_root, active_paths)):
+    source_rows = _review_source_batch(source_root, active_paths)
+    owner_baselines = {}
+    if run_command is review_runtime_command:
+        baseline_paths = [
+            path for path, (lines, is_test) in zip(active_paths, source_rows)
+            if lines is not False and not (test_exempt_path(path) if is_test is None else is_test)
+        ]
+        revision = review_commits[0] if review_commits is not None else "HEAD"
+        owner_baselines = native_owner_baselines(project, revision, baseline_paths, discovery["path_metadata"])
+    for relative, (lines, is_test_path) in zip(active_paths, source_rows):
         if is_test_path is None:
             is_test_path = test_exempt_path(relative)
         if is_test_path:
@@ -317,7 +328,10 @@ def structure_review(
             owner_checks.append(_owner_review_input(
                 relative,
                 top_level_type_declarations(relative, lines),
-                previous_top_level_type_declarations(source_root, relative, discovery["path_metadata"], subject_run_command),
+                previous_top_level_type_declarations(
+                    source_root, relative, discovery["path_metadata"], subject_run_command,
+                    baseline_lines=owner_baselines.get(relative),
+                ),
             ))
             file_review["actions"] = android_action_delta_failures(
                 project, relative, lines, metadata, subject_run_command,

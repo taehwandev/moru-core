@@ -137,6 +137,7 @@ impl WorktreeSignature {
                 .stdin(Stdio::null()),
             Duration::from_secs(6),
             Some(bound),
+            None,
         )
         .ok()??;
         Some((stdout, status.code()?))

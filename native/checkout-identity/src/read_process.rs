@@ -12,7 +12,7 @@ pub(crate) fn capture_raw(
     command: &mut Command,
     timeout: Duration,
 ) -> Result<Option<(Vec<u8>, Vec<u8>, bool)>, ()> {
-    status::capture_status(command, timeout, None)
+    status::capture_status(command, timeout, None, None)
         .map(|result| result.map(|(out, err, status)| (out, err, status.success())))
 }
 

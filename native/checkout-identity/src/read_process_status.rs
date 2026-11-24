@@ -2,7 +2,7 @@
 //! forbidden imports: shell, repository policy, writes.
 //! callers/tests: read_process, WikimapSearch and read_process_tests.
 //! verification: raw pipe capture, status and bounded deadlines.
-use std::io::Read;
+use std::io::{Read, Write};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
@@ -14,7 +14,11 @@ pub(crate) fn capture_status(
     command: &mut Command,
     timeout: Duration,
     limit: Option<u64>,
+    input: Option<Vec<u8>>,
 ) -> Result<Option<(Vec<u8>, Vec<u8>, ExitStatus)>, ()> {
+    if input.is_some() {
+        command.stdin(Stdio::piped());
+    }
     let mut child = match command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -24,6 +28,13 @@ pub(crate) fn capture_status(
         Err(_) => return Ok(None),
     };
     let deadline = Instant::now() + timeout;
+    if let Some(input) = input {
+        if let Some(mut pipe) = child.stdin.take() {
+            thread::spawn(move || {
+                let _ = pipe.write_all(&input);
+            });
+        }
+    }
     let (sender, receiver) = mpsc::channel();
     if let Some(pipe) = child.stdout.take() {
         read_pipe(pipe, true, sender.clone(), limit);

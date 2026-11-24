@@ -121,6 +121,7 @@ impl<'a> LocalDeliveryGit<'a> {
                 .stdin(Stdio::null()),
             remaining,
             None,
+            None,
         )
         .ok()??;
         if stdout.len() > limit || std::str::from_utf8(&stderr).is_err() {

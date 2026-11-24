@@ -102,7 +102,7 @@ impl WikimapSearch {
             .args(command_args)
             .current_dir(root);
         let Some((stdout, stderr, status)) =
-            capture_status(&mut command, Duration::from_secs(15), None)
+            capture_status(&mut command, Duration::from_secs(15), None, None)
                 .ok()
                 .flatten()
         else {
