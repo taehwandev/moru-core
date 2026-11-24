@@ -18,6 +18,17 @@ REQUEST_CONCERN_HINTS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
         ),
     ),
     (
+        "blender",
+        (
+            r"\bblender\b",
+            r"\bgltf\b",
+            r"\bglb\b",
+            r"\b3d\s+(?:models?|assets?|modell?ing)\b",
+            "\ube14\ub80c\ub354",
+            r"3d\s*(?:\ubaa8\ub378|\uc5d0\uc14b|\ubaa8\ub378\ub9c1)",
+        ),
+    ),
+    (
         "web-service-stack",
         (
             r"\bweb\s*service\b.*\b(react native|rn|python|fastapi|react)\b",

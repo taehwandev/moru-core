@@ -66,6 +66,7 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
         "platforms/swift/skills/swift-design-system/SKILL.md",
         "platforms/swift/skills/swift-review/SKILL.md",
     ),
+    "blender": ("common/skills/blender-asset-pipeline/SKILL.md",),
     "asset": ("common/skills/asset-lifecycle/SKILL.md",),
     "assets": ("common/skills/asset-lifecycle/SKILL.md",),
     "structure": ("common/skills/code-structure-ownership/SKILL.md",),
@@ -295,6 +296,17 @@ RISK_CONCERNS_REQUIRED_WHEN_INFERRED: frozenset[str] = frozenset(
         "migration",
         "security",
     }
+)
+
+
+# Narrow execution concerns that are also required on inference: their hints
+# match only requests that perform that kind of work, and a miss stops the run
+# itself rather than costing a reference. `device-scenario-qa` needs the
+# scenario contract during the device run; `blender` needs the binary-read and
+# asset-contract rules (an agent that opens a .glb with its file-read tool can
+# end its whole turn with a malformed-media error).
+EXECUTION_CONCERNS_REQUIRED_WHEN_INFERRED: frozenset[str] = frozenset(
+    {"blender", "device-scenario-qa"}
 )
 
 

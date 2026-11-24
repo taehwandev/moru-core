@@ -9,6 +9,7 @@ from workflow_concern_docs import (
     BASELINE_CONCERNS,
     CONCERN_REFERENCE_DOCS,
     CONCERNS,
+    EXECUTION_CONCERNS_REQUIRED_WHEN_INFERRED,
     RISK_CONCERNS_REQUIRED_WHEN_INFERRED,
 )
 from workflow_concern_hints import REQUEST_CONCERN_HINTS
