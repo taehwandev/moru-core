@@ -234,6 +234,52 @@ class PathClaimsTests(unittest.TestCase):
             with mock.patch.object(path_claims, "_active_claims", side_effect=AssertionError("Python rendered empty status")):
                 self.assertEqual((0, "no active claims\n"), self.run_cli(*args))
 
+    def test_native_conflict_selection_preserves_path_boundaries_and_expiry(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        directory = path_claims.claims_dir(self.project)
+        directory.mkdir(parents=True)
+        for name, path, holder in (
+            ("a", "src/한글", "first"), ("b", "src", "owner"),
+            ("c", "src-old", "second"), ("d", ".", "root"), ("e", None, "owner"),
+        ):
+            entry = {"holder": holder, "expires": path_claims._iso(self.clock + (1 if name == "e" else 2))}
+            if path is not None:
+                entry["path"] = path
+            (directory / f"{name}.json").write_text(json.dumps(entry), encoding="utf-8")
+
+        queries = [("src",), ("src/한글/file",), ("src-old",), (".",), ("srcsuffix",), ("src/",), ()]
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = [path_claims.conflicts(self.project, iter(query), "owner") for query in queries]
+            with mock.patch.object(path_claims, "overlaps", side_effect=AssertionError("Python compared paths")):
+                self.assertEqual(expected, [path_claims.conflicts(self.project, iter(query), "owner") for query in queries])
+            self.assertEqual([["first", "root"], ["first", "root"], ["second", "root"],
+                              ["first", "second", "root"], ["root"], ["root"], []],
+                             [[row["holder"] for row in result] for result in expected])
+            self.assertEqual(path_claims.conflicts(self.project, [], "third"), [])
+            with self.assertRaises(KeyError):
+                path_claims.conflicts(self.project, ["src"], "third")
+
+            request = path_claims.NativeProbe.request
+
+            def expire_after_scan(*args):
+                result = request(*args)
+                self.assertIsNotNone(result["conflicts"])
+                self.clock += 1
+                return result
+
+            with mock.patch.object(path_claims.NativeProbe, "request", side_effect=expire_after_scan) as scan:
+                self.assertEqual(path_claims.conflicts(self.project, ["src"], "owner"), expected[0])
+                scan.assert_called_once()
+            self.assertEqual(sorted(p.name for p in directory.iterdir()), ["a.json", "b.json", "c.json", "d.json"])
+
     def test_wait_gives_up_after_timeout(self) -> None:
         self.claim("a", "src/x.tsx")
 

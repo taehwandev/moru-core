@@ -97,12 +97,14 @@ def active_claims(project: Path) -> list[dict]:
     return _active_claims(directory, _scan_claims(project, directory))
 
 
-def _scan_claims(project: Path, directory: Path, status_json: Optional[bool] = None) -> Optional[dict]:
+def _scan_claims(
+    project: Path, directory: Path, *, status_json: Optional[bool] = None, conflict: Optional[dict] = None,
+) -> Optional[dict]:
     if not directory.is_dir():
         return None
     return NativeProbe.request("--completion-probe", "path-claim-scan", {
         "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
-        "status_json": status_json,
+        "status_json": status_json, "conflict": conflict,
     })
 
 
@@ -144,11 +146,29 @@ def _read_active(entry: Path) -> Optional[dict]:
 
 def conflicts(project: Path, paths: Iterable[str], holder: str) -> list[dict]:
     wanted = list(paths)
+    directory = claims_dir(project)
+    query = None
+    if type(holder) is str and all(type(path) is str for path in wanted):
+        query = {"paths": wanted, "holder": holder}
+    result = _scan_claims(project, directory, conflict=query)
+    matches = _fresh_projection(result, "conflicts", "matches")
+    if isinstance(matches, list) and all(isinstance(raw, str) for raw in matches):
+        return [json.loads(raw) for raw in matches]
     return [
         claim
-        for claim in active_claims(project)
+        for claim in _active_claims(directory, result)
         if claim.get("holder") != holder and any(overlaps(claim["path"], p) for p in wanted)
     ]
+
+
+def _fresh_projection(result: Optional[dict], name: str, field: str):
+    projection = result.get(name) if result is not None else None
+    if not isinstance(projection, dict) or projection.keys() != {field, "earliest"}:
+        return None
+    earliest = projection["earliest"]
+    if earliest is None or (type(earliest) in (int, float) and earliest > _now()):
+        return projection[field]
+    return None
 
 
 def _write_claim(project: Path, path: str, holder: str, ttl: int) -> bool:
@@ -280,13 +300,11 @@ def _cmd_release(project: Path, args: argparse.Namespace) -> int:
 
 def _cmd_status(project: Path, args: argparse.Namespace) -> int:
     directory = claims_dir(project)
-    result = _scan_claims(project, directory, args.json)
-    status = result.get("status") if result is not None else None
-    if isinstance(status, dict) and status.keys() == {"output", "earliest"} and isinstance(status["output"], str):
-        earliest = status["earliest"]
-        if earliest is None or (type(earliest) in (float, int) and earliest > _now()):
-            print(status["output"])
-            return 0
+    result = _scan_claims(project, directory, status_json=args.json)
+    output = _fresh_projection(result, "status", "output")
+    if isinstance(output, str):
+        print(output)
+        return 0
     claims = sorted(_active_claims(directory, result), key=lambda claim: claim["path"])
     if args.json:
         print(json.dumps(claims, indent=2))

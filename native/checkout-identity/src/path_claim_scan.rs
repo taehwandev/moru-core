@@ -1,6 +1,6 @@
 //! owner: bounded read-only scan of project path claims.
 //! allowed imports: regular-file reads, Python JSON and ISO timestamp parsing.
-//! forbidden imports: writes, claim ownership decisions and network.
+//! forbidden imports: writes, authority decisions and network.
 //! callers/tests: path_claims.active_claims; test_path_claims parity.
 //! verification: filename order, original JSON values and expiry conversion.
 use crate::{
@@ -21,6 +21,7 @@ impl PathClaimScan {
         }
         let digit_limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let status_json = input.get("status_json").and_then(Value::as_bool);
+        let conflict = input.get("conflict").filter(|value| value.is_object());
         let dir = project.join(".moru/claims");
         LocalState::safe_path(project, &dir)?;
         if LocalState::absent_dir(&dir)? {
@@ -51,7 +52,7 @@ impl PathClaimScan {
             let parsed = Self::parse(&raw, digit_limit)?;
             if let Some((expiry, claim)) = parsed {
                 rows.push(json!([name, expiry, raw]));
-                if status_json.is_some() {
+                if status_json.is_some() || conflict.is_some() {
                     claims.push(claim);
                     earliest = Some(earliest.map_or(expiry, |previous: f64| previous.min(expiry)));
                 }
@@ -59,11 +60,15 @@ impl PathClaimScan {
                 rows.push(json!([name, null, null]));
             }
         }
+        let conflicts = conflict
+            .filter(|_| rows.len() == claims.len())
+            .and_then(|request| Self::conflicts(&claims, &rows, request))
+            .map(|matches| json!({"matches": matches, "earliest": earliest}));
         let status = status_json
             .filter(|_| rows.len() == claims.len())
             .and_then(|as_json| Self::status(claims, as_json))
             .map(|output| json!({"output": output, "earliest": earliest}));
-        Some(json!({"rows": rows, "status": status}))
+        Some(json!({"rows": rows, "status": status, "conflicts": conflicts}))
     }
 
     fn parse(raw: &str, digit_limit: usize) -> Option<Option<(f64, Claim)>> {
@@ -116,5 +121,40 @@ impl PathClaimScan {
             })
             .collect::<Option<Vec<_>>>()?;
         Some(lines.join("\n"))
+    }
+
+    fn conflicts(claims: &[Claim], rows: &[Value], request: &Value) -> Option<Vec<Value>> {
+        let paths = request.get("paths")?.as_array()?;
+        if paths.len() > 1024 {
+            return None;
+        }
+        let paths = paths
+            .iter()
+            .map(Value::as_str)
+            .collect::<Option<Vec<_>>>()?;
+        let holder = request.get("holder")?.as_str()?;
+        let mut matches = Vec::new();
+        for (claim, row) in claims.iter().zip(rows) {
+            if paths.is_empty() || claim.get("holder").and_then(Claim::as_str) == Some(holder) {
+                continue;
+            }
+            let path = claim.get("path")?.as_str()?;
+            if paths.iter().any(|wanted| Self::overlaps(path, wanted)) {
+                matches.push(row.get(2)?.clone());
+            }
+        }
+        Some(matches)
+    }
+
+    fn overlaps(first: &str, second: &str) -> bool {
+        let descendant = |path: &str, parent: &str| {
+            path.strip_prefix(parent)
+                .is_some_and(|tail| tail.starts_with('/'))
+        };
+        first == "."
+            || second == "."
+            || first == second
+            || descendant(first, second)
+            || descendant(second, first)
     }
 }
