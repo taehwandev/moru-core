@@ -129,8 +129,65 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
         self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
-        self.assertEqual(["prepare", "validate-prepare", "read-cached-file", "read-cached-file", "summarize"],
+        self.assertEqual(["prepare", "read-prepare-input", "read-cached-file", "read-cached-file", "summarize"],
                          observed.read_text().splitlines())
+
+    def test_native_cli_reads_input_without_python_and_preserves_source_order(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        self.payload["query"] = '검색 "질문" 😀'
+        self.payload["sources"] = [
+            {**source("one", "한글\n😀"), "published_at": "", "ignored": {"content": "unused"}},
+            {**source("two", "두 번째"), "required": True},
+        ]
+        env = environment(self.root, ROOT)
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = self.run_cli()
+        read_text = Path.read_text
+
+        def forbid_input_read(path, *args, **kwargs):
+            self.assertNotEqual(path, self.input, "Python input read")
+            return read_text(path, *args, **kwargs)
+
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(Path, "read_text", forbid_input_read), \
+                patch.object(adapter, "validate_input", side_effect=AssertionError("Python validation")), \
+                patch.object(adapter, "cache_key", side_effect=AssertionError("Python hashing")), \
+                patch.object(adapter, "openrouter_api_key", side_effect=AssertionError("credential read")):
+            self.assertEqual(self.run_cli(), expected)
+            ordinary = adapter._read_input_native(self.input, adapter.MODEL)
+            encoded = json.dumps(self.payload, ensure_ascii=False, indent=2)
+            self.input.write_bytes(('{\r\n  "query": null,' + encoded[1:].replace("\n", "\r\n")).encode())
+            self.assertIsNotNone(ordinary)
+            self.assertEqual(adapter._read_input_native(self.input, adapter.MODEL), ordinary)
+        self.assertEqual([row["id"] for row in expected[1]["results"]], ["one", "two"])
+        self.assertFalse(self.cache.exists())
+
+    def test_native_cli_uses_legacy_reader_for_symlink_and_oversized_input(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        target = self.root / "target.json"
+        self.input.symlink_to(target)
+        for oversized in (False, True):
+            with self.subTest(oversized=oversized):
+                if oversized:
+                    self.input.unlink()
+                    self.payload["ignored"] = "x" * (1024 * 1024)
+                self.input.write_text(json.dumps(self.payload), encoding="utf-8")
+                with patch.dict(os.environ, env, clear=True):
+                    self.assertIsNone(adapter._read_input_native(self.input, adapter.MODEL))
+                    actual = self.run_cli()
+                with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    self.assertEqual(actual, self.run_cli())
+                self.assertEqual(actual[0], 0)
+        self.assertFalse(self.cache.exists())
 
     def test_native_decision_order_is_stable_and_fallback_never_replays_provider(self):
         if NATIVE is None or not NATIVE.is_file():
@@ -164,7 +221,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
                 status, result, _ = self.run_cli("--execute", "--refresh")
             self.assertEqual(status, 0)
             self.assertEqual(provider.call_count, len(scenarios))
-            self.assertEqual(observed, [("validate-prepare", True)]
+            self.assertEqual(observed, [("read-prepare-input", True)]
                              + [("validate-response", True), ("cache-write-support", True),
                                 ("write-cached-file", True)] * 4
                              + [("summarize", True)])

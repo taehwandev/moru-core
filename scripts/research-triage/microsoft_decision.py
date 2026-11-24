@@ -206,15 +206,43 @@ def _cache_plan(payload: object, model: str, *, validate: bool = False) -> list 
     operation = "validate-prepare" if validate else "prepare"
     fields = ("id", "required", *_SOURCE_FIELDS) if validate else _SOURCE_FIELDS
     prepare = NativeProbe.request("--decision-cache-probe", operation, {
-        "schema": CACHE_SCHEMA, "endpoint": ENDPOINT, "questions": QUESTIONS,
-        "query": query if isinstance(query, str) else None, "model": model,
+        **_plan_parameters(model), "query": query if isinstance(query, str) else None,
         "sources": _project_sources(sources, fields),
     })
     if validate and prepare is not None and set(prepare) == {"error"} and type(prepare["error"]) is str:
         raise ValueError(prepare["error"])
     if prepare is None or set(prepare) != {"rows"}:
         return None
-    rows = prepare["rows"]
+    return _plan_rows(prepare["rows"], sources)
+
+
+def _plan_parameters(model):
+    return {"schema": CACHE_SCHEMA, "endpoint": ENDPOINT, "questions": QUESTIONS, "model": model}
+
+
+def _read_input_native(path: Path, model: str) -> tuple[dict, list] | None:
+    if not NativeProbe.available():
+        return None
+    prepared = NativeProbe.request("--decision-cache-probe", "read-prepare-input", {
+        **_plan_parameters(model), "path": str(path.absolute()),
+    })
+    if prepared is None:
+        return None
+    if set(prepared) == {"error"} and type(prepared["error"]) is str:
+        raise ValueError(prepared["error"])
+    if set(prepared) != {"payload", "rows"} or type(prepared["payload"]) is not dict:
+        return None
+    payload = prepared["payload"]
+    sources = payload.get("sources")
+    rows = _plan_rows(prepared["rows"], sources)
+    if (type(payload.get("query")) is not str or rows is None
+            or any(type(source) is not dict or any(type(source.get(k)) is not str
+                   for k in ("id", "url", "title", "text")) for source in sources)):
+        return None
+    return payload, rows
+
+
+def _plan_rows(rows, sources):
     if type(rows) is not list or type(sources) is not list or len(rows) != len(sources):
         return None
     for row in rows:
@@ -486,10 +514,14 @@ def main(argv: list[str] | None = None) -> int:
     if options.max_calls < 0 or not math.isfinite(options.ttl_hours) or options.ttl_hours <= 0:
         parser.error("max-calls must be nonnegative and ttl-hours must be positive and finite")
     try:
-        payload = json.loads(options.input.read_text(encoding="utf-8"))
-        plan = _cache_plan(payload, options.model, validate=True)
-        if plan is None:
-            payload = validate_input(payload)
+        prepared = _read_input_native(options.input, options.model)
+        if prepared is None:
+            payload = json.loads(options.input.read_text(encoding="utf-8"))
+            plan = _cache_plan(payload, options.model, validate=True)
+            if plan is None:
+                payload = validate_input(payload)
+        else:
+            payload, plan = prepared
         print(json.dumps(evaluate(payload, options, plan=plan), ensure_ascii=False, allow_nan=False))
     except (OSError, ValueError):
         print("Invalid or unreadable research input", file=sys.stderr)

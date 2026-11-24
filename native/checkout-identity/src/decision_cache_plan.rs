@@ -16,6 +16,7 @@ use sha2::{Digest, Sha256};
 use std::{
     ffi::OsString,
     io::{self, Read, Write},
+    path::Path,
 };
 
 const MAX_MESSAGE: usize = 1024 * 1024;
@@ -31,6 +32,7 @@ impl DecisionCachePlan {
                 Some(
                     "prepare"
                         | "validate-prepare"
+                        | "read-prepare-input"
                         | "summarize"
                         | "validate-response"
                         | "validate-cached"
@@ -71,6 +73,9 @@ impl DecisionCachePlan {
             if args[1] == "write-cached-file" {
                 return DecisionCachedResult::replace(&value);
             }
+            if args[1] == "read-prepare-input" {
+                return Self::prepare_file(value);
+            }
             if args[1] == "validate-prepare" {
                 if let Err(error) = DecisionInput::validate(&value) {
                     return Some(json!({"error": error}));
@@ -92,6 +97,19 @@ impl DecisionCachePlan {
             return reply_failure;
         }
         i32::from(io::stdout().write_all(&reply).is_err())
+    }
+
+    fn prepare_file(mut request: Value) -> Option<Value> {
+        let path = Path::new(request.get("path")?.as_str()?);
+        let input = DecisionInput::read(path)?;
+        if let Err(error) = DecisionInput::validate(&input) {
+            return Some(json!({"error": error}));
+        }
+        let input = DecisionInput::project(&input)?;
+        request["query"] = input["query"].clone();
+        request["sources"] = input["sources"].clone();
+        let rows = Self::prepare(&request)?;
+        Some(json!({"payload": input, "rows": rows}))
     }
 
     fn prepare(input: &Value) -> Option<Vec<Value>> {
