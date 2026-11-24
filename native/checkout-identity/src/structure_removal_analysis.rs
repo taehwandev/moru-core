@@ -4,6 +4,7 @@
 //! callers/tests: structural removal explanation and forced-Python parity fixtures.
 //! verification: shared occurrence consumption, heading precedence and selected samples only.
 use super::{
+    structure_diff_acquisition::StructureDiffAcquisition,
     structure_removal_inputs::StructureRemovalInputs,
     structure_removal_matching::StructureRemovalMatching,
 };
@@ -17,7 +18,13 @@ impl StructureRemovalAnalysis {
     pub(super) fn probe(input: &Value) -> Option<Value> {
         let paths = input.get("findings")?.as_array()?;
         let limits = input.get("summary")?;
-        let parsed = StructureRemovalInputs::probe(input)?;
+        let parsed = match input.get("diff") {
+            Some(text) => StructureRemovalInputs::from_patch(input, text.as_str()?)?,
+            None => StructureRemovalInputs::from_patch(
+                input,
+                &StructureDiffAcquisition::removal_patch(input)?,
+            )?,
+        };
         if parsed.get("truncated") == Some(&Value::Bool(true)) {
             return Some(parsed);
         }

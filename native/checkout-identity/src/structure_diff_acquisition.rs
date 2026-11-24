@@ -15,6 +15,68 @@ use std::{
 pub(super) struct StructureDiffAcquisition;
 
 impl StructureDiffAcquisition {
+    pub(super) fn removal_patch(input: &Value) -> Option<String> {
+        let project = input.get("project")?.as_str()?;
+        let root = Path::new(project);
+        if !root.is_absolute() || root.canonicalize().ok()? != root {
+            return None;
+        }
+        let paths = input.get("paths")?.as_array()?;
+        if paths.len() > 128 {
+            return None;
+        }
+        let paths = paths
+            .iter()
+            .map(Value::as_str)
+            .collect::<Option<Vec<_>>>()?;
+        if paths.iter().map(|path| path.len()).sum::<usize>() > 16 * 1024 {
+            return None;
+        }
+        let revisions = match input.get("revisions")?.as_array()?.as_slice() {
+            [head] if head.as_str()? == "HEAD" => vec!["HEAD"],
+            [base, head] => vec![Self::commit(base)?, Self::commit(head)?],
+            _ => return None,
+        };
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut budget = 1024 * 1024;
+        // Configured helpers stay with the original runner. They may have side effects
+        // and must not be invoked by the native path before falling back.
+        let helpers = Self::observe(
+            project,
+            &[
+                "git",
+                "config",
+                "--name-only",
+                "--get-regexp",
+                "^(diff[.].*[.]textconv|core[.]fsmonitor|filter[.].*[.](clean|process))$",
+            ],
+            deadline,
+            &mut budget,
+        )?;
+        if helpers["returncode"].as_i64()? != 1
+            || helpers["stderr"].as_str()? != ""
+            || helpers["stdout"].as_str()? != ""
+        {
+            return None;
+        }
+        let mut args = vec![
+            "git",
+            "-c",
+            "core.fsmonitor=false",
+            "diff",
+            "-U0",
+            "--no-color",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--diff-filter=ACDMRTUXB",
+        ];
+        args.extend(revisions);
+        args.push("--");
+        args.extend(paths);
+        let patch = Self::run(project, &args, deadline, &mut budget)?;
+        Some(patch.get("stdout")?.as_str()?.to_owned())
+    }
+
     pub(super) fn probe(input: &Value) -> Option<Value> {
         let project = input.get("project")?.as_str()?;
         let root = Path::new(project);

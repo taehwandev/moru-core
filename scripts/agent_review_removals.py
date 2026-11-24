@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 from typing import Any
 
+from agent_command_runtime import run_command as review_runtime_command
 from support.native_probe_transport import NativeProbe
 
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
@@ -53,18 +54,22 @@ def classify_net_deletions(
         return
     revisions = list(review_commits) if review_commits is not None else ["HEAD"]
     pathspec = [path.strip() for path in (review_paths or []) if path.strip()]
-    diff = run_command(
-        ["git", "diff", "-U0", "--no-color", "--no-ext-diff", "--diff-filter=ACDMRTUXB",
-         *revisions, "--", *pathspec],
-        project,
-    )
-    if diff.get("returncode") != 0:
-        for item in findings:
-            item["classification"] = "unavailable"
-        return
-    text = str(diff.get("stdout") or "")
     untracked = path_metadata if review_commits is None else {}
-    native = _native_removal_analysis(findings, text, project, untracked)
+    native = None
+    if run_command is review_runtime_command:
+        native = _native_removal_analysis(findings, {"revisions": revisions, "paths": pathspec}, project, untracked)
+    if native is None:
+        diff = run_command(
+            ["git", "diff", "-U0", "--no-color", "--no-ext-diff", "--diff-filter=ACDMRTUXB",
+             *revisions, "--", *pathspec],
+            project,
+        )
+        if diff.get("returncode") != 0:
+            for item in findings:
+                item["classification"] = "unavailable"
+            return
+        text = str(diff.get("stdout") or "")
+        native = _native_removal_analysis(findings, {"diff": text}, project, untracked)
     if native is not None:
         for item, result in zip(findings, native):
             item.update(result)
@@ -85,13 +90,13 @@ def classify_net_deletions(
 
 
 def _native_removal_analysis(
-    findings: list[dict[str, Any]], text: str, project: Path, path_metadata: dict[str, dict[str, Any]],
+    findings: list[dict[str, Any]], patch: dict[str, Any], project: Path, path_metadata: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]] | None:
     if not NativeProbe.available():
         return None
     paths = [item["path"] for item in findings]
     native = NativeProbe.request("--completion-probe", "structure-removal-analysis", {
-        "diff": text, "project": str(project), "findings": paths,
+        **patch, "project": str(project), "findings": paths,
         "untracked": [path for path in sorted(path_metadata)
                       if (path_metadata[path] or {}).get("untracked") is True],
         "per_file": PER_FILE_BYTE_LIMIT, "total": TOTAL_BYTE_LIMIT,

@@ -1485,6 +1485,68 @@ class NativeCompletionTests(unittest.TestCase):
                 "structure-removal-inputs", {**payload, "untracked": ["link.txt"]},
             ))
 
+    def test_structure_native_acquires_scoped_removal_patch_with_git_helper_fallback(self):
+        def git(*args):
+            return subprocess.check_output(["git", *args], cwd=self.project, env=self.env).decode().strip()
+
+        identity = ("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test")
+        source = self.project / "-한국어.md"
+        source.write_text("# Retained\nworking tree move\nremoved from review scope\n")
+        outside = self.project / "outside.md"
+        outside.write_text("# Other\nremoved from review scope\n")
+        git("add", ".")
+        git(*identity, "commit", "-qm", "base")
+        base = git("rev-parse", "HEAD")
+        source.write_text("# Retained\nworking tree move\n")
+        outside.write_text("# Other\nremoved from review scope\nremoved from review scope\n")
+        git("add", ".")
+        git(*identity, "commit", "-qm", "after")
+        head = git("rev-parse", "HEAD")
+        dest = self.project / "new.md"
+        dest.write_text("working tree move\n")
+        source.write_text("# Retained\n")
+
+        def classify(runner, commits=None):
+            findings = [{"path": source.name}]
+            removals.classify_net_deletions(
+                findings, project=self.project, run_command=runner,
+                review_paths=[source.name], review_commits=commits,
+                path_metadata={dest.name: {"untracked": True}},
+            )
+            return findings
+
+        original = removals.review_runtime_command
+        with patch.dict(os.environ, self.env, clear=True):
+            for quote in ("true", "false"):
+                git("config", "core.quotePath", quote)
+                for commits, classification, destinations in (
+                    (None, "moved", [dest.name]), ((base, head), "removed", []),
+                ):
+                    with self.subTest(commits=commits, quote=quote):
+                        with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                            expected = classify(original, commits)
+                        with patch.object(removals, "review_runtime_command", wraps=original) as runner:
+                            self.assertEqual(expected, classify(runner, commits))
+                            runner.assert_not_called()
+                        self.assertEqual(classification, expected[0]["classification"])
+                        self.assertEqual(destinations, expected[0]["moved_to"])
+
+            with patch.object(removals, "review_runtime_command", wraps=original) as runner:
+                self.assertEqual([{"path": source.name, "classification": "unavailable"}],
+                                 classify(runner, ("0" * 40, head)))
+                runner.assert_called_once()
+            for key, value in (("diff.fixture.textconv", "cat"), ("core.fsmonitor", "false"),
+                               ("filter.fixture.process", "cat")):
+                with self.subTest(helper=key):
+                    git("config", key, value)
+                    try:
+                        expected = classify(original, (base, head))
+                        with patch.object(removals, "review_runtime_command", wraps=original) as runner:
+                            self.assertEqual(expected, classify(runner, (base, head)))
+                            runner.assert_called_once()
+                    finally:
+                        git("config", "--unset", key)
+
     def test_structure_removal_matching_preserves_consumption_ties_and_redaction(self):
         sensitive = "def token_fixture():"
         unselected = "token_unselected_fixture"

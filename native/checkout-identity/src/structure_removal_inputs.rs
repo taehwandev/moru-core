@@ -35,7 +35,10 @@ impl Budget {
 
 impl StructureRemovalInputs {
     pub(super) fn probe(input: &Value) -> Option<Value> {
-        let text = input.get("diff")?.as_str()?;
+        Self::from_patch(input, input.get("diff")?.as_str()?)
+    }
+
+    pub(super) fn from_patch(input: &Value, text: &str) -> Option<Value> {
         let paths = input.get("untracked")?.as_array()?;
         let project = Path::new(input.get("project")?.as_str()?);
         let per_file = usize::try_from(input.get("per_file")?.as_u64()?).ok()?;
