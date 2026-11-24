@@ -1,14 +1,70 @@
 //! owner: validate an already-read decision cache entry without changing its values.
-//! allowed imports: bounded JSON, response validation and timestamp arithmetic.
-//! forbidden imports: cache file access, credentials and provider effects.
+//! allowed imports: bounded JSON, guarded cache reads and timestamp arithmetic.
+//! forbidden imports: cache writes, credentials and provider effects.
 //! callers/tests: DecisionCachePlan and test_microsoft_decision.
 //! verification: schema, exact key, TTL edges and Python fallback.
-use crate::decision_response::DecisionResponse;
+use crate::{atomic_sibling::AtomicSibling, decision_response::DecisionResponse};
 use serde_json::{json, Value};
+use std::{
+    ffi::CString,
+    io::{self, Read},
+    path::Path,
+};
+
+const MAX_CACHE_BYTES: u64 = 256 * 1024;
 
 pub(crate) struct DecisionCachedResult;
 
 impl DecisionCachedResult {
+    pub(crate) fn read(payload: &Value) -> Option<Value> {
+        let key = payload.get("key")?.as_str()?;
+        if key.len() != 64
+            || !key
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+        {
+            return None;
+        }
+        let directory =
+            AtomicSibling::open_directory(Path::new(payload.get("directory")?.as_str()?))?;
+        let name = CString::new(format!("{key}.json")).ok()?;
+        let file = match AtomicSibling::open_relative_result(&directory, &name, libc::O_RDONLY) {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                return Some(json!({"hit": false}))
+            }
+            Err(_) => return None,
+        };
+        if !file.metadata().ok()?.is_file() {
+            return None;
+        }
+        let mut content = String::new();
+        file.take(MAX_CACHE_BYTES + 1)
+            .read_to_string(&mut content)
+            .ok()?;
+        if content.len() as u64 > MAX_CACHE_BYTES {
+            return None;
+        }
+        let entry: Value = serde_json::from_str(&content).ok()?;
+        let result = &entry["result"];
+        let mut check = payload.as_object()?.clone();
+        check.insert(
+            "response".into(),
+            json!({
+                "model": result["response_model"], "answers": result["answers"],
+                "cost": result["reported_cost_usd"],
+            }),
+        );
+        check.insert("entry".into(), entry);
+        let mut verdict = Self::verdict(&Value::Object(check))?;
+        if verdict["hit"].as_bool() == Some(true) {
+            verdict
+                .as_object_mut()?
+                .insert("content".into(), Value::String(content));
+        }
+        Some(verdict)
+    }
+
     pub(crate) fn verdict(payload: &Value) -> Option<Value> {
         let entry = payload.get("entry")?.as_object()?;
         let schema = payload.get("schema")?.as_i64()?;

@@ -671,7 +671,7 @@
       "entry_aliases": "Direct CLI",
       "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
       "verification": {
-        "local": "Rust validates ordinary CLI inputs, decision responses and cached result reuse, prepares cache identities and UTF-8 request lengths, and summarizes priority order and unscored counts. Python owns parsing, exact numeric rollback, response projection, cache file access, credential access, provider execution and the CLI."
+        "local": "Rust validates ordinary CLI inputs and responses, reads and verifies bounded regular cache files, prepares cache identities and UTF-8 request lengths, and summarizes report order and unscored counts. Python owns parsing and exact projection, compatibility reads, cache writes, credential access, provider execution and the CLI."
       }
     },
     {

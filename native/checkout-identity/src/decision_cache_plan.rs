@@ -34,6 +34,7 @@ impl DecisionCachePlan {
                         | "summarize"
                         | "validate-response"
                         | "validate-cached"
+                        | "read-cached-file"
                 )
             )
             || CallbackGuard::root(launcher, "decision-cache-plan").is_none()
@@ -58,6 +59,9 @@ impl DecisionCachePlan {
             }
             if args[1] == "validate-cached" {
                 return DecisionCachedResult::verdict(&value);
+            }
+            if args[1] == "read-cached-file" {
+                return DecisionCachedResult::read(&value);
             }
             if args[1] == "validate-prepare" {
                 if let Err(error) = DecisionInput::validate(&value) {

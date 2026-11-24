@@ -56,7 +56,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.root = Path(self.directory.name)
+        self.root = Path(self.directory.name).resolve()
         self.input = self.root / "input.json"
         self.cache = self.root / "cache"
         self.payload = {"query": "What problems should a note-taking product solve?", "sources": [source()]}
@@ -129,7 +129,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
         self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
-        self.assertEqual(["prepare", "validate-prepare", "validate-cached", "summarize"],
+        self.assertEqual(["prepare", "validate-prepare", "read-cached-file", "read-cached-file", "summarize"],
                          observed.read_text().splitlines())
 
     def test_native_decision_order_is_stable_and_fallback_never_replays_provider(self):
@@ -592,6 +592,49 @@ class OpenRouterDecisionTests(unittest.TestCase):
                     self.assertEqual(len(observed), 1)
                 self.assertEqual(path.read_text(encoding="utf-8"), raw)
                 self.assertEqual(path.stat().st_mtime_ns, modified)
+
+    def test_native_cache_file_reads_are_bounded_and_preserve_python_fallback(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        self.cache.mkdir()
+        key = "a" * 64
+        path = self.cache / f"{key}.json"
+        saved = {"response_model": "fixture", "reported_cost_usd": 0,
+                 "answers": response(relevance=-0.0)["answers"]}
+        content = json.dumps({"schema": adapter.CACHE_SCHEMA, "key": key, "evaluated_at": 90, "result": saved})
+        path.write_text(content, encoding="utf-8")
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = adapter.read_cached(path, key, 100, 20)
+        original_read = Path.read_text
+        def forbid_cache_read(target, *args, **kwargs):
+            if target == path:
+                raise AssertionError("unexpected Python cache file read")
+            return original_read(target, *args, **kwargs)
+        with patch.dict(os.environ, env, clear=True), patch.object(Path, "read_text", forbid_cache_read):
+            self.assertEqual(json.dumps(adapter.read_cached(path, key, 100, 20)), json.dumps(expected))
+            self.assertIsNone(adapter.read_cached(path, key, 100, 10))
+            path.unlink()
+            self.assertIsNone(adapter.read_cached(path, key, 100, 20))
+
+        target = self.cache / "legacy-content.json"
+        target.write_text(content, encoding="utf-8")
+        path.symlink_to(target)
+        with patch.dict(os.environ, env, clear=True):
+            self.assertIsNone(adapter._read_cache_file_native(path, key, 100, 20))
+            self.assertEqual(adapter.read_cached(path, key, 100, 20), expected)
+        self.assertTrue(path.is_symlink())
+        self.assertEqual(target.read_text(encoding="utf-8"), content)
+        path.unlink()
+        large = content + " " * (256 * 1024)
+        path.write_text(large, encoding="utf-8")
+        with patch.dict(os.environ, env, clear=True):
+            self.assertIsNone(adapter._read_cache_file_native(path, key, 100, 20))
+            self.assertEqual(adapter.read_cached(path, key, 100, 20), expected)
+        self.assertEqual(path.read_text(encoding="utf-8"), large)
 
 
 if __name__ == "__main__":
