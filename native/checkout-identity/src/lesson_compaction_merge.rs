@@ -55,7 +55,7 @@ impl LessonCompactionMerge {
         Some(json!({"plans": plans}))
     }
 
-    fn merge(records: &[Value], limit: usize, recent_days: i64) -> Option<Value> {
+    pub(super) fn merge(records: &[Value], limit: usize, recent_days: i64) -> Option<Value> {
         let mut records: Vec<_> = records.iter().collect();
         records.sort_by_cached_key(|record| Self::text(record, &["created_at"]));
         let mut merged = records.last()?.as_object()?.clone();

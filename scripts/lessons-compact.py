@@ -263,6 +263,17 @@ def apply_plan(inbox: Path, folds: list[dict]) -> int:
     written = 0
     for fold in folds:
         lesson_id = fold["lesson_id"]
+        if all(path.parent == inbox for path in fold["paths"]):
+            native = NativeProbe.request("--completion-probe", "lesson-compaction-apply", {
+                "inbox": str(inbox), "lesson_id": lesson_id, "known": [path.name for path in fold["paths"]],
+                "key_limit": OCCURRENCE_KEY_HISTORY_LIMIT, "recent_days": RECENT_OCCURRENCE_DAYS,
+                "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+            })
+            if native is not None:
+                if native.keys() != {"written"} or type(native["written"]) is not bool:
+                    raise OSError("invalid native lesson compaction receipt")
+                written += int(native["written"])
+                continue
         target = inbox / f"{lesson_id}.json"
         with state_lock(target):
             records, paths = _lesson_records_now(inbox, lesson_id, fold["paths"])

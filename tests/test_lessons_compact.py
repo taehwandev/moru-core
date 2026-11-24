@@ -17,6 +17,7 @@ import importlib.util
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -299,6 +300,49 @@ class CompactionTests(unittest.TestCase):
             self.assertEqual(merged["occurrence_count"], 3)
             self.assertIn("key-2026-01-09T00:00:00Z", merged["occurrence_keys"])
             self.assertEqual(self._files(), {"lesson.json"})
+
+    def test_native_apply_persists_exact_bytes_and_does_not_replay_unknown_write(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        canonical = self.inbox / "lesson.json"
+        with state_lock(canonical):
+            pass
+        first = _candidate("lesson", "2026-01-01T00:00:00Z")
+        second = _candidate("lesson", "2026-01-02T00:00:00Z", extra={"z": [True, "한글"], "a": -0.0})
+        self._write("a-lesson.json", first)
+        foreign = self._write("b-lesson.json", _candidate("other", "2026-01-02T00:00:00Z"))
+        self._write("legacy.json", second)
+        expected = json.dumps(compact.merge_group([first, second]), indent=1, sort_keys=True)
+        invoke = subprocess.run
+
+        def lose_reply(command, **kwargs):
+            result = invoke(command, **kwargs)
+            if command[-1] == "lesson-compaction-apply":
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+            return result
+
+        with mock.patch.dict(os.environ, environment(self.state, ROOT), clear=True):
+            folds = compact.plan(self.inbox)["folds"]
+            fold = next(fold for fold in folds if fold["lesson_id"] == "lesson")
+            with (
+                mock.patch.object(subprocess, "run", side_effect=lose_reply),
+                mock.patch.object(compact, "state_lock", side_effect=AssertionError("Python replayed the write")),
+            ):
+                with self.assertRaisesRegex(OSError, "lesson compaction outcome could not be determined"):
+                    compact.apply_plan(self.inbox, [fold])
+            self.assertEqual(canonical.read_text(encoding="utf-8"), expected)
+            self.assertTrue(foreign.is_file())
+            self.assertEqual(self._files(), {"lesson.json", "b-lesson.json"})
+            self.assertTrue((self.inbox / ".lesson.json.lock").is_file())
 
     def test_a_legacy_name_the_store_cannot_find_is_still_merged(self) -> None:
         """The two readers disagree by design, so the apply reads both.

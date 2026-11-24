@@ -148,6 +148,8 @@ mod structure_diff_acquisition;
 mod live_web_check_lookup;
 #[path = "lesson_compaction_inbox.rs"]
 mod lesson_compaction_inbox;
+#[path = "lesson_compaction_apply.rs"]
+mod lesson_compaction_apply;
 #[path = "lesson_compaction_merge.rs"]
 mod lesson_compaction_merge;
 #[path = "live_web_edit_log.rs"]
@@ -211,6 +213,13 @@ impl CompletionProcess {
         if args[1] == "path-claim-release" {
             return match path_claim_release::PathClaimRelease::release(&payload) {
                 Some(Ok(())) => Self::respond(Some(json!({"handled": true}))),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
+        if args[1] == "lesson-compaction-apply" {
+            return match lesson_compaction_apply::LessonCompactionApply::apply(&payload) {
+                Some(Ok(written)) => Self::respond(Some(json!({"written": written}))),
                 Some(Err(_)) => 1,
                 None => 125,
             };
