@@ -9,14 +9,18 @@ from support.native_probe_transport import NativeProbe
 
 class ReviewAssembly:
     @staticmethod
-    def build_native(packet, pending, fixed):
+    def build_native(packet, pending, fixed, *, render_output):
         result = NativeProbe.request("--review-packet-probe", "assemble", {
-            "packet": packet, "pending": pending, "fixed": fixed,
+            "packet": packet, "pending": pending, "fixed": fixed, "render_output": render_output,
         })
         if result is None:
             return None
         if set(result) == {"error"} and type(result["error"]) is str:
             raise ValueError(result["error"])
+        if render_output and set(result) == {"text"} and type(result["text"]) is str:
+            text = result["text"]
+            if text.startswith("{\n") and text.endswith("}\n") and len(text.encode("utf-8")) <= packet["max_bytes"]:
+                return text
         if set(result) == {"packet"} and isinstance(result["packet"], dict):
             output = result["packet"]
             digest = output.get("packet_sha256")

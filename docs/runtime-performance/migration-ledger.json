@@ -888,9 +888,9 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct source-only review packet CLI",
-      "remaining": "Port Git snapshots, source disclosure and context collection, CLI output and exceptional assembly. Preserve fixed read-only Git queries, disclosure exclusions, lack of execution or verification authority, and exclusive local output creation.",
+      "remaining": "Port Git snapshots, source disclosure and context collection, exclusive CLI output creation and exceptional assembly. Preserve fixed read-only Git queries, disclosure exclusions, and lack of execution or verification authority.",
       "verification": {
-        "local": "Source-bound Rust reads bounded admitted regular worktree descriptors with unchanged offsets, preserves byte-exact Git comparison and UTF-8/binary classification, and assembles ordinary review sections with the exact budget, omissions and digest. Python owns source admission and opener, Git reads, context extraction, final rendering and writes."
+        "local": "Source-bound Rust reads admitted regular worktree descriptors, preserves byte-exact Git comparison and UTF-8/binary classification, and assembles and renders ordinary review sections with the exact budget, omissions and digest. The CLI obtains final text from the same native assembly call. Python owns source admission and opener, Git reads, context extraction, compatibility and exclusive writes."
       }
     }
   ],

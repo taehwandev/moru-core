@@ -163,6 +163,65 @@ class ReviewPacketTest(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True), open(os.devnull, "rb") as device:
             self.assertIsNone(NativeProbe.snapshot_review_source(device))
 
+    def test_native_cli_assembles_and_renders_exact_output_without_overwriting(self):
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.base / "home"
+        home.mkdir()
+        install(home)
+        env = environment(self.base)
+        self.write("notes.txt", "first\n한글😀\n")
+        args = ["--project", str(self.root), "--path", "notes.txt", "--max-bytes", "4096"]
+        reference = self.base / "reference.json"
+        target = self.base / "native.json"
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            self.assertEqual(_main([*args, "--output", str(reference)]), 0)
+        request = NativeProbe.request
+        actions = []
+
+        def observe(protocol, action, payload):
+            actions.append((protocol, action, payload.get("render_output")))
+            self.assertNotIn(str(target), str(payload))
+            return request(protocol, action, payload)
+
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(NativeProbe, "request", side_effect=observe), \
+                patch.object(ReviewPacket, "render", side_effect=AssertionError("Python rendering")):
+            self.assertEqual(_main([*args, "--output", str(target)]), 0)
+            self.assertEqual(actions, [("--review-packet-probe", "assemble", True)])
+            with contextlib.redirect_stderr(io.StringIO()) as errors:
+                self.assertEqual(_main([*args, "--output", str(target)]), 2)
+            self.assertIn("a local file could not be read, parsed or written", errors.getvalue())
+        self.assertEqual(target.read_bytes(), reference.read_bytes())
+        self.assertTrue(target.read_bytes().endswith(b"}\n"))
+
+    def test_cli_renders_packet_from_older_native_assembly(self):
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.base / "home"
+        home.mkdir()
+        install(home)
+        env = environment(self.base)
+        target = self.base / "old-native.json"
+        request = NativeProbe.request
+
+        def old_protocol(protocol, action, payload):
+            reply = request(protocol, action, {key: value for key, value in payload.items() if key != "render_output"})
+            self.assertEqual(set(reply), {"packet"})
+            return reply
+
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = ReviewPacket.render(ReviewPacket.build(self.root, ["notes.txt"])).encode()
+        with patch.dict(os.environ, env, clear=True), patch.object(NativeProbe, "request", side_effect=old_protocol):
+            self.assertEqual(_main(["--project", str(self.root), "--path", "notes.txt", "--output", str(target)]), 0)
+        self.assertEqual(target.read_bytes(), expected)
+
     def test_changed_duplicate_setter_reports_unindexed_context(self):
         before = 'class C:\n    @property\n    def x(self):\n        return 1\n    @x.setter\n    def x(self, value):\n        self.value = value\n'
         self.write('setter.py', before)

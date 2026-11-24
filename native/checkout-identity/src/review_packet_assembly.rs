@@ -65,6 +65,10 @@ impl ReviewPacketAssembly {
     }
 
     fn build(mut input: Value) -> Option<Value> {
+        let render_output = match input.get("render_output") {
+            Some(value) => value.as_bool()?,
+            None => false,
+        };
         let mut packet = input.get_mut("packet")?.take();
         if packet["kind"] != "review_packet"
             || packet["schema_version"] != 1
@@ -129,7 +133,11 @@ impl ReviewPacketAssembly {
         let mut body = packet.clone();
         body.as_object_mut()?.remove("packet_sha256");
         packet["packet_sha256"] = json!(format!("{:x}", Sha256::digest(render(body)?)));
-        Some(json!({"packet": packet}))
+        if render_output {
+            Some(json!({"text": render(packet)?}))
+        } else {
+            Some(json!({"packet": packet}))
+        }
     }
 }
 

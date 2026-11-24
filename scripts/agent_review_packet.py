@@ -181,6 +181,11 @@ class ReviewPacket:
     @staticmethod
     def build(project: Path, paths: list[str], *, contexts: list[str] = (), checks: list[dict] = (),
               findings: list[dict] = (), max_bytes: int = 32768) -> dict:
+        return ReviewPacket._build(project, paths, contexts=contexts, checks=checks,
+                                   findings=findings, max_bytes=max_bytes, render_output=False)
+
+    @staticmethod
+    def _build(project, paths, *, contexts, checks, findings, max_bytes, render_output):
         if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or not _MIN_BYTES <= max_bytes <= _MAX_BYTES:
             raise _PacketError(f"max_bytes must be an integer between {_MIN_BYTES} and {_MAX_BYTES}")
         for name, value in (("paths", paths), ("contexts", contexts)):
@@ -263,10 +268,12 @@ class ReviewPacket:
             packet["re_review"] = re_review
 
         try:
-            native = _Assembly.build_native(packet, pending, fixed)
-            if native is not None:
-                return native
-            return _Assembly.build(packet, pending, fixed, ReviewPacket.render)
+            result = _Assembly.build_native(packet, pending, fixed, render_output=render_output)
+            if result is None:
+                result = _Assembly.build(packet, pending, fixed, ReviewPacket.render)
+            if render_output and isinstance(result, dict):
+                return ReviewPacket.render(result)
+            return result
         except ValueError as error:
             raise _PacketError(str(error)) from None
 
@@ -363,10 +370,10 @@ def _main(argv=None):
         if args.findings_file:
             raw_findings = _read_bounded_json(args.findings_file)
             findings = raw_findings["findings"] if isinstance(raw_findings, dict) and "findings" in raw_findings else raw_findings
-        packet = ReviewPacket.build(Path(args.project), args.paths, contexts=args.contexts, checks=checks,
-                                    findings=findings, max_bytes=args.max_bytes)
+        output = ReviewPacket._build(Path(args.project), args.paths, contexts=args.contexts, checks=checks,
+                                     findings=findings, max_bytes=args.max_bytes, render_output=True)
         with open(args.output, "x", encoding="utf-8", newline="\n") as handle:
-            handle.write(ReviewPacket.render(packet))
+            handle.write(output)
     except (OSError, ValueError) as error:
         safe = str(error) if isinstance(error, _PacketError) else "a local file could not be read, parsed or written"
         print(f"error: {safe}", file=sys.stderr)
