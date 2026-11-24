@@ -112,6 +112,8 @@ mod kotlin_compose_action_findings;
 mod structure_net_deletions;
 #[path = "structure_source_paths.rs"]
 mod structure_source_paths;
+#[path = "structure_source_read.rs"]
+mod structure_source_read;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -162,6 +164,7 @@ impl CompletionProcess {
             Some("kotlin-literal-mask") => kotlin_literal_mask::KotlinLiteralMask::mask(&payload),
             Some("structure-block-spans") => structure_block_spans::StructureBlockSpans::batch(&payload),
             Some("structure-source-paths") => structure_source_paths::StructureSourcePaths::filter(&payload),
+            Some("structure-source-read") => structure_source_read::StructureSourceRead::batch(&payload),
             Some("preflight-failures") => preflight_failures::PreflightFailures::collect(&payload),
             Some("doctor-launcher") => doctor_launcher::DoctorLauncher::inspect(&payload),
             Some("doctor-memory") => doctor_memory::DoctorMemory::summarize(&payload),

@@ -7,7 +7,7 @@ import unicodedata
 from collections.abc import Callable
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from agent_review_boundary import boundary_note_requirements
 from agent_review_generated_attrs import (
@@ -203,6 +203,23 @@ def _inherited_action_findings(
     return [key in inherited for key in current_keys]
 
 
+def _review_source_lines(
+    source: Path, paths: list[Path],
+) -> list[list[str] | Literal[False] | None]:
+    if paths and NativeProbe.available():
+        reply = NativeProbe.request("--completion-probe", "structure-source-read", {
+            "source": str(source), "paths": [str(path) for path in paths],
+        })
+        rows = reply.get("rows") if reply is not None else None
+        if isinstance(rows, list) and len(rows) == len(paths) and all(
+            row is None or row is False or
+            (isinstance(row, list) and all(isinstance(line, str) for line in row))
+            for row in rows
+        ):
+            return rows
+    return [None] * len(paths)
+
+
 def structure_review(
     project: Path,
     max_file_lines: int,
@@ -250,17 +267,19 @@ def structure_review(
 
     file_checks = []
     owner_checks = []
-    for relative in active_paths:
+    for relative, lines in zip(active_paths, _review_source_lines(source_root, active_paths)):
         is_test_path = test_exempt_path(relative)
         if is_test_path:
             result["test_exempt_paths"].append(str(relative))
         else:
             result["strict_checked_paths"].append(str(relative))
 
-        absolute = source_root / relative
-        try:
-            lines = absolute.read_text(encoding="utf-8").splitlines()
-        except UnicodeDecodeError:
+        if lines is None:
+            try:
+                lines = (source_root / relative).read_text(encoding="utf-8").splitlines()
+            except UnicodeDecodeError:
+                lines = False
+        if lines is False:
             result["warnings"].append(f"{relative} is not valid UTF-8; manual structure review required")
             continue
 

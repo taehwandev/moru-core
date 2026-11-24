@@ -77,6 +77,45 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_source_read_preserves_python_lines_and_review_output(self):
+        files = {
+            "a.py": "\ufefffirst\r\n\rsecond\nv\vff\fc1\x1cc2\x1dc3\x1eN\x85한\u2028P\u2029last\n".encode(),
+            "b.py": b"\xffbroken\n",
+            "c.py": b"\n\r\n",
+            "d.py": b"",
+            "e.py": b"x" * (128 * 1024 - 1) + "€".encode(),
+            "f.py": b"last has no newline",
+        }
+        paths = [Path(name) for name in files]
+        for name, content in files.items():
+            (self.project / name).write_bytes(content)
+
+        expected_rows = [
+            (self.project / paths[0]).read_text(encoding="utf-8").splitlines(),
+            False, ["", ""], [], None, ["last has no newline"], None, None,
+        ]
+        request_paths = [*paths, Path("missing.py"), Path("../outside.py")]
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(expected_rows, structure._review_source_lines(self.project, request_paths))
+            with patch.object(NativeProbe, "request", return_value={"rows": [True]}):
+                self.assertEqual([None], structure._review_source_lines(self.project, paths[:1]))
+            snapshot = self.base / "snapshot"
+            snapshot.mkdir()
+            exact_budget = "x" * (128 * 1024 - 3) + "€"
+            (snapshot / "a.py").write_text(exact_budget, encoding="utf-8")
+            self.assertEqual([[exact_budget]], structure._review_source_lines(snapshot, paths[:1]))
+
+        def git(argv, cwd):
+            done = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, timeout=5)
+            return {"returncode": done.returncode, "stdout": done.stdout, "stderr": done.stderr}
+
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected_review = structure.structure_review(self.project, 1, 100, git)
+        self.assertIn("b.py is not valid UTF-8; manual structure review required",
+                      expected_review["warnings"])
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(expected_review, structure.structure_review(self.project, 1, 100, git))
+
     def test_structure_removal_report_preserves_character_budget_and_ratio_text(self):
         findings = [
             {"path": "한🙂.py", "net": 51, "classification": "moved", "moved_to": ["새.py"]},
