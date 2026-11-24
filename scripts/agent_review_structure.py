@@ -623,10 +623,18 @@ def changed_source_paths(
         collect_head_diff(project, run_command, commands, names, path_metadata, command_errors, review_paths,
                           include_untracked=True)
     else:
-        listings = _read_listings(project, run_command, commands, command_errors, review_paths, initial=True)
+        acquired = _native_diff(project, run_command, _pathspec_args(review_paths), untracked=True, initial=True)
+        decoded = None
+        if acquired is None:
+            listings = _read_listings(project, run_command, commands, command_errors, review_paths, initial=True)
+        else:
+            observations, decoded = acquired
+            commands.update(observations)
+            listings = observations["ls_files_initial"]["stdout"], observations["ls_files_untracked"]["stdout"]
         empty_diff = {"returncode": 0, "stdout": ""}
         _record_diff(
-            empty_diff, empty_diff, names, path_metadata, command_errors, "git diff", listings=listings,
+            empty_diff, empty_diff, names, path_metadata, command_errors, "git diff",
+            listings=listings, decoded=decoded,
         )
 
     if head["returncode"] == 0:
@@ -765,16 +773,17 @@ def collect_head_diff(
     command_errors.extend(listing_errors)
 
 
-def _native_diff(project, run_command, pathspec, *, commits=None, untracked=False):
+def _native_diff(project, run_command, pathspec, *, commits=None, untracked=False, initial=False):
     if run_command is not review_runtime_command:
         return None
     reply = NativeProbe.request("--completion-probe", "structure-diff-acquisition", {
         "project": str(project), "paths": pathspec[1:], "commits": commits, "untracked": untracked,
+        "initial": initial,
     })
     if reply is None:
         return None
     prefix = "commit_diff" if commits is not None else "diff"
-    expected = {f"{prefix}_name_status", f"{prefix}_numstat"}
+    expected = {"ls_files_initial"} if initial else {f"{prefix}_name_status", f"{prefix}_numstat"}
     if untracked:
         expected.add("ls_files_untracked")
     observations, decoded = reply.get("commands"), reply.get("decoded")

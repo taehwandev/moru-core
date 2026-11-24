@@ -1,7 +1,7 @@
 //! owner: bounded local Git acquisition for structural diff review.
 //! allowed imports: read-only process capture, structural diff decoder and JSON.
 //! forbidden imports: arbitrary commands, repository writes, review outcomes.
-//! callers/tests: working-tree and commit-range structural discovery.
+//! callers/tests: initial, working-tree and commit-range structural discovery.
 //! verification: exact command evidence, scoped rename and untracked parity, fallback.
 use super::structure_diff::StructureDiff;
 use crate::{read_process::status::capture_status, text::Text};
@@ -31,6 +31,15 @@ impl StructureDiffAcquisition {
             return None;
         }
         let commits = input.get("commits")?;
+        let untracked = input.get("untracked")?.as_bool()?;
+        let mut budget = 128 * 1024;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        if input.get("initial").and_then(Value::as_bool) == Some(true) {
+            if !untracked || !commits.is_null() {
+                return None;
+            }
+            return Self::initial(project, &paths, deadline, &mut budget);
+        }
         let (prefix, revisions) = if commits.is_null() {
             ("diff", vec!["--relative", "HEAD"])
         } else {
@@ -42,12 +51,9 @@ impl StructureDiffAcquisition {
                 vec![Self::commit(base)?, Self::commit(head)?],
             )
         };
-        let untracked = input.get("untracked")?.as_bool()?;
         if untracked && !commits.is_null() {
             return None;
         }
-        let mut budget = 128 * 1024;
-        let deadline = Instant::now() + Duration::from_secs(2);
         let mut commands = Map::new();
         for (flag, field) in [("--name-status", "name_status"), ("--numstat", "numstat")] {
             let mut args = vec!["git", "diff", flag, "-z", "--diff-filter=ACDMRTUXB"];
@@ -65,21 +71,46 @@ impl StructureDiffAcquisition {
             "metadata": true,
         });
         if untracked {
-            let mut args = vec![
-                "git",
-                "ls-files",
-                "-z",
-                "--others",
-                "--exclude-standard",
-                "--",
-            ];
-            args.extend_from_slice(&paths);
-            let observation = Self::run(project, &args, deadline, &mut budget)?;
+            let observation = Self::list(project, &paths, false, deadline, &mut budget)?;
             payload["listings"] = json!([null, observation.get("stdout")?]);
             commands.insert("ls_files_untracked".to_owned(), observation);
         }
         let decoded = StructureDiff::decode(&payload)?;
         Some(json!({"commands": commands, "decoded": decoded}))
+    }
+
+    fn initial(
+        project: &str,
+        paths: &[&str],
+        deadline: Instant,
+        budget: &mut usize,
+    ) -> Option<Value> {
+        let tracked = Self::list(project, paths, true, deadline, budget)?;
+        let untracked = Self::list(project, paths, false, deadline, budget)?;
+        let decoded = StructureDiff::decode(&json!({
+            "status": "", "numstat": "", "metadata": true,
+            "listings": [tracked.get("stdout")?, untracked.get("stdout")?],
+        }))?;
+        Some(json!({
+            "commands": {"ls_files_initial": tracked, "ls_files_untracked": untracked},
+            "decoded": decoded,
+        }))
+    }
+
+    fn list(
+        project: &str,
+        paths: &[&str],
+        include_cached: bool,
+        deadline: Instant,
+        budget: &mut usize,
+    ) -> Option<Value> {
+        let mut args = vec!["git", "ls-files", "-z"];
+        if include_cached {
+            args.push("--cached");
+        }
+        args.extend_from_slice(&["--others", "--exclude-standard", "--"]);
+        args.extend_from_slice(paths);
+        Self::run(project, &args, deadline, budget)
     }
 
     fn commit(value: &Value) -> Option<&str> {

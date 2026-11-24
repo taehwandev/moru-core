@@ -211,6 +211,42 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual(2, len(failure[0]["command_errors"]))
             self.assertEqual(failure, discover(invalid))
 
+    def test_structure_initial_discovery_matches_unborn_and_empty_tree_builds(self):
+        def git(*args):
+            return subprocess.check_output(["git", *args], cwd=self.project, env=self.env)
+
+        folder = self.project / "src"
+        folder.mkdir()
+        (self.project / ".gitignore").write_text("ignored.py\n")
+        for file in (folder / "staged.py", folder / "untracked.py", folder / "ignored.py",
+                     self.project / "outside.py"):
+            file.write_text("class Owner:\n    pass\n")
+        git("add", "src/staged.py")
+
+        def discover():
+            return structure.changed_source_paths(self.project, structure.review_runtime_command, ["src"])
+
+        with patch.dict(os.environ, self.env, clear=True):
+            for stage in ("unborn", "empty root", "later empty"):
+                with self.subTest(stage=stage):
+                    if stage != "unborn":
+                        git("rm", "--cached", "-f", "src/staged.py")
+                        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test",
+                            "commit", "--allow-empty", "-qm", stage)
+                        git("add", "src/staged.py")
+                    with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                        expected = discover()
+                    with patch.object(structure, "_read_listings", side_effect=AssertionError("Python listed Git paths")):
+                        actual = discover()
+                    self.assertEqual(expected, actual)
+                    commands = actual[0]["commands"]
+                    self.assertEqual(stage != "later empty", "ls_files_initial" in commands)
+                    metadata = actual[0]["path_metadata"]
+                    self.assertEqual({"src/staged.py", "src/untracked.py"}, set(metadata))
+                    self.assertNotIn("untracked", metadata["src/staged.py"])
+                    self.assertTrue(metadata["src/untracked.py"]["untracked"])
+                    self.assertEqual(stage != "later empty", metadata["src/untracked.py"]["initial_full_build"])
+
     def test_structure_test_flags_match_python_even_when_source_read_declines(self):
         paths = [Path(name) for name in (
             "src/TeStS/helper.py", "src/testing/helper.py", "src/TEST_App.py",
