@@ -22,6 +22,7 @@ impl PathClaimScan {
         let digit_limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
         let status_json = input.get("status_json").and_then(Value::as_bool);
         let conflict = input.get("conflict").filter(|value| value.is_object());
+        let release = input.get("release").filter(|value| value.is_object());
         let dir = project.join(".moru/claims");
         LocalState::safe_path(project, &dir)?;
         if LocalState::absent_dir(&dir)? {
@@ -52,7 +53,7 @@ impl PathClaimScan {
             let parsed = Self::parse(&raw, digit_limit)?;
             if let Some((expiry, claim)) = parsed {
                 rows.push(json!([name, expiry, raw]));
-                if status_json.is_some() || conflict.is_some() {
+                if status_json.is_some() || conflict.is_some() || release.is_some() {
                     claims.push(claim);
                     earliest = Some(earliest.map_or(expiry, |previous: f64| previous.min(expiry)));
                 }
@@ -64,11 +65,15 @@ impl PathClaimScan {
             .filter(|_| rows.len() == claims.len())
             .and_then(|request| Self::conflicts(&claims, &rows, request))
             .map(|matches| json!({"matches": matches, "earliest": earliest}));
+        let release = release
+            .filter(|_| rows.len() == claims.len())
+            .and_then(|request| Self::release_plan(&claims, &rows, request))
+            .map(|plan| json!({"plan": plan, "earliest": earliest}));
         let status = status_json
             .filter(|_| rows.len() == claims.len())
             .and_then(|as_json| Self::status(claims, as_json))
             .map(|output| json!({"output": output, "earliest": earliest}));
-        Some(json!({"rows": rows, "status": status, "conflicts": conflicts}))
+        Some(json!({"rows": rows, "status": status, "conflicts": conflicts, "release": release}))
     }
 
     pub(super) fn parse(raw: &str, digit_limit: usize) -> Option<Option<(f64, Claim)>> {
@@ -156,5 +161,42 @@ impl PathClaimScan {
             || first == second
             || descendant(first, second)
             || descendant(second, first)
+    }
+
+    fn release_plan(claims: &[Claim], rows: &[Value], request: &Value) -> Option<Value> {
+        let holder = request.get("holder")?.as_str()?;
+        let paths = match request.get("paths")? {
+            Value::Null => None,
+            value => {
+                let paths = value.as_array()?;
+                if paths.len() > 1024 {
+                    return None;
+                }
+                Some(
+                    paths
+                        .iter()
+                        .map(Value::as_str)
+                        .collect::<Option<Vec<_>>>()?,
+                )
+            }
+        };
+        let mut owned = Vec::new();
+        let mut refused = Vec::new();
+        for (claim, row) in claims.iter().zip(rows) {
+            let mine = claim.get("holder").and_then(Claim::as_str) == Some(holder);
+            if paths.is_none() && !mine {
+                continue;
+            }
+            let path = claim.get("path")?.as_str()?;
+            if paths.as_ref().is_some_and(|paths| !paths.contains(&path)) {
+                continue;
+            }
+            if mine {
+                owned.push(path);
+            } else {
+                refused.push(row.get(2)?);
+            }
+        }
+        Some(json!({"owned": owned, "refused": refused}))
     }
 }

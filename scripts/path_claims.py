@@ -98,13 +98,14 @@ def active_claims(project: Path) -> list[dict]:
 
 
 def _scan_claims(
-    project: Path, directory: Path, *, status_json: Optional[bool] = None, conflict: Optional[dict] = None,
+    project: Path, directory: Path, *, status_json: Optional[bool] = None,
+    conflict: Optional[dict] = None, release: Optional[dict] = None,
 ) -> Optional[dict]:
     if not directory.is_dir():
         return None
     return NativeProbe.request("--completion-probe", "path-claim-scan", {
         "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
-        "status_json": status_json, "conflict": conflict,
+        "status_json": status_json, "conflict": conflict, "release": release,
     })
 
 
@@ -246,23 +247,29 @@ def try_claim(project: Path, paths: list[str], holder: str, ttl: int) -> list[di
 
 def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict]:
     """Remove ``holder``'s claims (all of them when ``paths`` is None)."""
-    claims = active_claims(project)
+    directory = claims_dir(project)
     ordinary_paths = paths is None or (type(paths) is list and all(type(path) is str for path in paths))
+    query = {"paths": paths, "holder": holder} if type(holder) is str and ordinary_paths else None
+    scan = _scan_claims(project, directory, release=query)
+    plan = _fresh_projection(scan, "release", "plan")
+    if isinstance(plan, dict) and plan.keys() == {"owned", "refused"} and all(
+        isinstance(values, list) and all(isinstance(value, str) for value in values) for values in plan.values()
+    ):
+        refused = [json.loads(raw) for raw in plan["refused"]]
+        targets = [_claim_file(project, path) for path in plan["owned"]]
+        if targets and not _native_release(project, [target.name for target in targets], holder):
+            for target in targets:
+                target.unlink(missing_ok=True)
+        return refused
+    claims = _active_claims(directory, scan)
     if type(holder) is str and ordinary_paths and all(type(claim.get("path")) is str for claim in claims):
         selected = [claim for claim in claims if paths is None or claim["path"] in paths]
         try:
             names = [_claim_file(project, claim["path"]).name for claim in selected if claim.get("holder") == holder]
         except UnicodeError:
             names = []
-        if names:
-            result = NativeProbe.request("--completion-probe", "path-claim-release", {
-                "project": str(project), "names": names, "holder": holder,
-                "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
-            })
-            if result is not None:
-                if result.keys() == {"handled"} and result["handled"] is True:
-                    return [claim for claim in selected if claim.get("holder") != holder] if paths is not None else []
-                raise OSError("invalid native path claim release receipt")
+        if names and _native_release(project, names, holder):
+            return [claim for claim in selected if claim.get("holder") != holder] if paths is not None else []
     refused = []
     for claim in claims:
         if paths is not None and claim["path"] not in paths:
@@ -273,6 +280,18 @@ def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict
             continue
         _claim_file(project, claim["path"]).unlink(missing_ok=True)
     return refused
+
+
+def _native_release(project: Path, names: list[str], holder: str) -> bool:
+    result = NativeProbe.request("--completion-probe", "path-claim-release", {
+        "project": str(project), "names": names, "holder": holder,
+        "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+    })
+    if result is None:
+        return False
+    if result.keys() == {"handled"} and result["handled"] is True:
+        return True
+    raise OSError("invalid native path claim release receipt")
 
 
 def record(project: Path, files: Iterable[str], holder: str) -> dict:

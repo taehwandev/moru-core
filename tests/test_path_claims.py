@@ -174,6 +174,50 @@ class PathClaimsTests(unittest.TestCase):
                 self.assertEqual(sum(call.args[0][-1] == "path-claim-release" for call in process.call_args_list), 1)
             self.assertEqual([claim["path"] for claim in self.status()], ["foreign", "replace"])
 
+    def test_native_release_selection_matches_reference_and_rechecks_expiry(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        oracle = self.project / "oracle"
+        oracle.mkdir()
+        for project in (self.project, oracle):
+            directory = path_claims.claims_dir(project)
+            directory.mkdir(parents=True)
+            for name, path, holder, ttl in (("00.json", "z", "한글", 1), ("01.json", "a", "other", 5)):
+                (directory / name).write_text(json.dumps({
+                    "path": path, "holder": holder, "expires": path_claims._iso(self.clock + ttl),
+                }), encoding="utf-8")
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                self.assertTrue(path_claims._write_claim(project, "own", "me", 5))
+        args = ("--holder", "me", "--path", "a", "--path", "own", "--path", "z")
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = self.run_cli("release", "--project", str(oracle), *args)
+            with mock.patch.object(path_claims, "_active_claims", side_effect=AssertionError("Python selected release")):
+                self.assertEqual(self.run_cli("release", "--project", str(self.project), *args), expected)
+                self.assertEqual(path_claims.release(self.project, None, "me"), [])
+            self.assertEqual(expected[0], path_claims.CONFLICT_EXIT)
+            self.assertEqual(expected[1].splitlines(), ["held by 한글 since None: z", "held by other since None: a"])
+
+            request = path_claims.NativeProbe.request
+
+            def expire_after_scan(*call):
+                result = request(*call)
+                if call[1] == "path-claim-scan":
+                    self.assertIsNotNone(result["release"])
+                    self.clock += 1
+                return result
+
+            with mock.patch.object(path_claims.NativeProbe, "request", side_effect=expire_after_scan):
+                self.assertEqual(self.run_cli("release", "--project", str(self.project), *args),
+                                 (path_claims.CONFLICT_EXIT, "held by other since None: a\n"))
+            self.assertFalse((path_claims.claims_dir(self.project) / "00.json").exists())
+
     def test_expired_claim_is_cleaned_and_freed(self) -> None:
         self.claim("a", "src/x.tsx", extra=("--ttl", "60"))
         self.clock += 61
