@@ -93,7 +93,8 @@ class WorkflowQueryTextTests(unittest.TestCase):
             self.assertFalse(trace.exists())
             actual = subprocess.run(args, env=env, capture_output=True, timeout=15, check=True)
             self.assertEqual((actual.stdout, actual.stderr), (expected.stdout, expected.stderr))
-            self.assertEqual(trace.read_text().splitlines(), ["rank-wikimap 0", "render-text 0"])
+            self.assertEqual(trace.read_text().splitlines(),
+                             ["index-descriptions 0", "rank-wikimap 0", "render-text 0"])
 
     def test_rank_preserves_first_match_positions_and_policy_ties(self):
         if not NATIVE.is_file():
@@ -176,6 +177,7 @@ class WorkflowQueryTextTests(unittest.TestCase):
                 "probe=search.NativeProbe.request\n"
                 "def observe(*args, **kwargs):\n"
                 "    result=probe(*args, **kwargs)\n"
+                "    if args[1] != 'score-offline': return result\n"
                 "    body=args[2]['rows']\n"
                 "    if os.environ.get('REJECT_BATCH') and any('한' in row[1][3] for row in body):\n"
                 "        result={'scores': []}\n"
@@ -201,3 +203,62 @@ class WorkflowQueryTextTests(unittest.TestCase):
                 self.assertTrue(all(operation == "score-offline" for operation, _, _ in batches))
                 self.assertTrue(any(count == scored for _, count, scored in batches))
                 self.assertEqual(any(scored == "0" for _, _, scored in batches), bool(override))
+
+    def test_index_parser_preserves_regex_and_cached_file_read_behavior(self):
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            (base / "home").mkdir()
+            install(base / "home", PROJECT)
+            corpus = base / "corpus"
+            corpus.mkdir()
+            index = corpus / "index.md"
+            index.write_bytes(
+                (
+                    "- `a.md`, `b.md` Summary with `code`:\r\n"
+                    "  continued with 한글\r\n"
+                    "- `a.md` later should lose\r\n"
+                    "- `unmatched`shift.md` suffix\n"
+                    "- ``tight.md`` surrounding delimiters\n"
+                    "- `.md` `UP.MD` unchanged inline code\n"
+                    "\x1c--- `space.md`\u2003 punctuation:,\u2003\n"
+                    "- `break.md` first line\n"
+                    "  \t\n"
+                    "  independent continuation\n"
+                    "- `empty.md`\n"
+                    "- `empty.md` later title\n"
+                    "- `invalid.md` bad"
+                ).encode("utf-8") + b"\xff\r\n"
+            )
+            env = environment(base, PROJECT)
+            process = (
+                "import json,sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]);\n"
+                "import workflow_search as search\n"
+                "probe=search.NativeProbe.request\n"
+                "def observe(*args, **kwargs):\n"
+                "    result=probe(*args, **kwargs)\n"
+                "    print(args[1], bool(result), file=sys.stderr)\n"
+                "    return result\n"
+                "search.NativeProbe.request=observe\n"
+                "first=search._parse_index_descriptions(Path(sys.argv[2]))\n"
+                "second=search._parse_index_descriptions(Path(sys.argv[2]))\n"
+                "assert first == second\n"
+                "print(json.dumps(first))\n"
+            )
+            command = [sys.executable, "-c", process, str(PROJECT / "scripts"), str(corpus)]
+            expected = subprocess.run(command, env={**env, "MORU_LAUNCHER_BACKEND": "python"},
+                                      capture_output=True, timeout=10, check=True)
+            actual = subprocess.run(command, env=env, capture_output=True, timeout=10, check=True)
+            self.assertEqual(actual.stdout, expected.stdout)
+            self.assertEqual(actual.stderr, b"index-descriptions True\n")
+            rows = json.loads(actual.stdout)
+            self.assertEqual(rows["a.md"], ",  Summary with `code`: continued with 한글")
+            self.assertEqual(rows["shift.md"], "`unmatched suffix")
+            self.assertEqual(rows["tight.md"], "`` surrounding delimiters")
+            self.assertEqual(rows["empty.md"], "")
+            self.assertEqual(rows["break.md"], "first line")
+            self.assertEqual(rows["space.md"], "punctuation")
+            self.assertEqual(rows["invalid.md"], "bad")
+            self.assertNotIn(".md", rows)
+            self.assertNotIn("UP.MD", rows)

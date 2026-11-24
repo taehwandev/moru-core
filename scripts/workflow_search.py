@@ -60,11 +60,16 @@ def _parse_index_descriptions(root: Path) -> Dict[str, str]:
 
 @lru_cache(maxsize=8)
 def _cached_index_descriptions(index_key: str, _size: int, _mtime_ns: int) -> Dict[str, str]:
-    lines = Path(index_key).read_text(encoding="utf-8", errors="ignore").split("\n")
+    text = Path(index_key).read_text(encoding="utf-8", errors="ignore")
+    native = NativeProbe.request("--workflow-query-probe", "index-descriptions", {"text": text})
+    if native is not None and set(native) == {"descriptions"}:
+        descriptions = native["descriptions"]
+        if type(descriptions) is dict and all(type(value) is str for value in descriptions.values()):
+            return descriptions
 
     # Join indented continuation lines onto the preceding bullet line.
     joined: List[str] = []
-    for line in lines:
+    for line in text.split("\n"):
         if joined and not line.startswith("-") and line.startswith("  ") and line.strip():
             joined[-1] = joined[-1].rstrip() + " " + line.strip()
         else:

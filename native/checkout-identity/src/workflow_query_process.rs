@@ -4,8 +4,8 @@
 //! callers/tests: workflow_search.py and workflow query process parity.
 //! verification: empty, ordinary, decorated and unsupported report inputs.
 use crate::{
-    pretool_guard::CallbackGuard, workflow_offline_score::OfflineScore,
-    workflow_wikimap_rank::WikimapRank,
+    pretool_guard::CallbackGuard, workflow_index_descriptions::IndexDescriptions,
+    workflow_offline_score::OfflineScore, workflow_wikimap_rank::WikimapRank,
 };
 use serde_json::{json, Value};
 use std::{
@@ -23,7 +23,7 @@ impl WorkflowQueryProcess {
         if args.len() != 2
             || !matches!(
                 args[1].to_str(),
-                Some("render-text" | "rank-wikimap" | "score-offline")
+                Some("render-text" | "rank-wikimap" | "score-offline" | "index-descriptions")
             )
             || CallbackGuard::root(launcher, "workflow-query-text").is_none()
         {
@@ -49,6 +49,10 @@ impl WorkflowQueryProcess {
                     "score-offline" => {
                         OfflineScore::batch(&payload).map(|scores| json!({"scores": scores}))
                     }
+                    "index-descriptions" => payload
+                        .get("text")?
+                        .as_str()
+                        .map(|text| json!({"descriptions": IndexDescriptions::parse(text)})),
                     _ => None,
                 })
         else {
