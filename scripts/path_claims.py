@@ -37,6 +37,7 @@ from support.native_probe_transport import NativeProbe
 CONFLICT_EXIT = 3
 DEFAULT_TTL_SECONDS = 1800
 WAIT_INTERVAL_SECONDS = 1.0
+MODERN_ISO_EXPIRY = sys.version_info >= (3, 11)
 HOOK_EDIT_TOOLS = frozenset({"Edit", "Write", "MultiEdit", "NotebookEdit"})
 
 
@@ -106,6 +107,7 @@ def _scan_claims(
     return NativeProbe.request("--completion-probe", "path-claim-scan", {
         "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
         "status_json": status_json, "conflict": conflict, "release": release,
+        "modern_iso": MODERN_ISO_EXPIRY,
     })
 
 
@@ -149,6 +151,7 @@ def _recheck_active(entry: Path) -> Optional[dict]:
     result = NativeProbe.request("--completion-probe", "path-claim-expire", {
         "project": str(entry.parents[2]), "name": entry.name, "now": _now(),
         "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+        "modern_iso": MODERN_ISO_EXPIRY,
     })
     if result is None:
         return _read_active(entry)
@@ -285,6 +288,7 @@ def release(project: Path, paths: Optional[list[str]], holder: str) -> list[dict
         result = NativeProbe.request("--completion-probe", "path-claim-release-selected", {
             "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
             "release": query, "clock_offset": clock_offset,
+            "modern_iso": MODERN_ISO_EXPIRY,
         })
         if result is not None:
             refused = result.get("refused")
@@ -408,7 +412,7 @@ def _cmd_claim(project: Path, args: argparse.Namespace) -> int:
             waited = NativeProbe.request("--completion-probe", "path-claim-wait", {
                 "project": str(project), "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
                 "conflict": {"paths": paths, "holder": args.holder},
-                "deadline": deadline, "observed_at": observed_at,
+                "deadline": deadline, "observed_at": observed_at, "modern_iso": MODERN_ISO_EXPIRY,
             })
             if waited == {"waited": True}:
                 continue

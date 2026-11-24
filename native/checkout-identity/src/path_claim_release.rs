@@ -58,7 +58,8 @@ impl PathClaimRelease {
             return Some(Ok(None));
         };
         let (before, raw) = Self::read(&file)?;
-        if PathClaimScan::parse(&raw, limit)?.is_some_and(|(expiry, _)| expiry > now) {
+        let modern_iso = input.get("modern_iso").and_then(Value::as_bool) == Some(true);
+        if PathClaimScan::parse(&raw, limit, modern_iso)?.is_some_and(|(expiry, _)| expiry > now) {
             return Some(Ok(Some(raw)));
         }
         match Self::unlink(&directory, &name, &before) {

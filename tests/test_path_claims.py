@@ -369,6 +369,44 @@ class PathClaimsTests(unittest.TestCase):
                     path_claims.active_claims(self.project)
             self.assertFalse(candidate.exists())
 
+    def test_native_modern_iso_expiry_matches_python_at_the_boundary(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file() or not path_claims.MODERN_ISO_EXPIRY:
+            self.skipTest("native artifact and Python 3.11 ISO support required")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        target = path_claims._claim_file(self.project, "src")
+        target.parent.mkdir(parents=True)
+        utc = path_claims._iso(self.clock).removesuffix("+00:00")
+        request = path_claims.NativeProbe.request
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            for suffix in (",1Z", ".1234569Z", ".0000019+00:00", "Z"):
+                with self.subTest(suffix=suffix):
+                    claim = {"path": "src", "expires": utc + suffix}
+                    target.write_text(json.dumps(claim), encoding="utf-8")
+                    expiry = path_claims._epoch(claim["expires"])
+                    scan = path_claims._scan_claims(self.project, target.parent)
+                    self.assertEqual(scan["rows"][0][1], expiry)
+                    with mock.patch.object(path_claims, "_read_active", side_effect=AssertionError("Python parsed expiry")):
+                        self.clock = expiry - 0.000001
+                        self.assertEqual(path_claims._recheck_active(target), claim)
+                        self.clock = expiry
+                        self.assertIsNone(path_claims._recheck_active(target))
+                    self.assertFalse(target.exists())
+
+            for expiry, modern in ((utc + "Z", False), (utc + ".1+00:00Z", True)):
+                with self.subTest(expiry=expiry, modern=modern):
+                    target.write_text(json.dumps({"path": "src", "expires": expiry}), encoding="utf-8")
+                    result = request("--completion-probe", "path-claim-expire", {
+                        "project": str(self.project), "name": target.name, "now": self.clock + 60,
+                        "digit_limit": 0, "modern_iso": modern,
+                    })
+                    self.assertIsNone(result)
+                    self.assertTrue(target.exists())
+
     def test_same_holder_reclaim_renews(self) -> None:
         self.claim("a", "src/x.tsx", extra=("--ttl", "60"))
         first = self.status()[0]

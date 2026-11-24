@@ -20,6 +20,7 @@ impl PathClaimScan {
             return None;
         }
         let digit_limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
+        let modern_iso = input.get("modern_iso").and_then(Value::as_bool) == Some(true);
         let status_json = input.get("status_json").and_then(Value::as_bool);
         let conflict = input.get("conflict").filter(|value| value.is_object());
         let release = input.get("release").filter(|value| value.is_object());
@@ -50,7 +51,7 @@ impl PathClaimScan {
             if bytes > 128 * 1024 {
                 return None;
             }
-            let parsed = Self::parse(&raw, digit_limit)?;
+            let parsed = Self::parse(&raw, digit_limit, modern_iso)?;
             if let Some((expiry, claim)) = parsed {
                 rows.push(json!([name, expiry, raw]));
                 if status_json.is_some() || conflict.is_some() || release.is_some() {
@@ -87,7 +88,11 @@ impl PathClaimScan {
         Some(result)
     }
 
-    pub(super) fn parse(raw: &str, digit_limit: usize) -> Option<Option<(f64, Claim)>> {
+    pub(super) fn parse(
+        raw: &str,
+        digit_limit: usize,
+        modern_iso: bool,
+    ) -> Option<Option<(f64, Claim)>> {
         let record = match PythonJson::parse_with_diagnostic(raw, Some(digit_limit), None) {
             Ok(Some(record)) => record,
             Err(InputDiagnostic::Syntax(_)) => return Some(None),
@@ -96,15 +101,35 @@ impl PathClaimScan {
         let Some(expiry) = record.get("expires").and_then(|value| value.as_str()) else {
             return Some(None);
         };
-        // Z and out-of-profile dates use the caller's Python version. Naive
-        // timestamps depend on its local timezone, unlike stored UTC claims.
-        if expiry.contains('Z') {
+        if expiry.contains('Z')
+            && !(modern_iso
+                && expiry
+                    .strip_suffix('Z')
+                    .is_some_and(|clock| !clock.contains('Z')))
+        {
             return None;
         }
-        let stamp = OverheadStamp::parse(expiry)??;
+        let normalized = modern_iso
+            .then(|| Self::normalize_fraction(expiry))
+            .flatten();
+        let stamp = OverheadStamp::parse(normalized.as_deref().unwrap_or(expiry))??;
+        // Naive timestamps depend on the caller's local timezone.
         let ticks = stamp.ticks() - 719163 * 86_400_000_000;
         (stamp.aware() && ticks.unsigned_abs() <= 1 << 53)
             .then_some(Some((ticks as f64 / 1_000_000.0, record)))
+    }
+
+    fn normalize_fraction(expiry: &str) -> Option<String> {
+        let clock = expiry.get(..19)?;
+        let remainder = expiry.get(19..)?.strip_prefix(['.', ','])?;
+        let offset = remainder.find(['+', '-', 'Z'])?;
+        let (fraction, zone) = remainder.split_at(offset);
+        if fraction.is_empty() || !fraction.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        // The shared ISO parser still validates the entire clock and offset.
+        let micros = &fraction[..fraction.len().min(6)];
+        Some(format!("{clock}.{micros:0<6}{zone}"))
     }
 
     fn status(claims: Vec<Claim>, as_json: bool) -> Option<String> {
