@@ -150,6 +150,8 @@ mod live_web_check_lookup;
 mod lesson_compaction_inbox;
 #[path = "lesson_compaction_apply.rs"]
 mod lesson_compaction_apply;
+#[path = "lesson_compaction_cli.rs"]
+pub(crate) mod lesson_compaction_cli;
 #[path = "lesson_compaction_merge.rs"]
 mod lesson_compaction_merge;
 #[path = "lesson_compaction_preview.rs"]

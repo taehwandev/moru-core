@@ -257,6 +257,9 @@ fn main() {
     if args.first().is_some_and(|arg| arg == "runs-prune") {
         exit(registry_read::RegistryRead::runs_prune(&launcher, &args));
     }
+    if args.first().is_some_and(|arg| arg == "lessons-compact") {
+        exit(completion_process::lesson_compaction_cli::LessonCompactionCli::run(&launcher, &args));
+    }
 
     if args.first().is_some_and(|a| a == "agent-mailbox") {
         finish(mailbox_status_process::MailboxStatusProcess::run(

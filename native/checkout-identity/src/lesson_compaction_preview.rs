@@ -33,6 +33,27 @@ impl LessonCompactionPreview {
             input.get("now")?.as_str()?,
             input.get("stale_days")?.as_i64()?,
         )?;
+        Self::report_at(inbox, limit, keys, days, cutoff, apply)
+    }
+
+    pub(super) fn dry_run(
+        inbox: &str,
+        limit: usize,
+        keys: usize,
+        days: i64,
+        cutoff: i64,
+    ) -> Option<Json> {
+        Self::report_at(inbox, limit, keys, days, cutoff, false)
+    }
+
+    fn report_at(
+        inbox: &str,
+        limit: usize,
+        keys: usize,
+        days: i64,
+        cutoff: i64,
+        apply: bool,
+    ) -> Option<Json> {
         let mut snapshot = LessonCompactionInbox::read(Path::new(inbox), limit)?;
         let lessons = snapshot.groups.len();
         let records: usize = snapshot.groups.iter().map(|(_, group)| group.len()).sum();

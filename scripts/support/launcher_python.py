@@ -35,6 +35,7 @@ SCRIPT_ALIASES = {
     "overhead-report": "moru_overhead_report.py",
     "pending-publication": "agent_pending_publication.py",
     "runs-prune": "runs-prune.py",
+    "lessons-compact": "lessons-compact.py",
     "mutation-check": "mutation-check.py",
     "loop": "agent_loop.py",
     "workflow-dispatch": "workflow_dispatch.py",

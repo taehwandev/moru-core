@@ -584,10 +584,10 @@
       "inventory_id": 42,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Port full CLI dispatch and unsupported inbox, merge, lock and write profiles. Verify portable and installed execution.",
+      "entry_aliases": "Direct CLI and launcher lessons-compact alias",
+      "remaining": "Port native apply admission, remaining argument cases and unsupported inbox, merge, lock and write profiles. Verify portable and installed execution.",
       "verification": {
-        "local": "Rust reads and groups bounded regular-file inbox snapshots by the payload lesson ID in filename order. The reader preserves original JSON values, unreadable entries and pre-write decline. One read-only Rust batch merges occurrence totals, keys and day buckets and selects stale lessons using the strict cutoff. Dry-run and the pre-write apply report each combine the native inbox read, merge and exact report in one probe. Apply receives advisory paths and rechecks under the writer lock before changing files. Compaction applies the same Rust merge to fresh records reread under the existing writer lock, with compatibility fallback. Supported apply transactions take the writer lock in Rust, merge fresh inputs, replace canonical JSON and remove only included legacy records. Rust also rereads canonical records under the same lock before marking an unseen lesson stale. Ambiguous mutations are never replayed."
+        "local": "Rust reads and groups bounded regular-file inbox snapshots by the payload lesson ID in filename order. The reader preserves original JSON values, unreadable entries and pre-write decline. One read-only Rust batch merges occurrence totals, keys and day buckets and selects stale lessons using the strict cutoff. The source-verified launcher alias admits ordinary dry runs before Python, retaining original argv for apply and other fallbacks. Dry-run and the pre-write apply report each combine the native inbox read, merge and exact report in one probe. Apply receives advisory paths and rechecks under the writer lock before changing files. Compaction applies the same Rust merge to fresh records reread under the existing writer lock, with compatibility fallback. Supported apply transactions take the writer lock in Rust, merge fresh inputs, replace canonical JSON and remove only included legacy records. Rust also rereads canonical records under the same lock before marking an unseen lesson stale. Ambiguous mutations are never replayed."
       }
     },
     {

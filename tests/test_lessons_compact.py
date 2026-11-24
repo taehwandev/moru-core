@@ -75,6 +75,50 @@ class CompactionTests(unittest.TestCase):
     def _files(self) -> set[str]:
         return {path.name for path in self.inbox.glob("*.json")}
 
+    def test_installed_alias_uses_native_for_supported_read_only_arguments(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        self.state = self.state.resolve()
+        self.inbox = compact.inbox_path(self.state)
+        home = self.state / "home"
+        home.mkdir()
+        install(home, ROOT)
+        entry = home / ".moru/bin/moru-hook"
+        self._write("legacy.json", _candidate("lesson", "2026-01-01T00:00:00Z"))
+        before = {path.name: path.read_bytes() for path in self.inbox.iterdir()}
+        env = {**environment(self.state, ROOT), "MORU_STATE_HOME": str(self.state)}
+        shim = self.state / "shim"
+        shim.mkdir()
+        python = shim / "python3"
+        python.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\nexit 37\n', encoding="utf-8")
+        python.chmod(0o755)
+
+        def run(args, **overrides):
+            return subprocess.run([str(entry), "lessons-compact", *args], env={**env, **overrides},
+                                  capture_output=True, timeout=10)
+
+        for args in ([], ["--state-home", str(self.state)], [f"--state-home={self.state}"]):
+            with self.subTest(args=args):
+                oracle = run(args, MORU_LAUNCHER_BACKEND="python")
+                actual = run(args, PATH=str(shim))
+                self.assertEqual((actual.returncode, actual.stdout, actual.stderr),
+                                 (oracle.returncode, oracle.stdout, oracle.stderr))
+                self.assertEqual(actual.returncode, 0)
+                self.assertIn(b"nothing written", actual.stdout)
+        for args in (["--apply", "--state-home", str(self.state)], ["--help"], ["--state-home", "."]):
+            with self.subTest(args=args):
+                result = run(args, PATH=str(shim))
+                self.assertEqual(result.returncode, 37)
+                self.assertEqual(result.stdout.decode().splitlines(), [str(entry), "lessons-compact", *args])
+        self.assertEqual({path.name: path.read_bytes() for path in self.inbox.iterdir()}, before)
+        (self.inbox / "linked.json").symlink_to(self.inbox / "legacy.json")
+        declined = run([], PATH=str(shim))
+        self.assertEqual(declined.returncode, 37)
+        self.assertEqual(declined.stdout.decode().splitlines(), [str(entry), "lessons-compact"])
+
     def test_native_inbox_matches_plan_and_leaves_files_untouched(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment
