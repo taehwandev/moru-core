@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from agent_publication_admission import PublicationAdmission
 from agent_publication_review_union import review_scope_for_receipt
 from agent_review_attestation import ReviewAttestation, _attestation_id
+from agent_review_hook import git_status_for_review
 import agent_publication_review_union as review_union
 from tests import test_agent_review_attestation as attestation_tests
 
@@ -52,7 +53,12 @@ class PublicationReviewUnionTests(unittest.TestCase):
         self.git("add", "--", *files)
 
     def review(self, paths):
-        changed = self.git("diff", "--cached", "--name-only", "--no-renames", "--", *paths).splitlines()
+        _, changed = git_status_for_review(
+            self.project,
+            lambda argv, _cwd: {"stdout": self.git(*argv[1:])},
+            lambda _: self.fail("pathspec review used whole-tree status"),
+            paths,
+        )
         return ReviewAttestation.record(
             project=self.project, rules=self.rules, evidence_path=self.evidence,
             preflight=json.loads(self.evidence.read_text()),
@@ -269,6 +275,20 @@ class PublicationReviewUnionTests(unittest.TestCase):
                          self.union()["inputs"]["changed_paths"])
         self.assertTrue(self.finish())
         (self.project / "blob.bin").write_bytes(b"\x00changed again\xff")
+        self.assertFalse(PublicationAdmission.allows(self.project, self.evidence, "git_write"))
+
+    def test_reviewing_only_one_rename_endpoint_cannot_admit_the_commit(self):
+        self.stage({"old.kt": "rename me\n"})
+        self.git("commit", "-qm", "original name")
+        self.git("mv", "old.kt", "new.kt")
+        for run_id, only_path in (("b" * 32, "old.kt"), ("c" * 32, "new.kt")):
+            with self.subTest(only_path=only_path):
+                self.new_evidence(run_id)
+                self.review([only_path])
+                self.assertFalse(self.finish())
+        self.review(["old.kt", "new.kt"])
+        self.assertTrue(self.finish())
+        (self.project / "new.kt").write_text("unstaged bytes\n")
         self.assertFalse(PublicationAdmission.allows(self.project, self.evidence, "git_write"))
 
     def test_exact_committed_union_keeps_local_continuation_but_push_stays_whole_tree(self):

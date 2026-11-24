@@ -1602,8 +1602,10 @@ def git_status_for_review(
 ) -> tuple[dict[str, Any], list[str]]:
     if not review_paths:
         return git_status(project)
+    # Scoped publication binds both the removed and added paths of a rename.
+    # Count those same paths when recording the review attestation.
     result = run_command(
-        ["git", "status", "--short", "--untracked-files=all", "--", *review_paths],
+        ["git", "status", "--short", "--no-renames", "--untracked-files=all", "--", *review_paths],
         project,
     )
     lines = [line for line in result["stdout"].splitlines() if line.strip()]
