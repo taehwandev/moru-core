@@ -95,6 +95,53 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual("unscored", result["results"][0]["status"])
         self.assertFalse(self.cache.exists())
 
+    def test_native_cli_combines_argument_input_and_output_without_argparse(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        cache_dir = self.root / "한국어 cache"
+        flags = ("--mo", adapter.MODEL, f"--model={adapter.PAID_MODEL}", "--ca", str(cache_dir),
+                 "--tt=0.25", "--max-c=0", "--ref", f"--in={self.input}")
+        with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = self.run_cli_output(*flags)
+        actions = []
+        request = adapter.NativeProbe.request
+
+        def observe(protocol, action, payload):
+            actions.append(action)
+            return request(protocol, action, payload)
+
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(adapter.argparse, "ArgumentParser", side_effect=AssertionError("argparse")), \
+                patch.object(adapter.NativeProbe, "request", side_effect=observe):
+            self.assertEqual(self.run_cli_output(*flags), expected)
+        self.assertEqual(actions, ["read-only-cli"])
+        self.assertEqual(json.loads(expected[1])["model"], adapter.PAID_MODEL)
+        self.assertFalse(cache_dir.exists())
+
+    def test_native_cli_declines_diagnostics_and_abbreviated_execute(self):
+        if NATIVE is None or not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.root / "home"
+        home.mkdir()
+        install(home, ROOT)
+        env = environment(self.root, ROOT)
+        for args in [[], ["--input", str(self.input), "--m", "extra"],
+                     ["--input", str(self.input), "--ttl-hours=nan"],
+                     ["--input", str(self.input), "--refresh=true"],
+                     ["--input", str(self.input), "--help"], ["--input", str(self.input), "--"]]:
+            with self.subTest(args=args), patch.dict(os.environ, env, clear=True):
+                self.assertIsNone(adapter._read_only_cli_text(args))
+        with patch.dict(os.environ, {**env, "OPENROUTER_API_KEY": "fixture-only"}, clear=True), \
+                patch.object(adapter, "send_request", return_value=response()) as provider:
+            status, result, _ = self.run_cli("--ex", "--max-c=1")
+        self.assertEqual(status, 0)
+        self.assertEqual(result["network_calls"], 1)
+        provider.assert_called_once()
+
     def test_native_cache_plan_reuses_existing_hash_and_scrubs_child_credentials(self):
         if NATIVE is None or not NATIVE.is_file():
             self.skipTest("native test artifact unavailable")
@@ -135,7 +182,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(0, result["network_calls"])
         self.assertEqual(["cached", "unscored"], [row["status"] for row in result["results"]])
-        self.assertEqual(["prepare", "read-prepare-input", "read-only-report"],
+        self.assertEqual(["prepare", "read-only-cli"],
                          observed.read_text().splitlines())
 
     def test_native_read_only_report_matches_legacy_without_python_evaluation(self):
@@ -322,7 +369,7 @@ class OpenRouterDecisionTests(unittest.TestCase):
                 status, result, _ = self.run_cli("--execute", "--refresh")
             self.assertEqual(status, 0)
             self.assertEqual(provider.call_count, len(scenarios))
-            self.assertEqual(observed, [("read-prepare-input", True)]
+            self.assertEqual(observed, [("read-only-cli", False), ("read-prepare-input", True)]
                              + [("validate-response", True), ("cache-write-support", True),
                                 ("write-cached-file", True)] * 4
                              + [("summarize", True)])
@@ -515,7 +562,8 @@ class OpenRouterDecisionTests(unittest.TestCase):
                 self.run_cli("--execute")
         for current_time in (1_086_400, 999_999):
             with self.subTest(now=current_time):
-                with patch.object(adapter.time, "time", return_value=current_time):
+                with patch.object(adapter.time, "time", return_value=current_time), \
+                        patch.object(adapter, "_read_only_cli_text", return_value=None):
                     _, result, _ = self.run_cli()
                 self.assertEqual(0, result["cache_hits"])
                 self.assertEqual("unscored", result["results"][0]["status"])

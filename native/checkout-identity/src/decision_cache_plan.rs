@@ -6,6 +6,7 @@
 use crate::{
     atomic_sibling::AtomicSibling,
     decision_cached_result::DecisionCachedResult,
+    decision_cli::DecisionCli,
     decision_input::DecisionInput,
     decision_report::DecisionReport,
     decision_response::DecisionResponse,
@@ -18,6 +19,7 @@ use std::{
     ffi::OsString,
     io::{self, Read, Write},
     path::Path,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 const MAX_MESSAGE: usize = 1024 * 1024;
@@ -35,6 +37,7 @@ impl DecisionCachePlan {
                         | "validate-prepare"
                         | "read-prepare-input"
                         | "read-only-report"
+                        | "read-only-cli"
                         | "summarize"
                         | "validate-response"
                         | "validate-cached"
@@ -81,6 +84,9 @@ impl DecisionCachePlan {
             if args[1] == "read-only-report" {
                 return Self::read_only_report(&value);
             }
+            if args[1] == "read-only-cli" {
+                return Self::read_only_cli(value);
+            }
             if args[1] == "validate-prepare" {
                 if let Err(error) = DecisionInput::validate(&value) {
                     return Some(json!({"error": error}));
@@ -115,6 +121,43 @@ impl DecisionCachePlan {
         request["sources"] = input["sources"].clone();
         let rows = Self::prepare(&request)?;
         Some(json!({"payload": input, "rows": rows}))
+    }
+
+    fn read_only_cli(mut request: Value) -> Option<Value> {
+        let cli = DecisionCli::parse(&request)?;
+        let digit_limit = request.get("digit_limit")?.as_u64()?;
+        let schema = request.get("schema")?.as_i64()?;
+        let options: Vec<_> = request["questions"]["source_kind"]["criteria"]
+            .as_object()?
+            .keys()
+            .cloned()
+            .collect();
+        request["path"] = json!(cli.input.to_str()?);
+        request["model"] = json!(cli.model);
+        let prepared = Self::prepare_file(request)?;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()?
+            .as_secs_f64();
+        let rows = prepared["rows"].as_array()?;
+        let sources = prepared["payload"]["sources"].as_array()?;
+        let sources: Vec<_> = sources
+            .iter()
+            .zip(rows)
+            .map(|(source, plan)| {
+                json!([
+                    source["id"],
+                    source["url"],
+                    source["required"].as_bool().unwrap_or(false),
+                    plan[0]
+                ])
+            })
+            .collect();
+        Self::read_only_report(&json!({
+            "model": cli.model, "refresh": cli.refresh, "digit_limit": digit_limit, "sources": sources,
+            "cache": {"directory": cli.cache_dir.to_str()?, "schema": schema, "now": now,
+                      "ttl": cli.ttl, "options": options},
+        }))
     }
 
     fn read_only_report(request: &Value) -> Option<Value> {

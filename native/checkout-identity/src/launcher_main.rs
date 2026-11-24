@@ -148,6 +148,7 @@ mod workflow_query_process;
 mod workflow_index_descriptions;
 mod decision_cache_plan;
 mod decision_cached_result;
+mod decision_cli;
 mod decision_input;
 mod decision_report;
 mod decision_response;

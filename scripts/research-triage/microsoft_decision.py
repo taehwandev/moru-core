@@ -528,7 +528,17 @@ def evaluate(payload: dict, options: argparse.Namespace, *, plan: list | None = 
     }
 
 
-def main(argv: list[str] | None = None) -> int:
+def _read_only_cli_text(argv):
+    prepared = NativeProbe.request("--decision-cache-probe", "read-only-cli", {
+        **_plan_parameters(MODEL), "models": [MODEL, PAID_MODEL], "argv": argv,
+        "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+    })
+    if prepared is not None and set(prepared) == {"text"} and type(prepared["text"]) is str:
+        return prepared["text"]
+    return None
+
+
+def _compatibility_cli_text(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--cache-dir", type=Path, default=Path(".moru/research-cache/ms"))
@@ -541,20 +551,28 @@ def main(argv: list[str] | None = None) -> int:
     options = parser.parse_args(argv)
     if options.max_calls < 0 or not math.isfinite(options.ttl_hours) or options.ttl_hours <= 0:
         parser.error("max-calls must be nonnegative and ttl-hours must be positive and finite")
+    prepared = _read_input_native(options.input, options.model)
+    if prepared is None:
+        payload = json.loads(options.input.read_text(encoding="utf-8"))
+        plan = _cache_plan(payload, options.model, validate=True)
+        if plan is None:
+            payload = validate_input(payload)
+    else:
+        payload, plan = prepared
+    now = time.time()
+    text = _read_only_report_text(payload, options, plan, now)
+    if text is not None:
+        return text
+    report = evaluate(payload, options, plan=plan, now=now)
+    return json.dumps(report, ensure_ascii=False, allow_nan=False)
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else list(argv)
     try:
-        prepared = _read_input_native(options.input, options.model)
-        if prepared is None:
-            payload = json.loads(options.input.read_text(encoding="utf-8"))
-            plan = _cache_plan(payload, options.model, validate=True)
-            if plan is None:
-                payload = validate_input(payload)
-        else:
-            payload, plan = prepared
-        now = time.time()
-        text = _read_only_report_text(payload, options, plan, now)
+        text = _read_only_cli_text(argv)
         if text is None:
-            report = evaluate(payload, options, plan=plan, now=now)
-            text = json.dumps(report, ensure_ascii=False, allow_nan=False)
+            text = _compatibility_cli_text(argv)
         print(text)
     except (OSError, ValueError):
         print("Invalid or unreadable research input", file=sys.stderr)
