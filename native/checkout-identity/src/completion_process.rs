@@ -154,6 +154,8 @@ mod live_web_edit_hook;
 mod project_relative_path;
 #[path = "path_claim_scan.rs"]
 mod path_claim_scan;
+#[path = "path_claim_wait.rs"]
+mod path_claim_wait;
 #[path = "path_claim_release.rs"]
 mod path_claim_release;
 #[path = "path_claim_filename.rs"]
@@ -258,6 +260,7 @@ impl CompletionProcess {
             Some("live-web-check") => live_web_check_lookup::LiveWebCheckLookup::probe(&payload),
             Some("path-claim-arguments") => project_relative_path::ProjectRelativePath::claim_arguments(&payload),
             Some("path-claim-scan") => path_claim_scan::PathClaimScan::probe(&payload),
+            Some("path-claim-wait") => path_claim_wait::PathClaimWait::probe(&payload),
             Some("structure-move-matching") => structure_move_matching::StructureMoveMatching::compare(&payload),
             Some("structure-merge-baseline") => structure_merge_baseline::StructureMergeBaseline::classify(&payload),
             Some("structure-report") => structure_report::StructureReport::render(&payload),

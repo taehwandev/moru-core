@@ -652,6 +652,56 @@ class PathClaimsTests(unittest.TestCase):
         self.assertIn("held by a", output)
         self.assertGreaterEqual(sleep.call_count, 3)
 
+    def test_native_wait_polls_until_deadline_or_release(self) -> None:
+        from threading import Timer
+
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        request = path_claims.NativeProbe.request
+        wait_results = []
+        release = False
+        claim_file = path_claims._claim_file(self.project, "src/x.tsx")
+
+        def probe(flag, operation, payload):
+            if operation != "path-claim-wait":
+                return request(flag, operation, payload)
+            timer = Timer(0.1, claim_file.unlink) if release else None
+            if timer is not None:
+                timer.start()
+            try:
+                result = request(flag, operation, payload)
+                wait_results.append(result)
+                return result
+            finally:
+                if timer is not None:
+                    timer.cancel()
+                    timer.join()
+
+        with (
+            mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True),
+            mock.patch.object(path_claims, "_now", side_effect=path_claims.time.time),
+            mock.patch.object(path_claims.NativeProbe, "request", side_effect=probe),
+        ):
+            self.assertEqual(self.claim("a", "src/x.tsx")[0], 0)
+            with mock.patch.object(path_claims, "try_claim", wraps=path_claims.try_claim) as attempt:
+                code, output = self.claim("b", "src/x.tsx", extra=("--wait", "1.2"))
+            self.assertEqual(code, path_claims.CONFLICT_EXIT)
+            self.assertIn("held by a", output)
+            self.assertEqual(attempt.call_count, 2)
+            self.assertEqual(wait_results, [{"waited": True}])
+            self.assertTrue(claim_file.exists())
+
+            release = True
+            self.assertEqual(self.claim("b", "src/x.tsx", extra=("--wait", "3"))[0], 0)
+            self.assertEqual(wait_results, [{"waited": True}, {"waited": True}])
+            self.assertEqual(self.status()[0]["holder"], "b")
+
     def test_wait_succeeds_once_claim_expires(self) -> None:
         self.claim("a", "src/x.tsx", extra=("--ttl", "2"))
 
