@@ -1,14 +1,17 @@
 //! owner: batch eligibility of ordinary source paths for structural review.
-//! allowed imports: read-only filesystem metadata and vendor README, Git attribute records and JSON.
-//! forbidden imports: state writes and Git execution.
+//! allowed imports: read-only filesystem metadata, vendor README, bounded Git attributes and JSON.
+//! forbidden imports: state writes, arbitrary Git execution and review decisions.
 //! callers/tests: structural review and preview via private completion probe.
 //! verification: configured source exclusions and per-path fallback.
 use super::structure_net_deletions::StructureNetDeletions;
+use crate::read_process::status::capture_status;
 use serde_json::{json, Value};
 use std::{
     fs,
     io::{ErrorKind, Read},
     path::Path,
+    process::Command,
+    time::Duration,
 };
 
 pub(super) struct StructureSourcePaths;
@@ -29,9 +32,12 @@ impl StructureSourcePaths {
         if paths.len() > 4096 {
             return None;
         }
-        let attributes = match payload.get("git_attributes") {
-            Some(records) => Self::generated_flags(records.as_str()?, paths)?,
-            None => vec![false; paths.len()],
+        let query = payload.get("read_git_attributes").and_then(Value::as_bool) == Some(true);
+        let attributes = match (query, payload.get("git_attributes")) {
+            (true, None) => Self::generated_flags(&Self::git_attributes(project, paths)?, paths)?,
+            (false, Some(records)) => Self::generated_flags(records.as_str()?, paths)?,
+            (false, None) => vec![false; paths.len()],
+            (true, Some(_)) => return None,
         };
         let selected = paths
             .iter()
@@ -73,10 +79,46 @@ impl StructureSourcePaths {
             })
             .collect::<Vec<_>>();
         let mut result = json!({"selected": selected});
+        if query {
+            result["git_attributes_read"] = Value::Bool(true);
+        }
         if let Some(counts) = payload.get("net_deletions") {
             result["net_deletions"] = StructureNetDeletions::findings(counts)?;
         }
         Some(result)
+    }
+
+    fn git_attributes(project: &Path, paths: &[Value]) -> Option<String> {
+        let mut input = Vec::new();
+        for entry in paths {
+            let path = entry.get("path")?.as_str()?;
+            if path.is_empty() || path.contains('\0') || input.len() + path.len() + 1 > 128 * 1024 {
+                return None;
+            }
+            input.extend_from_slice(path.as_bytes());
+            input.push(0);
+        }
+        if input.is_empty() {
+            return Some(String::new());
+        }
+        let (output, _, status) = capture_status(
+            Command::new("git")
+                .arg("-C")
+                .arg(project)
+                .args(["check-attr", "-z", "--stdin", "linguist-generated"])
+                .env("GIT_OPTIONAL_LOCKS", "0")
+                .env("GIT_TERMINAL_PROMPT", "0")
+                .env("GIT_NO_LAZY_FETCH", "1")
+                .env("GIT_ALLOW_PROTOCOL", ""),
+            Duration::from_secs(2),
+            Some(256 * 1024),
+            Some(input),
+        )
+        .ok()??;
+        if !status.success() {
+            return None;
+        }
+        String::from_utf8(output).ok()
     }
 
     fn pinned_vendor(project: &Path, parts: &[&str]) -> Option<bool> {

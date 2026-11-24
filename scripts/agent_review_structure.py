@@ -12,7 +12,6 @@ from typing import Any, Literal
 from agent_review_boundary import boundary_note_requirements
 from agent_review_generated_attrs import (
     _declares_generated,
-    generated_attribute_records,
     linguist_generated_path,
 )
 from agent_android_action_boundary import AndroidActionBoundary
@@ -1215,12 +1214,11 @@ def _pathspec_args(review_paths: list[str] | None) -> list[str]:
 def _review_sources(
     project: Path, paths: list[Path], discovery: dict[str, Any] | None = None,
 ) -> list[Path]:
-    native_enabled = bool(paths) and NativeProbe.available()
-    has_attributes = native_enabled and _declares_generated(project)
-    attributes = generated_attribute_records(project, paths) if has_attributes else None
-    if native_enabled and (not has_attributes or attributes is not None):
+    if paths and NativeProbe.available():
+        read_attributes = _declares_generated(project)
         payload = {
             "project": str(project),
+            "read_git_attributes": read_attributes,
             "paths": [{"path": str(path), "suffix": path.suffix.lower()} for path in paths],
             "policy": {
                 "extensions": sorted(REVIEW_SOURCE_EXTENSIONS),
@@ -1230,8 +1228,6 @@ def _review_sources(
                 "config_suffixes": REVIEW_CONFIG_SUFFIXES,
             },
         }
-        if attributes is not None:
-            payload["git_attributes"] = attributes
         if discovery is not None:
             counts = []
             for path, metadata in discovery["path_metadata"].items():
@@ -1240,7 +1236,9 @@ def _review_sources(
                     counts.append([path, additions, deletions])
             payload["net_deletions"] = {"limit": REVIEW_NET_DELETION_LIMIT, "counts": counts}
         native = NativeProbe.request("--completion-probe", "structure-source-paths", payload)
-        if native is not None and "selected" in native:
+        if native is not None and "selected" in native and (
+            not read_attributes or native.get("git_attributes_read") is True
+        ):
             selected = native["selected"]
             if (isinstance(selected, list) and len(selected) == len(paths)
                     and all(value is None or type(value) is bool for value in selected)):

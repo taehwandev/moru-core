@@ -1772,11 +1772,20 @@ class NativeCompletionTests(unittest.TestCase):
             structure, "review_source_path", side_effect=AssertionError("per-path fallback"),
         ):
             self.assertEqual(expected, structure._review_sources(self.project, paths))
-        with patch.dict(os.environ, self.env, clear=True), patch.object(
-            structure, "generated_attribute_records", return_value="wrong.rs\0linguist-generated\0true\0",
-        ), patch.object(structure, "review_source_path", wraps=structure.review_source_path) as fallback:
-            self.assertEqual(expected, structure._review_sources(self.project, paths))
-            self.assertEqual(paths, [call.args[1] for call in fallback.call_args_list])
+        native_request = structure.NativeProbe.request
+
+        def wrong_records(protocol, operation, payload):
+            self.assertTrue(payload["read_git_attributes"])
+            payload = {**payload, "read_git_attributes": False,
+                       "git_attributes": "wrong.rs\0linguist-generated\0true\0"}
+            return native_request(protocol, operation, payload)
+
+        for reply in (wrong_records, lambda *_: {"selected": [True] * len(paths)}):
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                structure.NativeProbe, "request", side_effect=reply,
+            ), patch.object(structure, "review_source_path", wraps=structure.review_source_path) as fallback:
+                self.assertEqual(expected, structure._review_sources(self.project, paths))
+                self.assertEqual(paths, [call.args[1] for call in fallback.call_args_list])
 
         snapshot = self.base / "snapshot"
         snapshot.mkdir()
