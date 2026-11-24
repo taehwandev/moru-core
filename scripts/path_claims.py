@@ -115,7 +115,7 @@ def _active_claims(directory: Path, result: Optional[dict]) -> list[dict]:
         for name, expiry, raw in rows:
             # Recheck deletion candidates in case a concurrent writer renewed
             # or replaced a claim after Rust read it.
-            claim = json.loads(raw) if expiry is not None and expiry > _now() else _read_active(directory / name)
+            claim = json.loads(raw) if expiry is not None and expiry > _now() else _recheck_active(directory / name)
             if claim is not None:
                 claims.append(claim)
         return claims
@@ -142,6 +142,22 @@ def _read_active(entry: Path) -> Optional[dict]:
         pass
     entry.unlink(missing_ok=True)
     return None
+
+
+def _recheck_active(entry: Path) -> Optional[dict]:
+    result = NativeProbe.request("--completion-probe", "path-claim-expire", {
+        "project": str(entry.parents[2]), "name": entry.name, "now": _now(),
+        "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+    })
+    if result is None:
+        return _read_active(entry)
+    if result.keys() == {"line"}:
+        raw = result["line"]
+        if raw is None:
+            return None
+        if isinstance(raw, str):
+            return json.loads(raw)
+    raise OSError("invalid native path claim expiry receipt")
 
 
 def conflicts(project: Path, paths: Iterable[str], holder: str) -> list[dict]:

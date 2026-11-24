@@ -175,6 +175,13 @@ impl CompletionProcess {
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
+        if args[1] == "path-claim-expire" {
+            return match path_claim_release::PathClaimRelease::expire(&payload) {
+                Some(Ok(line)) => Self::respond(Some(json!({"line": line}))),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "path-claim-release" {
             return match path_claim_release::PathClaimRelease::release(&payload) {
                 Some(Ok(())) => Self::respond(Some(json!({"handled": true}))),

@@ -71,7 +71,7 @@ impl PathClaimScan {
         Some(json!({"rows": rows, "status": status, "conflicts": conflicts}))
     }
 
-    fn parse(raw: &str, digit_limit: usize) -> Option<Option<(f64, Claim)>> {
+    pub(super) fn parse(raw: &str, digit_limit: usize) -> Option<Option<(f64, Claim)>> {
         let record = match PythonJson::parse_with_diagnostic(raw, Some(digit_limit), None) {
             Ok(Some(record)) => record,
             Err(InputDiagnostic::Syntax(_)) => return Some(None),

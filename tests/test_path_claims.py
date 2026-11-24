@@ -211,20 +211,24 @@ class PathClaimsTests(unittest.TestCase):
                 expected = path_claims.active_claims(oracle)
             with mock.patch.object(path_claims, "_read_active", wraps=path_claims._read_active) as reread:
                 self.assertEqual(expected, path_claims.active_claims(self.project))
-                self.assertEqual(reread.call_args_list, [mock.call(directory / name) for name in ("c.json", "d.json")])
+                reread.assert_not_called()
             self.assertEqual(sorted(p.name for p in directory.iterdir()), ["a.json", "b.json"])
             self.assertEqual([row["path"] for row in self.status()], ["a", "z"])
 
             candidate = directory / "c.json"
             candidate.write_text(rows[candidate.name], encoding="utf-8")
+            vanished = directory / "d.json"
+            vanished.write_text(rows[vanished.name], encoding="utf-8")
             request = path_claims.NativeProbe.request
 
             def renew_after_scan(*args):
                 result = request(*args)
                 self.assertIsNotNone(result)
-                replacement = candidate.with_suffix(".tmp")
-                replacement.write_text(json.dumps({"path": "renewed", "expires": later}), encoding="utf-8")
-                replacement.replace(candidate)
+                if args[1] == "path-claim-scan":
+                    replacement = candidate.with_suffix(".tmp")
+                    replacement.write_text(json.dumps({"path": "renewed", "expires": later}), encoding="utf-8")
+                    replacement.replace(candidate)
+                    vanished.unlink()
                 return result
 
             with mock.patch.object(path_claims.NativeProbe, "request", side_effect=renew_after_scan):
@@ -239,6 +243,23 @@ class PathClaimsTests(unittest.TestCase):
                 with mock.patch.object(path_claims, "_read_active", wraps=path_claims._read_active) as reread:
                     self.assertEqual(path_claims.active_claims(self.project), expected + [exceptional])
                     self.assertEqual(reread.call_count, 3)
+
+            candidate.write_text(rows["c.json"], encoding="utf-8")
+            invoke = subprocess.run
+
+            def lose_expiry_reply(command, **kwargs):
+                result = invoke(command, **kwargs)
+                if command[-1] == "path-claim-expire":
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+                return result
+
+            with mock.patch.object(subprocess, "run", side_effect=lose_expiry_reply), (
+                mock.patch.object(path_claims, "_read_active", side_effect=AssertionError("Python replayed expiry"))
+            ):
+                with self.assertRaisesRegex(OSError, "expiry outcome could not be determined"):
+                    path_claims.active_claims(self.project)
+            self.assertFalse(candidate.exists())
 
     def test_same_holder_reclaim_renews(self) -> None:
         self.claim("a", "src/x.tsx", extra=("--ttl", "60"))
@@ -333,13 +354,15 @@ class PathClaimsTests(unittest.TestCase):
 
             def expire_after_scan(*args):
                 result = request(*args)
-                self.assertIsNotNone(result["status"])
-                self.clock += 1
+                if args[1] == "path-claim-scan":
+                    self.assertIsNotNone(result["status"])
+                    self.clock += 1
                 return result
 
             with mock.patch.object(path_claims.NativeProbe, "request", side_effect=expire_after_scan) as scan:
                 self.assertEqual((0, "[]\n"), self.run_cli(*args, "--json"))
-                scan.assert_called_once()
+                self.assertEqual([call.args[1] for call in scan.call_args_list],
+                                 ["path-claim-scan"] + ["path-claim-expire"] * 3)
             self.assertEqual(list(directory.iterdir()), [])
             with mock.patch.object(path_claims, "_active_claims", side_effect=AssertionError("Python rendered empty status")):
                 self.assertEqual((0, "no active claims\n"), self.run_cli(*args))
@@ -381,13 +404,15 @@ class PathClaimsTests(unittest.TestCase):
 
             def expire_after_scan(*args):
                 result = request(*args)
-                self.assertIsNotNone(result["conflicts"])
-                self.clock += 1
+                if args[1] == "path-claim-scan":
+                    self.assertIsNotNone(result["conflicts"])
+                    self.clock += 1
                 return result
 
             with mock.patch.object(path_claims.NativeProbe, "request", side_effect=expire_after_scan) as scan:
                 self.assertEqual(path_claims.conflicts(self.project, ["src"], "owner"), expected[0])
-                scan.assert_called_once()
+                self.assertEqual([call.args[1] for call in scan.call_args_list],
+                                 ["path-claim-scan", "path-claim-expire"])
             self.assertEqual(sorted(p.name for p in directory.iterdir()), ["a.json", "b.json", "c.json", "d.json"])
 
     def test_wait_gives_up_after_timeout(self) -> None:
