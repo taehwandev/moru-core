@@ -20,7 +20,6 @@ return here only for the ARD-scoped code slice.
 - `common/skills/llm-coding-discipline/SKILL.md`
 - `common/skills/code-conventions/SKILL.md`
 - `common/skills/product-spec-to-implementation/SKILL.md`
-- `workflows/skills/product-architecture-delivery/SKILL.md` when PRD and ARD gates are needed
 - `workflows/skills/development-cycle/SKILL.md` for the full verify and side-effect audit cycle
 - one matching platform architecture card
 - task-specific common cards for touched API contracts, release config,
@@ -65,7 +64,8 @@ product/architecture work instead.
 Use the acceptance criteria and changed boundary to choose evidence:
 
 - state or reducer test when user intent changes visible state
-- component/UI/screenshot/manual path when visual or interaction behavior changes
+- component/UI/screenshot/manual path when visual or interaction behavior changes;
+  judged output (scene, game, video) follows `visible-output.md`
 - contract test, generated-client check, or caller compile when route/API/DTO
   behavior changes
 - persistence/cache/sync check when durable state changes

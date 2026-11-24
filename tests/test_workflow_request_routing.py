@@ -479,6 +479,62 @@ class BlenderAssetRoutingTests(unittest.TestCase):
                 self.assertNotIn("blender", infer_concerns_from_request(request))
 
 
+class MultiAgentRoutingTests(unittest.TestCase):
+    """A lead that hands work to other agents loads the collaboration rules."""
+
+    def test_orchestration_requests_require_the_collaboration_guidance(self):
+        from workflow_route import resolve_docs
+
+        for request in (
+            "Replace the 2D panorama with a 3D mountain using Codex (Astra)",
+            "네온 시켜서 오케스트레이션 해줘",
+            "Parallelize the work across three agents",
+            "서브에이전트로 나눠서 해",
+        ):
+            with self.subTest(request=request):
+                concerns = infer_concerns_from_request(request)
+                self.assertIn("multi-agent", concerns)
+                route = resolve_docs("feature", None, concerns, request_classified=True,
+                                     inferred_concerns=concerns, request_text=request)
+                self.assertIn(
+                    "workflows/skills/multi-agent-collaboration/references/current-guidance.md",
+                    route["required_docs"],
+                )
+
+    def test_negative_control_agent_words_alone_do_not_route(self):
+        for request in ("the agent returns JSON", "use a claude-like tone", "파이프라인을 병렬로 돌려"):
+            with self.subTest(request=request):
+                self.assertNotIn("multi-agent", infer_concerns_from_request(request))
+
+
+class VisibleOutputGuidanceTests(unittest.TestCase):
+    """Work on judged visible output loads the keep-list and baseline rules."""
+
+    def test_visible_output_requests_require_the_rules(self):
+        from workflow_route import resolve_docs
+
+        for request in (
+            "Upgrade the 3D woodland stream shader",
+            "결과물이 형편없어, 다시 다듬어줘",
+            "차가 어색해 보여",
+            "this scene looks cheap",
+        ):
+            with self.subTest(request=request):
+                concerns = infer_concerns_from_request(request)
+                self.assertIn("visible-output", concerns)
+                route = resolve_docs("feature", None, concerns, request_classified=True,
+                                     inferred_concerns=concerns, request_text=request)
+                self.assertIn(
+                    "workflows/skills/feature-implementation/references/visible-output.md",
+                    route["required_docs"],
+                )
+
+    def test_negative_control_other_work_does_not_load_them(self):
+        for request in ("3d secure 결제 붙여줘", "add a 3-day retry", "rename the users table"):
+            with self.subTest(request=request):
+                self.assertNotIn("visible-output", infer_concerns_from_request(request))
+
+
 class LookupShapeSurvivesIntakeTests(unittest.TestCase):
     """A read-only question must not be shaped as general multi-step work.
 

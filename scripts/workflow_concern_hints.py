@@ -29,6 +29,38 @@ REQUEST_CONCERN_HINTS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
         ),
     ),
     (
+        "multi-agent",
+        (
+            r"\borchestrat(?:e|es|ed|ing|ion|or)\b",
+            r"\bsub-?agents?\b",
+            r"\bmulti-?agents?\b",
+            r"\bparallel(?:ize|ized|ise|ised)?\b.{0,30}\bagents?\b",
+            r"\b(?:using|with|via|delegate to|hand(?: off)? to)\s+(?:codex|claude|gemini|agy)\b",
+            "\uc624\ucf00\uc2a4\ud2b8\ub808\uc774\uc158",
+            r"\uc11c\ube0c\s*\uc5d0\uc774\uc804\ud2b8",
+            r"\uba40\ud2f0\s*\uc5d0\uc774\uc804\ud2b8",
+        ),
+    ),
+    (
+        "visible-output",
+        (
+            r"\b3d\b(?!\s*-?secure)",
+            r"\bwebgl\b",
+            r"\bthree\.?js\b",
+            r"\br3f\b",
+            r"\bshaders?\b",
+            r"\bcinematic\b",
+            r"\blooks?\s+(?:wrong|cheap|unnatural|bad|off|worse)\b",
+            "\uac8c\uc784",
+            "\uc170\uc774\ub354",
+            "\uc2dc\ub124\ub9c8\ud2f1",
+            "\uc5b4\uc0c9",
+            "\ubd80\uc790\uc5f0",
+            "\ud615\ud3b8\uc5c6",
+            "\ud004\ub9ac\ud2f0",
+        ),
+    ),
+    (
         "web-service-stack",
         (
             r"\bweb\s*service\b.*\b(react native|rn|python|fastapi|react)\b",

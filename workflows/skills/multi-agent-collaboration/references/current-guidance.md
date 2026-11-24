@@ -354,6 +354,61 @@ with a strengthened mandatory-escalation clause in the brief.
 Stop a worker after prolonged silence and re-plan. Terminate finished workers
 or let them exit naturally; do not accumulate idle worker sessions.
 
+## Quality Across Rounds
+
+Use when agents iterate on one visible result (a scene, game, film, page or
+design) over several rounds. Splitting the work raises throughput; one owner
+still has to own the look. Apply
+`workflows/skills/feature-implementation/references/visible-output.md` to the
+whole result, plus:
+
+- One look owner: the lead or a named integrator keeps the keep list, the
+  baseline captures and the reference bar, and runs a seam/polish phase after
+  each parallel round. Owners judge their slice; only the look owner judges
+  the whole.
+- Shared numbers live in one contract file (positions, times, scale, palette,
+  budgets) and a script checks them after every merge; prose agreements drift.
+- Brief each round from the user's verdict, not a feature list: keep (what
+  stays), remove or replace (what failed), change (the target, in the user's
+  words), bar (reference, copy nothing), check (views or times to compare).
+- Review on output, not on the authors' reports: an independent reviewer gets
+  baseline and candidate captures and the user's words, and says what got
+  worse first.
+- A round that only adds features, or whose evidence is "X exists, 0 errors",
+  is not a quality round; say so instead of reporting it as improved.
+
+## Long-Running Multi-Runtime Builds
+
+Use when a script, not a live parent session, runs several headless writers
+(`claude -p`, `codex exec`, `agy -p`) in phases over separate worktrees with
+path ownership, for example a planner plus parallel owners plus ticket rounds.
+
+- Brief each writer as headless: no one will answer a question, so it takes the
+  least-destructive default, lists it under "Assumed" in its report, starts
+  Moru before its first project write and ends finished or blocked, never on a
+  question. Check each worktree for its own run record after the phase; a
+  writer without one skipped the lifecycle and its result is unverified.
+- Liveness: measure idle time from the writer's own start and from its event
+  stream when it has one (`codex exec --json` command events), never from old
+  file mtimes. Kill only after a long idle window, log it, and treat the phase
+  result as unverified rather than finished.
+- Exit: a writer may finish its work and never exit. Tell writers to stop the
+  servers, browsers and background commands they started before the final
+  report; the orchestrator still needs the idle watchdog for when they do not.
+- Report two results per writer: the process exit code and the run's finish
+  status. A zero exit with an open run is `needs_inspection`; hand its
+  remaining gates to the integrator instead of rerunning the whole slice.
+- Scope resume state to the phase that set it (skip lists, continue lists);
+  clear it before the next phase so a resume of phase 2 cannot shrink phase 4.
+- Check ownership against the merge base of the writer's branch, not the moving
+  main, or every earlier merge is reported as a foreign edit.
+- Usage limits: on a limit, wait and continue the same conversation; record a
+  checkpoint with `remaining_work` at the start of every long phase so a
+  continuation resumes instead of restarting.
+- Show the user only frames of owned work; skeleton or stub captures are
+  `PLACEHOLDER` (see `common/skills/ui-visual-verification/references/current-guidance.md`
+  `## Canvas, WebGL And Timeline Output`).
+
 ## Closeout
 
 Before the review hook, count the complete code-only changed-path union from

@@ -67,6 +67,8 @@ CONCERNS: Dict[str, Tuple[str, ...]] = {
         "platforms/swift/skills/swift-review/SKILL.md",
     ),
     "blender": ("common/skills/blender-asset-pipeline/SKILL.md",),
+    "multi-agent": ("workflows/skills/multi-agent-collaboration/SKILL.md",),
+    "visible-output": ("workflows/skills/feature-implementation/references/visible-output.md",),
     "asset": ("common/skills/asset-lifecycle/SKILL.md",),
     "assets": ("common/skills/asset-lifecycle/SKILL.md",),
     "structure": ("common/skills/code-structure-ownership/SKILL.md",),
@@ -304,9 +306,13 @@ RISK_CONCERNS_REQUIRED_WHEN_INFERRED: frozenset[str] = frozenset(
 # itself rather than costing a reference. `device-scenario-qa` needs the
 # scenario contract during the device run; `blender` needs the binary-read and
 # asset-contract rules (an agent that opens a .glb with its file-read tool can
-# end its whole turn with a malformed-media error).
+# end its whole turn with a malformed-media error); `multi-agent` gives a lead
+# that hands work to other agents the ownership and quality-across-rounds rules
+# before it splits the work, which no later reference can repair;
+# `visible-output` needs the keep-list and baseline rules before the first edit,
+# because a baseline cannot be captured after the version it shows is gone.
 EXECUTION_CONCERNS_REQUIRED_WHEN_INFERRED: frozenset[str] = frozenset(
-    {"blender", "device-scenario-qa"}
+    {"blender", "device-scenario-qa", "multi-agent", "visible-output"}
 )
 
 
