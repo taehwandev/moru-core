@@ -36,17 +36,38 @@ impl AtomicSibling {
         Self::open_relative_result(dir, path, flags).ok()
     }
 
+    pub(crate) fn ensure_directory(parent: &File, name: &CStr) -> Option<File> {
+        let flags = libc::O_RDONLY | libc::O_DIRECTORY;
+        match Self::open_relative_result(parent, name, flags) {
+            Ok(dir) => return Some(dir),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(_) => return None,
+        }
+        // Anchor both operations at the same parent, even with concurrent creators.
+        unsafe { libc::mkdirat(parent.as_raw_fd(), name.as_ptr(), 0o777 as libc::mode_t) };
+        Self::open_relative(parent, name, flags)
+    }
+
     pub(crate) fn open_relative_result(
         dir: &File,
         path: &CStr,
         flags: libc::c_int,
+    ) -> io::Result<File> {
+        Self::open_relative_with_mode(dir, path, flags, 0o666)
+    }
+
+    pub(crate) fn open_relative_with_mode(
+        dir: &File,
+        path: &CStr,
+        flags: libc::c_int,
+        mode: libc::c_uint,
     ) -> io::Result<File> {
         let fd = unsafe {
             libc::openat(
                 dir.as_raw_fd(),
                 path.as_ptr(),
                 flags | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC,
-                0o666 as libc::c_uint,
+                mode,
             )
         };
         if fd < 0 {

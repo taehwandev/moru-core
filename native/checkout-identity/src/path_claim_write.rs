@@ -1,0 +1,89 @@
+//! owner: one exclusive path-claim creation or same-holder renewal.
+//! allowed imports: anchored filesystem I/O and Python JSON.
+//! forbidden imports: multi-claim scheduling, authority decisions and network.
+//! callers/tests: path_claims._write_claim, test_path_claims.
+//! verification: byte/mode parity, collision handling and write receipt contract.
+use crate::{
+    atomic_sibling::AtomicSibling,
+    python_json::{Object, PythonJson, Value},
+};
+use serde_json::Value as Json;
+use std::{
+    ffi::{CStr, CString},
+    fs::File,
+    io::{self, Read, Write},
+    path::Path,
+};
+
+pub(super) struct PathClaimWrite;
+
+impl PathClaimWrite {
+    // None means that no claim file was created or replaced.
+    pub(super) fn write(input: &Json) -> Option<io::Result<bool>> {
+        let project = Path::new(input.get("project")?.as_str()?);
+        let stem = input.get("name")?.as_str()?.strip_suffix(".json")?;
+        if stem.len() != 40
+            || !stem
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return None;
+        }
+        let target = CString::new(format!("{stem}.json")).ok()?;
+        let entry = input.get("entry")?;
+        let holder = entry.get("holder")?.as_str()?;
+        let mut claim = Object::new();
+        for key in ["path", "holder", "since", "expires"] {
+            claim.insert(key.into(), Value::String(entry.get(key)?.as_str()?.into()));
+        }
+        let original = PythonJson::render(&Value::Object(claim.clone()), false, true)?;
+        let digit_limit = input.get("digit_limit")?.as_u64()?.try_into().ok()?;
+        let root = AtomicSibling::open_directory(project)?;
+        let local = AtomicSibling::ensure_directory(&root, c".moru")?;
+        let directory = AtomicSibling::ensure_directory(&local, c"claims")?;
+        let flags = libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL;
+        match AtomicSibling::open_relative_with_mode(&directory, &target, flags, 0o644) {
+            Ok(mut file) => Some(file.write_all(original.as_bytes()).map(|_| true)),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+                Self::renew(&directory, &target, stem, holder, claim, digit_limit)
+            }
+            Err(_) => None,
+        }
+    }
+
+    fn renew(
+        directory: &File,
+        target: &CStr,
+        stem: &str,
+        holder: &str,
+        mut claim: Object,
+        digit_limit: usize,
+    ) -> Option<io::Result<bool>> {
+        let file = AtomicSibling::open_relative(directory, target, libc::O_RDONLY)?;
+        if !file.metadata().ok()?.is_file() {
+            return None;
+        }
+        let mut raw = String::new();
+        file.take(64 * 1024 + 1).read_to_string(&mut raw).ok()?;
+        if raw.len() > 64 * 1024 {
+            return None;
+        }
+        let current = PythonJson::parse_with_diagnostic(&raw, Some(digit_limit), None).ok()??;
+        if !current.is_object() {
+            return None;
+        }
+        if current.get("holder").and_then(Value::as_str) != Some(holder) {
+            return Some(Ok(false));
+        }
+        if let Some(since) = current.get("since") {
+            claim.insert("since".into(), since.clone());
+        }
+        let updated = PythonJson::render(&Value::Object(claim), false, true)?;
+        let temporary = CString::new(format!("{stem}.{}.tmp", std::process::id())).ok()?;
+        Some(
+            AtomicSibling::InheritUmask
+                .replace(directory, &temporary, target, updated.as_bytes())
+                .map(|_| true),
+        )
+    }
+}

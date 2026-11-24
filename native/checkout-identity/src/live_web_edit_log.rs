@@ -8,7 +8,7 @@ use crate::{
     python_json::{Object, PythonJson, Value},
 };
 use serde_json::Value as Json;
-use std::{ffi::CStr, fs::File, io::Write, os::fd::AsRawFd, path::Path};
+use std::{io::Write, path::Path};
 
 pub(super) struct LiveWebEditLog;
 
@@ -37,8 +37,8 @@ impl LiveWebEditLog {
         line.push('\n');
 
         let root = AtomicSibling::open_directory(project)?;
-        let local = Self::directory(&root, c".moru")?;
-        let web = Self::directory(&local, c"live-web")?;
+        let local = AtomicSibling::ensure_directory(&root, c".moru")?;
+        let web = AtomicSibling::ensure_directory(&local, c"live-web")?;
         let mut log = AtomicSibling::open_relative(
             &web,
             c"edits.jsonl",
@@ -53,18 +53,5 @@ impl LiveWebEditLog {
             log.write(line.as_bytes())
                 .is_ok_and(|size| size == line.len()),
         )
-    }
-
-    fn directory(parent: &File, name: &CStr) -> Option<File> {
-        let flags = libc::O_RDONLY | libc::O_DIRECTORY;
-        match AtomicSibling::open_relative_result(parent, name, flags) {
-            Ok(dir) => return Some(dir),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(_) => return None,
-        }
-        // Open relative to the stable parent descriptor after mkdir, including
-        // when a concurrent creator wins. Never follow a symlink here.
-        unsafe { libc::mkdirat(parent.as_raw_fd(), name.as_ptr(), 0o777 as libc::mode_t) };
-        AtomicSibling::open_relative(parent, name, flags)
     }
 }

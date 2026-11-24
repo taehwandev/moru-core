@@ -150,6 +150,8 @@ mod live_web_check_lookup;
 mod live_web_edit_log;
 #[path = "path_claim_scan.rs"]
 mod path_claim_scan;
+#[path = "path_claim_write.rs"]
+mod path_claim_write;
 
 impl CompletionProcess {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
@@ -171,6 +173,13 @@ impl CompletionProcess {
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
+        if args[1] == "path-claim-write" {
+            return match path_claim_write::PathClaimWrite::write(&payload) {
+                Some(Ok(written)) => Self::respond(Some(json!({"written": written}))),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "live-web-edit-append" {
             return match live_web_edit_log::LiveWebEditLog::append(&payload) {
                 Some(true) => Self::respond(Some(json!({"appended": true}))),

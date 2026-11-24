@@ -195,6 +195,59 @@ class PathClaimsTests(unittest.TestCase):
         self.clock += 30
         self.assertEqual(len(self.status()), 1, "renewal must outlive the original expiry")
 
+    def test_native_claim_create_and_renew_match_python_and_do_not_replay(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        oracle = self.project / "oracle"
+        oracle.mkdir()
+        write = path_claims._write_claim
+        path, holder = "src/한글.tsx", "세션"
+        target = path_claims._claim_file(self.project, path)
+        reference = path_claims._claim_file(oracle, path)
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                self.assertTrue(write(oracle, path, holder, 60))
+            with mock.patch.object(path_claims.os, "open", side_effect=AssertionError("Python opened claim")):
+                self.assertTrue(write(self.project, path, holder, 60))
+                self.assertFalse(write(self.project, path, "other", 60))
+            self.assertEqual(reference.read_bytes(), target.read_bytes())
+            self.assertEqual(reference.stat().st_mode, target.stat().st_mode)
+            since = json.loads(target.read_text())["since"]
+
+            self.clock += 30
+            with mock.patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                self.assertTrue(write(self.project, path, holder, 90))
+            with mock.patch.object(path_claims.os, "replace", side_effect=AssertionError("Python renewed claim")):
+                self.assertTrue(write(oracle, path, holder, 90))
+            self.assertEqual(reference.read_bytes(), target.read_bytes())
+            self.assertEqual(reference.stat().st_mode, target.stat().st_mode)
+            self.assertEqual(json.loads(target.read_text())["since"], since)
+
+            with ThreadPoolExecutor(max_workers=2) as workers:
+                winners = list(workers.map(lambda h: write(self.project, "race", h, 60), ["first", "second"]))
+            self.assertEqual(winners.count(True), 1)
+            self.assertEqual(json.loads(path_claims._claim_file(self.project, "race").read_text())["holder"],
+                             ["first", "second"][winners.index(True)])
+
+            invoke = subprocess.run
+
+            def lose_reply(*command, **kwargs):
+                result = invoke(*command, **kwargs)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return subprocess.CompletedProcess(result.args, 0, stdout=b"", stderr=b"")
+
+            with mock.patch.object(subprocess, "run", side_effect=lose_reply) as process:
+                with self.assertRaisesRegex(OSError, "outcome could not be determined"):
+                    write(self.project, "uncertain", holder, 60)
+                process.assert_called_once()
+            self.assertEqual(json.loads(path_claims._claim_file(self.project, "uncertain").read_text())["holder"], holder)
+
     def test_native_status_matches_python_and_refreshes_expiry_at_output(self) -> None:
         from native_launcher_support import NATIVE, install
         from native_pretool_support import environment
