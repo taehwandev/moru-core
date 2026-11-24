@@ -121,7 +121,7 @@ def _exec_native(args) -> None:
         return
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, display_python: str | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--test", required=True, help="unittest selector to run")
@@ -138,7 +138,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     command = check_command(args.test)
-    print(f"check: {' '.join(command)}")
+    shown = [display_python, *command[1:]] if display_python is not None else command
+    print(f"check: {' '.join(shown)}")
     verdicts = []
     for mutant in mutants:
         verdict = judge(mutant, command, args.root)

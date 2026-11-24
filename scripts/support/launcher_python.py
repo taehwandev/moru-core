@@ -35,6 +35,7 @@ SCRIPT_ALIASES = {
     "overhead-report": "moru_overhead_report.py",
     "pending-publication": "agent_pending_publication.py",
     "runs-prune": "runs-prune.py",
+    "mutation-check": "mutation-check.py",
     "loop": "agent_loop.py",
     "workflow-dispatch": "workflow_dispatch.py",
     "workflow-dispatch-launch": "workflow_dispatch_launch.py",
@@ -115,9 +116,12 @@ def main():
         )
 
     os.environ.setdefault("MORU_HOME", str(root))
-    return _run_in_process(script, passthrough_args, explicit_main=script_alias == "behavior-eval")
+    main_options = {"display_python": "python3"} if script_alias == "mutation-check" else {}
+    return _run_in_process(script, passthrough_args,
+                           explicit_main=script_alias in ("behavior-eval", "mutation-check"),
+                           main_options=main_options)
 
-def _run_in_process(script, passthrough_args, explicit_main=False):
+def _run_in_process(script, passthrough_args, explicit_main=False, main_options=None):
     # Every gated tool call, every prompt and every Stop pays for this launcher,
     # and spawning a second interpreter to reach the script cost 24 ms of the
     # 72 ms a PreToolUse gate took -- a third of it, before any policy ran. The
@@ -142,7 +146,7 @@ def _run_in_process(script, passthrough_args, explicit_main=False):
         if explicit_main:
             # The native alias already tried dispatch. A direct library call
             # also keeps the declared Python backend from initiating a retry.
-            code = runpy.run_path(str(script))["main"](passthrough_args)
+            code = runpy.run_path(str(script))["main"](passthrough_args, **(main_options or {}))
         else:
             runpy.run_path(str(script), run_name="__main__")
             code = 0

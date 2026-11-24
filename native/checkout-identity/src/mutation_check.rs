@@ -33,25 +33,15 @@ impl MutationCheck {
         let [python, spec, root, selector, original @ ..] = args else {
             return 2;
         };
-        let root = Path::new(root);
-        let plan = Self::read_limited(Self::open(Path::new(spec), false))
-            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
-        if let (Some(plan), Ok(root), Some(python_text), Some(selector_text)) = (
-            plan,
-            root.canonicalize(),
-            python.to_str(),
-            selector.to_str(),
-        ) {
-            if let Some(mutants) = Self::prepare(&plan, &root) {
-                return match ResumeInterrupt::install()
-                    .and_then(|_interrupt| Self::check(&mutants, &root, python_text, selector_text))
-                {
-                    Ok(code) => code,
-                    Err(error) => {
-                        eprintln!("mutation check failed: {error}");
-                        1
-                    }
-                };
+        if let (Some(python_text), Some(selector)) = (python.to_str(), selector.to_str()) {
+            if let Some(code) = Self::try_run(
+                Path::new(spec),
+                Path::new(root),
+                python_text,
+                selector,
+                None,
+            ) {
+                return code;
             }
         }
         // Only this preflight branch may replay the original CLI.
@@ -62,6 +52,46 @@ impl MutationCheck {
             .exec();
         eprintln!("mutation check fallback failed: {error}");
         1
+    }
+
+    pub(crate) fn try_run(
+        spec: &Path,
+        root: &Path,
+        python: &str,
+        selector: &str,
+        launcher_root: Option<&Path>,
+    ) -> Option<i32> {
+        let root = root.canonicalize().ok()?;
+        let bytes = Self::read_limited(Self::open(spec, false))?;
+        let plan = serde_json::from_slice::<Value>(&bytes).ok()?;
+        let mutants = Self::prepare(&plan, &root)?;
+        let mut command = Command::new(python);
+        command
+            .args(["-m", "unittest", selector])
+            .current_dir(root)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        if let Some(launcher_root) =
+            launcher_root.filter(|_| std::env::var_os("MORU_HOME").is_none())
+        {
+            command.env("MORU_HOME", launcher_root);
+        }
+        let display_python = if launcher_root.is_some() {
+            "python3"
+        } else {
+            python
+        };
+        Some(
+            match ResumeInterrupt::install().and_then(|_interrupt| {
+                Self::check(&mutants, &mut command, display_python, selector)
+            }) {
+                Ok(code) => code,
+                Err(error) => {
+                    eprintln!("mutation check failed: {error}");
+                    1
+                }
+            },
+        )
     }
 
     fn prepare<'a>(plan: &'a Value, root: &Path) -> Option<Vec<Mutant<'a>>> {
@@ -115,7 +145,12 @@ impl MutationCheck {
         (bytes.len() as u64 <= LIMIT).then_some(bytes)
     }
 
-    fn check(mutants: &[Mutant<'_>], root: &Path, python: &str, selector: &str) -> io::Result<i32> {
+    fn check(
+        mutants: &[Mutant<'_>],
+        command: &mut Command,
+        python: &str,
+        selector: &str,
+    ) -> io::Result<i32> {
         let mut stdout = io::stdout().lock();
         writeln!(stdout, "check: {python} -m unittest {selector}")?;
         let (mut killed, mut unapplied) = (0, 0);
@@ -123,7 +158,7 @@ impl MutationCheck {
             if ResumeInterrupt::interrupted() {
                 return Ok(130);
             }
-            let verdict = match Self::judge(mutant, root, python, selector)? {
+            let verdict = match Self::judge(mutant, command)? {
                 Some(true) => {
                     killed += 1;
                     "KILLED"
@@ -150,12 +185,7 @@ impl MutationCheck {
         Ok(i32::from(killed != mutants.len()))
     }
 
-    fn judge(
-        mutant: &Mutant<'_>,
-        root: &Path,
-        python: &str,
-        selector: &str,
-    ) -> io::Result<Option<bool>> {
+    fn judge(mutant: &Mutant<'_>, command: &mut Command) -> io::Result<Option<bool>> {
         if mutant.target.canonicalize()? != mutant.target {
             return Err(io::Error::other("mutation target changed after preflight"));
         }
@@ -183,13 +213,7 @@ impl MutationCheck {
             if ResumeInterrupt::interrupted() {
                 return Ok(false);
             }
-            Command::new(python)
-                .args(["-m", "unittest", selector])
-                .current_dir(root)
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-                .map(|status| !status.success())
+            command.status().map(|status| !status.success())
         });
         Self::restore(&mut writable, &mutant.target, &original)?;
         result.map(Some)

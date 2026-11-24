@@ -40,6 +40,7 @@ mod cards_transaction;
 mod cards_write_process;
 mod completion_process;
 mod mutation_check;
+mod mutation_check_command;
 mod route_identity;
 mod completion_progress;
 mod completion_quality;
@@ -273,6 +274,7 @@ fn main() {
     if args.first().is_some_and(|a| a == "behavior-eval") {
         finish(behavior_eval_process::BehaviorEvalProcess::run(&launcher, &args));
     }
+    mutation_check_command::MutationCheckCommand::dispatch(&launcher, &args);
     if args.first().is_some_and(|a| a == "experience-eval") {
         finish(memory_process::experience_cli::ExperienceCli::run(&launcher, &args));
     }

@@ -13,11 +13,14 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+from native_launcher_support import install
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -278,6 +281,52 @@ class NativeMutationCheckTests(unittest.TestCase):
         self.assertEqual((2, b"unusable spec: mutant 0 is missing file\n", b""),
                          (actual.returncode, actual.stdout, actual.stderr))
         self.assertEqual(self.original, self.target.read_bytes())
+
+    def test_public_launcher_arguments_soft_fail_and_no_python_bootstrap(self):
+        home = self.root / "separate home"
+        home.mkdir()
+        install(home, ROOT)
+        launcher = home / ".moru/bin/moru-hook"
+        tools = self.root / "interpreter bin"
+        tools.mkdir()
+        python = tools / "python3"
+        python.symlink_to(sys.executable)
+        env = {key: value for key, value in self.env.items()
+               if not key.startswith(("PYTHON", "_PYTHON", "MORU_"))}
+        env.update(HOME=str(home), PATH=str(tools), PYTHONUTF8="1", PYTHONDONTWRITEBYTECODE="1")
+
+        def invoke(args, backend="auto", soft="0"):
+            return subprocess.run([str(launcher), "mutation-check", *args], cwd=self.root,
+                                  env={**env, "MORU_LAUNCHER_BACKEND": backend, "MORU_HOOK_SOFT_FAIL": soft},
+                                  capture_output=True, timeout=10)
+
+        self._spec(("caught", "VALUE = 1", "VALUE = 20"), ("ignored", "'same same'", "'different'"))
+        ordinary = ["--spec=unused.json", f"--spec={self.spec.name}", "--test=test_subject", "--root=."]
+        for args, soft in ((ordinary, "0"), (ordinary, "1"), (["--help"], "0"),
+                           (["--spec"], "0"), (["--unknown"], "0"),
+                           (["--spec", "missing", "--test", "test_subject"], "1")):
+            with self.subTest(args=args, soft=soft):
+                reference = invoke(args, "python", soft)
+                actual = invoke(args, "auto", soft)
+                self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                                 (actual.returncode, actual.stdout, actual.stderr))
+                self.assertEqual(self.original, self.target.read_bytes())
+
+        python.unlink()
+        python.write_text("#!/bin/sh\n"
+                          "if [ \"$1\" != -m ]; then echo bootstrap >&2; exit 99; fi\n"
+                          f"exec {shlex.quote(sys.executable)} \"$@\"\n")
+        python.chmod(0o755)
+        actual = invoke(ordinary)
+        self.assertEqual(1, actual.returncode)
+        self.assertEqual(b"", actual.stderr)
+        self.assertTrue(actual.stdout.startswith(b"check: python3 -m unittest test_subject\n"))
+        self.assertIn(b"1/2 killed", actual.stdout)
+        self.assertEqual(self.original, self.target.read_bytes())
+        self._spec()
+        empty = invoke([f"--spec={self.spec.name}", "--test=test_subject"])
+        self.assertEqual((0, b""), (empty.returncode, empty.stderr))
+        self.assertIn(b"0/0 killed", empty.stdout)
 
 
 class ExitCodeTests(unittest.TestCase):
