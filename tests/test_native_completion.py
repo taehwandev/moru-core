@@ -1431,6 +1431,58 @@ class NativeCompletionTests(unittest.TestCase):
         )
         self.assertEqual(2 ** 63, report["net_deletions"][0]["net"])
 
+    def test_structure_removal_inputs_preserve_git_paths_lines_and_budgets(self):
+        def git(*args):
+            return subprocess.check_output(["git", *args], cwd=self.project, env=self.env)
+
+        before = self.project / "기존.txt"
+        after = self.project / '새 이름"\\\t.txt'
+        retained = "".join(f"retained exact line {index}\n" for index in range(16))
+        before.write_text(retained + "moved documentation\n")
+        (self.project / "deleted.txt").write_text("obsolete documentation\n")
+        git("add", ".")
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "base")
+        before.rename(after)
+        after.write_text(retained)
+        (self.project / "deleted.txt").unlink()
+        git("add", "-A")
+        diff = git("-c", "core.quotePath=true", "diff", "-U0", "-M", "HEAD").decode()
+        self.assertIn("rename to ", diff)
+        self.assertIn("+++ /dev/null", diff)
+        (self.project / "untracked.txt").write_bytes(b"moved documentation\r\n\xfftrailing\xe2\x80\xa8last")
+        path_metadata = {"untracked.txt": {"untracked": True}}
+        budget = removals._Budget()
+        expected_removed, expected_added = removals.parse_diff_lines(diff, budget)
+        removals._add_untracked_lines(expected_added, self.project, path_metadata, budget)
+        self.assertEqual(["moved documentation"], expected_removed[after.name])
+        self.assertEqual(["obsolete documentation"], expected_removed["deleted.txt"])
+        self.assertEqual(["moved documentation", "�trailing", "last"], expected_added["untracked.txt"])
+
+        def explain():
+            findings = [{"path": after.name}, {"path": "deleted.txt"}]
+            removals.classify_net_deletions(
+                findings, project=self.project, run_command=lambda *_: {"returncode": 0, "stdout": diff},
+                review_paths=None, review_commits=None, path_metadata=path_metadata,
+            )
+            return findings
+
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual((expected_removed, expected_added, False),
+                             removals._native_removal_inputs(diff, self.project, path_metadata))
+            with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = explain()
+            with patch.object(removals, "parse_diff_lines", side_effect=AssertionError("Python parsed patch")):
+                self.assertEqual(expected, explain())
+            self.assertEqual(["moved", "removed"], [row["classification"] for row in expected])
+            for limit in ("PER_FILE_BYTE_LIMIT", "TOTAL_BYTE_LIMIT"):
+                with self.subTest(limit=limit), patch.object(removals, limit, 30):
+                    self.assertEqual(({}, {}, True),
+                                     removals._native_removal_inputs(diff, self.project, path_metadata))
+            (self.project / "link.txt").symlink_to(self.project / "untracked.txt")
+            self.assertEqual(({}, {}, True), removals._native_removal_inputs(
+                diff, self.project, {"link.txt": {"untracked": True}},
+            ))
+
     def test_structure_removal_matching_preserves_consumption_ties_and_redaction(self):
         sensitive = "def token_fixture():"
         diff = "\n".join((

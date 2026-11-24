@@ -62,11 +62,17 @@ def classify_net_deletions(
         for item in findings:
             item["classification"] = "unavailable"
         return
-    budget = _Budget()
-    removed, added = parse_diff_lines(str(diff.get("stdout") or ""), budget)
-    if review_commits is None:
-        _add_untracked_lines(added, project, path_metadata, budget)
-    if budget.truncated:
+    text = str(diff.get("stdout") or "")
+    untracked = path_metadata if review_commits is None else {}
+    parsed = _native_removal_inputs(text, project, untracked)
+    if parsed is None:
+        budget = _Budget()
+        removed, added = parse_diff_lines(text, budget)
+        _add_untracked_lines(added, project, untracked, budget)
+        truncated = budget.truncated
+    else:
+        removed, added, truncated = parsed
+    if truncated:
         for item in findings:
             item["classification"] = "unavailable"
         return
@@ -82,6 +88,28 @@ def classify_net_deletions(
             index.setdefault(line, Counter())[path] += 1
     for item in findings:
         item.update(classify_removal(item["path"], removed.get(item["path"]), index))
+
+
+def _native_removal_inputs(
+    text: str, project: Path, path_metadata: dict[str, dict[str, Any]],
+) -> tuple[dict[str, list[str]], dict[str, list[str]], bool] | None:
+    if not NativeProbe.available():
+        return None
+    result = NativeProbe.request("--completion-probe", "structure-removal-inputs", {
+        "diff": text, "project": str(project),
+        "untracked": [path for path in sorted(path_metadata)
+                      if (path_metadata[path] or {}).get("untracked") is True],
+        "per_file": PER_FILE_BYTE_LIMIT, "total": TOTAL_BYTE_LIMIT,
+    })
+    if result is not None and set(result) == {"truncated"} and result["truncated"] is True:
+        return {}, {}, True
+    if result is not None and set(result) == {"removed", "added"}:
+        if all(isinstance(rows, dict) and all(
+            isinstance(lines, list) and all(isinstance(line, str) for line in lines)
+            for lines in rows.values()
+        ) for rows in result.values()):
+            return result["removed"], result["added"], False
+    return None
 
 
 def _native_matches(findings, removed, added) -> list[dict[str, Any]] | None:

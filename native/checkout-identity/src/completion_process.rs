@@ -88,6 +88,8 @@ mod structure_owner_findings;
 mod structure_owner_facts;
 #[path = "structure_removal_matching.rs"]
 mod structure_removal_matching;
+#[path = "structure_removal_inputs.rs"]
+mod structure_removal_inputs;
 #[path = "structure_move_matching.rs"]
 mod structure_move_matching;
 #[path = "structure_merge_baseline.rs"]
@@ -182,6 +184,7 @@ impl CompletionProcess {
             Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),
             Some("structure-removal-matching") => structure_removal_matching::StructureRemovalMatching::compare(&payload),
+            Some("structure-removal-inputs") => structure_removal_inputs::StructureRemovalInputs::probe(&payload),
             Some("structure-move-matching") => structure_move_matching::StructureMoveMatching::compare(&payload),
             Some("structure-merge-baseline") => structure_merge_baseline::StructureMergeBaseline::classify(&payload),
             Some("structure-report") => structure_report::StructureReport::render(&payload),
