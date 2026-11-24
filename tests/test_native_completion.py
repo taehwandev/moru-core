@@ -77,6 +77,37 @@ class NativeCompletionTests(unittest.TestCase):
         self.assertEqual(1, envelope["schema_version"])
         return envelope["result"]
 
+    def test_structure_removal_report_preserves_character_budget_and_ratio_text(self):
+        findings = [
+            {"path": "한🙂.py", "net": 51, "classification": "moved", "moved_to": ["새.py"]},
+            {"path": "e\u0301.py", "net": 76, "classification": "removed", "unmatched_lines": 51,
+             "moved_to": ["other.py"], "sample_lines": ["[sensitive-looking content omitted]"]},
+            {"path": "unknown.py", "net": 60, "additions": 3, "deletions": 63},
+        ]
+        whole = removals._python_removal_notice(findings)
+        boundary = sum(len(line) for line in whole[:4])
+        for limit in (0, boundary - 1, boundary, removals.NOTICE_BYTE_LIMIT):
+            with patch.object(removals, "NOTICE_BYTE_LIMIT", limit):
+                expected = removals._python_removal_notice(findings)
+                with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    removals, "_python_removal_notice", side_effect=AssertionError("Python formatted notice"),
+                ):
+                    self.assertEqual(expected, removals.removal_notice(findings))
+                with patch.object(NativeProbe, "request", return_value={"lines": [True]}):
+                    self.assertEqual(expected, removals.removal_notice(findings))
+        self.assertEqual({"lines": []}, self.check("structure-report", {
+            "mode": "removal", "findings": [], "char_limit": 0,
+        }))
+
+        fields = {key: [] for key in ("checked_paths", "failures", "warnings", "boundary_note_requirements")}
+        fields["net_deletions"] = [{"moved_ratio": value / 100} for value in range(101)]
+        expected = {"status": "SUCCESS", "scope": "Structural preview only; not behavior verification or review approval",
+                    **fields}
+        self.assertEqual({"text": json.dumps(expected, indent=2, ensure_ascii=False), "exit_code": 0},
+                         self.check("structure-report", {"mode": "cli", "fields": fields}))
+        fields["net_deletions"] = [{"moved_ratio": 0.12345}]
+        self.assertEqual(125, self.raw("structure-report", {"mode": "cli", "fields": fields}).returncode)
+
     def test_structure_report_native_text_status_and_advisories_match_python(self):
         root = Path(__file__).resolve().parents[1]
         main = runpy.run_path(str(root / "scripts" / "agent-structure-check.py"))["main"]

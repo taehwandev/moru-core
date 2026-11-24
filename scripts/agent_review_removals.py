@@ -313,6 +313,18 @@ def removal_notice(findings: list[dict[str, Any]]) -> list[str]:
 
     if not findings:
         return []
+    fields = ("path", "net", "classification", "moved_to", "unmatched_lines", "sample_lines", "deletions", "additions")
+    native = NativeProbe.request("--completion-probe", "structure-report", {
+        "mode": "removal", "char_limit": NOTICE_BYTE_LIMIT,
+        "findings": [{key: item[key] for key in fields if key in item} for item in findings],
+    })
+    lines = native.get("lines") if native is not None else None
+    if isinstance(lines, list) and lines and all(isinstance(line, str) for line in lines):
+        return lines
+    return _python_removal_notice(findings)
+
+
+def _python_removal_notice(findings: list[dict[str, Any]]) -> list[str]:
     details = [
         "measured net removals (review context, not a failure; compared with lines "
         "this diff added elsewhere):"
