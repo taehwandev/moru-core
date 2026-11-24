@@ -702,6 +702,39 @@ class NativeCompletionTests(unittest.TestCase):
         declined = self.raw("structure-move-matching", {"current": repeated, "candidates": [repeated + ["x"]]})
         self.assertEqual((125, b""), (declined.returncode, declined.stdout))
 
+    def test_structure_native_javascript_declarations_preserve_raw_depth_and_arrow_kind(self):
+        path = Path("app/page.JSX")
+        lines = [
+            "export const Plain = 1;",
+            "export const Action = () => ({ ready: true });",
+            "export let Alias = async input => input;",
+            'const text = "{";',
+            "export function Hidden() {}",
+            "// }",
+            "export class Widget {}",
+            "export default async function Page() {}",
+            "export { Widget };",
+        ]
+        unusual = ["export function Valid() {}", "export default () => 1;"]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = [purpose.top_level_type_declarations(path, source) for source in (lines, unusual)]
+            typescript = purpose.top_level_type_declarations(Path("app/page.tsx"), lines)
+        self.assertEqual([("type", "Action", 2), ("type", "Alias", 3), ("class", "Widget", 7),
+                          ("function", "Page", 8)],
+                         [(row["kind"], row["name"], row["line"]) for row in expected[0]])
+        self.assertEqual("const", typescript[0]["kind"])
+        self.assertIn("Hidden", [row["name"] for row in typescript])
+        recognizer = Mock()
+        recognizer.match.side_effect = AssertionError("legacy declaration scan used")
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
+                self.assertEqual(expected[0], purpose.top_level_type_declarations(path, lines))
+                self.assertEqual(typescript, purpose.top_level_type_declarations(Path("app/page.tsx"), lines))
+            original, declarations = purpose._javascript_scan(unusual, typescript=False)
+            self.assertEqual(unusual, original)
+            self.assertIsNone(declarations)
+            self.assertEqual(expected[1], purpose.top_level_type_declarations(path, unusual))
+
     def test_structure_native_typescript_declarations_preserve_precedence_and_fallback(self):
         path = Path("app/page.TSX")
         ordinary = [
@@ -732,7 +765,7 @@ class NativeCompletionTests(unittest.TestCase):
         ):
             with patch.object(purpose, "BRACE_TOP_LEVEL_TYPE_RE", recognizer):
                 self.assertEqual(expected[0], purpose.top_level_type_declarations(path, ordinary))
-            native_mask, declarations = purpose._typescript_scan(unusual)
+            native_mask, declarations = purpose._javascript_scan(unusual, typescript=True)
             self.assertIsNone(declarations)
             self.assertEqual(" export type A = B;", native_mask[0])
             self.assertEqual(expected[1], purpose.top_level_type_declarations(path, unusual))

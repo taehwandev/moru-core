@@ -1,15 +1,29 @@
-//! owner: ordinary TypeScript declaration headers for structural review.
+//! owner: ordinary JavaScript and TypeScript declaration headers for structural review.
 //! allowed imports: Python-compatible text and JSON.
 //! forbidden imports: filesystem, Git execution and owner policy.
-//! callers/tests: native TypeScript text processing and forced-Python parity.
+//! callers/tests: JavaScript completion probe, native TypeScript text processing and parity fixtures.
 //! verification: header precedence, nesting and unsupported syntax fallback.
 use crate::{python_text::PythonText, text::Text};
 use serde_json::{json, Value};
 
-pub(super) struct StructureTsDeclarations;
+pub(super) struct StructureJsDeclarations;
 
-impl StructureTsDeclarations {
-    pub(super) fn scan(lines: &[&str], unicode_version: &str) -> Option<Vec<Value>> {
+impl StructureJsDeclarations {
+    pub(super) fn request(input: &Value) -> Option<Value> {
+        let lines = input
+            .get("lines")?
+            .as_array()?
+            .iter()
+            .map(Value::as_str)
+            .collect::<Option<Vec<_>>>()?;
+        Some(json!({"declarations": Self::scan(&lines, input.get("unicode")?.as_str()?, false)?}))
+    }
+
+    pub(super) fn scan(
+        lines: &[&str],
+        unicode_version: &str,
+        typescript: bool,
+    ) -> Option<Vec<Value>> {
         if !PythonText::matches_unicode_version(unicode_version)
             && lines.iter().any(|line| !line.is_ascii())
         {
@@ -19,7 +33,7 @@ impl StructureTsDeclarations {
         let mut depth = 0usize;
         for (index, line) in lines.iter().enumerate() {
             if depth == 0 {
-                if let Some((kind, name, modifiers)) = Self::header(line)? {
+                if let Some((kind, name, modifiers)) = Self::header(line, typescript)? {
                     matches.push(json!([index, kind, name, modifiers]));
                 }
             }
@@ -29,7 +43,7 @@ impl StructureTsDeclarations {
         Some(matches)
     }
 
-    fn header(line: &str) -> Option<Option<(&str, &str, &str)>> {
+    fn header(line: &str, typescript: bool) -> Option<Option<(&str, &str, &str)>> {
         let mut tail = line.trim_start_matches(Text::is_py_space);
         if tail.is_empty()
             || tail.starts_with(['*', '{', '}', ';'])
@@ -47,7 +61,11 @@ impl StructureTsDeclarations {
             let (kind, name_tail) = Self::split(tail);
             if matches!(kind, "const" | "let" | "var") {
                 let prefix = &line[..line.len() - tail.len()];
-                return Some(Self::name(name_tail, true).map(|(name, _)| (kind, name, prefix)));
+                if typescript {
+                    return Some(Self::name(name_tail, true).map(|(name, _)| (kind, name, prefix)));
+                }
+                let name = Self::name(name_tail, false).filter(|(_, rest)| Self::arrow(rest));
+                return Some(name.map(|(name, _)| ("type", name, prefix)));
             }
             tail = Self::after(tail, "default").unwrap_or(tail);
         }

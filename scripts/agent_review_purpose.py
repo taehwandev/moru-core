@@ -181,31 +181,34 @@ def _native_go_declarations(lines: list[str]) -> list[dict[str, Any]] | None:
     return declarations
 
 
-def _typescript_scan(lines: list[str]) -> tuple[list[str], list[dict[str, Any]] | None]:
-    native = NativeProbe.request("--completion-probe", "structure-ts-text", {
+def _javascript_scan(lines: list[str], *, typescript: bool) -> tuple[list[str], list[dict[str, Any]] | None]:
+    operation = "structure-ts-text" if typescript else "structure-js-declarations"
+    native = NativeProbe.request("--completion-probe", operation, {
         "mode": "declarations", "lines": lines, "unicode": unicodedata.unidata_version,
     })
-    masked = native.get("lines") if native is not None else None
-    if not isinstance(masked, list) or not all(isinstance(line, str) for line in masked):
-        return _python_typescript_lines(lines), None
-    rows = native.get("declarations")
+    if typescript:
+        masked = native.get("lines") if native is not None else None
+        if not isinstance(masked, list) or not all(isinstance(line, str) for line in masked):
+            return _python_typescript_lines(lines), None
+        lines = masked
+    rows = native.get("declarations") if native is not None else None
     if not isinstance(rows, list):
-        return masked, None
+        return lines, None
     last = -1
     for row in rows:
         if not isinstance(row, list) or len(row) != 4:
-            return masked, None
+            return lines, None
         index, kind, name, modifiers = row
-        if (type(index) is not int or not last < index < len(masked)
+        if (type(index) is not int or not last < index < len(lines)
                 or not all(isinstance(value, str) for value in (kind, name, modifiers))):
-            return masked, None
+            return lines, None
         last = index
     roles = _native_declaration_roles([(kind, name) for _, kind, name, _ in rows])
     declarations = [
-        type_declaration(kind, name, masked[index], index, modifiers=modifiers, roles=roles)
+        type_declaration(kind, name, lines[index], index, modifiers=modifiers, roles=roles)
         for index, kind, name, modifiers in rows
     ]
-    return masked, [row for row in declarations if row["owner"]]
+    return lines, [row for row in declarations if row["owner"]]
 
 
 def _python_typescript_lines(lines: list[str]) -> list[str]:
@@ -232,10 +235,10 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
         if native is not None:
             return native
     is_typescript = suffix in {".ts", ".tsx"}
-    if is_typescript:
-        lines, native = _typescript_scan(lines)
+    if is_typescript or suffix in {".js", ".jsx"}:
+        lines, native = _javascript_scan(lines, typescript=is_typescript)
         if native is not None:
-            if native:
+            if is_typescript and native:
                 _attach_typescript_references(lines, native)
             return native
     brace_depth = 0

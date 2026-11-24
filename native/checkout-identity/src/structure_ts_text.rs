@@ -3,12 +3,10 @@
 //! forbidden imports: filesystem, Git execution and owner policy.
 //! callers/tests: structural declaration review and Python parity fixtures.
 //! verification: masking precedence, line boundaries and reference ranges.
+use super::structure_js_declarations::StructureJsDeclarations;
 use crate::python_text::PythonText;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
-#[path = "structure_ts_declarations.rs"]
-mod structure_ts_declarations;
-use structure_ts_declarations::StructureTsDeclarations;
 
 pub(super) struct StructureTsText;
 
@@ -29,7 +27,7 @@ impl StructureTsText {
                 let masked = Self::mask(&lines.join("\n"))?;
                 let lines = PythonText::splitlines(&masked);
                 let matches =
-                    StructureTsDeclarations::scan(&lines, input.get("unicode")?.as_str()?);
+                    StructureJsDeclarations::scan(&lines, input.get("unicode")?.as_str()?, true);
                 Some(json!({"lines": lines, "declarations": matches}))
             }
             "references" => Self::references(input, &lines),
