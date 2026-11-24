@@ -29,6 +29,7 @@ class NativeProbe:
             return None
         write_failure = {
             ("--completion-probe", "live-web-edit-append"): "native live-web edit append outcome could not be determined",
+            ("--completion-probe", "live-web-edit-hook"): "native live-web edit hook outcome could not be determined",
             ("--completion-probe", "path-claim-write"): "native path claim write outcome could not be determined",
             ("--completion-probe", "path-claim-release"): "native path claim release outcome could not be determined",
             ("--completion-probe", "path-claim-expire"): "native path claim expiry outcome could not be determined",

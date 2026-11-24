@@ -519,6 +519,7 @@ class PathClaimsTests(unittest.TestCase):
         oracle.mkdir()
         args = ("--holder", "세션😀", "--files", "src/편집.tsx")
         hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": "src/편집.tsx"}})
+        (self.project / "src/편집.tsx").touch()
         log = path_claims.edits_log(self.project)
         large_file = 'parallel"\n' * 800
         with mock.patch.dict(os.environ, {**environment(self.project, ROOT), "TZ": "Asia/Seoul"}, clear=True):
@@ -599,6 +600,50 @@ class PathClaimsTests(unittest.TestCase):
         notebook = {"tool_name": "NotebookEdit", "tool_input": {"notebook_path": "n.ipynb"}, "cwd": str(self.project)}
         self.run_cli("record", "--from-hook", "--holder", "s1", stdin=json.dumps(notebook))
         self.assertEqual(self.read_edits()[1]["files"], ["n.ipynb"])
+
+    def test_native_hook_binds_project_and_falls_back_for_missing_targets(self) -> None:
+        from native_launcher_support import NATIVE, install
+        from native_pretool_support import environment
+
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        home = self.project / "home"
+        home.mkdir()
+        install(home, ROOT)
+        scope = self.project / "scope"
+        scope.mkdir()
+        notebook = scope / "한글.ipynb"
+        notebook.touch()
+        (scope / "alias.ipynb").symlink_to(notebook)
+        outside = self.project / "outside.ts"
+        outside.touch()
+        (scope / "escape.ts").symlink_to(outside)
+        args = ("record", "--from-hook", "--holder", "editor")
+
+        def payload(tool_name, **tool_input):
+            return json.dumps({"tool_name": tool_name, "tool_input": tool_input, "cwd": str(scope)})
+
+        with mock.patch.dict(os.environ, environment(self.project, ROOT), clear=True):
+            with mock.patch.object(path_claims, "normalize", side_effect=AssertionError("Python normalized hook")) as normalize:
+                self.assertEqual(self.run_cli(*args, stdin=payload(
+                    "NotebookEdit", file_path="", notebook_path="alias.ipynb"
+                )), (0, ""))
+                override = json.loads(payload("MultiEdit", file_path="alias.ipynb"))
+                override.update(cwd=str(self.project), ignored=float("nan"))
+                self.assertEqual(self.run_cli(*args, "--project", str(scope), stdin=json.dumps(override)), (0, ""))
+                self.assertEqual(self.run_cli(*args, stdin=payload("Edit", file_path="escape.ts")), (0, ""))
+                self.assertEqual(self.run_cli(*args, stdin=payload("Bash", file_path="한글.ipynb")), (0, ""))
+                self.assertEqual(self.run_cli(*args, stdin="{broken"), (0, ""))
+                normalize.assert_not_called()
+            with mock.patch.object(path_claims, "normalize", wraps=path_claims.normalize) as normalize:
+                self.assertEqual(self.run_cli(*args, "--project", str(scope), stdin=payload(
+                    "Write", file_path="not-yet-created.ts"
+                )), (0, ""))
+                normalize.assert_called_once_with(scope, "not-yet-created.ts")
+        log = path_claims.edits_log(scope)
+        self.assertEqual([json.loads(row)["files"] for row in log.read_text().splitlines()],
+                         [["한글.ipynb"], ["한글.ipynb"], ["not-yet-created.ts"]])
+        self.assertFalse(path_claims.edits_log(self.project).exists())
 
     def test_record_from_hook_ignores_other_tools_and_bad_input(self) -> None:
         inputs = [

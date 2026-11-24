@@ -319,7 +319,14 @@ def _record(project: Path, files: Iterable[str], holder: str) -> tuple[dict, str
 def record_from_hook(stream, project: Optional[Path], holder: str) -> None:
     """Record one Claude Code PostToolUse edit; never raise, so a hook never blocks."""
     try:
-        payload = json.loads(stream.read() or "{}")
+        raw_payload = stream.read() or "{}"
+        result = NativeProbe.request("--completion-probe", "live-web-edit-hook", {
+            "payload": raw_payload, "project": str(project) if project else None, "holder": holder,
+            "digit_limit": getattr(sys, "get_int_max_str_digits", lambda: 0)(),
+        })
+        if result is not None:
+            return
+        payload = json.loads(raw_payload)
         if not isinstance(payload, dict) or payload.get("tool_name") not in HOOK_EDIT_TOOLS:
             return
         tool_input = payload.get("tool_input") or {}

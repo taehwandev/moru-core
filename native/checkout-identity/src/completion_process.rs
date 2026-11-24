@@ -148,6 +148,8 @@ mod structure_diff_acquisition;
 mod live_web_check_lookup;
 #[path = "live_web_edit_log.rs"]
 mod live_web_edit_log;
+#[path = "live_web_edit_hook.rs"]
+mod live_web_edit_hook;
 #[path = "path_claim_scan.rs"]
 mod path_claim_scan;
 #[path = "path_claim_release.rs"]
@@ -175,6 +177,13 @@ impl CompletionProcess {
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
+        if args[1] == "live-web-edit-hook" {
+            return match live_web_edit_hook::LiveWebEditHook::record(&payload) {
+                Some(Ok(receipt)) => Self::respond(Some(receipt)),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "path-claim-expire" {
             return match path_claim_release::PathClaimRelease::expire(&payload) {
                 Some(Ok(line)) => Self::respond(Some(json!({"line": line}))),
