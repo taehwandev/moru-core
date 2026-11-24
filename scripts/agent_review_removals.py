@@ -122,18 +122,18 @@ def _native_removal_result(path: str, row: Any) -> dict[str, Any] | None:
     if row == {"classification": "unavailable"}:
         return row
     if not isinstance(row, dict) or set(row) != {
-        "classification", "line_count", "unmatched_count", "moved_to", "samples",
+        "classification", "line_count", "unmatched_count", "moved_to", "sample_lines",
     }:
         return None
     classification, count, unmatched = row["classification"], row["line_count"], row["unmatched_count"]
-    destinations, samples = row["moved_to"], row["samples"]
+    destinations, samples = row["moved_to"], row["sample_lines"]
     if (classification not in ("moved", "removed")
             or type(count) is not int or count <= 0
             or type(unmatched) is not int or not 0 <= unmatched <= count
             or not isinstance(destinations, list) or len(destinations) > 3
             or not all(isinstance(target, str) and target != path for target in destinations)
             or not isinstance(samples, list) or len(samples) > max(HEADING_SAMPLE_LIMIT, FALLBACK_SAMPLE_LIMIT)
-            or not all(isinstance(line, str) for line in samples)
+            or not all(isinstance(line, str) and len(line) <= SAMPLE_CHARS for line in samples)
             or (classification == "moved" and (unmatched or samples))):
         return None
     result = {
@@ -144,7 +144,7 @@ def _native_removal_result(path: str, row: Any) -> dict[str, Any] | None:
         result["unmatched_lines"] = unmatched
     result["moved_to"] = destinations
     if classification == "removed":
-        result["sample_lines"] = [_redact_sample(line) for line in samples]
+        result["sample_lines"] = samples
     return result
 
 

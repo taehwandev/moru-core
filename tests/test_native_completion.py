@@ -1584,7 +1584,8 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertNotIn("shared body", returned)
             self.assertNotIn("right body", returned)
             self.assertNotIn(unselected, returned)
-            self.assertIn(sensitive, returned)
+            self.assertNotIn(sensitive, returned)
+            self.assertIn("[sensitive-looking content omitted]", returned)
             self.assertNotIn(sensitive, json.dumps(expected))
         self.assertEqual(["z.py", "a.py"], expected[0]["moved_to"])
         self.assertEqual(["[sensitive-looking content omitted]"], expected[0]["sample_lines"])
@@ -1616,7 +1617,38 @@ class NativeCompletionTests(unittest.TestCase):
             "summary": {"headings": 5, "fallback": 3},
         })
         self.assertEqual([["#x"], [], [f"# heading {i}" for i in range(5)], [f"body {i}" for i in range(3)]],
-                         [row["samples"] for row in result["findings"]])
+                         [row["sample_lines"] for row in result["findings"]])
+
+    def test_structure_removal_native_redaction_matches_python_regex_and_limits(self):
+        samples = [
+            " PASSWORD renewal ", "paſſphrase", "TOKEN", "apİ-Key", "prıvate_key",
+            "DATAbaſeURL", "CONNECTİON-ſTRİNG", "-----bEgİn", "authorİzatİon",
+            "credential", "bearer", "ghp_" + "ſ", "sk-" + "İ", "akia" + "ſ" * 16,
+            "akia" + "ſ" * 15, "ghp_é", "sk-!", "api--key", "private.key",
+            "Å" * 24, "a" * 23, "a" * 23 + "K", "x" * 11 + "+/=" + "x" * 10,
+            "scheme" + "://" + "사용자:암호" + "@" + "example.test",
+            "scheme" + "://" + ":암호" + "@" + "example.test",
+            "scheme" + "://" + "사용자:" + "@" + "example.test",
+            "scheme" + "://" + "사용자:\u2003암호" + "@" + "example.test",
+            "scheme" + "://" + "사용자:암호/경로" + "@" + "example.test",
+            "scheme" + "://" + "u%20n:p%40" + "@" + "[::1]",
+            "scheme" + "://" + "사용자" + "@" + "example.test",
+            ("e\u0301" * 50) + "z", "tokenizer", "monkey",
+            "한" * 101, "한" * 101 + " secret", "🧪" * 101,
+        ]
+        removed = []
+        for index, sample in enumerate(samples):
+            path = f"fixture-{index}.txt"
+            removed.extend((f"diff --git a/{path} b/{path}", f"--- a/{path}", "+++ /dev/null", "-" + sample))
+        expected = [removals._redact_sample(sample.strip()) for sample in samples]
+        result = self.check("structure-removal-analysis", {
+            "diff": "\n".join(removed), "project": str(self.project), "untracked": [],
+            "findings": [f"fixture-{index}.txt" for index in range(len(samples))],
+            "per_file": 200000, "total": 1000000, "summary": {"headings": 5, "fallback": 3},
+        })
+        self.assertEqual([[sample] for sample in expected], [row["sample_lines"] for row in result["findings"]])
+        self.assertEqual("한" * 100, expected[-3])
+        self.assertEqual("[sensitive-looking content omitted]", expected[-2])
 
     def test_structure_source_layout_keeps_counts_warning_order_and_path_prefix(self):
         limit = structure.REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT

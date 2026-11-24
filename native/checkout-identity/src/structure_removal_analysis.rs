@@ -1,12 +1,13 @@
 //! owner: local structural removal analysis across parsed patches and line matching.
 //! allowed imports: bounded removal inputs, identity matcher, and Python text boundaries.
-//! forbidden imports: Git mutations, source logging, and public sample rendering.
+//! forbidden imports: Git mutations, source logging, and external communication.
 //! callers/tests: structural removal explanation and forced-Python parity fixtures.
 //! verification: shared occurrence consumption, heading precedence and selected samples only.
 use super::{
     structure_diff_acquisition::StructureDiffAcquisition,
     structure_removal_inputs::StructureRemovalInputs,
     structure_removal_matching::StructureRemovalMatching,
+    structure_removal_redaction::StructureRemovalRedaction,
 };
 use crate::python_text::PythonText;
 use serde_json::{json, Value};
@@ -70,19 +71,18 @@ impl StructureRemovalAnalysis {
             let mut samples = Vec::new();
             for index in summary.get("samples")?.as_array()? {
                 let index = usize::try_from(index.as_u64()?).ok()?;
-                samples.push(
-                    lines
-                        .get(index)?
-                        .as_str()?
-                        .trim_matches(PythonText::whitespace),
-                );
+                let line = lines
+                    .get(index)?
+                    .as_str()?
+                    .trim_matches(PythonText::whitespace);
+                samples.push(StructureRemovalRedaction::sample(line));
             }
             findings.push(json!({
                 "classification": summary.get("classification")?,
                 "line_count": lines.len(),
                 "unmatched_count": row.get("unmatched")?.as_array()?.len(),
                 "moved_to": row.get("moved_to")?,
-                "samples": samples,
+                "sample_lines": samples,
             }));
         }
         Some(json!({"findings": findings}))

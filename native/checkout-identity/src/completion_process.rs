@@ -92,6 +92,8 @@ mod structure_removal_matching;
 mod structure_removal_inputs;
 #[path = "structure_removal_analysis.rs"]
 mod structure_removal_analysis;
+#[path = "structure_removal_redaction.rs"]
+mod structure_removal_redaction;
 #[path = "structure_move_matching.rs"]
 mod structure_move_matching;
 #[path = "structure_merge_baseline.rs"]
