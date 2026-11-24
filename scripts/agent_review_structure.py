@@ -36,6 +36,7 @@ from support.native_probe_transport import NativeProbe
 
 
 CommandRunner = Callable[[list[str], Path], dict[str, Any]]
+_MOVE_COPY_OBSERVATIONS = {"diff_deleted_paths", "ls_files_copy_candidates"}
 
 REVIEW_SOURCE_FILE_LINE_LIMIT = 500
 REVIEW_FILE_REVIEW_WARNING_LIMIT = 300
@@ -605,6 +606,7 @@ def changed_source_paths(
 
     acquired = _native_diff(project, run_command, _pathspec_args(review_paths), untracked=True, inspect_head=True)
     if acquired is None:
+        observations = {}
         head = run_command(["git", "rev-parse", "--verify", "HEAD"], project)
         initial = head["returncode"] != 0 or _head_tree_is_empty(project, run_command)
     else:
@@ -623,7 +625,7 @@ def changed_source_paths(
         }, []
     empty_diff = {"returncode": 0, "stdout": ""}
     if acquired is not None:
-        commands.update(observations)
+        commands.update((key, row) for key, row in observations.items() if key not in _MOVE_COPY_OBSERVATIONS)
         listings = (observations["ls_files_initial"]["stdout"] if initial else None,
                     observations["ls_files_untracked"]["stdout"])
         _record_diff(observations.get("diff_name_status", empty_diff), observations.get("diff_numstat", empty_diff),
@@ -643,6 +645,7 @@ def changed_source_paths(
             path_metadata,
             command_errors,
             review_paths,
+            observation=observations.get("diff_deleted_paths"),
         )
         reclassify_untracked_copies(
             project,
@@ -650,6 +653,7 @@ def changed_source_paths(
             commands,
             path_metadata,
             command_errors,
+            observation=observations.get("ls_files_copy_candidates"),
         )
 
     paths = [Path(name) for name in sorted(names)]
@@ -782,9 +786,11 @@ def _native_diff(project, run_command, pathspec, *, commits=None, untracked=Fals
         expected.add("ls_files_untracked")
     if inspect_head:
         expected.add("rev_parse_head")
-    if set(observations) != expected:
+    optional = _MOVE_COPY_OBSERVATIONS if inspect_head and not initial else set()
+    if set(observations).difference(optional) != expected:
         return None
-    if not all(isinstance(row, dict) and type(row.get("returncode")) is int and row["returncode"] == 0
+    if not all(isinstance(row, dict) and type(row.get("returncode")) is int
+               and (row["returncode"] == 0 or key in optional)
                and isinstance(row.get("stdout"), str) for key, row in observations.items() if key != "rev_parse_head"):
         return None
     if inspect_head:
@@ -1015,6 +1021,8 @@ def reclassify_untracked_moves(
     path_metadata: dict[str, dict[str, Any]],
     command_errors: list[str],
     review_paths: list[str] | None = None,
+    *,
+    observation: dict[str, Any] | None = None,
 ) -> None:
     """Recognize unstaged content-preserving moves before applying new-file gates.
 
@@ -1024,7 +1032,7 @@ def reclassify_untracked_moves(
     deleted files with the same filename and require high line similarity.
     """
 
-    deleted = run_command(
+    deleted = observation if observation is not None else run_command(
         ["git", "diff", "--name-only", "-z", "--diff-filter=D", "HEAD", *_pathspec_args(review_paths)],
         project,
     )
@@ -1073,6 +1081,8 @@ def reclassify_untracked_copies(
     commands: dict[str, Any],
     path_metadata: dict[str, dict[str, Any]],
     command_errors: list[str],
+    *,
+    observation: dict[str, Any] | None = None,
 ) -> None:
     """Recognize copy-first migrations while the tracked source remains in place.
 
@@ -1082,7 +1092,9 @@ def reclassify_untracked_copies(
     files with the same filename and require high line similarity.
     """
 
-    tracked = run_command(["git", "ls-files", "-z", "--cached", "--"], project)
+    tracked = observation if observation is not None else run_command(
+        ["git", "ls-files", "-z", "--cached", "--"], project,
+    )
     commands["ls_files_copy_candidates"] = tracked
     if tracked["returncode"] != 0:
         command_errors.append("git ls-files copy candidate discovery failed")

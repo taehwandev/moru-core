@@ -211,6 +211,49 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertEqual(2, len(failure[0]["command_errors"]))
             self.assertEqual(failure, discover(invalid))
 
+    def test_structure_native_acquires_scoped_move_and_repository_copy_candidates(self):
+        def git(*args):
+            return subprocess.check_output(["git", *args], cwd=self.project, env=self.env)
+
+        for name in ("src/old", "src/new", "legacy"):
+            (self.project / name).mkdir(parents=True)
+        previous_move = self.project / "src/old/Move.py"
+        previous_move.write_text("class MoveOwner:\n    pass\n")
+        previous_copy = self.project / "legacy/Copy.py"
+        previous_copy.write_text("class CopyOwner:\n    pass\n")
+        git("add", "src", "legacy")
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "base")
+        previous_move.rename(self.project / "src/new/Move.py")
+        shutil.copyfile(previous_copy, self.project / "src/new/Copy.py")
+
+        def discover():
+            return structure.changed_source_paths(self.project, structure.review_runtime_command, ["src"])
+
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.dict(os.environ, {"MORU_LAUNCHER_BACKEND": "python"}):
+                expected = discover()
+            with patch.object(structure, "reclassify_untracked_moves", wraps=structure.reclassify_untracked_moves) as moves, (
+                patch.object(structure, "reclassify_untracked_copies", wraps=structure.reclassify_untracked_copies)
+            ) as copies:
+                actual = discover()
+                self.assertEqual("src", moves.call_args.kwargs["observation"]["command"][-1])
+                self.assertEqual("--", copies.call_args.kwargs["observation"]["command"][-1])
+            self.assertEqual(expected, actual)
+            metadata = actual[0]["path_metadata"]
+            self.assertEqual(("R", "src/old/Move.py"),
+                             (metadata["src/new/Move.py"]["status"], metadata["src/new/Move.py"]["previous_path"]))
+            self.assertEqual(("C", "legacy/Copy.py"),
+                             (metadata["src/new/Copy.py"]["status"], metadata["src/new/Copy.py"]["previous_path"]))
+
+            acquire = structure._native_diff
+
+            def without_native_moves(*args, **kwargs):
+                observations, decoded = acquire(*args, **kwargs)
+                return {key: row for key, row in observations.items() if key != "diff_deleted_paths"}, decoded
+
+            with patch.object(structure, "_native_diff", side_effect=without_native_moves):
+                self.assertEqual(expected, discover())
+
     def test_structure_initial_discovery_matches_unborn_and_empty_tree_builds(self):
         def git(*args):
             return subprocess.check_output(["git", *args], cwd=self.project, env=self.env)

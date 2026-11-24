@@ -35,7 +35,8 @@ impl StructureDiffAcquisition {
         let mut budget = 128 * 1024;
         let deadline = Instant::now() + Duration::from_secs(2);
         let mut commands = Map::new();
-        if input.get("inspect_head").and_then(Value::as_bool) == Some(true) {
+        let inspect_head = input.get("inspect_head").and_then(Value::as_bool) == Some(true);
+        if inspect_head {
             if !untracked || !commits.is_null() {
                 return None;
             }
@@ -80,7 +81,38 @@ impl StructureDiffAcquisition {
             commands.insert("ls_files_untracked".to_owned(), observation);
         }
         let decoded = StructureDiff::decode(&payload)?;
+        if inspect_head {
+            Self::move_copy_candidates(project, &paths, deadline, &mut budget, &mut commands);
+        }
         Some(json!({"commands": commands, "decoded": decoded}))
+    }
+
+    fn move_copy_candidates(
+        project: &str,
+        paths: &[&str],
+        deadline: Instant,
+        budget: &mut usize,
+        commands: &mut Map<String, Value>,
+    ) {
+        let mut deleted = vec![
+            "git",
+            "diff",
+            "--name-only",
+            "-z",
+            "--diff-filter=D",
+            "HEAD",
+            "--",
+        ];
+        deleted.extend_from_slice(paths);
+        let tracked = ["git", "ls-files", "-z", "--cached", "--"];
+        for (field, args) in [
+            ("diff_deleted_paths", deleted.as_slice()),
+            ("ls_files_copy_candidates", tracked.as_slice()),
+        ] {
+            if let Some(result) = Self::observe(project, args, deadline, budget) {
+                commands.insert(field.into(), result);
+            }
+        }
     }
 
     fn working_head(project: &str, deadline: Instant, budget: &mut usize) -> Option<(Value, bool)> {
