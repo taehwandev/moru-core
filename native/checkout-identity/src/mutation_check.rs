@@ -4,7 +4,8 @@
 //! callers/tests: direct mutation-check CLI and temporary restoration fixtures.
 //! verification: exactly one text match, status-based verdicts and no post-write replay.
 use crate::cards_resume_signal::ResumeInterrupt;
-use serde_json::Value;
+#[path = "mutation_check_spec.rs"]
+mod spec;
 use std::{
     ffi::{OsStr, OsString},
     fs::{self, File, OpenOptions},
@@ -23,9 +24,7 @@ pub(crate) struct MutationCheck;
 
 struct Mutant<'a> {
     target: PathBuf,
-    label: &'a str,
-    old: &'a str,
-    new: &'a str,
+    entry: &'a spec::Entry,
 }
 
 impl MutationCheck {
@@ -61,9 +60,14 @@ impl MutationCheck {
         selector: &str,
         launcher_root: Option<&Path>,
     ) -> Option<i32> {
+        let plan = match spec::load(spec, LIMIT)? {
+            Ok(plan) => plan,
+            Err(error) => {
+                println!("unusable spec: {error}");
+                return Some(2);
+            }
+        };
         let root = root.canonicalize().ok()?;
-        let bytes = Self::read_limited(Self::open(spec, false))?;
-        let plan = serde_json::from_slice::<Value>(&bytes).ok()?;
         let mutants = Self::prepare(&plan, &root)?;
         let mut command = Command::new(python);
         command
@@ -94,12 +98,10 @@ impl MutationCheck {
         )
     }
 
-    fn prepare<'a>(plan: &'a Value, root: &Path) -> Option<Vec<Mutant<'a>>> {
-        plan.as_array()?
-            .iter()
-            .map(|row| {
-                let field = |name| row.get(name)?.as_str().filter(|value| !value.is_empty());
-                let relative = Path::new(field("file")?);
+    fn prepare<'a>(plan: &'a [spec::Entry], root: &Path) -> Option<Vec<Mutant<'a>>> {
+        plan.iter()
+            .map(|entry| {
+                let relative = Path::new(&entry.file);
                 if !relative
                     .components()
                     .all(|part| matches!(part, Component::Normal(_)))
@@ -114,12 +116,7 @@ impl MutationCheck {
                 if source.contains(&b'\r') || std::str::from_utf8(&source).is_err() {
                     return None;
                 }
-                Some(Mutant {
-                    target,
-                    label: field("label")?,
-                    old: field("old")?,
-                    new: field("new")?,
-                })
+                Some(Mutant { target, entry })
             })
             .collect()
     }
@@ -172,7 +169,7 @@ impl MutationCheck {
             if ResumeInterrupt::interrupted() {
                 return Ok(130);
             }
-            writeln!(stdout, "{verdict:>11}  {}", mutant.label)?;
+            writeln!(stdout, "{verdict:>11}  {}", mutant.entry.label)?;
         }
         writeln!(stdout, "{killed}/{} killed", mutants.len())?;
         if unapplied != 0 {
@@ -197,7 +194,7 @@ impl MutationCheck {
                 "mutation target text profile changed after preflight",
             ));
         }
-        if original.matches(mutant.old).count() != 1 {
+        if original.matches(mutant.entry.old.as_str()).count() != 1 {
             return Ok(None);
         }
         let identity = file.metadata()?;
@@ -208,7 +205,7 @@ impl MutationCheck {
                 "mutation target identity changed after preflight",
             ));
         }
-        let mutated = original.replacen(mutant.old, mutant.new, 1);
+        let mutated = original.replacen(mutant.entry.old.as_str(), &mutant.entry.new, 1);
         let result = Self::replace(&mut writable, &mutated).and_then(|()| {
             if ResumeInterrupt::interrupted() {
                 return Ok(false);

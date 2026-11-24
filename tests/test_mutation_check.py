@@ -275,11 +275,36 @@ class NativeMutationCheckTests(unittest.TestCase):
         self.assertIn(b"2/2 killed", actual.stdout)
         self.assertEqual(self.original, self.target.read_bytes())
 
-    def test_invalid_spec_declines_before_output_and_uses_reference_diagnostics(self):
-        self.spec.write_text('[{"label":"fixture"}]')
-        actual = self._native(sys.executable)
-        self.assertEqual((2, b"unusable spec: mutant 0 is missing file\n", b""),
-                         (actual.returncode, actual.stdout, actual.stderr))
+    def _reference(self):
+        return subprocess.run([sys.executable, str(self.script), *self.args], cwd=self.root,
+                              env={**self.env, "MORU_LAUNCHER_BACKEND": "python"},
+                              capture_output=True, timeout=10)
+
+    def test_native_spec_errors_match_python_before_any_interpreter_or_target_access(self):
+        valid = b'{"label":"fixture","file":"subject.py","old":"VALUE = 1","new":"VALUE = 20"}'
+        cases = (None, b'{"label":"fixture"}', b'[false]', b'[{"label":"fixture","label":""}]',
+                 b'[' + valid + b',{"label":"later"}]', b'[\r\n{"label":"\xed\x95\x9c"}\r\n x]',
+                 b'\xef\xbb\xbf[]', b'["\xff"]', b'')
+        for data in cases:
+            with self.subTest(data=data):
+                if data is not None:
+                    self.spec.write_bytes(data)
+                reference = self._reference()
+                native = self._native(str(self.root / "missing-python"))
+                self.assertEqual(2, reference.returncode)
+                self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                                 (native.returncode, native.stdout, native.stderr))
+                self.assertEqual(self.original, self.target.read_bytes())
+                self.assertFalse((self.root / "calls").exists())
+
+    def test_spec_syntax_with_version_dependent_diagnostics_replays_before_effects(self):
+        self.spec.write_bytes(b'[{},]')
+        reference = self._reference()
+        native = self._native(sys.executable)
+        self.assertEqual(2, reference.returncode)
+        self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                         (native.returncode, native.stdout, native.stderr))
+        self.assertIn(b"fallback failed", self._native(str(self.root / "missing-python")).stderr)
         self.assertEqual(self.original, self.target.read_bytes())
 
     def test_public_launcher_arguments_soft_fail_and_no_python_bootstrap(self):
