@@ -196,7 +196,7 @@ fn native_checkout_identity(extra: &[OsString]) -> i32 {
     }
 }
 
-fn private_probe(launcher: &OsString, args: &[OsString]) -> Option<i32> {
+fn direct_dispatch(launcher: &OsString, args: &[OsString]) -> Option<i32> {
     Some(match args.first().and_then(|arg| arg.to_str())? {
         "--setup-probe" => codex_statusline::CodexStatusLine::run(launcher, args),
         "--memory-probe" => memory_process::MemoryProcess::run(launcher, args),
@@ -208,6 +208,7 @@ fn private_probe(launcher: &OsString, args: &[OsString]) -> Option<i32> {
         "--registry-read-probe" => registry_read::RegistryRead::run(launcher, args),
         "--completion-probe" => completion_process::CompletionProcess::run(launcher, args),
         "--smoke-hook-suite" => smoke_hook_suite::SmokeHookSuite::run(launcher, &args[1..]),
+        "smoke-checks" => finish(smoke_hook_suite::SmokeHookSuite::alias(launcher, args)),
         _ => return None,
     })
 }
@@ -254,7 +255,7 @@ fn main() {
     behavior_trace_process::BehaviorTraceProcess::dispatch(&args);
     worker_completion_process::WorkerCompletionProcess::dispatch(&args);
 
-    if let Some(code) = private_probe(&launcher, &args) {
+    if let Some(code) = direct_dispatch(&launcher, &args) {
         exit(code);
     }
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,76 @@ GATE_FIXTURE = Path("native/checkout-identity/smoke-gate-records.json")
 
 
 class NativeSmokeSuiteTests(unittest.TestCase):
+    def test_stable_smoke_alias_dispatch_and_fallback(self) -> None:
+        if not NATIVE.is_file():
+            self.skipTest("native test artifact unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            home = base / "home"
+            home.mkdir()
+            install(home, PROJECT)
+            entry = home / ".moru/bin/moru-hook"
+            bindir = base / "bin"
+            bindir.mkdir()
+            trace = base / "calls"
+            native_trace = base / "native-calls"
+            native = entry.with_name("moru-hook-native")
+            binary = native.with_name("smoke-native-fixture")
+            native.rename(binary)
+            native.write_text(
+                "#!/bin/sh\n"
+                'case "${2-}" in\n'
+                f"    smoke-checks|--smoke-hook-suite) printf '%s\\n' native >> {shlex.quote(str(native_trace))} ;;\n"
+                "esac\n"
+                f'exec {shlex.quote(str(binary))} "$@"\n',
+                encoding="utf-8",
+            )
+            native.chmod(0o755)
+            python = bindir / "python3"
+            python.write_text(
+                f"#!{sys.executable}\n"
+                "import os, sys\nfrom pathlib import Path\n"
+                "name = Path(sys.argv[1]).name\n"
+                "if name in ('moru-hook', 'agent-hook.py', 'workflow.py'):\n"
+                f"    with Path({str(trace)!r}).open('a') as file: file.write(name + '\\n')\n"
+                "if name == 'agent-hook.py' and os.environ.get('SMOKE_TEST_START_125'): sys.exit(125)\n"
+                "os.execv(sys.executable, [sys.executable, *sys.argv[1:]])\n",
+                encoding="utf-8",
+            )
+            python.chmod(0o755)
+            env = environment(base, PROJECT)
+            env.update(TMPDIR=str(base), PATH=f"{bindir}:{env['PATH']}")
+            python_steps = ["agent-hook.py"] * 4 + ["workflow.py"]
+            for overrides, code, steps in (
+                ({}, 0, python_steps),
+                ({"MORU_LAUNCHER_BACKEND": "python"}, 0, ["moru-hook"]),
+                ({"PYTHONPATH": str(base / "absent")}, 0, ["moru-hook"]),
+                ({"SMOKE_TEST_START_125": "1"}, 1, ["agent-hook.py"]),
+            ):
+                with self.subTest(overrides=overrides):
+                    done = subprocess.run([str(entry), "smoke-checks"], env={**env, **overrides},
+                                          cwd=base, stdin=subprocess.DEVNULL, capture_output=True, timeout=35)
+                    self.assertEqual(done.returncode, code, (done.stdout, done.stderr))
+                    self.assertEqual(trace.read_text().splitlines(), steps)
+                    trace.unlink()
+                    expected_native = [] if overrides.get("MORU_LAUNCHER_BACKEND") == "python" else ["native"]
+                    seen_native = native_trace.read_text().splitlines() if native_trace.exists() else []
+                    self.assertEqual(seen_native, expected_native)
+                    native_trace.unlink(missing_ok=True)
+                    self.assertEqual(done.stdout.count(b"Starting E2E Hook Smoke Checks"), 1)
+                    if code == 0:
+                        self.assertIn(b"All E2E smoke checks passed", done.stdout)
+                    self.assertEqual(list(base.glob("tmp*")), [])
+            for args, code, stdout, stderr in (
+                (["--help"], 0, b"usage: moru-hook smoke-checks\n", b""),
+                (["--unknown"], 2, b"", b"usage: moru-hook smoke-checks\n"),
+            ):
+                for backend in ("auto", "python"):
+                    done = subprocess.run([str(entry), "smoke-checks", *args],
+                                          env={**env, "MORU_LAUNCHER_BACKEND": backend},
+                                          cwd=base, capture_output=True, timeout=10)
+                    self.assertEqual((done.returncode, done.stdout, done.stderr), (code, stdout, stderr))
+
     def test_cli_owns_and_cleans_git_fixture(self) -> None:
         if not NATIVE.is_file() or sys.platform == "win32":
             self.skipTest("native Unix test artifact unavailable")

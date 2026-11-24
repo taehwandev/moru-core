@@ -175,10 +175,18 @@ def _native_suite() -> int | None:
     return None if result.returncode == 125 else result.returncode
 
 
-def main() -> int:
-    native = _native_suite()
-    if native is not None:
-        return native if native >= 0 else 1
+def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        native = _native_suite()
+        if native is not None:
+            return native if native >= 0 else 1
+    elif argv:
+        usage = "usage: moru-hook smoke-checks"
+        if argv in (["-h"], ["--help"]):
+            print(usage)
+            return 0
+        print(usage, file=sys.stderr)
+        return 2
 
     print("==================================================")
     print("Starting E2E Hook Smoke Checks")

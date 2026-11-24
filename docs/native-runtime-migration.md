@@ -224,7 +224,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 47 | `scripts/mutation-check.py` | `mutation-check` and direct CLI | Partial native | The alias parses ordinary arguments and runs the mutation and restoration cycle in Rust; Python runs the requested unittest and handles compatibility |
 | 48 | `scripts/path_claims.py` | Direct CLI | Partial native | Rust selects matching live-web check records from a bounded read-only log tail; Python retains claim and edit state operations |
 | 49 | `scripts/research-triage/microsoft_decision.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
-| 50 | `scripts/run_smoke_checks.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
+| 50 | `scripts/run_smoke_checks.py` | `moru-hook smoke-checks`; direct Python compatibility CLI | Partial native | Rust owns the normal entry and scratch fixture; hook and search subprocesses still use Python |
 | 51 | `scripts/runs-prune.py` | runs-prune; direct Python compatibility CLI | Partial native ordinary read-only report | Exact output/options; Python apply, exceptional IO and maintenance remain open |
 | 52 | `scripts/support/codex_statusline_setup.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 53 | `scripts/third_party/wikimap/wikimap.py` | Direct CLI | Python retained | Upstream dependency; retain ownership/license boundary and optimize adapters separately |

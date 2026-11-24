@@ -36,6 +36,7 @@ SCRIPT_ALIASES = {
     "pending-publication": "agent_pending_publication.py",
     "runs-prune": "runs-prune.py",
     "lessons-compact": "lessons-compact.py",
+    "smoke-checks": "run_smoke_checks.py",
     "mutation-check": "mutation-check.py",
     "loop": "agent_loop.py",
     "workflow-dispatch": "workflow_dispatch.py",
@@ -119,7 +120,7 @@ def main():
     os.environ.setdefault("MORU_HOME", str(root))
     main_options = {"display_python": "python3"} if script_alias == "mutation-check" else {}
     return _run_in_process(script, passthrough_args,
-                           explicit_main=script_alias in ("behavior-eval", "mutation-check"),
+                           explicit_main=script_alias in ("behavior-eval", "mutation-check", "smoke-checks"),
                            main_options=main_options)
 
 def _run_in_process(script, passthrough_args, explicit_main=False, main_options=None):

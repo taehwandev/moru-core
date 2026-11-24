@@ -19,6 +19,7 @@ use std::{
 };
 
 const GATE_FIXTURE: &str = include_str!("../smoke-gate-records.json");
+const USAGE: &str = "usage: moru-hook smoke-checks";
 
 pub(crate) struct SmokeHookSuite {
     root: PathBuf,
@@ -27,6 +28,44 @@ pub(crate) struct SmokeHookSuite {
 }
 
 impl SmokeHookSuite {
+    pub(crate) fn alias(launcher: &OsString, args: &[OsString]) -> i32 {
+        match &args[1..] {
+            [flag] if flag == "-h" || flag == "--help" => {
+                println!("{USAGE}");
+                return 0;
+            }
+            [] => {}
+            _ => {
+                eprintln!("{USAGE}");
+                return 2;
+            }
+        }
+        #[cfg(unix)]
+        if let Some(python) = Self::path_python() {
+            let code = Self::cli(launcher, python.as_os_str());
+            if code != 125 {
+                return code;
+            }
+        }
+        crate::exec_python(launcher, args)
+    }
+
+    #[cfg(unix)]
+    fn path_python() -> Option<PathBuf> {
+        use std::{ffi::CString, os::unix::ffi::OsStrExt};
+        for directory in env::split_paths(&env::var_os("PATH")?) {
+            if !directory.is_absolute() {
+                return None;
+            }
+            let path = directory.join("python3");
+            let name = CString::new(path.as_os_str().as_bytes()).ok()?;
+            if path.is_file() && unsafe { libc::access(name.as_ptr(), libc::X_OK) } == 0 {
+                return Some(path);
+            }
+        }
+        None
+    }
+
     pub(crate) fn run(launcher: &OsStr, args: &[OsString]) -> i32 {
         #[cfg(unix)]
         if let [python] = args {

@@ -675,10 +675,10 @@
       "inventory_id": 50,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Port the direct Python entry and hook/search subprocesses, preserve unsupported environment behavior, and verify portable and installed execution.",
+      "entry_aliases": "smoke-checks; direct Python compatibility CLI",
+      "remaining": "Port the hook/search subprocesses, preserve unsupported environment behavior, and verify portable and installed execution.",
       "verification": {
-        "local": "Source-bound Rust owns disposable Git fixture setup and cleanup and uses a built-in gate fixture while driving the ordered hook and search subprocesses. The direct Python compatibility launcher uses the same checked-in gate fixture for rollback."
+        "local": "moru-hook smoke-checks starts the source-bound Rust engine directly for supported inputs. Rust owns disposable Git setup and cleanup and the built-in gate fixture. The ordered hook and search subprocesses still call Python; the direct Python CLI remains available."
       }
     },
     {
