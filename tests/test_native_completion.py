@@ -143,6 +143,33 @@ class NativeCompletionTests(unittest.TestCase):
             self.assertIsNone(purpose._native_python_classes(lines))
             self.assertEqual(expected, purpose.top_level_type_declarations(path, lines))
 
+    def test_structure_declaration_roles_preserve_priority_tokens_and_unicode_fallback(self):
+        pairs = [
+            ("function", "RequestWorker"), ("type", "RequestWorker"), ("type", "screen-Controller"),
+            ("func", "v2API"), ("func", "v2api"), ("fn", "APIServer"), ("type", "Key-Chain"),
+            ("type", "KeyChain"), ("fun", "___"), ("func", "v2API"),
+        ]
+        expected = dict(zip(pairs, [
+            "impl", "data", "state", "contract", None, None, "platform",
+            "platform", None, "contract",
+        ]))
+        self.assertEqual(expected, {pair: purpose.role_for_declaration(*pair) for pair in pairs})
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            purpose, "role_for_declaration", wraps=purpose.role_for_declaration,
+        ) as fallback:
+            self.assertEqual(expected, purpose._native_declaration_roles(pairs))
+            fallback.assert_called_once_with("type", "KeyChain")
+
+        path = Path("src/Roles.kt")
+        source = ["fun requestWorker() {}", "class RequestWorker {}", "class ScreenController {}"]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            legacy = purpose.top_level_type_declarations(path, source)
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(purpose, "role_for_declaration", side_effect=AssertionError("Python role lookup")):
+                self.assertEqual(legacy, purpose.top_level_type_declarations(path, source))
+            with patch.object(NativeProbe, "request", return_value={"roles": [True]}):
+                self.assertEqual(legacy, purpose.top_level_type_declarations(path, source))
+
     def test_structure_go_declarations_preserve_generic_priority_and_depth(self):
         path = Path("src/example.GO")
         lines = [

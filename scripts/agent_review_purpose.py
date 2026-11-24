@@ -138,7 +138,7 @@ def _native_python_classes(lines: list[str]) -> list[dict[str, Any]] | None:
     classes = native.get("classes") if native is not None else None
     if not isinstance(classes, list):
         return None
-    declarations = []
+    matches = []
     last_index = -1
     for row in classes:
         if not isinstance(row, list) or len(row) != 2:
@@ -148,8 +148,10 @@ def _native_python_classes(lines: list[str]) -> list[dict[str, Any]] | None:
                 or not isinstance(name, str) or not name):
             return None
         last_index = index
-        declarations.append(type_declaration("type", name, lines[index], index, modifiers=""))
-    return declarations
+        matches.append((index, name))
+    roles = _native_declaration_roles([("type", name) for _, name in matches])
+    return [type_declaration("type", name, lines[index], index, modifiers="", roles=roles)
+            for index, name in matches]
 
 
 def _native_go_declarations(lines: list[str]) -> list[dict[str, Any]] | None:
@@ -159,7 +161,7 @@ def _native_go_declarations(lines: list[str]) -> list[dict[str, Any]] | None:
     rows = native.get("declarations") if native is not None else None
     if not isinstance(rows, list):
         return None
-    declarations = []
+    matches = []
     last_index = -1
     for row in rows:
         if not isinstance(row, list) or len(row) != 3:
@@ -169,7 +171,11 @@ def _native_go_declarations(lines: list[str]) -> list[dict[str, Any]] | None:
                 or kind not in ("type", "func") or not isinstance(name, str) or not name):
             return None
         last_index = index
-        declaration = type_declaration(kind, name, lines[index], index, modifiers="")
+        matches.append((index, kind, name))
+    roles = _native_declaration_roles([(kind, name) for _, kind, name in matches])
+    declarations = []
+    for index, kind, name in matches:
+        declaration = type_declaration(kind, name, lines[index], index, modifiers="", roles=roles)
         if declaration["owner"]:
             declarations.append(declaration)
     return declarations
@@ -198,6 +204,7 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
         )
         lines = source.splitlines()
     brace_depth = 0
+    matches = []
     for index, line in enumerate(lines):
         stripped = line.strip()
         if suffix == ".py":
@@ -222,24 +229,26 @@ def top_level_type_declarations(path: Path, lines: list[str]) -> list[dict[str, 
         else:
             match = None
         if match:
-            declaration = type_declaration(
-                match_kind(match),
-                match_name(match),
-                line,
-                index,
-                receiver=match_receiver(match),
-                default_public=default_public_top_level(path),
-                is_swift=path.suffix.lower() == ".swift",
-                modifiers=declaration_modifiers(match, line),
-            )
-            if path.suffix.lower() == ".rs":
-                # Rust items are private unless their own declaration has pub;
-                # a public field on the same line does not export its struct.
-                exported = bool(re.match(r"^\s*pub(?:\([^)]*\))?\s", line))
-                declaration.update(private=not exported, exported=exported)
-            if declaration["owner"]:
-                declarations.append(declaration)
+            matches.append((index, match, match_kind(match), match_name(match)))
         brace_depth = max(0, brace_depth + line.count("{") - line.count("}"))
+    roles = _native_declaration_roles([(kind, name) for _, _, kind, name in matches])
+    for index, match, kind, name in matches:
+        line = lines[index]
+        declaration = type_declaration(
+            kind, name, line, index,
+            receiver=match_receiver(match),
+            default_public=default_public_top_level(path),
+            is_swift=suffix == ".swift",
+            modifiers=declaration_modifiers(match, line),
+            roles=roles,
+        )
+        if suffix == ".rs":
+            # Rust items are private unless their own declaration has pub;
+            # a public field on the same line does not export its struct.
+            exported = bool(re.match(r"^\s*pub(?:\([^)]*\))?\s", line))
+            declaration.update(private=not exported, exported=exported)
+        if declaration["owner"]:
+            declarations.append(declaration)
     if is_typescript:
         for index, declaration in enumerate(declarations):
             end = declarations[index + 1]["line"] - 1 if index + 1 < len(declarations) else len(lines)
@@ -281,8 +290,10 @@ def type_declaration(
     default_public: bool = False,
     is_swift: bool = False,
     modifiers: str | None = None,
+    *,
+    roles: dict[tuple[str, str], str | None] | None = None,
 ) -> dict[str, Any]:
-    role = role_for_declaration(kind, name)
+    role = roles[(kind, name)] if roles is not None else role_for_declaration(kind, name)
     mod_text = line if modifiers is None else modifiers
     internal_re = r"\b(?:internal|package)\b" if is_swift else r"\binternal\b"
     return {
@@ -700,6 +711,27 @@ def exported_by_default(path: Path) -> bool:
 
 def mixed_roles_blocked(roles: list[str]) -> bool:
     return any(left in set(roles) and right in set(roles) for left, right in MIXED_ROLE_BLOCKS)
+
+
+def _native_declaration_roles(
+    declarations: list[tuple[str, str]],
+) -> dict[tuple[str, str], str | None] | None:
+    if not declarations:
+        return {}
+    unique = list(dict.fromkeys(declarations))
+    native = NativeProbe.request("--completion-probe", "structure-declaration-roles", {
+        "declarations": unique, "rules": ROLE_PATTERNS,
+        "function_excluded": sorted(FUNCTION_ROLE_EXCLUDED_PATTERNS),
+    })
+    roles = native.get("roles") if native is not None else None
+    valid_roles = {role for role, _ in ROLE_PATTERNS}
+    if not isinstance(roles, list) or len(roles) != len(unique) or not all(
+        role is None or role is False or (isinstance(role, str) and role in valid_roles)
+        for role in roles
+    ):
+        return None
+    return {entry: role_for_declaration(*entry) if role is False else role
+            for entry, role in zip(unique, roles)}
 
 
 def role_for_declaration(kind: str, name: str) -> str | None:
