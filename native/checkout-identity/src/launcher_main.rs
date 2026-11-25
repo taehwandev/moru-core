@@ -108,6 +108,7 @@ mod overhead_report_text;
 mod overhead_session;
 mod overhead_stamp;
 mod overhead_stats;
+mod loop_status;
 mod overhead_text;
 mod overhead_timings;
 mod pending_publication_partition;
@@ -212,6 +213,7 @@ fn native_checkout_identity(extra: &[OsString]) -> i32 {
 fn direct_dispatch(launcher: &OsString, args: &[OsString]) -> Option<i32> {
     Some(match args.first().and_then(|arg| arg.to_str())? {
         "--setup-probe" => codex_statusline::CodexStatusLine::run(launcher, args),
+        "loop" => finish(loop_status::LoopStatus::run(launcher, &args[1..])?),
         "codex-statusline-setup" => {
             finish(codex_statusline::CodexStatusLine::setup(launcher, &args[1..])?)
         }

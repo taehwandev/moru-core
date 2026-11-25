@@ -84,6 +84,11 @@ case "${MORU_LAUNCHER_BACKEND:-auto}" in
                 check-android-skill-manifest|check-react-rn-skill-manifest|figma-validate|behavior-eval|experience-eval|overhead-report|pending-publication|runs-prune|mutation-check) ;;
                 claude-pretool-gate|codex-pretool-gate|mailbox-hook|claude-stop-gate|codex-stop-gate) ;;
                 execution-capsule|lessons-compact|smoke-checks|microsoft-decision|codex-statusline-setup) ;;
+                loop)
+                    if [ "${2-}" != status ]; then
+                        exec python3 "$0" "$@"
+                    fi
+                    ;;
                 agy-hook)
                     if [ "$#" -ne 2 ] || [ "${2-}" != pre-tool ]; then
                         exec python3 "$0" "$@"

@@ -175,7 +175,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 | 10 | `scripts/agent-preflight.py` | agent-preflight | Python candidate | Admission, state/evidence freshness and completion safety |
 | 11 | `scripts/agent_doctor.py` | doctor | Python candidate | Owned operator work; preserve effect boundaries during native conversion |
 | 12 | `scripts/agent_execution_capsule.py` | execution-capsule | Python candidate | Admission, state/evidence freshness and completion safety |
-| 13 | `scripts/agent_loop.py` | loop | Python candidate | Behavior, failure/recovery and rollback; reuse existing performance evidence |
+| 13 | `scripts/agent_loop.py` | loop | Native explicit-run status and persisted schema validation | Inferred binding, mutation, verifier execution and exceptional state diagnostics remain owned scope |
 | 14 | `scripts/agent_mailbox_hook.py` | mailbox-hook | Partial native repeated quiet deliver/ack; Python effects retained | Exact output/state parity, unchanged guidance, locked empty queues and conservative replay |
 | 15 | `scripts/agent_next_action.py` | next | Partial native inactive advice and safe changed-file verification; Python active-run/evidence lookup retained | Exact JSON/Markdown/state parity; active/uncertain fallback and resource costs |
 | 16 | `scripts/agent_project_memory.py` | project-memory | Partial native read/recall | [Record reads](runtime-performance/native-memory-files.md) and [ranking](runtime-performance/native-memory-recall.md); remaining write/CLI/supporting ownership stays open |
