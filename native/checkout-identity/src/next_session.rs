@@ -13,19 +13,27 @@ use crate::{
     callback_state::LocalState as State,
     python_json::{PythonJson, Value},
     python_text::PythonText,
+    runtime_identity::RuntimeIdentity,
 };
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env,
     path::{Path, PathBuf},
 };
 
-pub(super) struct NextSession;
+pub(crate) struct NextSession;
 impl NextSession {
     pub(super) fn discover(project: &Path) -> Option<Option<PathBuf>> {
-        let Some((runtime, session)) = Self::identity()? else {
+        let Some((runtime, session)) = RuntimeIdentity::current()? else {
             return Some(None);
         };
+        Self::discover_for(project, runtime, &session)
+    }
+
+    pub(crate) fn discover_for(
+        project: &Path,
+        runtime: &str,
+        session: &str,
+    ) -> Option<Option<PathBuf>> {
         let Some(state) = state_root::NextStateRoot::resolve(project)? else {
             return Some(None);
         };
@@ -50,7 +58,7 @@ impl NextSession {
         if bindings.is_empty() {
             return Some(None);
         }
-        Self::select(project, &state, &bindings, runtime, &session)
+        Self::select(project, &state, &bindings, runtime, session)
     }
 
     fn select(
@@ -117,26 +125,6 @@ impl NextSession {
                 }
             }
         }
-    }
-
-    fn identity() -> Option<Option<(&'static str, String)>> {
-        for (runtime, name) in [
-            ("claude", "CLAUDE_CODE_SESSION_ID"),
-            ("codex", "CODEX_THREAD_ID"),
-            ("antigravity", "ANTIGRAVITY_CONVERSATION_ID"),
-        ] {
-            match env::var(name) {
-                Ok(raw) => {
-                    let value = raw.trim_matches(PythonText::whitespace);
-                    if !value.is_empty() {
-                        return Some(Some((runtime, value.to_owned())));
-                    }
-                }
-                Err(env::VarError::NotPresent) => {}
-                Err(_) => return None,
-            }
-        }
-        Some(None)
     }
 
     fn bindings(payload: &Value, legacy: &str) -> Option<BTreeMap<String, Value>> {

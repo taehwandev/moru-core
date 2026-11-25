@@ -109,6 +109,10 @@ mod overhead_session;
 mod overhead_stamp;
 mod overhead_stats;
 mod loop_status;
+#[cfg(target_os = "macos")]
+#[path = "next_owner_darwin.rs"]
+mod darwin_process;
+mod runtime_identity;
 mod overhead_text;
 mod overhead_timings;
 mod pending_publication_partition;

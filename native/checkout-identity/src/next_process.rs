@@ -9,7 +9,7 @@ mod ledger;
 #[path = "next_paths.rs"]
 mod paths;
 #[path = "next_session.rs"]
-mod session;
+pub(crate) mod session;
 use crate::{
     next_verification::{StdinGuard, Verification, VerificationSelectors},
     pretool_guard::CallbackGuard,

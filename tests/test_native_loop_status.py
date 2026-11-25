@@ -1,5 +1,6 @@
 """Exercise explicit-run native status with synthetic persisted loop state."""
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,7 @@ import tempfile
 import unittest
 
 from native_pretool_support import environment, prepare
+from agent_run_owner import process_owner
 from test_agent_loop_contract import valid_state
 
 
@@ -25,10 +27,10 @@ class NativeLoopStatusTests(unittest.TestCase):
         self.path = self.project / ".moru" / "runs" / self.run_id / "loop.json"
         self.path.parent.mkdir(parents=True)
 
-    def invoke(self, *args, backend="auto"):
+    def invoke(self, *args, backend="auto", **env):
         path = str(self.empty) if backend == "auto" else os.environ["PATH"]
         return subprocess.run([str(self.launcher), "loop", *args], cwd=self.project,
-            env={**self.env, "PATH": path, "MORU_LAUNCHER_BACKEND": backend},
+            env={**self.env, "PATH": path, "MORU_LAUNCHER_BACKEND": backend, **env},
             capture_output=True, timeout=10)
 
     def status(self, backend="auto"):
@@ -102,3 +104,53 @@ class NativeLoopStatusTests(unittest.TestCase):
             done = self.invoke(*args)
             self.assertEqual((127, b""), (done.returncode, done.stdout))
             self.assertEqual(before, self.path.read_bytes())
+
+    def binding(self, run_id, session, *, runtime="codex", generation=2):
+        evidence = self.path.parent.parent / run_id / "preflight.json"
+        evidence.parent.mkdir(parents=True, exist_ok=True)
+        evidence.write_text(json.dumps({"runtime_session": {
+            "runtime":runtime,"session_id":session,"resume_generation":generation}}))
+        state = copy.deepcopy(self.state)
+        state["run_id"] = run_id
+        evidence.with_name("loop.json").write_text(json.dumps(state))
+        return {"run_id":run_id,"evidence_name":"preflight.json","state":"running",
+                "resume_generation":generation,"evidence_key":hashlib.sha256(
+                    evidence.relative_to(self.project).as_posix().encode()).hexdigest()}
+
+    def registry(self, rows):
+        directory = self.project / ".moru"
+        for name in (".state.lock.lock",".run-registry.json.lock"):
+            (directory / name).touch()
+        (directory / "run-registry.json").write_text(json.dumps({"schema_version":1,"runs":rows}))
+
+    def test_inferred_status_selects_bound_generation_and_preserves_mixed_runtime_precedence(self):
+        own = self.binding(self.run_id, "codex-session")
+        peer = self.binding("b" * 32,"claude-session",runtime="claude")
+        self.registry([own,peer])
+        for env in ({"CODEX_THREAD_ID":"codex-session"},
+                    {"CODEX_THREAD_ID":"codex-session","CLAUDE_CODE_SESSION_ID":"claude-session"}):
+            with self.subTest(env=env):
+                native = self.invoke("status", **env)
+                reference = self.invoke("status", backend="python", **env)
+                self.assertEqual((0,reference.stdout,b""),(native.returncode,native.stdout,native.stderr))
+                self.assertEqual(0, reference.returncode)
+        self.registry([own,peer,{**own,"resume_generation":3}])
+        self.assertEqual(127,self.invoke("status", CODEX_THREAD_ID="codex-session").returncode)
+        self.assertEqual(2,self.invoke("status", backend="python",CODEX_THREAD_ID="codex-session").returncode)
+
+    def test_shared_session_status_declines_ambiguity_and_honors_exact_process_owner(self):
+        own = self.binding(self.run_id,"shared-session")
+        peer = self.binding("b" * 32,"shared-session")
+        self.registry([own,peer])
+        env = {"CODEX_THREAD_ID":"shared-session"}
+        native = self.invoke("status", **env)
+        self.assertEqual((127,b""),(native.returncode,native.stdout))
+        self.assertEqual(2,self.invoke("status", backend="python", **env).returncode)
+
+        owner = process_owner()
+        self.assertTrue(owner)
+        self.registry([{**own,"owner":owner}, peer])
+        native = self.invoke("status", **env)
+        reference = self.invoke("status", backend="python", **env)
+        self.assertEqual((0,reference.stdout,b""),(native.returncode,native.stdout,native.stderr))
+        self.assertEqual(self.run_id,json.loads(native.stdout)["run_id"])

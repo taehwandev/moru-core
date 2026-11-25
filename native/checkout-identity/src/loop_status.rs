@@ -1,12 +1,14 @@
-//! owner: explicit-run loop status; allowed imports: local bounded reads, JSON and source guard;
-//! forbidden imports: writes, locking, verifier or model execution, and run ownership claims;
+//! owner: loop status; allowed imports: bounded reads, session selection, JSON and source guard;
+//! forbidden imports: writes, verifier or model execution, and run ownership claims;
 //! callers/tests: stable loop CLI and persisted-state parity fixtures.
 #[path = "loop_status_contract.rs"]
 mod contract;
 use crate::{
     callback_state::LocalState,
+    next_process::session::NextSession,
     pretool_guard::CallbackGuard,
     python_json::{Number, Object, PythonJson, Value},
+    runtime_identity::RuntimeIdentity,
 };
 use std::{
     env,
@@ -21,10 +23,27 @@ impl LoopStatus {
         let (project, run_id) = Self::arguments(args)?;
         CallbackGuard::root(launcher, "loop")?;
         let project = project.canonicalize().ok()?;
-        let run = project.join(".moru").join("runs").join(run_id);
+        let evidence = if let Some(run_id) = run_id {
+            project
+                .join(".moru")
+                .join("runs")
+                .join(run_id)
+                .join("preflight.json")
+        } else {
+            let (runtime, id) = RuntimeIdentity::current()??;
+            NextSession::discover_for(&project, runtime, &id)??
+        };
+        if evidence.file_name()?.to_str()? != "preflight.json" {
+            return None;
+        }
+        let run = evidence.parent()?;
+        let run_id = run.file_name()?.to_str()?;
+        if !Self::valid_run_id(run_id) {
+            return None;
+        }
         let state = run.join("loop.json");
         LocalState::safe_path(&project, &state)?;
-        LocalState::safe_path(&run, &run.join("preflight.json"))?;
+        LocalState::safe_path(run, &evidence)?;
         const LIMIT: u64 = 2 * 1024 * 1024;
         let state = PythonJson::parse(&LocalState::read(&state, LIMIT)?)?;
         contract::validate(&state, run_id)?;
@@ -44,7 +63,7 @@ impl LoopStatus {
         })
     }
 
-    fn arguments(args: &[OsString]) -> Option<(PathBuf, &str)> {
+    fn arguments(args: &[OsString]) -> Option<(PathBuf, Option<&str>)> {
         let (action, mut tail) = args.split_first()?;
         if action != "status" {
             return None;
@@ -70,15 +89,19 @@ impl LoopStatus {
                 _ => return None,
             }
         }
-        let run_id = run_id?;
-        if run_id.len() != 32
-            || !run_id
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-        {
+        // Check before composing the project-local path, then verify the
+        // resolved evidence directory as well when the ID is inferred.
+        if run_id.is_some_and(|id| !Self::valid_run_id(id)) {
             return None;
         }
         Some((project.or_else(|| env::current_dir().ok())?, run_id))
+    }
+
+    fn valid_run_id(id: &str) -> bool {
+        id.len() == 32
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
     }
 
     fn strict_sorted(value: &Value) -> Option<Value> {

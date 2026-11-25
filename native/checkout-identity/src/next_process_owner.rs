@@ -2,8 +2,7 @@
 //! forbidden imports: writes, liveness signals, unbounded process spawning; callers/tests:
 //! NextSession ambiguity selection; verification: owner/proc fixtures and live parity.
 #[cfg(target_os = "macos")]
-#[path = "next_owner_darwin.rs"]
-mod darwin;
+use crate::darwin_process::DarwinParent;
 #[path = "next_owner_ps.rs"]
 mod ps;
 use crate::{python_json::Value, python_text::PythonText};
@@ -33,6 +32,14 @@ impl ProcessOwner {
             Ok(bytes) => Self::token(&String::from_utf8_lossy(&bytes)),
             Err(_) => String::new(),
         };
+        #[cfg(target_os = "macos")]
+        let start_token = if start_token.is_empty() {
+            DarwinParent::runtime_info(pid as i32)
+                .map(|(_, _, birth)| birth)
+                .unwrap_or_default()
+        } else {
+            start_token
+        };
         Some(Some(Self { pid, start_token }))
     }
 
@@ -60,7 +67,7 @@ impl ProcessOwner {
         }
         #[cfg(target_os = "macos")]
         {
-            let parent = darwin::DarwinParent::read(leader);
+            let parent = DarwinParent::read(leader);
             if parent != 0 {
                 return Some(i64::from(parent));
             }

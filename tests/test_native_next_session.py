@@ -76,9 +76,16 @@ class NativeNextSessionTests(unittest.TestCase):
     def test_runtime_environment_priority_matches_reference(self):
         self.identity = {"CLAUDE_CODE_SESSION_ID": "claude-session", "CODEX_THREAD_ID": "synthetic-next",
                          "ANTIGRAVITY_CONVERSATION_ID": "agy-session"}
-        self.parity(False)
-        self.binding("claude", "claude-session")
-        self.parity(True)
+        active_count = 0
+        for runtime, session in (("claude","claude-session"), ("codex","synthetic-next"),
+                                 ("antigravity","agy-session")):
+            self.binding(runtime, session)
+            reference = self.call(backend="python")
+            self.assertEqual(0, reference.returncode, reference.stderr)
+            active = json.loads(reference.stdout)["status"] == "active_run"
+            active_count += int(active)
+            self.parity(active)
+        self.assertEqual(1, active_count)
 
     def test_resume_generation_must_match(self):
         registry = json.loads(self.registry.read_text())
