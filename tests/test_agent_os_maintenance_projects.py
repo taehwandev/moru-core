@@ -11,6 +11,7 @@ import contextlib
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -33,7 +34,9 @@ from agent_os_maintenance import (  # noqa: E402
     run_maintenance,
 )
 from agent_run_owner import process_owner  # noqa: E402
-from agent_run_registry import _expired_run_ids_reference, settle_expired_runs  # noqa: E402
+from agent_run_registry import (  # noqa: E402
+    _expired_run_ids_reference, retention_protected_run_ids, settle_expired_runs,
+)
 from native_pretool_support import environment, prepare  # noqa: E402
 
 _spec = importlib_util.spec_from_file_location(
@@ -193,23 +196,60 @@ class MaintenanceProjectTests(unittest.TestCase):
 
         fixture.records = [
             row("equal", "failed", cutoff),
-            row("protected", "failed", cutoff - timedelta(seconds=1), {"pid": 42, "start_token": "live"}),
+            row("protected", "failed", cutoff - timedelta(seconds=1), process_owner(current_process=True)),
             row("boundary", "failed", (cutoff - timedelta(microseconds=1)).astimezone(local_zone)),
             row("held", "running", cutoff - timedelta(hours=1)),
             row("earlier", "failed", cutoff - timedelta(hours=1)),
         ]
         fixture._write_registry()
         before = _snapshot(fixture.root)
-        with patch("agent_run_registry.owner_is_gone", side_effect=lambda owner: owner is None):
-            with patch.dict(os.environ, {**environment(native_home), "MORU_LAUNCHER_BACKEND": "python"},
-                            clear=True):
-                reference = settle_expired_runs(fixture.root, retention_seconds=120, apply=False, now=moment)
-            with patch.dict(os.environ, environment(native_home), clear=True), patch(
-                "agent_run_registry._expired_run_ids_reference",
-                side_effect=AssertionError("native settlement declined"),
-            ):
-                native = settle_expired_runs(fixture.root, retention_seconds=120, apply=False, now=moment)
+        with patch.dict(os.environ, {**environment(native_home), "MORU_LAUNCHER_BACKEND": "python"},
+                        clear=True):
+            reference = settle_expired_runs(fixture.root, retention_seconds=120, apply=False, now=moment)
+        with patch.dict(os.environ, environment(native_home), clear=True), patch(
+            "agent_run_registry._expired_run_ids_reference",
+            side_effect=AssertionError("native settlement declined"),
+        ):
+            native = settle_expired_runs(fixture.root, retention_seconds=120, apply=False, now=moment)
         self.assertEqual(["boundary", "earlier"], reference)
+        self.assertEqual(reference, native)
+        self.assertEqual(before, _snapshot(fixture.root))
+
+    def test_native_owner_protection_matches_live_absent_reused_and_unknown_tokens(self) -> None:
+        native_home = self.base / "native"
+        native_home.mkdir()
+        prepare(native_home)
+        fixture = ProjectFixture(self.base / "target")
+        moment = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        recent = moment - timedelta(minutes=30)
+        live = process_owner(current_process=True)
+        self.assertTrue(live["start_token"])
+        with subprocess.Popen([sys.executable, "-c", "pass"]) as child:
+            dead_pid = child.pid
+            self.assertEqual(0, child.wait(timeout=10))
+
+        fixture.records = [
+            {"run_id": run_id, "state": state, "owner": owner, "updated_at": updated.isoformat()}
+            for run_id, state, owner, updated in (
+                ("live", "failed", live, recent),
+                ("reused", "failed", {**live, "start_token": "old-token"}, recent),
+                ("unknown", "failed", {**live, "start_token": ""}, recent),
+                ("absent", "failed", {"pid": dead_pid}, recent),
+                ("stale", "failed", live, recent - timedelta(microseconds=1)),
+                ("held", "running", None, recent - timedelta(days=1)),
+            )
+        ]
+        fixture._write_registry()
+        before = _snapshot(fixture.root)
+        with patch.dict(os.environ, {**environment(native_home), "MORU_LAUNCHER_BACKEND": "python"},
+                        clear=True):
+            reference = retention_protected_run_ids(fixture.root, now=moment)
+        with patch.dict(os.environ, environment(native_home), clear=True), patch(
+            "agent_run_registry._protected_run_ids_reference",
+            side_effect=AssertionError("native protection declined"),
+        ):
+            native = retention_protected_run_ids(fixture.root, now=moment)
+        self.assertEqual({"live", "unknown", "held"}, reference)
         self.assertEqual(reference, native)
         self.assertEqual(before, _snapshot(fixture.root))
 

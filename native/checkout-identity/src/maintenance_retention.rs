@@ -1,6 +1,7 @@
-//! owner: pure runtime record retention planning; allowed: JSON and ISO timestamp comparisons;
-//! forbidden: clocks, files, locks, mutations and authority;
+//! owner: runtime record retention planning; allowed: JSON, time comparison and owner probes;
+//! forbidden: clocks, state file access, locks, mutations and authority;
 //! callers/tests: agent_retention and native retention parity fixtures.
+use super::maintenance_owner::MaintenanceOwner;
 use crate::overhead_stamp::OverheadStamp;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -16,6 +17,10 @@ impl MaintenanceRetention {
         let settleable = Self::strings(request.get("settleable")?)?;
         let cutoff = Self::ticks(request.get("cutoff")?)?;
         let moment = Self::ticks(request.get("moment")?)?;
+        let owner_window = request
+            .get("owner_window")?
+            .as_i64()?
+            .checked_mul(1_000_000)?;
         let mut candidates = Vec::new();
         for (index, record) in records.iter().enumerate() {
             let Some(record) = record.as_object() else {
@@ -40,11 +45,51 @@ impl MaintenanceRetention {
             {
                 return None;
             }
-            if updated < cutoff {
+            if updated < cutoff
+                && (moment - updated > owner_window || MaintenanceOwner::gone(record.get("owner"))?)
+            {
                 candidates.push(index);
             }
         }
-        Some(json!({"candidates": candidates}))
+        Some(json!({"indexes": candidates}))
+    }
+
+    pub(super) fn protected_runs(request: &Value) -> Option<Value> {
+        let records = request.get("records")?.as_array()?;
+        let holding = Self::strings(request.get("holding")?)?;
+        let moment = Self::ticks(request.get("moment")?)?;
+        let owner_window = request
+            .get("owner_window")?
+            .as_i64()?
+            .checked_mul(1_000_000)?;
+        let mut protected = Vec::new();
+        for (index, record) in records.iter().enumerate() {
+            let Some(record) = record.as_object() else {
+                continue;
+            };
+            match record.get("run_id") {
+                None | Some(Value::Null) => continue,
+                Some(Value::String(id)) if id.is_empty() => continue,
+                Some(Value::String(_)) => {}
+                _ => return None,
+            }
+            match record.get("state") {
+                Some(Value::String(state)) if holding.contains(state.as_str()) => {
+                    protected.push(index);
+                    continue;
+                }
+                Some(Value::Object(_) | Value::Array(_)) => return None,
+                _ => {}
+            }
+            let updated = Self::ticks(record.get("updated_at")?)?;
+            if moment.abs_diff(updated) > (1 << 52) {
+                return None;
+            }
+            if moment - updated <= owner_window && !MaintenanceOwner::gone(record.get("owner"))? {
+                protected.push(index);
+            }
+        }
+        Some(json!({"indexes": protected}))
     }
 
     pub(super) fn plan(request: &Value) -> Option<Value> {

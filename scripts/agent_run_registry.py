@@ -919,8 +919,16 @@ def retention_protected_run_ids(
     if not path.is_file():
         return set()
     moment = now or datetime.now(timezone.utc)
+    runs = _read_registry(path)["runs"]
+    native = _native_retention_run_ids(
+        "maintenance-protected-runs", runs, moment, holding=sorted(CLAIM_HOLDING_RUN_STATES),
+    )
+    return set(native) if native is not None else _protected_run_ids_reference(runs, moment)
+
+
+def _protected_run_ids_reference(runs: list, moment: datetime) -> set[str]:
     protected: set[str] = set()
-    for run in _read_registry(path)["runs"]:
+    for run in runs:
         if not isinstance(run, dict) or not run.get("run_id"):
             continue
         if run.get("state") in CLAIM_HOLDING_RUN_STATES or _owner_recently_live(
@@ -933,23 +941,38 @@ def retention_protected_run_ids(
 def _expired_run_ids(
     payload: dict[str, Any], cutoff: datetime, moment: datetime
 ) -> list[str]:
+    runs = payload["runs"]
+    if cutoff.tzinfo is timezone.utc:
+        native = _native_retention_run_ids(
+            "maintenance-settlement", runs, moment, cutoff=cutoff.isoformat(),
+            settleable=sorted(RETENTION_SETTLEABLE_RUN_STATES),
+        )
+        if native is not None:
+            return native
+    return _expired_run_ids_reference(runs, cutoff, moment)
+
+
+def _native_retention_run_ids(operation: str, runs: list, moment: datetime, **fields) -> list[str] | None:
     from support.native_probe_transport import NativeProbe
 
-    runs = payload["runs"]
-    if (runs and cutoff.tzinfo is timezone.utc and moment.tzinfo is timezone.utc
-            and NativeProbe.available()):
-        result = NativeProbe.request("--completion-probe", "maintenance-expired-runs", {
-            "records": runs, "settleable": sorted(RETENTION_SETTLEABLE_RUN_STATES),
-            "cutoff": cutoff.isoformat(), "moment": moment.isoformat(),
-        })
-        if result is not None and set(result) == {"candidates"}:
-            indexes = result["candidates"]
-            if (type(indexes) is list
-                    and all(type(index) is int and 0 <= index < len(runs) for index in indexes)
-                    and indexes == sorted(set(indexes))):
-                return [str(runs[index]["run_id"]) for index in indexes
-                        if not _owner_recently_live(runs[index], moment)]
-    return _expired_run_ids_reference(runs, cutoff, moment)
+    if not runs or moment.tzinfo is not timezone.utc or not NativeProbe.available():
+        return None
+    result = NativeProbe.request("--completion-probe", operation, {
+        "records": runs, "moment": moment.isoformat(),
+        "owner_window": RETENTION_LIVE_OWNER_WINDOW_SECONDS, **fields,
+    })
+    if result is None or set(result) != {"indexes"}:
+        return None
+    indexes = result["indexes"]
+    if (type(indexes) is not list
+            or any(type(index) is not int or not 0 <= index < len(runs) for index in indexes)
+            or indexes != sorted(set(indexes))):
+        return None
+    chosen = [runs[index] for index in indexes]
+    if any(not isinstance(run, dict) or type(run.get("run_id")) is not str or not run["run_id"]
+           for run in chosen):
+        return None
+    return [run["run_id"] for run in chosen]
 
 
 def _expired_run_ids_reference(

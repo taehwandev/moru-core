@@ -172,7 +172,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "agent-os-maintenance",
-      "remaining": "Native enumerates managed checkouts, plans ordinary registry, scheduler and event retention, and selects expired settleable runs from observed records. Python retains search-root policy, exceptional times, live-owner checks, CLI, recovery, locked writes, and reporting. Portable and installed acceptance remain open.",
+      "remaining": "Native enumerates managed checkouts and plans ordinary registry, scheduler and event retention, including expired settlement candidates and live-owner protection using positive-PID probes and birth tokens. Python retains search-root policy, exceptional times and owner profiles, CLI, recovery, locked writes, and reporting. Portable and installed acceptance remain open.",
       "verification": {
         "native_owner": "native/checkout-identity/src/maintenance_projects.rs",
         "portable": "PENDING transported two-host acceptance.",
