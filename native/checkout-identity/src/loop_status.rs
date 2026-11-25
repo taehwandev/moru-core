@@ -30,8 +30,10 @@ impl LoopStatus {
                 .join(run_id)
                 .join("preflight.json")
         } else {
-            let (runtime, id) = RuntimeIdentity::current()??;
-            NextSession::discover_for(&project, runtime, &id)??
+            match RuntimeIdentity::current()? {
+                Some((runtime, id)) => NextSession::discover_for(&project, runtime, &id)??,
+                None => NextSession::discover_owned(&project)??,
+            }
         };
         if evidence.file_name()?.to_str()? != "preflight.json" {
             return None;

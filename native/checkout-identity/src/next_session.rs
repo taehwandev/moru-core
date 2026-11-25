@@ -34,6 +34,20 @@ impl NextSession {
         runtime: &str,
         session: &str,
     ) -> Option<Option<PathBuf>> {
+        Self::discover_binding(project, Some((runtime, session)))
+    }
+
+    pub(crate) fn discover_owned(project: &Path) -> Option<Option<PathBuf>> {
+        if !matches!(
+            worker_scope::WorkerScope::current(project)?,
+            worker_scope::WorkerScope::Parent
+        ) {
+            return Some(None);
+        }
+        Self::discover_binding(project, None)
+    }
+
+    fn discover_binding(project: &Path, session: Option<(&str, &str)>) -> Option<Option<PathBuf>> {
         let Some(state) = state_root::NextStateRoot::resolve(project)? else {
             return Some(None);
         };
@@ -58,7 +72,55 @@ impl NextSession {
         if bindings.is_empty() {
             return Some(None);
         }
-        Self::select(project, &state, &bindings, runtime, session)
+        match session {
+            Some((runtime, session)) => Self::select(project, &state, &bindings, runtime, session),
+            None => Self::select_owned(project, &state, bindings),
+        }
+    }
+
+    fn select_owned(
+        project: &Path,
+        state: &Path,
+        mut bindings: BTreeMap<String, Value>,
+    ) -> Option<Option<PathBuf>> {
+        let Some(owner) = process_owner::ProcessOwner::current()? else {
+            return Some(None);
+        };
+        bindings.retain(|_, run| owner.matches(run.get("owner")));
+        if bindings.is_empty() {
+            return Some(None);
+        }
+        let (paths, _, complete) = candidates::Candidates::select(project, state, &bindings)?;
+        if !complete {
+            return None;
+        }
+        let mut matched = None;
+        for path in paths {
+            let key = candidates::Candidates::key(project, &path)?;
+            let Some(run) = bindings.get(&key) else {
+                continue;
+            };
+            let payload = PythonJson::parse(&State::read(&path, 1024 * 1024)?)?;
+            let Some(bound) = payload.get("runtime_session").and_then(Value::as_object) else {
+                continue;
+            };
+            let runtime = Self::text(bound.get("runtime"));
+            let runtime = runtime.trim_matches(PythonText::whitespace);
+            let session = Self::text(bound.get("session_id"));
+            let session = session.trim_matches(PythonText::whitespace);
+            // The reference excludes canonical strict names before applying
+            // runtime alias normalization and generation equality.
+            if runtime.is_empty() || matches!(runtime, "claude" | "codex") || session.is_empty() {
+                continue;
+            }
+            if Self::matches(&payload, run, &Self::runtime_name(runtime), session)? {
+                if matched.is_some() {
+                    return Some(None);
+                }
+                matched = Some(path);
+            }
+        }
+        Some(matched)
     }
 
     fn select(
@@ -168,6 +230,15 @@ impl NextSession {
             .unwrap_or_default()
     }
 
+    fn runtime_name(name: &str) -> String {
+        let name = name.trim_matches(PythonText::whitespace).to_lowercase();
+        if name == "agy" {
+            "antigravity".into()
+        } else {
+            name
+        }
+    }
+
     fn matches(payload: &Value, run: &Value, runtime: &str, session: &str) -> Option<bool> {
         // Python evaluates this argument before entering same_runtime_session.
         let generation = Self::generation(run.get("resume_generation"))?;
@@ -177,10 +248,7 @@ impl NextSession {
         if bound.get("session_id").and_then(Value::as_str) != Some(session) {
             return Some(false);
         }
-        let name = Self::text(bound.get("runtime"));
-        // ASCII lower is exact for supported runtime names; other Unicode names cannot match.
-        let name = name.trim_matches(PythonText::whitespace).to_lowercase();
-        let name = if name == "agy" { "antigravity" } else { &name };
+        let name = Self::runtime_name(&Self::text(bound.get("runtime")));
         if name != runtime && name != "cli" {
             return Some(false);
         }

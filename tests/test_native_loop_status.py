@@ -98,7 +98,7 @@ class NativeLoopStatusTests(unittest.TestCase):
         self.assertEqual(2, self.status(backend="python").returncode)
         self.assertEqual(before, other.read_bytes())
 
-    def test_mutating_and_inferred_commands_stay_outside_native_status(self):
+    def test_mutation_and_missing_binding_stay_outside_native_status(self):
         before = self.write(self.state)
         for args in (("begin", "--run-id", self.run_id, "--hypothesis", "try"), ("status",)):
             done = self.invoke(*args)
@@ -154,3 +154,40 @@ class NativeLoopStatusTests(unittest.TestCase):
         reference = self.invoke("status", backend="python", **env)
         self.assertEqual((0,reference.stdout,b""),(native.returncode,native.stdout,native.stderr))
         self.assertEqual(self.run_id,json.loads(native.stdout)["run_id"])
+
+    def test_process_only_status_selects_one_exact_owner_and_current_generation(self):
+        owner = process_owner()
+        self.assertTrue(owner)
+        own = {**self.binding(self.run_id, "owned-session", runtime=" AGY "), "owner": owner}
+        peer = {**self.binding("b" * 32, "peer-session", runtime="cli"),
+                "owner": {**owner, "start_token": "different-birth"}}
+        self.registry([own, peer])
+
+        native = self.invoke("status")
+        reference = self.invoke("status", backend="python")
+        self.assertEqual((0, reference.stdout, b""),
+                         (native.returncode, native.stdout, native.stderr))
+        self.assertEqual(0, reference.returncode)
+        self.assertEqual(self.run_id, json.loads(native.stdout)["run_id"])
+
+        for label, rows, env in (
+            ("reused pid", [peer], {}),
+            ("same-owner ambiguity", [own, {**peer, "owner": owner}], {}),
+            ("superseded generation", [own, {**own, "resume_generation": 3}], {}),
+            ("settled latest record", [own, {**own, "state": "completed"}], {}),
+            ("worker override", [own], {"MORU_WORKER_EVIDENCE": "ignored-worker.json"}),
+            ("runtime id never falls back", [own], {"CODEX_THREAD_ID": "unbound"}),
+        ):
+            with self.subTest(label=label):
+                self.registry(rows)
+                native = self.invoke("status", **env)
+                reference = self.invoke("status", backend="python", **env)
+                self.assertEqual((127, b""), (native.returncode, native.stdout))
+                self.assertEqual((2, b""), (reference.returncode, reference.stdout))
+
+        for runtime in ("claude", "codex"):
+            with self.subTest(runtime=runtime):
+                strict = self.binding(self.run_id, "strict-session", runtime=runtime)
+                self.registry([{**strict, "owner": owner}])
+                self.assertEqual(127, self.invoke("status").returncode)
+                self.assertEqual(2, self.invoke("status", backend="python").returncode)
