@@ -162,6 +162,8 @@ mod live_web_edit_log;
 mod live_web_edit_hook;
 #[path = "project_relative_path.rs"]
 mod project_relative_path;
+#[path = "loop_budget.rs"]
+mod loop_budget;
 #[path = "path_claim_scan.rs"]
 mod path_claim_scan;
 #[path = "path_claim_wait.rs"]
@@ -296,6 +298,7 @@ impl CompletionProcess {
             );
         }
         let result = match args[1].to_str() {
+            Some("loop-budget") => loop_budget::LoopBudget::decide(&payload),
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),

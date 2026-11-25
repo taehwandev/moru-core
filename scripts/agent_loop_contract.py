@@ -1,13 +1,15 @@
 """Closed enrollment and persistence boundaries for opt-in loop runs.
 
-Owner: loop JSON validation. Imports: standard library only. No execution,
-source writes or authorization. Callers/tests: loop state and contract tests.
+Owner: loop JSON validation and reference policy. Imports: stdlib and pure native
+decision transport. No verifier execution, source writes or authorization. Callers/tests: loop state and contract tests.
 """
 
 from __future__ import annotations
 
 import json
 import math
+
+from support.native_probe_transport import NativeProbe
 
 
 CONFIG_FIELDS = {"objective", "owned", "verifiers", "directory", "goal_pattern",
@@ -149,6 +151,30 @@ def _result(value: object, *, candidate: bool) -> None:
 
 
 def budget_allows(state: dict, now: float, calls: int = 0, *, new_attempt: bool = False) -> bool:
+    config = state["config"]
+    if state["status"] == "exhausted":
+        return False
+    if type(config) is dict and NativeProbe.available():
+        result = NativeProbe.request("--completion-probe", "loop-budget", {
+            "now": now, "deadline": state.get("deadline"),
+            "new_attempt": new_attempt, "iterations": state.get("iterations"),
+            "iteration_limit": config.get("max_iterations"), "used": state.get("model_calls"),
+            "call_limit": config.get("max_model_calls"), "calls": calls,
+        })
+        # The child only returns a decision. This transaction alone can save state.
+        if result is not None and set(result) == {"decision"}:
+            decision = result["decision"]
+            if decision == "allow":
+                return True
+            if decision == "exhausted":
+                state["status"] = "exhausted"
+                return False
+            if decision == "over_budget":
+                raise ValueError("requested calls exceed the remaining model-call budget")
+    return _budget_reference(state, now, calls, new_attempt=new_attempt)
+
+
+def _budget_reference(state: dict, now: float, calls: int, *, new_attempt: bool) -> bool:
     config = state["config"]
     if state["status"] == "exhausted":
         return False

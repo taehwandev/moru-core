@@ -2,14 +2,17 @@
 import copy
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from native_pretool_support import environment, prepare
 from agent_run_owner import process_owner
+from agent_loop_contract import budget_allows
 from test_agent_loop_contract import valid_state
 
 
@@ -191,3 +194,51 @@ class NativeLoopStatusTests(unittest.TestCase):
                 self.registry([{**strict, "owner": owner}])
                 self.assertEqual(127, self.invoke("status").returncode)
                 self.assertEqual(2, self.invoke("status", backend="python").returncode)
+
+    def test_native_budget_preserves_exhaustion_precedence_and_overage(self):
+        cases = (
+            ("last instant", math.nextafter(160.0, -math.inf), 0, 0, 1, True, True),
+            ("at deadline", 160.0, 0, 0, 4, True, False),
+            ("iteration cap", 100.0, 2, 0, 4, True, False),
+            ("call cap", 100.0, 0, 3, 4, False, False),
+            ("uncharged recovery", 100.0, 2, 3, 0, False, True),
+            ("exact call limit", 100.0, 0, 2, 1, True, True),
+            ("over remaining budget", 100.0, 0, 2, 2, False, None),
+        )
+
+        def observe(state, now, calls, new_attempt):
+            before = copy.deepcopy(state)
+            try:
+                decision = budget_allows(state, now, calls, new_attempt=new_attempt)
+            except ValueError as error:
+                self.assertEqual(before, state)
+                return str(error), state
+            before["status"] = "ready" if decision else "exhausted"
+            self.assertEqual(before, state)
+            return decision, state
+
+        for label, now, iterations, used, calls, new_attempt, expected in cases:
+            with self.subTest(label=label):
+                state = copy.deepcopy(self.state)
+                state["config"].update(max_iterations=2, max_model_calls=3)
+                state.update(iterations=iterations, model_calls=used)
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    reference = observe(copy.deepcopy(state), now, calls, new_attempt)
+                with patch.dict(os.environ, self.env, clear=True), patch(
+                    "agent_loop_contract._budget_reference", side_effect=AssertionError("native declined"),
+                ):
+                    native = observe(state, now, calls, new_attempt)
+                self.assertEqual(reference, native)
+                self.assertEqual(
+                    "requested calls exceed the remaining model-call budget" if expected is None else expected,
+                    native[0],
+                )
+
+    def test_budget_falls_back_for_missing_binary_and_unusual_numeric_input(self):
+        state = copy.deepcopy(self.state)
+        with patch.dict(os.environ, self.env, clear=True):
+            state["deadline"] = (1 << 55) + 1
+            self.assertTrue(budget_allows(state, float(1 << 55)))
+        with patch.dict(os.environ, {**self.env, "HOME": str(self.empty)}, clear=True):
+            self.assertFalse(budget_allows(state, state["deadline"]))
+            self.assertEqual("exhausted", state["status"])
