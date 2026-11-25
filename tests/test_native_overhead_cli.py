@@ -118,9 +118,28 @@ class NativeOverheadCliTests(unittest.TestCase):
         actual,_=self.parity(self.args("--since",boundary,"--until",boundary))
         self.assertEqual(1,actual["all"]["assistant_turns"]["sum"])
 
+    def test_compact_and_week_dates_include_year_rollover_and_ambiguous_separators(self):
+        for until in ("20261010T000000Z","20240229🔥12:34-08",
+                      "2020-W01","2020W01","2020-W53-7T0900Z",
+                      "2020W537T0900Z","2020-W01-12:34","2020-W01-1-12:34",
+                      "2020W0111234","2020W01112345","2020W011112:34",
+                      "9999-W52-5","0001-W01-1"):
+            with self.subTest(until=until):
+                self.parity(self.args("--until",until,"--days","0"))
+
+        self.write(self.projects/"p/a.jsonl",[
+            message("inside",stamp="2020-W53-7T0100+01"),
+            message("early",stamp="20210102T235959,999999+00"),
+        ])
+        actual,_=self.parity(self.args("--since","20210103T000000Z",
+                                       "--until","2020W537T000000Z"))
+        self.assertEqual(1,actual["all"]["assistant_turns"]["sum"])
+
     def test_proven_invalid_timestamps_emit_reference_diagnostic(self):
         cases=[["--since","2026-02-30"],["--since","2026-10-10T01:0203"],
-               ["--since","2026-10-10Z12:00"],
+               ["--since","2026-10-10Z12:00"],["--since","20210229"],
+               ["--since","2021-W53-1"],["--since","2020W018"],
+               ["--since","9999-W52-7"],["--since","2020-W01-1🔥🔥12:00"],
                ["--since","2026-10-10T01:00:00.１２"],["--since","2026-10-10T00+24"],
                ["--since",STAMP,"--until","2026-10-10T25:00"]]
         for extra in cases:
@@ -138,10 +157,15 @@ class NativeOverheadCliTests(unittest.TestCase):
         self.assertEqual((python.returncode,python.stdout,python.stderr),
                          (native.returncode,native.stdout,native.stderr))
 
-        args=self.args("--until","20261010T000000Z")
+    def test_version_dependent_midnight_reaches_python_reference(self):
+        args=self.args("--until","20240229T24:00Z")
         native=self.invoke(args)
         self.assertEqual((127,b""),(native.returncode,native.stdout))
-        self.assertEqual(0,self.invoke(args,empty=False).returncode)
+        native=self.invoke(args,empty=False)
+        python=self.invoke(args,backend="python",empty=False)
+        self.assertEqual((python.returncode,python.stderr),(native.returncode,native.stderr))
+        if python.returncode == 0:
+            self.assertEqual(json.loads(python.stdout)["window"],json.loads(native.stdout)["window"])
 
     def test_empty_projects_path_collects_current_directory(self):
         self.write(self.project/"p/a.jsonl",[message("cwd")])
