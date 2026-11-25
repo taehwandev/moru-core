@@ -6,12 +6,13 @@ import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from agent_execution_capsule_state import atomic_write_json, read_json_object
 from agent_ipc import emit_event
 from agent_state_lock import project_state_lock, state_lock
 from support.global_state import project_state_dir_target
+from support.native_probe_transport import NativeProbe
 from agent_state_read import SCHEDULER_FILENAME, scheduler_path
 
 
@@ -216,11 +217,10 @@ def retry_task(project: Path, task_id: str, *, expected_attempt: int | None = No
         for task in payload["tasks"]:
             if task.get("task_id") != task_id or task.get("state") != "failed":
                 continue
-            if expected_attempt is not None and int(task.get("attempt", 1)) != expected_attempt:
+            next_attempt = _next_attempt(task, expected_attempt, require_partial=False)
+            if next_attempt is None:
                 return None
-            if int(task.get("attempt", 1)) >= int(task.get("max_attempts", 1)):
-                return None
-            task["attempt"] = int(task.get("attempt", 1)) + 1
+            task["attempt"] = next_attempt
             task["state"] = "queued"
             task["updated_at"] = datetime.now(timezone.utc).isoformat()
             _write_scheduler(path, payload)
@@ -247,11 +247,10 @@ def resume_task(project: Path, task_id: str, *, expected_attempt: int | None = N
         for task in payload["tasks"]:
             if task.get("task_id") != task_id or task.get("state") != "failed":
                 continue
-            if expected_attempt is not None and int(task.get("attempt", 1)) != expected_attempt:
+            next_attempt = _next_attempt(task, expected_attempt, require_partial=True)
+            if next_attempt is None:
                 return None
-            if not task.get("partial_result_id") or int(task.get("attempt", 1)) >= int(task.get("max_attempts", 1)):
-                return None
-            task["attempt"] = int(task.get("attempt", 1)) + 1
+            task["attempt"] = next_attempt
             task["state"] = "queued"
             task["resume_requested_at"] = datetime.now(timezone.utc).isoformat()
             task["updated_at"] = task["resume_requested_at"]
@@ -270,6 +269,31 @@ def resume_task(project: Path, task_id: str, *, expected_attempt: int | None = N
     return task
 
 
+def _next_attempt(task: dict, expected_attempt: int | None, *, require_partial: bool) -> int | None:
+    if NativeProbe.available():
+        result = NativeProbe.request("--completion-probe", "scheduler-next-attempt", {
+            "attempt": task.get("attempt", 1), "max_attempts": task.get("max_attempts", 1),
+            "expected_attempt": expected_attempt, "require_partial": require_partial,
+            "has_partial": bool(task.get("partial_result_id")),
+        })
+        if result is not None and set(result) == {"next_attempt"}:
+            attempt = result["next_attempt"]
+            if attempt is None or type(attempt) is int:
+                return attempt
+    return _next_attempt_reference(task, expected_attempt, require_partial=require_partial)
+
+
+def _next_attempt_reference(
+    task: dict, expected_attempt: int | None, *, require_partial: bool,
+) -> int | None:
+    if expected_attempt is not None and int(task.get("attempt", 1)) != expected_attempt:
+        return None
+    if require_partial and not task.get("partial_result_id"):
+        return None
+    attempt = int(task.get("attempt", 1))
+    return attempt + 1 if attempt < int(task.get("max_attempts", 1)) else None
+
+
 def recover_stale_tasks(project: Path, *, stale_after_seconds: int = 3600) -> list[dict[str, Any]]:
     """Mark queued/running tasks stale so maintenance can apply bounded retry."""
 
@@ -280,15 +304,7 @@ def recover_stale_tasks(project: Path, *, stale_after_seconds: int = 3600) -> li
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=stale_after_seconds)
     with project_state_lock(project), state_lock(path):
         payload = _read_scheduler(path)
-        for task in payload["tasks"]:
-            if task.get("state") not in {"queued", "running"}:
-                continue
-            try:
-                updated = datetime.fromisoformat(str(task.get("updated_at")))
-            except (TypeError, ValueError):
-                continue
-            if updated >= cutoff:
-                continue
+        for task in _stale_tasks(payload["tasks"], cutoff):
             task["state"] = "failed"
             task["updated_at"] = datetime.now(timezone.utc).isoformat()
             recovered.append(task)
@@ -297,6 +313,32 @@ def recover_stale_tasks(project: Path, *, stale_after_seconds: int = 3600) -> li
     for task in recovered:
         _safe_event(project, "task.recovered", run_id=str(task["run_id"]), task_id=str(task["task_id"]), state="failed")
     return recovered
+
+
+def _stale_tasks(tasks: list[dict[str, Any]], cutoff: datetime) -> Iterable[dict[str, Any]]:
+    if tasks and NativeProbe.available():
+        result = NativeProbe.request("--completion-probe", "scheduler-stale-tasks", {
+            "tasks": tasks, "cutoff": cutoff.isoformat(),
+        })
+        if result is not None and set(result) == {"indexes"}:
+            indexes = result["indexes"]
+            if (type(indexes) is list
+                    and all(type(index) is int and 0 <= index < len(tasks) for index in indexes)
+                    and indexes == sorted(set(indexes))):
+                return [tasks[index] for index in indexes]
+    return _stale_tasks_reference(tasks, cutoff)
+
+
+def _stale_tasks_reference(tasks: list[dict[str, Any]], cutoff: datetime) -> Iterable[dict[str, Any]]:
+    for task in tasks:
+        if task.get("state") not in {"queued", "running"}:
+            continue
+        try:
+            updated = datetime.fromisoformat(str(task.get("updated_at")))
+        except (TypeError, ValueError):
+            continue
+        if updated < cutoff:
+            yield task
 
 
 def _read_scheduler(path: Path) -> dict[str, Any]:

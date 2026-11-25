@@ -197,7 +197,7 @@ impl MaintenanceRetention {
         Some(Self::stamp(value)?.ticks())
     }
 
-    fn stamp(value: &Value) -> Option<OverheadStamp> {
+    pub(super) fn stamp(value: &Value) -> Option<OverheadStamp> {
         let stamp = value.as_str()?;
         let bytes = stamp.as_bytes();
         let tail = stamp.get(19..)?;
