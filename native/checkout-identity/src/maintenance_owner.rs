@@ -7,24 +7,27 @@ use std::{fs, io};
 pub(super) struct MaintenanceOwner;
 
 impl MaintenanceOwner {
-    pub(super) fn gone(owner: Option<&Value>) -> Option<bool> {
-        let Some(owner) = owner.and_then(Value::as_object) else {
-            return Some(true);
-        };
-        let pid = match owner.get("pid") {
-            None | Some(Value::Null) => return Some(true),
-            Some(value) => i32::try_from(value.as_i64()?).ok()?,
-        };
-        if pid <= 0 {
-            return Some(true);
+    pub(super) fn recorded_pid(owner: Option<&Value>) -> Option<Option<i32>> {
+        match owner.and_then(|value| value.get("pid")) {
+            None | Some(Value::Null) => Some(None),
+            Some(value) => {
+                let pid = i32::try_from(value.as_i64()?).ok()?;
+                Some((pid > 0).then_some(pid))
+            }
         }
+    }
+
+    pub(super) fn gone(owner: Option<&Value>) -> Option<bool> {
+        let Some(pid) = Self::recorded_pid(owner)? else {
+            return Some(true);
+        };
         // Only ESRCH proves that the PID is absent. Never send a real signal.
         if unsafe { libc::kill(pid, 0) } < 0
             && io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
         {
             return Some(true);
         }
-        let recorded = match owner.get("start_token") {
+        let recorded = match owner.and_then(|value| value.get("start_token")) {
             None | Some(Value::Null) => return Some(false),
             Some(value) => value.as_str()?,
         };

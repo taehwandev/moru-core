@@ -1363,6 +1363,50 @@ def _sweep_stale_runs(
 
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(seconds=stale_after_seconds)
+    if evidence_path is None and not sweep_dead_owners:
+        native = _native_stale_run_plan(payload["runs"], now, cutoff, stale_after_seconds)
+        if native is not None:
+            recovered, held = native
+            for run in recovered:
+                run["state"], run["updated_at"] = "failed", now.isoformat()
+            return recovered, held
+    return _sweep_stale_runs_reference(
+        payload, project, stale_after_seconds, evidence_path, sweep_dead_owners, now, cutoff,
+    )
+
+
+def _native_stale_run_plan(
+    runs: list[dict[str, Any]], now: datetime, cutoff: datetime, stale_after_seconds: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+    from support.native_probe_transport import NativeProbe
+
+    if not runs or not NativeProbe.available():
+        return None
+    try:
+        ceiling = now - timedelta(seconds=stale_after_seconds * LIVE_OWNER_GRACE_MULTIPLIER)
+    except OverflowError:
+        return None
+    result = NativeProbe.request("--completion-probe", "maintenance-recover-runs", {
+        "records": runs, "holding": sorted(CLAIM_HOLDING_RUN_STATES), "claiming": CLAIMING_RUN_STATE,
+        "cutoff": cutoff.isoformat(), "ceiling": ceiling.isoformat(),
+    })
+    if result is None or set(result) != {"recovered", "held"}:
+        return None
+    recovered, held = result["recovered"], result["held"]
+    for group in (recovered, held):
+        if (type(group) is not list
+                or any(type(index) is not int or not 0 <= index < len(runs) for index in group)
+                or group != sorted(set(group))):
+            return None
+    if set(recovered).intersection(held):
+        return None
+    return [runs[index] for index in recovered], [runs[index] for index in held]
+
+
+def _sweep_stale_runs_reference(
+    payload: dict[str, Any], project: Path, stale_after_seconds: int, evidence_path: Path | None,
+    sweep_dead_owners: bool, now: datetime, cutoff: datetime,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     recovered: list[dict[str, Any]] = []
     held: list[dict[str, Any]] = []
     for run in payload["runs"]:

@@ -300,6 +300,7 @@ impl CompletionProcess {
             Some("maintenance-retention") => maintenance_retention::MaintenanceRetention::plan(&payload),
             Some("maintenance-settlement") => maintenance_retention::MaintenanceRetention::expired_runs(&payload),
             Some("maintenance-protected-runs") => maintenance_retention::MaintenanceRetention::protected_runs(&payload),
+            Some("maintenance-recover-runs") => maintenance_retention::MaintenanceRetention::recover_runs(&payload),
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),

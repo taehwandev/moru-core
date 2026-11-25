@@ -12,6 +12,47 @@ const PYTHON_MAX_ORDINAL: i64 = 3_652_059;
 pub(super) struct MaintenanceRetention;
 
 impl MaintenanceRetention {
+    pub(super) fn recover_runs(request: &Value) -> Option<Value> {
+        let records = request.get("records")?.as_array()?;
+        let holding = Self::strings(request.get("holding")?)?;
+        let claiming = request.get("claiming")?.as_str()?;
+        let cutoff = Self::ticks(request.get("cutoff")?)?;
+        let ceiling = Self::ticks(request.get("ceiling")?)?;
+        let mut recovered = Vec::new();
+        let mut held = Vec::new();
+        for (index, record) in records.iter().enumerate() {
+            let record = record.as_object()?;
+            let state = match record.get("state") {
+                Some(Value::String(state)) if holding.contains(state.as_str()) => state,
+                Some(Value::Object(_) | Value::Array(_)) => return None,
+                _ => continue,
+            };
+            let owner = record.get(if state == claiming {
+                "claim_owner"
+            } else {
+                "owner"
+            });
+            if MaintenanceOwner::recorded_pid(owner)?.is_some() && MaintenanceOwner::gone(owner)? {
+                recovered.push(index);
+                continue;
+            }
+            let updated = Self::stamp(record.get("updated_at")?)?;
+            if !updated.aware() {
+                return None;
+            }
+            let ticks = updated.ticks();
+            if ticks >= cutoff {
+                continue;
+            }
+            if ticks >= ceiling && !MaintenanceOwner::gone(owner)? {
+                held.push(index);
+            } else {
+                recovered.push(index);
+            }
+        }
+        Some(json!({"recovered": recovered, "held": held}))
+    }
+
     pub(super) fn expired_runs(request: &Value) -> Option<Value> {
         let records = request.get("records")?.as_array()?;
         let settleable = Self::strings(request.get("settleable")?)?;
@@ -153,6 +194,10 @@ impl MaintenanceRetention {
     }
 
     fn ticks(value: &Value) -> Option<i64> {
+        Some(Self::stamp(value)?.ticks())
+    }
+
+    fn stamp(value: &Value) -> Option<OverheadStamp> {
         let stamp = value.as_str()?;
         let bytes = stamp.as_bytes();
         let tail = stamp.get(19..)?;
@@ -184,6 +229,6 @@ impl MaintenanceRetention {
         {
             return None;
         }
-        Some(OverheadStamp::parse(stamp)??.ticks())
+        OverheadStamp::parse(stamp)?
     }
 }

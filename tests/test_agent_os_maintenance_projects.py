@@ -35,7 +35,7 @@ from agent_os_maintenance import (  # noqa: E402
 )
 from agent_run_owner import process_owner  # noqa: E402
 from agent_run_registry import (  # noqa: E402
-    _expired_run_ids_reference, retention_protected_run_ids, settle_expired_runs,
+    _expired_run_ids_reference, recover_stale_runs, retention_protected_run_ids, settle_expired_runs,
 )
 from native_pretool_support import environment, prepare  # noqa: E402
 
@@ -270,6 +270,54 @@ class MaintenanceProjectTests(unittest.TestCase):
             result = settle_expired_runs(fixture.root, retention_seconds=120, apply=False, now=moment)
         reference.assert_called_once()
         self.assertEqual(["expired"], result)
+
+    def test_native_stale_recovery_matches_locked_reference_and_grace_boundary(self) -> None:
+        native_home = self.base / "native"
+        native_home.mkdir()
+        prepare(native_home)
+        moment = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        cutoff = moment - timedelta(minutes=1)
+        grace = moment - timedelta(minutes=12)
+        live = process_owner(current_process=True)
+        with subprocess.Popen([sys.executable, "-c", "pass"]) as child:
+            dead = {"pid": child.pid, "start_token": ""}
+            self.assertEqual(0, child.wait(timeout=10))
+
+        records = [
+            {"state": "running", "run_id": run_id, "updated_at": updated, "owner": owner}
+            for run_id, updated, owner in (
+                ("at-cutoff", cutoff.isoformat(), None),
+                ("unowned-stale", (cutoff - timedelta(microseconds=1)).isoformat(), None),
+                ("live-at-grace", grace.isoformat(), live),
+                ("past-live-grace", (grace - timedelta(microseconds=1)).isoformat(), live),
+                ("dead-before-cutoff", moment.isoformat(), dead),
+                ("dead-invalid-date", "unknown", dead),
+            )
+        ]
+        records.append({"run_id": "claim", "state": "claiming", "owner": dead,
+                        "claim_owner": live, "updated_at": grace.isoformat()})
+        records.append({"run_id": "dead-claim", "state": "claiming", "owner": live,
+                        "claim_owner": dead, "updated_at": moment.isoformat()})
+        reference_project = ProjectFixture(self.base / "reference")
+        native_project = ProjectFixture(self.base / "target")
+        for fixture in (reference_project, native_project):
+            fixture.records = records
+            fixture._write_registry()
+        with patch("agent_run_registry.datetime", wraps=datetime) as clock:
+            clock.now.return_value = moment
+            with patch.dict(os.environ, {**environment(native_home), "MORU_LAUNCHER_BACKEND": "python"},
+                            clear=True):
+                reference = recover_stale_runs(reference_project.root, stale_after_seconds=60)
+            with patch.dict(os.environ, environment(native_home), clear=True), patch(
+                "agent_run_registry._sweep_stale_runs_reference",
+                side_effect=AssertionError("native recovery declined"),
+            ):
+                native = recover_stale_runs(native_project.root, stale_after_seconds=60)
+        self.assertEqual(["unowned-stale", "past-live-grace", "dead-before-cutoff", "dead-invalid-date", "dead-claim"],
+                         [run["run_id"] for run in native])
+        self.assertEqual(reference, native)
+        self.assertEqual(reference_project.registry(), native_project.registry())
+        self.assertEqual("claiming", native_project.registry()["claim"])
 
     def test_a_pass_applies_retention_in_every_checkout(self) -> None:
         first = ProjectFixture(self.base / "first")
