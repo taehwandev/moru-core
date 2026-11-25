@@ -8,7 +8,7 @@ use crate::{
     text::Text,
 };
 use serde_json::{json, Value};
-use std::path::Path;
+use std::{fs, path::Path};
 
 pub(crate) struct OverheadReport;
 impl OverheadReport {
@@ -28,11 +28,13 @@ impl OverheadReport {
         for (key, value) in analysis.as_object()? {
             result[key] = value.clone();
         }
-        result["timings_jsonl"] = if Path::new(&args.timings).exists() {
-            let bytes = OverheadProcess::read(&args.timings)?;
-            OverheadTimings::read(&Text::universal_newlines(&String::from_utf8_lossy(&bytes)))?
-        } else {
-            OverheadTimings::read("")?
+        let timings = Path::new(&args.timings);
+        result["timings_jsonl"] = match fs::metadata(timings) {
+            Ok(metadata) => {
+                let bytes = OverheadProcess::read_explicit(timings, &metadata)?;
+                OverheadTimings::read(&Text::universal_newlines(&String::from_utf8_lossy(&bytes)))?
+            }
+            Err(_) => OverheadTimings::read("")?,
         };
         result["top_policy_notes"] = Self::common(&collection.shared["notes"])?;
         result["top_hook_denials"] = Self::common(&collection.shared["denials"])?;

@@ -64,7 +64,7 @@ impl OverheadCollection {
             {
                 continue;
             }
-            let bytes = OverheadProcess::read(path.to_str()?)?;
+            let bytes = OverheadProcess::read_explicit(&path, &metadata)?;
             let text = Text::universal_newlines(&String::from_utf8_lossy(&bytes));
             let measured = OverheadSession::measure(path.to_str()?, &text, roots, &window)?;
             result.merge(&measured["shared"])?;

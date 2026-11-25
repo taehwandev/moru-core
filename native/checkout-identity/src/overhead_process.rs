@@ -3,8 +3,8 @@
 //! callers/tests: NativeOverhead; verification: synthetic protocol and fallback parity.
 use crate::{
     overhead_aggregate::OverheadAggregate, overhead_session::OverheadSession,
-    overhead_timings::OverheadTimings, pretool_guard::CallbackGuard, python_json::PythonJson,
-    text::Text,
+    overhead_timings::OverheadTimings, pretool_guard::CallbackGuard,
+    python_input_file::PythonInputFile, python_json::PythonJson, text::Text,
 };
 use serde_json::{json, Value};
 use std::{
@@ -102,7 +102,6 @@ impl OverheadProcess {
         OverheadTimings::read(&Text::universal_newlines(&String::from_utf8_lossy(&bytes)))
     }
     pub(crate) fn read(path: &str) -> Option<Vec<u8>> {
-        const LIMIT: u64 = 64 * 1024 * 1024;
         if path.is_empty() || path.ends_with('/') {
             return None;
         }
@@ -128,23 +127,46 @@ impl OverheadProcess {
             }
         }
         let before = fs::metadata(&absolute).ok()?;
+        Self::read_regular(&absolute, &before)
+    }
+    /// The public CLI follows regular file aliases like the reference glob and
+    /// timing reader. Keep the probed input bound to the original path as well
+    /// as to the descriptor, and never read a device or descriptor alias.
+    pub(crate) fn read_explicit(path: &Path, before: &fs::Metadata) -> Option<Vec<u8>> {
+        let absolute = if path.is_absolute() {
+            path.to_owned()
+        } else {
+            std::env::current_dir().ok()?.join(path)
+        };
+        if !before.is_file() || PythonInputFile::through_descriptor(&absolute) {
+            return None;
+        }
+        let resolved = fs::canonicalize(path).ok()?;
+        if resolved.starts_with("/dev") || resolved.starts_with("/proc") {
+            return None;
+        }
+        let bytes = Self::read_regular(&resolved, before)?;
+        Self::same(before, &fs::metadata(path).ok()?).then_some(bytes)
+    }
+    fn read_regular(path: &Path, before: &fs::Metadata) -> Option<Vec<u8>> {
+        const LIMIT: u64 = 64 * 1024 * 1024;
         if !before.is_file() || before.len() > LIMIT {
             return None;
         }
         let file = fs::OpenOptions::new()
             .read(true)
-            .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
-            .open(&absolute)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_NOCTTY)
+            .open(path)
             .ok()?;
         let opened = file.metadata().ok()?;
-        if !opened.is_file() || !Self::same(&before, &opened) {
+        if !opened.is_file() || !Self::same(before, &opened) {
             return None;
         }
         let mut bytes = Vec::new();
         (&file).take(LIMIT + 1).read_to_end(&mut bytes).ok()?;
         if bytes.len() as u64 > LIMIT
             || !Self::same(&opened, &file.metadata().ok()?)
-            || !Self::same(&opened, &fs::metadata(&absolute).ok()?)
+            || !Self::same(&opened, &fs::metadata(path).ok()?)
         {
             return None;
         }

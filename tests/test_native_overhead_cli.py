@@ -45,10 +45,11 @@ class NativeOverheadCliTests(unittest.TestCase):
         return ["--projects-dir",str(self.projects),"--timings",str(self.timings),
                 "--moru-root","/work/core","--until","2026-11-08T00:00:00Z",*extra]
 
-    def invoke(self,args,*,backend="auto",empty=True,umask=-1,**env):
+    def invoke(self,args,*,backend="auto",empty=True,umask=-1,pass_fds=(),**env):
         return subprocess.run([str(self.entry),"overhead-report",*args],capture_output=True,cwd=self.project,
             env={**self.env,"MORU_LAUNCHER_BACKEND":backend,
-                 "PATH":str(self.empty) if empty else os.environ.get("PATH",""),**env},timeout=12,umask=umask)
+                 "PATH":str(self.empty) if empty else os.environ.get("PATH",""),**env},
+            timeout=12,umask=umask,pass_fds=pass_fds)
 
     def parity(self,args):
         done=self.invoke(args)
@@ -181,16 +182,36 @@ class NativeOverheadCliTests(unittest.TestCase):
         self.assertEqual(1,done.returncode)
         self.assertIn("generated_at",json.loads(done.stdout))
 
-    def test_unsupported_regular_inputs_fall_back_once_before_stdout(self):
+    def test_regular_transcript_and_timing_aliases_match_python_without_fallback(self):
         path=self.write(self.projects/"p/a.jsonl",[message("a")])
-        link=self.projects/"p/link.jsonl"
-        link.symlink_to(path)
-        native=self.invoke(self.args(),empty=False)
-        self.assertEqual((0,b""),(native.returncode,native.stderr))
-        self.assertEqual(2,json.loads(native.stdout)["all"]["sessions"])
-        native=self.invoke(self.args())
-        self.assertEqual(127,native.returncode)
-        self.assertEqual(b"",native.stdout)
+        path.with_name("link.jsonl").symlink_to(path.name)
+        path.with_name("dangling.jsonl").symlink_to("missing.jsonl")
+        root_link=self.base/"projects-link"
+        root_link.symlink_to(self.projects.name,target_is_directory=True)
+        timing_link=self.base/"timings-link"
+        timing_link.symlink_to(self.timings.name)
+        args=self.args("--projects-dir",str(root_link),"--timings",str(timing_link))
+        actual,_=self.parity(args)
+        self.assertEqual(2,actual["all"]["sessions"])
+        self.assertEqual(1,actual["timings_jsonl"]["records"])
+        actual,_=self.parity([*args,"--exclude-session","link.jsonl"])
+        self.assertEqual(1,actual["all"]["sessions"])
+
+    def test_stream_and_inherited_descriptor_aliases_are_not_consumed(self):
+        fifo=self.base/"fifo"
+        os.mkfifo(fifo)
+        alias=self.base/"timings-link"
+        alias.symlink_to(fifo.name)
+        args=self.args("--timings",str(alias))
+        native=self.invoke(args)
+        self.assertEqual((127,b""),(native.returncode,native.stdout))
+        alias.unlink()
+        with self.timings.open("rb",buffering=0) as handle:
+            handle.read(1)
+            alias.symlink_to(f"/dev/fd/{handle.fileno()}")
+            native=self.invoke(args,pass_fds=(handle.fileno(),))
+            self.assertEqual((127,b""),(native.returncode,native.stdout))
+            self.assertEqual(1,os.lseek(handle.fileno(),0,os.SEEK_CUR))
 
 
 if __name__=="__main__":

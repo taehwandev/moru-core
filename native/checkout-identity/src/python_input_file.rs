@@ -82,7 +82,7 @@ impl PythonInputFile {
     fn descriptor_path(path: &Path) -> bool {
         path.starts_with("/dev") || path.starts_with("/proc")
     }
-    fn through_descriptor(path: &Path) -> bool {
+    pub(crate) fn through_descriptor(path: &Path) -> bool {
         // Inspect link text before classifying lookup errors: a dangling alias
         // into /dev/fd must remain deferred even though canonicalize cannot see it.
         let mut pending: VecDeque<_> = path
