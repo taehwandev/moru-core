@@ -179,6 +179,37 @@ class NativeOverheadCliTests(unittest.TestCase):
         actual,_=self.parity(self.args("--projects-dir",""))
         self.assertEqual(1,actual["all"]["sessions"])
 
+    def test_project_root_globs_preserve_selection_and_report_order(self):
+        def note(label):
+            return {"type":"attachment","attachment":{"type":"hook_additional_context",
+                    "content":[f"Moru policy note {label}"]}}
+
+        for label,count in (("root-b",1),("root-a",2),("root-한",3),
+                            (".root-hidden",4),("root[",5)):
+            root=self.base/label/"p"
+            self.write(root/"a.jsonl",[note(label),*(message(str(i)) for i in range(count))])
+            self.write(root/"s/subagents/agent.jsonl",[note("agent "+label),message("agent")])
+            self.write(root/".hidden.jsonl",[message("hidden")])
+            self.write(root.parent/".hidden/a.jsonl",[message("hidden")])
+        (self.base/"root-alias").symlink_to("root-a",target_is_directory=True)
+
+        cases=[("root-[a-b]",3),("root-?",6),("root-[!a]",4),("root-a*",4),
+               (".root-*",4),("[.]root-*",0),("root[",5),("root[[]",5),
+               ("root-**",8),("nonexistent*",0)]
+        for pattern,count in cases:
+            with self.subTest(pattern=pattern):
+                actual,_=self.parity(self.args("--projects-dir",str(self.base/pattern)))
+                self.assertEqual(count,actual["all"]["assistant_turns"].get("sum",0))
+        relative=os.path.relpath(self.base,self.project)+"/root-*/p/.."
+        actual,_=self.parity(self.args("--projects-dir",relative,"--include-subagents"))
+        self.assertEqual(12,actual["all"]["assistant_turns"]["sum"])
+        self.assertEqual(5,len(actual["top_policy_notes"]))
+
+        args=self.args("--projects-dir",str(self.base/"root-[z-a]"))
+        native=self.invoke(args)
+        self.assertEqual((127,b""),(native.returncode,native.stdout))
+        self.assertEqual(0,self.invoke(args,empty=False).returncode)
+
     def test_oversized_columns_defers_before_help_output(self):
         for width in ("9223372036854775808","-9223372036854775809"):
             native=self.invoke(["--help"],empty=False,COLUMNS=width)

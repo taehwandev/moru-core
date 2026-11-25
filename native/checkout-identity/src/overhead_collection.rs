@@ -6,6 +6,9 @@ use crate::{
     overhead_session::OverheadSession, text::Text,
 };
 use serde_json::{json, Value};
+#[path = "overhead_glob.rs"]
+mod glob;
+use glob::OverheadGlob;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -21,25 +24,21 @@ impl OverheadCollection {
         roots: &[String],
         clock: &OverheadClock,
     ) -> Option<Self> {
-        if args.projects_dir.contains(['*', '?', '[']) {
-            return None;
+        let mut projects = Vec::new();
+        for base in OverheadGlob::directories(&args.projects_dir)? {
+            projects.extend(Self::entries(&base, true)?);
         }
-        let base = Path::new(if args.projects_dir.is_empty() {
-            "."
-        } else {
-            &args.projects_dir
-        });
         let mut files = Vec::new();
-        for project in Self::entries(base, true)? {
+        for project in &projects {
             files.extend(
-                Self::entries(&project, false)?
+                Self::entries(project, false)?
                     .into_iter()
                     .filter(|p| p.extension().is_some_and(|s| s == "jsonl")),
             );
         }
         if args.include_subagents {
-            for project in Self::entries(base, true)? {
-                for session in Self::entries(&project, true)? {
+            for project in &projects {
+                for session in Self::entries(project, true)? {
                     files.extend(
                         Self::entries(&session.join("subagents"), false)?
                             .into_iter()
