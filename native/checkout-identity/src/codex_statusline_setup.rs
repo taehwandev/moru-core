@@ -23,9 +23,27 @@ impl CodexStatusLine {
             eprintln!("{USAGE}");
             return Some(2);
         }
-        if !PythonEncoding::utf8()
-            || CallbackGuard::root(launcher, "codex-statusline-setup").is_none()
-        {
+        if CallbackGuard::root(launcher, "codex-statusline-setup").is_none() {
+            return None;
+        }
+        let target = Self::config_target()?;
+        let status = match Self::configure_file(&target, false)? {
+            Ok(status) => status,
+            Err(error) => {
+                eprintln!("Codex quota status line: {}: {error}", target.display());
+                return Some(1);
+            }
+        };
+        println!("Codex quota status line: {status} ({})", target.display());
+        Some(i32::from(status == "missing"))
+    }
+
+    pub(super) fn configure_default(dry_run: bool) -> Option<io::Result<&'static str>> {
+        Self::configure_file(&Self::config_target()?, dry_run)
+    }
+
+    fn config_target() -> Option<PathBuf> {
+        if !PythonEncoding::utf8() {
             return None;
         }
         let home = env::var("HOME").ok()?;
@@ -37,20 +55,23 @@ impl CodexStatusLine {
         if fs::symlink_metadata(&directory).is_ok_and(|meta| meta.file_type().is_symlink()) {
             return None;
         }
-        let target = directory.join("config.toml");
-        let (before, original) = Self::read_config(&target)?;
-        let (mut status, updated) = Self::merge(&original);
-        if status == "changed" {
-            // Any failure after applying begins is final. A Python retry could
-            // overwrite a concurrent change or replay a partial write.
-            if let Err(error) = Self::write_config(&directory, &target, before.as_ref(), &updated) {
-                eprintln!("Codex quota status line: {}: {error}", target.display());
-                return Some(1);
-            }
-            status = "installed";
+        Some(directory.join("config.toml"))
+    }
+
+    fn configure_file(target: &Path, dry_run: bool) -> Option<io::Result<&'static str>> {
+        let (before, original) = Self::read_config(target)?;
+        let (status, updated) = Self::merge(&original);
+        if status != "changed" {
+            return Some(Ok(status));
         }
-        println!("Codex quota status line: {status} ({})", target.display());
-        Some(i32::from(status == "missing"))
+        if dry_run {
+            return Some(Ok("would_update"));
+        }
+        // Keep errors distinct from declining before any write attempt.
+        Some(
+            Self::write_config(target.parent()?, target, before.as_ref(), &updated)
+                .map(|()| "installed"),
+        )
     }
 
     fn read_config(path: &Path) -> Option<(Option<fs::Metadata>, String)> {

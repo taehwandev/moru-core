@@ -1,6 +1,6 @@
-//! owner: CodexStatusLine; allowed imports: std, JSON and CallbackGuard;
-//! forbidden imports: config IO/writes, Python, providers and installation;
-//! callers/tests: guarded setup probe and synthetic setup parity tests;
+//! owner: CodexStatusLine text merge and setup dispatch; allowed: JSON and bounded setup;
+//! forbidden imports: direct config I/O, Python and providers;
+//! callers/tests: guarded setup probes and synthetic setup parity tests;
 //! verification: exact text oracle, no-helper-replay and empty-PATH protocol.
 #[path = "codex_statusline_render.rs"]
 mod render;
@@ -18,8 +18,14 @@ use std::{
 pub(crate) struct CodexStatusLine;
 impl CodexStatusLine {
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
+        let Some(operation) = args.get(1).and_then(|arg| arg.to_str()) else {
+            return 125;
+        };
         if args.len() != 2
-            || args[1] != "codex-status-line"
+            || !matches!(
+                operation,
+                "codex-status-line" | "codex-status-line-plan" | "codex-status-line-apply"
+            )
             || CallbackGuard::root(launcher, "setup-probe").is_none()
         {
             return 125;
@@ -39,16 +45,30 @@ impl CodexStatusLine {
         let Some(object) = payload.as_object() else {
             return 125;
         };
-        let Some(text) = object
-            .get("text")
-            .and_then(Value::as_str)
-            .filter(|_| object.len() == 1)
-        else {
-            return 125;
+        let result = if operation == "codex-status-line" {
+            let Some(text) = object
+                .get("text")
+                .and_then(Value::as_str)
+                .filter(|_| object.len() == 1)
+            else {
+                return 125;
+            };
+            let (status, text) = Self::merge(text);
+            json!({"status":status, "text":text})
+        } else {
+            if !object.is_empty() {
+                return 125;
+            }
+            match Self::configure_default(operation == "codex-status-line-plan") {
+                Some(Ok(status)) => json!({"status":status}),
+                Some(Err(error)) => {
+                    eprintln!("Codex quota status line: {error}");
+                    return 1;
+                }
+                None => return 125,
+            }
         };
-        let (status, updated) = Self::merge(text);
-        let Ok(mut output) = serde_json::to_vec(&json!({"schema_version":1,
-            "result":{"status":status,"text":updated}}))
+        let Ok(mut output) = serde_json::to_vec(&json!({"schema_version":1, "result":result}))
         else {
             return 125;
         };

@@ -43,6 +43,7 @@ class NativeProbe:
         if verified_launcher is not None and (protocol, operation) != ("--completion-probe", "doctor-launcher"):
             return None
         write_failure = {
+            ("--setup-probe", "codex-status-line-apply"): "native Codex statusline apply outcome could not be determined",
             ("--completion-probe", "live-web-edit-append"): "native live-web edit append outcome could not be determined",
             ("--completion-probe", "live-web-edit-record"): "native live-web edit record outcome could not be determined",
             ("--completion-probe", "live-web-edit-hook"): "native live-web edit hook outcome could not be determined",

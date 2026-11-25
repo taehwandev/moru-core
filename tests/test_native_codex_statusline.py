@@ -14,6 +14,7 @@ from native_launcher_support import copied_build_root, install
 from native_pretool_support import environment
 from support import codex_statusline_setup as source
 from support.native_probe_transport import NativeProbe
+from support.setup_agent_hooks_impl import configure_codex
 
 BASELINE = "159bd28e87778fb144d5af24cb5e4784bf3f53af"
 
@@ -135,6 +136,58 @@ class NativeCodexStatuslineTests(unittest.TestCase):
                              (legacy.returncode, legacy.stdout, legacy.stderr))
             self.assertTrue(config.is_symlink())
             self.assertIn(b"weekly-limit", linked.read_bytes())
+
+    def test_setup_orchestration_uses_native_plan_and_apply_for_its_home(self):
+        home = Path(self.env["HOME"])
+        target = home / ".codex" / "config.toml"
+        root = Path(__file__).resolve().parents[1]
+        with patch.dict(os.environ, self.env, clear=True), \
+             patch.object(source, "merge_codex_status_line", side_effect=AssertionError("Python file fallback")), \
+             patch.object(NativeProbe, "request", wraps=NativeProbe.request) as request:
+            for dry_run, expected in ((True, "would_update"), (False, "installed"), (False, "ok")):
+                results = configure_codex(dry_run, root=root)
+                status = next(item["status"] for item in results if item["hook"] == "statusLine")
+                self.assertEqual(expected, status)
+                if dry_run:
+                    self.assertFalse(target.parent.exists())
+            self.assertIn(b"weekly-limit", target.read_bytes())
+        self.assertEqual([
+            ("--setup-probe", "codex-status-line-plan", {}),
+            ("--setup-probe", "codex-status-line-apply", {}),
+            ("--setup-probe", "codex-status-line-apply", {}),
+        ], [entry.args for entry in request.call_args_list])
+
+    def test_orchestrated_apply_does_not_replay_uncertain_native_result(self):
+        target = Path(self.env["HOME"]) / ".codex" / "config.toml"
+        with patch.dict(os.environ, self.env, clear=True), \
+             patch.object(source, "merge_codex_status_line", side_effect=AssertionError("Python file replay")):
+            for stdout in (b"partial response", b'{"schema_version":1,"result":{"status":"would_update"}}'):
+                with self.subTest(stdout=stdout), patch.object(subprocess, "run",
+                    return_value=subprocess.CompletedProcess([], 0, stdout, b"")) as run:
+                    with self.assertRaisesRegex(OSError, "apply outcome could not be determined"):
+                        source.setup_codex_status_line(target, False)
+                    self.assertEqual(1, run.call_count)
+            with patch.object(subprocess, "run", side_effect=subprocess.TimeoutExpired([], 10)) as run:
+                with self.assertRaisesRegex(OSError, "apply outcome could not be determined"):
+                    source.setup_codex_status_line(target, False)
+                self.assertEqual(1, run.call_count)
+
+        with patch.dict(os.environ, self.env, clear=True), \
+             patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 125, b"", b"")), \
+             patch.object(source, "merge_codex_status_line", return_value="installed") as fallback:
+            self.assertEqual("installed", source.setup_codex_status_line(target, False))
+            fallback.assert_called_once_with(target, False)
+
+    def test_native_file_probe_rejects_user_selected_path(self):
+        with tempfile.TemporaryDirectory(dir=self.base) as directory:
+            home = Path(directory)
+            payload = json.dumps({"path": str(home / "elsewhere.toml")}).encode()
+            done = subprocess.run([
+                str(self.launcher.with_name("moru-hook-native")), str(self.launcher),
+                "--setup-probe", "codex-status-line-apply"], env={**self.env, "HOME": str(home)},
+                input=payload, capture_output=True, timeout=10)
+            self.assertEqual((125, b"", b""), (done.returncode, done.stdout, done.stderr))
+            self.assertEqual([], list(home.iterdir()))
 
     def test_real_setup_uses_one_native_merge_without_python_scanner_or_renderer(self):
         text = '[tui]\nstatus_line = [\n  "한글" # keep\n]\n'

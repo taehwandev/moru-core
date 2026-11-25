@@ -20,7 +20,7 @@ from support.codex_setup import (
     merge_codex_pre_tool_gate,
     merge_codex_stop_gate,
 )
-from support.codex_statusline_setup import merge_codex_status_line
+from support.codex_statusline_setup import setup_codex_status_line
 from support.maintenance_scheduler import configure_maintenance_scheduler
 from support.permission_entries import (
     claude_legacy_permission_entries,
@@ -364,7 +364,7 @@ def configure_codex(dry_run: bool, *, root: Path, enable_auto_review: bool = Fal
     reviewer_status = merge_codex_approvals_reviewer(
         config_target, dry_run, enable_auto_review=enable_auto_review,
     )
-    status_line_status = merge_codex_status_line(config_target, dry_run)
+    status_line_status = setup_codex_status_line(config_target, dry_run)
     permissions_status = merge_codex_worktree_roots(
         config_target,
         [worktree_root(root)],

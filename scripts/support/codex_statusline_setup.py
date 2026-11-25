@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -35,6 +36,24 @@ def merge_codex_status_line(target: Path, dry_run: bool) -> str:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(updated, encoding="utf-8")
     return "installed"
+
+
+def setup_codex_status_line(target: Path, dry_run: bool) -> str:
+    """Delegate file I/O only when the caller and native child share HOME."""
+    from support.native_probe_transport import NativeProbe
+
+    home = Path(os.environ.get("HOME", ""))
+    if home.is_absolute() and target == home / ".codex" / "config.toml":
+        operation = "codex-status-line-plan" if dry_run else "codex-status-line-apply"
+        result = NativeProbe.request("--setup-probe", operation, {})
+        if result is not None:
+            status = result.get("status")
+            changed = "would_update" if dry_run else "installed"
+            if set(result) == {"status"} and type(status) is str and status in ("ok", "missing", changed):
+                return status
+            if not dry_run:
+                raise OSError("native Codex statusline apply outcome could not be determined")
+    return merge_codex_status_line(target, dry_run)
 
 
 def _merge_text_reference(original: str) -> tuple[str, str]:
