@@ -99,6 +99,10 @@ class NativeProbe:
         return None
 
     @staticmethod
+    def encode_loop_state(payload: dict, output: BinaryIO) -> bool:
+        return NativeProbe._invoke("--completion-probe", "loop-state-encode", payload, output) is not None
+
+    @staticmethod
     def encode_publication_receipt(payload: dict, output: BinaryIO) -> bool:
         return NativeProbe._invoke("--completion-probe", "pending-publication-encode", payload, output) is not None
 

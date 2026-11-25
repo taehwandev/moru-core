@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import os
+import stat
 from pathlib import Path
 import subprocess
 import tempfile
@@ -13,6 +14,7 @@ from unittest.mock import patch
 from native_pretool_support import environment, prepare
 from agent_run_owner import process_owner
 from agent_loop_contract import budget_allows, candidate_verdict
+from agent_loop_binding import LoopBinding
 from test_agent_loop_contract import valid_state
 
 
@@ -279,3 +281,37 @@ class NativeLoopStatusTests(unittest.TestCase):
                   "goal": {"passed": False}, "value": baseline + 1}
         with patch.dict(os.environ, self.env, clear=True):
             self.assertEqual((True, False), candidate_verdict(result, metric=metric, baseline=baseline))
+
+    def test_loop_binding_saves_exact_native_bytes_to_private_atomic_file(self):
+        binding = LoopBinding(self.project, self.run_id)
+        self.state["config"]["objective"] = "상태 😀"
+        self.state["accepted"]["owned"]["x"] = {"z": 10**30, "a": [-0.0, 1e-7, 1e20]}
+        self.path.write_bytes(b"prior contents")
+        expected = (json.dumps(self.state, indent=2, sort_keys=True) + "\n").encode()
+
+        with patch.dict(os.environ, self.env, clear=True), patch(
+            "agent_execution_capsule_state._encoded_json", side_effect=AssertionError("native declined"),
+        ):
+            self.assertEqual(self.state, binding.save(self.state))
+        self.assertEqual(expected, self.path.read_bytes())
+        self.assertEqual(self.state, binding.read())
+        self.assertEqual(0o600, stat.S_IMODE(self.path.stat().st_mode))
+        self.assertFalse(list(self.path.parent.glob("loop.json.*.tmp")))
+
+    def test_loop_binding_can_replace_partial_uncommitted_probe_output(self):
+        binding = LoopBinding(self.project, self.run_id)
+        self.path.write_bytes(b"old state")
+
+        def decline_after_partial_output(_payload, output):
+            self.assertEqual(b"old state", self.path.read_bytes())
+            output.write(b"x" * 4096)
+            return False
+
+        with patch.dict(os.environ, self.env, clear=True), patch(
+            "agent_loop_binding.NativeProbe.encode_loop_state", side_effect=decline_after_partial_output,
+        ) as encoder:
+            binding.save(self.state)
+        encoder.assert_called_once()
+        self.assertEqual((json.dumps(self.state, indent=2, sort_keys=True) + "\n").encode(),
+                         self.path.read_bytes())
+        self.assertFalse(list(self.path.parent.glob("loop.json.*.tmp")))

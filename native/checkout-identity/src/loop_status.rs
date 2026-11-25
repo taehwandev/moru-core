@@ -1,6 +1,6 @@
 //! owner: loop status; allowed imports: bounded reads, session selection, JSON and source guard;
 //! forbidden imports: writes, verifier or model execution, and run ownership claims;
-//! callers/tests: stable loop CLI and persisted-state parity fixtures.
+//! callers/tests: stable loop CLI, caller-owned persisted encoding and parity fixtures.
 #[path = "loop_status_contract.rs"]
 mod contract;
 use crate::{
@@ -63,6 +63,21 @@ impl LoopStatus {
         } else {
             0
         })
+    }
+
+    pub(crate) fn encode_persisted(bytes: &[u8]) -> Option<String> {
+        let state = PythonJson::parse(std::str::from_utf8(bytes).ok()?)?;
+        let run_id = state.get("run_id")?.as_str()?;
+        if !Self::valid_run_id(run_id) {
+            return None;
+        }
+        contract::validate(&state, run_id)?;
+        let mut encoded = PythonJson::render(&Self::strict_sorted(&state)?, true, true)?;
+        if encoded.len() >= 2 * 1024 * 1024 {
+            return None;
+        }
+        encoded.push('\n');
+        Some(encoded)
     }
 
     fn arguments(args: &[OsString]) -> Option<(PathBuf, Option<&str>)> {

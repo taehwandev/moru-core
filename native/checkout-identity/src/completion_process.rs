@@ -194,6 +194,9 @@ impl CompletionProcess {
         if args[1] == "capsule-identities" {
             return Self::respond(RouteIdentity::probe(&bytes));
         }
+        if args[1] == "loop-state-encode" {
+            return Self::write_encoded(crate::loop_status::LoopStatus::encode_persisted(&bytes));
+        }
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
@@ -281,23 +284,8 @@ impl CompletionProcess {
                 None => 125,
             };
         }
-        // This operation only writes stdout. The caller owns any file behind it.
         if args[1] == "pending-publication-encode" {
-            let Some(encoded) = PendingPublicationReceipt::encode(payload) else {
-                return 125;
-            };
-            // Stdout's console wrapper can suppress EBADF. The underlying
-            // file descriptor must report errors to the atomic-write caller.
-            let Ok(descriptor) = std::io::stdout().as_fd().try_clone_to_owned() else {
-                return 1;
-            };
-            let mut output = std::fs::File::from(descriptor);
-            return i32::from(
-                output
-                    .write_all(encoded.as_bytes())
-                    .and_then(|_| output.flush())
-                    .is_err(),
-            );
+            return Self::write_encoded(PendingPublicationReceipt::encode(payload));
         }
         let result = match args[1].to_str() {
             Some("loop-budget") => loop_budget::LoopBudget::decide(&payload),
@@ -382,6 +370,24 @@ impl CompletionProcess {
             _ => None,
         };
         Self::respond(result)
+    }
+
+    fn write_encoded(encoded: Option<String>) -> i32 {
+        let Some(encoded) = encoded else {
+            return 125;
+        };
+        // Stdout's console wrapper can suppress EBADF. Report descriptor
+        // failures so the caller can reset its owned temporary.
+        let Ok(descriptor) = std::io::stdout().as_fd().try_clone_to_owned() else {
+            return 1;
+        };
+        let mut output = std::fs::File::from(descriptor);
+        i32::from(
+            output
+                .write_all(encoded.as_bytes())
+                .and_then(|_| output.flush())
+                .is_err(),
+        )
     }
 
     fn respond(result: Option<Value>) -> i32 {

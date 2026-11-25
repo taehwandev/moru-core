@@ -232,7 +232,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "loop",
-      "remaining": "The status launcher reads bounded project-local loop state by explicit ID, a resolved runtime-session binding, or a unique exact process owner when no runtime session ID is available. It validates the persisted contract and renders sorted JSON without Python in the ordinary profile. Rust also decides deadline, iteration and model-call budget outcomes, and candidate improvement and goal verdicts from typed observations. Python retains the locked mutation, fallback, verifier execution, and exceptional or invalid status diagnostics. Portable and installed acceptance remain open.",
+      "remaining": "The status launcher reads bounded project-local loop state by explicit ID, a resolved runtime-session binding, or a unique exact process owner when no runtime session ID is available. It validates the persisted contract and renders sorted JSON without Python in the ordinary profile. Rust decides budget outcomes and candidate verdicts, and encodes validated persisted JSON into the caller-owned temporary stream. Python retains locked mutation, atomic replacement, fallback, verifier execution, and exceptional or invalid status diagnostics. Portable and installed acceptance remain open.",
       "verification": {
         "native_owner": "native/checkout-identity/src/loop_status.rs",
         "behavior": "PASS: 80 targeted local debug tests; empty-PATH launcher matches sorted JSON and status/exhaustion codes on persisted state. Expanded malformed-state and read-only controls passed.",

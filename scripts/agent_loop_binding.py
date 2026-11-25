@@ -19,6 +19,7 @@ from agent_run_registry import ledger_writable_run_claim_transaction, registry_p
 from agent_runtime_session import (resolve_owned_runtime_evidence, resolve_runtime_evidence,
                                    runtime_session, same_runtime_session)
 from support.global_state import project_state_dir_target
+from support.native_probe_transport import NativeProbe
 from workflow_effect_policy import route_minimum_effect
 
 
@@ -81,7 +82,8 @@ class LoopBinding:
 
     def save(self, state: dict) -> dict:
         validate_state(state, self.run_id)
-        atomic_write_json(self.path, state)
+        encoder = NativeProbe.encode_loop_state if NativeProbe.available() else None
+        atomic_write_json(self.path, state, write_payload=encoder)
         return state
 
 
