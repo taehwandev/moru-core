@@ -44,9 +44,9 @@ impl OverheadProcess {
                 .and_then(PythonJson::parse)
                 .and_then(|v| {
                     if args[1] == "aggregate" {
-                        OverheadAggregate::aggregate(v["sessions"].as_array()?)
+                        Self::strict(&OverheadAggregate::aggregate(v["sessions"].as_array()?)?)
                     } else if args[1] == "analyze" {
-                        OverheadAggregate::analyze(&v)
+                        Self::strict(&OverheadAggregate::analyze(&v)?)
                     } else {
                         crate::overhead_format::OverheadFormat::format(&v)
                     }
@@ -96,10 +96,17 @@ impl OverheadProcess {
     fn timings(payload: &Value) -> Option<Value> {
         let path = payload.get("path")?.as_str()?;
         if !Path::new(path).exists() {
-            return OverheadTimings::read("");
+            return Self::strict(&OverheadTimings::read("")?);
         }
         let bytes = Self::read(path)?;
-        OverheadTimings::read(&Text::universal_newlines(&String::from_utf8_lossy(&bytes)))
+        Self::strict(&OverheadTimings::read(&Text::universal_newlines(
+            &String::from_utf8_lossy(&bytes),
+        ))?)
+    }
+    fn strict(value: &crate::python_json::Value) -> Option<Value> {
+        // The public report can render Python's nonfinite tokens. The private
+        // protocol requires strict JSON, so decline before emitting an envelope.
+        serde_json::from_str(&PythonJson::render(value, false, false)?).ok()
     }
     pub(crate) fn read(path: &str) -> Option<Vec<u8>> {
         if path.is_empty() || path.ends_with('/') {

@@ -2,6 +2,7 @@
 import collections
 import datetime as dt
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -237,6 +238,33 @@ class NativeOverheadCliTests(unittest.TestCase):
             native_markdown=NativeOverheadReport.render(actual,"markdown")
         self.assertEqual(json.dumps(expected,indent=2,ensure_ascii=False),native_json)
         self.assertEqual(markdown,native_markdown)
+
+    def test_infinite_timings_and_arithmetic_overflow_render_without_python(self):
+        groups={
+            "single":[float("inf")],
+            "negative":[1.0,"-inf"],
+            "opposed":["Infinity",float("-inf")],
+            "equal-negative":[float("-inf"),float("-inf")],
+            "percentile-overflow":[-1e308,1e308],
+            "sum-overflow":[1e308,1e308],
+        }
+        self.write(self.timings,[
+            {"hook":hook,"status":"ok","timings":{"hook_total":value}}
+            for hook,values in groups.items() for value in values
+        ])
+        actual,_=self.parity(self.args())
+        summary=actual["timings_jsonl"]["per_hook_ms"]
+        self.assertTrue(math.isnan(summary["single"]["median"]))
+        self.assertEqual(float("-inf"),summary["negative"]["mean"])
+        self.assertTrue(math.isnan(summary["opposed"]["sum"]))
+        self.assertTrue(math.isnan(summary["equal-negative"]["p90"]))
+        self.assertEqual(float("-inf"),summary["equal-negative"]["sum"])
+        self.assertEqual(float("inf"),summary["percentile-overflow"]["p90"])
+        self.assertEqual(float("inf"),summary["sum-overflow"]["sum"])
+
+        self.timings.write_text('{"hook":"start","timings":{"hook_total":NaN}}\n')
+        fallback=self.invoke(self.args())
+        self.assertEqual((127,b""),(fallback.returncode,fallback.stdout))
 
     def test_output_files_use_native_writer_in_reference_order(self):
         self.write(self.projects/"p/a.jsonl",[message("a")])

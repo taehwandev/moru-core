@@ -2,7 +2,7 @@
 //! forbidden imports: transcript/file/state/provider I/O; callers/tests: OverheadProcess;
 //! verification: group counts, exact statistics, stable Counter ties and refusal parity.
 use super::overhead_stats::OverheadStats;
-use crate::python_json::{PythonJson, Value};
+use crate::python_json::{Number, Object, PythonJson, Value};
 use serde_json::{json, Map, Value as Json};
 
 pub(super) struct OverheadAggregate;
@@ -25,7 +25,7 @@ impl OverheadAggregate {
         "moru_injected_tokens_est",
         "moru_injected_events",
     ];
-    pub(super) fn analyze(payload: &Value) -> Option<Json> {
+    pub(super) fn analyze(payload: &Value) -> Option<Value> {
         let rows = payload["sessions"].as_array()?;
         let mut core = Vec::new();
         let mut other = Vec::new();
@@ -39,18 +39,29 @@ impl OverheadAggregate {
         let hooks = payload["hook_latency"].as_object()?;
         let mut keys: Vec<_> = hooks.iter().map(|(k, _)| k).collect();
         keys.sort();
-        let mut latency = json!({});
+        let mut latency = Object::new();
         for key in keys {
-            latency[key] = OverheadStats::summarize(hooks.get(key)?.as_array()?)?;
+            latency.insert(
+                key.clone(),
+                OverheadStats::summarize(hooks.get(key)?.as_array()?)?,
+            );
         }
-        Some(
-            json!({"all":Self::aggregate(rows)?,"moru_core":Self::aggregate(&core)?,
-            "other_projects":Self::aggregate(&other)?,
-            "moru_hook_latency_ms_from_transcripts":latency}),
-        )
+        let mut result = Object::new();
+        result.insert("all".into(), Self::aggregate(rows)?);
+        result.insert("moru_core".into(), Self::aggregate(&core)?);
+        result.insert("other_projects".into(), Self::aggregate(&other)?);
+        result.insert(
+            "moru_hook_latency_ms_from_transcripts".into(),
+            Value::Object(latency),
+        );
+        Some(Value::Object(result))
     }
-    pub(super) fn aggregate(rows: &[Value]) -> Option<Json> {
-        let mut result = json!({"sessions":rows.len()});
+    pub(super) fn aggregate(rows: &[Value]) -> Option<Value> {
+        let mut result = Object::new();
+        result.insert(
+            "sessions".into(),
+            Value::Number(Number::Integer(rows.len().to_string())),
+        );
         for field in Self::NUMERIC {
             let values = rows
                 .iter()
@@ -60,7 +71,7 @@ impl OverheadAggregate {
                     Some(value.clone())
                 })
                 .collect::<Option<Vec<_>>>()?;
-            result[field] = OverheadStats::summarize(&values)?;
+            result.insert(field.into(), OverheadStats::summarize(&values)?);
         }
         let mut tools = Map::new();
         let mut lifecycle = Map::new();
@@ -68,35 +79,54 @@ impl OverheadAggregate {
             Self::update(&mut tools, &row["tools"])?;
             Self::update(&mut lifecycle, &row["lifecycle_calls"])?;
         }
-        result["tool_calls_by_name_total"] = Self::common(&tools, 25);
-        result["lifecycle_calls_by_subcommand_total"] = Self::common(&lifecycle, usize::MAX);
-        result["sessions_with_lifecycle_calls"] = json!(rows
+        result.insert(
+            "tool_calls_by_name_total".into(),
+            PythonJson::parse(&Self::common(&tools, 25).to_string())?,
+        );
+        result.insert(
+            "lifecycle_calls_by_subcommand_total".into(),
+            PythonJson::parse(&Self::common(&lifecycle, usize::MAX).to_string())?,
+        );
+        let sessions_with_lifecycle_calls = rows
             .iter()
             .filter(|row| PythonJson::truthy(&row["lifecycle_total"]))
-            .count());
+            .count();
+        result.insert(
+            "sessions_with_lifecycle_calls".into(),
+            Value::Number(Number::Integer(sessions_with_lifecycle_calls.to_string())),
+        );
         if !rows.is_empty() {
-            result["lifecycle_share_of_tool_calls_pct"] = Self::share(
-                Self::total(rows, "lifecycle_total")?,
-                Self::total(rows, "tool_calls")?,
-            )?;
-            result["guidance_read_share_of_reads_pct"] = Self::share(
-                Self::total(rows, "guidance_reads")?,
-                tools.get("Read").map_or(Some(0), Json::as_i64)?,
-            )?;
-            result["injected_tokens_vs_new_input_pct"] = Self::share(
-                Self::total(rows, "moru_injected_tokens_est")?,
-                Self::total(rows, "tok_input")?
-                    .checked_add(Self::total(rows, "tok_cache_create")?)?,
-            )?;
+            result.insert(
+                "lifecycle_share_of_tool_calls_pct".into(),
+                Self::share(
+                    Self::total(rows, "lifecycle_total")?,
+                    Self::total(rows, "tool_calls")?,
+                )?,
+            );
+            result.insert(
+                "guidance_read_share_of_reads_pct".into(),
+                Self::share(
+                    Self::total(rows, "guidance_reads")?,
+                    tools.get("Read").map_or(Some(0), Json::as_i64)?,
+                )?,
+            );
+            result.insert(
+                "injected_tokens_vs_new_input_pct".into(),
+                Self::share(
+                    Self::total(rows, "moru_injected_tokens_est")?,
+                    Self::total(rows, "tok_input")?
+                        .checked_add(Self::total(rows, "tok_cache_create")?)?,
+                )?,
+            );
         }
-        Some(result)
+        Some(Value::Object(result))
     }
     fn total(rows: &[Value], field: &str) -> Option<i64> {
         rows.iter().try_fold(0i64, |sum, row| {
             sum.checked_add(OverheadStats::integer(row.get(field)?)?)
         })
     }
-    fn share(numerator: i64, denominator: i64) -> Option<Json> {
+    fn share(numerator: i64, denominator: i64) -> Option<Value> {
         let numerator = numerator.checked_mul(100)?;
         if numerator.unsigned_abs() > (1u64 << 53) || denominator.unsigned_abs() > (1u64 << 53) {
             return None;

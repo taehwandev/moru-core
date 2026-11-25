@@ -175,6 +175,11 @@ class NativeOverheadReportTests(unittest.TestCase):
             with self.assertRaises(OverflowError):
                 report.read_timings(str(self.timings))
 
+    def test_private_timing_probe_keeps_strict_json_for_nonfinite_summary(self):
+        self.timings.write_text('{"hook":"start","timings":{"hook_total":Infinity}}\n')
+        done=self.raw("timings",{"path":str(self.timings)})
+        self.assertEqual((125,b"",b""),(done.returncode,done.stdout,done.stderr))
+
     def test_malformed_native_results_are_not_accepted(self):
         rows = [self.row()]
         before = copy.deepcopy(rows)

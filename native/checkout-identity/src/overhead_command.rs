@@ -46,13 +46,13 @@ impl OverheadCommand {
         let Some(report) = OverheadReport::build(&parsed, &clock) else {
             crate::exec_python(launcher, args);
         };
-        let Some(mut output) = OverheadReportText::json(&report) else {
+        let Some(mut output) = OverheadReportText::json_value(&report) else {
             crate::exec_python(launcher, args);
         };
         output.push('\n');
         let markdown = parsed.md.as_deref().filter(|path| !path.is_empty());
         let markdown = if let Some(path) = markdown {
-            let Some(text) = OverheadReportText::markdown(&report) else {
+            let Some(text) = OverheadReportText::markdown_value(&report) else {
                 crate::exec_python(launcher, args);
             };
             Some((path, text))

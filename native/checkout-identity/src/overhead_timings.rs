@@ -4,14 +4,14 @@
 use super::overhead_stats::OverheadStats;
 use crate::{
     python_float::PythonFloat,
-    python_json::{Number, ParseOutcome, PythonJson, Value},
+    python_json::{Number, Object, ParseOutcome, PythonJson, Value},
     python_sum::PythonSum,
 };
 use serde_json::{json, Map, Value as Json};
 
 pub(super) struct OverheadTimings;
 impl OverheadTimings {
-    pub(super) fn read(text: &str) -> Option<Json> {
+    pub(super) fn read(text: &str) -> Option<Value> {
         let mut per_hook: Map<String, Json> = Map::new();
         let mut values: Vec<Vec<Value>> = Vec::new();
         let mut status = json!({});
@@ -68,18 +68,23 @@ impl OverheadTimings {
             let Some(float) = float else {
                 continue;
             };
-            if !float.is_finite() {
-                return None;
-            }
             values[index].push(Value::Number(Number::Float(float)));
             let key = format!("{hook}:{}", PythonJson::string(&record["status"]));
             let count = status[&key].as_u64().unwrap_or(0);
             status[&key] = json!(count + 1);
             records += 1;
         }
-        for ((_, value), values) in per_hook.iter_mut().zip(values) {
-            *value = OverheadStats::summarize(&values)?;
+        let mut summarized = Object::new();
+        for ((hook, _), values) in per_hook.into_iter().zip(values) {
+            summarized.insert(hook, OverheadStats::summarize(&values)?);
         }
-        Some(json!({"records":records,"per_hook_ms":per_hook,"status":status}))
+        let mut result = Object::new();
+        result.insert(
+            "records".into(),
+            Value::Number(Number::Integer(records.to_string())),
+        );
+        result.insert("per_hook_ms".into(), Value::Object(summarized));
+        result.insert("status".into(), PythonJson::parse(&status.to_string())?);
+        Some(Value::Object(result))
     }
 }

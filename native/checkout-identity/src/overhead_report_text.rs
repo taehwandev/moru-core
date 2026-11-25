@@ -14,6 +14,7 @@ impl OverheadReportText {
         PythonJson::render(report, true, false)
     }
 
+    #[cfg(test)]
     pub(crate) fn markdown(report: &serde_json::Value) -> Option<String> {
         Self::markdown_value(&PythonJson::parse(&report.to_string())?)
     }
