@@ -2,7 +2,7 @@
 //! forbidden imports: providers, state mutation; callers/tests: launcher, native overhead CLI;
 //! verification: portable output, ordered file writes and no replay after an output attempt.
 use crate::{
-    overhead_cli::OverheadCli, overhead_report::OverheadReport,
+    overhead_cli::OverheadCli, overhead_clock::OverheadClock, overhead_report::OverheadReport,
     overhead_report_text::OverheadReportText, pretool_guard::CallbackGuard,
     python_text::PythonText,
 };
@@ -32,7 +32,18 @@ impl OverheadCommand {
         if let Some(code) = parsed.exit {
             return code;
         }
-        let Some(report) = OverheadReport::build(&parsed) else {
+        let Some(clock) = OverheadClock::for_report(
+            parsed.since.as_deref(),
+            parsed.until.as_deref(),
+            parsed.days,
+        ) else {
+            crate::exec_python(launcher, args);
+        };
+        let Some(clock) = clock else {
+            eprintln!("--since/--until must be ISO timestamps");
+            return 1;
+        };
+        let Some(report) = OverheadReport::build(&parsed, &clock) else {
             crate::exec_python(launcher, args);
         };
         let Some(mut output) = OverheadReportText::json(&report) else {

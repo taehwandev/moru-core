@@ -12,14 +12,13 @@ use std::{fs, path::Path};
 
 pub(crate) struct OverheadReport;
 impl OverheadReport {
-    pub(crate) fn build(args: &OverheadCli) -> Option<Value> {
-        let clock = OverheadClock::new(args.since.as_deref(), args.until.as_deref(), args.days)?;
+    pub(crate) fn build(args: &OverheadCli, clock: &OverheadClock) -> Option<Value> {
         let roots: Vec<_> = std::iter::once(&args.moru_root)
             .chain(args.alias_root.iter())
             .filter(|s| !s.is_empty())
             .map(|s| s.trim_end_matches('/').to_owned())
             .collect();
-        let collection = OverheadCollection::read(args, &roots, &clock)?;
+        let collection = OverheadCollection::read(args, &roots, clock)?;
         let payload = json!({"sessions":collection.sessions,"hook_latency":collection.shared["hook_latency"]});
         let analysis = OverheadAggregate::analyze(&PythonJson::parse(&payload.to_string())?)?;
         let mut result = json!({"generated_at":clock.now,"window":{"since":clock.window()[0],"until":clock.window()[1]},

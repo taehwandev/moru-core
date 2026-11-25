@@ -101,6 +101,48 @@ class NativeOverheadCliTests(unittest.TestCase):
                 os.utime(path,ns=(epoch*10**9+delta,epoch*10**9+delta))
             self.parity(self.args("--since",stamp))
 
+    def test_calendar_clock_and_offset_formats_match_python_without_fallback(self):
+        for until in ("2026-10-10T010203,123456789+013059.25",
+                      "2026-10-10☁00:00:00.000001-00:00:00.5",
+                      "2026-10-10T2330+01:99",
+                      "2026-10-10T01:02:03.1-00:00:01.5",
+                      "2026-10-10Z"):
+            with self.subTest(until=until):
+                self.parity([*self.args(),"--until",until,"--days","1"])
+
+        self.write(self.projects/"p/a.jsonl",[
+            message("inside",stamp="2026-10-10☁01:00:01.123456789+01:00:01.123456"),
+            message("early",stamp="2026-10-10T010001,123455+010001.123456"),
+        ])
+        boundary="2026-10-10T000000+00"
+        actual,_=self.parity(self.args("--since",boundary,"--until",boundary))
+        self.assertEqual(1,actual["all"]["assistant_turns"]["sum"])
+
+    def test_proven_invalid_timestamps_emit_reference_diagnostic(self):
+        cases=[["--since","2026-02-30"],["--since","2026-10-10T01:0203"],
+               ["--since","2026-10-10Z12:00"],
+               ["--since","2026-10-10T01:00:00.１２"],["--since","2026-10-10T00+24"],
+               ["--since",STAMP,"--until","2026-10-10T25:00"]]
+        for extra in cases:
+            with self.subTest(extra=extra):
+                args=self.args(*extra)
+                native=self.invoke(args)
+                python=self.invoke(args,backend="python",empty=False)
+                self.assertEqual((1,b"",b"--since/--until must be ISO timestamps\n"),
+                                 (native.returncode,native.stdout,native.stderr))
+                self.assertEqual((python.returncode,python.stdout,python.stderr),
+                                 (native.returncode,native.stdout,native.stderr))
+        args=self.args("--until","invalid")
+        native=self.invoke(args,empty=False)
+        python=self.invoke(args,backend="python",empty=False)
+        self.assertEqual((python.returncode,python.stdout,python.stderr),
+                         (native.returncode,native.stdout,native.stderr))
+
+        args=self.args("--until","20261010T000000Z")
+        native=self.invoke(args)
+        self.assertEqual((127,b""),(native.returncode,native.stdout))
+        self.assertEqual(0,self.invoke(args,empty=False).returncode)
+
     def test_empty_projects_path_collects_current_directory(self):
         self.write(self.project/"p/a.jsonl",[message("cwd")])
         actual,_=self.parity(self.args("--projects-dir",""))

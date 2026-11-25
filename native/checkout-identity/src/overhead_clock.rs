@@ -28,6 +28,15 @@ impl OverheadClock {
     }
 
     pub(crate) fn new(since: Option<&str>, until: Option<&str>, days: i64) -> Option<Self> {
+        Self::for_report(since, until, days).flatten()
+    }
+
+    /// Outer None defers to the reference. Inner None is the report's ISO input error.
+    pub(crate) fn for_report(
+        since: Option<&str>,
+        until: Option<&str>,
+        days: i64,
+    ) -> Option<Option<Self>> {
         let duration = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
         let micros = i64::try_from(duration.as_secs())
             .ok()?
@@ -56,14 +65,24 @@ impl OverheadClock {
         let seconds = (whole as i64).checked_add(micros.div_euclid(1_000_000))?;
         Self::utc_iso(seconds.checked_mul(1_000_000)?)
     }
-    fn at(now: String, since: Option<&str>, until: Option<&str>, days: i64) -> Option<Self> {
-        let until = OverheadStamp::parse(until.filter(|s| !s.is_empty()).unwrap_or(&now))??;
-        let since = if let Some(since) = since.filter(|s| !s.is_empty()) {
-            OverheadStamp::parse(since)??
-        } else {
-            OverheadStamp::parse(&Self::shift_days(&until, days)?)??
+    fn at(
+        now: String,
+        since: Option<&str>,
+        until: Option<&str>,
+        days: i64,
+    ) -> Option<Option<Self>> {
+        let since = since.filter(|s| !s.is_empty());
+        let Some(until) = OverheadStamp::parse(until.filter(|s| !s.is_empty()).unwrap_or(&now))?
+        else {
+            // Without an explicit start the reference subtracts a timedelta
+            // from the invalid end before reaching its ISO input diagnostic.
+            return since.map(|_| None);
         };
-        Some(Self { now, since, until })
+        let since = match since {
+            Some(text) => OverheadStamp::parse(text)?,
+            None => OverheadStamp::parse(&Self::shift_days(&until, days)?)?,
+        };
+        Some(since.map(|since| Self { now, since, until }))
     }
     pub(crate) fn window(&self) -> [Value; 2] {
         [json!(self.since.iso), json!(self.until.iso)]
@@ -84,19 +103,7 @@ impl OverheadClock {
         Some(ticks.checked_add(Self::EPOCH * Self::DAY)? >= self.since.ticks())
     }
     fn shift_days(stamp: &OverheadStamp, days: i64) -> Option<String> {
-        let zone = stamp.iso[10..].find(['+', '-']).map(|i| i + 10);
-        let offset = if let Some(at) = zone {
-            let z = &stamp.iso[at..];
-            let seconds = z[1..3].parse::<i64>().ok()? * 3600 + z[4..6].parse::<i64>().ok()? * 60;
-            seconds * 1_000_000 * if z.starts_with('-') { -1 } else { 1 }
-        } else {
-            0
-        };
-        let ordinal = stamp
-            .ticks()
-            .checked_add(offset)?
-            .div_euclid(Self::DAY)
-            .checked_sub(days)?;
+        let ordinal = stamp.ordinal.checked_sub(days)?;
         let (year, month, day) = Self::civil(ordinal)?;
         Some(format!("{year:04}-{month:02}-{day:02}{}", &stamp.iso[10..]))
     }
@@ -189,6 +196,7 @@ mod tests {
         ] {
             let clock =
                 OverheadClock::at("2026-01-01T00:00:00+00:00".into(), None, Some(until), days)
+                    .unwrap()
                     .unwrap();
             assert_eq!(clock.since.iso, since);
         }
