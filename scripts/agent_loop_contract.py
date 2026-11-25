@@ -188,16 +188,28 @@ def _budget_reference(state: dict, now: float, calls: int, *, new_attempt: bool)
     return True
 
 
-def goal_met(result: dict) -> bool:
-    return result["timely"] and result["regression"]["passed"] and result["goal"]["passed"]
+def candidate_verdict(result: dict, *, metric: dict | None = None,
+                      baseline: int | float | None = None) -> tuple[bool, bool]:
+    """Return whether the candidate improves and whether it reaches the goal."""
+    if NativeProbe.available():
+        observed = NativeProbe.request("--completion-probe", "loop-verdict", {
+            "timely": result["timely"], "regression": result["regression"]["passed"],
+            "goal": result["goal"]["passed"], "value": result.get("value"),
+            "metric": metric, "baseline": baseline,
+        })
+        if (observed is not None and set(observed) == {"improves", "goal"}
+                and all(type(value) is bool for value in observed.values())):
+            return observed["improves"], observed["goal"]
+    return _verdict_reference(result, metric, baseline)
 
 
-def candidate_improves(state: dict, result: dict) -> bool:
-    metric = state["config"]["metric"]
+def _verdict_reference(result: dict, metric: dict | None, baseline: int | float | None) -> tuple[bool, bool]:
+    goal = result["timely"] and result["regression"]["passed"] and result["goal"]["passed"]
     if metric is None:
-        return goal_met(result)
+        return goal, goal
     direction = 1 if metric["direction"] == "max" else -1
-    return direction * (result["value"] - state["baseline_value"]) >= metric["min_delta"]
+    improves = direction * (result["value"] - baseline) >= metric["min_delta"]
+    return improves, goal
 
 
 def result_summary(result: dict) -> dict:

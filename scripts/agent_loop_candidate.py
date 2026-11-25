@@ -12,7 +12,7 @@ import time
 
 from agent_loop_binding import LoopBinding, _require_groups_finished
 from agent_loop_check import LoopCheck
-from agent_loop_contract import budget_allows, candidate_improves, goal_met, result_summary
+from agent_loop_contract import budget_allows, candidate_verdict, result_summary
 from agent_loop_inputs import LoopInputs
 
 
@@ -48,6 +48,7 @@ def resolve(binding: LoopBinding, accept: bool) -> dict:
             raise ValueError("no evaluated attempt to resolve")
         exhausted = state["status"] == "exhausted"
         inputs, result = _inputs(binding, state), attempt["result"]
+        reached = False
         if accept:
             if result is None or now >= state["deadline"] or not result["timely"]:
                 raise ValueError("candidate has no timely observed result")
@@ -55,7 +56,10 @@ def resolve(binding: LoopBinding, accept: bool) -> dict:
             inputs.assert_scope(current, state["accepted"])
             if current != result["candidate"] or not result["regression"]["passed"]:
                 raise ValueError("candidate changed or regressions failed")
-            if not candidate_improves(state, result):
+            improves, reached = candidate_verdict(
+                result, metric=state["config"]["metric"], baseline=state["baseline_value"],
+            )
+            if not improves:
                 raise ValueError("candidate did not improve the frozen criterion")
             state["accepted"], state["baseline_value"] = current, result["value"]
         else:
@@ -66,7 +70,7 @@ def resolve(binding: LoopBinding, accept: bool) -> dict:
         state["history"].append(attempt)
         state["attempt"] = None
         state["status"] = ("exhausted" if exhausted else
-                           "succeeded" if accept and goal_met(result) else "ready")
+                           "succeeded" if reached else "ready")
         if state["status"] != "succeeded":
             budget_allows(state, now, new_attempt=True)
         return binding.save(state)
@@ -90,7 +94,8 @@ def _record_result(binding: LoopBinding, attempt_id: str | None, result: dict) -
             if state["config"]["metric"] and not result["regression"]["passed"]:
                 raise ValueError("a measured baseline needs green regressions")
             state["baseline_result"], state["baseline_value"] = result_summary(observed), result["value"]
-            state["status"] = "succeeded" if goal_met(observed) else "ready"
+            _, reached = candidate_verdict(observed)
+            state["status"] = "succeeded" if reached else "ready"
             if not observed["timely"]:
                 state["status"] = "exhausted"
         else:

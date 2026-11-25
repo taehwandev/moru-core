@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from native_pretool_support import environment, prepare
 from agent_run_owner import process_owner
-from agent_loop_contract import budget_allows
+from agent_loop_contract import budget_allows, candidate_verdict
 from test_agent_loop_contract import valid_state
 
 
@@ -242,3 +242,40 @@ class NativeLoopStatusTests(unittest.TestCase):
         with patch.dict(os.environ, {**self.env, "HOME": str(self.empty)}, clear=True):
             self.assertFalse(budget_allows(state, state["deadline"]))
             self.assertEqual("exhausted", state["status"])
+
+    def test_native_candidate_verdict_matches_reference_at_the_frozen_threshold(self):
+        maximum = {"direction": "max", "min_delta": 0.5}
+        minimum = {"direction": "min", "min_delta": 0.5}
+        cases = (
+            (True, True, True, None, None, None, (True, True)),
+            (False, True, True, None, None, None, (False, False)),
+            (True, False, True, None, None, None, (False, False)),
+            (True, True, False, maximum, 1, 1.5, (True, False)),
+            (True, True, True, minimum, 1.5, 1, (True, True)),
+            (True, True, True, maximum, 1, math.nextafter(1.5, -math.inf), (False, True)),
+            (True, True, True, maximum, 1, 0.5, (False, True)),
+            (True, True, True, maximum, -0.0, 0.0, (False, True)),
+            (False, True, True, maximum, 1, 2, (True, False)),
+        )
+        for timely, regression, goal, metric, baseline, value, expected in cases:
+            with self.subTest(timely=timely, regression=regression, goal=goal, value=value):
+                result = {"timely": timely, "regression": {"passed": regression},
+                          "goal": {"passed": goal}, "value": value}
+                before = copy.deepcopy(result)
+                with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                    reference = candidate_verdict(result, metric=metric, baseline=baseline)
+                with patch.dict(os.environ, self.env, clear=True), patch(
+                    "agent_loop_contract._verdict_reference", side_effect=AssertionError("native declined"),
+                ):
+                    native = candidate_verdict(result, metric=metric, baseline=baseline)
+                self.assertEqual(expected, reference)
+                self.assertEqual(reference, native)
+                self.assertEqual(before, result)
+
+    def test_candidate_verdict_retains_exact_large_integer_difference(self):
+        baseline = 1 << 55
+        metric = {"direction": "max", "min_delta": 1.0}
+        result = {"timely": True, "regression": {"passed": True},
+                  "goal": {"passed": False}, "value": baseline + 1}
+        with patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual((True, False), candidate_verdict(result, metric=metric, baseline=baseline))
