@@ -46,13 +46,15 @@ fn snapshot(launcher: &OsString, args: &[OsString]) -> Option<String> {
     let (project, validated) = match words.as_slice() {
         [] => (env::current_dir().ok()?, false),
         ["--validate"] => (env::current_dir().ok()?, true),
-        ["--project", path] => (PathBuf::from(path), false),
-        ["--project", path, "--validate"] | ["--validate", "--project", path] => {
+        ["--project", path] if !path.starts_with('-') => (PathBuf::from(path), false),
+        ["--project", path, "--validate"] | ["--validate", "--project", path]
+            if !path.starts_with('-') =>
+        {
             (PathBuf::from(path), true)
         }
         _ => return None,
     };
-    if !project.is_absolute() || !project.is_dir() {
+    if !project.is_dir() {
         return None;
     }
     let project = project.canonicalize().ok()?;

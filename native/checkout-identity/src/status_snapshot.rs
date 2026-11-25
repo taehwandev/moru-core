@@ -1,9 +1,9 @@
 //! Canonical status aggregation and dynamic metadata; no state or authority writes.
-//! Owner: status snapshot formatting. Allowed: serde_json and std/libc.
+//! Owner: status snapshot formatting. Allowed: PythonJson, serde_json and std/libc.
 //! Forbidden: lifecycle policy, persistence, model calls and contract duplication.
 //! Callers/tests: StatusProcess; Rust vectors and Python status/API parity.
 //! Verification: exact sorted JSON, UUID4/UTC shapes and unusual-value fallback.
-use serde_json::Value;
+use crate::python_json::{PythonJson, Value};
 use std::{collections::BTreeMap, fs::File, io::Read, time::SystemTime};
 
 mod contract {
@@ -67,8 +67,8 @@ impl StatusSnapshot {
         for run in rows(&values[0], "runs").iter().filter(|v| v.is_object()) {
             match run.get("state") {
                 Some(Value::String(s)) if matches!(s.as_str(), "running" | "paused") => active += 1,
-                None | Some(Value::Null | Value::String(_)) => {}
-                _ => return None,
+                Some(Value::Array(_) | Value::Object(_)) => return None,
+                _ => {}
             }
         }
         Some((
@@ -94,18 +94,17 @@ fn counts(values: &[Value], key: &str, skip_nonobjects: bool) -> Option<String> 
             continue;
         }
         let object = item.as_object()?;
-        let label = match object.get(key) {
-            Some(Value::String(s)) if !s.is_empty() => s.as_str(),
-            None | Some(Value::Null | Value::String(_)) => "unknown",
-            _ => return None,
-        };
+        let label = object
+            .get(key)
+            .filter(|value| PythonJson::truthy(value))
+            .map_or_else(|| "unknown".into(), PythonJson::string);
         *result.entry(label).or_insert(0u64) += 1;
     }
     Some(format!(
         "{{{}}}",
         result
             .into_iter()
-            .map(|(key, count)| format!("{}: {count}", serde_json::to_string(key).unwrap()))
+            .map(|(key, count)| format!("{}: {count}", serde_json::to_string(&key).unwrap()))
             .collect::<Vec<_>>()
             .join(", ")
     ))
@@ -166,20 +165,16 @@ mod tests {
     }
 
     #[test]
-    fn count_maps_sort_unicode_and_reject_python_specific_values() {
+    fn count_maps_sort_unicode_and_convert_python_values() {
         let values =
-            serde_json::json!([{"state":"한글"},{"state":"a"},{"state":"a"},{"state":""},{}]);
+            PythonJson::parse(r#"[{"state":"한글"},{"state":"a"},{"state":"a"},{"state":""},{}]"#)
+                .unwrap();
         assert_eq!(
             counts(values.as_array().unwrap(), "state", false).unwrap(),
             "{\"a\": 2, \"unknown\": 2, \"한글\": 1}"
         );
-        for value in [
-            serde_json::json!([null]),
-            serde_json::json!([{"state":5}]),
-            serde_json::json!([{"state":[]}]),
-        ] {
-            assert!(counts(value.as_array().unwrap(), "state", false).is_none());
-        }
+        let values = PythonJson::parse(r#"[null]"#).unwrap();
+        assert!(counts(values.as_array().unwrap(), "state", false).is_none());
         assert_eq!(counts(&[Value::Null], "event_type", true).unwrap(), "{}");
     }
 }

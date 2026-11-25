@@ -48,6 +48,12 @@ No runtime dependency, service, compiler installation or model call is added.
 
 ## Measurement protocol
 
+Later source increments accept prepared relative-project invocations and
+Python-compatible typed task and event labels. Known JSON syntax failures and
+non-object top levels behave as empty state. Unhashable run states, unsupported
+encodings and parser exceptions retain the reference path. The measurement
+below describes the original revision and its original fallback profiles.
+
 Both source/binary versions were frozen before the candidate build. Each
 temporary home uses its own frozen version's installer and generated header.
 This matters: using the new header for the baseline would add a native process

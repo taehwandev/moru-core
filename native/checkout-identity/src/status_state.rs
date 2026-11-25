@@ -1,10 +1,12 @@
 //! Prepared status reads with Python's project/file lock order; no creation.
-//! Owner: status-state I/O. Allowed: LocalState, serde_json, std/libc.
+//! Owner: status-state I/O. Allowed: LocalState, PythonJson, std/libc.
 //! Forbidden: registry/scheduler mutations, lock creation and policy decisions.
 //! Callers/tests: StatusProcess; native status parity/contention/transport tests.
 //! Verification: existing writable locks, bounded JSON and conservative fallback.
-use crate::callback_state::LocalState as State;
-use serde_json::Value;
+use crate::{
+    callback_state::LocalState as State,
+    python_json::{InputDiagnostic, PythonJson, Value},
+};
 use std::{
     fs::{self, File},
     os::{fd::AsRawFd, unix::fs::OpenOptionsExt},
@@ -23,13 +25,17 @@ impl StatusState {
             State::safe_path(project, &path)?;
             let _file_lock = lock(&local.join(format!(".{name}.lock")))?;
             match fs::symlink_metadata(&path) {
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    Some(serde_json::json!({}))
-                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Some(Value::Null),
                 Ok(meta) if meta.is_file() && !meta.file_type().is_symlink() => {
-                    let value: Value =
-                        serde_json::from_str(&State::read(&path, 1_048_576)?).ok()?;
-                    value.is_object().then_some(value)
+                    match PythonJson::parse_with_diagnostic(
+                        &State::read(&path, 1_048_576)?,
+                        None,
+                        None,
+                    ) {
+                        Ok(Some(value)) => Some(value),
+                        Err(InputDiagnostic::Syntax(_)) => Some(Value::Null),
+                        _ => None,
+                    }
                 }
                 _ => None,
             }

@@ -80,6 +80,8 @@ class NativeRuntimeStatusTests(unittest.TestCase):
         ids = []
         for args, validated in (([], False), (["--validate"], True),
                 (["--project", str(self.project)], False),
+                (["--project", "."], False),
+                (["--project", ".", "--validate"], True),
                 (["--project", str(self.project), "--validate"], True),
                 (["--validate", "--project", str(self.project)], True)):
             done = self.parity(args, validated=validated, native_only=True)
@@ -123,14 +125,46 @@ class NativeRuntimeStatusTests(unittest.TestCase):
                 self.assertEqual(0, self.parity().returncode)
                 self.assertTrue(lock.is_file())
 
-    def test_unusual_malformed_and_oversized_inputs_retain_python(self):
+    def test_typed_labels_and_hashable_nonstring_run_states_stay_native(self):
+        (self.local / "scheduler.json").write_text(
+            '{"tasks": [{"state": 9007199254740993}, {"state": true}, {"state": 0.0},'
+            ' {"state": []}, {"state": {"z": 1, "a": [null, "x"]}}, {"state": [false, -0.0]}]}'
+        )
+        (self.local / "events.json").write_text(
+            '{"events": [{"event_type": Infinity}, {"event_type": NaN}, {"event_type": 1e-7},'
+            ' {"event_type": -Infinity}, {"event_type": 1.0}]}'
+        )
+        (self.local / "run-registry.json").write_text(
+            '{"runs": [{"state": true}, {"state": null}, {"state": 5},'
+            ' {"state": NaN}, {"state": "running"}]}'
+        )
+        before = state_hashes(self.project)
+        snapshot = json.loads(self.parity(native_only=True).stdout)
+        self.assertEqual(1, snapshot["active_runs"])
+        self.assertEqual({
+            "9007199254740993": 1, "True": 1, "unknown": 2,
+            "{'z': 1, 'a': [None, 'x']}": 1, "[False, -0.0]": 1,
+        }, snapshot["task_counts"])
+        self.assertEqual({"inf": 1, "nan": 1, "1e-07": 1, "-inf": 1, "1.0": 1}, snapshot["events"])
+        self.assertEqual(before, state_hashes(self.project))
+
+    def test_known_syntax_and_nonobject_state_count_as_empty_without_python(self):
+        (self.local / "scheduler.json").write_text("{malformed")
+        (self.local / "events.json").write_text('["not an object"]')
+        (self.local / "run-registry.json").write_text('\ufeff{"runs":[{"state":"running"}]}')
+        before = state_hashes(self.project)
+        snapshot = json.loads(self.parity(native_only=True).stdout)
+        self.assertEqual((0, {}, {}), (snapshot["active_runs"], snapshot["task_counts"], snapshot["events"]))
+        self.assertTrue(snapshot["registry_present"])
+        self.assertTrue(snapshot["scheduler_present"])
+        self.assertEqual(before, state_hashes(self.project))
+
+    def test_unsupported_and_oversized_inputs_retain_python(self):
         cases = [("scheduler.json", json.dumps({"tasks": [None]})),
-                 ("scheduler.json", json.dumps({"tasks": [{"state": 5}]})),
-                 ("scheduler.json", json.dumps({"tasks": [{"state": []}]})),
-                 ("scheduler.json", "{malformed"),
                  ("scheduler.json", json.dumps({"ignored": "x" * 1_048_577})),
                  ("run-registry.json", json.dumps({"runs": [{"state": []}]})),
-                 ("events.json", json.dumps({"events": [{"event_type": 1.5}]}))]
+                 ("run-registry.json", json.dumps({"runs": [{"state": {}}]})),
+                 ("events.json", r'{"events":[{"event_type":"\ud800"}]}')]
         for name, content in cases:
             path = self.local / name
             original = path.read_bytes()
@@ -157,7 +191,7 @@ class NativeRuntimeStatusTests(unittest.TestCase):
                 path.write_bytes(original)
 
     def test_unsupported_cli_environment_and_changed_source_retain_python(self):
-        for args in (["--help"], ["--invalid"], ["--project", "."], ["--month", "2026-11"]):
+        for args in (["--help"], ["--invalid"], ["--project", "--validate"], ["--month", "2026-11"]):
             with self.subTest(args=args):
                 if args == ["--help"]:
                     reference = invoke(self.entry, self.base, self.project, args, backend="python")
