@@ -296,6 +296,7 @@ impl CompletionProcess {
             Some("loop-verdict") => loop_verdict::LoopVerdict::decide(&payload),
             Some("maintenance-projects") => maintenance_projects::MaintenanceProjects::scan(&payload),
             Some("maintenance-retention") => maintenance_retention::MaintenanceRetention::plan(&payload),
+            Some("maintenance-expired-runs") => maintenance_retention::MaintenanceRetention::expired_runs(&payload),
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),

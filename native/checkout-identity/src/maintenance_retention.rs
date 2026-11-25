@@ -5,9 +5,48 @@ use crate::overhead_stamp::OverheadStamp;
 use serde_json::{json, Value};
 use std::collections::HashSet;
 
+const MICROS_PER_DAY: i64 = 86_400_000_000;
+const PYTHON_MAX_ORDINAL: i64 = 3_652_059;
+
 pub(super) struct MaintenanceRetention;
 
 impl MaintenanceRetention {
+    pub(super) fn expired_runs(request: &Value) -> Option<Value> {
+        let records = request.get("records")?.as_array()?;
+        let settleable = Self::strings(request.get("settleable")?)?;
+        let cutoff = Self::ticks(request.get("cutoff")?)?;
+        let moment = Self::ticks(request.get("moment")?)?;
+        let mut candidates = Vec::new();
+        for (index, record) in records.iter().enumerate() {
+            let Some(record) = record.as_object() else {
+                continue;
+            };
+            match record.get("run_id") {
+                None | Some(Value::Null) => continue,
+                Some(Value::String(id)) if id.is_empty() => continue,
+                Some(Value::String(_)) => {}
+                _ => return None,
+            }
+            match record.get("state") {
+                Some(Value::String(state)) if settleable.contains(state.as_str()) => {}
+                Some(Value::Object(_) | Value::Array(_)) => return None,
+                _ => continue,
+            }
+            let updated = Self::ticks(record.get("updated_at")?)?;
+            // The reference compares a datetime reconstructed through a float
+            // age. Outside the exact microsecond round-trip range, defer.
+            if moment.abs_diff(updated) > (1 << 52)
+                || !(MICROS_PER_DAY..(PYTHON_MAX_ORDINAL + 1) * MICROS_PER_DAY).contains(&updated)
+            {
+                return None;
+            }
+            if updated < cutoff {
+                candidates.push(index);
+            }
+        }
+        Some(json!({"candidates": candidates}))
+    }
+
     pub(super) fn plan(request: &Value) -> Option<Value> {
         let key = request.get("key")?.as_str()?;
         if !matches!(key, "runs" | "tasks" | "events") {

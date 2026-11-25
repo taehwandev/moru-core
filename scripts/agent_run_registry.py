@@ -933,8 +933,30 @@ def retention_protected_run_ids(
 def _expired_run_ids(
     payload: dict[str, Any], cutoff: datetime, moment: datetime
 ) -> list[str]:
+    from support.native_probe_transport import NativeProbe
+
+    runs = payload["runs"]
+    if (runs and cutoff.tzinfo is timezone.utc and moment.tzinfo is timezone.utc
+            and NativeProbe.available()):
+        result = NativeProbe.request("--completion-probe", "maintenance-expired-runs", {
+            "records": runs, "settleable": sorted(RETENTION_SETTLEABLE_RUN_STATES),
+            "cutoff": cutoff.isoformat(), "moment": moment.isoformat(),
+        })
+        if result is not None and set(result) == {"candidates"}:
+            indexes = result["candidates"]
+            if (type(indexes) is list
+                    and all(type(index) is int and 0 <= index < len(runs) for index in indexes)
+                    and indexes == sorted(set(indexes))):
+                return [str(runs[index]["run_id"]) for index in indexes
+                        if not _owner_recently_live(runs[index], moment)]
+    return _expired_run_ids_reference(runs, cutoff, moment)
+
+
+def _expired_run_ids_reference(
+    runs: list, cutoff: datetime, moment: datetime,
+) -> list[str]:
     expired: list[str] = []
-    for run in payload["runs"]:
+    for run in runs:
         if not isinstance(run, dict) or not run.get("run_id"):
             continue
         if run.get("state") not in RETENTION_SETTLEABLE_RUN_STATES:

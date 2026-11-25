@@ -33,6 +33,7 @@ from agent_os_maintenance import (  # noqa: E402
     run_maintenance,
 )
 from agent_run_owner import process_owner  # noqa: E402
+from agent_run_registry import _expired_run_ids_reference, settle_expired_runs  # noqa: E402
 from native_pretool_support import environment, prepare  # noqa: E402
 
 _spec = importlib_util.spec_from_file_location(
@@ -177,6 +178,58 @@ class MaintenanceProjectTests(unittest.TestCase):
         self.assertEqual([self.moru_root, listed, earlier, later, search, child], reference)
         self.assertEqual(reference, native)
         self.assertEqual(before, _snapshot(self.base))
+
+    def test_native_settlement_preview_preserves_cutoff_order_and_live_owner(self) -> None:
+        native_home = self.base / "native"
+        native_home.mkdir()
+        prepare(native_home)
+        fixture = ProjectFixture(self.base / "target")
+        moment = datetime(2026, 1, 2, 1, 0, 0, 123456, tzinfo=timezone.utc)
+        cutoff = moment - timedelta(minutes=2)
+        local_zone = timezone(timedelta(hours=1))
+
+        def row(run_id, state, updated, owner=None):
+            return {"run_id": run_id, "state": state, "updated_at": updated.isoformat(), "owner": owner}
+
+        fixture.records = [
+            row("equal", "failed", cutoff),
+            row("protected", "failed", cutoff - timedelta(seconds=1), {"pid": 42, "start_token": "live"}),
+            row("boundary", "failed", (cutoff - timedelta(microseconds=1)).astimezone(local_zone)),
+            row("held", "running", cutoff - timedelta(hours=1)),
+            row("earlier", "failed", cutoff - timedelta(hours=1)),
+        ]
+        fixture._write_registry()
+        before = _snapshot(fixture.root)
+        with patch("agent_run_registry.owner_is_gone", side_effect=lambda owner: owner is None):
+            with patch.dict(os.environ, {**environment(native_home), "MORU_LAUNCHER_BACKEND": "python"},
+                            clear=True):
+                reference = settle_expired_runs(fixture.root, retention_seconds=120, apply=False, now=moment)
+            with patch.dict(os.environ, environment(native_home), clear=True), patch(
+                "agent_run_registry._expired_run_ids_reference",
+                side_effect=AssertionError("native settlement declined"),
+            ):
+                native = settle_expired_runs(fixture.root, retention_seconds=120, apply=False, now=moment)
+        self.assertEqual(["boundary", "earlier"], reference)
+        self.assertEqual(reference, native)
+        self.assertEqual(before, _snapshot(fixture.root))
+
+    def test_native_settlement_defers_an_unreadable_timestamp(self) -> None:
+        native_home = self.base / "native"
+        native_home.mkdir()
+        prepare(native_home)
+        fixture = ProjectFixture(self.base / "target")
+        moment = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        fixture.records = [
+            {"run_id": "unreadable", "state": "failed", "updated_at": "unknown"},
+            {"run_id": "expired", "state": "failed", "updated_at": "2026-01-01T00:00:00+00:00"},
+        ]
+        fixture._write_registry()
+        with patch.dict(os.environ, environment(native_home), clear=True), patch(
+            "agent_run_registry._expired_run_ids_reference", wraps=_expired_run_ids_reference,
+        ) as reference:
+            result = settle_expired_runs(fixture.root, retention_seconds=120, apply=False, now=moment)
+        reference.assert_called_once()
+        self.assertEqual(["expired"], result)
 
     def test_a_pass_applies_retention_in_every_checkout(self) -> None:
         first = ProjectFixture(self.base / "first")
