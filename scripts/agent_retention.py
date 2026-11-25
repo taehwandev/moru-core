@@ -11,6 +11,7 @@ from agent_ipc import events_path
 from agent_run_registry import SETTLED_RUN_STATES, registry_path
 from agent_scheduler import scheduler_path
 from agent_state_lock import project_state_lock, state_lock
+from support.native_probe_transport import NativeProbe
 
 
 # Scheduler tasks end in any of these. Runs do not: a `failed` run is one a
@@ -99,6 +100,25 @@ def _plan_prune(
     records = payload.get(key)
     if not isinstance(records, list):
         return 0, []
+    if records and NativeProbe.available():
+        result = NativeProbe.request("--completion-probe", "maintenance-retention", {
+            "records": records, "key": key, "cutoff": cutoff.isoformat(), "limit": max_records,
+            "terminal": sorted(terminal_states), "settled": sorted(assume_settled), "held": sorted(held),
+        })
+        if result is not None and set(result) == {"keep"}:
+            indexes = result["keep"]
+            if (type(indexes) is list
+                    and all(type(index) is int and 0 <= index < len(records) for index in indexes)
+                    and indexes == sorted(set(indexes))):
+                return len(records) - len(indexes), [records[index] for index in indexes]
+    return _plan_prune_reference(records, key, cutoff, max_records, terminal_states, assume_settled, held)
+
+
+def _plan_prune_reference(
+    records: list, key: str, cutoff: datetime, max_records: int,
+    terminal_states: frozenset[str] | set[str],
+    assume_settled: frozenset[str], held: frozenset[str],
+) -> tuple[int, list]:
     active_indexes: list[int] = []
     terminal_indexes: list[int] = []
     for index, record in enumerate(records):

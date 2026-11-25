@@ -168,6 +168,8 @@ mod loop_budget;
 mod loop_verdict;
 #[path = "maintenance_projects.rs"]
 mod maintenance_projects;
+#[path = "maintenance_retention.rs"]
+mod maintenance_retention;
 #[path = "path_claim_scan.rs"]
 mod path_claim_scan;
 #[path = "path_claim_wait.rs"]
@@ -293,6 +295,7 @@ impl CompletionProcess {
             Some("loop-budget") => loop_budget::LoopBudget::decide(&payload),
             Some("loop-verdict") => loop_verdict::LoopVerdict::decide(&payload),
             Some("maintenance-projects") => maintenance_projects::MaintenanceProjects::scan(&payload),
+            Some("maintenance-retention") => maintenance_retention::MaintenanceRetention::plan(&payload),
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),

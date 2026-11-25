@@ -1,0 +1,105 @@
+//! owner: pure runtime record retention planning; allowed: JSON and ISO timestamp comparisons;
+//! forbidden: clocks, files, locks, mutations and authority;
+//! callers/tests: agent_retention and native retention parity fixtures.
+use crate::overhead_stamp::OverheadStamp;
+use serde_json::{json, Value};
+use std::collections::HashSet;
+
+pub(super) struct MaintenanceRetention;
+
+impl MaintenanceRetention {
+    pub(super) fn plan(request: &Value) -> Option<Value> {
+        let key = request.get("key")?.as_str()?;
+        if !matches!(key, "runs" | "tasks" | "events") {
+            return None;
+        }
+        let records = request.get("records")?.as_array()?;
+        let cutoff = Self::ticks(request.get("cutoff")?)?;
+        let limit = usize::try_from(request.get("limit")?.as_u64()?).ok()?;
+        if limit == 0 {
+            return None;
+        }
+        let terminal_states = Self::strings(request.get("terminal")?)?;
+        let settled = Self::strings(request.get("settled")?)?;
+        let held = Self::strings(request.get("held")?)?;
+        let mut active = Vec::new();
+        let mut terminal = Vec::new();
+        for (index, record) in records.iter().enumerate() {
+            let Some(record) = record.as_object() else {
+                continue;
+            };
+            let timestamp = if key == "events" {
+                record.get("created_at")
+            } else {
+                let state = record.get("state").unwrap_or(&Value::Null);
+                if state.is_object() || state.is_array() {
+                    return None;
+                }
+                let mut finished = state
+                    .as_str()
+                    .is_some_and(|state| terminal_states.contains(state));
+                if key == "runs" {
+                    let id = match record.get("run_id") {
+                        None | Some(Value::Null) => "",
+                        Some(value) => value.as_str()?,
+                    };
+                    finished = !held.contains(id) && (finished || settled.contains(id));
+                }
+                if !finished {
+                    active.push(index);
+                    continue;
+                }
+                match record.get("updated_at") {
+                    None | Some(Value::Null) => record.get("queued_at"),
+                    Some(Value::String(value)) if value.is_empty() => record.get("queued_at"),
+                    Some(value) => Some(value),
+                }
+            };
+            if Self::ticks(timestamp?)? >= cutoff {
+                terminal.push(index);
+            }
+        }
+        active.extend(terminal.iter().skip(terminal.len().saturating_sub(limit)));
+        active.sort_unstable();
+        Some(json!({"keep": active}))
+    }
+
+    fn strings(value: &Value) -> Option<HashSet<&str>> {
+        value.as_array()?.iter().map(Value::as_str).collect()
+    }
+
+    fn ticks(value: &Value) -> Option<i64> {
+        let stamp = value.as_str()?;
+        let bytes = stamp.as_bytes();
+        let tail = stamp.get(19..)?;
+        // Only ISO shapes shared by the supported reference interpreters.
+        if !stamp.is_ascii()
+            || bytes[4] != b'-'
+            || bytes[7] != b'-'
+            || !matches!(bytes[10], b'T' | b' ')
+            || bytes[13] != b':'
+            || bytes[16] != b':'
+            || &stamp[11..13] >= "24"
+        {
+            return None;
+        }
+        let split = tail.find(['+', '-']).unwrap_or(tail.len());
+        let (fraction, offset) = tail.split_at(split);
+        if !fraction.is_empty()
+            && (!matches!(fraction.len(), 4 | 7)
+                || !fraction.starts_with('.')
+                || !fraction[1..].bytes().all(|byte| byte.is_ascii_digit()))
+        {
+            return None;
+        }
+        if !offset.is_empty()
+            && (offset.len() != 6
+                || &offset[1..3] >= "24"
+                || offset.as_bytes()[3] != b':'
+                || &offset[4..] >= "60")
+        {
+            return None;
+        }
+        Some(OverheadStamp::parse(stamp)??.ticks())
+    }
+}
