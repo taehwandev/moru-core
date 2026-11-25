@@ -1,7 +1,7 @@
 //! owner: OverheadGlob; allowed imports: std directory enumeration and path matching;
 //! forbidden imports: writes, subprocesses, recursion through **; callers/tests:
 //! OverheadCollection and report CLI; verification: native/Python project discovery parity.
-use std::{fs, path::PathBuf};
+use std::{collections::VecDeque, fs, path::PathBuf};
 
 pub(super) struct OverheadGlob;
 impl OverheadGlob {
@@ -21,7 +21,7 @@ impl OverheadGlob {
                 }
                 continue;
             }
-            let pattern = Pattern::parse(component)?;
+            let pattern = Pattern::parse(component);
             let include_hidden = component.starts_with('.');
             let mut children = Vec::new();
             for parent in parents {
@@ -79,7 +79,7 @@ impl Token {
 
 struct Pattern(Vec<Token>);
 impl Pattern {
-    fn parse(text: &str) -> Option<Self> {
+    fn parse(text: &str) -> Self {
         let chars: Vec<_> = text.chars().collect();
         let mut tokens = Vec::new();
         let mut index = 0;
@@ -90,17 +90,13 @@ impl Pattern {
                 '?' => Token::Any,
                 '[' => {
                     let tail = &chars[index..];
-                    let negated = tail.first() == Some(&'!');
-                    let start = usize::from(negated);
+                    let start = usize::from(tail.first() == Some(&'!'));
                     let search = start + usize::from(tail.get(start) == Some(&']'));
                     match tail[search..].iter().position(|&ch| ch == ']') {
                         Some(end) => {
                             let end = search + end;
                             index += end + 1;
-                            Token::Class {
-                                negated,
-                                ranges: Self::ranges(&tail[start..end])?,
-                            }
+                            Self::character_class(&tail[..end])
                         }
                         None => Token::Literal('['),
                     }
@@ -109,26 +105,56 @@ impl Pattern {
             };
             tokens.push(token);
         }
-        Some(Self(tokens))
+        Self(tokens)
     }
 
-    fn ranges(mut chars: &[char]) -> Option<Vec<(char, char)>> {
-        let mut ranges = Vec::new();
-        while let Some(&ch) = chars.first() {
-            if let [start, '-', end, rest @ ..] = chars {
-                // Python's regex translation renormalizes reversed ranges.
-                // Keep that unusual profile on the reference path.
-                if start > end {
-                    return None;
-                }
-                ranges.push((*start, *end));
-                chars = rest;
-            } else {
-                ranges.push((ch, ch));
-                chars = &chars[1..];
+    fn character_class(chars: &[char]) -> Token {
+        let mut terms = Vec::new();
+        let mut begin = 0;
+        let mut search = 1 + usize::from(chars.first() == Some(&'!'));
+        while let Some(hyphen) = chars
+            .get(search..)
+            .and_then(|tail| tail.iter().position(|&ch| ch == '-'))
+            .map(|index| search + index)
+        {
+            if hyphen + 1 == chars.len() {
+                break;
             }
+            terms.push(&chars[begin..hyphen]);
+            begin = hyphen + 1;
+            search = hyphen + 3;
         }
-        Some(ranges)
+        terms.push(&chars[begin..]);
+
+        // The reference removes descending endpoints from right to left.
+        // After removal, a surviving leading '!' can become the negation.
+        let mut normalized: Vec<VecDeque<char>> = Vec::new();
+        for term in terms.into_iter().rev() {
+            if let Some(right) = normalized.last_mut() {
+                if term.last().zip(right.front()).is_some_and(|(a, b)| a > b) {
+                    right.pop_front();
+                    for &ch in term[..term.len() - 1].iter().rev() {
+                        right.push_front(ch);
+                    }
+                    continue;
+                }
+            }
+            normalized.push(term.iter().copied().collect());
+        }
+        let negated = normalized.last().and_then(VecDeque::front) == Some(&'!');
+        if negated {
+            normalized.last_mut().unwrap().pop_front();
+        }
+        let mut ranges = Vec::new();
+        let mut previous = None;
+        for term in normalized.into_iter().rev() {
+            if let Some((start, &end)) = previous.zip(term.front()) {
+                ranges.push((start, end));
+            }
+            previous = term.back().copied();
+            ranges.extend(term.into_iter().map(|ch| (ch, ch)));
+        }
+        Token::Class { negated, ranges }
     }
 
     fn matches(&self, text: &str) -> bool {

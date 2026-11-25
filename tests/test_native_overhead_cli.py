@@ -195,7 +195,9 @@ class NativeOverheadCliTests(unittest.TestCase):
 
         cases=[("root-[a-b]",3),("root-?",6),("root-[!a]",4),("root-a*",4),
                (".root-*",4),("[.]root-*",0),("root[",5),("root[[]",5),
-               ("root-**",8),("nonexistent*",0)]
+               ("root-**",8),("nonexistent*",0),("root-[z-a]",0),
+               ("root-[!z-a]",6),("root-[a--b]",1),("root-[a--!]",6),
+               ("root-[z-a-b]",1)]
         for pattern,count in cases:
             with self.subTest(pattern=pattern):
                 actual,_=self.parity(self.args("--projects-dir",str(self.base/pattern)))
@@ -204,11 +206,6 @@ class NativeOverheadCliTests(unittest.TestCase):
         actual,_=self.parity(self.args("--projects-dir",relative,"--include-subagents"))
         self.assertEqual(12,actual["all"]["assistant_turns"]["sum"])
         self.assertEqual(5,len(actual["top_policy_notes"]))
-
-        args=self.args("--projects-dir",str(self.base/"root-[z-a]"))
-        native=self.invoke(args)
-        self.assertEqual((127,b""),(native.returncode,native.stdout))
-        self.assertEqual(0,self.invoke(args,empty=False).returncode)
 
     def test_oversized_columns_defers_before_help_output(self):
         for width in ("9223372036854775808","-9223372036854775809"):
