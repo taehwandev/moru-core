@@ -13,6 +13,7 @@ from agent_state_read import events_path, registry_path, scheduler_path, read_js
 from agent_state_lock import project_state_lock, state_lock
 from agent_os_api import api_contract_manifest, runtime_adapter_catalog
 from support.global_state import project_state_dir_target
+from support.native_probe_transport import NativeProbe
 
 
 API_VERSION = 2
@@ -75,11 +76,40 @@ def efficiency_trend_snapshot(
     spill_events = _load_spill_events((spill_db or DEFAULT_SPILL_DB).expanduser(), spill_ids)
     bound_runs = _bind_run_metrics(raw_runs, spill_events, codex_threads, month=month.strip())
 
+    matched = [run for run in bound_runs if run["turns"] > 0]
+    groups = _trend_groups(matched)
+    session_bound = [run for run in bound_runs if run["runtime"] and run["session_id"]]
+    return {
+        "schema_version": 1, "captured_at": datetime.now(timezone.utc).isoformat(),
+        "month_filter": month.strip() or "all", "project_count": len(resolved_projects),
+        "total_runs": len(bound_runs), "session_bound_runs": len(session_bound),
+        "spill_matched_runs": len(matched),
+        "binding_coverage_ratio": round(len(matched) / len(session_bound), 4) if session_bound else 0.0,
+        "fresh_runs": sum(1 for run in matched if run["same_work_mode"] == "fresh"),
+        "continuation_runs": sum(1 for run in matched if run["same_work_mode"] == "continuation"),
+        **groups,
+    }
+
+
+def _trend_groups(matched: list[dict[str, Any]]) -> dict[str, Any]:
+    if matched and NativeProbe.available():
+        fields = ("runtime", "model", "reasoning_effort", "same_work_mode", "route",
+                  "period_bucket", "state", "turns", "weighted_tokens", "reasoning_tokens",
+                  "required_docs_count", "reused_gate_count")
+        # Exclude paths, session IDs and unrelated source record fields.
+        selected = [{field: run[field] for field in fields} for run in matched]
+        result = NativeProbe.request("--completion-probe", "status-trend-groups", {"matched": selected})
+        if (result is not None and set(result) == {"cohorts", "route_cohorts", "period_trends"}
+                and all(type(value) is list for value in result.values())):
+            return result
+    return _trend_groups_reference(matched)
+
+
+def _trend_groups_reference(matched: list[dict[str, Any]]) -> dict[str, Any]:
     cohort_groups: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
     route_groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     period_groups: dict[tuple[str, str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
 
-    matched = [run for run in bound_runs if run["turns"] > 0]
     for run in matched:
         cohort_key = (run["runtime"], run["model"], run["reasoning_effort"], run["same_work_mode"])
         cohort_groups[cohort_key].append(run)
@@ -98,17 +128,7 @@ def efficiency_trend_snapshot(
         {"period": k[0], "runtime": k[1], "model": k[2], "reasoning_effort": k[3], "same_work_mode": k[4], **_summarize_runs(v)}
         for k, v in sorted(period_groups.items(), key=lambda item: (item[0][0], -len(item[1])))
     ]
-    session_bound = [run for run in bound_runs if run["runtime"] and run["session_id"]]
-    return {
-        "schema_version": 1, "captured_at": datetime.now(timezone.utc).isoformat(),
-        "month_filter": month.strip() or "all", "project_count": len(resolved_projects),
-        "total_runs": len(bound_runs), "session_bound_runs": len(session_bound),
-        "spill_matched_runs": len(matched),
-        "binding_coverage_ratio": round(len(matched) / len(session_bound), 4) if session_bound else 0.0,
-        "fresh_runs": sum(1 for run in matched if run["same_work_mode"] == "fresh"),
-        "continuation_runs": sum(1 for run in matched if run["same_work_mode"] == "continuation"),
-        "cohorts": cohorts, "route_cohorts": route_cohorts, "period_trends": periods,
-    }
+    return {"cohorts": cohorts, "route_cohorts": route_cohorts, "period_trends": periods}
 
 
 def _collect_runs(projects: list[Path]) -> list[dict[str, Any]]:

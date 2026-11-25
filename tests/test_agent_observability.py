@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from agent_observability import discover_governed_projects, efficiency_trend_snapshot, status_snapshot
+from agent_observability import _trend_groups, discover_governed_projects, efficiency_trend_snapshot, status_snapshot
 from agent_run_registry import register_run
 from agent_scheduler import enqueue_task
+from native_pretool_support import environment, prepare
 
 
 class AgentObservabilityTests(unittest.TestCase):
@@ -36,7 +39,7 @@ class AgentObservabilityTests(unittest.TestCase):
 
     def test_efficiency_trend_snapshot_aggregates_cohorts_and_weekly_periods_content_free(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            ws = Path(directory)
+            ws = Path(directory).resolve()
             project = ws / "sample-repo"
             runs_dir = project / ".moru" / "runs"
             runs_dir.mkdir(parents=True)
@@ -148,7 +151,17 @@ class AgentObservabilityTests(unittest.TestCase):
             discovered = discover_governed_projects(ws)
             self.assertEqual([project.resolve()], discovered)
 
-            report = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
+            native_home = ws / "native-probe"
+            native_home.mkdir()
+            prepare(native_home)
+            env = environment(native_home)
+            with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                report = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
+            with patch.dict(os.environ, env, clear=True), patch(
+                "agent_observability._trend_groups_reference", side_effect=AssertionError("native declined"),
+            ):
+                native = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
+            self.assertEqual({**report, "captured_at": native["captured_at"]}, native)
             self.assertEqual("2026-10", report["month_filter"])
             self.assertEqual(4, report["total_runs"])
             self.assertEqual(4, report["spill_matched_runs"])
@@ -192,6 +205,33 @@ class AgentObservabilityTests(unittest.TestCase):
             )
             cli_payload = json.loads(proc.stdout)
             self.assertEqual(4, cli_payload["spill_matched_runs"])
+
+    def test_native_trend_ties_keep_report_order_and_even_percentile_rank(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory).resolve()
+            prepare(base)
+            rows = [
+                {"runtime": "codex", "model": model, "reasoning_effort": "high",
+                 "same_work_mode": "fresh", "route": "task", "period_bucket": "2026-10",
+                 "state": "completed", "turns": count, "weighted_tokens": count * 1234.5,
+                 "reasoning_tokens": 2 * count, "required_docs_count": count,
+                 "reused_gate_count": 0, "session_id": "must-not-be-sent"}
+                for model in ("z-model", "a-model")
+                for count in range(1, 7)
+            ]
+            env = environment(base)
+            with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                reference = _trend_groups(rows)
+            with patch.dict(os.environ, env, clear=True), patch(
+                "agent_observability._trend_groups_reference", side_effect=AssertionError("native declined"),
+            ):
+                native = _trend_groups(rows)
+            self.assertEqual(reference, native)
+            self.assertEqual(["a-model", "z-model"], [row["model"] for row in native["cohorts"]])
+            self.assertEqual(["z-model", "a-model"], [row["model"] for row in native["period_trends"]])
+            self.assertEqual(5.0, native["period_trends"][0]["turns_p90"])
+            self.assertEqual(3.5, native["period_trends"][0]["turns_p50"])
+            self.assertNotIn("must-not-be-sent", json.dumps(native))
 
 
 if __name__ == "__main__":
