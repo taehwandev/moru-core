@@ -33,6 +33,7 @@ from agent_os_maintenance import (  # noqa: E402
     run_maintenance,
 )
 from agent_run_owner import process_owner  # noqa: E402
+from native_pretool_support import environment, prepare  # noqa: E402
 
 _spec = importlib_util.spec_from_file_location(
     "agent_os_maintenance_cli", SCRIPTS / "agent-os-maintenance.py"
@@ -145,6 +146,37 @@ class MaintenanceProjectTests(unittest.TestCase):
             [self.moru_root, listed, worktree, found],
             checkouts,
         )
+
+    def test_native_targets_preserve_root_admission_order_and_deduplication(self) -> None:
+        native_home = self.base / "native"
+        native_home.mkdir()
+        prepare(native_home)
+        listed = ProjectFixture(self.base / "listed").root
+        alias = self.base / "alias"
+        alias.symlink_to(listed, target_is_directory=True)
+        worktrees = listed / ".moru/worktrees"
+        later = ProjectFixture(worktrees / "z-branch").root
+        earlier = ProjectFixture(worktrees / "a-branch").root
+        ProjectFixture(earlier / ".moru/worktrees/nested")
+        search = ProjectFixture(self.base / "search").root
+        child = ProjectFixture(search / "한글").root
+        for name in (".hidden", "node_modules", "build", "dist", "target"):
+            ProjectFixture(search / name)
+        ProjectFixture(search / "with-no-state" / "grandchild")
+        protected = ProjectFixture(self.base / "Documents").root
+        self._register(alias, listed, self.base / "missing", search_roots=[search])
+        before = _snapshot(self.base)
+        with patch.object(agent_os_maintenance, "default_search_roots", return_value=[protected]):
+            with patch.dict(os.environ, {**environment(native_home), "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                reference = managed_projects(self.moru_root, projects_registry=self.registry_file)
+            with patch.dict(os.environ, environment(native_home), clear=True), patch.object(
+                agent_os_maintenance, "_managed_projects_reference",
+                side_effect=AssertionError("native discovery declined"),
+            ):
+                native = managed_projects(self.moru_root, projects_registry=self.registry_file)
+        self.assertEqual([self.moru_root, listed, earlier, later, search, child], reference)
+        self.assertEqual(reference, native)
+        self.assertEqual(before, _snapshot(self.base))
 
     def test_a_pass_applies_retention_in_every_checkout(self) -> None:
         first = ProjectFixture(self.base / "first")

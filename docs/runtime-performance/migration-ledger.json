@@ -170,10 +170,14 @@
       "id": "scripts/agent-os-maintenance.py",
       "inventory_id": 7,
       "kind": "primary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "agent-os-maintenance",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
-      "verification": {}
+      "remaining": "Native enumerates explicit checkouts, immediate search children with run state and linked worktrees in ordered, deduplicated form. Python retains input-root policy, exceptional discovery, CLI, recovery, retention, and reporting. Portable and installed acceptance remain open.",
+      "verification": {
+        "native_owner": "native/checkout-identity/src/maintenance_projects.rs",
+        "portable": "PENDING transported two-host acceptance.",
+        "installed": "PENDING actual runtime acceptance."
+      }
     },
     {
       "id": "scripts/agent-os-status.py",

@@ -35,6 +35,7 @@ from agent_run_registry import (
 from agent_scheduler import recover_stale_tasks, retry_task
 from agent_skill_feedback import record_skill_curation
 from support.global_state import project_state_dir_target
+from support.native_probe_transport import NativeProbe
 
 DEFAULT_RETENTION_SECONDS = 30 * 24 * 60 * 60
 # macOS asks the user before a background process reads these folders. A daily
@@ -150,6 +151,22 @@ def managed_projects(
             ),
         ]
     )
+    if NativeProbe.available():
+        native = NativeProbe.request("--completion-probe", "maintenance-projects", {
+            "candidates": [str(path) for path in candidates],
+            "search_roots": [str(path) for path in roots],
+        })
+        if native is not None and set(native) == {"checkouts"}:
+            checkouts = native["checkouts"]
+            if (type(checkouts) is list
+                    and all(type(path) is str and Path(path).is_absolute() and "\0" not in path
+                            for path in checkouts)
+                    and len(checkouts) == len(set(checkouts))):
+                return [Path(path) for path in checkouts]
+    return _managed_projects_reference(candidates, roots)
+
+
+def _managed_projects_reference(candidates: list[Path], roots: list[Path]) -> list[Path]:
     for root in roots:
         candidates.extend(_projects_under(root))
 
