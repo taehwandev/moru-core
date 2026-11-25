@@ -625,7 +625,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "overhead-report; direct Python compatibility CLI",
-      "remaining": "Native ordinary stdout CLI, collection/windows, session tally, group/timing statistics and lossless JSON/Markdown numeric formatting are connected. Complete explicit output-file writers and ordered failure/stdio behavior, exceptional statistics and timestamp shapes, surrogate/depth, glob/encoding/TTY gaps and direct Python removal. This is partial native execution; supporting adapter/build Python remains owned scope.",
+      "remaining": "Native ordinary stdout CLI, ordered JSON/Markdown file writes, collection/windows, session tally, group/timing statistics and lossless numeric formatting are connected. File failures use native diagnostics and preserve earlier outputs without replay. Complete Python traceback and exceptional stdio behavior, exceptional statistics and timestamp shapes, surrogate/depth, glob/encoding/TTY gaps and direct Python removal. This is partial native execution; supporting adapter/build Python remains owned scope.",
       "verification": {
         "native_owner": "native/checkout-identity/src/overhead_session.rs",
         "native_report_owner": "native/checkout-identity/src/overhead_aggregate.rs",

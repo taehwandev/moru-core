@@ -5,7 +5,6 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -46,10 +45,10 @@ class NativeOverheadCliTests(unittest.TestCase):
         return ["--projects-dir",str(self.projects),"--timings",str(self.timings),
                 "--moru-root","/work/core","--until","2026-11-08T00:00:00Z",*extra]
 
-    def invoke(self,args,*,backend="auto",empty=True,**env):
+    def invoke(self,args,*,backend="auto",empty=True,umask=-1,**env):
         return subprocess.run([str(self.entry),"overhead-report",*args],capture_output=True,cwd=self.project,
             env={**self.env,"MORU_LAUNCHER_BACKEND":backend,
-                 "PATH":str(self.empty) if empty else os.environ.get("PATH",""),**env},timeout=12)
+                 "PATH":str(self.empty) if empty else os.environ.get("PATH",""),**env},timeout=12,umask=umask)
 
     def parity(self,args):
         done=self.invoke(args)
@@ -137,31 +136,50 @@ class NativeOverheadCliTests(unittest.TestCase):
         self.assertEqual(json.dumps(expected,indent=2,ensure_ascii=False),native_json)
         self.assertEqual(markdown,native_markdown)
 
-    def test_output_files_use_legacy_once_and_keep_partial_failure_order(self):
+    def test_output_files_use_native_writer_in_reference_order(self):
         self.write(self.projects/"p/a.jsonl",[message("a")])
-        wrapper=self.base/"bin"
-        wrapper.mkdir()
-        count=self.base/"python-count"
-        executable=wrapper/"python3"
-        executable.write_text(f'#!/bin/sh\nprintf x >> "{count}"\nexec "{sys.executable}" "$@"\n')
-        executable.chmod(0o700)
         out,md=self.base/"report.json",self.base/"report.md"
-        done=self.invoke(self.args("--out",str(out),"--md",str(md)),empty=False,
-                         PATH=str(wrapper)+os.pathsep+os.environ.get("PATH",""))
+        out.write_text("x"*10000)
+        out.chmod(0o600)
+        output_link=self.base/"report-link"
+        output_link.symlink_to(out)
+        done=self.invoke(self.args("--out",str(output_link)+"/","--md",str(md)),umask=0o027)
         self.assertEqual((0,b"",b""),(done.returncode,done.stdout,done.stderr))
-        self.assertEqual("x",count.read_text())
-        data=json.loads(out.read_text())
+        self.assertTrue(output_link.is_symlink())
+        self.assertEqual(0o600,out.stat().st_mode & 0o777)
+        self.assertEqual(0o640,md.stat().st_mode & 0o777)
+        data=json.loads(out.read_bytes())
+        now=dt.datetime.fromisoformat(data["generated_at"])
+        with patch.dict(os.environ,{**self.env,"MORU_LAUNCHER_BACKEND":"python"},clear=True):
+            expected=reference.build_report(reference.parse_args(self.args()),now)
+            self.assertEqual(reference.render_markdown(expected).encode(),md.read_bytes())
+        self.assertEqual((json.dumps(expected,indent=2,ensure_ascii=False)+"\n").encode(),out.read_bytes())
+
+        same=self.invoke(self.args("--out",str(md),"--md",str(md)))
+        self.assertEqual((0,b"",b""),(same.returncode,same.stdout,same.stderr))
+        self.assertTrue(md.read_bytes().startswith(b"#"))
+        stdout=self.invoke(self.args("--out=","--md",str(md)))
+        self.assertEqual((0,b""),(stdout.returncode,stdout.stderr))
         with patch.dict(os.environ,{"MORU_LAUNCHER_BACKEND":"python"}):
-            self.assertEqual(reference.render_markdown(data),md.read_text())
-        count.write_text("")
+            self.assertEqual(reference.render_markdown(json.loads(stdout.stdout)).encode(),md.read_bytes())
+
+    def test_output_failure_preserves_first_effect_and_never_replays(self):
+        out,md=self.base/"report.json",self.base/"report.md"
         missing=self.base/"missing/report.md"
-        done=self.invoke(self.args("--out",str(out),"--md",str(missing)),empty=False,
-                         PATH=str(wrapper)+os.pathsep+os.environ.get("PATH",""))
+        done=self.invoke(self.args("--out",str(out),"--md",str(missing)))
         self.assertEqual(1,done.returncode)
         self.assertEqual(b"",done.stdout)
         self.assertIn(b"FileNotFoundError",done.stderr)
-        self.assertTrue(json.loads(out.read_text())["all"]["sessions"])
-        self.assertEqual("x",count.read_text())
+        self.assertIn(os.fsencode(missing),done.stderr)
+        self.assertIn("generated_at",json.loads(out.read_bytes()))
+
+        done=self.invoke(self.args("--out",str(self.projects),"--md",str(md)))
+        self.assertEqual((1,b""),(done.returncode,done.stdout))
+        self.assertIn(b"IsADirectoryError",done.stderr)
+        self.assertFalse(md.exists())
+        done=self.invoke(self.args("--md",str(missing)))
+        self.assertEqual(1,done.returncode)
+        self.assertIn("generated_at",json.loads(done.stdout))
 
     def test_unsupported_regular_inputs_fall_back_once_before_stdout(self):
         path=self.write(self.projects/"p/a.jsonl",[message("a")])

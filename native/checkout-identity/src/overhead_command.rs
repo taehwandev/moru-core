@@ -1,13 +1,15 @@
-//! owner: OverheadCommand; allowed imports: source guard, CLI/report/formatter and stdout;
-//! forbidden imports: providers, state mutation, output-file writes; callers/tests: launcher;
-//! verification: native report CLI, whole-command write fallback and portable stdout.
+//! owner: OverheadCommand; allowed imports: source guard, CLI/report/formatter and explicit output;
+//! forbidden imports: providers, state mutation; callers/tests: launcher, native overhead CLI;
+//! verification: portable output, ordered file writes and no replay after an output attempt.
 use crate::{
     overhead_cli::OverheadCli, overhead_report::OverheadReport,
     overhead_report_text::OverheadReportText, pretool_guard::CallbackGuard,
+    python_text::PythonText,
 };
 use std::{
     ffi::OsString,
-    io::Write,
+    fs,
+    io::{self, ErrorKind, Write},
     path::{Path, PathBuf},
 };
 pub(crate) struct OverheadCommand;
@@ -30,13 +32,6 @@ impl OverheadCommand {
         if let Some(code) = parsed.exit {
             return code;
         }
-        // Output files retain the original writer's ordered partial-failure and
-        // exception contract. Never start that phase and replay it in Python.
-        if parsed.out.as_ref().is_some_and(|s| !s.is_empty())
-            || parsed.md.as_ref().is_some_and(|s| !s.is_empty())
-        {
-            crate::exec_python(launcher, args);
-        }
         let Some(report) = OverheadReport::build(&parsed) else {
             crate::exec_python(launcher, args);
         };
@@ -44,10 +39,61 @@ impl OverheadCommand {
             crate::exec_python(launcher, args);
         };
         output.push('\n');
-        if std::io::stdout().write_all(output.as_bytes()).is_ok() {
-            0
+        let markdown = parsed.md.as_deref().filter(|path| !path.is_empty());
+        let markdown = if let Some(path) = markdown {
+            let Some(text) = OverheadReportText::markdown(&report) else {
+                crate::exec_python(launcher, args);
+            };
+            Some((path, text))
         } else {
-            1
+            None
+        };
+        // The old writer truncates and writes JSON first. A later Markdown
+        // failure keeps that output and must never cause the command to replay.
+        let written = match parsed.out.as_deref().filter(|path| !path.is_empty()) {
+            Some(path) => Self::write_file(path, &output),
+            None => io::stdout().write_all(output.as_bytes()).is_ok(),
+        };
+        if !written {
+            return 1;
+        }
+        match markdown {
+            Some((path, text)) if !Self::write_file(path, &text) => 1,
+            _ => 0,
+        }
+    }
+    fn write_file(path: &str, text: &str) -> bool {
+        // Match pathlib on Unix, including literal tildes, preserved "..", a
+        // leading double slash and removal of trailing slashes and ".".
+        let prefix = if path.starts_with("//") && !path.starts_with("///") {
+            "//"
+        } else if path.starts_with('/') {
+            "/"
+        } else {
+            ""
+        };
+        let parts: Vec<_> = path
+            .split('/')
+            .filter(|part| !part.is_empty() && *part != ".")
+            .collect();
+        let path = if prefix.is_empty() && parts.is_empty() {
+            ".".to_owned()
+        } else {
+            format!("{prefix}{}", parts.join("/"))
+        };
+        match fs::write(&path, text) {
+            Ok(()) => true,
+            Err(error) => {
+                let name = match error.kind() {
+                    ErrorKind::NotFound => "FileNotFoundError",
+                    ErrorKind::PermissionDenied => "PermissionError",
+                    ErrorKind::IsADirectory => "IsADirectoryError",
+                    ErrorKind::NotADirectory => "NotADirectoryError",
+                    _ => "OSError",
+                };
+                eprintln!("{name}: {error}: {}", PythonText::repr(&path));
+                false
+            }
         }
     }
     fn default_root(root: &Path) -> PathBuf {
