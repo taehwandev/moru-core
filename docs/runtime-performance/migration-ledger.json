@@ -710,13 +710,14 @@
       "inventory_id": 52,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "setup-agent-hooks imported merge; legacy direct Python CLI",
-      "remaining": "The complete deterministic text merge engine is native for the ordinary guarded profile. Port public file IO/direct CLI and setup orchestration, prove portable/installed delivery, then retire compatibility only with caller evidence; no actual config installation authorized.",
+      "entry_aliases": "codex-statusline-setup; setup-agent-hooks imported merge; legacy direct Python CLI",
+      "remaining": "The deterministic text merge and standalone source-bound alias handle ordinary regular-file reads and writes in Rust. Linked and exceptional reads retain compatibility; the setup-agent-hooks import, direct Python CLI, and exceptional write diagnostics remain. Prove portable/installed delivery and caller coverage before retiring the compatibility path. Actual user config setup was not exercised.",
       "verification": {
         "native_owner": "native/checkout-identity/src/codex_statusline.rs",
         "text_engine": "PASS: assignment/table and quoted-array scanning, minimal edits, defaults/conflicts/comments/Unicode preserve original output.27 Python cases including10 native integration,8 existing setup,3 ledger and6 existing private-protocol dispatch checks;4 Rust cases. Immutable159bd28e source oracle covers fixed configs in both dry/write modes and160 seeded configs.",
         "authority": "PASS: dry-run creates no config/parents; ok/missing preserve bytes; read/UTF8/write errors retain ordering; source mismatch, malformed schema and unknown operation decline quietly with125 even under soft-fail. Only synthetic files/homes used.",
-        "execution": "PASS: one real setup probe request and zero original Python scanner/render calls; forced Python negative control observes replay. Python IO remains and this is partial, not native unit completion.",
+        "execution": "PASS: one real setup probe request and zero original Python scanner/render calls for the imported path; forced Python control observes replay. The standalone alias is independently verified with no Python on PATH.",
+        "standalone": "PASS: local debug fixture, 47 targeted tests including isolated HOME launch, no write on help/conflict/unchanged config, byte parity after CRLF rewrite, permission failure, and linked path deferral. Original import and exceptional profiles remain.",
         "portable": "PENDING two-host release acceptance. Local debug-only empty-PATH setup and existing memory consumer probes are recorded separately; no bundle or installation claim.",
         "installed": "PENDING; actual user runtime/config untouched."
       }

@@ -39,6 +39,7 @@ SCRIPT_ALIASES = {
     "smoke-checks": "run_smoke_checks.py",
     "mutation-check": "mutation-check.py",
     "microsoft-decision": "research-triage/microsoft_decision.py",
+    "codex-statusline-setup": "support/codex_statusline_setup.py",
     "loop": "agent_loop.py",
     "workflow-dispatch": "workflow_dispatch.py",
     "workflow-dispatch-launch": "workflow_dispatch_launch.py",
@@ -92,6 +93,10 @@ def main():
         print("lifecycle: " + ", ".join(sorted(HOOK_ALIASES)))
         print("scripts: " + ", ".join(sorted(SCRIPT_ALIASES)))
         return 0
+    if script_alias == "codex-statusline-setup" and passthrough_args:
+        help_only = passthrough_args in (["--help"], ["-h"])
+        print("usage: moru-hook codex-statusline-setup", file=sys.stdout if help_only else sys.stderr)
+        return 0 if help_only or _env("MORU_HOOK_SOFT_FAIL") == "1" else 2
     if script_alias in HOOK_ALIASES:
         script_name = "agent-hook.py"
         passthrough_args.insert(0, script_alias)
@@ -119,6 +124,8 @@ def main():
         )
 
     os.environ.setdefault("MORU_HOME", str(root))
+    if script_alias == "codex-statusline-setup":
+        sys.path.insert(0, str(root / "scripts"))
     main_options = {"display_python": "python3"} if script_alias == "mutation-check" else {}
     return _run_in_process(script, passthrough_args,
                            explicit_main=script_alias in ("behavior-eval", "mutation-check", "smoke-checks"),

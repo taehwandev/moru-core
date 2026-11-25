@@ -4,6 +4,8 @@
 //! verification: exact text oracle, no-helper-replay and empty-PATH protocol.
 #[path = "codex_statusline_render.rs"]
 mod render;
+#[path = "codex_statusline_setup.rs"]
+mod setup;
 #[path = "codex_statusline_syntax.rs"]
 mod syntax;
 use crate::pretool_guard::CallbackGuard;

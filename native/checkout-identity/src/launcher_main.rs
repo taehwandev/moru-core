@@ -212,6 +212,9 @@ fn native_checkout_identity(extra: &[OsString]) -> i32 {
 fn direct_dispatch(launcher: &OsString, args: &[OsString]) -> Option<i32> {
     Some(match args.first().and_then(|arg| arg.to_str())? {
         "--setup-probe" => codex_statusline::CodexStatusLine::run(launcher, args),
+        "codex-statusline-setup" => {
+            finish(codex_statusline::CodexStatusLine::setup(launcher, &args[1..])?)
+        }
         "--memory-probe" => memory_process::MemoryProcess::run(launcher, args),
         "--doc-transcript-probe" => doc_transcript_process::DocTranscriptProcess::run(launcher, args),
         "--wikimap-search-probe" => wikimap_search::WikimapSearch::run(launcher, args),

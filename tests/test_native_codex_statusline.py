@@ -61,6 +61,81 @@ class NativeCodexStatuslineTests(unittest.TestCase):
             sys.setprofile(previous)
         return result, calls
 
+    def alias(self, home, *args, backend="auto"):
+        env = {**self.env, "HOME": str(home), "MORU_LAUNCHER_BACKEND": backend}
+        if backend == "python":
+            env["PATH"] = os.environ["PATH"]
+        return subprocess.run([str(self.launcher), "codex-statusline-setup", *args],
+            env=env, capture_output=True, timeout=10)
+
+    def test_standalone_native_alias_preserves_config_and_skips_unchanged_writes(self):
+        with tempfile.TemporaryDirectory(dir=self.base) as temporary:
+            home = Path(temporary)
+            config = home / ".codex" / "config.toml"
+            help_result = self.alias(home, "--help")
+            self.assertEqual((0, b"usage: moru-hook codex-statusline-setup\n", b""),
+                             (help_result.returncode, help_result.stdout, help_result.stderr))
+            for backend in ("auto", "python"):
+                self.assertEqual(2, self.alias(home, "--unknown", backend=backend).returncode)
+            self.assertFalse(config.parent.exists())
+
+            installed = self.alias(home)
+            self.assertEqual((0, f"Codex quota status line: installed ({config})\n".encode(), b""),
+                             (installed.returncode, installed.stdout, installed.stderr))
+            self.assertEqual(self.call("", dry=False, reference=True)[1], config.read_bytes())
+
+            original = '[tui]\r\nstatus_line=["한글"] # keep\r\n[other]\r\nenabled=true\r\n'
+            config.write_bytes(original.encode())
+            config.chmod(0o600)
+            inode = config.stat().st_ino
+            self.assertEqual(0, self.alias(home).returncode)
+            self.assertEqual(self.call(original, dry=False, reference=True)[1], config.read_bytes())
+            info = config.stat()
+            self.assertEqual((inode, 0o600), (info.st_ino, info.st_mode & 0o777))
+            repeated = self.alias(home)
+            self.assertEqual((0, f"Codex quota status line: ok ({config})\n".encode(), b""),
+                             (repeated.returncode, repeated.stdout, repeated.stderr))
+            self.assertEqual(info.st_mtime_ns, config.stat().st_mtime_ns)
+
+    def test_standalone_native_alias_defers_links_and_preserves_failed_writes(self):
+        with tempfile.TemporaryDirectory(dir=self.base) as temporary:
+            home = Path(temporary)
+            config = home / ".codex" / "config.toml"
+            config.parent.mkdir()
+            config.write_text('[tui]\nstatus_line=[1]\n')
+            before = config.read_bytes()
+            conflict = self.alias(home)
+            self.assertEqual((1, f"Codex quota status line: missing ({config})\n".encode(), b""),
+                             (conflict.returncode, conflict.stdout, conflict.stderr))
+            self.assertEqual(before, config.read_bytes())
+
+            config.write_bytes(b"\xff")
+            invalid = self.alias(home)
+            self.assertEqual((127, b"", b"\xff"),
+                             (invalid.returncode, invalid.stdout, config.read_bytes()))
+
+            config.write_text('[tui]\nstatus_line=[]\n')
+            before = config.read_bytes()
+            if os.getuid() != 0:
+                config.chmod(0o400)
+                denied = self.alias(home)
+                self.assertEqual((1, b""), (denied.returncode, denied.stdout))
+                self.assertIn(b"Permission denied", denied.stderr)
+                self.assertEqual(before, config.read_bytes())
+                config.chmod(0o600)
+
+            linked = home / "linked.toml"
+            config.rename(linked)
+            config.symlink_to(linked)
+            deferred = self.alias(home)
+            self.assertEqual((127, b""), (deferred.returncode, deferred.stdout))
+            self.assertEqual(before, linked.read_bytes())
+            legacy = self.alias(home, backend="python")
+            self.assertEqual((0, f"Codex quota status line: installed ({config})\n".encode(), b""),
+                             (legacy.returncode, legacy.stdout, legacy.stderr))
+            self.assertTrue(config.is_symlink())
+            self.assertIn(b"weekly-limit", linked.read_bytes())
+
     def test_real_setup_uses_one_native_merge_without_python_scanner_or_renderer(self):
         text = '[tui]\nstatus_line = [\n  "한글" # keep\n]\n'
         with patch.object(NativeProbe, "request", wraps=NativeProbe.request) as request:

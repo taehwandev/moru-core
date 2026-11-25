@@ -226,7 +226,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 49 | `scripts/research-triage/microsoft_decision.py` | `microsoft-decision` and direct Python CLI | Partial native | The stable launcher runs the ordinary cache-only pipeline without Python. Rust also encodes ordinary request bodies from the shared contract. Python owns compatibility, credentials and HTTP effects |
 | 50 | `scripts/run_smoke_checks.py` | `moru-hook smoke-checks`; direct Python compatibility CLI | Partial native | Rust owns the normal entry and scratch fixture; hook and search subprocesses still use Python |
 | 51 | `scripts/runs-prune.py` | runs-prune; direct Python compatibility CLI | Partial native ordinary read-only report | Exact output/options; Python apply, exceptional IO and maintenance remain open |
-| 52 | `scripts/support/codex_statusline_setup.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
+| 52 | `scripts/support/codex_statusline_setup.py` | `codex-statusline-setup`, setup import and direct Python CLI | Native standalone regular-file setup and shared text merge | Setup orchestration and exceptional compatibility remain owned scope; actual config setup requires matching authority |
 | 53 | `scripts/third_party/wikimap/wikimap.py` | Direct CLI | Python retained | Upstream dependency; retain ownership/license boundary and optimize adapters separately |
 | 54 | `scripts/native-runtime-bundle.py` | Direct CLI | Python delivery tooling | Explicit local pack/install, host/source/hash checks; no compiler on consumer |
 | 55 | `scripts/page_verify/judge_service.py` | Direct CLI | Python retained | Owned tooling; native conversion required by full Goal |
