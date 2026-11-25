@@ -46,6 +46,38 @@ fn main() {
         .arg(directory.join("json_contract.rs"))
         .status()
         .expect("native build requires Python for JSON diagnostic contract generation");
-    assert!(status.success(), "JSON diagnostic contract generation failed");
+    assert!(
+        status.success(),
+        "JSON diagnostic contract generation failed"
+    );
     println!("cargo:rerun-if-changed=json_contract.py");
+    emit_iso_midnight_profile();
+}
+
+fn emit_iso_midnight_profile() {
+    const PROBE: &str = r#"
+from datetime import datetime
+
+try:
+    value = datetime.fromisoformat('2000-02-29T24:00:00')
+except ValueError:
+    print('reject')
+else:
+    assert value == datetime(2000, 3, 1)
+    print('rollover')
+"#;
+    let output = Command::new("python3")
+        .args(["-I", "-c", PROBE])
+        .output()
+        .expect("native build requires the Python ISO midnight behavior probe");
+    assert!(
+        output.status.success(),
+        "ISO midnight behavior probe failed"
+    );
+    let profile = match output.stdout.as_slice() {
+        b"reject\n" => "reject",
+        b"rollover\n" => "rollover",
+        _ => panic!("unexpected ISO midnight behavior probe result"),
+    };
+    println!("cargo:rustc-env=MORU_ISO_MIDNIGHT={profile}");
 }

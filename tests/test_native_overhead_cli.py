@@ -157,15 +157,22 @@ class NativeOverheadCliTests(unittest.TestCase):
         self.assertEqual((python.returncode,python.stdout,python.stderr),
                          (native.returncode,native.stdout,native.stderr))
 
-    def test_version_dependent_midnight_reaches_python_reference(self):
-        args=self.args("--until","20240229T24:00Z")
-        native=self.invoke(args)
-        self.assertEqual((127,b""),(native.returncode,native.stdout))
-        native=self.invoke(args,empty=False)
-        python=self.invoke(args,backend="python",empty=False)
-        self.assertEqual((python.returncode,python.stderr),(native.returncode,native.stderr))
-        if python.returncode == 0:
-            self.assertEqual(json.loads(python.stdout)["window"],json.loads(native.stdout)["window"])
+    def test_end_of_day_midnight_respects_build_reference_without_python_on_path(self):
+        cases=("20240229T24:00Z","2024-12-31T24-00:00",
+               "2020-W53-7T240000,0000009-013059.5",
+               "9999-12-31T24:00Z","20240229T24:01Z","20240229T24:00:00.000001Z",
+               "20240229T24:00+24:00")
+        for until in cases:
+            with self.subTest(until=until):
+                args=self.args("--since",STAMP,"--until",until)
+                native=self.invoke(args)
+                python=self.invoke(args,backend="python",empty=False)
+                self.assertEqual((python.returncode,python.stderr),(native.returncode,native.stderr))
+                if python.returncode == 0:
+                    self.assertEqual(json.loads(python.stdout)["window"],json.loads(native.stdout)["window"])
+                    self.parity(self.args("--until",until,"--days","1"))
+                else:
+                    self.assertEqual((1,b""),(native.returncode,native.stdout))
 
     def test_empty_projects_path_collects_current_directory(self):
         self.write(self.project/"p/a.jsonl",[message("cwd")])
