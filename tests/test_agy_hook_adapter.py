@@ -760,5 +760,286 @@ class CliHelpAndWorkflowRulesTests(unittest.TestCase):
                     self.assertEqual(["docs/custom-guide.md"], paths)
 
 
+class ActionRespondsScopeSkipTests(unittest.TestCase):
+    def _init_repo(self, root: Path) -> None:
+        import subprocess
+
+        (root / "dist").mkdir(parents=True, exist_ok=True)
+        (root / "dist" / "index.html").write_text("<html><body><canvas></canvas></body></html>", encoding="utf-8")
+        (root / "index.html").write_text("<html><body><canvas></canvas></body></html>", encoding="utf-8")
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.email", "tests@example.invalid"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Tests"], cwd=root, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-qm", "init"], cwd=root, check=True)
+
+    def test_skips_headless_film_and_blender_asset_work_outside_page_shell(self):
+        import types
+
+        called = []
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: project / "dist"
+        fake.can_observe = lambda: True
+        fake.judge_configured = lambda: False
+        fake.project_fingerprint = lambda project: "fp"
+        fake.verify_project = lambda *a, **k: (called.append(a), ([], []))[1]
+        fake.feedback_text = lambda r: ""
+        fake.remaining_text = lambda r: ""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir()
+            self._init_repo(repo)
+            (repo / "tools" / "blender").mkdir(parents=True)
+            (repo / "tools" / "blender" / "vault.py").write_text("import bpy\n", encoding="utf-8")
+            (repo / "assets").mkdir()
+            (repo / "assets" / "vault.glb").write_bytes(b"glTF")
+
+            with patch.object(agy_hook_state, "MARKER_DIR", Path(tmp) / "markers"), \
+                    patch.object(adapter, "run_script", return_value=""), \
+                    patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
+                    patch.dict(sys.modules, {"verify": fake}):
+                # 1. Headless film request
+                v1 = adapter.stop({
+                    "conversationId": "cfilm",
+                    "workspacePaths": [str(repo)],
+                    "lastUserInput": "Render 14 stills on the headless film page and check choreography",
+                    "executionNum": 0,
+                })
+                # 2. Blender asset work where index.html is untouched/outside owned paths
+                v2 = adapter.stop({
+                    "conversationId": "cblend",
+                    "workspacePaths": [str(repo)],
+                    "lastUserInput": "Update the vault prop geometry",
+                    "executionNum": 0,
+                })
+                # 3. Request explicitly excluding index.html / page shell
+                (repo / "src").mkdir()
+                (repo / "src" / "lighting.js").write_text("export const sun = 1;\n", encoding="utf-8")
+                v3 = adapter.stop({
+                    "conversationId": "cowned",
+                    "workspacePaths": [str(repo)],
+                    "lastUserInput": "You own: src/lighting.js. Do NOT touch index.html or page shell.",
+                    "executionNum": 0,
+                })
+        self.assertEqual({}, v1)
+        self.assertEqual({}, v2)
+        self.assertEqual({}, v3)
+        self.assertEqual([], called)
+
+    def test_unverified_only_action_responds_reports_once_without_blocking(self):
+        import types
+
+        unverified_results = [
+            {"id": "loads-clean", "claim": "loads", "verdict": "pass", "reason": "ok"},
+            {
+                "id": "action-responds",
+                "claim": "main action responds",
+                "verdict": "fail",
+                "basis": "unverified",
+                "reason": "unverified: no main action was found to use",
+            },
+        ]
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: Path("/w/dist")
+        fake.can_observe = lambda: True
+        fake.judge_configured = lambda: False
+        fake.project_fingerprint = lambda project: "fp1"
+        fake.verify_project = lambda *a, **k: ([{"id": "action-responds"}], unverified_results)
+        fake.feedback_text = lambda r: ""
+        fake.remaining_text = lambda r: ""
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
+                patch.object(adapter, "run_script", return_value=""), \
+                patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
+                patch.dict(sys.modules, {"verify": fake}):
+            first = adapter.stop({
+                "conversationId": "cunv",
+                "workspacePaths": ["/w"],
+                "lastUserInput": "Add launch button to the interactive UI",
+                "executionNum": 0,
+            })
+            second = adapter.stop({
+                "conversationId": "cunv",
+                "workspacePaths": ["/w"],
+                "lastUserInput": "Add launch button to the interactive UI",
+                "executionNum": 1,
+            })
+        self.assertEqual("continue", first["decision"])
+        self.assertIn("Reported unverified items (not blocking)", first["reason"])
+        self.assertIn("action-responds", first["reason"])
+        self.assertEqual({}, second)
+
+    def test_i3_observer_error_and_malformed_judge_are_reported_not_swallowed(self):
+        import types
+
+        observer_failed = [
+            {
+                "id": "loads-clean",
+                "claim": "page loads",
+                "verdict": "fail",
+                "basis": "unverified",
+                "reason": "unverified: observer failed: Chrome exited 1",
+            },
+        ]
+        malformed_judge = [
+            {
+                "id": "loads-clean",
+                "claim": "page loads",
+                "verdict": "fail",
+                "basis": "unverified",
+                "reason": "unverified: the judge gave no answer for this item",
+            },
+        ]
+        for cid, results, needle in (
+            ("cobs", observer_failed, "Nothing was independently verified"),
+            ("cmal", malformed_judge, "Reported unverified items (not blocking)"),
+        ):
+            with self.subTest(cid=cid):
+                fake = types.ModuleType("verify")
+                fake.find_dist = lambda project: Path("/w/dist")
+                fake.can_observe = lambda: True
+                fake.judge_configured = lambda: True
+                fake.project_fingerprint = lambda project: "fp1"
+                fake.verify_project = lambda *a, **k: ([{"id": "loads-clean"}], results)
+                fake.feedback_text = lambda r: ""
+                fake.remaining_text = lambda r: ""
+                with tempfile.TemporaryDirectory() as tmp, patch.object(agy_hook_state, "MARKER_DIR", Path(tmp)), \
+                        patch.object(adapter, "run_script", return_value=""), \
+                        patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
+                        patch.dict(sys.modules, {"verify": fake}):
+                    verdict = adapter.stop({
+                        "conversationId": cid,
+                        "workspacePaths": ["/w"],
+                        "lastUserInput": "Build interactive page",
+                        "executionNum": 0,
+                    })
+                self.assertEqual("continue", verdict.get("decision"), verdict)
+                self.assertIn(needle, verdict.get("reason", ""))
+
+    def test_i4_changed_page_shell_verifies_regardless_of_request_wording_or_language(self):
+        for rel_path, request in (
+            ("src/App.tsx", "Fix props and material render frames"),
+            ("assets/app.js", "Update video shot assets"),
+            ("scripts/main.ts", "Fix render frame timing"),
+            ("index.html", "렌더 머티리얼과 프롭 레이아웃 수정"),
+        ):
+            with self.subTest(rel_path=rel_path, request=request):
+                with tempfile.TemporaryDirectory() as tmp:
+                    repo = Path(tmp) / "repo"
+                    repo.mkdir()
+                    self._init_repo(repo)
+                    changed = repo / rel_path
+                    changed.parent.mkdir(parents=True, exist_ok=True)
+                    changed.write_text("// changed\n", encoding="utf-8")
+                    self.assertTrue(
+                        agy_hook_verify._should_verify_interactive_page(repo, request),
+                        (rel_path, request),
+                    )
+
+    def test_n3_out_of_scope_page_shell_changes_are_verified_and_reported(self):
+        import types
+
+        self.assertEqual(
+            ["src/scene/"],
+            agy_hook_verify._explicit_owned_paths("You own: src/scene/. do not touch index.html"),
+        )
+        for request, changed in (
+            ("You own: src/scene/. do not touch index.html", ["src/scene/a.js", "index.html"]),
+            ("You own: src/scene/", ["src/scene/a.js", "index.html"]),
+            ("You own: src/scene/", ["index.html"]),
+        ):
+            with self.subTest(request=request, changed=changed):
+                with patch.object(agy_hook_verify, "_changed_repo_paths", return_value=changed):
+                    self.assertTrue(
+                        agy_hook_verify._should_verify_interactive_page(Path("/x"), request)
+                    )
+        # Even when no built dist/observer is present, out-of-scope shell changes are reported.
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: None
+        fake.can_observe = lambda: False
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir()
+            self._init_repo(repo)
+            (repo / "index.html").write_text("<html><body>modified</body></html>", encoding="utf-8")
+            with patch.object(agy_hook_state, "MARKER_DIR", Path(tmp) / "markers"), \
+                    patch.object(adapter, "run_script", return_value=""), \
+                    patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
+                    patch.dict(sys.modules, {"verify": fake}):
+                verdict = adapter.stop({
+                    "conversationId": "cn3-oos",
+                    "workspacePaths": [str(repo)],
+                    "lastUserInput": "You own: src/scene/",
+                    "executionNum": 0,
+                })
+        self.assertEqual("continue", verdict.get("decision"))
+        self.assertIn("Out-of-scope page-shell file(s) changed outside owned paths", verdict.get("reason", ""))
+        self.assertIn("index.html", verdict.get("reason", ""))
+
+    def test_n3_clean_working_tree_uses_latest_commit_diff_not_request_wording(self):
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir()
+            self._init_repo(repo)
+            # Commit 1: modified index.html, clean working tree -> MUST verify even with headless wording.
+            (repo / "index.html").write_text("<html><body><h1>v2</h1></body></html>", encoding="utf-8")
+            subprocess.run(["git", "add", "index.html"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-qm", "touch shell"], cwd=repo, check=True)
+            self.assertTrue(
+                agy_hook_verify._should_verify_interactive_page(
+                    repo, "render a short film with blender"
+                )
+            )
+            # Commit 2: only blender tool file changed, clean working tree -> skip even with UI wording.
+            (repo / "tools" / "blender").mkdir(parents=True)
+            (repo / "tools" / "blender" / "shot.py").write_text("x = 1\n", encoding="utf-8")
+            subprocess.run(["git", "add", "tools/blender/shot.py"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-qm", "blender only"], cwd=repo, check=True)
+            self.assertFalse(
+                agy_hook_verify._should_verify_interactive_page(repo, "버튼 색 바꿔줘")
+            )
+
+    def test_negative_control_interactive_ui_change_with_contradicted_failure_still_blocks(self):
+        import types
+
+        contradicted = [
+            {
+                "id": "action-responds",
+                "claim": "main action responds",
+                "verdict": "fail",
+                "basis": "contradicted",
+                "reason": "text and picture unchanged after clicking Launch",
+            },
+        ]
+        fake = types.ModuleType("verify")
+        fake.find_dist = lambda project: project / "dist"
+        fake.can_observe = lambda: True
+        fake.judge_configured = lambda: True
+        fake.project_fingerprint = lambda project: "fp2"
+        fake.verify_project = lambda *a, **k: ([{"id": "action-responds"}], contradicted)
+        fake.feedback_text = lambda r: "FIX: action-responds"
+        fake.remaining_text = lambda r: "STILL: action-responds"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir()
+            self._init_repo(repo)
+            (repo / "index.html").write_text("<html><body><button>Launch</button></body></html>", encoding="utf-8")
+            with patch.object(agy_hook_state, "MARKER_DIR", Path(tmp) / "markers"), \
+                    patch.object(adapter, "run_script", return_value=""), \
+                    patch.object(agy_hook_verify, "routed_through_3d", return_value=True), \
+                    patch.dict(sys.modules, {"verify": fake}):
+                verdict = adapter.stop({
+                    "conversationId": "cneg",
+                    "workspacePaths": [str(repo)],
+                    "lastUserInput": "Add Launch button and HUD controls to index.html",
+                    "executionNum": 0,
+                })
+        self.assertEqual({"decision": "continue", "reason": "FIX: action-responds"}, verdict)
+
+
 if __name__ == "__main__":
     unittest.main()

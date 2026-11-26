@@ -260,6 +260,9 @@ def gate_template_hook(args: argparse.Namespace) -> int:
     route = json.loads(preflight_evidence_path(args).read_text(encoding="utf-8"))["route"]
     loaded = skill_ids_from_doc_paths(required_docs_for_route(route) or [])
     details = remaining_gate_template_lines(progress["remaining_gates"], loaded)
+    if "retrospective check" in route.get("gates", []):
+        from agent_finish_retrospective_default import friction_summary
+        details.append(friction_summary(preflight_evidence_path(args)))
     return finish_with_result(
         "gate-batch", True, details, args.output, {"gate_progress": progress}, args.repair_cycle
     )
@@ -433,6 +436,10 @@ def _parse_gate_records(raw: str) -> list[dict[str, Any]]:
     return [_normalize_gate_record(payload)]
 
 
+def canonical_status(value: str) -> str:
+    return "SUCCESS" if value.lower() in {"pass", "passed", "ok"} else value
+
+
 def _normalize_gate_record(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("gate record JSON must be an object or an array of objects")
@@ -443,9 +450,9 @@ def _normalize_gate_record(payload: Any) -> dict[str, Any]:
         if set(payload) - {"gate", "reuse_from", "reuse_reason"}:
             raise ValueError("gate reuse accepts only gate, reuse_from and reuse_reason")
         return dict(payload)
-    status = str(payload.get("status") or "SUCCESS").strip()
+    status = canonical_status(str(payload.get("status", "SUCCESS")).strip())
     if status not in {"SUCCESS", "FAIL"}:
-        raise ValueError(f"gate record JSON has invalid status: {status}")
+        raise ValueError(f'gate record JSON has invalid status: {status}; example: "status":"SUCCESS"')
     fields = payload.get("fields") or {}
     if not isinstance(fields, dict):
         raise ValueError(f"gate record for {gate} has non-object fields")

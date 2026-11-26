@@ -18,6 +18,7 @@ impl StructureBlockFindings {
     ) -> Option<()> {
         let limit = facts.get("limit")?.as_i64()?;
         let initial = facts.get("initial")?.as_bool()?;
+        let warn_new = facts.get("warn_new").map_or(Some(false), Value::as_bool)?;
         let current = facts.get("current")?.as_array()?;
         let baseline;
         let previous_blocks = if let Some(prepared) = facts.get("previous_spans") {
@@ -48,6 +49,12 @@ impl StructureBlockFindings {
                      limit is {limit}; structure-review evidence is required, but this \
                      does not block the current scoped change unless the diff grows the unit or adds \
                      a new responsibility"
+                ));
+            } else if warn_new && !previous.contains_key(label) {
+                warnings.push(format!(
+                    "{path}:{line} block `{label}` spans {span} lines \
+                     in a new/creative unit; limit is {limit}; \
+                     structure-review evidence is required, and growth past this size will block"
                 ));
             } else {
                 failures.push(format!(

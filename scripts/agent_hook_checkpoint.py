@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from agent_checkpoint_input import normalize_work, step_name
 from agent_continuation_checkpoint import CHECKPOINT_KINDS, write_continuation_checkpoint
 from agent_continuation_fields import MAX_SHORT_TEXT, MAX_TEXT
 from agent_continuation_packet import (
@@ -26,7 +27,7 @@ LAST_COMPLETED_RULE = "1-64 chars of a-z, A-Z, 0-9, space, '_', '.', '/', '-'"
 
 def add_checkpoint_arguments(parser: argparse.ArgumentParser) -> None:
     checkpoint = parser.add_argument_group("continuation checkpoint")
-    checkpoint.add_argument("--checkpoint-kind", choices=CHECKPOINT_KINDS)
+    checkpoint.add_argument("--checkpoint-kind", "--checkpoint", choices=CHECKPOINT_KINDS)
     checkpoint.add_argument("--phase", choices=PHASES)
     checkpoint.add_argument(
         "--last-completed",
@@ -35,6 +36,7 @@ def add_checkpoint_arguments(parser: argparse.ArgumentParser) -> None:
     checkpoint.add_argument("--mutation-kind", choices=MUTATION_KINDS)
     checkpoint.add_argument("--mutation-path", action="append", default=[])
     work_input = checkpoint.add_mutually_exclusive_group()
+    work_input.add_argument("--work-json", help="one inline JSON work object")
     work_input.add_argument(
         "--work-stdin",
         action="store_true",
@@ -84,6 +86,11 @@ def checkpoint_hook(args: argparse.Namespace) -> int:
         work = _read_work_file(work_file) if work_file is not None else (
             _read_work_stdin() if args.work_stdin else None
         )
+        if getattr(args, "work_json", None) is not None:
+            work = _decode_work_input(args.work_json.encode("utf-8"))
+        warnings = []
+        if work is not None:
+            work = normalize_work(work, args.project, warnings)
         mutation = None
         if args.checkpoint_kind == "pre_mutation":
             mutation = {
@@ -98,7 +105,7 @@ def checkpoint_hook(args: argparse.Namespace) -> int:
             binding_path=binding,
             work=work,
             phase=args.phase,
-            last_completed=args.last_completed,
+            last_completed=step_name(args.last_completed),
             mutation=mutation,
         )
     except ContinuationPacketError as error:
@@ -110,7 +117,7 @@ def checkpoint_hook(args: argparse.Namespace) -> int:
             prose_hint = (
                 f"Shorten the rejected prose to at most {MAX_TEXT} Unicode characters "
                 f"per field ({MAX_SHORT_TEXT} for each non_goals entry), not bytes. "
-                "Resubmit the bounded summary without truncating its meaning.\n"
+                "Eligible summary fields are truncated with a warning. Resubmit rejected fields within their limits.\n"
             )
         if any(item["pointer"] == "/checkpoint/last_completed" for item in error.failures):
             prose_hint += (
@@ -141,6 +148,7 @@ def checkpoint_hook(args: argparse.Namespace) -> int:
         "checkpoint",
         True,
         [
+            *dict.fromkeys(warnings),
             f"checkpoint kind: {args.checkpoint_kind}",
             f"packet generation: {packet['generation']}",
         ],
@@ -160,16 +168,30 @@ def _work_input_shape_hint(failures: list[dict[str, str]]) -> str:
         parts = item["pointer"].split("/")
         if len(parts) < 3 or parts[1] != "work" or not parts[2]:
             continue
-        if item["rule"] == "unknown_field":
-            continue
-        fields.add(parts[2])
+        if item["rule"] != "unknown_field":
+            fields.add(parts[2])
     shapes = [
         line for line in _work_shape_lines()
         if any(re.search(rf"\b{re.escape(field)}(?:\[|:)", line)
                for field in fields)
     ]
+    examples = {
+        "changed_scope": [{"path": "docs/guide.md", "role": "modified"}],
+        "inspected_scope": [{"path": "docs/guide.md", "role": "inspected"}],
+        "remaining_work": [{"checkpoint": "verify", "action": "Verify the remaining outcomes"}],
+        "decisions": [{"id": "scope", "status": "accepted", "text": "Keep the agreed scope"}],
+        "verification": [{"id": "unit", "kind": "unit", "result": "success",
+                          "evidence_sha256": None, "completed_at": "2026-11-19T12:00:00Z"}],
+        "objective": "Verify the requested outcome", "blockers": ["Record the outstanding dependency"],
+        "non_goals": ["Unrequested changes"], "acceptance_criteria": ["Verify each outcome"],
+        "requirements": {"revision": 1, "items": [{"id": "r1", "outcome": "Verify the requested outcome",
+                         "owner": "lead", "gate": "tests", "artifacts": ["src/app.py"]}]},
+        "evidence_refs": [{"id": "result", "path": "/absolute/path/result.txt", "sha256": "0" * 64,
+                           "status": "unverified", "summary": "Replace the example path and digest with actual evidence"}],
+    }
+    shapes.extend(json.dumps({field: examples[field]}) for field in sorted(fields & examples.keys()))
     if not shapes:
-        return ""
+        return 'Example work object: {"objective":"Verify the requested outcome"}\n'
     return (
         "Expected work input (schema shapes; entries in braces are objects):\n"
         + "\n".join(shapes) + "\n"

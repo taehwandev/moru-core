@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import tempfile
 import sys
 import unittest
 from argparse import ArgumentParser, Namespace
@@ -46,6 +48,14 @@ class DecisionAttributionUnitTests(unittest.TestCase):
         session = patch.object(agent_hook, "runtime_session", return_value=SESSION)
         session.start()
         self.addCleanup(session.stop)
+        state = tempfile.TemporaryDirectory()
+        self.addCleanup(state.cleanup)
+        env = patch.dict(os.environ, {"MORU_STATE_HOME": state.name})
+        env.start()
+        self.addCleanup(env.stop)
+        identity = patch("agent_runtime_session.detect_runtime", return_value=("codex", SESSION["session_id"]))
+        identity.start()
+        self.addCleanup(identity.stop)
         self.parser = ArgumentParser(prog="agent-hook.py")
 
     def _materialize(self, **overrides) -> Namespace:
@@ -128,6 +138,22 @@ class DecisionAttributionUnitTests(unittest.TestCase):
             envelope["decision_sources"],
         )
         self.assertEqual([], validate_envelope(envelope))
+
+    def test_summary_matches_only_quotes_in_the_session_record(self):
+        from claude_pretool_auto_start import record_request
+        record_request(json.dumps({"session_id": SESSION["session_id"],
+                                   "prompt": "Agent brief: Retain partial acceptance. Keep unrelated context private."}))
+        record_request(json.dumps({"session_id": "another-session", "prompt": "complete acceptance"}))
+        args = self._materialize(request="Finish scope", decision_source=["request:partial acceptance"])
+        self.assertIn("partial acceptance", args.request)
+        self.assertNotIn("unrelated context", args.request)
+        self.assertIn("matched the session's recorded prompt text", " ".join(args.start_notes))
+        refused = self._refusal(request="Finish scope", decision_source=["request:complete acceptance"])
+        self.assertIn("compared --request and the session's recorded prompt text", refused)
+
+    def test_route_aliases_use_the_canonical_route_and_effect(self):
+        for alias, route in (("develop", "build"), ("implement", "build"), ("work", "task")):
+            self.assertEqual(route, self._materialize(command=alias).command)
 
     def test_verbatim_matching_preserves_case_and_internal_spacing(self) -> None:
         case_mismatch = self._refusal(

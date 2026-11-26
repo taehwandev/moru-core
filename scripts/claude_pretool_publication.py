@@ -30,6 +30,7 @@ from claude_bash_syntax import (
     command_behind_wrappers,
     computed_word,
     shell_c_payload,
+    without_passive_heredocs,
 )
 from claude_bash_xargs import xargs_runs_local_program
 from claude_command_effect import github_pr_merge, github_publication
@@ -63,6 +64,7 @@ def open_run_publication_hold(
     its program; a line that does neither runs only what it says.
     """
 
+    command = without_passive_heredocs(command)
     held = publication_hold(command, root=root, cwd=cwd)
     if held == "unreadable" and not _PUBLICATION_SIGNAL.search(command):
         return ""
@@ -126,6 +128,7 @@ def publication_hold(
 
     if depth >= 3:
         return "unreadable"
+    command = without_passive_heredocs(command)
     read = read_substitutions(
         command, lambda body: publication_hold(body, depth + 1, root, cwd), "publishes"
     )

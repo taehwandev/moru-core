@@ -364,7 +364,7 @@ class FinishGatePolicyTests(unittest.TestCase):
                 lesson["next_action"],
             )
 
-    def test_unattributed_read_only_revision_drift_requires_runtime_repair(self) -> None:
+    def test_unattributed_read_only_revision_drift_requires_investigation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             os.environ["MORU_STATE_HOME"] = temp_dir
             failures = [
@@ -383,7 +383,14 @@ class FinishGatePolicyTests(unittest.TestCase):
 
             self.assertTrue(retrospective_required)
             self.assertTrue(lesson["created"])
-            self.assertIn("retrospective repair is required", " ".join(failures))
+            self.assertNotIn("retrospective repair is required", " ".join(failures))
+
+    def test_stale_review_only_does_not_request_a_framework_repair(self):
+        failures = ["review hook attestation rules worktree binding is stale", "missing required gate evidence: review hook"]
+        required, _ = agent_finish_check.process_failure_learning(
+            preflight={}, missed_gates=["review hook"], gate_policy_failures=[], gate_signals=[], failures=failures)
+        self.assertFalse(required)
+        self.assertEqual(2, len(failures))
 
     def test_intrinsic_analysis_revision_drift_requires_fresh_lifecycle(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

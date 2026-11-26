@@ -64,16 +64,14 @@ class InstallerIsReachableTests(unittest.TestCase):
     def test_another_checkouts_installer_is_also_recognised(self) -> None:
         """The repair runs the *main* checkout's installer, not this one.
 
-        Anchoring to the file beside this module was too narrow, and the case
-        it excluded is the only one that matters: a session running a
-        worktree's gate repairs a mis-written bridge by running the main
-        checkout's installer, and those are different paths. That command came
-        back `mutating` and was denied -- the recovery path closed again, by
-        the fix meant to open it.
-
-        The allowance still requires a real checkout around the script: the
-        sibling hooks must be there, so a lone file dropped anywhere is not it.
+        Only checkouts anchored by this checkout's Git worktree linkage or the
+        installed launcher's root pointer are trusted -- never an arbitrary
+        directory that merely drops empty sibling files named `agent-hook.py`
+        and `claude_pretool_gate.py`.
         """
+        from unittest.mock import patch
+        import claude_bash_moru_scripts
+        import claude_bash_readonly
 
         with tempfile.TemporaryDirectory() as tmp:
             scripts = Path(tmp) / "other-checkout" / "scripts"
@@ -84,9 +82,28 @@ class InstallerIsReachableTests(unittest.TestCase):
             # Alone, it is just a file with a familiar name.
             self.assertEqual("mutating", _kind(f"{sys.executable} {installer}"))
 
+            # Forged sibling files in an untrusted directory MUST stay mutating!
             for sibling in ("agent-hook.py", "claude_pretool_gate.py"):
                 (scripts / sibling).touch()
-            self.assertEqual("bootstrap", _kind(f"{sys.executable} {installer}"))
+            self.assertEqual("mutating", _kind(f"{sys.executable} {installer}"))
+
+            # Even if the pointer names a directory under a temp root, temp roots
+            # are never trusted.
+            pointer = Path(tmp) / "moru-root"
+            pointer.write_text(f"{scripts.parent.resolve()}\n", encoding="utf-8")
+            with patch.object(
+                claude_bash_readonly, "stable_root_pointer_path", return_value=pointer
+            ):
+                self.assertEqual("mutating", _kind(f"{sys.executable} {installer}"))
+
+            # Once the installed launcher's root pointer points to a non-temp
+            # checkout, its installer is recognized as bootstrap.
+            with patch.object(
+                claude_bash_readonly, "stable_root_pointer_path", return_value=pointer
+            ), patch.object(
+                claude_bash_moru_scripts, "_is_under_temp_root", return_value=False
+            ):
+                self.assertEqual("bootstrap", _kind(f"{sys.executable} {installer}"))
 
     def test_a_chained_command_does_not_inherit_the_allowance(self) -> None:
         # The allowance covers the installer, not whatever follows it.

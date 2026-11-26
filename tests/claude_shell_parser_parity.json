@@ -5935,10 +5935,14 @@
      "hello",
      "EOF"
     ],
-    "tokens": [],
+    "tokens": [
+     "cat",
+     ">",
+     "file.txt"
+    ],
     "simple": false,
     "kind": "mutating",
-    "effect": "unknown",
+    "effect": "mutating",
     "syntax_segments": null
    }
   },

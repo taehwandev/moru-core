@@ -38,6 +38,7 @@ import time
 from pathlib import Path
 
 from support.global_state import global_state_dir, user_store_write_error
+from agent_workspace_policy import is_non_git_workspace, is_writing_workspace
 
 AUTO_ROUTE = "small-change"
 AUTO_INTENT = "auto_work"
@@ -136,6 +137,13 @@ def start_run(
 ) -> str:
     """Start the writable run and return its id, or "" when nothing started."""
 
+    # Never auto-start code `small-change` in a writing workspace or an opted-in
+    # non-Git folder where `small-change` cannot complete its Git review/finish.
+    if is_writing_workspace(root) or (
+        is_non_git_workspace(root)
+        and ((root / "AGENTS.md").is_file() or (root / ".moru").is_dir())
+    ):
+        return ""
     prompt = current_request(session_id, now)
     if not prompt or not is_work_request(prompt):
         return ""

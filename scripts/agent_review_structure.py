@@ -30,6 +30,13 @@ from agent_review_purpose import (
 )
 from agent_review_removals import classify_net_deletions
 from agent_review_merge_baseline import inherited_merge_paths
+from agent_review_structure_policy import (
+    REVIEW_ASSET_BINARY_EXTENSIONS,
+    is_creative_source_path,
+    is_excluded_asset_or_build_script,
+    resolve_repo_structure_policy,
+)
+from agent_structure_rule_config import STRUCTURE_CODE_EXTENSIONS
 from agent_structure_rules import structure_rule_review
 from agent_workspace_policy import is_non_git_workspace, is_writing_workspace
 from support.native_probe_transport import NativeProbe
@@ -67,37 +74,7 @@ REVIEW_TEST_ADDED_LINE_LIMIT = REVIEW_ADDED_LINE_LIMIT * REVIEW_TEST_FILE_LINE_L
 # regardless of extension, because losing content is a reviewable outcome of the
 # diff rather than a property of the language it was written in.
 REVIEW_NET_DELETION_LIMIT = 50
-REVIEW_SOURCE_EXTENSIONS = {
-    ".c",
-    ".cc",
-    ".cpp",
-    ".cs",
-    ".css",
-    ".cjs",
-    ".dart",
-    ".go",
-    ".h",
-    ".hpp",
-    ".java",
-    ".js",
-    ".jsx",
-    ".kt",
-    ".kts",
-    ".m",
-    ".mjs",
-    ".mm",
-    ".php",
-    ".py",
-    ".rb",
-    ".rs",
-    ".sass",
-    ".scss",
-    ".svelte",
-    ".swift",
-    ".ts",
-    ".tsx",
-    ".vue",
-}
+REVIEW_SOURCE_EXTENSIONS = STRUCTURE_CODE_EXTENSIONS
 REVIEW_STYLE_EXTENSIONS = {".css", ".scss", ".sass"}
 STRUCTURE_REVIEW_SCOPE_NOTE = (
     "changed development source/style only; tests/fixtures/mocks/specs use wider file "
@@ -242,6 +219,31 @@ def _review_source_batch(
     return [(None, None)] * len(paths)
 
 
+def _resolve_repo_structure_policy(
+    project: Path,
+    max_file_lines: int,
+    max_block_lines: int,
+    max_added_lines: int,
+    *,
+    run_command: CommandRunner,
+    review_commits: tuple[str, str] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    return resolve_repo_structure_policy(
+        project,
+        max_file_lines,
+        max_block_lines,
+        max_added_lines,
+        default_file_lines=REVIEW_SOURCE_FILE_LINE_LIMIT,
+        default_block_lines=REVIEW_FUNCTION_LINE_LIMIT,
+        default_added_lines=REVIEW_ADDED_LINE_LIMIT,
+        default_public_owners=MAX_PUBLIC_TOP_LEVEL_OWNERS,
+        default_visible_owners=MAX_TOP_LEVEL_OWNERS,
+        default_new_file_pressure=REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
+        run_command=run_command,
+        review_commits=review_commits,
+    )
+
+
 def structure_review(
     project: Path,
     max_file_lines: int,
@@ -253,6 +255,19 @@ def structure_review(
     review_commits: tuple[str, str] | None = None,
 ) -> dict[str, Any]:
     source_root = source_project or project
+    policy, policy_failures = _resolve_repo_structure_policy(
+        project,
+        max_file_lines,
+        max_block_lines,
+        max_added_lines,
+        run_command=run_command,
+        review_commits=review_commits,
+    )
+    max_file_lines = policy["max_file_lines"]
+    max_block_lines = policy["max_block_lines"]
+    max_added_lines = policy["max_added_lines"]
+    exclude_paths = policy["exclude_paths"]
+    exclude_blender = policy["exclude_blender_scripts"]
     discovery, paths = changed_source_paths(
         project,
         run_command,
@@ -260,6 +275,8 @@ def structure_review(
         review_commits=review_commits,
         source_project=source_root,
         include_net_deletions=True,
+        exclude_paths=exclude_paths,
+        exclude_blender_scripts=exclude_blender,
     )
     subject_run_command = _subject_run_command(project, run_command, review_commits)
     result = _structure_result(
@@ -268,7 +285,15 @@ def structure_review(
         max_file_lines=max_file_lines,
         max_block_lines=max_block_lines,
         max_added_lines=max_added_lines,
+        exclude_paths=exclude_paths,
+        exclude_blender_scripts=exclude_blender,
+        repo_configured_limits=policy["repo_configured_limits"],
     )
+    result["failures"].extend(policy_failures)
+    result["warnings"].extend(policy.get("warnings") or [])
+    result["config_base_ref"] = policy.get("config_base_ref", "HEAD")
+    result["config_base_fallback"] = bool(policy.get("config_base_fallback", False))
+    result["relaxed_config_keys"] = list(policy.get("relaxed_keys") or [])
     classify_net_deletions(
         result["net_deletions"],
         project=project,
@@ -287,83 +312,34 @@ def structure_review(
             "structural baseline only, with full review/publication scope unchanged"
         )
 
-    file_checks = []
-    owner_checks = []
-    source_rows = _review_source_batch(source_root, active_paths)
-    baselines = {}
-    if run_command is review_runtime_command:
-        baseline_paths = [
-            path for path, (lines, is_test) in zip(active_paths, source_rows)
-            if lines is not False and not (test_exempt_path(path) if is_test is None else is_test)
-        ]
-        revision = review_commits[0] if review_commits is not None else "HEAD"
-        baselines = native_review_baselines(project, revision, baseline_paths, discovery["path_metadata"])
-    for relative, (lines, is_test_path) in zip(active_paths, source_rows):
-        if is_test_path is None:
-            is_test_path = test_exempt_path(relative)
-        if is_test_path:
-            result["test_exempt_paths"].append(str(relative))
-        else:
-            result["strict_checked_paths"].append(str(relative))
-
-        if lines is None:
-            try:
-                lines = (source_root / relative).read_text(encoding="utf-8").splitlines()
-            except UnicodeDecodeError:
-                lines = False
-        if lines is False:
-            result["warnings"].append(f"{relative} is not valid UTF-8; manual structure review required")
-            continue
-
-        metadata = discovery["path_metadata"].get(str(relative), {})
-        file_review = {
-            "path": str(relative),
-            "line_count": len(lines),
-            "metadata": metadata,
-            "max_file_lines": REVIEW_TEST_FILE_LINE_LIMIT if is_test_path else max_file_lines,
-            "max_added_lines": max_added_lines * REVIEW_TEST_FILE_LINE_LIMIT_MULTIPLIER if is_test_path
-            else max_added_lines,
-            "review_warning_file_lines": REVIEW_TEST_FILE_REVIEW_WARNING_LIMIT if is_test_path
-            else REVIEW_FILE_REVIEW_WARNING_LIMIT,
-        }
-        if not is_test_path:
-            baseline_text = baselines.get(relative)
-            owner_checks.append(_owner_review_input(
-                relative,
-                top_level_type_declarations(relative, lines),
-                previous_top_level_type_declarations(
-                    source_root, relative, discovery["path_metadata"], subject_run_command,
-                    baseline_text=baseline_text,
-                ),
-            ))
-            file_review["actions"] = android_action_delta_failures(
-                project, relative, lines, metadata, subject_run_command, baseline_text=baseline_text,
-            )
-            if len(lines) > max_block_lines:
-                prepared = _block_span_input(relative, lines)
-                if "lines" in prepared or prepared["starts"]:
-                    file_review["block_spans"] = {
-                        **prepared, "limit": max_block_lines, "initial": bool(metadata.get("initial_full_build")),
-                    }
-        file_checks.append((len(result["failures"]), len(result["warnings"]), file_review))
-
+    file_checks, owner_checks, baselines = _collect_file_and_owner_checks(
+        project, source_root, active_paths, discovery["path_metadata"],
+        run_command, subject_run_command, review_commits, result, policy,
+    )
     files = [row for _, _, row in file_checks]
     _attach_block_baselines(source_root, files, subject_run_command, baselines)
     path_metadata = discovery["path_metadata"]
     file_findings, source_layout = _file_findings(files, source_layout={
-        "limit": REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
+        "limit": policy["new_file_pressure_limit"],
         "generic_parts": sorted(GENERIC_PACKAGE_PARTS),
         "paths": [[path, path_metadata.get(path, {}).get("status")] for path in result["strict_checked_paths"]],
         "owners": {
             "files": owner_checks,
-            "public_limit": MAX_PUBLIC_TOP_LEVEL_OWNERS,
-            "visible_limit": MAX_TOP_LEVEL_OWNERS,
+            "public_limit": policy["public_owner_limit"],
+            "visible_limit": policy["visible_owner_limit"],
             "role_pairs": MIXED_ROLE_BLOCKS,
         },
     })
     owner_findings = source_layout.get("owner_failures") if source_layout is not None else None
     if owner_findings is None:
-        owner_findings = [finding for check in owner_checks for finding in _owner_input_findings(check)]
+        owner_findings = [
+            finding for check in owner_checks
+            for finding in _owner_input_findings(
+                check,
+                public_limit=policy["public_owner_limit"],
+                visible_limit=policy["visible_owner_limit"],
+            )
+        ]
     # Preserve each file's position relative to encoding warnings.
     for kind, index in (("failures", 0), ("warnings", 1)):
         other_findings = result[kind]
@@ -388,8 +364,93 @@ def structure_review(
         subject_run_command=subject_run_command,
         source_layout=source_layout,
         owner_findings=owner_findings,
+        new_file_pressure_limit=policy["new_file_pressure_limit"],
     )
     return result
+
+
+def _collect_file_and_owner_checks(
+    project: Path,
+    source_root: Path,
+    active_paths: list[Path],
+    path_metadata: dict[str, dict[str, Any]],
+    run_command: CommandRunner,
+    subject_run_command: CommandRunner,
+    review_commits: tuple[str, str] | None,
+    result: dict[str, Any],
+    policy: dict[str, Any],
+) -> tuple[list[tuple[int, int, dict[str, Any]]], list[dict[str, Any]], dict[Path, Any]]:
+    file_checks: list[tuple[int, int, dict[str, Any]]] = []
+    owner_checks: list[dict[str, Any]] = []
+    source_rows = _review_source_batch(source_root, active_paths)
+    baselines: dict[Path, Any] = {}
+    if run_command is review_runtime_command:
+        baseline_paths = [
+            path for path, (lines, is_test) in zip(active_paths, source_rows)
+            if lines is not False and not (test_exempt_path(path) if is_test is None else is_test)
+        ]
+        revision = review_commits[0] if review_commits is not None else "HEAD"
+        baselines = native_review_baselines(project, revision, baseline_paths, path_metadata)
+    max_file_lines = policy["max_file_lines"]
+    max_block_lines = policy["max_block_lines"]
+    max_added_lines = policy["max_added_lines"]
+    for relative, (lines, is_test_path) in zip(active_paths, source_rows):
+        if is_test_path is None:
+            is_test_path = test_exempt_path(relative)
+        if is_test_path:
+            result["test_exempt_paths"].append(str(relative))
+        else:
+            result["strict_checked_paths"].append(str(relative))
+        if lines is None:
+            try:
+                lines = (source_root / relative).read_text(encoding="utf-8").splitlines()
+            except UnicodeDecodeError:
+                lines = False
+        if lines is False:
+            result["warnings"].append(f"{relative} is not valid UTF-8; manual structure review required")
+            continue
+        metadata = path_metadata.get(str(relative), {})
+        creative = (
+            not is_test_path
+            and is_creative_source_path(relative, policy["creative_paths"])
+        )
+        file_review: dict[str, Any] = {
+            "path": str(relative),
+            "line_count": len(lines),
+            "metadata": metadata,
+            "max_file_lines": REVIEW_TEST_FILE_LINE_LIMIT if is_test_path else max_file_lines,
+            "max_added_lines": max_added_lines * REVIEW_TEST_FILE_LINE_LIMIT_MULTIPLIER if is_test_path
+            else max_added_lines,
+            "review_warning_file_lines": REVIEW_TEST_FILE_REVIEW_WARNING_LIMIT if is_test_path
+            else REVIEW_FILE_REVIEW_WARNING_LIMIT,
+            "creative_new_file_warn": creative,
+        }
+        if not is_test_path:
+            baseline_text = baselines.get(relative)
+            owner_checks.append(_owner_review_input(
+                relative,
+                top_level_type_declarations(relative, lines),
+                previous_top_level_type_declarations(
+                    source_root, relative, path_metadata, subject_run_command,
+                    baseline_text=baseline_text,
+                ),
+            ))
+            file_review["actions"] = android_action_delta_failures(
+                project, relative, lines, metadata, subject_run_command, baseline_text=baseline_text,
+            )
+            if len(lines) > max_block_lines:
+                prepared = _block_span_input(relative, lines)
+                if "lines" in prepared or prepared["starts"]:
+                    is_new_file = metadata.get("status") == "A"
+                    warn_new = is_new_file and creative
+                    file_review["block_spans"] = {
+                        **prepared,
+                        "limit": max_block_lines,
+                        "initial": bool(metadata.get("initial_full_build")),
+                        "warn_new": warn_new,
+                    }
+        file_checks.append((len(result["failures"]), len(result["warnings"]), file_review))
+    return file_checks, owner_checks, baselines
 
 
 def _structure_result(
@@ -399,6 +460,9 @@ def _structure_result(
     max_file_lines: int,
     max_block_lines: int,
     max_added_lines: int,
+    exclude_paths: list[str] | tuple[str, ...] = (),
+    exclude_blender_scripts: bool = False,
+    repo_configured_limits: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The review's answer sheet, with every limit it will be judged against.
 
@@ -410,7 +474,11 @@ def _structure_result(
 
     net_deletions = discovery.pop("_net_deletions", None)
     if net_deletions is None:
-        net_deletions = net_deletion_findings(discovery["path_metadata"])
+        net_deletions = net_deletion_findings(
+            discovery["path_metadata"],
+            exclude_paths=exclude_paths,
+            exclude_blender_scripts=exclude_blender_scripts,
+        )
     return {
         "checked_paths": [str(path) for path in paths],
         "checked_path_count": len(paths),
@@ -424,6 +492,7 @@ def _structure_result(
         "test_max_file_lines": REVIEW_TEST_FILE_LINE_LIMIT,
         "test_max_added_lines": max_added_lines * REVIEW_TEST_FILE_LINE_LIMIT_MULTIPLIER,
         "test_review_warning_file_lines": REVIEW_TEST_FILE_REVIEW_WARNING_LIMIT,
+        "repo_configured_limits": dict(repo_configured_limits or {}),
         "scope": STRUCTURE_REVIEW_SCOPE_NOTE,
         "warnings": [],
         "failures": list(discovery["command_errors"]),
@@ -443,6 +512,7 @@ def _add_cross_path_findings(
     subject_run_command: CommandRunner,
     source_layout: dict[str, Any] | None,
     owner_findings: list[str],
+    new_file_pressure_limit: int = REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
 ) -> None:
     """Everything that can only be seen with the whole changed set in view.
 
@@ -452,11 +522,13 @@ def _add_cross_path_findings(
     """
 
     if source_layout is None:
-        flag_new_source_file_sprawl(result, discovery["path_metadata"])
+        flag_new_source_file_sprawl(
+            result, discovery["path_metadata"], limit=new_file_pressure_limit
+        )
         flag_content_preserving_source_copies(result, discovery["path_metadata"])
     else:
         result["new_source_file_count"] = source_layout["added"]
-        result["new_source_file_pressure_limit"] = REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT
+        result["new_source_file_pressure_limit"] = new_file_pressure_limit
         result["content_preserving_source_copy_count"] = source_layout["copied"]
         result["warnings"].extend(source_layout["warnings"])
     result["failures"].extend(
@@ -494,6 +566,8 @@ def _add_cross_path_findings(
 def flag_new_source_file_sprawl(
     result: dict[str, Any],
     path_metadata: dict[str, dict[str, Any]],
+    *,
+    limit: int = REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT,
 ) -> None:
     """Require justification when a change spawns many new source files.
 
@@ -506,8 +580,8 @@ def flag_new_source_file_sprawl(
         if path_metadata.get(path, {}).get("status") == "A"
     ]
     result["new_source_file_count"] = len(added)
-    result["new_source_file_pressure_limit"] = REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT
-    if len(added) <= REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT:
+    result["new_source_file_pressure_limit"] = limit
+    if len(added) <= limit:
         return
 
     shown = ", ".join(added[:8])
@@ -515,7 +589,7 @@ def flag_new_source_file_sprawl(
         shown += "; ..."
     result["warnings"].append(
         f"change adds {len(added)} new development source files ({shown}); "
-        f"new-file review-pressure limit is {REVIEW_NEW_SOURCE_FILE_PRESSURE_LIMIT}; "
+        f"new-file review-pressure limit is {limit}; "
         "structure-review evidence must justify each new file or abstraction against a "
         "concrete present risk (see Match Structure To The Problem), or the change should "
         "be collapsed into fewer files"
@@ -575,6 +649,8 @@ def changed_source_paths(
     review_commits: tuple[str, str] | None = None,
     source_project: Path | None = None,
     include_net_deletions: bool = False,
+    exclude_paths: list[str] | tuple[str, ...] = (),
+    exclude_blender_scripts: bool = False,
 ) -> tuple[dict[str, Any], list[Path]]:
     commands: dict[str, Any] = {}
     names: set[str] = set()
@@ -602,7 +678,13 @@ def changed_source_paths(
             "path_metadata": path_metadata,
             "review_commits": {"base_sha": base_sha, "head_sha": head_sha},
         }
-        return discovery, _review_sources(source_root, paths, discovery if include_net_deletions else None)
+        return discovery, _review_sources(
+            source_root,
+            paths,
+            discovery if include_net_deletions else None,
+            exclude_paths=exclude_paths,
+            exclude_blender_scripts=exclude_blender_scripts,
+        )
 
     acquired = _native_diff(project, run_command, _pathspec_args(review_paths), untracked=True, inspect_head=True)
     if acquired is None:
@@ -662,7 +744,13 @@ def changed_source_paths(
         "command_errors": command_errors,
         "path_metadata": path_metadata,
     }
-    return discovery, _review_sources(project, paths, discovery if include_net_deletions else None)
+    return discovery, _review_sources(
+        project,
+        paths,
+        discovery if include_net_deletions else None,
+        exclude_paths=exclude_paths,
+        exclude_blender_scripts=exclude_blender_scripts,
+    )
 
 
 def collect_commit_diff(
@@ -1251,16 +1339,27 @@ def record_path(
     path_metadata.setdefault(name, {}).update(updates)
 
 
-def net_deletion_findings(path_metadata: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def net_deletion_findings(
+    path_metadata: dict[str, dict[str, Any]],
+    *,
+    exclude_paths: list[str] | tuple[str, ...] = (),
+    exclude_blender_scripts: bool = False,
+) -> list[dict[str, Any]]:
     """Return changed paths whose measured net line loss needs review attention.
 
     ``path_metadata`` carries the numstat counts for every changed path, not just
     the development sources the structural checks read, so this is the one place
     a large removal in documentation, configuration, or fixtures is observable.
+    Assets/binary/glTF exports, repo-opted-in Blender scripts, and non-code
+    repo-configured exclude_paths are excluded.
     """
 
     findings: list[dict[str, Any]] = []
     for name in sorted(path_metadata):
+        if is_excluded_asset_or_build_script(
+            name, exclude_paths, exclude_blender_scripts=exclude_blender_scripts
+        ):
+            continue
         metadata = path_metadata[name]
         additions = metadata.get("additions")
         deletions = metadata.get("deletions")
@@ -1280,14 +1379,26 @@ def _pathspec_args(review_paths: list[str] | None) -> list[str]:
 
 
 def _review_sources(
-    project: Path, paths: list[Path], discovery: dict[str, Any] | None = None,
+    project: Path,
+    paths: list[Path],
+    discovery: dict[str, Any] | None = None,
+    *,
+    exclude_paths: list[str] | tuple[str, ...] = (),
+    exclude_blender_scripts: bool = False,
 ) -> list[Path]:
-    if paths and NativeProbe.available():
+    filtered_paths = [
+        path
+        for path in paths
+        if not is_excluded_asset_or_build_script(
+            path, exclude_paths, exclude_blender_scripts=exclude_blender_scripts
+        )
+    ]
+    if filtered_paths and NativeProbe.available():
         read_attributes = _declares_generated(project)
         payload = {
             "project": str(project),
             "read_git_attributes": read_attributes,
-            "paths": [{"path": str(path), "suffix": path.suffix.lower()} for path in paths],
+            "paths": [{"path": str(path), "suffix": path.suffix.lower()} for path in filtered_paths],
             "policy": {
                 "extensions": sorted(REVIEW_SOURCE_EXTENSIONS),
                 "skipped": sorted(REVIEW_SKIP_PARTS),
@@ -1299,6 +1410,10 @@ def _review_sources(
         if discovery is not None:
             counts = []
             for path, metadata in discovery["path_metadata"].items():
+                if is_excluded_asset_or_build_script(
+                    path, exclude_paths, exclude_blender_scripts=exclude_blender_scripts
+                ):
+                    continue
                 additions, deletions = metadata.get("additions"), metadata.get("deletions")
                 if isinstance(additions, int) and isinstance(deletions, int):
                     counts.append([path, additions, deletions])
@@ -1308,7 +1423,7 @@ def _review_sources(
             not read_attributes or native.get("git_attributes_read") is True
         ):
             selected = native["selected"]
-            if (isinstance(selected, list) and len(selected) == len(paths)
+            if (isinstance(selected, list) and len(selected) == len(filtered_paths)
                     and all(value is None or type(value) is bool for value in selected)):
                 deletions = native.get("net_deletions")
                 if discovery is not None and isinstance(deletions, list) and all(
@@ -1319,17 +1434,44 @@ def _review_sources(
                 ):
                     discovery["_net_deletions"] = deletions
                 return [
-                    path for path, keep in zip(paths, selected)
-                    if (review_source_path(project, path) if keep is None else keep)
+                    path for path, keep in zip(filtered_paths, selected)
+                    if (
+                        review_source_path(
+                            project,
+                            path,
+                            exclude_paths=exclude_paths,
+                            exclude_blender_scripts=exclude_blender_scripts,
+                        )
+                        if keep is None
+                        else keep
+                    )
                 ]
-    return [path for path in paths if review_source_path(project, path)]
+    return [
+        path
+        for path in filtered_paths
+        if review_source_path(
+            project,
+            path,
+            exclude_paths=exclude_paths,
+            exclude_blender_scripts=exclude_blender_scripts,
+        )
+    ]
 
 
-def review_source_path(project: Path, path: Path) -> bool:
+def review_source_path(
+    project: Path,
+    path: Path,
+    *,
+    exclude_paths: list[str] | tuple[str, ...] = (),
+    exclude_blender_scripts: bool = False,
+) -> bool:
     absolute = project / path
     return (
         path.suffix.lower() in REVIEW_SOURCE_EXTENSIONS
         and not any(part in REVIEW_SKIP_PARTS for part in path.parts)
+        and not is_excluded_asset_or_build_script(
+            path, exclude_paths, exclude_blender_scripts=exclude_blender_scripts
+        )
         and not config_or_generated_path(path)
         and not pinned_third_party_source(project, path)
         and not linguist_generated_path(project, path)
@@ -1443,7 +1585,11 @@ def _file_findings(
             prepared = row["block_spans"]
             current = _prepared_blocks(row["path"], prepared, prepared["limit"])
             block_failures, block_warnings = _block_review_findings(row["path"], {
-                "limit": prepared["limit"], "initial": prepared["initial"], "current": current, "previous": [],
+                "limit": prepared["limit"],
+                "initial": prepared["initial"],
+                "warn_new": bool(prepared.get("warn_new", False)),
+                "current": current,
+                "previous": [],
             })
             result["failures"].extend(block_failures)
             result["warnings"].extend(block_warnings)
@@ -1460,6 +1606,7 @@ def _check_file_size(
     *,
     max_added_lines: int,
     review_warning_file_lines: int,
+    creative_new_file_warn: bool = False,
 ) -> None:
     if metadata.get("initial_full_build"):
         if line_count > review_warning_file_lines:
@@ -1477,11 +1624,24 @@ def _check_file_size(
     is_net_reducing_rewrite = status != "A" and deleted_lines > added_lines
 
     if status == "A" and line_count > max_file_lines:
-        result["failures"].append(
-            f"{path} is a new development source/style file with {line_count} lines; "
-            f"new-file hard limit is {max_file_lines}; split by responsibility before approval"
+        if creative_new_file_warn:
+            result["warnings"].append(
+                f"{path} is a new oversized creative file with {line_count} lines; "
+                f"new-file limit is {max_file_lines}; structure-review evidence is required "
+                "instead of a hard failure"
+            )
+        else:
+            result["failures"].append(
+                f"{path} is a new development source/style file with {line_count} lines; "
+                f"new-file hard limit is {max_file_lines}; split by responsibility before approval"
+            )
+    if added_lines > max_added_lines and status == "A" and creative_new_file_warn:
+        result["warnings"].append(
+            f"{path} adds {added_lines} lines in a new creative file; "
+            f"per-file addition limit is {max_added_lines}; structure-review evidence is required "
+            "instead of an addition-limit failure"
         )
-    if added_lines > max_added_lines and is_net_reducing_rewrite:
+    elif added_lines > max_added_lines and is_net_reducing_rewrite:
         result["warnings"].append(
             f"{path} adds {added_lines} lines but deletes {deleted_lines} lines, so the file "
             "is not growing; structure-review evidence is required instead of an addition-limit failure"
@@ -1582,7 +1742,13 @@ def _attach_block_baselines(
         baseline = _previous_block_spans(
             project, path, row["metadata"], run_command, baseline_text=(baselines or {}).get(path),
         )
-        facts = {"initial": False, "limit": limit, "current": current, "previous": []}
+        facts = {
+            "initial": False,
+            "limit": limit,
+            "warn_new": bool(prepared.get("warn_new", False)),
+            "current": current,
+            "previous": [],
+        }
         if baseline is not None:
             facts["previous_spans"] = {**baseline, "limit": limit}
         row["blocks"] = facts
@@ -1593,6 +1759,7 @@ def _block_review_findings(path: str, facts: dict[str, Any]) -> tuple[list[str],
     if "previous_spans" in facts:
         previous = _prepared_blocks(path, facts["previous_spans"], facts["limit"])
     previous_by_label = {str(record["label"]): record for record in previous}
+    warn_new = bool(facts.get("warn_new", False))
     failures: list[str] = []
     warnings: list[str] = []
     for data in facts["current"]:
@@ -1602,6 +1769,12 @@ def _block_review_findings(path: str, facts: dict[str, Any]) -> tuple[list[str],
             warnings.append(initial_full_build_block_warning(record, facts["limit"]))
         elif previous_record and int(record["span"]) <= int(previous_record["span"]):
             warnings.append(preexisting_block_warning(record, int(previous_record["span"]), facts["limit"]))
+        elif warn_new and previous_record is None:
+            warnings.append(
+                f"{record['path']}:{record['line']} block `{record['label']}` spans {record['span']} lines "
+                f"in a new/creative unit; limit is {facts['limit']}; "
+                "structure-review evidence is required, and growth past this size will block"
+            )
         else:
             failures.append(block_failure(record, facts["limit"]))
     return failures, warnings

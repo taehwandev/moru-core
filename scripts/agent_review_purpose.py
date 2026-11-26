@@ -411,8 +411,15 @@ def top_level_declaration_failures(
     path: Path,
     declarations: list[dict[str, Any]],
     previous_declarations: list[dict[str, Any]] | None = None,
+    *,
+    public_limit: int = MAX_PUBLIC_TOP_LEVEL_OWNERS,
+    visible_limit: int = MAX_TOP_LEVEL_OWNERS,
 ) -> list[str]:
-    return _owner_findings(_owner_review_facts(path, declarations, previous_declarations))
+    return _owner_findings(
+        _owner_review_facts(path, declarations, previous_declarations),
+        public_limit=public_limit,
+        visible_limit=visible_limit,
+    )
 
 
 def _owner_review_input(
@@ -448,10 +455,15 @@ def _owner_review_input(
     return result
 
 
-def _owner_input_findings(row: dict[str, Any]) -> list[str]:
+def _owner_input_findings(
+    row: dict[str, Any],
+    *,
+    public_limit: int = MAX_PUBLIC_TOP_LEVEL_OWNERS,
+    visible_limit: int = MAX_TOP_LEVEL_OWNERS,
+) -> list[str]:
     if "declarations" in row:
         row = _owner_review_facts(Path(row["path"]), row["declarations"], row["previous_declarations"])
-    return _owner_findings(row)
+    return _owner_findings(row, public_limit=public_limit, visible_limit=visible_limit)
 
 
 def _owner_review_facts(
@@ -507,25 +519,30 @@ def _owner_review_facts(
     }
 
 
-def _owner_findings(facts: dict[str, Any]) -> list[str]:
+def _owner_findings(
+    facts: dict[str, Any],
+    *,
+    public_limit: int = MAX_PUBLIC_TOP_LEVEL_OWNERS,
+    visible_limit: int = MAX_TOP_LEVEL_OWNERS,
+) -> list[str]:
     failures: list[str] = []
     path = facts["path"]
     public = facts["public_count"]
     visible = facts["visible_count"]
-    if public > max(MAX_PUBLIC_TOP_LEVEL_OWNERS, facts["previous_public_count"]):
+    if public > max(public_limit, facts["previous_public_count"]):
         failures.append(
             f"{path} declares {public} public/exported top-level owners "
             f"({facts['public_labels']}); "
-            f"limit is {MAX_PUBLIC_TOP_LEVEL_OWNERS}; split runtime files so one file owns one "
+            f"limit is {public_limit}; split runtime files so one file owns one "
             "public contract, component, handler, service, or implementation; "
             "for a legacy multi-owner file, keep existing exports and place the new helper "
             "in a purpose-named module"
         )
-    if visible > max(MAX_TOP_LEVEL_OWNERS, facts["previous_visible_count"]):
+    if visible > max(visible_limit, facts["previous_visible_count"]):
         failures.append(
             f"{path} declares {visible} non-private top-level owners "
             f"({facts['visible_labels']}); "
-            f"limit is {MAX_TOP_LEVEL_OWNERS}; move separate contracts, state, data, platform, and helpers "
+            f"limit is {visible_limit}; move separate contracts, state, data, platform, and helpers "
             "into purpose-named files"
         )
     roles, previous_roles = facts["roles"], facts["previous_roles"]

@@ -130,9 +130,14 @@ def print_result(output_path: Path, required_gates: list[str], overall: str, res
     # Failure repair and successful-task reflection are separate. A route may
     # omit reflection (including older pinned runs); never invent its evidence.
     print(
-        "Retrospective repair required: "
+        "Failure retrospective required: "
         f"{str(result['retrospective_required']).lower()}"
     )
+    if note := (result.get("vibeguard") or {}).get("review_note"):
+        print("VibeGuard review note: " + note)
+    diff = result.get("diff_check") or {}
+    if diff.get("skipped") and "Git" in diff.get("review_note", ""):
+        print("Git diff check skipped: " + diff["review_note"])
     retrospective = "retrospective check"
     if retrospective not in required_gates:
         print("Closeout retrospective: not required by this run's route")
@@ -182,30 +187,18 @@ def process_failure_learning(
         gate_policy_failures,
         repair_required_failures,
     )
-    if retrospective_required:
-        if any(
-            failure.startswith(
-                (
-                    "execution capsule required doc size changed: ",
-                    "execution capsule required doc hash changed: ",
-                )
-            )
-            for failure in failures
-        ):
-            failures.append(
-                _required_doc_drift_recovery(
-                    rules or Path('.'),
-                    failures,
-                    evidence_path=evidence_path,
-                    preflight=preflight,
-                )
-            )
-        failures.append(
-            "retrospective repair is required before final report, commit, release, or handoff; "
-            "record the correction plan, improve the owning Moru Core doc, hook, validator, or "
-            "test, verify that repair, then resume the first failed checkpoint. Stop if the same "
-            "failure remains or the repair is unsafe or ambiguous"
-        )
+    stale_review_only = failures and all(
+        failure in {"review hook attestation project worktree binding is stale",
+                    "review hook attestation rules worktree binding is stale",
+                    "missing required gate evidence: review hook"}
+        for failure in failures
+    ) and any("binding is stale" in failure for failure in failures)
+    if stale_review_only and not gate_policy_failures and set(missed_gates) <= {"review hook"}:
+        retrospective_required = False
+    if any(f.startswith(("execution capsule required doc size changed: ",
+                         "execution capsule required doc hash changed: ")) for f in failures):
+        failures.append(_required_doc_drift_recovery(
+            rules or Path("."), failures, evidence_path=evidence_path, preflight=preflight))
     lesson = write_retrospective_candidate(
         {
             "missed_gates": missed_gates,

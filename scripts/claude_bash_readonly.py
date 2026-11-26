@@ -49,7 +49,16 @@ from claude_bash_paths import (  # noqa: F401
     path_arguments,
     raw_path_arguments,
 )
-from support.stable_launcher import stable_launcher_path
+from claude_bash_moru_scripts import (
+    OS_STATUS_FLAGS,
+    OS_STATUS_VALUED,
+    STRUCTURE_CHECK_FLAGS,
+    STRUCTURE_CHECK_VALUED,
+    allowlisted_cli_args,
+    is_trusted_moru_script as _moru_script_trusted,
+    workflow_read_only_args,
+)
+from support.stable_launcher import stable_launcher_path, stable_root_pointer_path
 
 
 def _launcher_paths() -> set[Path]:
@@ -265,6 +274,59 @@ def _bound_publication_observation(tokens: list[str]) -> bool:
             and tokens[7] == "--observation-file" and Path(tokens[8]).is_absolute())
 
 
+def _resolve_launcher_or_executable(token: str) -> Path | None:
+    candidate = Path(token).expanduser()
+    if "/" not in token and not token.startswith("~"):
+        located = shutil.which(token)
+        if located:
+            candidate = Path(located)
+    try:
+        return candidate.resolve()
+    except (OSError, ValueError):
+        return None
+
+
+def _is_trusted_moru_script(script: Path, name: str) -> bool:
+    return _moru_script_trusted(script, name, pointer_path=stable_root_pointer_path())
+
+
+def _launcher_control_kind(tokens: list[str], writes_output: bool) -> str | None:
+    discovery_kind = (
+        "read_only"
+        if tokens[1:] in LAUNCHER_HELP_ARGUMENTS
+        else discovery_command_kind(tokens[1], tokens[2:])
+    )
+    if discovery_kind is not None:
+        return discovery_kind
+    if writes_output:
+        return "mutating"
+    if tokens[1] == "checkout-identity" and tokens[2:] in ([], ["--help"]):
+        return "read_only"
+    if tokens[1] == "operator-review":
+        return RUNTIME_CONTROL_KIND
+    if tokens[1] == "pending-publication":
+        return RUNTIME_CONTROL_KIND if _bound_publication_observation(tokens) else _pending_publication_kind(tokens[2:])
+    if tokens[1] == "agent-mailbox":
+        return _mailbox_intake_kind(tokens[2:])
+    if tokens[1] == "project-memory":
+        return local_context_kind("project-memory", tokens[2:])
+    if tokens[1] == "mailbox-hook":
+        return local_context_kind("mailbox-hook", tokens[2:])
+    if tokens[1] in LOCAL_STORE_LOOKUPS:
+        return _local_store_lookup_kind(tokens[1], tokens[2:])
+    # The installed launcher also accepts `agent-hook <subcommand>`.
+    # Normalize only this exact launcher alias, before classifying effects.
+    if tokens[1] == "agent-hook" and len(tokens) > 2:
+        tokens = [tokens[0], *tokens[2:]]
+    if tokens[1] == WORKFLOW_START_HOOK:
+        return "workflow_start"
+    if tokens[1] == "verify":
+        return "mutating"
+    if tokens[1] in RUNTIME_WRITE_HOOKS:
+        return "bootstrap"
+    return RUNTIME_CONTROL_KIND if tokens[1] in RUNTIME_CONTROL_HOOKS else None
+
+
 def runtime_control_kind(tokens: list[str]) -> str | None:
     if tokens and (tokens[0] == "node" or (
         Path(tokens[0]).name == "node" and _trusted_installed_executable(tokens[0])
@@ -280,48 +342,25 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
     # and abbreviated spellings conservatively before a lifecycle exemption.
     writes_output = any(token.startswith("--") and token != "--"
                         and "--output".startswith(token.partition("=")[0]) for token in tokens)
-    executable_path = Path(tokens[0]).expanduser()
-    try:
-        executable_path = executable_path.resolve()
-    except (OSError, ValueError):
+    executable_path = _resolve_launcher_or_executable(tokens[0])
+    if executable_path is None:
         return None
     if executable_path in _launcher_paths() and len(tokens) > 1:
-        discovery_kind = ("read_only" if tokens[1:] in LAUNCHER_HELP_ARGUMENTS
-                          else discovery_command_kind(tokens[1], tokens[2:]))
-        if discovery_kind is not None:
-            return discovery_kind
-        if writes_output:
-            return "mutating"
-        if tokens[1] == "checkout-identity" and tokens[2:] in ([], ["--help"]):
-            return "read_only"
-        if tokens[1] == "operator-review":
-            return RUNTIME_CONTROL_KIND
-        if tokens[1] == "pending-publication":
-            return RUNTIME_CONTROL_KIND if _bound_publication_observation(tokens) else _pending_publication_kind(tokens[2:])
-        if tokens[1] == "agent-mailbox":
-            return _mailbox_intake_kind(tokens[2:])
-        if tokens[1] == "project-memory":
-            return local_context_kind("project-memory", tokens[2:])
-        if tokens[1] == "mailbox-hook":
-            return local_context_kind("mailbox-hook", tokens[2:])
-        if tokens[1] in LOCAL_STORE_LOOKUPS:
-            return _local_store_lookup_kind(tokens[1], tokens[2:])
-        # The installed launcher also accepts `agent-hook <subcommand>`.
-        # Normalize only this exact launcher alias, before classifying effects.
-        if tokens[1] == "agent-hook" and len(tokens) > 2:
-            tokens = [tokens[0], *tokens[2:]]
-        if tokens[1] == WORKFLOW_START_HOOK:
-            return "workflow_start"
-        if tokens[1] == "verify":
-            return "mutating"
-        if tokens[1] in RUNTIME_WRITE_HOOKS:
-            return "bootstrap"
-        return RUNTIME_CONTROL_KIND if tokens[1] in RUNTIME_CONTROL_HOOKS else None
+        return _launcher_control_kind(tokens, writes_output)
     # The executable shebang entrypoint is the same trusted hook as the
-    # interpreter form below. Match the canonical sibling, never its basename.
-    if executable_path in {Path(__file__).resolve().with_name(name)
-                           for name in ("agent-hook.py", "agent-mailbox.py", "agent_project_memory.py",
-                                        "project-discover.py", "agent-entry.py")}:
+    # interpreter form below. Match only real non-temp files inside this
+    # checkout or the installed launcher's rules root, never linked-worktree
+    # enumeration, sibling-file presence, or a bare basename.
+    shebang_names = (
+        "agent-hook.py", "agent-mailbox.py", "agent_project_memory.py",
+        "project-discover.py", "agent-entry.py",
+    )
+    trusted_cli_names = ("agent-structure-check.py", "agent-os-status.py", "workflow.py")
+    if (
+        (executable_path in {Path(__file__).resolve().with_name(name) for name in shebang_names}
+         and executable_path.is_file())
+        or any(_is_trusted_moru_script(executable_path, name) for name in trusted_cli_names)
+    ):
         tokens = [sys.executable, *tokens]
     # Two tokens is enough for the installer, which takes no subcommand. The
     # hook below needs a third, and says so itself.
@@ -365,10 +404,7 @@ def runtime_control_kind(tokens: list[str]) -> str | None:
     # different paths. Anchoring only to this file left that command classified
     # as an ordinary mutation and denied -- the recovery path closed again, by
     # the fix meant to open it.
-    if script.name == "setup-agent-hooks.py" and all(
-        (script.parent / sibling).is_file()
-        for sibling in ("agent-hook.py", "claude_pretool_gate.py")
-    ):
+    if _is_trusted_moru_script(script, "setup-agent-hooks.py"):
         return "bootstrap"
     expected = here.with_name("agent-hook.py")
     if script != expected or len(tokens) <= 2:
@@ -393,8 +429,21 @@ def _local_context_script_kind(script: Path, arguments: list[str], writes_output
         return "mutating" if writes_output else _mailbox_intake_kind(arguments)
     if script == here.with_name("agent_project_memory.py"):
         return "mutating" if writes_output else local_context_kind("project-memory", arguments)
-    if script == here.with_name("agent-structure-check.py"):
-        return "mutating" if writes_output else "read_only"
+    if _is_trusted_moru_script(script, "agent-structure-check.py"):
+        if not writes_output and allowlisted_cli_args(
+            arguments, flags=STRUCTURE_CHECK_FLAGS, valued=STRUCTURE_CHECK_VALUED
+        ):
+            return "read_only"
+        return "mutating"
+    if _is_trusted_moru_script(script, "agent-os-status.py"):
+        if not writes_output and allowlisted_cli_args(
+            arguments, flags=OS_STATUS_FLAGS, valued=OS_STATUS_VALUED
+        ):
+            return "read_only"
+        return "mutating"
+    if _is_trusted_moru_script(script, "workflow.py"):
+        if not writes_output and workflow_read_only_args(arguments):
+            return "read_only"
     return None
 
 
@@ -866,7 +915,8 @@ SED_INERT_FLAGS = frozenset(
         "-z",
     }
 )
-SED_ADDRESS = r"(?:\d+|\$|/(?:\\.|[^/\\])*/)(?:,(?:\d+|\$|/(?:\\.|[^/\\])*/))?"
+SED_INERT_SHORT_LETTERS = frozenset("Enrsuz")
+SED_ADDRESS = r"(?:\d+|\$|/(?:\\.|[^/\\])*/)(?:,(?:\d+|\+|\+\d+|\$|/(?:\\.|[^/\\])*/))?"
 # The delimiter is barred from being a word character, which is what stops a
 # `w` command from being spelled as one. The flags omit `w`, which opens the
 # file it names, and `e`, which hands the result to a shell.
@@ -877,7 +927,7 @@ SED_SUBSTITUTION = (
     r"[gpiImM0-9]*"
 )
 SED_READ_ONLY_COMMAND_RE = re.compile(
-    rf"\s*(?:{SED_ADDRESS})?\s*(?:{SED_SUBSTITUTION}|p|=)\s*"
+    rf"\s*(?:{SED_ADDRESS})?\s*!?\s*(?:{SED_SUBSTITUTION}|p|=|d|q(?:\s+\d+)?)\s*"
 )
 
 
@@ -920,7 +970,12 @@ def sed_kind(args: list[str]) -> str:
             script_taken = True
             index += 1
             continue
-        if argument in SED_INERT_FLAGS:
+        if argument in SED_INERT_FLAGS or (
+            len(argument) > 1
+            and argument.startswith("-")
+            and not argument.startswith("--")
+            and set(argument[1:]) <= SED_INERT_SHORT_LETTERS
+        ):
             index += 1
             continue
         if argument.startswith("-") and argument != "-":
@@ -1425,9 +1480,8 @@ def _launcher_hook_tokens(tokens: list[str]) -> list[str]:
 
     if len(tokens) < 2:
         return []
-    try:
-        executable = Path(tokens[0]).expanduser().resolve()
-    except (OSError, ValueError):
+    executable = _resolve_launcher_or_executable(tokens[0])
+    if executable is None:
         return []
     if executable in _launcher_paths():
         # The launcher also accepts `agent-hook <subcommand>`; normalize that
@@ -1472,10 +1526,7 @@ def _is_installer_without_writes(tokens: list[str]) -> bool:
         script = Path(tokens[1]).expanduser().resolve()
     except (OSError, ValueError):
         return False
-    return script.name == "setup-agent-hooks.py" and all(
-        (script.parent / sibling).is_file()
-        for sibling in ("agent-hook.py", "claude_pretool_gate.py")
-    )
+    return _is_trusted_moru_script(script, "setup-agent-hooks.py")
 
 
 def strip_env_wrapper(tokens: list[str]) -> list[str] | None:

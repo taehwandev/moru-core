@@ -875,7 +875,7 @@ def _closeout_gate_lines(gates: list[str]) -> list[str]:
                      "review when reviewed bytes are unchanged; record no separate gate.")
     closeout = [gate for gate in _closeout_record_gates(gates) if gate != "retrospective check"]
     if "retrospective check" in gates:
-        lines.append("Retrospective: explicitly record the existing `retrospective check` even on "
+        lines.append("Retrospective: explicitly record the existing `retrospective check` (finish --retrospective-record accepts its fields after review) even on "
                      "success. Compare agreed requirements/Q&A, ticket/plan, execution, checks and "
                      "delivered result using current evidence; explain the first divergence and "
                      "why later checks missed it, or why the chain held. Missing is not no gap.")
@@ -1074,7 +1074,21 @@ def _finish_preconditions(args: argparse.Namespace) -> int | None:
         return replaced
     from agent_work_completion import work_completion_failures
 
-    if pending := work_completion_failures(args.project, preflight_evidence_path(args)):
+    evidence = preflight_evidence_path(args)
+    pending = work_completion_failures(args.project, evidence)
+    if len(pending) == 1 and pending[0].startswith("requested scope has not been reconciled"):
+        from agent_work_completion import reconcile_reviewed_scope
+        try:
+            if reconcile_reviewed_scope(args.project, args.rules, evidence):
+                pending = work_completion_failures(args.project, evidence)
+        except (OSError, ValueError, RuntimeError, TypeError, IndexError):
+            pass  # The explicit checkpoint command remains available.
+    if pending:
+        import shlex
+        from agent_continuation_store import continuation_path
+        packet = continuation_path(args.project, evidence.parent.name)
+        if packet.is_file() and not any("--work-json" in line for line in pending):
+            pending.append(shlex.join(["jq", "{phase, work, checkpoint}", str(packet)]))
         print_status("finish", False, ["requested delivery is still pending", *pending,
                                       "Keep this run active; resolve remaining work or report a blocked partial result."])
         return 3
@@ -1095,7 +1109,15 @@ def finish_hook(args: argparse.Namespace) -> int:
     if args.allow_vibeguard_review:
         command.extend(["--allow-vibeguard-review", args.allow_vibeguard_review])
 
-    derived = _derive_finish_gates(args)
+    from agent_finish_retrospective_default import friction_summary, record_finish_retrospective
+    derived = [friction_summary(preflight_evidence_path(args))]
+    if getattr(args, "retrospective_record", None) is not None:
+        try:
+            derived.extend(record_finish_retrospective(args, args.retrospective_record))
+        except (OSError, ValueError, RuntimeError) as error:
+            return finish_with_result("finish", False, [*derived, str(error)], args.output, {},
+                                      args.repair_cycle, invocation_error=True)
+    derived.extend(_derive_finish_gates(args))
     with stage("finish_check"):
         result = run_script_main(ROOT / "scripts" / "agent-finish-check.py", command, args.project)
     success = result["returncode"] == 0
@@ -1117,7 +1139,10 @@ def finish_hook(args: argparse.Namespace) -> int:
                        # or merge, and without it that step was simply denied.
                        + ". With user authority for commit/merge/push: "
                        f"start --continue-from {preflight_evidence_path(args).parent.name} "
-                       "--command commit --approved-effect git_write (external_write to push)")
+                       "--command commit --approved-effect git_write for a local commit, or "
+                       "--approved-effect external_write for an authorized push. "
+                       "Review the authorized publication unit and finish that run to record its receipt, "
+                       "then run the admitted publication command")
         pending_lines, pending_failure = _pending_publication_lines(args, captured)
         if pending_failure:
             # Fail closed: a deferred publication with no stored receipt would
@@ -1363,7 +1388,6 @@ _REQUIRED_DOC_DRIFT_LINES = (
 )
 _REQUIRED_DOC_DRIFT_COMPANIONS = (
     "FAIL: required-doc drift recovery: ",
-    "FAIL: retrospective repair is required before final report, commit, release, or handoff; ",
 )
 
 
@@ -1802,7 +1826,10 @@ def _summary_lines(result: dict[str, Any]) -> list[str]:
                 "Conditional hooks:",
                 "VibeGuard overall:",
                 "Required gates:",
-                "Retrospective repair required:",
+                "Failure retrospective required:",
+                "Warning: shared rules changed",
+                "Git diff check skipped:",
+                "VibeGuard review note:",
                 "Closeout retrospective:",
                 "Retrospective lesson candidate:",
                 "Retrospective lesson resolved:",
@@ -1868,7 +1895,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
-        "--evidence",
+        "--evidence", "--evidence-file",
         type=existing_path,
         help="preflight evidence path; start writes it and finish reads it",
     )
@@ -2116,6 +2143,7 @@ def _add_review_arguments(parser: argparse.ArgumentParser) -> None:
 def _add_finish_arguments(parser: argparse.ArgumentParser) -> None:
     finish = parser.add_argument_group("finish hook")
     finish.add_argument("--allow-vibeguard-review")
+    finish.add_argument("--retrospective-record", help="finish: submit or update retrospective gate fields as one JSON object")
 
 
 def _add_cancel_arguments(parser: argparse.ArgumentParser) -> None:
@@ -2196,11 +2224,10 @@ def _add_gate_arguments(parser: argparse.ArgumentParser) -> None:
                       help='verify: named module/class/method relative to --test-directory; repeat for a bounded batch')
     gate.add_argument("--verify-timeout", type=int, default=600, help="verify: maximum test process seconds")
     gate.add_argument("--retry-reason", default="", help="verify: changed external condition requiring fresh verification")
-    # --name is what agents guess. --gate stays undefined on purpose (finish must not take gate
-    # evidence); `_parse_args` names the right option for it instead.
     gate.add_argument("--gate-name", "--name", dest="gate_name",
                       help="route gate name to record in the structured ledger")
-    gate.add_argument("--status", choices=("SUCCESS", "FAIL"), default="SUCCESS")
+    from agent_hook_gate_records import canonical_status
+    gate.add_argument("--status", type=canonical_status, choices=("SUCCESS", "FAIL"), default="SUCCESS")
     gate.add_argument("--source", default="manual")
     gate.add_argument("--gate-evidence", default="")
     gate.add_argument("--field", action="append", default=[], help="structured evidence field as key=value")
@@ -2219,7 +2246,7 @@ def _add_gate_arguments(parser: argparse.ArgumentParser) -> None:
         help="gate-batch: validate the delegation plan once and record remaining role/scope/brief metadata",
     )
     gate.add_argument(
-        "--gate-json",
+        "--gate-json", "--gates-json",
         type=existing_path,
         help="JSON file containing a gate evidence object or array of objects",
     )
@@ -2298,14 +2325,12 @@ def _parse_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
             "finish no longer accepts --gate; record gate evidence first with "
             "the gate or gate-batch hook, then run finish"
         )
-    if argv and argv[0] == "gate" and any(
-        argument == "--gate" or argument.startswith("--gate=") for argument in argv
-    ):
-        parser.error(
-            "gate records one gate with --gate-name <gate>, for example: "
-            "gate --gate-name tests --status SUCCESS --gate-evidence \"<observed result>\""
-        )
+    if argv and argv[0] == "gate":
+        argv = [arg.replace("--gate", "--gate-name", 1) if arg == "--gate" or arg.startswith("--gate=")
+                else arg for arg in argv]
     args = parser.parse_args(argv)
+    if getattr(args, "retrospective_record", None) is not None and args.hook != "finish":
+        parser.error("--retrospective-record is only valid for finish")
     if args.from_plan and (args.hook != "gate-batch" or args.gate_template or args.gate_record or args.gate_json):
         parser.error("--from-plan requires gate-batch without --template or manual gate records")
     if args.test_selector and args.hook != 'verify':
@@ -2479,12 +2504,12 @@ def _run_checkpoint_hook(
     # `--work-shape` writes no checkpoint; it answers what one must contain, so
     # the start hook can name it instead of reprinting it every session.
     if getattr(args, "work_template", False) and any((
-        args.checkpoint_kind, args.work_stdin, args.work_file, args.work_shape, args.mutation_kind,
+        args.checkpoint_kind, args.work_stdin, args.work_file, getattr(args, "work_json", None), args.work_shape, args.mutation_kind,
         args.mutation_path, args.phase, args.last_completed,
     )):
         parser.error("--work-template cannot be combined with checkpoint inputs")
-    if args.work_shape and args.work_file is not None:
-        parser.error("--work-shape cannot be combined with --work-file")
+    if args.work_shape and (args.work_file is not None or getattr(args, "work_json", None) is not None):
+        parser.error("--work-shape cannot be combined with --work-file or --work-json")
     if not args.checkpoint_kind and not (
         getattr(args, "work_shape", False) or getattr(args, "work_template", False)
     ):
@@ -2661,6 +2686,8 @@ def _fingerprint_hook(parser: argparse.ArgumentParser, args: argparse.Namespace)
 START_ROUTE_NAME_ALIASES = {
     "implement": "build",
     "implementation": "build",
+    "develop": "build",
+    "work": "task",
     "debug": "bugfix",
     "fix": "bugfix",
     "git commit": "commit",
@@ -2673,12 +2700,35 @@ START_ROUTE_NAME_ALIASES = {
 }
 
 
+def _bind_recorded_prompt_quotes(args, sources):
+    """Persist only caller-supplied citations matched to recorded session text."""
+    from workflow_decision_attribution import parse_decision_source_entry
+    quotes = []
+    summary = str(getattr(args, "request", "") or "")
+    for raw in sources:
+        entry, error = parse_decision_source_entry(raw)
+        if not error and entry["kind"] == "request" and entry["value"] not in summary:
+            quotes.append(entry["value"])
+    if not quotes:
+        return "--request"
+    from agent_runtime_session import detect_runtime
+    from claude_pretool_auto_start import current_request
+    recorded = current_request(detect_runtime()[1])
+    verified = [quote for quote in quotes if quote in recorded]
+    if verified:
+        args.request = "\n".join([summary, *verified])
+        args.start_notes = [*getattr(args, "start_notes", []),
+                            "request citations matched the session's recorded prompt text"]
+    return "--request and the session's recorded prompt text" if recorded else "--request; recorded prompt unavailable"
+
+
 def _evaluate_compact_start_attribution(
     args: argparse.Namespace,
     intent: str,
     target: str,
 ) -> tuple[dict[str, Any], bool, str, str, list[str]]:
     raw_sources = list(getattr(args, "decision_source", []) or [])
+    compared = _bind_recorded_prompt_quotes(args, raw_sources)
     raw_open_choices = list(getattr(args, "open_choice", []) or [])
     declared_ambiguity = str(getattr(args, "ambiguity", "") or "").strip()
     has_attribution = bool(raw_sources or raw_open_choices or declared_ambiguity)
@@ -2690,7 +2740,8 @@ def _evaluate_compact_start_attribution(
         raw_open_choices=raw_open_choices,
         declared_ambiguity=declared_ambiguity,
     )
-    problems = list(attribution["problems"])
+    problems = [f"{problem} (compared {compared})" if "substring of --request" in problem else problem
+                for problem in attribution["problems"]]
     if attribution["ambiguity"] == "blocking":
         if args.command not in ("triage", "ambiguity"):
             problems.append(
@@ -3144,6 +3195,8 @@ def _checkpointed_hook(
     """
 
     if args.hook == "review":
+        from agent_finish_retrospective_default import friction_summary
+        print(friction_summary(preflight_evidence_path(args)))
         return checkpoint_after_hook(
             args,
             review_hook(

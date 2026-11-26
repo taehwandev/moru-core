@@ -763,5 +763,62 @@ class LongMissionSamplingTests(unittest.TestCase):
             self.assertIn(needle, source)
 
 
+class UnverifiedNonBlockingTests(unittest.TestCase):
+    def test_unverified_action_responds_alone_is_reported_not_blocking(self):
+        items = [dict(i) for i in verify.GENERIC_ITEMS]
+        headless_evidence = {
+            "primaryAction": None,
+            "consoleErrors": [],
+            "steps": [{"label": "initial", "seconds": 0, "text": ""}],
+            "inputProbes": {},
+        }
+        results = verify.finalize(verify.basic_results(items, headless_evidence, []), headless_evidence)
+        action = next(r for r in results if r["id"] == "action-responds")
+        self.assertEqual("unverified", action["basis"])
+        self.assertEqual("unverified: no main action was found to use", action["reason"])
+        self.assertEqual([], verify.blocking_failures(results))
+        self.assertEqual("", verify.feedback_text(results))
+        self.assertEqual("", verify.remaining_text(results))
+        reported = verify.reported_unverified_text(results)
+        self.assertIn("action-responds", reported)
+        self.assertIn("not blocking", reported)
+
+    def test_negative_control_contradicted_failure_still_blocks(self):
+        items = [dict(i) for i in verify.GENERIC_ITEMS]
+        broken = {
+            "primaryAction": {"text": "Launch"},
+            "secondaryControls": [],
+            "consoleErrors": ["TypeError: cannot read properties of undefined"],
+            "steps": [
+                {"label": "initial", "seconds": 0, "text": "READY", "shotHash": "a"},
+                {"label": "t6s", "seconds": 6, "text": "READY", "shotHash": "a"},
+            ],
+            "inputProbes": {},
+        }
+        failing = verify.floor_results(items, broken)
+        results = verify.finalize(verify.basic_results(items, broken, failing), broken)
+        self.assertEqual(["loads-clean", "action-responds"], [r["id"] for r in verify.blocking_failures(results)])
+        feedback = verify.feedback_text(results)
+        self.assertIn("loads-clean", feedback)
+        self.assertIn("action-responds", feedback)
+        self.assertIn("still reports these items failing", verify.remaining_text(results))
+
+    def test_i3_observer_error_and_all_unverified_surface_and_exit_nonzero_in_cli(self):
+        items = [dict(i) for i in verify.GENERIC_ITEMS]
+        errored = {"observerError": "browser process crashed", "steps": []}
+        results = verify.finalize(verify.basic_results(items, errored, []), errored)
+        self.assertTrue(all(r["basis"] == "unverified" for r in results))
+        self.assertIn("observer failed: browser process crashed", verify.observer_error_reason(results))
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "out"
+            (out / "evidence").mkdir(parents=True)
+            (out / "evidence" / "observations.json").write_text(json.dumps(errored), encoding="utf-8")
+            with unittest.mock.patch.object(verify, "derive_any", return_value=items), \
+                    unittest.mock.patch.object(verify, "observe_with_mobile", return_value=errored), \
+                    unittest.mock.patch.object(verify, "judge_any", return_value=verify.basic_results(items, errored, [])):
+                rc = verify.main(["--url", "http://127.0.0.1:1/", "--request", "test", "--out", str(out)])
+        self.assertEqual(1, rc)
+
+
 if __name__ == "__main__":
     unittest.main()

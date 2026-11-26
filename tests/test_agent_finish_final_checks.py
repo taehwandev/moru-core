@@ -85,14 +85,40 @@ class AgentFinishFinalChecksTests(unittest.TestCase):
         self.assertIn("not inside a Git repository", diff_check["review_note"])
         self.assertEqual([], failures)
 
+    def test_writable_keyflow_post_skips_git_diff_but_keeps_the_audit(self):
+        with tempfile.TemporaryDirectory(prefix="keyflow-post") as directory, (
+            patch("agent_finish_final_checks.run_workflow_validate", return_value={"returncode": 0})
+        ), patch("agent_finish_final_checks.run_command", side_effect=AssertionError("unexpected git diff")), (
+            patch("agent_finish_final_checks.cached_vibeguard",
+                  return_value={"returncode": 1, "overall": {"status": "Blocked"}})
+        ):
+            failures = []
+            _, diff, _, _ = run_final_checks(ROOT, Path(directory), ROOT, None, [], failures)
+            self.assertIn("Git repository", diff["review_note"])
+            self.assertEqual(["final VibeGuard audit failed"], failures)
+
+    def test_only_git_warnings_in_the_full_audit_can_close_without_an_override(self):
+        import json
+        from agent_finish_final_checks import non_git_audit_note
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            audit = {"returncode": 0, "overall": "Needs review"}
+            findings = [{"category": "environment", "severity": "warn",
+                         "message": "This is not a Git repository. Change tracking is limited before automatic fixes."}]
+            report = {"root": directory, "summary": {"warnings": 1, "blocks": 0, "status": "warn"}, "findings": findings}
+            def runner(command, cwd):
+                self.assertIn("--json", command)
+                return {"returncode": 0, "stdout": json.dumps(report)}
+            self.assertIn("only Git tracking", non_git_audit_note(project, ROOT, audit, runner))
+            findings.append({"category": "security", "severity": "warn", "message": "Unresolved security finding"})
+            report["summary"]["warnings"] += 1
+            self.assertEqual("", non_git_audit_note(project, ROOT, audit, runner))
+
     def test_intrinsically_read_only_git_workspace_skips_preexisting_diff_check(self) -> None:
         failures: list[str] = []
         with patch(
             "agent_finish_final_checks.run_workflow_validate",
             return_value={"returncode": 0, "stdout": "", "stderr": ""},
-        ), patch(
-            "agent_finish_final_checks.is_writing_workspace",
-            return_value=False,
         ), patch(
             "agent_finish_final_checks.is_non_git_workspace",
             return_value=False,
@@ -115,8 +141,9 @@ class AgentFinishFinalChecksTests(unittest.TestCase):
         self.assertIn("intrinsically read-only analysis", diff_check["review_note"])
         self.assertEqual([], failures)
 
-    def test_writing_non_git_workspace_keeps_diff_check_fail_closed(self) -> None:
+    def test_writable_git_workspace_keeps_diff_check_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
+            (Path(temporary_directory) / ".git").mkdir()
             failures: list[str] = []
             with patch(
                 "agent_finish_final_checks.run_workflow_validate",
