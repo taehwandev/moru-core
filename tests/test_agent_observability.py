@@ -286,23 +286,30 @@ class AgentObservabilityTests(unittest.TestCase):
                  "started_at": start, "settled_at": settled, "stamped_model": "m", "stamped_effort": ""}
                 for name, start, settled in (
                     ("first", stamp("01"), stamp("02")),   # finished before the next run starts
-                    ("open", stamp("05"), ""),             # never settled: runs to the next start
+                    ("open", stamp("05"), stamp("10")),    # settle cannot extend past the next start
                     ("late", stamp("08"), stamp("09")),    # last run in the session, finished
                 )
             ]
             events = {spill_id: [(stamp(day), "m", 1.0, 1, 0)
-                                 for day in ("01", "03", "05", "06", "08", "10", "20")]}
+                                 for day in ("01", "02", "03", "05", "06", "08", "09", "10", "20")]}
             env = environment(base)
             with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
                 reference = _bind_run_metrics(runs, events, {}, month="2026-10")
-            # Usage after a run settles (days 03, 10 and 20) is charged to no run.
+            # Usage at or after settlement is unattributed until the next run.
             self.assertEqual({"first": 1, "open": 2, "late": 1},
                              {row["run_id"]: row["turns"] for row in reference})
+            from support.native_probe_transport import NativeProbe
             with patch.dict(os.environ, env, clear=True), patch(
                 "agent_observability._trend_window_reference", side_effect=AssertionError("native declined"),
-            ):
+            ), patch.object(NativeProbe, "request", wraps=NativeProbe.request) as transport:
                 native = _bind_run_metrics(runs, events, {}, month="2026-10")
             self.assertEqual(reference, native)
+            session, = transport.call_args.args[2]["sessions"]
+            self.assertEqual(
+                [(stamp("01"), stamp("02")), (stamp("05"), stamp("10")), (stamp("08"), stamp("09"))],
+                session["runs"],
+            )
+            self.assertEqual({"runs", "events"}, set(session))
 
 
 if __name__ == "__main__":

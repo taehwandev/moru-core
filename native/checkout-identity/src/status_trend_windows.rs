@@ -9,6 +9,31 @@ use serde_json::{json, Value};
 
 pub(super) struct TrendWindows;
 
+struct Run<'a> {
+    start: &'a str,
+    settled: &'a str,
+}
+
+impl<'a> Run<'a> {
+    fn read(value: &'a Value) -> Option<Self> {
+        let [start, settled] = value.as_array()?.as_slice() else {
+            return None;
+        };
+        Some(Self {
+            start: start.as_str()?,
+            settled: settled.as_str()?,
+        })
+    }
+
+    fn end(&self, next_start: Option<&'a str>) -> &'a str {
+        if self.settled > self.start && next_start.is_none_or(|next| self.settled < next) {
+            self.settled
+        } else {
+            next_start.unwrap_or("9999-99-99")
+        }
+    }
+}
+
 struct Event<'a> {
     stamp: &'a str,
     model: &'a str,
@@ -49,11 +74,11 @@ impl TrendWindows {
     }
 
     fn session(session: &Value, month: &str) -> Option<Vec<Value>> {
-        let starts = session
-            .get("starts")?
+        let runs = session
+            .get("runs")?
             .as_array()?
             .iter()
-            .map(Value::as_str)
+            .map(Run::read)
             .collect::<Option<Vec<_>>>()?;
         let events = session
             .get("events")?
@@ -61,23 +86,22 @@ impl TrendWindows {
             .iter()
             .map(Event::read)
             .collect::<Option<Vec<_>>>()?;
-        if !starts.windows(2).all(|pair| pair[0] <= pair[1])
+        if !runs.windows(2).all(|pair| pair[0].start <= pair[1].start)
             || !events.windows(2).all(|pair| pair[0].stamp <= pair[1].stamp)
         {
             return None;
         }
-        starts
-            .iter()
+        runs.iter()
             .enumerate()
-            .map(|(index, start)| {
-                if !start.starts_with(month) {
+            .map(|(index, run)| {
+                if !run.start.starts_with(month) {
                     return Some(Value::Null);
                 }
-                let end = starts.get(index + 1).copied().unwrap_or("9999-99-99");
-                if *start >= end {
+                let end = run.end(runs.get(index + 1).map(|next| next.start));
+                if run.start >= end {
                     return Self::metrics(&[]);
                 }
-                let first = events.partition_point(|event| event.stamp < *start);
+                let first = events.partition_point(|event| event.stamp < run.start);
                 let last = events.partition_point(|event| event.stamp < end);
                 Self::metrics(&events[first..last])
             })
