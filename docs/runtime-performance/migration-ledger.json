@@ -541,8 +541,13 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "check-android-skill-manifest; legacy direct Python CLI",
-      "remaining": "Native manifest/snapshot comparison and bounded Git identity reads are implemented; maintained guidance uses the installed alias. Complete filesystem/encoding exception behavior and retire the direct Python compatibility entry only after callers and full delivery are proven. No snapshot fetching is authorized.",
-      "verification": {}
+      "remaining": "Native manifest/snapshot comparison and bounded Git identity reads are implemented; maintained guidance uses the installed alias. Native file probes distinguish ordinary absence, non-directory ancestors and link loops from indeterminate stat errors, which defer before output. Exceptional filesystem and encoding profiles, direct Python callers and full delivery remain open. No snapshot fetching is authorized.",
+      "verification": {
+        "native_owner": "native/checkout-identity/src/android_manifest.rs",
+        "local": "Eight focused Rust unit tests passed on macOS ARM64. The Python reference returned the same missing-path diagnostics for a non-directory ancestor and a symlink loop.",
+        "portable": "PENDING transported two-host acceptance.",
+        "installed": "PENDING actual runtime acceptance."
+      }
     },
     {
       "id": "scripts/check_react_rn_external_skill_manifest.py",

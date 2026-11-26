@@ -22,7 +22,7 @@ impl AndroidManifest {
 
     fn evaluate_with_sources(root: &Path, sources: &[(&str, &Path)]) -> io::Result<(i32, String, String)> {
         let manifest = root.join(MANIFEST);
-        if !manifest.try_exists()? {
+        if snapshot_metadata(&manifest)?.is_none() {
             return Ok((1, String::new(), format!("missing manifest: {}\n", manifest.display())));
         }
         let text = fs::read_to_string(manifest)?.replace("\r\n", "\n").replace('\r', "\n");
@@ -30,14 +30,14 @@ impl AndroidManifest {
         let mut err = String::new();
         let mut failed = false;
         for (name, source) in sources {
-            if !source.try_exists()? {
+            if snapshot_metadata(source)?.is_none() {
                 err.push_str(&format!("[{name}] missing source snapshot: {}\n", source.display()));
                 failed = true;
                 continue;
             }
             let mut actual = BTreeSet::new();
             walk(source, source, &mut actual)?;
-            let listed = listed(&text, source);
+            let listed = listed(&text, source)?;
             let missing: Vec<_> = actual.difference(&listed).collect();
             let stale: Vec<_> = listed.difference(&actual).collect();
             let head = head(source)?;
@@ -64,7 +64,7 @@ fn walk(root: &Path, directory: &Path, files: &mut BTreeSet<String>) -> io::Resu
     for entry in entries {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() {
+        if snapshot_file(&path)? {
             let relative = path.strip_prefix(root).map_err(io::Error::other)?;
             let relative = relative.to_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "non-UTF-8 snapshot path"))?;
             if relevant(relative) { files.insert(relative.to_owned()); }
@@ -81,21 +81,47 @@ fn relevant(path: &str) -> bool {
         || path.contains("/references/") || path.starts_with("docs/")
 }
 
-fn listed(text: &str, root: &Path) -> BTreeSet<String> {
-    let mut result = BTreeSet::new();
+fn snapshot_file(path: &Path) -> io::Result<bool> {
+    Ok(snapshot_metadata(path)?.is_some_and(|metadata| metadata.is_file()))
+}
+
+fn snapshot_metadata(path: &Path) -> io::Result<Option<fs::Metadata>> {
+    match fs::metadata(path) {
+        Ok(metadata) => Ok(Some(metadata)),
+        Err(error)
+            if matches!(error.kind(), io::ErrorKind::NotFound | io::ErrorKind::NotADirectory)
+                || error.raw_os_error() == Some(libc::ELOOP) =>
+        {
+            Ok(None)
+        }
+        // pathlib handles other stat errors differently across Python versions.
+        Err(error) => Err(error),
+    }
+}
+
+fn doc_candidates(text: &str) -> impl Iterator<Item = &str> {
     let mut tail = text;
-    while let Some(start) = tail.find('`') {
-        tail = &tail[start + 1..];
-        let Some(end) = tail.find('`') else { break };
-        if end == 0 { continue; } // The second tick can start the next match.
-        let candidate = &tail[..end];
-        if !candidate.starts_with('/') && (candidate.ends_with(".md") || candidate.ends_with(".json"))
-            && root.join(candidate).is_file() {
+    std::iter::from_fn(move || {
+        loop {
+            let (_, after_open) = tail.split_once('`')?;
+            let (candidate, after_close) = after_open.split_once('`')?;
+            // An empty match leaves the second tick as a possible opener.
+            tail = if candidate.is_empty() { after_open } else { after_close };
+            if !candidate.starts_with('/') && (candidate.ends_with(".md") || candidate.ends_with(".json")) {
+                return Some(candidate);
+            }
+        }
+    })
+}
+
+fn listed(text: &str, root: &Path) -> io::Result<BTreeSet<String>> {
+    let mut result = BTreeSet::new();
+    for candidate in doc_candidates(text) {
+        if snapshot_file(&root.join(candidate))? {
             result.insert(candidate.to_owned());
         }
-        tail = &tail[end + 1..];
     }
-    result
+    Ok(result)
 }
 
 fn head(root: &Path) -> io::Result<String> {
@@ -156,7 +182,7 @@ mod tests {
         fixture.write("line\nbreak.md", "");
         fixture.write("directory/child.json", "");
         let text = "``README.md` `./README.md` `directory//child.json` `line\nbreak.md` `absent.md` `/README.md`";
-        let actual = listed(text, &fixture.0);
+        let actual = listed(text, &fixture.0).unwrap();
         assert_eq!(actual, ["README.md", "./README.md", "directory//child.json", "line\nbreak.md"]
             .into_iter().map(str::to_owned).collect());
     }
@@ -194,7 +220,38 @@ mod tests {
         let mut actual = BTreeSet::new();
         walk(&source, &source, &mut actual).unwrap();
         assert_eq!(actual, ["README.md", "SKILL.md"].into_iter().map(str::to_owned).collect());
-        assert!(listed("`docs/INDEX.md`", &source).contains("docs/INDEX.md"));
+        assert!(listed("`docs/INDEX.md`", &source).unwrap().contains("docs/INDEX.md"));
+    }
+    #[test]
+    fn candidate_filter_preserves_delimiters_and_spelling() {
+        let cases: &[(&str, &[&str])] = &[
+            ("``foo.md`", &["foo.md"]),
+            ("`a.md``b.json`", &["a.md", "b.json"]),
+            ("```a.md```", &["a.md"]),
+            ("````", &[]),
+            ("`a.md` then `unclosed.json", &["a.md"]),
+            ("`/a.md` `a.md.bak` `dir/\nsub.md`", &["dir/\nsub.md"]),
+            ("`./문서/설명.md` `a/../café.json`", &["./문서/설명.md", "a/../café.json"]),
+        ];
+        for (text, expected) in cases {
+            assert_eq!(doc_candidates(text).collect::<Vec<_>>().as_slice(), *expected, "{text:?}");
+        }
+    }
+    #[cfg(unix)]
+    #[test]
+    fn path_probe_distinguishes_missing_files_from_indeterminate_errors() {
+        use std::os::unix::fs::symlink;
+        let fixture = Fixture::new();
+        fixture.write("README.md", "");
+        symlink("loop.md", fixture.0.join("loop.md")).unwrap();
+        for name in ["absent.md", "loop.md", "README.md/child.md"] {
+            assert!(!snapshot_file(&fixture.0.join(name)).unwrap(), "{name}");
+        }
+        let invalid = format!("`{}.md`", "a".repeat(4096));
+        assert_eq!(
+            listed(&invalid, &fixture.0).unwrap_err().raw_os_error(),
+            Some(libc::ENAMETOOLONG),
+        );
     }
     #[test]
     fn coverage_preserves_root_reference_exclusion_and_nested_rules() {
@@ -212,5 +269,27 @@ mod tests {
         assert_eq!(code, 1);
         assert!(out.is_empty());
         assert_eq!(err, format!("missing manifest: {}\n", root.join(MANIFEST).display()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn inaccessible_by_shape_roots_emit_missing_diagnostics_without_git() {
+        use std::os::unix::fs::symlink;
+        let fixture = Fixture::new();
+        fixture.write("obstacle", "");
+        let obstacle = fixture.0.join("obstacle");
+        let (code, out, err) = AndroidManifest::evaluate_with_sources(&obstacle, &[]).unwrap();
+        assert_eq!(code, 1);
+        assert!(out.is_empty());
+        assert_eq!(err, format!("missing manifest: {}\n", obstacle.join(MANIFEST).display()));
+
+        fixture.write(MANIFEST, "");
+        let looped = fixture.0.join("looped");
+        symlink("looped", &looped).unwrap();
+        let sources = [("looped", looped.as_path())];
+        let (code, out, err) = AndroidManifest::evaluate_with_sources(&fixture.0, &sources).unwrap();
+        assert_eq!(code, 1);
+        assert!(out.is_empty());
+        assert_eq!(err, format!("[looped] missing source snapshot: {}\n", looped.display()));
     }
 }
