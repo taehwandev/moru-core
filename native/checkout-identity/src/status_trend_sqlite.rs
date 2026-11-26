@@ -7,6 +7,8 @@ use std::{collections::HashSet, fs, io, path::Path, time::Duration};
 
 #[path = "status_trend_codex_db.rs"]
 mod codex;
+#[path = "status_trend_stamp.rs"]
+mod stamp;
 
 pub(super) struct TrendSqlite;
 
@@ -87,6 +89,7 @@ impl TrendSqlite {
             if !weighted.is_finite() {
                 return None;
             }
+            let stamp = stamp::utc(stamp)?;
             push_row(
                 &mut rows,
                 &mut budget,

@@ -185,7 +185,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "agent-os-status",
-      "remaining": "Prepared status handles relative projects, typed labels and known JSON syntax failures natively. Rust reads the ordinary read-only SQLite projections, closes trend windows at settlement or the next start, binds events and computes cohort grouping, percentiles and aggregates. Python retains project and session selection, timestamp and label normalization, final report assembly, trend CLI, initialization, contention and exceptional SQLite or value profiles. Portable and installed acceptance remain open.",
+      "remaining": "Prepared status handles relative projects, typed labels and known JSON syntax failures natively. Rust reads ordinary SQLite projections, normalizes supported Spill event timestamps, closes trend windows, binds events and assembles trend aggregates and coverage. Python retains project and session selection, registry timestamps, label normalization, report clock, trend CLI, initialization, contention and exceptional SQLite or value profiles. Portable and installed acceptance remain open.",
       "verification": {
         "native_owner": "native/checkout-identity/src/status_process.rs",
         "portable": "PENDING transported acceptance for expanded profiles.",

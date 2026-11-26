@@ -5,6 +5,9 @@ use crate::python_mean::PythonMean;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
+#[path = "status_trend_report.rs"]
+mod report;
+
 const COHORT: &[&str] = &["runtime", "model", "reasoning_effort", "same_work_mode"];
 const ROUTE: &[&str] = &["route", "same_work_mode"];
 const PERIOD: &[&str] = &[
@@ -47,6 +50,10 @@ impl<'a> Metric<'a> {
 }
 
 impl StatusTrends {
+    pub(super) fn report(request: &Value) -> Option<Value> {
+        report::assemble(request)
+    }
+
     pub(super) fn summarize(request: &Value) -> Option<Value> {
         let metrics = request
             .get("matched")?

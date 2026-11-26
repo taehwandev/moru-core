@@ -142,11 +142,11 @@ class AgentObservabilityTests(unittest.TestCase):
                     "INSERT INTO token_usage_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     [
                         (codex_spill_id, "2026-10-05T09:50:00Z", "gpt-6.1-sol", 999999, 0, 0, 99999, 1099998, 9999),
-                        (codex_spill_id, "2026-10-05T10:01:00Z", "gpt-6.1-sol", 100000, 0, 500000, 10000, 610000, 4000),
+                        (codex_spill_id, "2026-10-04 23:01:00.125-11:00", "gpt-6.1-sol", 100000, 0, 500000, 10000, 610000, 4000),
                         (codex_spill_id, "2026-10-05T10:02:00+00:00", "gpt-6.1-sol", 100000, 0, 500000, 10000, 610000, 4000),
                         (codex_spill_id, "2026-10-16T10:01:00+00:00", "gpt-6.1-sol", 50000, 0, 200000, 5000, 255000, 1500),
                         (claude_session_id, "2026-10-20T12:01:00+00:00", "claude-opus-5-5", 2000, 10000, 100000, 3000, 115000, 0),
-                        (agy_spill_id, "2026-10-23T05:01:00+00:00", "gemini-4-argon", 5000, 0, 95000, 1000, 101000, 0),
+                        (agy_spill_id, "2026-10-23T05:01:00-00:00", "gemini-4-argon", 5000, 0, 95000, 1000, 101000, 0),
                         ("unused-spill", "2026-10-23T05:01:00+00:00", "unused-model", 97, 0, 0, 0, 97, 0),
                     ],
                 )
@@ -164,7 +164,9 @@ class AgentObservabilityTests(unittest.TestCase):
                 "agent_observability._trend_groups_reference", side_effect=AssertionError("native declined"),
             ), patch(
                 "agent_observability._trend_window_reference", side_effect=AssertionError("native window declined"),
-            ), patch("sqlite3.connect", side_effect=AssertionError("native database read declined")):
+            ), patch("sqlite3.connect", side_effect=AssertionError("native database read declined")), patch(
+                "agent_observability._trend_report_reference", side_effect=AssertionError("native report declined"),
+            ):
                 native = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
             self.assertEqual({**report, "captured_at": native["captured_at"]}, native)
             self.assertEqual("2026-10", report["month_filter"])
@@ -210,6 +212,16 @@ class AgentObservabilityTests(unittest.TestCase):
             )
             cli_payload = json.loads(proc.stdout)
             self.assertEqual(4, cli_payload["spill_matched_runs"])
+
+            # Fraction lengths outside the shared Python profile must defer.
+            from support.native_probe_transport import NativeProbe
+            with sqlite3.connect(spill_db) as conn:
+                conn.execute("UPDATE token_usage_events SET created_at = ? WHERE run_id = ?",
+                             ("2026-10-05T10:01:00.1Z", codex_spill_id))
+            with patch.dict(os.environ, env, clear=True):
+                self.assertIsNone(NativeProbe.request("--completion-probe", "status-trend-db-utc", {
+                    "dataset": "spill", "path": str(spill_db), "ids": [codex_spill_id],
+                }))
 
     def test_native_trend_ties_keep_report_order_and_even_percentile_rank(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -75,14 +75,48 @@ def efficiency_trend_snapshot(
     codex_threads = _load_codex_threads((codex_db or DEFAULT_CODEX_DB).expanduser(), session_ids)
     spill_ids = {run["spill_run_id"] for run in raw_runs if run["spill_run_id"]}
     spill_events = _load_spill_events((spill_db or DEFAULT_SPILL_DB).expanduser(), spill_ids)
-    bound_runs = _bind_run_metrics(raw_runs, spill_events, codex_threads, month=month.strip())
+    month = month.strip()
+    bound_runs = _bind_run_metrics(raw_runs, spill_events, codex_threads, month=month)
+    summary = _native_trend_report(bound_runs, month, len(resolved_projects))
+    if summary is None:
+        summary = _trend_report_reference(bound_runs, month, len(resolved_projects))
+    return {"captured_at": datetime.now(timezone.utc).isoformat(), **summary}
+
+
+_TREND_GROUP_FIELDS = ("runtime", "model", "reasoning_effort", "same_work_mode", "route",
+                       "period_bucket", "state", "turns", "weighted_tokens", "reasoning_tokens",
+                       "required_docs_count", "reused_gate_count")
+_TREND_GROUP_KEYS = {"cohorts", "route_cohorts", "period_trends"}
+_TREND_REPORT_KEYS = _TREND_GROUP_KEYS | {
+    "schema_version", "month_filter", "project_count", "total_runs", "session_bound_runs",
+    "spill_matched_runs", "binding_coverage_ratio", "fresh_runs", "continuation_runs",
+}
+
+
+def _native_trend_report(bound_runs: list[dict[str, Any]], month: str, project_count: int) -> dict | None:
+    if not NativeProbe.available():
+        return None
+    runs = [
+        {**{key: run[key] for key in (_TREND_GROUP_FIELDS if run["turns"] > 0 else ("turns", "same_work_mode"))},
+         "session_bound": bool(run["runtime"] and run["session_id"])}
+        for run in bound_runs
+    ]
+    summary = NativeProbe.request("--completion-probe", "status-trend-report", {
+        "runs": runs, "month": month, "project_count": project_count,
+    })
+    if (summary is not None and set(summary) == _TREND_REPORT_KEYS
+            and all(type(summary[key]) is list for key in _TREND_GROUP_KEYS)):
+        return summary
+    return None
+
+
+def _trend_report_reference(bound_runs: list[dict[str, Any]], month: str, project_count: int) -> dict[str, Any]:
 
     matched = [run for run in bound_runs if run["turns"] > 0]
     groups = _trend_groups(matched)
     session_bound = [run for run in bound_runs if run["runtime"] and run["session_id"]]
     return {
-        "schema_version": 1, "captured_at": datetime.now(timezone.utc).isoformat(),
-        "month_filter": month.strip() or "all", "project_count": len(resolved_projects),
+        "schema_version": 1, "month_filter": month or "all", "project_count": project_count,
         "total_runs": len(bound_runs), "session_bound_runs": len(session_bound),
         "spill_matched_runs": len(matched),
         "binding_coverage_ratio": round(len(matched) / len(session_bound), 4) if session_bound else 0.0,
@@ -94,13 +128,10 @@ def efficiency_trend_snapshot(
 
 def _trend_groups(matched: list[dict[str, Any]]) -> dict[str, Any]:
     if matched and NativeProbe.available():
-        fields = ("runtime", "model", "reasoning_effort", "same_work_mode", "route",
-                  "period_bucket", "state", "turns", "weighted_tokens", "reasoning_tokens",
-                  "required_docs_count", "reused_gate_count")
         # Exclude paths, session IDs and unrelated source record fields.
-        selected = [{field: run[field] for field in fields} for run in matched]
+        selected = [{field: run[field] for field in _TREND_GROUP_FIELDS} for run in matched]
         result = NativeProbe.request("--completion-probe", "status-trend-groups", {"matched": selected})
-        if (result is not None and set(result) == {"cohorts", "route_cohorts", "period_trends"}
+        if (result is not None and set(result) == _TREND_GROUP_KEYS
                 and all(type(value) is list for value in result.values())):
             return result
     return _trend_groups_reference(matched)
@@ -223,7 +254,8 @@ def _count_reused_gates(gate_evidence_path: Path) -> int:
 def _native_trend_db_rows(dataset: str, path: Path, ids: set[str]) -> list | None:
     if not NativeProbe.available():
         return None
-    result = NativeProbe.request("--completion-probe", "status-trend-db", {
+    operation = "status-trend-db-utc" if dataset == "spill" else "status-trend-db"
+    result = NativeProbe.request("--completion-probe", operation, {
         "dataset": dataset, "path": str(path), "ids": sorted(ids),
     })
     if result is None or set(result) != {"rows"} or type(result["rows"]) is not list:
@@ -260,6 +292,7 @@ def _load_spill_events(spill_db: Path, spill_run_ids: set[str]) -> dict[str, lis
         return {}
     by_run: dict[str, list[tuple[str, str, float, int, int]]] = defaultdict(list)
     rows = _native_trend_db_rows("spill", spill_db, spill_run_ids)
+    normalized = rows is not None
     if rows is None:
         import sqlite3
 
@@ -276,7 +309,7 @@ def _load_spill_events(spill_db: Path, spill_run_ids: set[str]) -> dict[str, lis
             return {}
     for run_id, created_at, model, weighted, total, reasoning in rows:
         if str(run_id or "") in spill_run_ids:
-            norm_ts = _utc_iso(created_at)
+            norm_ts = created_at if normalized else _utc_iso(created_at)
             if norm_ts:
                 by_run[str(run_id)].append((norm_ts, str(model or "").strip(), float(weighted or 0.0), int(total or 0), int(reasoning or 0)))
     for key in by_run:
