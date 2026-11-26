@@ -428,6 +428,8 @@ def _review_scope_verdict(
                 scope_failure,
                 review_scope,
                 counted,
+                small_change_cap=bool(checks.get("small_change_path_cap")),
+                limit=args.max_changed_paths,
             ),
             args.output,
             checks,
@@ -1894,12 +1896,25 @@ def review_scope_invocation_failure_details(
     failure: str,
     review_scope: str,
     changed_path_count: int,
+    small_change_cap: bool = False,
+    limit: int = 4,
 ) -> list[str]:
+    if small_change_cap:
+        # The small-change route clamps the limit, so --max-changed-paths cannot help here.
+        hint = (
+            f"review did not start: this run's small-change route allows at most {limit} changed paths "
+            "and --max-changed-paths cannot raise it above 4; narrow the review pathspec, or start a run "
+            "on a route sized for the change (for example --command feature) and review there"
+        )
+    else:
+        hint = (
+            "review did not start: narrow the review pathspec or rerun with "
+            f"--max-changed-paths {changed_path_count} after confirming the change is one cohesive scope"
+        )
     return [
         f"review scope: {review_scope}",
         f"review invocation: {failure}",
-        "review did not start: narrow the review pathspec or rerun with "
-        f"--max-changed-paths {changed_path_count} after confirming the change is one cohesive scope",
+        hint,
     ]
 
 
