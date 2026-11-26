@@ -169,11 +169,14 @@ def _collect_runs(projects: list[Path]) -> list[dict[str, Any]]:
                 "same_work_mode": "continuation" if is_cont else "fresh",
                 "resume_generation": resume_gen, "required_docs_count": len(req_docs),
                 "reused_gate_count": _count_reused_gates(run_dir / "gate-evidence.json"), "started_at": norm_start,
+                "settled_at": _utc_iso(reg.get("updated_at")) if str(reg.get("state") or "") in _SETTLED_STATES else "",
             })
     return collected
 
 
 _ROUTE_TOKEN_RE = re.compile(r"^[a-z][a-z0-9_-]{1,32}$")
+# A settled run's registry `updated_at` is when it finished or was cancelled.
+_SETTLED_STATES = frozenset({"completed", "cancelled"})
 
 
 def _safe_int(value: Any) -> int:
@@ -269,21 +272,24 @@ def _bind_run_metrics(
         session_runs.sort(key=lambda item: item["started_at"])
         events = spill_events.get(session_runs[0]["spill_run_id"], [])
         sessions.append((runtime, session_id, session_runs, events))
+    boundaries = [_session_boundaries(session_runs) for _, _, session_runs, _ in sessions]
     native_windows = _native_trend_windows(
-        [(session_runs, events) for _, _, session_runs, events in sessions], month,
+        [(stamps, events) for (stamps, _), (_, _, _, events) in zip(boundaries, sessions)], month,
     )
     bound: list[dict[str, Any]] = []
     for session_index, (runtime, session_id, session_runs, events) in enumerate(sessions):
         codex_model, codex_effort = codex_threads.get(session_id, ("", "unknown"))
+        stamps, run_slots = boundaries[session_index]
         for idx, run in enumerate(session_runs):
             start_ts = run["started_at"]
             if month and not start_ts.startswith(month):
                 continue
+            slot = run_slots[idx]
             if native_windows is None:
-                next_ts = session_runs[idx + 1]["started_at"] if idx + 1 < len(session_runs) else "9999-99-99"
+                next_ts = stamps[slot + 1] if slot + 1 < len(stamps) else "9999-99-99"
                 metrics = _trend_window_reference(events, start_ts, next_ts)
             else:
-                metrics = native_windows[session_index][idx]
+                metrics = native_windows[session_index][slot]
             event_model = metrics.pop("event_model")
             bound.append({
                 **run, "model": run["stamped_model"] or codex_model or event_model or "unknown",
@@ -300,12 +306,31 @@ def _bind_run_metrics(
     return bound
 
 
-def _native_trend_windows(sessions: list[tuple[list, list]], month: str) -> list | None:
+def _session_boundaries(session_runs: list[dict[str, Any]]) -> tuple[list[str], list[int]]:
+    """Window boundaries for one session and the boundary index of each run.
+
+    A run's window ends when it settles (completed or cancelled), not when the
+    next run starts: questions, cleanup and untracked work after finish in a
+    long session belong to no run. The settle stamp becomes an extra boundary
+    whose own window is dropped, so the native windows stay start-only.
+    """
+    stamps: list[str] = []
+    run_slots: list[int] = []
+    for idx, run in enumerate(session_runs):
+        run_slots.append(len(stamps))
+        stamps.append(run["started_at"])
+        settled = str(run.get("settled_at") or "")
+        next_start = session_runs[idx + 1]["started_at"] if idx + 1 < len(session_runs) else None
+        if settled > run["started_at"] and (next_start is None or settled < next_start):
+            stamps.append(settled)
+    return stamps, run_slots
+
+
+def _native_trend_windows(sessions: list[tuple[list[str], list]], month: str) -> list | None:
     if not sessions or not NativeProbe.available():
         return None
     # Preserve session boundaries without transmitting identifiers or paths.
-    projected = [{"starts": [run["started_at"] for run in runs], "events": events}
-                 for runs, events in sessions]
+    projected = [{"starts": stamps, "events": events} for stamps, events in sessions]
     result = NativeProbe.request("--completion-probe", "status-trend-windows", {
         "sessions": projected, "month": month,
     })
@@ -315,11 +340,11 @@ def _native_trend_windows(sessions: list[tuple[list, list]], month: str) -> list
     if type(windows) is not list or len(windows) != len(sessions):
         return None
     integer_fields = ("turns", "raw_tokens", "reasoning_tokens")
-    for (runs, _), metrics in zip(sessions, windows):
-        if type(metrics) is not list or len(metrics) != len(runs):
+    for (stamps, _), metrics in zip(sessions, windows):
+        if type(metrics) is not list or len(metrics) != len(stamps):
             return None
-        for run, window in zip(runs, metrics):
-            if not run["started_at"].startswith(month):
+        for stamp, window in zip(stamps, metrics):
+            if not stamp.startswith(month):
                 if window is not None:
                     return None
             elif (type(window) is not dict
