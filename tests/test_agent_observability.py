@@ -124,8 +124,10 @@ class AgentObservabilityTests(unittest.TestCase):
 
             codex_db = ws / "state_5.sqlite"
             with sqlite3.connect(codex_db) as conn:
-                conn.execute("CREATE TABLE threads (id TEXT PRIMARY KEY, model TEXT, reasoning_effort TEXT)")
+                conn.execute("CREATE TABLE threads (id TEXT, model TEXT, reasoning_effort TEXT)")
+                conn.execute("INSERT INTO threads VALUES (?, ?, ?)", (codex_session_id, "old-model", "low"))
                 conn.execute("INSERT INTO threads VALUES (?, ?, ?)", (codex_session_id, "gpt-6.1-sol", "xhigh"))
+                conn.execute("INSERT INTO threads VALUES (?, ?, ?)", ("unused-thread", "unused-model", None))
 
             spill_db = ws / "events.sqlite3"
             with sqlite3.connect(spill_db) as conn:
@@ -145,6 +147,7 @@ class AgentObservabilityTests(unittest.TestCase):
                         (codex_spill_id, "2026-10-16T10:01:00+00:00", "gpt-6.1-sol", 50000, 0, 200000, 5000, 255000, 1500),
                         (claude_session_id, "2026-10-20T12:01:00+00:00", "claude-opus-5-5", 2000, 10000, 100000, 3000, 115000, 0),
                         (agy_spill_id, "2026-10-23T05:01:00+00:00", "gemini-4-argon", 5000, 0, 95000, 1000, 101000, 0),
+                        ("unused-spill", "2026-10-23T05:01:00+00:00", "unused-model", 97, 0, 0, 0, 97, 0),
                     ],
                 )
 
@@ -161,7 +164,7 @@ class AgentObservabilityTests(unittest.TestCase):
                 "agent_observability._trend_groups_reference", side_effect=AssertionError("native declined"),
             ), patch(
                 "agent_observability._trend_window_reference", side_effect=AssertionError("native window declined"),
-            ):
+            ), patch("sqlite3.connect", side_effect=AssertionError("native database read declined")):
                 native = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
             self.assertEqual({**report, "captured_at": native["captured_at"]}, native)
             self.assertEqual("2026-10", report["month_filter"])

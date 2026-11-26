@@ -70,8 +70,9 @@ def efficiency_trend_snapshot(
 ) -> dict[str, Any]:
     """Build a content-free cohort and rolling trend summary across Moru runs."""
     resolved_projects = [Path(project).expanduser().resolve() for project in projects]
-    codex_threads = _load_codex_threads((codex_db or DEFAULT_CODEX_DB).expanduser())
     raw_runs = _collect_runs(resolved_projects)
+    session_ids = {run["session_id"] for run in raw_runs if run["session_id"]}
+    codex_threads = _load_codex_threads((codex_db or DEFAULT_CODEX_DB).expanduser(), session_ids)
     spill_ids = {run["spill_run_id"] for run in raw_runs if run["spill_run_id"]}
     spill_events = _load_spill_events((spill_db or DEFAULT_SPILL_DB).expanduser(), spill_ids)
     bound_runs = _bind_run_metrics(raw_runs, spill_events, codex_threads, month=month.strip())
@@ -219,36 +220,60 @@ def _count_reused_gates(gate_evidence_path: Path) -> int:
     )
 
 
-def _load_codex_threads(codex_db: Path) -> dict[str, tuple[str, str]]:
-    if not codex_db.is_file():
-        return {}
-    import sqlite3
+def _native_trend_db_rows(dataset: str, path: Path, ids: set[str]) -> list | None:
+    if not NativeProbe.available():
+        return None
+    result = NativeProbe.request("--completion-probe", "status-trend-db", {
+        "dataset": dataset, "path": str(path), "ids": sorted(ids),
+    })
+    if result is None or set(result) != {"rows"} or type(result["rows"]) is not list:
+        return None
+    rows = result["rows"]
+    width = 3 if dataset == "codex" else 6
+    for row in rows:
+        if (type(row) is not list or len(row) != width
+                or any(type(value) is not str for value in row[:3]) or row[0] not in ids):
+            return None
+        if width == 6 and (type(row[3]) not in (int, float) or any(type(value) is not int for value in row[4:])):
+            return None
+    return rows
 
-    try:
-        with sqlite3.connect(f"file:{codex_db}?mode=ro", uri=True) as conn:
-            rows = conn.execute("SELECT id, COALESCE(model, ''), COALESCE(reasoning_effort, '') FROM threads").fetchall()
-    except sqlite3.Error:
+
+def _load_codex_threads(codex_db: Path, session_ids: set[str]) -> dict[str, tuple[str, str]]:
+    if not session_ids or not codex_db.is_file():
         return {}
-    return {str(r[0]): (str(r[1]).strip(), str(r[2]).strip().lower() or "unknown") for r in rows if r and r[0]}
+    rows = _native_trend_db_rows("codex", codex_db, session_ids)
+    if rows is None:
+        import sqlite3
+
+        try:
+            with sqlite3.connect(f"file:{codex_db}?mode=ro", uri=True) as conn:
+                rows = conn.execute("SELECT id, COALESCE(model, ''), COALESCE(reasoning_effort, '') FROM threads").fetchall()
+        except sqlite3.Error:
+            return {}
+    return {str(r[0]): (str(r[1]).strip(), str(r[2]).strip().lower() or "unknown")
+            for r in rows if r and r[0] and str(r[0]) in session_ids}
 
 
 def _load_spill_events(spill_db: Path, spill_run_ids: set[str]) -> dict[str, list[tuple[str, str, float, int, int]]]:
     if not spill_db.is_file() or not spill_run_ids:
         return {}
-    import sqlite3
-
     by_run: dict[str, list[tuple[str, str, float, int, int]]] = defaultdict(list)
-    try:
-        with sqlite3.connect(f"file:{spill_db}?mode=ro", uri=True) as conn:
-            rows = conn.execute(
-                "SELECT run_id, created_at, COALESCE(model, ''), "
-                "(COALESCE(accounting_uncached_input_tokens, 0)*1.0 + COALESCE(accounting_cache_creation_input_tokens, 0)*1.25 + "
-                "COALESCE(accounting_cache_read_input_tokens, 0)*0.1 + COALESCE(output_tokens, 0)*1.0), "
-                "COALESCE(total_tokens, 0), COALESCE(accounting_reasoning_output_tokens, 0) "
-                "FROM token_usage_events WHERE run_id IS NOT NULL"
-            ).fetchall()
-    except sqlite3.Error:
-        return {}
+    rows = _native_trend_db_rows("spill", spill_db, spill_run_ids)
+    if rows is None:
+        import sqlite3
+
+        try:
+            with sqlite3.connect(f"file:{spill_db}?mode=ro", uri=True) as conn:
+                rows = conn.execute(
+                    "SELECT run_id, created_at, COALESCE(model, ''), "
+                    "(COALESCE(accounting_uncached_input_tokens, 0)*1.0 + COALESCE(accounting_cache_creation_input_tokens, 0)*1.25 + "
+                    "COALESCE(accounting_cache_read_input_tokens, 0)*0.1 + COALESCE(output_tokens, 0)*1.0), "
+                    "COALESCE(total_tokens, 0), COALESCE(accounting_reasoning_output_tokens, 0) "
+                    "FROM token_usage_events WHERE run_id IS NOT NULL"
+                ).fetchall()
+        except sqlite3.Error:
+            return {}
     for run_id, created_at, model, weighted, total, reasoning in rows:
         if str(run_id or "") in spill_run_ids:
             norm_ts = _utc_iso(created_at)
