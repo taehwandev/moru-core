@@ -278,14 +278,105 @@ def resolve_target(path: Path) -> "Path | None":
     return resolved
 
 
+# Fixed OS temp roots for documented runtime scratchpad paths (never TMPDIR).
+_FIXED_RUNTIME_TMP_ROOTS = ("/tmp", "/private/tmp")
+_CLAUDE_SCRATCH_UID_RE = re.compile(r"^claude-\d+$")
+_ALL_PROJECT_MARKERS = (*PROJECT_MARKERS, ".moru")
+
+
+def _fixed_runtime_tmp_roots() -> list[Path]:
+    resolved: list[Path] = []
+    for raw in _FIXED_RUNTIME_TMP_ROOTS:
+        try:
+            root = Path(raw).resolve()
+        except (OSError, RuntimeError):
+            continue
+        if root != Path(root.anchor) and root not in resolved:
+            resolved.append(root)
+    return resolved
+
+
+def _directory_has_project_marker(directory: Path) -> bool:
+    """Whether `directory` carries any project marker (`.moru` excludes $HOME host config)."""
+    from support.global_state import is_host_config_dir
+
+    for marker in PROJECT_MARKERS:
+        candidate = directory / marker
+        if candidate.exists() or candidate.is_symlink():
+            return True
+    if not is_host_config_dir(directory):
+        moru_dir = directory / ".moru"
+        if moru_dir.exists() or moru_dir.is_symlink():
+            return True
+    return False
+
+
+def _project_ancestors(resolved: Path) -> list[Path]:
+    return [
+        directory
+        for directory in (resolved, *resolved.parents)
+        if _directory_has_project_marker(directory)
+    ]
+
+
+def is_runtime_scratchpad(path: Path) -> bool:
+    """Whether `path` resolves inside a documented runtime scratchpad at exact depth with no project markers.
+
+    Only fixed documented runtime scratch roots qualify (never `TMPDIR`, never arbitrary
+    `scratchpad` directories):
+    - `/private/tmp/claude-<uid>/<project>/<session>/scratchpad` (exact depth >= 4)
+    - `~/.gemini/antigravity-cli/brain/<conversation-id>/scratch` (exact depth >= 2)
+
+    And NO project marker (`.git`, `AGENTS.md`, `CLAUDE.md`, `.agents`, `.moru` outside
+    host config dir) may exist at `path` or any ancestor up to `/`, so non-Git governed
+    projects under `/tmp` or project-local `TMPDIR` trees never lose governance.
+    """
+
+    try:
+        resolved = resolve_target(path)
+    except (OSError, RuntimeError):
+        return False
+    if resolved is None:
+        return False
+    try:
+        if _project_ancestors(resolved):
+            return False
+    except OSError:
+        return False
+    # Antigravity/AGY documented scratch directory: ~/.gemini/antigravity-cli/brain/<id>/scratch/...
+    try:
+        agy_brain = (Path.home() / ".gemini" / "antigravity-cli" / "brain").resolve()
+        if resolved != agy_brain and resolved.is_relative_to(agy_brain):
+            rel = resolved.relative_to(agy_brain).parts
+            if len(rel) >= 2 and bool(rel[0]) and rel[1] == "scratch":
+                return True
+    except (OSError, RuntimeError):
+        pass
+    # Claude Code documented scratchpad: /private/tmp/claude-<uid>/<project>/<session>/scratchpad/...
+    for root in _fixed_runtime_tmp_roots():
+        if resolved == root or not resolved.is_relative_to(root):
+            continue
+        rel = resolved.relative_to(root).parts
+        if (
+            len(rel) >= 4
+            and _CLAUDE_SCRATCH_UID_RE.fullmatch(rel[0]) is not None
+            and bool(rel[1])
+            and bool(rel[2])
+            and rel[3] == "scratchpad"
+        ):
+            return True
+    return False
+
+
 def scratch_write_target(raw: str, cwd: "Path | None") -> bool:
     """Whether a write to `raw` provably lands outside every project.
 
     The target is resolved the way the kernel will open it -- `..` collapsed and
     every existing symlink followed -- so an escape or a link back into a
     project resolves to that project and stays a write. Only a location strictly
-    inside a temp directory, with no project marker at it or any ancestor --
-    or only a throwaway checkout of a project kept elsewhere -- qualifies.
+    inside a temp directory or documented runtime scratchpad, with no project
+    marker at it or any ancestor -- or a throwaway checkout of a project kept
+    elsewhere -- qualifies.
     Environment-selected temp roots do not erase project ownership.
     A relative target needs the directory it is relative
     to; without one it is not claimed.
@@ -302,19 +393,16 @@ def scratch_write_target(raw: str, cwd: "Path | None") -> bool:
         resolved = resolve_target(path)
     except (OSError, RuntimeError):
         return False
-    if resolved is None or not any(
+    if resolved is None:
+        return False
+    if is_runtime_scratchpad(resolved):
+        return True
+    if not any(
         resolved != root and resolved.is_relative_to(root) for root in scratch_roots()
     ):
         return False
     try:
-        projects = [
-            directory
-            for directory in (resolved, *resolved.parents)
-            if any(
-                (directory / marker).exists() or (directory / marker).is_symlink()
-                for marker in PROJECT_MARKERS
-            )
-        ]
+        projects = _project_ancestors(resolved)
         return not projects or _within_throwaway_checkout(projects)
     except OSError:
         return False
@@ -392,7 +480,7 @@ def bash_command(payload: dict) -> str:
     if not isinstance(tool_input, dict):
         return ""
     command = tool_input.get("command")
-    return without_commit_message_heredoc(command) if isinstance(command, str) else ""
+    return without_passive_heredocs(command) if isinstance(command, str) else ""
 
 
 _COMMIT_MESSAGE_HEREDOC = re.compile(
@@ -402,18 +490,170 @@ _COMMIT_MESSAGE_HEREDOC = re.compile(
     re.S,
 )
 _MESSAGE_FROM_STDIN = re.compile(r"(?:^|\s)(?:-F\s*-|--file(?:=|\s+)-)(?=\s|$)")
+_HEREDOC_TOKEN_RE = re.compile(
+    r"<<(?P<strip>-?)[ \t]*(?P<quote>['\"\\]?)(?P<tag>[A-Za-z_][A-Za-z0-9_]*)(?P<close>['\"]?)"
+)
+_MORU_HEREDOC_HOOKS = frozenset({
+    "agent-mailbox", "checkpoint", "finish", "gate", "gate-batch", "handoff",
+    "project-memory", "resume", "review", "start",
+})
+
+
+def _find_unquoted_heredoc(line: str) -> "tuple[int, int, bool, bool, str] | None":
+    """Return (start, end, strip_tabs, quoted, tag) for the first unquoted heredoc on `line`."""
+    # Mask contents inside single and double quotes so `<<` inside strings is ignored,
+    # while slicing the original `line` so the real delimiter tag is preserved verbatim.
+    chars = list(line)
+    quote = ""
+    index = 0
+    while index < len(chars):
+        ch = chars[index]
+        if quote != "'" and ch == "\\" and index + 1 < len(chars):
+            if quote:
+                chars[index + 1] = "x"
+            index += 2
+            continue
+        if quote:
+            if ch == quote:
+                quote = ""
+            else:
+                chars[index] = "x"
+        elif ch in {"'", '"'}:
+            quote = ch
+        index += 1
+    masked = "".join(chars)
+    match = _HEREDOC_TOKEN_RE.search(masked)
+    if match is None:
+        return None
+    quote_ch = match.group("quote")
+    close_ch = match.group("close")
+    if quote_ch in {"'", '"'}:
+        if close_ch != quote_ch:
+            return None
+    elif close_ch:
+        return None
+    tag = line[match.start("tag") : match.end("tag")]
+    return match.start(), match.end(), bool(match.group("strip")), bool(quote_ch), tag
+
+
+def _is_passive_heredoc_header(header: str) -> bool:
+    """Whether `header` (with `<<TAG` removed) consumes stdin strictly as passive data.
+
+    Code executors (`bash`, `sh`, `python`, `node`, `eval`) are never passive.
+    Bare `cat` with no output file is also left unstripped so heredoc probes
+    without a write target keep their conservative classification.
+    """
+    if not header.strip() or computes_text(header):
+        return False
+    try:
+        lexer = shlex.shlex(header, posix=True, punctuation_chars=";&|<>")
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        tokens = list(lexer)
+    except ValueError:
+        return False
+    if not tokens:
+        return False
+    # Split compound prefix (e.g. `cd <dir> && cat > src/x.js`, `mkdir -p d && cat > d/x.js`).
+    # Judge the last command segment, which is the one receiving the heredoc on stdin.
+    segments: list[list[str]] = [[]]
+    for token in tokens:
+        if token in {"&&", ";"}:
+            segments.append([])
+        elif token in {"|", "||", "&"}:
+            return False
+        else:
+            segments[-1].append(token)
+    if not all(segments):
+        return False
+    for prefix in segments[:-1]:
+        if prefix[0] not in {"cd", "mkdir"}:
+            return False
+    last = segments[-1]
+    # Strip leading env assignments so `VAR=1 moru-hook ...` works cleanly.
+    start = past_assignments(last, 0)
+    cmd = last[start:]
+    if not cmd:
+        return False
+    prog = Path(cmd[0]).name
+    if prog == "cat":
+        # Require an explicit output redirection target (`cat > file` or `cat >> file`)
+        # and no extra input files (only flags or redirection).
+        has_redirect = False
+        idx = 1
+        while idx < len(cmd):
+            if cmd[idx] in {">", ">>"} and idx + 1 < len(cmd) and not cmd[idx + 1].startswith("-"):
+                has_redirect = True
+                idx += 2
+                continue
+            if cmd[idx] == "-":
+                idx += 1
+                continue
+            return False
+        return has_redirect
+    if prog == "tee":
+        # `tee [-a] <file>` writes stdin literally to its operand.
+        operands = [tok for tok in cmd[1:] if tok not in {"-a", "--append"}]
+        return len(operands) == 1 and not operands[0].startswith("-")
+    if prog == "git":
+        return "commit" in cmd[1:] and bool(_MESSAGE_FROM_STDIN.search(header))
+    if prog == "moru-hook" or (prog.startswith("python") and len(cmd) >= 3 and Path(cmd[1]).name == "agent-hook.py"):
+        sub_idx = 2 if prog.startswith("python") else 1
+        if sub_idx < len(cmd) and cmd[sub_idx] == "agent-hook":
+            sub_idx += 1
+        return sub_idx < len(cmd) and cmd[sub_idx] in _MORU_HEREDOC_HOOKS
+    return False
+
+
+def without_passive_heredocs(command: str) -> str:
+    """Strip literal heredoc bodies from passive-stdin commands so they parse cleanly.
+
+    Covers `git commit -F - <<'EOF'`, file writes `cat > path <<'EOF'` / `tee path <<'EOF'`,
+    and Moru lifecycle hooks (`moru-hook checkpoint --work-stdin <<'EOF'`). Code-executing
+    programs (`bash`, `sh`, `python3`, `node`, `eval`) and unquoted heredocs containing
+    `$` or backticks are returned unchanged so hidden commands stay blocked.
+    """
+    if "\n" not in command or "<<" not in command or "\r" in command:
+        return command
+    lines = command.split("\n")
+    out_lines: list[str] = []
+    index = 0
+    stripped_any = False
+    while index < len(lines):
+        line = lines[index]
+        found = _find_unquoted_heredoc(line) if "<<" in line else None
+        if found is None:
+            out_lines.append(line)
+            index += 1
+            continue
+        start, end, strip_tabs, quoted, tag = found
+        header = (line[:start] + " " + line[end:]).strip()
+        if not _is_passive_heredoc_header(header):
+            return command
+        # Find closing delimiter line.
+        body_lines: list[str] = []
+        end_index: int | None = None
+        for probe in range(index + 1, len(lines)):
+            candidate = lines[probe].lstrip("\t") if strip_tabs else lines[probe]
+            if candidate == tag:
+                end_index = probe
+                break
+            body_lines.append(lines[probe])
+        if end_index is None:
+            return command
+        body = "\n".join(body_lines)
+        if not quoted and re.search(r"[$`]", body):
+            return command
+        out_lines.append(header)
+        stripped_any = True
+        index = end_index + 1
+    if not stripped_any:
+        return command
+    return "\n".join(part for part in out_lines if part.strip())
 
 
 def without_commit_message_heredoc(command: str) -> str:
-    """`git commit -F - <<'EOF' ... EOF` read as the `git commit -F -` it runs.
-
-    The heredoc only feeds git the message on stdin, but it is a redirection,
-    so every reader refused the whole line: a finished run's own commit was
-    "not a lone publication" and an open run's was "effect unknown". The body
-    is data only when the shell cannot expand it -- a quoted delimiter, or an
-    unquoted one over a body with no `$` or backquote -- and only when git is
-    told to read the message from stdin. Anything else is returned unchanged.
-    """
+    """`git commit -F - <<'EOF' ... EOF` read as the `git commit -F -` it runs."""
 
     match = _COMMIT_MESSAGE_HEREDOC.match(command)
     if not match or not _MESSAGE_FROM_STDIN.search(match.group("head")):
@@ -426,36 +666,57 @@ def without_commit_message_heredoc(command: str) -> str:
 def _shell_lines(command: str) -> str | None:
     """Preserve quoted newlines; model unquoted ones as command separators.
 
-    This is lexical normalization, not script interpretation. Comments and
+    This is lexical normalization, not script interpretation. Unstripped
     heredocs on multiline input remain unsupported; substitutions are rejected
     by the caller. Escaped newlines join shell words, except in single quotes.
+    Shell comments (`# ...` at word start) are stripped to the end of their line.
     """
     if "\r" in command or ("\n" in command and "<<" in command):
         return None
     quote = ""
     output: list[str] = []
     index = 0
+    word_start = True
+    has_segment_text = False
     while index < len(command):
         char = command[index]
         if char == "\\" and quote != "'" and index + 1 < len(command):
             following = command[index + 1]
             if following != "\n":
                 output.extend((char, following))
+                word_start = False
+                has_segment_text = True
             index += 2
             continue
         if char in {"'", '"'}:
             if not quote:
                 quote = char
+                word_start = False
+                has_segment_text = True
             elif quote == char:
                 quote = ""
-        if not quote and char == "#" and "\n" in command:
-            return None
+        if not quote and char == "#" and word_start and "\n" in command:
+            newline = command.find("\n", index)
+            if newline < 0:
+                break
+            index = newline
+            continue
         if char == "\n" and not quote:
-            output.append(" ; ")
+            if has_segment_text:
+                output.append(" ; ")
+                has_segment_text = False
+            word_start = True
         else:
             output.append(char)
+            if not quote:
+                word_start = char in " \t;&|<>"
+                if not char.isspace():
+                    has_segment_text = True
         index += 1
-    return "".join(output)
+    result = "".join(output).strip()
+    if result.endswith(";"):
+        result = result[:-1].strip()
+    return result
 
 
 def bash_invocation(payload: dict, cwd: Path) -> tuple[Path, list[str], bool]:

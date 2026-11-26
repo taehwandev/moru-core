@@ -264,7 +264,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 {
                     "returncode": 1,
                     "stdout": (
-                        "Retrospective repair required: false\n"
+                        "Failure retrospective required: false\n"
                         "FAIL: review hook attestation project worktree binding is stale\n"
                         "FAIL: missing required gate evidence: review hook\n"
                     ),
@@ -277,7 +277,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 {
                     "returncode": 1,
                     "stdout": (
-                        "Retrospective repair required: true\n"
+                        "Failure retrospective required: true\n"
                         "FAIL: review hook attestation rules worktree binding is stale\n"
                         "FAIL: missing required gate evidence: review hook\n"
                     ),
@@ -290,7 +290,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 {
                     "returncode": 1,
                     "stdout": (
-                        "Retrospective repair required: true\n"
+                        "Failure retrospective required: true\n"
                         "FAIL: review hook attestation project worktree binding is stale\n"
                         "FAIL: workflow validate failed\n"
                     ),
@@ -305,7 +305,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 {
                     "returncode": 1,
                     "stdout": (
-                        "Retrospective repair required: false\n"
+                        "Failure retrospective required: false\n"
                         "FAIL: read-only execution was declared but the project root changed "
                         "after start; a clean worktree cannot attribute the revision change "
                         "to an external actor, so the analysis route is intrinsically read-only; "
@@ -321,7 +321,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 {
                     "returncode": 1,
                     "stdout": (
-                        "Retrospective repair required: true\n"
+                        "Failure retrospective required: true\n"
                         "FAIL: read-only execution was declared but the project root changed "
                         "after start; a clean worktree cannot attribute the revision change "
                         "to an external actor, so rerun the lifecycle without --read-only\n"
@@ -338,13 +338,11 @@ class RepairLedgerCycleTests(unittest.TestCase):
         result = {
             "returncode": 1,
             "stdout": (
-                "Retrospective repair required: true\n"
+                "Failure retrospective required: true\n"
                 "FAIL: execution capsule required doc size changed: guide.md\n"
                 "FAIL: execution capsule required doc hash changed: guide.md\n"
                 "FAIL: required-doc drift recovery: record one documentation SUCCESS "
                 "entry per required doc\n"
-                "FAIL: retrospective repair is required before final report, commit, "
-                "release, or handoff; refresh the route\n"
             ),
             "stderr": "",
         }
@@ -388,7 +386,7 @@ class RepairLedgerCycleTests(unittest.TestCase):
         result = {
             "returncode": 1,
             "stdout": (
-                "Retrospective repair required: true\n"
+                "Failure retrospective required: true\n"
                 "FAIL: review hook attestation project worktree binding is stale\n"
                 "FAIL: review hook attestation rules worktree binding is stale\n"
                 "FAIL: missing required gate evidence: review hook\n"
@@ -397,8 +395,6 @@ class RepairLedgerCycleTests(unittest.TestCase):
                 "FAIL: execution capsule required doc changed after documentation "
                 "evidence: android-review.md\n"
                 "FAIL: required-doc drift recovery: reread and refresh the route\n"
-                "FAIL: retrospective repair is required before final report, commit, "
-                "release, or handoff; refresh the route\n"
             ),
             "stderr": "",
         }

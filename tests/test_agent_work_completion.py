@@ -1,5 +1,7 @@
 """A finish receipt cannot turn partial multi-outcome delivery into completion."""
 
+import json
+import shlex
 import tempfile
 import unittest
 import io
@@ -64,6 +66,80 @@ class WorkCompletionTests(unittest.TestCase):
             work={"objective": "task workflow", "remaining_work": []})
         self.assertTrue(any("scope has not been reconciled" in x for x in self.finish_failures()))
 
+    def record_review_for_placeholder(self):
+        from agent_gate_evidence import reset_gate_evidence_ledger
+        from agent_review_attestation import ReviewAttestation
+        from agent_work_completion import reconcile_reviewed_scope
+
+        run = self.run
+        run.route["gates"].append("review hook")
+        run.binding["agent_run_id"] = run.run["run_id"]
+        run.evidence.write_text(json.dumps(run.binding))
+        self.checkpoint(remaining=[])
+        write_continuation_checkpoint(project=run.project, rules=run.project, run_id=run.run["run_id"],
+            binding_path=run.evidence, kind="decision", work={"objective": "task workflow"})
+        reset_gate_evidence_ledger(run.evidence, run.binding)
+        self.assertFalse(reconcile_reviewed_scope(run.project, run.project, run.evidence))
+        attestation = ReviewAttestation.record(
+            project=run.project, rules=run.project, evidence_path=run.evidence, preflight=run.binding,
+            review_scope="working-tree", review_paths=[], changed_path_count=0,
+            checks={"review_outcome": "pass", "workflow_validate": {"returncode": 0},
+                    "diff_check": {"returncode": 0}, "vibeguard": {"returncode": 0, "overall": "Ready"}})
+        record_gate_evidence(evidence_path=run.evidence, preflight=run.binding, gate="review hook",
+            evidence="review passed", status="SUCCESS", source="review", fields=ReviewAttestation.ledger_fields(attestation))
+        return run
+
+    def test_reviewed_start_intake_does_not_erase_outstanding_work(self):
+        from agent_work_completion import reconcile_reviewed_scope
+        run = self.record_review_for_placeholder()
+        for pending in ({"remaining_work": [{"checkpoint": "p10", "action": "15 of 17 verified"}]},
+                        {"remaining_work": [], "blockers": ["partial acceptance"]}):
+            write_continuation_checkpoint(project=run.project, rules=run.project, run_id=run.run["run_id"],
+                binding_path=run.evidence, kind="decision", work=pending)
+            self.assertFalse(reconcile_reviewed_scope(run.project, run.project, run.evidence))
+            self.assertTrue(self.finish_failures())
+
+    def test_finish_keeps_failed_and_skipped_verification_in_the_placeholder(self):
+        from agent_work_completion import bound_work_packet
+        run = self.record_review_for_placeholder()
+        for verdict in ("failed", "skipped"):
+            result = self.hook_cli("checkpoint", "--checkpoint-kind", "decision", "--work-json",
+                                   json.dumps({"remaining_work": [], "verification": "unit " + verdict}))
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            failure = self.hook_cli("finish")
+            self.assertEqual(3, failure.returncode, failure.stdout + failure.stderr)
+            self.assertIn("--work-json", failure.stdout)
+            self.assertEqual("task workflow", bound_work_packet(run.project, run.evidence)["work"]["objective"])
+        for verdict in ("partial", "unknown"):
+            result = self.hook_cli("checkpoint", "--checkpoint-kind", "decision", "--work-json",
+                                   json.dumps({"verification": "unit " + verdict}))
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("/work/verification/0/result", result.stdout)
+
+    def test_finish_offers_manual_checkpoint_when_automatic_write_fails(self):
+        from agent_work_completion import bound_work_packet
+        from test_agent_hook_continuation import agent_hook
+
+        run = self.record_review_for_placeholder()
+        args = SimpleNamespace(project=run.project, rules=run.project, evidence=run.evidence)
+        with patch("agent_continuation_checkpoint.write_continuation_checkpoint",
+                   side_effect=PermissionError("read-only fixture")) as write, redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(3, agent_hook.finish_hook(args))
+        write.assert_called_once()
+        self.assertIn("--work-json", output.getvalue())
+        self.assertEqual("task workflow", bound_work_packet(run.project, run.evidence)["work"]["objective"])
+        self.assertEqual("running", run.state())
+
+    def test_finish_reconciles_the_only_pending_scope_then_refuses_an_inapplicable_retrospective(self):
+        from agent_work_completion import bound_work_packet
+        run = self.record_review_for_placeholder()
+        outcome = self.hook_cli("finish", "--retrospective-record", "{}")
+        self.assertNotEqual(0, outcome.returncode)
+        self.assertEqual("running", run.state())
+        self.assertIn("this route has no retrospective check", outcome.stdout)
+        self.assertEqual(run.intake["request"], bound_work_packet(run.project, run.evidence)["work"]["objective"])
+        self.assertEqual([], self.finish_failures())
+
     def test_pending_delivery_refuses_finish_without_failing_or_closing_the_active_run(self):
         from test_agent_hook_continuation import agent_hook
 
@@ -77,13 +153,29 @@ class WorkCompletionTests(unittest.TestCase):
         self.assertIn("delivery is still pending", output.getvalue())
         self.assertEqual("running", self.run.state())
 
-    def test_real_finish_cli_keeps_partial_work_active_without_a_completion_receipt(self):
+    def hook_cli(self, command, *options):
         scripts = Path(__file__).resolve().parents[1] / "scripts"
         env = dict(os.environ, CODEX_THREAD_ID="bound-session", CLAUDE_CODE_SESSION_ID="",
                    MORU_STATE_HOME=self.tmp.name + "/global-state")
-        result = subprocess.run([sys.executable, "-B", str(scripts / "agent-hook.py"), "finish",
+        return subprocess.run([sys.executable, "-B", str(scripts / "agent-hook.py"), command,
             "--project", str(self.run.project), "--rules", str(self.run.project),
-            "--evidence", str(self.run.evidence)], text=True, capture_output=True, env=env)
+            "--evidence", str(self.run.evidence), *options], text=True, capture_output=True, env=env, timeout=30)
+
+    def test_finish_cli_rejects_bad_retrospective_json_before_writing_the_gate(self):
+        self.run.route["gates"].append("retrospective check")
+        self.run.evidence.write_text(json.dumps(self.run.binding))
+        self.checkpoint(remaining=[])
+        outcome = self.hook_cli("finish", "--retrospective-record", "{bad")
+        self.assertNotEqual(0, outcome.returncode)
+        self.assertIn("Expecting property name", outcome.stdout)
+        self.assertEqual("running", self.run.state())
+        self.assertFalse(list((self.run.project / ".moru").rglob("finish.json")))
+
+    def test_real_finish_cli_keeps_partial_work_active_without_a_completion_receipt(self):
+        from agent_continuation_store import continuation_path
+        result = self.hook_cli("finish")
+        packet = continuation_path(self.run.project, self.run.run["run_id"])
+        self.assertIn(shlex.join(["jq", "{phase, work, checkpoint}", str(packet)]), result.stdout)
         self.assertEqual(3, result.returncode, result.stdout + result.stderr)
         self.assertIn("delivery is still pending", result.stdout)
         self.assertEqual("running", self.run.state())
@@ -169,12 +261,7 @@ class WorkCompletionTests(unittest.TestCase):
 
     def test_real_commit_finish_still_rejects_missing_review_and_readiness(self):
         self.publication(remaining_work=[{"checkpoint": "publication.pull-request/main", "action": "Create authorized PR after finish"}])
-        scripts = Path(__file__).resolve().parents[1] / "scripts"
-        env = dict(os.environ, CODEX_THREAD_ID="bound-session", CLAUDE_CODE_SESSION_ID="",
-                   MORU_STATE_HOME=self.tmp.name + "/global-state")
-        result = subprocess.run([sys.executable, "-B", str(scripts / "agent-hook.py"), "finish",
-            "--project", str(self.run.project), "--rules", str(self.run.project),
-            "--evidence", str(self.run.evidence)], text=True, capture_output=True, env=env, timeout=30)
+        result = self.hook_cli("finish")
         self.assertNotEqual(0, result.returncode)
         self.assertNotIn("requested delivery is still pending", result.stdout)
         self.assertIn("missing required gate evidence", result.stdout)

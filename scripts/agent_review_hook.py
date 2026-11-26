@@ -14,7 +14,7 @@ from agent_gate_evidence import (
     merge_gate_evidence_from_ledger,
     record_gate_evidence,
 )
-from agent_finish_final_checks import record_successful_review_workflow_validation
+from agent_finish_final_checks import non_git_audit_note, record_successful_review_workflow_validation
 from agent_inprocess import run_workflow_validate
 from agent_review_boundary import (
     format_boundary_note_requirements,
@@ -26,7 +26,12 @@ from agent_review_reuse import ReviewReuse, inherit_publication_defaults
 from agent_review_commit_range import create_commit_snapshot, resolve_commit_range_subject
 from agent_review_doc_references import doc_reference_failures
 from agent_review_removals import removal_notice
-from agent_review_structure import REVIEW_ADDED_LINE_LIMIT, structure_review
+from agent_review_structure import (
+    REVIEW_ADDED_LINE_LIMIT,
+    is_excluded_asset_or_build_script,
+    structure_review,
+)
+from agent_structure_rule_config import load_structure_limits_config
 from agent_repair_ledger import failure_signature, record_failure_checkpoints
 from agent_required_doc_reuse import record_doc_takeaway
 from agent_review_subjects import (  # noqa: F401
@@ -44,7 +49,9 @@ from agent_review_subjects import (  # noqa: F401
     unavailable_structure_review,
 )
 from agent_vibeguard_cache import cached_vibeguard, cached_vibeguard_path_support
-from agent_workspace_policy import is_git_status_review_only, is_writing_workspace, non_git_writing_workspace_note
+from agent_workspace_policy import (
+    is_git_status_review_only, non_git_writing_workspace_note, writing_diff_result,
+)
 from support.git_read_scope import invalidate_worktree_reads
 from support.stage_timing import stage
 from support.global_state import project_state_dir_target
@@ -86,6 +93,46 @@ def required_review_evidence_flags(route_gates: list[str]) -> list[str]:
         flag for gate, flag in GATE_REQUIRED_REVIEW_EVIDENCE.items() if gate in gates
     )
     return flags
+
+
+def _status_line_path(line: str) -> str:
+    """Extract the destination path from a `git status --short` line or plain path."""
+    text = line.strip()
+    if len(line) >= 4 and line[2] == " ":
+        text = line[3:].strip()
+    if " -> " in text:
+        text = text.split(" -> ", 1)[1].strip()
+    if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
+        text = text[1:-1]
+    return text
+
+
+def _countable_changed_path_count(
+    project: Path,
+    status_lines: list[str],
+    *,
+    base_ref: str | None = None,
+    head_ref: str | None = None,
+    run_command: CommandRunner | None = None,
+) -> tuple[int, int, int | None]:
+    """Count changed paths excluding binary/3D assets, repo-opted-in Blender scripts, and non-code excludes."""
+    cfg, _ = load_structure_limits_config(
+        project, base_ref=base_ref, head_ref=head_ref, run_command=run_command
+    )
+    exclude_paths = cfg["exclude_paths"]
+    exclude_blender = bool(cfg.get("exclude_blender_scripts", False))
+    repo_max_paths = cfg["limits"].get("max_changed_paths")
+    countable = 0
+    excluded = 0
+    for line in status_lines:
+        path = _status_line_path(line)
+        if path and is_excluded_asset_or_build_script(
+            path, exclude_paths, exclude_blender_scripts=exclude_blender
+        ):
+            excluded += 1
+        else:
+            countable += 1
+    return countable, excluded, repo_max_paths if isinstance(repo_max_paths, int) else None
 
 
 def _review_working_tree(
@@ -130,9 +177,38 @@ def _review_working_tree(
     checks["git_status_before"] = status_before
     local_config_scope = review_subject["kind"] == "local-config"
     inherit_publication_defaults(args)
+    base_ref = (
+        str(review_subject.get("base_sha") or "HEAD")
+        if review_subject["kind"] == "commit-range"
+        else None
+    )
+    head_ref = (
+        str(review_subject.get("head_sha") or "") or None
+        if review_subject["kind"] == "commit-range"
+        else None
+    )
+    countable_paths, excluded_paths, repo_max_paths = (
+        (len(review_paths), 0, None)
+        if local_config_scope
+        else _countable_changed_path_count(
+            args.project,
+            status_before_lines,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            run_command=run_command,
+        )
+    )
+    if (
+        repo_max_paths is not None
+        and not checks.get("small_change_path_cap")
+        and args.max_changed_paths == 25
+    ):
+        args.max_changed_paths = repo_max_paths
     checks["changed_path_count"] = (
         len(review_paths) if local_config_scope else len(status_before_lines)
     )
+    checks["countable_changed_path_count"] = countable_paths
+    checks["excluded_asset_path_count"] = excluded_paths
     checks["changed_path_limit"] = args.max_changed_paths
     clean_read_only_scope = clean_read_only_pathspec_review(args, review_subject, review_paths)
     clean_restored_scope = clean_restored_pathspec_review(args, review_subject, review_paths)
@@ -336,9 +412,10 @@ def _review_scope_verdict(
         )
         checks[clean_scope_key] = {"accepted": True, "reason": clean_scope_reason}
         failures = []
-    elif len(status_before_lines) > args.max_changed_paths:
+    elif checks.get("countable_changed_path_count", len(status_before_lines)) > args.max_changed_paths:
+        counted = checks.get("countable_changed_path_count", len(status_before_lines))
         scope_failure = (
-            f"review scope has {len(status_before_lines)} changed paths; "
+            f"review scope has {counted} changed paths; "
             f"limit is {args.max_changed_paths}; split the change or run a smaller review scope"
         )
         checks["review_scope_failure"] = scope_failure
@@ -350,7 +427,7 @@ def _review_scope_verdict(
             review_scope_invocation_failure_details(
                 scope_failure,
                 review_scope,
-                len(status_before_lines),
+                counted,
             ),
             args.output,
             checks,
@@ -496,7 +573,8 @@ def record_review_diff_checks(
             "review_note": non_git_writing_workspace_note(args.project),
         }
     else:
-        diff_check = run_command(diff_check_command(review_paths, review_subject), args.project)
+        command = diff_check_command(review_paths, review_subject)
+        diff_check = writing_diff_result(args.project, run_command(command, args.project))
     checks["diff_check"] = diff_check
     if review_subject["kind"] == "working-tree" and not status_before.get("review_only"):
         comparison = checks.get("initial_import_comparison")
@@ -504,6 +582,7 @@ def record_review_diff_checks(
         staged = run_command(
             ["git", "diff", "--cached", "--check", *base, "--", *review_paths], args.project,
         )
+        staged = writing_diff_result(args.project, staged)
         checks["staged_diff_check"] = staged
         if staged["returncode"] != 0:
             failures.append("git diff --cached --check failed")
@@ -538,13 +617,26 @@ def _review_verdict(
         )
         try:
             with stage("review_attestation"):
-                git_states = record_successful_review_workflow_validation(
-                    args.project,
-                    args.rules,
-                    evidence_path,
-                    checks["workflow_validate"],
-                    checks["diff_check"],
-                    review_scope,
+                scoped_review_paths = checks.get("review_paths") or getattr(args, "review_path", None)
+                git_states = (
+                    record_successful_review_workflow_validation(
+                        args.project,
+                        args.rules,
+                        evidence_path,
+                        checks["workflow_validate"],
+                        checks["diff_check"],
+                        review_scope,
+                        review_paths=scoped_review_paths,
+                    )
+                    if scoped_review_paths and review_scope.startswith("pathspec:")
+                    else record_successful_review_workflow_validation(
+                        args.project,
+                        args.rules,
+                        evidence_path,
+                        checks["workflow_validate"],
+                        checks["diff_check"],
+                        review_scope,
+                    )
                 )
                 record_review_gate(args, checks, git_states)
                 record_doc_takeaway(evidence_path, getattr(args, "doc_takeaway", "") or "")
@@ -579,6 +671,8 @@ def _review_verdict(
         from agent_intake_context import IntakeContext
         details.extend(IntakeContext.review_note(args.project,
             args.evidence or project_state_dir_target(args.project) / "preflight.json"))
+    if not failures and (note := (checks.get("vibeguard") or {}).get("review_note")):
+        details.append(note)
     if not failures and checks.get("reported_findings"):
         details.append(
             "review outcome: findings recorded as this read-only review's result; "
@@ -818,6 +912,7 @@ def record_review_prerequisite_readiness(
     if route.get("command") == "small-change":
         # These are route limits, not caller-overridable review preferences.
         args.max_changed_paths = min(args.max_changed_paths, 4)
+        checks["small_change_path_cap"] = True
     route_gates = [gate for gate in route.get("gates") or [] if isinstance(gate, str)]
     if "review hook" not in route_gates:
         checks["review_prerequisite_gates"] = []
@@ -923,17 +1018,22 @@ def record_review_vibeguard(
     if vibeguard["returncode"] != 0:
         failures.append("VibeGuard audit failed")
         return
+    allow_reason = str(getattr(args, "allow_vibeguard_review", "") or "")
+    if not allow_reason:
+        allow_reason = non_git_audit_note(selected_project, args.rules, vibeguard, run_command)
+        if allow_reason:
+            vibeguard["review_note"] = allow_reason
     failure = vibeguard_review_failure(
         str(vibeguard["overall"]),
         selected_project,
-        str(getattr(args, "allow_vibeguard_review", "") or ""),
+        allow_reason,
     )
     if failure:
         failures.append(failure)
 
 
 def vibeguard_review_failure(overall: str, project: Path, allow_reason: str) -> str:
-    if overall == "Ready" or is_writing_workspace(project) or allow_reason.strip():
+    if overall == "Ready" or allow_reason.strip():
         return ""
     return f"VibeGuard overall is {overall}"
 
@@ -1746,6 +1846,9 @@ def review_success_details(
             "finish judges the same VibeGuard state and does not read this "
             "review's reason: pass --allow-vibeguard-review to finish as well"
         )
+    for warning in structure.get("warnings") or []:
+        if isinstance(warning, str) and warning.startswith("structure rules:"):
+            details.append(f"warning: {warning}")
     details.extend(net_deletion_details(structure))
     return details
 
@@ -1754,7 +1857,7 @@ def _vibeguard_success_detail(overall: str, accepted_reason: str) -> str:
     """Say what the audit found, not only that the hook let it through."""
 
     if not accepted_reason:
-        return "VibeGuard audit passed"
+        return f"VibeGuard overall is {overall}" if overall and overall != "Ready" else "VibeGuard audit passed"
     state = overall or "not Ready"
     return f"VibeGuard overall is {state}, accepted under the reason you passed"
 
@@ -1773,13 +1876,7 @@ def review_failure_details(
     details.extend(net_deletion_details(structure))
     if any(failure.startswith(STRUCTURE_EVIDENCE_FAILURES) for failure in failures):
         details.append(structure_evidence_template(structure))
-    details.append(
-        "required recovery: run an actionable retrospective for this review failure, improve the "
-        "owning Moru Core doc, hook, validator, or test, and verify that repair outside the hook. "
-        "Create a structural receipt with repair-verify, then verify this checkpoint with "
-        "--repair-cycle 1 plus the same repair target, receipt path, and resume checkpoint "
-        "before resuming the original task"
-    )
+    details.append("Correct the reported failure at its owner, verify the correction, and rerun review.")
     details.append("do not finalize with FAIL; ask only when recovery needs a scope decision, destructive action, credential change, external state, or a broader refactor")
     return details
 

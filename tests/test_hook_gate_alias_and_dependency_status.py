@@ -23,10 +23,15 @@ class GateNameAliasTests(unittest.TestCase):
             with self.subTest(flag=flag):
                 self.assertEqual(0, self.run_hook("gate", flag, "tests", "--help").returncode)
 
-    def test_a_guessed_gate_option_is_refused_with_the_right_one_named(self):
-        result = self.run_hook("gate", "--gate", "tests")
-        self.assertEqual(2, result.returncode)
-        self.assertIn("--gate-name <gate>", result.stderr)
+    def test_gate_alias_passes_the_same_status_validation(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("gate_alias_hook", HOOK)
+        hook = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hook)
+        from unittest.mock import patch
+        with patch.object(sys, "argv", [HOOK, "gate", "--gate", "tests", "--status", "passed"]):
+            args = hook._parse_args(hook.build_parser())
+        self.assertEqual(("tests", "SUCCESS"), (args.gate_name, args.status))
 
     def test_finish_still_refuses_gate_evidence_through_gate(self):
         result = self.run_hook("finish", "--gate", "tests")

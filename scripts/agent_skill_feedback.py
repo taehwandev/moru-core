@@ -383,7 +383,7 @@ def _reseal_review_after_skill_maintenance(
     from agent_execution_capsule_state import atomic_write_json, git_states_for_paths, read_json_object
     from agent_finish_final_checks import review_validation_path
     from agent_review_attestation import ReviewAttestation, _attestation_id
-    from agent_review_rules_inputs import review_rules_inputs
+    from agent_review_rules_inputs import review_rules_digests
     from agent_review_scope_inputs import scoped_review_digest
     from agent_route_state import required_docs_for_route
     from support.git_read_scope import invalidate_worktree_reads
@@ -427,11 +427,16 @@ def _reseal_review_after_skill_maintenance(
             return "review reseal skipped: unrelated worktree changes detected since review; rerun review hook"
         record["project_git"], record["rules_git"] = git_states_for_paths(project_resolved, rules_resolved)
         record.pop("review_checks", None)
-        rules_inputs = review_rules_inputs(project_resolved, rules_resolved)
+        rules_inputs, protected = review_rules_digests(project_resolved, rules_resolved, required_docs)
+        record.pop("protected_rules_inputs", None)
+        if protected:
+            record["protected_rules_inputs"] = protected
         if rules_inputs:
             record["rules_inputs"] = rules_inputs
-        elif "rules_inputs" in record:
+        elif project_resolved == rules_resolved and "rules_inputs" in record:
             record["rules_inputs"] = EvidenceInputs.capture(rules_resolved, [])
+        else:
+            record.pop("rules_inputs", None)
         if "project_inputs" in record and record.get("review_paths"):
             record["project_inputs"] = scoped_review_digest(
                 project_resolved, [str(p) for p in record["review_paths"]], include_index=True

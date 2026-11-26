@@ -4,7 +4,49 @@ This is an effect classifier, not network authorization or an assertion that a
 server implements GET correctly. Unknown options retain normal write checks.
 """
 
+import os
+from pathlib import Path
 from urllib.parse import urlsplit
+
+
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+PROXY_ENV_VARS = (
+    "http_proxy",
+    "HTTP_PROXY",
+    "https_proxy",
+    "HTTPS_PROXY",
+    "all_proxy",
+    "ALL_PROXY",
+)
+
+
+def _has_proxy_env() -> bool:
+    """Whether any curl proxy environment variable is set."""
+    return any(os.environ.get(var, "").strip() for var in PROXY_ENV_VARS)
+
+
+def _has_implicit_curlrc() -> bool:
+    """Whether curl could load an implicit curlrc when `-q`/`--disable` is omitted."""
+    candidates: list[Path] = []
+    curl_home = os.environ.get("CURL_HOME", "").strip()
+    if curl_home:
+        candidates.append(Path(curl_home).expanduser() / ".curlrc")
+    xdg_config = os.environ.get("XDG_CONFIG_HOME", "").strip()
+    if xdg_config:
+        xdg_dir = Path(xdg_config).expanduser()
+        candidates.append(xdg_dir / "curlrc")
+        candidates.append(xdg_dir / ".curlrc")
+    home = Path.home()
+    candidates.append(home / ".curlrc")
+    candidates.append(home / ".config" / "curlrc")
+    candidates.append(home / ".config" / ".curlrc")
+    for candidate in candidates:
+        try:
+            if candidate.exists() or candidate.is_symlink():
+                return True
+        except OSError:
+            return True
+    return False
 
 
 def curl_read_only(args: list[str]) -> bool:
@@ -14,22 +56,24 @@ def curl_read_only(args: list[str]) -> bool:
 
 def curl_effect(args: list[str]) -> tuple[str, str]:
     """Explain unsupported input separately from a recognized request/file write."""
-    # curl only disables its implicit config when -q/--disable is FIRST.
-    if not args or args[0] not in {"-q", "--disable"}:
-        return "unknown", "implicit curl configuration may change request or output behavior; put -q first"
+    if not args:
+        return "unknown", "missing or unsupported HTTP URL"
+    has_disable_first = args[0] in {"-q", "--disable"}
     flags = {"--silent", "--show-error", "--fail", "--fail-with-body",
-             "--location", "--head", "--compressed", "--ipv4", "--ipv6",
+             "--location", "--head", "--include", "--compressed", "--ipv4", "--ipv6",
              "--no-progress-meter", "--globoff", "--get"}
     values = {"--header", "--user", "--connect-timeout", "--max-time",
               "--retry", "--retry-delay", "--retry-max-time", "--user-agent",
               "--cacert", "--capath", "--proxy", "--noproxy", "--write-out"}
-    short_flags = set("sSfLIgG46")
+    short_flags = set("sSfLIigG46")
     short_values = {"H", "u", "A", "m", "x", "w"}
     writes = {"--upload-file", "--form", "--form-string", "--remote-name",
               "--remote-name-all", "--dump-header", "--trace", "--trace-ascii",
-              "--cookie-jar", "--alt-svc", "--hsts", "--libcurl"}
+              "--cookie-jar", "--alt-svc", "--hsts", "--libcurl",
+              "--data", "--data-raw", "--data-binary", "--data-urlencode", "--json"}
     urls = []
-    index = 1
+    used_proxy = False
+    index = 1 if has_disable_first else 0
     while index < len(args):
         token = args[index]
         index += 1
@@ -44,6 +88,8 @@ def curl_effect(args: list[str]) -> tuple[str, str]:
                 continue
             if option not in values | {"--request", "--url", "--output"}:
                 return "unknown", "curl option has no verified effect contract"
+            if option == "--proxy":
+                used_proxy = True
             if not equals:
                 if index == len(args):
                     return "unknown", "curl option is missing its value"
@@ -60,10 +106,12 @@ def curl_effect(args: list[str]) -> tuple[str, str]:
                 flag, cluster = cluster[0], cluster[1:]
                 if flag in short_flags:
                     continue
-                if flag in {"T", "F", "O", "D", "c"}:
+                if flag in {"T", "F", "O", "D", "c", "d"}:
                     return "mutating", "curl upload or file-output option"
                 if flag not in short_values | {"X", "o"}:
                     return "unknown", "curl option has no verified effect contract"
+                if flag == "x":
+                    used_proxy = True
                 value = cluster
                 if not value:
                     if index == len(args):
@@ -79,7 +127,17 @@ def curl_effect(args: list[str]) -> tuple[str, str]:
                 break
         else:
             urls.append(token)
-    if not urls or not all(_http_url(url) for url in urls):
+    if not urls:
+        return "unknown", "missing or unsupported HTTP URL"
+    if not has_disable_first:
+        # Localhost/loopback GET/HEAD probes may omit -q only when no proxy option
+        # or proxy environment variable is set and no implicit curlrc exists.
+        if used_proxy or _has_proxy_env():
+            return "unknown", "curl proxy option or proxy env may change request behavior; put -q first"
+        if not _has_implicit_curlrc() and all(_loopback_http_url(url) for url in urls):
+            return "read_only", ""
+        return "unknown", "implicit curl configuration may change request or output behavior; put -q first"
+    if not all(_http_url(url) for url in urls):
         return "unknown", "missing or unsupported HTTP URL"
     return "read_only", ""
 
@@ -107,5 +165,19 @@ def _http_url(value: str) -> bool:
     try:
         url = urlsplit(value)
         return url.scheme.lower() in {"http", "https"} and bool(url.hostname)
+    except ValueError:
+        return False
+
+
+def _loopback_http_url(value: str) -> bool:
+    candidate = value
+    if "://" not in candidate:
+        if candidate.startswith(("127.0.0.1", "localhost", "[::1]")):
+            candidate = "http://" + candidate
+        else:
+            return False
+    try:
+        url = urlsplit(candidate)
+        return url.scheme.lower() in {"http", "https"} and (url.hostname or "").lower() in LOOPBACK_HOSTS
     except ValueError:
         return False

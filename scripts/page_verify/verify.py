@@ -8,10 +8,11 @@ items, has ``observe.mjs`` watch the built page in a real browser, and has a
 separate judge rule on each item from that evidence alone.
 
 Verdicts are ``pass`` or ``fail``. An item that could not be confirmed is a ``fail``
-with ``basis`` ``unverified``, so that someone looks for the cause; a ``fail`` that a
+with ``basis`` ``unverified`` so it is reported transparently; a ``fail`` that a
 step or a line of code contradicts has ``basis`` ``contradicted``. (The judges
 themselves may still answer ``unobserved``; ``finalize`` turns that into a fail.)
-The exit status is 1 when any item failed, 0 otherwise, so a hook can gate on it.
+Only contradicted failures block a run or exit 1; unverified-only items are
+reported without blocking.
 """
 
 from __future__ import annotations
@@ -74,6 +75,52 @@ def judge_any(items: list[dict], evidence_dir: Path, source: str = "") -> list[d
                                   "images": load_images(evidence_dir, evidence)})["results"]
 
 
+def blocking_failures(results: list[dict]) -> list[dict]:
+    """Failures contradicted by observed evidence (excludes unverified/unchecked items)."""
+
+    return [
+        r for r in results
+        if r.get("verdict") == "fail" and r.get("basis") not in {"unverified", "unchecked"}
+    ]
+
+
+def unverified_items(results: list[dict]) -> list[dict]:
+    """Items that could not be confirmed and should be reported without blocking."""
+
+    return [
+        r for r in results
+        if r.get("verdict") == "fail" and r.get("basis") == "unverified"
+    ]
+
+
+def observer_error_reason(results: list[dict]) -> str:
+    """Return the observer failure detail if items were unverified due to an observer error."""
+
+    for r in results:
+        if r.get("verdict") == "fail" and r.get("basis") == "unverified":
+            reason = str(r.get("reason") or "")
+            if "observer failed:" in reason:
+                return reason
+    return ""
+
+
+def reported_unverified_text(results: list[dict]) -> str:
+    """Human-readable non-blocking summary of items that could not be confirmed."""
+
+    items = unverified_items(results)
+    if not items:
+        return ""
+    lines = [
+        f"- {r['id']}: {r.get('claim', '')} ({r.get('reason', 'unverified')})".strip()
+        for r in items
+    ]
+    return (
+        "Reported unverified items (not blocking):\n"
+        + "\n".join(lines)
+        + "\nDo not claim these items passed; state them plainly as unverified in your final report."
+    )
+
+
 def failing_lines(results: list[dict]) -> tuple[list[str], list[str]]:
     """Failing items as fix lines, and the ids that were never checked because a basic check failed."""
 
@@ -84,16 +131,18 @@ def failing_lines(results: list[dict]) -> tuple[list[str], list[str]]:
         if r.get("basis") == "unchecked":
             unchecked.append(r["id"])
         elif r.get("basis") == "unverified":
-            lines.append(f"- {r['id']}: {r['claim']} Could not be confirmed ({r['reason']}); an item that cannot be "
-                         "confirmed counts as failing, so fix the cause or make the behavior observable.")
+            lines.append(f"- {r['id']}: {r['claim']} Could not be confirmed ({r['reason']}); report this as "
+                         "unverified rather than claiming it passed.")
         else:
             lines.append(f"- {r['id']}: {r['claim']} Observed: {r['reason']}")
     return lines, unchecked
 
 
 def feedback_text(results: list[dict]) -> str:
-    """The message that sends failed items back to the model that built the page, or "" when none failed."""
+    """The message that sends contradicted failures back to the model, or "" when none are blocking."""
 
+    if not blocking_failures(results):
+        return ""
     lines, unchecked = failing_lines(results)
     if not lines and not unchecked:
         return ""
@@ -105,12 +154,14 @@ def feedback_text(results: list[dict]) -> str:
 
 
 def remaining_text(results: list[dict]) -> str:
-    """The message for the last check: failures that remain are to be reported, not hidden.
+    """The message for the last check: blocking failures that remain are to be reported, not hidden.
 
     No further fix is asked for. The aim is an honest final report, so the reader is not told the
     page is complete when the independent check still found it failing.
     """
 
+    if not blocking_failures(results):
+        return ""
     lines, unchecked = failing_lines(results)
     if not lines and not unchecked:
         return ""
@@ -165,6 +216,11 @@ def verify_project(project: Path, request: str, out: Path, *, viewport: str = "d
 def basic_results(items: list[dict], evidence: dict, failing: list[dict]) -> list[dict]:
     """Verdicts for the checks that need no model, used when no judge is configured."""
 
+    if evidence.get("observerError"):
+        return [
+            {**item, "verdict": "unobserved", "reason": f"observer failed: {evidence['observerError']}"}
+            for item in items
+        ]
     by_id = {r["id"]: r for r in failing}
     results = []
     for item in items:
@@ -236,7 +292,15 @@ def main(argv: list[str]) -> int:
     (args.out / "report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     (args.out / "report.md").write_text(render(results), encoding="utf-8")
     print(render(results))
-    return 1 if any(r["verdict"] == "fail" for r in results) else 0
+    unverified_summary = reported_unverified_text(results)
+    if unverified_summary:
+        print("\n" + unverified_summary)
+    all_unverified = bool(results) and all(
+        r.get("verdict") == "fail" and r.get("basis") == "unverified" for r in results
+    )
+    if blocking_failures(results) or observer_error_reason(results) or all_unverified:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

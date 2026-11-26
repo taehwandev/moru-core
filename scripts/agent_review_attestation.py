@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +19,7 @@ from agent_execution_capsule_state import (
 from agent_worktree_fingerprint import git_output
 from agent_review_commit_range import split_integrated_paths
 from agent_route_state import route_fingerprint
-from agent_review_rules_inputs import review_rules_inputs
+from agent_review_rules_inputs import review_rules_digests
 from agent_evidence_inputs import EvidenceInputs
 from agent_review_scope_inputs import scoped_review_digest
 from support.global_state import project_state_dir_target
@@ -92,8 +93,9 @@ class ReviewAttestation:
         subject = _normalize_review_subject(review_subject)
         _verify_subject_scope(project, subject, scope, paths, changed_path_count)
         relative = _project_evidence_relative(project, evidence_path)
-        project_git, rules_git = _review_git_states(project, rules, git_records)
-        rules_inputs = review_rules_inputs(project, rules)
+        project_git, rules_git = _review_git_states(project, rules, git_records, scope, paths)
+        required_docs = set((preflight.get("route") or {}).get("required_docs") or [])
+        rules_inputs, protected = review_rules_digests(project, rules, required_docs)
         payload: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "status": "SUCCESS",
@@ -106,6 +108,7 @@ class ReviewAttestation:
             "project_git": project_git,
             "rules_git": rules_git,
             **({"rules_inputs": rules_inputs} if rules_inputs else {}),
+            **({"protected_rules_inputs": protected} if protected else {}),
             "review_scope": scope,
             "review_paths": paths,
             "review_paths_fingerprint": _paths_fingerprint(paths),
@@ -184,7 +187,8 @@ def _complete_review_record(payload: dict, checks: dict, project: Path, rules: P
         if checks.get("scoped_review_inputs", inputs) != inputs:
             raise ValueError("reviewed scoped inputs changed before attestation")
         payload["project_inputs"] = inputs
-        payload["rules_inputs"] = payload.get("rules_inputs") or EvidenceInputs.capture(rules, [])
+        if project == rules:
+            payload["rules_inputs"] = EvidenceInputs.capture(rules, [])
     payload["attestation_id"] = _attestation_id(payload)
     if "review_checks" in payload and _record_shape_failures(payload):
         raise ValueError("review hook check provenance is invalid")
@@ -283,11 +287,27 @@ def _attestation_failures(
         evidence_path = evidence_path.resolve()
         expected_path = _project_evidence_relative(project, evidence_path)
         current_evidence = file_hash_record(evidence_path)
-        project_git, rules_git = git_states_for_paths(
-            project,
-            rules,
-            project_record=record["project_git"],
-            rules_record=record["rules_git"],
+        scoped_paths = (
+            record.get("review_paths")
+            if str(record.get("review_scope") or "").startswith("pathspec:")
+            and record.get("review_paths")
+            else None
+        )
+        project_git, rules_git = (
+            git_states_for_paths(
+                project,
+                rules,
+                project_record=record["project_git"],
+                rules_record=record["rules_git"],
+                project_paths=scoped_paths,
+            )
+            if scoped_paths
+            else git_states_for_paths(
+                project,
+                rules,
+                project_record=record["project_git"],
+                rules_record=record["rules_git"],
+            )
         )
         preflight = read_json_object(evidence_path)
     except (OSError, RuntimeError, TypeError, ValueError):
@@ -306,11 +326,15 @@ def _attestation_failures(
     try:
         same_project_inputs = bool(record.get("project_inputs")) and scoped_review_digest(
             project, record["review_paths"], include_index=True) == record["project_inputs"]
-        current_rules_inputs = None
+        current_rules_inputs = protected = None
         if rules_git != record["rules_git"] and record.get("rules_inputs"):
-            current_rules_inputs = review_rules_inputs(project, rules) or EvidenceInputs.capture(rules, [])
+            if rules == project:
+                current_rules_inputs = EvidenceInputs.capture(rules, [])
+            else:
+                current_rules_inputs, protected = review_rules_digests(
+                    project, rules, set(route.get("required_docs") or []) if record.get("protected_rules_inputs") else None)
     except (OSError, RuntimeError, TypeError, ValueError):
-        same_project_inputs, current_rules_inputs = False, None
+        same_project_inputs, current_rules_inputs, protected = False, None, None
     if (project_git != record["project_git"] or record.get("project_inputs")) and not same_project_inputs:
         failures.append("review hook attestation project worktree binding is stale")
     same_rules_inputs = (
@@ -318,7 +342,17 @@ def _attestation_failures(
         and current_rules_inputs == record["rules_inputs"]
     )
     if rules_git != record["rules_git"] and not same_rules_inputs:
-        failures.append("review hook attestation rules worktree binding is stale")
+        from agent_execution_capsule_validation import validate_preflight_snapshot
+        snapshot = preflight.get("execution_snapshot") or {}
+        if (rules != project and preflight.get("rules") == str(rules)
+                and current_rules_inputs is not None and protected is not None
+                and protected == record.get("protected_rules_inputs")
+                and isinstance(snapshot, dict) and snapshot.get("required_docs")
+                and project_git == record["project_git"]
+                and not validate_preflight_snapshot(snapshot, project, evidence_path, rules, route)):
+            print("Warning: shared rules changed since review; using the bound start snapshot.", file=sys.stderr)
+        else:
+            failures.append("review hook attestation rules worktree binding is stale")
     return list(dict.fromkeys(failures))
 
 
@@ -326,6 +360,8 @@ def _review_git_states(
     project: Path,
     rules: Path,
     git_records: Any,
+    review_scope: str = "",
+    review_paths: list[str] | None = None,
 ) -> tuple[dict[str, str], dict[str, str]]:
     """The project and rules states to attest, revalidating a fresh capture.
 
@@ -341,6 +377,15 @@ def _review_git_states(
         and all(isinstance(record, dict) for record in git_records)
     )
     project_record, rules_record = git_records if usable else (None, None)
+    project_paths = review_paths if review_scope.startswith("pathspec:") and review_paths else None
+    if project_paths:
+        return git_states_for_paths(
+            project,
+            rules,
+            project_record=project_record,
+            rules_record=rules_record,
+            project_paths=project_paths,
+        )
     return git_states_for_paths(
         project, rules, project_record=project_record, rules_record=rules_record
     )
@@ -543,6 +588,10 @@ def _record_shape_failures(record: dict[str, Any]) -> list[str]:
         if not is_sha256(record["rules_inputs"]):
             return ["review hook rules inputs are invalid"]
         expected_keys.add("rules_inputs")
+    if "protected_rules_inputs" in record and schema_version == SCHEMA_VERSION:
+        if not record.get("rules_inputs") or not is_sha256(record["protected_rules_inputs"]):
+            return ["review hook protected rules inputs are invalid"]
+        expected_keys.add("protected_rules_inputs")
     if schema_version == 1:
         if set(record) != legacy_keys:
             return ["review hook attestation schema fields are invalid"]

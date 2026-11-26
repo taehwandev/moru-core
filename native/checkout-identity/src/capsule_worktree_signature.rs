@@ -26,6 +26,7 @@ struct Entry<'a> {
     record: &'a [u8],
     xy: &'a [u8],
     added: bool,
+    untracked: bool,
 }
 
 impl WorktreeSignature {
@@ -36,6 +37,21 @@ impl WorktreeSignature {
         let excluded = match payload.get("excluded") {
             None | Some(Value::Null) => None,
             Some(value) => Some(value.as_str()?),
+        };
+        let paths: Option<Vec<&str>> = match payload.get("paths") {
+            None | Some(Value::Null) => None,
+            Some(Value::Array(items)) => {
+                let mut list = Vec::with_capacity(items.len());
+                for item in items {
+                    let value = item.as_str()?.trim();
+                    if value.is_empty() {
+                        return None;
+                    }
+                    list.push(value);
+                }
+                if list.is_empty() { None } else { Some(list) }
+            }
+            Some(_) => return None,
         };
         let mut content = payload
             .get("strong")
@@ -107,6 +123,16 @@ impl WorktreeSignature {
                 Self::metadata_key(&metadata).as_bytes(),
             );
             if entry.added {
+                let out_of_scope_untracked = entry.untracked
+                    && paths
+                        .as_deref()
+                        .is_some_and(|scoped| !Self::path_in_scope(entry.path, scoped));
+                if out_of_scope_untracked {
+                    if let Some(content) = &mut content {
+                        content.metadata_entry(entry.path, &metadata);
+                    }
+                    continue;
+                }
                 files += 1;
                 bytes = bytes.checked_add(metadata.size())?;
                 if files > max_files || bytes > max_bytes {
@@ -118,8 +144,16 @@ impl WorktreeSignature {
             }
         }
         let signature = format!("{:x}", signature.finalize());
+        let scoped = paths.is_some();
         if let Some(content) = content {
-            Some(json!({"signature": signature, "fingerprint": content.finish(root, excluded)?}))
+            let fingerprint = content.finish(root, excluded)?;
+            if scoped {
+                Some(json!({"signature": signature, "fingerprint": fingerprint, "scoped": true}))
+            } else {
+                Some(json!({"signature": signature, "fingerprint": fingerprint}))
+            }
+        } else if scoped {
+            Some(json!({"signature": signature, "scoped": true}))
         } else {
             Some(json!({"signature": signature}))
         }
@@ -172,6 +206,7 @@ impl WorktreeSignature {
                         record,
                         xy: b"",
                         added: true,
+                        untracked: true,
                     });
                 }
                 continue;
@@ -197,6 +232,7 @@ impl WorktreeSignature {
                     record,
                     xy,
                     added: kind == b'2' || xy.contains(&b'A'),
+                    untracked: false,
                 });
             }
             if kind == b'2' {
@@ -209,6 +245,7 @@ impl WorktreeSignature {
                         record: b"",
                         xy: b"",
                         added: false,
+                        untracked: false,
                     });
                 }
             }
@@ -216,10 +253,122 @@ impl WorktreeSignature {
         Some(entries)
     }
 
+    fn path_in_scope(raw_path: &[u8], scoped: &[&str]) -> bool {
+        let rel = String::from_utf8_lossy(raw_path).replace('\\', "/");
+        let rel = rel.trim_start_matches("./");
+        for item in scoped {
+            let norm = item
+                .replace('\\', "/")
+                .trim()
+                .trim_start_matches("./")
+                .trim_end_matches('/')
+                .to_owned();
+            if norm.is_empty() || norm == "." {
+                return true;
+            }
+            if rel == norm
+                || (rel.starts_with(&norm) && rel.as_bytes().get(norm.len()) == Some(&b'/'))
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     fn hash(digest: &mut Sha256, label: &[u8], value: &[u8]) {
         digest.update((label.len() as u32).to_be_bytes());
         digest.update(label);
         digest.update((value.len() as u64).to_be_bytes());
         digest.update(value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn pathspec_capture_ignores_out_of_scope_oversized_untracked_files() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("moru-c5-test-{stamp}"));
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("renders")).unwrap();
+        fs::write(dir.join("tracked.txt"), "base\n").unwrap();
+        let run = |args: &[&str]| {
+            let status = Command::new("git")
+                .current_dir(&dir)
+                .args(args)
+                .status()
+                .unwrap();
+            assert!(status.success(), "git {args:?} failed");
+        };
+        run(&["init", "-q"]);
+        run(&["config", "user.email", "tests@example.invalid"]);
+        run(&["config", "user.name", "Tests"]);
+        run(&["add", "-A"]);
+        run(&["commit", "-qm", "init"]);
+
+        fs::write(dir.join("src/a.js"), "export const a = 1;\n").unwrap();
+        fs::write(dir.join("renders/frame.bin"), vec![b'x'; 512]).unwrap();
+        let root = dir.canonicalize().unwrap();
+
+        let scoped = WorktreeSignature::capture(&json!({
+            "path": root.to_str().unwrap(),
+            "max_files": 5000,
+            "max_bytes": 128,
+            "strong": true,
+            "paths": ["src/a.js"],
+        }));
+        let value = scoped.expect("pathspec-scoped capture must ignore out-of-scope renders");
+        assert_eq!(value.get("scoped"), Some(&Value::Bool(true)));
+        let orig_fp = value
+            .get("fingerprint")
+            .and_then(Value::as_str)
+            .expect("fingerprint")
+            .to_owned();
+        let orig_sig = value
+            .get("signature")
+            .and_then(Value::as_str)
+            .expect("signature")
+            .to_owned();
+
+        // Negative control: editing an out-of-scope tracked file MUST invalidate both signature and fingerprint!
+        fs::write(dir.join("tracked.txt"), "mutated out of scope\n").unwrap();
+        let after_edit = WorktreeSignature::capture(&json!({
+            "path": root.to_str().unwrap(),
+            "max_files": 5000,
+            "max_bytes": 128,
+            "strong": true,
+            "paths": ["src/a.js"],
+        }))
+        .expect("capture after out-of-scope tracked edit");
+        assert_ne!(after_edit.get("fingerprint").and_then(Value::as_str), Some(orig_fp.as_str()));
+        assert_ne!(after_edit.get("signature").and_then(Value::as_str), Some(orig_sig.as_str()));
+        fs::write(dir.join("tracked.txt"), "base\n").unwrap();
+
+        // Negative control: unscoped capture still declines over max_bytes.
+        let unscoped = WorktreeSignature::capture(&json!({
+            "path": root.to_str().unwrap(),
+            "max_files": 5000,
+            "max_bytes": 128,
+            "strong": true,
+        }));
+        assert!(unscoped.is_none());
+
+        // Negative control: oversized in-scope path still declines.
+        let oversized_in_scope = WorktreeSignature::capture(&json!({
+            "path": root.to_str().unwrap(),
+            "max_files": 5000,
+            "max_bytes": 128,
+            "strong": true,
+            "paths": ["renders/frame.bin"],
+        }));
+        assert!(oversized_in_scope.is_none());
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

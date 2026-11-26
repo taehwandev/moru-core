@@ -52,6 +52,23 @@ After an implementation run has finished, bind a new `test` run to the existing
 task worktree before installing its APK. Reuse the user's same-device approval;
 the finished run's publication allowance does not cover a device install.
 
+A passed review lets finish fill an untouched objective from the bounded start
+intake. Remaining work, blockers, pending operations and non-successful verification
+prevent automatic reconciliation. A separate rules checkout may advance during
+review. Finish checks the bound snapshot and unchanged project before accepting optional Markdown
+drift. Required documents, scripts, native code, hooks and workflow definitions
+remain bound.
+
+Checkpoint accepts inline `--work-json` as well as a file or stdin. Plain
+remaining actions and decision text are expanded into checkpoint records.
+Verification shorthand needs both a kind and a verdict, such as `unit failed`.
+Checkpoint truncates overlong objectives, non-goals, blockers, actions, decisions,
+evidence summaries and requirement descriptions with a warning. It rejects an
+overlong acceptance criterion with its length so the caller can preserve its
+qualifiers. For a late retrospective, review the recorded run-local hook failures
+and pass the usual fields as one JSON object with `finish --retrospective-record`.
+An unavailable count indicates missing or unreadable timing evidence.
+
 For tracked work:
 
 ```text

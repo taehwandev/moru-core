@@ -26,6 +26,14 @@ ARRAY_HINT = 'pass "a.md, b.md" rather than ["a.md", "b.md"]'
 
 
 class GateRecordInvocationTests(unittest.TestCase):
+    def test_status_aliases_never_turn_an_unknown_verdict_into_success(self):
+        for status in ("pass", "passed", "ok"):
+            self.assertEqual("SUCCESS", _normalize_gate_record({"gate": "tests", "status": status})["status"])
+        self.assertEqual("FAIL", _normalize_gate_record({"gate": "tests", "status": "FAIL"})["status"])
+        for bad in ("pending", False, ""):
+            with self.assertRaisesRegex(ValueError, "invalid status"):
+                _normalize_gate_record({"gate": "tests", "status": bad})
+
     def test_rejected_retrospective_stays_missing_until_a_valid_retry(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
@@ -57,6 +65,16 @@ class GateRecordInvocationTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 self.assertEqual(0, gate_batch_hook(args))
             self.assertEqual({"remaining_gates": [], "ledger_complete": True}, _gate_progress(args))
+
+            from agent_finish_retrospective_default import record_finish_retrospective
+            args.hook = "finish"
+            with self.assertRaises(ValueError):
+                record_finish_retrospective(args, '{"outcome":"unobserved"}')
+            fields.update(skills_checked="none", outcome="no_skill_used")
+            record_finish_retrospective(args, json.dumps(fields))
+            from agent_gate_evidence import gate_evidence_path_for_preflight
+            ledger = read_gate_evidence_ledger(gate_evidence_path_for_preflight(evidence))
+            self.assertEqual("no_skill_used", ledger["entries"][-1]["fields"]["outcome"])
 
     def test_batch_reports_remaining_gates_without_a_second_query(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

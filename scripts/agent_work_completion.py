@@ -8,6 +8,8 @@ Verification: a passed subset cannot close recorded outstanding delivery work.
 
 from __future__ import annotations
 
+import json
+import shlex
 from pathlib import Path
 
 from agent_continuation_checkpoint import binding_record
@@ -54,11 +56,11 @@ def work_completion_failures(project: Path, evidence: Path) -> list[str]:
     # Retain delivery context without replaying implementation gates here.
     delivery = route.get("command") != "commit"
     if delivery and scope_unreconciled(preflight, packet):
-        failures.append(
-            "requested scope has not been reconciled; record its bounded objective, acceptance and remaining outcomes before finish "
-            "(checkpoint --checkpoint-kind decision --phase verifying --work-file <json> with an objective and, "
-            "when nothing is left, \"remaining_work\": []; checkpoint --work-shape prints the shape)"
-        )
+        from support.stable_launcher import stable_launcher_path
+        command = shlex.join([str(stable_launcher_path()), "checkpoint", "--project", str(project),
+                              "--evidence", str(evidence), "--checkpoint-kind", "decision",
+                              "--work-json", '{"objective":"Describe the verified outcome"}'])
+        failures.append("requested scope has not been reconciled; supply the bounded outcome: " + command)
     # A declared publication the run's effect already admits is finish-deferred and
     # stays owed in the pending-publication record; any other item still blocks.
     from agent_pending_publication import split_remaining
@@ -85,3 +87,42 @@ def scope_unreconciled(preflight: dict, packet: dict) -> bool:
     work = packet.get("work") or {}
     return (not work.get("acceptance_criteria")
             and work.get("objective") in (None, "", f"{route.get('command')} workflow"))
+
+def reconcile_reviewed_scope(project: Path, rules: Path, evidence: Path) -> bool:
+    """Fill only an initial placeholder after an authenticated review. Preserve all open work."""
+    from agent_continuation_checkpoint import write_continuation_checkpoint
+    from agent_continuation_fields import MAX_TEXT, prose
+    from agent_gate_evidence import merge_gate_evidence_from_ledger
+    from agent_review_attestation import REVIEW_HOOK_GATE, ReviewAttestation
+
+    preflight = read_json_object(evidence)
+    route = preflight.get("route") or {}
+    packet = bound_work_packet(project, evidence)
+    if not packet or not scope_unreconciled(preflight, packet) or REVIEW_HOOK_GATE not in route.get("gates", []):
+        return False
+    work = packet["work"]
+    if (work.get("remaining_work") or work.get("blockers") or packet["phase"] in {"blocked", "reconcile_required"}
+            or packet["checkpoint"].get("mutation_pending")
+            or any(row.get("result") != "success" for row in work.get("verification", []))):
+        return False
+    gates, ledger = merge_gate_evidence_from_ledger(route=route, evidence_path=evidence)
+    if REVIEW_HOOK_GATE not in gates or ReviewAttestation.failures(
+        project=project, rules=rules, evidence_path=evidence, route=route,
+        ledger_fields=ledger["entry_fields"].get(REVIEW_HOOK_GATE, {}),
+        ledger_source=ledger["sources"].get(REVIEW_HOOK_GATE, ""),
+    ):
+        return False
+    argv = (preflight.get("route_command") or {}).get("command") or []
+    objective = (preflight.get("request_intake") or {}).get("request")
+    if "--intent-envelope" in argv:
+        envelope = json.loads(argv[argv.index("--intent-envelope") + 1])
+        if not isinstance(envelope, dict):
+            return False
+        objective = envelope.get("target_summary") or objective
+    errors = []
+    prose(objective, "/work/objective", errors, MAX_TEXT)
+    if errors:
+        return False
+    write_continuation_checkpoint(project=project, rules=rules, run_id=evidence.parent.name,
+                                  kind="decision", binding_path=evidence, work={"objective": objective})
+    return True

@@ -25,6 +25,14 @@ impl WorktreeContent {
         Worktree::hash(&mut self.digest, label, value);
     }
 
+    pub(super) fn metadata_entry(&mut self, relative: &[u8], metadata: &Metadata) {
+        self.frame(b"worktree-path", relative);
+        self.frame(
+            b"worktree-metadata",
+            Worktree::metadata_key(metadata).as_bytes(),
+        );
+    }
+
     pub(super) fn added(
         &mut self,
         path: &Path,

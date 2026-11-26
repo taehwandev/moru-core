@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,6 +83,58 @@ class AgentWorkspacePolicyTests(unittest.TestCase):
             self.assertEqual([], discovery["command_errors"])
             self.assertEqual("non_git_workspace", discovery["review_only"])
 
+
+    def test_git_environment_and_successful_rev_parse_require_git_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "work"
+            project.mkdir()
+            repo = root / "store.git"
+            subprocess.run(["git", "init", "-q", "--bare", str(repo)], check=True)
+            self.assertFalse(is_non_git_workspace(repo))  # rev-parse succeeds without a .git child.
+            with patch.dict(os.environ, {"GIT_DIR": str(repo), "GIT_WORK_TREE": str(project)}):
+                self.assertFalse(is_non_git_workspace(project))
+                self.assertFalse(is_git_status_review_only(project, {"returncode": 128}))
+
+    def test_review_and_finish_check_markdown_hard_breaks_in_a_git_writing_workspace(self):
+        from agent_command_runtime import run_command
+        from agent_finish_final_checks import run_final_checks
+        from agent_review_hook import record_review_diff_checks
+
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "drafts").mkdir()
+            instructions = project / "AGENTS.md"
+            instructions.write_text("# Writing Workspace Instructions\n")
+            draft = project / "drafts/post.md"
+            source = project / "script.py"
+            draft.write_text("old\n")
+            source.write_text("old\n")
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+            subprocess.run(["git", "add", "."], cwd=project, check=True)
+            for hard_break, bad_source, writing, expected in (
+                    ("line  ", False, True, True), ("line ", False, True, False),
+                    ("line  ", True, True, False), ("line  ", False, False, False)):
+                with self.subTest(hard_break=hard_break, bad_source=bad_source, writing=writing):
+                    instructions.write_text("# Writing Workspace Instructions\n" if writing else "Project\n")
+                    for trailer in ("staged", "worktree"):
+                        draft.write_text(trailer + hard_break + "\nnext\n")
+                        source.write_text(trailer + ("  " if bad_source else "") + "\n")
+                        if trailer == "staged":
+                            subprocess.run(["git", "add", "."], cwd=project, check=True)
+                    checks, failures = {}, []
+                    record_review_diff_checks(SimpleNamespace(project=project), checks, failures, run_command,
+                                              [], {"kind": "working-tree"}, status_before={}, local_config_scope=False)
+                    for key in ("diff_check", "staged_diff_check"):
+                        self.assertEqual(expected, checks[key]["returncode"] == 0)
+                    signals = []
+                    with patch("agent_finish_final_checks.run_workflow_validate", return_value={"returncode": 0}):
+                        _, diff, _, _ = run_final_checks(ROOT, project, ROOT, None, signals, [], read_only=True)
+                    self.assertEqual(expected, diff["returncode"] == 0)
+                    self.assertFalse(diff.get("skipped"))
+                    if expected:
+                        self.assertEqual(2, diff["git_returncode"])
+                        self.assertIn("Markdown hard breaks", str(signals))
 
     def test_workspace_root_holding_repos_is_not_itself_a_git_workspace(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

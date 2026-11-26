@@ -20,17 +20,53 @@ _ADMISSION_ONLY = frozenset({
 
 
 def review_rules_inputs(project: Path, rules: Path) -> str | None:
-    """Hash all rules inputs except known independent tests/admission modules.
+    """Return the legacy input digest without a documentation exception."""
+    return review_rules_digests(project, rules)[0]
 
-No exemption applies when rules are the reviewed repository. Older receipts
-and non-Git roots retain their exact-state check. Failure to inspect is not
-permission to reuse. Paths, modes, additions, deletions and content all bind.
-"""
+
+def _admission_or_test(name: str) -> bool:
+    return name in _ADMISSION_ONLY or name.startswith("tests/")
+
+
+def _optional_document(name: str, required_docs: set[str]) -> bool:
+    path = Path(name)
+    reserved = {"scripts", "native", "hooks", "hook", "workflows", "workflow", "commands"}
+    return (path.suffix == ".md" and name not in required_docs
+            and path.name not in {"AGENTS.md", "AGENTS.override.md", "CLAUDE.md", "CODEX.md"}
+            and not any(part.startswith(".") or part in reserved for part in path.parts))
+
+
+def _bind_git_entries(rules, head, required_docs, digest, protected):
+    # Bind the base tree and the index separately from working file bytes. An
+    # unstaged restore must not conceal a staged validator or executable mode.
+    for args in (("ls-tree", "-rz", head), ("ls-files", "--stage", "-z")):
+        for target in (digest, protected):
+            target.update(args[0].encode() + b"\0")
+        for entry in git_output(rules, *args).split("\0"):
+            if not entry:
+                continue
+            metadata, name = entry.split("\t", 1)
+            encoded = entry.encode() + b"\0"
+            if not _admission_or_test(name):
+                digest.update(encoded)
+            if not metadata.startswith("100644 ") or not _optional_document(name, required_docs):
+                protected.update(encoded)
+
+
+def review_rules_digests(
+    project: Path, rules: Path, required_docs: set[str] | None = None,
+) -> tuple[str | None, str | None]:
+    """Return the review digest and its optional-doc comparison from one bounded scan.
+
+    Failure to inspect is never permission to reuse. Without a bound document
+    manifest preserve the legacy digest for existing receipts and callers.
+    """
     try:
+        rules = rules.resolve()
         if git_repository_root(project) == git_repository_root(rules):
-            return None
+            return None, None
         if git_repository_root(rules) != rules.resolve():
-            return None  # Subdirectory rule roots retain the conservative path.
+            return None, None  # Subdirectory rule roots retain the conservative path.
         # The opening state may be the one this hook already observed; the
         # closing check below always reads afresh, so a tree that moved since
         # that observation fails the comparison and nothing is reused.
@@ -42,30 +78,39 @@ permission to reuse. Paths, modes, additions, deletions and content all bind.
             rules, "ls-files", "-z", "--cached", "--others", "--exclude-standard"
         ).split("\0")) - {""})
         digest = hashlib.sha256(b"review-rules-inputs-v1\0")
+        protected = hashlib.sha256(b"review-protected-inputs-v1\0") if required_docs else None
+        if required_docs:
+            _bind_git_entries(rules, before, required_docs, digest, protected)
         budget = 64 * 1024 * 1024
         for name in paths:
-            if name.startswith("tests/") or name in _ADMISSION_ONLY:
+            included = not _admission_or_test(name)
+            if not included and protected is None:
                 continue
             path = rules / name
-            digest.update(name.encode("utf-8") + b"\0")
-            if not path.exists() and not path.is_symlink():
-                digest.update(b"deleted\0")
-                continue
-            info = path.lstat()
-            if not stat.S_ISREG(info.st_mode) or path.resolve().parent != path.parent.resolve():
-                return None
-            path.resolve().relative_to(rules.resolve())
-            budget -= info.st_size
-            if budget < 0:
-                return None
-            content = path.read_bytes()
-            if path.stat() != info:
-                return None
-            digest.update(str(stat.S_IMODE(info.st_mode)).encode() + b"\0")
-            digest.update(hashlib.sha256(content).digest())
+            try:
+                info = path.lstat()
+            except FileNotFoundError:
+                value = b"deleted\0"
+                executable = False
+            else:
+                if not stat.S_ISREG(info.st_mode) or path.parent.resolve() != path.parent.absolute():
+                    return None, None
+                budget -= info.st_size
+                if budget < 0:
+                    return None, None
+                content = hashlib.sha256(path.read_bytes()).digest()
+                if path.lstat() != info:
+                    return None, None
+                value = str(stat.S_IMODE(info.st_mode)).encode() + b"\0" + content
+                executable = bool(info.st_mode & 0o111)
+            entry = name.encode() + b"\0" + value
+            if included:
+                digest.update(entry)
+            if protected is not None and (executable or not _optional_document(name, required_docs)):
+                protected.update(entry)
         if (git_output(rules, "rev-parse", "HEAD").strip() != before
                 or worktree_signature(rules) != signature):
-            return None
-        return digest.hexdigest()
+            return None, None
+        return digest.hexdigest(), protected.hexdigest() if protected is not None else None
     except (OSError, RuntimeError, ValueError):
-        return None
+        return None, None

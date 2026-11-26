@@ -80,6 +80,9 @@ impl StructureFileSize {
             return Some((failures, warnings));
         }
         let added_file = metadata.get("status").map_or(Some(""), Value::as_str)? == "A";
+        let creative_new_file_warn = row
+            .get("creative_new_file_warn")
+            .map_or(Some(false), Value::as_bool)?;
         let added = match metadata.get("additions") {
             None | Some(Value::Null) => {
                 if added_file {
@@ -92,13 +95,27 @@ impl StructureFileSize {
         };
         let deleted = metadata.get("deletions").map_or(Some(0), Value::as_i64)?;
         if added_file && lines > max_file {
-            failures.push(format!(
-                "{path} is a new development source/style file with {lines} lines; \
-                 new-file hard limit is {max_file}; split by responsibility before approval"
-            ));
+            if creative_new_file_warn {
+                warnings.push(format!(
+                    "{path} is a new oversized creative file with {lines} lines; \
+                     new-file limit is {max_file}; structure-review evidence is required \
+                     instead of a hard failure"
+                ));
+            } else {
+                failures.push(format!(
+                    "{path} is a new development source/style file with {lines} lines; \
+                     new-file hard limit is {max_file}; split by responsibility before approval"
+                ));
+            }
         }
         if added > max_added {
-            if !added_file && deleted > added {
+            if added_file && creative_new_file_warn {
+                warnings.push(format!(
+                    "{path} adds {added} lines in a new creative file; \
+                     per-file addition limit is {max_added}; structure-review evidence is required \
+                     instead of an addition-limit failure"
+                ));
+            } else if !added_file && deleted > added {
                 warnings.push(format!(
                     "{path} adds {added} lines but deletes {deleted} lines, so the file \
                      is not growing; structure-review evidence is required instead of an addition-limit failure"

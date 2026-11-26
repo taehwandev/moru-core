@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -16,14 +18,39 @@ from agent_inprocess import run_workflow_validate
 from agent_vibeguard_cache import cached_vibeguard, skipped_vibeguard
 from agent_workspace_policy import (
     is_non_git_workspace,
-    is_writing_workspace,
     non_git_writing_workspace_note,
+    writing_diff_result,
 )
 from support.global_state import project_state_dir_target
 
 
 REVIEW_VALIDATION_SCHEMA_VERSION = 3
 REVIEW_VALIDATION_FILENAME = "review-workflow-validation.json"
+
+
+def non_git_audit_note(project, rules, audit, runner):
+    """Confirm the entire warning set before accepting Git-only findings outside Git."""
+    overall = audit.get("overall")
+    status = overall.get("status") if isinstance(overall, dict) else overall
+    if status != "Needs review" or audit.get("returncode") != 0 or not is_non_git_workspace(project):
+        return ""
+    allowed = {("environment", "This is not a Git repository. Change tracking is limited before automatic fixes."),
+               ("security", ".gitignore is missing, so local secret files may be committed.")}
+    try:
+        result = runner([*vibeguard_command(project, rules), "--json", "--lang", "en"], project)
+        if result["returncode"] != 0:
+            return ""
+        report = json.loads(result["stdout"])
+        summary = report["summary"]
+        findings = report["findings"]
+        warnings = [f for f in findings if f["severity"] != "info"]
+        if (Path(report["root"]).resolve() == project.resolve() and summary["status"] == "warn"
+                and summary["blocks"] == 0 and summary["warnings"] == len(warnings) and warnings
+                and all(f["severity"] == "warn" and (f["category"], f["message"]) in allowed for f in warnings)):
+            return "Full audit reported only Git tracking warnings in this non-Git directory."
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    return ""
 
 
 def run_final_checks(
@@ -48,10 +75,7 @@ def run_final_checks(
             "skipped": True,
             "review_note": non_git_writing_workspace_note(project),
         }
-        if (
-            is_writing_workspace(project)
-            or (read_only and is_non_git_workspace(project))
-        )
+        if is_non_git_workspace(project)
         else (
             {
                 "command": [],
@@ -79,7 +103,7 @@ def run_final_checks(
                     ),
                 }
                 if read_only and intrinsically_read_only
-                else run_command(["git", "diff", "--check"], project)
+                else writing_diff_result(project, run_command(["git", "diff", "--check"], project))
             )
         )
     )
@@ -94,6 +118,10 @@ def run_final_checks(
             parse_overall=parse_overall,
         )
     )
+    if not allow_vibeguard_review:
+        allow_vibeguard_review = non_git_audit_note(project, rules, vibeguard, run_command)
+        if allow_vibeguard_review:
+            vibeguard["review_note"] = allow_vibeguard_review
     _record_final_check_signals(validate, diff_check, vibeguard, allow_vibeguard_review, gate_signals, failures)
     return validate, diff_check, vibeguard, vibeguard["overall"]["status"]
 
@@ -116,7 +144,7 @@ def _record_final_check_signals(
     if diff_check["returncode"] != 0:
         add_gate_signal(gate_signals, "FAIL", "diff check", "failed", "non-zero exit")
         failures.append("git diff --check failed")
-    elif diff_check.get("skipped"):
+    elif diff_check.get("skipped") or diff_check.get("git_returncode"):
         add_gate_signal(gate_signals, "SUCCESS", "diff check", "review accepted", diff_check["review_note"])
     else:
         add_gate_signal(gate_signals, "SUCCESS", "diff check", "executed", "exit 0")
@@ -154,6 +182,8 @@ def record_successful_review_workflow_validation(
     validate: dict[str, Any],
     diff_check: dict[str, Any],
     review_scope: str,
+    *,
+    review_paths: Sequence[str] | None = None,
 ) -> tuple[dict[str, str], dict[str, str]] | None:
     """Persist successful review checks with their exact source snapshot.
 
@@ -168,8 +198,17 @@ def record_successful_review_workflow_validation(
         or not evidence_path.is_file()
     ):
         return None
+    scoped_paths = (
+        [item for item in (str(p).strip() for p in review_paths) if item]
+        if review_paths and review_scope.strip().startswith("pathspec:")
+        else []
+    )
     try:
-        project_git, rules_git = git_states_for_paths(project, rules)
+        project_git, rules_git = (
+            git_states_for_paths(project, rules, project_paths=scoped_paths)
+            if scoped_paths
+            else git_states_for_paths(project, rules)
+        )
         evidence_relative = evidence_path.resolve().relative_to(
             project_state_dir_target(project.resolve()).resolve()
         )
@@ -179,6 +218,12 @@ def record_successful_review_workflow_validation(
         }
     except (OSError, RuntimeError, ValueError):
         return None
+    diff_record: dict[str, Any] = {
+        "returncode": 0,
+        "review_scope": review_scope.strip(),
+    }
+    if scoped_paths:
+        diff_record["review_paths"] = scoped_paths
     try:
         atomic_write_json(
             review_validation_path(project),
@@ -188,10 +233,7 @@ def record_successful_review_workflow_validation(
                 "project_git": project_git,
                 "rules_git": rules_git,
                 "workflow_validate": {"returncode": 0},
-                "diff_check": {
-                    "returncode": 0,
-                    "review_scope": review_scope.strip(),
-                },
+                "diff_check": diff_record,
             },
         )
     except OSError:
@@ -211,6 +253,7 @@ def reusable_review_workflow_validation(project: Path, rules: Path) -> dict[str,
         return None
     state_dir = project_state_dir_target(project.resolve())
     evidence_path = (state_dir / record["preflight_evidence"]["path"]).resolve()
+    scoped_paths = record["diff_check"].get("review_paths")
     try:
         evidence_path.relative_to(state_dir.resolve())
         current_evidence = {
@@ -219,11 +262,21 @@ def reusable_review_workflow_validation(project: Path, rules: Path) -> dict[str,
         }
         if not evidence_path.is_file() or current_evidence != record["preflight_evidence"]:
             return None
-        project_git, rules_git = git_states_for_paths(
-            project,
-            rules,
-            project_record=record["project_git"],
-            rules_record=record["rules_git"],
+        project_git, rules_git = (
+            git_states_for_paths(
+                project,
+                rules,
+                project_record=record["project_git"],
+                rules_record=record["rules_git"],
+                project_paths=scoped_paths,
+            )
+            if scoped_paths
+            else git_states_for_paths(
+                project,
+                rules,
+                project_record=record["project_git"],
+                rules_record=record["rules_git"],
+            )
         )
     except (OSError, RuntimeError, ValueError):
         return None
@@ -276,10 +329,21 @@ def _valid_review_validation_record(record: dict[str, Any]) -> bool:
     if record.get("workflow_validate") != {"returncode": 0}:
         return False
     diff_check = record.get("diff_check")
-    return (
-        isinstance(diff_check, dict)
-        and set(diff_check) == {"returncode", "review_scope"}
-        and diff_check.get("returncode") == 0
-        and isinstance(diff_check.get("review_scope"), str)
-        and bool(diff_check["review_scope"].strip())
-    )
+    if not isinstance(diff_check, dict):
+        return False
+    allowed_keys = {"returncode", "review_scope"}
+    if not allowed_keys.issubset(diff_check) or not set(diff_check).issubset(allowed_keys | {"review_paths"}):
+        return False
+    if diff_check.get("returncode") != 0:
+        return False
+    if not isinstance(diff_check.get("review_scope"), str) or not diff_check["review_scope"].strip():
+        return False
+    if "review_paths" in diff_check:
+        review_paths = diff_check["review_paths"]
+        if (
+            not isinstance(review_paths, list)
+            or not review_paths
+            or not all(isinstance(item, str) and bool(item.strip()) for item in review_paths)
+        ):
+            return False
+    return True

@@ -37,6 +37,19 @@ class RetrospectiveDefaultTests(unittest.TestCase):
     def _recorded(self) -> dict:
         return merge_gate_evidence_from_ledger(route=ROUTE, evidence_path=self.evidence)[0]
 
+    def test_summary_counts_only_observed_events_in_this_run(self):
+        from agent_finish_retrospective_default import friction_summary
+        from support import stage_timing
+
+        self.assertIn("unavailable", friction_summary(self.evidence))
+        self.addCleanup(stage_timing.set_timing_sink, stage_timing.timing_sink())
+        stage_timing.set_timing_sink(self.evidence.with_name("timings.jsonl"))
+        stage_timing.append_recorded_stages("start", "SUCCESS")
+        self.assertTrue(friction_summary(self.evidence).endswith("recorded hook failures=0"))
+        stage_timing.append_recorded_stages("review", "FAIL")
+        self.assertTrue(friction_summary(self.evidence).endswith("recorded hook failures=1"))
+        self.assertNotIn("PreToolUse", friction_summary(self.evidence))
+
     def test_missing_retrospective_is_derived_and_passes_finish_validation(self) -> None:
         self.assertIn("derived at finish", derive_retrospective_default(self.evidence))
         recorded = self._recorded()

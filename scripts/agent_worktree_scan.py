@@ -14,6 +14,12 @@ class WorktreeFingerprintLimitExceeded(RuntimeError):
     """Raised when a strong fingerprint would exceed its bounded scan budget."""
 
 
+_CAPSULE_LIMIT_GUIDANCE = (
+    "; add generated or render output paths to .gitignore or .git/info/exclude, "
+    "or scope the review with --review-path (keep generated outputs intact)"
+)
+
+
 @dataclass
 class UntrackedBudget:
     max_files: int
@@ -28,10 +34,12 @@ class UntrackedBudget:
         if self.files > self.max_files:
             raise WorktreeFingerprintLimitExceeded(
                 f"untracked file count exceeds execution-capsule limit ({self.max_files})"
+                f"{_CAPSULE_LIMIT_GUIDANCE}"
             )
         if self.stated_bytes > self.max_bytes:
             raise WorktreeFingerprintLimitExceeded(
                 f"untracked byte size exceeds execution-capsule limit ({self.max_bytes})"
+                f"{_CAPSULE_LIMIT_GUIDANCE}"
             )
 
     def add_read_bytes(self, size: int) -> None:
@@ -39,6 +47,7 @@ class UntrackedBudget:
         if self.read_bytes > self.max_bytes:
             raise WorktreeFingerprintLimitExceeded(
                 f"untracked bytes read exceed execution-capsule limit ({self.max_bytes})"
+                f"{_CAPSULE_LIMIT_GUIDANCE}"
             )
 
 

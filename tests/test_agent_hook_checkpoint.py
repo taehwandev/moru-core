@@ -161,7 +161,7 @@ class CheckpointCommandTests(unittest.TestCase):
             self.assertIn("checkpoint unavailable: FileNotFoundError", output.getvalue())
             self.assertNotIn(str(work_file), output.getvalue())
 
-    def test_overlong_prose_reports_canonical_limits_without_writing_or_echoing(self) -> None:
+    def test_overlong_prose_is_bounded_with_a_warning_without_echoing(self) -> None:
         for field, limit in (("objective", MAX_TEXT), ("non_goals", MAX_SHORT_TEXT)):
             with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
                 fixture = RuntimeFixture(directory)
@@ -172,12 +172,65 @@ class CheckpointCommandTests(unittest.TestCase):
                 with patch.object(sys, "stdin", _stdin(work)), redirect_stdout(output):
                     code = agent_hook_checkpoint.checkpoint_hook(_args(fixture))
 
-                self.assertNotEqual(0, code)
-                self.assertEqual(before, fixture.packet())
-                self.assertIn(f"prose_too_long@/work/{field}", output.getvalue())
-                self.assertIn(f"{MAX_TEXT} Unicode characters", output.getvalue())
-                self.assertIn(f"{MAX_SHORT_TEXT} for each non_goals entry", output.getvalue())
+                self.assertEqual(0, code, output.getvalue())
+                self.assertIn("Warning: truncated", output.getvalue())
+                recorded = fixture.packet()["work"][field]
+                self.assertEqual(value[:limit], recorded[0] if isinstance(recorded, list) else recorded)
                 self.assertNotIn(value, output.getvalue())
+
+    def test_acceptance_criteria_preserve_trailing_qualifiers_or_reject_the_whole_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory)
+            exact = "가" * MAX_SHORT_TEXT
+            with patch.object(sys, "stdin", _stdin({"acceptance_criteria": [exact]})), redirect_stdout(io.StringIO()):
+                self.assertEqual(0, agent_hook_checkpoint.checkpoint_hook(_args(fixture)))
+            saved = fixture.packet()
+            self.assertEqual([exact], saved["work"]["acceptance_criteria"])
+            long = exact + " unless skipped"
+            with patch.object(sys, "stdin", _stdin({"acceptance_criteria": [long]})), redirect_stdout(io.StringIO()) as output:
+                self.assertNotEqual(0, agent_hook_checkpoint.checkpoint_hook(_args(fixture)))
+            self.assertIn(f"acceptance_criteria[0] has {len(long)} Unicode characters", output.getvalue())
+            self.assertIn(f"maximum {MAX_SHORT_TEXT}", output.getvalue())
+            self.assertIn("Example:", output.getvalue())
+            self.assertEqual(saved, fixture.packet())
+
+    def test_checkpoint_shorthand_keeps_partial_acceptance_and_does_not_invent_verification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory)
+            work = {"remaining_work": ["15 of 17 verified"], "decisions": "retain partial acceptance",
+                    "verification": "unit failed", "changed_scope": {"path": "./src/a.py", "role": "modified"}}
+            args = _args(fixture, work_stdin=False, work_json=json.dumps(work))
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, agent_hook_checkpoint.checkpoint_hook(args))
+            saved = fixture.packet()["work"]
+            self.assertEqual("15 of 17 verified", saved["remaining_work"][0]["action"])
+            self.assertEqual("retain partial acceptance", saved["decisions"][0]["text"])
+            self.assertEqual("fail", saved["verification"][0]["result"])
+            self.assertEqual("src/a.py", saved["changed_scope"][0]["path"])
+            work["changed_scope"]["path"] = "../private"
+            args.work_json = json.dumps(work)
+            with redirect_stdout(io.StringIO()) as output:
+                self.assertNotEqual(0, agent_hook_checkpoint.checkpoint_hook(args))
+            self.assertIn("invalid_path", output.getvalue())
+            self.assertIn('"path": "docs/guide.md"', output.getvalue())
+            self.assertEqual(saved, fixture.packet()["work"])
+
+    def test_checkpoint_does_not_truncate_away_unsafe_content_or_guess_timezones(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = RuntimeFixture(directory)
+            before = fixture.packet()
+            row = {"id": "unit", "kind": "unit", "result": "fail", "evidence_sha256": None,
+                   "completed_at": "2026-11-19T12:00:00"}
+            for work, rule in (({"verification": row}, "invalid_timestamp"),
+                               ({"objective": "x" * MAX_TEXT + "\nprivate"}, "prose_not_single_line")):
+                with patch.object(sys, "stdin", _stdin(work)), redirect_stdout(io.StringIO()) as output:
+                    self.assertNotEqual(0, agent_hook_checkpoint.checkpoint_hook(_args(fixture)))
+                self.assertIn(rule, output.getvalue())
+                self.assertEqual(before, fixture.packet())
+            row["completed_at"] += "+09:00"
+            with patch.object(sys, "stdin", _stdin({"verification": row})), redirect_stdout(io.StringIO()):
+                self.assertEqual(0, agent_hook_checkpoint.checkpoint_hook(_args(fixture)))
+            self.assertEqual("2026-11-19T03:00:00+00:00", fixture.packet()["work"]["verification"][0]["completed_at"])
 
     def test_prose_accepts_unicode_characters_at_the_canonical_limits(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -193,19 +246,27 @@ class CheckpointCommandTests(unittest.TestCase):
             self.assertEqual(work["objective"], fixture.packet()["work"]["objective"])
             self.assertEqual(work["non_goals"], fixture.packet()["work"]["non_goals"])
 
-    def test_a_sentence_as_last_completed_is_explained_as_a_step_name(self) -> None:
+    def test_a_sentence_as_last_completed_becomes_a_bounded_step_name(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             fixture = RuntimeFixture(directory)
-            before = fixture.packet()
-            output = io.StringIO()
-            args = _args(fixture, last_completed="UI tests reviewed; awaiting the API response")
-            with patch.object(sys, "stdin", _stdin({"objective": "bounded"})), redirect_stdout(output):
+            sentence = ("All architect findings visually accepted and documented; "
+                        "deterministic seek, choreography and structural review passed.")
+            args = _args(fixture, last_completed=sentence)
+            with patch.object(sys, "stdin", _stdin({"objective": "bounded"})), redirect_stdout(io.StringIO()) as output:
                 code = agent_hook_checkpoint.checkpoint_hook(args)
+            self.assertEqual(0, code, output.getvalue())
+            self.assertEqual("All-architect-findings-visually-accepted-and-documented-determin",
+                             fixture.packet()["checkpoint"]["last_completed"])
 
-            self.assertNotEqual(0, code)
-            self.assertEqual(before, fixture.packet())
-            self.assertIn("invalid_checkpoint@/checkpoint/last_completed", output.getvalue())
-            self.assertIn("--last-completed is a step name", output.getvalue())
+    def test_checkpoint_aliases_reach_the_same_inputs(self):
+        parser = agent_hook.build_parser()
+        parsed = parser.parse_args(["checkpoint", "--checkpoint", "decision", "--evidence-file", "preflight.json",
+                                    "--work-json", '{"objective":"Deliver A1 rain and grade"}'])
+        self.assertEqual("decision", parsed.checkpoint_kind)
+        self.assertEqual("preflight.json", parsed.evidence.name)
+        self.assertEqual("Deliver A1 rain and grade", json.loads(parsed.work_json)["objective"])
+        batch = parser.parse_args(["gate-batch", "--gates-json", "records.json"])
+        self.assertEqual("records.json", batch.gate_json.name)
 
     def test_an_unwritable_run_state_is_reported_not_raised(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -309,7 +370,7 @@ class CheckpointCommandTests(unittest.TestCase):
             self.assertEqual(before, fixture.packet())
             self.assertIn("Expected work input", rendered)
             self.assertIn("evidence_sha256, completed_at", rendered)
-            self.assertIn("{checkpoint, action}", rendered)
+            self.assertNotIn("{checkpoint, action}", rendered)
             self.assertEqual(1, rendered.count("evidence_sha256, completed_at"))
             self.assertNotIn("{id, status:", rendered)
             for value in work["verification"] + work["remaining_work"]:
@@ -320,7 +381,7 @@ class CheckpointCommandTests(unittest.TestCase):
             fixture = RuntimeFixture(directory)
             output = io.StringIO()
             with (
-                patch.object(sys, "stdin", _stdin({"decisions": ["a sentence"]})),
+                patch.object(sys, "stdin", _stdin({"decisions": [42]})),
                 patch("agent_hook_continuation._work_shape_lines", return_value=[
                     "    decisions[12]: canonical-shape-marker",
                     "    verification[32]: unrelated-shape-marker",

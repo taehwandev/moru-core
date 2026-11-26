@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import uuid
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, BinaryIO, Callable
 
@@ -66,6 +67,8 @@ def contained_doc_path(rules: Path, relative: str) -> Path:
 def git_state(
     path: Path,
     recorded: dict[str, str] | None = None,
+    *,
+    paths: Sequence[str] | None = None,
 ) -> dict[str, str]:
     """Capture Git state, reusing a strong fingerprint only while safely current.
 
@@ -77,9 +80,11 @@ def git_state(
     signature-based reuse still receives content-derived identity.
     """
 
-    memo = worktree_entry(("git_state", str(path.resolve())))
+    scoped = tuple(item for item in (str(p).strip() for p in (paths or ())) if item)
+    key = ("git_state", str(path.resolve()), scoped) if scoped else ("git_state", str(path.resolve()))
+    memo = worktree_entry(key)
     if memo is None:
-        return _capture_git_state(path, recorded)[0]
+        return _capture_git_state(path, recorded, paths=scoped or None)[0]
     strong = memo.get("strong")
     observed = (
         (strong["head"], strong["worktree_signature"]) if strong else memo.get("observed")
@@ -90,7 +95,7 @@ def git_state(
         return dict(recorded)
     if strong is not None:
         return dict(strong)
-    state, reused = _capture_git_state(path, recorded)
+    state, reused = _capture_git_state(path, recorded, paths=scoped or None)
     if reused:
         memo["observed"] = (state["head"], state["worktree_signature"])
     else:
@@ -111,6 +116,8 @@ def observed_git_state(path: Path) -> tuple[str, str] | None:
 def _capture_git_state(
     path: Path,
     recorded: dict[str, str] | None,
+    *,
+    paths: Sequence[str] | None = None,
 ) -> tuple[dict[str, str], bool]:
     """Read Git state; the flag says whether the recorded state was reused."""
 
@@ -119,13 +126,14 @@ def _capture_git_state(
         if (
             _is_reusable_git_state(recorded)
             and recorded["head"] == head
-            and recorded["worktree_signature"] == worktree_signature(path)
+            and recorded["worktree_signature"]
+            == (worktree_signature(path, paths=paths) if paths else worktree_signature(path))
         ):
             if git_output(path, "rev-parse", "--verify", "HEAD").strip() == head:
                 return dict(recorded), True
             continue
 
-        snapshot = capture_worktree_state(path)
+        snapshot = capture_worktree_state(path, paths=paths) if paths else capture_worktree_state(path)
         if git_output(path, "rev-parse", "--verify", "HEAD").strip() == head:
             return {
                 "head": head,
@@ -157,15 +165,17 @@ def git_states_for_paths(
     *,
     project_record: dict[str, str] | None = None,
     rules_record: dict[str, str] | None = None,
+    project_paths: Sequence[str] | None = None,
 ) -> tuple[dict[str, str], dict[str, str]]:
     """Capture project/rules state, supporting non-Git runtime roots."""
 
     project = project.resolve()
     rules = rules.resolve()
+    scoped = tuple(item for item in (str(p).strip() for p in (project_paths or ())) if item) or None
     project_root = _git_repository_root_or_none(project)
     if project == rules:
         shared_state = (
-            git_state(project, project_record)
+            (git_state(project, project_record, paths=scoped) if scoped else git_state(project, project_record))
             if project_root is not None
             else directory_state(project, project_record)
         )
@@ -173,10 +183,14 @@ def git_states_for_paths(
     rules_root = _git_repository_root_or_none(rules)
     if project_root is not None and project_root == rules_root:
         shared_record = project_record if project_record == rules_record else None
-        shared_state = git_state(project, shared_record)
+        shared_state = (
+            git_state(project, shared_record, paths=scoped)
+            if scoped
+            else git_state(project, shared_record)
+        )
         return shared_state, shared_state
     return (
-        git_state(project, project_record)
+        (git_state(project, project_record, paths=scoped) if scoped else git_state(project, project_record))
         if project_root is not None
         else directory_state(project, project_record),
         git_state(rules, rules_record)

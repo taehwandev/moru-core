@@ -30,6 +30,18 @@ JSON_TOOL_FLAGS = frozenset({"--sort-keys", "--compact", "--no-ensure-ascii",
 # decompression, verbosity and archive-file letters. Every other option --
 # `--to-command`, `-I <program>`, `-x`, `-c` -- falls outside the cluster.
 TAR_LIST_RE = re.compile(r"-?[vzjJf]*t[vzjJf]*")
+FF_LOGLEVELS = frozenset({
+    "quiet", "panic", "fatal", "error", "warning", "info", "verbose", "debug", "trace",
+})
+FFPROBE_SAFE_FLAGS = frozenset({
+    "-hide_banner", "-show_format", "-show_streams", "-show_frames", "-show_packets",
+    "-show_chapters", "-show_programs", "-show_error", "-show_data", "-count_frames",
+    "-count_packets", "-pretty", "-unit", "-prefix", "-byte_binary_prefix",
+    "-sexagesimal", "-bitexact", "-noprivate", "-show_private_data",
+})
+FFPROBE_FORMATS = frozenset({"default", "compact", "csv", "flat", "ini", "json", "xml"})
+FFMPEG_PROBE_FLAGS = frozenset({"-hide_banner", "-nostats", "-nostdin", "-an", "-vn", "-sn", "-dn"})
+FFMPEG_PROBE_VALUE_OPTIONS = frozenset({"-v", "-loglevel", "-t", "-ss", "-frames:v", "-map"})
 
 
 def _operands_only(arguments: list[str]) -> bool:
@@ -78,27 +90,88 @@ def interpreter_probe_kind(command: list[str]) -> str | None:
     return "read_only" if operands <= 1 else None
 
 
+def _is_local_media_input(word: str) -> bool:
+    return bool(word) and not word.startswith("-") and (word.startswith("/") or ":" not in word)
+
+
+def _ffprobe_format_safe(value: str) -> bool:
+    fmt = value.split("=", 1)[0]
+    return fmt in FFPROBE_FORMATS and "/" not in value
+
+
 def _ffprobe_metadata_kind(arguments: list[str]) -> str | None:
     """Local metadata to stdout, without output/report or format/protocol options."""
     inputs = 0
     index = 0
     while index < len(arguments):
         word = arguments[index]
-        if word in {"-show_format", "-show_streams"}:
+        if word in FFPROBE_SAFE_FLAGS:
             pass
-        elif word in {"-v", "-of", "-show_entries"} and index + 1 < len(arguments):
+        elif word in {"-v", "-loglevel", "-of", "-print_format", "-show_entries",
+                      "-select_streams", "-read_intervals", "-probesize", "-analyzeduration", "-i"} and index + 1 < len(arguments):
             index += 1
             value = arguments[index]
-            if ((word == "-v" and value != "error")
-                    or (word == "-of" and value != "json")
-                    or (word == "-show_entries" and not re.fullmatch(r"[a-zA-Z0-9_=,:]+", value))):
+            if word in {"-v", "-loglevel"}:
+                if value not in FF_LOGLEVELS and not value.isdigit():
+                    return None
+            elif word in {"-of", "-print_format"}:
+                if not _ffprobe_format_safe(value):
+                    return None
+            elif word == "-show_entries":
+                if not re.fullmatch(r"[a-zA-Z0-9_=,:.\-]+", value):
+                    return None
+            elif word == "-select_streams":
+                if not re.fullmatch(r"[a-zA-Z0-9_:]+", value):
+                    return None
+            elif word == "-i":
+                if not _is_local_media_input(value):
+                    return None
+                inputs += 1
+            elif not re.fullmatch(r"[a-zA-Z0-9_+%:,.\-]+", value):
                 return None
-        elif word and not word.startswith("-") and (word.startswith("/") or ":" not in word):
+        elif _is_local_media_input(word):
             inputs += 1
         else:
             return None
         index += 1
     return "read_only" if inputs == 1 else None
+
+
+def _ffmpeg_probe_kind(arguments: list[str]) -> str | None:
+    """Read-only `ffmpeg -i <local>` stream probe or `-f null -` decode check."""
+    inputs = 0
+    saw_null_muxer = False
+    saw_null_sink = False
+    index = 0
+    while index < len(arguments):
+        word = arguments[index]
+        if word in FFMPEG_PROBE_FLAGS:
+            pass
+        elif word == "-i" and index + 1 < len(arguments):
+            index += 1
+            if not _is_local_media_input(arguments[index]):
+                return None
+            inputs += 1
+        elif word in FFMPEG_PROBE_VALUE_OPTIONS and index + 1 < len(arguments):
+            index += 1
+            value = arguments[index]
+            if word in {"-v", "-loglevel"} and value not in FF_LOGLEVELS and not value.isdigit():
+                return None
+        elif word == "-f" and index + 1 < len(arguments):
+            index += 1
+            if arguments[index] != "null" or saw_null_muxer:
+                return None
+            saw_null_muxer = True
+        elif word == "-" and saw_null_muxer and not saw_null_sink:
+            saw_null_sink = True
+        else:
+            return None
+        index += 1
+    if inputs != 1:
+        return None
+    if saw_null_muxer and not saw_null_sink:
+        return None
+    return "read_only"
 
 
 def inspection_command_kind(command: list[str]) -> str | None:
@@ -117,6 +190,8 @@ def inspection_command_kind(command: list[str]) -> str | None:
                                and _operands_only(arguments[1:])) else None
     if name == "ffprobe":
         return _ffprobe_metadata_kind(command[1:])
+    if name == "ffmpeg":
+        return _ffmpeg_probe_kind(command[1:])
     if name == "unzip":
         # -p streams archive members to stdout; default extraction, combined
         # switches and output-directory options must not inherit this contract.

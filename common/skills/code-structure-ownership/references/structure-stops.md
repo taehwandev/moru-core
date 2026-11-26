@@ -218,6 +218,18 @@ Supported rule shape:
 ```json
 {
   "schema_version": 1,
+  "limits": {
+    "max_source_file_lines": 800,
+    "max_added_lines": 500,
+    "max_function_lines": 200,
+    "max_changed_paths": 50,
+    "max_public_owners": 2,
+    "max_visible_owners": 8,
+    "new_source_file_pressure_limit": 30
+  },
+  "exclude_blender_scripts": true,
+  "exclude_paths": ["assets/**", "renders/**"],
+  "creative_paths": ["src/scenes/**", "src/shaders/**"],
   "allowed_new_paths": ["src/features/**", "src/domain/**", "src/platform/**"],
   "forbidden_new_paths": ["**/utils/**", "**/helpers/**", "**/misc/**"],
   "rules": [
@@ -235,6 +247,32 @@ Supported rule shape:
   ]
 }
 ```
+
+Optional repo-level limit tuning and exclusions in `.agents/structure-rules.json`
+(loaded from the committed review base, never from the change under review):
+
+- Review safety: `.agents/structure-rules.json` is always read from the review
+  base (`HEAD` blob or commit-range base). Modifying `.agents/structure-rules.json`
+  inside the change under review fails structure review so a human reviews the
+  policy change first. Untracked `.moru/structure-rules.json` and
+  `MORU_STRUCTURE_RULES` cannot relax limits beyond the committed base config.
+- `limits`: override the review defaults (`max_source_file_lines` 500,
+  `max_added_lines` 300, `max_function_lines` 120, `max_changed_paths` 25,
+  `max_public_owners` 1, `max_visible_owners` 4,
+  `new_source_file_pressure_limit` 20) up to a hard 2x cap per limit. All
+  values must be positive integers within the cap; unknown keys fail closed.
+- `exclude_paths` / `exclude_blender_scripts`: non-code glob patterns excluded
+  from changed-path counts, structure checks, and net-deletion checks.
+  `exclude_paths` can never exclude code extensions or use catch-all patterns
+  such as `**`. Binary/3D/media assets (including `.glb`, `.gltf`, `.bin`,
+  `.blend`, `.png`, `.ktx2`, audio/video/fonts) are excluded automatically;
+  Blender build scripts (`tools/blender/**`, `scripts/blender/**`, `blender/**`)
+  are excluded only when the committed base config opts in with
+  `"exclude_blender_scripts": true`.
+- `creative_paths`: explicit repo opt-in glob patterns whose new oversized
+  creative files warn instead of hard-failing, while existing functions that
+  grow past `max_function_lines` still block. Ordinary code keeps all hard
+  limits as the default control.
 
 Prefer `forbidden_imports` and `forbidden_new_paths` first because they are less
 noisy. Use `allowed_new_paths` only when the repo has a stable source layout.

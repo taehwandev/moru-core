@@ -658,6 +658,54 @@ class ReviewAttestationTests(unittest.TestCase):
                 failures,
             )
 
+    def test_start_snapshot_keeps_review_across_unrelated_rules_commit(self):
+        import io
+        from contextlib import redirect_stderr
+        from agent_execution_capsule import create_preflight_snapshot
+        with tempfile.TemporaryDirectory() as directory:
+            self.rules = Path(directory).resolve()
+            initialize_repository(self.rules)
+            self.route["required_docs"] = ["tracked.txt"]
+            preflight = json.loads(self.evidence_path.read_text())
+            preflight.update(rules=str(self.rules), route=self.route, request_intake={"request": "review"})
+            preflight["execution_snapshot"] = create_preflight_snapshot(
+                self.rules, self.route, preflight["request_intake"])
+            self.evidence_path.write_text(json.dumps(preflight))
+            reset_gate_evidence_ledger(self.evidence_path, preflight)
+            self._record_real_review()
+            (self.rules / "unrelated.md").write_text("independent rules work")
+            subprocess.run(["git", "add", "unrelated.md"], cwd=self.rules, check=True)
+            subprocess.run(["git", "commit", "-qm", "unrelated rules commit"], cwd=self.rules, check=True)
+            with redirect_stderr(io.StringIO()) as note:
+                self.assertEqual([], self._finish_merge()[2])
+            self.assertIn("bound start snapshot", note.getvalue())
+            stale = "review hook attestation rules worktree binding is stale"
+            for name in ("scripts/validator.py", "native/guide.md", ".github/workflows/job.md",
+                         "hooks/README.md", "workflows/definition.md", "tests/test_validator.py"):
+                with self.subTest(name=name):
+                    changed = self.rules / name
+                    changed.parent.mkdir(exist_ok=True, parents=True)
+                    changed.write_text("protected change")
+                    self.assertIn(stale, self._finish_merge()[2])
+                    changed.unlink()
+            staged = self.rules / "scripts/staged.py"
+            staged.write_text("staged validator")
+            subprocess.run(["git", "add", "scripts/staged.py"], cwd=self.rules, check=True)
+            staged.unlink()
+            self.assertIn(stale, self._finish_merge()[2])
+            subprocess.run(["git", "restore", "--staged", "scripts/staged.py"], cwd=self.rules, check=True)
+            executable = self.rules / "executable.md"
+            executable.write_text("#!/bin/sh")
+            executable.chmod(0o755)
+            self.assertIn(stale, self._finish_merge()[2])
+            executable.unlink()
+            link = self.rules / "uninspectable.md"
+            link.symlink_to(self.rules / "tracked.txt")
+            self.assertIn(stale, self._finish_merge()[2])
+            link.unlink()
+            (self.rules / "tracked.txt").write_text("changed required rules")
+            self.assertIn("review hook attestation rules worktree binding is stale", self._finish_merge()[2])
+
     def test_unrelated_shared_commit_reuses_review_but_real_inputs_still_invalidate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             rules = Path(directory)

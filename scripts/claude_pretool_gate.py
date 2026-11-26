@@ -81,7 +81,9 @@ try:  # The gate must never fail to load; the import is only used for a message.
         checkout_removal_denial, merged_worktree_removal, worktree_removal_targets,
     )
     from claude_pretool_cli_worker import foreground_cli_worker_denial
-    from claude_bash_syntax import command_segments, resolve_target, scratch_write_target, shell_keyword_command
+    from claude_bash_syntax import (
+        command_segments, is_runtime_scratchpad, resolve_target, scratch_write_target, shell_keyword_command,
+    )
     from claude_bash_readonly import simple_command_kind
     from claude_worktree_gate import (
         BASH_TOOLS,
@@ -272,6 +274,9 @@ except ImportError as _import_failure:  # pragma: no cover - exercised only on a
         return False
 
     def scratch_write_target(raw: str, cwd: Path | None) -> bool:
+        return False
+
+    def is_runtime_scratchpad(path: Path) -> bool:
         return False
 
     def resolve_target(path: Path) -> Path | None:
@@ -526,7 +531,7 @@ _BLOCK_SESSION: dict[str, str] = {"session_id": ""}
 # Automatic workflow entry (claude_pretool_auto_start): while the first,
 # silent judgement runs, the denial code and project it names are kept here;
 # the started run's note is handed to the second judgement.
-_AUTO_START: dict = {"probing": False, "code": "", "root": None, "note": ""}
+_AUTO_START: dict = {"probing": False, "code": "", "root": None, "note": "", "bash_kind": ""}
 
 
 def _learn_block(code: str) -> None:
@@ -713,7 +718,7 @@ def opts_in(path: Path) -> bool:
     policy has declared governance in a tracked file, and every worktree of it
     checks that file out.
     """
-    if is_host_config_dir(path):
+    if is_host_config_dir(path) or is_runtime_scratchpad(path):
         return False
     if (path / WORKTREE_POLICY_PATH).is_file():
         return True
@@ -2627,7 +2632,8 @@ def _call_scope(payload: dict, tool: str, cwd: Path) -> _CallScope:
             target = _single_write_target(tokens) if kind == "mutating" else None
             targets = [target] if target is not None else None
         else:
-            targets = _assigned_write_targets(command, tokens)
+            target = _single_heredoc_write_target(tokens) if kind == "mutating" else None
+            targets = [target] if target is not None else _assigned_write_targets(command, tokens)
         if targets:
             try:
                 for target in targets:
@@ -2672,6 +2678,14 @@ def _call_scope(payload: dict, tool: str, cwd: Path) -> _CallScope:
 # a source inside a project; `-t` and long options can name the destination
 # elsewhere. Any of them leaves the command's ordinary verdict in place.
 COPY_FLAG_LETTERS = frozenset("acfHiLnpPrRvX")
+
+
+def _single_heredoc_write_target(tokens: list[str]) -> "Path | None":
+    """The one absolute path `cat > /abs/path` or `cat >> /abs/path` writes, else None."""
+    if len(tokens) == 3 and Path(tokens[0]).name == "cat" and tokens[1] in {">", ">>"}:
+        target = Path(tokens[2])
+        return target if target.is_absolute() else None
+    return None
 
 
 def _single_write_target(tokens: list[str]) -> "Path | None":
@@ -3051,6 +3065,32 @@ def _foreground_cli_worker_verdict(
     return otherwise() if otherwise else None
 
 
+def _isolated_no_workflow_verdict(
+    tool: str, root: Path, tokens: list[str], syntax_is_simple: bool,
+) -> int:
+    protected = protected_branch_names(root)
+    hazard = shared_repository_hazard(tokens, protected)
+    if hazard and deletes_protected_remote_branch(tokens, protected):
+        return _protected_remote_deletion_ask()
+    if hazard and discards_only_worktree_files(tokens):
+        return allow()  # This worktree's own files: native permissions decide.
+    if hazard:
+        return ask(
+            "This worktree isolates ordinary file edits, but this Git command "
+            f"{hazard}. Allow it only if that is what you meant.",
+            tokens=tokens,
+        )
+    if (
+        tool in BASH_TOOLS
+        and syntax_is_simple
+        and tokens
+        and Path(tokens[0]).name == "git"
+        and _ordinary_git_invocation(tokens)
+    ):
+        return _approve("This is an ordinary Git command inside the isolated linked worktree.")
+    return allow()
+
+
 def _decide(payload: dict) -> int:
     if not gate_enabled():
         return allow()
@@ -3066,6 +3106,8 @@ def _decide(payload: dict) -> int:
     cwd = Path(payload.get("cwd") or os.getcwd()).resolve()
     scope = _call_scope(payload, tool, cwd)
     bash_kind = scope.bash_kind
+    if _AUTO_START["probing"]:
+        _AUTO_START["bash_kind"] = bash_kind
     tokens = scope.tokens
     syntax_is_simple = scope.syntax_is_simple
     command_cwd = scope.command_cwd
@@ -3135,29 +3177,7 @@ def _decide(payload: dict) -> int:
     if tool in EDIT_TOOLS and _staged_skill_maintenance_edit_allowed(payload, tool, cwd, roots):
         return allow()
     if worktree_policy_satisfied(root) and not policy_requires_workflow_entry(root):
-        protected = protected_branch_names(root)
-        hazard = shared_repository_hazard(tokens, protected)
-        if hazard and deletes_protected_remote_branch(tokens, protected):
-            return _protected_remote_deletion_ask()
-        if hazard and discards_only_worktree_files(tokens):
-            return allow()  # This worktree's own files: native permissions decide.
-        if hazard:
-            return ask(
-                "This worktree isolates ordinary file edits, but this Git command "
-                f"{hazard}. Allow it only if that is what you meant.",
-                tokens=tokens,
-            )
-        if (
-            tool in BASH_TOOLS
-            and syntax_is_simple
-            and tokens
-            and Path(tokens[0]).name == "git"
-            and _ordinary_git_invocation(tokens)
-        ):
-            return _approve(
-                "This is an ordinary Git command inside the isolated linked worktree."
-            )
-        return allow()
+        return _isolated_no_workflow_verdict(tool, root, tokens, syntax_is_simple)
     # Deletion deferral must still reach required workflow validation below.
     # Other shared-state hazards retain their existing permission request.
     if worktree_policy_satisfied(root):
@@ -3317,22 +3337,25 @@ def decide_with_auto_start(payload: dict) -> int:
     if not auto.enabled():
         return decide(payload)
     buffer = io.StringIO()
-    _AUTO_START.update(probing=True, code="", root=None, note="")
+    _AUTO_START.update(probing=True, code="", root=None, note="", bash_kind="")
     try:
         with contextlib.redirect_stdout(buffer):
             verdict = decide(payload)
     finally:
         _AUTO_START["probing"] = False
-    code, root = _AUTO_START["code"], _AUTO_START["root"]
+    code, root, bash_kind = _AUTO_START["code"], _AUTO_START["root"], _AUTO_START["bash_kind"]
     session_id = str(payload.get("session_id") or "")
     run_id = ""
     if code in auto.AUTO_START_CODES and root is not None and session_id:
         tool, target = _auto_start_target(payload)
+        # Only auto-start a writable `small-change` run on an actual write (edit tool
+        # or verified mutating Bash command), never on unclassified/read-only commands.
+        is_real_write = tool in EDIT_TOOLS or (tool in BASH_TOOLS and bash_kind == "mutating")
         command = bash_command(payload) if tool in BASH_TOOLS else ""
         publishes = bool(command) and publication_hold(
             command, root=root, cwd=Path(str(payload.get("cwd") or root))
         ) == "publishes"
-        if not publishes:
+        if is_real_write and not publishes:
             try:
                 run_id = auto.start_run(root, session_id, runtime_name(), tool, target)
             except Exception as error:  # noqa: BLE001 - fall back to the first verdict

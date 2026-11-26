@@ -823,6 +823,9 @@ class DispatchTests(unittest.TestCase):
 
             nudge.assert_called_once_with(agent_hook.runtime_session(), run.run_id)
             self.assertEqual(1, output.getvalue().count("For the user: fixture advice"))
+            self.assertIn("--command commit --approved-effect git_write", output.getvalue())
+            self.assertIn("finish that run to record its receipt", output.getvalue())
+            self.assertFalse(run.evidence.with_name("publication.json").exists())
             registry = json.loads(
                 registry_path(run.project).read_text(encoding="utf-8")
             )

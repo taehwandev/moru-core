@@ -74,3 +74,30 @@ def derive_retrospective_default(evidence_path: Path) -> str:
     except (OSError, ValueError, RuntimeError, TypeError, AttributeError, GateEvidenceAccessError):
         return ""
     return "retrospective check: derived at finish (no reusable gap recorded by the agent)"
+
+
+def friction_summary(evidence: Path) -> str:
+    """Read only the prior, instrumented calls in this run; absent telemetry is unknown."""
+    try:
+        with evidence.with_name("timings.jsonl").open(encoding="utf-8") as rows:
+            failures = sum(json.loads(line)["status"] == "FAIL" for line in rows)
+    except (OSError, ValueError, KeyError, TypeError):
+        return "Run friction before this call: hook failure count unavailable"
+    return f"Run friction before this call: recorded hook failures={failures}"
+
+
+def record_finish_retrospective(args, fields_json: str) -> list[str]:
+    """Use the usual route, field, memory and observation contracts for a late record."""
+    from agent_hook_gate_records import (
+        _auto_bridge_retrospective_if_needed, _normalize_gate_record,
+        preflight_evidence_path, record_hook_gate_batch,
+    )
+    route = json.loads(preflight_evidence_path(args).read_text())["route"]
+    if RETROSPECTIVE_GATE not in route.get("gates", []):
+        raise ValueError("this route has no retrospective check")
+    fields = json.loads(fields_json)
+    if not isinstance(fields, dict) or not fields:
+        raise ValueError('--retrospective-record expects a JSON object of retrospective gate fields')
+    record = _normalize_gate_record({"gate": RETROSPECTIVE_GATE, "fields": fields})
+    entries = record_hook_gate_batch(args, [record])
+    return ["retrospective check: recorded at finish", *_auto_bridge_retrospective_if_needed(args, entries)]
