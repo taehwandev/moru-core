@@ -56,7 +56,11 @@ below describes the original revision and its original fallback profiles.
 
 Trend reports group ordinary already-bound metrics in Rust. The caller supplies
 only labels and numeric aggregates needed for grouping and retains SQLite reads,
-session binding, report metadata and exceptional rounding profiles.
+session selection, report metadata and exceptional rounding profiles.
+The event-window probe uses ordered per-session batches with no session identifiers.
+Each interval is start-inclusive and next-start-exclusive even when the next run
+falls outside the requested month. The caller still matches the returned metrics
+to its original runs and resolves metadata precedence.
 
 Both source/binary versions were frozen before the candidate build. Each
 temporary home uses its own frozen version's installer and generated header.

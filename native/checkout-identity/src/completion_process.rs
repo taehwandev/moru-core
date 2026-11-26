@@ -176,6 +176,8 @@ mod maintenance_retention;
 mod scheduler_recovery;
 #[path = "status_trends.rs"]
 mod status_trends;
+#[path = "status_trend_windows.rs"]
+mod status_trend_windows;
 #[path = "path_claim_scan.rs"]
 mod path_claim_scan;
 #[path = "path_claim_wait.rs"]
@@ -308,6 +310,7 @@ impl CompletionProcess {
             Some("scheduler-stale-tasks") => scheduler_recovery::SchedulerRecovery::stale(&payload),
             Some("scheduler-next-attempt") => scheduler_recovery::SchedulerRecovery::next_attempt(&payload),
             Some("status-trend-groups") => status_trends::StatusTrends::summarize(&payload),
+            Some("status-trend-windows") => status_trend_windows::TrendWindows::bind(&payload),
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),

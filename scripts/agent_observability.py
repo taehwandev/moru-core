@@ -264,23 +264,31 @@ def _bind_run_metrics(
     unbound: list[dict[str, Any]] = []
     for run in runs:
         (by_session[(run["runtime"], run["session_id"])] if run["runtime"] and run["session_id"] else unbound).append(run)
-    bound: list[dict[str, Any]] = []
+    sessions = []
     for (runtime, session_id), session_runs in by_session.items():
         session_runs.sort(key=lambda item: item["started_at"])
-        codex_model, codex_effort = codex_threads.get(session_id, ("", "unknown"))
         events = spill_events.get(session_runs[0]["spill_run_id"], [])
+        sessions.append((runtime, session_id, session_runs, events))
+    native_windows = _native_trend_windows(
+        [(session_runs, events) for _, _, session_runs, events in sessions], month,
+    )
+    bound: list[dict[str, Any]] = []
+    for session_index, (runtime, session_id, session_runs, events) in enumerate(sessions):
+        codex_model, codex_effort = codex_threads.get(session_id, ("", "unknown"))
         for idx, run in enumerate(session_runs):
             start_ts = run["started_at"]
             if month and not start_ts.startswith(month):
                 continue
-            next_ts = session_runs[idx + 1]["started_at"] if idx + 1 < len(session_runs) else "9999-99-99"
-            window = [ev for ev in events if start_ts <= ev[0] < next_ts]
-            event_model = next((ev[1] for ev in reversed(window) if ev[1]), "")
+            if native_windows is None:
+                next_ts = session_runs[idx + 1]["started_at"] if idx + 1 < len(session_runs) else "9999-99-99"
+                metrics = _trend_window_reference(events, start_ts, next_ts)
+            else:
+                metrics = native_windows[session_index][idx]
+            event_model = metrics.pop("event_model")
             bound.append({
                 **run, "model": run["stamped_model"] or codex_model or event_model or "unknown",
                 "reasoning_effort": run["stamped_effort"] or (codex_effort if runtime == "codex" else "unknown") or "unknown",
-                "period_bucket": _period_bucket(start_ts, single_month=bool(month)), "turns": len(window),
-                "weighted_tokens": sum(ev[2] for ev in window), "raw_tokens": sum(ev[3] for ev in window), "reasoning_tokens": sum(ev[4] for ev in window),
+                "period_bucket": _period_bucket(start_ts, single_month=bool(month)), **metrics,
             })
     for run in unbound:
         if not month or run["started_at"].startswith(month):
@@ -290,6 +298,47 @@ def _bind_run_metrics(
                 "turns": 0, "weighted_tokens": 0.0, "raw_tokens": 0, "reasoning_tokens": 0,
             })
     return bound
+
+
+def _native_trend_windows(sessions: list[tuple[list, list]], month: str) -> list | None:
+    if not sessions or not NativeProbe.available():
+        return None
+    # Preserve session boundaries without transmitting identifiers or paths.
+    projected = [{"starts": [run["started_at"] for run in runs], "events": events}
+                 for runs, events in sessions]
+    result = NativeProbe.request("--completion-probe", "status-trend-windows", {
+        "sessions": projected, "month": month,
+    })
+    if result is None or set(result) != {"windows"}:
+        return None
+    windows = result["windows"]
+    if type(windows) is not list or len(windows) != len(sessions):
+        return None
+    integer_fields = ("turns", "raw_tokens", "reasoning_tokens")
+    for (runs, _), metrics in zip(sessions, windows):
+        if type(metrics) is not list or len(metrics) != len(runs):
+            return None
+        for run, window in zip(runs, metrics):
+            if not run["started_at"].startswith(month):
+                if window is not None:
+                    return None
+            elif (type(window) is not dict
+                    or set(window) != {*integer_fields, "event_model", "weighted_tokens"}
+                    or type(window["event_model"]) is not str
+                    or any(type(window[key]) is not int for key in integer_fields)
+                    or type(window["weighted_tokens"]) not in (int, float)):
+                return None
+    return windows
+
+
+def _trend_window_reference(events: list, start: str, end: str) -> dict[str, Any]:
+    window = [event for event in events if start <= event[0] < end]
+    return {
+        "event_model": next((event[1] for event in reversed(window) if event[1]), ""),
+        "turns": len(window), "weighted_tokens": sum(event[2] for event in window),
+        "raw_tokens": sum(event[3] for event in window),
+        "reasoning_tokens": sum(event[4] for event in window),
+    }
 
 
 def _period_bucket(timestamp: str, *, single_month: bool) -> str:

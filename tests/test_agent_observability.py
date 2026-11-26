@@ -14,7 +14,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from agent_observability import _trend_groups, discover_governed_projects, efficiency_trend_snapshot, status_snapshot
+from agent_observability import _bind_run_metrics, _trend_groups, discover_governed_projects, efficiency_trend_snapshot, status_snapshot
 from agent_run_registry import register_run
 from agent_scheduler import enqueue_task
 from native_pretool_support import environment, prepare
@@ -159,6 +159,8 @@ class AgentObservabilityTests(unittest.TestCase):
                 report = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
             with patch.dict(os.environ, env, clear=True), patch(
                 "agent_observability._trend_groups_reference", side_effect=AssertionError("native declined"),
+            ), patch(
+                "agent_observability._trend_window_reference", side_effect=AssertionError("native window declined"),
             ):
                 native = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
             self.assertEqual({**report, "captured_at": native["captured_at"]}, native)
@@ -232,6 +234,46 @@ class AgentObservabilityTests(unittest.TestCase):
             self.assertEqual(5.0, native["period_trends"][0]["turns_p90"])
             self.assertEqual(3.5, native["period_trends"][0]["turns_p50"])
             self.assertNotIn("must-not-be-sent", json.dumps(native))
+
+    def test_native_windows_preserve_equal_starts_and_next_month_boundaries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory).resolve()
+            prepare(base)
+            first = "2026-10-01T00:00:00+00:00"
+            second = "2026-10-31T23:59:59+00:00"
+            outside = "2026-11-01T00:00:00+00:00"
+            session = "session-id-not-in-wire"
+            spill_id = "spill-id-not-in-wire"
+            runs = [
+                {"runtime": "codex", "session_id": session, "spill_run_id": spill_id, "run_id": name,
+                 "started_at": stamp, "stamped_model": "", "stamped_effort": ""}
+                for name, stamp in (("later", second), ("empty-tie", first), ("tie-winner", first),
+                                    ("next-month", outside))
+            ]
+            events = {spill_id: [
+                ("2026-09-30T23:59:59+00:00", "too-early", 100.0, 100, 100),
+                (first, "initial", 0.1, 10, 1),
+                (first, "latest-label", 0.2, 20, 2),
+                (first, "", 0.3, 30, 3),
+                (second, "last", 1.0, 50, 4),
+                (outside, "outside", 100.0, 100, 100),
+            ]}
+            env = environment(base)
+            with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                reference = _bind_run_metrics(runs, events, {}, month="2026-10")
+            from support.native_probe_transport import NativeProbe
+            with patch.dict(os.environ, env, clear=True), patch(
+                "agent_observability._trend_window_reference", side_effect=AssertionError("native declined"),
+            ), patch.object(NativeProbe, "request", wraps=NativeProbe.request) as transport:
+                native = _bind_run_metrics(runs, events, {}, month="2026-10")
+            self.assertEqual(reference, native)
+            self.assertEqual(["empty-tie", "tie-winner", "later"], [row["run_id"] for row in native])
+            self.assertEqual([0, 3, 1], [row["turns"] for row in native])
+            self.assertEqual(["unknown", "latest-label", "last"], [row["model"] for row in native])
+            self.assertEqual([0, 60, 50], [row["raw_tokens"] for row in native])
+            payload = json.dumps(transport.call_args.args[2])
+            self.assertNotIn(session, payload)
+            self.assertNotIn(spill_id, payload)
 
 
 if __name__ == "__main__":
