@@ -54,49 +54,45 @@ Moru Core solves those three problems right inside your existing CLI:
 | What you care about | **Moru Core (Rules Inside Your CLI)** | Stock Coding CLI (Plain Claude Code / Codex) | Long Rulebooks & Skill Packs (Giant `CLAUDE.md` / `Superpowers`) | Separate Agent App (e.g., Hermes Agent) |
 | --- | --- | --- | --- | --- |
 | **Do I have to switch tools?** | **✓ Keep Claude Code, Codex, or AGY** just as you use them today | ✓ Keep your current CLI | △ Keep your CLI, plus a giant rule file or startup prompt pack | △ Switch to a separate agent runtime and terminal setup |
-| **How needed rules are found** | **✓ Wikimap (`0` LLM tokens, sub-second section index)** picks the exact `4.15` docs the task needs before the model even guesses (**-79.7%** vs `20.45` docs) | △ Only the repo's main instruction file; figures out the rest by trial and error | ✕ A 20-file rulebook pays the full token cost every turn (skill packs load on demand) | △ Carries the full skill list (`~3K` tok) every session + spends extra LLM turns to open skills or summarize raw chat logs |
+| **How needed rules are found** | **✓ Route contracts + Wikimap**: deterministic route contracts pick only the required docs for each route (`2.0–2.3` docs for `small-change`/`commit`/`cleanup`, `4–5` for standard routes), and **Wikimap (`0` LLM tokens, local section index)** handles on-demand reference search for unresolved questions | △ Only the repo's main instruction file (unless path-scoped rules are configured); figures out the rest by trial and error | ✕ A 20-file rulebook pays the full token cost every turn (skill packs load on demand) | △ Carries the full skill list (`~3K` tok) every session + spends extra LLM turns to open skills or summarize raw chat logs |
 | **Asking a simple question** *(“Why is this API slow?”)* | **✓ Answers right away**: skips branch creation and workflow steps, reads the code, and leaves your files untouched | △ Safe if you switch to read-only/plan mode yourself | ✕ Still loads commit and release rules just to answer a question | △ Runs a full agent session with its startup memory attached |
-| **How it learns without rotting** | **✓ Verified fixes + expiring notes**: shared rules require passing tests (`repair-verify`) before syncing across all 26 repos, and project notes carry an expiry date (`--review-on`, max 3 recalled; **-79.5%** steps in 3 weeks) | ✕ Only if you edit `CLAUDE.md` by hand | ✕ Static markdown files never learn from mistakes or expire | △ Model rewrites its own skills (`skill_manage`) without test verification or expiry dates—one bad workaround stays in the prompt forever |
-| **Following up & committing** | **✓ Reuses passed tests** when the relevant code files haven't changed (**-54.4%** fewer steps; **-85.6%** fewer tokens on commit) | ✕ Forgets what was already tested in the last run | ✕ Re-runs the whole checklist from the prompt | ✕ Searches old chat text, but doesn't check if code files changed |
-| **When is a task allowed to be “Done”?** | **✓ Checks the result first**: blocks completion until tests pass, new code files stay under `300` lines, and safety checks pass | ✕ Whenever the model says it's done (unless you build custom scripts) | △ Checklist in the prompt—easy for the model to skip in long chats | △ Great sandboxes and chat bots, but the model still decides when it's done |
+| **How it learns without rotting** | **✓ Reviewed shared fixes + expiring on-demand notes**: shared rule fixes are reviewed and verified before syncing across shared-checkout repos, and project notes require an expiry date (`--review-on`, optional `--applies-when`/`--not-when`, explicit `recall` capped at 3 notes / 1,200 chars) | △ Manual `CLAUDE.md` edits or runtime auto-memory without expiry dates | ✕ Static markdown files never learn from mistakes or expire | △ Model can rewrite its own skills (`skill_manage`) without test verification or expiry dates unless locked/approved |
+| **Following up & committing** | **✓ Reuses passed checks** when the relevant inputs haven't changed (in Nov 2026 local data: `cleanup` `28 → 6` turns, `build` `74 → 13` turns, `small-change` `16 → 9.5` turns, `commit` `35.5 → 27` turns on continuation) | ✕ Forgets what was already tested in the last run | ✕ Re-runs the whole checklist from the prompt | ✕ Searches old chat text, but doesn't check if code files changed |
+| **When is a task allowed to be “Done”?** | **✓ Checks the result first**: blocks completion until required gates pass, incremental dev files stay within the `300`-added-line per-file default (tests/initial builds excepted), and safety checks pass | ✕ Whenever the model says it's done (unless you build custom scripts or hooks) | △ Checklist in the prompt—easy for the model to skip in long chats | △ Great sandboxes and chat bots, but the model still decides when it's done |
 
-### What Changed Over 5 Months of Daily Work (26 Repositories · 4,984 Git Commits · 419,857 Agent Steps)
+### Post-Fix Operational Snapshot (October – November 2026)
 
-We tracked every task across `26` repositories from May to October 2026 (`419,857`
-recorded Spill events, `1,207` Codex threads, and `584` Moru runs). These numbers
-come from real daily development on our own projects, comparing the same models
-before and after Moru Core's improvements:
+> **Honest baseline & tradeoff:** On a trivial one-off edit, a pure/vanilla CLI uses fewer tokens because it loads zero rule docs and runs zero lifecycle hooks. Moru Core trades a small upfront rule/hook overhead for verified completion gates, structure limits, and fewer rework loops across multi-step work. Earlier July 2026 metrics (when Moru Core loaded ~20 rule files up front) reflected a self-inflicted configuration defect rather than a steady-state baseline, so the snapshot below focuses on **post-fix operation (October–November 2026)** across our own `35` local projects (`180` November runs, `158` Spill-matched: `82` fresh, `76` continuation).
 
-- **-79.7% fewer rule files read per task** (`20.45` files in July when we loaded everything up front → `4.15` files in October by reading only what the task needs).
-- **-60.7% fewer agent steps per Git commit** (`150.7` steps/commit in July → `59.2` in October) while **shipping +44.0% more commits per active repository each day** (`2.68` → `3.86` commits/day/repo; `29.5` → `65.6` total commits/day).
-- **-78.1% lower token usage per changed file** (`432.5K` → `94.6K` weighted tokens per file; per-commit token usage dropped **-46.9%** from `3.07M` in July to `1.63M` in October even with larger multi-file refactors).
-- **-93.8% smaller Codex sessions (median)** (`20.28M` → `1.25M` tokens per thread; the heaviest 10% of threads dropped from `146.1M` → `17.9M`).
-- **On the exact same model (`claude-opus-5-5`, Sep → Oct 2026)**:
-  - Median steps per task dropped **-94.0%** (**`591.0 → 35.5` steps**), median token usage per task dropped **-98.8%** (**`33.47M → 0.41M`**), and average context size per step shrank **-38.4%** (**`488.3K → 301.0K`**).
-  - On `gpt-6-sol` (Sep → Oct), median steps per task dropped **-79.6%** (**`855.0 → 174.5` steps**).
-  - When following up on work in October, continuing an existing task took **-54.4% fewer steps** than starting fresh (**`45.0 → 20.5` steps**), and committing already-checked work used **-85.6% fewer tokens** (**`2.02M → 0.29M`**).
+- **Steady-state turns & weighted tokens (`2026-11`, `n = 158` matched runs, median `p50`)**:
+  - Lightweight routes stay lean: `small-change` (`2.1–2.3` required docs; `16.0` fresh / `9.5` continuation turns; `0.27–0.37M` weighted tokens), `cleanup` (`1.8–2.0` docs; `28.0` fresh / `6.0` continuation turns), `commit` (`2.0–2.1` docs; `35.5` fresh / `27.0` continuation turns).
+  - By model (`p50`): `gemini-4-neon` fresh (`n = 32`: `10.0` turns, `0.35M`), `gemini-4-carbon` fresh (`n = 4`: `14.0` turns, `0.49M`), `claude-sonnet-5-5` fresh (`n = 7`: `22.0` turns, `0.85M`), `gpt-6.1-sol` fresh (`n = 9`: `35.0` turns, `1.03M`).
+  - Same model (`claude-opus-5-5`, Oct → Nov): October report median `35.5` turns (`0.41M`) vs. November `fresh` (`n = 17`) `38.0` turns (`1.01M`), November `continuation` (`n = 24`) `28.0` turns (`0.67M`), and November Week 4 `fresh` (`n = 6`) `19.5` turns (`0.35M`).
+- **Reproducible micro-benchmarks in this repo**:
+  - Removing start-time memory scan/injection cut the helper median from **`282.94 ms → 26.96 ms`** (`-90.5%`, 3,000-record synthetic store; see `docs/experiments/project-memory-start-references-2026-10-24.md`).
+  - Deduplicating repeated doc opens on the same corpus cut unread opens **`14 → 7`** and verified-reused opens **`7 → 0`** (see `docs/maintenance-audit.md`).
+- **Open gaps visible in November data**: `feature` (`7.25` docs) and `bugfix` (`9.33` docs) still carry heavier required-doc sets than lightweight routes, and continuation on `feature` (`45.5` turns) can run longer than initial `fresh` slices (`11.0` turns) when follow-up scope expands.
 
-### Why Moru Core Gets Faster the More You Use It
+### Why Moru Core Stays Bounded Without Prompt Rot
 
-Static rule files never learn from yesterday's bugs. On the other hand, letting an agent rewrite its own skills without review or expiration dates quickly fills your context with outdated advice. Moru Core gets faster week after week without accumulating junk:
+Static rule files never learn from yesterday's bugs. On the other hand, letting an agent rewrite its own skills without review or expiration dates quickly fills your context with outdated advice. Moru Core keeps learning bounded and reviewable:
 
-1. **Short project notes with an expiration date (at most 3 per task)**: When an agent tracks down a tricky root cause or project quirk that isn't obvious from the code, it saves a one-line note (`project-memory`) with clear conditions (`--applies-when` / `--not-when`) and a required review date (`--review-on`). Next time a task starts on that project, it recalls at most **3 relevant, unexpired notes**—so the agent skips the dead ends without bloating your prompt.
-2. **Fix a recurring mistake once, and every project gets it (`repair-verify`)**: When the same kind of mistake or blocked step happens repeatedly across your work (`337` patterns spotted → `10` accepted → `6` promoted into shared rules), fixing and verifying the shared rule once immediately protects all **26 connected repositories** on their very next run.
-3. **Real-world result: brand-new tasks got 79.5% shorter in 3 weeks**: Looking only at **brand-new (`fresh`) tasks** on the exact same model (`claude-opus-5-5`) across October 2026, the median number of steps per task dropped from **`112.0` steps in Week 1 → `48.5` steps in Week 2 (-56.7%) → `23.0` steps in Week 3 (-79.5%)** as project notes and shared fixes built up.
+1. **Short on-demand project notes with an expiration date (at most 3 per recall)**: When an agent tracks down a tricky root cause or project quirk that isn't obvious from the code, it saves a short note (`project-memory`) with a required review date (`--review-on`), optional applicability cues (`--applies-when` / `--not-when`), and optional Git blob hash pinning (`--source-path`). Task `start` never auto-scans or injects memory; instead, agents run explicit `project-memory recall` only when needed, capped at **3 relevant, unexpired notes (1,200 chars)**—keeping startup fast and prompts clean.
+2. **Fix a recurring mistake once, and every shared checkout gets it**: When the same kind of mistake or blocked step happens repeatedly across projects, fixing and verifying the shared rule through reviewed maintenance (`workflow validate` / unit tests) lets every connected shared checkout pick it up on its next `git pull` (pinned submodules upgrade when their teams bump the tag; `repair-verify` separately handles one-shot failed-checkpoint recovery).
 
-You can check your own monthly and weekly efficiency trends anytime (no prompts or file paths are ever exported):
+You can inspect your own monthly and weekly efficiency trends anytime (no prompts or file paths are ever exported):
 
 ```bash
-python3 scripts/agent-os-status.py --efficiency-trends --all-projects --month 2026-10
+python3 scripts/agent-os-status.py --efficiency-trends --all-projects --month 2026-11
 ```
 
-Read the full comparison and 5-month breakdown at <https://getmoru.com/report>.
+Historical 5-month background report: <https://getmoru.com/report>.
 
 > **⚡ Powered by [Wikimap](https://github.com/dhha22/wikimap) — Zero-LLM Knowledge Index for Markdown**
-> How does Moru Core pick the exact 4 rules out of hundreds in milliseconds without burning a single LLM token? Under the hood, Moru Core uses **[Wikimap](https://github.com/dhha22/wikimap)**:
-> - **0 LLM tokens & sub-second incremental indexing**: Single Python stdlib file with no external vector DB or model calls; re-parses only SHA-changed files in milliseconds.
+> Deterministic route contracts pick each task's required docs up front, and when an agent needs to look up an unresolved guidance or analysis question across hundreds of Markdown files without burning a single LLM token, Moru Core uses **[Wikimap](https://github.com/dhha22/wikimap)** (with a local scorer fallback):
+> - **0 LLM tokens & incremental local indexing**: Single Python stdlib file with no external vector DB or model calls; re-parses modified files locally instead of rebuilding everything from scratch.
 > - **CJK-safe ranked section search & Reciprocal Rank Fusion (RRF)**: Matches exact headings, tags, aliases, and sections across Korean, Japanese, Chinese, and English without loading whole files.
-> - **Link graph & SHA-pinned freshness**: Tracks `outlinks`, `backlinks`, and `REQ-ID` references across documents, and automatically expires notes when source files change.
+> - **Link graph & freshness tracking**: Tracks `outlinks`, `backlinks`, and `REQ-ID` references across documents.
 > 👉 **[Explore Wikimap on GitHub (`dhha22/wikimap`) ↗](https://github.com/dhha22/wikimap)**
 
 ## Quick Start
@@ -237,10 +233,12 @@ and [executable evidence gate](docs/skills/agent-runtime-integration/references/
 ## Memory And Work Cards
 
 When an agent confirms a non-obvious cause, pitfall, or design reason, it saves
-a short note with `<MORU_LAUNCHER> project-memory`. Future tasks on the same
-project recall up to three relevant, unexpired notes. Work cards keep unfinished
-tasks visible across sessions. Both stay on your Mac. Details:
-[project memory and work cards](docs/project-memory.md).
+a short note with `<MORU_LAUNCHER> project-memory` (with a required `--review-on`
+date and optional `--source-path` Git blob hash pinning). Task `start` does not
+auto-scan or inject memory; agents run explicit `project-memory recall` on demand,
+returning up to three relevant, unexpired notes (capped at 1,200 characters).
+Work cards keep unfinished tasks visible across sessions. Both stay local on your
+machine. Details: [project memory and work cards](docs/project-memory.md).
 
 ## Supported Coding Agents & Companion Tools
 
