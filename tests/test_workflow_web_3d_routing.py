@@ -173,6 +173,19 @@ class Web3DProjectSignalTests(unittest.TestCase):
             with self.subTest(request=request[:30]):
                 self.assertNotIn(SKILL, self.route(request, root)["required_docs"])
 
+    def test_three_builds_inside_a_nested_repository_do_not_trigger(self):
+        game = "<script type=\"module\">import * as THREE from 'three';</script>"
+        root = self.project({"package.json": '{"dependencies": {"react": "^19.0.0"}}',
+                             "src/App.tsx": "export function App() { return null; }",
+                             "public/showcase/games/.git": "gitdir: ../../../.git/modules/games\n",
+                             "public/showcase/games/runner/index.html": game})
+        for command in ("small-change", "feature", "bugfix"):
+            with self.subTest(command=command):
+                self.assertNotIn(SKILL, self.route(FOLLOW_UPS[0], root, command)["required_docs"])
+        # Negative control: the same build outside a nested repository is the project's own scene.
+        (root / "public/showcase/games/.git").unlink()
+        self.assertIn(SKILL, self.route(FOLLOW_UPS[0], root)["required_docs"])
+
     def test_dependency_only_request_in_three_project_does_not_trigger(self):
         root = self.project({"src/main.js": "import * as THREE from 'three';"})
         route = self.route("Bump the dependency version in package.json", root)

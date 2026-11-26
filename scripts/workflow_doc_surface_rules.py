@@ -142,7 +142,9 @@ def project_signal_files(project_root: Path | None, rule: dict[str, Any]) -> lis
     A follow-up request names the change, not the technology: "the rocket is no
     longer centered" never says 3D. The project already shows it. The scan stays
     inside the target repo, skips build output and dependencies, and is bounded
-    in depth, file count and bytes, so a large tree costs a fixed amount.
+    in depth, file count and bytes, so a large tree costs a fixed amount. A
+    nested repository (a git submodule or a checked-out clone, marked by its own
+    `.git`) is another project, so files vendored through it are not evidence.
     """
     patterns = string_list(rule.get("files"))
     signals = string_list(rule.get("content_any"))
@@ -156,7 +158,8 @@ def project_signal_files(project_root: Path | None, rule: dict[str, Any]) -> lis
     seen = 0
     for current, dirs, names in os.walk(root):
         depth = len(Path(current).relative_to(root).parts)
-        dirs[:] = sorted(d for d in dirs if d not in PROJECT_SIGNAL_SKIP_DIRS and not d.startswith("."))
+        dirs[:] = sorted(d for d in dirs if d not in PROJECT_SIGNAL_SKIP_DIRS and not d.startswith(".")
+                         and not os.path.lexists(os.path.join(current, d, ".git")))
         if depth >= PROJECT_SIGNAL_MAX_DEPTH:
             dirs[:] = []
         for name in sorted(names):
