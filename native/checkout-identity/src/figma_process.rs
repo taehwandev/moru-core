@@ -37,6 +37,8 @@ mod asset_inventory;
 mod number;
 #[path = "figma_layout_metrics.rs"]
 mod layout_metrics;
+#[path = "figma_layout_nodes.rs"]
+mod layout_nodes;
 #[path = "figma_visibility_inventory.rs"]
 mod visibility_inventory;
 #[path = "figma_plan.rs"]
@@ -99,6 +101,10 @@ impl FigmaProcess {
 
     pub(crate) fn layout_metrics(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
         Self::receipt(layout_metrics::summarize(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn layout_nodes(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(layout_nodes::summarize(Self::bound_input(request, root, "text")?)?)
     }
 
     pub(crate) fn visibility_inventory(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {

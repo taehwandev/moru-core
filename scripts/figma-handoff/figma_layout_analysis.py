@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import json
 from typing import Any
 
 from figma_native_probe import request as _probe
@@ -57,6 +58,20 @@ def _summarize_layout_metrics_reference(nodes: list[dict[str, Any]]) -> dict[str
 
 
 def _summarize_layout_nodes(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if type(documents) is list and documents:
+        receipt = _probe("figma-layout-nodes", documents, __file__)
+        if type(receipt) is dict and set(receipt) == {"layout_nodes_json"} and type(receipt["layout_nodes_json"]) is str:
+            try:
+                entries = json.loads(receipt["layout_nodes_json"])
+            except (ValueError, RecursionError):
+                pass
+            else:
+                if type(entries) is list and all(type(entry) is dict for entry in entries):
+                    return entries
+    return _summarize_layout_nodes_reference(documents)
+
+
+def _summarize_layout_nodes_reference(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Flatten layout trees once even when fetched roots overlap."""
     result: list[dict[str, Any]] = []
     seen_node_ids: set[str] = set()

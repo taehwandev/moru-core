@@ -224,6 +224,41 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_native_layout_nodes_merge_overlaps_and_keep_ordered_paints(self):
+        import figma_layout_analysis as layout
+
+        red = {"r": 1, "g": 0, "b": 0}
+        child_node = {"id": "1-2", "type": "RECTANGLE", "name": "처음", "opacity": 0,
+                      "absoluteBoundingBox": {"x": 2.675, "width": 7.9998},
+                      "fills": [{"type": "SOLID", "color": red}, {"type": "IMAGE", "visible": False},
+                                {"type": "GRADIENT_LINEAR", "gradientStops": [{"position": 0.125, "color": red}]},
+                                {"type": "IMAGE", "imageRef": "synthetic", "scaleMode": "FIT",
+                                 "imageTransform": [[1, 0, 2.675]]}]}
+        initial = {"id": "1-1", "name": "first", "children": [child_node]}
+        overlap = {"id": "9-9", "visible": False, "opacity": 0, "children": [
+            {**initial, "name": "later", "children": [{**child_node, "name": "duplicate"}]}]}
+        docs = [initial, overlap]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = layout.LayoutAnalysis.summarize_layout_nodes(docs)
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path)}, clear=True), patch.object(
+                layout, "_summarize_layout_nodes_reference", side_effect=AssertionError("Python layout traversal")), \
+                patch.object(subprocess, "run", wraps=subprocess.run) as child:
+            rows = layout.LayoutAnalysis.summarize_layout_nodes(docs)
+        child.assert_called_once()
+        self.assertEqual("figma-layout-nodes", child.call_args.args[0][-1])
+        self.assertEqual(json.dumps(expected, ensure_ascii=False), json.dumps(rows, ensure_ascii=False))
+        self.assertEqual(["1:1", "1:2", "9:9"], [row["id"] for row in rows])
+        inherited = ["ancestor:9:9.visible=false", "ancestor:9:9.opacity=0"]
+        self.assertEqual(("first", None, 0, inherited), (rows[0]["name"], rows[0]["parentId"], rows[0]["depth"],
+                                                         rows[0]["visibilityReasons"]))
+        self.assertEqual(["self.opacity=0", *inherited], rows[1]["visibilityReasons"])
+        self.assertEqual({"x": 2.67, "width": 8}, rows[1]["absoluteBoundingBox"])
+        self.assertEqual([{"type": "SOLID", "hex": "#FF0000"},
+                          {"type": "GRADIENT_LINEAR", "gradient": {"type": "GRADIENT_LINEAR",
+                           "stops": [{"position": 0.12, "hex": "#FF0000"}], "handlePositions": []}},
+                          {"type": "IMAGE", "imageRef": "synthetic", "scaleMode": "FIT", "imageTransform": [[1, 0, 2.67]]}],
+                         rows[1]["renderedPaints"]["fills"])
+
     def test_native_layout_metric_ties_and_visibility_identity(self):
         import figma_layout_analysis as layout
         import figma_visibility_analysis as visibility
