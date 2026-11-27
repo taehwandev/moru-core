@@ -1,7 +1,7 @@
 """Emit an atomic, bounded HQ finish report for HQ-originated runs.
 
 Owner: Moru Core to Moru HQ finish-report bridge.
-Allowed imports: standard library only.
+Allowed imports: standard library and local native probe transport.
 Forbidden imports: lifecycle gates, workflow validators, provider runtimes.
 Callers/tests: scripts/agent-finish-check.py, scripts/agent-preflight.py,
 scripts/agent_work_continuity.py, scripts/agent_gate_reuse.py and the
@@ -20,6 +20,8 @@ import uuid
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+
+from support.native_probe_transport import NativeProbe
 
 SCHEMA_VERSION = 1
 MAX_REPORT_BYTES = 500
@@ -84,6 +86,27 @@ def _encode_compact(payload: dict[str, Any]) -> bytes:
 
 
 def _bound_payload(payload: dict[str, Any], max_bytes: int = MAX_REPORT_BYTES) -> bytes:
+    reply = NativeProbe.request("--completion-probe", "hq-report-encode", {
+        "payload": payload, "max_bytes": max_bytes,
+    })
+    if reply is not None and set(reply) == {"encoded"} and isinstance(reply["encoded"], str):
+        try:
+            encoded = reply["encoded"].encode("utf-8")
+            bounded = json.loads(encoded)
+        except (ValueError, UnicodeError, RecursionError):
+            bounded = None
+        if isinstance(bounded, dict) and list(bounded) == list(payload):
+            mutable = _PRIMARY_SHRINK_FIELDS + _FALLBACK_SHRINK_FIELDS
+            if all(bounded[key] == value or (key in mutable and isinstance(bounded[key], str))
+                   for key, value in payload.items()):
+                for key in mutable:
+                    if key in bounded and bounded[key] != payload[key]:
+                        payload[key] = bounded[key]
+                return encoded
+    return _bound_payload_reference(payload, max_bytes)
+
+
+def _bound_payload_reference(payload: dict[str, Any], max_bytes: int = MAX_REPORT_BYTES) -> bytes:
     encoded = _encode_compact(payload)
     while len(encoded) > max_bytes:
         field = max(

@@ -917,9 +917,9 @@
       "id": "scripts/agent_hq_report.py",
       "inventory_id": 64,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct HQ decision CLI",
-      "remaining": "Port the decision CLI and shared HQ finish and decision report functions. Preserve safe run binding, bounded atomic report writes, decision options, exit codes and finish error handling.",
+      "remaining": "Rust encodes and shrinks ordinary finish and decision reports. Python retains context and run binding, option removal, atomic writes, exceptional values and CLI handling. Portable and installed acceptance remain open.",
       "verification": {}
     }
   ],

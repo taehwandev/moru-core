@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -16,9 +18,59 @@ from agent_hq_report import (
     emit_hq_finish_report,
     emit_hq_report_for_finish,
 )
+import agent_hq_report as hq
+from native_pretool_support import environment, prepare
 
 
 class AgentHqReportTests(unittest.TestCase):
+    def test_native_bounds_keep_utf8_bytes_tie_order_and_caller_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            prepare(base)
+            payload = {
+                "schema": 1, "runId": "tie", "projectId": "", "taskId": "t", "operatorLabel": "op",
+                "status": "finished", "result": "a" * 60, "evidence": "한" * 60,
+                "decisionNeeded": "", "finishedAt": 1700000000000,
+            }
+            payload["projectId"] = "p" * (MAX_REPORT_BYTES + 1 - len(hq._encode_compact(payload)))
+            self.assertEqual(MAX_REPORT_BYTES + 1, len(hq._encode_compact(payload)))
+            expected = dict(payload)
+            encoded = hq._bound_payload_reference(expected)
+            with patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True), patch.object(
+                hq, "_bound_payload_reference", side_effect=AssertionError("native HQ encoding declined"),
+            ):
+                self.assertEqual(encoded, hq._bound_payload(payload))
+            self.assertEqual(expected, payload)
+            self.assertEqual("a" * 60, payload["result"])
+            self.assertEqual("한" * 56 + "...", payload["evidence"])
+
+    def test_native_decision_and_finish_write_exact_python_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            _, project = prepare(base)
+            options = ["가" * 60, "🧪" * 60, "☃" * 60]
+            cases = [
+                (emit_hq_finish_report, dict(preflight={"hq_run_id": "finish"}, passed_gates=['gate "quoted"'])),
+                (hq.emit_hq_decision_report, dict(question="Which option?", evidence="A\nB", options=options)),
+            ]
+            for emit, kwargs in cases:
+                with self.subTest(emit=emit.__name__), patch.object(hq.time, "time", return_value=1700000000):
+                    args = {"project": project, "env": {"MORU_HQ_RUN_ID": emit.__name__}, **kwargs}
+                    with patch.dict(os.environ, {**environment(base), "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+                        path = emit(**args)
+                        expected = path.read_bytes()
+                    path.unlink()
+                    with patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True), patch.object(
+                        hq, "_bound_payload_reference", side_effect=AssertionError("native HQ encoding declined"),
+                    ):
+                        self.assertEqual(path, emit(**args))
+                    self.assertEqual(expected, path.read_bytes())
+                    self.assertLessEqual(len(expected), MAX_REPORT_BYTES)
+                    if emit is hq.emit_hq_decision_report:
+                        kept = json.loads(expected)["decisionOptions"]
+                        self.assertLess(len(kept), len(options))
+                        self.assertEqual(options[:len(kept)], kept)
+
     def test_non_hq_run_returns_none_without_touching_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"

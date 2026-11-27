@@ -72,8 +72,8 @@ The latest native extensions add no new timing claim; earlier measurements remai
 The ancillary manifest checker and offline Figma validator engines add
 implementation coverage for units 36–37 and 40. The native session aggregation
 used by the overhead reporter adds partial supporting coverage for unit 46.
-The ledger records native implementation coverage for 47 of 64 units. Forty-six
-are partial and one needs revalidation. Another 16 are planned and one has an
+The ledger records native implementation coverage for 48 of 64 units. Forty-seven
+are partial and one needs revalidation. Another 15 are planned and one has an
 unresolved external ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -238,7 +238,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI and private native transcript probe | Partial native | Bounded whole-file read coverage and compaction; delivery stdout, evidence and marker handling remain with the hook |
 | 62 | `scripts/workflow_dispatch_guardian.py` | Private native guardian/gate; direct Python compatibility worker | Partial native | Gated exec, durable receipts, EOF/group cleanup and no replay; bootstrap/raw/direct/installed acceptance remain open |
 | 63 | `scripts/agent_review_packet.py` | Direct CLI | Partial native | Rust reads admitted descriptors, decodes and hashes captured Git blobs, packs the packet, and exclusively creates explicit ordinary outputs. Python owns disclosure, Git commands, source selection and compatibility |
-| 64 | `scripts/agent_hq_report.py` | Direct `decision` CLI | Planned native | Preserve HQ run binding, bounded atomic decision and finish reports, and existing caller behavior |
+| 64 | `scripts/agent_hq_report.py` | Direct `decision` CLI | Partial native | Rust encodes and shrinks ordinary finish and decision report payloads. Python retains run binding, option removal, atomic writes and the CLI. |
 
 ## Delivery order
 
