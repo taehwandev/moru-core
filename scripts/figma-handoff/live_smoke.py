@@ -134,6 +134,18 @@ def _native_analysis(summary):
     return result
 
 
+def _native_verdict(summary, quick):
+    if _probe is None or type(summary) is not dict:
+        return None
+    result = _probe("figma-smoke-verdict", {"summary": summary, "quick": quick}, __file__)
+    if (type(result) is not dict or set(result) != {"problems", "report", "coverage_failures"}
+            or type(result["report"]) is not str
+            or any(type(result[key]) is not list or any(type(item) is not str for item in result[key])
+                   for key in ("problems", "coverage_failures"))):
+        return None
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="figma-handoff live smoke harness")
     parser.add_argument("--url", default=os.environ.get("FIGMA_SMOKE_URL"))
@@ -179,8 +191,8 @@ def main() -> int:
         out = tmp / "smoke"
         summary = json.loads((out / "summary" / "design-summary.json").read_text(encoding="utf-8"))
 
-        analysis = _native_analysis(summary)
-        problems = _validate_summary_reference(summary) if analysis is None else analysis["problems"]
+        verdict = _native_verdict(summary, args.quick)
+        problems = _validate_summary_reference(summary) if verdict is None else verdict["problems"]
         if problems:
             failures.append(f"schema violations: {problems}")
 
@@ -198,24 +210,22 @@ def main() -> int:
         if not args.quick and not svg_count:
             failures.append("no vector SVG assets exported (asset split broken?)")
 
-        if analysis is None:
+        if verdict is None:
             cov = coverage_report(summary)
+            failures.extend(_layout_coverage_failures(cov))
+            asset = cov["assets"]
+            if not args.quick and asset["imageFillTotal"]:
+                pct = asset["imageFillWithPath"] * 100 // asset["imageFillTotal"]
+                if pct < IMAGE_FILL_MIN_PCT:
+                    failures.append(
+                        f"image-fill recovery {asset['imageFillWithPath']}/{asset['imageFillTotal']} "
+                        f"({pct}%) < {IMAGE_FILL_MIN_PCT}%"
+                    )
+            report = format_report(problems, cov)
         else:
-            cov = {
-                "screens": analysis["screens"], "layoutNodes": {"total": analysis["layout_total"]},
-                "assets": {"imageFillTotal": analysis["image_fill_total"], "imageFillWithPath": analysis["image_fill_with_path"]},
-            }
-        failures.extend(_layout_coverage_failures(cov))
-        asset = cov["assets"]
-        if not args.quick and asset["imageFillTotal"]:
-            pct = asset["imageFillWithPath"] * 100 // asset["imageFillTotal"]
-            if pct < IMAGE_FILL_MIN_PCT:
-                failures.append(
-                    f"image-fill recovery {asset['imageFillWithPath']}/{asset['imageFillTotal']} "
-                    f"({pct}%) < {IMAGE_FILL_MIN_PCT}%"
-                )
-
-        print(format_report(problems, cov) if analysis is None else analysis["report"])
+            failures.extend(verdict["coverage_failures"])
+            report = verdict["report"]
+        print(report)
         print(f"frames={len(frames)} (for example: {_png_size(frames[0]) if frames else None}) "
               f"assets: svg={svg_count} png={png_count}")
     finally:

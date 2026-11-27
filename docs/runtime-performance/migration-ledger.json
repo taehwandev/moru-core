@@ -598,7 +598,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "One Rust call validates ordinary in-memory summaries, computes coverage and renders the Markdown report. Rust discovers ordinary downloaded frames and counts assets in the same batch that checks PNG headers and expected frame dimensions. Python retains extraction orchestration, asset pass/fail policy, the displayed example, exceptional inputs and the CLI.",
+      "remaining": "One Rust call validates ordinary in-memory summaries, computes coverage and renders the Markdown report. Rust discovers ordinary downloaded frames and counts assets in the same batch that checks PNG headers and expected frame dimensions. Rust also reports incomplete layout coverage and image-fill recovery. Python retains extraction orchestration, missing SVG policy, the displayed example, exceptional inputs and the CLI.",
       "verification": {}
     },
     {

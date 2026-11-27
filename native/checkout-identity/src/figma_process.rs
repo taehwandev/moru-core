@@ -69,20 +69,56 @@ impl FigmaProcess {
         root: &std::path::Path,
     ) -> Option<serde_json::Value> {
         let summary = PythonJson::parse(Self::bound_input(request, root, "text")?)?;
-        let problems = FigmaValidation::validate(&summary)?;
-        let coverage = FigmaCoverage::compute(&summary)?;
+        Self::smoke(&summary, None)
+    }
+
+    pub(crate) fn smoke_verdict(
+        request: &serde_json::Value,
+        root: &std::path::Path,
+    ) -> Option<serde_json::Value> {
+        let input = PythonJson::parse(Self::bound_input(request, root, "text")?)?;
+        let Value::Bool(quick) = input.get("quick")? else {
+            return None;
+        };
+        Self::smoke(input.get("summary")?, Some(*quick))
+    }
+
+    fn smoke(summary: &Value, quick: Option<bool>) -> Option<serde_json::Value> {
+        let problems = FigmaValidation::validate(summary)?;
+        let coverage = FigmaCoverage::compute(summary)?;
         let report = FigmaReport::render(&coverage, &problems)?;
         let count = |value: &Value| match value {
             Value::Number(Number::Integer(digits)) => digits.parse::<u64>().ok(),
             _ => None,
         };
+        let screens = count(&coverage["screens"])?;
+        let layout = count(&coverage["layoutNodes"]["total"])?;
+        let fills = count(&coverage["assets"]["imageFillTotal"])?;
+        let recovered = count(&coverage["assets"]["imageFillWithPath"])?;
+        if let Some(quick) = quick {
+            let mut failures = Vec::new();
+            if screens > 0 && layout == 0 {
+                failures.push("layout coverage is empty for a non-empty handoff".to_owned());
+            }
+            if !quick && fills > 0 {
+                let percent = u128::from(recovered) * 100 / u128::from(fills);
+                if percent < 100 {
+                    failures.push(format!(
+                        "image-fill recovery {recovered}/{fills} ({percent}%) < 100%"
+                    ));
+                }
+            }
+            return Self::receipt(serde_json::json!({
+                "problems": problems, "report": report, "coverage_failures": failures,
+            }));
+        }
         Self::receipt(serde_json::json!({
             "problems": problems,
             "report": report,
-            "screens": count(&coverage["screens"])?,
-            "layout_total": count(&coverage["layoutNodes"]["total"])?,
-            "image_fill_total": count(&coverage["assets"]["imageFillTotal"])?,
-            "image_fill_with_path": count(&coverage["assets"]["imageFillWithPath"])?,
+            "screens": screens,
+            "layout_total": layout,
+            "image_fill_total": fills,
+            "image_fill_with_path": recovered,
         }))
     }
 
