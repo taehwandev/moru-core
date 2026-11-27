@@ -51,7 +51,7 @@ class FigmaBundleOutput:
             (summary_dir / "design-summary.json").write_text(prepared["summary_json"], encoding="utf-8")
         else:
             write_json(summary_dir / "design-summary.json", summary)
-        sections = {name: prepared[f"markdown_{name}"] for name in ("overview", "tokens")
+        sections = {name: prepared[f"markdown_{name}"] for name in ("overview", "tokens", "candidates", "layout")
                     if prepared is not None and f"markdown_{name}" in prepared}
         markdown = render_markdown(summary, **sections)
         (summary_dir / "design-handoff.md").write_text(markdown, encoding="utf-8")

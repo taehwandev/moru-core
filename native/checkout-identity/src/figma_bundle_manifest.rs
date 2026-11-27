@@ -101,15 +101,18 @@ pub(super) fn prepare(text: &str, validate_summary: bool) -> Option<Value> {
         let mut warnings: Vec<_> = warnings
             .as_array()?
             .iter()
-            .map(|warning| Some(PythonValue::String(warning.as_str()?.to_owned())))
+            .map(|warning| warning.as_str().map(str::to_owned))
             .collect::<Option<_>>()?;
         warnings.extend(
             problems
                 .iter()
-                .map(|problem| PythonValue::String(format!("schema: {problem}"))),
+                .map(|problem| format!("schema: {problem}")),
         );
         let mut summary = input.get("summary")?.as_object()?.clone();
-        summary.insert("warnings".into(), PythonValue::Array(warnings));
+        summary.insert(
+            "warnings".into(),
+            PythonValue::Array(warnings.iter().cloned().map(PythonValue::String).collect()),
+        );
         let manifest = PythonJson::parse(&receipt.get("manifest")?.to_string())?;
         receipt["summary_json"] = json!(PythonJson::render(
             &PythonValue::Object(summary),
@@ -120,8 +123,10 @@ pub(super) fn prepare(text: &str, validate_summary: bool) -> Option<Value> {
         if let Some(lines) = markdown_overview::render(input.get("summary")?) {
             receipt["markdown_overview"] = json!(lines);
         }
-        if let Some(lines) = markdown_tokens::render(input.get("summary")?) {
-            receipt["markdown_tokens"] = json!(lines);
+        for (key, lines) in markdown_tokens::render(input.get("summary")?, &warnings) {
+            if let Some(lines) = lines {
+                receipt[key] = json!(lines);
+            }
         }
     }
     receipt

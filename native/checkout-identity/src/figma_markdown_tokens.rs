@@ -221,7 +221,23 @@ fn variables(data: &Value) -> Option<Vec<String>> {
     }
     Some(rows)
 }
-pub(super) fn render(summary: &Value) -> Option<Vec<String>> {
+#[path = "figma_markdown_candidates.rs"]
+mod candidates;
+#[path = "figma_markdown_layout.rs"]
+mod layout;
+
+pub(super) fn render(
+    summary: &Value,
+    warnings: &[String],
+) -> [(&'static str, Option<Vec<String>>); 3] {
+    [
+        ("markdown_tokens", token_lines(summary)),
+        ("markdown_candidates", candidates::render(summary)),
+        ("markdown_layout", layout::render(summary, warnings)),
+    ]
+}
+
+fn token_lines(summary: &Value) -> Option<Vec<String>> {
     let mut lines = Vec::new();
     let tokens = obj(summary, "designTokens")?;
     for (key, title) in [

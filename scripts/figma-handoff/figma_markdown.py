@@ -269,11 +269,8 @@ def _markdown_tokens_reference(summary: dict[str, Any]) -> list[str]:
     return lines
 
 
-def render_markdown(
-    summary: dict[str, Any], *, overview: list[str] | None = None, tokens: list[str] | None = None,
-) -> str:
-    lines = _markdown_overview_reference(summary) if overview is None else list(overview)
-    lines.extend(_markdown_tokens_reference(summary) if tokens is None else tokens)
+def _markdown_candidates_reference(summary: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
     components = summary.get("components", [])
     component_rows = []
     for component in components[:60]:
@@ -305,6 +302,11 @@ def render_markdown(
     _section(lines, "Text Style Candidates (usage order)", (_text_candidate_row(style) for style in summary["textStyles"][:20]))
     _section(lines, "Text Override Runs", (_text_run_row(run) for run in summary.get("textRuns", [])[:60]))
     _section(lines, "Effect Candidates", (f"- {_format_effect_list([effect])} x{effect['count']} ({', '.join(effect.get('sources', [])[:2])})" for effect in summary.get("effects", [])[:20]))
+    return lines
+
+
+def _markdown_layout_reference(summary: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
     _section(lines, "Layout Metric Candidates", (_format_layout_metric(key, values) for key, values in summary["layoutMetrics"].items()))
     rendered_layout_nodes = [
         node
@@ -327,4 +329,16 @@ def render_markdown(
     ))
     _render_implementation_checklist(lines)
     _section(lines, "Warnings", (f"- {warning}" for warning in summary["warnings"])) if summary["warnings"] else None
+    return lines
+
+
+def render_markdown(
+    summary: dict[str, Any], *, overview: list[str] | None = None, tokens: list[str] | None = None,
+    candidates: list[str] | None = None, layout: list[str] | None = None,
+) -> str:
+    sections = (
+        (overview, _markdown_overview_reference), (tokens, _markdown_tokens_reference),
+        (candidates, _markdown_candidates_reference), (layout, _markdown_layout_reference),
+    )
+    lines = [line for native, reference in sections for line in (reference(summary) if native is None else native)]
     return "\n".join(lines) + "\n"

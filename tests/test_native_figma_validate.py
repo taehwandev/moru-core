@@ -224,6 +224,56 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_fidelity_bundle_candidate_and_layout_markdown_sections(self):
+        import figma_manifest
+        import figma_markdown
+        from figma_bundle_output import FigmaBundleOutput
+        from figma_report import build_summary
+        from test_figma_fidelity_harness import _fixture_documents, _fixture_variables
+
+        summary = build_summary(file_key="FILE", start_node_id="1:1", source_url="",
+                                node_documents=_fixture_documents(), flow_edges=[], image_paths={},
+                                named_styles={}, style_node_details={}, variables=_fixture_variables(),
+                                file_styles={}, warnings=[])
+        summary["components"] = [{"componentId": "C", "name": "동작", "usageCount": 1, "instanceNodeIds": [],
+                                  "variantProperties": {"모드": "dark"}}]
+        args = SimpleNamespace(format="png", scale=1, max_flow_depth=1, no_images=True, include_image_fills=False)
+        output = FigmaBundleOutput(self.base / "rich-bundle")
+        output.create_directories()
+        path = output.root / "summary/design-handoff.md"
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            output.persist(copy.deepcopy(summary), [], args)
+        expected = path.read_bytes()
+        self.assertIn("동작 [모드=dark]".encode(), expected)
+        self.assertIn(b"Overlay", expected)
+        native_probe = figma_manifest._probe
+        receipts = []
+
+        def record(operation, payload, source):
+            self.assertEqual("figma-bundle-prepare", operation)
+            reply = native_probe(operation, payload, source)
+            receipts.append(reply)
+            return reply
+
+        refs = {"markdown_candidates": figma_markdown._markdown_candidates_reference,
+                "markdown_layout": figma_markdown._markdown_layout_reference}
+        with patch.dict(os.environ, self.env, clear=True), patch.object(figma_manifest, "_probe", side_effect=record), \
+                patch.object(figma_markdown, "_markdown_candidates_reference", side_effect=AssertionError("Python candidates")), \
+                patch.object(figma_markdown, "_markdown_layout_reference", side_effect=AssertionError("Python layout")):
+            output.persist(copy.deepcopy(summary), [], args)
+        self.assertEqual(expected, path.read_bytes())
+        self.assertEqual(1, len(receipts))
+        receipt = receipts[0]
+        for key, fn in refs.items():
+            self.assertEqual(fn(summary), receipt[key])
+            legacy = {k: v for k, v in receipt.items() if k != key}
+            for reply in (legacy, {**receipt, key: [False]}):
+                with self.subTest(key=key), patch.object(figma_manifest, "_probe", return_value=reply), \
+                        patch.object(figma_markdown, fn.__name__, wraps=fn) as fallback:
+                    output.persist(copy.deepcopy(summary), [], args)
+                fallback.assert_called_once()
+                self.assertEqual(expected, path.read_bytes())
+
     def test_imported_schema_reaches_native_for_bundle_and_offline_smoke(self):
         import figma_bundle_output
         import figma_manifest
