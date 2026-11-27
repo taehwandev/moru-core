@@ -1,7 +1,7 @@
 //! Owner: offline prototype interaction projection.
 //! Allowed imports: ordered JSON and Figma node IDs. Forbidden: I/O and provider access.
 //! Callers/tests: Figma process probe and bound prototype extraction fixtures.
-use super::target::Target;
+use super::{number::round_number, target::Target};
 use crate::python_json::{Number, Object, PythonJson, Value};
 use serde_json::json;
 
@@ -20,32 +20,19 @@ fn optional_id(value: &Value) -> Option<Value> {
     }
 }
 
-fn round_number(value: f64) -> Number {
-    let integer = value.round_ties_even();
-    if (value - integer).abs() < 0.001 {
-        return Number::Integer((integer as i64).to_string());
-    }
-    // Formatting the actual binary float avoids rounding an intermediate
-    // scaled float, which changes outcomes at decimal half-cent boundaries.
-    Number::Float(format!("{value:.2}").parse().expect("finite decimal"))
-}
-
 fn duration(value: &Value) -> Option<Value> {
     let number = match value {
         Value::Number(Number::Integer(value)) => value.parse::<f64>().ok()?,
         Value::Number(Number::Float(value)) => *value,
         _ => return Some(Value::Null),
     };
-    if !number.is_finite() || number.abs() >= 9_007_199_254_740_992.0 {
-        return None;
-    }
-    let rounded = round_number(number);
+    let rounded = round_number(&Number::Float(number))?;
     let numeric = match &rounded {
         Number::Integer(text) => text.parse::<f64>().ok()?,
         Number::Float(value) => *value,
     };
     Some(Value::Number(if numeric > 10.0 {
-        round_number(numeric / 1000.0)
+        round_number(&Number::Float(numeric / 1000.0))?
     } else {
         rounded
     }))

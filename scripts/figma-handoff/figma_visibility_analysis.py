@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
+from figma_native_probe import request as _probe
 from figma_util import is_number, paint_to_hex, parse_gradient_paint, round_number
 
 __all__ = ["VisibilityAnalysis"]
@@ -95,6 +97,24 @@ def _round_value(value: Any) -> Any:
 
 
 def _build_inventory(layout_nodes: list[dict[str, Any]]) -> dict[str, Any]:
+    if (type(layout_nodes) is list and layout_nodes and len(layout_nodes) <= 32000
+            and all(type(node) is dict for node in layout_nodes)):
+        keys = ("id", "name", "type", "effectiveVisible", "visibilityReasons")
+        selected = [{key: node[key] for key in keys if key in node} for node in layout_nodes]
+        receipt = _probe("figma-visibility-inventory", selected, __file__)
+        if type(receipt) is dict and set(receipt) == {"inventory_json"} and type(receipt["inventory_json"]) is str:
+            try:
+                inventory = json.loads(receipt["inventory_json"])
+            except (ValueError, RecursionError):
+                pass
+            else:
+                if (type(inventory) is dict and list(inventory) == ["renderedNodeIds", "excludedNodes"]
+                        and all(type(rows) is list for rows in inventory.values())):
+                    return inventory
+    return _build_inventory_reference(layout_nodes)
+
+
+def _build_inventory_reference(layout_nodes: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "renderedNodeIds": [
             node["id"]

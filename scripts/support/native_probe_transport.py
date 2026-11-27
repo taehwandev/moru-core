@@ -47,6 +47,7 @@ def _process_environment(protocol, operation):
         "hq-decision-cli", "figma-summary-schema", "figma-target", "figma-plan", "figma-bundle-manifest", "figma-bundle-prepare", "figma-smoke-analysis", "figma-smoke-frames", "figma-smoke-verdict", "figma-smoke-result", "figma-smoke-file-result",
         "figma-prototype-interactions", "figma-variables",
         "figma-asset-candidates", "figma-asset-inventory",
+        "figma-layout-metrics", "figma-visibility-inventory",
     }
     if isolated_completion or protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
         # Keep source and environment guard inputs but omit ambient credentials.

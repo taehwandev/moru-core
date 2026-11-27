@@ -33,6 +33,12 @@ mod variables;
 mod asset_candidates;
 #[path = "figma_asset_inventory.rs"]
 mod asset_inventory;
+#[path = "figma_number.rs"]
+mod number;
+#[path = "figma_layout_metrics.rs"]
+mod layout_metrics;
+#[path = "figma_visibility_inventory.rs"]
+mod visibility_inventory;
 #[path = "figma_plan.rs"]
 mod plan;
 mod direct_profile {
@@ -89,6 +95,14 @@ impl FigmaProcess {
 
     pub(crate) fn asset_inventory(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
         Self::receipt(asset_inventory::build(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn layout_metrics(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(layout_metrics::summarize(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn visibility_inventory(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(visibility_inventory::build(Self::bound_input(request, root, "text")?)?)
     }
 
     fn bound_input<'a>(

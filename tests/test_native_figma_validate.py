@@ -224,6 +224,35 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_native_layout_metric_ties_and_visibility_identity(self):
+        import figma_layout_analysis as layout
+        import figma_visibility_analysis as visibility
+
+        nodes = [{"itemSpacing": 8.0, "cornerRadius": 99, "rectangleCornerRadii": [4, 1.25, 4.0, 1.25],
+                  "layoutMode": "VERTICAL"}, {"itemSpacing": 2.675, "cornerRadius": 7,
+                  "rectangleCornerRadii": [0, 0, 0], "layoutMode": "HORIZONTAL"},
+                 {"itemSpacing": True, "paddingLeft": "3"}, {"itemSpacing": 8}, {"itemSpacing": 2.67}]
+        visible = [{"id": "z", "effectiveVisible": True}, {"id": "a", "effectiveVisible": True},
+                   {"id": "z", "effectiveVisible": True}, {"id": "x", "effectiveVisible": 1},
+                   {"id": "x", "effectiveVisible": 0}, {"effectiveVisible": False},
+                   {"id": "z", "name": "숨김", "effectiveVisible": False, "visibilityReasons": ["ancestor"]},
+                   {"id": "z", "type": "FRAME", "effectiveVisible": False}]
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path)}, clear=True), patch.object(
+                layout, "_summarize_layout_metrics_reference", side_effect=AssertionError("Python metrics")), patch.object(
+                visibility, "_build_inventory_reference", side_effect=AssertionError("Python inventory")), patch.object(
+                subprocess, "run", wraps=subprocess.run) as child:
+            metrics = layout.LayoutAnalysis.summarize_layout_metrics(nodes)
+            inventory = layout.LayoutAnalysis.build_implementation_inventory(visible)
+        self.assertEqual(["figma-layout-metrics", "figma-visibility-inventory"], [call.args[0][-1] for call in child.call_args_list])
+        self.assertEqual(["itemSpacing", "cornerRadius", "layoutMode"], list(metrics))
+        self.assertEqual({"itemSpacing": [{"value": "8", "count": 2}, {"value": "2.67", "count": 2}],
+                          "cornerRadius": [{"value": "4", "count": 2}, {"value": "1.25", "count": 2},
+                                           {"value": "7", "count": 1}],
+                          "layoutMode": [{"value": "VERTICAL", "count": 1}, {"value": "HORIZONTAL", "count": 1}]}, metrics)
+        self.assertEqual({"renderedNodeIds": ["z", "a", "z"], "excludedNodes": [
+            {"id": "z", "name": "숨김", "type": "", "reasons": ["ancestor"]},
+            {"id": "z", "name": "", "type": "FRAME", "reasons": []}]}, inventory)
+
     def test_native_asset_fallback_uses_first_owner_and_counts_screen_hops(self):
         import figma_summary
 

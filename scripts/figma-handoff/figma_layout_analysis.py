@@ -3,27 +3,39 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from figma_native_probe import request as _probe
 from figma_util import extract_text_style, format_number, is_number, normalize_node_id, round_number
 from figma_visibility_analysis import VisibilityAnalysis
 
 __all__ = ["LayoutAnalysis"]
 
+_NUMERIC_KEYS = (
+    "itemSpacing", "counterAxisSpacing", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "cornerRadius", "minWidth", "maxWidth", "minHeight", "maxHeight",
+)
+_ENUM_KEYS = (
+    "layoutMode", "primaryAxisAlignItems", "counterAxisAlignItems", "counterAxisAlignContent",
+    "layoutWrap", "primaryAxisSizingMode", "counterAxisSizingMode", "layoutPositioning",
+)
+
 
 def _summarize_layout_metrics(nodes: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    numeric_keys = (
-        "itemSpacing", "counterAxisSpacing", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
-        "cornerRadius", "minWidth", "maxWidth", "minHeight", "maxHeight",
-    )
-    enum_keys = (
-        "layoutMode", "primaryAxisAlignItems", "counterAxisAlignItems", "counterAxisAlignContent",
-        "layoutWrap", "primaryAxisSizingMode", "counterAxisSizingMode", "layoutPositioning",
-    )
-    numeric_counters: dict[str, Counter[str]] = {key: Counter() for key in numeric_keys}
-    enum_counters: dict[str, Counter[str]] = {key: Counter() for key in enum_keys}
+    if type(nodes) is list and nodes and len(nodes) <= 32000 and all(type(node) is dict for node in nodes):
+        fields = (*_NUMERIC_KEYS, *_ENUM_KEYS, "rectangleCornerRadii")
+        selected = [{key: node[key] for key in fields if key in node} for node in nodes]
+        receipt = _probe("figma-layout-metrics", selected, __file__)
+        if type(receipt) is dict and set(receipt) == {"metrics"} and type(receipt["metrics"]) is dict:
+            return receipt["metrics"]
+    return _summarize_layout_metrics_reference(nodes)
+
+
+def _summarize_layout_metrics_reference(nodes: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    numeric_counters: dict[str, Counter[str]] = {key: Counter() for key in _NUMERIC_KEYS}
+    enum_counters: dict[str, Counter[str]] = {key: Counter() for key in _ENUM_KEYS}
     for node in nodes:
         radii = node.get("rectangleCornerRadii")
         has_individual_radii = isinstance(radii, list) and len(radii) == 4
-        for key in numeric_keys:
+        for key in _NUMERIC_KEYS:
             if key == "cornerRadius" and has_individual_radii:
                 continue
             value = node.get(key)
@@ -33,7 +45,7 @@ def _summarize_layout_metrics(nodes: list[dict[str, Any]]) -> dict[str, list[dic
             for radius in radii:
                 if is_number(radius):
                     numeric_counters["cornerRadius"][format_number(radius)] += 1
-        for key in enum_keys:
+        for key in _ENUM_KEYS:
             value = node.get(key)
             if isinstance(value, str) and value:
                 enum_counters[key][value] += 1
