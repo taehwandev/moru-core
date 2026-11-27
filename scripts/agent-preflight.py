@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_execution_capsule import create_preflight_snapshot
+from agent_hq_report import hq_run_id_from_env
 from agent_execution_capsule_state import atomic_write_json
 from agent_project_route_docs import project_route_docs
 from agent_route_state import request_fingerprint
@@ -581,6 +582,12 @@ def run_preflight(args: argparse.Namespace, moru_root: Path) -> int:
         return _run_preflight_scoped(args, moru_root)
 
 
+def _hq_binding() -> dict[str, str]:
+    """The HQ task id links later attempts of the same task; it grants nothing."""
+    hq_run_id = hq_run_id_from_env()
+    return {"hq_run_id": hq_run_id} if hq_run_id else {}
+
+
 def _run_preflight_scoped(args: argparse.Namespace, moru_root: Path) -> int:
     project = args.project.resolve()
     rules = args.rules.resolve()
@@ -635,7 +642,7 @@ def _run_preflight_scoped(args: argparse.Namespace, moru_root: Path) -> int:
         "git_status": git_status,
         "vibeguard": vibeguard,
         "global_lessons": global_lessons,
-        "runtime_session": runtime_session(),
+        "runtime_session": runtime_session(), **_hq_binding(),
     })
     hook_warnings, hook_failures = check_agent_hooks(moru_root)
     failures = collect_failures(

@@ -29,6 +29,17 @@ attestation and retain history without passing gates. This never transfers
 approval, current external results, review, or completion. Do not invent new
 phrase-specific continuation exceptions.
 
+An HQ-dispatched process (`MORU_HQ_RUN_ID` set) records that task id in its
+preflight. A later attempt of the same HQ task runs in a new runtime session,
+so `start` without `--continue-from` links the newest retained run of that
+task in the same checkout; the agent still supplies `--reuse-inputs` only when
+toolchain and external inputs match. Project, rules and input bytes must still
+match for a gate to carry. When such a worker finds a contradiction in the
+shared contract or requirements, it stops instead of building on a guess:
+`python3 <MORU_ROOT>/scripts/agent_hq_report.py decision --project <ABS> --question "..." --evidence "..." --option "..."`
+writes one bounded `decision_needed` report for the operator, then the run
+checkpoints the blocker and ends.
+
 Local gate records may declare `input_paths` only when the check is independent
 of commit metadata and the complete file dependency set is known. An empty
 list covers all non-ignored project files; explicit paths cover exactly those

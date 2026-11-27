@@ -97,7 +97,7 @@ class GateEvidenceReuse:
             raise ValueError("gate reuse source run is not registered")
         prior = _read(path)
         if (prior.get("project") != str(self.project) or prior.get("rules") != str(self.rules)
-                or prior.get("runtime_session") != self.preflight.get("runtime_session")
+                or (not _same_hq_task(prior, self.preflight) and prior.get("runtime_session") != self.preflight.get("runtime_session"))
                 or prior.get("agent_run_id") != run_id):
             raise ValueError("gate reuse source project, rules, run or session differs")
         ledger_path = gate_evidence_path_for_preflight(path)
@@ -118,7 +118,7 @@ class GateEvidenceReuse:
             raise ValueError("invalid input snapshot")
         paths = original.get("input_paths") if original.get("schema_version") == 2 else None
         current = self._snapshot(paths)
-        if current is None or entry.get("reuse_snapshot") != current:
+        if current is None or _comparable(entry.get("reuse_snapshot"), prior, self.preflight) != _comparable(current, prior, self.preflight):
             raise ValueError("gate reuse inputs changed or original snapshot is unavailable; revalidate only affected evidence")
         if gate == "source docs" and (prior.get("route") or {}).get("required_docs") != (self.preflight.get("route") or {}).get("required_docs"):
             raise ValueError("gate reuse required-document manifest changed")
@@ -134,6 +134,19 @@ class GateEvidenceReuse:
         if paths is not None:
             result["input_paths"] = paths
         return result
+
+
+def _same_hq_task(prior: dict[str, Any], current: dict[str, Any]) -> bool:
+    """Attempts of one HQ task run in separate runtime sessions by design."""
+    hq_task = str(current.get("hq_run_id") or "")
+    return bool(hq_task) and prior.get("hq_run_id") == hq_task
+
+
+def _comparable(snapshot: Any, prior: dict[str, Any], current: dict[str, Any]) -> Any:
+    """Drop only the session for one HQ task; project, rules and inputs must match."""
+    if _same_hq_task(prior, current) and isinstance(snapshot, dict):
+        return {key: value for key, value in snapshot.items() if key != "session"}
+    return snapshot
 
 
 def _read(path: Path) -> dict[str, Any]:
