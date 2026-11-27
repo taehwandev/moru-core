@@ -8,6 +8,15 @@ from pathlib import Path
 from typing import Any
 
 
+if Path(__file__).with_name("figma_summary_validate.py").is_file():
+    from figma_summary_validate import _probe
+else:
+    _probe = None
+
+_MISSING_FILE_KEY = "Missing Figma file key. Pass --url or --file-key."
+_MISSING_NODE_ID = "Missing Figma node id. Pass a frame URL with node-id or --node-id."
+
+
 GRADIENT_PAINT_TYPES = {
     "GRADIENT_LINEAR",
     "GRADIENT_RADIAL",
@@ -17,6 +26,19 @@ GRADIENT_PAINT_TYPES = {
 
 
 def resolve_figma_target(url: str | None, file_key: str | None, node_id: str | None) -> tuple[str, str]:
+    if _probe is not None and all(value is None or type(value) is str for value in (url, file_key, node_id)):
+        result = _probe("figma-target", {"url": url, "file_key": file_key, "node_id": node_id}, __file__)
+        if type(result) is dict:
+            if (set(result) == {"file_key", "node_id"} and type(result["file_key"]) is str
+                    and result["file_key"] and type(result["node_id"]) is str):
+                return result["file_key"], result["node_id"]
+            if (set(result) == {"error"} and type(result["error"]) is str
+                    and result["error"] in (_MISSING_FILE_KEY, _MISSING_NODE_ID)):
+                raise ValueError(result["error"])
+    return _resolve_figma_target_reference(url, file_key, node_id)
+
+
+def _resolve_figma_target_reference(url, file_key, node_id):
     parsed_key = file_key
     parsed_node = node_id
 
@@ -34,9 +56,9 @@ def resolve_figma_target(url: str | None, file_key: str | None, node_id: str | N
             parsed_node = node_values[0]
 
     if not parsed_key:
-        raise ValueError("Missing Figma file key. Pass --url or --file-key.")
+        raise ValueError(_MISSING_FILE_KEY)
     if not parsed_node:
-        raise ValueError("Missing Figma node id. Pass a frame URL with node-id or --node-id.")
+        raise ValueError(_MISSING_NODE_ID)
 
     return parsed_key, normalize_node_id(parsed_node)
 

@@ -377,6 +377,7 @@ impl CompletionProcess {
             Some("figma-smoke-verdict") => crate::figma_process::FigmaProcess::smoke_verdict(&payload, &root),
             Some("figma-smoke-analysis") => crate::figma_process::FigmaProcess::smoke_analysis(&payload, &root),
             Some("figma-summary-schema") => crate::figma_process::FigmaProcess::schema(&payload, &root),
+            Some("figma-target") => crate::figma_process::FigmaProcess::target(&payload, &root),
             Some("figma-validate-cli") => crate::figma_process::FigmaProcess::probe(&payload, &root),
             Some("hq-report-run-id") => hq_report_run_id::HqReportRunId::resolve(&payload),
             Some("hq-finish-assemble") => hq_report_assembly::assemble(&payload, false),

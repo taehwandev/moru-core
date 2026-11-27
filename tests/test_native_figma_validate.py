@@ -56,6 +56,42 @@ class NativeFigmaValidate(unittest.TestCase):
             with self.subTest(payload=payload):
                 self.parity(payload)
 
+    def test_extractor_dry_run_resolves_targets_through_real_probe(self):
+        executable = self.entry.with_name("moru-hook-native")
+        real = executable.with_name("original-native")
+        executable.rename(real)
+        log = self.base / "target-probes"
+        executable.write_text(f'#!/bin/sh\n{shlex.quote(str(real))} "$@"\nstatus=$?\n'
+                              f'printf "%s %s\\n" "$3" "$status" >> {shlex.quote(str(log))}\nexit "$status"\n')
+        executable.chmod(0o700)
+        script = PROJECT / "scripts/figma-handoff/figma-handoff.py"
+        env = {**self.env, "PATH": str(self.empty_path)}
+        cases = [
+            (["--url", "https://www.figma.com/file/F/A?node_id=7-8&node-id=1-2&node-id=3-4",
+              "--node-id", "9-9", "--file-key", "IGNORED"], ("F", "1:2"), 0),
+            (["--url", "https://www.figma.com/design/D/F?node-id=I2%252D3%253B4%252D5"], ("D", "I2:3;4:5"), 0),
+            (["--url", "https://www.figma.com/proto/P/S?node-id=&node_id=5-6"], ("P", "5:6"), 0),
+            (["--url", "https://www.figma.com/design/EMPTY/S"], None, 0),
+            (["--url", "https://[::1]/design/UNUSUAL/S?node-id=1-2"], ("UNUSUAL", "1:2"), 125),
+        ]
+        for args, target, probe_status in cases:
+            command = [sys.executable, "-B", str(script), "--dry-run", *args]
+            with self.subTest(args=args):
+                log.write_text("")
+                expected = subprocess.run(command, env={**env, "MORU_LAUNCHER_BACKEND": "python"}, cwd=self.project,
+                                          capture_output=True, timeout=8)
+                self.assertEqual("", log.read_text())
+                observed = subprocess.run(command, env=env, cwd=self.project, capture_output=True, timeout=8)
+                self.assertEqual(result(expected), result(observed))
+                self.assertEqual([f"figma-target {probe_status}"], log.read_text().splitlines())
+                if target is None:
+                    self.assertNotEqual(0, observed.returncode)
+                    self.assertIn(b"Missing Figma node id.", observed.stderr)
+                else:
+                    self.assertEqual(0, observed.returncode, observed.stderr)
+                    plan = json.loads(observed.stdout)
+                    self.assertEqual(target, (plan["fileKey"], plan["startNodeId"]))
+
     def test_public_live_smoke_alias_handles_offline_dispatch(self):
         clean = {k: v for k, v in self.env.items() if k not in ("FIGMA_TOKEN", "FIGMA_SMOKE_URL", "MOCK_TOKEN")}
 
