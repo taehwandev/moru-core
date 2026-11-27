@@ -39,6 +39,12 @@ mod number;
 mod layout_metrics;
 #[path = "figma_layout_nodes.rs"]
 mod layout_nodes;
+#[path = "figma_text_style.rs"]
+mod text_style;
+#[path = "figma_text_styles.rs"]
+mod text_styles;
+#[path = "figma_text_runs.rs"]
+mod text_runs;
 #[path = "figma_visibility_inventory.rs"]
 mod visibility_inventory;
 #[path = "figma_plan.rs"]
@@ -105,6 +111,14 @@ impl FigmaProcess {
 
     pub(crate) fn layout_nodes(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
         Self::receipt(layout_nodes::summarize(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn text_styles(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(text_styles::summarize(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn text_runs(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(text_runs::summarize(Self::bound_input(request, root, "text")?)?)
     }
 
     pub(crate) fn visibility_inventory(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {

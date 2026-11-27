@@ -224,6 +224,33 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_native_text_style_groups_and_code_point_run_boundaries(self):
+        import figma_color_analysis as color
+        import figma_layout_analysis as layout
+
+        base = {"fontFamily": "본문", "fontSize": 15, "fontWeight": 400}
+        node = {"id": "1-2", "name": "레이블", "type": "TEXT", "style": base, "characters": "😀A\n끝",
+                "styleOverrideTable": {"1": {"fontWeight": 700}, "2": {"fontFamily": None}},
+                "characterStyleOverrides": [1, 2, 2, 2, 2, 2, 0]}
+        nodes = [node, {"type": "TEXT", "style": base, "characters": "둘째"}]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = (color.ColorAnalysis.summarize_text_styles(nodes), layout.LayoutAnalysis.summarize_text_runs(nodes))
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path)}, clear=True), patch.object(
+                color, "_summarize_text_styles_reference", side_effect=AssertionError("Python styles")), patch.object(
+                layout, "_summarize_text_runs_reference", side_effect=AssertionError("Python runs")), patch.object(
+                subprocess, "run", wraps=subprocess.run) as child:
+            styles = color.ColorAnalysis.summarize_text_styles(nodes)
+            runs = layout.LayoutAnalysis.summarize_text_runs(nodes)
+        self.assertEqual(["figma-text-styles", "figma-text-runs"], [call.args[0][-1] for call in child.call_args_list])
+        self.assertEqual(json.dumps(expected, ensure_ascii=False), json.dumps((styles, runs), ensure_ascii=False))
+        self.assertEqual([(2, "본문", 400), (1, "본문", 700), (1, None, 400)],
+                         [(style["count"], style["fontFamily"], style["fontWeight"]) for style in styles])
+        self.assertEqual(["😀A 끝", "둘째"], styles[0]["samples"])
+        self.assertEqual([("😀", 0, 1, "본문"), ("A\n끝", 1, 6, None)],
+                         [(run["text"], run["range"]["start"], run["range"]["end"], run["resolvedStyle"]["fontFamily"])
+                          for run in runs])
+        self.assertEqual([15, 15], [run["resolvedStyle"]["fontSize"] for run in runs])
+
     def test_native_layout_nodes_merge_overlaps_and_keep_ordered_paints(self):
         import figma_layout_analysis as layout
 

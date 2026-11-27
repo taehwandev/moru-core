@@ -94,7 +94,8 @@ def request(operation, value, source_file):
     if operation in ("figma-summary-schema", "figma-smoke-analysis", "figma-smoke-frames", "figma-smoke-verdict",
                      "figma-smoke-result", "figma-smoke-file-result", "figma-target", "figma-plan", "figma-bundle-manifest", "figma-bundle-prepare",
                      "figma-prototype-interactions", "figma-variables", "figma-asset-candidates", "figma-asset-inventory",
-                     "figma-layout-metrics", "figma-layout-nodes", "figma-visibility-inventory"):
+                     "figma-layout-metrics", "figma-layout-nodes", "figma-visibility-inventory",
+                     "figma-text-styles", "figma-text-runs"):
         text = _summary_text(value)
         if text is None:
             return None
@@ -107,3 +108,22 @@ def request(operation, value, source_file):
     payload.update(source_root=str(root),
                    python_profile=f"{sys.implementation.name}:{sys.hexversion}:{sys.getrecursionlimit()}:{digits}")
     return module.NativeProbe.request("--completion-probe", operation, payload)
+
+
+def request_text_rows(operation, nodes, source_file):
+    if type(nodes) is not list or len(nodes) > 32000 or any(type(node) is not dict for node in nodes):
+        return None
+    fields = ("type", "name", "characters", "style", "styleOverrideTable")
+    if operation == "figma-text-runs":
+        fields += ("id", "characterStyleOverrides")
+    selected = [{key: node[key] for key in fields if key in node} for node in nodes if node.get("type") == "TEXT"]
+    if not selected:
+        return []
+    receipt = request(operation, selected, source_file)
+    if type(receipt) is not dict or set(receipt) != {"rows_json"} or type(receipt["rows_json"]) is not str:
+        return None
+    try:
+        rows = json.loads(receipt["rows_json"])
+    except (ValueError, RecursionError):
+        return None
+    return rows if type(rows) is list and all(type(row) is dict for row in rows) else None

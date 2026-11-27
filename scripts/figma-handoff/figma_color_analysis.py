@@ -4,6 +4,8 @@ import json
 from collections import Counter, defaultdict
 from typing import Any
 
+from figma_native_probe import request_text_rows
+
 from figma_style_parse import _parse_effect_entry
 from figma_util import _color_dict_to_hex, extract_text_style, paint_to_hex, parse_gradient_paint
 
@@ -154,6 +156,11 @@ def _extract_variable_id(value: Any) -> str:
 
 
 def _summarize_text_styles(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = request_text_rows("figma-text-styles", nodes, __file__)
+    return _summarize_text_styles_reference(nodes) if rows is None else rows
+
+
+def _summarize_text_styles_reference(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     counter: Counter[str] = Counter()
     samples: dict[str, list[str]] = defaultdict(list)
     parsed: dict[str, dict[str, Any]] = {}

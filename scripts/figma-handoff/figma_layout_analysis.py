@@ -4,7 +4,7 @@ from collections import Counter
 import json
 from typing import Any
 
-from figma_native_probe import request as _probe
+from figma_native_probe import request as _probe, request_text_rows
 from figma_util import extract_text_style, format_number, is_number, normalize_node_id, round_number
 from figma_visibility_analysis import VisibilityAnalysis
 
@@ -195,6 +195,11 @@ def _rounded_mapping(value: Any) -> dict[str, Any]:
 
 
 def _summarize_text_runs(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = request_text_rows("figma-text-runs", nodes, __file__)
+    return _summarize_text_runs_reference(nodes) if rows is None else rows
+
+
+def _summarize_text_runs_reference(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for node in nodes:
         if node.get("type") != "TEXT":
