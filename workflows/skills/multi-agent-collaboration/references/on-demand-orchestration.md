@@ -35,6 +35,15 @@ is needed merely to name a persona.
    independent work improves the result enough to cover startup, context,
    token, waiting, and integration cost. Parallel work retains the contract and
    ownership rules in [the collaboration reference](current-guidance.md).
+   Inside the Moru app (`python3 <MORU_ROOT>/scripts/agent_app_worker.py available`
+   exits 0), start a delegated writer as a visible app session instead of a
+   background subagent: `agent_app_worker.py start --project <ABS> --runtime
+   <claude|codex|agy> --brief-file -` prints the project, task and run ids, and
+   `agent_app_worker.py stop --project-id ... --task-id ... --run-id ...` ends
+   only that session. Keep those ids for the slice; when a worker reports a
+   shared-contract contradiction, stop the other writers whose slices depend on
+   that contract before answering, then restart them with the refreshed brief.
+   Without the app, use the runtime's own worker.
 3. Use another runtime only for a needed review perspective or confirmed tool
    access, through an available execution and result-return path. Another
    product does not by itself prove a different model or independent evidence.
