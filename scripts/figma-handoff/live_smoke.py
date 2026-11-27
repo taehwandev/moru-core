@@ -146,6 +146,65 @@ def _native_verdict(summary, quick):
     return result
 
 
+def _native_smoke_result(summary, out, quick, scale):
+    if _probe is None or type(summary) is not dict:
+        return None
+    try:
+        root = str(out.resolve(strict=True))
+    except (OSError, RuntimeError):
+        return None
+    receipt = _probe("figma-smoke-result", {
+        "summary": summary, "bundle_root": root, "quick": quick, "scale": scale,
+    }, __file__)
+    if (type(receipt) is not dict or set(receipt) != {"stdout", "code", "after_cleanup"}
+            or type(receipt["code"]) is not int or receipt["code"] not in (0, 1)
+            or type(receipt["stdout"]) is not str or type(receipt["after_cleanup"]) is not str):
+        return None
+    return receipt
+
+
+def _inspect_bundle(summary, out, quick, scale):
+    failures = []
+    verdict = _native_verdict(summary, quick)
+    problems = _validate_summary_reference(summary) if verdict is None else verdict["problems"]
+    if problems:
+        failures.append(f"schema violations: {problems}")
+
+    discovered = _discovered_frames(summary, out, scale)
+    if discovered is None:
+        frames = sorted((out / "frames").glob("*.png"))
+        failures.extend(_frame_failures_reference(summary, out, frames, scale))
+        assets = out / "assets"
+        svg_count = sum(1 for _ in assets.glob("*.svg")) if assets.exists() else 0
+        png_count = sum(1 for _ in assets.glob("*.png")) if assets.exists() else 0
+    else:
+        frames = [out / name for name in discovered["frames"]]
+        failures.extend(discovered["failures"])
+        svg_count, png_count = discovered["svg_count"], discovered["png_count"]
+    if not quick and not svg_count:
+        failures.append("no vector SVG assets exported (asset split broken?)")
+
+    if verdict is None:
+        cov = coverage_report(summary)
+        failures.extend(_layout_coverage_failures(cov))
+        asset = cov["assets"]
+        if not quick and asset["imageFillTotal"]:
+            pct = asset["imageFillWithPath"] * 100 // asset["imageFillTotal"]
+            if pct < IMAGE_FILL_MIN_PCT:
+                failures.append(
+                    f"image-fill recovery {asset['imageFillWithPath']}/{asset['imageFillTotal']} "
+                    f"({pct}%) < {IMAGE_FILL_MIN_PCT}%"
+                )
+        report = format_report(problems, cov)
+    else:
+        failures.extend(verdict["coverage_failures"])
+        report = verdict["report"]
+    print(report)
+    print(f"frames={len(frames)} (for example: {_png_size(frames[0]) if frames else None}) "
+          f"assets: svg={svg_count} png={png_count}")
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="figma-handoff live smoke harness")
     parser.add_argument("--url", default=os.environ.get("FIGMA_SMOKE_URL"))
@@ -164,7 +223,6 @@ def main() -> int:
     if not args.url:
         parser.error("--url or FIGMA_SMOKE_URL is required when a token is available")
 
-    failures: list[str] = []
     tmp = Path(tempfile.mkdtemp(prefix="figma-smoke-"))
     try:
         command = [
@@ -191,46 +249,17 @@ def main() -> int:
         out = tmp / "smoke"
         summary = json.loads((out / "summary" / "design-summary.json").read_text(encoding="utf-8"))
 
-        verdict = _native_verdict(summary, args.quick)
-        problems = _validate_summary_reference(summary) if verdict is None else verdict["problems"]
-        if problems:
-            failures.append(f"schema violations: {problems}")
-
-        discovered = _discovered_frames(summary, out, args.scale)
-        if discovered is None:
-            frames = sorted((out / "frames").glob("*.png"))
-            failures.extend(_frame_failures_reference(summary, out, frames, args.scale))
-            assets = out / "assets"
-            svg_count = sum(1 for _ in assets.glob("*.svg")) if assets.exists() else 0
-            png_count = sum(1 for _ in assets.glob("*.png")) if assets.exists() else 0
+        receipt = _native_smoke_result(summary, out, args.quick, args.scale)
+        if receipt is None:
+            failures = _inspect_bundle(summary, out, args.quick, args.scale)
         else:
-            frames = [out / name for name in discovered["frames"]]
-            failures.extend(discovered["failures"])
-            svg_count, png_count = discovered["svg_count"], discovered["png_count"]
-        if not args.quick and not svg_count:
-            failures.append("no vector SVG assets exported (asset split broken?)")
-
-        if verdict is None:
-            cov = coverage_report(summary)
-            failures.extend(_layout_coverage_failures(cov))
-            asset = cov["assets"]
-            if not args.quick and asset["imageFillTotal"]:
-                pct = asset["imageFillWithPath"] * 100 // asset["imageFillTotal"]
-                if pct < IMAGE_FILL_MIN_PCT:
-                    failures.append(
-                        f"image-fill recovery {asset['imageFillWithPath']}/{asset['imageFillTotal']} "
-                        f"({pct}%) < {IMAGE_FILL_MIN_PCT}%"
-                    )
-            report = format_report(problems, cov)
-        else:
-            failures.extend(verdict["coverage_failures"])
-            report = verdict["report"]
-        print(report)
-        print(f"frames={len(frames)} (for example: {_png_size(frames[0]) if frames else None}) "
-              f"assets: svg={svg_count} png={png_count}")
+            sys.stdout.write(receipt["stdout"])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
+    if receipt is not None:
+        sys.stdout.write(receipt["after_cleanup"])
+        return receipt["code"]
     if failures:
         print("LIVE SMOKE FAILURES:")
         for failure in failures:

@@ -61,7 +61,8 @@ impl FigmaProcess {
         request: &serde_json::Value,
         root: &std::path::Path,
     ) -> Option<serde_json::Value> {
-        Self::receipt(frames::analyze(Self::bound_input(request, root, "text")?)?)
+        let data = serde_json::from_str(Self::bound_input(request, root, "text")?).ok()?;
+        Self::receipt(frames::analyze(&data, false)?)
     }
 
     pub(crate) fn smoke_analysis(
@@ -81,6 +82,84 @@ impl FigmaProcess {
             return None;
         };
         Self::smoke(input.get("summary")?, Some(*quick))
+    }
+
+    pub(crate) fn smoke_result(
+        request: &serde_json::Value,
+        root: &std::path::Path,
+    ) -> Option<serde_json::Value> {
+        let input = PythonJson::parse(Self::bound_input(request, root, "text")?)?;
+        let Value::Bool(quick) = input.get("quick")? else {
+            return None;
+        };
+        let Value::Number(scale) = input.get("scale")? else {
+            return None;
+        };
+        let summary = input.get("summary")?;
+        let fields = summary.as_object()?;
+        let screens: serde_json::Value = match fields.get("screens") {
+            None => serde_json::json!([]),
+            Some(screens) => {
+                serde_json::from_str(&PythonJson::render(screens, false, false)?).ok()?
+            }
+        };
+        let verdict = Self::smoke(summary, Some(*quick))?;
+        let frame_data = serde_json::json!({
+            "discover": true, "bundle_root": input.get("bundle_root")?.as_str()?,
+            "scale": scale.as_float()?, "screens": screens,
+        });
+        let frames = frames::analyze(&frame_data, true)?;
+        Self::result_output(&verdict, &frames, *quick)
+    }
+
+    fn result_output(
+        verdict: &serde_json::Value,
+        frames: &serde_json::Value,
+        quick: bool,
+    ) -> Option<serde_json::Value> {
+        let problems = verdict["problems"].as_array()?;
+        let mut failures = Vec::new();
+        if !problems.is_empty() {
+            let messages = problems
+                .iter()
+                .map(|p| Some(Value::String(p.as_str()?.to_owned())))
+                .collect::<Option<Vec<_>>>()?;
+            failures.push(format!(
+                "schema violations: {}",
+                PythonJson::repr(&Value::Array(messages))
+            ));
+        }
+        for failure in frames["failures"].as_array()? {
+            failures.push(failure.as_str()?.to_owned());
+        }
+        let svg_count = frames["svg_count"].as_u64()?;
+        if !quick && svg_count == 0 {
+            failures.push("no vector SVG assets exported (asset split broken?)".into());
+        }
+        for failure in verdict["coverage_failures"].as_array()? {
+            failures.push(failure.as_str()?.to_owned());
+        }
+        let stdout = format!(
+            "{}\nframes={} (for example: {}) assets: svg={svg_count} png={}\n",
+            verdict["report"].as_str()?,
+            frames["frames"].as_array()?.len(),
+            frames["sample"].as_str()?,
+            frames["png_count"].as_u64()?
+        );
+        let mut after_cleanup = String::new();
+        let code = if failures.is_empty() {
+            after_cleanup.push_str("LIVE SMOKE PASS ✅\n");
+            0
+        } else {
+            after_cleanup.push_str("LIVE SMOKE FAILURES:\n");
+            for failure in failures {
+                after_cleanup.push_str(&format!(" - {failure}\n"));
+            }
+            1
+        };
+        Self::receipt(
+            serde_json::json!({"stdout":stdout,"code":code,"after_cleanup":after_cleanup}),
+        )
     }
 
     fn smoke(summary: &Value, quick: Option<bool>) -> Option<serde_json::Value> {

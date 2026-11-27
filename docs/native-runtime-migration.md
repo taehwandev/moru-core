@@ -215,7 +215,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 38 | `scripts/device-mcp.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Partial native | Ordinary bundle schema checks run in Rust. Extraction, bundle output and the CLI remain in Python. |
 | 40 | `scripts/figma-handoff/figma_validate.py` | figma-validate; direct Python CLI | Partial native | Both entrypoints use Rust for ordinary file validation. Offline schema, visibility, coverage, numeric sums and ordinary file errors; exception handling and the Python compatibility path remain |
-| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Partial native | Rust validates ordinary summaries, computes coverage and renders the report. Rust also lists frames, counts assets and checks ordinary PNG headers and frame scales. Python runs the extractor and handles remaining policy and exceptional inputs. |
+| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Partial native | Rust validates and assembles the ordinary post-extraction result, including coverage, frame checks, asset counts, output and exit status. Python runs the extractor, cleans the temporary bundle and handles exceptional inputs. |
 | 42 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |

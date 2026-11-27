@@ -120,8 +120,7 @@ fn check_scale(
     Some(())
 }
 
-pub(super) fn analyze(text: &str) -> Option<Value> {
-    let data: Value = serde_json::from_str(text).ok()?;
+pub(super) fn analyze(data: &Value, include_sample: bool) -> Option<Value> {
     let root = Path::new(data.get("bundle_root")?.as_str()?);
     if !root.is_absolute()
         || root.parent().is_none()
@@ -182,9 +181,18 @@ pub(super) fn analyze(text: &str) -> Option<Value> {
         // names and directories. Asset enumeration never opens the entries.
         let svg_count = assets.iter().filter(|name| name.ends_with(".svg")).count();
         let png_count = assets.iter().filter(|name| name.ends_with(".png")).count();
-        return Some(
-            json!({"failures":failures,"frames":frames,"svg_count":svg_count,"png_count":png_count}),
-        );
+        let mut discovered =
+            json!({"failures":failures,"svg_count":svg_count,"png_count":png_count});
+        if include_sample {
+            let sample = match frames.first() {
+                Some(first) => size(&bundle, first)?,
+                None => None,
+            };
+            discovered["sample"] =
+                json!(sample.map_or_else(|| "None".into(), |(w, h)| format!("({w}, {h})")));
+        }
+        discovered["frames"] = json!(frames);
+        return Some(discovered);
     }
     Some(json!({"failures":failures}))
 }
