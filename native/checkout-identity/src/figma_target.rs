@@ -65,49 +65,52 @@ fn url_fields(url: &str, key: &mut String, node: &mut String) -> Option<()> {
     Some(())
 }
 
-fn normalize(node: &str) -> Option<String> {
-    let decoded = decode(node, false)?;
-    if !decoded.is_ascii() {
-        return None;
-    }
-    let mut nodes = Vec::new();
-    for part in Text::py_strip(&decoded).split(';') {
-        let body = part.strip_prefix('I').unwrap_or(part);
-        let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
-        if body
-            .split_once('-')
-            .is_some_and(|(a, b)| digits(a) && digits(b))
-        {
-            nodes.push(part.replace('-', ":"));
-        } else {
-            nodes.push(part.to_owned());
+pub(super) struct Target;
+impl Target {
+    pub(super) fn normalize(node: &str) -> Option<String> {
+        let decoded = decode(node, false)?;
+        if !decoded.is_ascii() {
+            return None;
         }
+        let mut nodes = Vec::new();
+        for part in Text::py_strip(&decoded).split(';') {
+            let body = part.strip_prefix('I').unwrap_or(part);
+            let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+            if body
+                .split_once('-')
+                .is_some_and(|(a, b)| digits(a) && digits(b))
+            {
+                nodes.push(part.replace('-', ":"));
+            } else {
+                nodes.push(part.to_owned());
+            }
+        }
+        Some(nodes.join(";"))
     }
-    Some(nodes.join(";"))
-}
 
-pub(super) fn resolve(text: &str) -> Option<Value> {
-    if text.len() > 1024 * 1024 {
-        return None;
+    pub(super) fn resolve(text: &str) -> Option<Value> {
+        if text.len() > 1024 * 1024 {
+            return None;
+        }
+        let input: Value = serde_json::from_str(text).ok()?;
+        let field = |name: &str| match input.get(name)? {
+            Value::Null => Some(""),
+            other => other.as_str(),
+        };
+        let mut key = field("file_key")?.to_owned();
+        let mut node = field("node_id")?.to_owned();
+        let url = field("url")?;
+        if !url.is_empty() {
+            url_fields(url, &mut key, &mut node)?;
+        }
+        if key.is_empty() {
+            return Some(json!({"error":"Missing Figma file key. Pass --url or --file-key."}));
+        }
+        if node.is_empty() {
+            return Some(
+                json!({"error":"Missing Figma node id. Pass a frame URL with node-id or --node-id."}),
+            );
+        }
+        Some(json!({"file_key":key,"node_id":Self::normalize(&node)?}))
     }
-    let input: Value = serde_json::from_str(text).ok()?;
-    let field = |name: &str| match input.get(name)? {
-        Value::Null => Some(""),
-        other => other.as_str(),
-    };
-    let mut key = field("file_key")?.to_owned();
-    let mut node = field("node_id")?.to_owned();
-    let url = field("url")?;
-    if !url.is_empty() {
-        url_fields(url, &mut key, &mut node)?;
-    }
-    if key.is_empty() {
-        return Some(json!({"error":"Missing Figma file key. Pass --url or --file-key."}));
-    }
-    if node.is_empty() {
-        return Some(
-            json!({"error":"Missing Figma node id. Pass a frame URL with node-id or --node-id."}),
-        );
-    }
-    Some(json!({"file_key":key,"node_id":normalize(&node)?}))
 }

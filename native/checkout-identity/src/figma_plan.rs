@@ -29,7 +29,7 @@ fn slug(value: &str) -> String {
 }
 
 pub(super) fn render(text: &str) -> Option<serde_json::Value> {
-    let target = super::target::resolve(text)?;
+    let target = super::target::Target::resolve(text)?;
     if target.get("error").is_some() {
         return Some(target);
     }

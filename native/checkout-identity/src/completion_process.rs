@@ -381,6 +381,7 @@ impl CompletionProcess {
             Some("figma-bundle-manifest") => crate::figma_process::FigmaProcess::bundle_manifest(&payload, &root),
             Some("figma-plan") => crate::figma_process::FigmaProcess::plan(&payload, &root),
             Some("figma-target") => crate::figma_process::FigmaProcess::target(&payload, &root),
+            Some("figma-prototype-interactions") => crate::figma_process::FigmaProcess::prototype_interactions(&payload, &root),
             Some("figma-validate-cli") => crate::figma_process::FigmaProcess::probe(&payload, &root),
             Some("hq-report-run-id") => hq_report_run_id::HqReportRunId::resolve(&payload),
             Some("hq-finish-assemble") => hq_report_assembly::assemble(&payload, false),

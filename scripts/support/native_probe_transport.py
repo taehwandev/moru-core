@@ -45,6 +45,7 @@ def _process_environment(protocol, operation):
     hq_decision_cli = (protocol, operation) == ("--completion-probe", "hq-decision-cli")
     isolated_completion = protocol == "--completion-probe" and operation in {
         "hq-decision-cli", "figma-summary-schema", "figma-target", "figma-plan", "figma-bundle-manifest", "figma-bundle-prepare", "figma-smoke-analysis", "figma-smoke-frames", "figma-smoke-verdict", "figma-smoke-result", "figma-smoke-file-result",
+        "figma-prototype-interactions",
     }
     if isolated_completion or protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
         # Keep source and environment guard inputs but omit ambient credentials.

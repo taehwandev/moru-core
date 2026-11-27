@@ -224,6 +224,39 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_prototype_interaction_action_order_and_duration_through_native(self):
+        import figma_interaction_analysis as analysis
+
+        trigger = {"type": "ON_CLICK"}
+        actions = [
+            {"type": "NODE", "destinationId": "3-4", "destinationID": "5-6", "destinationNodeID": "7-8",
+             "transition": {"duration": 2.675, "easing": {"type": "EASE_IN"}}},
+            {"type": "NODE", "destinationID": "5-6", "transition": {"duration": 1.9995}},
+            {"type": "NODE", "destinationNodeID": "7-8", "transition": {"duration": 125},
+             "metadata": {"largeInteger": 2 ** 80 + 1}},
+        ]
+        nodes = [{"id": "1-2", "name": "시작", "transitionNodeID": "9-10", "transitionDuration": 375,
+                  "interactions": [{"trigger": trigger, "actions": actions}, {"trigger": trigger},
+                                   {"trigger": trigger, "actions": "invalid"}, {"actions": [17]}]}]
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = analysis.summarize_flow_interactions(nodes)
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path)}, clear=True), patch.object(
+                analysis, "_summarize_flow_interactions_reference", side_effect=AssertionError("Python interactions")), \
+                patch.object(subprocess, "run", wraps=subprocess.run) as child:
+            observed = analysis.summarize_flow_interactions(nodes)
+        child.assert_called_once()
+        self.assertEqual("figma-prototype-interactions", child.call_args.args[0][-1])
+        self.assertEqual(json.dumps(expected, ensure_ascii=False), json.dumps(observed, ensure_ascii=False))
+        self.assertEqual([("3:4", "action.destinationId", 2.67), ("5:6", "action.destinationID", 2),
+                          ("7:8", "action.destinationNodeID", 0.12), ("9:10", "transitionNodeID", 0.38),
+                          ("9:10", "transitionNodeID", 0.38)],
+                         [(row["toNodeId"], row["destinationSource"], row["transition"]["durationSeconds"])
+                          for row in observed])
+        self.assertEqual([*actions, None, None], [row["rawAction"] for row in observed])
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                subprocess, "run", side_effect=AssertionError("nonfinite child launch")), self.assertRaises(OverflowError):
+            analysis.summarize_flow_interactions([{"id": "1", "transitionDuration": float("inf")}])
+
     def test_fidelity_bundle_candidate_and_layout_markdown_sections(self):
         import figma_manifest
         import figma_markdown

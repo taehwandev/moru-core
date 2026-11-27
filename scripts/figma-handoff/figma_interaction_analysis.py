@@ -1,13 +1,32 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
+from figma_native_probe import request as _probe
 from figma_util import normalize_node_id, round_number
 
 __all__ = ["summarize_flow_interactions"]
 
 
 def summarize_flow_interactions(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if type(nodes) is list and len(nodes) <= 32000 and all(type(node) is dict for node in nodes):
+        fields = ("id", "name", "transitionNodeID", "transitionDuration", "transitionEasing", "interactions")
+        # Children are summarized separately. Do not encode their subtrees for every ancestor.
+        payload = [{key: node[key] for key in fields if key in node} for node in nodes]
+        receipt = _probe("figma-prototype-interactions", payload, __file__)
+        if type(receipt) is dict and set(receipt) == {"interactions"} and type(receipt["interactions"]) is str:
+            try:
+                rows = json.loads(receipt["interactions"])
+            except (ValueError, RecursionError):
+                pass
+            else:
+                if type(rows) is list and all(type(row) is dict for row in rows):
+                    return rows
+    return _summarize_flow_interactions_reference(nodes)
+
+
+def _summarize_flow_interactions_reference(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     interactions: list[dict[str, Any]] = []
     for node in nodes:
         node_id = normalize_node_id(str(node.get("id", "")))
