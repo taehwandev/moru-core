@@ -49,6 +49,12 @@ def _probe_manifest(summary, args, *, prepare, warnings=None):
                 or overview[0] != "# Figma Handoff"):
             return None
         expected.add("markdown_overview")
+    if prepare and "markdown_tokens" in receipt:
+        lines = receipt["markdown_tokens"]
+        if (type(lines) is not list or lines[:2] != ["", "## Design Tokens — Color Styles"]
+                or any(type(line) is not str for line in lines)):
+            return None
+        expected.add("markdown_tokens")
     encoded = prepare and warnings is not None and set(receipt) == expected | {"manifest_json", "summary_json"}
     if not encoded and set(receipt) != expected:
         return None

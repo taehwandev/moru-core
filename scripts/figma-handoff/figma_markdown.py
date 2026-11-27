@@ -236,8 +236,8 @@ def _markdown_overview_reference(summary: dict[str, Any]) -> list[str]:
     return lines
 
 
-def render_markdown(summary: dict[str, Any], *, overview: list[str] | None = None) -> str:
-    lines = _markdown_overview_reference(summary) if overview is None else list(overview)
+def _markdown_tokens_reference(summary: dict[str, Any]) -> list[str]:
+    lines = []
     tokens = summary.get("designTokens", {})
     _section(lines, "Design Tokens — Color Styles", (_named_color_row(style) for style in tokens.get("colorStyles", [])))
     _section(lines, "Design Tokens — Text Styles", (
@@ -266,6 +266,14 @@ def render_markdown(summary: dict[str, Any], *, overview: list[str] | None = Non
     _section(lines, "Referenced Text Styles (from node payload)", (f"- `{style['name']}`{_format_text_style(style)}{' [remote]' if style.get('remote') else ''}" for style in referenced.get("textStyles", [])))
     _section(lines, "Referenced Effect Styles (from node payload)", (f"- `{style['name']}` {_format_effect_list(style.get('effects', []))}{' [remote]' if style.get('remote') else ''}" for style in referenced.get("effectStyles", [])))
 
+    return lines
+
+
+def render_markdown(
+    summary: dict[str, Any], *, overview: list[str] | None = None, tokens: list[str] | None = None,
+) -> str:
+    lines = _markdown_overview_reference(summary) if overview is None else list(overview)
+    lines.extend(_markdown_tokens_reference(summary) if tokens is None else tokens)
     components = summary.get("components", [])
     component_rows = []
     for component in components[:60]:

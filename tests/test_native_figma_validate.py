@@ -233,7 +233,15 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
         import live_smoke
 
         summary = {"warnings": [], "메모": ["e\u0301", 1, 1.0, -0.0, 1.25], **_valid_summary()}
-        summary["designTokens"].update(colorStyles=[], textStyles=[], effectStyles=[])
+        styles = {"colorStyles": [{"name": "강조", "hexValues": ["#00AABB"]}],
+                  "textStyles": [{"name": "본문", "fontFamily": "한글", "fontSize": 12, "fontWeight": 500}],
+                  "effectStyles": [{"name": "흐림", "effects": [{"type": "LAYER_BLUR", "radius": 3.5}]}]}
+        summary["designTokens"].update(styles, variables={
+            "collections": [{"id": "C", "name": "팔레트"}],
+            "variables": [{"name": f"토큰-{i:02}", "collectionId": "C", "resolvedType": "STRING",
+                           "valuesByMode": {"z": "첫 모드", "a": "다른 모드"}} for i in range(62)]})
+        summary["referencedStyles"] = {key: [{**rows[0], "name": "참조-" + rows[0]["name"], "remote": True}]
+                                       for key, rows in styles.items()}
         summary["meta"].update(fileKey="", startNodeId="", sourceUrl="https://example.invalid/화면")
         summary["screens"] = [{"id": "1", "name": "시작", "type": "FRAME", "width": 3.5,
                                "height": 7, "imagePath": "frames/1.png"}]
@@ -272,6 +280,7 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
             if argv[-1] == "figma-bundle-prepare":
                 receipt = json.loads(done.stdout)["result"]
                 self.assertEqual(figma_overview, receipt["markdown_overview"])
+                self.assertEqual(figma_tokens, receipt["markdown_tokens"])
                 self.assertEqual(summary_bytes, receipt["summary_json"].encode())
                 self.assertEqual(manifest_bytes, receipt["manifest_json"].encode())
             if argv[-1] in ("figma-smoke-file-result", "figma-smoke-result"):
@@ -323,6 +332,7 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
             return subprocess.CompletedProcess(argv, 0, "", "")
 
         figma_overview = figma_markdown._markdown_overview_reference(before)
+        figma_tokens = figma_markdown._markdown_tokens_reference(before)
         with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path), "CUSTOM_SMOKE_TOKEN": fake_token},
                         clear=True), patch.object(schema, "_validate_summary_reference",
                         side_effect=AssertionError("unexpected Python schema fallback")), patch.object(
@@ -332,7 +342,8 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
             with patch.object(figma_manifest, "_build_manifest_reference", side_effect=AssertionError("Python manifest")):
                 self.assertEqual(reference, figma_manifest.build_manifest(before, args))
                 with patch.object(figma_bundle_output, "write_json", side_effect=AssertionError("Python JSON writer")), \
-                        patch.object(figma_markdown, "_markdown_overview_reference", side_effect=AssertionError("Python overview")):
+                        patch.object(figma_markdown, "_markdown_overview_reference", side_effect=AssertionError("Python overview")), \
+                        patch.object(figma_markdown, "_markdown_tokens_reference", side_effect=AssertionError("Python tokens")):
                     self.assertEqual(expected, output.persist(summary, ["existing"], args))
             self.assertEqual({**before, "warnings": ["existing", *["schema: " + p for p in expected]]}, summary)
         self.assertEqual(["figma-summary-schema", "figma-bundle-manifest", "figma-bundle-prepare"], calls)
@@ -353,11 +364,25 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                         "`1` 시작 -> `2` 끝", "동작-119", "DISSOLVE, 0.2s, LINEAR", "... and 3 more"):
             self.assertIn(excerpt, markdown)
         self.assertNotIn("동작-120", markdown)
+        for excerpt in ("참조-강조", "참조-본문", "참조-흐림", "LAYER_BLUR(r=3.5)", "팔레트/토큰-59",
+                        "(STRING) = 첫 모드", "2 more (see raw/variables.json)"):
+            self.assertIn(excerpt, markdown)
+        self.assertNotIn("토큰-60", markdown)
+        self.assertNotIn("다른 모드", markdown)
         probe = figma_manifest._probe
         valid_receipt = {"problems": expected, "manifest": reference, "summary_json": summary_bytes.decode(),
                          "manifest_json": manifest_bytes.decode()}
+        for optional, absent in (({"markdown_tokens": figma_tokens}, "_markdown_overview_reference"),
+                                 ({"markdown_overview": figma_overview}, "_markdown_tokens_reference")):
+            with patch.object(figma_manifest, "_probe", return_value={**valid_receipt, **optional}) as request, \
+                    patch.object(figma_markdown, absent, wraps=getattr(figma_markdown, absent)) as fallback:
+                output.persist(copy.deepcopy(before), ["existing"], args)
+            fallback.assert_called_once()
+            request.assert_called_once()
+            self.assertEqual(files[1], (output.root / artifacts[1]).read_bytes())
         for corrupt in ({"problems": expected, "manifest": reference},
                         valid_receipt, {**valid_receipt, "markdown_overview": ["# Figma Handoff", False]},
+                        {**valid_receipt, "markdown_tokens": [False]},
                         {**valid_receipt, "problems": ["untrusted"], "manifest": {**reference, "summary": wrong_counts}},
                         {**valid_receipt, "problems": [False]}, {**valid_receipt, "manifest_json": False},
                         {**valid_receipt, "summary_json": '{"truncated":'}):

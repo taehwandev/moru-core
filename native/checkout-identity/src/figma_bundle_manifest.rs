@@ -7,6 +7,8 @@ use serde_json::{json, Map, Value};
 
 #[path = "figma_markdown_overview.rs"]
 mod markdown_overview;
+#[path = "figma_markdown_tokens.rs"]
+mod markdown_tokens;
 
 fn list_len(object: &Map<String, Value>, key: &str, optional: bool) -> Option<usize> {
     match object.get(key) {
@@ -117,6 +119,9 @@ pub(super) fn prepare(text: &str, validate_summary: bool) -> Option<Value> {
         receipt["manifest_json"] = json!(PythonJson::render(&manifest, true, false)?);
         if let Some(lines) = markdown_overview::render(input.get("summary")?) {
             receipt["markdown_overview"] = json!(lines);
+        }
+        if let Some(lines) = markdown_tokens::render(input.get("summary")?) {
+            receipt["markdown_tokens"] = json!(lines);
         }
     }
     receipt
