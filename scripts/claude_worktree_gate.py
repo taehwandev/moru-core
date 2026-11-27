@@ -24,6 +24,7 @@ from claude_bash_readonly import (  # noqa: F401
     read_only_path_token_indices,
 )
 from support.global_state import marks_moru_project
+from support.native_probe_transport import NativeProbe
 from support.stable_launcher import stable_launcher_path  # noqa: F401
 
 
@@ -106,7 +107,25 @@ def _common_dir_from_disk(root: Path) -> Path | None:
     return common if (common / "objects").is_dir() else None
 
 
+def _checkout_field(root: Path, operation: str) -> dict | None:
+    if not root.is_absolute() or os.environ.get("MORU_CHECKOUT_IDENTITY_BACKEND") not in (None, "", "auto", "rust"):
+        return None
+    result = NativeProbe.request("--completion-probe", operation, {"root": str(root)})
+    return result if result is not None and set(result) == {"value"} else None
+
+
 def git_common_dir(root: Path) -> Path | None:
+    result = _checkout_field(root, "checkout-common-dir")
+    if result is not None:
+        value = result["value"]
+        if value is None:
+            return None
+        if isinstance(value, str) and os.path.isabs(value) and "\0" not in value:
+            return Path(value)
+    return _git_common_dir_reference(root)
+
+
+def _git_common_dir_reference(root: Path) -> Path | None:
     from_disk = _common_dir_from_disk(root)
     if from_disk is not None:
         return from_disk
@@ -400,6 +419,13 @@ def ticketed_product_branch_denial(root: Path, target: Path) -> str | None:
 
 
 def current_branch(root: Path) -> str:
+    result = _checkout_field(root, "checkout-current-branch")
+    if result is not None and isinstance(result["value"], str):
+        return result["value"]
+    return _current_branch_reference(root)
+
+
+def _current_branch_reference(root: Path) -> str:
     # HEAD names the branch as `ref: refs/heads/<name>`; anything else, such as
     # a detached commit, is left for git to report.
     git_dir = _checkout_git_dir(root) if _common_dir_from_disk(root) else None

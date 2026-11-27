@@ -28,7 +28,17 @@ impl CheckoutIdentity {
 
     /// Resolve `(common_dir, branch)` for the checkout at `root`.
     pub fn lookup(root: &str) -> Result<(Option<String>, String), ()> {
-        identity::identity(root)
+        identity::Identity::lookup(root)
+    }
+
+    /// Resolve just the requested Python helper field, declining ambiguous resolution.
+    pub fn common_dir(root: &str) -> Result<Option<String>, ()> {
+        identity::Identity::common_dir(root)
+    }
+
+    /// Read the branch independently of the Git common-directory fallback.
+    pub fn branch(root: &str) -> Result<String, ()> {
+        identity::Identity::branch(root)
     }
 
     /// Answer one response line per request line until the reader reaches EOF.

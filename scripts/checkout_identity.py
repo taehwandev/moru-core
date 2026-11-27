@@ -13,7 +13,10 @@ import os
 import sys
 from pathlib import Path
 
-from claude_worktree_gate import current_branch, git_common_dir
+from claude_worktree_gate import (
+    _current_branch_reference as current_branch,
+    _git_common_dir_reference as git_common_dir,
+)
 
 MAX_LINE_BYTES = 1024 * 1024
 

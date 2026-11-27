@@ -206,6 +206,21 @@ mod path_claim_filename;
 mod path_claim_write;
 
 impl CompletionProcess {
+    fn checkout_field(operation: &str, payload: &Value) -> Option<Value> {
+        use moru_checkout_identity::CheckoutIdentity;
+
+        let fields = payload.as_object()?;
+        let root = fields.get("root")?.as_str()?;
+        if fields.len() != 1 || !root.starts_with('/') || root.contains('\0') {
+            return None;
+        }
+        match operation {
+            "checkout-common-dir" => Some(json!({"value": CheckoutIdentity::common_dir(root).ok()?})),
+            "checkout-current-branch" => Some(json!({"value": CheckoutIdentity::branch(root).ok()?})),
+            _ => None,
+        }
+    }
+
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
         if args.len() != 2 || CallbackGuard::root(launcher, "completion-probe").is_none() {
             return 125;
@@ -316,6 +331,9 @@ impl CompletionProcess {
             return Self::write_encoded(PendingPublicationReceipt::encode(payload));
         }
         let result = match args[1].to_str() {
+            Some(operation @ ("checkout-common-dir" | "checkout-current-branch")) => {
+                Self::checkout_field(operation, &payload)
+            }
             Some("loop-budget") => loop_budget::LoopBudget::decide(&payload),
             Some("loop-verdict") => loop_verdict::LoopVerdict::decide(&payload),
             Some("maintenance-projects") => maintenance_projects::MaintenanceProjects::scan(&payload),

@@ -15,11 +15,14 @@ import unittest
 from unittest.mock import patch
 
 import checkout_identity
+import claude_worktree_gate as gate
 from checkout_identity_support import (
     BINARY, LIMIT, PROJECT, PYTHON, WRAPPER, CheckoutFixtures,
     environment, invoke, request, rows,
 )
 from claude_worktree_gate import current_branch, git_common_dir
+from native_pretool_support import environment as probe_environment, prepare
+from support.native_probe_transport import NativeProbe
 
 
 class CheckoutIdentityRuntimeTests(unittest.TestCase):
@@ -51,6 +54,59 @@ class CheckoutIdentityRuntimeTests(unittest.TestCase):
                              "branch": current_branch(root)}]
                 self.assert_backends(request(root), expected)
                 self.assertEqual(expected, rows(invoke([str(WRAPPER)], request(root))))
+
+    def test_shared_accessors_use_separate_native_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            prepare(base)
+            env = {**probe_environment(base), "PATH": "", "MORU_CHECKOUT_IDENTITY_BACKEND": "auto"}
+            with patch.dict(os.environ, env, clear=True), patch.object(
+                gate, "_git_common_dir_reference", side_effect=AssertionError("common directory fell back"),
+            ), patch.object(gate, "_current_branch_reference", side_effect=AssertionError("branch fell back")), (
+                patch.object(NativeProbe, "request", wraps=NativeProbe.request)
+            ) as transport:
+                for root, branch in ((self.fixture.main, "main"), (self.fixture.linked, "task/linked")):
+                    self.assertEqual(self.fixture.main / ".git", git_common_dir(root))
+                    transport.assert_called_once_with("--completion-probe", "checkout-common-dir", {"root": str(root)})
+                    transport.reset_mock()
+                    self.assertEqual(branch, current_branch(root))
+                    transport.assert_called_once_with("--completion-probe", "checkout-current-branch", {"root": str(root)})
+                    transport.reset_mock()
+
+    def test_shared_accessors_fall_back_on_mismatched_root_and_unsupported_profiles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            launcher, _ = prepare(base)
+            env = {**probe_environment(base), "MORU_CHECKOUT_IDENTITY_BACKEND": "auto"}
+            root = self.fixture.linked
+            with patch.dict(os.environ, env, clear=True):
+                # A generated launcher that names a different source root must decline.
+                (launcher.parent.parent / "moru-root").write_text(str(base))
+                with patch.object(gate, "_git_common_dir_reference", wraps=gate._git_common_dir_reference) as common, (
+                    patch.object(gate, "_current_branch_reference", wraps=gate._current_branch_reference)
+                ) as branch:
+                    self.assertEqual(self.fixture.main / ".git", git_common_dir(root))
+                    self.assertEqual("task/linked", current_branch(root))
+                    common.assert_called_once_with(root)
+                    branch.assert_called_once_with(root)
+                with patch.object(NativeProbe, "request", side_effect=AssertionError("unexpected native call")):
+                    relative = Path(os.path.relpath(root))
+                    self.assertEqual(self.fixture.main / ".git", git_common_dir(relative))
+                    self.assertEqual("task/linked", current_branch(relative))
+                    with patch.dict(os.environ, {"MORU_CHECKOUT_IDENTITY_BACKEND": "python"}):
+                        self.assertEqual(self.fixture.main / ".git", git_common_dir(root))
+                        self.assertEqual("task/linked", current_branch(root))
+
+    def test_shared_accessors_reject_an_invalid_reply_independently(self):
+        root = self.fixture.linked
+        with patch.dict(os.environ, {"MORU_CHECKOUT_IDENTITY_BACKEND": "auto"}), patch.object(
+            NativeProbe, "request", side_effect=[{"value": "native-branch"}, {"value": "../invalid"},
+                                                 {"value": 17}, {"value": str(root)}],
+        ):
+            self.assertEqual("native-branch", current_branch(root))
+            self.assertEqual(self.fixture.main / ".git", git_common_dir(root))
+            self.assertEqual("task/linked", current_branch(root))
+            self.assertEqual(root, git_common_dir(root))
 
     def test_invalid_shapes_and_recovery(self):
         cases = [None, [], {}, True, {"schema_version": True, "root": "/"},

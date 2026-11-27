@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import tempfile
 import unittest
@@ -33,6 +34,7 @@ def _without_disk_reads():
     )
 
 
+@patch.dict(os.environ, {"MORU_CHECKOUT_IDENTITY_BACKEND": "python"})
 class GitDirFromDiskTests(unittest.TestCase):
     def test_disk_reads_match_git_for_main_and_linked_checkouts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
