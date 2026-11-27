@@ -20,6 +20,7 @@ from agent_hq_report import (
 )
 import agent_hq_report as hq
 from native_pretool_support import environment, prepare
+from support.native_probe_transport import NativeProbe
 
 
 class AgentHqReportTests(unittest.TestCase):
@@ -49,27 +50,47 @@ class AgentHqReportTests(unittest.TestCase):
             base = Path(tmp).resolve()
             _, project = prepare(base)
             options = ["가" * 60, "🧪" * 60, "☃" * 60]
+            private = "unused-synthetic-private-value"
+            preflight = {
+                "hq_run_id": "lower-priority", "hq_project_id": "lower-project",
+                "request_intake": {"target_summary": "  selected\nsummary", "raw_request": private},
+                "route": {"command": "alternative-result", "notes": private}, "unrelated": private,
+            }
             cases = [
-                (emit_hq_finish_report, dict(preflight={"hq_run_id": "finish"}, passed_gates=['gate "quoted"'])),
+                (emit_hq_finish_report, dict(preflight=preflight, passed_gates=['gate "quoted"', 'gate "quoted"'])),
                 (hq.emit_hq_decision_report, dict(question="Which option?", evidence="A\nB", options=options)),
             ]
             for emit, kwargs in cases:
                 with self.subTest(emit=emit.__name__), patch.object(hq.time, "time", return_value=1700000000):
-                    args = {"project": project, "env": {"MORU_HQ_RUN_ID": emit.__name__}, **kwargs}
+                    args = {"project": project, "env": {"MORU_HQ_RUN_ID": emit.__name__,
+                            "MORU_HQ_PROJECT_ID": "selected-project", "OTHER_PRIVATE_FIELD": private}, **kwargs}
                     with patch.dict(os.environ, {**environment(base), "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
                         path = emit(**args)
                         expected = path.read_bytes()
                     path.unlink()
                     with patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True), patch.object(
-                        hq, "_bound_payload_reference", side_effect=AssertionError("native HQ encoding declined"),
-                    ):
+                        hq, "_finish_bytes_reference", side_effect=AssertionError("Python finish fallback"),
+                    ), patch.object(hq, "_decision_bytes_reference", side_effect=AssertionError("Python decision fallback")), (
+                        patch.object(NativeProbe, "request", wraps=NativeProbe.request)
+                    ) as transport:
                         self.assertEqual(path, emit(**args))
+                        transport.assert_called_once()
+                        protocol, operation, request = transport.call_args.args
+                        self.assertEqual("--completion-probe", protocol)
+                        self.assertEqual("hq-finish-assemble" if emit is emit_hq_finish_report
+                                         else "hq-decision-assemble", operation)
+                        self.assertNotIn(private, json.dumps(request))
+                        self.assertNotIn("OTHER_PRIVATE_FIELD", json.dumps(request))
                     self.assertEqual(expected, path.read_bytes())
                     self.assertLessEqual(len(expected), MAX_REPORT_BYTES)
                     if emit is hq.emit_hq_decision_report:
                         kept = json.loads(expected)["decisionOptions"]
                         self.assertLess(len(kept), len(options))
                         self.assertEqual(options[:len(kept)], kept)
+                    else:
+                        data = json.loads(expected)
+                        self.assertEqual(("selected-project", "selected summary", 'gate "quoted"'),
+                                         (data["projectId"], data["result"], data["evidence"]))
 
     def test_non_hq_run_returns_none_without_touching_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

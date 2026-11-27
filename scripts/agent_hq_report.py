@@ -158,6 +158,68 @@ def _atomic_write_bytes(path: Path, data: bytes) -> None:
         raise
 
 
+_HQ_CONTEXT_ENV = ("MORU_HQ_PROJECT_ID", "MORU_HQ_TASK_ID", "MORU_HQ_OPERATOR_LABEL")
+_HQ_FINISH_ENV = _HQ_CONTEXT_ENV + ("MORU_HQ_RESULT", "MORU_HQ_EVIDENCE", "MORU_HQ_DECISION_NEEDED")
+_HQ_FINISH_FIELDS = (
+    "hq_project_id", "project_id", "hq_task_id", "task_id", "agent_run_id",
+    "hq_operator_label", "operator_label", "hq_result", "hq_decision_needed",
+)
+
+
+def _selected_text(source, keys):
+    selected = {key: source[key] for key in keys if key in source}
+    return selected if all(value is None or type(value) is str for value in selected.values()) else None
+
+
+def _native_assembly(operation, request):
+    reply = NativeProbe.request("--completion-probe", operation, request)
+    decision = operation == "hq-decision-assemble"
+    if decision and reply and set(reply) == {"skipped"} and reply["skipped"] is True:
+        return b""
+    if not reply or set(reply) != {"encoded"} or type(reply["encoded"]) is not str:
+        return None
+    try:
+        encoded = reply["encoded"].encode("utf-8")
+        record = json.loads(encoded)
+    except (ValueError, UnicodeError, RecursionError):
+        return None
+    text_fields = ("runId", "projectId", "taskId", "operatorLabel", "status", "result", "evidence", "decisionNeeded")
+    expected_fields = {"schema", "finishedAt", *text_fields}
+    if decision:
+        expected_fields.add("decisionOptions")
+    if (not isinstance(record, dict) or set(record) != expected_fields
+            or any(type(record[k]) is not str for k in text_fields)
+            or type(record["schema"]) is not int or type(record["finishedAt"]) is not int
+            or (decision and (type(record["decisionOptions"]) is not list
+                              or any(type(item) is not str for item in record["decisionOptions"])))
+            or record.get("runId") != request["run_id"]
+            or record.get("finishedAt") != request["finished_at"] or record.get("schema") != SCHEMA_VERSION
+            or record.get("status") != ("decision_needed" if decision else "finished")
+            or (decision and len(encoded) > MAX_REPORT_BYTES)):
+        return None
+    return encoded
+
+
+def _finish_projection(preflight, environ, gates):
+    if (type(preflight) is not dict or (type(environ) is not dict and environ is not os.environ)
+            or type(gates) is not list or any(type(gate) is not str for gate in gates)):
+        return None
+    fields = _selected_text(preflight, _HQ_FINISH_FIELDS)
+    env = _selected_text(environ, _HQ_FINISH_ENV)
+    if fields is None or env is None:
+        return None
+    for key, selected_key in (("request_intake", "target_summary"), ("route", "command")):
+        child = preflight.get(key)
+        if child is not None:
+            if type(child) is not dict:
+                return None
+            selected = _selected_text(child, (selected_key,))
+            if selected is None:
+                return None
+            fields[key] = selected
+    return {"env": env, "preflight": fields, "gates": gates}
+
+
 def emit_hq_finish_report(
     *,
     project: Path,
@@ -171,6 +233,27 @@ def emit_hq_finish_report(
     run_id = _resolve_hq_run_id(preflight, environ)
     if run_id is None:
         return None
+    encoded = project_name = finished_at = None
+    if NativeProbe.available():
+        request = _finish_projection(preflight, environ, passed_gates)
+        if request is not None:
+            explicit_project = (request["env"].get("MORU_HQ_PROJECT_ID"), request["preflight"].get("hq_project_id"),
+                                request["preflight"].get("project_id"))
+            project_name = "" if any(_one_line(value) for value in explicit_project) else project.resolve().name
+            finished_at = int(time.time() * 1000)
+            request.update(run_id=run_id, project_name=project_name, finished_at=finished_at)
+            encoded = _native_assembly("hq-finish-assemble", request)
+    if encoded is None:
+        encoded = _finish_bytes_reference(project, preflight, passed_gates, environ, run_id, project_name, finished_at)
+    reports_dir = project / ".moru" / "hq" / "reports"
+    target = reports_dir / f"{run_id}.json"
+    if target.parent != reports_dir or target.name != f"{run_id}.json":
+        return None
+    _atomic_write_bytes(target, encoded)
+    return target
+
+
+def _finish_bytes_reference(project, preflight, passed_gates, environ, run_id, project_name, finished_at):
     payload: dict[str, Any] = {
         "schema": SCHEMA_VERSION,
         "runId": run_id,
@@ -178,7 +261,7 @@ def emit_hq_finish_report(
             _one_line(environ.get("MORU_HQ_PROJECT_ID"))
             or _one_line(preflight.get("hq_project_id"))
             or _one_line(preflight.get("project_id"))
-            or project.resolve().name
+            or (project_name if project_name is not None else project.resolve().name)
         ),
         "taskId": (
             _one_line(environ.get("MORU_HQ_TASK_ID"))
@@ -200,15 +283,9 @@ def emit_hq_finish_report(
             _one_line(environ.get("MORU_HQ_DECISION_NEEDED"))
             or _one_line(preflight.get("hq_decision_needed"))
         ),
-        "finishedAt": int(time.time() * 1000),
+        "finishedAt": finished_at if finished_at is not None else int(time.time() * 1000),
     }
-    encoded = _bound_payload(payload, MAX_REPORT_BYTES)
-    reports_dir = project / ".moru" / "hq" / "reports"
-    target = reports_dir / f"{run_id}.json"
-    if target.parent != reports_dir or target.name != f"{run_id}.json":
-        return None
-    _atomic_write_bytes(target, encoded)
-    return target
+    return _bound_payload(payload, MAX_REPORT_BYTES)
 
 
 def emit_hq_decision_report(
@@ -231,11 +308,35 @@ def emit_hq_decision_report(
     question = _one_line(question)
     if not run_id or not question:
         return None
+    encoded = project_name = finished_at = None
+    if (NativeProbe.available() and (environ is os.environ or type(environ) is dict)
+            and type(options) is list and all(type(item) is str for item in options)
+            and type(evidence) is str and type(result) is str):
+        selected = _selected_text(environ, _HQ_CONTEXT_ENV)
+        if selected is not None:
+            project_name = "" if _one_line(selected.get("MORU_HQ_PROJECT_ID")) else project.resolve().name
+            finished_at = int(time.time() * 1000)
+            encoded = _native_assembly("hq-decision-assemble", {
+                "run_id": run_id, "project_name": project_name, "finished_at": finished_at,
+                "env": selected, "question": question, "evidence": evidence, "options": options, "result": result,
+            })
+    if encoded is None:
+        encoded = _decision_bytes_reference(project, environ, run_id, question, evidence, options, result,
+                                            project_name, finished_at)
+    if not encoded:
+        return None
+    reports_dir = project / ".moru" / "hq" / "reports"
+    target = reports_dir / f"{run_id}.json"
+    _atomic_write_bytes(target, encoded)
+    return target
+
+
+def _decision_bytes_reference(project, environ, run_id, question, evidence, options, result, project_name, finished_at):
     choices = [_one_line(option)[:MAX_OPTION_CHARS] for option in options if _one_line(option)]
     payload: dict[str, Any] = {
         "schema": SCHEMA_VERSION,
         "runId": run_id,
-        "projectId": _one_line(environ.get("MORU_HQ_PROJECT_ID")) or project.resolve().name,
+        "projectId": _one_line(environ.get("MORU_HQ_PROJECT_ID")) or (project_name if project_name is not None else project.resolve().name),
         "taskId": _one_line(environ.get("MORU_HQ_TASK_ID")) or run_id,
         "operatorLabel": _one_line(environ.get("MORU_HQ_OPERATOR_LABEL")) or "moru-core",
         "status": "decision_needed",
@@ -243,7 +344,7 @@ def emit_hq_decision_report(
         "evidence": _one_line(evidence) or "contradiction found",
         "decisionNeeded": question,
         "decisionOptions": choices[:MAX_DECISION_OPTIONS],
-        "finishedAt": int(time.time() * 1000),
+        "finishedAt": finished_at if finished_at is not None else int(time.time() * 1000),
     }
     encoded = _bound_payload(payload, MAX_REPORT_BYTES)
     while len(encoded) > MAX_REPORT_BYTES and payload["decisionOptions"]:
@@ -251,10 +352,7 @@ def emit_hq_decision_report(
         encoded = _bound_payload(payload, MAX_REPORT_BYTES)
     if len(encoded) > MAX_REPORT_BYTES:
         return None
-    reports_dir = project / ".moru" / "hq" / "reports"
-    target = reports_dir / f"{run_id}.json"
-    _atomic_write_bytes(target, encoded)
-    return target
+    return encoded
 
 
 def emit_hq_report_for_finish(

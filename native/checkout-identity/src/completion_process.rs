@@ -22,6 +22,8 @@ use std::{
     os::fd::AsFd,
 };
 
+#[path = "hq_report_assembly.rs"]
+mod hq_report_assembly;
 #[path = "hq_report_encoding.rs"]
 mod hq_report_encoding;
 #[path = "capsule_artifact.rs"]
@@ -336,6 +338,8 @@ impl CompletionProcess {
             Some(operation @ ("checkout-common-dir" | "checkout-current-branch")) => {
                 Self::checkout_field(operation, &payload)
             }
+            Some("hq-finish-assemble") => hq_report_assembly::assemble(&payload, false),
+            Some("hq-decision-assemble") => hq_report_assembly::assemble(&payload, true),
             Some("hq-report-encode") => hq_report_encoding::encode(&payload),
             Some("loop-budget") => loop_budget::LoopBudget::decide(&payload),
             Some("loop-verdict") => loop_verdict::LoopVerdict::decide(&payload),
