@@ -371,6 +371,7 @@ impl CompletionProcess {
             Some(operation @ ("checkout-common-dir" | "checkout-current-branch")) => {
                 Self::checkout_field(operation, &payload)
             }
+            Some("figma-smoke-frames") => crate::figma_process::FigmaProcess::frames(&payload, &root),
             Some("figma-smoke-analysis") => crate::figma_process::FigmaProcess::smoke_analysis(&payload, &root),
             Some("figma-summary-schema") => crate::figma_process::FigmaProcess::schema(&payload, &root),
             Some("figma-validate-cli") => crate::figma_process::FigmaProcess::probe(&payload, &root),

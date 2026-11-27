@@ -14,6 +14,8 @@ use crate::{
 };
 use std::{ffi::OsString, io::Write};
 
+#[path = "figma_frames.rs"]
+mod frames;
 mod direct_profile {
     include!(concat!(env!("OUT_DIR"), "/figma_direct_profile.rs"));
 }
@@ -53,6 +55,13 @@ impl FigmaProcess {
         let text = Self::bound_input(request, root, "text")?;
         let summary = PythonJson::parse(text)?;
         Self::receipt(serde_json::json!({"problems": FigmaValidation::validate(&summary)?}))
+    }
+
+    pub(crate) fn frames(
+        request: &serde_json::Value,
+        root: &std::path::Path,
+    ) -> Option<serde_json::Value> {
+        Self::receipt(frames::analyze(Self::bound_input(request, root, "text")?)?)
     }
 
     pub(crate) fn smoke_analysis(

@@ -598,7 +598,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "One Rust call validates ordinary in-memory summaries, computes coverage and renders the Markdown report. Port smoke orchestration, frame and asset checks, exceptional inputs and the CLI.",
+      "remaining": "One Rust call validates ordinary in-memory summaries, computes coverage and renders the Markdown report. Rust checks ordinary downloaded PNG headers and expected frame dimensions in a batch. Python retains extraction orchestration, enumeration, asset checks, the displayed example, exceptional inputs and the CLI.",
       "verification": {}
     },
     {

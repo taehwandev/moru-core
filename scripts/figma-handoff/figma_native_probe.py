@@ -91,7 +91,7 @@ def request(operation, value, source_file):
         return None
     if not module.NativeProbe.available():
         return None
-    if operation in ("figma-summary-schema", "figma-smoke-analysis"):
+    if operation in ("figma-summary-schema", "figma-smoke-analysis", "figma-smoke-frames"):
         text = _summary_text(value)
         if text is None:
             return None

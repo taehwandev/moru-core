@@ -63,6 +63,31 @@ def _frame_scale_failures(summary: dict, bundle_root: Path, scale: float) -> lis
     return failures
 
 
+def _frame_failures(summary, bundle_root, frames, scale):
+    if _probe is not None and type(summary) is dict and len(frames) <= 32000:
+        try:
+            root = str(bundle_root.resolve(strict=True))
+        except (OSError, RuntimeError):
+            root = None
+        if root is not None:
+            receipt = _probe("figma-smoke-frames", {
+                "bundle_root": root, "frames": [str(path.relative_to(bundle_root)) for path in frames],
+                "screens": summary.get("screens", []), "scale": scale,
+            }, __file__)
+            if (type(receipt) is dict and set(receipt) == {"failures"} and type(receipt["failures"]) is list
+                    and all(type(item) is str for item in receipt["failures"])):
+                return receipt["failures"]
+    failures = [] if frames else ["no frame PNG downloaded"]
+    for frame in frames:
+        size = _png_size(frame)
+        if not size:
+            failures.append(f"invalid PNG: {frame.name}")
+        elif size[0] <= 0 or size[1] <= 0:
+            failures.append(f"empty PNG dimensions: {frame.name} {size}")
+    failures.extend(_frame_scale_failures(summary, bundle_root, scale))
+    return failures
+
+
 def _layout_coverage_failures(coverage: dict) -> list[str]:
     if coverage["screens"] and coverage["layoutNodes"]["total"] == 0:
         return ["layout coverage is empty for a non-empty handoff"]
@@ -133,16 +158,7 @@ def main() -> int:
             failures.append(f"schema violations: {problems}")
 
         frames = sorted((out / "frames").glob("*.png"))
-        if not frames:
-            failures.append("no frame PNG downloaded")
-        for frame in frames:
-            size = _png_size(frame)
-            if not size:
-                failures.append(f"invalid PNG: {frame.name}")
-            elif size[0] <= 0 or size[1] <= 0:
-                failures.append(f"empty PNG dimensions: {frame.name} {size}")
-
-        failures.extend(_frame_scale_failures(summary, out, args.scale))
+        failures.extend(_frame_failures(summary, out, frames, args.scale))
 
         assets = out / "assets"
         svgs = list(assets.glob("*.svg")) if assets.exists() else []

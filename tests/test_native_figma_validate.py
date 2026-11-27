@@ -7,6 +7,7 @@ import os
 import random
 import shlex
 import shutil
+import struct
 from pathlib import Path
 import subprocess
 import sys
@@ -73,7 +74,7 @@ class NativeFigmaValidate(unittest.TestCase):
         calls = []
 
         def inspect_native(argv, **kwargs):
-            self.assertIn(argv[-1], ("figma-summary-schema", "figma-smoke-analysis"))
+            self.assertIn(argv[-1], ("figma-summary-schema", "figma-smoke-analysis", "figma-smoke-frames"))
             self.assertNotIn("CUSTOM_SMOKE_TOKEN", kwargs["env"])
             self.assertNotIn(fake_token.encode(), kwargs["input"])
             calls.append(argv[-1])
@@ -123,7 +124,7 @@ class NativeFigmaValidate(unittest.TestCase):
                 observed = run_smoke("auto")
                 self.assertEqual(reference, observed)
                 self.assertEqual(status, observed[0])
-                self.assertEqual(["figma-smoke-analysis"], calls)
+                self.assertEqual(["figma-smoke-analysis", "figma-smoke-frames"], calls)
                 if status:
                     self.assertIn("image-fill recovery 199/200 (99%) < 100%", observed[1])
                     self.assertIn("layout coverage is empty for a non-empty handoff", observed[1])
@@ -133,10 +134,48 @@ class NativeFigmaValidate(unittest.TestCase):
                    "image_fill_total": 0, "image_fill_with_path": 0}
         for malformed in (None, {**receipt, "screens": True}, {**receipt, "image_fill_total": -1},
                           {**receipt, "image_fill_with_path": 1}, {**receipt, "problems": [17]}):
-            with self.subTest(reply=malformed), patch.object(live_smoke, "_probe", return_value=malformed):
+            real_probe = live_smoke._probe
+            def analysis_reply(operation, payload, source):
+                return malformed if operation == "figma-smoke-analysis" else real_probe(operation, payload, source)
+
+            with self.subTest(reply=malformed), patch.object(live_smoke, "_probe", side_effect=analysis_reply):
                 calls.clear()
                 self.assertEqual(expected_failure, run_smoke("auto"))
-                self.assertEqual([], calls)
+                self.assertEqual(["figma-smoke-frames"], calls)
+
+    def test_native_frame_headers_rounding_order_and_declines(self):
+        import live_smoke
+
+        root = self.base / "bundle"
+        frames_dir = root / "frames"
+        frames_dir.mkdir(parents=True)
+        for name, dimensions in [("a", (3, 1)), ("b", None), ("c", (0, 1)), ("d", (2, 4))]:
+            header = b"not-png" if dimensions is None else (
+                b"\x89PNG\r\n\x1a\n" + bytes(8) + struct.pack(">II", *dimensions))
+            (frames_dir / (name + ".png")).write_bytes(header)
+        frames = sorted(frames_dir.glob("*.png"))
+        screens = [{"id": item, "imagePath": f"frames/{item}.png", "width": 3.5, "height": 2.5}
+                   for item in ("a", "d")]
+        summary = {"screens": screens}
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = live_smoke._frame_failures(summary, root, frames, 1.0)
+        self.assertEqual(["invalid PNG: b.png", "empty PNG dimensions: c.png (0, 1)",
+                          "frame scale mismatch for d: actual=(2, 4) expected=(4, 2)"], expected)
+        with patch.dict(os.environ, self.env, clear=True):
+            with patch.object(live_smoke, "_png_size", side_effect=AssertionError("Python read PNG")):
+                self.assertEqual(expected, live_smoke._frame_failures(summary, root, frames, 1.0))
+            for malformed in ({"failures": "wrong"}, {"failures": [False]}, {"failures": [], "extra": 7}):
+                with self.subTest(reply=malformed), patch.object(live_smoke, "_probe", return_value=malformed):
+                    self.assertEqual(expected, live_smoke._frame_failures(summary, root, frames, 1.0))
+            outside = self.base / "outside.png"
+            outside.write_bytes(frames[0].read_bytes())
+            (frames_dir / "link.png").symlink_to(outside)
+            os.mkfifo(frames_dir / "pipe.png")
+            request = {"bundle_root": str(root), "frames": [], "screens": [], "scale": 1.0}
+            for path in ("../outside.png", str(outside), "frames/link.png", "frames/pipe.png"):
+                with self.subTest(path=path):
+                    self.assertIsNone(live_smoke._probe("figma-smoke-frames", {**request, "frames": [path]},
+                                                        live_smoke.__file__))
 
     def test_imported_schema_falls_back_for_non_json_objects_and_bad_replies(self):
         import figma_summary_validate as schema
