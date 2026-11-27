@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 import sqlite3
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -162,7 +161,7 @@ class AgentObservabilityTests(unittest.TestCase):
 
             native_home = ws / "native-probe"
             native_home.mkdir()
-            prepare(native_home)
+            launcher, _ = prepare(native_home)
             env = environment(native_home)
             discovery_root = ws / "discovery-only"
             alias_target = discovery_root / "z-project"
@@ -215,27 +214,20 @@ class AgentObservabilityTests(unittest.TestCase):
             self.assertEqual({"2026-10-W1", "2026-10-W3", "2026-10-W4"}, periods)
             self.assertNotIn("secret_prompt_fingerprint_should_never_leak", json.dumps(report))
 
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    str(ROOT / "scripts" / "agent-os-status.py"),
-                    "--efficiency-trends",
-                    "--all-projects",
-                    "--workspace-root",
-                    str(ws),
-                    "--month",
-                    "2026-10",
-                    "--spill-db",
-                    str(spill_db),
-                    "--codex-db",
-                    str(codex_db),
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            cli_payload = json.loads(proc.stdout)
-            self.assertEqual(4, cli_payload["spill_matched_runs"])
+            from native_runtime_status_support import invoke
+            args = ["--efficiency-trends", "--all-projects", "--workspace-root", str(ws),
+                    "--month", "2026-10", "--spill-db", str(spill_db), "--codex-db", str(codex_db)]
+            reference = invoke(launcher, native_home, project, args, backend="python")
+            actual = invoke(launcher, native_home, project, args, PATH="")
+            for process in (reference, actual):
+                self.assertEqual((0, b""), (process.returncode, process.stderr))
+            reference_report, actual_report = (json.loads(proc.stdout) for proc in (reference, actual))
+            self.assertEqual(4, actual_report["spill_matched_runs"])
+            self.assertRegex(actual_report["captured_at"], r"^\d{4}-\d\d-\d\dT")
+            self.assertEqual(actual.stdout, reference.stdout.replace(
+                json.dumps(reference_report["captured_at"]).encode(),
+                json.dumps(actual_report["captured_at"]).encode(), 1,
+            ))
 
             # Fraction lengths outside the shared Python profile must defer.
             from support.native_probe_transport import NativeProbe

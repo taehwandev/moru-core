@@ -181,7 +181,9 @@ mod status_trend_windows;
 #[path = "status_trend_sqlite.rs"]
 mod status_trend_sqlite;
 #[path = "status_trend_projects.rs"]
-mod status_trend_projects;
+pub(crate) mod status_trend_projects;
+#[path = "status_trend_pipeline.rs"]
+pub(crate) mod status_trend_pipeline;
 #[path = "status_trend_route.rs"]
 mod status_trend_route;
 #[path = "status_trend_binding.rs"]

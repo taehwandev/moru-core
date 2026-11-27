@@ -1,6 +1,6 @@
 //! Native basic status ingress; unsupported/uncertain paths exec the Python owner.
 //! Owner: prepared status dispatch. Allowed: source guard, status state/snapshot, std.
-//! Forbidden: state initialization, lifecycle policy, trends and external work.
+//! Forbidden: state initialization, lifecycle policy and external work.
 //! Callers/tests: native launcher; generated native status and consumer tests.
 //! Verification: canonical output and lock/contention/source/CLI fallback parity.
 use crate::{
@@ -43,6 +43,9 @@ fn snapshot(launcher: &OsString, args: &[OsString]) -> Option<String> {
         .iter()
         .map(|s| s.to_str())
         .collect::<Option<Vec<_>>>()?;
+    if words.contains(&"--efficiency-trends") {
+        return crate::status_trend_cli::snapshot(launcher, &words);
+    }
     let (project, validated) = match words.as_slice() {
         [] => (env::current_dir().ok()?, false),
         ["--validate"] => (env::current_dir().ok()?, true),

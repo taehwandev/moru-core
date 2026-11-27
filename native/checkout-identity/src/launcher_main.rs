@@ -138,6 +138,7 @@ mod react_manifest;
 mod read_process;
 mod registry_read;
 mod status_process;
+mod status_trend_cli;
 mod status_snapshot;
 mod status_state;
 mod statusline;

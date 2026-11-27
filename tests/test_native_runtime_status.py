@@ -236,14 +236,19 @@ class NativeRuntimeStatusTests(unittest.TestCase):
         self.assertEqual((0, b""), (child.returncode, stderr))
         self.assertEqual(3, json.loads(stdout)["active_runs"])
 
-    def test_trends_keep_their_python_output_and_fallback(self):
+    def test_trends_keep_their_python_output_with_default_database_paths(self):
         args = ["--project", str(self.project), "--efficiency-trends"]
         reference = invoke(self.entry, self.base, self.project, args, backend="python")
         actual = invoke(self.entry, self.base, self.project, args)
         self.assertEqual((0, b""), (reference.returncode, reference.stderr))
         self.assertEqual((0, b""), (actual.returncode, actual.stderr))
         self.assertEqual(normalize_output(reference.stdout, "trends"), normalize_output(actual.stdout, "trends"))
-        self.assertEqual(127, invoke(self.entry, self.base, self.project, args, PATH=str(self.empty)).returncode)
+        native = invoke(self.entry, self.base, self.project, args, PATH=str(self.empty))
+        self.assertEqual((0, b""), (native.returncode, native.stderr))
+        self.assertEqual(normalize_output(reference.stdout, "trends"), normalize_output(native.stdout, "trends"))
+        # Let argparse diagnose missing values.
+        malformed = invoke(self.entry, self.base, self.project, args + ["--month"], PATH=str(self.empty))
+        self.assertEqual(127, malformed.returncode)
 
     def test_file_lock_contention_releases_native_locks_before_fallback(self):
         with (self.local / ".events.json.lock").open("r+b") as lock:

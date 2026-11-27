@@ -9,7 +9,7 @@ use std::{fs, path::Path};
 const MAX_ENTRIES: usize = 4096;
 const MAX_RESULT_BYTES: usize = 512 * 1024;
 
-pub(super) fn discover(request: &Value) -> Option<Value> {
+pub(crate) fn discover(request: &Value) -> Option<Value> {
     let root = request.get("root")?.as_str()?;
     if !root.starts_with('/') || root.starts_with("//") || root.contains('\0') {
         return None;
