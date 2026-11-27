@@ -45,6 +45,7 @@ from agent_gate_evidence import (
     incomplete_gate_evidence_failures,
     merge_gate_evidence_from_ledger,
 )
+from agent_hq_report import emit_hq_report_for_finish
 from agent_repair_ledger import failure_signature, record_failure_checkpoints
 from agent_review_attestation import REVIEW_HOOK_GATE
 from agent_skill_backlog import format_skill_backlog, skill_backlog_summary
@@ -620,9 +621,9 @@ def main() -> int:
     if not failures:
         # A clean finish whose retrospective names the recurring lesson it
         # fixed retires that lesson, so it stops surfacing at start.
-        resolved = resolve_fixed_lesson(gate_evidence_ledger, preflight)
-        if resolved:
+        if resolved := resolve_fixed_lesson(gate_evidence_ledger, preflight):
             print(f"Retrospective lesson resolved: {resolved}")
+        emit_hq_report_for_finish(project, preflight, gate_signals)
 
     return _report_finish_failures(
         failures=failures,
