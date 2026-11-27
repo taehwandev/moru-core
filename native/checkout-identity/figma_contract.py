@@ -7,6 +7,7 @@ CPython source: Python/bltinmodule.c, builtin_sum_impl and CompensatedSum helper
 import argparse
 import ctypes
 import math
+import sys
 from pathlib import Path
 
 
@@ -76,6 +77,11 @@ def emit(output):
             raise RuntimeError("Python sum profile differs at numeric boundary")
     output.write_text(f'const SUM_PROFILE: &str = "{profile}";\n'
                       f'const SUM_LONG_BITS: u32 = {bits};\n')
+    digits = sys.get_int_max_str_digits() if hasattr(sys, "get_int_max_str_digits") else -1
+    identity = f"{sys.implementation.name}:{sys.hexversion}:{sys.getrecursionlimit()}:{digits}"
+    output.with_name("figma_direct_profile.rs").write_text(
+        f'pub(super) const PYTHON_PROFILE: &str = "{identity}";\n'
+    )
 
 
 if __name__ == "__main__":

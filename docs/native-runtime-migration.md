@@ -214,7 +214,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 37 | `scripts/check_react_rn_external_skill_manifest.py` | check-react-rn-skill-manifest | Partial native | Local provenance and source hashes; remote and exceptional inputs remain open |
 | 38 | `scripts/device-mcp.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
-| 40 | `scripts/figma-handoff/figma_validate.py` | figma-validate; direct reference | Partial native | Offline schema, visibility, coverage, numeric sums and ordinary file errors; parser/exception and imported Python callers remain |
+| 40 | `scripts/figma-handoff/figma_validate.py` | figma-validate; direct Python CLI | Partial native | Both entrypoints use Rust for ordinary file validation. Offline schema, visibility, coverage, numeric sums and ordinary file errors; parser/exception and imported Python callers remain |
 | 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 42 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |

@@ -242,9 +242,12 @@ impl CompletionProcess {
     }
 
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {
-        if args.len() != 2 || CallbackGuard::root(launcher, "completion-probe").is_none() {
+        if args.len() != 2 {
             return 125;
         }
+        let Some(root) = CallbackGuard::root(launcher, "completion-probe") else {
+            return 125;
+        };
         let mut bytes = Vec::new();
         if std::io::stdin()
             .take(1024 * 1024 + 1)
@@ -368,6 +371,7 @@ impl CompletionProcess {
             Some(operation @ ("checkout-common-dir" | "checkout-current-branch")) => {
                 Self::checkout_field(operation, &payload)
             }
+            Some("figma-validate-cli") => crate::figma_process::FigmaProcess::probe(&payload, &root),
             Some("hq-report-run-id") => hq_report_run_id::HqReportRunId::resolve(&payload),
             Some("hq-finish-assemble") => hq_report_assembly::assemble(&payload, false),
             Some("hq-decision-assemble") => hq_report_assembly::assemble(&payload, true),

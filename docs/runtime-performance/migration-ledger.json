@@ -583,8 +583,8 @@
       "inventory_id": 40,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "figma-validate; direct Python reference",
-      "remaining": "Native offline schema, visibility, coverage, builder-bound numeric sums, ordinary file errors, UTF-8 decoding and JSON syntax diagnostics, and Markdown report run through a source-bound alias. Unhashable IDs, integer-to-float overflow and formatting-limit exceptions, stream inputs, stdio failures, unsupported surrogate/depth parser inputs, direct Python and imported extraction/live-smoke callers remain owned migration scope. This is not full unit closure.",
+      "entry_aliases": "figma-validate; direct Python compatibility CLI",
+      "remaining": "Native offline schema, visibility, coverage, builder-bound numeric sums, ordinary file errors, UTF-8 decoding and JSON syntax diagnostics, and Markdown report run through a source-bound alias. The direct Python CLI delegates ordinary files for a matching source tree and interpreter profile. Unhashable IDs, integer-to-float overflow and formatting-limit exceptions, stream inputs, stdio failures, unsupported surrogate/depth parser inputs, compatibility fallback and imported extraction/live-smoke callers remain owned migration scope. This is not full unit closure.",
       "verification": {
         "native_owner": "native/checkout-identity/src/figma_process.rs",
         "behavior": "PASS:78 Figma/reference/inventory/launcher tests completed with one digit-limit test skipped on builder Python3.9;127 Rust tests passed. Shared statusline/manifest/next consumers:41 passed under sandbox, process-inspection test passed separately with required permission. Exact JSON syntax offsets and UTF-8 byte diagnostics preserve builder Python messages; Python3.9 and3.14 diagnostic probes passed.",

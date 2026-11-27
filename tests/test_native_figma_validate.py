@@ -3,9 +3,11 @@ import copy
 import json
 import os
 import random
+import shlex
 import shutil
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -258,8 +260,51 @@ class NativeFigmaValidate(unittest.TestCase):
         args = [str(entry), "figma-validate", str(self.summary)]
         before = subprocess.run(args, cwd=project, env=env, capture_output=True, timeout=20)
         self.assertEqual(0, before.returncode, before.stderr)
+
+        # Record the real binary's decision, distinguishing a successful probe
+        # from the same report printed by the Python fallback after a decline.
+        executable = entry.with_name("moru-hook-native")
+        real = executable.with_name("original-native")
+        executable.rename(real)
+        log = isolated / "probes"
+        executable.write_text(f'#!/bin/sh\n{shlex.quote(str(real))} "$@"\nstatus=$?\n'
+                              f'printf "%s %s\\n" "$3" "$status" >> {shlex.quote(str(log))}\nexit "$status"\n')
+        executable.chmod(0o700)
+        script = source / "scripts/figma-handoff/figma_validate.py"
+        command = [sys.executable, "-B", str(script), str(self.summary)]
+
+        def direct_parity(expected_code, probe_status, invocation=command):
+            log.write_text("")
+            original_input = self.summary.read_bytes()
+            reference = subprocess.run(invocation, cwd=project, env={**env, "MORU_LAUNCHER_BACKEND": "python"},
+                                       capture_output=True, timeout=20)
+            self.assertEqual("", log.read_text())
+            actual = subprocess.run(invocation, cwd=project, env=env, capture_output=True, timeout=20)
+            self.assertEqual(expected_code, actual.returncode, actual.stderr)
+            self.assertEqual(result(reference), result(actual))
+            self.assertEqual([f"figma-validate-cli {probe_status}"], log.read_text().splitlines())
+            self.assertEqual(original_input, self.summary.read_bytes())
+
+        for raw, code in ((self.summary.read_bytes(), 0), (b"null", 1), (b"{", 2)):
+            with self.subTest(raw=raw[:12]):
+                self.summary.write_bytes(raw)
+                direct_parity(code, 0)
+        self.summary.write_text(json.dumps(_valid_summary()))
+        changed_limit = ("import os,runpy,sys; sys.setrecursionlimit(sys.getrecursionlimit()+1); "
+                         "sys.argv=sys.argv[1:]; sys.path.insert(0,os.path.dirname(sys.argv[0])); "
+                         "runpy.run_path(sys.argv[0],run_name='__main__')")
+        direct_parity(0, 125, [sys.executable, "-B", "-c", changed_limit, str(script), str(self.summary)])
+
+        pointer = entry.parent.parent / "moru-root"
+        original_pointer = pointer.read_bytes()
+        pointer.write_text(str(PROJECT))
+        try:
+            direct_parity(0, 125)
+        finally:
+            pointer.write_bytes(original_pointer)
         policy = source / "scripts/figma-handoff/figma_summary_validate.py"
         policy.write_bytes(policy.read_bytes() + b"\n# changed contract\n")
+        direct_parity(0, 125)
         after = subprocess.run(args, cwd=project, env=env, capture_output=True, timeout=20)
         self.assertEqual(127, after.returncode)
         self.assertEqual(b"", after.stdout)

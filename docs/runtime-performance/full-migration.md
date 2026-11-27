@@ -68,7 +68,7 @@ the Wikimap search path still requires the upstream Python interpreter.
 | Frequent callbacks | 12 | Pretool, prompt/mailbox, Stop, continuation, renderer and ingress paths |
 | State and observability | 10 | Mailboxes, cards, memory, snapshots, recovery and HQ reports |
 | Lifecycle and dispatch | 14 | Admission, hooks, finish, loops, routing, discovery and setup |
-| Owned tooling | 27 | Remaining direct CLIs and their owned supporting code |
+| Owned tooling | 28 | Remaining direct CLIs and their owned supporting code |
 | External boundary | 1 | Wikimap ownership and native replacement/adapter decision |
 
 These waves partition the current inventory and order investigation; they do
