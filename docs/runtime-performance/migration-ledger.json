@@ -574,8 +574,8 @@
       "inventory_id": 39,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Direct CLI",
-      "remaining": "Ordinary in-memory schema validation, extractor target resolution and dry-run plan generation delegate to Rust. Port extraction, provider access, bundle generation, exceptional inputs and the CLI.",
+      "entry_aliases": "figma-handoff; direct Python CLI",
+      "remaining": "Ordinary in-memory schema validation, extractor target resolution and dry-run plan generation delegate to Rust. The generated alias runs ordinary dry runs without Python. Port extraction, provider access, bundle generation, exceptional inputs and remaining CLI behavior.",
       "verification": {}
     },
     {

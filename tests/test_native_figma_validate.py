@@ -114,6 +114,33 @@ class NativeFigmaValidate(unittest.TestCase):
         self.assertEqual((2, b"", b"ERROR: Set SYNTHETIC_ABSENT_TOKEN before running this command.\n"), result(missing))
         self.assertEqual(["figma-target 0"], log.read_text().splitlines())
 
+    def test_public_handoff_alias_dry_run_without_python(self):
+        target = ["--file-key", "FILE", "--node-id", "1-2"]
+        env = {**self.env, "SYNTHETIC_ABSENT_TOKEN": ""}
+
+        def invoke(args, backend="auto", **extra):
+            return subprocess.run([str(self.entry), "figma-handoff", *args], cwd=self.project,
+                                  env={**env, "MORU_LAUNCHER_BACKEND": backend, **extra},
+                                  stdin=subprocess.DEVNULL, capture_output=True, timeout=8)
+
+        for args in ([*target, "--dry-run"],
+                     ["--dry-run", "--url", "https://www.figma.com/design/FILE/A?node-id=4-5",
+                      "--name", "한글 A / B", "--out", "결과 dir", "--scale", "1.25", "--format", "pdf",
+                      "--max-assets", "0", "--max-flow-depth", "0", "--timeout", "7", "--no-images",
+                      "--include-image-fills", "--export-assets"]):
+            with self.subTest(args=args):
+                expected = invoke(args, "python")
+                self.assertEqual(0, expected.returncode, expected.stderr)
+                self.assertEqual(result(expected), result(invoke(args, PATH=str(self.empty_path))))
+        for args in ([*target, "--dry-run", "--scale", "invalid"], [*target, "--dry-run", "--unexpected"],
+                     [*target, "--token-env", "SYNTHETIC_ABSENT_TOKEN"]):
+            with self.subTest(args=args):
+                expected = invoke(args, "python")
+                self.assertEqual(2, expected.returncode)
+                self.assertEqual(result(expected), result(invoke(args)))
+                self.assertEqual(127, invoke(args, PATH=str(self.empty_path)).returncode)
+        self.assertFalse((self.project / "결과 dir").exists())
+
     def test_public_live_smoke_alias_handles_offline_dispatch(self):
         clean = {k: v for k, v in self.env.items() if k not in ("FIGMA_TOKEN", "FIGMA_SMOKE_URL", "MOCK_TOKEN")}
 
@@ -707,6 +734,15 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
         args = [str(entry), "figma-validate", str(self.summary)]
         before = subprocess.run(args, cwd=project, env=env, capture_output=True, timeout=20)
         self.assertEqual(0, before.returncode, before.stderr)
+        handoff = [str(entry), "figma-handoff", "--dry-run", "--file-key", "FILE", "--node-id", "1-2"]
+        valid = subprocess.run(handoff, cwd=project, env=env, capture_output=True, timeout=8)
+        self.assertEqual(0, valid.returncode, valid.stderr)
+        cli = source / "scripts/figma-handoff/figma_cli.py"
+        with cli.open("ab") as changed:
+            changed.write(b"\n# synthetic source drift\n")
+        declined = subprocess.run(handoff, cwd=project, env=env, capture_output=True, timeout=8)
+        self.assertEqual((127, b""), (declined.returncode, declined.stdout))
+        shutil.copy2(PROJECT / "scripts/figma-handoff/figma_cli.py", cli)
         smoke_args = [str(entry), "figma-live-smoke"]
         smoke_env = {k: v for k, v in env.items() if k not in ("FIGMA_TOKEN", "FIGMA_SMOKE_URL")}
         smoke_before = subprocess.run(smoke_args, cwd=project, env=smoke_env, capture_output=True, timeout=8)

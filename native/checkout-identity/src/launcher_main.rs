@@ -62,6 +62,7 @@ mod wikimap_search;
 #[path = "dispatch_guardian/mod.rs"]
 mod dispatch_guardian;
 mod figma_coverage;
+mod figma_handoff_entry;
 mod figma_process;
 mod figma_smoke_entry;
 mod figma_validation;
@@ -236,6 +237,7 @@ fn direct_dispatch(launcher: &OsString, args: &[OsString]) -> Option<i32> {
         "--decision-cache-probe" => decision_cache_plan::DecisionCachePlan::run(launcher, args),
         "--review-packet-probe" => review_packet_assembly::ReviewPacketAssembly::run(launcher, args),
         "agent-hq-report" => finish(completion_process::hq_decision_ingress::run(launcher, args)),
+        "figma-handoff" => finish(figma_handoff_entry::run(launcher, args)),
         "figma-live-smoke" => finish(figma_smoke_entry::run(launcher, args)),
         "microsoft-decision" => finish(decision_cache_plan::DecisionCachePlan::alias(launcher, &args[1..])?),
         "smoke-checks" => finish(smoke_hook_suite::SmokeHookSuite::alias(launcher, args)),

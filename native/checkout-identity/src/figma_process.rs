@@ -38,7 +38,11 @@ struct Outcome {
 pub(crate) struct FigmaProcess;
 impl FigmaProcess {
     pub(crate) fn plan(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
-        Self::receipt(plan::render(Self::bound_input(request, root, "text")?)?)
+        Self::extractor_plan(Self::bound_input(request, root, "text")?)
+    }
+
+    pub(crate) fn extractor_plan(text: &str) -> Option<serde_json::Value> {
+        Self::receipt(plan::render(text)?)
     }
 
     pub(crate) fn target(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
