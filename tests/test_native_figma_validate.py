@@ -224,6 +224,30 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_native_paint_candidates_preserve_binding_indices_and_gradient_sources(self):
+        import figma_color_analysis as color
+
+        red = {"r": 1, "g": 0, "b": 0}
+        solid = {"type": "SOLID", "color": red}
+        gradient = {"type": "GRADIENT_LINEAR", "opacity": 0, "gradientStops": [{"position": 0, "color": red}]}
+        nodes = [{"name": "먼저", "boundVariables": {"fills": ["wrong", "wrong", "node", "wrong"]},
+                  "background": [gradient], "fills": [{**solid, "visible": False}, {**solid, "opacity": 0},
+                                                      solid, {**solid, "boundVariables": {"color": {"id": "paint"}}}]},
+                 {"name": "다음", "strokes": [gradient, solid], "backgroundColor": red}]
+        variables = {"collections": [{"id": "C", "name": "색"}],
+                     "variables": [{"id": key, "collectionId": "C", "name": key} for key in ("node", "paint")]}
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path)}, clear=True), patch.object(
+                color, "_summarize_colors", side_effect=AssertionError("Python colors")), patch.object(
+                color, "_summarize_gradients", side_effect=AssertionError("Python gradients")), patch.object(
+                subprocess, "run", wraps=subprocess.run) as child:
+            colors, gradients = color.ColorAnalysis.summarize_paint_candidates(nodes, variables)
+        child.assert_called_once()
+        self.assertEqual("figma-paint-candidates", child.call_args.args[0][-1])
+        self.assertEqual([{"hex": "#FF0000", "count": 4, "sources": ["먼저 (fills)", "다음 (strokes)", "다음 (backgroundColor)"],
+                           "boundVariableIds": ["node", "paint"], "boundVariableNames": ["색/node", "색/paint"]}], colors)
+        self.assertEqual([{"type": "GRADIENT_LINEAR", "stops": [{"position": 0, "hex": "#FF000000"}],
+                           "handlePositions": [], "count": 2, "sources": ["먼저 (background)", "다음 (strokes)"]}], gradients)
+
     def test_native_text_style_groups_and_code_point_run_boundaries(self):
         import figma_color_analysis as color
         import figma_layout_analysis as layout

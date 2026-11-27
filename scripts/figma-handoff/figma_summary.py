@@ -89,7 +89,7 @@ def build_summary(
         for candidate in asset_candidates
         if candidate.get("id") and candidate.get("dedupKey")
     }
-    return {
+    summary = {
         "schemaVersion": 4,
         "meta": {
             "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -118,8 +118,11 @@ def build_summary(
             asset_keys,
             included_node_ids=rendered_node_ids,
         ),
-        "colors": ColorAnalysis.summarize_colors(implementation_nodes, parsed_variables),
-        "gradients": ColorAnalysis.summarize_gradients(implementation_nodes),
+    }
+    colors, gradients = ColorAnalysis.summarize_paint_candidates(implementation_nodes, parsed_variables)
+    summary.update({
+        "colors": colors,
+        "gradients": gradients,
         "textStyles": ColorAnalysis.summarize_text_styles(implementation_nodes),
         "textRuns": LayoutAnalysis.summarize_text_runs(implementation_nodes),
         "effects": ColorAnalysis.summarize_effects(implementation_nodes),
@@ -129,7 +132,8 @@ def build_summary(
         "assetCandidates": asset_candidates,
         "assetInventory": AssetAnalysis.build_asset_inventory(asset_candidates),
         "warnings": warnings,
-    }
+    })
+    return summary
 
 
 def _asset_candidates_with_fallback(

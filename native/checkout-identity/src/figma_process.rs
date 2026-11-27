@@ -45,6 +45,12 @@ mod text_style;
 mod text_styles;
 #[path = "figma_text_runs.rs"]
 mod text_runs;
+#[path = "figma_paint.rs"]
+mod paint;
+#[path = "figma_color_candidates.rs"]
+mod color_candidates;
+#[path = "figma_gradient_candidates.rs"]
+mod gradient_candidates;
 #[path = "figma_visibility_inventory.rs"]
 mod visibility_inventory;
 #[path = "figma_plan.rs"]
@@ -119,6 +125,18 @@ impl FigmaProcess {
 
     pub(crate) fn text_runs(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
         Self::receipt(text_runs::summarize(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn paint_candidates(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        let text = Self::bound_input(request, root, "text")?;
+        let input = PythonJson::parse(text)?;
+        let nodes = input.get("nodes")?.as_array()?;
+        let colors = color_candidates::summarize(nodes, input.get("variables")?)?;
+        let gradients = gradient_candidates::summarize(nodes)?;
+        Self::receipt(serde_json::json!({
+            "colors_json": PythonJson::render(&Value::Array(colors), false, false)?,
+            "gradients_json": PythonJson::render(&Value::Array(gradients), false, false)?,
+        }))
     }
 
     pub(crate) fn visibility_inventory(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {

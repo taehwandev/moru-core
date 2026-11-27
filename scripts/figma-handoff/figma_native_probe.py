@@ -95,7 +95,7 @@ def request(operation, value, source_file):
                      "figma-smoke-result", "figma-smoke-file-result", "figma-target", "figma-plan", "figma-bundle-manifest", "figma-bundle-prepare",
                      "figma-prototype-interactions", "figma-variables", "figma-asset-candidates", "figma-asset-inventory",
                      "figma-layout-metrics", "figma-layout-nodes", "figma-visibility-inventory",
-                     "figma-text-styles", "figma-text-runs"):
+                     "figma-text-styles", "figma-text-runs", "figma-paint-candidates"):
         text = _summary_text(value)
         if text is None:
             return None

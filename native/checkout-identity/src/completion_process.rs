@@ -389,6 +389,7 @@ impl CompletionProcess {
             Some("figma-layout-nodes") => crate::figma_process::FigmaProcess::layout_nodes(&payload, &root),
             Some("figma-text-styles") => crate::figma_process::FigmaProcess::text_styles(&payload, &root),
             Some("figma-text-runs") => crate::figma_process::FigmaProcess::text_runs(&payload, &root),
+            Some("figma-paint-candidates") => crate::figma_process::FigmaProcess::paint_candidates(&payload, &root),
             Some("figma-visibility-inventory") => crate::figma_process::FigmaProcess::visibility_inventory(&payload, &root),
             Some("figma-validate-cli") => crate::figma_process::FigmaProcess::probe(&payload, &root),
             Some("hq-report-run-id") => hq_report_run_id::HqReportRunId::resolve(&payload),

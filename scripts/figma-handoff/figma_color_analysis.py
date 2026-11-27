@@ -4,12 +4,49 @@ import json
 from collections import Counter, defaultdict
 from typing import Any
 
-from figma_native_probe import request_text_rows
+from figma_native_probe import request as _probe, request_text_rows
 
 from figma_style_parse import _parse_effect_entry
 from figma_util import _color_dict_to_hex, extract_text_style, paint_to_hex, parse_gradient_paint
 
 __all__ = ["ColorAnalysis"]
+
+
+def _native_paint_candidates(
+    nodes: list[dict[str, Any]], parsed_variables: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+    if (type(nodes) is not list or not nodes or len(nodes) > 32000
+            or any(type(node) is not dict for node in nodes) or type(parsed_variables) is not dict):
+        return None
+    variables = {}
+    for key in ("collections", "variables"):
+        rows = parsed_variables.get(key, [])
+        if type(rows) is not list or len(rows) > 32000 or any(type(row) is not dict for row in rows):
+            return None
+        variables[key] = [{field: row[field] for field in ("id", "name", "collectionId") if field in row}
+                          for row in rows]
+    fields = ("name", "background", "fills", "strokes", "backgroundColor", "boundVariables", "boundVariableIds")
+    selected = [{key: node[key] for key in fields if key in node} for node in nodes]
+    receipt = _probe("figma-paint-candidates", {"nodes": selected, "variables": variables}, __file__)
+    keys = ("colors_json", "gradients_json")
+    if type(receipt) is not dict or set(receipt) != set(keys) or any(type(receipt[key]) is not str for key in keys):
+        return None
+    try:
+        colors, gradients = (json.loads(receipt[key]) for key in keys)
+    except (ValueError, RecursionError):
+        return None
+    if all(type(rows) is list and all(type(row) is dict for row in rows) for rows in (colors, gradients)):
+        return colors, gradients
+    return None
+
+
+def _summarize_paint_candidates(
+    nodes: list[dict[str, Any]], parsed_variables: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    result = _native_paint_candidates(nodes, parsed_variables)
+    if result is not None:
+        return result
+    return _summarize_colors(nodes, parsed_variables), _summarize_gradients(nodes)
 
 
 def _summarize_colors(nodes: list[dict[str, Any]], parsed_variables: dict[str, Any]) -> list[dict[str, Any]]:
@@ -208,4 +245,5 @@ class ColorAnalysis:
     summarize_colors = staticmethod(_summarize_colors)
     summarize_effects = staticmethod(_summarize_effects)
     summarize_gradients = staticmethod(_summarize_gradients)
+    summarize_paint_candidates = staticmethod(_summarize_paint_candidates)
     summarize_text_styles = staticmethod(_summarize_text_styles)
