@@ -57,6 +57,15 @@ def status_snapshot(project: Path) -> dict[str, Any]:
 def discover_governed_projects(workspace_root: Path | None = None) -> list[Path]:
     """Return local git repositories under ``workspace_root`` that contain ``.moru`` state."""
     root = (workspace_root or (Path.home() / "git")).expanduser().resolve()
+    if NativeProbe.available():
+        result = NativeProbe.request("--completion-probe", "status-trend-projects", {"root": str(root)})
+        if (result is not None and set(result) == {"projects"} and type(result["projects"]) is list
+                and all(type(path) is str and Path(path).is_absolute() for path in result["projects"])):
+            return [Path(path) for path in result["projects"]]
+    return _discover_governed_projects_reference(root)
+
+
+def _discover_governed_projects_reference(root: Path) -> list[Path]:
     if not root.is_dir():
         return []
     return [
@@ -163,22 +172,39 @@ def _trend_groups_reference(matched: list[dict[str, Any]]) -> dict[str, Any]:
     return {"cohorts": cohorts, "route_cohorts": route_cohorts, "period_trends": periods}
 
 
+def _trend_run_sources_reference(state_dir: Path) -> Iterable[tuple]:
+    reg_runs = read_json_object(state_dir / "run-registry.json").get("runs")
+    reg_by_id = {str(i.get("run_id")): i for i in (reg_runs if isinstance(reg_runs, list) else []) if isinstance(i, dict) and i.get("run_id")}
+    runs_dir = state_dir / "runs"
+    if not runs_dir.is_dir():
+        return
+    for run_dir in sorted(runs_dir.iterdir()):
+        preflight_path = run_dir / "preflight.json"
+        preflight = read_json_object(preflight_path) if preflight_path.is_file() else {}
+        if preflight:
+            route = preflight.get("route")
+            docs = route.get("required_docs") if isinstance(route, dict) else None
+            yield (run_dir.name, reg_by_id.get(run_dir.name) or {}, preflight,
+                   len(docs) if isinstance(docs, list) else 0, run_dir / "gate-evidence.json")
+
+
+def _trend_run_sources(state_dir: Path) -> Iterable[tuple | list]:
+    if NativeProbe.available():
+        result = NativeProbe.request("--completion-probe", "status-trend-run-files", {"state_dir": str(state_dir)})
+        if result is not None and set(result) == {"runs"} and type(result["runs"]) is list:
+            rows = result["runs"]
+            if all(type(row) is list and len(row) == 5
+                   and tuple(map(type, row)) == (str, dict, dict, int, int) for row in rows):
+                return rows
+    return _trend_run_sources_reference(state_dir)
+
+
 def _collect_runs(projects: list[Path]) -> list[dict[str, Any]]:
     import hashlib
 
     collected: list[dict[str, Any]] = []
     for project in projects:
-        state_dir = project_state_dir_target(project)
-        reg_runs = read_json_object(state_dir / "run-registry.json").get("runs")
-        reg_by_id = {str(i.get("run_id")): i for i in (reg_runs if isinstance(reg_runs, list) else []) if isinstance(i, dict) and i.get("run_id")}
-        runs_dir = state_dir / "runs"
-        if not runs_dir.is_dir():
-            continue
-        for run_dir in sorted(runs_dir.iterdir()):
-            preflight = read_json_object(run_dir / "preflight.json") if (run_dir / "preflight.json").is_file() else {}
-            if not preflight:
-                continue
-            reg = reg_by_id.get(run_dir.name) or {}
+        for run_name, reg, preflight, docs_count, gates in _trend_run_sources(project_state_dir_target(project)):
             session = preflight.get("runtime_session") if isinstance(preflight.get("runtime_session"), dict) else {}
             runtime, session_id = str(session.get("runtime") or "").strip().lower(), str(session.get("session_id") or "").strip()
             if runtime == "agy":
@@ -190,17 +216,17 @@ def _collect_runs(projects: list[Path]) -> list[dict[str, Any]]:
             resume_gen = _safe_int(reg.get("resume_generation") or session.get("resume_generation"))
             is_cont = bool(str(work.get("previous_action") or "").strip()) or resume_gen > 0
             route_obj = preflight.get("route") if isinstance(preflight.get("route"), dict) else {}
-            req_docs = route_obj.get("required_docs") if isinstance(route_obj.get("required_docs"), list) else []
             spill_id = ("run_" + hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:24] if runtime in {"codex", "antigravity"} else session_id) if (runtime and session_id) else ""
             collected.append({
-                "run_id": run_dir.name, "work_id": str(work.get("id") or run_dir.name),
+                "run_id": run_name, "work_id": str(work.get("id") or run_name),
                 "runtime": runtime, "session_id": session_id, "spill_run_id": spill_id,
                 "stamped_model": str(session.get("model") or "").strip(),
                 "stamped_effort": str(session.get("reasoning_effort") or "").strip().lower(),
                 "route": _extract_route_name(reg, preflight, route_obj), "state": str(reg.get("state") or "unknown"),
                 "same_work_mode": "continuation" if is_cont else "fresh",
-                "resume_generation": resume_gen, "required_docs_count": len(req_docs),
-                "reused_gate_count": _count_reused_gates(run_dir / "gate-evidence.json"), "started_at": norm_start,
+                "resume_generation": resume_gen, "required_docs_count": docs_count,
+                "reused_gate_count": _count_reused_gates(gates) if isinstance(gates, Path) else gates,
+                "started_at": norm_start,
                 "settled_at": _utc_iso(reg.get("updated_at")) if str(reg.get("state") or "") in _SETTLED_STATES else "",
             })
     return collected

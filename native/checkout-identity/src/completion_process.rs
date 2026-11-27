@@ -180,6 +180,10 @@ mod status_trends;
 mod status_trend_windows;
 #[path = "status_trend_sqlite.rs"]
 mod status_trend_sqlite;
+#[path = "status_trend_projects.rs"]
+mod status_trend_projects;
+#[path = "status_trend_run_files.rs"]
+mod status_trend_run_files;
 #[path = "path_claim_scan.rs"]
 mod path_claim_scan;
 #[path = "path_claim_wait.rs"]
@@ -315,6 +319,8 @@ impl CompletionProcess {
             Some("status-trend-windows") => status_trend_windows::TrendWindows::bind(&payload),
             Some("status-trend-db" | "status-trend-db-utc") => status_trend_sqlite::TrendSqlite::read(&payload),
             Some("status-trend-report") => status_trends::StatusTrends::report(&payload),
+            Some("status-trend-projects") => status_trend_projects::discover(&payload),
+            Some("status-trend-run-files") => status_trend_run_files::read(&payload),
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),
             Some("structure-file-size") => structure_file_size::StructureFileSize::batch(&payload),

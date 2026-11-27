@@ -55,6 +55,9 @@ class AgentObservabilityTests(unittest.TestCase):
                     {
                         "version": 1,
                         "runs": [
+                            {"run_id": "run_fresh_codex", "started_at": "2026-09-01", "state": "failed"},
+                            {"run_id": "empty-preflight", "started_at": "2026-10-05"},
+                            {"run_id": "missing-preflight", "started_at": "2026-10-05"},
                             {
                                 "run_id": "run_fresh_codex",
                                 "command": "task",
@@ -153,11 +156,26 @@ class AgentObservabilityTests(unittest.TestCase):
 
             discovered = discover_governed_projects(ws)
             self.assertEqual([project.resolve()], discovered)
+            (runs_dir / "missing-preflight").mkdir()
+            (runs_dir / "empty-preflight").mkdir()
+            (runs_dir / "empty-preflight" / "preflight.json").write_text("{}")
 
             native_home = ws / "native-probe"
             native_home.mkdir()
             prepare(native_home)
             env = environment(native_home)
+            discovery_root = ws / "discovery-only"
+            alias_target = discovery_root / "z-project"
+            registry_only = discovery_root / "a-project"
+            (alias_target / ".moru" / "runs").mkdir(parents=True)
+            (registry_only / ".moru").mkdir(parents=True)
+            (registry_only / ".moru" / "run-registry.json").write_text("{}")
+            (discovery_root / "00-link").symlink_to(alias_target, target_is_directory=True)
+            with patch.dict(os.environ, env, clear=True), patch(
+                "agent_observability._discover_governed_projects_reference", side_effect=AssertionError("native discovery declined"),
+            ):
+                self.assertEqual([alias_target, registry_only, alias_target], discover_governed_projects(discovery_root))
+                self.assertEqual(discovered, discover_governed_projects(ws))
             with patch.dict(os.environ, {**env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
                 report = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
             with patch.dict(os.environ, env, clear=True), patch(
@@ -166,6 +184,8 @@ class AgentObservabilityTests(unittest.TestCase):
                 "agent_observability._trend_window_reference", side_effect=AssertionError("native window declined"),
             ), patch("sqlite3.connect", side_effect=AssertionError("native database read declined")), patch(
                 "agent_observability._trend_report_reference", side_effect=AssertionError("native report declined"),
+            ), patch(
+                "agent_observability._trend_run_sources_reference", side_effect=AssertionError("native run files declined"),
             ):
                 native = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
             self.assertEqual({**report, "captured_at": native["captured_at"]}, native)
@@ -215,6 +235,12 @@ class AgentObservabilityTests(unittest.TestCase):
 
             # Fraction lengths outside the shared Python profile must defer.
             from support.native_probe_transport import NativeProbe
+            with patch.dict(os.environ, env, clear=True):
+                native_sources = NativeProbe.request("--completion-probe", "status-trend-run-files", {
+                    "state_dir": str(project / ".moru"),
+                })
+            self.assertEqual(4, len(native_sources["runs"]))
+            self.assertNotIn("secret_prompt_fingerprint_should_never_leak", json.dumps(native_sources))
             with sqlite3.connect(spill_db) as conn:
                 conn.execute("UPDATE token_usage_events SET created_at = ? WHERE run_id = ?",
                              ("2026-10-05T10:01:00.1Z", codex_spill_id))
