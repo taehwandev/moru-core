@@ -33,7 +33,7 @@ Code workflows minimize diff lines and touch only the failing span. Applying tho
 
 - **Open long-form essays and experiment posts with inquiry, not definitions:**
   - Craft a title that captures the expectation, reversal, or central question rather than a dry report label.
-  - Start with a concrete work scene, lived frustration, or universal intuition paired with a clear pivot question (*"What actually happened when we measured it?" / "실제로 재 보면 어떨까?"*).
+  - Start with a concrete work scene, lived frustration, or universal intuition paired with a clear pivot question (*"What actually happened when we checked?" / "직접 확인해 보면 어떨까?"*).
   - Sequence sections around the inquiry arc: **expectation → turn/surprise → concrete mechanism/cause → decision**.
   - Group methodology limits in one clean note instead of attaching defensive disclaimers to every paragraph, and include a cover thumbnail (`cover:`) plus inline diagrams when visual assets are in scope.
 - **Name visible actors and actions:** Replace abstract nominalizations ("layer ownership instability", "execution of deterministic validation") with who acts and what happens ("when two modules edit the same state, callers cannot tell which update wins").
@@ -54,6 +54,11 @@ Internal gate names, schema keys, validator slugs, and CLI flags belong in runti
 ### 4. Read-Aloud Rhythm & Semantic Completeness Pass
 
 - **Never trade comprehension for compression:** Concision cuts filler; over-compression cuts the context the writer knows privily but the reader cannot guess. Do not cram meaning into abrupt shorthand or mismatched idioms in Korean (such as compressing *"context from earlier in the conversation"* into “앞말”, over-dramatizing fatigue as “내 진을 빼놓는”, or shrinking *"measuring token overhead and trimming what isn't needed"* into “재 보고 덜어내는”).
+- **Test prose by structural principles, not a phrase blocklist:** AI invents endless variations of artificial phrasing, so checking only banned words misses the next variant. Before finishing any paragraph, run four diagnostic tests:
+  1. **Spoken-plausibility test:** Imagine a peer asking "What happened?" If a turn of phrase, dramatic reversal, or compressed noun would sound unnatural spoken aloud in a normal conversation, rewrite it in plain speech.
+  2. **No-punchline test:** AI habitually polishes summaries into aphorisms, copywriting slogans, or symmetrical contrasts. Strip the rhetorical polish and state the concrete sequence: what you tried, what actually happened, and what you changed.
+  3. **Concrete-referent & metaphor test:** If a reader has to ask "wait, what does that refer to?", it is over-compressed or vague. Keep a metaphor only when it makes a concrete visual or mechanism clearer; cut vague habitual metaphors that blur what actually changed.
+  4. **POV consistency test:** In first-person work, do not step outside yourself with third-person report labels.
 - **Vary cadence naturally:** Mix short direct sentences with longer explanatory ones. Cut mechanical transitions (*"Moreover," "Furthermore," "이 글에서는," "중요한 점은"*), rule-of-three padding, and conclusions that merely repeat the introduction instead of landing a decision or takeaway.
 - **Reconcile coupled passages together:** When a headline, thesis, or term changes, update adjacent paragraphs on the same page in the same pass and reread them together so the page never contradicts itself.
 
@@ -61,7 +66,8 @@ Internal gate names, schema keys, validator slugs, and CLI flags belong in runti
 
 | Pattern | Robotic / Over-Compressed / Calqued (Before) | Natural Human-Authored (After) |
 | --- | --- | --- |
-| **Long-form opening (Korean)** | 이 글에서는 에이전트 워크플로우의 토큰 오버헤드를 정의한다. 본 측정은 공식 벤치마크가 아니며 개인 환경에서 수행된 참고용 수치임을 먼저 밝힌다. | 에이전트에게 열 줄짜리 버그 수정을 시켰는데 시작도 하기 전에 규칙 문서만 아홉 개를 읽고 있었다. 안전하자고 만든 절차가 정작 작업 자체보다 무거워진 셈이다. 실제로 토큰이 어디서 새는지 직접 재 보기로 했다. |
+| **Long-form opening (Korean)** | 이 글에서는 에이전트 워크플로우의 토큰 오버헤드를 정의한다. 본 측정은 공식 벤치마크가 아니며 개인 환경에서 수행된 참고용 수치임을 먼저 밝힌다. | 에이전트에게 열 줄짜리 버그 수정을 시켰는데 시작도 하기 전에 규칙 문서만 아홉 개를 읽고 있었다. 안전하자고 만든 절차가 정작 작업 자체보다 무거워진 셈이다. 실제로 토큰이 어디서 새는지 직접 확인해 보기로 했다. |
+| **Contrived AI metaphor & reversal hook (Korean)** | 2부는 이야기를 키우면 나아질 줄 알았다. 결과는 반대였다. 판을 키운 3라운드가 가장 비쌌고 가장 심하게 망가져, 통째로 버리고 순수 추격으로 덜어낸 뒤에야 위 영상이 나왔다. | 2부는 스토리를 보강하면 훨씬 나은 결과물이 나올 줄 알았는데 실패였다. 이것저것 더 넣었던 3라운드가 비용은 제일 많이 들고 결과물은 제일 별로였다. 결국 3라운드 결과물은 못 쓰고, 추격전 장면에만 집중해서 다시 만들고 나서야 위 영상이 나왔다. |
 | **User-facing feature copy (Korean)** | **결정론적 라우트 명세 및 무상태 Read-Only Fast Path**: 입력 검증 바이트 해시 연속성을 통해 중복 감사를 생략합니다. | **지금 할 일에 필요한 규칙만 골라 읽고, 단순 질문에는 바로 답합니다**: 코드가 바뀌지 않았다면 이미 통과한 검사를 다시 돌리지 않습니다. |
 | **Semantic over-compression (Korean)** | 앞말을 다 들고 다니면 내 진을 빼놓으니 재 보고 덜어내는 구조가 필요하다. | 대화 초반에 나눴던 맥락까지 매 턴 프롬프트에 통째로 실어 보내면 토큰도 빨리 닳고 응답도 느려진다. 어느 단계에서 토큰을 많이 쓰는지 먼저 측정한 뒤, 지금 작업에 필요 없는 규칙부터 덜어내야 한다. |
 | **Technical & product prose (English)** | This architecture plays a pivotal role in fostering seamless multi-agent orchestration—unlocking deterministic quality while ensuring comprehensive safety across diverse workflows. | When three agents edit the same repository at once, they overwrite each other's files unless each worker gets its own Git worktree and file scope before writing a line of code. |
@@ -70,7 +76,7 @@ Internal gate names, schema keys, validator slugs, and CLI flags belong in runti
 
 | Surface | Signals to cut or rewrite |
 | --- | --- |
-| **Korean prose** | Translationese (`~을 통한`, `~에 있어서`), unnecessary formal nouns (`것/점/수/바`), honorific drift (`~합니다` mixed into `~다`), stock AI frames (`핵심은`, `중요한 점은`, `반대로`), and non-authorial metaphors (`금방 갈라진다`) where concrete maintenance wording fits better. |
+| **Korean prose** | Structural tells (not a closed blocklist): unnatural spoken phrasing (dramatic staccato hooks, forced symmetry/aphorisms), vague metaphors that blur the concrete action instead of clarifying a visual/mechanism, opaque nominalizations whose referent makes a reader ask "무슨 말이야?", translationese (`~을 통한`, `~에 있어서`), honorific drift (`~합니다` mixed into `~다`), stock connectives (`핵심은`, `중요한 점은`, `반대로`), and third-person self-reference drift in first-person posts. |
 | **English prose** | Inflated significance (`pivotal`, `crucial`, `testament`), promotional verbs (`unlock`, `empower`, `streamline`), shallow `-ing` participial tails (`...ensuring seamless integration`), excessive em dashes, fake balance (`While X, Y`), and synonym cycling. |
 | **Documentation & UI** | Raw internal gate/flag/schema names in headings, "this guide explores" throat-clearing, diff-anchored narration, and uncalibrated tone. For UI/localized strings, also apply `common/skills/accessibility-i18n/SKILL.md`. |
 
