@@ -93,7 +93,7 @@ def request(operation, value, source_file):
         return None
     if operation in ("figma-summary-schema", "figma-smoke-analysis", "figma-smoke-frames", "figma-smoke-verdict",
                      "figma-smoke-result", "figma-smoke-file-result", "figma-target", "figma-plan", "figma-bundle-manifest", "figma-bundle-prepare",
-                     "figma-prototype-interactions", "figma-variables"):
+                     "figma-prototype-interactions", "figma-variables", "figma-asset-candidates", "figma-asset-inventory"):
         text = _summary_text(value)
         if text is None:
             return None

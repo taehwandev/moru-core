@@ -4,20 +4,35 @@ import hashlib
 import json
 from typing import Any
 
+from figma_native_probe import request as _probe
 from figma_util import normalize_node_id
 
 __all__ = ["AssetAnalysis"]
+
+_SIGNATURE_FIELDS = (
+    "type", "name", "size", "absoluteBoundingBox", "fills", "strokes",
+    "strokeWeight", "strokeAlign", "individualStrokeWeights", "cornerRadius",
+    "rectangleCornerRadii", "effects", "opacity", "blendMode", "fillGeometry", "strokeGeometry",
+)
+
+
+def _native_assets(operation: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
+    receipt = _probe(operation, rows, __file__)
+    if type(receipt) is not dict or set(receipt) != {"assets_json"} or type(receipt["assets_json"]) is not str:
+        return None
+    try:
+        assets = json.loads(receipt["assets_json"])
+    except (ValueError, RecursionError):
+        return None
+    if type(assets) is list and all(type(row) is dict for row in assets):
+        return assets
+    return None
 
 
 def _asset_dedup_key(node: dict[str, Any], image_refs: list[str]) -> str:
     if image_refs:
         return "img:" + ",".join(sorted(image_refs))
-    signature_fields = (
-        "type", "name", "size", "absoluteBoundingBox", "fills", "strokes",
-        "strokeWeight", "strokeAlign", "individualStrokeWeights", "cornerRadius",
-        "rectangleCornerRadii", "effects", "opacity", "blendMode", "fillGeometry", "strokeGeometry",
-    )
-    signature = {field: node[field] for field in signature_fields if field in node}
+    signature = {field: node[field] for field in _SIGNATURE_FIELDS if field in node}
     digest = hashlib.sha1(json.dumps(signature, sort_keys=True, default=str).encode("utf-8")).hexdigest()
     return "vec:" + digest
 
@@ -43,6 +58,14 @@ def _pick_representative_name(names: list[str], nearest_names: list[str]) -> str
 
 
 def _build_asset_inventory(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if type(candidates) is list and candidates and len(candidates) <= 32000:
+        assets = _native_assets("figma-asset-inventory", candidates)
+        if assets is not None:
+            return assets
+    return _build_asset_inventory_reference(candidates)
+
+
+def _build_asset_inventory_reference(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     groups: dict[str, dict[str, Any]] = {}
     order: list[str] = []
     for candidate in candidates:
@@ -87,6 +110,16 @@ def _build_asset_inventory(candidates: list[dict[str, Any]]) -> list[dict[str, A
 
 
 def _summarize_asset_candidates(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if type(nodes) is list and nodes and len(nodes) <= 32000 and all(type(node) is dict for node in nodes):
+        fields = ("id", "exportSettings", *_SIGNATURE_FIELDS)
+        projected = [{key: node[key] for key in fields if key in node} for node in nodes]
+        assets = _native_assets("figma-asset-candidates", projected)
+        if assets is not None:
+            return assets
+    return _summarize_asset_candidates_reference(nodes)
+
+
+def _summarize_asset_candidates_reference(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     for node in nodes:
         export_settings = node.get("exportSettings") or []

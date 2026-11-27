@@ -29,6 +29,10 @@ mod target;
 mod prototype_interactions;
 #[path = "figma_variables.rs"]
 mod variables;
+#[path = "figma_asset_candidates.rs"]
+mod asset_candidates;
+#[path = "figma_asset_inventory.rs"]
+mod asset_inventory;
 #[path = "figma_plan.rs"]
 mod plan;
 mod direct_profile {
@@ -77,6 +81,14 @@ impl FigmaProcess {
 
     pub(crate) fn variables(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
         Self::receipt(variables::parse(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn asset_candidates(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(asset_candidates::summarize(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn asset_inventory(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(asset_inventory::build(Self::bound_input(request, root, "text")?)?)
     }
 
     fn bound_input<'a>(

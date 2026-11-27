@@ -224,6 +224,36 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_native_asset_hashes_and_inventory_representative_order(self):
+        import figma_asset_analysis as assets
+
+        vector = {"id": "1-1", "type": "VECTOR", "name": "경로",
+                  "fills": [{"opacity": 1.0, "color": {"z": 3, "a": 1}}],
+                  "fillGeometry": [{"path": "M 0 0", "windingRule": "NONZERO"}]}
+        reordered = {**vector, "id": "1-2", "fills": [{"color": {"a": 1, "z": 3}, "opacity": 1.0}],
+                     "fillGeometry": [{"windingRule": "NONZERO", "path": "M 0 0"}]}
+        paints = [{"type": "IMAGE", "imageRef": ref} for ref in ("z", "a", "z")]
+        picture = {"id": "2-1", "type": "RECTANGLE", "name": "Vector 1", "fills": paints[:2], "strokes": paints[2:]}
+        nodes = [vector, reordered, picture, {**picture, "id": "2-2", "name": "사진"}, {"id": "skip", "type": "TEXT"}]
+        vector_key = "vec:fd70d3e26e79169e6870af674cd11ea54e6df5b7"
+        image_key = "img:a,z,z"
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path)}, clear=True), patch.object(
+                assets, "_summarize_asset_candidates_reference", side_effect=AssertionError("Python candidates")), patch.object(
+                assets, "_build_asset_inventory_reference", side_effect=AssertionError("Python inventory")), patch.object(
+                subprocess, "run", wraps=subprocess.run) as child:
+            candidates = assets.AssetAnalysis.summarize_asset_candidates(nodes)
+            self.assertEqual([vector_key, vector_key, image_key, image_key], [row["dedupKey"] for row in candidates])
+            self.assertEqual(["z", "a", "z"], candidates[2]["imageRefs"])
+            candidates[2]["nearestComponentName"] = "첫 부모"
+            group = [{"id": name, "type": "VECTOR", "dedupKey": "generic", "name": "Group 1",
+                      "nearestComponentName": parent} for name, parent in (("3", "처음"), ("4", "다음"), ("5", "셋"))]
+            inventory = assets.AssetAnalysis.build_asset_inventory([*candidates, *group])
+        self.assertEqual(["figma-asset-candidates", "figma-asset-inventory"], [call.args[0][-1] for call in child.call_args_list])
+        self.assertEqual([("generic", 3, "처음", True), (image_key, 2, "사진", False), (vector_key, 2, "경로", False)],
+                         [(row["dedupKey"], row["usageCount"], row["name"], row["nameUnclear"]) for row in inventory])
+        self.assertEqual(("첫 부모", ["2:1", "2:2"], ["z", "a", "z"]),
+                         (inventory[1]["nearestComponentName"], inventory[1]["nodeIds"], inventory[1]["imageRefs"]))
+
     def test_variable_alias_modes_and_cycles_through_native(self):
         import figma_variable_parse as parser
 
