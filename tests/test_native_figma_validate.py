@@ -72,18 +72,28 @@ class NativeFigmaValidate(unittest.TestCase):
         fake_token = "synthetic-only!"
         real_run = subprocess.run
         calls = []
+        raw_summary = None
 
         def inspect_native(argv, **kwargs):
-            self.assertIn(argv[-1], ("figma-summary-schema", "figma-smoke-result", "figma-smoke-verdict", "figma-smoke-frames"))
+            self.assertIn(argv[-1], ("figma-summary-schema", "figma-smoke-file-result", "figma-smoke-result",
+                                     "figma-smoke-verdict", "figma-smoke-frames"))
             self.assertNotIn("CUSTOM_SMOKE_TOKEN", kwargs["env"])
             self.assertNotIn(fake_token.encode(), kwargs["input"])
             calls.append(argv[-1])
             done = real_run(argv, **kwargs)
-            if argv[-1] == "figma-smoke-result":
+            if argv[-1] in ("figma-smoke-file-result", "figma-smoke-result"):
                 request = json.loads(json.loads(kwargs["input"])["text"])
-                self.assertEqual({"summary", "quick", "bundle_root", "scale"}, set(request))
+                keys = {"quick", "bundle_root", "scale"}
+                if argv[-1] == "figma-smoke-result":
+                    keys.add("summary")
+                else:
+                    self.assertLess(len(kwargs["input"]), 4096)
+                self.assertEqual(keys, set(request))
                 self.assertIs(type(request["quick"]), bool)
                 self.assertEqual("smoke", Path(request["bundle_root"]).name)
+                if raw_summary is not None:
+                    self.assertEqual(125, done.returncode)
+                    return done
                 self.assertEqual((0, b""), (done.returncode, done.stderr))
                 self.assertEqual({"stdout", "code", "after_cleanup"}, set(json.loads(done.stdout)["result"]))
             if argv[-1] == "figma-smoke-verdict":
@@ -101,7 +111,7 @@ class NativeFigmaValidate(unittest.TestCase):
             self.assertEqual(str(live_smoke.TOOL), argv[1])
             root = Path(argv[argv.index("--out") + 1]) / "smoke"
             (root / "summary").mkdir(parents=True)
-            (root / "summary/design-summary.json").write_text(json.dumps(smoke_summary))
+            (root / "summary/design-summary.json").write_text(raw_summary or json.dumps(smoke_summary))
             if with_assets:
                 (root / "assets").mkdir()
                 (root / "assets/.hidden.svg").write_text("<svg/>")
@@ -143,7 +153,8 @@ class NativeFigmaValidate(unittest.TestCase):
         incomplete["screens"] = [{"id": "1", "name": "screen", "type": "FRAME"}]
         incomplete["assetCandidates"] = [
             {"id": str(i), "imageRefs": ["ref"], "assetPath": "a.png" if i < 199 else ""} for i in range(200)]
-        for smoke_summary, status, with_assets in ((_valid_summary(), 0, True), (incomplete, 1, False)):
+        large = {**_valid_summary(), "padding": "x" * (1024 * 1024 + 1)}
+        for smoke_summary, status, with_assets in ((_valid_summary(), 0, True), (large, 0, True), (incomplete, 1, False)):
             with self.subTest(status=status):
                 calls.clear()
                 reference = run_smoke("python")
@@ -151,7 +162,7 @@ class NativeFigmaValidate(unittest.TestCase):
                 observed = run_smoke("auto")
                 self.assertEqual(reference, observed)
                 self.assertEqual(status, observed[0])
-                self.assertEqual(["figma-smoke-result"], calls)
+                self.assertEqual(["figma-smoke-file-result"], calls)
                 if status:
                     self.assertIn("frames=4 (for example: (2, 3)) assets: svg=0 png=0", observed[1])
                     self.assertLess(observed[1].index("invalid PNG: a.png"), observed[1].index("invalid PNG: z.png"))
@@ -163,17 +174,26 @@ class NativeFigmaValidate(unittest.TestCase):
         expected_quick = run_smoke("python", quick=True)
         calls.clear()
         self.assertEqual(expected_quick, run_smoke("auto", quick=True))
-        self.assertEqual(["figma-smoke-result"], calls)
+        self.assertEqual(["figma-smoke-file-result"], calls)
         self.assertEqual(1, expected_quick[0])
         self.assertIn("layout coverage is empty for a non-empty handoff", expected_quick[1])
         self.assertNotIn("image-fill recovery", expected_quick[1])
         self.assertNotIn("no vector SVG assets exported", expected_quick[1])
         expected_failure = run_smoke("python")
         real_probe = live_smoke._probe
+        def decline_file(operation, payload, source):
+            return None if operation == "figma-smoke-file-result" else real_probe(operation, payload, source)
+
+        with patch.object(live_smoke, "_probe", side_effect=decline_file):
+            calls.clear()
+            self.assertEqual(expected_failure, run_smoke("auto"))
+            self.assertEqual(["figma-smoke-result"], calls)
         combined = {"stdout": "untrusted", "after_cleanup": "untrusted", "code": 0}
         for invalid in (None, {**combined, "code": True}, {**combined, "code": 2},
                         {**combined, "stdout": False}, {**combined, "after_cleanup": []}):
             def result_reply(operation, payload, source):
+                if operation == "figma-smoke-file-result":
+                    return None
                 return invalid if operation == "figma-smoke-result" else real_probe(operation, payload, source)
 
             with self.subTest(result=invalid), patch.object(live_smoke, "_probe", side_effect=result_reply):
@@ -184,7 +204,7 @@ class NativeFigmaValidate(unittest.TestCase):
         for malformed in (None, {**receipt, "report": None}, {**receipt, "coverage_failures": "invalid"},
                           {**receipt, "coverage_failures": [False]}, {**receipt, "problems": [17]}):
             def analysis_reply(operation, payload, source):
-                if operation == "figma-smoke-result":
+                if operation in ("figma-smoke-file-result", "figma-smoke-result"):
                     return None
                 return malformed if operation == "figma-smoke-verdict" else real_probe(operation, payload, source)
 
@@ -196,7 +216,7 @@ class NativeFigmaValidate(unittest.TestCase):
         for bad in ({**discovered, "svg_count": True}, {**discovered, "frames": ["../outside.png"]},
                     {**discovered, "frames": ["frames/z.png", "frames/a.png"]}):
             def malformed_discovery(operation, payload, source):
-                if operation == "figma-smoke-result":
+                if operation in ("figma-smoke-file-result", "figma-smoke-result"):
                     return None
                 return bad if operation == "figma-smoke-frames" else real_probe(operation, payload, source)
 
@@ -204,6 +224,41 @@ class NativeFigmaValidate(unittest.TestCase):
                 calls.clear()
                 self.assertEqual(expected_failure, run_smoke("auto"))
                 self.assertEqual(["figma-smoke-verdict"], calls)
+        raw_summary = "{truncated"
+        errors = []
+        calls.clear()
+        for backend in ("python", "auto"):
+            with self.assertRaises(json.JSONDecodeError) as exc:
+                run_smoke(backend)
+            errors.append(str(exc.exception))
+        self.assertEqual(errors[0], errors[1])
+        self.assertEqual(["figma-smoke-file-result"], calls)
+
+    def test_file_smoke_rejects_symlink_and_fifo_without_waiting_for_writer(self):
+        import live_smoke
+
+        root = self.base / "bundle"
+        path = root / "summary/design-summary.json"
+        path.parent.mkdir(parents=True)
+        self.summary.write_text(json.dumps(_valid_summary()))
+        real_run = subprocess.run
+
+        def require_decline(*args, **kwargs):
+            result = real_run(*args, **kwargs)
+            self.assertEqual((125, b"", b""), (result.returncode, result.stdout, result.stderr))
+            return result
+
+        with patch.dict(os.environ, self.env, clear=True):
+            for kind in ("symlink", "fifo"):
+                with self.subTest(kind=kind):
+                    if kind == "symlink":
+                        path.symlink_to(self.summary)
+                    else:
+                        os.mkfifo(path)
+                    with patch.object(subprocess, "run", side_effect=require_decline) as launched:
+                        self.assertIsNone(live_smoke._bundle_receipt("figma-smoke-file-result", root, False, 1, {}))
+                    self.assertEqual(1, launched.call_count)
+                    path.unlink()
 
     def test_native_frame_headers_rounding_order_and_declines(self):
         import live_smoke

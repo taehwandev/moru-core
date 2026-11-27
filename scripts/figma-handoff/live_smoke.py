@@ -147,14 +147,20 @@ def _native_verdict(summary, quick):
 
 
 def _native_smoke_result(summary, out, quick, scale):
-    if _probe is None or type(summary) is not dict:
+    if type(summary) is not dict:
+        return None
+    return _bundle_receipt("figma-smoke-result", out, quick, scale, {"summary": summary})
+
+
+def _bundle_receipt(operation, out, quick, scale, fields):
+    if _probe is None:
         return None
     try:
         root = str(out.resolve(strict=True))
     except (OSError, RuntimeError):
         return None
-    receipt = _probe("figma-smoke-result", {
-        "summary": summary, "bundle_root": root, "quick": quick, "scale": scale,
+    receipt = _probe(operation, {
+        "bundle_root": root, "quick": quick, "scale": scale, **fields,
     }, __file__)
     if (type(receipt) is not dict or set(receipt) != {"stdout", "code", "after_cleanup"}
             or type(receipt["code"]) is not int or receipt["code"] not in (0, 1)
@@ -247,12 +253,13 @@ def main() -> int:
             return 1
 
         out = tmp / "smoke"
-        summary = json.loads((out / "summary" / "design-summary.json").read_text(encoding="utf-8"))
-
-        receipt = _native_smoke_result(summary, out, args.quick, args.scale)
+        receipt = _bundle_receipt("figma-smoke-file-result", out, args.quick, args.scale, {})
         if receipt is None:
-            failures = _inspect_bundle(summary, out, args.quick, args.scale)
-        else:
+            summary = json.loads((out / "summary" / "design-summary.json").read_text(encoding="utf-8"))
+            receipt = _native_smoke_result(summary, out, args.quick, args.scale)
+            if receipt is None:
+                failures = _inspect_bundle(summary, out, args.quick, args.scale)
+        if receipt is not None:
             sys.stdout.write(receipt["stdout"])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

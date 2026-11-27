@@ -12,7 +12,12 @@ use crate::{
     python_text::PythonUtf8,
     text::Text,
 };
-use std::{ffi::OsString, io::Write};
+use std::{
+    ffi::OsString,
+    io::{Read, Write},
+    os::{fd::AsRawFd, unix::fs::MetadataExt},
+    path::Path,
+};
 
 #[path = "figma_frames.rs"]
 mod frames;
@@ -89,13 +94,73 @@ impl FigmaProcess {
         root: &std::path::Path,
     ) -> Option<serde_json::Value> {
         let input = PythonJson::parse(Self::bound_input(request, root, "text")?)?;
+        Self::bundle_result(&input, input.get("summary")?)
+    }
+
+    pub(crate) fn smoke_file_result(
+        request: &serde_json::Value,
+        root: &Path,
+    ) -> Option<serde_json::Value> {
+        let input = PythonJson::parse(Self::bound_input(request, root, "text")?)?;
+        let path = Path::new(input.get("bundle_root")?.as_str()?);
+        if path.parent().is_none()
+            || PythonInputFile::through_descriptor(path)
+            || path.canonicalize().ok()?.as_os_str() != path.as_os_str()
+        {
+            return None;
+        }
+        let directory =
+            crate::atomic_sibling::AtomicSibling::open_directory(&path.join("summary"))?;
+        let bytes = Self::summary_bytes(&directory)?;
+        let text = Text::universal_newlines(PythonUtf8::decode(&bytes).ok()?);
+        Self::bundle_result(&input, &PythonJson::parse(&text)?)
+    }
+
+    fn summary_bytes(directory: &std::fs::File) -> Option<Vec<u8>> {
+        const LIMIT: u64 = 8 * 1024 * 1024;
+        let name = c"design-summary.json";
+        let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+        if unsafe {
+            libc::fstatat(
+                directory.as_raw_fd(),
+                name.as_ptr(),
+                stat.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        } != 0
+        {
+            return None;
+        }
+        let stat = unsafe { stat.assume_init() };
+        if stat.st_mode & libc::S_IFMT != libc::S_IFREG || stat.st_nlink != 1 {
+            return None;
+        }
+        let file = crate::atomic_sibling::AtomicSibling::open_relative(
+            directory,
+            name,
+            libc::O_RDONLY | libc::O_NOCTTY | libc::O_NONBLOCK,
+        )?;
+        let meta = file.metadata().ok()?;
+        if !meta.is_file()
+            || meta.nlink() != 1
+            || meta.ino() != stat.st_ino as u64
+            || meta.dev() != stat.st_dev as u64
+            || meta.len() > LIMIT
+        {
+            return None;
+        }
+        let mut bytes = Vec::new();
+        file.take(LIMIT + 1).read_to_end(&mut bytes).ok()?;
+        (bytes.len() as u64 == meta.len()).then_some(bytes)
+    }
+
+    fn bundle_result(input: &Value, summary: &Value) -> Option<serde_json::Value> {
         let Value::Bool(quick) = input.get("quick")? else {
             return None;
         };
         let Value::Number(scale) = input.get("scale")? else {
             return None;
         };
-        let summary = input.get("summary")?;
         let fields = summary.as_object()?;
         let screens: serde_json::Value = match fields.get("screens") {
             None => serde_json::json!([]),

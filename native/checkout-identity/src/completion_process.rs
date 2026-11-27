@@ -372,6 +372,7 @@ impl CompletionProcess {
                 Self::checkout_field(operation, &payload)
             }
             Some("figma-smoke-frames") => crate::figma_process::FigmaProcess::frames(&payload, &root),
+            Some("figma-smoke-file-result") => crate::figma_process::FigmaProcess::smoke_file_result(&payload, &root),
             Some("figma-smoke-result") => crate::figma_process::FigmaProcess::smoke_result(&payload, &root),
             Some("figma-smoke-verdict") => crate::figma_process::FigmaProcess::smoke_verdict(&payload, &root),
             Some("figma-smoke-analysis") => crate::figma_process::FigmaProcess::smoke_analysis(&payload, &root),
