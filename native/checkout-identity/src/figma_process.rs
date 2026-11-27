@@ -26,27 +26,49 @@ struct Outcome {
 
 pub(crate) struct FigmaProcess;
 impl FigmaProcess {
-    pub(crate) fn probe(
-        request: &serde_json::Value,
+    fn bound_input<'a>(
+        request: &'a serde_json::Value,
         root: &std::path::Path,
-    ) -> Option<serde_json::Value> {
+        key: &str,
+    ) -> Option<&'a str> {
         let fields = request.as_object()?;
-        let path = fields.get("path")?.as_str()?;
         if fields.len() != 3
             || fields.get("python_profile")?.as_str()? != direct_profile::PYTHON_PROFILE
             || fields.get("source_root")?.as_str()? != root.to_str()?
             || !crate::python_encoding::PythonEncoding::utf8()
-            || !std::path::Path::new(path).is_file()
         {
+            return None;
+        }
+        fields.get(key)?.as_str()
+    }
+
+    fn receipt(value: serde_json::Value) -> Option<serde_json::Value> {
+        (serde_json::to_vec(&value).ok()?.len() <= 1024 * 1024 - 64).then_some(value)
+    }
+
+    pub(crate) fn schema(
+        request: &serde_json::Value,
+        root: &std::path::Path,
+    ) -> Option<serde_json::Value> {
+        let text = Self::bound_input(request, root, "text")?;
+        let summary = PythonJson::parse(text)?;
+        Self::receipt(serde_json::json!({"problems": FigmaValidation::validate(&summary)?}))
+    }
+
+    pub(crate) fn probe(
+        request: &serde_json::Value,
+        root: &std::path::Path,
+    ) -> Option<serde_json::Value> {
+        let path = Self::bound_input(request, root, "path")?;
+        if !std::path::Path::new(path).is_file() {
             return None;
         }
         // evaluate rechecks the opened inode and declines device/descriptor
         // aliases before reading. A declined probe must leave streams untouched.
         let result = Self::evaluate(&OsString::from(path))?;
-        let receipt = serde_json::json!({
+        Self::receipt(serde_json::json!({
             "code": result.code, "stdout": result.stdout, "stderr": result.stderr,
-        });
-        (serde_json::to_vec(&receipt).ok()?.len() <= 1024 * 1024 - 64).then_some(receipt)
+        }))
     }
 
     pub(crate) fn run(launcher: &OsString, args: &[OsString]) -> i32 {

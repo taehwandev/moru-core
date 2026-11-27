@@ -43,7 +43,10 @@ _WRITE_FAILURES = {
 def _process_environment(protocol, operation):
     env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
     hq_decision_cli = (protocol, operation) == ("--completion-probe", "hq-decision-cli")
-    if hq_decision_cli or protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
+    isolated_completion = protocol == "--completion-probe" and operation in {
+        "hq-decision-cli", "figma-summary-schema",
+    }
+    if isolated_completion or protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
         # Keep source and environment guard inputs but omit ambient credentials.
         python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
         if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):

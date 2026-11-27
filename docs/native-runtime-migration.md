@@ -72,8 +72,8 @@ The latest native extensions add no new timing claim; earlier measurements remai
 The ancillary manifest checker and offline Figma validator engines add
 implementation coverage for units 36–37 and 40. The native session aggregation
 used by the overhead reporter adds partial supporting coverage for unit 46.
-The ledger records native implementation coverage for 49 of 65 units. Forty-eight
-are partial and one needs revalidation. Another 15 are planned and one has an
+The ledger records native implementation coverage for 51 of 65 units. Fifty
+are partial and one needs revalidation. Another 13 are planned and one has an
 unresolved external ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -213,9 +213,9 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 36 | `scripts/check_android_external_skill_manifest.py` | check-android-skill-manifest | Partial native | Local snapshot comparison and bounded Git identity; exceptional inputs remain open |
 | 37 | `scripts/check_react_rn_external_skill_manifest.py` | check-react-rn-skill-manifest | Partial native | Local provenance and source hashes; remote and exceptional inputs remain open |
 | 38 | `scripts/device-mcp.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
-| 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
-| 40 | `scripts/figma-handoff/figma_validate.py` | figma-validate; direct Python CLI | Partial native | Both entrypoints use Rust for ordinary file validation. Offline schema, visibility, coverage, numeric sums and ordinary file errors; parser/exception and imported Python callers remain |
-| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
+| 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Partial native | Ordinary bundle schema checks run in Rust. Extraction, bundle output and the CLI remain in Python. |
+| 40 | `scripts/figma-handoff/figma_validate.py` | figma-validate; direct Python CLI | Partial native | Both entrypoints use Rust for ordinary file validation. Offline schema, visibility, coverage, numeric sums and ordinary file errors; exception handling and imported coverage/report callers remain |
+| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Partial native | Ordinary in-memory schema checks run in Rust. Smoke orchestration, asset checks and coverage reporting remain in Python. |
 | 42 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |

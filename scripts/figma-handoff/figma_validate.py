@@ -3,39 +3,18 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
-import os
-from pathlib import Path
 import sys
 
 from figma_coverage import coverage_report
-from figma_summary_validate import validate_summary
+from figma_summary_validate import _probe, _validate_summary_reference, validate_summary
 from figma_validation_report import format_report
 
 
 def _native_report(path: str) -> dict | None:
-    if os.environ.get("MORU_LAUNCHER_BACKEND") == "python":
+    if _probe is None:
         return None
-    root = Path(__file__).resolve().parent.parent.parent
-    # This tool can also be copied on its own. Never import a similarly named
-    # transport from site-packages or a different Moru checkout on sys.path.
-    transport = root / "scripts/support/native_probe_transport.py"
-    if not transport.is_file() or transport.resolve() != transport:
-        return None
-    spec = importlib.util.spec_from_file_location("_moru_figma_probe_transport", transport)
-    if spec is None or spec.loader is None:
-        return None
-    module = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(module)
-    except OSError:
-        return None
-    digits = sys.get_int_max_str_digits() if hasattr(sys, "get_int_max_str_digits") else -1
-    result = module.NativeProbe.request("--completion-probe", "figma-validate-cli", {
-        "path": path, "source_root": str(root),
-        "python_profile": f"{sys.implementation.name}:{sys.hexversion}:{sys.getrecursionlimit()}:{digits}",
-    })
+    result = _probe("figma-validate-cli", path, __file__)
     if (type(result) is not dict or set(result) != {"code", "stdout", "stderr"}
             or type(result["code"]) is not int or result["code"] not in (0, 1, 2)
             or type(result["stdout"]) is not str or type(result["stderr"]) is not str):
@@ -58,7 +37,7 @@ def main(argv: list[str]) -> int:
     except (OSError, ValueError) as error:
         print(f"ERROR: cannot read summary: {error}", file=sys.stderr)
         return 2
-    problems = validate_summary(summary)
+    problems = _validate_summary_reference(summary)
     print(format_report(problems, coverage_report(summary)))
     return 1 if problems else 0
 

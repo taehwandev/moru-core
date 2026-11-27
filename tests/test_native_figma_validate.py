@@ -1,5 +1,7 @@
 """Offline Figma validator: exact reference output, refusals and no-Python proof."""
 import copy
+from contextlib import redirect_stdout
+import io
 import json
 import os
 import random
@@ -10,6 +12,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from native_pretool_support import PROJECT, environment, prepare, result
 from native_launcher_support import copied_build_root
@@ -50,6 +54,70 @@ class NativeFigmaValidate(unittest.TestCase):
         for payload in (_valid_summary(), _valid_v4_summary(), [], None, False, 123, "text"):
             with self.subTest(payload=payload):
                 self.parity(payload)
+
+    def test_imported_schema_reaches_native_for_bundle_and_offline_smoke(self):
+        import figma_summary_validate as schema
+        from figma_bundle_output import FigmaBundleOutput
+        import live_smoke
+
+        summary = _valid_summary()
+        summary["designTokens"].update(colorStyles=[], textStyles=[], effectStyles=[])
+        summary["meta"].update(fileKey="", startNodeId="")
+        before = copy.deepcopy(summary)
+        expected = ["meta.fileKey missing", "meta.startNodeId missing"]
+        output = FigmaBundleOutput(self.base / "bundle")
+        output.create_directories()
+        args = SimpleNamespace(format="png", scale=1, max_flow_depth=1, no_images=True, include_image_fills=False)
+        fake_token = "synthetic-only!"
+        real_run = subprocess.run
+        calls = []
+
+        def inspect_native(argv, **kwargs):
+            self.assertEqual("figma-summary-schema", argv[-1])
+            self.assertNotIn("CUSTOM_SMOKE_TOKEN", kwargs["env"])
+            self.assertNotIn(fake_token.encode(), kwargs["input"])
+            calls.append(argv[-1])
+            return real_run(argv, **kwargs)
+
+        def fake_extractor(argv, **kwargs):
+            self.assertEqual(str(live_smoke.TOOL), argv[1])
+            root = Path(argv[argv.index("--out") + 1]) / "smoke"
+            (root / "summary").mkdir(parents=True)
+            (root / "summary/design-summary.json").write_text(json.dumps(_valid_summary()))
+            (root / "frames").mkdir()
+            (root / "frames/one.png").write_bytes(bytes.fromhex(
+                "89504e470d0a1a0a0000000d494844520000000100000001"))
+            return subprocess.CompletedProcess(argv, 0, "", "")
+
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path), "CUSTOM_SMOKE_TOKEN": fake_token},
+                        clear=True), patch.object(schema, "_validate_summary_reference",
+                        side_effect=AssertionError("unexpected Python schema fallback")), patch.object(
+                        subprocess, "run", side_effect=inspect_native):
+            self.assertEqual(expected, schema.validate_summary(summary))
+            self.assertEqual(before, summary)
+            self.assertEqual(expected, output.persist(summary, ["existing"], args))
+            self.assertEqual({**before, "warnings": ["existing", *["schema: " + p for p in expected]]}, summary)
+            with patch.object(live_smoke, "subprocess", SimpleNamespace(run=fake_extractor)), patch.object(
+                sys, "argv", ["live_smoke.py", "--quick", "--token-env", "CUSTOM_SMOKE_TOKEN",
+                              "--url", "https://example.invalid/synthetic"]), redirect_stdout(io.StringIO()):
+                self.assertEqual(0, live_smoke.main())
+        self.assertEqual(["figma-summary-schema"] * 3, calls)
+
+    def test_imported_schema_falls_back_for_non_json_objects_and_bad_replies(self):
+        import figma_summary_validate as schema
+
+        summary = _valid_summary()
+        summary["meta"]["fileKey"] = ""
+        with patch.dict(os.environ, self.env, clear=True):
+            for value in (("tuple",), {1, 2}):
+                summary["extra"] = value
+                with patch.object(subprocess, "run", side_effect=AssertionError("unsafe value sent")):
+                    self.assertEqual(["meta.fileKey missing"], schema.validate_summary(summary))
+                self.assertIs(value, summary["extra"])
+            del summary["extra"]
+            for malformed in (None, {"problems": "oops"}, {"problems": [None]}, {"problems": [], "extra": 0}):
+                with self.subTest(reply=malformed), patch.object(schema, "_probe", return_value=malformed):
+                    self.assertEqual(["meta.fileKey missing"], schema.validate_summary(summary))
 
     def test_hidden_node_leaks_and_inventory_disagreement(self):
         base = _valid_v4_summary()

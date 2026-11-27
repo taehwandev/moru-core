@@ -2,9 +2,30 @@
 
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
 import re
 from typing import Any
 
+
+def _local_probe():
+    # Standalone copies may omit the bridge. Never take its place from another
+    # checkout on sys.path, since this module supplies the source root binding.
+    helper = Path(__file__).resolve().with_name("figma_native_probe.py")
+    if not helper.is_file() or helper.is_symlink():
+        return None
+    spec = importlib.util.spec_from_file_location("_moru_figma_native_probe", helper)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except OSError:
+        return None
+    return module.request
+
+
+_probe = _local_probe()
 _HEX_RE = re.compile(r"^#[0-9A-F]{6}([0-9A-F]{2})?$")
 _REQUIRED_TOP_KEYS = (
     "meta", "screens", "flowEdges", "flowInteractions", "designTokens", "components",
@@ -249,6 +270,15 @@ def _validate_components_and_text(
 
 def validate_summary(summary: Any) -> list[str]:
     """Return invariant violations without raising on malformed JSON shapes."""
+    if _probe is not None and type(summary) is dict:
+        result = _probe("figma-summary-schema", summary, __file__)
+        if (type(result) is dict and set(result) == {"problems"} and type(result["problems"]) is list
+                and all(type(problem) is str for problem in result["problems"])):
+            return result["problems"]
+    return _validate_summary_reference(summary)
+
+
+def _validate_summary_reference(summary: Any) -> list[str]:
     if not isinstance(summary, dict):
         return ["summary is not an object"]
     problems: list[str] = []
