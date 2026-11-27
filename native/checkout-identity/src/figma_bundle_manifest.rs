@@ -1,5 +1,5 @@
 //! owner: project an offline Figma summary into its ordered bundle manifest;
-//! allowed imports: JSON; forbidden imports: filesystem, network and process;
+//! allowed imports: JSON and summary validation; forbidden imports: filesystem, network and process;
 //! callers/tests: Figma manifest probe and extractor manifest fixtures;
 //! verification: ordered count, default and explicit-null behavior.
 use serde_json::{json, Map, Value};
@@ -12,7 +12,7 @@ fn list_len(object: &Map<String, Value>, key: &str, optional: bool) -> Option<us
     }
 }
 
-pub(super) fn project(text: &str) -> Option<Value> {
+fn project(text: &str) -> Option<Value> {
     if text.len() > 1024 * 1024 {
         return None;
     }
@@ -82,4 +82,17 @@ pub(super) fn project(text: &str) -> Option<Value> {
     Some(json!({"manifest":{
         "schemaVersion":schema, "tool":"figma-handoff.py", "arguments":arguments, "summary":counts,
     }}))
+}
+
+pub(super) fn prepare(text: &str, validate_summary: bool) -> Option<Value> {
+    let mut receipt = project(text)?;
+    if !validate_summary {
+        return Some(receipt);
+    }
+    let input = crate::python_json::PythonJson::parse(text)?;
+    let problems = crate::figma_validation::FigmaValidation::validate(input.get("summary")?)?;
+    receipt
+        .as_object_mut()?
+        .insert("problems".into(), json!(problems));
+    Some(receipt)
 }

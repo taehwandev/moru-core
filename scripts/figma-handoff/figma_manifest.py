@@ -14,25 +14,39 @@ __all__ = ["build_manifest"]
 
 
 def build_manifest(summary: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
-    if _probe is not None and type(summary) is dict and (type(args) is argparse.Namespace or type(args) is SimpleNamespace):
-        fields = vars(args)
-        schema = summary.get("schemaVersion", 3)
-        if (type(schema) is int and type(fields.get("format")) is str
-                and (type(fields.get("scale")) is float or type(fields.get("scale")) is int)
-                and type(fields.get("max_flow_depth")) is int and type(fields.get("no_images")) is bool
-                and type(fields.get("include_image_fills")) is bool and type(fields.get("export_assets", False)) is bool):
-            arguments = _manifest_arguments(args)
-            receipt = _probe("figma-bundle-manifest", {"summary": summary, "arguments": arguments}, __file__)
-            if type(receipt) is dict and set(receipt) == {"manifest"}:
-                manifest = receipt["manifest"]
-                if (type(manifest) is dict and list(manifest) == ["schemaVersion", "tool", "arguments", "summary"]
-                        and type(manifest["schemaVersion"]) is int and manifest["schemaVersion"] == schema
-                        and manifest["tool"] == "figma-handoff.py" and type(manifest["arguments"]) is dict
-                        and list(manifest["arguments"]) == list(arguments) and manifest["arguments"] == arguments
-                        and type(manifest["summary"]) is dict and tuple(manifest["summary"]) == _COUNT_FIELDS
-                        and all(type(count) is int and count >= 0 for count in manifest["summary"].values())):
-                    return {**manifest, "schemaVersion": schema, "arguments": arguments}
-    return _build_manifest_reference(summary, args)
+    receipt = _probe_manifest(summary, args, prepare=False)
+    return receipt["manifest"] if receipt is not None else _build_manifest_reference(summary, args)
+
+
+def _probe_manifest(summary, args, *, prepare):
+    if _probe is None or type(summary) is not dict or (type(args) is not argparse.Namespace and type(args) is not SimpleNamespace):
+        return None
+    fields = vars(args)
+    if (type(fields) is not dict or len(summary) > 32000 or len(fields) > 32000
+            or any(type(key) is not str for key in summary) or any(type(key) is not str for key in fields)):
+        return None
+    schema = summary.get("schemaVersion", 3)
+    if (type(schema) is not int or type(fields.get("format")) is not str
+            or (type(fields.get("scale")) is not float and type(fields.get("scale")) is not int)
+            or type(fields.get("max_flow_depth")) is not int or type(fields.get("no_images")) is not bool
+            or type(fields.get("include_image_fills")) is not bool or type(fields.get("export_assets", False)) is not bool):
+        return None
+    arguments = _manifest_arguments(args)
+    operation = "figma-bundle-prepare" if prepare else "figma-bundle-manifest"
+    receipt = _probe(operation, {"summary": summary, "arguments": arguments}, __file__)
+    if type(receipt) is not dict or set(receipt) != ({"manifest", "problems"} if prepare else {"manifest"}):
+        return None
+    if prepare and (type(receipt["problems"]) is not list or any(type(item) is not str for item in receipt["problems"])):
+        return None
+    manifest = receipt["manifest"]
+    if (type(manifest) is not dict or list(manifest) != ["schemaVersion", "tool", "arguments", "summary"]
+            or type(manifest["schemaVersion"]) is not int or manifest["schemaVersion"] != schema
+            or manifest["tool"] != "figma-handoff.py" or type(manifest["arguments"]) is not dict
+            or list(manifest["arguments"]) != list(arguments) or manifest["arguments"] != arguments
+            or type(manifest["summary"]) is not dict or tuple(manifest["summary"]) != _COUNT_FIELDS
+            or any(type(count) is not int or count < 0 for count in manifest["summary"].values())):
+        return None
+    return {**receipt, "manifest": {**manifest, "schemaVersion": schema, "arguments": arguments}}
 
 
 _COUNT_FIELDS = (

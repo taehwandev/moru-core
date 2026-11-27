@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from figma_manifest import build_manifest
+from figma_manifest import _probe_manifest, build_manifest
 from figma_markdown import render_markdown
 from figma_util import write_json
 from figma_summary_validate import validate_summary
@@ -40,12 +40,16 @@ class FigmaBundleOutput:
         warnings: list[str],
         args: Any,
     ) -> list[str]:
-        problems = validate_summary(summary)
+        prepared = None
+        if type(warnings) is list and all(type(warning) is str for warning in warnings):
+            prepared = _probe_manifest(summary, args, prepare=True)
+        problems = validate_summary(summary) if prepared is None else prepared["problems"]
         summary["warnings"] = warnings + [f"schema: {problem}" for problem in problems]
         summary_dir = self.root / "summary"
         write_json(summary_dir / "design-summary.json", summary)
         (summary_dir / "design-handoff.md").write_text(render_markdown(summary), encoding="utf-8")
-        write_json(self.root / "manifest.json", build_manifest(summary, args))
+        manifest = build_manifest(summary, args) if prepared is None else prepared["manifest"]
+        write_json(self.root / "manifest.json", manifest)
         return problems
 
     def report(

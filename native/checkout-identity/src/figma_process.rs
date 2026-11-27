@@ -39,8 +39,17 @@ struct Outcome {
 
 pub(crate) struct FigmaProcess;
 impl FigmaProcess {
+    pub(crate) fn bundle_prepare(
+        request: &serde_json::Value,
+        root: &Path,
+    ) -> Option<serde_json::Value> {
+        let text = Self::bound_input(request, root, "text")?;
+        Self::receipt(bundle_manifest::prepare(text, true)?)
+    }
+
     pub(crate) fn bundle_manifest(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
-        Self::receipt(bundle_manifest::project(Self::bound_input(request, root, "text")?)?)
+        let text = Self::bound_input(request, root, "text")?;
+        Self::receipt(bundle_manifest::prepare(text, false)?)
     }
 
     pub(crate) fn plan(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {

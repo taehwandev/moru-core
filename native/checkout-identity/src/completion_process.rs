@@ -377,6 +377,7 @@ impl CompletionProcess {
             Some("figma-smoke-verdict") => crate::figma_process::FigmaProcess::smoke_verdict(&payload, &root),
             Some("figma-smoke-analysis") => crate::figma_process::FigmaProcess::smoke_analysis(&payload, &root),
             Some("figma-summary-schema") => crate::figma_process::FigmaProcess::schema(&payload, &root),
+            Some("figma-bundle-prepare") => crate::figma_process::FigmaProcess::bundle_prepare(&payload, &root),
             Some("figma-bundle-manifest") => crate::figma_process::FigmaProcess::bundle_manifest(&payload, &root),
             Some("figma-plan") => crate::figma_process::FigmaProcess::plan(&payload, &root),
             Some("figma-target") => crate::figma_process::FigmaProcess::target(&payload, &root),

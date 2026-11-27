@@ -249,12 +249,13 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
 
         def inspect_native(argv, **kwargs):
             self.assertIn(argv[-1], ("figma-summary-schema", "figma-smoke-file-result", "figma-smoke-result",
-                                     "figma-smoke-verdict", "figma-smoke-frames", "figma-bundle-manifest"))
+                                     "figma-smoke-verdict", "figma-smoke-frames", "figma-bundle-manifest",
+                                     "figma-bundle-prepare"))
             self.assertNotIn("CUSTOM_SMOKE_TOKEN", kwargs["env"])
             self.assertNotIn(fake_token.encode(), kwargs["input"])
             calls.append(argv[-1])
             done = real_run(argv, **kwargs)
-            if argv[-1] == "figma-bundle-manifest":
+            if argv[-1] in ("figma-bundle-manifest", "figma-bundle-prepare"):
                 self.assertEqual((0, b""), (done.returncode, done.stderr))
             if argv[-1] in ("figma-smoke-file-result", "figma-smoke-result"):
                 request = json.loads(json.loads(kwargs["input"])["text"])
@@ -311,14 +312,49 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
             self.assertEqual(expected, schema.validate_summary(summary))
             self.assertEqual(before, summary)
             with patch.object(figma_manifest, "_build_manifest_reference", side_effect=AssertionError("Python manifest")):
+                self.assertEqual(reference, figma_manifest.build_manifest(before, args))
                 self.assertEqual(expected, output.persist(summary, ["existing"], args))
             self.assertEqual({**before, "warnings": ["existing", *["schema: " + p for p in expected]]}, summary)
-        self.assertEqual(["figma-summary-schema", "figma-summary-schema", "figma-bundle-manifest"], calls)
+        self.assertEqual(["figma-summary-schema", "figma-bundle-manifest", "figma-bundle-prepare"], calls)
         self.assertEqual(manifest_bytes, (output.root / "manifest.json").read_bytes())
         self.assertEqual(3, reference["schemaVersion"])
         self.assertIs(reference["arguments"]["exportAssets"], False)
         self.assertEqual(2, reference["summary"]["renderedNodeCount"])
         wrong_counts = {**reference["summary"], "renderedNodeCount": True}
+        artifacts = ("summary/design-summary.json", "summary/design-handoff.md", "manifest.json")
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            baseline = FigmaBundleOutput(self.base / "reference")
+            baseline.create_directories()
+            baseline.persist(copy.deepcopy(before), ["existing"], args)
+        files = [(baseline.root / name).read_bytes() for name in artifacts]
+        self.assertEqual(files, [(output.root / name).read_bytes() for name in artifacts])
+        probe = figma_manifest._probe
+        for corrupt in ({"problems": ["untrusted"], "manifest": {**reference, "summary": wrong_counts}},
+                        {"problems": [False], "manifest": reference}):
+            def corrupt_prepare(operation, payload, source):
+                return corrupt if operation == "figma-bundle-prepare" else probe(operation, payload, source)
+
+            candidate = copy.deepcopy(before)
+            with patch.dict(os.environ, self.env, clear=True), patch.object(
+                    figma_manifest, "_probe", side_effect=corrupt_prepare) as intercepted:
+                self.assertEqual(expected, output.persist(candidate, ["existing"], args))
+            self.assertIn("figma-bundle-prepare", [call.args[0] for call in intercepted.call_args_list])
+            self.assertEqual(summary, candidate)
+            self.assertEqual(files, [(output.root / name).read_bytes() for name in artifacts])
+        failures = []
+        for backend in ("python", "auto"):
+            partial = FigmaBundleOutput(self.base / ("partial-" + backend))
+            partial.create_directories()
+            bad_args = SimpleNamespace(format="png")
+            candidate = copy.deepcopy(before)
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": backend}, clear=True), self.assertRaises(
+                    AttributeError) as raised:
+                partial.persist(candidate, ["existing"], bad_args)
+            failures.append(str(raised.exception))
+            self.assertEqual(summary, candidate)
+            self.assertEqual(files[:2], [(partial.root / name).read_bytes() for name in artifacts[:2]])
+            self.assertFalse((partial.root / "manifest.json").exists())
+        self.assertEqual(failures[0], failures[1])
         for malformed in (None, {"manifest": []}, {"manifest": {**reference, "summary": wrong_counts}},
                           {"manifest": dict(reversed(list(reference.items())))}):
             with self.subTest(manifest=malformed), patch.object(figma_manifest, "_probe", return_value=malformed):

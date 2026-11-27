@@ -575,7 +575,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "figma-handoff; direct Python CLI",
-      "remaining": "Ordinary in-memory schema validation, extractor target resolution, dry-run plan generation and bundle manifest projection delegate to Rust. The generated alias runs ordinary dry runs without Python. Port extraction, provider access, bundle generation, exceptional inputs and remaining CLI behavior.",
+      "remaining": "Ordinary in-memory schema validation, extractor target resolution, dry-run plan generation and bundle manifest projection delegate to Rust. Bundle persistence validates and projects ordinary summaries in one Rust request. The generated alias runs ordinary dry runs without Python. Port extraction, provider access, bundle generation, exceptional inputs and remaining CLI behavior.",
       "verification": {}
     },
     {
