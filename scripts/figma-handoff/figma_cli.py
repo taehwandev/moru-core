@@ -29,6 +29,11 @@ class FigmaHandoffCli:
             print(f"ERROR: {arguments.error}", file=sys.stderr)
             return 2
         try:
+            if arguments.values.dry_run:
+                plan = arguments.native_plan()
+                if plan is not None:
+                    sys.stdout.write(plan)
+                    return 0
             file_key, node_id = resolve_figma_target(
                 arguments.values.url, arguments.values.file_key, arguments.values.node_id
             )

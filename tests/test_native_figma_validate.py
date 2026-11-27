@@ -65,7 +65,11 @@ class NativeFigmaValidate(unittest.TestCase):
                               f'printf "%s %s\\n" "$3" "$status" >> {shlex.quote(str(log))}\nexit "$status"\n')
         executable.chmod(0o700)
         script = PROJECT / "scripts/figma-handoff/figma-handoff.py"
-        env = {**self.env, "PATH": str(self.empty_path)}
+        env = {**self.env, "PATH": str(self.empty_path), "SYNTHETIC_ABSENT_TOKEN": ""}
+        options = ["--file-key", "FILE", "--node-id", "5-6", "--name", "한글 Release / A",
+                   "--out", "출력 dir", "--format", "svg", "--scale", "1.25", "--max-assets", "17",
+                   "--max-flow-depth", "0", "--timeout", "13", "--no-images", "--export-assets",
+                   "--include-image-fills", "--token-env", "SYNTHETIC_ABSENT_TOKEN"]
         cases = [
             (["--url", "https://www.figma.com/file/F/A?node_id=7-8&node-id=1-2&node-id=3-4",
               "--node-id", "9-9", "--file-key", "IGNORED"], ("F", "1:2"), 0),
@@ -73,6 +77,7 @@ class NativeFigmaValidate(unittest.TestCase):
             (["--url", "https://www.figma.com/proto/P/S?node-id=&node_id=5-6"], ("P", "5:6"), 0),
             (["--url", "https://www.figma.com/design/EMPTY/S"], None, 0),
             (["--url", "https://[::1]/design/UNUSUAL/S?node-id=1-2"], ("UNUSUAL", "1:2"), 125),
+            (options, ("FILE", "5:6"), 0),
         ]
         for args, target, probe_status in cases:
             command = [sys.executable, "-B", str(script), "--dry-run", *args]
@@ -83,7 +88,10 @@ class NativeFigmaValidate(unittest.TestCase):
                 self.assertEqual("", log.read_text())
                 observed = subprocess.run(command, env=env, cwd=self.project, capture_output=True, timeout=8)
                 self.assertEqual(result(expected), result(observed))
-                self.assertEqual([f"figma-target {probe_status}"], log.read_text().splitlines())
+                probes = [f"figma-plan {probe_status}"]
+                if probe_status == 125:
+                    probes.append("figma-target 125")
+                self.assertEqual(probes, log.read_text().splitlines())
                 if target is None:
                     self.assertNotEqual(0, observed.returncode)
                     self.assertIn(b"Missing Figma node id.", observed.stderr)
@@ -91,6 +99,20 @@ class NativeFigmaValidate(unittest.TestCase):
                     self.assertEqual(0, observed.returncode, observed.stderr)
                     plan = json.loads(observed.stdout)
                     self.assertEqual(target, (plan["fileKey"], plan["startNodeId"]))
+        huge_args = [sys.executable, "-B", str(script), "--dry-run", *options, "--max-assets", str(10**80)]
+        log.write_text("")
+        expected = subprocess.run(huge_args, env={**env, "MORU_LAUNCHER_BACKEND": "python"}, cwd=self.project,
+                                  capture_output=True, timeout=8)
+        observed = subprocess.run(huge_args, env=env, cwd=self.project, capture_output=True, timeout=8)
+        self.assertEqual(result(expected), result(observed))
+        self.assertEqual(10**80, json.loads(observed.stdout)["maxAssets"])
+        self.assertEqual(["figma-plan 0"], log.read_text().splitlines())
+
+        log.write_text("")
+        missing = subprocess.run([sys.executable, "-B", str(script), *options], env=env, cwd=self.project,
+                                 capture_output=True, timeout=8)
+        self.assertEqual((2, b"", b"ERROR: Set SYNTHETIC_ABSENT_TOKEN before running this command.\n"), result(missing))
+        self.assertEqual(["figma-target 0"], log.read_text().splitlines())
 
     def test_public_live_smoke_alias_handles_offline_dispatch(self):
         clean = {k: v for k, v in self.env.items() if k not in ("FIGMA_TOKEN", "FIGMA_SMOKE_URL", "MOCK_TOKEN")}

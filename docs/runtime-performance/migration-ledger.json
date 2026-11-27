@@ -575,7 +575,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Ordinary in-memory schema validation and extractor target resolution delegate to Rust. Port extraction, provider access, bundle generation, exceptional inputs and the CLI.",
+      "remaining": "Ordinary in-memory schema validation, extractor target resolution and dry-run plan generation delegate to Rust. Port extraction, provider access, bundle generation, exceptional inputs and the CLI.",
       "verification": {}
     },
     {

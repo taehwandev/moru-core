@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from figma_util import slugify
+from figma_util import _MISSING_FILE_KEY, _MISSING_NODE_ID, _probe, slugify
 
 
 _DEFAULT_WORK_DIR_NAME = ".figma-handoff-work"
@@ -20,12 +20,33 @@ class FigmaCliArguments:
 
     def output_dir(self, node_id: str) -> Path:
         name = slugify((self.values.name or "").strip() or f"node-{node_id.replace(':', '-')}")
-        base = (
-            Path(self.values.out).expanduser()
-            if self.values.out
-            else Path.cwd() / _DEFAULT_WORK_DIR_NAME
-        )
-        return base / name
+        return self._output_base() / name
+
+    def _output_base(self) -> Path:
+        return Path(self.values.out).expanduser() if self.values.out else Path.cwd() / _DEFAULT_WORK_DIR_NAME
+
+    def native_plan(self) -> str | None:
+        if _probe is None:
+            return None
+        try:
+            base = str(self._output_base())
+        except (OSError, RuntimeError, ValueError):
+            # The original path reports target errors before preparing its output directory.
+            return None
+        args = self.values
+        receipt = _probe("figma-plan", {
+            "url": args.url, "file_key": args.file_key, "node_id": args.node_id, "name": args.name,
+            "output_base": base, "images": not args.no_images, "format": args.format, "scale": args.scale,
+            "max_flow_depth": args.max_flow_depth, "timeout": args.timeout,
+            "export_assets": args.export_assets, "max_assets": args.max_assets,
+        }, __file__)
+        if type(receipt) is dict:
+            if set(receipt) == {"stdout"} and type(receipt["stdout"]) is str:
+                return receipt["stdout"]
+            if (set(receipt) == {"error"} and type(receipt["error"]) is str
+                    and receipt["error"] in (_MISSING_FILE_KEY, _MISSING_NODE_ID)):
+                raise ValueError(receipt["error"])
+        return None
 
     def print_plan(self, file_key: str, node_id: str, output_dir: Path) -> None:
         plan: dict[str, Any] = {

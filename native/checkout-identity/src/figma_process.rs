@@ -23,6 +23,8 @@ use std::{
 mod frames;
 #[path = "figma_target.rs"]
 mod target;
+#[path = "figma_plan.rs"]
+mod plan;
 mod direct_profile {
     include!(concat!(env!("OUT_DIR"), "/figma_direct_profile.rs"));
 }
@@ -35,6 +37,10 @@ struct Outcome {
 
 pub(crate) struct FigmaProcess;
 impl FigmaProcess {
+    pub(crate) fn plan(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(plan::render(Self::bound_input(request, root, "text")?)?)
+    }
+
     pub(crate) fn target(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
         Self::receipt(target::resolve(Self::bound_input(request, root, "text")?)?)
     }
