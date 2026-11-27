@@ -29,7 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from figma_coverage import coverage_report  # noqa: E402
-from figma_summary_validate import validate_summary  # noqa: E402
+from figma_summary_validate import _probe, _validate_summary_reference  # noqa: E402
 from figma_validation_report import format_report  # noqa: E402
 
 TOOL = Path(__file__).parent / "figma-handoff.py"
@@ -67,6 +67,19 @@ def _layout_coverage_failures(coverage: dict) -> list[str]:
     if coverage["screens"] and coverage["layoutNodes"]["total"] == 0:
         return ["layout coverage is empty for a non-empty handoff"]
     return []
+
+
+def _native_analysis(summary):
+    if _probe is None or type(summary) is not dict:
+        return None
+    result = _probe("figma-smoke-analysis", summary, __file__)
+    counts = ("screens", "layout_total", "image_fill_total", "image_fill_with_path")
+    if (type(result) is not dict or set(result) != {"problems", "report", *counts}
+            or type(result["problems"]) is not list or any(type(item) is not str for item in result["problems"])
+            or type(result["report"]) is not str or any(type(result[key]) is not int or result[key] < 0 for key in counts)
+            or result["image_fill_with_path"] > result["image_fill_total"]):
+        return None
+    return result
 
 
 def main() -> int:
@@ -114,7 +127,8 @@ def main() -> int:
         out = tmp / "smoke"
         summary = json.loads((out / "summary" / "design-summary.json").read_text(encoding="utf-8"))
 
-        problems = validate_summary(summary)
+        analysis = _native_analysis(summary)
+        problems = _validate_summary_reference(summary) if analysis is None else analysis["problems"]
         if problems:
             failures.append(f"schema violations: {problems}")
 
@@ -137,7 +151,13 @@ def main() -> int:
             if not svgs:
                 failures.append("no vector SVG assets exported (asset split broken?)")
 
-        cov = coverage_report(summary)
+        if analysis is None:
+            cov = coverage_report(summary)
+        else:
+            cov = {
+                "screens": analysis["screens"], "layoutNodes": {"total": analysis["layout_total"]},
+                "assets": {"imageFillTotal": analysis["image_fill_total"], "imageFillWithPath": analysis["image_fill_with_path"]},
+            }
         failures.extend(_layout_coverage_failures(cov))
         asset = cov["assets"]
         if not args.quick and asset["imageFillTotal"]:
@@ -148,7 +168,7 @@ def main() -> int:
                     f"({pct}%) < {IMAGE_FILL_MIN_PCT}%"
                 )
 
-        print(format_report(problems, cov))
+        print(format_report(problems, cov) if analysis is None else analysis["report"])
         print(f"frames={len(frames)} (for example: {_png_size(frames[0]) if frames else None}) "
               f"assets: svg={len(svgs)} png={len(pngs)}")
     finally:

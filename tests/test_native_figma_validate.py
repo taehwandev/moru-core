@@ -73,7 +73,7 @@ class NativeFigmaValidate(unittest.TestCase):
         calls = []
 
         def inspect_native(argv, **kwargs):
-            self.assertEqual("figma-summary-schema", argv[-1])
+            self.assertIn(argv[-1], ("figma-summary-schema", "figma-smoke-analysis"))
             self.assertNotIn("CUSTOM_SMOKE_TOKEN", kwargs["env"])
             self.assertNotIn(fake_token.encode(), kwargs["input"])
             calls.append(argv[-1])
@@ -83,7 +83,9 @@ class NativeFigmaValidate(unittest.TestCase):
             self.assertEqual(str(live_smoke.TOOL), argv[1])
             root = Path(argv[argv.index("--out") + 1]) / "smoke"
             (root / "summary").mkdir(parents=True)
-            (root / "summary/design-summary.json").write_text(json.dumps(_valid_summary()))
+            (root / "summary/design-summary.json").write_text(json.dumps(smoke_summary))
+            (root / "assets").mkdir()
+            (root / "assets/one.svg").write_text("<svg/>")
             (root / "frames").mkdir()
             (root / "frames/one.png").write_bytes(bytes.fromhex(
                 "89504e470d0a1a0a0000000d494844520000000100000001"))
@@ -97,11 +99,44 @@ class NativeFigmaValidate(unittest.TestCase):
             self.assertEqual(before, summary)
             self.assertEqual(expected, output.persist(summary, ["existing"], args))
             self.assertEqual({**before, "warnings": ["existing", *["schema: " + p for p in expected]]}, summary)
-            with patch.object(live_smoke, "subprocess", SimpleNamespace(run=fake_extractor)), patch.object(
-                sys, "argv", ["live_smoke.py", "--quick", "--token-env", "CUSTOM_SMOKE_TOKEN",
-                              "--url", "https://example.invalid/synthetic"]), redirect_stdout(io.StringIO()):
-                self.assertEqual(0, live_smoke.main())
-        self.assertEqual(["figma-summary-schema"] * 3, calls)
+        self.assertEqual(["figma-summary-schema"] * 2, calls)
+
+        def run_smoke(backend):
+            stream = io.StringIO()
+            with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": backend, "PATH": str(self.empty_path),
+                                         "CUSTOM_SMOKE_TOKEN": fake_token}, clear=True), patch.object(
+                live_smoke, "subprocess", SimpleNamespace(run=fake_extractor)
+            ), patch.object(subprocess, "run", side_effect=inspect_native), patch.object(
+                sys, "argv", ["live_smoke.py", "--token-env", "CUSTOM_SMOKE_TOKEN",
+                              "--url", "https://example.invalid/synthetic"]), redirect_stdout(stream):
+                return live_smoke.main(), stream.getvalue()
+
+        incomplete = _valid_summary()
+        incomplete["screens"] = [{"id": "1", "name": "screen", "type": "FRAME"}]
+        incomplete["assetCandidates"] = [
+            {"id": str(i), "imageRefs": ["ref"], "assetPath": "a.png" if i < 199 else ""} for i in range(200)]
+        for smoke_summary, status in ((_valid_summary(), 0), (incomplete, 1)):
+            with self.subTest(status=status):
+                calls.clear()
+                reference = run_smoke("python")
+                self.assertEqual([], calls)
+                observed = run_smoke("auto")
+                self.assertEqual(reference, observed)
+                self.assertEqual(status, observed[0])
+                self.assertEqual(["figma-smoke-analysis"], calls)
+                if status:
+                    self.assertIn("image-fill recovery 199/200 (99%) < 100%", observed[1])
+                    self.assertIn("layout coverage is empty for a non-empty handoff", observed[1])
+        smoke_summary = incomplete
+        expected_failure = run_smoke("python")
+        receipt = {"problems": [], "report": "untrusted", "screens": 0, "layout_total": 0,
+                   "image_fill_total": 0, "image_fill_with_path": 0}
+        for malformed in (None, {**receipt, "screens": True}, {**receipt, "image_fill_total": -1},
+                          {**receipt, "image_fill_with_path": 1}, {**receipt, "problems": [17]}):
+            with self.subTest(reply=malformed), patch.object(live_smoke, "_probe", return_value=malformed):
+                calls.clear()
+                self.assertEqual(expected_failure, run_smoke("auto"))
+                self.assertEqual([], calls)
 
     def test_imported_schema_falls_back_for_non_json_objects_and_bad_replies(self):
         import figma_summary_validate as schema

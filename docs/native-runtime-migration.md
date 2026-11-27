@@ -214,8 +214,8 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 37 | `scripts/check_react_rn_external_skill_manifest.py` | check-react-rn-skill-manifest | Partial native | Local provenance and source hashes; remote and exceptional inputs remain open |
 | 38 | `scripts/device-mcp.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 39 | `scripts/figma-handoff/figma-handoff.py` | Direct CLI | Partial native | Ordinary bundle schema checks run in Rust. Extraction, bundle output and the CLI remain in Python. |
-| 40 | `scripts/figma-handoff/figma_validate.py` | figma-validate; direct Python CLI | Partial native | Both entrypoints use Rust for ordinary file validation. Offline schema, visibility, coverage, numeric sums and ordinary file errors; exception handling and imported coverage/report callers remain |
-| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Partial native | Ordinary in-memory schema checks run in Rust. Smoke orchestration, asset checks and coverage reporting remain in Python. |
+| 40 | `scripts/figma-handoff/figma_validate.py` | figma-validate; direct Python CLI | Partial native | Both entrypoints use Rust for ordinary file validation. Offline schema, visibility, coverage, numeric sums and ordinary file errors; exception handling and the Python compatibility path remain |
+| 41 | `scripts/figma-handoff/live_smoke.py` | Direct CLI | Partial native | Rust validates ordinary summaries, computes coverage and renders the report. Python runs the extractor and checks frame and asset files. |
 | 42 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |

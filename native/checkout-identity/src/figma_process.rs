@@ -8,7 +8,7 @@ use crate::{
     figma_validation_report::FigmaReport,
     pretool_guard::CallbackGuard,
     python_input_file::{FileRead, PythonInputFile},
-    python_json::PythonJson,
+    python_json::{Number, PythonJson, Value},
     python_text::PythonUtf8,
     text::Text,
 };
@@ -53,6 +53,28 @@ impl FigmaProcess {
         let text = Self::bound_input(request, root, "text")?;
         let summary = PythonJson::parse(text)?;
         Self::receipt(serde_json::json!({"problems": FigmaValidation::validate(&summary)?}))
+    }
+
+    pub(crate) fn smoke_analysis(
+        request: &serde_json::Value,
+        root: &std::path::Path,
+    ) -> Option<serde_json::Value> {
+        let summary = PythonJson::parse(Self::bound_input(request, root, "text")?)?;
+        let problems = FigmaValidation::validate(&summary)?;
+        let coverage = FigmaCoverage::compute(&summary)?;
+        let report = FigmaReport::render(&coverage, &problems)?;
+        let count = |value: &Value| match value {
+            Value::Number(Number::Integer(digits)) => digits.parse::<u64>().ok(),
+            _ => None,
+        };
+        Self::receipt(serde_json::json!({
+            "problems": problems,
+            "report": report,
+            "screens": count(&coverage["screens"])?,
+            "layout_total": count(&coverage["layoutNodes"]["total"])?,
+            "image_fill_total": count(&coverage["assets"]["imageFillTotal"])?,
+            "image_fill_with_path": count(&coverage["assets"]["imageFillWithPath"])?,
+        }))
     }
 
     pub(crate) fn probe(
