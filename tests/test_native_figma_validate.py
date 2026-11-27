@@ -56,6 +56,29 @@ class NativeFigmaValidate(unittest.TestCase):
             with self.subTest(payload=payload):
                 self.parity(payload)
 
+    def test_public_live_smoke_alias_handles_offline_dispatch(self):
+        clean = {k: v for k, v in self.env.items() if k not in ("FIGMA_TOKEN", "FIGMA_SMOKE_URL", "MOCK_TOKEN")}
+
+        def invoke(args, backend="auto", **extra):
+            return subprocess.run([str(self.entry), "figma-live-smoke", *args], cwd=self.project,
+                                  env={**clean, "MORU_LAUNCHER_BACKEND": backend, **extra},
+                                  stdin=subprocess.DEVNULL, capture_output=True, timeout=8)
+
+        for args, variable, env in (([], "FIGMA_TOKEN", {}), (["--quick"], "FIGMA_TOKEN", {"FIGMA_TOKEN": ""}),
+                                    (["--token-env", "MOCK_TOKEN"], "MOCK_TOKEN", {"FIGMA_TOKEN": "synthetic"})):
+            with self.subTest(args=args):
+                expected = invoke(args, "python", **env)
+                self.assertEqual((0, f"SKIP: {variable} is not set — live smoke needs network + token.\n".encode(),
+                                  b""), result(expected))
+                self.assertEqual(result(expected), result(invoke(args, PATH=str(self.empty_path), **env)))
+        for args, env in ((["--scale", "invalid"], {}), (["--unknown"], {}),
+                          (["--token-env", "MOCK_TOKEN"], {"MOCK_TOKEN": "synthetic"})):
+            with self.subTest(args=args):
+                expected = invoke(args, "python", **env)
+                self.assertEqual(2, expected.returncode)
+                self.assertEqual(result(expected), result(invoke(args, **env)))
+                self.assertEqual(127, invoke(args, PATH=str(self.empty_path), **env).returncode)
+
     def test_imported_schema_reaches_native_for_bundle_and_offline_smoke(self):
         import figma_summary_validate as schema
         from figma_bundle_output import FigmaBundleOutput
@@ -566,6 +589,16 @@ class NativeFigmaValidate(unittest.TestCase):
         args = [str(entry), "figma-validate", str(self.summary)]
         before = subprocess.run(args, cwd=project, env=env, capture_output=True, timeout=20)
         self.assertEqual(0, before.returncode, before.stderr)
+        smoke_args = [str(entry), "figma-live-smoke"]
+        smoke_env = {k: v for k, v in env.items() if k not in ("FIGMA_TOKEN", "FIGMA_SMOKE_URL")}
+        smoke_before = subprocess.run(smoke_args, cwd=project, env=smoke_env, capture_output=True, timeout=8)
+        self.assertEqual(0, smoke_before.returncode, smoke_before.stderr)
+        smoke_script = source / "scripts/figma-handoff/live_smoke.py"
+        with smoke_script.open("ab") as changed:
+            changed.write(b"\n# synthetic source drift\n")
+        smoke_decline = subprocess.run(smoke_args, cwd=project, env=smoke_env, capture_output=True, timeout=8)
+        self.assertEqual((127, b""), (smoke_decline.returncode, smoke_decline.stdout))
+        shutil.copy2(PROJECT / "scripts/figma-handoff/live_smoke.py", smoke_script)
 
         # Record the real binary's decision, distinguishing a successful probe
         # from the same report printed by the Python fallback after a decline.

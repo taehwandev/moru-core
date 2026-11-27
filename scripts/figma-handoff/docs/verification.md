@@ -107,6 +107,9 @@ python3 scripts/figma-handoff/live_smoke.py \
   --url "$FIGMA_SMOKE_URL" --scale 3
 ```
 
+Runtimes that include the smoke alias also accept
+`<MORU_LAUNCHER> figma-live-smoke --url "$FIGMA_SMOKE_URL" --scale 3`.
+
 Use `--quick` to skip asset export and check only the schema, frame PNG, and
 layout coverage. Use `--token-env` to select a different environment variable.
 

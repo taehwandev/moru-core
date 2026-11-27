@@ -31,6 +31,7 @@ SCRIPT_ALIASES = {
     "check-android-skill-manifest": "check_android_external_skill_manifest.py",
     "check-react-rn-skill-manifest": "check_react_rn_external_skill_manifest.py",
     "figma-validate": "figma-handoff/figma_validate.py",
+    "figma-live-smoke": "figma-handoff/live_smoke.py",
     "behavior-eval": "agent_behavior_eval.py",
     "experience-eval": "agent_experience_eval.py",
     "overhead-report": "moru_overhead_report.py",
