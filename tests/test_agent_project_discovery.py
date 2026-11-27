@@ -413,6 +413,41 @@ class RequestDrivenUiGuidanceTests(unittest.TestCase):
             with self.subTest(request=request):
                 self.assertNotIn(self.UI, self.docs(request))
 
+    def test_small_ui_spacing_requests_select_visual_verification(self):
+        from workflow_route import resolve_docs
+
+        requests = (
+            "Fix card padding on the dashboard",
+            "카드 안쪽 여백이 너무 좁고 버튼 글자가 테두리에 붙어 있어. 고쳐줘",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for request in requests:
+                for runtime in ("codex", "claude", "antigravity"):
+                    with self.subTest(request=request, runtime=runtime):
+                        manifest = build_entry_manifest(
+                            request, Path(directory), runtime=runtime, command="small-change",
+                        )
+                        self.assertEqual(1, manifest["guidance"]["required_docs"].count(self.UI))
+                        self.assertFalse(manifest["guidance"]["missing"])
+                for platform in ("web", "ios", "android"):
+                    with self.subTest(request=request, platform=platform):
+                        route = resolve_docs("small-change", platform, [], request_text=request,
+                                             request_classified=True)
+                        self.assertEqual(1, route["required_docs"].count(self.UI))
+
+    def test_small_non_ui_or_excluded_spacing_requests_do_not_select_visual_verification(self):
+        from workflow_route import resolve_docs
+
+        for request in (
+            "Adjust padding in a binary packet parser",
+            "Do not change card padding; fix the cache",
+            "Fix a button click handler",
+        ):
+            with self.subTest(request=request):
+                route = resolve_docs("small-change", None, [], request_text=request,
+                                     request_classified=True, advisory=True)
+                self.assertNotIn(self.UI, route["required_docs"])
+
 
 class EntryStartCommandTests(unittest.TestCase):
     def test_new_workspace_entry_prints_the_start_command_and_routes(self):

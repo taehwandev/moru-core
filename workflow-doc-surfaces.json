@@ -1094,6 +1094,22 @@
       "reason": "Visible interface work needs rendered-state verification whatever the platform is or whether a project exists yet; selection follows the request, not a detected platform."
     },
     {
+      "name": "small_ui_spacing_change",
+      "commands": ["small-change"],
+      "subject_exclusion": true,
+      "required_priority": 50,
+      "request_any": [
+        "\\b(?:padding|insets?|gutters?|spacing)\\b",
+        "패딩|여백|거터|테두리에\\s*붙"
+      ],
+      "request_all": [[
+        "\\b(?:ui|screen|view|card|panel|button|dialog|dashboard|page|modal|badge|chip|input field)s?\\b",
+        "화면|카드|패널|버튼|다이얼로그|대시보드|페이지|모달|배지|입력창|UI"
+      ]],
+      "docs": ["common/skills/ui-visual-verification/SKILL.md"],
+      "reason": "A small spacing change on a visible surface needs the existing rendered padding check, even before the platform is known."
+    },
+    {
       "name": "web_3d_effects_and_selection_change",
       "commands": [
         "feature",
