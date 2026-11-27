@@ -35,15 +35,19 @@ is needed merely to name a persona.
    independent work improves the result enough to cover startup, context,
    token, waiting, and integration cost. Parallel work retains the contract and
    ownership rules in [the collaboration reference](current-guidance.md).
-   Inside the Moru app (`python3 <MORU_ROOT>/scripts/agent_app_worker.py available`
-   exits 0), start a delegated writer as a visible app session instead of a
-   background subagent: `agent_app_worker.py start --project <ABS> --runtime
-   <claude|codex|agy> --brief-file -` prints the project, task and run ids, and
-   `agent_app_worker.py stop --project-id ... --task-id ... --run-id ...` ends
-   only that session. Keep those ids for the slice; when a worker reports a
-   shared-contract contradiction, stop the other writers whose slices depend on
-   that contract before answering, then restart them with the refreshed brief.
-   Without the app, use the runtime's own worker.
+   A Moru app session designated as the project lead delegates through Moru
+   Control as headless sub runs that close when they finish:
+   `python3 <MORU_ROOT>/scripts/agent_sub_run.py start --runtime
+   <claude|codex|agy> --brief-file -` prints the run id (use the runtime the
+   operator names), `status --run-id` and `stop --run-id` follow it, and
+   `inbox` / `inbox-done --id` read requests the HQ secretary handed to the
+   lead. Only when the operator wants to watch a terminal, start a visible app
+   session with `agent_app_worker.py start --project <ABS> --runtime ...
+   --brief-file -` and end it with `agent_app_worker.py stop`. Either way keep
+   the ids for the slice; when a worker reports a shared-contract
+   contradiction, stop the other writers whose slices depend on that contract
+   before answering, then restart them with the refreshed brief. Without the
+   app, use the runtime's own worker.
 3. Use another runtime only for a needed review perspective or confirmed tool
    access, through an available execution and result-return path. Another
    product does not by itself prove a different model or independent evidence.
