@@ -2,6 +2,7 @@
 //! Allowed: read-only regular-file access, Python text helpers and JSON.
 //! Forbidden: raw prompt/argv transport, state writes, locks, and providers.
 //! Callers/tests: completion probe and the Python observability report fixture.
+use super::status_trend_route::route_token;
 use crate::{
     discovery_fs::DiscoveryFs,
     python_input_file::{FileRead, PythonInputFile},
@@ -180,17 +181,6 @@ fn project_preflight(source: &Object) -> Option<(Object, usize)> {
         }
     }
     Some((result, docs))
-}
-
-fn route_token(raw: &str) -> Option<&str> {
-    let token = Text::py_strip(raw);
-    let mut bytes = token.bytes();
-    ((2..=33).contains(&token.len())
-        && bytes.next().is_some_and(|byte| byte.is_ascii_lowercase())
-        && bytes.all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
-        }))
-    .then_some(token)
 }
 
 fn count_reused(file: Option<&Object>) -> Option<usize> {

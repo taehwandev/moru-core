@@ -185,7 +185,7 @@
       "kind": "primary",
       "status": "partial_native",
       "entry_aliases": "agent-os-status",
-      "remaining": "Prepared status handles relative projects, typed labels and known JSON syntax failures natively. Rust discovers ordinary trend projects, reads selected run metadata and SQLite rows, normalizes supported Spill event timestamps, binds events and assembles trend aggregates and coverage. Python retains registry timestamp and label normalization, session planning, report clock, trend CLI, initialization, contention and exceptional state or value profiles. Portable and installed acceptance remain open.",
+      "remaining": "Prepared status handles relative projects, typed labels and known JSON syntax failures natively. Rust discovers ordinary trend projects, normalizes ordinary run metadata, session hashes and SQLite timestamps, groups sessions, binds event metrics and model labels and assembles trend aggregates and coverage. Python retains request projection and identifier masking, report clock, trend CLI, initialization, contention and exceptional state or value profiles. Portable and installed acceptance remain open.",
       "verification": {
         "native_owner": "native/checkout-identity/src/status_process.rs",
         "portable": "PENDING transported acceptance for expanded profiles.",

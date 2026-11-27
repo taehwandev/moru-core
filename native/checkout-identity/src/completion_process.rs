@@ -182,6 +182,14 @@ mod status_trend_windows;
 mod status_trend_sqlite;
 #[path = "status_trend_projects.rs"]
 mod status_trend_projects;
+#[path = "status_trend_route.rs"]
+mod status_trend_route;
+#[path = "status_trend_binding.rs"]
+mod status_trend_binding;
+#[path = "status_trend_metadata.rs"]
+mod status_trend_metadata;
+#[path = "status_trend_stamp.rs"]
+mod status_trend_stamp;
 #[path = "status_trend_run_files.rs"]
 mod status_trend_run_files;
 #[path = "path_claim_scan.rs"]
@@ -320,6 +328,8 @@ impl CompletionProcess {
             Some("status-trend-db" | "status-trend-db-utc") => status_trend_sqlite::TrendSqlite::read(&payload),
             Some("status-trend-report") => status_trends::StatusTrends::report(&payload),
             Some("status-trend-projects") => status_trend_projects::discover(&payload),
+            Some("status-trend-metadata") => status_trend_run_files::read(&payload).and_then(|rows| status_trend_metadata::project(&rows)),
+            Some("status-trend-binding") => status_trend_binding::TrendBinding::bind(&payload),
             Some("status-trend-run-files") => status_trend_run_files::read(&payload),
             Some("structure-diff") => structure_diff::StructureDiff::decode(&payload),
             Some("structure-diff-acquisition") => structure_diff_acquisition::StructureDiffAcquisition::probe(&payload),

@@ -7,8 +7,7 @@ use std::{collections::HashSet, fs, io, path::Path, time::Duration};
 
 #[path = "status_trend_codex_db.rs"]
 mod codex;
-#[path = "status_trend_stamp.rs"]
-mod stamp;
+use super::status_trend_stamp as stamp;
 
 pub(super) struct TrendSqlite;
 

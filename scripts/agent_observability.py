@@ -200,6 +200,27 @@ def _trend_run_sources(state_dir: Path) -> Iterable[tuple | list]:
 
 
 def _collect_runs(projects: list[Path]) -> list[dict[str, Any]]:
+    collected = []
+    for project in projects:
+        state = project_state_dir_target(project)
+        result = (NativeProbe.request("--completion-probe", "status-trend-metadata", {"state_dir": str(state)})
+                  if NativeProbe.available() else None)
+        rows = result.get("runs") if result is not None else None
+        if type(rows) is list and all(
+            type(row) is dict and all(type(row.get(key)) is str for key in (
+                "run_id", "work_id", "runtime", "session_id", "spill_run_id", "stamped_model",
+                "stamped_effort", "route", "state", "same_work_mode", "started_at", "settled_at",
+            )) and all(type(row.get(key)) is int for key in (
+                "resume_generation", "required_docs_count", "reused_gate_count",
+            )) for row in rows
+        ):
+            collected.extend(rows)
+        else:
+            collected.extend(_collect_runs_reference([project]))
+    return collected
+
+
+def _collect_runs_reference(projects: list[Path]) -> list[dict[str, Any]]:
     import hashlib
 
     collected: list[dict[str, Any]] = []
@@ -344,6 +365,39 @@ def _load_spill_events(spill_db: Path, spill_run_ids: set[str]) -> dict[str, lis
 
 
 def _bind_run_metrics(
+    runs: list[dict[str, Any]], spill_events: dict[str, list[tuple[str, str, float, int, int]]],
+    codex_threads: dict[str, tuple[str, str]], *, month: str
+) -> list[dict[str, Any]]:
+    if runs and NativeProbe.available():
+        sessions, spills, projected, events, threads = {}, {}, [], {}, {}
+        for index, run in enumerate(runs):
+            session, spill = run["session_id"], run["spill_run_id"]
+            session_key = sessions.setdefault(session, str(len(sessions))) if session else ""
+            spill_key = spills.setdefault(spill, str(len(spills))) if spill else ""
+            projected.append({key: run.get(key, "") for key in (
+                "runtime", "started_at", "settled_at", "stamped_model", "stamped_effort",
+            )} | {"index": index, "session_id": session_key, "spill_run_id": spill_key})
+            if spill_key not in events and spill in spill_events:
+                events[spill_key] = spill_events[spill]
+            if session in codex_threads:
+                threads[session_key] = codex_threads[session]
+        result = NativeProbe.request("--completion-probe", "status-trend-binding", {
+            "runs": projected, "spill_events": events, "codex_threads": threads, "month": month,
+        })
+        fields = ("model", "reasoning_effort", "period_bucket", "turns", "weighted_tokens",
+                  "raw_tokens", "reasoning_tokens")
+        if result is not None and type(result.get("runs")) is list:
+            rows = result["runs"]
+            expected = {index for index, run in enumerate(runs) if run["started_at"].startswith(month)}
+            if (len(rows) == len(expected)
+                    and all(type(row) is dict and type(row.get("index")) is int
+                            and all(key in row for key in fields) for row in rows)
+                    and {row["index"] for row in rows} == expected):
+                return [runs[row["index"]] | {key: row[key] for key in fields} for row in rows]
+    return _bind_run_metrics_reference(runs, spill_events, codex_threads, month=month)
+
+
+def _bind_run_metrics_reference(
     runs: list[dict[str, Any]], spill_events: dict[str, list[tuple[str, str, float, int, int]]],
     codex_threads: dict[str, tuple[str, str]], *, month: str
 ) -> list[dict[str, Any]]:

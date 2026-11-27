@@ -186,6 +186,10 @@ class AgentObservabilityTests(unittest.TestCase):
                 "agent_observability._trend_report_reference", side_effect=AssertionError("native report declined"),
             ), patch(
                 "agent_observability._trend_run_sources_reference", side_effect=AssertionError("native run files declined"),
+            ), patch(
+                "agent_observability._collect_runs_reference", side_effect=AssertionError("native run metadata declined"),
+            ), patch(
+                "agent_observability._bind_run_metrics_reference", side_effect=AssertionError("native run binding declined"),
             ):
                 native = efficiency_trend_snapshot(discovered, spill_db=spill_db, codex_db=codex_db, month="2026-10")
             self.assertEqual({**report, "captured_at": native["captured_at"]}, native)
@@ -345,12 +349,14 @@ class AgentObservabilityTests(unittest.TestCase):
             ), patch.object(NativeProbe, "request", wraps=NativeProbe.request) as transport:
                 native = _bind_run_metrics(runs, events, {}, month="2026-10")
             self.assertEqual(reference, native)
-            session, = transport.call_args.args[2]["sessions"]
+            projected = transport.call_args.args[2]["runs"]
+            allowed = {"runtime", "session_id", "spill_run_id", "started_at", "settled_at",
+                       "stamped_model", "stamped_effort", "index"}
+            self.assertTrue(all(set(row) <= allowed for row in projected))
             self.assertEqual(
                 [(stamp("01"), stamp("02")), (stamp("05"), stamp("10")), (stamp("08"), stamp("09"))],
-                session["runs"],
+                [(row["started_at"], row["settled_at"]) for row in projected],
             )
-            self.assertEqual({"runs", "events"}, set(session))
 
 
 if __name__ == "__main__":
