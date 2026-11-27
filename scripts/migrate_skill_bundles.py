@@ -106,6 +106,15 @@ def _render_reference(relative, skill_relative, reference_relative, text, keep_s
 
 
 def rewrite_links(text: str, old_path: Path, new_path: Path) -> str:
+    result = NativeProbe.request("--completion-probe", "skill-bundle-links", {
+        "root": str(ROOT), "old_path": str(old_path), "new_path": str(new_path), "text": text,
+    })
+    if result is not None and type(result.get("text")) is str:
+        return result["text"]
+    return _rewrite_links_reference(text, old_path, new_path)
+
+
+def _rewrite_links_reference(text: str, old_path: Path, new_path: Path) -> str:
     old_parent = old_path.parent
     new_parent = new_path.parent
 

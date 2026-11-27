@@ -36,7 +36,7 @@ class SkillBundleMigrationTests(unittest.TestCase):
                 env = {**environment(base), "MORU_LAUNCHER_BACKEND": backend, "PATH": ""}
                 with patch.object(migration, "ROOT", root), patch.dict(os.environ, env, clear=True), ExitStack() as guards:
                     if backend == "auto":
-                        for name in ("_source_docs_reference", "_render_reference"):
+                        for name in ("_source_docs_reference", "_render_reference", "_rewrite_links_reference"):
                             guards.enter_context(patch.object(migration, name, side_effect=AssertionError(name)))
                     sources = migration.source_docs()
                     self.assertEqual(selected, [path.relative_to(root).as_posix() for path in sources])
@@ -49,6 +49,32 @@ class SkillBundleMigrationTests(unittest.TestCase):
             self.assertEqual(snapshots[0], snapshots[1])
             self.assertEqual(b"# Keep\n\n[asset](../../../../asset.txt#anchor)\n",
                              snapshots[1][Path("common/skills/alpha/references/current-guidance.md")])
+
+    def test_native_link_rewrite_preserves_regex_matches_and_unresolved_targets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory).resolve()
+            prepare(base)
+            root = base / "fixture"
+            source = root / "common/card.md"
+            target = root / "common/skills/card/references/current-guidance.md"
+            target.parent.mkdir(parents=True)
+            source.touch()
+            (root / "common/peer.md").touch()
+            (root / "한 글.txt").touch()
+            text = ("[peer](peer.md#one#two) ![two\nlines]( <../한 글.txt>#절 )\n"
+                    "[missing](absent.md#tag) [fragment](#same) [url](X+git://host/link#tag) "
+                    "[empty]() and `[inline](peer.md)`\n")
+            with patch.object(migration, "ROOT", root):
+                expected = migration._rewrite_links_reference(text, source, target)
+                with patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True), patch.object(
+                    migration, "_rewrite_links_reference", side_effect=AssertionError("Python rewrote links"),
+                ):
+                    actual = migration.rewrite_links(text, source, target)
+            self.assertEqual(expected, actual)
+            self.assertIn("[peer](../../peer/references/current-guidance.md#one#two)", actual)
+            self.assertIn("![two\nlines](../../../../한 글.txt#절)", actual)
+            self.assertIn("[missing](absent.md#tag) [fragment](#same) [url](X+git://host/link#tag)", actual)
+            self.assertIn("[empty]() and `[inline](../../peer/references/current-guidance.md)`", actual)
 
     def test_compact_entrypoint_keeps_detailed_rules_and_relative_links(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -635,7 +635,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Rust discovers ordinary flat source documents and renders skill entrypoints and optional stubs. Python retains link rewriting, migration writes and the CLI; platform and installed acceptance remain open.",
+      "remaining": "Rust discovers ordinary flat source documents and renders skill entrypoints and optional stubs. Rust also relocates ordinary Markdown links. Python retains exceptional link resolution, migration writes and the CLI; platform and installed acceptance remain open.",
       "verification": {}
     },
     {
