@@ -72,8 +72,8 @@ The latest native extensions add no new timing claim; earlier measurements remai
 The ancillary manifest checker and offline Figma validator engines add
 implementation coverage for units 36–37 and 40. The native session aggregation
 used by the overhead reporter adds partial supporting coverage for unit 46.
-The ledger records native implementation coverage for 48 of 64 units. Forty-seven
-are partial and one needs revalidation. Another 15 are planned and one has an
+The ledger records native implementation coverage for 49 of 64 units. Forty-eight
+are partial and one needs revalidation. Another 14 are planned and one has an
 unresolved external ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -219,7 +219,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 42 | `scripts/lessons-compact.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
 | 43 | `scripts/live_device.py` | Direct CLI | Python retained | Owned protocol boundary; port with fake-device tests before any live effects |
 | 44 | `scripts/marketing-optimizer.py` | Direct CLI | Python retained | Domain/research tooling; no new model or service calls for this inventory |
-| 45 | `scripts/migrate_skill_bundles.py` | Direct CLI | Python retained | Low-frequency maintenance/setup; explicit effect authorization remains required |
+| 45 | `scripts/migrate_skill_bundles.py` | Direct CLI | Partial native | Rust discovers ordinary flat documents and renders entrypoints and optional stubs. Python owns link rewriting and migration writes. |
 | 46 | `scripts/moru_overhead_report.py` | `overhead-report`; direct Python compatibility CLI | Native ordinary stdout CLI, ordered JSON/Markdown files, regular-file aliases, ISO calendar/week timestamps, project globs, and lossless statistics including infinite timings | Python traceback and exceptional stdio, remaining statistics and text gaps, and direct Python removal remain owned scope |
 | 47 | `scripts/mutation-check.py` | `mutation-check` and direct CLI | Partial native | The alias parses ordinary arguments and runs the mutation and restoration cycle in Rust; Python runs the requested unittest and handles compatibility |
 | 48 | `scripts/path_claims.py` | Direct CLI | Partial native | Rust selects matching live-web check records from a bounded read-only log tail; Python retains claim and edit state operations |

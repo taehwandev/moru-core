@@ -15,6 +15,7 @@ import os
 import re
 from pathlib import Path
 
+from support.native_probe_transport import NativeProbe
 from workflow_skill_paths import canonical_doc_path, guidance_reference_path
 
 
@@ -45,6 +46,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def source_docs() -> list[Path]:
+    result = NativeProbe.request("--completion-probe", "skill-bundle-sources", {"root": str(ROOT)})
+    if result is not None and type(result.get("sources")) is list:
+        sources = result["sources"]
+        if all(type(name) is str and name.endswith(".md") and "\0" not in name
+               and all(part not in ("", ".", "..", "skills") for part in name.split("/"))
+               and is_migrated_source(name) for name in sources):
+            return [ROOT / name for name in sources]
+    return _source_docs_reference()
+
+
+def _source_docs_reference() -> list[Path]:
     docs: list[Path] = []
     docs.extend(sorted((ROOT / "common").glob("*.md")))
     docs.extend(path for path in sorted((ROOT / "workflows").glob("*.md")) if path.name != "README.md")
@@ -72,12 +84,25 @@ def migrate_doc(source: Path, *, keep_stub: bool = False) -> None:
         original_text = current_text
         reference.write_text(rewrite_links(original_text, source, reference), encoding="utf-8")
 
-    title = extract_title(original_text, source.stem)
-    skill.write_text(skill_text(skill_relative, title), encoding="utf-8")
+    rendered = NativeProbe.request("--completion-probe", "skill-bundle-render", {
+        "source": relative, "skill": skill_relative, "reference": reference_relative,
+        "text": original_text, "keep_stub": keep_stub,
+    })
+    stub_type = str if keep_stub else type(None)
+    if (rendered is None or set(rendered) != {"skill", "stub"}
+            or type(rendered["skill"]) is not str or type(rendered["stub"]) is not stub_type):
+        rendered = _render_reference(relative, skill_relative, reference_relative, original_text, keep_stub)
+    skill.write_text(rendered["skill"], encoding="utf-8")
     if keep_stub:
-        source.write_text(stub_text(relative, skill_relative, reference_relative, title), encoding="utf-8")
+        source.write_text(rendered["stub"], encoding="utf-8")
     else:
         source.unlink()
+
+
+def _render_reference(relative, skill_relative, reference_relative, text, keep_stub):
+    title = extract_title(text, Path(relative).stem)
+    return {"skill": skill_text(skill_relative, title),
+            "stub": stub_text(relative, skill_relative, reference_relative, title) if keep_stub else None}
 
 
 def rewrite_links(text: str, old_path: Path, new_path: Path) -> str:

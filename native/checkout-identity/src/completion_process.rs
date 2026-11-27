@@ -34,6 +34,10 @@ mod hq_report_run_id;
 mod hq_report_assembly;
 #[path = "hq_report_encoding.rs"]
 mod hq_report_encoding;
+#[path = "skill_bundle_render.rs"]
+mod skill_bundle_render;
+#[path = "skill_bundle_sources.rs"]
+mod skill_bundle_sources;
 #[path = "capsule_artifact.rs"]
 mod capsule_artifact;
 #[path = "capsule_binding.rs"]
@@ -363,6 +367,8 @@ impl CompletionProcess {
             Some("hq-report-run-id") => hq_report_run_id::HqReportRunId::resolve(&payload),
             Some("hq-finish-assemble") => hq_report_assembly::assemble(&payload, false),
             Some("hq-decision-assemble") => hq_report_assembly::assemble(&payload, true),
+            Some("skill-bundle-render") => skill_bundle_render::render(&payload),
+            Some("skill-bundle-sources") => skill_bundle_sources::discover(&payload),
             Some("hq-report-encode") => hq_report_encoding::encode(&payload),
             Some("loop-budget") => loop_budget::LoopBudget::decide(&payload),
             Some("loop-verdict") => loop_verdict::LoopVerdict::decide(&payload),

@@ -633,9 +633,9 @@
       "id": "scripts/migrate_skill_bundles.py",
       "inventory_id": 45,
       "kind": "ancillary",
-      "status": "planned",
+      "status": "partial_native",
       "entry_aliases": "Direct CLI",
-      "remaining": "Port the owned CLI and supporting flow; retain exact arguments, outputs, failures and effect boundaries.",
+      "remaining": "Rust discovers ordinary flat source documents and renders skill entrypoints and optional stubs. Python retains link rewriting, migration writes and the CLI; platform and installed acceptance remain open.",
       "verification": {}
     },
     {
