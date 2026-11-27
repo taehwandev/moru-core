@@ -6,6 +6,9 @@ use super::target::Target;
 use crate::python_json::{Object, PythonJson, Value};
 use sha1::{Digest, Sha1};
 
+#[path = "figma_asset_ancestry.rs"]
+mod ancestry;
+
 const SIGNATURE: &[&str] = &[
     "type",
     "name",
@@ -113,11 +116,22 @@ pub(super) fn summarize(text: &str) -> Option<serde_json::Value> {
         return None;
     }
     let input = PythonJson::parse(text)?;
+    let (nodes, provenance) = match &input {
+        Value::Array(nodes) => (nodes, None),
+        Value::Object(fields) if fields.len() == 3 => (
+            fields.get("nodes")?.as_array()?,
+            Some((fields.get("documents")?, fields.get("component_labels")?)),
+        ),
+        _ => return None,
+    };
     let mut output = Vec::new();
-    for node in input.as_array()? {
+    for node in nodes {
         if let Some(row) = candidate(node)? {
             output.push(row)
         }
+    }
+    if let Some((documents, labels)) = provenance {
+        ancestry::enrich(&mut output, documents, labels)?;
     }
     let encoded = PythonJson::render(&Value::Array(output), false, false)?;
     Some(serde_json::json!({"assets_json":encoded}))

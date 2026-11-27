@@ -224,6 +224,32 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_native_asset_fallback_uses_first_owner_and_counts_screen_hops(self):
+        import figma_summary
+
+        icon = {"id": "1-8", "name": "Vector 1", "type": "VECTOR"}
+        orphan = {"type": "VECTOR", "name": "no id"}
+        inner = {"id": "1:4", "name": "inner", "componentId": "9-2",
+                 "children": [{"children": [icon]}]}
+        screen = {"id": "1:3", "name": "screen", "children": [inner]}
+        outer = {"id": "1:2", "name": "outer", "componentId": "9-1", "children": [screen]}
+        top = {"id": "1:1", "name": "top", "children": [outer]}
+        second = {"id": "2:1", "name": "later screen", "componentId": "9-3", "children": [dict(icon)]}
+        documents = {"0:1": {"id": "0:1", "children": [top]}, "1:3": screen, "2:1": second}
+        labels = {"9:1": "outer component", "9:3": "later component"}
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path)}, clear=True), patch.object(
+                figma_summary, "_asset_candidates_with_fallback_reference", side_effect=AssertionError("Python ancestry")), \
+                patch.object(subprocess, "run", wraps=subprocess.run) as child:
+            results = figma_summary._asset_candidates_with_fallback([icon, orphan], documents, labels)
+        child.assert_called_once()
+        self.assertEqual("figma-asset-candidates", child.call_args.args[0][-1])
+        self.assertEqual(["1:8", ""], [row["id"] for row in results])
+        self.assertEqual([{"id": "1:4", "name": "inner"}, {"id": "1:2", "name": "outer"}],
+                         results[0]["renderFallbackIds"])
+        self.assertNotIn("nearestComponentName", results[0])
+        self.assertNotIn("renderFallbackIds", results[1])
+        self.assertNotIn("nearestComponentName", results[1])
+
     def test_native_asset_hashes_and_inventory_representative_order(self):
         import figma_asset_analysis as assets
 

@@ -16,8 +16,8 @@ _SIGNATURE_FIELDS = (
 )
 
 
-def _native_assets(operation: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
-    receipt = _probe(operation, rows, __file__)
+def _native_assets(operation: str, payload: Any) -> list[dict[str, Any]] | None:
+    receipt = _probe(operation, payload, __file__)
     if type(receipt) is not dict or set(receipt) != {"assets_json"} or type(receipt["assets_json"]) is not str:
         return None
     try:
@@ -110,13 +110,24 @@ def _build_asset_inventory_reference(candidates: list[dict[str, Any]]) -> list[d
 
 
 def _summarize_asset_candidates(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    if type(nodes) is list and nodes and len(nodes) <= 32000 and all(type(node) is dict for node in nodes):
-        fields = ("id", "exportSettings", *_SIGNATURE_FIELDS)
-        projected = [{key: node[key] for key in fields if key in node} for node in nodes]
-        assets = _native_assets("figma-asset-candidates", projected)
-        if assets is not None:
-            return assets
-    return _summarize_asset_candidates_reference(nodes)
+    assets = _native_asset_candidates(nodes)
+    return _summarize_asset_candidates_reference(nodes) if assets is None else assets
+
+
+def _native_asset_candidates(
+    nodes: list[dict[str, Any]],
+    *,
+    documents: dict[str, dict[str, Any]] | None = None,
+    component_labels: dict[str, str] | None = None,
+) -> list[dict[str, Any]] | None:
+    if type(nodes) is not list or not nodes or len(nodes) > 32000 or any(type(node) is not dict for node in nodes):
+        return None
+    fields = ("id", "exportSettings", *_SIGNATURE_FIELDS)
+    projected = [{key: node[key] for key in fields if key in node} for node in nodes]
+    payload = projected if documents is None else {
+        "nodes": projected, "documents": documents, "component_labels": component_labels or {},
+    }
+    return _native_assets("figma-asset-candidates", payload)
 
 
 def _summarize_asset_candidates_reference(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:

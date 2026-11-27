@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from figma_asset_analysis import AssetAnalysis
+from figma_asset_analysis import AssetAnalysis, _native_asset_candidates
 from figma_color_analysis import ColorAnalysis
 from figma_component_analysis import ComponentAnalysis
 from figma_interaction_analysis import summarize_flow_interactions
@@ -133,6 +133,18 @@ def build_summary(
 
 
 def _asset_candidates_with_fallback(
+    all_nodes: list[dict[str, Any]],
+    node_documents: dict[str, dict[str, Any]],
+    component_labels: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    if type(node_documents) is dict:
+        native = _native_asset_candidates(all_nodes, documents=node_documents, component_labels=component_labels)
+        if native is not None:
+            return native
+    return _asset_candidates_with_fallback_reference(all_nodes, node_documents, component_labels)
+
+
+def _asset_candidates_with_fallback_reference(
     all_nodes: list[dict[str, Any]],
     node_documents: dict[str, dict[str, Any]],
     component_labels: dict[str, str] | None = None,
