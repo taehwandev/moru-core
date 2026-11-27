@@ -154,6 +154,53 @@ class NativeFigmaValidate(unittest.TestCase):
                 with self.subTest(reply=malformed), patch.object(schema, "_probe", return_value=malformed):
                     self.assertEqual(["meta.fileKey missing"], schema.validate_summary(summary))
 
+    def test_large_plain_summaries_use_actual_schema_and_smoke_probes(self):
+        import figma_summary_validate as schema
+        import live_smoke
+
+        real_run = subprocess.run
+        calls = []
+
+        def observe(argv, **kwargs):
+            calls.append((argv[-1], len(kwargs["input"])))
+            return real_run(argv, **kwargs)
+
+        for size in (45_000, 600 * 1024):
+            with self.subTest(size=size), patch.dict(os.environ, self.env, clear=True), patch.object(
+                schema, "_validate_summary_reference", side_effect=AssertionError("unexpected Python fallback")
+            ), patch.object(subprocess, "run", side_effect=observe):
+                summary = _valid_summary()
+                summary["extra"] = "a" * size
+                calls.clear()
+                self.assertEqual([], schema.validate_summary(summary))
+                self.assertEqual([], live_smoke._native_analysis(summary)["problems"])
+                self.assertEqual(["figma-summary-schema", "figma-smoke-analysis"], [name for name, _ in calls])
+                self.assertTrue(all(size < wire_size <= 1024 * 1024 for _, wire_size in calls))
+
+    def test_escaped_wire_overflow_and_custom_values_decline_before_process(self):
+        import figma_summary_validate as schema
+        import live_smoke
+
+        class OpaqueDict(dict):
+            def forbidden(self, *args):
+                raise AssertionError("custom object protocol was invoked")
+
+            __iter__ = __len__ = __bool__ = __repr__ = __str__ = items = forbidden
+
+        escaped = "\\" * 285_000
+        text = json.dumps({"extra": escaped})
+        self.assertLess(len(text), 1024 * 1024)
+        self.assertGreater(len(json.dumps({"text": text})), 1024 * 1024)
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+            subprocess, "run", side_effect=AssertionError("declined input was transmitted")
+        ):
+            for value in (escaped, OpaqueDict()):
+                summary = _valid_summary()
+                summary["extra"] = value
+                self.assertEqual([], schema.validate_summary(summary))
+                self.assertIsNone(live_smoke._native_analysis(summary))
+                self.assertIs(value, summary["extra"])
+
     def test_hidden_node_leaks_and_inventory_disagreement(self):
         base = _valid_v4_summary()
         variants = [base]

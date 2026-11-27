@@ -6,6 +6,7 @@ native transport. Forbidden: writes, network and Figma provider operations.
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import math
 import os
@@ -14,46 +15,63 @@ import sys
 
 
 def _summary_text(summary):
-    # Bound both traversal (including cycles and shared subtrees) and temporary
-    # encoding space before json.dumps. Unsupported Python objects stay local.
+    # ensure_ascii makes each output character exactly one transport byte.
+    limit = 1024 * 1024
+    output = io.StringIO()
     visits_left = 32000
-    chars_left = 512 * 1024
 
-    def admitted(value, depth):
-        nonlocal visits_left, chars_left
+    def append(text):
+        if output.tell() + len(text) > limit:
+            return False
+        output.write(text)
+        return True
+
+    def write_string(value):
+        # Even an unescaped string needs two quotes. Encode in fixed chunks so
+        # an escape-heavy input cannot allocate its full expansion before rejection.
+        if len(value) + 2 > limit - output.tell():
+            return False
+        output.write('"')
+        for start in range(0, len(value), 4096):
+            escaped = json.dumps(value[start:start + 4096], ensure_ascii=True)
+            if not append(escaped[1:-1]):
+                return False
+        return append('"')
+
+    def write(value, depth):
+        nonlocal visits_left
         visits_left -= 1
-        if depth > 48 or visits_left < 0 or chars_left <= 0:
+        if depth > 48 or visits_left < 0:
             return False
         kind = type(value)
         if kind is str:
-            chars_left -= 12 * len(value) + 3  # worst case: a UTF-16 escape pair
-        elif value is None or kind is bool or kind is float:
+            return write_string(value)
+        if value is None or kind is bool or kind is float or kind is int:
             if kind is float and not math.isfinite(value):
                 return False
-            chars_left -= 32
-        elif kind is int:
-            bits = value.bit_length()
-            if bits > 1024:
+            if kind is int and value.bit_length() > 1024:
                 return False
-            chars_left -= bits + 3
-        elif kind is list or kind is dict:
-            chars_left -= 2 + len(value)
-            if chars_left < 0 or len(value) > visits_left:
-                return False
-            if kind is list:
-                return all(admitted(item, depth + 1) for item in value)
-            return all(type(key) is str and admitted(key, depth + 1) and admitted(item, depth + 1)
-                       for key, item in value.items())
-        else:
+            return append(json.dumps(value, allow_nan=False))
+        if kind is not list and kind is not dict:
             return False
-        return chars_left >= 0
+        if len(value) > visits_left or not append("[" if kind is list else "{"):
+            return False
+        entries = value.items() if kind is dict else value
+        for index, item in enumerate(entries):
+            if index and not append(","):
+                return False
+            if kind is dict:
+                key, item = item
+                if type(key) is not str or not write(key, depth + 1) or not append(":"):
+                    return False
+            if not write(item, depth + 1):
+                return False
+        return append("]" if kind is list else "}")
 
     try:
-        if admitted(summary, 0):
-            return json.dumps(summary, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
-    except (ValueError, RuntimeError, TypeError):
-        pass
-    return None
+        return output.getvalue() if write(summary, 0) else None
+    except (ValueError, RuntimeError, TypeError, KeyError):
+        return None
 
 
 def request(operation, value, source_file):
