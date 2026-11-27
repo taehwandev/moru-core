@@ -26,7 +26,6 @@ from support.runtime_quota import (
     remaining_summary,
 )
 from support.statusline import color_enabled, model_segment, render, shorten_path
-from support.moru_run_state import open_run, work_segment
 
 # The palette deliberately has no green entry, so the tests name the code
 # they must never find rather than importing one that does not exist.
@@ -234,97 +233,6 @@ class WorkingPathTests(unittest.TestCase):
         ):
             with self.subTest(payload=payload):
                 self.assertEqual(expected, _line(payload))
-
-    def test_the_run_reported_is_the_one_where_work_is_happening(self) -> None:
-        # The other half of the pair: the session may have started elsewhere,
-        # but the open run lives where commands are actually running.
-        with tempfile.TemporaryDirectory() as tmp:
-            project = _project(Path(tmp))
-            _open_run(project, command="task", evidence_name="statusline.json")
-            _ledger(project, evidence_name="statusline.json", gates=["a"], recorded=["a"])
-
-            segment = work_segment({
-                "workspace": {"project_dir": "/started/here", "current_dir": str(project)},
-            })
-
-            self.assertEqual("task 1/1", segment)
-
-
-class CurrentWorkTests(unittest.TestCase):
-    def test_the_open_run_is_named_with_how_far_it_has_to_go(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            project = _project(Path(tmp))
-            _open_run(project, command="task", evidence_name="statusline.json")
-            _ledger(project, evidence_name="statusline.json",
-                    gates=["a", "b", "c", "d"], recorded=["a", "b"])
-
-            self.assertEqual("task 2/4", work_segment({"cwd": str(project)}))
-
-    def test_a_project_with_no_open_run_says_nothing(self) -> None:
-        # A line that names something on every draw stops being read for the
-        # draws where it names something real.
-        with tempfile.TemporaryDirectory() as tmp:
-            project = _project(Path(tmp))
-            (project / ".moru" / "run-registry.json").write_text(
-                json.dumps({"runs": [{"command": "task", "state": "completed"}]}),
-                encoding="utf-8",
-            )
-
-            self.assertEqual("", work_segment({"cwd": str(project)}))
-
-    def test_a_ledger_belonging_to_another_run_is_not_counted(self) -> None:
-        # `.moru/gate-evidence.json` is tracked, so a fresh worktree starts life
-        # holding a finished run's ledger. Without the binding check a new run
-        # would report that run's progress as its own.
-        with tempfile.TemporaryDirectory() as tmp:
-            project = _project(Path(tmp))
-            _open_run(project, command="task", evidence_name="mine.json")
-            (project / ".moru" / "evidence" / "mine-gate-evidence.json").write_text(
-                json.dumps({
-                    "preflight_evidence": str(project / ".moru" / "evidence" / "other.json"),
-                    "entries": [{"gate": g, "status": "SUCCESS"} for g in "abcdefg"],
-                }),
-                encoding="utf-8",
-            )
-
-            self.assertEqual("task", work_segment({"cwd": str(project)}))
-
-    def test_only_recorded_gates_count_toward_the_route(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            project = _project(Path(tmp))
-            _open_run(project, command="task", evidence_name="statusline.json")
-            evidence = project / ".moru" / "evidence" / "statusline.json"
-            evidence.write_text(json.dumps({"route": {"gates": ["a", "b"]}}), encoding="utf-8")
-            (project / ".moru" / "evidence" / "statusline-gate-evidence.json").write_text(
-                json.dumps({
-                    "preflight_evidence": str(evidence),
-                    "entries": [
-                        {"gate": "a", "status": "SUCCESS"},
-                        {"gate": "b", "status": "FAIL"},
-                        {"gate": "not on this route", "status": "SUCCESS"},
-                    ],
-                }),
-                encoding="utf-8",
-            )
-
-            self.assertEqual("task 1/2", work_segment({"cwd": str(project)}))
-
-    def test_a_directory_inside_the_project_still_finds_it(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            project = _project(Path(tmp))
-            _open_run(project, command="task", evidence_name="statusline.json")
-            _ledger(project, evidence_name="statusline.json", gates=["a"], recorded=["a"])
-            inside = project / "src" / "deep"
-            inside.mkdir(parents=True)
-
-            self.assertEqual("task 1/1", work_segment({"cwd": str(inside)}))
-
-    def test_an_unreadable_registry_leaves_the_line_short(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            project = _project(Path(tmp))
-            (project / ".moru" / "run-registry.json").write_text("{ not json", encoding="utf-8")
-
-            self.assertIsNone(open_run(project))
 
 
 class ColorTests(unittest.TestCase):

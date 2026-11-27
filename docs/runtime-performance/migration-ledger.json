@@ -1258,7 +1258,6 @@
     "scripts/support/managed_agent_files.py",
     "scripts/support/marketing_bot_lane.py",
     "scripts/support/marketing_catalog.py",
-    "scripts/support/moru_run_state.py",
     "scripts/support/native_bundle.py",
     "scripts/support/native_card_write.py",
     "scripts/support/native_cards.py",
@@ -1346,7 +1345,11 @@
   "external_python_sources": [
     "scripts/third_party/wikimap/wikimap.py"
   ],
-  "retired_python_sources": {},
+  "retired_python_sources": {
+    "scripts/support/moru_run_state.py": {
+      "caller_proof": "Commit 124015fa removed the open-run segment from the shared Claude and AGY renderer. Only obsolete helper tests still imported it. Public whole-line tests retain an active run and ledger fixture and verify model, location and quota output."
+    }
+  },
   "supported_platforms": [
     "macos-arm64",
     "linux-x86_64"

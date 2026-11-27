@@ -144,33 +144,21 @@ normal lifecycle.
 
 ## Status Line
 
-Setup also installs a managed `statusLine` entry, so where this session lives,
-the runtime's own remaining quota, and the run currently open stay on screen
-without a wrapper launcher. The runtime hands the status-line command the
-session as JSON, and that JSON already carries `rate_limits`, so the renderer
-subtracts what each window has used and draws what is left, as a block gauge
-beside the number; the open run is read from the project's run registry and its
-bound gate ledger. Neither number is asked for over the network and nothing is
-written.
+Setup installs a managed `statusLine` entry. Claude and AGY use the shared
+renderer in `scripts/support/statusline.py`. It reads the session payload and
+displays the model, the starting directory and the remaining quota in that
+order. Each quota gauge uses the corresponding window in `rate_limits`.
 
 ```
-5h █████▎░░  65%  │  7d ███████▌  94%  │  ~/git/moru-core/…/gauge  │  task 14/20
+Opus 5 · ~/git/moru-core/…/gauge · 5h ██▊░░░░░  35% · 7d ███████▌  94%
 ```
-
-Both runtimes render this from `scripts/support/statusline.py`, which composes
-the line, and `scripts/support/moru_run_state.py`, which reads whether a run is
-open; each runtime keeps only an entry point saying how it is invoked. They were copies once, and the copy is
-how a defect travelled -- a status word outside the installer's vocabulary was
-written in one and inherited by the other -- so a segment added twice is a
-mistake the shape now prevents.
 
 The path names the directory the session **started** in, not the one it is
 currently in. The runtime reports both (`workspace.project_dir` and
 `workspace.current_dir`), and the difference is what makes the segment worth
 reading: a label that moved under you answers a question nobody asked, while a
 fixed one lets you recognise at a glance which checkout this window belongs to.
-The open run is still found from the current directory, because that is where
-the run lives. Home folds to `~`, and past `PATH_LIMIT` the middle segments give
+Home folds to `~`, and past `PATH_LIMIT` the middle segments give
 way to `…` -- every task worktree sits under the same `.moru/worktrees`, so that
 is the part carrying no information. The leaf is never truncated; a half-written
 worktree name is worse than a long one.
@@ -183,10 +171,8 @@ still draws. Its width is fixed and the percentage is padded, because the line
 is redrawn constantly and a segment that changes width moves everything after
 it.
 
-Colour marks the quota by how much is left -- cyan, then yellow below
-`CAUTION_REMAINING_PERCENT`, then bold red below `LOW_REMAINING_PERCENT` -- and
-dims the path and the run so the number that says when to stop is the one seen
-first. Three rules keep it honest. It is written as the terminal's own palette
+The path is blue. The quota is cyan, yellow below `CAUTION_REMAINING_PERCENT`,
+and bold red below `LOW_REMAINING_PERCENT`. The renderer uses the terminal's palette
 indices rather than exact values, so a theme adjusted for colour vision applies
 its adjustment instead of being overridden. The ramp avoids green, because green
 and red are the pair most often collapsed, and its three entries differ in
