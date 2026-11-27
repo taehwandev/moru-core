@@ -21,6 +21,7 @@ SCRIPT_ALIASES = {
     "project-discover": "project-discover.py",
     "setup-agent-hooks": "setup-agent-hooks.py",
     "agent-os-status": "agent-os-status.py",
+    "agent-hq-report": "agent_hq_report.py",
     "agent-os-watchdog": "agent-os-watchdog.py",
     "agent-os-maintenance": "agent-os-maintenance.py",
     "agent-mailbox": "agent-mailbox.py",
@@ -124,6 +125,10 @@ def main():
         )
 
     os.environ.setdefault("MORU_HOME", str(root))
+    if script_alias == "agent-hq-report":
+        # This process is the selected fallback. Its report helpers must not
+        # retry the native command or its component writes.
+        os.environ["MORU_LAUNCHER_BACKEND"] = "python"
     if script_alias == "codex-statusline-setup":
         sys.path.insert(0, str(root / "scripts"))
     main_options = {"display_python": "python3"} if script_alias == "mutation-check" else {}

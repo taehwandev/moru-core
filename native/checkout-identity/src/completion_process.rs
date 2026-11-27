@@ -22,6 +22,8 @@ use std::{
     os::fd::AsFd,
 };
 
+#[path = "hq_decision_ingress.rs"]
+pub(crate) mod hq_decision_ingress;
 #[path = "hq_decision_cli.rs"]
 mod hq_decision_cli;
 #[path = "hq_report_replace.rs"]

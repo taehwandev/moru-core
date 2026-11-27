@@ -36,7 +36,7 @@ task in the same checkout; the agent still supplies `--reuse-inputs` only when
 toolchain and external inputs match. Project, rules and input bytes must still
 match for a gate to carry. When such a worker finds a contradiction in the
 shared contract or requirements, it stops instead of building on a guess:
-`python3 <MORU_ROOT>/scripts/agent_hq_report.py decision --project <ABS> --question "..." --evidence "..." --option "..."`
+`<MORU_LAUNCHER> agent-hq-report decision --project <ABS> --question "..." --evidence "..." --option "..."`
 writes one bounded `decision_needed` report for the operator, then the run
 checkpoints the blocker and ends.
 

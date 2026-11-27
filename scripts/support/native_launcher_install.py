@@ -80,7 +80,7 @@ case "${MORU_LAUNCHER_BACKEND:-auto}" in
     auto|rust)
         if [ "${MORU_LAUNCHER_BACKEND:-auto}" = auto ]; then
             case "${1-}" in
-                checkout-identity|claude-statusline|agy-statusline|next|agent-os-status|project-discover|work-cards|agent-mailbox) ;;
+                checkout-identity|claude-statusline|agy-statusline|next|agent-os-status|agent-hq-report|project-discover|work-cards|agent-mailbox) ;;
                 check-android-skill-manifest|check-react-rn-skill-manifest|figma-validate|behavior-eval|experience-eval|overhead-report|pending-publication|runs-prune|mutation-check) ;;
                 claude-pretool-gate|codex-pretool-gate|mailbox-hook|claude-stop-gate|codex-stop-gate) ;;
                 execution-capsule|lessons-compact|smoke-checks|microsoft-decision|codex-statusline-setup) ;;

@@ -918,8 +918,8 @@
       "inventory_id": 64,
       "kind": "ancillary",
       "status": "partial_native",
-      "entry_aliases": "Direct HQ decision CLI",
-      "remaining": "Rust assembles and encodes ordinary finish and decision reports, including field precedence and bounded option removal. Rust selects ordinary HQ run IDs and atomically replaces validated reports beneath the project. The direct script forwards ordinary decision invocations to one native operation for argument handling, timestamping, report construction and delivery. Python startup, exceptional CLI profiles and compatibility for library callers remain. Portable and installed acceptance remain open.",
+      "entry_aliases": "agent-hq-report; direct decision CLI",
+      "remaining": "Rust assembles and encodes ordinary finish and decision reports, including field precedence and bounded option removal. Rust selects ordinary HQ run IDs and atomically replaces validated reports beneath the project. The direct script forwards ordinary decision invocations to one native operation for argument handling, timestamping, report construction and delivery. The generated launcher handles ordinary decision commands without Python. Exceptional CLI profiles and compatibility for library callers remain. Portable and installed acceptance remain open.",
       "verification": {}
     }
   ],

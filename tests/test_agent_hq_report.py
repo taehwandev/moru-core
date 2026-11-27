@@ -26,6 +26,59 @@ from support.native_probe_transport import NativeProbe
 
 
 class AgentHqReportTests(unittest.TestCase):
+    def test_generated_hq_alias_native_decision_and_source_guard(self) -> None:
+        from benchmark_native_sha import capture
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            source = base / "source"
+            capture(source)
+            entry, project = prepare(base, source)
+            empty = base / "empty-path"
+            empty.mkdir()
+            report = project / ".moru/hq/reports/alias-run.json"
+            args = ["decision", "--project", str(project), "--question", "어떤 옵션?", "--option", "첫째"]
+
+            def run(arguments, **overrides):
+                env = {**environment(base, source), "MORU_HQ_RUN_ID": "alias-run", **overrides}
+                return subprocess.run([str(entry), "agent-hq-report", *arguments], env=env, cwd=project,
+                                      capture_output=True, timeout=12)
+
+            reference = run(args, MORU_LAUNCHER_BACKEND="python", MORU_HQ_RUN_ID="")
+            denied = run(args, PATH=str(empty), MORU_HQ_RUN_ID="")
+            self.assertEqual(2, denied.returncode)
+            self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                             (denied.returncode, denied.stdout, denied.stderr))
+            self.assertFalse(report.parent.exists())
+
+            malformed = [*args, "--unexpected"]
+            reference = run(malformed, MORU_LAUNCHER_BACKEND="python")
+            actual = run(malformed)
+            self.assertEqual(2, actual.returncode)
+            self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                             (actual.returncode, actual.stdout, actual.stderr))
+            self.assertEqual(127, run(malformed, PATH=str(empty)).returncode)
+            self.assertFalse(report.parent.exists())
+
+            reference = run(args, MORU_LAUNCHER_BACKEND="python")
+            self.assertEqual((0, b""), (reference.returncode, reference.stderr))
+            expected = report.read_bytes()
+            report.unlink()
+            actual = run(args, PATH=str(empty))
+            self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                             (actual.returncode, actual.stdout, actual.stderr))
+            observed = report.read_bytes()
+            before, after = (json.loads(raw)["finishedAt"] for raw in (expected, observed))
+            self.assertIs(type(after), int)
+            self.assertEqual(expected.replace(str(before).encode(), str(after).encode()), observed)
+            report.unlink()
+
+            with (source / "scripts/agent_hq_report.py").open("ab") as stream:
+                stream.write(b"\n# source no longer matches the launcher\n")
+            stale = run(args, PATH=str(empty))
+            self.assertEqual((127, b""), (stale.returncode, stale.stdout))
+            self.assertEqual([], list(report.parent.iterdir()))
+
     def test_direct_decision_cli_native_selection_fallback_and_lost_reply(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp).resolve()
