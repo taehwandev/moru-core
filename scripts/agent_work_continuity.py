@@ -18,9 +18,16 @@ from typing import Any
 
 from agent_gate_evidence import gate_evidence_path_for_preflight, resync_gate_evidence_ledger
 from agent_gate_reuse import GateEvidenceReuse
+from agent_hq_report import hq_run_id_from_env
 from agent_hook_runtime import write_json
 from agent_runtime_session import runtime_session, same_runtime_session
 from support.global_state import project_state_dir_target
+
+
+# An HQ follow-up attempt runs in a fresh runtime session, so the agent cannot
+# name the earlier run; the dispatcher's task binding selects it instead.
+_NO_HQ_ATTEMPT = ("--reuse-inputs not used: no earlier attempt of this HQ task "
+                  "in this checkout; started as new work")
 
 
 class WorkContinuity:
@@ -33,6 +40,8 @@ class WorkContinuity:
         self.prior: dict[str, Any] = {}
         self.source: Path | None = None
         self.dropped = ""
+        if not self.source_id and hq_run_id_from_env():
+            self.source_id, self.dropped, self.reason = _hq_link(args, hq_run_id_from_env(), self.reason)
         if not self.source_id:
             if self.reason:
                 raise ValueError("--reuse-inputs requires --continue-from")
@@ -74,9 +83,9 @@ class WorkContinuity:
         # A resumed source records its resume generation beside the session;
         # it is still this session's work, so compare the session, not the dict.
         session = runtime_session()
-        if (not same_runtime_session(
+        if ((not (hq_run_id_from_env() and self.prior.get("hq_run_id") == hq_run_id_from_env()) and not same_runtime_session(
                     self.prior.get("runtime_session"), session,
-                    resume_generation=int(records[0].get("resume_generation") or 0))
+                    resume_generation=int(records[0].get("resume_generation") or 0)))
                 or self.prior.get("project") != str(args.project.resolve())
                 or self.prior.get("agent_run_id") != self.source_id
                 or records[0].get("evidence_name", "preflight.json") != "preflight.json"):
@@ -139,6 +148,35 @@ class WorkContinuity:
         if not isinstance(result, dict):
             raise ValueError("invalid continuation evidence")
         return result
+
+
+def _hq_link(args: Any, hq_run_id: str, reason: str) -> tuple[str, str, str]:
+    """Select the earlier attempt of this HQ task as the continuation source."""
+    source_id = args.continue_from = _latest_hq_attempt(args.project.resolve(), hq_run_id)
+    if not source_id and reason:
+        return "", _NO_HQ_ATTEMPT, ""
+    return source_id, "", reason
+
+
+def _latest_hq_attempt(project: Path, hq_run_id: str) -> str:
+    """Newest retained run in this checkout bound to the same HQ task, or ''."""
+    state = project_state_dir_target(project)
+    try:
+        registry = WorkContinuity._read(state / "run-registry.json")
+    except (OSError, ValueError):
+        return ""
+    runs = [run for run in registry.get("runs", []) if isinstance(run, dict)
+            and re.fullmatch(r"[0-9a-f]{32}", str(run.get("run_id") or ""))
+            and run.get("state") in {"completed", "paused", "blocked", "interrupted", "failed"}
+            and run.get("evidence_name", "preflight.json") == "preflight.json"]
+    for run in sorted(runs, key=lambda item: str(item.get("started_at") or ""), reverse=True):
+        try:
+            prior = WorkContinuity._read(state / "runs" / run["run_id"] / "preflight.json")
+        except (OSError, ValueError):
+            continue
+        if prior.get("hq_run_id") == hq_run_id and prior.get("project") == str(project):
+            return run["run_id"]
+    return ""
 
 
 def _nearest_record(project: Path, source_id: str, work_id: str, gate: str) -> str:

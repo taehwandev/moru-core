@@ -3,7 +3,9 @@
 Owner: Moru Core to Moru HQ finish-report bridge.
 Allowed imports: standard library only.
 Forbidden imports: lifecycle gates, workflow validators, provider runtimes.
-Callers/tests: scripts/agent-finish-check.py; tests/test_agent_hq_report.py.
+Callers/tests: scripts/agent-finish-check.py, scripts/agent-preflight.py,
+scripts/agent_work_continuity.py, scripts/agent_gate_reuse.py and the
+`decision` CLI below; tests/test_agent_hq_report.py.
 Verification: unit tests in tests/test_agent_hq_report.py.
 """
 
@@ -23,6 +25,8 @@ SCHEMA_VERSION = 1
 MAX_REPORT_BYTES = 500
 _SAFE_RUN_ID_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$")
 _PRIMARY_SHRINK_FIELDS = ("evidence", "result", "decisionNeeded")
+MAX_DECISION_OPTIONS = 3
+MAX_OPTION_CHARS = 60
 _FALLBACK_SHRINK_FIELDS = ("operatorLabel", "taskId", "projectId")
 
 
@@ -32,6 +36,12 @@ def _one_line(value: Any) -> str:
 
 def _is_safe_run_id(run_id: str) -> bool:
     return bool(run_id and ".." not in run_id and _SAFE_RUN_ID_RE.fullmatch(run_id))
+
+
+def hq_run_id_from_env(environ: Mapping[str, str] | None = None) -> str:
+    """The HQ task id the dispatcher bound to this process, or ''."""
+    value = _one_line((os.environ if environ is None else environ).get("MORU_HQ_RUN_ID"))
+    return value if _is_safe_run_id(value) else ""
 
 
 def _resolve_hq_run_id(preflight: Mapping[str, Any], environ: Mapping[str, str]) -> str | None:
@@ -178,6 +188,52 @@ def emit_hq_finish_report(
     return target
 
 
+def emit_hq_decision_report(
+    *,
+    project: Path,
+    question: str,
+    evidence: str,
+    options: list[str],
+    result: str = "",
+    env: Mapping[str, str] | None = None,
+) -> Path | None:
+    """Write a `decision_needed` report when a worker stops on a contradiction.
+
+    The worker stops instead of building on a guessed premise; the operator
+    answers once. Returns None outside an HQ-dispatched process.
+    """
+
+    environ = os.environ if env is None else env
+    run_id = hq_run_id_from_env(environ)
+    question = _one_line(question)
+    if not run_id or not question:
+        return None
+    choices = [_one_line(option)[:MAX_OPTION_CHARS] for option in options if _one_line(option)]
+    payload: dict[str, Any] = {
+        "schema": SCHEMA_VERSION,
+        "runId": run_id,
+        "projectId": _one_line(environ.get("MORU_HQ_PROJECT_ID")) or project.resolve().name,
+        "taskId": _one_line(environ.get("MORU_HQ_TASK_ID")) or run_id,
+        "operatorLabel": _one_line(environ.get("MORU_HQ_OPERATOR_LABEL")) or "moru-core",
+        "status": "decision_needed",
+        "result": _one_line(result) or "stopped before building on a contradiction",
+        "evidence": _one_line(evidence) or "contradiction found",
+        "decisionNeeded": question,
+        "decisionOptions": choices[:MAX_DECISION_OPTIONS],
+        "finishedAt": int(time.time() * 1000),
+    }
+    encoded = _bound_payload(payload, MAX_REPORT_BYTES)
+    while len(encoded) > MAX_REPORT_BYTES and payload["decisionOptions"]:
+        payload["decisionOptions"].pop()
+        encoded = _bound_payload(payload, MAX_REPORT_BYTES)
+    if len(encoded) > MAX_REPORT_BYTES:
+        return None
+    reports_dir = project / ".moru" / "hq" / "reports"
+    target = reports_dir / f"{run_id}.json"
+    _atomic_write_bytes(target, encoded)
+    return target
+
+
 def emit_hq_report_for_finish(
     project: Path,
     preflight: dict[str, Any],
@@ -202,3 +258,38 @@ def emit_hq_report_for_finish(
     if report_path is not None:
         print(f"HQ finish report: {report_path}")
     return report_path
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Report an HQ decision the worker cannot make.")
+    sub = parser.add_subparsers(dest="action", required=True)
+    decision = sub.add_parser("decision", help="stop on a contradiction and ask the operator once")
+    decision.add_argument("--project", required=True, type=Path)
+    decision.add_argument("--question", required=True)
+    decision.add_argument("--evidence", default="")
+    decision.add_argument("--result", default="")
+    decision.add_argument("--option", action="append", default=[])
+    args = parser.parse_args(argv)
+    project = args.project.resolve()
+    if not project.is_dir():
+        print("decision report refused: --project is not a directory", file=sys.stderr)
+        return 2
+    try:
+        path = emit_hq_decision_report(project=project, question=args.question, evidence=args.evidence,
+                                       options=args.option, result=args.result)
+    except OSError as error:
+        print(f"decision report failed: {error}", file=sys.stderr)
+        return 1
+    if path is None:
+        print("not an HQ-dispatched run (MORU_HQ_RUN_ID unset or invalid) or empty question; "
+              "record the blocker in the Moru checkpoint and ask the user instead", file=sys.stderr)
+        return 2
+    print(f"HQ decision report: {path}")
+    print("Now checkpoint the Moru run with this blocker and end the turn; do not continue building.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
