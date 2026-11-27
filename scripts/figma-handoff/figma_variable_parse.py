@@ -1,13 +1,31 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
+from figma_native_probe import request as _probe
 from figma_util import _color_dict_to_hex
 
 __all__ = ["parse_variables"]
 
 
 def parse_variables(variables: dict[str, Any]) -> dict[str, Any]:
+    if type(variables) is dict and variables:
+        receipt = _probe("figma-variables", variables, __file__)
+        if type(receipt) is dict and set(receipt) == {"variables_json"} and type(receipt["variables_json"]) is str:
+            try:
+                parsed = json.loads(receipt["variables_json"])
+            except (ValueError, RecursionError):
+                pass
+            else:
+                if (type(parsed) is dict and list(parsed) == ["collections", "variables"]
+                        and all(type(rows) is list and all(type(row) is dict for row in rows)
+                                for rows in parsed.values())):
+                    return parsed
+    return _parse_variables_reference(variables)
+
+
+def _parse_variables_reference(variables: dict[str, Any]) -> dict[str, Any]:
     meta = variables.get("meta", {})
     collections: list[dict[str, Any]] = []
     raw_collections = meta.get("variableCollections", {})

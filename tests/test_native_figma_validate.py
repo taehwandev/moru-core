@@ -224,6 +224,53 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
+    def test_variable_alias_modes_and_cycles_through_native(self):
+        import figma_variable_parse as parser
+
+        def alias(key):
+            return {"type": "VARIABLE_ALIAS", "id": key}
+
+        def variable(key, modes, collection="C", kind="COLOR"):
+            return {"id": key, "name": key, "variableCollectionId": collection,
+                    "resolvedType": kind, "valuesByMode": modes}
+
+        red = {"r": 1, "g": 0, "b": 0, "a": 0.5}
+        green = {"r": 0, "g": 1, "b": 0}
+        rows = [variable("기본", {"shared": alias("paint"), "other": alias("paint"),
+                                "first": alias("unordered"), "missing": alias("absent")}),
+                variable("paint", {"z": {"r": 0, "g": 0, "b": 1}, "normal": green, "shared": red}),
+                variable("unordered", {"z": red, "a": green}, collection="unset"),
+                variable("left", {"m": alias("right")}), variable("right", {"m": alias("left")}),
+                variable("number", {"m": 10**40}, kind="FLOAT")]
+        payload = {"meta": {"variableCollections": {"C": {"id": "C", "name": "팔레트", "defaultModeId": "normal"}},
+                            "variables": {row["id"]: row for row in rows}}}
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            expected = parser.parse_variables(payload)
+        with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path)}, clear=True), patch.object(
+                parser, "_parse_variables_reference", side_effect=AssertionError("Python variable fallback")), \
+                patch.object(subprocess, "run", wraps=subprocess.run) as child:
+            actual = parser.parse_variables(payload)
+        child.assert_called_once()
+        self.assertEqual("figma-variables", child.call_args.args[0][-1])
+        self.assertEqual(json.dumps(expected, ensure_ascii=False), json.dumps(actual, ensure_ascii=False))
+        variables = {row["id"]: row["valuesByMode"] for row in actual["variables"]}
+        modes = variables["기본"]
+        self.assertEqual(["#FF000080", "#00FF00", "#FF000080"], [modes[k]["resolvedHex"] for k in ("shared", "other", "first")])
+        self.assertEqual("팔레트/paint", modes["shared"]["aliasName"])
+        self.assertEqual({"alias": "absent", "aliasId": "absent", "aliasName": "absent"}, modes["missing"])
+        self.assertNotIn("resolvedHex", variables["left"]["m"])
+        self.assertEqual("팔레트/left", variables["right"]["m"]["aliasName"])
+        self.assertEqual(10**40, variables["number"]["m"])
+
+        raw = {"aliasId": "paint"}
+        passthrough = variable("custom", {"shared": raw}, kind="FLOAT")
+        with patch.dict(os.environ, self.env, clear=True), patch.object(
+                parser, "_parse_variables_reference", wraps=parser._parse_variables_reference) as reference:
+            parser.parse_variables({"meta": {**payload["meta"], "variables": {"custom": passthrough, "paint": rows[1]}}})
+        reference.assert_called_once()
+        self.assertEqual("팔레트/paint", raw["aliasName"])
+        self.assertEqual("#FF000080", raw["resolvedHex"])
+
     def test_prototype_interaction_action_order_and_duration_through_native(self):
         import figma_interaction_analysis as analysis
 

@@ -27,6 +27,8 @@ mod bundle_manifest;
 mod target;
 #[path = "figma_prototype_interactions.rs"]
 mod prototype_interactions;
+#[path = "figma_variables.rs"]
+mod variables;
 #[path = "figma_plan.rs"]
 mod plan;
 mod direct_profile {
@@ -71,6 +73,10 @@ impl FigmaProcess {
         root: &Path,
     ) -> Option<serde_json::Value> {
         Self::receipt(prototype_interactions::summarize(Self::bound_input(request, root, "text")?)?)
+    }
+
+    pub(crate) fn variables(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(variables::parse(Self::bound_input(request, root, "text")?)?)
     }
 
     fn bound_input<'a>(
