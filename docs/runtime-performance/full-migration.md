@@ -10,7 +10,8 @@ type: ai-generated
 
 On 2026-11-06 the user explicitly requested a Goal covering all remaining
 migration work. The [execution inventory](../native-runtime-migration.md)
-currently contains 64 units: 31 primary entry boundaries and 33 ancillary CLIs.
+currently contains 65 units: 31 primary entry boundaries and 34 ancillary CLIs.
+Unit 65 covers the subsequently added app worker CLI.
 Exact main-guard checks found owners absent from the 56-row
 snapshot; they are appended as 57–64 without changing existing IDs or excluding
 their already-owned Python responsibilities.

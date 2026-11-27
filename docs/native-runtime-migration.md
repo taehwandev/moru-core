@@ -6,8 +6,8 @@ type: ai-generated
 
 # Native runtime migration inventory
 
-Track **64 execution units**: **31 primary runtime units plus 33 ancillary
-direct CLIs**. Preserve the original 56 row IDs. The exact current main-guard
+Track **65 execution units**: **31 primary runtime units plus 34 ancillary
+direct CLIs**. Preserve the original 56 row IDs. Unit 65 tracks the app worker CLI added after the original inventory. The exact current main-guard
 coverage check found additional owned entrypoints, now appended as 57–64;
 their Python sources were already included in the full migration Goal.
 At baseline
@@ -72,8 +72,8 @@ The latest native extensions add no new timing claim; earlier measurements remai
 The ancillary manifest checker and offline Figma validator engines add
 implementation coverage for units 36–37 and 40. The native session aggregation
 used by the overhead reporter adds partial supporting coverage for unit 46.
-The ledger records native implementation coverage for 49 of 64 units. Forty-eight
-are partial and one needs revalidation. Another 14 are planned and one has an
+The ledger records native implementation coverage for 49 of 65 units. Forty-eight
+are partial and one needs revalidation. Another 15 are planned and one has an
 unresolved external ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -239,6 +239,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 62 | `scripts/workflow_dispatch_guardian.py` | Private native guardian/gate; direct Python compatibility worker | Partial native | Gated exec, durable receipts, EOF/group cleanup and no replay; bootstrap/raw/direct/installed acceptance remain open |
 | 63 | `scripts/agent_review_packet.py` | Direct CLI | Partial native | Rust reads admitted descriptors, decodes and hashes captured Git blobs, packs the packet, and exclusively creates explicit ordinary outputs. Python owns disclosure, Git commands, source selection and compatibility |
 | 64 | `scripts/agent_hq_report.py` | `agent-hq-report` and direct `decision` CLI | Partial native | Rust assembles ordinary finish and decision reports from selected fields, trims decision options to fit, and encodes the result. Rust selects ordinary HQ run IDs and atomically replaces validated reports. The generated launcher runs ordinary decisions entirely in Rust. The direct Python entry also delegates to Rust. Python handles unsupported inputs. |
+| 65 | `scripts/agent_app_worker.py` | Direct available/start/stop CLI | Python retained | Discover the app helper and manage the requested visible worker session. |
 
 ## Delivery order
 

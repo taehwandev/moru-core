@@ -74,7 +74,8 @@
       56,
       57,
       58,
-      63
+      63,
+      65
     ],
     "external_boundary": [
       53
@@ -921,9 +922,19 @@
       "entry_aliases": "agent-hq-report; direct decision CLI",
       "remaining": "Rust assembles and encodes ordinary finish and decision reports, including field precedence and bounded option removal. Rust selects ordinary HQ run IDs and atomically replaces validated reports beneath the project. The direct script forwards ordinary decision invocations to one native operation for argument handling, timestamping, report construction and delivery. The generated launcher handles ordinary decision commands without Python. Exceptional CLI profiles and compatibility for library callers remain. Portable and installed acceptance remain open.",
       "verification": {}
+    },
+    {
+      "id": "scripts/agent_app_worker.py",
+      "inventory_id": 65,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct available/start/stop CLI",
+      "remaining": "Port helper discovery, arguments, bounded app session start/stop and error handling. Verify with a synthetic app helper and complete platform and installed acceptance.",
+      "verification": {}
     }
   ],
   "unmigrated_python_sources": [
+    "scripts/agent_app_worker.py",
     "scripts/support/native_memory_context.py",
     "scripts/agent_behavior_eval.py",
     "scripts/agent_behavior_trace.py",
